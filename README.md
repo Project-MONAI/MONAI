@@ -8,15 +8,17 @@ _This document identifies key concepts of project MONAI at a high level, the goa
 
 
 1. Vision
-*   Develop a community of academic, industrial and clinical researchers collaborating and working on a common foundation of standardized tools.
-*   Create a state-of-the-art, end-to-end training toolkit for healthcare imaging.
-*   Provide academic and industrial researchers with the optimized and standardized way to create and evaluate models
+   *   Develop a community of academic, industrial and clinical researchers collaborating and working on a common foundation of standardized tools.
+   *   Create a state-of-the-art, end-to-end training toolkit for healthcare imaging.
+   *   Provide academic and industrial researchers with the optimized and standardized way to create and evaluate models
+
 2. Targeted users
-*   Primarily focused on the healthcare researchers who develop DL models for medical imaging
+   *   Primarily focused on the healthcare researchers who develop DL models for medical imaging
+
 3. Goals
-*   Deliver domain-specific workflow capabilities 
-*   Address the end-end “Pain points” when creating medical imaging deep learning workflows.
-*   Provide a robust foundation with a performance optimized system software stack that allows researchers to focus on the research and not worry about software development principles.
+   *   Deliver domain-specific workflow capabilities 
+   *   Address the end-end “Pain points” when creating medical imaging deep learning workflows.
+   *   Provide a robust foundation with a performance optimized system software stack that allows researchers to focus on the research and not worry about software development principles.
 
 4. Guiding principles
    1. Modularity
@@ -43,6 +45,7 @@ _This document identifies key concepts of project MONAI at a high level, the goa
        *   Rigorous risk analysis of choice of foundational software dependencies
    7. Compatible with external software
        *   E.g. data visualisation, experiments tracking, management, orchestration
+
 5. Key capabilities
 
 <table>
@@ -239,7 +242,6 @@ _This document identifies key concepts of project MONAI at a high level, the goa
    </td>
   </tr>
 </table>
-
 
 
 
