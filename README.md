@@ -242,6 +242,3 @@ This document identifies key concepts of project MONAI at a high level, the goal
   </tr>
 </table>
 
-
-
-##   Project licensing: Apache License, Version 2.0
