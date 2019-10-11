@@ -2,9 +2,9 @@
 
 _AI Toolkit for Healthcare Imaging_
 
-_Contact:monai.miccai2019@gmail.com_
+_Contact: monai.miccai2019@gmail.com_
 
-_This document identifies key concepts of project MONAI at a high level, the goal is to facilitate further technical discussions of requirements,roadmap, feasibility and trade-offs._
+This document identifies key concepts of project MONAI at a high level, the goal is to facilitate further technical discussions of requirements,roadmap, feasibility and trade-offs.
 
 
 # Vision
