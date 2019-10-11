@@ -1,5 +1,5 @@
 # Project MONAI
-**M**edical **O**pen **N**etwork for **AI** - _AI Toolkit for Healthcare Imaging_
+**M**edical **O**pen **N**etwork for **AI** - _Toolkit for Healthcare Imaging_
 
 _Contact: <monai.miccai2019@gmail.com>_
 
