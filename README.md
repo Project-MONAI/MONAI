@@ -1,69 +1,49 @@
-<!----- Conversion time: 2.089 seconds.
-
-
-Using this Markdown file:
-
-1. Cut and paste this output into your source file.
-2. See the notes and action items below regarding this conversion run.
-3. Check the rendered output (headings, lists, code blocks, tables) for proper
-   formatting and use a linkchecker before you publish this page.
-
-Conversion notes:
-
-* Docs to Markdown version 1.0β17
-* Fri Oct 11 2019 09:47:55 GMT-0700 (PDT)
-* Source doc: https://docs.google.com/a/nvidia.com/open?id=1J5txBS-UBJeUFnFC1ZjydC4jYCB_JKlzPBjkOK76qhU
------>
-
-
-**Project MONAI (M**edical** O**pen** N**etwork** **for** AI)**
+**Project MONAI** (**M**edical **O**pen **N**etwork for **AI**)
 
 _AI Toolkit for Healthcare Imaging_
 
 _Contact:monai.miccai2019@gmail.com_
 
-_This document identifies key concepts of project MONAI at a high level, the goal is to facilitate further technical discussions of requirements,roadmap, feasibility and trade-offs._ \
+_This document identifies key concepts of project MONAI at a high level, the goal is to facilitate further technical discussions of requirements,roadmap, feasibility and trade-offs._
 
 
-
-
-1. **Vision**
+1. Vision
 *   Develop a community of academic, industrial and clinical researchers collaborating and working on a common foundation of standardized tools.
 *   Create a state-of-the-art, end-to-end training toolkit for healthcare imaging.
 *   Provide academic and industrial researchers with the optimized and standardized way to create and evaluate models
-2. **Targeted users**
+2. Targeted users
 *   Primarily focused on the healthcare researchers who develop DL models for medical imaging
-3. **Goals**
+3. Goals
 *   Deliver domain-specific workflow capabilities 
 *   Address the end-end “Pain points” when creating medical imaging deep learning workflows.
-*   Provide a robust foundation with a performance optimized system software stack that allows researchers to focus on the research and not worry about software development principles. \
+*   Provide a robust foundation with a performance optimized system software stack that allows researchers to focus on the research and not worry about software development principles.
 
-4. **Guiding principles**
-1. Modularity
-    *   Pythonic -- object oriented components
-    *   Compositional -- can combine components to create workflows
-    *   Extensible -- easy to create new components and extend existing components
-    *   Easy to debug -- loosely coupled, easy to follow code (e.g. in eager or graph mode)
-    *   Flexible -- interfaces for easy integration of external modules
-2. User friendly
-    *   Portable -- use components/workflows via Python “import”
-    *   Run well-known baseline workflows in a few commands
-    *   Access to the well-known public datasets in a few lines of code
-3. Standardisation
-    *   Unified/consistent component APIs with documentation specifications
-    *   Unified/consistent data and model formats, compatible with other existing standards
-4. High quality
-    *   Consistent coding style - extensive documentation - tutorials - contributors’ guidelines
-    *   Reproducibility -- e.g. system-specific deterministic training
-5. Future proof
-    *   Task scalability -- both in datasets and computational resources
-    *   Support for advanced data structures -- e.g. graphs/structured text documents
-6. Leverage existing high-quality software packages whenever possible
-    *   E.g. low-level medical image format reader, image preprocessing with external packages
-    *   Rigorous risk analysis of choice of foundational software dependencies
-7. Compatible with external software
-    *   E.g. data visualisation, experiments tracking, management, orchestration
-5. **Key capabilities**
+4. Guiding principles
+   1. Modularity
+       *   Pythonic -- object oriented components
+       *   Compositional -- can combine components to create workflows
+       *   Extensible -- easy to create new components and extend existing components
+       *   Easy to debug -- loosely coupled, easy to follow code (e.g. in eager or graph mode)
+       *   Flexible -- interfaces for easy integration of external modules
+   2. User friendly
+       *   Portable -- use components/workflows via Python “import”
+       *   Run well-known baseline workflows in a few commands
+       *   Access to the well-known public datasets in a few lines of code
+   3. Standardisation
+       *   Unified/consistent component APIs with documentation specifications
+       *   Unified/consistent data and model formats, compatible with other existing standards
+   4. High quality
+       *   Consistent coding style - extensive documentation - tutorials - contributors’ guidelines
+       *   Reproducibility -- e.g. system-specific deterministic training
+   5. Future proof
+       *   Task scalability -- both in datasets and computational resources
+       *   Support for advanced data structures -- e.g. graphs/structured text documents
+   6. Leverage existing high-quality software packages whenever possible
+       *   E.g. low-level medical image format reader, image preprocessing with external packages
+       *   Rigorous risk analysis of choice of foundational software dependencies
+   7. Compatible with external software
+       *   E.g. data visualisation, experiments tracking, management, orchestration
+5. Key capabilities
 
 <table>
   <tr>
@@ -264,5 +244,3 @@ _This document identifies key concepts of project MONAI at a high level, the goa
 
 
 *   Project licensing: Apache License, Version 2.0
-
-<!-- Docs to Markdown version 1.0β17 -->
