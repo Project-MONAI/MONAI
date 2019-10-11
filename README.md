@@ -21,29 +21,29 @@ This document identifies key concepts of project MONAI at a high level, the goal
    *   Provide a robust foundation with a performance optimized system software stack that allows researchers to focus on the research and not worry about software development principles.
 
 # Guiding principles
-1. Modularity
+## Modularity
    *   Pythonic -- object oriented components
    *   Compositional -- can combine components to create workflows
    *   Extensible -- easy to create new components and extend existing components
    *   Easy to debug -- loosely coupled, easy to follow code (e.g. in eager or graph mode)
    *   Flexible -- interfaces for easy integration of external modules
-2. User friendly
+## User friendly
    *   Portable -- use components/workflows via Python “import”
    *   Run well-known baseline workflows in a few commands
    *   Access to the well-known public datasets in a few lines of code
-3. Standardisation
+## Standardisation
    *   Unified/consistent component APIs with documentation specifications
    *   Unified/consistent data and model formats, compatible with other existing standards
-4. High quality
+## High quality
    *   Consistent coding style - extensive documentation - tutorials - contributors’ guidelines
    *   Reproducibility -- e.g. system-specific deterministic training
-5. Future proof
+## Future proof
    *   Task scalability -- both in datasets and computational resources
    *   Support for advanced data structures -- e.g. graphs/structured text documents
-6. Leverage existing high-quality software packages whenever possible
+## Leverage existing high-quality software packages whenever possible
    *   E.g. low-level medical image format reader, image preprocessing with external packages
    *   Rigorous risk analysis of choice of foundational software dependencies
-7. Compatible with external software
+## Compatible with external software
    *   E.g. data visualisation, experiments tracking, management, orchestration
 
 # Key capabilities
