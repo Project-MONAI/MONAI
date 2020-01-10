@@ -1,0 +1,14 @@
+torch
+pytorch-ignite
+numpy
+pyyaml
+blinker
+click
+scipy
+jupyter
+matplotlib
+imageio
+pillow
+pandas
+coverage
+nibabel
