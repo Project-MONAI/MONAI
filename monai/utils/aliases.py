@@ -1,3 +1,14 @@
+# Copyright 2020 MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import threading
 import sys
 import inspect
@@ -25,8 +36,8 @@ def alias(*names):
 
 def resolve_name(name):
     """
-    Search for the declaration (function or class) with the given name. This will first search the list of aliases to 
-    see if it was declared with this aliased name, then search treating `name` as a fully qualified name, then search 
+    Search for the declaration (function or class) with the given name. This will first search the list of aliases to
+    see if it was declared with this aliased name, then search treating `name` as a fully qualified name, then search
     the loaded modules for one having a declaration with the given name. If no declaration is found, raise ValueError.
     """
     # attempt to resolve an alias
