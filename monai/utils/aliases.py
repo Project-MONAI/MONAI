@@ -15,7 +15,7 @@ import inspect
 import importlib
 
 
-AliasLock = threading.RLock()
+alias_lock = threading.RLock()
 GlobalAliases = {}
 
 
@@ -26,7 +26,7 @@ def alias(*names):
 
     def _outer(obj):
         for n in names:
-            with AliasLock:
+            with alias_lock:
                 GlobalAliases[n] = obj
 
         return obj
@@ -41,7 +41,7 @@ def resolve_name(name):
     the loaded modules for one having a declaration with the given name. If no declaration is found, raise ValueError.
     """
     # attempt to resolve an alias
-    with AliasLock:
+    with alias_lock:
         obj = GlobalAliases.get(name, None)
 
     assert name not in GlobalAliases or obj is not None
