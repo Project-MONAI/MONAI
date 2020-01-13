@@ -7,18 +7,8 @@ from monai.utils.convutils import same_padding
 
 class Convolution(nn.Sequential):
 
-    def __init__(self,
-                 dimensions,
-                 in_channels,
-                 out_channels,
-                 strides=1,
-                 kernel_size=3,
-                 instance_norm=True,
-                 dropout=0,
-                 dilation=1,
-                 bias=True,
-                 conv_only=False,
-                 is_transposed=False):
+    def __init__(self, dimensions, in_channels, out_channels, strides=1, kernel_size=3, instance_norm=True, dropout=0,
+                 dilation=1, bias=True, conv_only=False, is_transposed=False):
         super().__init__()
         self.dimensions = dimensions
         self.in_channels = in_channels
@@ -47,18 +37,8 @@ class Convolution(nn.Sequential):
 
 class ResidualUnit(nn.Module):
 
-    def __init__(self,
-                 dimensions,
-                 in_channels,
-                 out_channels,
-                 strides=1,
-                 kernel_size=3,
-                 subunits=2,
-                 instance_norm=True,
-                 dropout=0,
-                 dilation=1,
-                 bias=True,
-                 last_conv_only=False):
+    def __init__(self, dimensions, in_channels, out_channels, strides=1, kernel_size=3, subunits=2, instance_norm=True,
+                 dropout=0, dilation=1, bias=True, last_conv_only=False):
         super().__init__()
         self.dimensions = dimensions
         self.in_channels = in_channels
