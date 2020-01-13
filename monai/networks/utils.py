@@ -6,28 +6,28 @@ import torch
 import torch.nn as nn
 
 
-def oneHot(labels, numClasses):
+def one_hot(labels, num_classes):
     """
-    For a tensor `labels' of dimensions BC[D][H]W, return a tensor of dimensions BC[D][H]WN for `numClasses' N number of 
+    For a tensor `labels' of dimensions BC[D][H]W, return a tensor of dimensions BC[D][H]WN for `num_classes' N number of
     classes. For every value v = labels[b,c,h,w], the value in the result at [b,c,h,w,v] will be 1 and all others 0. 
     Note that this will include the background label, thus a binary mask should be treated as having 2 classes.
     """
-    onehotshape = tuple(labels.shape) + (numClasses,)
-    labels = labels % numClasses
-    y = torch.eye(numClasses, device=labels.device)
+    onehotshape = tuple(labels.shape) + (num_classes,)
+    labels = labels % num_classes
+    y = torch.eye(num_classes, device=labels.device)
     onehot = y[labels.view(-1).long()]
 
     return onehot.reshape(*onehotshape)
 
 
-def sliceChannels(tensor, *slicevals):
+def slice_channels(tensor, *slicevals):
     slices = [slice(None)] * len(tensor.shape)
     slices[1] = slice(*slicevals)
 
     return tensor[slices]
 
 
-def predictSegmentation(logits):
+def predict_segmentation(logits):
     """
     Given the logits from a network, computing the segmentation by thresholding all values above 0 if `logits' has one
     channel, or computing the argmax along the channel axis otherwise.
@@ -39,8 +39,8 @@ def predictSegmentation(logits):
         return logits.max(1)[1]  # take the index of the max value along dimension 1
 
 
-def getConvType(dim, isTranspose):
-    if isTranspose:
+def get_conv_type(dim, is_transpose):
+    if is_transpose:
         types = [nn.ConvTranspose1d, nn.ConvTranspose2d, nn.ConvTranspose3d]
     else:
         types = [nn.Conv1d, nn.Conv2d, nn.Conv3d]
@@ -48,16 +48,15 @@ def getConvType(dim, isTranspose):
     return types[dim - 1]
 
 
-def getDropoutType(dim):
+def get_dropout_type(dim):
     types = [nn.Dropout, nn.Dropout2d, nn.Dropout3d]
     return types[dim - 1]
 
 
-def getNormalizeType(dim, isInstance):
-    if isInstance:
+def get_normalize_type(dim, is_instance):
+    if is_instance:
         types = [nn.InstanceNorm1d, nn.InstanceNorm2d, nn.InstanceNorm3d]
     else:
         types = [nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d]
 
     return types[dim - 1]
-

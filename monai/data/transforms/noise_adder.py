@@ -14,4 +14,3 @@ class NoiseAdder(MultiFormatTransformer):
 
     def _handle_any(self, img):
         return img + self.noise
-

@@ -1,73 +1,95 @@
-import torch.nn as nn
 import numpy as np
+import torch.nn as nn
 
-from monai.utils.convutils import samePadding
-from monai.networks.utils import getConvType, getDropoutType, getNormalizeType
+from monai.networks.utils import (get_conv_type, get_dropout_type, get_normalize_type)
+from monai.utils.convutils import same_padding
 
 
 class Convolution(nn.Sequential):
-    def __init__(self, dimensions, inChannels, outChannels, strides=1, kernelSize=3, instanceNorm=True, 
-                 dropout=0, dilation=1, bias=True, convOnly=False, isTransposed=False):
+
+    def __init__(self,
+                 dimensions,
+                 in_channels,
+                 out_channels,
+                 strides=1,
+                 kernel_size=3,
+                 instance_norm=True,
+                 dropout=0,
+                 dilation=1,
+                 bias=True,
+                 conv_only=False,
+                 is_transposed=False):
         super().__init__()
         self.dimensions = dimensions
-        self.inChannels = inChannels
-        self.outChannels = outChannels
-        self.isTransposed = isTransposed
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.is_transposed = is_transposed
 
-        padding = samePadding(kernelSize, dilation)
-        normalizeType = getNormalizeType(dimensions, instanceNorm)
-        convType = getConvType(dimensions, isTransposed)
-        dropType = getDropoutType(dimensions)
+        padding = same_padding(kernel_size, dilation)
+        normalize_type = get_normalize_type(dimensions, instance_norm)
+        conv_type = get_conv_type(dimensions, is_transposed)
+        drop_type = get_dropout_type(dimensions)
 
-        if isTransposed:
-            conv = convType(inChannels, outChannels, kernelSize, strides, padding, strides - 1, 1, bias, dilation)
+        if is_transposed:
+            conv = conv_type(in_channels, out_channels, kernel_size, strides, padding, strides - 1, 1, bias, dilation)
         else:
-            conv = convType(inChannels, outChannels, kernelSize, strides, padding, dilation, bias=bias)
+            conv = conv_type(in_channels, out_channels, kernel_size, strides, padding, dilation, bias=bias)
 
         self.add_module("conv", conv)
 
-        if not convOnly:
-            self.add_module("norm", normalizeType(outChannels))
+        if not conv_only:
+            self.add_module("norm", normalize_type(out_channels))
             if dropout > 0:  # omitting Dropout2d appears faster than relying on it short-circuiting when dropout==0
-                self.add_module("dropout", dropType(dropout))
+                self.add_module("dropout", drop_type(dropout))
 
             self.add_module("prelu", nn.modules.PReLU())
 
 
 class ResidualUnit(nn.Module):
-    def __init__(self, dimensions, inChannels, outChannels, strides=1, kernelSize=3, subunits=2, instanceNorm=True, 
-                 dropout=0, dilation=1, bias=True, lastConvOnly=False):
+
+    def __init__(self,
+                 dimensions,
+                 in_channels,
+                 out_channels,
+                 strides=1,
+                 kernel_size=3,
+                 subunits=2,
+                 instance_norm=True,
+                 dropout=0,
+                 dilation=1,
+                 bias=True,
+                 last_conv_only=False):
         super().__init__()
         self.dimensions = dimensions
-        self.inChannels = inChannels
-        self.outChannels = outChannels
+        self.in_channels = in_channels
+        self.out_channels = out_channels
         self.conv = nn.Sequential()
         self.residual = nn.Identity()
 
-        padding = samePadding(kernelSize, dilation)
-        schannels = inChannels
+        padding = same_padding(kernel_size, dilation)
+        schannels = in_channels
         sstrides = strides
         subunits = max(1, subunits)
 
         for su in range(subunits):
-            convOnly = lastConvOnly and su == (subunits - 1)
-            unit = Convolution(dimensions, schannels, outChannels, sstrides, kernelSize, instanceNorm, dropout, 
-                               dilation, bias, convOnly)
+            conv_only = last_conv_only and su == (subunits - 1)
+            unit = Convolution(dimensions, schannels, out_channels, sstrides, kernel_size, instance_norm, dropout,
+                               dilation, bias, conv_only)
             self.conv.add_module("unit%i" % su, unit)
-            schannels = outChannels  # after first loop set channels and strides to what they should be for subsequent units
+            schannels = out_channels  # after first loop set channels and strides to what they should be for subsequent units
             sstrides = 1
 
         # apply convolution to input to change number of output channels and size to match that coming from self.conv
-        if np.prod(strides) != 1 or inChannels != outChannels:
-            rkernelSize = kernelSize
+        if np.prod(strides) != 1 or in_channels != out_channels:
+            rkernel_size = kernel_size
             rpadding = padding
 
             if np.prod(strides) == 1:  # if only adapting number of channels a 1x1 kernel is used with no padding
-                rkernelSize = 1
+                rkernel_size = 1
                 rpadding = 0
 
-            convType = getConvType(dimensions, False)
-            self.residual = convType(inChannels, outChannels, rkernelSize, strides, rpadding, bias=bias)
+            conv_type = get_conv_type(dimensions, False)
+            self.residual = conv_type(in_channels, out_channels, rkernel_size, strides, rpadding, bias=bias)
 
     def forward(self, x):
         res = self.residual(x)  # create the additive residual from x

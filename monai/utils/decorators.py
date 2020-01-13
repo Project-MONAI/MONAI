@@ -1,5 +1,6 @@
 import time
 from functools import wraps
+
 import monai
 
 export = monai.utils.export("monai.utils")
@@ -31,38 +32,38 @@ class RestartGenerator:
     used to create an iterator which can start iteration over the given generator multiple times.
     """
 
-    def __init__(self, createGen):
-        self.createGen = createGen
+    def __init__(self, create_gen):
+        self.create_gen = create_gen
 
     def __iter__(self):
-        return self.createGen()
+        return self.create_gen()
 
 
 @export
 class MethodReplacer(object):
     """
-    Base class for method decorators which can be used to replace methods pass to replaceMethod() with wrapped versions.
+    Base class for method decorators which can be used to replace methods pass to replace_method() with wrapped versions.
     """
 
-    replaceListName = "__replacemethods__"
+    replace_list_name = "__replacemethods__"
 
     def __init__(self, meth):
         self.meth = meth
 
-    def replaceMethod(self, meth):
+    def replace_method(self, meth):
         """Return a new method to replace `meth` in the instantiated object, or `meth` to do nothing."""
         return meth
 
     def __set_name__(self, owner, name):
         """
-        Add the (name,self.replaceMethod) pair to the list named by replaceListName in `owner`, creating the list and
+        Add the (name,self.replace_method) pair to the list named by replace_list_name in `owner`, creating the list and
         replacing the constructor of `owner` if necessary. The replaced constructor will call the old one then do the
-        replacing operation of substituting, for each (name,self.replaceMethod) pair, the named method with the returned
-        value from self.replaceMethod.
+        replacing operation of substituting, for each (name,self.replace_method) pair, the named method with the returned
+        value from self.replace_method.
         """
-        entry = (name, owner, self.replaceMethod)
+        entry = (name, owner, self.replace_method)
 
-        if not hasattr(owner, self.replaceListName):
+        if not hasattr(owner, self.replace_list_name):
             oldinit = owner.__init__
 
             # replace the constructor with a new one which calls the old then replaces methods
@@ -71,16 +72,16 @@ class MethodReplacer(object):
                 oldinit(_self, *args, **kwargs)
 
                 # replace each listed method of this newly constructed object
-                for m, owner, replacer in getattr(_self, self.replaceListName):
+                for m, owner, replacer in getattr(_self, self.replace_list_name):
                     if isinstance(_self, owner):
                         meth = getattr(_self, m)
                         newmeth = replacer(meth)
                         setattr(_self, m, newmeth)
 
             setattr(owner, "__init__", newinit)
-            setattr(owner, self.replaceListName, [entry])
+            setattr(owner, self.replace_list_name, [entry])
         else:
-            namelist = getattr(owner, self.replaceListName)
+            namelist = getattr(owner, self.replace_list_name)
 
             if not any(nl[0] == name for nl in namelist):
                 namelist.append(entry)

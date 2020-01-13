@@ -1,19 +1,18 @@
 import itertools
-import numpy as np
 
 
-def zipWith(op, *vals, mapfunc=map):
+def zip_with(op, *vals, mapfunc=map):
     """
     Map `op`, using `mapfunc`, to each tuple derived from zipping the iterables in `vals'.
     """
     return mapfunc(op, zip(*vals))
 
 
-def starZipWith(op, *vals):
+def star_zip_with(op, *vals):
     """
     Use starmap as the mapping function in zipWith.
     """
-    return zipWith(op, *vals, mapfunc=itertools.starmap)
+    return zip_with(op, *vals, mapfunc=itertools.starmap)
 
 
 def first(iterable, default=None):
@@ -25,7 +24,7 @@ def first(iterable, default=None):
     return default
 
 
-def ensureTuple(vals):
+def ensure_tuple(vals):
     if not isinstance(vals, (list, tuple)):
         vals = (vals,)
 

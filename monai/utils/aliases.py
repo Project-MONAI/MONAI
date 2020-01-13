@@ -4,8 +4,8 @@ import inspect
 import importlib
 
 
-aliasLock = threading.RLock()
-globalAliases = {}
+AliasLock = threading.RLock()
+GlobalAliases = {}
 
 
 def alias(*names):
@@ -15,25 +15,25 @@ def alias(*names):
 
     def _outer(obj):
         for n in names:
-            with aliasLock:
-                globalAliases[n] = obj
+            with AliasLock:
+                GlobalAliases[n] = obj
 
         return obj
 
     return _outer
 
 
-def resolveName(name):
+def resolve_name(name):
     """
     Search for the declaration (function or class) with the given name. This will first search the list of aliases to 
     see if it was declared with this aliased name, then search treating `name` as a fully qualified name, then search 
     the loaded modules for one having a declaration with the given name. If no declaration is found, raise ValueError.
     """
     # attempt to resolve an alias
-    with aliasLock:
-        obj = globalAliases.get(name, None)
+    with AliasLock:
+        obj = GlobalAliases.get(name, None)
 
-    assert name not in globalAliases or obj is not None
+    assert name not in GlobalAliases or obj is not None
 
     # attempt to resolve a qualified name
     if obj is None and "." in name:

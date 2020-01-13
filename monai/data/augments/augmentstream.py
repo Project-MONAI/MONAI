@@ -1,7 +1,8 @@
-
-from monai.data.streams.datastream import DataStream, BatchStream, OrderType
 from multiprocessing.pool import ThreadPool
+
 import numpy as np
+
+from monai.data.streams.datastream import BatchStream, DataStream, OrderType
 
 
 class AugmentStream(DataStream):
@@ -12,42 +13,42 @@ class AugmentStream(DataStream):
         self.augments = list(augments)
 
     def generate(self, val):
-        yield self.applyAugments(val)
+        yield self.apply_augments(val)
 
-    def applyAugments(self, arrays):
+    def apply_augments(self, arrays):
         """Applies augments to the data tuple `arrays` and returns the result."""
-        toTuple = isinstance(arrays, np.ndarray)
-        arrays = (arrays,) if toTuple else arrays
+        to_tuple = isinstance(arrays, np.ndarray)
+        arrays = (arrays,) if to_tuple else arrays
 
         for aug in self.augments:
             arrays = aug(*arrays)
 
-        return arrays[0] if toTuple else arrays
+        return arrays[0] if to_tuple else arrays
 
 
 class ThreadAugmentStream(BatchStream, AugmentStream):
     """
     Applies the given augmentations to each value from the source using multiple threads. Resulting batches are yielded
-    synchronously so the client must wait for the threads to complete. 
+    synchronously so the client must wait for the threads to complete.
     """
 
-    def __init__(self, src, batchSize, numThreads=None, augments=[], orderType=OrderType.LINEAR):
-        BatchStream.__init__(self, src, batchSize, False, orderType)
+    def __init__(self, src, batch_size, num_threads=None, augments=[], order_type=OrderType.LINEAR):
+        BatchStream.__init__(self, src, batch_size, False, order_type)
         AugmentStream.__init__(self, src, augments)
-        self.numThreads = numThreads
+        self.num_threads = num_threads
         self.pool = None
 
-    def _augmentThreadFunc(self, index, arrays):
-        self.buffer[index] = self.applyAugments(arrays)
+    def _augment_thread_func(self, index, arrays):
+        self.buffer[index] = self.apply_augments(arrays)
 
-    def applyAugmentsThreaded(self):
-        self.pool.starmap(self._augmentThreadFunc, enumerate(self.buffer))
+    def apply_augments_threaded(self):
+        self.pool.starmap(self._augment_thread_func, enumerate(self.buffer))
 
-    def bufferFull(self):
-        self.applyAugmentsThreaded()
-        super().bufferFull()
+    def buffer_full(self):
+        self.apply_augments_threaded()
+        super().buffer_full()
 
     def __iter__(self):
-        with ThreadPool(self.numThreads) as self.pool:
-            for srcVal in super().__iter__():
-                yield srcVal
+        with ThreadPool(self.num_threads) as self.pool:
+            for src_val in super().__iter__():
+                yield src_val
