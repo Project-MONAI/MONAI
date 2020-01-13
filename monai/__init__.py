@@ -1,4 +1,3 @@
-
 # Copyright 2020 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -10,10 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+import sys
 
-import os, sys
-from .utils.moduleutils import loadSubmodules
-
+from .utils.moduleutils import load_submodules, loadSubmodules
 
 __copyright__ = "(c) 2020 MONAI Consortium"
 __version__tuple__ = (0, 0, 1)
@@ -21,6 +20,5 @@ __version__ = "%i.%i.%i" % (__version__tuple__)
 
 __basedir__ = os.path.dirname(__file__)
 
-
-loadSubmodules(sys.modules[__name__], False)  # load directory modules only, skip loading individual files
-loadSubmodules(sys.modules[__name__], True)  # load all modules, this will trigger all export decorations
+load_submodules(sys.modules[__name__], False)  # load directory modules only, skip loading individual files
+load_submodules(sys.modules[__name__], True)  # load all modules, this will trigger all export decorations

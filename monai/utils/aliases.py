@@ -1,4 +1,3 @@
-
 # Copyright 2020 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -10,15 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import threading
 import sys
 import inspect
 import importlib
 
 
-aliasLock = threading.RLock()
-globalAliases = {}
+alias_lock = threading.RLock()
+GlobalAliases = {}
 
 
 def alias(*names):
@@ -28,25 +26,25 @@ def alias(*names):
 
     def _outer(obj):
         for n in names:
-            with aliasLock:
-                globalAliases[n] = obj
+            with alias_lock:
+                GlobalAliases[n] = obj
 
         return obj
 
     return _outer
 
 
-def resolveName(name):
+def resolve_name(name):
     """
-    Search for the declaration (function or class) with the given name. This will first search the list of aliases to 
-    see if it was declared with this aliased name, then search treating `name` as a fully qualified name, then search 
+    Search for the declaration (function or class) with the given name. This will first search the list of aliases to
+    see if it was declared with this aliased name, then search treating `name` as a fully qualified name, then search
     the loaded modules for one having a declaration with the given name. If no declaration is found, raise ValueError.
     """
     # attempt to resolve an alias
-    with aliasLock:
-        obj = globalAliases.get(name, None)
+    with alias_lock:
+        obj = GlobalAliases.get(name, None)
 
-    assert name not in globalAliases or obj is not None
+    assert name not in GlobalAliases or obj is not None
 
     # attempt to resolve a qualified name
     if obj is None and "." in name:

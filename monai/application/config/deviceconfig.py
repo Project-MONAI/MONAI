@@ -1,4 +1,3 @@
-
 # Copyright 2020 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -10,24 +9,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-import os, sys
+import os
+import sys
 from collections import OrderedDict
-import monai
+
 import numpy as np
 import torch
 
+import monai
+
 try:
     import ignite
-    ignite_version=ignite.__version__
+    ignite_version = ignite.__version__
 except ImportError:
-    ignite_version='NOT INSTALLED'
+    ignite_version = 'NOT INSTALLED'
 
 export = monai.utils.export("monai.application.config")
 
 
 @export
-def getConfigValues():
+def get_config_values():
     output = OrderedDict()
 
     output["MONAI version"] = monai.__version__
@@ -40,11 +41,11 @@ def getConfigValues():
 
 
 @export
-def printConfig(file=sys.stdout):
-    for kv in getConfigValues().items():
+def print_config(file=sys.stdout):
+    for kv in get_config_values().items():
         print("%s: %s" % kv, file=file, flush=True)
 
 
 @export
-def setVisibleDevices(*devInds):
-    os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, devInds))
+def set_visible_devices(*dev_inds):
+    os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, dev_inds))

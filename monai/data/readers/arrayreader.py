@@ -1,4 +1,3 @@
-
 # Copyright 2020 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -10,12 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 from threading import Lock
-import monai
-from monai.utils.decorators import RestartGenerator
-from monai.data.streams import DataStream, OrderType
+
 import numpy as np
+
+import monai
+from monai.data.streams import DataStream, OrderType
+from monai.utils.decorators import RestartGenerator
 
 
 @monai.utils.export("monai.data.readers")
@@ -29,87 +29,87 @@ class ArrayReader(DataStream):
     optionally only once.
     """
 
-    def __init__(self, *arrays, orderType=OrderType.LINEAR, doOnce=False, choiceProbs=None):
-        if orderType not in (OrderType.SHUFFLE, OrderType.CHOICE, OrderType.LINEAR):
-            raise ValueError("Invalid orderType value %r" % (orderType,))
+    def __init__(self, *arrays, order_type=OrderType.LINEAR, do_once=False, choice_probs=None):
+        if order_type not in (OrderType.SHUFFLE, OrderType.CHOICE, OrderType.LINEAR):
+            raise ValueError("Invalid order_type value %r" % (order_type,))
 
         self.arrays = ()
-        self.orderType = orderType
-        self.doOnce = doOnce
-        self.choiceProbs = None
+        self.order_type = order_type
+        self.do_once = do_once
+        self.choice_probs = None
         self.lock = Lock()
 
-        super().__init__(RestartGenerator(self.yieldArrays))
+        super().__init__(RestartGenerator(self.yield_arrays))
 
-        self.appendArrays(*arrays, choiceProbs=choiceProbs)
+        self.append_arrays(*arrays, choice_probs=choice_probs)
 
-    def yieldArrays(self):
-        while self.isRunning:
+    def yield_arrays(self):
+        while self.is_running:
             with self.lock:
                 # capture locally so that emptying the reader doesn't interfere with an on-going interation
                 arrays = self.arrays
-                choiceProbs = self.choiceProbs
+                choice_probs = self.choice_probs
 
             indices = np.arange(arrays[0].shape[0] if arrays else 0)
 
-            if self.orderType == OrderType.SHUFFLE:
+            if self.order_type == OrderType.SHUFFLE:
                 np.random.shuffle(indices)
-            elif self.orderType == OrderType.CHOICE:
-                indices = np.random.choice(indices, indices.shape, p=choiceProbs)
+            elif self.order_type == OrderType.CHOICE:
+                indices = np.random.choice(indices, indices.shape, p=choice_probs)
 
             for i in indices:
                 yield tuple(arr[i] for arr in arrays)
 
-            if self.doOnce or not arrays:  # stop first time through or if empty
+            if self.do_once or not arrays:  # stop first time through or if empty
                 break
 
-    def getSubArrays(self, indices):
+    def get_sub_arrays(self, indices):
         """Get a new ArrayReader with a subset of this one's data defined by the `indices` list."""
         with self.lock:
-            subArrays = [a[indices] for a in self.arrays]
-            subProbs = None
+            sub_arrays = [a[indices] for a in self.arrays]
+            sub_probs = None
 
-            if self.choiceProbs is not None:
-                subProbs = self.choiceProbs[indices]
-                subProbs = subProbs / np.sum(subProbs)
+            if self.choice_probs is not None:
+                sub_probs = self.choice_probs[indices]
+                sub_probs = sub_probs / np.sum(sub_probs)
 
-        return ArrayReader(*subArrays, orderType=self.orderType, doOnce=self.doOnce, choiceProbs=subProbs)
+        return ArrayReader(*sub_arrays, order_type=self.order_type, do_once=self.do_once, choice_probs=sub_probs)
 
-    def appendArrays(self, *arrays, choiceProbs=None):
+    def append_arrays(self, *arrays, choice_probs=None):
         """
         Append the given arrays to the existing entries in self.arrays, or replacing self.arrays if this is empty. If
-        `choiceProbs` is provided this is appended to self.choiceProbs, or replaces it if the latter is None or empty.
+        `choice_probs` is provided this is appended to self.choice_probs, or replaces it if the latter is None or empty.
         """
-        arrayLen = arrays[0].shape[0] if arrays else 0
+        array_len = arrays[0].shape[0] if arrays else 0
 
-        if arrayLen > 0 and any(arr.shape[0] != arrayLen for arr in arrays):
+        if array_len > 0 and any(arr.shape[0] != array_len for arr in arrays):
             raise ValueError("All input arrays must have the same length for dimension 0")
 
         with self.lock:
             if not self.arrays and arrays:
                 self.arrays = tuple(arrays)
-            elif arrayLen > 0:
+            elif array_len > 0:
                 self.arrays = tuple(np.concatenate(ht) for ht in zip(self.arrays, arrays))
 
-            if self.arrays and choiceProbs is not None and choiceProbs.shape[0] > 0:
-                choiceProbs = np.atleast_1d(choiceProbs)
+            if self.arrays and choice_probs is not None and choice_probs.shape[0] > 0:
+                choice_probs = np.atleast_1d(choice_probs)
 
-                if choiceProbs.shape[0] != arrayLen:
-                    raise ValueError("Length of choiceProbs (%i) must match that of input arrays (%i)" % 
-                                     (self.choiceProbs.shape[0], arrayLen))
+                if choice_probs.shape[0] != array_len:
+                    raise ValueError("Length of choice_probs (%i) must match that of input arrays (%i)" %
+                                     (self.choice_probs.shape[0], array_len))
 
-                if self.choiceProbs is None:
-                    self.choiceProbs = choiceProbs
+                if self.choice_probs is None:
+                    self.choice_probs = choice_probs
                 else:
-                    self.choiceProbs = np.concatenate([self.choiceProbs, choiceProbs])
+                    self.choice_probs = np.concatenate([self.choice_probs, choice_probs])
 
-                self.choiceProbs = self.choiceProbs / np.sum(self.choiceProbs)
+                self.choice_probs = self.choice_probs / np.sum(self.choice_probs)
 
-    def emptyArrays(self):
-        """Clear the stored arrays and choiceProbs so that this reader is empty but functional."""
+    def empty_arrays(self):
+        """Clear the stored arrays and choice_probs so that this reader is empty but functional."""
         with self.lock:
             self.arrays = ()
-            self.choiceProbs = None if self.choiceProbs is None else self.choiceProbs[:0]
+            self.choice_probs = None if self.choice_probs is None else self.choice_probs[:0]
 
     def __len__(self):
         return len(self.arrays[0]) if self.arrays else 0

@@ -1,4 +1,3 @@
-
 # Copyright 2020 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -10,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import torch
 import torch.nn as nn
 
@@ -18,13 +16,13 @@ import torch.nn as nn
 class SkipConnection(nn.Module):
     """Concats the forward pass input with the result from the given submodule."""
 
-    def __init__(self, submodule, catDim=1):
+    def __init__(self, submodule, cat_dim=1):
         super().__init__()
         self.submodule = submodule
-        self.catDim = catDim
+        self.cat_dim = cat_dim
 
     def forward(self, x):
-        return torch.cat([x, self.submodule(x)], self.catDim)
+        return torch.cat([x, self.submodule(x)], self.cat_dim)
 
 
 class Flatten(nn.Module):
