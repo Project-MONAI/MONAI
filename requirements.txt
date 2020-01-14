@@ -12,3 +12,4 @@ pillow
 pandas
 coverage
 nibabel
+parameterized

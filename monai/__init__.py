@@ -12,7 +12,7 @@
 import os
 import sys
 
-from .utils.moduleutils import load_submodules, loadSubmodules
+from .utils.moduleutils import load_submodules
 
 __copyright__ = "(c) 2020 MONAI Consortium"
 __version__tuple__ = (0, 0, 1)
