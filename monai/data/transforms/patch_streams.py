@@ -17,7 +17,7 @@ from monai.utils.arrayutils import get_valid_patch_size, iter_patch
 
 
 @streamgen
-def select_over_dimension(imgs,dim=-1, indices=None):
+def select_over_dimension(imgs, dim=-1, indices=None):
     """
     Select and yield data from the images in `imgs` by iterating over the selected dimension. This will yield images
     with one fewer dimension than the inputs.
@@ -33,13 +33,13 @@ def select_over_dimension(imgs,dim=-1, indices=None):
     # select only certain images to iterate over
     indices = indices or list(range(len(imgs)))
     imgs = [imgs[i] for i in indices]
-    
-    slices=[slice(None)]*imgs[0].ndim # define slices selecting the whole image
-    
+
+    slices = [slice(None)] * imgs[0].ndim  # define slices selecting the whole image
+
     for i in range(imgs[0].shape[dim]):
-        slices[dim]=i # select index in dimension 
+        slices[dim] = i  # select index in dimension
         yield tuple(im[tuple(slices)] for im in imgs)
-        
+
 
 @streamgen
 def uniform_random_patches(imgs, patch_size=64, num_patches=10, indices=None):
@@ -98,7 +98,7 @@ def ordered_patches(imgs, patch_size=64, start_pos=(), indices=None, pad_mode="w
     Yields:
         Patches from the source image(s) in grid ordering of size specified by `patch_size`
     """
-    
+
     # select only certain images to iterate over
     indices = indices or list(range(len(imgs)))
     imgs = [imgs[i] for i in indices]

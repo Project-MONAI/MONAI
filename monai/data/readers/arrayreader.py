@@ -50,7 +50,7 @@ class ArrayReader(DataStream):
                 arrays = self.arrays
                 choice_probs = self.choice_probs
 
-            min_len=min(a.shape[0] for a in arrays) if arrays else 0
+            min_len = min(a.shape[0] for a in arrays) if arrays else 0
             indices = np.arange(min_len)
 
             if self.order_type == OrderType.SHUFFLE:

@@ -12,7 +12,7 @@
 import numpy as np
 import nibabel as nib
 
-from monai.data.streams.datastream import CacheStream
+from monai.data.streams.datastream import LRUCacheStream
 from monai.utils.moduleutils import export
 
 
@@ -39,8 +39,8 @@ def load_nifti(filename_or_obj, as_closest_canonical=False, image_only=True, dty
         dat = img.get_fdata(dtype=dtype)
     else:
         dat = np.asanyarray(img.dataobj)
-        
-    header=dict(img.header)
+
+    header = dict(img.header)
     header['filename_or_obj'] = filename_or_obj
 
     if image_only:
@@ -50,7 +50,7 @@ def load_nifti(filename_or_obj, as_closest_canonical=False, image_only=True, dty
 
 
 @export("monai.data.readers")
-class NiftiCacheReader(CacheStream):
+class NiftiCacheReader(LRUCacheStream):
     """
     Read Nifti files from incoming file names. Multiple filenames for data item can be defined which will load
     multiple Nifti files. As this inherits from CacheStream this will cache nifti image volumes in their entirety.
@@ -69,14 +69,13 @@ class NiftiCacheReader(CacheStream):
             names = [names]
             indices = [0]
         else:
-            if len(names) == 1 and not isinstance(names[0],str):  # names may be a tuple containing a single np.ndarray containing file names
+            # names may be a tuple containing a single np.ndarray containing file names
+            if len(names) == 1 and not isinstance(names[0], str):
                 names = names[0]
 
-            indices=indices or list(range(len(names)))
-            
+            indices = indices or list(range(len(names)))
+
         filenames = [names[i] for i in indices]
         result = tuple(load_nifti(f, as_closest_canonical, image_only, dtype) for f in filenames)
-        
-        return result if len(result)>1 else result[0]
 
-
+        return result if len(result) > 1 else result[0]

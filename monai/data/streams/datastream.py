@@ -263,14 +263,14 @@ class CyclingStream(DataStream):
 
 
 @export
-@alias('cachestream')
-class CacheStream(DataStream):
+@alias('lrucachestream')
+class LRUCacheStream(DataStream):
     """
     Caches a fixed number of incoming items using lru-cache. The load() method is used to load items based on the input
     values, by default this just returns the values themselves. 
     """
-    
-    def __init__(self,src,cache_size,*load_args,**load_kwargs):
+
+    def __init__(self, src, cache_size, *load_args, **load_kwargs):
         """
         Constructs a cache with the given input and cache size. The position and keyword arguments are passed to load()
         when a items is requested to be cached and yielded.
@@ -281,34 +281,34 @@ class CacheStream(DataStream):
             load_args (tuple): arguments passed to load()
             load_kwargs (dict): keyword arguments passed to load()
         """
-        
+
         super().__init__(src)
-    
+
         @lru_cache(maxsize=cache_size)
         def _loader(vals):
-            return self.load(vals,*load_args,**load_kwargs)
-        
-        self._cache_loader=_loader
-        
+            return self.load(vals, *load_args, **load_kwargs)
+
+        self._cache_loader = _loader
+
     def empty_cache(self):
         """
         Empties all the cached items.
         """
         self._cache_loader.cache_clear()
-        
-    def generate(self,vals):
+
+    def generate(self, vals):
         """
         Yields an item loaded from the cache with `vals` as the input value.
         """
         yield self._cache_loader(vals)
-        
-    def load(self,vals,*args,**kwargs):
+
+    def load(self, vals, *args, **kwargs):
         """
         Loads an item based on `vals` and other defined arguments, the returned object will be cached internally.
         """
         return vals
-    
-                
+
+
 @export
 class PrefetchStream(DataStream):
     """

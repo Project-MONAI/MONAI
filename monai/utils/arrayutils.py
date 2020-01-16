@@ -120,9 +120,9 @@ def copypaste_arrays(src, dest, srccenter, destcenter, dims):
     for i, ss, ds, sc, dc, dim in zip(range(src.ndim), src.shape, dest.shape, srccenter, destcenter, dims):
         if dim:
             # dimension before midpoint, clip to size fitting in both arrays
-            d1 = np.clip(dim // 2, 0, min(sc, dc))  
+            d1 = np.clip(dim // 2, 0, min(sc, dc))
             # dimension after midpoint, clip to size fitting in both arrays
-            d2 = np.clip(dim // 2 + 1, 0, min(ss - sc, ds - dc))  
+            d2 = np.clip(dim // 2 + 1, 0, min(ss - sc, ds - dc))
 
             srcslices[i] = slice(sc - d1, sc + d2)
             destslices[i] = slice(dc - d1, dc + d2)
@@ -142,7 +142,7 @@ def resize_center(img, *resize_dims, fill_value=0):
     dest = np.full(resize_dims, fill_value, img.dtype)
     half_img_shape = np.asarray(img.shape) // 2
     half_dest_shape = np.asarray(dest.shape) // 2
-    
+
     srcslices, destslices = copypaste_arrays(img, dest, half_img_shape, half_dest_shape, resize_dims)
     dest[destslices] = img[srcslices]
 
