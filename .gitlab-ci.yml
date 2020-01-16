@@ -1,0 +1,12 @@
+stages:
+    - build
+
+.base_template : &BASE
+   script:
+   - cat README.md
+
+build-ci-test:
+    stage: build
+    tags:
+    - test
+    <<: *BASE
