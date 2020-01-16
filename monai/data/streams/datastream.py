@@ -274,7 +274,7 @@ class LRUCacheStream(DataStream):
         """
         Constructs a cache with the given input and cache size. The position and keyword arguments are passed to load()
         when a items is requested to be cached and yielded.
-        
+
         Args:
             src (Iterable): input source iterable
             cache_size (int): immutable cache size stating how many items to retain

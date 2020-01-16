@@ -19,13 +19,13 @@ from monai.utils.moduleutils import export
 def load_nifti(filename_or_obj, as_closest_canonical=False, image_only=True, dtype=None):
     """
     Loads a Nifti file from the given path or file-like object.
-    
+
     Args:
         filename_or_obj (str or file): path to file or file-like object
         as_closest_canonical (bool): if True, load the image as closest to canonical axis format
         image_only (bool): if True return only the image volume, other return image volume and header dict
         dtype (np.dtype, optional): if not None convert the loaded image to this data type
-        
+
     Returns:
         The loaded image volume if `image_only` is True, or a tuple containing the volume and the Nifti
         header in dict format otherwise
@@ -55,7 +55,7 @@ class NiftiCacheReader(LRUCacheStream):
     Read Nifti files from incoming file names. Multiple filenames for data item can be defined which will load
     multiple Nifti files. As this inherits from CacheStream this will cache nifti image volumes in their entirety.
     The arguments for load() other than `names` must be passed to the constructor.
-    
+
     Args:
         src (Iterable): source iterable object
         indices (tuple or None, optional): indices of values from source to load

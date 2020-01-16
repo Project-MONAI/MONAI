@@ -29,7 +29,7 @@ class GlobPathGenerator(ArrayReader):
         """
         Construct the generator using the given glob patterns `glob_paths`. If `sort_paths` is True each list of files
         is sorted independently. 
-        
+
         Args:
             glob_paths (list of str): list of glob patterns to expand
             sort_paths (bool): if True, each file list is sorted

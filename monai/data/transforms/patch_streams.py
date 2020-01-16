@@ -21,12 +21,12 @@ def select_over_dimension(imgs, dim=-1, indices=None):
     """
     Select and yield data from the images in `imgs` by iterating over the selected dimension. This will yield images
     with one fewer dimension than the inputs.
-    
+
     Args:
         imgs (tuple): tuple of np.ndarrays of 2+ dimensions
         dim (int, optional): dimension to iterate over, default is last dimension
         indices (None or tuple, optional): indices for which arrays in `imgs` to produce patches for, None for all
-        
+
     Yields:
         Arrays chosen the members of `imgs` with one fewer dimension, iterating over dimension `dim` in order
     """
@@ -46,7 +46,7 @@ def uniform_random_patches(imgs, patch_size=64, num_patches=10, indices=None):
     """
     Choose patches from the input image(s) of a given size at random. The choice of patch position is uniformly
     distributed over the image.
-    
+
     Args:
         imgs (tuple): tuple of np.ndarrays of 2+ dimensions
         patch_size (int or tuple, optional): a single dimension or a tuple of dimension indicating the patch size, this
@@ -54,7 +54,7 @@ def uniform_random_patches(imgs, patch_size=64, num_patches=10, indices=None):
             can be used to select the whole dimension from the input image
         num_patches (int, optional): number of patches to produce per image set
         indices (None or tuple, optional): indices for which arrays in `imgs` to produce patches for, None for all
-        
+
     Yields:
         Patches from the source image(s) from uniformly random positions of size specified by `patch_size`
     """
@@ -84,7 +84,7 @@ def ordered_patches(imgs, patch_size=64, start_pos=(), indices=None, pad_mode="w
     wise manner that ensures the whole image is visited. The images can be padded to include margins if the patch size
     is not an even multiple of the image size. A start position can also be specified to start the iteration from a
     position other than 0.
-    
+
     Args:
         imgs (tuple): tuple of np.ndarrays of 2+ dimensions
         patch_size (int or tuple, optional): a single dimension or a tuple of dimension indicating the patch size, this
@@ -94,7 +94,7 @@ def ordered_patches(imgs, patch_size=64, start_pos=(), indices=None, pad_mode="w
         indices (None or tuple, optional): indices for which arrays in `imgs` to produce patches for, None for all
         pad_mode (str, optional): padding mode, see numpy.pad
         pad_opts (dict, optional): padding options, see numpy.pad
-        
+
     Yields:
         Patches from the source image(s) in grid ordering of size specified by `patch_size`
     """

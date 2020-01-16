@@ -175,12 +175,12 @@ def iter_patch_slices(dims, patch_size, start_pos=()):
     Yield successive tuples of slices defining patches of size `patch_size` from an array of dimensions `dims`. The 
     iteration starts from position `start_pos` in the array, or starting at the origin if this isn't provided. Each 
     patch is chosen in a contiguous grid using a first dimension as least significant ordering.
-    
+
     Args:
         dims (tuple of int): dimensions of array to iterate over
         patch_size (tuple of int or None): size of patches to generate slices for, 0 or None selects whole dimension
         start_pos (tuple of it, optional): starting position in the array, default is 0 for each dimension
-        
+
     Yields:
         Tuples of slice objects defining each patch
     """
@@ -202,7 +202,7 @@ def iter_patch(arr, patch_size, start_pos=(), copy_back=True, pad_mode="wrap", *
     Yield successive patches from `arr' of size `patchSize'. The iteration can start from position `startPos' in `arr' 
     but drawing from a padded array extended by the `patchSize' in each dimension (so these coordinates can be negative 
     to start in the padded region). If `copyBack' is True the values from each patch are written back to `arr'.
-    
+
     Args:
         arr (np.ndarray): array to iterate over
         patch_size (tuple of int or None): size of patches to generate slices for, 0 or None selects whole dimension
@@ -210,7 +210,7 @@ def iter_patch(arr, patch_size, start_pos=(), copy_back=True, pad_mode="wrap", *
         copy_back (bool): if True data from the yielded patches is copied back to `arr` once the generator completes
         pad_mode (str, optional): padding mode, see numpy.pad
         pad_opts (dict, optional): padding options, see numpy.pad
-        
+
     Yields:
         Patches of array data from `arr` which are views into a padded array which can be modified, if `copy_back` is
         True these changes will be reflected in `arr` once the iteration completes
