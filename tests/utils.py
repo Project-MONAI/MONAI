@@ -17,11 +17,11 @@ import numpy as np
 
 from monai.utils.arrayutils import rescale_array
 
-quicktestVar = "QUICKTEST"
+quick_test_var = "QUICKTEST"
 
 
 def skip_if_quick(obj):
-    is_quick = os.environ.get(quicktestVar, "").lower() == "true"
+    is_quick = os.environ.get(quick_test_var, "").lower() == "true"
 
     return unittest.skipIf(is_quick, "Skipping slow tests")(obj)
 
