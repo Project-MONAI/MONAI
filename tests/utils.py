@@ -68,4 +68,3 @@ class ImageTestCase(unittest.TestCase):
 
         self.seg1 = torch.tensor((msk[None, None] > 0).astype(np.float32))
         self.segn = torch.tensor(msk[None, None])
-
