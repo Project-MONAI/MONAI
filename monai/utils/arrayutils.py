@@ -187,7 +187,7 @@ def iter_patch_slices(dims, patch_size, start_pos=()):
     # ensure patchSize and startPos are the right length
     ndim = len(dims)
     patch_size = get_valid_patch_size(dims, patch_size)
-    startPos = ensure_tuple_size(start_pos, ndim)
+    start_pos = ensure_tuple_size(start_pos, ndim)
 
     # collect the ranges to step over each dimension
     ranges = tuple(starmap(range, zip(start_pos, dims, patch_size)))
