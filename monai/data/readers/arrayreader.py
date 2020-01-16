@@ -13,12 +13,12 @@ from threading import Lock
 
 import numpy as np
 
-import monai
 from monai.data.streams import DataStream, OrderType
 from monai.utils.decorators import RestartGenerator
+from monai.utils.moduleutils import export
 
 
-@monai.utils.export("monai.data.readers")
+@export("monai.data.readers")
 class ArrayReader(DataStream):
     """
     Creates a data source from one or more equal length arrays. Each data item yielded is a tuple of slices
@@ -50,7 +50,8 @@ class ArrayReader(DataStream):
                 arrays = self.arrays
                 choice_probs = self.choice_probs
 
-            indices = np.arange(arrays[0].shape[0] if arrays else 0)
+            min_len=min(a.shape[0] for a in arrays) if arrays else 0
+            indices = np.arange(min_len)
 
             if self.order_type == OrderType.SHUFFLE:
                 np.random.shuffle(indices)
