@@ -1,4 +1,5 @@
 #! /bin/bash
+set -e
 # Test script for running all tests
 
 
@@ -52,8 +53,8 @@ done
 if [ "$doDryRun" = 'true' ]
 then
     echo "Dry run commands:"
-    cmdprefix="dryrun " 
-    
+    cmdprefix="dryrun "
+
     # create a dry run function which prints the command prepended with spaces for neatness
     function dryrun { echo "  " $* ; }
 fi
