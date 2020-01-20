@@ -1,5 +1,4 @@
 torch
-pytorch-ignite
 numpy
 pyyaml
 blinker
