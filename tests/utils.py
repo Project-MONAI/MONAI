@@ -39,7 +39,7 @@ def create_test_image(width, height, num_objs=12, rad_max=30, noise_max=0.0, num
         x = np.random.randint(rad_max, width - rad_max)
         y = np.random.randint(rad_max, height - rad_max)
         rad = np.random.randint(5, rad_max)
-        spy, spx = np.ogrid[-x:width - x, -y:height - y]
+        spy, spx = np.ogrid[-x : width - x, -y : height - y]
         circle = (spx * spx + spy * spy) <= rad * rad
 
         if num_seg_classes > 1:
