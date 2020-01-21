@@ -30,12 +30,13 @@ class IntensityNormalizer(Transform):
     """
 
     def __init__(self, apply_keys, subtrahend=None, divisor=None, dtype=np.float32):
-        self.apply_keys = apply_keys if isinstance(apply_keys, (list, tuple)) else (apply_keys,)
-        if not self.apply_keys:
+        _apply_keys = apply_keys if isinstance(apply_keys, (list, tuple)) else (apply_keys,)
+        if not _apply_keys:
             raise ValueError('must set apply_keys for this transform.')
-        for key in self.apply_keys:
+        for key in _apply_keys:
             if not isinstance(key, Hashable):
                 raise ValueError('apply_keys should be a hashable or a sequence of hashables used by data[key]')
+        self.apply_keys = _apply_keys
         if subtrahend is not None or divisor is not None:
             assert isinstance(subtrahend, np.ndarray) and isinstance(divisor, np.ndarray), \
                 'subtrahend and divisor must be set in pair and in numpy array.'
