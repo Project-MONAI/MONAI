@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 class Transform(object):
     """An abstract class of a ``Transform``
     A transform is callable that maps data into output data.
