@@ -170,6 +170,27 @@ def get_valid_patch_size(dims, patch_size):
     return tuple(min(ms, ps or ms) for ms, ps in zip(dims, patch_size))
 
 
+def get_random_patch(dims, patch_size):
+    """
+    Returns a tuple of slices to define a random patch in an array of shape `dims` with size `patch_size` or the as
+    close to it as possible within the given dimension. It is expected that `patch_size` is a valid patch for a source
+    of shape `dims` as returned by `get_valid_patch_size`.
+
+    Args:
+        dims (tuple of int): shape of source array
+        patch_size (tuple of int): shape of patch size to generate
+
+    Returns:
+        (tuple of slice): a tuple of slice objects defining the patch
+    """
+
+    # choose the minimal corner of the patch
+    min_corner = tuple(np.random.randint(0, ms - ps) if ms > ps else 0 for ms, ps in zip(dims, patch_size))
+
+    # create the slices for each dimension which define the patch in the source array
+    return tuple(slice(mc, mc + ps) for mc, ps in zip(min_corner, patch_size))
+
+
 def iter_patch_slices(dims, patch_size, start_pos=()):
     """
     Yield successive tuples of slices defining patches of size `patch_size` from an array of dimensions `dims`. The 
@@ -184,6 +205,7 @@ def iter_patch_slices(dims, patch_size, start_pos=()):
     Yields:
         Tuples of slice objects defining each patch
     """
+
     # ensure patchSize and startPos are the right length
     ndim = len(dims)
     patch_size = get_valid_patch_size(dims, patch_size)

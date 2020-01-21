@@ -11,8 +11,10 @@
 
 import numpy as np
 import nibabel as nib
+import random
 
-from monai.data.streams.datastream import LRUCacheStream
+from torch.utils.data import Dataset
+
 from monai.utils.moduleutils import export
 
 
@@ -30,6 +32,7 @@ def load_nifti(filename_or_obj, as_closest_canonical=False, image_only=True, dty
         The loaded image volume if `image_only` is True, or a tuple containing the volume and the Nifti
         header in dict format otherwise
     """
+
     img = nib.load(filename_or_obj)
 
     if as_closest_canonical:
@@ -50,32 +53,48 @@ def load_nifti(filename_or_obj, as_closest_canonical=False, image_only=True, dty
 
 
 @export("monai.data.readers")
-class NiftiCacheReader(LRUCacheStream):
+class NiftiDataset(Dataset):
     """
-    Read Nifti files from incoming file names. Multiple filenames for data item can be defined which will load
-    multiple Nifti files. As this inherits from CacheStream this will cache nifti image volumes in their entirety.
-    The arguments for load() other than `names` must be passed to the constructor.
-
-    Args:
-        src (Iterable): source iterable object
-        indices (tuple or None, optional): indices of values from source to load
-        as_closest_canonical (bool): if True, load the image as closest to canonical axis format
-        image_only (bool): if True return only the image volume, other return image volume and header dict
-        dtype (np.dtype, optional): if not None convert the loaded image to this data type
+    Loads image/segmentation pairs of Nifti files from the given filename lists. Transformations can be specified
+    for the image and segmentation arrays separately.
     """
 
-    def load(self, names, indices=None, as_closest_canonical=False, image_only=True, dtype=None):
-        if isinstance(names, str):
-            names = [names]
-            indices = [0]
-        else:
-            # names may be a tuple containing a single np.ndarray containing file names
-            if len(names) == 1 and not isinstance(names[0], str):
-                names = names[0]
+    def __init__(self, image_files, seg_files, transform=None, seg_transform=None):
+        """
+        Initializes the dataset with the image and segmentation filename lists. The transform `transform` is applied
+        to the images and `seg_transform` to the segmentations.
 
-            indices = indices or list(range(len(names)))
+        Args:
+            image_files (list of str): list of image filenames
+            seg_files (list of str): list of segmentation filenames
+            transform (Callable, optional): transform to apply to image arrays
+            seg_transform (Callable, optional): transform to apply to segmentation arrays
+        """
 
-        filenames = [names[i] for i in indices]
-        result = tuple(load_nifti(f, as_closest_canonical, image_only, dtype) for f in filenames)
+        if len(image_files) != len(seg_files):
+            raise ValueError('Must have same number of image and segmentation files')
 
-        return result if len(result) > 1 else result[0]
+        self.image_files = image_files
+        self.seg_files = seg_files
+        self.transform = transform 
+        self.seg_transform = seg_transform 
+
+    def __len__(self):
+        return len(self.image_files)
+
+    def __getitem__(self, index):
+        img = load_nifti(self.image_files[index])
+        seg = load_nifti(self.seg_files[index])
+
+        # https://github.com/pytorch/vision/issues/9#issuecomment-304224800
+        seed = np.random.randint(2147483647)
+
+        if self.transform is not None:
+            random.seed(seed)
+            img = self.transform(img)
+
+        if self.seg_transform is not None:
+            random.seed(seed)  # ensure randomized transforms roll the same values for segmentations as images
+            seg = self.seg_transform(seg)
+
+        return img, seg
