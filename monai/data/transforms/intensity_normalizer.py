@@ -9,8 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from collections.abc import Hashable
+
 import numpy as np
-from transform import Transform
+
+from .transform import Transform
 
 
 class IntensityNormalizer(Transform):
@@ -20,17 +23,20 @@ class IntensityNormalizer(Transform):
      Current implementation can only support 'channel_last' format data.
 
     Args:
-        apply_keys (tuple or list): run transform on which field of the inout data
+        apply_keys (a hashable key or a tuple/list of hashable keys): run transform on which field of the input data
         subtrahend (ndarray): the amount to subtract by (usually the mean)
         divisor (ndarray): the amount to divide by (usually the standard deviation)
         dtype: output data format
     """
 
     def __init__(self, apply_keys, subtrahend=None, divisor=None, dtype=np.float32):
-        Transform.__init__(self)
-        assert apply_keys is not None and (type(apply_keys) == tuple or type(apply_keys) == list), \
-            'must set apply_keys for this transform.'
-        self.apply_keys = apply_keys
+        _apply_keys = apply_keys if isinstance(apply_keys, (list, tuple)) else (apply_keys,)
+        if not _apply_keys:
+            raise ValueError('must set apply_keys for this transform.')
+        for key in _apply_keys:
+            if not isinstance(key, Hashable):
+                raise ValueError('apply_keys should be a hashable or a sequence of hashables used by data[key]')
+        self.apply_keys = _apply_keys
         if subtrahend is not None or divisor is not None:
             assert isinstance(subtrahend, np.ndarray) and isinstance(divisor, np.ndarray), \
                 'subtrahend and divisor must be set in pair and in numpy array.'
@@ -39,7 +45,7 @@ class IntensityNormalizer(Transform):
         self.dtype = dtype
 
     def __call__(self, data):
-        assert data is not None and type(data) == dict, 'data must be in dict format with keys.'
+        assert data is not None and isinstance(data, dict), 'data must be in dict format with keys.'
         for key in self.apply_keys:
             img = data[key]
             assert key in data, 'can not find expected key={} in data.'.format(key)

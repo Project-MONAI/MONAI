@@ -8,17 +8,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import os
-import sys
-
-from .utils.moduleutils import load_submodules
-
-__copyright__ = "(c) 2020 MONAI Consortium"
-__version__tuple__ = (0, 0, 1)
-__version__ = "%i.%i.%i" % (__version__tuple__)
-
-__basedir__ = os.path.dirname(__file__)
-
-load_submodules(sys.modules[__name__], False)  # load directory modules only, skip loading individual files
-load_submodules(sys.modules[__name__], True)  # load all modules, this will trigger all export decorations
