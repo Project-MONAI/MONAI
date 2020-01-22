@@ -20,27 +20,10 @@ from tests.utils import NumpyImageTestCase2D
 class IntensityNormTestCase(NumpyImageTestCase2D):
 
     def test_image_normalizer_default(self):
-        data_key = 'image'
-        normalizer = IntensityNormalizer(data_key)  # test a single key
-        normalised = normalizer({data_key: self.imt})
+        normalizer = IntensityNormalizer()
+        normalised = normalizer(self.imt)
         expected = (self.imt - np.mean(self.imt)) / np.std(self.imt)
-        self.assertTrue(np.allclose(normalised[data_key], expected))
-
-    def test_image_normalizer_default_1(self):
-        data_key = 'image'
-        normalizer = IntensityNormalizer([data_key])  # test list of keys
-        normalised = normalizer({data_key: self.imt})
-        expected = (self.imt - np.mean(self.imt)) / np.std(self.imt)
-        self.assertTrue(np.allclose(normalised[data_key], expected))
-
-    def test_image_normalizer_default_2(self):
-        data_keys = ['image_1', 'image_2']
-        normalizer = IntensityNormalizer(data_keys)  # test list of keys
-        normalised = normalizer(dict(zip(data_keys, (self.imt, self.seg1))))
-        expected_1 = (self.imt - np.mean(self.imt)) / np.std(self.imt)
-        expected_2 = (self.seg1 - np.mean(self.seg1)) / np.std(self.seg1)
-        self.assertTrue(np.allclose(normalised[data_keys[0]], expected_1))
-        self.assertTrue(np.allclose(normalised[data_keys[1]], expected_2))
+        self.assertTrue(np.allclose(normalised, expected))
 
 
 if __name__ == '__main__':
