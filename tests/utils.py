@@ -9,11 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import os
 import unittest
-import torch
+
 import numpy as np
+import torch
 
 from monai.utils.arrayutils import rescale_array
 
@@ -55,7 +55,7 @@ def create_test_image(width, height, num_objs=12, rad_max=30, noise_max=0.0, num
     return noisyimage, labels
 
 
-class ImageTestCase(unittest.TestCase):
+class NumpyImageTestCase2D(unittest.TestCase):
     im_shape = (128, 128)
     input_channels = 1
     output_channels = 4
@@ -64,7 +64,15 @@ class ImageTestCase(unittest.TestCase):
     def setUp(self):
         im, msk = create_test_image(self.im_shape[0], self.im_shape[1], 4, 20, 0, self.num_classes)
 
-        self.imt = torch.tensor(im[None, None])
+        self.imt = im[None, None]
+        self.seg1 = (msk[None, None] > 0).astype(np.float32)
+        self.segn = msk[None, None]
 
-        self.seg1 = torch.tensor((msk[None, None] > 0).astype(np.float32))
-        self.segn = torch.tensor(msk[None, None])
+
+class TorchImageTestCase2D(NumpyImageTestCase2D):
+
+    def setUp(self):
+        NumpyImageTestCase2D.setUp(self)
+        self.imt = torch.tensor(self.imt)
+        self.seg1 = torch.tensor(self.seg1)
+        self.segn = torch.tensor(self.segn)
