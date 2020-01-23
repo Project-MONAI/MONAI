@@ -26,7 +26,7 @@ def skip_if_quick(obj):
     return unittest.skipIf(is_quick, "Skipping slow tests")(obj)
 
 
-class ImageTestCase(unittest.TestCase):
+class NumpyImageTestCase2D(unittest.TestCase):
     im_shape = (128, 128)
     input_channels = 1
     output_channels = 4
