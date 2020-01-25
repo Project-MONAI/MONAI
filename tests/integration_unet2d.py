@@ -14,19 +14,21 @@ import sys
 import numpy as np
 import torch
 from ignite.engine import create_supervised_trainer
-from torch.utils.data import DataLoader, IterableDataset
+from torch.utils.data import DataLoader, Dataset
 
 from monai import networks, utils
 
 
 def run_test(batch_size=64, train_steps=100, device=torch.device("cuda:0")):
 
-    class _TestBatch(IterableDataset):
+    class _TestBatch(Dataset):
 
-        def __iter__(self):
-            for _ in range(train_steps):
-                im, seg = utils.generateddata.create_test_image_2d(128, 128, noise_max=1, num_objs=4, num_seg_classes=1)
-                yield im[None], seg[None].astype(np.float32)
+        def __getitem__(self, _unused_id):
+            im, seg = utils.generateddata.create_test_image_2d(128, 128, noise_max=1, num_objs=4, num_seg_classes=1)
+            return im[None], seg[None].astype(np.float32)
+
+        def __len__(self):
+            return train_steps
 
     net = networks.nets.UNet(
         dimensions=2,
