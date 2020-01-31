@@ -1,4 +1,5 @@
-torch
+torch>=1.4
+torchvision
 pytorch-ignite==0.2.1
 numpy
 pyyaml
