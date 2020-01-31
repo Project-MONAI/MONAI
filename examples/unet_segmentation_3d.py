@@ -18,6 +18,7 @@ import nibabel as nib
 import numpy as np
 import torch
 import torchvision.transforms as transforms
+from torch.utils.tensorboard import SummaryWriter
 from ignite.engine import Events, create_supervised_trainer
 from ignite.handlers import ModelCheckpoint
 from torch.utils.data import DataLoader
@@ -112,9 +113,15 @@ trainer.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=checkpoint_
 
 @trainer.on(Events.EPOCH_COMPLETED)
 def log_training_loss(engine):
+    writer.add_scalar('Loss/train', engine.state.output, engine.state.epoch)
+    first_image_tensor = engine.state.batch[0][0]
+    utils.img2tensorboardutils.add_animated_gif(writer, "first_img_final_batch", first_image_tensor, 64, 255)
+    second_image_tensor = engine.state.batch[0][1]
+    utils.img2tensorboardutils.add_animated_gif(writer, "second_img_final_batch", second_image_tensor, 64, 255)
     print("Epoch", engine.state.epoch, "Loss:", engine.state.output)
 
 
 loader = DataLoader(ds, batch_size=20, num_workers=8, pin_memory=torch.cuda.is_available())
+writer = SummaryWriter()
 
 state = trainer.run(loader, train_epochs)

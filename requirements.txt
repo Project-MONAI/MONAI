@@ -13,3 +13,4 @@ pandas
 coverage
 nibabel
 parameterized
+tensorboard
