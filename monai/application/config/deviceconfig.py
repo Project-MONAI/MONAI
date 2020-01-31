@@ -20,7 +20,7 @@ import monai
 
 try:
     import ignite
-    #ignite_version = ignite.__version__
+    ignite_version = ignite.__version__
 except ImportError:
     ignite_version = 'NOT INSTALLED'
 
@@ -35,7 +35,7 @@ def get_config_values():
     output["Python version"] = sys.version.replace("\n", " ")
     output["Numpy version"] = np.version.full_version
     output["Pytorch version"] = torch.__version__
-    #output["Ignite version"] = ignite_version
+    output["Ignite version"] = ignite_version
 
     return output
 
