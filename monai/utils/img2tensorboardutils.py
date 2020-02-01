@@ -1,5 +1,6 @@
 import numpy as np
 import PIL
+from PIL.GifImagePlugin import Image as GIF
 from tensorboard.compat.proto import summary_pb2
 
 
@@ -11,7 +12,6 @@ def _image3_animated_gif(imp, scale_factor=1):
         scale_factor: amount to multiply values by (if the image data is between 0 and 1, using 255 for this value will
         scale it to displayable range)
     """
-    from PIL.GifImagePlugin import Image as GIF
 
     # x=numpy.random.randint(0,256,[10,10,10],numpy.uint8)
     (tag, ims) = imp
