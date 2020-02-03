@@ -81,19 +81,38 @@ def make_animated_gif_summary(tag,
     return summary_op
 
 
-def add_animated_gif(writer, tag, first_image_tensor, max_out, scale_factor, global_step=None):
+def add_animated_gif(writer, tag, image_tensor, max_out, scale_factor, global_step=None):
     """
     Creates an animated gif out of an image tensor and writes it with SummaryWriter.
 
     Args:
         writer: Tensorboard SummaryWriter to write to
         tag: Data identifier
-        first_image_tensor: tensor for the image to add, expected to be in CDHW format
+        image_tensor: tensor for the image to add, expected to be in CDHW format
         max_out: maximum number of slices to animate through
         scale_factor: amount to multiply values by (if the image data is between 0 and 1, using 255 for this value will
         scale it to displayable range)
         global_step: Global step value to record
     """
-    writer._get_file_writer().add_summary(make_animated_gif_summary(tag, first_image_tensor, max_out=max_out,
+    writer._get_file_writer().add_summary(make_animated_gif_summary(tag, image_tensor, max_out=max_out,
                                                                     animation_axes=[1], image_axes=[2, 3],
                                                                     scale_factor=scale_factor), global_step)
+
+
+def add_animated_gif_no_channels(writer, tag, image_tensor, max_out, scale_factor, global_step=None):
+    """
+    Creates an animated gif out of an image tensor and writes it with SummaryWriter.
+
+    Args:
+        writer: Tensorboard SummaryWriter to write to
+        tag: Data identifier
+        image_tensor: tensor for the image to add, expected to be in DHW format
+        max_out: maximum number of slices to animate through
+        scale_factor: amount to multiply values by (if the image data is between 0 and 1, using 255 for this value will
+        scale it to displayable range)
+        global_step: Global step value to record
+    """
+    writer._get_file_writer().add_summary(make_animated_gif_summary(tag, image_tensor.unsqueeze(0),
+                                                                    max_out=max_out, animation_axes=[1],
+                                                                    image_axes=[2, 3], scale_factor=scale_factor),
+                                          global_step)

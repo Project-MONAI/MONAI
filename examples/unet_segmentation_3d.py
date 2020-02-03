@@ -105,7 +105,8 @@ def _loss_fn(i, j):
 
 device = torch.device("cuda:0")
 
-trainer = create_supervised_trainer(net, opt, _loss_fn, device, False)
+trainer = create_supervised_trainer(net, opt, _loss_fn, device, False,
+                                    output_transform=lambda x, y, y_pred, loss: [y_pred, loss.item()])
 
 checkpoint_handler = ModelCheckpoint('./', 'net', n_saved=10, save_interval=3, require_empty=False)
 trainer.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=checkpoint_handler, to_save={'net': net})
@@ -113,12 +114,27 @@ trainer.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=checkpoint_
 
 @trainer.on(Events.EPOCH_COMPLETED)
 def log_training_loss(engine):
-    writer.add_scalar('Loss/train', engine.state.output, engine.state.epoch)
-    first_image_tensor = engine.state.batch[0][0]
-    utils.img2tensorboardutils.add_animated_gif(writer, "first_img_final_batch", first_image_tensor, 64, 255)
-    second_image_tensor = engine.state.batch[0][1]
-    utils.img2tensorboardutils.add_animated_gif(writer, "second_img_final_batch", second_image_tensor, 64, 255)
-    print("Epoch", engine.state.epoch, "Loss:", engine.state.output)
+    writer.add_scalar('Loss/train', engine.state.output[1], engine.state.epoch)
+    # print(engine.state.output[0][1])
+    first_image_tensor = engine.state.output[0][1][0].detach().cpu()
+    utils.img2tensorboardutils.add_animated_gif_no_channels(writer, "first_img_final_batch", first_image_tensor, 64,
+                                                            255, engine.state.epoch)
+    first_label_tensor = engine.state.batch[1][0].detach().cpu()
+    utils.img2tensorboardutils.add_animated_gif(writer, "first_label_final_batch", first_label_tensor, 64,
+                                                            255, engine.state.epoch)
+    second_image_tensor = engine.state.output[0][1][1].detach().cpu()
+    utils.img2tensorboardutils.add_animated_gif_no_channels(writer, "second_img_final_batch", second_image_tensor, 64,
+                                                            255, engine.state.epoch)
+    second_label_tensor = engine.state.batch[1][1].detach().cpu()
+    utils.img2tensorboardutils.add_animated_gif(writer, "second_label_final_batch", second_label_tensor, 64,
+                                                            255, engine.state.epoch)
+    third_image_tensor = engine.state.output[0][1][2].detach().cpu()
+    utils.img2tensorboardutils.add_animated_gif_no_channels(writer, "third_img_final_batch", third_image_tensor, 64,
+                                                            255, engine.state.epoch)
+    third_label_tensor = engine.state.batch[1][2].detach().cpu()
+    utils.img2tensorboardutils.add_animated_gif(writer, "third_label_final_batch", third_label_tensor, 64,
+                                                            255, engine.state.epoch)
+    print("Epoch", engine.state.epoch, "Loss:", engine.state.output[1])
 
 
 loader = DataLoader(ds, batch_size=20, num_workers=8, pin_memory=torch.cuda.is_available())
