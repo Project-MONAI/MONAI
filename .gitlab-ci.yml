@@ -5,7 +5,9 @@ stages:
    script:
    - nvidia-smi
    - python -m pip install --upgrade pip
+   - pip uninstall -y torch torchvision
    - pip install -r requirements.txt
+   - pip list
    - pip install flake8
    - pip install pep8-naming
    # stop the build if there are Python syntax errors or undefined names
