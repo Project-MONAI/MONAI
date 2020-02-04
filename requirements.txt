@@ -1,5 +1,5 @@
-torch
-pytorch-ignite==0.2.1
+torch>=1.4
+pytorch-ignite==0.3.0
 numpy
 pyyaml
 blinker
