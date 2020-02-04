@@ -14,7 +14,7 @@ This document identifies key concepts of project MONAI at a high level, the goal
    *   Primarily focused on the healthcare researchers who develop DL models for medical imaging
 
 ## Goals
-   *   Deliver domain-specific workflow capabilities 
+   *   Deliver domain-specific workflow capabilities
    *   Address the end-end “Pain points” when creating medical imaging deep learning workflows.
    *   Provide a robust foundation with a performance optimized system software stack that allows researchers to focus on the research and not worry about software development principles.
 
@@ -136,7 +136,7 @@ This document identifies key concepts of project MONAI at a high level, the goal
   <tr>
    <td>Configuration-driven workflow assembly
    </td>
-   <td colspan="2" >Making workflow instances from configuration file 
+   <td colspan="2" >Making workflow instances from configuration file
    </td>
    <td>Convenient for managing hyperparameters
    </td>
@@ -208,7 +208,7 @@ This document identifies key concepts of project MONAI at a high level, the goal
    </td>
   </tr>
   <tr>
-   <td>Compatibility with external toolkits 
+   <td>Compatibility with external toolkits
    </td>
    <td colspan="2" >XNAT as data source, ITK as preprocessor
    </td>
@@ -240,8 +240,4 @@ This document identifies key concepts of project MONAI at a high level, the goal
    </td>
   </tr>
 </table>
-
-test-string inserted here
-
-This is to test gitlab.com CI configuration and runner
 
