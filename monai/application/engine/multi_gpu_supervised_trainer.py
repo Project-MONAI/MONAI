@@ -17,11 +17,37 @@ from ignite.engine import create_supervised_trainer, create_supervised_evaluator
 import monai
 
 
+def get_devices_spec(devices=None):
+    """
+    Get a valid specification for one or more devices. If `devices` is None get devices for all CUDA devices available.
+    If `devices` is and zero-length structure a single CPU compute device is returned. In any other cases `devices` is
+    returned unchanged.
+
+    Args:
+        devices (list, optional): list of devices to request, None for all GPU devices, [] for CPU.
+
+    Returns:
+        list of torch.device: list of devices.
+    """
+    if devices is None:
+        devices = [torch.device('cuda:%i' % d) for d in range(torch.cuda.device_count())]
+
+        if len(devices) == 0:
+            raise ValueError("No GPU devices available")
+
+    elif len(devices) == 0:
+        devices = [torch.device("cpu")]
+
+    return devices
+
+
 def _default_transform(x, y, y_pred, loss):
     return loss.item()
 
+
 def _default_eval_transform(x, y, y_pred): 
     return y_pred, y
+
 
 @monai.utils.export("monai.application.engine")
 def create_multigpu_supervised_trainer(net, optimizer, loss_fn, devices=None, non_blocking=False, 
@@ -48,10 +74,7 @@ def create_multigpu_supervised_trainer(net, optimizer, loss_fn, devices=None, no
         Engine: a trainer engine with supervised update function.
     """
 
-    if devices is None:
-        devices = [torch.device('cuda:%i' % d) for d in range(torch.cuda.device_count())]
-    elif len(devices) == 0:
-        devices = [torch.device("cpu")]
+    devices = get_devices_spec(devices)
 
     if len(devices) > 1:
         net = torch.nn.parallel.DataParallel(net)
@@ -84,10 +107,7 @@ def create_multigpu_supervised_evaluator(net, metrics=None, device=None, non_blo
         Engine: an evaluator engine with supervised inference function.
     """
 
-    if devices is None:
-        devices = [torch.device('cuda:%i' % d) for d in range(torch.cuda.device_count())]
-    elif len(devices) == 0:
-        devices = [torch.device("cpu")]
+    devices = get_devices_spec(devices)
 
     if len(devices) > 1:
         net = torch.nn.parallel.DataParallel(net)
