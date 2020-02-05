@@ -1,6 +1,6 @@
 import numpy as np
 import PIL
-from PIL.GifImagePlugin import Image as gif
+from PIL.GifImagePlugin import Image as GifImage
 from tensorboard.compat.proto import summary_pb2
 
 
@@ -19,7 +19,7 @@ def _image3_animated_gif(imp, scale_factor=1):
         (np.asarray((ims[i, :, :])) * scale_factor).astype(np.uint8)
         for i in range(ims.shape[0])
     ]
-    ims = [gif.fromarray(im) for im in ims]
+    ims = [GifImage.fromarray(im) for im in ims]
     img_str = b''
     for b_data in PIL.GifImagePlugin.getheader(ims[0])[0]:
         img_str += b_data
