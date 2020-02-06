@@ -9,20 +9,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import math
-import numpy as np
+
 import torch
+
 from monai.data.transforms import ImageEndPadder
+from monai.data.transforms.dataset_transforms import ToTensor
 
 
 def sliding_window_inference(inputs, roi_size, sw_batch_size, predictor, device):
     """Use SlidingWindow method to execute inference.
 
     Args:
+        inputs (numpy array): input image to be processed (assuming NCHW[D])
         roi_size (list, tuple): the window size to execute SlidingWindow inference.
         sw_batch_size (int): the batch size to run window slices.
-        predictor: a portion from numpy.lib.arraypad.pad is copied below.
+        predictor: a moani.networks.nets module
         device: on which device to execute model inference, cpu or gpu.
 
     Note:
@@ -39,24 +41,16 @@ def sliding_window_inference(inputs, roi_size, sw_batch_size, predictor, device)
     batch_size = inputs.shape[0]
 
     # TODO: Enable batch sizes > 1 in future.
-    assert batch_size == 1, "input batch size must be 1"
+    if batch_size > 1:
+        raise NotImplementedError
 
-    # in case that image size is smaller than roi size
-    is_oversized = False
     original_image_size = [image_size[i] for i in range(num_spatial_dims)]
+    # in case that image size is smaller than roi size
+    image_size = tuple(max(image_size[i], roi_size[i]) for i in range(num_spatial_dims))
+    inputs = ImageEndPadder(roi_size, 'constant')(inputs)  # in np array
+    inputs = ToTensor()(inputs)
 
-    for i in range(num_spatial_dims):
-        if int(roi_size[i]) > image_size[i]:
-            is_oversized = True
-            break
-
-    if is_oversized:
-        for i in range(num_spatial_dims):
-            image_size[i] = max(image_size[i], roi_size[i])
-
-        padder = ImageEndPadder(roi_size, 'constant')
-        inputs = padder(inputs)
-
+    # TODO: interval from user's specification
     scan_interval = _get_scan_interval(image_size, roi_size, num_spatial_dims)
     scan_num = [int(math.ceil(float(image_size[i]) / scan_interval[i])) for i in range(num_spatial_dims)]
 
@@ -101,54 +95,41 @@ def sliding_window_inference(inputs, roi_size, sw_batch_size, predictor, device)
             else:
                 slice_i, slice_j = slices[curr_index]
                 input_slices.append(inputs[0, :, slice_i, slice_j])
-        buffered_requests.append(np.stack(input_slices))
+        buffered_requests.append(torch.stack(input_slices))
 
     # Perform predictions
     output_rois = list()
     for data in buffered_requests:
-        output_rois.append(predictor(data))
+        seg_prob, _ = predictor(data)  # segmentation probabilities
+        output_rois.append(seg_prob)
 
+    # stitching output image
     output_classes = output_rois[0].shape[1]
     output_shape = [batch_size, output_classes] + list(image_size)
 
     # allocate memory to store the full output and the count for overlapping parts
-    output_dict = torch.zeros(output_shape, dtype=torch.float32, device=device)
-    count_dict = torch.zeros(output_shape, dtype=torch.float32, device=device)
+    output_image = torch.zeros(output_shape, dtype=torch.float32, device=device)
+    count_map = torch.zeros(output_shape, dtype=torch.float32, device=device)
 
-    window_index = 0
-    for slice_index in range(0, len(slices), sw_batch_size):
+    for window_id, slice_index in enumerate(range(0, len(slices), sw_batch_size)):
         slice_index_range = range(slice_index, min(slice_index + sw_batch_size, len(slices)))
-        output_roi = output_rois[window_index]
-        window_index += 1
-
         # store the result in the proper location of the full output
         for curr_index in slice_index_range:
             if num_spatial_dims == 3:
                 slice_i, slice_j, slice_k = slices[curr_index]
-                output_dict[0, :, slice_i, slice_j, slice_k] += \
-                    output_roi[curr_index - slice_index, :]
-                count_dict[0, :, slice_i, slice_j, slice_k] += 1
+                output_image[0, :, slice_i, slice_j, slice_k] += output_rois[window_id][curr_index - slice_index, :]
+                count_map[0, :, slice_i, slice_j, slice_k] += 1.
             else:
                 slice_i, slice_j = slices[curr_index]
-                output_dict[0, :, slice_i, slice_j] += \
-                    output_roi[curr_index - slice_index, :]
-                count_dict[0, :, slice_i, slice_j] += 1
+                output_image[0, :, slice_i, slice_j] += output_rois[window_id][curr_index - slice_index, :]
+                count_map[0, :, slice_i, slice_j] += 1.
 
     # account for any overlapping sections
-    output_dict /= count_dict
+    output_image /= count_map
 
-    # in case that image size is smaller than roi size
-    if is_oversized:
-        new_output_dict = list()
-        if num_spatial_dims == 3:
-            new_output_dict = output_dict[:, :, :original_image_size[0],
-                                          :original_image_size[1], :original_image_size[2]]
-        else:
-            new_output_dict = output_dict[:, :, :original_image_size[0], :original_image_size[1]]
-
-        output_dict = new_output_dict
-
-    return output_dict
+    if num_spatial_dims == 3:
+        return output_image[..., :original_image_size[0], :original_image_size[1], :original_image_size[2]]
+    return output_image[..., :original_image_size[0], :original_image_size[1]]  # 2D
 
 
 def _get_scan_interval(image_size, roi_size, num_spatial_dims):

@@ -22,40 +22,15 @@ from ignite.engine import Events, create_supervised_trainer
 from ignite.handlers import ModelCheckpoint
 from torch.utils.data import DataLoader
 
-from monai import application, networks, utils
+from monai import application, networks
 from monai.data.readers import NiftiDataset
+from monai.utils.generateddata import create_test_image_3d
 from monai.data.transforms import (AddChannel, Rescale, ToTensor, UniformRandomPatch)
 
 # assumes the framework is found here, change as necessary
 sys.path.append("..")
 
 application.config.print_config()
-
-
-def create_test_image_3d(height, width, depth, num_objs=12, rad_max=30, noise_max=0.0, num_seg_classes=5):
-    '''Return a noisy 3D image and segmentation.'''
-    image = np.zeros((width, height, depth))
-
-    for i in range(num_objs):
-        x = np.random.randint(rad_max, width - rad_max)
-        y = np.random.randint(rad_max, height - rad_max)
-        z = np.random.randint(rad_max, depth - rad_max)
-        rad = np.random.randint(5, rad_max)
-        spy, spx, spz = np.ogrid[-x:width - x, -y:height - y, -z:depth - z]
-        circle = (spx * spx + spy * spy + spz * spz) <= rad * rad
-
-        if num_seg_classes > 1:
-            image[circle] = np.ceil(np.random.random() * num_seg_classes)
-        else:
-            image[circle] = np.random.random() * 0.5 + 0.5
-
-    labels = np.ceil(image).astype(np.int32)
-
-    norm = np.random.uniform(0, num_seg_classes * noise_max, size=image.shape)
-    noisyimage = utils.arrayutils.rescale_array(np.maximum(image, norm))
-
-    return noisyimage, labels
-
 
 tempdir = tempfile.mkdtemp()
 
@@ -77,12 +52,12 @@ segtrans = transforms.Compose([AddChannel(), UniformRandomPatch((64, 64, 64)), T
 
 ds = NiftiDataset(images, segs, imtrans, segtrans)
 
-loader = DataLoader(ds, batch_size=10, num_workers=2, pin_memory=torch.cuda.is_available())
-im, seg = utils.mathutils.first(loader)
-print(im.shape, seg.shape)
+# loader = DataLoader(ds, batch_size=10, num_workers=2, pin_memory=torch.cuda.is_available())
+# im, seg = utils.mathutils.first(loader)
+# print(im.shape, seg.shape)
 
+train_epochs = 30
 lr = 1e-3
-
 net = networks.nets.UNet(
     dimensions=3,
     in_channels=1,
@@ -91,11 +66,8 @@ net = networks.nets.UNet(
     strides=(2, 2, 2, 2),
     num_res_units=2,
 )
-
 loss = networks.losses.DiceLoss()
 opt = torch.optim.Adam(net.parameters(), lr)
-
-train_epochs = 30
 
 
 def _loss_fn(i, j):

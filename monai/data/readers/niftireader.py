@@ -14,6 +14,7 @@ import nibabel as nib
 import random
 
 from torch.utils.data import Dataset
+from torch.utils.data._utils.collate import np_str_obj_array_pattern
 
 from monai.utils.moduleutils import export
 
@@ -59,7 +60,7 @@ class NiftiDataset(Dataset):
     for the image and segmentation arrays separately.
     """
 
-    def __init__(self, image_files, seg_files, transform=None, seg_transform=None):
+    def __init__(self, image_files, seg_files, transform=None, seg_transform=None, image_only=True):
         """
         Initializes the dataset with the image and segmentation filename lists. The transform `transform` is applied
         to the images and `seg_transform` to the segmentations.
@@ -77,13 +78,18 @@ class NiftiDataset(Dataset):
         self.image_files = image_files
         self.seg_files = seg_files
         self.transform = transform 
-        self.seg_transform = seg_transform 
+        self.seg_transform = seg_transform
+        self.image_only = image_only
 
     def __len__(self):
         return len(self.image_files)
 
     def __getitem__(self, index):
-        img = load_nifti(self.image_files[index])
+        meta_data = None
+        if self.image_only:
+            img = load_nifti(self.image_files[index], image_only=self.image_only)
+        else:
+            img, meta_data = load_nifti(self.image_files[index], image_only=self.image_only)
         seg = load_nifti(self.seg_files[index])
 
         # https://github.com/pytorch/vision/issues/9#issuecomment-304224800
@@ -97,4 +103,14 @@ class NiftiDataset(Dataset):
             random.seed(seed)  # ensure randomized transforms roll the same values for segmentations as images
             seg = self.seg_transform(seg)
 
-        return img, seg
+        if self.image_only or meta_data is None:
+            return img, seg
+
+        compatible_meta = {}
+        for meta_key in meta_data:
+            meta_datum = meta_data[meta_key]
+            if type(meta_datum).__name__ == 'ndarray' \
+                    and np_str_obj_array_pattern.search(meta_datum.dtype.str) is not None:
+                continue
+            compatible_meta[meta_key] = meta_datum
+        return img, seg, compatible_meta

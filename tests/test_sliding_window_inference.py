@@ -10,27 +10,36 @@
 # limitations under the License.
 
 import unittest
-import torch
+
 import numpy as np
+import torch
+from parameterized import parameterized
 
 from monai.utils.sliding_window_inference import sliding_window_inference
+
+TEST_CASE_1 = [(1, 3, 16, 15, 7), (4, 10, 7), 3]  # 3D small roi
+
+TEST_CASE_2 = [(1, 3, 16, 15, 7), (20, 22, 23), 10]  # 3D large roi
+
+TEST_CASE_3 = [(1, 3, 15, 7), (2, 6), 1000]  # 2D small roi, large batch
+
+TEST_CASE_4 = [(1, 3, 16, 7), (80, 50), 7]  # 2D large roi
 
 
 class TestSlidingWindowInference(unittest.TestCase):
 
-    def test_sliding_window_default(self):
-        inputs = np.ones((1, 3, 16, 16, 8))
-        roi_size = [4, 4, 4]
-        sw_batch_size = 4
-        device = torch.device("cuda:0")
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
+    def test_sliding_window_default(self, image_shape, roi_shape, sw_batch_size):
+        inputs = np.ones(image_shape)
+        device = torch.device("cpu:0")
 
         def compute(data):
-            data = torch.from_numpy(data)
-            return data.to(device) + 1
+            # data = torch.from_numpy(data)
+            return data.to(device) + 1, None  # to be consistent with monai.networks.nets.unet.UNet
 
-        result = sliding_window_inference(inputs, roi_size, sw_batch_size, compute, device)
-        expected_val = torch.ones((1, 3, 16, 16, 8), dtype=torch.float32, device=device) + 1
-        self.assertAlmostEqual(result.shape, expected_val.shape)
+        result = sliding_window_inference(inputs, roi_shape, sw_batch_size, compute, device)
+        expected_val = np.ones(image_shape, dtype=np.float32) + 1
+        self.assertTrue(np.allclose(result.numpy(), expected_val))
 
 
 if __name__ == '__main__':
