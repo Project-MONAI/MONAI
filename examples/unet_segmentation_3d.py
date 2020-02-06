@@ -114,13 +114,18 @@ trainer.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=checkpoint_
 
 @trainer.on(Events.EPOCH_COMPLETED)
 def log_training_loss(engine):
+    # log loss to tensorboard with second item of engine.state.output, loss.item() from output_transform
     writer.add_scalar('Loss/train', engine.state.output[1], engine.state.epoch)
 
+    # tensor of ones to use where for converting labels to zero and ones
     ones = torch.ones(engine.state.batch[1][0].shape, dtype=torch.int32)
     first_output_tensor = engine.state.output[0][1][0].detach().cpu()
+    # log model output to tensorboard, as three dimensional tensor with no channels dimension
     utils.img2tensorboardutils.add_animated_gif_no_channels(writer, "first_output_final_batch", first_output_tensor, 64,
                                                             255, engine.state.epoch)
+    # get label tensor and convert to single class
     first_label_tensor = torch.where(engine.state.batch[1][0] > 0, ones, engine.state.batch[1][0])
+    # log label tensor to tensorboard, there is a channel dimension when getting label from batch
     utils.img2tensorboardutils.add_animated_gif(writer, "first_label_final_batch", first_label_tensor, 64,
                                                 255, engine.state.epoch)
     second_output_tensor = engine.state.output[0][1][1].detach().cpu()
