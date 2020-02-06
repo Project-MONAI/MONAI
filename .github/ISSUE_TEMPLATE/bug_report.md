@@ -22,10 +22,12 @@ A clear and concise description of what you expected to happen.
 **Screenshots**
 If applicable, add screenshots to help explain your problem.
 
-**Desktop (please complete the following information):**
- - OS: [e.g. Ubuntu]
- - CUDA driver version
- - Version [e.g. git commit hash]
+**Environment (please complete the following information):**
+ - OS
+ - Python version
+ - MONAI version [e.g. git commit hash]
+ - CUDA/cuDNN version
+ - GPU models and configuration
 
 **Additional context**
 Add any other context about the problem here.
