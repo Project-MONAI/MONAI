@@ -42,7 +42,7 @@ class TestParallelExecution(unittest.TestCase):
         opt = torch.optim.Adam(net.parameters(), 1e-3)
 
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore") # ignore warnings about imbalanced GPU memory
+            warnings.simplefilter("ignore")  # ignore warnings about imbalanced GPU memory
 
             trainer = create_multigpu_supervised_trainer(net, opt, fake_loss, None)
 
