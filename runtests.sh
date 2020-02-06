@@ -6,7 +6,8 @@ set -e
 homedir="$( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd $homedir
 
-#export PYTHONPATH="$homedir:$PYTHONPATH"
+export PYTHONPATH="$homedir:$PYTHONPATH"
+echo $PYTHONPATH
 
 # configuration values
 doCoverage=false
@@ -16,7 +17,7 @@ doDryRun=false
 doZooTests=false
 
 # testing command to run
-cmd="python"
+cmd="python3"
 cmdprefix=""
 
 
@@ -75,13 +76,13 @@ fi
 
 
 # unit tests
-${cmdprefix}${cmd} -m unittest
+${cmdprefix}${cmd} -m unittest -v
 
 
 # network training/inference/eval tests
 if [ "$doNetTests" = 'true' ]
 then
-    for i in examples/*.py
+    for i in tests/integration_*.py
     do
         echo $i
         ${cmdprefix}${cmd} $i

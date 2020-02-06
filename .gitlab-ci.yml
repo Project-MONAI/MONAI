@@ -5,14 +5,16 @@ stages:
    script:
    - nvidia-smi
    - python -m pip install --upgrade pip
+   - pip uninstall -y torch torchvision
    - pip install -r requirements.txt
+   - pip list
    - pip install flake8
    - pip install pep8-naming
    # stop the build if there are Python syntax errors or undefined names
-   - flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics --config ./.flake8
+   # - flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics --config ./.flake8
    # exit-zero treats all errors as warnings.
-   # - flake8 . --count --statistics --config ./.flake8
-   - ./runtests.sh --quick
+   - flake8 . --count --statistics --config ./.flake8
+   - ./runtests.sh --net
    - echo "Done with runtests.sh"
 
 build-ci-test:

@@ -1,4 +1,4 @@
-torch
+torch>=1.4
 pytorch-ignite==0.3.0
 numpy
 pyyaml
