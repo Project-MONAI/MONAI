@@ -9,26 +9,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import torch
-from ignite.handlers import Checkpoint
 from ignite.engine import Events
+from ignite.handlers import Checkpoint
+
 import monai
 
 
 @monai.utils.export("monai.application.handlers")
 @monai.utils.alias("CheckpointLoader")
 class CheckpointLoader:
-    """CheckpointLoader acts as an ignite handler to load checkpoint data from file.
+    """
+    CheckpointLoader acts as an ignite handler to load checkpoint data from file.
     It can load variables for network, optimizer, lr_scheduler.
     And also can restore training if load the state_dict of ignite engine.
 
     Args:
-        load_path (string): the file path of checkpint, it shoule be a PyTorch pth file.
+        load_path (string): the file path of checkpoint, it should be a PyTorch pth file.
         load_dict (dict): target objects that load checkpoint to. examples:
                           {'network': net, 'optimizer': optimizer, 'engine', engine}
 
     """
+
     def __init__(self, load_path, load_dict):
         assert load_path is not None, 'must provide clear path to load checkpoint.'
         self.load_path = load_path

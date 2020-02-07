@@ -24,8 +24,8 @@ from torch.utils.data import DataLoader
 
 from monai import application, networks
 from monai.data.readers import NiftiDataset
-from monai.utils.generateddata import create_test_image_3d
 from monai.data.transforms import (AddChannel, Rescale, ToTensor, UniformRandomPatch)
+from monai.utils.generateddata import create_test_image_3d
 
 # assumes the framework is found here, change as necessary
 sys.path.append("..")
@@ -33,7 +33,7 @@ sys.path.append("..")
 application.config.print_config()
 
 tempdir = tempfile.mkdtemp()
-
+tempdir = './temp'
 for i in range(50):
     im, seg = create_test_image_3d(256, 256, 256)
 
@@ -47,7 +47,6 @@ images = sorted(glob(os.path.join(tempdir, 'im*.nii.gz')))
 segs = sorted(glob(os.path.join(tempdir, 'seg*.nii.gz')))
 
 imtrans = transforms.Compose([Rescale(), AddChannel(), UniformRandomPatch((64, 64, 64)), ToTensor()])
-
 segtrans = transforms.Compose([AddChannel(), UniformRandomPatch((64, 64, 64)), ToTensor()])
 
 ds = NiftiDataset(images, segs, imtrans, segtrans)
@@ -74,12 +73,14 @@ def _loss_fn(i, j):
     return loss(i[0], j)
 
 
-device = torch.device("cuda:0")
+device = torch.device("cpu:0")
 
 trainer = create_supervised_trainer(net, opt, _loss_fn, device, False)
 
-checkpoint_handler = ModelCheckpoint('./', 'net', n_saved=10, save_interval=3, require_empty=False)
-trainer.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=checkpoint_handler, to_save={'net': net})
+checkpoint_handler = ModelCheckpoint('./', 'net', n_saved=10, require_empty=False)
+trainer.add_event_handler(event_name=Events.EPOCH_COMPLETED(every=3),
+                          handler=checkpoint_handler,
+                          to_save={'net': net, 'opt': opt})
 
 
 @trainer.on(Events.EPOCH_COMPLETED)

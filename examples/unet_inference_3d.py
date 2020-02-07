@@ -22,6 +22,7 @@ from ignite.engine import Engine
 from torch.utils.data import DataLoader
 
 from monai import application
+from monai.application.handlers.checkpoint_loader import CheckpointLoader
 from monai.application.handlers.segmentation_saver import SegmentationSaver
 from monai.data.readers import NiftiDataset
 from monai.data.transforms import AddChannel, Rescale, ToTensor
@@ -33,7 +34,7 @@ from monai.utils.sliding_window_inference import sliding_window_inference
 sys.path.append("..")  # assumes the framework is found here, change as necessary
 application.config.print_config()
 tempdir = tempfile.mkdtemp()
-# tempdir = './'
+tempdir = './temp'
 for i in range(50):
     im, seg = create_test_image_3d(256, 256, 256)
 
@@ -76,7 +77,8 @@ infer_engine = Engine(_sliding_window_processor)
 # checkpoint_handler = ModelCheckpoint('./', 'net', n_saved=10, save_interval=3, require_empty=False)
 # infer_engine.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=checkpoint_handler, to_save={'net': net})
 
-SegmentationSaver().attach(infer_engine)
+SegmentationSaver(output_path='tempdir', output_ext='.nii.gz', output_postfix='seg').attach(infer_engine)
+CheckpointLoader(load_path='./net_checkpoint_9.pth', load_dict={'net': net}).attach(infer_engine)
 
-loader = DataLoader(ds, batch_size=1, num_workers=0, pin_memory=torch.cuda.is_available())
+loader = DataLoader(ds, batch_size=1, num_workers=1, pin_memory=torch.cuda.is_available())
 state = infer_engine.run(loader)
