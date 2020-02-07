@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
+import math
 import random
 from itertools import product, starmap
 
@@ -193,8 +193,8 @@ def get_random_patch(dims, patch_size):
 
 def iter_patch_slices(dims, patch_size, start_pos=()):
     """
-    Yield successive tuples of slices defining patches of size `patch_size` from an array of dimensions `dims`. The 
-    iteration starts from position `start_pos` in the array, or starting at the origin if this isn't provided. Each 
+    Yield successive tuples of slices defining patches of size `patch_size` from an array of dimensions `dims`. The
+    iteration starts from position `start_pos` in the array, or starting at the origin if this isn't provided. Each
     patch is chosen in a contiguous grid using a first dimension as least significant ordering.
 
     Args:
@@ -219,10 +219,61 @@ def iter_patch_slices(dims, patch_size, start_pos=()):
         yield tuple(slice(s, s + p) for s, p in zip(position[::-1], patch_size))
 
 
+def iter_dense_patch_slices(image_size, patch_size, scan_interval):
+    """
+    Enumerate all slices defining 2D/3D patches of size `patch_size` from an `image_size` input image.
+
+    Args:
+        image_size (tuple of int): dimensions of image to iterate over
+        patch_size (tuple of int): size of patches to generate slices
+        scan_interval (tuple of int): dense patch sampling interval
+
+    Returns:
+        a list of slice objects defining each patch
+    """
+    num_spatial_dims = len(image_size)
+    if num_spatial_dims not in (2, 3):
+        raise ValueError('image_size should has 2 or 3 elements')
+    patch_size = get_valid_patch_size(image_size, patch_size)
+    scan_interval = ensure_tuple_size(scan_interval, num_spatial_dims)
+
+    scan_num = [int(math.ceil(float(image_size[i]) / scan_interval[i])) if scan_interval[i] != 0 else 1
+                for i in range(num_spatial_dims)]
+    slices = []
+    if num_spatial_dims == 3:
+        for i in range(scan_num[0]):
+            start_i = i * scan_interval[0]
+            start_i -= max(start_i + patch_size[0] - image_size[0], 0)
+            slice_i = slice(start_i, start_i + patch_size[0])
+
+            for j in range(scan_num[1]):
+                start_j = j * scan_interval[1]
+                start_j -= max(start_j + patch_size[1] - image_size[1], 0)
+                slice_j = slice(start_j, start_j + patch_size[1])
+
+                for k in range(0, scan_num[2]):
+                    start_k = k * scan_interval[2]
+                    start_k -= max(start_k + patch_size[2] - image_size[2], 0)
+                    slice_k = slice(start_k, start_k + patch_size[2])
+                    slices.append((slice_i, slice_j, slice_k))
+    else:
+        for i in range(scan_num[0]):
+            start_i = i * scan_interval[0]
+            start_i -= max(start_i + patch_size[0] - image_size[0], 0)
+            slice_i = slice(start_i, start_i + patch_size[0])
+
+            for j in range(scan_num[1]):
+                start_j = j * scan_interval[1]
+                start_j -= max(start_j + patch_size[1] - image_size[1], 0)
+                slice_j = slice(start_j, start_j + patch_size[1])
+                slices.append((slice_i, slice_j))
+    return slices
+
+
 def iter_patch(arr, patch_size, start_pos=(), copy_back=True, pad_mode="wrap", **pad_opts):
     """
-    Yield successive patches from `arr' of size `patchSize'. The iteration can start from position `startPos' in `arr' 
-    but drawing from a padded array extended by the `patchSize' in each dimension (so these coordinates can be negative 
+    Yield successive patches from `arr' of size `patchSize'. The iteration can start from position `startPos' in `arr'
+    but drawing from a padded array extended by the `patchSize' in each dimension (so these coordinates can be negative
     to start in the padded region). If `copyBack' is True the values from each patch are written back to `arr'.
 
     Args:

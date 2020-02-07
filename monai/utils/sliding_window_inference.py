@@ -9,12 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import math
-
 import torch
 
 from monai.data.transforms import ImageEndPadder
 from monai.data.transforms.dataset_transforms import ToTensor
+from monai.utils.arrayutils import iter_dense_patch_slices
 
 
 def sliding_window_inference(inputs, roi_size, sw_batch_size, predictor, device):
@@ -24,7 +23,7 @@ def sliding_window_inference(inputs, roi_size, sw_batch_size, predictor, device)
         inputs (numpy array): input image to be processed (assuming NCHW[D])
         roi_size (list, tuple): the window size to execute SlidingWindow inference.
         sw_batch_size (int): the batch size to run window slices.
-        predictor: a moani.networks.nets module
+        predictor: a monai.networks.nets module
         device: on which device to execute model inference, cpu or gpu.
 
     Note:
@@ -52,39 +51,11 @@ def sliding_window_inference(inputs, roi_size, sw_batch_size, predictor, device)
 
     # TODO: interval from user's specification
     scan_interval = _get_scan_interval(image_size, roi_size, num_spatial_dims)
-    scan_num = [int(math.ceil(float(image_size[i]) / scan_interval[i])) for i in range(num_spatial_dims)]
 
     # Store all slices in list.
-    slices = []
-    if num_spatial_dims == 3:
-        for i in range(scan_num[0]):
-            start_i = i * scan_interval[0]
-            start_i -= max(start_i + roi_size[0] - image_size[0], 0)
-            slice_i = slice(start_i, start_i + roi_size[0])
+    slices = iter_dense_patch_slices(image_size, roi_size, scan_interval)
 
-            for j in range(scan_num[1]):
-                start_j = j * scan_interval[1]
-                start_j -= max(start_j + roi_size[1] - image_size[1], 0)
-                slice_j = slice(start_j, start_j + roi_size[1])
-
-                for k in range(0, scan_num[2]):
-                    start_k = k * scan_interval[2]
-                    start_k -= max(start_k + roi_size[2] - image_size[2], 0)
-                    slice_k = slice(start_k, start_k + roi_size[2])
-                    slices.append((slice_i, slice_j, slice_k))
-    else:
-        for i in range(scan_num[0]):
-            start_i = i * scan_interval[0]
-            start_i -= max(start_i + roi_size[0] - image_size[0], 0)
-            slice_i = slice(start_i, start_i + roi_size[0])
-
-            for j in range(scan_num[1]):
-                start_j = j * scan_interval[1]
-                start_j -= max(start_j + roi_size[1] - image_size[1], 0)
-                slice_j = slice(start_j, start_j + roi_size[1])
-                slices.append((slice_i, slice_j))
-
-    buffered_requests = []
+    slice_batches = []
     for slice_index in range(0, len(slices), sw_batch_size):
         slice_index_range = range(slice_index, min(slice_index + sw_batch_size, len(slices)))
         input_slices = []
@@ -95,11 +66,11 @@ def sliding_window_inference(inputs, roi_size, sw_batch_size, predictor, device)
             else:
                 slice_i, slice_j = slices[curr_index]
                 input_slices.append(inputs[0, :, slice_i, slice_j])
-        buffered_requests.append(torch.stack(input_slices))
+        slice_batches.append(torch.stack(input_slices))
 
     # Perform predictions
     output_rois = list()
-    for data in buffered_requests:
+    for data in slice_batches:
         seg_prob, _ = predictor(data)  # segmentation probabilities
         output_rois.append(seg_prob)
 
@@ -143,4 +114,4 @@ def _get_scan_interval(image_size, roi_size, num_spatial_dims):
         else:
             # this means that it's r-16 (if r>=64) and r*0.75 (if r<=64)
             scan_interval[i] = int(max(roi_size[i] - 16, roi_size[i] * 0.75))
-    return scan_interval
+    return tuple(scan_interval)
