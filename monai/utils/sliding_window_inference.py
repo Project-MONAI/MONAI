@@ -13,7 +13,7 @@ import torch
 
 from monai.data.transforms import ImageEndPadder
 from monai.data.transforms.dataset_transforms import ToTensor
-from monai.utils.arrayutils import iter_dense_patch_slices
+from monai.utils.arrayutils import dense_patch_slices
 
 
 def sliding_window_inference(inputs, roi_size, sw_batch_size, predictor, device):
@@ -53,7 +53,7 @@ def sliding_window_inference(inputs, roi_size, sw_batch_size, predictor, device)
     scan_interval = _get_scan_interval(image_size, roi_size, num_spatial_dims)
 
     # Store all slices in list.
-    slices = iter_dense_patch_slices(image_size, roi_size, scan_interval)
+    slices = dense_patch_slices(image_size, roi_size, scan_interval)
 
     slice_batches = []
     for slice_index in range(0, len(slices), sw_batch_size):

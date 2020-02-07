@@ -219,7 +219,7 @@ def iter_patch_slices(dims, patch_size, start_pos=()):
         yield tuple(slice(s, s + p) for s, p in zip(position[::-1], patch_size))
 
 
-def iter_dense_patch_slices(image_size, patch_size, scan_interval):
+def dense_patch_slices(image_size, patch_size, scan_interval):
     """
     Enumerate all slices defining 2D/3D patches of size `patch_size` from an `image_size` input image.
 
