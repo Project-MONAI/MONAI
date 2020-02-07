@@ -12,10 +12,9 @@
 import unittest
 
 from monai.data.transforms.compose import Compose
-from monai.data.transforms.adaptors import adaptor
+
 
 class TestCompose(unittest.TestCase):
-
 
     def test_empty_compose(self):
         c = Compose()
@@ -45,6 +44,7 @@ class TestCompose(unittest.TestCase):
 
         c = Compose([a, b, a, b, a])
         self.assertDictEqual(c({'a': 0, 'b': 0}), {'a': 3, 'b': 2})
+
 
 if __name__ == '__main__':
     unittest.main()
