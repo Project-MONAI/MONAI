@@ -77,28 +77,51 @@ Compose([
 ])
 ```
 
+Inputs:
+dictionary in: None | Name maps
+params in (match): None | Name list | Name maps
+params in (mismatch): Name maps
+params & **kwargs (match) : None | Name maps
+params & **kwargs (mismatch) : Name maps
+
+Outputs:
+dictionary out: None | Name maps
+list/tuple out: list/tuple
+variable out: string
+
 """
 @monai.utils.export('monai.data.transforms')
-def adaptor(function, outputs, inputs):
+def adaptor(function, outputs=None, inputs=None):
 
     def check_signature(fn):
         import inspect
         sfn = inspect.signature(fn)
         found_args = False
         found_kwargs = False
+        vanilla = []
         for p in sfn.parameters.values():
             if p.kind == inspect.Parameter.VAR_POSITIONAL:
                 found_args = True
-            if p.kind == inspect.Parameter.VAR_KEYWORD:
+            elif p.kind == inspect.Parameter.VAR_KEYWORD:
                 found_kwargs = True
-        return found_args, found_kwargs
+            else:
+                vanilla.append(p.name)
+        return vanilla, found_args, found_kwargs
 
-    def _inner(kwargs):
-        if isinstance(inputs, (list, tuple)):
+    def _inner(ditems):
+        if inputs is None:
+            # must match all dictionary elements with parameters
+            kws = check_signature(function)
+            missing_names = []
+            for k in kws:
+                if k not in ditems:
+                    missing_names.append(k)
+
+        if isinstance(ditems, (list, tuple)):
             # there is no mapping to be done, so just select the necessary inputs
-            input_args = {k: kwargs[k] for k in inputs}
-        elif isinstance(inputs, dict):
-            input_args = {v: kwargs[k] for k, v in inputs}
+            input_args = {k: ditems[k] for k in inputs}
+        elif isinstance(ditems, dict):
+            input_args = {v: ditems[k] for k, v in inputs.items()}
         else:
             raise ValueError("'inputs' must be of type list, tuple or dict")
 
