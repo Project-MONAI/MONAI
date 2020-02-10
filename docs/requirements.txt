@@ -1,0 +1,16 @@
+-f https://download.pytorch.org/whl/cpu/torch-1.4.0%2Bcpu-cp37-cp37m-linux_x86_64.whl 
+torch>=1.4.0
+pytorch-ignite==0.3.0
+numpy
+nibabel
+tensorboard
+commonmark==0.9.1
+recommonmark==0.6.0
+Sphinx==2.3.1
+sphinx-rtd-theme==0.4.3
+sphinxcontrib-applehelp==1.0.1
+sphinxcontrib-devhelp==1.0.1
+sphinxcontrib-htmlhelp==1.0.2
+sphinxcontrib-jsmath==1.0.1
+sphinxcontrib-qthelp==1.0.2
+sphinxcontrib-serializinghtml==1.1.3
