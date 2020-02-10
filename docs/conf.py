@@ -39,8 +39,8 @@ def generate_apidocs(*args):
     print('output_path {}'.format(output_path))
     print('module_path {}'.format(module_path))
     subprocess.check_call(
-        [apidoc_command_path, '-f' ] +
-        ['-o', output_path ] +
+        [apidoc_command_path, '-f'] +
+        ['-o', output_path] +
         [module_path])
 
 
@@ -104,4 +104,3 @@ html_favicon = 'favicon.ico'
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
-
