@@ -21,28 +21,31 @@ TEST_CASE_1 = [
     {
         'y_pred': torch.tensor([[[[1., -1.], [-1., 1.]]]]),
         'y': torch.tensor([[[[1., 0.], [1., 1.]]]]),
-        'remove_bg': False,
-        'is_onehot_targets': True,
+        'exclude_bg': False,
+        'to_onehot_y': False,
+        'mutually_exclusive': False,
         'logit_thresh': 0.5,
         'add_sigmoid': True,
-        'add_softmax': False
     },
-    0.8000
+    0.8000,
 ]
 
 # remove background and not One-Hot target
 TEST_CASE_2 = [
     {
-        'y_pred': torch.tensor([[[[-1., 3.], [2., -4.]], [[0., -1.], [3., 2.]], [[0., 1.], [2., -1.]]],
-                               [[[-2., 0.], [3., 1.]], [[0., 2.], [1., -2.]], [[-1., 2.], [4., 0.]]]]),
-        'y': torch.tensor([[[[1, 2], [1, 0]]], [[[1, 1], [2, 0]]]]),
-        'remove_bg': True,
-        'is_onehot_targets': False,
-        'logit_thresh': None,
-        'add_sigmoid': False,
-        'add_softmax': True
+        'y_pred':
+        torch.tensor([[[[-1., 3.], [2., -4.]], [[0., -1.], [3., 2.]], [[0., 1.], [2., -1.]]],
+                      [[[-2., 0.], [3., 1.]], [[0., 2.], [1., -2.]], [[-1., 2.], [4., 0.]]]]),
+        'y':
+        torch.tensor([[[[1, 2], [1, 0]]], [[[1, 1], [2, 0]]]]),
+        'exclude_bg':
+        True,
+        'to_onehot_y':
+        True,
+        'mutually_exclusive':
+        True,
     },
-    0.4583
+    0.4583,
 ]
 
 
