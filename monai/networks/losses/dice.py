@@ -46,11 +46,9 @@ class DiceLoss(_Loss):
             psum = pred.float().sigmoid()
             tsum = ground
         else:
-            pinds = (0, 3, 1, 2) if len(ground.shape) == 4 else (0, 4, 1, 2, 3)
             # multiclass dice loss, use softmax in the first dimension and convert target to one-hot encoding
             psum = torch.softmax(pred, 1)
-            tsum = one_hot(ground, pred.shape[1])  # BCHW(D) -> BCHW(D)N
-            tsum = tsum[:, 0].permute(*pinds).contiguous()  # BCHW(D)N -> BNHW(D)
+            tsum = one_hot(ground, pred.shape[1])  # B1HW(D) -> BNHW(D)
 
             assert tsum.shape == pred.shape, ("Ground truth one-hot has differing shape (%r) from source (%r)" %
                                               (tsum.shape, pred.shape))
@@ -59,7 +57,6 @@ class DiceLoss(_Loss):
             if not self.includeBackground:
                 tsum = tsum[:, 1:]
                 psum = psum[:, 1:]
-                pred = pred[:, 1:]
 
         batchsize = ground.size(0)
         tsum = tsum.float().view(batchsize, -1)

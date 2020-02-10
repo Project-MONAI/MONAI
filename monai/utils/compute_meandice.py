@@ -1,6 +1,6 @@
 import torch
 
-from monai.utils.to_onehot import to_onehot
+from monai.networks.utils import one_hot
 
 
 def compute_meandice(y_pred,
@@ -36,7 +36,7 @@ def compute_meandice(y_pred,
         if logit_thresh is not None:
             raise ValueError('`logit_thresh` is incompatible when mutually_exclusive is True.')
         y_pred = torch.argmax(y_pred, dim=1, keepdim=True)
-        y_pred = to_onehot(y_pred, n_channels_y_pred)
+        y_pred = one_hot(y_pred, n_channels_y_pred)
     else:  # channel-wise thresholding
         if add_sigmoid:
             y_pred = torch.sigmoid(y_pred)
@@ -44,7 +44,7 @@ def compute_meandice(y_pred,
             y_pred = (y_pred >= logit_thresh).float()
 
     if to_onehot_y:
-        y = to_onehot(y, n_channels_y_pred)
+        y = one_hot(y, n_channels_y_pred)
 
     if exclude_bg:
         y = y[:, 1:] if y.shape[1] > 1 else y
