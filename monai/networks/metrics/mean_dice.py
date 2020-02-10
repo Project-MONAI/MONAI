@@ -22,38 +22,39 @@ __all__ = [
 
 
 class MeanDice(Metric):
-    """Computes dice score metric from full size Tensor and collects average.
-
-    Args:
-        remove_bg (Bool): skip dice computation on the first channel of the predicted output or not.
-        is_onehot_targets (Bool): whether the label data(y) is already in One-Hot format, will convert if not.
-        logit_thresh (Float): the threshold value to round value to 0.0 and 1.0, default is 0.5.
-        output_transform (Callable): transform the ignite.engine.state.output into [y_pred, y] pair.
-        device (torch.device): device specification in case of distributed computation usage.
-
-    Note:
-        (1) if this is multi-labels task(One-Hot label), use logit_thresh to convert y_pred to 0 or 1.
-        (2) if this is multi-classes task(non-Ono-Hot label), use Argmax to select index and convert to One-Hot.
-        This metric extends from Ignite Metric, for more details, please check:
-        https://github.com/pytorch/ignite/tree/master/ignite/metrics
-
+    """Computes dice score metric from full size Tensor and collects average over batch, class-channels, iterations.
     """
     def __init__(
         self,
-        remove_bg=True,
-        is_onehot_targets=False,
+        exclude_bg=True,
+        to_onehot_y=False,
         logit_thresh=0.5,
         add_sigmoid=False,
-        add_softmax=False,
+        mutually_exclusive=False,
         output_transform: Callable = lambda x: x,
         device: Optional[Union[str, torch.device]] = None
     ):
+        """
+
+        Args:
+            exclude_bg (Bool): skip dice computation on the first channel of the predicted output or not.
+            to_onehot_y (Bool): whether the label data(y) is already in One-Hot format, will convert if not.
+            logit_thresh (Float): the threshold value to round value to 0.0 and 1.0, default is 0.5.
+            add_sigmoid (Bool): whether to add sigmoid function to the output prediction before computating Dice.
+            mutually_exclusive (Bool): if True, the output prediction will be converted into a binary matrix using
+                a combination of argmax and to_onehot.
+            output_transform (Callable): transform the ignite.engine.state.output into [y_pred, y] pair.
+            device (torch.device): device specification in case of distributed computation usage.
+        """
         super(MeanDice, self).__init__(output_transform, device=device)
-        self.remove_bg = remove_bg
-        self.is_onehot_targets = is_onehot_targets
+        self.exclude_bg = exclude_bg
+        self.to_onehot_y = to_onehot_y
         self.logit_thresh = logit_thresh
         self.add_sigmoid = add_sigmoid
-        self.add_softmax = add_softmax
+        self.mutually_exclusive = mutually_exclusive
+
+        self._sum = 0
+        self._num_examples = 0
 
     @reinit__is_reduced
     def reset(self):
@@ -64,16 +65,12 @@ class MeanDice(Metric):
     def update(self, output: Sequence[Union[torch.Tensor, dict]]):
         assert len(output) == 2, 'MeanDice metric can only support y_pred and y.'
         y_pred, y = output
+        average = compute_meandice(y_pred, y, self.exclude_bg, self.to_onehot_y, self.mutually_exclusive,
+                                   self.add_sigmoid, self.logit_thresh)
 
-        average = compute_meandice(y_pred, y, self.remove_bg, self.is_onehot_targets,
-                                   self.logit_thresh, self.add_sigmoid, self.add_softmax)
-
-        if len(average.shape) != 0:
-            raise ValueError('_function did not return the average loss.')
-
-        n = len(y)
-        self._sum += average.item() * n
-        self._num_examples += n
+        batch_size = len(y)
+        self._sum += average.item() * batch_size
+        self._num_examples += batch_size
 
     @sync_all_reduce("_sum", "_num_examples")
     def compute(self):

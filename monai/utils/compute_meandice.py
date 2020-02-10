@@ -34,7 +34,7 @@ def compute_meandice(y_pred,
 
     if mutually_exclusive:
         if logit_thresh is not None:
-            raise ValueError('`logit_thresh` is incompatible when mutually_exlcusive is True.')
+            raise ValueError('`logit_thresh` is incompatible when mutually_exclusive is True.')
         y_pred = torch.argmax(y_pred, dim=1, keepdim=True)
         y_pred = to_onehot(y_pred, n_channels_y_pred)
     else:  # channel-wise thresholding
