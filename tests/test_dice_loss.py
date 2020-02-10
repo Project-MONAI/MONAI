@@ -18,7 +18,7 @@ from monai.networks.losses.dice import DiceLoss
 
 TEST_CASE_1 = [
     {
-        'include_background': False,
+        'include_background': True,
     },
     {
         'pred': torch.tensor([[[[1., -1.], [-1., 1.]]]]),
