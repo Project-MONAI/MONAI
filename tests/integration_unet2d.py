@@ -39,7 +39,7 @@ def run_test(batch_size=64, train_steps=100, device=torch.device("cuda:0")):
         num_res_units=2,
     )
 
-    loss = networks.losses.DiceLoss()
+    loss = networks.losses.DiceLoss(do_sigmoid=True)
     opt = torch.optim.Adam(net.parameters(), 1e-4)
     src = DataLoader(_TestBatch(), batch_size=batch_size)
 
@@ -55,5 +55,6 @@ def run_test(batch_size=64, train_steps=100, device=torch.device("cuda:0")):
 
 if __name__ == "__main__":
     result = run_test()
+    print(result)
 
     sys.exit(0 if result < 1 else 1)
