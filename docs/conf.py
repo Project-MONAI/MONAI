@@ -55,19 +55,19 @@ def setup(app):
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 source_suffix = {
-        '.rst': 'restructuredtext',
-        '.txt': 'restructuredtext',
-        '.md': 'markdown',
+    '.rst': 'restructuredtext',
+    '.txt': 'restructuredtext',
+    '.md': 'markdown',
 }
 
 extensions = [
-        'recommonmark',
-        'sphinx.ext.intersphinx',
-        'sphinx.ext.mathjax',
-        'sphinx.ext.napoleon',
-        'sphinx.ext.autodoc',
-        'sphinx.ext.viewcode',
-        'sphinx.ext.autosectionlabel'
+    'recommonmark',
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.mathjax',
+    'sphinx.ext.napoleon',
+    'sphinx.ext.autodoc',
+    'sphinx.ext.viewcode',
+    'sphinx.ext.autosectionlabel'
 ]
 
 autoclass_content = 'both'
@@ -90,11 +90,11 @@ exclude_patterns = []
 html_theme = 'sphinx_rtd_theme'
 # html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 html_theme_options = {
-        'collapse_navigation': True,
-        'display_version': True,
-        # 'navigation_depth': 4,
-        'sticky_navigation': True,  # Set to False to disable the sticky nav while scrolling.
-        # 'logo_only': True,  # if we have a html_logo below, this shows /only/ the logo with no title text
+    'collapse_navigation': True,
+    'display_version': True,
+    # 'navigation_depth': 4,
+    'sticky_navigation': True,  # Set to False to disable the sticky nav while scrolling.
+    # 'logo_only': True,  # if we have a html_logo below, this shows /only/ the logo with no title text
 }
 html_scaled_image_link = False
 html_show_sourcelink = True 
