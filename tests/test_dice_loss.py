@@ -16,9 +16,10 @@ from parameterized import parameterized
 
 from monai.networks.losses.dice import DiceLoss
 
-TEST_CASE_1 = [
+TEST_CASE_1 = [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
     {
-        'include_background': False,
+        'include_background': True,
+        'do_sigmoid': True,
     },
     {
         'pred': torch.tensor([[[[1., -1.], [-1., 1.]]]]),
@@ -28,9 +29,10 @@ TEST_CASE_1 = [
     0.307576,
 ]
 
-TEST_CASE_2 = [
+TEST_CASE_2 = [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
     {
         'include_background': True,
+        'do_sigmoid': True,
     },
     {
         'pred': torch.tensor([[[[1., -1.], [-1., 1.]]], [[[1., -1.], [-1., 1.]]]]),
@@ -40,10 +42,47 @@ TEST_CASE_2 = [
     0.416636,
 ]
 
+TEST_CASE_3 = [  # shape: (2, 2, 3), (2, 1, 3)
+    {
+        'include_background': True,
+    },
+    {
+        'pred': torch.tensor([[[1., 1., 0.], [0., 0., 1.]], [[1., 0., 1.], [0., 1., 0.]]]),
+        'ground': torch.tensor([[[0., 0., 1.]], [[0., 1., 0.]]]),
+        'smooth': 0.0,
+    },
+    0.0,
+]
+
+TEST_CASE_4 = [  # shape: (2, 2, 3), (2, 1, 3)
+    {
+        'include_background': True,
+        'do_sigmoid': True,
+    },
+    {
+        'pred': torch.tensor([[[-1., 0., 1.], [1., 0., -1.]], [[0., 0., 0.], [0., 0., 0.]]]),
+        'ground': torch.tensor([[[1., 0., 0.]], [[1., 1., 0.]]]),
+        'smooth': 1e-4,
+    },
+    0.422957,
+]
+
+TEST_CASE_5 = [  # shape: (2, 2, 3), (2, 1, 3)
+    {
+        'include_background': True,
+        'do_softmax': True,
+    },
+    {
+        'pred': torch.tensor([[[-1., 0., 1.], [1., 0., -1.]], [[0., 0., 0.], [0., 0., 0.]]]),
+        'ground': torch.tensor([[[1., 0., 0.]], [[1., 1., 0.]]]),
+        'smooth': 1e-4,
+    },
+    0.373045,
+]
 
 class TestDiceLoss(unittest.TestCase):
 
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
     def test_shape(self, input_param, input_data, expected_val):
         result = DiceLoss(**input_param).forward(**input_data)
         self.assertAlmostEqual(result.item(), expected_val, places=5)

@@ -31,35 +31,44 @@ class DiceLoss(_Loss):
     size they can get overwhelmed by the signal from the background so excluding it in such cases helps convergence.
     """
 
-    def __init__(self, include_background=True):
+    def __init__(self, include_background=True, do_sigmoid=False, do_softmax=False):
         """
-        If `include_background` is False channel index 0 (background category) is excluded from the calculation.
+        Args:
+            include_background (bool): If False channel index 0 (background category) is excluded from the calculation.
+            do_sigmoid (bool): If True, apply a sigmoid function to the prediction.
+            do_softmax (bool): If True, apply a softmax function to the prediction.
         """
         super().__init__()
-        self.includeBackground = include_background
+        self.include_background = include_background
+        self.do_sigmoid = do_sigmoid
+        self.do_softmax = do_softmax
 
     def forward(self, pred, ground, smooth=1e-5):
         if ground.shape[1] != 1:
             raise ValueError("Ground truth should have only a single channel, shape is " + str(ground.shape))
 
+        psum = pred.float()
+        if self.do_sigmoid:
+            psum = psum.sigmoid()
         if pred.shape[1] == 1:  # binary dice loss, use sigmoid activation
-            psum = pred.float().sigmoid()
+            if self.do_softmax:
+                raise ValueError('do_softmax is not compatible with single channel prediction.')
+            if not self.include_background:
+                raise RuntimeWarning('single channel ground truth, `include_background=False` ignored.')
             tsum = ground
         else:
-            pinds = (0, 3, 1, 2) if len(ground.shape) == 4 else (0, 4, 1, 2, 3)
-            # multiclass dice loss, use softmax in the first dimension and convert target to one-hot encoding
-            psum = torch.softmax(pred, 1)
-            tsum = one_hot(ground, pred.shape[1])  # BCHW(D) -> BCHW(D)N
-            tsum = tsum[:, 0].permute(*pinds).contiguous()  # BCHW(D)N -> BNHW(D)
-
-            assert tsum.shape == pred.shape, ("Ground truth one-hot has differing shape (%r) from source (%r)" %
-                                              (tsum.shape, pred.shape))
-
+            if self.do_softmax:
+                if self.do_sigmoid:
+                    raise ValueError('do_sigmoid=True and do_softmax=Ture are not compatible.')
+                # multiclass dice loss, use softmax in the first dimension and convert target to one-hot encoding
+                psum = torch.softmax(pred, 1)
+            tsum = one_hot(ground, pred.shape[1])  # B1HW(D) -> BNHW(D)
             # exclude background category so that it doesn't overwhelm the other segmentations if they are small
-            if not self.includeBackground:
+            if not self.include_background:
                 tsum = tsum[:, 1:]
                 psum = psum[:, 1:]
-                pred = pred[:, 1:]
+        assert tsum.shape == pred.shape, ("Ground truth one-hot has differing shape (%r) from source (%r)" %
+                                          (tsum.shape, pred.shape))
 
         batchsize = ground.size(0)
         tsum = tsum.float().view(batchsize, -1)
