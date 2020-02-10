@@ -5,7 +5,7 @@ from monai.networks.utils import one_hot
 
 def compute_meandice(y_pred,
                      y,
-                     exclude_bg=False,
+                     include_background=False,
                      to_onehot_y=True,
                      mutually_exclusive=True,
                      add_sigmoid=False,
@@ -16,7 +16,7 @@ def compute_meandice(y_pred,
         y_pred (torch.Tensor): input data to compute, typical segmentation model output.
                                it must be One-Hot format and first dim is batch, example shape: [16, 3, 32, 32].
         y (torch.Tensor): ground truth to compute mean dice metric, the first dim is batch.
-        exclude_bg (Bool): whether to skip dice computation on the first channel of the predicted output.
+        include_background (Bool): whether to skip dice computation on the first channel of the predicted output.
         to_onehot_y (Bool): whether to convert `y` into the one-hot format.
         mutually_exclusive (Bool): if True, `y_pred` will be converted into a binary matrix using
             a combination of argmax and to_onehot.
@@ -46,7 +46,7 @@ def compute_meandice(y_pred,
     if to_onehot_y:
         y = one_hot(y, n_channels_y_pred)
 
-    if exclude_bg:
+    if not include_background:
         y = y[:, 1:] if y.shape[1] > 1 else y
         y_pred = y_pred[:, 1:] if y_pred.shape[1] > 1 else y_pred
 

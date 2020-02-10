@@ -26,7 +26,7 @@ class MeanDice(Metric):
     """
     def __init__(
         self,
-        exclude_bg=True,
+        include_background=True,
         to_onehot_y=False,
         logit_thresh=0.5,
         add_sigmoid=False,
@@ -37,17 +37,17 @@ class MeanDice(Metric):
         """
 
         Args:
-            exclude_bg (Bool): skip dice computation on the first channel of the predicted output or not.
-            to_onehot_y (Bool): whether the label data(y) is already in One-Hot format, will convert if not.
+            include_background (Bool): whether to include dice computation on the first channel of the predicted output.
+            to_onehot_y (Bool): whether to convert the output prediction into the one-hot format.
             logit_thresh (Float): the threshold value to round value to 0.0 and 1.0, default is 0.5.
-            add_sigmoid (Bool): whether to add sigmoid function to the output prediction before computating Dice.
+            add_sigmoid (Bool): whether to add sigmoid function to the output prediction before computing Dice.
             mutually_exclusive (Bool): if True, the output prediction will be converted into a binary matrix using
                 a combination of argmax and to_onehot.
             output_transform (Callable): transform the ignite.engine.state.output into [y_pred, y] pair.
             device (torch.device): device specification in case of distributed computation usage.
         """
         super(MeanDice, self).__init__(output_transform, device=device)
-        self.exclude_bg = exclude_bg
+        self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         self.logit_thresh = logit_thresh
         self.add_sigmoid = add_sigmoid
@@ -65,7 +65,7 @@ class MeanDice(Metric):
     def update(self, output: Sequence[Union[torch.Tensor, dict]]):
         assert len(output) == 2, 'MeanDice metric can only support y_pred and y.'
         y_pred, y = output
-        average = compute_meandice(y_pred, y, self.exclude_bg, self.to_onehot_y, self.mutually_exclusive,
+        average = compute_meandice(y_pred, y, self.include_background, self.to_onehot_y, self.mutually_exclusive,
                                    self.add_sigmoid, self.logit_thresh)
 
         batch_size = len(y)

@@ -21,7 +21,7 @@ TEST_CASE_1 = [
     {
         'y_pred': torch.tensor([[[[1., -1.], [-1., 1.]]]]),
         'y': torch.tensor([[[[1., 0.], [1., 1.]]]]),
-        'exclude_bg': False,
+        'include_background': True,
         'to_onehot_y': False,
         'mutually_exclusive': False,
         'logit_thresh': 0.5,
@@ -38,8 +38,8 @@ TEST_CASE_2 = [
                       [[[-2., 0.], [3., 1.]], [[0., 2.], [1., -2.]], [[-1., 2.], [4., 0.]]]]),
         'y':
         torch.tensor([[[[1, 2], [1, 0]]], [[[1, 1], [2, 0]]]]),
-        'exclude_bg':
-        True,
+        'include_background':
+        False,
         'to_onehot_y':
         True,
         'mutually_exclusive':

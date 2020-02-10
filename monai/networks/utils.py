@@ -19,13 +19,12 @@ import torch.nn.functional as f
 
 def one_hot(labels, num_classes):
     """
-    For a tensor `labels' of dimensions B1[spatial_dims], return a tensor of dimensions BN[spatial_dims] for `num_classes' N number of
-    classes.
+    For a tensor `labels' of dimensions B1[spatial_dims], return a tensor of dimensions BN[spatial_dims]
+    for `num_classes' N number of classes.
 
     Example:
         For every value v = labels[b,1,h,w], the value in the result at [b,v,h,w] will be 1 and all others 0.
-
-    Note that this will include the background label, thus a binary mask should be treated as having 2 classes.
+        Note that this will include the background label, thus a binary mask should be treated as having 2 classes.
     """
     num_dims = labels.dim()
     if num_dims < 2 or labels.shape[1] != 1:
