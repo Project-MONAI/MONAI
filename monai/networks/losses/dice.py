@@ -31,9 +31,12 @@ class DiceLoss(_Loss):
     size they can get overwhelmed by the signal from the background so excluding it in such cases helps convergence.
     """
 
-    def __init__(self, include_background=True, do_sigmoid=True, do_softmax=False):
+    def __init__(self, include_background=True, do_sigmoid=False, do_softmax=False):
         """
-        If `include_background` is False channel index 0 (background category) is excluded from the calculation.
+        Args:
+            include_background (bool): If False channel index 0 (background category) is excluded from the calculation.
+            do_sigmoid (bool): If True, apply a sigmoid function to the prediction.
+            do_softmax (bool): If True, apply a softmax function to the prediction.
         """
         super().__init__()
         self.include_background = include_background
