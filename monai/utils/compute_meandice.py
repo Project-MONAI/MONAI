@@ -2,13 +2,26 @@ import torch
 from monai.utils.to_onehot import to_onehot
 
 
-def compute_meandice(y_pred, y, remove_bg, is_onehot_targets, logit_thresh=0.5):
+def compute_meandice(
+    y_pred,
+    y,
+    remove_bg,
+    is_onehot_targets,
+    logit_thresh=0.5,
+    add_sigmoid=False,
+    add_softmax=False
+):
     """Computes dice score metric from full size Tensor and collects average.
 
     Args:
+        y_pred (torch.Tensor): input data to compute, typical segmentation model output.
+                               it must be One-Hot format and first dim is batch, example shape: [16, 3, 32, 32].
+        y (torch.Tensor): ground true to compute mean dice metric, the first dim is batch.
         remove_bg (Bool): skip dice computation on the first channel of the predicted output or not.
         is_onehot_targets (Bool): whether the label data(y) is already in One-Hot format, will convert if not.
         logit_thresh (Float): the threshold value to round value to 0.0 and 1.0, default is 0.5.
+        add_sigmoid (Bool): whether to add sigmoid function to y_pred before computation.
+        add_softmax (Bool): whether to add softmax function to y_pred before computation.
 
     Note:
         (1) if this is multi-labels task(One-Hot label), use logit_thresh to convert y_pred to 0 or 1.
@@ -18,6 +31,11 @@ def compute_meandice(y_pred, y, remove_bg, is_onehot_targets, logit_thresh=0.5):
     n_channels_y_pred = y_pred.shape[1]
     n_len = len(y_pred.shape)
     assert n_len == 4 or n_len == 5, 'unsupported input shape.'
+
+    if add_sigmoid is True:
+        y_pred = torch.sigmoid(y_pred)
+    if add_softmax is True:
+        y_pred = torch.nn.functional.softmax(y_pred, dim=1)
 
     if is_onehot_targets is True:
         y_pred = (y_pred >= logit_thresh).float()

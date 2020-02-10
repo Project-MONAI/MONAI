@@ -18,10 +18,10 @@ from monai.utils.to_onehot import to_onehot
 
 TEST_CASE_1 = [  # single channel 2D, batch 16
     {
-        'data': torch.randint(low=0, high=2, size=(16, 1, 32, 32)),
+        'data': torch.tensor([[[[0, 1], [1, 2]]], [[[2, 1], [1, 0]]]]),
         'num_classes': 3
     },
-    (16, 3, 32, 32),
+    (2, 3, 2, 2),
 ]
 
 

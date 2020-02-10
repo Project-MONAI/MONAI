@@ -43,6 +43,8 @@ class MeanDice(Metric):
         remove_bg=True,
         is_onehot_targets=False,
         logit_thresh=0.5,
+        add_sigmoid=False,
+        add_softmax=False,
         output_transform: Callable = lambda x: x,
         device: Optional[Union[str, torch.device]] = None
     ):
@@ -50,6 +52,8 @@ class MeanDice(Metric):
         self.remove_bg = remove_bg
         self.is_onehot_targets = is_onehot_targets
         self.logit_thresh = logit_thresh
+        self.add_sigmoid = add_sigmoid
+        self.add_softmax = add_softmax
 
     @reinit__is_reduced
     def reset(self):
@@ -61,7 +65,8 @@ class MeanDice(Metric):
         assert len(output) == 2, 'MeanDice metric can only support y_pred and y.'
         y_pred, y = output
 
-        average = compute_meandice(y_pred, y, self.remove_bg, self.is_onehot_targets, self.logit_thresh)
+        average = compute_meandice(y_pred, y, self.remove_bg, self.is_onehot_targets,
+                                   self.logit_thresh, self.add_sigmoid, self.add_softmax)
 
         if len(average.shape) != 0:
             raise ValueError('_function did not return the average loss.')

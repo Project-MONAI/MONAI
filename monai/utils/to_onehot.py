@@ -15,6 +15,9 @@ import torch.nn.functional as f
 
 def to_onehot(data, num_classes):
     """Util function to convert PyTorch tensor to One-Hot encoding format.
+    The input data should only have 1 channel and the first dim is batch.
+    Example shapes: [16, 1, 96, 96], [16, 1, 96, 96, 32].
+    And the data values must match "num_classes"， example: num_classes = 10 and values in [0 ... 9].
 
     Args:
         data (torch.Tensor): target data to convert One-Hot format.
