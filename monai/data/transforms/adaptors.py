@@ -37,7 +37,7 @@ to string, depending on what the transform being adapted returns:
 . If the transform returns a dictionary of values, then outputs must be supplied
   a dictionary that maps keys in the function's return dictionary to the
   dictionary being passed between functions
-  
+
 Note, the caller is free to use a more complex way of specifying the outputs
 parameter than is required. The following are synonymous and will be treated
 identically:
@@ -46,7 +46,7 @@ identically:
    adaptor(MyTransform(), 'image')
    adaptor(MyTransform(), ['image'])
    adaptor(MyTransform(), {'image': 'image'})
-   
+
    # multiple arguments
    adaptor(MyTransform(), ['image', 'label'])
    adaptor(MyTransform(), {'image': 'image', 'label': 'label'})
@@ -90,7 +90,7 @@ list/tuple out: list/tuple
 variable out: string
 
 """
-#@monai.utils.export('monai.data.transforms')
+@monai.utils.export('monai.data.transforms')
 def adaptor(function, outputs, inputs=None):
 
     def must_be_types_or_none(variable_name, variable, types):
@@ -121,10 +121,12 @@ def adaptor(function, outputs, inputs=None):
             # we just forward all arguments unless we have been provided an input map
             if inputs is None:
                 dinputs = dict(ditems)
-            else: # dict
+            else:
+                # dict
                 dinputs = map_names(ditems, inputs)
 
-        else: # no **kwargs
+        else:
+            # no **kwargs
             # select only items from the method signature
             dinputs = dict((k, v) for k, v in ditems.items() if k in sig.non_var_parameters)
             must_be_types_or_none('inputs', inputs, (str, list, tuple, dict))
@@ -136,25 +138,9 @@ def adaptor(function, outputs, inputs=None):
                 dinputs = {inputs: ditems[inputs]}
             elif isinstance(inputs, (list, tuple)):
                 dinputs = dict((k, dinputs[k]) for k in inputs)
-            else: # dict
+            else:
+                # dict
                 dinputs = map_only_names(ditems, inputs)
-
-
-        # if inputs is None:
-        #     # must match all dictionary elements with parameters
-        #     kws = check_signature(function)
-        #     missing_names = []
-        #     for k in kws:
-        #         if k not in ditems:
-        #             missing_names.append(k)
-        #
-        # if isinstance(ditems, (list, tuple)):
-        #     # there is no mapping to be done, so just select the necessary inputs
-        #     input_args = {k: ditems[k] for k in inputs}
-        # elif isinstance(ditems, dict):
-        #     input_args = {v: ditems[k] for k, v in inputs.items()}
-        # else:
-        #     raise ValueError("'inputs' must be of type list, tuple or dict")
 
         ret = function(**dinputs)
 
@@ -219,4 +205,3 @@ class FunctionSignature:
 
     def __str__(self):
         return self.__repr__()
-
