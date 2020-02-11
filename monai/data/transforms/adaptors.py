@@ -90,55 +90,133 @@ list/tuple out: list/tuple
 variable out: string
 
 """
-@monai.utils.export('monai.data.transforms')
-def adaptor(function, outputs=None, inputs=None):
+#@monai.utils.export('monai.data.transforms')
+def adaptor(function, outputs, inputs=None):
 
-    def check_signature(fn):
-        import inspect
-        sfn = inspect.signature(fn)
-        found_args = False
-        found_kwargs = False
-        vanilla = []
-        for p in sfn.parameters.values():
-            if p.kind == inspect.Parameter.VAR_POSITIONAL:
-                found_args = True
-            elif p.kind == inspect.Parameter.VAR_KEYWORD:
-                found_kwargs = True
-            else:
-                vanilla.append(p.name)
-        return vanilla, found_args, found_kwargs
+    def must_be_types_or_none(variable_name, variable, types):
+        if variable is not None:
+            if not isinstance(variable, types):
+                raise ValueError(
+                    "'{}' must be None or {} but is {}".format(
+                        variable_name, types, type(variable)))
+
+    def must_be_types(variable_name, variable, types):
+        if not isinstance(variable, types):
+            raise ValueError(
+                "'{}' must be one of {} but is {}".format(
+                    variable_name, types, type(variable)))
+
+    def map_names(ditems, input_map):
+        return {k if k not in input_map else input_map[k]: v for k, v in ditems.items()}
+
+    def map_only_names(ditems, input_map):
+        return {v: ditems[k] for k, v in input_map.items()}
 
     def _inner(ditems):
-        if inputs is None:
-            # must match all dictionary elements with parameters
-            kws = check_signature(function)
-            missing_names = []
-            for k in kws:
-                if k not in ditems:
-                    missing_names.append(k)
 
-        if isinstance(ditems, (list, tuple)):
-            # there is no mapping to be done, so just select the necessary inputs
-            input_args = {k: ditems[k] for k in inputs}
-        elif isinstance(ditems, dict):
-            input_args = {v: ditems[k] for k, v in inputs.items()}
+        sig = FunctionSignature(function)
+
+        if sig.found_kwargs:
+            must_be_types_or_none('inputs', inputs, (dict,))
+            # we just forward all arguments unless we have been provided an input map
+            if inputs is None:
+                dinputs = dict(ditems)
+            else: # dict
+                dinputs = map_names(ditems, inputs)
+
+        else: # no **kwargs
+            # select only items from the method signature
+            dinputs = dict((k, v) for k, v in ditems.items() if k in sig.non_var_parameters)
+            must_be_types_or_none('inputs', inputs, (str, list, tuple, dict))
+            if inputs is None:
+                pass
+            elif isinstance(inputs, str):
+                if len(sig.non_var_parameters) != 1:
+                    raise ValueError("if 'inputs' is a string, function may only have a single non-variadic parameter")
+                dinputs = {inputs: ditems[inputs]}
+            elif isinstance(inputs, (list, tuple)):
+                dinputs = dict((k, dinputs[k]) for k in inputs)
+            else: # dict
+                dinputs = map_only_names(ditems, inputs)
+
+
+        # if inputs is None:
+        #     # must match all dictionary elements with parameters
+        #     kws = check_signature(function)
+        #     missing_names = []
+        #     for k in kws:
+        #         if k not in ditems:
+        #             missing_names.append(k)
+        #
+        # if isinstance(ditems, (list, tuple)):
+        #     # there is no mapping to be done, so just select the necessary inputs
+        #     input_args = {k: ditems[k] for k in inputs}
+        # elif isinstance(ditems, dict):
+        #     input_args = {v: ditems[k] for k, v in inputs.items()}
+        # else:
+        #     raise ValueError("'inputs' must be of type list, tuple or dict")
+
+        ret = function(**dinputs)
+
+        # now the mapping back to the output dictionary depends on outputs and what was returned from the function
+        op = outputs
+        if isinstance(ret, dict):
+            must_be_types_or_none('outputs', op, (dict,))
+            if op is not None:
+                ret = {v: ret[k] for k, v in op}
+        elif isinstance(ret, (list, tuple)):
+            if len(ret) == 1:
+                must_be_types('outputs', op, (str, list, tuple))
+            else:
+                must_be_types('outputs', op, (list, tuple))
+
+            if isinstance(op, str):
+                op = [op]
+
+            if len(ret) != len(outputs):
+                raise ValueError("'outputs' must have the same length as the number of elements that were returned")
+
+            ret = dict((k, v) for k, v in zip(op, ret))
         else:
-            raise ValueError("'inputs' must be of type list, tuple or dict")
+            must_be_types('outputs', op, (str, list, tuple))
+            if isinstance(op, (list, tuple)):
+                if len(op) != 1:
+                    raise ValueError("'outputs' must be of length one if it is a list or tuple")
+                op = op[0]
+            ret = {op: ret}
 
-        ret = function(**input_args)
+        ditems = dict(ditems)
+        for k, v in ret.items():
+            ditems[k] = v
 
-        kwargs = dict(kwargs)
-        print(kwargs)
-
-        if isinstance(outputs, (list, tuple)):
-            pass
-        else:
-            ret = [ret]
-
-        for k, v in zip(outputs, ret):
-            kwargs[k] = v
-
-        return kwargs
-
+        return ditems
 
     return _inner
+
+
+@monai.utils.export('monai.data.transforms')
+class FunctionSignature:
+    def __init__(self, function):
+        import inspect
+        sfn = inspect.signature(function)
+        self.found_args = False
+        self.found_kwargs = False
+        self.defaults = {}
+        self.non_var_parameters = set()
+        for p in sfn.parameters.values():
+            if p.kind is inspect.Parameter.VAR_POSITIONAL:
+                self.found_args = True
+            if p.kind is inspect.Parameter.VAR_KEYWORD:
+                self.found_kwargs = True
+            else:
+                self.non_var_parameters.add(p.name)
+                self.defaults[p.name] = p.default is not p.empty
+
+
+    def __repr__(self):
+        s = "<class 'FunctionSignature': found_args={}, found_kwargs={}, defaults={}"
+        return s.format(self.found_args, self.found_kwargs, self.defaults)
+
+    def __str__(self):
+        return self.__repr__()
+

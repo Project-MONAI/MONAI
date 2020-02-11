@@ -10,16 +10,68 @@
 # limitations under the License.
 
 import unittest
+import itertools
 
-from monai.data.transforms.adaptors import adaptor
+from monai.data.transforms.adaptors import adaptor, FunctionSignature
 
 
 class TestAdaptors(unittest.TestCase):
+
+    # def test_check_signature(self):
+    #     def foo(image, label=None, *a):
+    #         pass
+    #
+    #     print(check_signature(foo))
+    #     import inspect
+    #     ps = inspect.signature(foo).parameters.values()
+    #     for p in ps:
+    #         print(dir(p))
+    #         print(p, p.kind, p.default is p.empty)
+    #
+    #     print(dict)
+    #
+    #     print(dict(v, len(v) < 3) for v in ['a', 'ab', 'abc', 'abcd'])
+
+
+    def test_function_signature(self):
+
+        def foo(image, label=None, *a, **kw):
+            pass
+
+        f = FunctionSignature(foo)
+        print(f)
+
+
 
     def test_single_in_single_out(self):
         def foo(image):
             return image * 2
 
+        it = itertools.product(
+            ['image', ['image']],
+            [None, 'image', ['image'], {'image': 'image'}]
+        )
+        for i in it:
+            d = {'image': 2}
+            dres = adaptor(foo, i[0], i[1])(d)
+            self.assertEqual(dres['image'], 4)
+
         d = {'image': 2}
         dres = adaptor(foo, 'image')(d)
         self.assertEqual(dres['image'], 4)
+
+        d = {'image': 2}
+        dres = adaptor(foo, 'image', 'image')(d)
+        self.assertEqual(dres['image'], 4)
+
+        d = {'image': 2}
+        dres = adaptor(foo, 'image', {'image': 'image'})(d)
+        self.assertEqual(dres['image'], 4)
+
+        d = {'img': 2}
+        dres = adaptor(foo, 'img', {'img': 'image'})(d)
+        self.assertEqual(dres['img'], 4)
+
+        d = {'img': 2}
+        dres = adaptor(foo, ['img'], {'img': 'image'})(d)
+        self.assertEqual(dres['img'], 4)
