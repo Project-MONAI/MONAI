@@ -44,7 +44,7 @@ TEST_CASE_2 = [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
 
 TEST_CASE_3 = [  # shape: (2, 2, 3), (2, 1, 3)
     {
-        'include_background': True,
+        'include_background': False,
     },
     {
         'pred': torch.tensor([[[1., 1., 0.], [0., 0., 1.]], [[1., 0., 1.], [0., 1., 0.]]]),
@@ -79,6 +79,7 @@ TEST_CASE_5 = [  # shape: (2, 2, 3), (2, 1, 3)
     },
     0.373045,
 ]
+
 
 class TestDiceLoss(unittest.TestCase):
 
