@@ -13,6 +13,7 @@ import os
 import sys
 import tempfile
 from glob import glob
+import logging
 
 import nibabel as nib
 import numpy as np
@@ -26,6 +27,8 @@ from torch.utils.data import DataLoader
 from monai import application, networks, utils
 from monai.data.readers import NiftiDataset
 from monai.data.transforms import (AddChannel, Rescale, ToTensor, UniformRandomPatch)
+from monai.application.handlers.stats_handler import StatsHandler
+from monai.networks.metrics.mean_dice import MeanDice
 
 # assumes the framework is found here, change as necessary
 sys.path.append("..")
@@ -96,7 +99,7 @@ net = networks.nets.UNet(
 loss = networks.losses.DiceLoss(do_sigmoid=True)
 opt = torch.optim.Adam(net.parameters(), lr)
 
-train_epochs = 30
+train_epochs = 3
 
 
 def _loss_fn(i, j):
@@ -106,10 +109,17 @@ def _loss_fn(i, j):
 device = torch.device("cuda:0")
 
 trainer = create_supervised_trainer(net, opt, _loss_fn, device, False,
-                                    output_transform=lambda x, y, y_pred, loss: [y_pred, loss.item()])
+                                    output_transform=lambda x, y, y_pred, loss: [y_pred, loss.item(), y])
 
 checkpoint_handler = ModelCheckpoint('./', 'net', n_saved=10, require_empty=False)
 trainer.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=checkpoint_handler, to_save={'net': net})
+
+dice_metric = MeanDice(add_sigmoid=True, output_transform=lambda output: (output[0][0], output[2]))
+dice_metric.attach(trainer, "Training Dice")
+
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+stats_logger = StatsHandler()
+stats_logger.attach(trainer)
 
 
 @trainer.on(Events.EPOCH_COMPLETED)
@@ -140,7 +150,7 @@ def log_training_loss(engine):
     third_label_tensor = torch.where(engine.state.batch[1][2] > 0, ones, engine.state.batch[1][2])
     utils.img2tensorboardutils.add_animated_gif(writer, "third_label_final_batch", third_label_tensor, 64,
                                                 255, engine.state.epoch)
-    print("Epoch", engine.state.epoch, "Loss:", engine.state.output[1])
+    engine.logger.info("Epoch[%s] Loss: %s", engine.state.epoch, engine.state.output[1])
 
 
 loader = DataLoader(ds, batch_size=20, num_workers=8, pin_memory=torch.cuda.is_available())
