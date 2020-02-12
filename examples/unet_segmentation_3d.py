@@ -93,7 +93,7 @@ net = networks.nets.UNet(
     num_res_units=2,
 )
 
-loss = networks.losses.DiceLoss()
+loss = networks.losses.DiceLoss(do_sigmoid=True)
 opt = torch.optim.Adam(net.parameters(), lr)
 
 train_epochs = 30
@@ -108,7 +108,7 @@ device = torch.device("cuda:0")
 trainer = create_supervised_trainer(net, opt, _loss_fn, device, False,
                                     output_transform=lambda x, y, y_pred, loss: [y_pred, loss.item()])
 
-checkpoint_handler = ModelCheckpoint('./', 'net', n_saved=10, save_interval=3, require_empty=False)
+checkpoint_handler = ModelCheckpoint('./', 'net', n_saved=10, require_empty=False)
 trainer.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=checkpoint_handler, to_save={'net': net})
 
 
