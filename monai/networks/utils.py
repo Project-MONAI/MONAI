@@ -8,27 +8,35 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """
 Utilities and types for defining networks, these depend on Pytorch.
 """
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as f
 
 
 def one_hot(labels, num_classes):
     """
-    For a tensor `labels' of dimensions BC[D][H]W, return a tensor of dimensions BC[D][H]WN for `num_classes' N number of
-    classes. For every value v = labels[b,c,h,w], the value in the result at [b,c,h,w,v] will be 1 and all others 0.
-    Note that this will include the background label, thus a binary mask should be treated as having 2 classes.
-    """
-    onehotshape = tuple(labels.shape) + (num_classes,)
-    labels = labels % num_classes
-    y = torch.eye(num_classes, device=labels.device)
-    onehot = y[labels.view(-1).long()]
+    For a tensor `labels' of dimensions B1[spatial_dims], return a tensor of dimensions BN[spatial_dims]
+    for `num_classes' N number of classes.
 
-    return onehot.reshape(*onehotshape)
+    Example:
+        For every value v = labels[b,1,h,w], the value in the result at [b,v,h,w] will be 1 and all others 0.
+        Note that this will include the background label, thus a binary mask should be treated as having 2 classes.
+    """
+    num_dims = labels.dim()
+    if num_dims < 2 or labels.shape[1] != 1:
+        raise ValueError('labels should have a channel with length equals to one.')
+
+    labels = torch.squeeze(labels, 1)
+    labels = f.one_hot(labels.long(), num_classes)
+    new_axes = [0, -1] + list(range(1, num_dims - 1))
+    labels = labels.permute(*new_axes)
+    if not labels.is_contiguous():
+        return labels.contiguous()
+    return labels
 
 
 def slice_channels(tensor, *slicevals):

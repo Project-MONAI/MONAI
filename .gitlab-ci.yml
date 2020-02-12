@@ -4,6 +4,8 @@ stages:
 .base_template : &BASE
    script:
    - nvidia-smi
+   - export CUDA_DEVICE_ORDER=PCI_BUS_ID
+   - export CUDA_VISIBLE_DEVICES=0,1
    - python -m pip install --upgrade pip
    - pip uninstall -y torch torchvision
    - pip install -r requirements.txt
