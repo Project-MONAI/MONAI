@@ -21,7 +21,7 @@ def write_nifti(data, affine, file_name, revert_canonical, dtype="float32"):
         affine (numpy.ndarray): affine information for the data.
         file_name (string): expected file name that saved on disk.
         revert_canonical (bool): whether to revert canonical.
-        dtype (np.dtype, optional): convert the loaded image to this data type.
+        dtype (np.dtype, optional): convert the image to save to this data type.
 
     """
     assert isinstance(data, np.ndarray), 'input data must be numpy array.'

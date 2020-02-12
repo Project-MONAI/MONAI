@@ -23,7 +23,9 @@ def sliding_window_inference(inputs, roi_size, sw_batch_size, predictor, device)
         inputs (numpy array): input image to be processed (assuming NCHW[D])
         roi_size (list, tuple): the window size to execute SlidingWindow inference.
         sw_batch_size (int): the batch size to run window slices.
-        predictor: a monai.networks.nets module
+        predictor (Callable): given input tensor `patch_data` in shape NCHW[D], `predictor(patch_data)`
+            should return a prediction with the same spatial shape and batch_size, i.e. NMHW[D];
+            where HW[D] represents the patch spatial size, M is the number of output channels, N is `sw_batch_size`.
         device: on which device to execute model inference, cpu or gpu.
 
     Note:
@@ -71,7 +73,7 @@ def sliding_window_inference(inputs, roi_size, sw_batch_size, predictor, device)
     # Perform predictions
     output_rois = list()
     for data in slice_batches:
-        seg_prob, _ = predictor(data)  # segmentation probabilities
+        seg_prob = predictor(data)  # batched patch segmentation
         output_rois.append(seg_prob)
 
     # stitching output image

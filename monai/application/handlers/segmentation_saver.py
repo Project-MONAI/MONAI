@@ -23,11 +23,24 @@ class SegmentationSaver:
     Event handler triggered on completing every iteration to save the segmentation predictions.
     """
 
-    def __init__(self, output_path='./', dtype='float32', output_postfix='seg', output_ext='.nii.gz'):
+    def __init__(self, output_path='./', dtype='float32', output_postfix='seg', output_ext='.nii.gz',
+                 output_transform=lambda x: x):
+        """
+        Args:
+            output_path (str): output image directory.
+            dtype (str): to convert the image to save to this datatype.
+            output_postfix (str): a string appended to all output file names.
+            output_ext (str): output file extension name.
+            output_transform (Callable): a callable that is used to transform the
+                ignite.engine.output into the form expected nifti image data.
+                The first dimension of this transform's output will be treated as the
+                batch dimension. Each item in the batch will be saved individually.
+        """
         self.output_path = output_path
         self.dtype = dtype
         self.output_postfix = output_postfix
         self.output_ext = output_ext
+        self.output_transform = output_transform
 
     def attach(self, engine):
         return engine.add_event_handler(Events.ITERATION_COMPLETED, self)
@@ -77,8 +90,9 @@ class SegmentationSaver:
         """
         meta_data = engine.state.batch[2]  # assuming 3rd output of input dataset is a meta data dict
         filenames = meta_data['filename_or_obj']
+        engine_output = self.output_transform(engine.state.output)
         for batch_id, filename in enumerate(filenames):  # save a batch of files
-            seg_output = engine.state.output[batch_id]
+            seg_output = engine_output[batch_id]
             if isinstance(seg_output, torch.Tensor):
                 seg_output = seg_output.detach().cpu().numpy()
             original_affine = nib.load(filename).affine

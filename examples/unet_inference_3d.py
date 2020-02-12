@@ -68,7 +68,7 @@ def _sliding_window_processor(_engine, batch):
     net.eval()
     img, seg, meta_data = batch
     with torch.no_grad():
-        seg_probs = sliding_window_inference(img, roi_size, sw_batch_size, net, device)
+        seg_probs = sliding_window_inference(img, roi_size, sw_batch_size, lambda x: net(x)[0], device)
         return predict_segmentation(seg_probs)
 
 
