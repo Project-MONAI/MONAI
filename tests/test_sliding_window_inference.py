@@ -34,8 +34,7 @@ class TestSlidingWindowInference(unittest.TestCase):
         device = torch.device("cpu:0")
 
         def compute(data):
-            # data = torch.from_numpy(data)
-            return data.to(device) + 1, None  # to be consistent with monai.networks.nets.unet.UNet
+            return data.to(device) + 1
 
         result = sliding_window_inference(inputs, roi_shape, sw_batch_size, compute, device)
         expected_val = np.ones(image_shape, dtype=np.float32) + 1
