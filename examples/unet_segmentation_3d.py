@@ -18,7 +18,7 @@ import logging
 import nibabel as nib
 import numpy as np
 import torch
-import torchvision.transforms as transforms
+import monai.data.transforms.compose as transforms
 from torch.utils.tensorboard import SummaryWriter
 from ignite.engine import Events, create_supervised_trainer
 from ignite.handlers import ModelCheckpoint
