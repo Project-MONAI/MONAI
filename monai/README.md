@@ -1,14 +1,24 @@
+# MONAI
 
-# monai
+* **application**: for managing the training workflow.
 
-The framework is divided into a few large modules:
+* **config**: for system configuration and diagnostic output.
 
-* **application**: Contains the `NetworkManager` type, monitors, and utilities
+* **data**: for the datasets, readers/writers, and synthetic data
 
-* **data**: Contains the data stream definition types and example datasets
+* **engine**: engine-derived classes for extending Ignite behaviour.
 
-* **networks**: Contains network definitions, component definitions, and Pytorch specific utilities
+* **handlers**: defines handlers for implementing functionality at various stages in the training process.
 
-* **test**: Contains the unit tests for the framework
+* **losses**: classes defining loss functions.
 
-* **utils**: Contains a set of utility files for doing namespace aliasing, auto module loading, and other facilities
+* **metrics**: defines metric tracking types.
+
+* **networks**: contains network definitions, component definitions, and Pytorch specific utilities.
+
+* **transforms**: defines data transforms for preprocessing and postprocessing.
+
+* **utils**: generic utilities intended to be implemented in pure Python or using Numpy,
+and not with Pytorch, such as namespace aliasing, auto module loading.
+
+* **visualize**: utilities for data visualization.

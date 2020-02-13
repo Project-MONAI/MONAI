@@ -9,11 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 def stopping_fn_from_metric(metric_name):
     """Returns a stopping function for ignite.handlers.EarlyStopping using the given metric name."""
     def stopping_fn(engine):
         return engine.state.metrics[metric_name]
     return stopping_fn
+
 
 def stopping_fn_from_loss():
     """Returns a stopping function for ignite.handlers.EarlyStopping using the loss value."""

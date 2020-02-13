@@ -49,7 +49,7 @@ def _default_eval_transform(x, y, y_pred):
     return y_pred, y
 
 
-@monai.utils.export("monai.application.engine")
+@monai.utils.export("monai.engine")
 def create_multigpu_supervised_trainer(net, optimizer, loss_fn, devices=None, non_blocking=False, 
                                        prepare_batch=_prepare_batch, output_transform=_default_transform):
     """
@@ -82,8 +82,8 @@ def create_multigpu_supervised_trainer(net, optimizer, loss_fn, devices=None, no
     return create_supervised_trainer(net, optimizer, loss_fn, devices[0], non_blocking, prepare_batch, output_transform)
 
 
-@monai.utils.export("monai.application.engine")
-def create_multigpu_supervised_evaluator(net, metrics=None, device=None, non_blocking=False, 
+@monai.utils.export("monai.engine")
+def create_multigpu_supervised_evaluator(net, metrics=None, devices=None, non_blocking=False,
                                          prepare_batch=_prepare_batch, output_transform=_default_eval_transform):
     """
     ***Derived from `create_supervised_evaluator` in Ignite.

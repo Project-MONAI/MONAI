@@ -12,11 +12,11 @@
 import os
 import sys
 
-from .utils.moduleutils import load_submodules
+from .utils.module import load_submodules
 
 __copyright__ = "(c) 2020 MONAI Consortium"
 __version__tuple__ = (0, 0, 1)
-__version__ = "%i.%i.%i" % (__version__tuple__)
+__version__ = "%i.%i.%i" % __version__tuple__
 
 __basedir__ = os.path.dirname(__file__)
 

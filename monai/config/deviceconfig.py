@@ -24,7 +24,7 @@ try:
 except ImportError:
     ignite_version = 'NOT INSTALLED'
 
-export = monai.utils.export("monai.application.config")
+export = monai.utils.export("monai.config")
 
 
 @export

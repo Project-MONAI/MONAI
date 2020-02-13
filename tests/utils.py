@@ -11,11 +11,13 @@
 
 import os
 import unittest
+import tempfile
+import nibabel as nib
 
 import numpy as np
 import torch
 
-from monai.utils.generateddata import create_test_image_2d
+from monai.data.synthetic import create_test_image_2d
 
 quick_test_var = "QUICKTEST"
 
@@ -24,6 +26,18 @@ def skip_if_quick(obj):
     is_quick = os.environ.get(quick_test_var, "").lower() == "true"
 
     return unittest.skipIf(is_quick, "Skipping slow tests")(obj)
+
+
+def make_nifti_image(array, affine):
+    """
+    Create a temporary nifti image on the disk and return the image name.
+    User is responsible for deleting the temporary file when done with it.
+    """
+    test_image = nib.Nifti1Image(array, affine)
+
+    _, image_name = tempfile.mkstemp(suffix='.nii.gz')
+    nib.save(test_image, image_name)
+    return image_name
 
 
 class NumpyImageTestCase2D(unittest.TestCase):
@@ -47,3 +61,10 @@ class TorchImageTestCase2D(NumpyImageTestCase2D):
         self.imt = torch.tensor(self.imt)
         self.seg1 = torch.tensor(self.seg1)
         self.segn = torch.tensor(self.segn)
+
+
+def expect_failure_if_no_gpu(test):
+    if not torch.cuda.is_available():
+        return unittest.expectedFailure(test)
+    else:
+        return test

@@ -17,7 +17,6 @@ jobs:
         pip install -r requirements.txt
     - name: Lint with flake8
       run: |
-        pip install flake8
-        pip install pep8-naming
+        pip install flake8 flake8-mypy flake8-bugbear flake8-comprehensions flake8-executable flake8-pyi mccabe pycodestyle pyflakes
         flake8 --version
-        flake8 . --count --statistics
+        flake8 . --count --statistics --config .flake8

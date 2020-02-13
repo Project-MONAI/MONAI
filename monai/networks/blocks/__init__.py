@@ -8,7 +8,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-# have to explicitly bring these in here to resolve circular import issues
-from .aliases import alias, resolve_name
-from .module import export
