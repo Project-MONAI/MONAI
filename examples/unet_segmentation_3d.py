@@ -122,7 +122,7 @@ dice_metric.attach(trainer, "Training Dice")
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 stats_logger = StatsHandler()
-# stats_logger.attach(trainer)
+stats_logger.attach(trainer)
 
 
 @trainer.on(Events.EPOCH_COMPLETED)
@@ -163,11 +163,11 @@ writer = SummaryWriter()
 # Define mean dice metric and Evaluator.
 validation_every_n_epochs = 1
 
-val_metrics = {'Mean Dice': MeanDice()}
-val_stats_handler = StatsHandler()
-
+val_metrics = {'Mean Dice': MeanDice(add_sigmoid=True)}
 evaluator = create_supervised_evaluator(net, val_metrics, device, True,
-                                        output_transform=lambda x, y, y_pred: (y_pred[1], y))
+                                        output_transform=lambda x, y, y_pred: (y_pred[0], y))
+
+val_stats_handler = StatsHandler()
 val_stats_handler.attach(evaluator)
 
 # Add early stopping handler to evaluator.
@@ -176,16 +176,7 @@ early_stopper = EarlyStopping(patience=4,
                               trainer=trainer)
 evaluator.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=early_stopper)
 
-<<<<<<< HEAD
-@trainer.on(Events.EPOCH_COMPLETED(every=validation_every_N_epochs))
-=======
-@evaluator.on(Events.EPOCH_COMPLETED)
-def print_metrics(engine):
-    for name, value in engine.state.metrics.items():
-        print(f"{name}: {value}")
-
 @trainer.on(Events.EPOCH_COMPLETED(every=validation_every_n_epochs))
->>>>>>> Fix flake8 errors.
 def run_validation(engine):
     evaluator.run(val_loader)
 
