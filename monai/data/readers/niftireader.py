@@ -35,6 +35,7 @@ def load_nifti(filename_or_obj, as_closest_canonical=False, image_only=True, dty
     """
 
     img = nib.load(filename_or_obj)
+    original_affine = img.affine
 
     if as_closest_canonical:
         img = nib.as_closest_canonical(img)
@@ -46,6 +47,8 @@ def load_nifti(filename_or_obj, as_closest_canonical=False, image_only=True, dty
 
     header = dict(img.header)
     header['filename_or_obj'] = filename_or_obj
+    if as_closest_canonical:
+        header['original_affine'] = original_affine
 
     if image_only:
         return dat

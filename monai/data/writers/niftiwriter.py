@@ -13,7 +13,7 @@ import numpy as np
 import nibabel as nib
 
 
-def write_nifti(data, affine, file_name, revert_canonical, dtype="float32"):
+def write_nifti(data, affine, file_name, revert_canonical, original_affine=None, dtype="float32"):
     """Write numpy data into nifti files to disk.
 
     Args:
@@ -21,6 +21,7 @@ def write_nifti(data, affine, file_name, revert_canonical, dtype="float32"):
         affine (numpy.ndarray): affine information for the data.
         file_name (string): expected file name that saved on disk.
         revert_canonical (bool): whether to revert canonical.
+        original_affine (numpy.ndarray, optional): affine matrix before canonical transformation. Required if revert_canonical.
         dtype (np.dtype, optional): convert the image to save to this data type.
 
     """
@@ -29,9 +30,12 @@ def write_nifti(data, affine, file_name, revert_canonical, dtype="float32"):
         affine = np.eye(4)
 
     if revert_canonical:
-        codes = nib.orientations.axcodes2ornt(nib.orientations.aff2axcodes(np.linalg.inv(affine)))
-        reverted_results = nib.orientations.apply_orientation(np.squeeze(data), codes)
-        results_img = nib.Nifti1Image(reverted_results.astype(dtype), affine)
+        if not original_affine:
+            raise ValueError("original_affine must be passed if revert_canonical is True.")
+
+        orientation = nib.orientations.io_orientation(original_affine)
+        reverted_results = nib.orientations.apply_orientation(np.squeeze(data), orientation)
+        results_img = nib.Nifti1Image(np.squeeze(data).astype(self._dtype), np.squeeze(affine))
     else:
         results_img = nib.Nifti1Image(np.squeeze(data).astype(dtype), np.squeeze(affine))
 
