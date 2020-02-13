@@ -16,8 +16,8 @@ import nibabel as nib
 import numpy as np
 from parameterized import parameterized
 
-from monai.data.readers.niftireader import load_nifti
-from monai.data.writers.niftiwriter import write_nifti
+from monai.data.nifti_reader import load_nifti
+from monai.data.nifti_writer import write_nifti
 
 from .utils import make_nifti_image
 

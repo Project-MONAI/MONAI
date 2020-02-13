@@ -11,9 +11,9 @@
 
 import torch
 
-from monai.data.transforms import ImageEndPadder
-from monai.data.transforms.dataset_transforms import ToTensor
-from monai.utils.arrayutils import dense_patch_slices
+from monai.transforms.transforms import ImageEndPadder
+from monai.transforms.transforms import ToTensor
+from monai.data.utils import dense_patch_slices
 
 
 def sliding_window_inference(inputs, roi_size, sw_batch_size, predictor, device):

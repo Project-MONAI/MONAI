@@ -12,8 +12,8 @@
 import numpy as np
 import torch.nn as nn
 
-from monai.networks.utils import (get_conv_type, get_dropout_type, get_normalize_type)
-from monai.utils.convutils import same_padding
+from monai.networks.layers.factories import get_conv_type, get_dropout_type, get_normalize_type
+from monai.networks.layers.convutils import same_padding
 
 
 class Convolution(nn.Sequential):

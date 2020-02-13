@@ -14,7 +14,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.utils.compute_meandice import compute_meandice
+from monai.metrics.compute_meandice import compute_meandice
 
 # keep background
 TEST_CASE_1 = [

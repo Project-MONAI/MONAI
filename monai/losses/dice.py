@@ -17,7 +17,7 @@ from monai.utils import export
 from monai.utils.aliases import alias
 
 
-@export("monai.networks.losses")
+@export("monai.losses")
 @alias("dice", "Dice")
 class DiceLoss(_Loss):
     """

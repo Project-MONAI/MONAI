@@ -13,7 +13,7 @@ import unittest
 
 import numpy as np
 
-from monai.data.transforms.intensity_normalizer import IntensityNormalizer
+from monai.transforms.transforms import IntensityNormalizer
 from tests.utils import NumpyImageTestCase2D
 
 

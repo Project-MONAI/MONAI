@@ -16,7 +16,7 @@ from ignite.handlers import Checkpoint
 import monai
 
 
-@monai.utils.export("monai.application.handlers")
+@monai.utils.export("monai.handlers")
 @monai.utils.alias("CheckpointLoader")
 class CheckpointLoader:
     """

@@ -12,7 +12,7 @@
 import unittest
 import numpy as np
 from parameterized import parameterized
-from monai.data.transforms import ImageEndPadder
+from monai.transforms.transforms import ImageEndPadder
 
 TEST_CASE_1 = [
     {

@@ -14,7 +14,7 @@ import os
 import torch
 from ignite.engine import Events
 
-from monai.data.writers.niftiwriter import write_nifti
+from monai.data.nifti_writer import write_nifti
 
 
 class SegmentationSaver:
@@ -96,9 +96,11 @@ class SegmentationSaver:
         engine_output = self.output_transform(engine.state.output)
         for batch_id, filename in enumerate(filenames):  # save a batch of files
             seg_output = engine_output[batch_id]
+            _affine = affine[batch_id]
+            _original_affine = original_affine[batch_id]
             if isinstance(seg_output, torch.Tensor):
                 seg_output = seg_output.detach().cpu().numpy()
             output_filename = self._create_file_basename(self.output_postfix, filename, self.output_path)
             output_filename = '{}{}'.format(output_filename, self.output_ext)
-            write_nifti(seg_output, affine, output_filename, original_affine, dtype=seg_output.dtype)
+            write_nifti(seg_output, _affine, output_filename, _original_affine, dtype=seg_output.dtype)
             print('saved: {}'.format(output_filename))

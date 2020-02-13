@@ -21,18 +21,19 @@ import torchvision.transforms as transforms
 from ignite.engine import Engine
 from torch.utils.data import DataLoader
 
-from monai import application
-from monai.application.handlers.checkpoint_loader import CheckpointLoader
-from monai.application.handlers.segmentation_saver import SegmentationSaver
-from monai.data.readers import NiftiDataset
-from monai.data.transforms import AddChannel, Rescale, ToTensor
+from monai import config
+from monai.handlers.checkpoint_loader import CheckpointLoader
+from monai.handlers.segmentation_saver import SegmentationSaver
+from monai.data.nifti_reader import NiftiDataset
+from monai.transforms import AddChannel, Rescale, ToTensor
 from monai.networks.nets.unet import UNet
 from monai.networks.utils import predict_segmentation
-from monai.utils.generateddata import create_test_image_3d
+from monai.data.synthetic import create_test_image_3d
 from monai.utils.sliding_window_inference import sliding_window_inference
 
 sys.path.append("..")  # assumes the framework is found here, change as necessary
-application.config.print_config()
+config.print_config()
+
 tempdir = tempfile.mkdtemp()
 # tempdir = './temp'
 for i in range(50):
@@ -48,7 +49,7 @@ images = sorted(glob(os.path.join(tempdir, 'im*.nii.gz')))
 segs = sorted(glob(os.path.join(tempdir, 'seg*.nii.gz')))
 imtrans = transforms.Compose([Rescale(), AddChannel(), ToTensor()])
 segtrans = transforms.Compose([AddChannel(), ToTensor()])
-ds = NiftiDataset(images, segs, imtrans, segtrans, image_only=False)
+ds = NiftiDataset(images, segs, transform=imtrans, seg_transform=segtrans, image_only=False)
 
 device = torch.device("cpu:0")
 roi_size = (64, 64, 64)
