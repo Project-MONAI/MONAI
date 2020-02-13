@@ -12,7 +12,7 @@
 
 import numpy as np
 
-from monai.utils.arrayutils import rescale_array
+from monai.transforms.utils import rescale_array
 
 
 def create_test_image_2d(width, height, num_objs=12, rad_max=30, noise_max=0.0, num_seg_classes=5):

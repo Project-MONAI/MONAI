@@ -11,7 +11,7 @@
 
 from .utils import TorchImageTestCase2D
 
-from monai.networks.layers.convolutions import Convolution, ResidualUnit
+from monai.networks.blocks.convolutions import Convolution, ResidualUnit
 
 
 class TestConvolution2D(TorchImageTestCase2D):

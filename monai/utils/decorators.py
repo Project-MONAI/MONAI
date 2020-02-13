@@ -89,7 +89,7 @@ class MethodReplacer(object):
                         newmeth = replacer(meth)
                         setattr(_self, m, newmeth)
 
-            setattr(owner, "__init__", newinit)
+            owner.__init__ = newinit
             setattr(owner, self.replace_list_name, [entry])
         else:
             namelist = getattr(owner, self.replace_list_name)

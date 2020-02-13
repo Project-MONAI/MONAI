@@ -11,7 +11,7 @@
 
 import unittest
 
-from monai.data.transforms.compose import Compose
+from monai.transforms.compose import Compose
 
 
 class TestCompose(unittest.TestCase):
