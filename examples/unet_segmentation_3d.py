@@ -161,7 +161,7 @@ val_loader = DataLoader(ds, batch_size=20, num_workers=8, pin_memory=torch.cuda.
 writer = SummaryWriter()
 
 # Define mean dice metric and Evaluator.
-validation_every_N_epochs = 2
+validation_every_n_epochs = 1
 
 val_metrics = {'Mean Dice': MeanDice()}
 val_stats_handler = StatsHandler()
@@ -176,7 +176,16 @@ early_stopper = EarlyStopping(patience=4,
                               trainer=trainer)
 evaluator.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=early_stopper)
 
+<<<<<<< HEAD
 @trainer.on(Events.EPOCH_COMPLETED(every=validation_every_N_epochs))
+=======
+@evaluator.on(Events.EPOCH_COMPLETED)
+def print_metrics(engine):
+    for name, value in engine.state.metrics.items():
+        print(f"{name}: {value}")
+
+@trainer.on(Events.EPOCH_COMPLETED(every=validation_every_n_epochs))
+>>>>>>> Fix flake8 errors.
 def run_validation(engine):
     evaluator.run(val_loader)
 
