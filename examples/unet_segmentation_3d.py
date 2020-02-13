@@ -30,39 +30,13 @@ from monai.data.nifti_reader import NiftiDataset
 from monai.transforms import (AddChannel, Rescale, ToTensor, UniformRandomPatch)
 from monai.handlers.stats_handler import StatsHandler
 from monai.handlers.mean_dice import MeanDice
-from monai.transforms.utils import rescale_array
 from monai.visualize import img2tensorboard
+from monai.data.synthetic import create_test_image_3d
 
 # assumes the framework is found here, change as necessary
 sys.path.append("..")
 
 config.print_config()
-
-
-def create_test_image_3d(height, width, depth, num_objs=12, rad_max=30, noise_max=0.0, num_seg_classes=5):
-    '''Return a noisy 3D image and segmentation.'''
-    image = np.zeros((width, height, depth))
-
-    for i in range(num_objs):
-        x = np.random.randint(rad_max, width - rad_max)
-        y = np.random.randint(rad_max, height - rad_max)
-        z = np.random.randint(rad_max, depth - rad_max)
-        rad = np.random.randint(5, rad_max)
-        spy, spx, spz = np.ogrid[-x:width - x, -y:height - y, -z:depth - z]
-        circle = (spx * spx + spy * spy + spz * spz) <= rad * rad
-
-        if num_seg_classes > 1:
-            image[circle] = np.ceil(np.random.random() * num_seg_classes)
-        else:
-            image[circle] = np.random.random() * 0.5 + 0.5
-
-    labels = np.ceil(image).astype(np.int32)
-
-    norm = np.random.uniform(0, num_seg_classes * noise_max, size=image.shape)
-    noisyimage = rescale_array(np.maximum(image, norm))
-
-    return noisyimage, labels
-
 
 tempdir = tempfile.mkdtemp()
 
@@ -82,7 +56,7 @@ imtrans = transforms.Compose([Rescale(), AddChannel(), UniformRandomPatch((64, 6
 
 segtrans = transforms.Compose([AddChannel(), UniformRandomPatch((64, 64, 64)), ToTensor()])
 
-ds = NiftiDataset(images, segs, imtrans, segtrans)
+ds = NiftiDataset(images, segs, transform=imtrans, seg_transform=segtrans)
 
 loader = DataLoader(ds, batch_size=10, num_workers=2, pin_memory=torch.cuda.is_available())
 im, seg = monai.utils.misc.first(loader)
@@ -115,7 +89,9 @@ trainer = create_supervised_trainer(net, opt, _loss_fn, device, False,
                                     output_transform=lambda x, y, y_pred, loss: [y_pred, loss.item(), y])
 
 checkpoint_handler = ModelCheckpoint('./', 'net', n_saved=10, require_empty=False)
-trainer.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=checkpoint_handler, to_save={'net': net})
+trainer.add_event_handler(event_name=Events.EPOCH_COMPLETED,
+                          handler=checkpoint_handler,
+                          to_save={'net': net, 'opt': opt})
 
 dice_metric = MeanDice(add_sigmoid=True, output_transform=lambda output: (output[0][0], output[2]))
 dice_metric.attach(trainer, "Training Dice")

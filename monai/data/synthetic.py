@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import numpy as np
 
 from monai.transforms.utils import rescale_array
@@ -28,8 +27,37 @@ def create_test_image_2d(width, height, num_objs=12, rad_max=30, noise_max=0.0, 
         x = np.random.randint(rad_max, width - rad_max)
         y = np.random.randint(rad_max, height - rad_max)
         rad = np.random.randint(5, rad_max)
-        spy, spx = np.ogrid[-x : width - x, -y : height - y]
+        spy, spx = np.ogrid[-x:width - x, -y:height - y]
         circle = (spx * spx + spy * spy) <= rad * rad
+
+        if num_seg_classes > 1:
+            image[circle] = np.ceil(np.random.random() * num_seg_classes)
+        else:
+            image[circle] = np.random.random() * 0.5 + 0.5
+
+    labels = np.ceil(image).astype(np.int32)
+
+    norm = np.random.uniform(0, num_seg_classes * noise_max, size=image.shape)
+    noisyimage = rescale_array(np.maximum(image, norm))
+
+    return noisyimage, labels
+
+
+def create_test_image_3d(height, width, depth, num_objs=12, rad_max=30, noise_max=0.0, num_seg_classes=5):
+    """
+    Return a noisy 3D image and segmentation.
+
+    See also: create_test_image_2d
+    """
+    image = np.zeros((width, height, depth))
+
+    for i in range(num_objs):
+        x = np.random.randint(rad_max, width - rad_max)
+        y = np.random.randint(rad_max, height - rad_max)
+        z = np.random.randint(rad_max, depth - rad_max)
+        rad = np.random.randint(5, rad_max)
+        spy, spx, spz = np.ogrid[-x:width - x, -y:height - y, -z:depth - z]
+        circle = (spx * spx + spy * spy + spz * spz) <= rad * rad
 
         if num_seg_classes > 1:
             image[circle] = np.ceil(np.random.random() * num_seg_classes)

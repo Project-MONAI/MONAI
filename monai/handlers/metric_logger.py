@@ -12,6 +12,7 @@
 from collections import defaultdict
 
 import monai
+from ignite.engine import Events
 
 
 @monai.utils.export("monai.handlers")
@@ -25,7 +26,7 @@ class MetricLogger:
         self.metrics = defaultdict(list)
 
     def attach(self, engine):
-        return engine.add_event_handler(monai.application.engine.Events.ITERATION_COMPLETED, self)
+        return engine.add_event_handler(Events.ITERATION_COMPLETED, self)
 
     def __call__(self, engine):
         self.loss.append(self.loss_transform(engine.state.output))

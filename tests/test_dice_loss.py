@@ -14,7 +14,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.losses import DiceLoss
+from monai.losses.dice import DiceLoss
 
 TEST_CASE_1 = [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
     {
