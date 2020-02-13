@@ -13,7 +13,6 @@ Utilities and types for defining networks, these depend on Pytorch.
 """
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as f
 
 
@@ -56,26 +55,3 @@ def predict_segmentation(logits):
         return (logits[:, 0] >= 0).int()  # for binary segmentation threshold on channel 0
     else:
         return logits.max(1)[1]  # take the index of the max value along dimension 1
-
-
-def get_conv_type(dim, is_transpose):
-    if is_transpose:
-        types = [nn.ConvTranspose1d, nn.ConvTranspose2d, nn.ConvTranspose3d]
-    else:
-        types = [nn.Conv1d, nn.Conv2d, nn.Conv3d]
-
-    return types[dim - 1]
-
-
-def get_dropout_type(dim):
-    types = [nn.Dropout, nn.Dropout2d, nn.Dropout3d]
-    return types[dim - 1]
-
-
-def get_normalize_type(dim, is_instance):
-    if is_instance:
-        types = [nn.InstanceNorm1d, nn.InstanceNorm2d, nn.InstanceNorm3d]
-    else:
-        types = [nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d]
-
-    return types[dim - 1]
