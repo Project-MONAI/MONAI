@@ -18,5 +18,5 @@ def stopping_fn_from_metric(metric_name):
 def stopping_fn_from_loss():
     """Returns a stopping function for ignite.handlers.EarlyStopping using the loss value."""
     def stopping_fn(engine):
-        return -engine.state.loss.item()
+        return -engine.state.output
     return stopping_fn
