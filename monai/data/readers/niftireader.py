@@ -67,7 +67,8 @@ class NiftiDataset(Dataset):
     for the image and segmentation arrays separately.
     """
 
-    def __init__(self, image_files, seg_files, transform=None, seg_transform=None, image_only=True):
+    def __init__(self, image_files, seg_files, as_closest_canonical=False,
+                 transform=None, seg_transform=None, image_only=True, dtype=None):
         """
         Initializes the dataset with the image and segmentation filename lists. The transform `transform` is applied
         to the images and `seg_transform` to the segmentations.
@@ -75,8 +76,11 @@ class NiftiDataset(Dataset):
         Args:
             image_files (list of str): list of image filenames
             seg_files (list of str): list of segmentation filenames
+            as_closest_canonical (bool): if True, load the image as closest to canonical orientation
             transform (Callable, optional): transform to apply to image arrays
             seg_transform (Callable, optional): transform to apply to segmentation arrays
+            image_only (bool): if True return only the image volume, other return image volume and header dict
+            dtype (np.dtype, optional): if not None convert the loaded image to this data type
         """
 
         if len(image_files) != len(seg_files):
@@ -84,9 +88,11 @@ class NiftiDataset(Dataset):
 
         self.image_files = image_files
         self.seg_files = seg_files
+        self.as_closest_canonical = as_closest_canonical
         self.transform = transform
         self.seg_transform = seg_transform
         self.image_only = image_only
+        self.dtype = dtype
 
     def __len__(self):
         return len(self.image_files)
@@ -94,9 +100,11 @@ class NiftiDataset(Dataset):
     def __getitem__(self, index):
         meta_data = None
         if self.image_only:
-            img = load_nifti(self.image_files[index], image_only=self.image_only)
+            img = load_nifti(self.image_files[index], as_closest_canonical=self.as_closest_canonical,
+                             image_only=self.image_only, dtype=self.dtype)
         else:
-            img, meta_data = load_nifti(self.image_files[index], image_only=self.image_only)
+            img, meta_data = load_nifti(self.image_files[index], as_closest_canonical=self.as_closest_canonical,
+                                        image_only=self.image_only, dtype=self.dtype)
         seg = load_nifti(self.seg_files[index])
 
         # https://github.com/pytorch/vision/issues/9#issuecomment-304224800

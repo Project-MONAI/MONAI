@@ -34,7 +34,7 @@ from monai.utils.sliding_window_inference import sliding_window_inference
 sys.path.append("..")  # assumes the framework is found here, change as necessary
 application.config.print_config()
 tempdir = tempfile.mkdtemp()
-tempdir = './temp'
+# tempdir = './temp'
 for i in range(50):
     im, seg = create_test_image_3d(256, 256, 256)
 

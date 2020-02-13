@@ -11,7 +11,6 @@
 
 import os
 
-import nibabel as nib
 import torch
 from ignite.engine import Events
 
@@ -20,7 +19,7 @@ from monai.data.writers.niftiwriter import write_nifti
 
 class SegmentationSaver:
     """
-    Event handler triggered on completing every iteration to save the segmentation predictions.
+    Event handler triggered on completing every iteration to save the segmentation predictions as nifti files.
     """
 
     def __init__(self, output_path='./', dtype='float32', output_postfix='seg', output_ext='.nii.gz',
@@ -85,18 +84,21 @@ class SegmentationSaver:
     def __call__(self, engine):
         """
         This method assumes:
-            - 3rd output of engine.state.batch is a meta data dict
-            - engine.state.output is already post-processed and ready for saving as a Nifti1Image.
+            - 3rd output of engine.state.batch is a meta data dict, and have the keys:
+            'filename_or_obj' -- for output file name creation
+            and optionally 'original_affine', 'affine' for data orientation handling.
+            - output file datatype from `engine.state.output.dtype`.
         """
         meta_data = engine.state.batch[2]  # assuming 3rd output of input dataset is a meta data dict
         filenames = meta_data['filename_or_obj']
+        original_affine = meta_data.get('original_affine', None)
+        affine = meta_data.get('affine', None)
         engine_output = self.output_transform(engine.state.output)
         for batch_id, filename in enumerate(filenames):  # save a batch of files
             seg_output = engine_output[batch_id]
             if isinstance(seg_output, torch.Tensor):
                 seg_output = seg_output.detach().cpu().numpy()
-            original_affine = nib.load(filename).affine
             output_filename = self._create_file_basename(self.output_postfix, filename, self.output_path)
             output_filename = '{}{}'.format(output_filename, self.output_ext)
-            write_nifti(seg_output, original_affine, output_filename, revert_canonical=True, dtype=seg_output.dtype)
+            write_nifti(seg_output, affine, output_filename, original_affine, dtype=seg_output.dtype)
             print('saved: {}'.format(output_filename))
