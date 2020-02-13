@@ -16,7 +16,9 @@ import torch
 from ignite.engine import create_supervised_trainer
 from torch.utils.data import DataLoader, Dataset
 
-from monai import networks, utils
+from monai.data.synthetic import create_test_image_2d
+from monai.losses.dice import DiceLoss
+from monai.networks.nets.unet import UNet
 
 
 def run_test(batch_size=64, train_steps=100, device=torch.device("cuda:0")):
@@ -24,13 +26,13 @@ def run_test(batch_size=64, train_steps=100, device=torch.device("cuda:0")):
     class _TestBatch(Dataset):
 
         def __getitem__(self, _unused_id):
-            im, seg = utils.generateddata.create_test_image_2d(128, 128, noise_max=1, num_objs=4, num_seg_classes=1)
+            im, seg = create_test_image_2d(128, 128, noise_max=1, num_objs=4, num_seg_classes=1)
             return im[None], seg[None].astype(np.float32)
 
         def __len__(self):
             return train_steps
 
-    net = networks.nets.UNet(
+    net = UNet(
         dimensions=2,
         in_channels=1,
         num_classes=1,
@@ -39,7 +41,7 @@ def run_test(batch_size=64, train_steps=100, device=torch.device("cuda:0")):
         num_res_units=2,
     )
 
-    loss = networks.losses.DiceLoss(do_sigmoid=True)
+    loss = DiceLoss(do_sigmoid=True)
     opt = torch.optim.Adam(net.parameters(), 1e-4)
     src = DataLoader(_TestBatch(), batch_size=batch_size)
 

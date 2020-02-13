@@ -14,7 +14,7 @@ from collections import defaultdict
 import monai
 
 
-@monai.utils.export("monai.application.handlers")
+@monai.utils.export("monai.handlers")
 @monai.utils.alias("metriclogger")
 class MetricLogger:
 

@@ -15,7 +15,7 @@ import unittest
 import numpy as np
 import torch
 
-from monai.utils.generateddata import create_test_image_2d
+from monai.data.synthetic import create_test_image_2d
 
 quick_test_var = "QUICKTEST"
 
@@ -47,3 +47,10 @@ class TorchImageTestCase2D(NumpyImageTestCase2D):
         self.imt = torch.tensor(self.imt)
         self.seg1 = torch.tensor(self.seg1)
         self.segn = torch.tensor(self.segn)
+
+
+def expect_failure_if_no_gpu(test):
+    if not torch.cuda.is_available():
+        return unittest.expectedFailure(test)
+    else:
+        return test

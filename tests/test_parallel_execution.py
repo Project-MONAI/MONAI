@@ -14,7 +14,8 @@ import warnings
 
 import torch
 
-from monai.application.engine import create_multigpu_supervised_trainer
+from monai.engine.multi_gpu_supervised_trainer import create_multigpu_supervised_trainer
+from tests.utils import expect_failure_if_no_gpu
 
 
 def fake_loss(y_pred, y):
@@ -24,12 +25,6 @@ def fake_loss(y_pred, y):
 def fake_data_stream():
     while True:
         yield torch.rand((10, 1, 64, 64)), torch.rand((10, 1, 64, 64))
-
-def expect_failure_if_no_gpu(test):
-    if not torch.cuda.is_available():
-        return unittest.expectedFailure(test)
-    else:
-        return test
 
 
 class TestParallelExecution(unittest.TestCase):

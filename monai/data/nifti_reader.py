@@ -15,7 +15,7 @@ import random
 
 from torch.utils.data import Dataset
 
-from monai.utils.moduleutils import export
+from monai.utils.module import export
 
 
 def load_nifti(filename_or_obj, as_closest_canonical=False, image_only=True, dtype=None):
@@ -52,7 +52,7 @@ def load_nifti(filename_or_obj, as_closest_canonical=False, image_only=True, dty
         return dat, header
 
 
-@export("monai.data.readers")
+@export("monai.data")
 class NiftiDataset(Dataset):
     """
     Loads image/segmentation pairs of Nifti files from the given filename lists. Transformations can be specified

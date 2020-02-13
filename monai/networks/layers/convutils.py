@@ -9,9 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-A collection of utility definitions for convolutional operations and concepts. These depend at most on numpy.
-"""
 import numpy as np
 
 
@@ -38,14 +35,3 @@ def calculate_out_shape(in_shape, kernel_size, stride, padding):
     out_shape = tuple(int(s) for s in out_shape)
 
     return tuple(out_shape) if len(out_shape) > 1 else out_shape[0]
-
-
-def one_hot(labels, num_classes):
-    """
-    Converts label image `labels' to a one-hot vector with `num_classes' number of channels as last dimension.
-    """
-    labels = labels % num_classes
-    y = np.eye(num_classes)
-    onehot = y[labels.flatten()]
-
-    return onehot.reshape(tuple(labels.shape) + (num_classes,)).astype(labels.dtype)

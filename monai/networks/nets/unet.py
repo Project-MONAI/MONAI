@@ -11,7 +11,7 @@
 
 import torch.nn as nn
 
-from monai.networks.layers.convolutions import Convolution, ResidualUnit
+from monai.networks.blocks.convolutions import Convolution, ResidualUnit
 from monai.networks.layers.simplelayers import SkipConnection
 from monai.networks.utils import predict_segmentation
 from monai.utils import export
