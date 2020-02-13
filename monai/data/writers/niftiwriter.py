@@ -33,9 +33,11 @@ def write_nifti(data, affine, file_name, revert_canonical, original_affine=None,
         if not original_affine:
             raise ValueError("original_affine must be passed if revert_canonical is True.")
 
-        orientation = nib.orientations.io_orientation(original_affine)
-        reverted_results = nib.orientations.apply_orientation(np.squeeze(data), orientation)
-        results_img = nib.Nifti1Image(np.squeeze(data).astype(self._dtype), np.squeeze(affine))
+        ornt = nib.orientations.io_orientation(original_affine)
+        # apply same orientation twice to cancel the behavior.
+        reverted_results = nib.orientations.apply_orientation(np.squeeze(data), ornt)
+        results_img = nib.Nifti1Image(reverted_results.astype(self._dtype), original_affine)
+
     else:
         results_img = nib.Nifti1Image(np.squeeze(data).astype(dtype), np.squeeze(affine))
 
