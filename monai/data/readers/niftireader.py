@@ -32,28 +32,32 @@ def load_nifti(filename_or_obj, as_closest_canonical=False, image_only=True, dty
     Returns:
         The loaded image volume if `image_only` is True, or a tuple containing the volume and the Nifti
         header in dict format otherwise
+
+    Note:
+        header['original_affine'] stores the original affine loaded from `filename_or_obj`.
+        header['affine'] stores the affine after the optional `as_closest_canonical` transform.
     """
 
     img = nib.load(filename_or_obj)
-    original_affine = img.affine
+
+    header = dict(img.header)
+    header['filename_or_obj'] = filename_or_obj
+    header['original_affine'] = img.affine
+    header['affine'] = img.affine
+    header['as_closest_canonical'] = as_closest_canonical
 
     if as_closest_canonical:
         img = nib.as_closest_canonical(img)
+        header['affine'] = img.affine
 
     if dtype is not None:
         dat = img.get_fdata(dtype=dtype)
     else:
         dat = np.asanyarray(img.dataobj)
 
-    header = dict(img.header)
-    header['filename_or_obj'] = filename_or_obj
-    if as_closest_canonical:
-        header['original_affine'] = original_affine
-
     if image_only:
         return dat
-    else:
-        return dat, header
+    return dat, header
 
 
 @export("monai.data.readers")
@@ -80,7 +84,7 @@ class NiftiDataset(Dataset):
 
         self.image_files = image_files
         self.seg_files = seg_files
-        self.transform = transform 
+        self.transform = transform
         self.seg_transform = seg_transform
         self.image_only = image_only
 
