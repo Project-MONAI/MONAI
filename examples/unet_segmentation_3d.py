@@ -20,8 +20,8 @@ import numpy as np
 import torch
 import monai.transforms.compose as transforms
 from torch.utils.tensorboard import SummaryWriter
-from ignite.engine import Events, create_supervised_trainer
-from ignite.handlers import ModelCheckpoint
+from ignite.engine import Events, create_supervised_trainer, create_supervised_evaluator
+from ignite.handlers import ModelCheckpoint, EarlyStopping
 from torch.utils.data import DataLoader
 
 import monai
@@ -32,12 +32,14 @@ from monai.handlers.stats_handler import StatsHandler
 from monai.handlers.mean_dice import MeanDice
 from monai.visualize import img2tensorboard
 from monai.data.synthetic import create_test_image_3d
+from monai.handlers.utils import stopping_fn_from_metric
 
 # assumes the framework is found here, change as necessary
 sys.path.append("..")
 
 config.print_config()
 
+# Create a temporary directory and 50 random image, mask paris
 tempdir = tempfile.mkdtemp()
 
 for i in range(50):
@@ -52,18 +54,20 @@ for i in range(50):
 images = sorted(glob(os.path.join(tempdir, 'im*.nii.gz')))
 segs = sorted(glob(os.path.join(tempdir, 'seg*.nii.gz')))
 
+# Define transforms for image and segmentation
 imtrans = transforms.Compose([Rescale(), AddChannel(), UniformRandomPatch((64, 64, 64)), ToTensor()])
-
 segtrans = transforms.Compose([AddChannel(), UniformRandomPatch((64, 64, 64)), ToTensor()])
 
+# Define nifti dataset, dataloader.
 ds = NiftiDataset(images, segs, transform=imtrans, seg_transform=segtrans)
-
 loader = DataLoader(ds, batch_size=10, num_workers=2, pin_memory=torch.cuda.is_available())
 im, seg = monai.utils.misc.first(loader)
 print(im.shape, seg.shape)
 
+
 lr = 1e-3
 
+# Create UNet, DiceLoss and Adam optimizer.
 net = monai.networks.nets.UNet(
     dimensions=3,
     in_channels=1,
@@ -78,13 +82,12 @@ opt = torch.optim.Adam(net.parameters(), lr)
 
 train_epochs = 3
 
-
+# Since network outputs logits and segmentation, we need a custom function.
 def _loss_fn(i, j):
     return loss(i[0], j)
 
-
+# Create trainer
 device = torch.device("cuda:0")
-
 trainer = create_supervised_trainer(net, opt, _loss_fn, device, False,
                                     output_transform=lambda x, y, y_pred, loss: [y_pred, loss.item(), y])
 
@@ -133,6 +136,28 @@ def log_training_loss(engine):
 
 
 loader = DataLoader(ds, batch_size=20, num_workers=8, pin_memory=torch.cuda.is_available())
+val_loader = DataLoader(ds, batch_size=20, num_workers=8, pin_memory=torch.cuda.is_available())
 writer = SummaryWriter()
+
+# Define mean dice metric and Evaluator.
+validation_every_n_epochs = 1
+
+val_metrics = {'Mean Dice': MeanDice(add_sigmoid=True)}
+evaluator = create_supervised_evaluator(net, val_metrics, device, True,
+                                        output_transform=lambda x, y, y_pred: (y_pred[0], y))
+
+val_stats_handler = StatsHandler()
+val_stats_handler.attach(evaluator)
+
+# Add early stopping handler to evaluator.
+early_stopper = EarlyStopping(patience=4,
+                              score_function=stopping_fn_from_metric('Mean Dice'),
+                              trainer=trainer)
+evaluator.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=early_stopper)
+
+@trainer.on(Events.EPOCH_COMPLETED(every=validation_every_n_epochs))
+def run_validation(engine):
+    evaluator.run(val_loader)
+
 
 state = trainer.run(loader, train_epochs)
