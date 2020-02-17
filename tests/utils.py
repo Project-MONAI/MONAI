@@ -28,11 +28,13 @@ def skip_if_quick(obj):
     return unittest.skipIf(is_quick, "Skipping slow tests")(obj)
 
 
-def make_nifti_image(array, affine):
+def make_nifti_image(array, affine=None):
     """
     Create a temporary nifti image on the disk and return the image name.
     User is responsible for deleting the temporary file when done with it.
     """
+    if affine is None:
+        affine = np.eye(4)
     test_image = nib.Nifti1Image(array, affine)
 
     _, image_name = tempfile.mkstemp(suffix='.nii.gz')

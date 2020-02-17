@@ -23,7 +23,7 @@ class SegmentationSaver:
     """
 
     def __init__(self, output_path='./', dtype='float32', output_postfix='seg', output_ext='.nii.gz',
-                 output_transform=lambda x: x):
+                 output_transform=lambda x: x, name=None):
         """
         Args:
             output_path (str): output image directory.
@@ -34,6 +34,7 @@ class SegmentationSaver:
                 ignite.engine.output into the form expected nifti image data.
                 The first dimension of this transform's output will be treated as the
                 batch dimension. Each item in the batch will be saved individually.
+            name (str): identifier of logging.logger to use, defaulting to `engine.logger`.
         """
         self.output_path = output_path
         self.dtype = dtype
@@ -41,7 +42,11 @@ class SegmentationSaver:
         self.output_ext = output_ext
         self.output_transform = output_transform
 
+        self.logger = None if name is None else logging.getLogger(name)
+
     def attach(self, engine):
+        if self.logger is None:
+            self.logger = engine.logger
         return engine.add_event_handler(Events.ITERATION_COMPLETED, self)
 
     @staticmethod
@@ -103,4 +108,4 @@ class SegmentationSaver:
             output_filename = self._create_file_basename(self.output_postfix, filename, self.output_path)
             output_filename = '{}{}'.format(output_filename, self.output_ext)
             write_nifti(seg_output, _affine, output_filename, _original_affine, dtype=seg_output.dtype)
-            print('saved: {}'.format(output_filename))
+            self.logger.info('saved: {}'.format(output_filename))
