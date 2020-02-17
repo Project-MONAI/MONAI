@@ -27,10 +27,10 @@ class MeanDice(Metric):
     def __init__(
         self,
         include_background=True,
-        to_onehot_y=False,
-        logit_thresh=0.5,
+        to_onehot_y=True,
+        logit_thresh=None,
         add_sigmoid=False,
-        mutually_exclusive=False,
+        mutually_exclusive=True,
         output_transform: Callable = lambda x: x,
         device: Optional[Union[str, torch.device]] = None
     ):
@@ -39,12 +39,15 @@ class MeanDice(Metric):
         Args:
             include_background (Bool): whether to include dice computation on the first channel of the predicted output.
             to_onehot_y (Bool): whether to convert the output prediction into the one-hot format.
-            logit_thresh (Float): the threshold value to round value to 0.0 and 1.0, default is 0.5.
+            logit_thresh (Float): the threshold value to round value to 0.0 and 1.0.
             add_sigmoid (Bool): whether to add sigmoid function to the output prediction before computing Dice.
             mutually_exclusive (Bool): if True, the output prediction will be converted into a binary matrix using
                 a combination of argmax and to_onehot.
             output_transform (Callable): transform the ignite.engine.state.output into [y_pred, y] pair.
             device (torch.device): device specification in case of distributed computation usage.
+
+        See also:
+            monai.metrics.compute_meandice.compute_meandice
         """
         super(MeanDice, self).__init__(output_transform, device=device)
         self.include_background = include_background
