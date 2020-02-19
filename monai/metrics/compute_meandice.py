@@ -27,6 +27,8 @@ def compute_meandice(y_pred,
         y_pred (torch.Tensor): input data to compute, typical segmentation model output.
                                it must be One-Hot format and first dim is batch, example shape: [16, 3, 32, 32].
         y (torch.Tensor): ground truth to compute mean dice metric, the first dim is batch.
+                          example shape: [16, 3, 32, 32] for 3-class one-hot labels.
+                          alternative shape: [16, 1, 32, 32] and set `to_onehot_y=True` to convert it into [16, 3, 32, 32].
         include_background (Bool): whether to skip dice computation on the first channel of the predicted output.
         to_onehot_y (Bool): whether to convert `y` into the one-hot format.
         mutually_exclusive (Bool): if True, `y_pred` will be converted into a binary matrix using
@@ -44,8 +46,8 @@ def compute_meandice(y_pred,
     n_channels_y_pred = y_pred.shape[1]
 
     if mutually_exclusive:
-        if logit_thresh is not None:
-            raise ValueError('`logit_thresh` is incompatible when mutually_exclusive is True.')
+        if logit_thresh is not None or add_sigmoid:
+            raise ValueError('`logit_thresh` and `add_sigmoid` are incompatible when mutually_exclusive is True.')
         y_pred = torch.argmax(y_pred, dim=1, keepdim=True)
         y_pred = one_hot(y_pred, n_channels_y_pred)
     else:  # channel-wise thresholding
@@ -60,6 +62,9 @@ def compute_meandice(y_pred,
     if not include_background:
         y = y[:, 1:] if y.shape[1] > 1 else y
         y_pred = y_pred[:, 1:] if y_pred.shape[1] > 1 else y_pred
+
+    assert y.shape == y_pred.shape, ("Ground truth one-hot has differing shape (%r) from source (%r)" %
+                                     (y.shape, y_pred.shape))
 
     # reducing only spatial dimensions (not batch nor channels)
     reduce_axis = list(range(2, y_pred.dim()))
