@@ -46,8 +46,8 @@ def compute_meandice(y_pred,
     n_channels_y_pred = y_pred.shape[1]
 
     if mutually_exclusive:
-        if logit_thresh is not None:
-            raise ValueError('`logit_thresh` is incompatible when mutually_exclusive is True.')
+        if logit_thresh is not None or add_sigmoid:
+            raise ValueError('`logit_thresh` and `add_sigmoid` are incompatible when mutually_exclusive is True.')
         y_pred = torch.argmax(y_pred, dim=1, keepdim=True)
         y_pred = one_hot(y_pred, n_channels_y_pred)
     else:  # channel-wise thresholding
@@ -62,6 +62,9 @@ def compute_meandice(y_pred,
     if not include_background:
         y = y[:, 1:] if y.shape[1] > 1 else y
         y_pred = y_pred[:, 1:] if y_pred.shape[1] > 1 else y_pred
+
+    assert y.shape == y_pred.shape, ("Ground truth one-hot has differing shape (%r) from source (%r)" %
+                                     (y.shape, y_pred.shape))
 
     # reducing only spatial dimensions (not batch nor channels)
     reduce_axis = list(range(2, y_pred.dim()))

@@ -19,6 +19,8 @@ from monai.handlers.mean_dice import MeanDice
 TEST_CASE_1 = [{'to_onehot_y': True, 'mutually_exclusive': True}, 0.75]
 TEST_CASE_2 = [{'include_background': False, 'to_onehot_y': False, 'mutually_exclusive': False}, 0.8333333]
 
+TEST_CASE_3 = [{'mutually_exclusive': True, 'add_sigmoid': True}]
+
 
 class TestHandlerMeanDice(unittest.TestCase):
     # TODO test multi node averaged dice
@@ -37,6 +39,28 @@ class TestHandlerMeanDice(unittest.TestCase):
 
         avg_dice = dice_metric.compute()
         self.assertAlmostEqual(avg_dice, expected_avg)
+
+    @parameterized.expand([TEST_CASE_3])
+    def test_misconfig(self, input_params):
+        with self.assertRaisesRegex(ValueError, 'compatib'):
+            dice_metric = MeanDice(**input_params)
+
+            y_pred = torch.Tensor([[0, 1], [1, 0]])
+            y = torch.ones((2, 1))
+            dice_metric.update([y_pred, y])
+
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    def test_shape_mismatch(self, input_params, _expected):
+        dice_metric = MeanDice(**input_params)
+        with self.assertRaises((AssertionError, ValueError)):
+            y_pred = torch.Tensor([[0, 1], [1, 0]])
+            y = torch.ones((2, 3))
+            dice_metric.update([y_pred, y])
+
+        with self.assertRaises((AssertionError, ValueError)):
+            y_pred = torch.Tensor([[0, 1], [1, 0]])
+            y = torch.ones((3, 2))
+            dice_metric.update([y_pred, y])
 
 
 if __name__ == '__main__':
