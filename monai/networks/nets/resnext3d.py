@@ -92,7 +92,7 @@ class ResNeXt(nn.Module):
     """ResNeXt model class.
     Based on: "Aggregated Residual Transformation for Deep Neural Networks" https://arxiv.org/pdf/1611.05431.pdf
     Adapted from PyTorch Hub 2D version:
-    https://pytorch.org/docs/master/_modules/torchvision/models/resnet.html#resnext50_32x4d
+    https://github.com/pytorch/vision/blob/master/torchvision/models/resnet.py
     Args:
         block (nn.Module): bottleneck type.
         layers (list): number of layers in every block.
