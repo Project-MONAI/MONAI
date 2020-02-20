@@ -11,7 +11,6 @@
 
 import numpy as np
 import nibabel as nib
-import random
 
 from torch.utils.data import Dataset
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
@@ -111,12 +110,15 @@ class NiftiDataset(Dataset):
         seed = np.random.randint(2147483647)
 
         if self.transform is not None:
-            random.seed(seed)
+            np.random.seed(seed)
             img = self.transform(img)
+            random_sync_test = np.random.randint(2147483647)
 
         if self.seg_transform is not None:
-            random.seed(seed)  # ensure randomized transforms roll the same values for segmentations as images
+            np.random.seed(seed)  # ensure randomized transforms roll the same values for segmentations as images
             seg = self.seg_transform(seg)
+            seg_seed = np.random.randint(2147483647)
+            assert(random_sync_test == seg_seed)
 
         if self.image_only or meta_data is None:
             return img, seg
