@@ -10,10 +10,16 @@
 # limitations under the License.
 
 import copy
+from collections.abc import MutableMapping
 
 import numpy as np
 
 import monai
+
+OFF = 0
+SYNC = 1
+ASYNC = 2
+
 
 export = monai.utils.export("monai.transforms")
 
@@ -83,18 +89,23 @@ class RandRotate90(Randomizable):
 
 
 @export
-def fn_map(transform, map_key=None, common_key=None, inplace=True):
+def fn_map(transform, map_key=None, common_key=None, inplace=True, randomize=OFF):
     """
     Convert a vanilla `transform` into a dictionary-based transform.
 
     The new transform takes a dictionary as input and returns a dictionary.
-    In the returned dictionay, data[map_key] will be transformed by `transform`,
-    with data[common_key] as additional arguments.
+    each data[map_key] of the transform's input will be transformed by `transform`,
+    with all data[common_key] as additional arguments.
 
     Args:
+        transform (callable): a transform to be wrapped into a dict-based transform.
         map_key (str or list/tuple of str): keys to apply `transform`.
-        common_key (str or list/tuple of str): keys of additional arguments to be passed to `tranform` from data dict.
+        common_key (str or list/tuple of str): keys of additional arguments to be passed to `transform` from data dict.
         inplace (bool): whether to modify the data dict inplace.
+        randomize (SYNC|ASYNC|OFF):
+            SYNC: transform will be randomized once and applied to each of `map_key`.
+            ASYNC: transform applied to each `map_key` will be randomized beforehand.
+            OFF: no randomization for the transform.
     """
     if map_key:
         _map_key = map_key if isinstance(map_key, (list, tuple)) else (map_key,)
@@ -104,19 +115,29 @@ def fn_map(transform, map_key=None, common_key=None, inplace=True):
         _common_key = common_key if isinstance(common_key, (list, tuple)) else (common_key,)
     else:
         _common_key = None
+    if randomize not in (SYNC, ASYNC, OFF):
+        raise ValueError('Invalid option {} for `randomize`'.format(randomize))
+
+    if not isinstance(transform, Randomizable):
+        if randomize != OFF:
+            raise ValueError('transform {} not randomizable'.format(transform))
 
     def _dict_transform(data):
-        if not isinstance(data, dict):
-            raise ValueError('{} is not a dictionary', data)
+        if not isinstance(data, MutableMapping):
+            raise ValueError('{} must be a dictionary'.format(type(data)))
         d = copy.copy(data) if not inplace else data
 
         common_args = {name: d.get(name, None) for name in _common_key} if _common_key else None
         apply_key = _map_key or tuple(d)
+        if randomize in (SYNC, ASYNC):
+            transform.randomize()
         for key in apply_key:
             if common_args:
                 d[key] = transform(d[key], **common_args)
             else:
                 d[key] = transform(d[key])
+            if randomize == ASYNC:
+                transform.randomize()
         return d
 
     return _dict_transform
@@ -130,7 +151,7 @@ if __name__ == "__main__":
         'dtype': 4,
         'unused': 5,
     }
-    rotator = RandRotate90(0.8).randomize()
-    data_result = fn_map(rotator, map_key=['img', 'seg'])(data)
+    rotator = RandRotate90(0.8)
+    data_result = fn_map(rotator, map_key=['img', 'seg'], randomize=SYNC)(data)
     print(data_result.keys())
     print(data_result['img'], data_result['seg'])
