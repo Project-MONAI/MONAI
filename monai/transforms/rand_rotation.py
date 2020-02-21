@@ -121,6 +121,7 @@ def fn_map(transform, map_key=None, common_key=None, inplace=True, randomize=OFF
     if not isinstance(transform, Randomizable):
         if randomize != OFF:
             raise ValueError('transform {} not randomizable'.format(transform))
+    _transform = copy.deepcopy(transform)
 
     def _dict_transform(data):
         if not isinstance(data, MutableMapping):
@@ -130,14 +131,14 @@ def fn_map(transform, map_key=None, common_key=None, inplace=True, randomize=OFF
         common_args = {name: d.get(name, None) for name in _common_key} if _common_key else None
         apply_key = _map_key or tuple(d)
         if randomize in (SYNC, ASYNC):
-            transform.randomize()
+            _transform.randomize()
         for key in apply_key:
             if common_args:
-                d[key] = transform(d[key], **common_args)
+                d[key] = _transform(d[key], **common_args)
             else:
-                d[key] = transform(d[key])
+                d[key] = _transform(d[key])
             if randomize == ASYNC:
-                transform.randomize()
+                _transform.randomize()
         return d
 
     return _dict_transform
