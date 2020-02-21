@@ -115,8 +115,8 @@ class ResNeXt(nn.Module):
             num_input_channel,
             64,
             kernel_size=7,
-            stride=(1, 2, 2),
-            padding=(3, 3, 3),
+            stride=2,
+            padding=3,
             bias=False)
         self.bn1 = nn.BatchNorm3d(64)
         self.relu = nn.ReLU(inplace=True)
