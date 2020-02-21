@@ -149,7 +149,7 @@ def adaptor(function, outputs, inputs=None):
         if isinstance(ret, dict):
             must_be_types_or_none('outputs', op, (dict,))
             if op is not None:
-                ret = {v: ret[k] for k, v in op}
+                ret = {v: ret[k] for k, v in op.items()}
         elif isinstance(ret, (list, tuple)):
             if len(ret) == 1:
                 must_be_types('outputs', op, (str, list, tuple))
