@@ -60,8 +60,11 @@ class TestUNET(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_shape(self, input_param, input_data, expected_shape):
-        result = UNet(**input_param).forward(input_data)[1]
-        self.assertEqual(result.shape, expected_shape)
+        net = UNet(**input_param)
+        net.eval()
+        with torch.no_grad():
+            result = net.forward(input_data)[1]
+            self.assertEqual(result.shape, expected_shape)
 
 
 if __name__ == '__main__':
