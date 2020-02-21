@@ -130,4 +130,17 @@ class TestAdaptors(unittest.TestCase):
         d = {'a': 3, 'b': 4}
         dres = adaptor(foo, ['c', 'd'])(d)
         self.assertEqual(dres['c'], 12)
-        self.assertEqual(dres['d'], 3/4)
+        self.assertEqual(dres['d'], 3 / 4)
+
+    def test_dict_out(self):
+        def foo(a):
+            return {'a': a * 2}
+
+        d = {'a': 2}
+        dres = adaptor(foo, {'a': 'a'})(d)
+        self.assertEqual(dres['a'], 4)
+
+        d = {'b': 2}
+        dres = adaptor(foo, {'a': 'b'}, {'b': 'a'})(d)
+        self.assertEqual(dres['b'], 4)
+
