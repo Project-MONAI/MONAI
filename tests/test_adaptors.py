@@ -143,4 +143,3 @@ class TestAdaptors(unittest.TestCase):
         d = {'b': 2}
         dres = adaptor(foo, {'a': 'b'}, {'b': 'a'})(d)
         self.assertEqual(dres['b'], 4)
-
