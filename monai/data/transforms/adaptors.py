@@ -107,7 +107,7 @@ def adaptor(function, outputs, inputs=None):
                     variable_name, types, type(variable)))
 
     def map_names(ditems, input_map):
-        return {k if k not in input_map else input_map[k]: v for k, v in ditems.items()}
+        return {input_map(k, k): v for k, v in ditems.items()}
 
     def map_only_names(ditems, input_map):
         return {v: ditems[k] for k, v in input_map.items()}
