@@ -20,7 +20,6 @@ OFF = 0
 SYNC = 1
 ASYNC = 2
 
-
 export = monai.utils.export("monai.transforms")
 
 
@@ -30,6 +29,15 @@ class Randomizable:
     can update their internal states with some random factors. this is
     mainly for randomized data augmentation transforms.
     """
+    R = np.random.RandomState()
+
+    def set_seed(self, seed=None):
+        """
+        Set the random state locally, to control the randomness, the derived
+        classes should use `self.R` instead of `np.random` to introduce random
+        factors.
+        """
+        self.R = np.random.RandomState(seed)  # to-do:  thread-safty
 
     def randomize(self):
         raise NotImplementedError
@@ -78,8 +86,8 @@ class RandRotate90(Randomizable):
         self._rand_k = 0
 
     def randomize(self):
-        self._do_transform = np.random.random() < self.prob
-        self._rand_k = np.random.randint(self.max_k) + 1
+        self._do_transform = self.R.random() < self.prob
+        self._rand_k = self.R.randint(self.max_k) + 1
         return self
 
     def __call__(self, img):
@@ -153,6 +161,7 @@ if __name__ == "__main__":
         'unused': 5,
     }
     rotator = RandRotate90(0.8)
+    # rotator.set_seed(1234)
     data_result = fn_map(rotator, map_key=['img', 'seg'], randomize=SYNC)(data)
     print(data_result.keys())
     print(data_result['img'], data_result['seg'])
