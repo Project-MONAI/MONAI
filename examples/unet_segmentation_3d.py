@@ -56,14 +56,14 @@ segs = sorted(glob(os.path.join(tempdir, 'seg*.nii.gz')))
 
 # Define transforms for image and segmentation
 imtrans = transforms.Compose([
-    Rescale(), 
-    AddChannel(), 
-    UniformRandomPatch((96, 96, 96)), 
+    Rescale(),
+    AddChannel(),
+    UniformRandomPatch((96, 96, 96)),
     ToTensor()
 ])
 segtrans = transforms.Compose([
-    AddChannel(), 
-    UniformRandomPatch((96, 96, 96)), 
+    AddChannel(),
+    UniformRandomPatch((96, 96, 96)),
     ToTensor()
 ])
 
@@ -169,7 +169,7 @@ def run_validation(engine):
 @evaluator.on(Events.EPOCH_COMPLETED)
 def log_metrics_to_tensorboard(engine):
     for name, value in engine.state.metrics.items():
-        writer.add_scalar(f'Metrics/{name}', value, trainer.state.epoch)
+        writer.add_scalar('Metrics/{name}', value, trainer.state.epoch)
 
 # create a training data loader
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
