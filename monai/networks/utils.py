@@ -55,15 +55,3 @@ def predict_segmentation(logits):
         return (logits[:, 0] >= 0).int()  # for binary segmentation threshold on channel 0
     else:
         return logits.max(1)[1]  # take the index of the max value along dimension 1
-
-
-def nanmean(v, *args, inplace=False, **kwargs):
-    """
-    Remove Nan value and compute mean on the other data.
-    Support additional args for torch.tensor sum API.
-    """
-    if not inplace:
-        v = v.clone()
-    is_nan = torch.isnan(v)
-    v[is_nan] = 0
-    return v.sum(*args, **kwargs) / (~is_nan).float().sum(*args, **kwargs)
