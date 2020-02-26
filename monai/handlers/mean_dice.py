@@ -73,9 +73,11 @@ class MeanDice(Metric):
         average = compute_meandice(y_pred, y, self.include_background, self.to_onehot_y, self.mutually_exclusive,
                                    self.add_sigmoid, self.logit_thresh)
 
-        batch_size = len(y)
-        self._sum += average.item() * batch_size
-        self._num_examples += batch_size
+        # add all items in current batch
+        for v in average:
+            if torch.isnan(v) == torch.tensor(False):
+                self._sum += v.item()
+                self._num_examples += 1
 
     @sync_all_reduce("_sum", "_num_examples")
     def compute(self):

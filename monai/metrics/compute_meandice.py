@@ -11,7 +11,7 @@
 
 import torch
 
-from monai.networks.utils import one_hot
+from monai.networks.utils import one_hot, nanmean
 
 
 def compute_meandice(y_pred,
@@ -74,6 +74,6 @@ def compute_meandice(y_pred,
     y_pred_o = torch.sum(y_pred, reduce_axis)
     denominator = y_o + y_pred_o
 
-    f = (2.0 * intersection) / denominator
-    # final reduce_mean across batches and channels
-    return torch.mean(f)
+    f = torch.where(y_o > 0, (2.0 * intersection) / denominator, torch.tensor(float('nan')).to(y_o))
+    # final reduce_mean across channels, skip Nan values
+    return nanmean(v=f, inplace=True, dim=1)
