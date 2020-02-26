@@ -27,7 +27,7 @@ TEST_CASE_1 = [
         'logit_thresh': 0.5,
         'add_sigmoid': True,
     },
-    0.8000,
+    [0.80],
 ]
 
 # remove background and not One-Hot target
@@ -37,7 +37,7 @@ TEST_CASE_2 = [
         torch.tensor([[[[-1., 3.], [2., -4.]], [[0., -1.], [3., 2.]], [[0., 1.], [2., -1.]]],
                       [[[-2., 0.], [3., 1.]], [[0., 2.], [1., -2.]], [[-1., 2.], [4., 0.]]]]),
         'y':
-        torch.tensor([[[[1, 2], [1, 0]]], [[[1, 1], [2, 0]]]]),
+        torch.tensor([[[[1., 2.], [1., 0.]]], [[[1., 1.], [2., 0.]]]]),
         'include_background':
         False,
         'to_onehot_y':
@@ -45,7 +45,7 @@ TEST_CASE_2 = [
         'mutually_exclusive':
         True,
     },
-    0.4583,
+    [0.25, 0.67],
 ]
 
 
@@ -54,7 +54,8 @@ class TestComputeMeanDice(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_value(self, input_data, expected_value):
         result = compute_meandice(**input_data)
-        self.assertAlmostEqual(result.item(), expected_value, places=4)
+        for data, target in zip(result, expected_value):
+            self.assertAlmostEqual(data.item(), target, places=2)
 
 
 if __name__ == '__main__':
