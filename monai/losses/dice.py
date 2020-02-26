@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
+
 import torch
 from torch.nn.modules.loss import _Loss
 
@@ -40,6 +42,8 @@ class DiceLoss(_Loss):
         """
         super().__init__()
         self.include_background = include_background
+        if do_sigmoid and do_softmax:
+            raise ValueError('do_sigmoid=True and do_softmax=Ture are not compatible.')
         self.do_sigmoid = do_sigmoid
         self.do_softmax = do_softmax
 
@@ -54,12 +58,10 @@ class DiceLoss(_Loss):
             if self.do_softmax:
                 raise ValueError('do_softmax is not compatible with single channel prediction.')
             if not self.include_background:
-                raise RuntimeWarning('single channel prediction, `include_background=False` ignored.')
+                warnings.warn('single channel prediction, `include_background=False` ignored.')
             tsum = ground
         else:  # multiclass dice loss
             if self.do_softmax:
-                if self.do_sigmoid:
-                    raise ValueError('do_sigmoid=True and do_softmax=Ture are not compatible.')
                 psum = torch.softmax(pred, 1)
             tsum = one_hot(ground, pred.shape[1])  # B1HW(D) -> BNHW(D)
             # exclude background category so that it doesn't overwhelm the other segmentations if they are small
@@ -101,10 +103,12 @@ class GeneralizedDiceLoss(_Loss):
         """
         super().__init__()
         self.include_background = include_background
+        if do_sigmoid and do_softmax:
+            raise ValueError('do_sigmoid=True and do_softmax=Ture are not compatible.')
         self.do_sigmoid = do_sigmoid
         self.do_softmax = do_softmax
 
-        self.w_func = lambda x: torch.ones_like(x)
+        self.w_func = torch.ones_like
         if w_type == 'simple':
             self.w_func = lambda x: torch.reciprocal(x)
         elif w_type == 'square':
@@ -129,12 +133,10 @@ class GeneralizedDiceLoss(_Loss):
             if self.do_softmax:
                 raise ValueError('do_softmax is not compatible with single channel prediction.')
             if not self.include_background:
-                raise RuntimeWarning('single channel prediction, `include_background=False` ignored.')
+                warnings.warn('single channel prediction, `include_background=False` ignored.')
             tsum = ground
         else:  # multiclass dice loss
             if self.do_softmax:
-                if self.do_sigmoid:
-                    raise ValueError('do_sigmoid=True and do_softmax=Ture are not compatible.')
                 psum = torch.softmax(pred, 1)
             tsum = one_hot(ground, pred.shape[1])  # B1HW(D) -> BNHW(D)
             # exclude background category so that it doesn't overwhelm the other segmentations if they are small

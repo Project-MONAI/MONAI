@@ -92,10 +92,23 @@ TEST_CASE_5 = [  # shape: (2, 2, 3), (2, 1, 3)
     1.0,
 ]
 
+TEST_CASE_6 = [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
+    {
+        'include_background': False,
+        'do_sigmoid': True,
+    },
+    {
+        'pred': torch.tensor([[[[1., -1.], [-1., 1.]]]]),
+        'ground': torch.tensor([[[[1., 0.], [1., 1.]]]]),
+        'smooth': 1e-6,
+    },
+    0.307576,
+]
+
 
 class TestGeneralizedDiceLoss(unittest.TestCase):
 
-    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
+    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
     def test_shape(self, input_param, input_data, expected_val):
         result = GeneralizedDiceLoss(**input_param).forward(**input_data)
         self.assertAlmostEqual(result.item(), expected_val, places=5)
