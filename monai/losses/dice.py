@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
+
 import torch
 from torch.nn.modules.loss import _Loss
 
@@ -40,6 +42,8 @@ class DiceLoss(_Loss):
         """
         super().__init__()
         self.include_background = include_background
+        if do_sigmoid and do_softmax:
+            raise ValueError('do_sigmoid=True and do_softmax=Ture are not compatible.')
         self.do_sigmoid = do_sigmoid
         self.do_softmax = do_softmax
 
@@ -54,12 +58,10 @@ class DiceLoss(_Loss):
             if self.do_softmax:
                 raise ValueError('do_softmax is not compatible with single channel prediction.')
             if not self.include_background:
-                raise RuntimeWarning('single channel prediction, `include_background=False` ignored.')
+                warnings.warn('single channel prediction, `include_background=False` ignored.')
             tsum = ground
         else:  # multiclass dice loss
             if self.do_softmax:
-                if self.do_sigmoid:
-                    raise ValueError('do_sigmoid=True and do_softmax=Ture are not compatible.')
                 psum = torch.softmax(pred, 1)
             tsum = one_hot(ground, pred.shape[1])  # B1HW(D) -> BNHW(D)
             # exclude background category so that it doesn't overwhelm the other segmentations if they are small
@@ -69,12 +71,93 @@ class DiceLoss(_Loss):
         assert tsum.shape == psum.shape, ("Ground truth one-hot has differing shape (%r) from source (%r)" %
                                           (tsum.shape, psum.shape))
 
-        batchsize = ground.size(0)
-        tsum = tsum.float().view(batchsize, -1)
-        psum = psum.view(batchsize, -1)
+        batchsize, n_classes = tsum.shape[:2]
+        tsum = tsum.float().view(batchsize, n_classes, -1)
+        psum = psum.view(batchsize, n_classes, -1)
 
         intersection = psum * tsum
         sums = psum + tsum
 
-        score = 2.0 * (intersection.sum(1) + smooth) / (sums.sum(1) + smooth)
-        return 1 - score.sum() / batchsize
+        score = 2.0 * (intersection.sum(2) + smooth) / (sums.sum(2) + smooth)
+        return 1 - score.mean()
+
+
+@alias("generalized_dice", "generalised_dice")
+class GeneralizedDiceLoss(_Loss):
+    """
+    Compute the generalised Dice loss defined in:
+        Sudre, C. et. al. (2017) Generalised Dice overlap as a deep learning
+        loss function for highly unbalanced segmentations. DLMIA 2017.
+
+    Adapted from:
+        https://github.com/NifTK/NiftyNet/blob/v0.6.0/niftynet/layer/loss_segmentation.py#L279
+    """
+
+    def __init__(self, include_background=True, do_sigmoid=False, do_softmax=False, w_type='square'):
+        """
+        Args:
+            include_background (bool): If False channel index 0 (background category) is excluded from the calculation.
+            do_sigmoid (bool): If True, apply a sigmoid function to the prediction.
+            do_softmax (bool): If True, apply a softmax function to the prediction.
+            w_type ('square'|'simple'|'uniform'): type of function to transform ground truth volume to a weight factor.
+        """
+        super().__init__()
+        self.include_background = include_background
+        if do_sigmoid and do_softmax:
+            raise ValueError('do_sigmoid=True and do_softmax=Ture are not compatible.')
+        self.do_sigmoid = do_sigmoid
+        self.do_softmax = do_softmax
+
+        self.w_func = torch.ones_like
+        if w_type == 'simple':
+            self.w_func = lambda x: torch.reciprocal(x)
+        elif w_type == 'square':
+            self.w_func = lambda x: torch.reciprocal(x * x)
+        else:
+            raise ValueError('unknown option for `w_type`: {}'.format(w_type))
+
+    def forward(self, pred, ground, smooth=1e-5):
+        """
+        Args:
+            pred (tensor): the shape should be BNH[WD].
+            ground (tensor): the shape should be B1H[WD].
+            smooth (float): a small constant to avoid nan.
+        """
+        if ground.shape[1] != 1:
+            raise ValueError("Ground truth should have only a single channel, shape is " + str(ground.shape))
+
+        psum = pred.float()
+        if self.do_sigmoid:
+            psum = psum.sigmoid()  # use sigmoid activation
+        if pred.shape[1] == 1:
+            if self.do_softmax:
+                raise ValueError('do_softmax is not compatible with single channel prediction.')
+            if not self.include_background:
+                warnings.warn('single channel prediction, `include_background=False` ignored.')
+            tsum = ground
+        else:  # multiclass dice loss
+            if self.do_softmax:
+                psum = torch.softmax(pred, 1)
+            tsum = one_hot(ground, pred.shape[1])  # B1HW(D) -> BNHW(D)
+            # exclude background category so that it doesn't overwhelm the other segmentations if they are small
+            if not self.include_background:
+                tsum = tsum[:, 1:]
+                psum = psum[:, 1:]
+        assert tsum.shape == psum.shape, ("Ground truth one-hot has differing shape (%r) from source (%r)" %
+                                          (tsum.shape, psum.shape))
+
+        batchsize, n_classes = tsum.shape[:2]
+        tsum = tsum.float().view(batchsize, n_classes, -1)
+        psum = psum.view(batchsize, n_classes, -1)
+
+        intersection = psum * tsum
+        sums = psum + tsum
+
+        w = self.w_func(tsum.sum(2))
+        for b in w:
+            infs = torch.isinf(b)
+            b[infs] = 0.0
+            b[infs] = torch.max(b)
+
+        score = 2.0 * (intersection.sum(2) * w) / (sums.sum(2) * w + smooth)
+        return 1 - score.mean()
