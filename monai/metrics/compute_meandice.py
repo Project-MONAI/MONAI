@@ -22,8 +22,7 @@ def compute_meandice(y_pred,
                      to_onehot_y=True,
                      mutually_exclusive=False,
                      add_sigmoid=False,
-                     logit_thresh=0.5,
-                     smooth=0.0):
+                     logit_thresh=0.5):
     """Computes dice score metric from full size Tensor and collects average.
 
     Args:
@@ -40,7 +39,6 @@ def compute_meandice(y_pred,
         add_sigmoid (Bool): whether to add sigmoid function to y_pred before computation. Defaults to False.
         logit_thresh (Float): the threshold value used to convert (after sigmoid if `add_sigmoid=True`)
             `y_pred` into a binary matrix. Defaults to 0.5.
-        smooth (Float): a small constant to avoid nan in Dice computation.
 
     Returns:
         Dice scores per batch and per class (shape: [batch_size, n_classes]).
@@ -53,6 +51,7 @@ def compute_meandice(y_pred,
 
     """
     n_classes = y_pred.shape[1]
+    n_len = len(y_pred.shape)
 
     if add_sigmoid:
         y_pred = y_pred.float().sigmoid()
@@ -87,12 +86,12 @@ def compute_meandice(y_pred,
                                      (y.shape, y_pred.shape))
 
     # reducing only spatial dimensions (not batch nor channels)
-    batch_size, n_classes = y_pred.shape[:2]
-    y = y.view(batch_size, n_classes, -1)
-    y_pred = y_pred.view(batch_size, n_classes, -1)
+    reduce_axis = list(range(2, n_len))
+    intersection = torch.sum(y * y_pred, reduce_axis)
 
-    intersection = y * y_pred
-    sums = y + y_pred
+    y_o = torch.sum(y, reduce_axis)
+    y_pred_o = torch.sum(y_pred, reduce_axis)
+    denominator = y_o + y_pred_o
 
-    f = 2.0 * (intersection.sum(2) + smooth) / sums.sum(2) + smooth
+    f = torch.where(y_o > 0, (2.0 * intersection) / denominator, torch.tensor(float('nan')).to(y_o))
     return f  # returns array of Dice shape: [Batch, n_classes]
