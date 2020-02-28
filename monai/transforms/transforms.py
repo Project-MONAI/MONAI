@@ -8,14 +8,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""
+A collection of "vanilla" transforms
+https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
+"""
 
-
-import torch
 import numpy as np
+import torch
 
 import monai
-from monai.transforms.utils import rescale_array
 from monai.data.utils import get_random_patch, get_valid_patch_size
+from monai.transforms.compose import Randomizable
+from monai.transforms.utils import rescale_array
 
 export = monai.utils.export("monai.transforms")
 
@@ -145,3 +149,67 @@ class ImageEndPadder:
         all_pad_width = [(0, 0), (0, 0)] + data_pad_width
         img = np.pad(img, all_pad_width, self.mode)
         return img
+
+
+@export
+class Rotate90:
+    """
+    Rotate an array by 90 degrees in the plane specified by `axes`.
+    """
+
+    def __init__(self, k=1, axes=(1, 2)):
+        """
+        Args:
+            k (int): number of times to rotate by 90 degrees.
+            axes (2 ints): defines the plane to rotate with 2 axes.
+        """
+        self.k = k
+        self.plane_axes = axes
+
+    def __call__(self, img):
+        return np.rot90(img, self.k, self.plane_axes)
+
+
+@export
+class RandRotate90(Randomizable):
+    """
+    With probability `prob`, input arrays are rotated by 90 degrees
+    in the plane specified by `axes`.
+    """
+
+    def __init__(self, prob=0.1, max_k=3, axes=(1, 2)):
+        """
+        Args:
+            prob (float): probability of rotating.
+                (Default 0.1, with 10% probability it returns a rotated array)
+            max_k (int): number of rotations will be sampled from `np.random.randint(max_k) + 1`.
+                (Default 3)
+            axes (2 ints): defines the plane to rotate with 2 axes.
+                (Default (1, 2))
+        """
+        self.prob = min(max(prob, 0.0), 1.0)
+        self.max_k = max_k
+        self.axes = axes
+
+        self._do_transform = False
+        self._rand_k = 0
+
+    def randomise(self):
+        self._rand_k = self.R.randint(self.max_k) + 1
+        self._do_transform = self.R.random() < self.prob
+
+    def __call__(self, img):
+        self.randomise()
+        if not self._do_transform:
+            return img
+        rotator = Rotate90(self._rand_k, self.axes)
+        return rotator(img)
+
+
+# if __name__ == "__main__":
+#     img = np.array((1, 2, 3, 4)).reshape((1, 2, 2))
+#     rotator = RandRotate90(prob=0.0, max_k=3, axes=(1, 2))
+#     # rotator.set_random_state(1234)
+#     img_result = rotator(img)
+#     print(type(img))
+#     print(img_result)
