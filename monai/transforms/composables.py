@@ -113,9 +113,10 @@ class RandRotate90d(Randomizable, MapTransform):
         if not self._do_transform:
             return data
 
+        rotator = Rotate90(self._rand_k, self.axes)
         d = dict(data)
         for key in self.keys:
-            d[key] = Rotate90(self._rand_k, self.axes)(d[key])
+            d[key] = rotator(d[key])
         return d
 
 

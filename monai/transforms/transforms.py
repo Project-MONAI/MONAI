@@ -202,7 +202,8 @@ class RandRotate90(Randomizable):
         self.randomise()
         if not self._do_transform:
             return img
-        return Rotate90(self._rand_k, self.axes)(img)
+        rotator = Rotate90(self._rand_k, self.axes)
+        return rotator(img)
 
 
 # if __name__ == "__main__":
