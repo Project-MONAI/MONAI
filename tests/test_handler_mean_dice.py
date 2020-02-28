@@ -17,8 +17,7 @@ from parameterized import parameterized
 from monai.handlers.mean_dice import MeanDice
 
 TEST_CASE_1 = [{'to_onehot_y': True, 'mutually_exclusive': True}, 0.75]
-TEST_CASE_2 = [{'include_background': False, 'to_onehot_y': False, 'mutually_exclusive': False}, 0.8333333]
-
+TEST_CASE_2 = [{'include_background': False, 'to_onehot_y': True, 'mutually_exclusive': False}, 0.66666]
 TEST_CASE_3 = [{'mutually_exclusive': True, 'add_sigmoid': True}]
 
 
@@ -29,16 +28,16 @@ class TestHandlerMeanDice(unittest.TestCase):
     def test_compute(self, input_params, expected_avg):
         dice_metric = MeanDice(**input_params)
 
-        y_pred = torch.Tensor([[0, 1], [1, 0]])
-        y = torch.ones((2, 1))
+        y_pred = torch.Tensor([[[0], [1]], [[1], [0]]])
+        y = torch.ones((2, 1, 1))
         dice_metric.update([y_pred, y])
 
-        y_pred = torch.Tensor([[0, 1], [1, 0]])
-        y = torch.Tensor([[1.], [0.]])
+        y_pred = torch.Tensor([[[0], [1]], [[1], [0]]])
+        y = torch.Tensor([[[1]], [[0]]])
         dice_metric.update([y_pred, y])
 
         avg_dice = dice_metric.compute()
-        self.assertAlmostEqual(avg_dice, expected_avg)
+        self.assertAlmostEqual(avg_dice, expected_avg, places=4)
 
     @parameterized.expand([TEST_CASE_3])
     def test_misconfig(self, input_params):
