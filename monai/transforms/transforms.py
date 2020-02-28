@@ -15,6 +15,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 import numpy as np
 import torch
+import scipy.ndimage
 
 import monai
 from monai.data.utils import get_random_patch, get_valid_patch_size
@@ -78,6 +79,42 @@ class Flip:
 
     def __call__(self, img):
         return np.flip(img, self.axis)
+
+
+@export
+class Rotate:
+    """
+    Rotates an input image by given angle. Uses scipy.ndimage.rotate. For more details, see
+    http://lagrange.univ-lyon1.fr/docs/scipy/0.17.1/generated/scipy.ndimage.rotate.html.
+
+    Args:
+        angle (float): Rotation angle in degrees.
+        axes (tuple of 2 ints): Axes of rotation. Default: (1, 2). This is the first two
+            axis in spatial dimensions according to MONAI channel first shape assumption.
+        reshape (bool): If true, output shape is made same as input. Default: True.
+        order (int): Order of spline interpolation. Range 0-5. Default: 1. This is
+            different from scipy where default interpolation is 3.
+        mode (str): Points outside boundary filled according to this mode. Options are 
+            'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
+        cval (scalar): Values to fill outside boundary. Default: 0.
+        prefiter (bool): Apply spline_filter before interpolation. Default: True.
+    """
+
+    def __init__(self, angle, axes=(1, 2), reshape=True, order=1, 
+                 mode='constant', cval=0, prefilter=True):
+        self.angle = angle
+        self.reshape = reshape
+        self.order = order
+        self.mode = mode
+        self.cval = cval
+        self.prefilter = prefilter
+        self.axes = axes
+
+    def __call__(self, img):
+        return scipy.ndimage.rotate(img, self.angle, self.axes,
+                                    reshape=self.reshape, order=self.order, 
+                                    mode=self.mode, cval=self.cval, 
+                                    prefilter=self.prefilter)
 
 
 @export
