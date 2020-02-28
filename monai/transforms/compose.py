@@ -9,6 +9,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import numpy as np
+
+
+class Transform:
+    """
+    An abstract class of a ``Transform``.
+    A transform is callable that processes ``data``.
+
+    It could be stateful and may modify ``data`` in place,
+    the implementation should be aware of:
+    - thread safety when mutating its own states.
+        When used from a multi-process context, transform's instance variables are read-only.
+    - ``data`` content unused by this transform may still be used in the
+        subsequent transforms in a composed transform.
+        see also: `monai.transforms.compose.Compose`.
+    - storing too much information in ``data`` may not scale.
+    """
+
+    def __call__(self, data):
+        """
+        ``data`` is an element which often comes from an iteration over an
+        iterable, such as``torch.utils.data.Dataset``. This method should
+        return an updated version of ``data``.
+        """
+        raise NotImplementedError
+
 
 class Compose:
     """
@@ -50,6 +76,7 @@ class Compose:
     TODO: example / links to alternative approaches
 
     """
+
     def __init__(self, transforms=None):
         if transforms is None:
             transforms = []
@@ -61,3 +88,44 @@ class Compose:
         for transform in self.transforms:
             input_ = transform(input_)
         return input_
+
+
+class Randomizable:
+    """
+    An interface for handling local numpy random state.
+    this is mainly for randomized data augmentation transforms.
+    """
+    R = np.random.RandomState()
+
+    def set_random_state(self, seed=None, state=None):
+        """
+        Set the random state locally, to control the randomness, the derived
+        classes should use `self.R` instead of `np.random` to introduce random
+        factors.
+
+        Args:
+            seed (int): set the random state with an integer seed.
+            state (np.random.RandomState): set the random state with a `np.random.RandomState` object.
+
+        Note:
+            thread safety
+        """
+        if seed is not None:
+            _seed = id(seed) if not isinstance(seed, int) else seed
+            self.R = np.random.RandomState(_seed)
+            return
+
+        if state is not None:
+            if not isinstance(state, np.random.RandomState):
+                raise ValueError('`state` must be a `np.random.RandomState`, got {}'.format(type(state)))
+            self.R = state
+            return
+
+        self.R = np.random.RandomState()
+        return
+
+    def randomise(self):
+        """
+        all self.R calls happen here so that we have a better chance to identify errors of sync the random state.
+        """
+        raise NotImplementedError
