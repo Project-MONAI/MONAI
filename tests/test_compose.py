@@ -11,7 +11,7 @@
 
 import unittest
 
-from monai.transforms.compose import Compose
+from monai.transforms.compose import Compose, Randomizable
 
 
 class TestCompose(unittest.TestCase):
@@ -22,6 +22,7 @@ class TestCompose(unittest.TestCase):
         self.assertEqual(c(i), 1)
 
     def test_non_dict_compose(self):
+
         def a(i):
             return i + 'a'
 
@@ -32,6 +33,7 @@ class TestCompose(unittest.TestCase):
         self.assertEqual(c(''), 'abab')
 
     def test_dict_compose(self):
+
         def a(d):
             d = dict(d)
             d['a'] += 1
@@ -44,6 +46,37 @@ class TestCompose(unittest.TestCase):
 
         c = Compose([a, b, a, b, a])
         self.assertDictEqual(c({'a': 0, 'b': 0}), {'a': 3, 'b': 2})
+
+    def test_random_compose(self):
+
+        class _Acc(Randomizable):
+            self.rand = 0.0
+
+            def randomize(self):
+                self.rand = self.R.rand()
+
+            def __call__(self, data):
+                self.randomize()
+                return self.rand + data
+
+        c = Compose([_Acc(), _Acc()])
+        self.assertNotAlmostEqual(c(0), c(0))
+        c.set_random_state(123)
+        self.assertAlmostEqual(c(1), 2.39293837)
+        c.set_random_state(223)
+        c.randomize()
+        self.assertAlmostEqual(c(1), 2.57673391)
+
+    def test_randomize_warn(self):
+
+        class _RandomClass(Randomizable):
+
+            def randomize(self, foo):
+                pass
+
+        c = Compose([_RandomClass(), _RandomClass()])
+        with self.assertWarns(Warning):
+            c.randomize()
 
 
 if __name__ == '__main__':
