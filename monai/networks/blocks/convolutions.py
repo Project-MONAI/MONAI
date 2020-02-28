@@ -20,7 +20,7 @@ class Convolution(nn.Sequential):
     """
     Constructs a convolution with optional dropout, normalization, and activation layers.
     """
-    
+
     def __init__(self, dimensions, in_channels, out_channels, strides=1, kernel_size=3, act=Act.PRELU, 
                  norm=Norm.INSTANCE, dropout=None, dilation=1, bias=True, conv_only=False, is_transposed=False):
         super().__init__()
@@ -84,9 +84,9 @@ class ResidualUnit(nn.Module):
             conv_only = last_conv_only and su == (subunits - 1)
             unit = Convolution(dimensions, schannels, out_channels, sstrides, 
                                kernel_size, act, norm, dropout, dilation, bias, conv_only)
-            
+
             self.conv.add_module("unit%i" % su, unit)
-            
+
             # after first loop set channels and strides to what they should be for subsequent units
             schannels = out_channels  
             sstrides = 1
