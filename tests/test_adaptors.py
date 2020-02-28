@@ -12,7 +12,9 @@
 import unittest
 import itertools
 
+
 from monai.data.transforms.adaptors import adaptor, alias, FunctionSignature
+
 
 
 class TestAdaptors(unittest.TestCase):
@@ -156,3 +158,4 @@ class TestAlias(unittest.TestCase):
         d = { 'a':1, 'b':3 }
         result = alias(foo, {'b': 'x'})(d)
         self.assertDictEqual({'a': 1, 'b': 6}, result)
+
