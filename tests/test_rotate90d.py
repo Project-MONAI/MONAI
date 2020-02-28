@@ -41,7 +41,7 @@ class Rotate90Test(NumpyImageTestCase2D):
         self.assertTrue(np.allclose(rotated[key[0]], expected))
 
     def test_k_axes(self):
-        key = ('test', )
+        key = ('test',)
         rotate = Rotate90d(keys=key, k=2, axes=(2, 3))
         rotated = rotate({key[0]: self.imt})
         expected = np.rot90(self.imt, 2, (2, 3))
