@@ -49,13 +49,13 @@ TEST_CASE_2 = [  # y (2, 1, 2, 2), y_pred (2, 3, 2, 2), expected out (2, 2) (no 
     [[0.5000, 0.0000], [0.6666, 0.6666]],
 ]
 
-# remove background and not One-Hot target
-TEST_CASE_3 = [  # y (2, 1, 2, 2), y_pred (2, 3, 2, 2), expected out (2, 2) (no background)
+# should return Nan for all labels=0 case and skip for MeanDice
+TEST_CASE_3 = [
     {
         'y_pred':
         torch.zeros(2, 3, 2, 2),
         'y':
-        torch.tensor([[[[0., 0.], [0., 0.]]], [[[0., 0.], [0., 0.]]]]),
+        torch.tensor([[[[0., 0.], [0., 0.]]], [[[1., 0.], [0., 1.]]]]),
         'include_background':
         True,
         'to_onehot_y':
@@ -63,7 +63,7 @@ TEST_CASE_3 = [  # y (2, 1, 2, 2), y_pred (2, 3, 2, 2), expected out (2, 2) (no 
         'mutually_exclusive':
         True,
     },
-    [[False, True, False], [False, True, False]],
+    [[False, True, True], [False, False, True]],
 ]
 
 

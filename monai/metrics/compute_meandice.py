@@ -93,5 +93,5 @@ def compute_meandice(y_pred,
     y_pred_o = torch.sum(y_pred, reduce_axis)
     denominator = y_o + y_pred_o
 
-    f = torch.where(y_o > 0, (2.0 * intersection) / denominator, torch.tensor(float('nan')).to(y_o))
+    f = torch.where(y_o > 0, (2.0 * intersection) / denominator, torch.tensor(float('nan')).to(y_o.float()))
     return f  # returns array of Dice shape: [Batch, n_classes]

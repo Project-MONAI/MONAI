@@ -40,7 +40,7 @@ class MeanDice(Metric):
                 Defaults to True.
             to_onehot_y (Bool): whether to convert the output prediction into the one-hot format. Defaults to True.
             mutually_exclusive (Bool): if True, the output prediction will be converted into a binary matrix using
-                a combination of argmax and to_onehot. Defaults to True.
+                a combination of argmax and to_onehot. Defaults to False.
             add_sigmoid (Bool): whether to add sigmoid function to the output prediction before computing Dice.
                 Defaults to False.
             logit_thresh (Float): the threshold value to round value to 0.0 and 1.0. Defaults to None (no thresholding).
