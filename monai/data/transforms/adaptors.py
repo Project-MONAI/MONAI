@@ -180,6 +180,27 @@ def adaptor(function, outputs, inputs=None):
     return _inner
 
 
+def alias(fn, name_map):
+
+    def _inner(data):
+
+        # map names
+        pre_call = dict(data)
+        for _from, _to in name_map.items():
+            pre_call[_to] = pre_call.pop(_from)
+
+        # execute
+        post_call = fn(pre_call)
+
+        # map names back
+        for _from, _to in name_map.items():
+            post_call[_from] = post_call.pop(_to)
+
+        return post_call
+
+    return _inner
+
+
 @monai.utils.export('monai.data.transforms')
 class FunctionSignature:
     def __init__(self, function):

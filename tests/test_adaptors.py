@@ -12,7 +12,7 @@
 import unittest
 import itertools
 
-from monai.data.transforms.adaptors import adaptor, FunctionSignature
+from monai.data.transforms.adaptors import adaptor, alias, FunctionSignature
 
 
 class TestAdaptors(unittest.TestCase):
@@ -143,3 +143,16 @@ class TestAdaptors(unittest.TestCase):
         d = {'b': 2}
         dres = adaptor(foo, {'a': 'b'}, {'b': 'a'})(d)
         self.assertEqual(dres['b'], 4)
+
+
+class TestAlias(unittest.TestCase):
+
+    def test_alias(self):
+        def foo(d):
+            d['x'] *= 2
+            return d
+
+
+        d = { 'a':1, 'b':3 }
+        result = alias(foo, {'b': 'x'})(d)
+        self.assertDictEqual({'a': 1, 'b': 6}, result)
