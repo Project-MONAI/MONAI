@@ -19,8 +19,8 @@ from monai.networks.nets.densenet3d import densenet121, densenet169, densenet201
 
 TEST_CASE_1 = [  # 4-channel 3D, batch 16
     {
-        'num_input_channel': 2,
-        'num_classes': 3
+        'in_channels': 2,
+        'out_channels': 3
     },
     torch.randn(16, 2, 32, 64, 48),
     (16, 3)
