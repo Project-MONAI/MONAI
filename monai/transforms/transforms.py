@@ -19,7 +19,8 @@ import torch
 import monai
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.compose import Randomizable
-from monai.transforms.utils import rescale_array
+from monai.transforms.utils import (create_grid, create_rotate, create_scale, create_shear, create_translate,
+                                    rescale_array)
 
 export = monai.utils.export("monai.transforms")
 
@@ -206,10 +207,112 @@ class RandRotate90(Randomizable):
         return rotator(img)
 
 
-# if __name__ == "__main__":
-#     img = np.array((1, 2, 3, 4)).reshape((1, 2, 2))
-#     rotator = RandRotate90(prob=0.0, max_k=3, axes=(1, 2))
-#     # rotator.set_random_state(1234)
-#     img_result = rotator(img)
-#     print(type(img))
-#     print(img_result)
+class AffineGrid:
+    """
+    Affine transforms on the coordinates.
+    """
+
+    def __init__(self, rotate_params=None, shear_params=None, translate_params=None, scale_params=None):
+        self.rotate_params = rotate_params
+        self.shear_params = shear_params
+        self.translate_params = translate_params
+        self.scale_params = scale_params
+
+    def __call__(self, spatial_size, grid=None):
+        """
+        Args:
+            spatial_size (list or tuple of int): output grid size.
+            grid (ndarray): grid to be transformed. Shape must be (3, H, W) for 2D or (4, H, W, D) for 3D.
+        """
+        if grid is None:
+            grid = create_grid(spatial_size)
+
+        spatial_dims = len(spatial_size)
+        affine = np.eye(spatial_dims + 1)
+        if self.rotate_params:
+            affine = affine @ create_rotate(spatial_dims, self.rotate_params)
+        if self.shear_params:
+            affine = affine @ create_shear(spatial_dims, self.shear_params)
+        if self.translate_params:
+            affine = affine @ create_translate(spatial_dims, self.translate_params)
+        if self.scale_params:
+            affine = affine @ create_scale(spatial_dims, self.scale_params)
+        return (affine @ grid.reshape(grid.shape[0], -1)).reshape([-1] + list(spatial_size))
+
+
+class Resample:
+
+    def __init__(self, padding_mode='reflection', as_tensor_output=False, device=None):
+        """
+        computes output image using values from `img`, locations from `grid`.
+
+        Args:
+            padding_mode ('zeros'|'border'|'reflection'): mode of handling out of range indices. Defaults to 'zeros'.
+            as_tensor_output(bool): whether to return a torch tensor. Defaults to False.
+            device (string):
+        """
+        self.padding_mode = padding_mode
+        self.as_tensor_output = as_tensor_output
+        self.device = device
+
+    def __call__(self, img, grid, mode='bilinear'):
+        """
+        Args:
+            img (ndarray or tensor): shape must be (num_channels, H, W[, D]).
+            grid (ndarray or tensor): shape must be (3, H, W) for 2D or (4, H, W, D) for 3D.
+            mode ('nearest'|'bilinear'): interpolation order. Defaults to 'bilinear'.
+        """
+        if not isinstance(img, torch.Tensor):
+            img = torch.tensor(img)
+        if not isinstance(grid, torch.Tensor):
+            grid = torch.tensor(grid)
+        if self.device:
+            img.to(self.device)
+            grid.to(self.device)
+
+        for i, dim in enumerate(img.shape[1:]):
+            grid[i] = 2. * grid[i] / (dim - 1.)
+        grid = grid[:-1] / grid[-1:]
+        grid = grid[range(img.ndim - 2, -1, -1)]
+        grid = grid.permute(list(range(grid.ndim))[1:] + [0])
+        new_img = torch.nn.functional.grid_sample(img[None], grid[None], mode=mode, padding_mode=self.padding_mode)[0]
+        if not self.as_tensor_output:
+            return new_img.cpu().numpy()
+        return new_img
+
+
+class Affine:
+    """
+    transform ``img`` given the affine parameters.
+    """
+
+    def __init__(self,
+                 rotate_params=None,
+                 shear_params=None,
+                 translate_params=None,
+                 scale_params=None,
+                 padding_mode='zeros',
+                 as_tensor_output=False,
+                 device=None):
+        self.affine_grid = AffineGrid(rotate_params, shear_params, translate_params, scale_params)
+        self.resampler = Resample(padding_mode=padding_mode, as_tensor_output=as_tensor_output, device=device)
+
+    def __call__(self, img, spatial_size, mode='bilinear'):
+        """
+        Args:
+            img (ndarray or tensor): shape must be (num_channels, H, W[, D]),
+                spatial rank must be len(self.spatial_size).
+            spatial_size (list or tuple of int): output grid size.
+            mode ('nearest'|'bilinear'): interpolation order. Defaults to 'bilinear'.
+        """
+        grid = self.affine_grid(spatial_size)
+        return self.resampler(img, grid, mode)
+
+
+if __name__ == "__main__":
+    img = np.array((1, 2, 3, 4)).reshape((1, 2, 2))
+    rotator = RandRotate90(prob=0.0, max_k=3, axes=(1, 2))
+    # rotator.set_random_state(1234)
+    img_result = rotator(img)
+    print(type(img))
+    print(img_result)

@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import random
 
 import numpy as np
@@ -157,3 +156,108 @@ def one_hot(labels, num_classes):
     onehot = y[labels.flatten()]
 
     return onehot.reshape(tuple(labels.shape) + (num_classes,)).astype(labels.dtype)
+
+
+def create_grid(spatial_size, homogeneous=True):
+    """
+    compute a `spatial_size` mesh.
+    """
+    ranges = [np.linspace(-(d - 1.) / 2., (d - 1.) / 2., int(d)) for d in spatial_size]
+    coords = np.asarray(np.meshgrid(*ranges, indexing='ij'), dtype=float)
+    if not homogeneous:
+        return coords
+    return np.concatenate([coords, np.ones_like(coords[0:1, ...])])
+
+
+def create_rotate(spatial_dims, radians):
+    """
+    create a 2D or 3D rotation matrix
+    Args:
+        spatial_dims (int): spatial rank
+        radians (float or a sequence of floats): rotation radians
+    """
+    if spatial_dims == 2:
+        if isinstance(radians, (list, tuple)):
+            radians = radians[0]
+        return np.array([[np.cos(radians), -np.sin(radians), 0.], [np.sin(radians), np.cos(radians), 0.], [0., 0., 1.]])
+
+    if spatial_dims == 3:
+        affine = None
+        if len(radians) >= 1:
+            affine = np.array([
+                [1., 0., 0., 0.],
+                [0., np.cos(radians[0]), -np.sin(radians[0]), 0.],
+                [0., np.sin(radians[0]), np.cos(radians[0]), 0.],
+                [0., 0., 0., 1.],
+            ])
+        if len(radians) >= 2:
+            affine = affine @ np.array([
+                [np.cos(radians[1]), 0.0, np.sin(radians[1]), 0.],
+                [0., 1., 0., 0.],
+                [-np.sin(radians[1]), 0., np.cos(radians[1]), 0.],
+                [0., 0., 0., 1.],
+            ])
+        if len(radians) >= 3:
+            affine = affine @ np.array([
+                [np.cos(radians[2]), -np.sin(radians[2]), 0., 0.],
+                [np.sin(radians[2]), np.cos(radians[2]), 0., 0.],
+                [0., 0., 1., 0.],
+                [0., 0., 0., 1.],
+            ])
+        return affine
+
+    raise NotImplementedError
+
+
+def create_shear(spatial_dims, coefs):
+    """
+    create a shearing matrix
+    Args:
+        spatial_dims (int): spatial rank
+        coefs (floats): shearing factors, defaults to 0.
+    """
+    coefs = list(coefs)
+    if spatial_dims == 2:
+        while len(coefs) < 2:
+            coefs.append(0.0)
+        return np.array([
+            [1, coefs[0], 0.],
+            [coefs[1], 1., 0.],
+            [0., 0., 1.],
+        ])
+    if spatial_dims == 3:
+        while len(coefs) < 6:
+            coefs.append(0.0)
+        return np.array([
+            [1., coefs[0], coefs[1], 0.],
+            [coefs[2], 1., coefs[3], 0.],
+            [coefs[4], coefs[5], 1., 0.],
+            [0., 0., 0., 1.],
+        ])
+    raise NotImplementedError
+
+
+def create_scale(spatial_dims, s):
+    """
+    create a scaling matrix
+    Args:
+        spatial_dims (int): spatial rank
+        s (floats): scaling factors, defaults to 1.
+    """
+    s = list(s)
+    while len(s) < spatial_dims:
+        s.append(1.)
+    return np.diag(s[:spatial_dims] + [1.])
+
+
+def create_translate(spatial_dims, t):
+    """
+    create a translation matrix
+    Args:
+        spatial_dims (int): spatial rank
+        t (floats): translate factors, defaults to 0.
+    """
+    affine = np.eye(spatial_dims + 1)
+    for i, a in enumerate(t[:spatial_dims]):
+        affine[i, spatial_dims] = a
+    return affine
