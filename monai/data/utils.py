@@ -11,7 +11,7 @@
 
 import math
 from itertools import starmap, product
-
+from torch.utils.data._utils.collate import default_collate
 import numpy as np
 from monai.transforms.utils import ensure_tuple_size
 
@@ -176,3 +176,16 @@ def get_valid_patch_size(dims, patch_size):
 
     # ensure patch size dimensions are not larger than image dimension, if a dimension is None or 0 use whole dimension
     return tuple(min(ms, ps or ms) for ms, ps in zip(dims, patch_size))
+
+
+def list_data_collate(batch):
+    """
+    Enhancement for PyTorch DataLoader default collate.
+    If dataset already returns a list of batch data that generated in transforms, need to merge all data to 1 list.
+    Then it's same as the default collate behavior.
+    Note:
+        Need to use this collate if apply some transforms that can generate batch data.
+    """
+    elem = batch[0]
+    data = [i for k in batch for i in k] if isinstance(elem, list) else batch
+    return default_collate(data)

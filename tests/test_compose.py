@@ -45,6 +45,28 @@ class TestCompose(unittest.TestCase):
         c = Compose([a, b, a, b, a])
         self.assertDictEqual(c({'a': 0, 'b': 0}), {'a': 3, 'b': 2})
 
+    def test_list_dict_compose(self):
+        def a(d):  # transform to handle dict data
+            d = dict(d)
+            d['a'] += 1
+            return d
+
+        def b(d):  # transform to generate a batch list of data
+            d = dict(d)
+            d['b'] += 1
+            d = [d] * 5
+            return d
+
+        def c(d):  # transform to handle dict data
+            d = dict(d)
+            d['c'] += 1
+            return d
+
+        transforms = Compose([a, a, b, c, c])
+        value = transforms({'a': 0, 'b': 0, 'c': 0})
+        for item in value:
+            self.assertDictEqual(item, {'a': 2, 'b': 1, 'c': 2})
+
 
 if __name__ == '__main__':
     unittest.main()

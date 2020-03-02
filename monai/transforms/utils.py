@@ -157,3 +157,54 @@ def one_hot(labels, num_classes):
     onehot = y[labels.flatten()]
 
     return onehot.reshape(tuple(labels.shape) + (num_classes,)).astype(labels.dtype)
+
+
+def generate_pos_neg_label_crop_centers(label, size, num_samples, pos_ratio, rand_state=np.random):
+    """Generate valid sample locations based on image with option for specifying foreground ratio
+    Valid: samples sitting entirely within image, expected input shape: [C, H, W, D] or [C, H, W]
+    Args:
+        label (numpy.ndarray): use the label data to get the foreground/background information.
+        size (list or tuple): size of the ROIs to be sampled.
+        num_samples (int): total sample centers to be generated.
+        pos_ratio (float): ratio of total locations generated that have center being foreground.
+        rand_state (random.RandomState): numpy randomState object to align with other modules.
+    """
+    max_size = label.shape[1:]
+    assert len(max_size) == len(size), 'expected size does not match label dim.'
+    assert (np.subtract(max_size, size) >= 0).all(), 'proposed roi is larger than image itself.'
+
+    # Select subregion to assure valid roi
+    valid_start = np.floor_divide(size, 2)
+    valid_end = np.subtract(max_size + np.array(1), size / np.array(2)).astype(np.uint16)  # add 1 for random
+    # int generation to have full range on upper side, but subtract unfloored size/2 to prevent rounded range
+    # from being too high
+    for i in range(len(valid_start)):  # need this because np.random.randint does not work with same start and end
+        if valid_start[i] == valid_end[i]:
+            valid_end[i] += 1
+
+    # Prepare fg/bg indices
+    label_flat = label.ravel()
+    fg_indicies = np.where(label_flat > 0)[0]
+    bg_indicies = np.where(label_flat == 0)[0]
+
+    centers = []
+    for _ in range(num_samples):
+        if rand_state.rand() < pos_ratio:
+            indicies_to_use = fg_indicies
+        else:
+            indicies_to_use = bg_indicies
+        random_int = rand_state.randint(len(indicies_to_use))
+        center = np.unravel_index(indicies_to_use[random_int], label.shape)
+        center = center[1:]
+        # shift center to range of valid centers
+        center_ori = [c for c in center]
+        for i, c in enumerate(center):
+            center_i = c
+            if c < valid_start[i]:
+                center_i = valid_start[i]
+            if c >= valid_end[i]:
+                center_i = valid_end[i] - 1
+            center_ori[i] = center_i
+        centers.append(center_ori)
+
+    return centers

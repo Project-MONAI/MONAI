@@ -50,7 +50,20 @@ class Compose:
     semantics; unused values in the dictionary must be copied to the return
     dictionary. It is required that the dictionary is copied between input
     and output of each transform.
-
+    If some transform generates a list batch of data in the transform chain,
+    every item in the list is still a dictionary, and all the following
+    transforms will apply to every item of the list, for example:
+    (1) transformA normalizes the intensity of 'img' field in the dict data.
+    (2) transformB crops out a list batch of images on 'img' and 'seg' field.
+        And constructs a list of dict data, other fields are copied:
+        {                          [{                  {
+            'img': [1, 2],              'img': [1],        'img': [2],
+            'seg': [1, 2],              'seg': [1],        'seg': [2],
+            'extra': 123,    --->       'extra': 123,      'extra': 123,
+            'shape': 'CHWD'             'shape': 'CHWD'    'shape': 'CHWD'
+        }                           },                 }]
+    (3) transformC then randomly rotates or flips 'img' and 'seg' fields of
+        every dictionary item in the list.
     When using the pass-through dictionary operation, you can make use of
     `monai.data.transforms.adaptor` to wrap transforms that don't conform
     to the requirements. This approach allows you to use transforms from
@@ -86,7 +99,13 @@ class Compose:
 
     def __call__(self, input_):
         for transform in self.transforms:
-            input_ = transform(input_)
+            # if some transform generated batch list of data in the transform chain,
+            # all the following transforms should apply to every item of the list.
+            if isinstance(input_, list):
+                for i, item in enumerate(input_):
+                    input_[i] = transform(item)
+            else:
+                input_ = transform(input_)
         return input_
 
 
