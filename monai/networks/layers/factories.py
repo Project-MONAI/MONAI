@@ -33,3 +33,19 @@ def get_normalize_type(dim, is_instance):
         types = [nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d]
 
     return types[dim - 1]
+
+
+def get_maxpooling_type(dim, is_adaptive):
+    if is_adaptive:
+        types = [nn.AdaptiveMaxPool1d, nn.AdaptiveMaxPool2d, nn.AdaptiveMaxPool3d]
+    else:
+        types = [nn.MaxPool1d, nn.MaxPool2d, nn.MaxPool3d]
+    return types[dim - 1]
+
+
+def get_avgpooling_type(dim, is_adaptive):
+    if is_adaptive:
+        types = [nn.AdaptiveAvgPool1d, nn.AdaptiveAvgPool2d, nn.AdaptiveAvgPool3d]
+    else:
+        types = [nn.AvgPool1d, nn.AvgPool2d, nn.AvgPool3d]
+    return types[dim - 1]
