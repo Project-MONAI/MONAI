@@ -17,7 +17,7 @@ from collections.abc import Hashable
 
 import monai
 from monai.transforms.compose import Randomizable, Transform
-from monai.transforms.transforms import Rotate90
+from monai.transforms.transforms import Rotate90, AddChannel
 from monai.utils.misc import ensure_tuple
 
 export = monai.utils.export("monai.transforms")
@@ -117,6 +117,28 @@ class RandRotate90d(Randomizable, MapTransform):
         d = dict(data)
         for key in self.keys:
             d[key] = rotator(d[key])
+        return d
+
+
+@export
+class AddChanneld(MapTransform):
+    """
+    dictionary-based wrapper of AddChannel.
+    """
+
+    def __init__(self, keys):
+        """
+        Args:
+            keys (hashable items): keys of the corresponding items to be transformed.
+                See also: monai.transform.composables.MapTransform
+        """
+        MapTransform.__init__(self, keys)
+        self.adder = AddChannel()
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.adder(d[key])
         return d
 
 
