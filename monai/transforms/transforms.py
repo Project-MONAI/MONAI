@@ -72,12 +72,12 @@ class Flip:
     """
 
     def __init__(self, axes=None):
-        assert isinstance(axes, int) or isinstance(axes, tuple) and all(isinstance(n, int) for n in axes), \
+        assert isinstance(axes, (int, list, tuple)) and all(isinstance(n, int) for n in axes), \
             "axes must be None, int or tuple of ints."
         self.axes = axes
 
     def __call__(self, img):
-        return np.flip(img, axes)
+        return np.flip(img, self.axes)
 
 
 @export
