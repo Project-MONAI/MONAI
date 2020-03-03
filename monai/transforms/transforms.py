@@ -93,12 +93,16 @@ class Zoom:
             try:
                 import cupy
                 from cupyx.scipy.ndimage import zoom as zoom_gpu
-                zoomed = cupy.asnumpy(zoom_gpu(cupy.array(data), zoom=zoom, order=interpolation))
+
+                zoomed_gpu = zoom_gpu(cupy.array(img), zoom=self.zoom, order=self.order,
+                                      mode=self.mode, cval=self.cval, prefilter=self.prefilter)
+                zoomed = cupy.asnumpy()
             except Exception:
                 print('Warning: Zoom gpu failed. Defaulting to cpu.')
 
         if not zoomed or not self.use_gpu:
-            zoomed = zoom_cpu(data, zoom=zoom, order=interpolation)
+            zoomed = zoom_cpu(img, zoom=self.zoom, order=self.order,
+                              mode=self.mode, cval=self.cval, prefilter=self.prefilter)
 
         # Crops to original size or pads.
         if self.keep_size:
@@ -114,6 +118,8 @@ class Zoom:
                     pad_vec[d] = [int(np.floor(pad_h)), int(np.ceil(pad_h))]
             zoomed = zoomed[0:crop_vec[0], 0:crop_vec[1], 0:crop_vec[2]]
             zoomed = np.pad(zoomed, pad_vec, mode='constant', constant_values=self.cval)
+
+        return zoomed
 
 
 @export
