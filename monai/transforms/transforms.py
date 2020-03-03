@@ -71,13 +71,13 @@ class Flip:
         axes (None, int or tuple of ints): Axes along which to flip over. Default is None.
     """
 
-    def __init__(self, axes=None):
-        assert isinstance(axes, (int, list, tuple)) and all(isinstance(n, int) for n in axes), \
-            "axes must be None, int or tuple of ints."
-        self.axes = axes
+    def __init__(self, axis=None):
+        assert axis is None or isinstance(axis, (int, list, tuple)), \
+            "axis must be None, int or tuple of ints."
+        self.axis = axis
 
     def __call__(self, img):
-        return np.flip(img, self.axes)
+        return np.flip(img, self.axis)
 
 
 @export

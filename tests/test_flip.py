@@ -21,17 +21,22 @@ from tests.utils import NumpyImageTestCase2D
 class FlipTest(NumpyImageTestCase2D):
 
     @parameterized.expand([
-        ("no_axis", None, AssertionError),
-        ("wrong_axis", ['s', 1], AssertionError)
+        ("wrong_axis", ['s', 1], TypeError),
+        ("not_numbers", 's', AssertionError)
     ])
     def test_invalid_inputs(self, _, axis, raises):
         with self.assertRaises(raises):
             flip = Flip(axis)
             flip(self.imt)
 
-    def test_correct_results(self):
-        flip = Flip(axes=[0, 1])
-        expected = np.flip(self.imt, [0, 1])
+    @parameterized.expand([
+        ("no_axis", None),
+        ("one_axis", 1),
+        ("many_axis", [0, 1, 2])
+    ])
+    def test_correct_results(self, _, axis):
+        flip = Flip(axis=axis)
+        expected = np.flip(self.imt, axis)
         self.assertTrue(np.allclose(expected, flip(self.imt)))
 
 
