@@ -14,11 +14,8 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 import numpy as np
-<<<<<<< HEAD
 import torch
-=======
 from skimage.transform import resize
->>>>>>> Add Resize transform (spatial scaling).
 
 import monai
 from monai.data.utils import get_random_patch, get_valid_patch_size
@@ -84,6 +81,7 @@ class Flip:
         return np.flip(img, self.axis)
 
 
+@export
 class Resize:
     """
     Resize the input image to given resolution. Uses skimage.transform.resize underneath.
@@ -103,10 +101,11 @@ class Resize:
         anti_aliasing_sigma (float, tuple of floats): Standard deviation for gaussian filtering.
     """
 
-    def __init__(self, order=1, mode='reflect', cval=0,
+    def __init__(self, output_shape, order=1, mode='reflect', cval=0,
                  clip=True, preserve_range=True, 
                  anti_aliasing=True, anti_aliasing_sigma=None):
         assert isinstance(order, int), "order must be integer."
+        self.output_shape = output_shape
         self.order = order
         self.mode = mode
         self.cval = cval
@@ -115,8 +114,8 @@ class Resize:
         self.anti_aliasing = anti_aliasing
         self.anti_aliasing_sigma = anti_aliasing_sigma
 
-    def __call__(self, img, output_shape):
-        return resize(img, output_shape,
+    def __call__(self, img):
+        return resize(img, self.output_shape,
                       mode=self.mode, cval=self.cval,
                       clip=self.clip, preserve_range=self.preserve_range,
                       anti_aliasing=self.anti_aliasing, 
