@@ -15,12 +15,14 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 import numpy as np
 import torch
+from scipy.ndimage.filters import gaussian_filter
 
 import monai
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.compose import Randomizable
-from monai.transforms.utils import (create_grid, create_rotate, create_scale, create_shear, create_translate,
-                                    rescale_array)
+from monai.transforms.utils import (create_control_grid, create_grid, create_rotate, create_scale, create_shear,
+                                    create_translate, rescale_array)
+from monai.utils.misc import ensure_tuple
 
 export = monai.utils.export("monai.transforms")
 
@@ -212,22 +214,34 @@ class AffineGrid:
     Affine transforms on the coordinates.
     """
 
-    def __init__(self, rotate_params=None, shear_params=None, translate_params=None, scale_params=None):
+    def __init__(self,
+                 rotate_params=None,
+                 shear_params=None,
+                 translate_params=None,
+                 scale_params=None,
+                 as_tensor_output=True,
+                 device=None):
         self.rotate_params = rotate_params
         self.shear_params = shear_params
         self.translate_params = translate_params
         self.scale_params = scale_params
 
-    def __call__(self, spatial_size, grid=None):
+        self.as_tensor_output = as_tensor_output
+        self.device = device
+
+    def __call__(self, spatial_size=None, grid=None):
         """
         Args:
             spatial_size (list or tuple of int): output grid size.
             grid (ndarray): grid to be transformed. Shape must be (3, H, W) for 2D or (4, H, W, D) for 3D.
         """
         if grid is None:
-            grid = create_grid(spatial_size)
+            if spatial_size is not None:
+                grid = create_grid(spatial_size)
+            else:
+                raise ValueError('Either specify a grid or a spatial size to create a grid from.')
 
-        spatial_dims = len(spatial_size)
+        spatial_dims = len(grid.shape) - 1
         affine = np.eye(spatial_dims + 1)
         if self.rotate_params:
             affine = affine @ create_rotate(spatial_dims, self.rotate_params)
@@ -237,14 +251,93 @@ class AffineGrid:
             affine = affine @ create_translate(spatial_dims, self.translate_params)
         if self.scale_params:
             affine = affine @ create_scale(spatial_dims, self.scale_params)
-        return (affine @ grid.reshape(grid.shape[0], -1)).reshape([-1] + list(spatial_size))
+        affine = torch.tensor(affine, device=self.device)
+
+        if not torch.is_tensor(grid):
+            grid = torch.tensor(grid)
+        if self.device:
+            grid = grid.to(self.device)
+        grid_spatial = list(grid.shape[1:])
+        grid = grid.reshape((grid.shape[0], -1))
+        grid = (affine @ grid).reshape([-1] + grid_spatial)
+        if self.as_tensor_output:
+            return grid
+        return grid.cpu().numpy()
+
+
+class RandAffineGrid(Randomizable):
+    """
+    generate randomised affine grid
+    """
+
+    def __init__(self,
+                 rotate_range=None,
+                 shear_range=None,
+                 translate_range=None,
+                 scale_range=None,
+                 as_tensor_output=True,
+                 device=None):
+        self.rotate_range = rotate_range
+        self.shear_range = shear_range
+        self.translate_range = translate_range
+        self.scale_range = scale_range
+
+        self.rotate_params = None
+        self.shear_params = None
+        self.translate_params = None
+        self.scale_params = None
+
+        self.as_tensor_output = as_tensor_output
+        self.device = device
+
+    def randomise(self):
+        if self.rotate_range:
+            self.rotate_params = [self.R.uniform(-f, f) for f in ensure_tuple(self.rotate_range)]
+        if self.shear_range:
+            self.shear_params = [self.R.uniform(-f, f) for f in ensure_tuple(self.shear_range)]
+        if self.translate_range:
+            self.translate_params = [self.R.uniform(-f, f) for f in ensure_tuple(self.translate_range)]
+        if self.scale_range:
+            self.scale_params = [self.R.uniform(-f, f) for f in ensure_tuple(self.scale_range)]
+
+    def __call__(self, spatial_size=None, grid=None):
+        self.randomise()
+        _affine_grid = AffineGrid(self.rotate_params, self.shear_params, self.translate_params, self.scale_params,
+                                  self.as_tensor_output, self.device)
+        return _affine_grid(spatial_size, grid)
+
+
+class RandDeformGrid(Randomizable):
+    """
+    generate random deformation grid
+    """
+
+    def __init__(self, spacing, magnitude_range, as_tensor_output=True, device=None):
+        self.spacing = spacing
+        self.magnitude = magnitude_range
+
+        self.rand_mag = 1.0
+        self.as_tensor_output = as_tensor_output
+        self.device = device
+
+    def randomise(self, grid_size):
+        self.random_offset = self.R.normal(size=([len(grid_size)] + list(grid_size)))
+        self.rand_mag = self.R.uniform(self.magnitude[0], self.magnitude[1])
+
+    def __call__(self, spatial_size):
+        control_grid = create_control_grid(spatial_size, self.spacing)
+        self.randomise(control_grid.shape[1:])
+        control_grid[:len(spatial_size)] += self.rand_mag * self.random_offset
+        if self.as_tensor_output:
+            control_grid = torch.tensor(control_grid, device=self.device)
+        return control_grid
 
 
 class Resample:
 
-    def __init__(self, padding_mode='reflection', as_tensor_output=False, device=None):
+    def __init__(self, padding_mode='zeros', as_tensor_output=False, device=None):
         """
-        computes output image using values from `img`, locations from `grid`.
+        computes output image using values from `img`, locations from `grid` using pytorch.
 
         Args:
             padding_mode ('zeros'|'border'|'reflection'): mode of handling out of range indices. Defaults to 'zeros'.
@@ -262,25 +355,29 @@ class Resample:
             grid (ndarray or tensor): shape must be (3, H, W) for 2D or (4, H, W, D) for 3D.
             mode ('nearest'|'bilinear'): interpolation order. Defaults to 'bilinear'.
         """
-        if not isinstance(img, torch.Tensor):
+        if not torch.is_tensor(img):
             img = torch.tensor(img)
-        if not isinstance(grid, torch.Tensor):
+        if not torch.is_tensor(grid):
             grid = torch.tensor(grid)
         if self.device:
-            img.to(self.device)
-            grid.to(self.device)
+            img = img.to(self.device)
+            grid = grid.to(self.device)
 
         for i, dim in enumerate(img.shape[1:]):
             grid[i] = 2. * grid[i] / (dim - 1.)
         grid = grid[:-1] / grid[-1:]
         grid = grid[range(img.ndim - 2, -1, -1)]
         grid = grid.permute(list(range(grid.ndim))[1:] + [0])
-        new_img = torch.nn.functional.grid_sample(img[None], grid[None], mode=mode, padding_mode=self.padding_mode)[0]
+        new_img = torch.nn.functional.grid_sample(img[None].float(),
+                                                  grid[None].float(),
+                                                  mode=mode,
+                                                  padding_mode=self.padding_mode)[0]
         if not self.as_tensor_output:
             return new_img.cpu().numpy()
         return new_img
 
 
+@export
 class Affine:
     """
     transform ``img`` given the affine parameters.
@@ -294,8 +391,13 @@ class Affine:
                  padding_mode='zeros',
                  as_tensor_output=False,
                  device=None):
-        self.affine_grid = AffineGrid(rotate_params, shear_params, translate_params, scale_params)
-        self.resampler = Resample(padding_mode=padding_mode, as_tensor_output=as_tensor_output, device=device)
+        self.affine_grid = AffineGrid(rotate_params,
+                                      shear_params,
+                                      translate_params,
+                                      scale_params,
+                                      as_tensor_output=True,
+                                      device=device)
+        self.resampler = Resample(padding_mode, as_tensor_output=as_tensor_output, device=device)
 
     def __call__(self, img, spatial_size, mode='bilinear'):
         """
@@ -309,10 +411,154 @@ class Affine:
         return self.resampler(img, grid, mode)
 
 
+@export
+class RandAffine(Randomizable):
+    """
+    Random affine transform.
+    """
+
+    def __init__(self,
+                 prob=0.1,
+                 rotate_range=None,
+                 shear_range=None,
+                 translate_range=None,
+                 scale_range=None,
+                 padding_mode='zeros',
+                 as_tensor_output=True,
+                 device=None):
+        """
+        Args:
+            prob (float): probability of returning a randomized affine grid.
+                defaults to 0.1, with 10% chance returns a randomized grid.
+        """
+
+        self.rand_affine_grid = RandAffineGrid(rotate_range, shear_range, translate_range, scale_range, True, device)
+        self.resampler = Resample(padding_mode=padding_mode, as_tensor_output=as_tensor_output, device=device)
+
+        self.do_transform = False
+        self.prob = prob
+
+        self.as_tensor_output = as_tensor_output
+        self.device = device
+
+    def randomise(self):
+        self.do_transform = self.R.rand() < self.prob
+
+    def __call__(self, img, spatial_size, mode='bilinear'):
+        self.randomise()
+        if self.do_transform:
+            grid = self.rand_affine_grid(spatial_size=spatial_size)
+        else:
+            grid = torch.tensor(create_grid(spatial_size), device=self.device)
+        return self.resampler(img, grid, mode)
+
+
+@export
+class Rand2DElastic(Randomizable):
+    """
+    Random elastic deformation and affine in 2D
+    """
+
+    def __init__(self,
+                 spacing,
+                 magnitude_range,
+                 prob=0.1,
+                 rotate_range=None,
+                 shear_range=None,
+                 translate_range=None,
+                 scale_range=None,
+                 padding_mode='zeros',
+                 as_tensor_output=False,
+                 device=None):
+        self.deform_grid = RandDeformGrid(spacing, magnitude_range, as_tensor_output=True, device=device)
+        self.rand_affine_grid = RandAffineGrid(rotate_range, shear_range, translate_range, scale_range, True, device)
+        self.resampler = Resample(padding_mode=padding_mode, as_tensor_output=as_tensor_output, device=device)
+
+        self.prob = prob
+        self.as_tensor_output = as_tensor_output
+        self.device = device
+        self.do_transform = False
+
+    def randomise(self):
+        self.do_transform = self.R.rand() < self.prob
+
+    def __call__(self, img, spatial_size, mode='bilinear'):
+        self.randomise()
+        if self.do_transform:
+            grid = self.deform_grid(spatial_size)
+            grid = self.rand_affine_grid(grid=grid)
+            grid = torch.nn.functional.interpolate(grid[None], spatial_size, mode='bicubic')[0]
+        else:
+            grid = torch.tensor(create_grid(spatial_size), device=self.device)
+        return self.resampler(img, grid, mode)
+
+
+@export
+class Rand3DElastic(Randomizable):
+    """
+    Random elastic deformation and affine in 3D
+    """
+
+    def __init__(self,
+                 alpha_range,
+                 sigma_range,
+                 prob=0.1,
+                 rotate_range=None,
+                 shear_range=None,
+                 translate_range=None,
+                 scale_range=None,
+                 padding_mode='zeros',
+                 as_tensor_output=False,
+                 device=None):
+        self.rand_affine_grid = RandAffineGrid(rotate_range, shear_range, translate_range, scale_range, True, device)
+        self.resampler = Resample(padding_mode=padding_mode, as_tensor_output=as_tensor_output, device=device)
+
+        self.prob = prob
+        self.as_tensor_output = as_tensor_output
+        self.device = device
+
+        self.do_transform = False
+        self.rand_offset = None
+        self.alpha = 1.0
+        self.sigma = 1.0
+
+    def randomise(self, grid_size):
+        self.do_transform = self.R.rand() < self.prob
+        if self.do_transform:
+            self.rand_offset = self.R.random.uniform(-1., 1., [3] + list(grid_size))
+        self.alpha = self.R.random.uniform(self.alpha_range[0], self.alpha_range[1])
+        self.sigma = self.R.random.uniform(self.sigma_range[0], self.sigma_range[1])
+
+    def __call__(self, img, spatial_size, mode='bilinear'):
+        if self.do_transform:
+            grid = create_grid(spatial_size)
+            self.randomise(grid.shape[1:])
+            for i in range(3):
+                grid[i] += gaussian_filter(self.rand_offset[i], self.sigma, mode='constant', cval=0) * self.alpha
+            grid = self.rand_affine_grid(grid=grid)
+        else:
+            grid = torch.tensor(create_grid(spatial_size), device=self.device)
+        return self.resampler(img, grid, mode)
+
+
 if __name__ == "__main__":
-    img = np.array((1, 2, 3, 4)).reshape((1, 2, 2))
-    rotator = RandRotate90(prob=0.0, max_k=3, axes=(1, 2))
-    # rotator.set_random_state(1234)
-    img_result = rotator(img)
-    print(type(img))
-    print(img_result)
+    # img = np.array((1, 2, 3, 4)).reshape((1, 2, 2))
+    # rotator = RandRotate90(prob=0.0, max_k=3, axes=(1, 2))
+    # # rotator.set_random_state(1234)
+    # img_result = rotator(img)
+    # print(type(img))
+    # print(img_result)
+
+    # np_im = np.zeros((3, 1201, 1601))
+    # np_im = np_img
+    np_im = np.zeros((3, 80, 80, 80))
+
+    # new_img = Affine(translate_params=[-200, 300], scale_params=(1.2, 1.2))(np_img, (300, 400))
+    # new_img = Rand2DElastic(prob=1.0, spacing=(20, 20), magnitude_range=(1.0, 4.0), translate_range=[400., 400.])(
+    #     np_img, (300, 400))
+    new_img = Rand3DElastic(prob=1.0, alpha_range=(1.0, 4.0), sigma_range=(1., 4.), translate_range=[20., 30., 10.])(
+        np_im, (30, 40, 50))
+    print(new_img.shape)
+    # new_img = np.moveaxis(new_img, 0, -1).astype(int)
+    # plt.imshow(new_img)
+    # plt.show()

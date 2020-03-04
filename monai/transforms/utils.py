@@ -158,15 +158,30 @@ def one_hot(labels, num_classes):
     return onehot.reshape(tuple(labels.shape) + (num_classes,)).astype(labels.dtype)
 
 
-def create_grid(spatial_size, homogeneous=True):
+def create_grid(spatial_size, spacing=None, homogeneous=True):
     """
     compute a `spatial_size` mesh.
+    Args:
+        spatial_size (sequence of ints): spatial size of the grid.
+        spacing (sequence of ints): same len as ``spatial_size``, defaults to 1.0 (dense grid).
+        homogeneous (bool): whether to make homogeneous coordinates.
     """
-    ranges = [np.linspace(-(d - 1.) / 2., (d - 1.) / 2., int(d)) for d in spatial_size]
+    spacing = spacing or tuple(1.0 for _ in spatial_size)
+    ranges = [np.linspace(-(d - 1.) / 2. * s, (d - 1.) / 2. * s, int(d)) for d, s in zip(spatial_size, spacing)]
     coords = np.asarray(np.meshgrid(*ranges, indexing='ij'), dtype=float)
     if not homogeneous:
         return coords
     return np.concatenate([coords, np.ones_like(coords[0:1, ...])])
+
+
+def create_control_grid(spatial_shape, spacing):
+    grid_shape = []
+    for s, t in zip(spatial_shape, spacing):
+        if s % 2 == 0:
+            grid_shape.append(np.ceil((s - 1.) / (2. * t) + 0.5) * 2. + 2.)
+        else:
+            grid_shape.append(np.ceil((s - 1.) / (2. * t)) * 2. + 3.)
+    return create_grid(grid_shape, spacing)
 
 
 def create_rotate(spatial_dims, radians):
@@ -176,37 +191,41 @@ def create_rotate(spatial_dims, radians):
         spatial_dims (int): spatial rank
         radians (float or a sequence of floats): rotation radians
     """
+    radians = tuple(radians)
     if spatial_dims == 2:
-        if isinstance(radians, (list, tuple)):
-            radians = radians[0]
-        return np.array([[np.cos(radians), -np.sin(radians), 0.], [np.sin(radians), np.cos(radians), 0.], [0., 0., 1.]])
+        if len(radians) >= 1:
+            sin_, cos_ = np.sin(radians[0]), np.cos(radians[0])
+            return np.array([[cos_, -sin_, 0.], [sin_, cos_, 0.], [0., 0., 1.]])
 
     if spatial_dims == 3:
         affine = None
         if len(radians) >= 1:
+            sin_, cos_ = np.sin(radians[0]), np.cos(radians[0])
             affine = np.array([
                 [1., 0., 0., 0.],
-                [0., np.cos(radians[0]), -np.sin(radians[0]), 0.],
-                [0., np.sin(radians[0]), np.cos(radians[0]), 0.],
+                [0., cos_, -sin_, 0.],
+                [0., sin_, cos_, 0.],
                 [0., 0., 0., 1.],
             ])
         if len(radians) >= 2:
+            sin_, cos_ = np.sin(radians[1]), np.cos(radians[1])
             affine = affine @ np.array([
-                [np.cos(radians[1]), 0.0, np.sin(radians[1]), 0.],
+                [cos_, 0.0, sin_, 0.],
                 [0., 1., 0., 0.],
-                [-np.sin(radians[1]), 0., np.cos(radians[1]), 0.],
+                [-sin_, 0., cos_, 0.],
                 [0., 0., 0., 1.],
             ])
         if len(radians) >= 3:
+            sin_, cos_ = np.sin(radians[2]), np.cos(radians[2])
             affine = affine @ np.array([
-                [np.cos(radians[2]), -np.sin(radians[2]), 0., 0.],
-                [np.sin(radians[2]), np.cos(radians[2]), 0., 0.],
+                [cos_, -sin_, 0., 0.],
+                [sin_, cos_, 0., 0.],
                 [0., 0., 1., 0.],
                 [0., 0., 0., 1.],
             ])
         return affine
 
-    raise NotImplementedError
+    raise ValueError('create_rotate got spatial_dims={}, radians={}.'.format(spatial_dims, radians))
 
 
 def create_shear(spatial_dims, coefs):
