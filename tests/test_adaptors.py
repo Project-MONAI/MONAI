@@ -13,7 +13,7 @@ import unittest
 import itertools
 
 
-from monai.data.transforms.adaptors import adaptor, alias, FunctionSignature
+from monai.data.transforms.adaptors import adaptor, apply_alias, to_kwargs, FunctionSignature
 
 
 
@@ -147,15 +147,35 @@ class TestAdaptors(unittest.TestCase):
         self.assertEqual(dres['b'], 4)
 
 
-class TestAlias(unittest.TestCase):
+class TestApplyAlias(unittest.TestCase):
 
-    def test_alias(self):
+    def test_apply_alias(self):
         def foo(d):
             d['x'] *= 2
             return d
 
 
         d = { 'a':1, 'b':3 }
-        result = alias(foo, {'b': 'x'})(d)
+        result = apply_alias(foo, {'b': 'x'})(d)
         self.assertDictEqual({'a': 1, 'b': 6}, result)
 
+
+class TestToKwargs(unittest.TestCase):
+
+    def test_to_kwargs(self):
+
+        def foo(**kwargs):
+            results = {k: v*2 for k, v in kwargs.items()}
+            return results
+
+        def compose_like(fn, data):
+            data = fn(data)
+            return data
+
+        d = {'a': 1, 'b': 2}
+
+        actual = compose_like(to_kwargs(foo), d)
+        self.assertDictEqual(actual, {'a': 2, 'b': 4})
+
+        with self.assertRaises(TypeError):
+            actual = compose_like(foo, d)

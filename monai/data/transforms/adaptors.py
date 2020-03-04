@@ -180,7 +180,8 @@ def adaptor(function, outputs, inputs=None):
     return _inner
 
 
-def alias(fn, name_map):
+@monai.utils.export('monai.data.transforms')
+def apply_alias(fn, name_map):
 
     def _inner(data):
 
@@ -202,6 +203,14 @@ def alias(fn, name_map):
 
 
 @monai.utils.export('monai.data.transforms')
+def to_kwargs(fn):
+    def _inner(data):
+        return fn(**data)
+
+    return _inner
+
+
+#@monai.utils.export('monai.data.transforms')
 class FunctionSignature:
     def __init__(self, function):
         import inspect
