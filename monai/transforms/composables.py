@@ -16,9 +16,11 @@ defined in `monai.transforms.transforms`.
 from collections.abc import Hashable
 
 import monai
+from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.compose import Randomizable, Transform
-from monai.transforms.transforms import Rotate90
+from monai.transforms.transforms import Rotate90, SpatialCrop
 from monai.utils.misc import ensure_tuple
+from monai.transforms.utils import generate_pos_neg_label_crop_centers
 
 export = monai.utils.export("monai.transforms")
 
@@ -77,6 +79,33 @@ class Rotate90d(MapTransform):
 
 
 @export
+class UniformRandomPatchd(Randomizable, MapTransform):
+    """
+    Selects a patch of the given size chosen at a uniformly random position in the image.
+    """
+
+    def __init__(self, keys, patch_size):
+        MapTransform.__init__(self, keys)
+
+        self.patch_size = (None,) + tuple(patch_size)
+
+        self._slices = None
+
+    def randomize(self, image_shape, patch_shape):
+        self._slices = get_random_patch(image_shape, patch_shape, self.R)
+
+    def __call__(self, data):
+        d = dict(data)
+
+        image_shape = d[self.keys[0]].shape  # image shape from the first data key
+        patch_size = get_valid_patch_size(image_shape, self.patch_size)
+        self.randomize(image_shape, patch_size)
+        for key in self.keys:
+            d[key] = d[key][self._slices]
+        return d
+
+
+@export
 class RandRotate90d(Randomizable, MapTransform):
     """
     With probability `prob`, input arrays are rotated by 90 degrees
@@ -104,12 +133,12 @@ class RandRotate90d(Randomizable, MapTransform):
         self._do_transform = False
         self._rand_k = 0
 
-    def randomise(self):
+    def randomize(self):
         self._rand_k = self.R.randint(self.max_k) + 1
         self._do_transform = self.R.random() < self.prob
 
     def __call__(self, data):
-        self.randomise()
+        self.randomize()
         if not self._do_transform:
             return data
 
@@ -118,6 +147,61 @@ class RandRotate90d(Randomizable, MapTransform):
         for key in self.keys:
             d[key] = rotator(d[key])
         return d
+
+
+@export
+class RandCropByPosNegLabeld(Randomizable, MapTransform):
+    """
+    Crop random fixed sized regions with the center being a foreground or background voxel
+    based on the Pos Neg Ratio.
+    And will return a list of dictionaries for all the cropped images.
+
+    Args:
+        keys (list): parameter will be used to get and set the actual data item to transform.
+        label_key (str): name of key for label image, this will be used for finding foreground/background.
+        size (list, tuple): the size of the crop region e.g. [224,224,128]
+        pos (int, float): used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
+          foreground voxel as a center rather than a background voxel.
+        neg (int, float): used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
+          foreground voxel as a center rather than a background voxel.
+        num_samples (int): number of samples (crop regions) to take in each list.
+    """
+
+    def __init__(self, keys, label_key, size, pos=1, neg=1, num_samples=1):
+        MapTransform.__init__(self, keys)
+        assert isinstance(label_key, str), 'label_key must be a string.'
+        assert isinstance(size, (list, tuple)), 'size must be list or tuple.'
+        assert all(isinstance(x, int) and x > 0 for x in size), 'all elements of size must be positive integers.'
+        assert float(pos) >= 0 and float(neg) >= 0, "pos and neg must be greater than or equal to 0."
+        assert float(pos) + float(neg) > 0, "pos and neg cannot both be 0."
+        assert isinstance(num_samples, int), \
+            "invalid samples number: {}. num_samples must be an integer.".format(num_samples)
+        assert num_samples >= 0, 'num_samples must be greater than or equal to 0.'
+        self.label_key = label_key
+        self.size = size
+        self.pos_ratio = float(pos) / (float(pos) + float(neg))
+        self.num_samples = num_samples
+        self.centers = None
+
+    def randomize(self, label):
+        self.centers = generate_pos_neg_label_crop_centers(label, self.size, self.num_samples, self.pos_ratio, self.R)
+
+    def __call__(self, data):
+        d = dict(data)
+        label = d[self.label_key]
+        self.randomize(label)
+        results = [dict() for _ in range(self.num_samples)]
+        for key in data.keys():
+            if key in self.keys:
+                img = d[key]
+                for i, center in enumerate(self.centers):
+                    cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.size)
+                    results[i][key] = cropper(img)
+            else:
+                for i in range(self.num_samples):
+                    results[i][key] = data[key]
+
+        return results
 
 
 # if __name__ == "__main__":
