@@ -63,6 +63,24 @@ class Rescale:
 
 
 @export
+class GaussianNoise:
+    """Add gaussian noise to image.
+
+    Args:
+        mean (float or array of floats): Mean or “centre” of the distribution.
+        scale (float): Standard deviation (spread) of distribution.
+        size (int or tuple of ints): Output shape. Default: None (single value is returned).
+    """
+
+    def __init__(self, mean=0.0, std=0.1):
+        self.mean = mean
+        self.std = std
+
+    def __call__(self, img):
+        return img + np.random.normal(self.mean, np.random.uniform(0, self.std), size=img.shape)
+
+
+@export
 class ToTensor:
     """
     Converts the input image to a tensor without applying any other transformations.
