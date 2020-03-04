@@ -148,7 +148,7 @@ class TestToKwargs(unittest.TestCase):
     def test_to_kwargs(self):
 
         def foo(**kwargs):
-            results = {k: v*2 for k, v in kwargs.items()}
+            results = {k: v * 2 for k, v in kwargs.items()}
             return results
 
         def compose_like(fn, data):
