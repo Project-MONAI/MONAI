@@ -16,7 +16,7 @@ from monai.transforms.composables import RandCropByPosNegLabeld
 
 TEST_CASE_1 = [
     {
-        'keys': ['image', 'extral'],
+        'keys': ['image', 'extral', 'label'],
         'label_key': 'label',
         'size': [2, 2, 2],
         'pos': 1,

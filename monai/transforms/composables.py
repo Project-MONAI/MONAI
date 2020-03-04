@@ -162,11 +162,10 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         d = dict(data)
         label = d[self.label_key]
         self.randomise(label)
-        results = [dict()] * self.num_samples
+        results = [dict() for _ in range(self.num_samples)]
         for key in data.keys():
             if key in self.keys:
                 img = d[key]
-                image_samples = list()
                 for i, center in enumerate(self.centers):
                     cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.size)
                     results[i][key] = cropper(img)
@@ -174,10 +173,6 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
                 for i in range(self.num_samples):
                     results[i][key] = data[key]
 
-        # also need to crop label field
-        for i, center in enumerate(self.centers):
-            cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.size)
-            results[i][self.label_key] = cropper(label)
         return results
 
 
