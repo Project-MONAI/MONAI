@@ -13,6 +13,8 @@ import random
 
 import numpy as np
 
+from monai.utils.misc import ensure_tuple
+
 
 def rand_choice(prob=0.5):
     """Returns True if a randomly chosen number is less than or equal to `prob', by default this is a 50/50 chance."""
@@ -158,40 +160,48 @@ def one_hot(labels, num_classes):
     return onehot.reshape(tuple(labels.shape) + (num_classes,)).astype(labels.dtype)
 
 
-def create_grid(spatial_size, spacing=None, homogeneous=True):
+def create_grid(spatial_size, spacing=None, homogeneous=True, dtype=float):
     """
     compute a `spatial_size` mesh.
+
     Args:
         spatial_size (sequence of ints): spatial size of the grid.
         spacing (sequence of ints): same len as ``spatial_size``, defaults to 1.0 (dense grid).
         homogeneous (bool): whether to make homogeneous coordinates.
+        dtype (type): output grid data type.
     """
     spacing = spacing or tuple(1.0 for _ in spatial_size)
     ranges = [np.linspace(-(d - 1.) / 2. * s, (d - 1.) / 2. * s, int(d)) for d, s in zip(spatial_size, spacing)]
-    coords = np.asarray(np.meshgrid(*ranges, indexing='ij'), dtype=float)
+    coords = np.asarray(np.meshgrid(*ranges, indexing='ij'), dtype=dtype)
     if not homogeneous:
         return coords
     return np.concatenate([coords, np.ones_like(coords[0:1, ...])])
 
 
-def create_control_grid(spatial_shape, spacing):
+def create_control_grid(spatial_shape, spacing, homogeneous=True, dtype=float):
+    """
+    control grid with two addtitional point in each direction
+    """
     grid_shape = []
-    for s, t in zip(spatial_shape, spacing):
-        if s % 2 == 0:
-            grid_shape.append(np.ceil((s - 1.) / (2. * t) + 0.5) * 2. + 2.)
+    for d, s in zip(spatial_shape, spacing):
+        d = int(d)
+        if d % 2 == 0:
+            grid_shape.append(np.ceil((d - 1.) / (2. * s) + 0.5) * 2. + 2.)
         else:
-            grid_shape.append(np.ceil((s - 1.) / (2. * t)) * 2. + 3.)
-    return create_grid(grid_shape, spacing)
+            grid_shape.append(np.ceil((d - 1.) / (2. * s)) * 2. + 3.)
+    return create_grid(grid_shape, spacing, homogeneous, dtype)
 
 
 def create_rotate(spatial_dims, radians):
     """
     create a 2D or 3D rotation matrix
     Args:
-        spatial_dims (int): spatial rank
+        spatial_dims (2|3): spatial rank
         radians (float or a sequence of floats): rotation radians
+            when spatial_dims == 3, the `radians` sequence corresponds to
+            rotation in the 1st, 2nd, and 3rd dim respectively.
     """
-    radians = tuple(radians)
+    radians = ensure_tuple(radians)
     if spatial_dims == 2:
         if len(radians) >= 1:
             sin_, cos_ = np.sin(radians[0]), np.cos(radians[0])
@@ -235,7 +245,7 @@ def create_shear(spatial_dims, coefs):
         spatial_dims (int): spatial rank
         coefs (floats): shearing factors, defaults to 0.
     """
-    coefs = list(coefs)
+    coefs = list(ensure_tuple(coefs))
     if spatial_dims == 2:
         while len(coefs) < 2:
             coefs.append(0.0)
@@ -263,7 +273,7 @@ def create_scale(spatial_dims, s):
         spatial_dims (int): spatial rank
         s (floats): scaling factors, defaults to 1.
     """
-    s = list(s)
+    s = list(ensure_tuple(s))
     while len(s) < spatial_dims:
         s.append(1.)
     return np.diag(s[:spatial_dims] + [1.])
@@ -276,6 +286,7 @@ def create_translate(spatial_dims, t):
         spatial_dims (int): spatial rank
         t (floats): translate factors, defaults to 0.
     """
+    t = ensure_tuple(t)
     affine = np.eye(spatial_dims + 1)
     for i, a in enumerate(t[:spatial_dims]):
         affine[i, spatial_dims] = a
