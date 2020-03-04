@@ -55,22 +55,24 @@ class Randomizable:
             seed (int): set the random state with an integer seed.
             state (np.random.RandomState): set the random state with a `np.random.RandomState` object.
 
+        Returns:
+            a Randomizable instance.
         Note:
             thread safety
         """
         if seed is not None:
             _seed = id(seed) if not isinstance(seed, int) else seed
             self.R = np.random.RandomState(_seed)
-            return
+            return self
 
         if state is not None:
             if not isinstance(state, np.random.RandomState):
                 raise ValueError('`state` must be a `np.random.RandomState`, got {}'.format(type(state)))
             self.R = state
-            return
+            return self
 
         self.R = np.random.RandomState()
-        return
+        return self
 
     def randomize(self):
         """
