@@ -17,8 +17,9 @@ from collections.abc import Hashable
 
 import monai
 from monai.transforms.compose import Randomizable, Transform
-from monai.transforms.transforms import Rotate90
+from monai.transforms.transforms import Rotate90, SpatialCrop
 from monai.utils.misc import ensure_tuple
+from monai.transforms.utils import generate_pos_neg_label_crop_centers
 
 export = monai.utils.export("monai.transforms")
 
@@ -118,6 +119,61 @@ class RandRotate90d(Randomizable, MapTransform):
         for key in self.keys:
             d[key] = rotator(d[key])
         return d
+
+
+@export
+class RandCropByPosNegLabeld(Randomizable, MapTransform):
+    """
+    Crop random fixed sized regions with the center being a foreground or background voxel
+    based on the Pos Neg Ratio.
+    And will return a list of dictionaries for all the cropped images.
+
+    Args:
+        keys (list): parameter will be used to get and set the actual data item to transform.
+        label_key (str): name of key for label image, this will be used for finding foreground/background.
+        size (list, tuple): the size of the crop region e.g. [224,224,128]
+        pos (int, float): used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
+          foreground voxel as a center rather than a background voxel.
+        neg (int, float): used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
+          foreground voxel as a center rather than a background voxel.
+        num_samples (int): number of samples (crop regions) to take in each list.
+    """
+
+    def __init__(self, keys, label_key, size, pos=1, neg=1, num_samples=1):
+        MapTransform.__init__(self, keys)
+        assert isinstance(label_key, str), 'label_key must be a string.'
+        assert isinstance(size, (list, tuple)), 'size must be list or tuple.'
+        assert all(isinstance(x, int) and x > 0 for x in size), 'all elements of size must be positive integers.'
+        assert float(pos) >= 0 and float(neg) >= 0, "pos and neg must be greater than or equal to 0."
+        assert float(pos) + float(neg) > 0, "pos and neg cannot both be 0."
+        assert isinstance(num_samples, int), \
+            "invalid samples number: {}. num_samples must be an integer.".format(num_samples)
+        assert num_samples >= 0, 'num_samples must be greater than or equal to 0.'
+        self.label_key = label_key
+        self.size = size
+        self.pos_ratio = float(pos) / (float(pos) + float(neg))
+        self.num_samples = num_samples
+        self.centers = None
+
+    def randomise(self, label):
+        self.centers = generate_pos_neg_label_crop_centers(label, self.size, self.num_samples, self.pos_ratio, self.R)
+
+    def __call__(self, data):
+        d = dict(data)
+        label = d[self.label_key]
+        self.randomise(label)
+        results = [dict() for _ in range(self.num_samples)]
+        for key in data.keys():
+            if key in self.keys:
+                img = d[key]
+                for i, center in enumerate(self.centers):
+                    cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.size)
+                    results[i][key] = cropper(img)
+            else:
+                for i in range(self.num_samples):
+                    results[i][key] = data[key]
+
+        return results
 
 
 # if __name__ == "__main__":

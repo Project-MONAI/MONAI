@@ -224,6 +224,60 @@ class RandRotate90(Randomizable):
         return rotator(img)
 
 
+@export
+class SpatialCrop:
+    """General purpose cropper to produce sub-volume region of interest (ROI).
+    It can support to crop 1, 2 or 3 dimensions spatial data.
+    Either a center and size must be provided, or alternatively if center and size
+    are not provided, the start and end coordinates of the ROI must be provided.
+    The sub-volume must sit the within original image.
+
+    Note: This transform will not work if the crop region is larger than the image itself.
+    """
+
+    def __init__(self, roi_center=None, roi_size=None, roi_start=None, roi_end=None):
+        """
+        Args:
+            roi_center (list or tuple): voxel coordinates for center of the crop ROI.
+            roi_size (list or tuple): size of the crop ROI.
+            roi_start (list or tuple): voxel coordinates for start of the crop ROI.
+            roi_end (list or tuple): voxel coordinates for end of the crop ROI.
+        """
+        if roi_center is not None and roi_size is not None:
+            assert isinstance(roi_center, (list, tuple)), 'roi_center must be list or tuple.'
+            assert isinstance(roi_size, (list, tuple)), 'roi_size must be list or tuple.'
+            assert all(x > 0 for x in roi_center), 'all elements of roi_center must be positive.'
+            assert all(x > 0 for x in roi_size), 'all elements of roi_size must be positive.'
+            roi_center = np.asarray(roi_center, dtype=np.uint16)
+            roi_size = np.asarray(roi_size, dtype=np.uint16)
+            self.roi_start = np.subtract(roi_center, np.floor_divide(roi_size, 2))
+            self.roi_end = np.add(self.roi_start, roi_size)
+        else:
+            assert roi_start is not None and roi_end is not None, 'roi_start and roi_end must be provided.'
+            assert isinstance(roi_start, (list, tuple)), 'roi_start must be list or tuple.'
+            assert isinstance(roi_end, (list, tuple)), 'roi_end must be list or tuple.'
+            assert all(x >= 0 for x in roi_start), 'all elements of roi_start must be greater than or equal to 0.'
+            assert all(x > 0 for x in roi_end), 'all elements of roi_end must be positive.'
+            self.roi_start = roi_start
+            self.roi_end = roi_end
+
+    def __call__(self, img):
+        max_end = img.shape[1:]
+        assert (np.subtract(max_end, self.roi_start) >= 0).all(), 'roi start out of image space.'
+        assert (np.subtract(max_end, self.roi_end) >= 0).all(), 'roi end out of image space.'
+        assert (np.subtract(self.roi_end, self.roi_start) >= 0).all(), 'invalid roi range.'
+        if len(self.roi_start) == 1:
+            data = img[:, self.roi_start[0]:self.roi_end[0]].copy()
+        elif len(self.roi_start) == 2:
+            data = img[:, self.roi_start[0]:self.roi_end[0], self.roi_start[1]:self.roi_end[1]].copy()
+        elif len(self.roi_start) == 3:
+            data = img[:, self.roi_start[0]:self.roi_end[0], self.roi_start[1]:self.roi_end[1],
+                       self.roi_start[2]:self.roi_end[2]].copy()
+        else:
+            raise ValueError('unsupported image shape.')
+        return data
+
+
 # if __name__ == "__main__":
 #     img = np.array((1, 2, 3, 4)).reshape((1, 2, 2))
 #     rotator = RandRotate90(prob=0.0, max_k=3, axes=(1, 2))
