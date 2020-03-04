@@ -90,7 +90,9 @@ list/tuple out: list/tuple
 variable out: string
 
 """
-@monai.utils.export('monai.data.transforms')
+
+
+@monai.utils.export('monai.transforms')
 def adaptor(function, outputs, inputs=None):
 
     def must_be_types_or_none(variable_name, variable, types):
@@ -180,7 +182,7 @@ def adaptor(function, outputs, inputs=None):
     return _inner
 
 
-@monai.utils.export('monai.data.transforms')
+@monai.utils.export('monai.transforms')
 def apply_alias(fn, name_map):
 
     def _inner(data):
@@ -202,7 +204,7 @@ def apply_alias(fn, name_map):
     return _inner
 
 
-@monai.utils.export('monai.data.transforms')
+@monai.utils.export('monai.transforms')
 def to_kwargs(fn):
     def _inner(data):
         return fn(**data)
@@ -210,7 +212,6 @@ def to_kwargs(fn):
     return _inner
 
 
-#@monai.utils.export('monai.data.transforms')
 class FunctionSignature:
     def __init__(self, function):
         import inspect
@@ -227,7 +228,6 @@ class FunctionSignature:
             else:
                 self.non_var_parameters.add(p.name)
                 self.defaults[p.name] = p.default is not p.empty
-
 
     def __repr__(self):
         s = "<class 'FunctionSignature': found_args={}, found_kwargs={}, defaults={}"

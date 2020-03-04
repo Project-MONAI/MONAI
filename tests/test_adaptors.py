@@ -13,26 +13,10 @@ import unittest
 import itertools
 
 
-from monai.data.transforms.adaptors import adaptor, apply_alias, to_kwargs, FunctionSignature
-
+from monai.transforms.adaptors import adaptor, apply_alias, to_kwargs, FunctionSignature
 
 
 class TestAdaptors(unittest.TestCase):
-
-    # def test_check_signature(self):
-    #     def foo(image, label=None, *a):
-    #         pass
-    #
-    #     print(check_signature(foo))
-    #     import inspect
-    #     ps = inspect.signature(foo).parameters.values()
-    #     for p in ps:
-    #         print(dir(p))
-    #         print(p, p.kind, p.default is p.empty)
-    #
-    #     print(dict)
-    #
-    #     print(dict(v, len(v) < 3) for v in ['a', 'ab', 'abc', 'abcd'])
 
     def test_function_signature(self):
 
@@ -40,7 +24,6 @@ class TestAdaptors(unittest.TestCase):
             pass
 
         f = FunctionSignature(foo)
-        print(f)
 
     def test_single_in_single_out(self):
         def foo(image):
@@ -150,12 +133,12 @@ class TestAdaptors(unittest.TestCase):
 class TestApplyAlias(unittest.TestCase):
 
     def test_apply_alias(self):
+
         def foo(d):
             d['x'] *= 2
             return d
 
-
-        d = { 'a':1, 'b':3 }
+        d = {'a': 1, 'b': 3}
         result = apply_alias(foo, {'b': 'x'})(d)
         self.assertDictEqual({'a': 1, 'b': 6}, result)
 
