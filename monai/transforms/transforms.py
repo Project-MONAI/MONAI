@@ -63,6 +63,24 @@ class Rescale:
 
 
 @export
+class Flip:
+    """Reverses the order of elements along the given axis. Preserves shape.
+    Uses np.flip in practice. See numpy.flip for additional details.
+
+    Args:
+        axes (None, int or tuple of ints): Axes along which to flip over. Default is None.
+    """
+
+    def __init__(self, axis=None):
+        assert axis is None or isinstance(axis, (int, list, tuple)), \
+            "axis must be None, int or tuple of ints."
+        self.axis = axis
+
+    def __call__(self, img):
+        return np.flip(img, self.axis)
+
+
+@export
 class ToTensor:
     """
     Converts the input image to a tensor without applying any other transformations.
