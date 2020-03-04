@@ -91,7 +91,7 @@ class ToTensor:
 
 
 @export
-class UniformRandomPatch:
+class UniformRandomPatch(Randomizable):
     """
     Selects a patch of the given size chosen at a uniformly random position in the image.
     """
@@ -99,11 +99,15 @@ class UniformRandomPatch:
     def __init__(self, patch_size):
         self.patch_size = (None,) + tuple(patch_size)
 
+        self._slices = None
+
+    def randomize(self, image_shape, patch_shape):
+        self._slices = get_random_patch(image_shape, patch_shape, self.R)
+
     def __call__(self, img):
         patch_size = get_valid_patch_size(img.shape, self.patch_size)
-        slices = get_random_patch(img.shape, patch_size)
-
-        return img[slices]
+        self.randomize(img.shape, patch_size)
+        return img[self._slices]
 
 
 @export
@@ -212,12 +216,12 @@ class RandRotate90(Randomizable):
         self._do_transform = False
         self._rand_k = 0
 
-    def randomise(self):
+    def randomize(self):
         self._rand_k = self.R.randint(self.max_k) + 1
         self._do_transform = self.R.random() < self.prob
 
     def __call__(self, img):
-        self.randomise()
+        self.randomize()
         if not self._do_transform:
             return img
         rotator = Rotate90(self._rand_k, self.axes)

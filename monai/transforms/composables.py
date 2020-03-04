@@ -16,6 +16,7 @@ defined in `monai.transforms.transforms`.
 from collections.abc import Hashable
 
 import monai
+from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.transforms import Rotate90, SpatialCrop
 from monai.utils.misc import ensure_tuple
@@ -78,6 +79,33 @@ class Rotate90d(MapTransform):
 
 
 @export
+class UniformRandomPatchd(Randomizable, MapTransform):
+    """
+    Selects a patch of the given size chosen at a uniformly random position in the image.
+    """
+
+    def __init__(self, keys, patch_size):
+        MapTransform.__init__(self, keys)
+
+        self.patch_size = (None,) + tuple(patch_size)
+
+        self._slices = None
+
+    def randomize(self, image_shape, patch_shape):
+        self._slices = get_random_patch(image_shape, patch_shape, self.R)
+
+    def __call__(self, data):
+        d = dict(data)
+
+        image_shape = d[self.keys[0]].shape  # image shape from the first data key
+        patch_size = get_valid_patch_size(image_shape, self.patch_size)
+        self.randomize(image_shape, patch_size)
+        for key in self.keys:
+            d[key] = d[key][self._slices]
+        return d
+
+
+@export
 class RandRotate90d(Randomizable, MapTransform):
     """
     With probability `prob`, input arrays are rotated by 90 degrees
@@ -105,12 +133,12 @@ class RandRotate90d(Randomizable, MapTransform):
         self._do_transform = False
         self._rand_k = 0
 
-    def randomise(self):
+    def randomize(self):
         self._rand_k = self.R.randint(self.max_k) + 1
         self._do_transform = self.R.random() < self.prob
 
     def __call__(self, data):
-        self.randomise()
+        self.randomize()
         if not self._do_transform:
             return data
 
@@ -155,13 +183,13 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         self.num_samples = num_samples
         self.centers = None
 
-    def randomise(self, label):
+    def randomize(self, label):
         self.centers = generate_pos_neg_label_crop_centers(label, self.size, self.num_samples, self.pos_ratio, self.R)
 
     def __call__(self, data):
         d = dict(data)
         label = d[self.label_key]
-        self.randomise(label)
+        self.randomize(label)
         results = [dict() for _ in range(self.num_samples)]
         for key in data.keys():
             if key in self.keys:

@@ -11,7 +11,7 @@
 
 import unittest
 
-from monai.transforms.compose import Compose
+from monai.transforms.compose import Compose, Randomizable
 
 
 class TestCompose(unittest.TestCase):
@@ -66,6 +66,37 @@ class TestCompose(unittest.TestCase):
         value = transforms({'a': 0, 'b': 0, 'c': 0})
         for item in value:
             self.assertDictEqual(item, {'a': 2, 'b': 1, 'c': 2})
+
+    def test_random_compose(self):
+
+        class _Acc(Randomizable):
+            self.rand = 0.0
+
+            def randomize(self):
+                self.rand = self.R.rand()
+
+            def __call__(self, data):
+                self.randomize()
+                return self.rand + data
+
+        c = Compose([_Acc(), _Acc()])
+        self.assertNotAlmostEqual(c(0), c(0))
+        c.set_random_state(123)
+        self.assertAlmostEqual(c(1), 2.39293837)
+        c.set_random_state(223)
+        c.randomize()
+        self.assertAlmostEqual(c(1), 2.57673391)
+
+    def test_randomize_warn(self):
+
+        class _RandomClass(Randomizable):
+
+            def randomize(self, foo):
+                pass
+
+        c = Compose([_RandomClass(), _RandomClass()])
+        with self.assertWarns(Warning):
+            c.randomize()
 
 
 if __name__ == '__main__':
