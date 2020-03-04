@@ -25,10 +25,11 @@ class GaussianNoiseTest(NumpyImageTestCase2D):
         ("test_non_zero_mean", 1, 0.5)
     ])
     def test_correct_results(self, _, mean, std):
-        np.random.seed(42)
+        seed = 42
         gaussian_fn = GaussianNoise(mean=mean, std=std)
+        gaussian_fn.set_random_state(seed)
         noised = gaussian_fn(self.imt)
-        np.random.seed(42)
+        np.random.seed(seed)
         expected = self.imt + np.random.normal(mean, np.random.uniform(0, std), size=self.imt.shape)
         assert np.allclose(expected, noised)
 

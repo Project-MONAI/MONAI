@@ -63,7 +63,7 @@ class Rescale:
 
 
 @export
-class GaussianNoise:
+class GaussianNoise(Randomizable):
     """Add gaussian noise to image.
 
     Args:
@@ -77,7 +77,7 @@ class GaussianNoise:
         self.std = std
 
     def __call__(self, img):
-        return img + np.random.normal(self.mean, np.random.uniform(0, self.std), size=img.shape)
+        return img + self.R.normal(self.mean, self.R.uniform(0, self.std), size=img.shape)
 
 
 @export
