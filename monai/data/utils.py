@@ -11,12 +11,12 @@
 
 import math
 from itertools import starmap, product
-
+from torch.utils.data._utils.collate import default_collate
 import numpy as np
 from monai.transforms.utils import ensure_tuple_size
 
 
-def get_random_patch(dims, patch_size):
+def get_random_patch(dims, patch_size, rand_state=None):
     """
     Returns a tuple of slices to define a random patch in an array of shape `dims` with size `patch_size` or the as
     close to it as possible within the given dimension. It is expected that `patch_size` is a valid patch for a source
@@ -25,13 +25,15 @@ def get_random_patch(dims, patch_size):
     Args:
         dims (tuple of int): shape of source array
         patch_size (tuple of int): shape of patch size to generate
+        rand_state (np.random.RandomState): a random state object to generate random numbers from
 
     Returns:
         (tuple of slice): a tuple of slice objects defining the patch
     """
 
     # choose the minimal corner of the patch
-    min_corner = tuple(np.random.randint(0, ms - ps) if ms > ps else 0 for ms, ps in zip(dims, patch_size))
+    rand_int = np.random.randint if rand_state is None else rand_state.randint
+    min_corner = tuple(rand_int(0, ms - ps) if ms > ps else 0 for ms, ps in zip(dims, patch_size))
 
     # create the slices for each dimension which define the patch in the source array
     return tuple(slice(mc, mc + ps) for mc, ps in zip(min_corner, patch_size))
@@ -176,3 +178,16 @@ def get_valid_patch_size(dims, patch_size):
 
     # ensure patch size dimensions are not larger than image dimension, if a dimension is None or 0 use whole dimension
     return tuple(min(ms, ps or ms) for ms, ps in zip(dims, patch_size))
+
+
+def list_data_collate(batch):
+    """
+    Enhancement for PyTorch DataLoader default collate.
+    If dataset already returns a list of batch data that generated in transforms, need to merge all data to 1 list.
+    Then it's same as the default collate behavior.
+    Note:
+        Need to use this collate if apply some transforms that can generate batch data.
+    """
+    elem = batch[0]
+    data = [i for k in batch for i in k] if isinstance(elem, list) else batch
+    return default_collate(data)

@@ -16,6 +16,7 @@ from torch.utils.data import Dataset
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
 
 from monai.utils.module import export
+from monai.transforms.compose import Randomizable
 
 
 def load_nifti(filename_or_obj, as_closest_canonical=False, image_only=True, dtype=None):
@@ -106,19 +107,17 @@ class NiftiDataset(Dataset):
                                         image_only=self.image_only, dtype=self.dtype)
         seg = load_nifti(self.seg_files[index])
 
-        # https://github.com/pytorch/vision/issues/9#issuecomment-304224800
         seed = np.random.randint(2147483647)
 
         if self.transform is not None:
-            np.random.seed(seed)
+            if isinstance(self.transform, Randomizable):
+                self.transform.set_random_state(seed=seed)
             img = self.transform(img)
-            random_sync_test = np.random.randint(2147483647)
 
         if self.seg_transform is not None:
-            np.random.seed(seed)  # ensure randomized transforms roll the same values for segmentations as images
+            if isinstance(self.seg_transform, Randomizable):
+                self.seg_transform.set_random_state(seed=seed)
             seg = self.seg_transform(seg)
-            seg_seed = np.random.randint(2147483647)
-            assert(random_sync_test == seg_seed)
 
         if self.image_only or meta_data is None:
             return img, seg
