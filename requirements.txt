@@ -7,3 +7,4 @@ coverage
 nibabel
 parameterized
 tensorboard
+scipy
