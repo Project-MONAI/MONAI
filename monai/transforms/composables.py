@@ -18,7 +18,7 @@ from collections.abc import Hashable
 import monai
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.compose import Randomizable, Transform
-from monai.transforms.transforms import Rotate90, SpatialCrop
+from monai.transforms.transforms import Rotate90, SpatialCrop, AddChannel
 from monai.utils.misc import ensure_tuple
 from monai.transforms.utils import generate_pos_neg_label_crop_centers
 
@@ -146,6 +146,28 @@ class RandRotate90d(Randomizable, MapTransform):
         d = dict(data)
         for key in self.keys:
             d[key] = rotator(d[key])
+        return d
+
+
+@export
+class AddChanneld(MapTransform):
+    """
+    dictionary-based wrapper of AddChannel.
+    """
+
+    def __init__(self, keys):
+        """
+        Args:
+            keys (hashable items): keys of the corresponding items to be transformed.
+                See also: monai.transform.composables.MapTransform
+        """
+        MapTransform.__init__(self, keys)
+        self.adder = AddChannel()
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.adder(d[key])
         return d
 
 
