@@ -14,14 +14,74 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 import numpy as np
+import nibabel as nib
 import torch
-
+from torch.utils.data._utils.collate import np_str_obj_array_pattern
 import monai
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.compose import Randomizable
 from monai.transforms.utils import rescale_array
 
 export = monai.utils.export("monai.transforms")
+
+
+@export
+class LoadNifti:
+    """
+    Load Nifti format file from provided path.
+    """
+
+    def __init__(self, as_closest_canonical=False, image_only=False, dtype=None):
+        """
+        Args:
+            as_closest_canonical (bool): if True, load the image as closest to canonical axis format.
+            image_only (bool): if True return only the image volume, other return image volume and header dict.
+            dtype (np.dtype, optional): if not None convert the loaded image to this data type.
+        """
+        self.as_closest_canonical = as_closest_canonical
+        self.image_only = image_only
+        self.dtype = dtype
+
+    def __call__(self, img):
+        """
+        Args:
+            img (str or file): path to file or file-like object.
+
+        Returns:
+            The loaded image volume if `image_only` is True, or a tuple containing the volume and the Nifti
+            header in dict format otherwise.
+
+        Note:
+            header['original_affine'] stores the original affine loaded from `filename_or_obj`.
+            header['affine'] stores the affine after the optional `as_closest_canonical` transform.
+        """
+        data = nib.load(img)
+
+        header = dict(data.header)
+        header['filename_or_obj'] = img
+        header['original_affine'] = data.affine
+        header['affine'] = data.affine
+        header['as_closest_canonical'] = self.as_closest_canonical
+
+        if self.as_closest_canonical:
+            data = nib.as_closest_canonical(data)
+            header['affine'] = data.affine
+
+        if self.dtype is not None:
+            data = data.get_fdata(dtype=self.dtype)
+        else:
+            data = np.asanyarray(data.dataobj)
+
+        if self.image_only:
+            return data
+        compatible_meta = dict()
+        for meta_key in header:
+            meta_datum = header[meta_key]
+            if type(meta_datum).__name__ == 'ndarray' \
+                    and np_str_obj_array_pattern.search(meta_datum.dtype.str) is not None:
+                continue
+            compatible_meta[meta_key] = meta_datum
+        return data, compatible_meta
 
 
 @export
