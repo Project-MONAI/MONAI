@@ -14,8 +14,6 @@ import argparse
 import numpy as np
 import SimpleITK as Sitk
 
-import ai4med.utils.custom_rounding as cp
-
 ALLOWED_SRC_FORMATS = ['.nii', '.nii.gz', '.mhd', '.mha', '.dcm']
 ALLOWED_DST_FORMATS = ['.nii', '.nii.gz', '.mhd', '.mha']
 
@@ -76,6 +74,42 @@ def resample_image(img, tgt_res):
     resampler.SetOutputSpacing(tgt_res)
     resampler.SetSize(new_size.tolist())
     return resampler.Execute(img)    
+
+
+def customized_rounding(val, first_decimal_digit=None, rounding_precision=3):
+    """Customize rounding operation
+
+    Args:
+        val: a positive floating number
+        first_decimal_digit: first non-zero decimal digit in consideration, if val is greater than zero,
+            first_decimal_digit is equal to zero (first digit above decimal point)
+        rounding_precision: available digits in consideration after first_decimal_digit
+            (including first_decimal_digit)
+
+    Returns:
+        A floating number after customized rounding
+    """
+    assert (val >= 0), "[error] input resolution has to be greater than zero!"
+
+    if first_decimal_digit is None:
+        if val >= 1.0:
+            first_decimal_digit = 0
+        else:
+            first_decimal_digit_temp = -1
+            val_temp = val
+            while val_temp * 10.0 < 1.0:
+                first_decimal_digit_temp -= 1
+                val_temp *= 10.0
+            first_decimal_digit = first_decimal_digit_temp
+    elif first_decimal_digit > 0:
+        first_decimal_digit = 0
+
+    if first_decimal_digit == 0:
+        new_val = np.round(val, rounding_precision - 1)
+    else:
+        new_val = np.round(val, abs(first_decimal_digit - rounding_precision + 1))
+
+    return new_val
 
 
 if __name__ == '__main__':
@@ -196,7 +230,7 @@ if __name__ == '__main__':
                         # new_spacing = [np.float16(item) for item in spacing]
                         # new_spacing = [np.float64(item) for item in new_spacing]
                         # solution 2
-                        new_spacing = [cp.customized_rounding(item, first_decimal_digit=first_decimal_digit,
+                        new_spacing = [customized_rounding(item, first_decimal_digit=first_decimal_digit,
                                                               rounding_precision=rounding_precision) for item in spacing]
                         _img.SetSpacing(new_spacing)
 
@@ -212,7 +246,7 @@ if __name__ == '__main__':
                     # new_spacing = [np.float16(item) for item in spacing]
                     # new_spacing = [np.float64(item) for item in new_spacing]
                     # solution 2
-                    new_spacing = [cp.customized_rounding(item, first_decimal_digit=first_decimal_digit,
+                    new_spacing = [customized_rounding(item, first_decimal_digit=first_decimal_digit,
                                                           rounding_precision=rounding_precision) for item in spacing]
                     image.SetSpacing(new_spacing)
 
