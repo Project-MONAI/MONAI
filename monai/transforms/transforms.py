@@ -505,6 +505,24 @@ class Affine:
                  padding_mode='zeros',
                  as_tensor_output=False,
                  device=None):
+        """
+        The affines are applied in rotate, shear, translate, scale order.
+
+        Args:
+            rotate_params (float, list of floats): a rotation angle in radians,
+                a scalar for 2D image, a tuple of 2 floats for 3D. Defaults to no rotation.
+            shear_params (list of floats):
+                a tuple of 2 floats for 2D, a tuple of 6 floats for 3D. Defaults to no shearing.
+            translate_params (list of floats):
+                a tuple of 2 floats for 2D, a tuple of 3 floats for 3D. Translation is in pixel/voxel
+                relative to the center of the input image. Defaults to no translation.
+            scale_params (list of floats):
+                a tuple of 2 floats for 2D, a tuple of 3 floats for 3D. Defaults to no scaling.
+            padding_mode ('zeros'|'border'|'reflection'): mode of handling out of range indices. Defaults to 'zeros'.
+            as_tensor_output (bool): the computation is implemented using pytorch tensors, this option specifies
+                whether to convert it back to numpy arrays.
+            device (torch.device): device on which the tensor will be allocated.
+        """
         self.affine_grid = AffineGrid(rotate_params,
                                       shear_params,
                                       translate_params,
@@ -517,8 +535,9 @@ class Affine:
         """
         Args:
             img (ndarray or tensor): shape must be (num_channels, H, W[, D]),
-                spatial rank must be len(self.spatial_size).
-            spatial_size (list or tuple of int): output grid size.
+            spatial_size (list or tuple of int): output image spatial size.
+                if `img` has two spatial dimensions, `spatial_size` should have 2 elements [h, w].
+                if `img` has three spatial dimensions, `spatial_size` should have 3 elements [h, w, d].
             mode ('nearest'|'bilinear'): interpolation order. Defaults to 'bilinear'.
         """
         grid = self.affine_grid(spatial_size)
@@ -545,9 +564,13 @@ class RandAffine(Randomizable):
             prob (float): probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid.
             padding_mode ('zeros'|'border'|'reflection'): mode of handling out of range indices. Defaults to 'zeros'.
+            as_tensor_output (bool): the computation is implemented using pytorch tensors, this option specifies
+                whether to convert it back to numpy arrays.
+            device (torch.device): device on which the tensor will be allocated.
 
         See also:
-            RandAffineGrid for the random affine configurations.
+            RandAffineGrid for the random affine paramters configurations.
+            Affine for the affine transformation parameters configurations.
         """
 
         self.rand_affine_grid = RandAffineGrid(rotate_range, shear_range, translate_range, scale_range, True, device)
@@ -565,6 +588,14 @@ class RandAffine(Randomizable):
         self.do_transform = self.R.rand() < self.prob
 
     def __call__(self, img, spatial_size, mode='bilinear'):
+        """
+        Args:
+            img (ndarray or tensor): shape must be (num_channels, H, W[, D]),
+            spatial_size (list or tuple of int): output image spatial size.
+                if `img` has two spatial dimensions, `spatial_size` should have 2 elements [h, w].
+                if `img` has three spatial dimensions, `spatial_size` should have 3 elements [h, w, d].
+            mode ('nearest'|'bilinear'): interpolation order. Defaults to 'bilinear'.
+        """
         self.randomize()
         if self.do_transform:
             grid = self.rand_affine_grid(spatial_size=spatial_size)
@@ -596,11 +627,16 @@ class Rand2DElastic(Randomizable):
             magnitude_range (2 ints): the random offsets will be generated from
                 `uniform[magnitude[0], magnitude[1])`.
             prob (float): probability of returning a randomized affine grid.
-                defaults to 0.1, with 10% chance returns a randomized grid.
+                defaults to 0.1, with 10% chance returns a randomized grid,
+                otherwise returns a `spatial_size` centered area centered extracted from the input image.
             padding_mode ('zeros'|'border'|'reflection'): mode of handling out of range indices. Defaults to 'zeros'.
+            as_tensor_output (bool): the computation is implemented using pytorch tensors, this option specifies
+                whether to convert it back to numpy arrays.
+            device (torch.device): device on which the tensor will be allocated.
 
         See also:
-            RandAffineGrid for the random affine configurations.
+            RandAffineGrid for the random affine paramters configurations.
+            Affine for the affine transformation parameters configurations.
         """
         self.deform_grid = RandDeformGrid(spacing, magnitude_range, as_tensor_output=True, device=device)
         self.rand_affine_grid = RandAffineGrid(rotate_range, shear_range, translate_range, scale_range, True, device)
@@ -619,6 +655,12 @@ class Rand2DElastic(Randomizable):
         self.do_transform = self.R.rand() < self.prob
 
     def __call__(self, img, spatial_size, mode='bilinear'):
+        """
+        Args:
+            img (ndarray or tensor): shape must be (num_channels, H, W),
+            spatial_size (2 ints): specifying output image spatial size [h, w].
+            mode ('nearest'|'bilinear'): interpolation order. Defaults to 'bilinear'.
+        """
         self.randomize()
         if self.do_transform:
             grid = self.deform_grid(spatial_size)
@@ -636,8 +678,8 @@ class Rand3DElastic(Randomizable):
     """
 
     def __init__(self,
-                 alpha_range,
                  sigma_range,
+                 magnitude_range,
                  prob=0.1,
                  rotate_range=None,
                  shear_range=None,
@@ -646,16 +688,34 @@ class Rand3DElastic(Randomizable):
                  padding_mode='zeros',
                  as_tensor_output=False,
                  device=None):
+        """
+        Args:
+            sigma_range (2 ints): a Gaussian kernel with standard deviation sampled
+                 from `uniform[sigma_range[0], sigma_range[1])` will be used to smooth the random offset grid.
+            magnitude_range (2 ints): the random offsets on the grid will be generated from
+                `uniform[magnitude[0], magnitude[1])`.
+            prob (float): probability of returning a randomized affine grid.
+                defaults to 0.1, with 10% chance returns a randomized grid,
+                otherwise returns a `spatial_size` centered area centered extracted from the input image.
+            padding_mode ('zeros'|'border'|'reflection'): mode of handling out of range indices. Defaults to 'zeros'.
+            as_tensor_output (bool): the computation is implemented using pytorch tensors, this option specifies
+                whether to convert it back to numpy arrays.
+            device (torch.device): device on which the tensor will be allocated.
+
+        See also:
+            RandAffineGrid for the random affine paramters configurations.
+            Affine for the affine transformation parameters configurations.
+        """
         self.rand_affine_grid = RandAffineGrid(rotate_range, shear_range, translate_range, scale_range, True, device)
         self.resampler = Resample(padding_mode=padding_mode, as_tensor_output=as_tensor_output, device=device)
 
-        self.alpha_range = alpha_range
         self.sigma_range = sigma_range
+        self.magnitude_range = magnitude_range
 
         self.prob = prob
         self.do_transform = False
         self.rand_offset = None
-        self.alpha = 1.0
+        self.magnitude = 1.0
         self.sigma = 1.0
 
     def set_random_state(self, seed=None, state=None):
@@ -667,15 +727,21 @@ class Rand3DElastic(Randomizable):
         self.do_transform = self.R.rand() < self.prob
         if self.do_transform:
             self.rand_offset = self.R.uniform(-1., 1., [3] + list(grid_size))
-        self.alpha = self.R.uniform(self.alpha_range[0], self.alpha_range[1])
+        self.magnitude = self.R.uniform(self.magnitude_range[0], self.magnitude_range[1])
         self.sigma = self.R.uniform(self.sigma_range[0], self.sigma_range[1])
 
     def __call__(self, img, spatial_size, mode='bilinear'):
+        """
+        Args:
+            img (ndarray or tensor): shape must be (num_channels, H, W, D),
+            spatial_size (2 ints): specifying output image spatial size [h, w, d].
+            mode ('nearest'|'bilinear'): interpolation order. Defaults to 'bilinear'.
+        """
         self.randomize(spatial_size)
         grid = create_grid(spatial_size)
         if self.do_transform:
             for i in range(3):
-                grid[i] += gaussian_filter(self.rand_offset[i], self.sigma, mode='constant', cval=0) * self.alpha
+                grid[i] += gaussian_filter(self.rand_offset[i], self.sigma, mode='constant', cval=0) * self.magnitude
             grid = self.rand_affine_grid(grid=grid)
         return self.resampler(img, grid, mode)
 
@@ -695,7 +761,7 @@ if __name__ == "__main__":
     # new_img = Affine(translate_params=[-200, 300], scale_params=(1.2, 1.2))(np_img, (300, 400))
     # new_img = Rand2DElastic(prob=1.0, spacing=(20, 20), magnitude_range=(1.0, 4.0), translate_range=[400., 400.])(
     #     np_img, (300, 400))
-    new_img = Rand3DElastic(prob=1.0, alpha_range=(1.0, 4.0), sigma_range=(1., 4.),
+    new_img = Rand3DElastic(prob=1.0, magnitude_range=(1.0, 4.0), sigma_range=(1., 4.),
                             translate_range=[20., 30., 10.])(np_im, (30, 40, 50))
     print(new_img.shape)
     # new_img = np.moveaxis(new_img, 0, -1).astype(int)

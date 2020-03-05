@@ -231,7 +231,7 @@ def create_grid(spatial_size, spacing=None, homogeneous=True, dtype=float):
 
 def create_control_grid(spatial_shape, spacing, homogeneous=True, dtype=float):
     """
-    control grid with two addtitional point in each direction
+    control grid with two additional point in each direction
     """
     grid_shape = []
     for d, s in zip(spatial_shape, spacing):
