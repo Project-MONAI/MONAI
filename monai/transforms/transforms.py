@@ -45,10 +45,10 @@ class LoadNifti:
         self.image_only = image_only
         self.dtype = dtype
 
-    def __call__(self, img):
+    def __call__(self, filename):
         """
         Args:
-            img (str or file): path to file or file-like object.
+            filename (str or file): path to file or file-like object.
 
         Returns:
             The loaded image volume if `image_only` is True, or a tuple containing the volume and the Nifti
@@ -58,25 +58,25 @@ class LoadNifti:
             header['original_affine'] stores the original affine loaded from `filename_or_obj`.
             header['affine'] stores the affine after the optional `as_closest_canonical` transform.
         """
-        data = nib.load(img)
+        img = nib.load(filename)
 
-        header = dict(data.header)
-        header['filename_or_obj'] = img
-        header['original_affine'] = data.affine
-        header['affine'] = data.affine
+        header = dict(img.header)
+        header['filename_or_obj'] = filename
+        header['original_affine'] = img.affine
+        header['affine'] = img.affine
         header['as_closest_canonical'] = self.as_closest_canonical
 
         if self.as_closest_canonical:
-            data = nib.as_closest_canonical(data)
-            header['affine'] = data.affine
+            img = nib.as_closest_canonical(img)
+            header['affine'] = img.affine
 
         if self.dtype is not None:
-            data = data.get_fdata(dtype=self.dtype)
+            img = img.get_fdata(dtype=self.dtype)
         else:
-            data = np.asanyarray(data.dataobj)
+            img = np.asanyarray(img.dataobj)
 
         if self.image_only:
-            return data
+            return img
         compatible_meta = dict()
         for meta_key in header:
             meta_datum = header[meta_key]
@@ -84,7 +84,7 @@ class LoadNifti:
                     and np_str_obj_array_pattern.search(meta_datum.dtype.str) is not None:
                 continue
             compatible_meta[meta_key] = meta_datum
-        return data, compatible_meta
+        return img, compatible_meta
 
 
 @export

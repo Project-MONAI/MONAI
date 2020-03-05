@@ -138,41 +138,6 @@ class NiftiDataset(Dataset):
 
 
 @export("monai.data")
-class Datasetd(Dataset):
-    """
-    General Dataset to handle dictionary format data, it can operate transforms for specific fields.
-    Input data should be a list of dictionaries, for example:
-    [{                            {                            {
-         'img': 'image1.nii.gz',      'img': 'image2.nii.gz',      'img': 'image3.nii.gz',
-         'seg': 'label1.nii.gz',      'seg': 'label2.nii.gz',      'seg': 'label3.nii.gz',
-         'extra': 123,                'extra': 456,                'extra': 789,
-         'shape': 'CHWD'              'shape': 'CHWD'              'shape': 'CHWD'
-     },                           },                           }]
-    """
-
-    def __init__(self, data, transform=None):
-        """
-        Args:
-            data (dict): input data to load and transform to generate dataset for model.
-            transform (Callable, optional): dict transforms to excute operations on dictionary data.
-        """
-        assert isinstance(data, list) and all(isinstance(item, dict) for item in data), \
-            'input data must be a list of dictionaries.'
-        self.data = data
-        self.transform = transform
-
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, index):
-        data = self.data[index]
-        if self.transform is not None:
-            data = self.transform(data)
-
-        return data
-
-
-@export("monai.data")
 class NiftiDatasetd(Dataset):
     """
     Loads image/segmentation pairs of Nifti files from the given filename lists. Dict level transformations can be
