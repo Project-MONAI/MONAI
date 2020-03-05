@@ -123,6 +123,7 @@ class Resize:
                       anti_aliasing_sigma=self.anti_aliasing_sigma)
 
 
+@export
 class Rotate:
     """
     Rotates an input image by given angle. Uses scipy.ndimage.rotate. For more details, see
