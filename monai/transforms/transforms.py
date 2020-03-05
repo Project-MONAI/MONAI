@@ -217,8 +217,8 @@ class Zoom:
                 print('Warning: Zoom gpu failed. Defaulting to cpu.')
 
         if not zoomed or not self.use_gpu:
-            zoomed = zoom_cpu(img, zoom=self.zoom, order=self.order,
-                              mode=self.mode, cval=self.cval, prefilter=self.prefilter)
+            zoomed = scipy.ndimage.zoom(img, zoom=self.zoom, order=self.order,
+                                        mode=self.mode, cval=self.cval, prefilter=self.prefilter)
 
         # Crops to original size or pads.
         if self.keep_size:
