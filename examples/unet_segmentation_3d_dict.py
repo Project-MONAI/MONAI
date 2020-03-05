@@ -28,8 +28,8 @@ sys.path.append("..")
 
 import monai
 import monai.transforms.compose as transforms
-from monai.data.nifti_reader import NiftiDatasetd
-from monai.transforms.composables import AddChanneld, RandRotate90d
+from monai.data.dataset import Dataset
+from monai.transforms.composables import LoadNiftid, AddChanneld, RandRotate90d
 from monai.handlers.stats_handler import StatsHandler
 from monai.handlers.mean_dice import MeanDice
 from monai.visualize import img2tensorboard
@@ -52,15 +52,22 @@ for i in range(50):
 
 images = sorted(glob(os.path.join(tempdir, 'im*.nii.gz')))
 segs = sorted(glob(os.path.join(tempdir, 'seg*.nii.gz')))
+train_data = list()
+for img, seg in zip(images[:30], segs[:30]):
+    train_data.append({'image': img, 'seg': seg})
+val_data = list()
+for img, seg in zip(images[-20:], segs[-20:]):
+    val_data.append({'image': img, 'seg': seg})
 
 # Define transforms for image and segmentation
 transforms = transforms.Compose([
+    LoadNiftid(keys=['image', 'seg']),
     AddChanneld(keys=['image', 'seg']),
     RandRotate90d(keys=['image', 'seg'], prob=0.8, axes=[1, 3])
 ])
 
 # Define nifti dataset, dataloader.
-ds = NiftiDatasetd(images, segs, transform=transforms)
+ds = Dataset(data=train_data, transform=transforms)
 loader = DataLoader(ds, batch_size=10, num_workers=2, pin_memory=torch.cuda.is_available())
 check_data = monai.utils.misc.first(loader)
 print(check_data['image'].shape, check_data['seg'].shape)
@@ -160,7 +167,7 @@ early_stopper = EarlyStopping(patience=4,
 evaluator.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=early_stopper)
 
 # create a validation data loader
-val_ds = NiftiDatasetd(images[-20:], segs[-20:], transform=transforms)
+val_ds = Dataset(data=val_data, transform=transforms)
 val_loader = DataLoader(ds, batch_size=5, num_workers=8, pin_memory=torch.cuda.is_available())
 
 
@@ -178,7 +185,7 @@ def log_metrics_to_tensorboard(engine):
 # create a training data loader
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-train_ds = NiftiDatasetd(images[:20], segs[:20], transform=transforms)
+train_ds = Dataset(data=train_data, transform=transforms)
 train_loader = DataLoader(train_ds, batch_size=5, num_workers=8, pin_memory=torch.cuda.is_available())
 
 train_epochs = 30
