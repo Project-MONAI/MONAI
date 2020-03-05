@@ -32,7 +32,8 @@ TEST_CASES = [
              shear_range=[1, 2],
              translate_range=[2, 1],
              as_tensor_output=True,
-             device=None), {'img': torch.ones((1, 3, 3, 3)), 'spatial_size': (2, 2, 2)},
+             spatial_size=(2, 2, 2),
+             device=None), {'img': torch.ones((1, 3, 3, 3)), 'mode': 'bilinear'},
         torch.tensor([[[[1.0000, 0.7776], [0.4174, 0.0780]], [[0.0835, 1.0000], [0.3026, 0.5732]]]],)
     ],
     [

@@ -23,16 +23,16 @@ TEST_CASES = [
      np.ones((3, 2, 2))],
     [
         {'spacing': (.3, .3), 'magnitude_range': (1., 2.), 'prob': 0.9, 'as_tensor_output': False, 'device': None},
-        {'img': torch.ones((3, 3, 3)), 'spatial_size': (2, 2)},
+        {'img': torch.ones((3, 3, 3)), 'spatial_size': (2, 2), 'mode': 'bilinear'},
         np.array([[[0., 0.608901], [1., 0.5702355]], [[0., 0.608901], [1., 0.5702355]], [[0., 0.608901],
                                                                                          [1., 0.5702355]]]),
     ],
     [
         {
             'spacing': (1., 1.), 'magnitude_range': (1., 1.), 'scale_range': [1.2, 2.2], 'prob': 0.9, 'padding_mode':
-            'border', 'as_tensor_output': True, 'device': None
+            'border', 'as_tensor_output': True, 'device': None, 'spatial_size': (2, 2)
         },
-        {'img': torch.arange(27).reshape((3, 3, 3)), 'spatial_size': (2, 2)},
+        {'img': torch.arange(27).reshape((3, 3, 3))},
         torch.tensor([[[1.0849, 1.1180], [6.8100, 7.0265]], [[10.0849, 10.1180], [15.8100, 16.0265]],
                       [[19.0849, 19.1180], [24.8100, 25.0265]]]),
     ],

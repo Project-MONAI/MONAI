@@ -29,9 +29,9 @@ TEST_CASES = [
     [
         {
             'magnitude_range': (.3, .3), 'sigma_range': (1., 2.), 'prob': 0.9, 'rotate_range': [1, 1, 1],
-            'as_tensor_output': False, 'device': None
+            'as_tensor_output': False, 'device': None, 'spatial_size': (2, 2, 2)
         },
-        {'img': torch.arange(27).reshape((1, 3, 3, 3)), 'spatial_size': (2, 2, 2)},
+        {'img': torch.arange(27).reshape((1, 3, 3, 3)), 'mode': 'bilinear'},
         np.array([[[[6.016205, 2.3112855], [12.412318, 11.182229]], [[14.619441, 6.9230556], [17.23721, 16.506298]]]]),
     ],
 ]
