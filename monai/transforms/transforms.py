@@ -286,7 +286,7 @@ class Rotate90:
         self.plane_axes = axes
 
     def __call__(self, img):
-        return np.rot90(img, self.k, self.plane_axes)
+        return np.ascontiguousarray(np.rot90(img, self.k, self.plane_axes))
 
 
 @export
