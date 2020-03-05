@@ -203,3 +203,8 @@ class NiftiDatasetd(Dataset):
             data['label'] = label
         if len(compatible_meta) > 0:
             data.update(compatible_meta)
+
+        if self.transform is not None:
+            data = self.transform(data)
+
+        return data
