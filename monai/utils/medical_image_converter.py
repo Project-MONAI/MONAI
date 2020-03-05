@@ -231,7 +231,7 @@ if __name__ == '__main__':
                         # new_spacing = [np.float64(item) for item in new_spacing]
                         # solution 2
                         new_spacing = [customized_rounding(item, first_decimal_digit=first_decimal_digit,
-                                                              rounding_precision=rounding_precision) for item in spacing]
+                                                           rounding_precision=rounding_precision) for item in spacing]
                         _img.SetSpacing(new_spacing)
 
                         _img = resample_image(_img, target_res)
@@ -247,7 +247,7 @@ if __name__ == '__main__':
                     # new_spacing = [np.float64(item) for item in new_spacing]
                     # solution 2
                     new_spacing = [customized_rounding(item, first_decimal_digit=first_decimal_digit,
-                                                          rounding_precision=rounding_precision) for item in spacing]
+                                                       rounding_precision=rounding_precision) for item in spacing]
                     image.SetSpacing(new_spacing)
 
                     image = resample_image(image, target_res)
