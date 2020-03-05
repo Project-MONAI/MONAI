@@ -15,6 +15,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 import numpy as np
 import torch
+from skimage.transform import resize
 import scipy.ndimage
 
 import monai
@@ -79,6 +80,47 @@ class Flip:
 
     def __call__(self, img):
         return np.flip(img, self.axis)
+
+
+@export
+class Resize:
+    """
+    Resize the input image to given resolution. Uses skimage.transform.resize underneath.
+    For additional details, see https://scikit-image.org/docs/dev/api/skimage.transform.html#skimage.transform.resize.
+
+    Args:
+        order (int): Order of spline interpolation. Default=1.
+        mode (str): Points outside boundaries are filled according to given mode. 
+            Options are 'constant', 'edge', 'symmetric', 'reflect', 'wrap'.
+        cval (float): Used with mode 'constant', the value outside image boundaries.
+        clip (bool): Wheter to clip range of output values after interpolation. Default: True.
+        preserve_range (bool): Whether to keep original range of values. Default is True.
+            If False, input is converted according to conventions of img_as_float. See 
+            https://scikit-image.org/docs/dev/user_guide/data_types.html.
+        anti_aliasing (bool): Whether to apply a gaussian filter to image before down-scaling.
+            Default is True.
+        anti_aliasing_sigma (float, tuple of floats): Standard deviation for gaussian filtering.
+    """
+
+    def __init__(self, output_shape, order=1, mode='reflect', cval=0,
+                 clip=True, preserve_range=True, 
+                 anti_aliasing=True, anti_aliasing_sigma=None):
+        assert isinstance(order, int), "order must be integer."
+        self.output_shape = output_shape
+        self.order = order
+        self.mode = mode
+        self.cval = cval
+        self.clip = clip
+        self.preserve_range = preserve_range
+        self.anti_aliasing = anti_aliasing
+        self.anti_aliasing_sigma = anti_aliasing_sigma
+
+    def __call__(self, img):
+        return resize(img, self.output_shape, order=self.order,
+                      mode=self.mode, cval=self.cval,
+                      clip=self.clip, preserve_range=self.preserve_range,
+                      anti_aliasing=self.anti_aliasing, 
+                      anti_aliasing_sigma=self.anti_aliasing_sigma)
 
 
 @export
