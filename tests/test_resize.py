@@ -30,8 +30,9 @@ class ResizeTest(NumpyImageTestCase2D):
             resize(self.imt)
 
     @parameterized.expand([
-        ((64, 64, 3), 1, 'reflect', 0, True, True, True, None),
-        ((32, 32, 3), 2, 'constant', 1, False, False, False, None)
+        ((1, 1, 64, 64), 1, 'reflect', 0, True, True, True, None),
+        ((1, 1, 32, 32), 2, 'constant', 3, False, False, False, None),
+        ((1, 1, 256, 256), 3, 'constant', 3, False, False, False, None),
     ])
     def test_correct_results(self, output_shape, order, mode, 
                              cval, clip, preserve_range, 

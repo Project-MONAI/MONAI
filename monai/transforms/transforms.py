@@ -115,7 +115,7 @@ class Resize:
         self.anti_aliasing_sigma = anti_aliasing_sigma
 
     def __call__(self, img):
-        return resize(img, self.output_shape,
+        return resize(img, self.output_shape, order=self.order,
                       mode=self.mode, cval=self.cval,
                       clip=self.clip, preserve_range=self.preserve_range,
                       anti_aliasing=self.anti_aliasing, 
