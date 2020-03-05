@@ -14,8 +14,6 @@ import nibabel as nib
 
 from torch.utils.data import Dataset
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
-from monai.utils.constants import DataElementKey as Dek
-from monai.utils.constants import ImageProperty as Prop
 from monai.utils.module import export
 from monai.transforms.compose import Randomizable
 
@@ -42,14 +40,14 @@ def load_nifti(filename_or_obj, as_closest_canonical=False, image_only=True, dty
     img = nib.load(filename_or_obj)
 
     header = dict(img.header)
-    header[Prop.FILENAME_OR_OBJ] = filename_or_obj
-    header[Prop.ORIGINAL_AFFINE] = img.affine
-    header[Prop.AFFINE] = img.affine
-    header[Prop.AS_CLOSEST_CANONICAL] = as_closest_canonical
+    header['filename_or_obj'] = filename_or_obj
+    header['original_affine'] = img.affine
+    header['affine'] = img.affine
+    header['as_closest_canonical'] = as_closest_canonical
 
     if as_closest_canonical:
         img = nib.as_closest_canonical(img)
-        header[Prop.AFFINE] = img.affine
+        header['affine'] = img.affine
 
     if dtype is not None:
         dat = img.get_fdata(dtype=dtype)
@@ -108,6 +106,7 @@ class NiftiDataset(Dataset):
         else:
             img, meta_data = load_nifti(self.image_files[index], as_closest_canonical=self.as_closest_canonical,
                                         image_only=self.image_only, dtype=self.dtype)
+        target = None
         if self.seg_files is not None:
             target = load_nifti(self.seg_files[index])
         elif self.labels is not None:
@@ -145,7 +144,7 @@ class NiftiDatasetd(Dataset):
     specified for the dictionary data which is constructed by image, label and other metadata.
     """
 
-    def __init__(self, image_files, seg_files, as_closest_canonical=False, transform=None,
+    def __init__(self, image_files, seg_files=None, labels=None, as_closest_canonical=False, transform=None,
                  image_only=True, dtype=None):
         """
         Initializes the dataset with the image and segmentation filename lists. The transform `transform` is applied
@@ -153,7 +152,8 @@ class NiftiDatasetd(Dataset):
 
         Args:
             image_files (list of str): list of image filenames.
-            seg_files (list of str): list of segmentation filenames.
+            seg_files (list of str): if in segmentation task, list of segmentation filenames.
+            labels (list or array): if in classification task, list of classification labels.
             as_closest_canonical (bool): if True, load the image as closest to canonical orientation.
             transform (Callable, optional): dict transforms to excute operations on dictionary data.
             image_only (bool): if True return only the image volume, other return image volume and header dict.
@@ -165,6 +165,7 @@ class NiftiDatasetd(Dataset):
 
         self.image_files = image_files
         self.seg_files = seg_files
+        self.labels = labels
         self.as_closest_canonical = as_closest_canonical
         self.transform = transform
         self.image_only = image_only
@@ -181,7 +182,11 @@ class NiftiDatasetd(Dataset):
         else:
             img, meta_data = load_nifti(self.image_files[index], as_closest_canonical=self.as_closest_canonical,
                                         image_only=self.image_only, dtype=self.dtype)
-        seg = load_nifti(self.seg_files[index])
+        target = None
+        if self.seg_files is not None:
+            target = load_nifti(self.seg_files[index])
+        elif self.labels is not None:
+            target = self.labels[index]
 
         compatible_meta = {}
         if meta_data is not None:
@@ -194,8 +199,8 @@ class NiftiDatasetd(Dataset):
                 compatible_meta[meta_key] = meta_datum
 
         data = {
-            Dek.IMAGE: img,
-            Dek.LABEL: seg
+            'image': img,
+            'label': target
         }
         if len(compatible_meta) > 0:
             data.update(compatible_meta)
