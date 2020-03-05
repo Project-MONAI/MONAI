@@ -178,6 +178,67 @@ class Rotate:
 
 
 @export
+class Zoom:
+    """ Zooms a nd image. Uses scipy.ndimage.zoom or cupyx.scipy.ndimage.zoom in case of gpu. 
+    For details, please see https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.zoom.html.
+
+    Args:
+        zoom (float or sequence): The zoom factor along the axes. If a float, zoom is the same for each axis. 
+            If a sequence, zoom should contain one value for each axis.
+        order (int): order of interpolation. Default=3.
+        mode (str): Determines how input is extended beyond boundaries. Default is 'constant'.
+        cval (scalar, optional): Value to fill past edges. Default is 0.
+        use_gpu (bool): Should use cpu or gpu.
+        keep_size (bool): Should keep original size (pad if needed).
+    """
+    def __init__(self, zoom, order=3, mode='constant', cval=0, prefilter=True, use_gpu=False, keep_size=False):
+        assert isinstance(order, int), "Order must be integer."
+        self.zoom = zoom
+        self.order = order
+        self.mode = mode
+        self.cval = cval
+        self.prefilter = prefilter
+        self.use_gpu = use_gpu
+        self.keep_size = keep_size
+
+    def __call__(self, img):
+        zoomed = None
+        if self.use_gpu:
+            try:
+                import cupy
+                from cupyx.scipy.ndimage import zoom as zoom_gpu
+
+                zoomed_gpu = zoom_gpu(cupy.array(img), zoom=self.zoom, order=self.order,
+                                      mode=self.mode, cval=self.cval, prefilter=self.prefilter)
+                zoomed = cupy.asnumpy()
+            except ModuleNotFoundError:
+                print('For GPU zoom, please install cupy. Defaulting to cpu.')
+            except Exception:
+                print('Warning: Zoom gpu failed. Defaulting to cpu.')
+
+        if not zoomed or not self.use_gpu:
+            zoomed = scipy.ndimage.zoom(img, zoom=self.zoom, order=self.order,
+                                        mode=self.mode, cval=self.cval, prefilter=self.prefilter)
+
+        # Crops to original size or pads.
+        if self.keep_size:
+            shape = img.shape
+            pad_vec = [[0, 0]] * len(shape)
+            crop_vec = list(zoomed.shape)
+            for d in range(len(shape)):
+                if zoomed.shape[d] > shape[d]:
+                    crop_vec[d] = shape[d]
+                elif zoomed.shape[d] < shape[d]:
+                    # pad_vec[d] = [0, shape[d] - zoomed.shape[d]]
+                    pad_h = (float(shape[d]) - float(zoomed.shape[d])) / 2
+                    pad_vec[d] = [int(np.floor(pad_h)), int(np.ceil(pad_h))]
+            zoomed = zoomed[0:crop_vec[0], 0:crop_vec[1], 0:crop_vec[2]]
+            zoomed = np.pad(zoomed, pad_vec, mode='constant', constant_values=self.cval)
+
+        return zoomed
+
+
+@export
 class ToTensor:
     """
     Converts the input image to a tensor without applying any other transformations.
