@@ -144,8 +144,7 @@ class NiftiDatasetd(Dataset):
     specified for the dictionary data which is constructed by image, label and other metadata.
     """
 
-    def __init__(self, image_files, seg_files=None, labels=None, as_closest_canonical=False, transform=None,
-                 image_only=True, dtype=None):
+    def __init__(self, image_files, seg_files=None, labels=None, as_closest_canonical=False, transform=None, dtype=None):
         """
         Initializes the dataset with the image and segmentation filename lists. The transform `transform` is applied
         to the images and `seg_transform` to the segmentations.
@@ -156,7 +155,6 @@ class NiftiDatasetd(Dataset):
             labels (list or array): if in classification task, list of classification labels.
             as_closest_canonical (bool): if True, load the image as closest to canonical orientation.
             transform (Callable, optional): dict transforms to excute operations on dictionary data.
-            image_only (bool): if True return only the image volume, other return image volume and header dict.
             dtype (np.dtype, optional): if not None convert the loaded image to this data type.
         """
 
@@ -168,7 +166,6 @@ class NiftiDatasetd(Dataset):
         self.labels = labels
         self.as_closest_canonical = as_closest_canonical
         self.transform = transform
-        self.image_only = image_only
         self.dtype = dtype
 
     def __len__(self):
@@ -176,32 +173,34 @@ class NiftiDatasetd(Dataset):
 
     def __getitem__(self, index):
         meta_data = None
-        if self.image_only:
-            img = load_nifti(self.image_files[index], as_closest_canonical=self.as_closest_canonical,
-                             image_only=self.image_only, dtype=self.dtype)
-        else:
-            img, meta_data = load_nifti(self.image_files[index], as_closest_canonical=self.as_closest_canonical,
-                                        image_only=self.image_only, dtype=self.dtype)
-        target = None
+        img, meta_data = load_nifti(
+            filename_or_obj=self.image_files[index],
+            as_closest_canonical=self.as_closest_canonical,
+            image_only=False,
+            dtype=self.dtype
+        )
+
+        seg = None
         if self.seg_files is not None:
-            target = load_nifti(self.seg_files[index])
-        elif self.labels is not None:
-            target = self.labels[index]
+            seg = load_nifti(self.seg_files[index])
+        label = None
+        if self.labels is not None:
+            label = self.labels[index]
 
         compatible_meta = {}
-        if meta_data is not None:
-            assert isinstance(meta_data, dict), 'meta_data must be in dictionary format.'
-            for meta_key in meta_data:
-                meta_datum = meta_data[meta_key]
-                if type(meta_datum).__name__ == 'ndarray' \
-                        and np_str_obj_array_pattern.search(meta_datum.dtype.str) is not None:
-                    continue
-                compatible_meta[meta_key] = meta_datum
+        assert isinstance(meta_data, dict), 'meta_data must be in dictionary format.'
+        for meta_key in meta_data:
+            meta_datum = meta_data[meta_key]
+            if type(meta_datum).__name__ == 'ndarray' \
+                    and np_str_obj_array_pattern.search(meta_datum.dtype.str) is not None:
+                continue
+            compatible_meta[meta_key] = meta_datum
 
-        data = {
-            'image': img,
-            'label': target
-        }
+        data = {'image': img}
+        if seg is not None:
+            data['seg'] = seg
+        if label is not None:
+            data['label'] = label
         if len(compatible_meta) > 0:
             data.update(compatible_meta)
 

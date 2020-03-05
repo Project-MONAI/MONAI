@@ -55,15 +55,15 @@ segs = sorted(glob(os.path.join(tempdir, 'seg*.nii.gz')))
 
 # Define transforms for image and segmentation
 transforms = transforms.Compose([
-    AddChanneld(keys=['image', 'label']),
-    RandRotate90d(keys=['image', 'label'], prob=0.8, axes=[1, 3])
+    AddChanneld(keys=['image', 'seg']),
+    RandRotate90d(keys=['image', 'seg'], prob=0.8, axes=[1, 3])
 ])
 
 # Define nifti dataset, dataloader.
 ds = NiftiDatasetd(images, segs, transform=transforms)
 loader = DataLoader(ds, batch_size=10, num_workers=2, pin_memory=torch.cuda.is_available())
 check_data = monai.utils.misc.first(loader)
-print(check_data['image'].shape, check_data['label'].shape)
+print(check_data['image'].shape, check_data['seg'].shape)
 
 lr = 1e-5
 
@@ -88,7 +88,7 @@ def _loss_fn(i, j):
 
 # Create trainer
 def prepare_batch(batch, device=None, non_blocking=False):
-    return _prepare_batch((batch['image'], batch['label']), device, non_blocking)
+    return _prepare_batch((batch['image'], batch['seg']), device, non_blocking)
 
 
 device = torch.device("cuda:0")
@@ -111,26 +111,26 @@ def log_training_loss(engine):
     writer.add_scalar('Loss/train', engine.state.output[1], engine.state.epoch)
 
     # tensor of ones to use where for converting labels to zero and ones
-    ones = torch.ones(engine.state.batch['label'][0].shape, dtype=torch.int32)
+    ones = torch.ones(engine.state.batch['seg'][0].shape, dtype=torch.int32)
     first_output_tensor = engine.state.output[0][1][0].detach().cpu()
     # log model output to tensorboard, as three dimensional tensor with no channels dimension
     img2tensorboard.add_animated_gif_no_channels(writer, "first_output_final_batch", first_output_tensor, 64,
                                                  255, engine.state.epoch)
     # get label tensor and convert to single class
-    first_label_tensor = torch.where(engine.state.batch['label'][0] > 0, ones, engine.state.batch['label'][0])
+    first_label_tensor = torch.where(engine.state.batch['seg'][0] > 0, ones, engine.state.batch['seg'][0])
     # log label tensor to tensorboard, there is a channel dimension when getting label from batch
     img2tensorboard.add_animated_gif(writer, "first_label_final_batch", first_label_tensor, 64,
                                      255, engine.state.epoch)
     second_output_tensor = engine.state.output[0][1][1].detach().cpu()
     img2tensorboard.add_animated_gif_no_channels(writer, "second_output_final_batch", second_output_tensor, 64,
                                                  255, engine.state.epoch)
-    second_label_tensor = torch.where(engine.state.batch['label'][1] > 0, ones, engine.state.batch['label'][1])
+    second_label_tensor = torch.where(engine.state.batch['seg'][1] > 0, ones, engine.state.batch['seg'][1])
     img2tensorboard.add_animated_gif(writer, "second_label_final_batch", second_label_tensor, 64,
                                      255, engine.state.epoch)
     third_output_tensor = engine.state.output[0][1][2].detach().cpu()
     img2tensorboard.add_animated_gif_no_channels(writer, "third_output_final_batch", third_output_tensor, 64,
                                                  255, engine.state.epoch)
-    third_label_tensor = torch.where(engine.state.batch['label'][2] > 0, ones, engine.state.batch['label'][2])
+    third_label_tensor = torch.where(engine.state.batch['seg'][2] > 0, ones, engine.state.batch['seg'][2])
     img2tensorboard.add_animated_gif(writer, "third_label_final_batch", third_label_tensor, 64,
                                      255, engine.state.epoch)
     engine.logger.info("Epoch[%s] Loss: %s", engine.state.epoch, engine.state.output[1])
