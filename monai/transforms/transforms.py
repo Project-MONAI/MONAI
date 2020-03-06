@@ -88,6 +88,25 @@ class LoadNifti:
 
 
 @export
+class ChangeToChannelFirst:
+    """
+    Change the channel dimension of the image to the first dimension.
+    Args:
+        channel_dim (int): which dimension of input image is the channel, default is the last dimension.
+    """
+
+    def __init__(self, channel_dim=-1):
+        self.channel_dim = channel_dim
+
+    def __call__(self, img):
+        if self.channel_dim == -1:
+            self.channel_dim = img.ndim - 1
+        axes = list(range(img.ndim))
+        axes.remove(self.channel_dim)
+        return np.transpose(img, [self.channel_dim] + axes)
+
+
+@export
 class AddChannel:
     """
     Adds a 1-length channel dimension to the input image.

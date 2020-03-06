@@ -78,7 +78,7 @@ class DiceLoss(_Loss):
         intersection = psum * tsum
         sums = psum + tsum
 
-        score = 2.0 * (intersection.sum(2) + smooth) / (sums.sum(2) + smooth)
+        score = 2.0 * (intersection.sum(2)) / (sums.sum(2) + smooth)
         return 1 - score.mean()
 
 

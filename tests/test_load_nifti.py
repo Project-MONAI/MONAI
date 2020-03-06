@@ -11,39 +11,40 @@
 
 import unittest
 import os
+import shutil
 import numpy as np
+import tempfile
 import nibabel as nib
 from parameterized import parameterized
 from monai.transforms.transforms import LoadNifti
 
-TEST_CASE_1 = [
+TEST_CASE_IMAGE_ONLY = [
     {
         'as_closest_canonical': False,
         'image_only': True
     },
-    'test_image.nii.gz',
     (128, 128, 128)
 ]
 
-TEST_CASE_2 = [
+TEST_CASE_IMAGE_METADATA = [
     {
         'as_closest_canonical': False,
         'image_only': False
     },
-    'test_image.nii.gz',
     (128, 128, 128)
 ]
 
 
 class TestLoadNifti(unittest.TestCase):
 
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
-    def test_shape(self, input_param, input_data, expected_shape):
+    @parameterized.expand([TEST_CASE_IMAGE_ONLY, TEST_CASE_IMAGE_METADATA])
+    def test_shape(self, input_param, expected_shape):
         test_image = np.random.randint(0, 2, size=[128, 128, 128])
-        nib.save(nib.Nifti1Image(test_image, np.eye(4)), 'test_image.nii.gz')
-        result = LoadNifti(**input_param)(input_data)
-        if os.path.exists('test_image.nii.gz'):
-            os.remove('test_image.nii.gz')
+        tempdir = tempfile.mkdtemp()
+        nib.save(nib.Nifti1Image(test_image, np.eye(4)), os.path.join(tempdir, 'test_image.nii.gz'))
+        test_data = os.path.join(tempdir, 'test_image.nii.gz')
+        result = LoadNifti(**input_param)(test_data)
+        shutil.rmtree(tempdir)
         if isinstance(result, tuple):
             result = result[0]
         self.assertTupleEqual(result.shape, expected_shape)

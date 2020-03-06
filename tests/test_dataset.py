@@ -11,28 +11,15 @@
 
 import unittest
 import os
+import shutil
 import numpy as np
+import tempfile
 import nibabel as nib
 from parameterized import parameterized
 from monai.data.dataset import Dataset
 from monai.transforms.composables import LoadNiftid
 
 TEST_CASE_1 = [
-    {
-        'data': [
-            {
-                'image': 'test_image1.nii.gz',
-                'label': 'test_label1.nii.gz',
-                'extra': 'test_extra1.nii.gz'
-            },
-            {
-                'image': 'test_image2.nii.gz',
-                'label': 'test_label2.nii.gz',
-                'extra': 'test_extra2.nii.gz'
-            }
-        ],
-        'transform': LoadNiftid(keys=['image', 'label', 'extra'])
-    },
     (128, 128, 128)
 ]
 
@@ -40,29 +27,31 @@ TEST_CASE_1 = [
 class TestDataset(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_1])
-    def test_shape(self, input_param, expected_shape):
+    def test_shape(self, expected_shape):
         test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]), np.eye(4))
-        nib.save(test_image, 'test_image1.nii.gz')
-        nib.save(test_image, 'test_label1.nii.gz')
-        nib.save(test_image, 'test_extra1.nii.gz')
-        nib.save(test_image, 'test_image2.nii.gz')
-        nib.save(test_image, 'test_label2.nii.gz')
-        nib.save(test_image, 'test_extra2.nii.gz')
-        dataset = Dataset(**input_param)
+        tempdir = tempfile.mkdtemp()
+        nib.save(test_image, os.path.join(tempdir, 'test_image1.nii.gz'))
+        nib.save(test_image, os.path.join(tempdir, 'test_label1.nii.gz'))
+        nib.save(test_image, os.path.join(tempdir, 'test_extra1.nii.gz'))
+        nib.save(test_image, os.path.join(tempdir, 'test_image2.nii.gz'))
+        nib.save(test_image, os.path.join(tempdir, 'test_label2.nii.gz'))
+        nib.save(test_image, os.path.join(tempdir, 'test_extra2.nii.gz'))
+        test_data = [
+            {
+                'image': os.path.join(tempdir, 'test_image1.nii.gz'),
+                'label': os.path.join(tempdir, 'test_label1.nii.gz'),
+                'extra': os.path.join(tempdir, 'test_extra1.nii.gz')
+            },
+            {
+                'image': os.path.join(tempdir, 'test_image2.nii.gz'),
+                'label': os.path.join(tempdir, 'test_label2.nii.gz'),
+                'extra': os.path.join(tempdir, 'test_extra2.nii.gz')
+            }
+        ]
+        dataset = Dataset(data=test_data, transform=LoadNiftid(keys=['image', 'label', 'extra']))
         data1 = dataset[0]
         data2 = dataset[1]
-        if os.path.exists('test_image1.nii.gz'):
-            os.remove('test_image1.nii.gz')
-        if os.path.exists('test_label1.nii.gz'):
-            os.remove('test_label1.nii.gz')
-        if os.path.exists('test_extra1.nii.gz'):
-            os.remove('test_extra1.nii.gz')
-        if os.path.exists('test_image2.nii.gz'):
-            os.remove('test_image2.nii.gz')
-        if os.path.exists('test_label2.nii.gz'):
-            os.remove('test_label2.nii.gz')
-        if os.path.exists('test_extra2.nii.gz'):
-            os.remove('test_extra2.nii.gz')
+        shutil.rmtree(tempdir)
         self.assertTupleEqual(data1['image'].shape, expected_shape)
         self.assertTupleEqual(data1['label'].shape, expected_shape)
         self.assertTupleEqual(data1['extra'].shape, expected_shape)

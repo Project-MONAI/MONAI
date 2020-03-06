@@ -10,39 +10,45 @@
 # limitations under the License.
 
 import unittest
-import os
-import shutil
 import numpy as np
-import tempfile
-import nibabel as nib
 from parameterized import parameterized
-from monai.transforms.composables import LoadNiftid
+from monai.transforms.composables import ChangeToChannelFirstd
 
 TEST_CASE_1 = [
     {
         'keys': ['image', 'label', 'extra'],
-        'as_closest_canonical': False
+        'channel_dim': -1
     },
-    (128, 128, 128)
+    (4, 1, 2, 3)
+]
+
+TEST_CASE_2 = [
+    {
+        'keys': ['image', 'label', 'extra'],
+        'channel_dim': 3
+    },
+    (4, 1, 2, 3)
+]
+
+TEST_CASE_3 = [
+    {
+        'keys': ['image', 'label', 'extra'],
+        'channel_dim': 2
+    },
+    (3, 1, 2, 4)
 ]
 
 
-class TestLoadNiftid(unittest.TestCase):
+class TestChangeToChannelFirstd(unittest.TestCase):
 
-    @parameterized.expand([TEST_CASE_1])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_shape(self, input_param, expected_shape):
-        test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]), np.eye(4))
-        tempdir = tempfile.mkdtemp()
-        nib.save(test_image, os.path.join(tempdir, 'test_image.nii.gz'))
-        nib.save(test_image, os.path.join(tempdir, 'test_label.nii.gz'))
-        nib.save(test_image, os.path.join(tempdir, 'test_extra.nii.gz'))
         test_data = {
-            'image': os.path.join(tempdir, 'test_image.nii.gz'),
-            'label': os.path.join(tempdir, 'test_label.nii.gz'),
-            'extra': os.path.join(tempdir, 'test_extra.nii.gz')
+            'image': np.random.randint(0, 2, size=[1, 2, 3, 4]),
+            'label': np.random.randint(0, 2, size=[1, 2, 3, 4]),
+            'extra': np.random.randint(0, 2, size=[1, 2, 3, 4])
         }
-        result = LoadNiftid(**input_param)(test_data)
-        shutil.rmtree(tempdir)
+        result = ChangeToChannelFirstd(**input_param)(test_data)
         self.assertTupleEqual(result['image'].shape, expected_shape)
         self.assertTupleEqual(result['label'].shape, expected_shape)
         self.assertTupleEqual(result['extra'].shape, expected_shape)

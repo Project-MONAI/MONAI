@@ -14,7 +14,7 @@ import numpy as np
 from monai.transforms.utils import rescale_array
 
 
-def create_test_image_2d(width, height, num_objs=12, rad_max=30, noise_max=0.0, num_seg_classes=5):
+def create_test_image_2d(width, height, channel_dim=None, num_objs=12, rad_max=30, noise_max=0.0, num_seg_classes=5):
     """
     Return a noisy 2D image with `numObj' circles and a 2D mask image. The maximum radius of the circles is given as
     `radMax'. The mask will have `numSegClasses' number of classes for segmentations labeled sequentially from 1, plus a
@@ -40,10 +40,16 @@ def create_test_image_2d(width, height, num_objs=12, rad_max=30, noise_max=0.0, 
     norm = np.random.uniform(0, num_seg_classes * noise_max, size=image.shape)
     noisyimage = rescale_array(np.maximum(image, norm))
 
+    if channel_dim is not None:
+        assert isinstance(channel_dim, int) and channel_dim in (-1, 0, 2), 'invalid channel dim.'
+        noisyimage, labels = noisyimage[None], labels[None] \
+            if channel_dim == 0 else noisyimage[..., None], labels[..., None]
+
     return noisyimage, labels
 
 
-def create_test_image_3d(height, width, depth, num_objs=12, rad_max=30, noise_max=0.0, num_seg_classes=5):
+def create_test_image_3d(height, width, depth, channel_dim=None, num_objs=12,
+                         rad_max=30, noise_max=0.0, num_seg_classes=5):
     """
     Return a noisy 3D image and segmentation.
 
@@ -68,5 +74,10 @@ def create_test_image_3d(height, width, depth, num_objs=12, rad_max=30, noise_ma
 
     norm = np.random.uniform(0, num_seg_classes * noise_max, size=image.shape)
     noisyimage = rescale_array(np.maximum(image, norm))
+
+    if channel_dim is not None:
+        assert isinstance(channel_dim, int) and channel_dim in (-1, 0, 3), 'invalid channel dim.'
+        noisyimage, labels = (noisyimage[None], labels[None]) \
+            if channel_dim == 0 else (noisyimage[..., None], labels[..., None])
 
     return noisyimage, labels
