@@ -17,10 +17,10 @@ import numpy as np
 import torch
 from skimage.transform import resize
 import scipy.ndimage
-from scipy.ndimage.filters import gaussian_filter
 
 import monai
 from monai.data.utils import get_random_patch, get_valid_patch_size
+from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.compose import Randomizable
 from monai.transforms.utils import (create_control_grid, create_grid, create_rotate, create_scale, create_shear,
                                     create_translate, rescale_array)
@@ -182,11 +182,11 @@ class Rotate:
 
 @export
 class Zoom:
-    """ Zooms a nd image. Uses scipy.ndimage.zoom or cupyx.scipy.ndimage.zoom in case of gpu. 
+    """ Zooms a nd image. Uses scipy.ndimage.zoom or cupyx.scipy.ndimage.zoom in case of gpu.
     For details, please see https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.zoom.html.
 
     Args:
-        zoom (float or sequence): The zoom factor along the axes. If a float, zoom is the same for each axis. 
+        zoom (float or sequence): The zoom factor along the axes. If a float, zoom is the same for each axis.
             If a sequence, zoom should contain one value for each axis.
         order (int): order of interpolation. Default=3.
         mode (str): Determines how input is extended beyond boundaries. Default is 'constant'.
@@ -894,6 +894,7 @@ class Rand3DElastic(Randomizable):
         self.magnitude_range = magnitude_range
         self.spatial_size = spatial_size
         self.mode = mode
+        self.device = device
 
         self.prob = prob
         self.do_transform = False
@@ -925,8 +926,9 @@ class Rand3DElastic(Randomizable):
         self.randomize(spatial_size)
         grid = create_grid(spatial_size)
         if self.do_transform:
-            for i in range(3):
-                grid[i] += gaussian_filter(self.rand_offset[i], self.sigma, mode='constant', cval=0) * self.magnitude
+            grid = torch.tensor(grid).to(self.device)
+            gaussian = GaussianFilter(3, self.sigma, 3., device=self.device)
+            grid[:3] += gaussian(self.rand_offset[None])[0] * self.magnitude
             grid = self.rand_affine_grid(grid=grid)
         return self.resampler(img, grid, mode)
 
