@@ -441,10 +441,27 @@ class SpatialCrop:
         return data
 
 
-# if __name__ == "__main__":
-#     img = np.array((1, 2, 3, 4)).reshape((1, 2, 2))
-#     rotator = RandRotate90(prob=0.0, max_k=3, axes=(1, 2))
-#     # rotator.set_random_state(1234)
-#     img_result = rotator(img)
-#     print(type(img))
-#     print(img_result)
+@export
+class RandomFlip(Randomizable):
+    """Randomly flips the image along axes.
+
+    Args:
+        prob (float): Probability of flipping.
+        axes (None, int or tuple of ints): Axes along which to flip over. Default is None.
+    """
+
+    def __init__(self, prob=0.1, axis=None):
+        self.axis = axis
+        self.prob = prob
+
+        self._do_transform = False
+
+    def randomize(self):
+        self._do_transform = self.R.random_sample() < self.prob
+
+    def __call__(self, img):
+        self.randomize()
+        if not self._do_transform:
+            return img
+        flipper = Flip(axis=self.axis)
+        return flipper(img)
