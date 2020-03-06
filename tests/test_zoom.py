@@ -12,6 +12,8 @@
 import unittest
 
 import numpy as np
+import importlib
+
 from scipy.ndimage import zoom as zoom_scipy
 from parameterized import parameterized
 
@@ -35,15 +37,16 @@ class ZoomTest(NumpyImageTestCase2D):
         self.assertTrue(np.allclose(expected, zoomed))
 
     @parameterized.expand([
-        ("gpu_zoom", 0.6, 3, 'constant', 0, True)
+        ("gpu_zoom", 0.6, 1, 'constant', 0, True)
     ])
     def test_gpu_zoom(self, _, zoom, order, mode, cval, prefilter):
-        zoom_fn = Zoom(zoom=zoom, order=order, mode=mode, cval=cval,
-                       prefilter=prefilter, use_gpu=True, keep_size=False)
-        zoomed = zoom_fn(self.imt)
-        expected = zoom_scipy(self.imt, zoom=zoom, mode=mode, order=order,
-                              cval=cval, prefilter=prefilter)
-        self.assertTrue(np.allclose(expected, zoomed))
+        if importlib.util.find_spec('cupy'):
+            zoom_fn = Zoom(zoom=zoom, order=order, mode=mode, cval=cval,
+                           prefilter=prefilter, use_gpu=True, keep_size=False)
+            zoomed = zoom_fn(self.imt)
+            expected = zoom_scipy(self.imt, zoom=zoom, mode=mode, order=order,
+                                  cval=cval, prefilter=prefilter)
+            self.assertTrue(np.allclose(expected, zoomed))
 
     def test_keep_size(self):
         zoom_fn = Zoom(zoom=0.6, keep_size=True)
