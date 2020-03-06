@@ -15,6 +15,8 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 import numpy as np
 import torch
+from skimage.transform import resize
+import scipy.ndimage
 
 import monai
 from monai.data.utils import get_random_patch, get_valid_patch_size
@@ -63,6 +65,24 @@ class Rescale:
 
 
 @export
+class GaussianNoise(Randomizable):
+    """Add gaussian noise to image.
+
+    Args:
+        mean (float or array of floats): Mean or “centre” of the distribution.
+        scale (float): Standard deviation (spread) of distribution.
+        size (int or tuple of ints): Output shape. Default: None (single value is returned).
+    """
+
+    def __init__(self, mean=0.0, std=0.1):
+        self.mean = mean
+        self.std = std
+
+    def __call__(self, img):
+        return img + self.R.normal(self.mean, self.R.uniform(0, self.std), size=img.shape)
+
+
+@export
 class Flip:
     """Reverses the order of elements along the given axis. Preserves shape.
     Uses np.flip in practice. See numpy.flip for additional details.
@@ -81,6 +101,144 @@ class Flip:
 
 
 @export
+class Resize:
+    """
+    Resize the input image to given resolution. Uses skimage.transform.resize underneath.
+    For additional details, see https://scikit-image.org/docs/dev/api/skimage.transform.html#skimage.transform.resize.
+
+    Args:
+        order (int): Order of spline interpolation. Default=1.
+        mode (str): Points outside boundaries are filled according to given mode. 
+            Options are 'constant', 'edge', 'symmetric', 'reflect', 'wrap'.
+        cval (float): Used with mode 'constant', the value outside image boundaries.
+        clip (bool): Wheter to clip range of output values after interpolation. Default: True.
+        preserve_range (bool): Whether to keep original range of values. Default is True.
+            If False, input is converted according to conventions of img_as_float. See 
+            https://scikit-image.org/docs/dev/user_guide/data_types.html.
+        anti_aliasing (bool): Whether to apply a gaussian filter to image before down-scaling.
+            Default is True.
+        anti_aliasing_sigma (float, tuple of floats): Standard deviation for gaussian filtering.
+    """
+
+    def __init__(self, output_shape, order=1, mode='reflect', cval=0,
+                 clip=True, preserve_range=True, 
+                 anti_aliasing=True, anti_aliasing_sigma=None):
+        assert isinstance(order, int), "order must be integer."
+        self.output_shape = output_shape
+        self.order = order
+        self.mode = mode
+        self.cval = cval
+        self.clip = clip
+        self.preserve_range = preserve_range
+        self.anti_aliasing = anti_aliasing
+        self.anti_aliasing_sigma = anti_aliasing_sigma
+
+    def __call__(self, img):
+        return resize(img, self.output_shape, order=self.order,
+                      mode=self.mode, cval=self.cval,
+                      clip=self.clip, preserve_range=self.preserve_range,
+                      anti_aliasing=self.anti_aliasing, 
+                      anti_aliasing_sigma=self.anti_aliasing_sigma)
+
+
+@export
+class Rotate:
+    """
+    Rotates an input image by given angle. Uses scipy.ndimage.rotate. For more details, see
+    http://lagrange.univ-lyon1.fr/docs/scipy/0.17.1/generated/scipy.ndimage.rotate.html.
+
+    Args:
+        angle (float): Rotation angle in degrees.
+        axes (tuple of 2 ints): Axes of rotation. Default: (1, 2). This is the first two
+            axis in spatial dimensions according to MONAI channel first shape assumption.
+        reshape (bool): If true, output shape is made same as input. Default: True.
+        order (int): Order of spline interpolation. Range 0-5. Default: 1. This is
+            different from scipy where default interpolation is 3.
+        mode (str): Points outside boundary filled according to this mode. Options are 
+            'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
+        cval (scalar): Values to fill outside boundary. Default: 0.
+        prefiter (bool): Apply spline_filter before interpolation. Default: True.
+    """
+
+    def __init__(self, angle, axes=(1, 2), reshape=True, order=1, 
+                 mode='constant', cval=0, prefilter=True):
+        self.angle = angle
+        self.reshape = reshape
+        self.order = order
+        self.mode = mode
+        self.cval = cval
+        self.prefilter = prefilter
+        self.axes = axes
+
+    def __call__(self, img):
+        return scipy.ndimage.rotate(img, self.angle, self.axes,
+                                    reshape=self.reshape, order=self.order, 
+                                    mode=self.mode, cval=self.cval, 
+                                    prefilter=self.prefilter)
+
+
+@export
+class Zoom:
+    """ Zooms a nd image. Uses scipy.ndimage.zoom or cupyx.scipy.ndimage.zoom in case of gpu. 
+    For details, please see https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.zoom.html.
+
+    Args:
+        zoom (float or sequence): The zoom factor along the axes. If a float, zoom is the same for each axis. 
+            If a sequence, zoom should contain one value for each axis.
+        order (int): order of interpolation. Default=3.
+        mode (str): Determines how input is extended beyond boundaries. Default is 'constant'.
+        cval (scalar, optional): Value to fill past edges. Default is 0.
+        use_gpu (bool): Should use cpu or gpu.
+        keep_size (bool): Should keep original size (pad if needed).
+    """
+    def __init__(self, zoom, order=3, mode='constant', cval=0, prefilter=True, use_gpu=False, keep_size=False):
+        assert isinstance(order, int), "Order must be integer."
+        self.zoom = zoom
+        self.order = order
+        self.mode = mode
+        self.cval = cval
+        self.prefilter = prefilter
+        self.use_gpu = use_gpu
+        self.keep_size = keep_size
+
+    def __call__(self, img):
+        zoomed = None
+        if self.use_gpu:
+            try:
+                import cupy
+                from cupyx.scipy.ndimage import zoom as zoom_gpu
+
+                zoomed_gpu = zoom_gpu(cupy.array(img), zoom=self.zoom, order=self.order,
+                                      mode=self.mode, cval=self.cval, prefilter=self.prefilter)
+                zoomed = cupy.asnumpy()
+            except ModuleNotFoundError:
+                print('For GPU zoom, please install cupy. Defaulting to cpu.')
+            except Exception:
+                print('Warning: Zoom gpu failed. Defaulting to cpu.')
+
+        if not zoomed or not self.use_gpu:
+            zoomed = scipy.ndimage.zoom(img, zoom=self.zoom, order=self.order,
+                                        mode=self.mode, cval=self.cval, prefilter=self.prefilter)
+
+        # Crops to original size or pads.
+        if self.keep_size:
+            shape = img.shape
+            pad_vec = [[0, 0]] * len(shape)
+            crop_vec = list(zoomed.shape)
+            for d in range(len(shape)):
+                if zoomed.shape[d] > shape[d]:
+                    crop_vec[d] = shape[d]
+                elif zoomed.shape[d] < shape[d]:
+                    # pad_vec[d] = [0, shape[d] - zoomed.shape[d]]
+                    pad_h = (float(shape[d]) - float(zoomed.shape[d])) / 2
+                    pad_vec[d] = [int(np.floor(pad_h)), int(np.ceil(pad_h))]
+            zoomed = zoomed[0:crop_vec[0], 0:crop_vec[1], 0:crop_vec[2]]
+            zoomed = np.pad(zoomed, pad_vec, mode='constant', constant_values=self.cval)
+
+        return zoomed
+
+
+@export
 class ToTensor:
     """
     Converts the input image to a tensor without applying any other transformations.
@@ -91,7 +249,7 @@ class ToTensor:
 
 
 @export
-class UniformRandomPatch:
+class UniformRandomPatch(Randomizable):
     """
     Selects a patch of the given size chosen at a uniformly random position in the image.
     """
@@ -99,11 +257,15 @@ class UniformRandomPatch:
     def __init__(self, patch_size):
         self.patch_size = (None,) + tuple(patch_size)
 
+        self._slices = None
+
+    def randomize(self, image_shape, patch_shape):
+        self._slices = get_random_patch(image_shape, patch_shape, self.R)
+
     def __call__(self, img):
         patch_size = get_valid_patch_size(img.shape, self.patch_size)
-        slices = get_random_patch(img.shape, patch_size)
-
-        return img[slices]
+        self.randomize(img.shape, patch_size)
+        return img[self._slices]
 
 
 @export
@@ -185,7 +347,7 @@ class Rotate90:
         self.plane_axes = axes
 
     def __call__(self, img):
-        return np.rot90(img, self.k, self.plane_axes)
+        return np.ascontiguousarray(np.rot90(img, self.k, self.plane_axes))
 
 
 @export
@@ -212,16 +374,70 @@ class RandRotate90(Randomizable):
         self._do_transform = False
         self._rand_k = 0
 
-    def randomise(self):
+    def randomize(self):
         self._rand_k = self.R.randint(self.max_k) + 1
         self._do_transform = self.R.random() < self.prob
 
     def __call__(self, img):
-        self.randomise()
+        self.randomize()
         if not self._do_transform:
             return img
         rotator = Rotate90(self._rand_k, self.axes)
         return rotator(img)
+
+
+@export
+class SpatialCrop:
+    """General purpose cropper to produce sub-volume region of interest (ROI).
+    It can support to crop 1, 2 or 3 dimensions spatial data.
+    Either a center and size must be provided, or alternatively if center and size
+    are not provided, the start and end coordinates of the ROI must be provided.
+    The sub-volume must sit the within original image.
+
+    Note: This transform will not work if the crop region is larger than the image itself.
+    """
+
+    def __init__(self, roi_center=None, roi_size=None, roi_start=None, roi_end=None):
+        """
+        Args:
+            roi_center (list or tuple): voxel coordinates for center of the crop ROI.
+            roi_size (list or tuple): size of the crop ROI.
+            roi_start (list or tuple): voxel coordinates for start of the crop ROI.
+            roi_end (list or tuple): voxel coordinates for end of the crop ROI.
+        """
+        if roi_center is not None and roi_size is not None:
+            assert isinstance(roi_center, (list, tuple)), 'roi_center must be list or tuple.'
+            assert isinstance(roi_size, (list, tuple)), 'roi_size must be list or tuple.'
+            assert all(x > 0 for x in roi_center), 'all elements of roi_center must be positive.'
+            assert all(x > 0 for x in roi_size), 'all elements of roi_size must be positive.'
+            roi_center = np.asarray(roi_center, dtype=np.uint16)
+            roi_size = np.asarray(roi_size, dtype=np.uint16)
+            self.roi_start = np.subtract(roi_center, np.floor_divide(roi_size, 2))
+            self.roi_end = np.add(self.roi_start, roi_size)
+        else:
+            assert roi_start is not None and roi_end is not None, 'roi_start and roi_end must be provided.'
+            assert isinstance(roi_start, (list, tuple)), 'roi_start must be list or tuple.'
+            assert isinstance(roi_end, (list, tuple)), 'roi_end must be list or tuple.'
+            assert all(x >= 0 for x in roi_start), 'all elements of roi_start must be greater than or equal to 0.'
+            assert all(x > 0 for x in roi_end), 'all elements of roi_end must be positive.'
+            self.roi_start = roi_start
+            self.roi_end = roi_end
+
+    def __call__(self, img):
+        max_end = img.shape[1:]
+        assert (np.subtract(max_end, self.roi_start) >= 0).all(), 'roi start out of image space.'
+        assert (np.subtract(max_end, self.roi_end) >= 0).all(), 'roi end out of image space.'
+        assert (np.subtract(self.roi_end, self.roi_start) >= 0).all(), 'invalid roi range.'
+        if len(self.roi_start) == 1:
+            data = img[:, self.roi_start[0]:self.roi_end[0]].copy()
+        elif len(self.roi_start) == 2:
+            data = img[:, self.roi_start[0]:self.roi_end[0], self.roi_start[1]:self.roi_end[1]].copy()
+        elif len(self.roi_start) == 3:
+            data = img[:, self.roi_start[0]:self.roi_end[0], self.roi_start[1]:self.roi_end[1],
+                       self.roi_start[2]:self.roi_end[2]].copy()
+        else:
+            raise ValueError('unsupported image shape.')
+        return data
 
 
 # if __name__ == "__main__":
