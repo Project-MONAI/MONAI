@@ -18,13 +18,15 @@ from collections.abc import Hashable
 import monai
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.compose import Randomizable, Transform
-from monai.transforms.transforms import Rotate90, SpatialCrop, AddChannel
-from monai.utils.misc import ensure_tuple
+from monai.transforms.transforms import (AddChannel, Orientation, Rotate90, Spacing, SpatialCrop)
 from monai.transforms.utils import generate_pos_neg_label_crop_centers
+from monai.utils.aliases import alias
+from monai.utils.misc import ensure_tuple
 
 export = monai.utils.export("monai.transforms")
 
 
+@export
 class MapTransform(Transform):
     """
     A subclass of ``monai.transforms.compose.Transform`` with an assumption
@@ -54,6 +56,85 @@ class MapTransform(Transform):
 
 
 @export
+@alias('SpacingD', 'SpacingDict')
+class Spacingd(MapTransform):
+    """
+    dictionary-based wrapper of :class: `monai.transforms.transforms.Spacing`.
+    """
+
+    def __init__(self, keys, affine_key, pixdim, interp_order=2, keep_shape=False, output_key='spacing'):
+        """
+        Args:
+            affine_key (hashable): the key to the original affine.
+                The affine will be used to compute input data's pixdim.
+            pixdim (sequence of floats): output voxel spacing.
+            interp_order (int or sequence of ints): int: the same interpolation order
+                for all data indexed by `self,keys`; sequence of ints, should
+                correspond to an interpolation order for each data item indexed
+                by `self.keys` respectively.
+            keep_shape (bool): whether to maintain the original spatial shape
+                after resampling. Defaults to False.
+            output_key (hashable): key to be added to the output dictionary to track
+                the pixdim status.
+
+        """
+        MapTransform.__init__(self, keys)
+        self.affine_key = affine_key
+        self.spacing_transform = Spacing(pixdim, keep_shape=keep_shape)
+        interp_order = ensure_tuple(interp_order)
+        self.interp_order = interp_order \
+            if len(interp_order) == len(self.keys) else interp_order * len(self.keys)
+        print(self.interp_order)
+        self.output_key = output_key
+
+    def __call__(self, data):
+        d = dict(data)
+        affine = d[self.affine_key]
+        original_pixdim, new_pixdim = None, None
+        for key, interp in zip(self.keys, self.interp_order):
+            d[key], original_pixdim, new_pixdim = self.spacing_transform(d[key], affine, interp_order=interp)
+        d[self.output_key] = {'original_pixdim': original_pixdim, 'current_pixdim': new_pixdim}
+        return d
+
+
+@export
+@alias('OrientationD', 'OrientationDict')
+class Orientationd(MapTransform):
+    """
+    dictionary-based wrapper of :class: `monai.transforms.transforms.Orientation`.
+    """
+
+    def __init__(self, keys, affine_key, axcodes, labels=None, output_key='orientation'):
+        """
+        Args:
+            affine_key (hashable): the key to the original affine.
+                The affine will be used to compute input data's orientation.
+            axcodes (N elements sequence): for spatial ND input's orientation.
+                e.g. axcodes='RAS' represents 3D orientation:
+                    (Left, Right), (Posterior, Anterior), (Inferior, Superior).
+                default orientation labels options are: 'L' and 'R' for the first dimension,
+                'P' and 'A' for the second, 'I' and 'S' for the third.
+            labels : optional, None or sequence of (2,) sequences
+                (2,) sequences are labels for (beginning, end) of output axis.
+                see: ``nibabel.orientations.ornt2axcodes``.
+        """
+        MapTransform.__init__(self, keys)
+        self.affine_key = affine_key
+        self.orientation_transform = Orientation(axcodes=axcodes, labels=labels)
+        self.output_key = output_key
+
+    def __call__(self, data):
+        d = dict(data)
+        affine = d[self.affine_key]
+        original_ornt, new_ornt = None, None
+        for key in self.keys:
+            d[key], original_ornt, new_ornt = self.orientation_transform(d[key], affine)
+        d[self.output_key] = {'original_ornt': original_ornt, 'current_ornt': new_ornt}
+        return d
+
+
+@export
+@alias('Rotate90D', 'Rotate90Dict')
 class Rotate90d(MapTransform):
     """
     dictionary-based wrapper of Rotate90.
@@ -79,6 +160,7 @@ class Rotate90d(MapTransform):
 
 
 @export
+@alias('UniformRandomPatchD', 'UniformRandomPatchDict')
 class UniformRandomPatchd(Randomizable, MapTransform):
     """
     Selects a patch of the given size chosen at a uniformly random position in the image.
@@ -106,6 +188,7 @@ class UniformRandomPatchd(Randomizable, MapTransform):
 
 
 @export
+@alias('RandRotate90D', 'RandRotate90Dict')
 class RandRotate90d(Randomizable, MapTransform):
     """
     With probability `prob`, input arrays are rotated by 90 degrees
@@ -150,6 +233,7 @@ class RandRotate90d(Randomizable, MapTransform):
 
 
 @export
+@alias('AddChannelD', 'AddChannelDict')
 class AddChanneld(MapTransform):
     """
     dictionary-based wrapper of AddChannel.
@@ -172,6 +256,7 @@ class AddChanneld(MapTransform):
 
 
 @export
+@alias('RandCropByPosNegLabelD', 'RandCropByPosNegLabelDict')
 class RandCropByPosNegLabeld(Randomizable, MapTransform):
     """
     Crop random fixed sized regions with the center being a foreground or background voxel
@@ -224,19 +309,3 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
                     results[i][key] = data[key]
 
         return results
-
-
-# if __name__ == "__main__":
-#     import numpy as np
-#     data = {
-#         'img': np.array((1, 2, 3, 4)).reshape((1, 2, 2)),
-#         'seg': np.array((1, 2, 3, 4)).reshape((1, 2, 2)),
-#         'affine': 3,
-#         'dtype': 4,
-#         'unused': 5,
-#     }
-#     rotator = RandRotate90d(keys=['img', 'seg'], prob=0.8)
-#     # rotator.set_random_state(1234)
-#     data_result = rotator(data)
-#     print(data_result.keys())
-#     print(data_result['img'], data_result['seg'])
