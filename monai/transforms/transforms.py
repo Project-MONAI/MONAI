@@ -188,7 +188,8 @@ class Zoom:
         order (int): order of interpolation. Default=3.
         mode (str): Determines how input is extended beyond boundaries. Default is 'constant'.
         cval (scalar, optional): Value to fill past edges. Default is 0.
-        use_gpu (bool): Should use cpu or gpu.
+        use_gpu (bool): Should use cpu or gpu. Uses cupyx which doesn't support order > 1 and modes
+            'wrap' and 'reflect'. Defaults to cpu for these cases or if cupyx not found.
         keep_size (bool): Should keep original size (pad if needed).
     """
     def __init__(self, zoom, order=3, mode='constant', cval=0, prefilter=True, use_gpu=False, keep_size=False):
@@ -210,13 +211,13 @@ class Zoom:
 
                 zoomed_gpu = zoom_gpu(cupy.array(img), zoom=self.zoom, order=self.order,
                                       mode=self.mode, cval=self.cval, prefilter=self.prefilter)
-                zoomed = cupy.asnumpy()
+                zoomed = cupy.asnumpy(zoomed_gpu)
             except ModuleNotFoundError:
                 print('For GPU zoom, please install cupy. Defaulting to cpu.')
-            except Exception:
-                print('Warning: Zoom gpu failed. Defaulting to cpu.')
+            except NotImplementedError:
+                print("Defaulting to CPU. cupyx doesn't support order > 1 and modes 'wrap' or 'reflect'.")
 
-        if not zoomed or not self.use_gpu:
+        if zoomed is None:
             zoomed = scipy.ndimage.zoom(img, zoom=self.zoom, order=self.order,
                                         mode=self.mode, cval=self.cval, prefilter=self.prefilter)
 
