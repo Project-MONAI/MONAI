@@ -96,14 +96,11 @@ class AsChannelFirst:
     """
 
     def __init__(self, channel_dim=-1):
+        assert isinstance(channel_dim, int) and channel_dim >= -1, 'invalid channel dimension.'
         self.channel_dim = channel_dim
 
     def __call__(self, img):
-        if self.channel_dim == -1:
-            self.channel_dim = img.ndim - 1
-        axes = list(range(img.ndim))
-        axes.remove(self.channel_dim)
-        return np.transpose(img, [self.channel_dim] + axes)
+        return np.moveaxis(img, self.channel_dim, 0)
 
 
 @export
