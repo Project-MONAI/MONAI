@@ -29,7 +29,7 @@ sys.path.append("..")
 import monai
 import monai.transforms.compose as transforms
 from monai.transforms.composables import \
-    LoadNiftid, ChangeToChannelFirstd, RandCropByPosNegLabeld, RandRotate90d
+    LoadNiftid, AsChannelFirstd, RandCropByPosNegLabeld, RandRotate90d
 from monai.handlers.stats_handler import StatsHandler
 from monai.handlers.mean_dice import MeanDice
 from monai.visualize import img2tensorboard
@@ -59,13 +59,13 @@ val_files = [{'img': img, 'seg': seg} for img, seg in zip(images[-10:], segs[-10
 # Define transforms for image and segmentation
 train_transforms = transforms.Compose([
     LoadNiftid(keys=['img', 'seg']),
-    ChangeToChannelFirstd(keys=['img', 'seg'], channel_dim=-1),
+    AsChannelFirstd(keys=['img', 'seg'], channel_dim=-1),
     RandCropByPosNegLabeld(keys=['img', 'seg'], label_key='seg', size=[96, 96, 96], pos=1, neg=1, num_samples=4),
     RandRotate90d(keys=['img', 'seg'], prob=0.8, axes=[1, 3])
 ])
 val_transforms = transforms.Compose([
     LoadNiftid(keys=['img', 'seg']),
-    ChangeToChannelFirstd(keys=['img', 'seg'], channel_dim=-1)
+    AsChannelFirstd(keys=['img', 'seg'], channel_dim=-1)
 ])
 
 # Define nifti dataset, dataloader.

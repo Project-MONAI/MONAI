@@ -12,7 +12,7 @@
 import unittest
 import numpy as np
 from parameterized import parameterized
-from monai.transforms.transforms import ChangeToChannelFirst
+from monai.transforms.transforms import AsChannelFirst
 
 TEST_CASE_1 = [
     {
@@ -36,12 +36,12 @@ TEST_CASE_3 = [
 ]
 
 
-class TestChangeToChannelFirst(unittest.TestCase):
+class TestAsChannelFirst(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_shape(self, input_param, expected_shape):
         test_data = np.random.randint(0, 2, size=[1, 2, 3, 4])
-        result = ChangeToChannelFirst(**input_param)(test_data)
+        result = AsChannelFirst(**input_param)(test_data)
         self.assertTupleEqual(result.shape, expected_shape)
 
 

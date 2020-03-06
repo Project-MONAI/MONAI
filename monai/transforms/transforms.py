@@ -88,7 +88,7 @@ class LoadNifti:
 
 
 @export
-class ChangeToChannelFirst:
+class AsChannelFirst:
     """
     Change the channel dimension of the image to the first dimension.
     Args:

@@ -18,7 +18,7 @@ from collections.abc import Hashable
 import monai
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.compose import Randomizable, Transform
-from monai.transforms.transforms import LoadNifti, ChangeToChannelFirst, AddChannel, Rotate90, SpatialCrop
+from monai.transforms.transforms import LoadNifti, AsChannelFirst, AddChannel, Rotate90, SpatialCrop
 from monai.utils.misc import ensure_tuple
 from monai.transforms.utils import generate_pos_neg_label_crop_centers
 
@@ -92,9 +92,9 @@ class LoadNiftid(MapTransform):
 
 
 @export
-class ChangeToChannelFirstd(MapTransform):
+class AsChannelFirstd(MapTransform):
     """
-    dictionary-based wrapper of ChangeToChannelFirst.
+    dictionary-based wrapper of AsChannelFirst.
     """
 
     def __init__(self, keys, channel_dim=-1):
@@ -105,7 +105,7 @@ class ChangeToChannelFirstd(MapTransform):
             channel_dim (int): which dimension of input image is the channel, default is the last dimension.
         """
         MapTransform.__init__(self, keys)
-        self.converter = ChangeToChannelFirst(channel_dim=channel_dim)
+        self.converter = AsChannelFirst(channel_dim=channel_dim)
 
     def __call__(self, data):
         d = dict(data)

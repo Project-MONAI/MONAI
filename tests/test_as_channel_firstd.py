@@ -12,7 +12,7 @@
 import unittest
 import numpy as np
 from parameterized import parameterized
-from monai.transforms.composables import ChangeToChannelFirstd
+from monai.transforms.composables import AsChannelFirstd
 
 TEST_CASE_1 = [
     {
@@ -39,7 +39,7 @@ TEST_CASE_3 = [
 ]
 
 
-class TestChangeToChannelFirstd(unittest.TestCase):
+class TestAsChannelFirstd(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_shape(self, input_param, expected_shape):
@@ -48,7 +48,7 @@ class TestChangeToChannelFirstd(unittest.TestCase):
             'label': np.random.randint(0, 2, size=[1, 2, 3, 4]),
             'extra': np.random.randint(0, 2, size=[1, 2, 3, 4])
         }
-        result = ChangeToChannelFirstd(**input_param)(test_data)
+        result = AsChannelFirstd(**input_param)(test_data)
         self.assertTupleEqual(result['image'].shape, expected_shape)
         self.assertTupleEqual(result['label'].shape, expected_shape)
         self.assertTupleEqual(result['extra'].shape, expected_shape)
