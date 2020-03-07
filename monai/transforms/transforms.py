@@ -441,10 +441,45 @@ class SpatialCrop:
         return data
 
 
-# if __name__ == "__main__":
-#     img = np.array((1, 2, 3, 4)).reshape((1, 2, 2))
-#     rotator = RandRotate90(prob=0.0, max_k=3, axes=(1, 2))
-#     # rotator.set_random_state(1234)
-#     img_result = rotator(img)
-#     print(type(img))
-#     print(img_result)
+@export
+class RandomRotate(Randomizable):
+    """Randomly rotates the input arrays.
+
+    Args:
+        prob (float): Probability of rotation.
+        angle (float): Rotation angle in degrees.
+        axes (tuple of 2 ints): Axes of rotation. Default: (1, 2). This is the first two
+            axis in spatial dimensions according to MONAI channel first shape assumption.
+        reshape (bool): If true, output shape is made same as input. Default: True.
+        order (int): Order of spline interpolation. Range 0-5. Default: 1. This is
+            different from scipy where default interpolation is 3.
+        mode (str): Points outside boundary filled according to this mode. Options are 
+            'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
+        cval (scalar): Values to fill outside boundary. Default: 0.
+        prefiter (bool): Apply spline_filter before interpolation. Default: True.
+    """
+
+    def __init__(self, angle, prob=0.1, axes=(1, 2), reshape=True, order=1, 
+                 mode='constant', cval=0, prefilter=True):
+        self.prob = prob
+        self.angle = angle
+        self.reshape = reshape
+        self.order = order
+        self.mode = mode
+        self.cval = cval
+        self.prefilter = prefilter
+        self.axes = axes
+
+        self._do_transform = False
+        self._zoom = None
+
+    def randomize(self):
+        self._do_transform = self.R.random_sample() < self.prob
+
+    def __call__(self, img):
+        self.randomize()
+        if not self._do_transform:
+            return img
+        rotator = Rotate(self.angle, self.axes, self.reshape, self.order,
+                         self.mode, self.cval, self.prefilter)
+        return rotator(img)
