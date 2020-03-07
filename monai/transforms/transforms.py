@@ -40,6 +40,12 @@ class LoadNifti:
             as_closest_canonical (bool): if True, load the image as closest to canonical axis format.
             image_only (bool): if True return only the image volume, other return image volume and header dict.
             dtype (np.dtype, optional): if not None convert the loaded image to this data type.
+
+        Note:
+            The loaded image volume if `image_only` is True, or a tuple containing the volume and the Nifti
+            header in dict format otherwise.
+            header['original_affine'] stores the original affine loaded from `filename_or_obj`.
+            header['affine'] stores the affine after the optional `as_closest_canonical` transform.
         """
         self.as_closest_canonical = as_closest_canonical
         self.image_only = image_only
@@ -49,14 +55,6 @@ class LoadNifti:
         """
         Args:
             filename (str or file): path to file or file-like object.
-
-        Returns:
-            The loaded image volume if `image_only` is True, or a tuple containing the volume and the Nifti
-            header in dict format otherwise.
-
-        Note:
-            header['original_affine'] stores the original affine loaded from `filename_or_obj`.
-            header['affine'] stores the affine after the optional `as_closest_canonical` transform.
         """
         img = nib.load(filename)
 

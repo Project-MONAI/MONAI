@@ -18,9 +18,11 @@ import nibabel as nib
 from parameterized import parameterized
 from monai.transforms.composables import LoadNiftid
 
+KEYS = ['image', 'label', 'extra']
+
 TEST_CASE_1 = [
     {
-        'keys': ['image', 'label', 'extra'],
+        'keys': KEYS,
         'as_closest_canonical': False
     },
     (128, 128, 128)
@@ -33,19 +35,14 @@ class TestLoadNiftid(unittest.TestCase):
     def test_shape(self, input_param, expected_shape):
         test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]), np.eye(4))
         tempdir = tempfile.mkdtemp()
-        nib.save(test_image, os.path.join(tempdir, 'test_image.nii.gz'))
-        nib.save(test_image, os.path.join(tempdir, 'test_label.nii.gz'))
-        nib.save(test_image, os.path.join(tempdir, 'test_extra.nii.gz'))
-        test_data = {
-            'image': os.path.join(tempdir, 'test_image.nii.gz'),
-            'label': os.path.join(tempdir, 'test_label.nii.gz'),
-            'extra': os.path.join(tempdir, 'test_extra.nii.gz')
-        }
+        test_data = dict()
+        for key in KEYS:
+            nib.save(test_image, os.path.join(tempdir, key + '.nii.gz'))
+            test_data.update({key: os.path.join(tempdir, key + '.nii.gz')})
         result = LoadNiftid(**input_param)(test_data)
         shutil.rmtree(tempdir)
-        self.assertTupleEqual(result['image'].shape, expected_shape)
-        self.assertTupleEqual(result['label'].shape, expected_shape)
-        self.assertTupleEqual(result['extra'].shape, expected_shape)
+        for key in KEYS:
+            self.assertTupleEqual(result[key].shape, expected_shape)
 
 
 if __name__ == '__main__':

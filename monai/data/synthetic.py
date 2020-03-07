@@ -19,7 +19,8 @@ def create_test_image_2d(width, height, num_objs=12, rad_max=30, noise_max=0.0, 
     Return a noisy 2D image with `numObj' circles and a 2D mask image. The maximum radius of the circles is given as
     `radMax'. The mask will have `numSegClasses' number of classes for segmentations labeled sequentially from 1, plus a
     background class represented as 0. If `noiseMax' is greater than 0 then noise will be added to the image taken from
-    the uniform distribution on range [0,noiseMax).
+    the uniform distribution on range [0,noiseMax). If `channel_dim' is None, will create an image without channel
+    dimemsion, otherwise create an image with channel dimension as first dim or last dim.
     """
     image = np.zeros((width, height))
 
