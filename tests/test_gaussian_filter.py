@@ -17,7 +17,7 @@ import torch
 from monai.networks.layers.simplelayers import GaussianFilter
 
 
-class IntensityNormTestCase(unittest.TestCase):
+class GaussianFilterTestCase(unittest.TestCase):
 
     def test_1d(self):
         a = torch.ones(1, 8, 10)

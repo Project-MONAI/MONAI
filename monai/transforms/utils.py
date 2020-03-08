@@ -317,28 +317,28 @@ def create_shear(spatial_dims, coefs):
     raise NotImplementedError
 
 
-def create_scale(spatial_dims, s):
+def create_scale(spatial_dims, scaling_factor):
     """
     create a scaling matrix
     Args:
         spatial_dims (int): spatial rank
-        s (floats): scaling factors, defaults to 1.
+        scaling_factor (floats): scaling factors, defaults to 1.
     """
-    s = list(ensure_tuple(s))
-    while len(s) < spatial_dims:
-        s.append(1.)
-    return np.diag(s[:spatial_dims] + [1.])
+    scaling_factor = list(ensure_tuple(scaling_factor))
+    while len(scaling_factor) < spatial_dims:
+        scaling_factor.append(1.)
+    return np.diag(scaling_factor[:spatial_dims] + [1.])
 
 
-def create_translate(spatial_dims, t):
+def create_translate(spatial_dims, shift):
     """
     create a translation matrix
     Args:
         spatial_dims (int): spatial rank
-        t (floats): translate factors, defaults to 0.
+        shift (floats): translate factors, defaults to 0.
     """
-    t = ensure_tuple(t)
+    shift = ensure_tuple(shift)
     affine = np.eye(spatial_dims + 1)
-    for i, a in enumerate(t[:spatial_dims]):
+    for i, a in enumerate(shift[:spatial_dims]):
         affine[i, spatial_dims] = a
     return affine

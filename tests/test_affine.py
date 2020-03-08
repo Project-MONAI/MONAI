@@ -47,7 +47,7 @@ TEST_CASES = [
 ]
 
 
-class TestResample(unittest.TestCase):
+class TestAffine(unittest.TestCase):
 
     @parameterized.expand(TEST_CASES)
     def test_affine(self, input_param, input_data, expected_val):
