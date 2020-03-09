@@ -12,32 +12,36 @@
 import unittest
 import numpy as np
 from parameterized import parameterized
-from monai.transforms.transforms import SpatialCrop
+from monai.transforms.transforms import AsChannelFirst
 
 TEST_CASE_1 = [
     {
-        'roi_center': [1, 1, 1],
-        'roi_size': [2, 2, 2]
+        'channel_dim': -1
     },
-    np.random.randint(0, 2, size=[3, 3, 3, 3]),
-    (3, 2, 2, 2)
+    (4, 1, 2, 3)
 ]
 
 TEST_CASE_2 = [
     {
-        'roi_start': [0, 0, 0],
-        'roi_end': [2, 2, 2]
+        'channel_dim': 3
     },
-    np.random.randint(0, 2, size=[3, 3, 3, 3]),
-    (3, 2, 2, 2)
+    (4, 1, 2, 3)
+]
+
+TEST_CASE_3 = [
+    {
+        'channel_dim': 2
+    },
+    (3, 1, 2, 4)
 ]
 
 
-class TestSpatialCrop(unittest.TestCase):
+class TestAsChannelFirst(unittest.TestCase):
 
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
-    def test_shape(self, input_param, input_data, expected_shape):
-        result = SpatialCrop(**input_param)(input_data)
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
+    def test_shape(self, input_param, expected_shape):
+        test_data = np.random.randint(0, 2, size=[1, 2, 3, 4])
+        result = AsChannelFirst(**input_param)(test_data)
         self.assertTupleEqual(result.shape, expected_shape)
 
 

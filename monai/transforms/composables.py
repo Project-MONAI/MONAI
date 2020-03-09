@@ -18,7 +18,7 @@ from collections.abc import Hashable
 import monai
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.compose import Randomizable, Transform
-from monai.transforms.transforms import Rotate90, SpatialCrop, AddChannel
+from monai.transforms.transforms import LoadNifti, AsChannelFirst, AddChannel, Rotate90, SpatialCrop
 from monai.utils.misc import ensure_tuple
 from monai.transforms.utils import generate_pos_neg_label_crop_centers
 
@@ -51,6 +51,89 @@ class MapTransform(Transform):
         for key in self.keys:
             if not isinstance(key, Hashable):
                 raise ValueError('keys should be a hashable or a sequence of hashables, got {}'.format(type(key)))
+
+
+@export
+class LoadNiftid(MapTransform):
+    """
+    dictionary-based wrapper of LoadNifti, must load image and metadata together.
+    """
+
+    def __init__(self, keys, as_closest_canonical=False, dtype=None, meta_key_format='{}.{}', overwriting_keys=False):
+        """
+        Args:
+            keys (hashable items): keys of the corresponding items to be transformed.
+                See also: monai.transform.composables.MapTransform
+            as_closest_canonical (bool): if True, load the image as closest to canonical axis format.
+            dtype (np.dtype, optional): if not None convert the loaded image to this data type.
+            meta_key_format (str): key format to store meta data of the nifti image.
+                it must contain 2 fields for the key of this image and the key of every meta data item.
+            overwriting_keys (bool): whether allow to overwrite existing keys of meta data.
+                default is False, which will raise exception if encountering existing key.
+        """
+        MapTransform.__init__(self, keys)
+        self.loader = LoadNifti(as_closest_canonical, False, dtype)
+        self.meta_key_format = meta_key_format
+        self.overwriting_keys = overwriting_keys
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            data = self.loader(d[key])
+            assert isinstance(data, (tuple, list)), 'if data contains metadata, must be tuple or list.'
+            d[key] = data[0]
+            assert isinstance(data[1], dict), 'metadata must be in dict format.'
+            for k in sorted(data[1].keys()):
+                key_to_add = self.meta_key_format.format(key, k)
+                if key_to_add in d and self.overwriting_keys is False:
+                    raise KeyError('meta data key is alreay existing.')
+                d[key_to_add] = data[1][k]
+        return d
+
+
+@export
+class AsChannelFirstd(MapTransform):
+    """
+    dictionary-based wrapper of AsChannelFirst.
+    """
+
+    def __init__(self, keys, channel_dim=-1):
+        """
+        Args:
+            keys (hashable items): keys of the corresponding items to be transformed.
+                See also: monai.transform.composables.MapTransform
+            channel_dim (int): which dimension of input image is the channel, default is the last dimension.
+        """
+        MapTransform.__init__(self, keys)
+        self.converter = AsChannelFirst(channel_dim=channel_dim)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.converter(d[key])
+        return d
+
+
+@export
+class AddChanneld(MapTransform):
+    """
+    dictionary-based wrapper of AddChannel.
+    """
+
+    def __init__(self, keys):
+        """
+        Args:
+            keys (hashable items): keys of the corresponding items to be transformed.
+                See also: monai.transform.composables.MapTransform
+        """
+        MapTransform.__init__(self, keys)
+        self.adder = AddChannel()
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.adder(d[key])
+        return d
 
 
 @export
@@ -146,28 +229,6 @@ class RandRotate90d(Randomizable, MapTransform):
         d = dict(data)
         for key in self.keys:
             d[key] = rotator(d[key])
-        return d
-
-
-@export
-class AddChanneld(MapTransform):
-    """
-    dictionary-based wrapper of AddChannel.
-    """
-
-    def __init__(self, keys):
-        """
-        Args:
-            keys (hashable items): keys of the corresponding items to be transformed.
-                See also: monai.transform.composables.MapTransform
-        """
-        MapTransform.__init__(self, keys)
-        self.adder = AddChannel()
-
-    def __call__(self, data):
-        d = dict(data)
-        for key in self.keys:
-            d[key] = self.adder(d[key])
         return d
 
 
