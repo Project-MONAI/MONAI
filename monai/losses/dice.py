@@ -159,5 +159,5 @@ class GeneralizedDiceLoss(_Loss):
             b[infs] = 0.0
             b[infs] = torch.max(b)
 
-        score = 2.0 * (intersection.sum(2) * w) / (sums.sum(2) * w + smooth)
+        score = (2.0 * intersection.sum(2) * w + smooth) / (sums.sum(2) * w + smooth)
         return 1 - score.mean()
