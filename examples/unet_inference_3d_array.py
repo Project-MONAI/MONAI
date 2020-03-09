@@ -17,7 +17,6 @@ from glob import glob
 import nibabel as nib
 import numpy as np
 import torch
-import torchvision.transforms as transforms
 from ignite.engine import Engine
 from torch.utils.data import DataLoader
 
@@ -27,6 +26,7 @@ sys.path.append("..")
 from monai import config
 from monai.handlers.checkpoint_loader import CheckpointLoader
 from monai.handlers.segmentation_saver import SegmentationSaver
+import monai.transforms.compose as transforms
 from monai.data.nifti_reader import NiftiDataset
 from monai.transforms import AddChannel, Rescale, ToTensor
 from monai.networks.nets.unet import UNet
@@ -80,6 +80,7 @@ infer_engine = Engine(_sliding_window_processor)
 # for the arrary data format, assume the 3rd item of batch data is the meta_data
 SegmentationSaver(output_path='tempdir', output_ext='.nii.gz', output_postfix='seg',
                   batch_transform=lambda x: x[2]).attach(infer_engine)
+# the model was trained by "unet_segmentation_3d_array" exmple
 CheckpointLoader(load_path='./runs/net_checkpoint_120.pth', load_dict={'net': net}).attach(infer_engine)
 
 loader = DataLoader(ds, batch_size=1, num_workers=1, pin_memory=torch.cuda.is_available())

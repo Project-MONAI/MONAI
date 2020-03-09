@@ -30,7 +30,7 @@ import monai
 import monai.transforms.compose as transforms
 
 from monai.data.nifti_reader import NiftiDataset
-from monai.transforms import (AddChannel, Rescale, ToTensor, UniformRandomPatch)
+from monai.transforms import AddChannel, Rescale, ToTensor, UniformRandomPatch
 from monai.handlers.stats_handler import StatsHandler
 from monai.handlers.mean_dice import MeanDice
 from monai.visualize import img2tensorboard
@@ -148,7 +148,7 @@ evaluator = create_supervised_evaluator(net, val_metrics, device, True,
 
 # Add stats event handler to print validation stats via evaluator
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-val_stats_handler = StatsHandler()
+val_stats_handler = StatsHandler(output_transform=lambda output: (None, None))
 val_stats_handler.attach(evaluator)
 
 # Add early stopping handler to evaluator.
