@@ -443,14 +443,15 @@ class SpatialCrop:
 
 @export
 class RandomZoom(Randomizable):
-    """Randomly zoomes input arrays with given probability within given zoom range.
+    """Randomly zooms input arrays with given probability within given zoom range.
 
     Args:
         prob (float): Probability of zooming.
         min_zoom (float or sequence): Min zoom factor. Can be float or sequence same size as image.
         max_zoom (float or sequence): Max zoom factor. Can be float or sequence same size as image.
         order (int): order of interpolation. Default=3.
-        mode (str): Determines how input is extended beyond boundaries. Default is 'constant'.
+        mode ('reflect', 'constant', 'nearest', 'mirror', 'wrap'): Determines how input is 
+            extended beyond boundaries. Default: 'constant'.
         cval (scalar, optional): Value to fill past edges. Default is 0.
         use_gpu (bool): Should use cpu or gpu. Uses cupyx which doesn't support order > 1 and modes
             'wrap' and 'reflect'. Defaults to cpu for these cases or if cupyx not found.
@@ -461,7 +462,7 @@ class RandomZoom(Randomizable):
                  mode='constant', cval=0, prefilter=True,
                  use_gpu=False, keep_size=False):
         if hasattr(min_zoom, '__iter__') and \
-           hasattr(max_zoom, '__iter'):
+           hasattr(max_zoom, '__iter__'):
             assert len(min_zoom) == len(max_zoom), "min_zoom and max_zoom must have same length."
         self.min_zoom = min_zoom
         self.max_zoom = max_zoom
