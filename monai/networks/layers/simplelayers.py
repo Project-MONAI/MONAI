@@ -11,7 +11,7 @@
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as nnf
+import torch.nn.functional as F
 
 from monai.networks.layers.convutils import gaussian_1d, same_padding
 
@@ -45,7 +45,7 @@ class GaussianFilter:
         """
         self.kernel = torch.nn.Parameter(torch.tensor(gaussian_1d(sigma, truncated)), False)
         self.spatial_dims = spatial_dims
-        self.conv_n = [nnf.conv1d, nnf.conv2d, nnf.conv3d][spatial_dims - 1]
+        self.conv_n = [F.conv1d, F.conv2d, F.conv3d][spatial_dims - 1]
         self.padding = same_padding(self.kernel.size()[0])
         self.device = device
 
