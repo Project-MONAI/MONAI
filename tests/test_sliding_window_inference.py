@@ -34,7 +34,7 @@ class TestSlidingWindowInference(unittest.TestCase):
         device = torch.device("cpu:0")
 
         def compute(data):
-            return data.to(device) + 1
+            return data + 1
 
         result = sliding_window_inference(inputs, roi_shape, sw_batch_size, compute, device)
         expected_val = np.ones(image_shape, dtype=np.float32) + 1
