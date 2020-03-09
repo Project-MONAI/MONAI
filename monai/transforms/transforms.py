@@ -442,7 +442,7 @@ class SpatialCrop:
 
 
 @export
-class RandomZoom(Randomizable):
+class RandZoom(Randomizable):
     """Randomly zooms input arrays with given probability within given zoom range.
 
     Args:

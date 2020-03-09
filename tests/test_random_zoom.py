@@ -17,7 +17,7 @@ import importlib
 from scipy.ndimage import zoom as zoom_scipy
 from parameterized import parameterized
 
-from monai.transforms import RandomZoom
+from monai.transforms import RandZoom
 from tests.utils import NumpyImageTestCase2D
 
 
@@ -28,9 +28,9 @@ class ZoomTest(NumpyImageTestCase2D):
     ])
     def test_correct_results(self, min_zoom, max_zoom, order, mode, 
                              cval, prefilter, use_gpu, keep_size):
-        random_zoom = RandomZoom(prob=1.0, min_zoom=min_zoom, max_zoom=max_zoom, order=order, 
-                                 mode=mode, cval=cval, prefilter=prefilter, use_gpu=use_gpu,
-                                 keep_size=keep_size)
+        random_zoom = RandZoom(prob=1.0, min_zoom=min_zoom, max_zoom=max_zoom, order=order, 
+                               mode=mode, cval=cval, prefilter=prefilter, use_gpu=use_gpu,
+                               keep_size=keep_size)
         random_zoom.set_random_state(234)
 
         zoomed = random_zoom(self.imt)
@@ -44,7 +44,7 @@ class ZoomTest(NumpyImageTestCase2D):
     ])
     def test_gpu_zoom(self, min_zoom, max_zoom, order, mode, cval, prefilter):
         if importlib.util.find_spec('cupy'):
-            random_zoom = RandomZoom(
+            random_zoom = RandZoom(
                 prob=1.0, min_zoom=min_zoom, max_zoom=max_zoom, order=order, 
                 mode=mode, cval=cval, prefilter=prefilter, use_gpu=True, 
                 keep_size=False)
@@ -57,8 +57,8 @@ class ZoomTest(NumpyImageTestCase2D):
             self.assertTrue(np.allclose(expected, zoomed))
 
     def test_keep_size(self):
-        random_zoom = RandomZoom(prob=1.0, min_zoom=0.6, 
-                                 max_zoom=0.7, keep_size=True)
+        random_zoom = RandZoom(prob=1.0, min_zoom=0.6, 
+                               max_zoom=0.7, keep_size=True)
         zoomed = random_zoom(self.imt)
         self.assertTrue(np.array_equal(zoomed.shape, self.imt.shape))
 
@@ -68,7 +68,7 @@ class ZoomTest(NumpyImageTestCase2D):
     ])
     def test_invalid_inputs(self, _, min_zoom, max_zoom, order, raises):
         with self.assertRaises(raises):
-            random_zoom = RandomZoom(prob=1.0, min_zoom=min_zoom, max_zoom=max_zoom, order=order)
+            random_zoom = RandZoom(prob=1.0, min_zoom=min_zoom, max_zoom=max_zoom, order=order)
             zoomed = random_zoom(self.imt)
 
 
