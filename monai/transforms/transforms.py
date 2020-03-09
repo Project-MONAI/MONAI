@@ -108,12 +108,12 @@ class Resize:
 
     Args:
         order (int): Order of spline interpolation. Default=1.
-        mode (str): Points outside boundaries are filled according to given mode. 
+        mode (str): Points outside boundaries are filled according to given mode.
             Options are 'constant', 'edge', 'symmetric', 'reflect', 'wrap'.
         cval (float): Used with mode 'constant', the value outside image boundaries.
         clip (bool): Wheter to clip range of output values after interpolation. Default: True.
         preserve_range (bool): Whether to keep original range of values. Default is True.
-            If False, input is converted according to conventions of img_as_float. See 
+            If False, input is converted according to conventions of img_as_float. See
             https://scikit-image.org/docs/dev/user_guide/data_types.html.
         anti_aliasing (bool): Whether to apply a gaussian filter to image before down-scaling.
             Default is True.
@@ -121,7 +121,7 @@ class Resize:
     """
 
     def __init__(self, output_shape, order=1, mode='reflect', cval=0,
-                 clip=True, preserve_range=True, 
+                 clip=True, preserve_range=True,
                  anti_aliasing=True, anti_aliasing_sigma=None):
         assert isinstance(order, int), "order must be integer."
         self.output_shape = output_shape
@@ -137,7 +137,7 @@ class Resize:
         return resize(img, self.output_shape, order=self.order,
                       mode=self.mode, cval=self.cval,
                       clip=self.clip, preserve_range=self.preserve_range,
-                      anti_aliasing=self.anti_aliasing, 
+                      anti_aliasing=self.anti_aliasing,
                       anti_aliasing_sigma=self.anti_aliasing_sigma)
 
 
@@ -154,13 +154,13 @@ class Rotate:
         reshape (bool): If true, output shape is made same as input. Default: True.
         order (int): Order of spline interpolation. Range 0-5. Default: 1. This is
             different from scipy where default interpolation is 3.
-        mode (str): Points outside boundary filled according to this mode. Options are 
+        mode (str): Points outside boundary filled according to this mode. Options are
             'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
         cval (scalar): Values to fill outside boundary. Default: 0.
         prefiter (bool): Apply spline_filter before interpolation. Default: True.
     """
 
-    def __init__(self, angle, axes=(1, 2), reshape=True, order=1, 
+    def __init__(self, angle, axes=(1, 2), reshape=True, order=1,
                  mode='constant', cval=0, prefilter=True):
         self.angle = angle
         self.reshape = reshape
@@ -172,18 +172,18 @@ class Rotate:
 
     def __call__(self, img):
         return scipy.ndimage.rotate(img, self.angle, self.axes,
-                                    reshape=self.reshape, order=self.order, 
-                                    mode=self.mode, cval=self.cval, 
+                                    reshape=self.reshape, order=self.order,
+                                    mode=self.mode, cval=self.cval,
                                     prefilter=self.prefilter)
 
 
 @export
 class Zoom:
-    """ Zooms a nd image. Uses scipy.ndimage.zoom or cupyx.scipy.ndimage.zoom in case of gpu. 
+    """ Zooms a nd image. Uses scipy.ndimage.zoom or cupyx.scipy.ndimage.zoom in case of gpu.
     For details, please see https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.zoom.html.
 
     Args:
-        zoom (float or sequence): The zoom factor along the axes. If a float, zoom is the same for each axis. 
+        zoom (float or sequence): The zoom factor along the axes. If a float, zoom is the same for each axis.
             If a sequence, zoom should contain one value for each axis.
         order (int): order of interpolation. Default=3.
         mode (str): Determines how input is extended beyond boundaries. Default is 'constant'.
@@ -442,6 +442,32 @@ class SpatialCrop:
 
 
 @export
+class RandomFlip(Randomizable):
+    """Randomly flips the image along axes.
+
+    Args:
+        prob (float): Probability of flipping.
+        axes (None, int or tuple of ints): Axes along which to flip over. Default is None.
+    """
+
+    def __init__(self, prob=0.1, axis=None):
+        self.axis = axis
+        self.prob = prob
+
+        self._do_transform = False
+
+    def randomize(self):
+        self._do_transform = self.R.random_sample() < self.prob
+
+    def __call__(self, img):
+        self.randomize()
+        if not self._do_transform:
+            return img
+        flipper = Flip(axis=self.axis)
+        return flipper(img)
+
+
+@export
 class RandZoom(Randomizable):
     """Randomly zooms input arrays with given probability within given zoom range.
 
@@ -450,7 +476,7 @@ class RandZoom(Randomizable):
         min_zoom (float or sequence): Min zoom factor. Can be float or sequence same size as image.
         max_zoom (float or sequence): Max zoom factor. Can be float or sequence same size as image.
         order (int): order of interpolation. Default=3.
-        mode ('reflect', 'constant', 'nearest', 'mirror', 'wrap'): Determines how input is 
+        mode ('reflect', 'constant', 'nearest', 'mirror', 'wrap'): Determines how input is
             extended beyond boundaries. Default: 'constant'.
         cval (scalar, optional): Value to fill past edges. Default is 0.
         use_gpu (bool): Should use cpu or gpu. Uses cupyx which doesn't support order > 1 and modes
