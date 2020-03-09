@@ -9,10 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import random
 
 import numpy as np
+
+from monai.utils.misc import ensure_tuple
 
 
 def rand_choice(prob=0.5):
@@ -208,3 +209,136 @@ def generate_pos_neg_label_crop_centers(label, size, num_samples, pos_ratio, ran
         centers.append(center_ori)
 
     return centers
+
+
+def create_grid(spatial_size, spacing=None, homogeneous=True, dtype=float):
+    """
+    compute a `spatial_size` mesh.
+
+    Args:
+        spatial_size (sequence of ints): spatial size of the grid.
+        spacing (sequence of ints): same len as ``spatial_size``, defaults to 1.0 (dense grid).
+        homogeneous (bool): whether to make homogeneous coordinates.
+        dtype (type): output grid data type.
+    """
+    spacing = spacing or tuple(1.0 for _ in spatial_size)
+    ranges = [np.linspace(-(d - 1.) / 2. * s, (d - 1.) / 2. * s, int(d)) for d, s in zip(spatial_size, spacing)]
+    coords = np.asarray(np.meshgrid(*ranges, indexing='ij'), dtype=dtype)
+    if not homogeneous:
+        return coords
+    return np.concatenate([coords, np.ones_like(coords[0:1, ...])])
+
+
+def create_control_grid(spatial_shape, spacing, homogeneous=True, dtype=float):
+    """
+    control grid with two additional point in each direction
+    """
+    grid_shape = []
+    for d, s in zip(spatial_shape, spacing):
+        d = int(d)
+        if d % 2 == 0:
+            grid_shape.append(np.ceil((d - 1.) / (2. * s) + 0.5) * 2. + 2.)
+        else:
+            grid_shape.append(np.ceil((d - 1.) / (2. * s)) * 2. + 3.)
+    return create_grid(grid_shape, spacing, homogeneous, dtype)
+
+
+def create_rotate(spatial_dims, radians):
+    """
+    create a 2D or 3D rotation matrix
+    Args:
+        spatial_dims (2|3): spatial rank
+        radians (float or a sequence of floats): rotation radians
+            when spatial_dims == 3, the `radians` sequence corresponds to
+            rotation in the 1st, 2nd, and 3rd dim respectively.
+    """
+    radians = ensure_tuple(radians)
+    if spatial_dims == 2:
+        if len(radians) >= 1:
+            sin_, cos_ = np.sin(radians[0]), np.cos(radians[0])
+            return np.array([[cos_, -sin_, 0.], [sin_, cos_, 0.], [0., 0., 1.]])
+
+    if spatial_dims == 3:
+        affine = None
+        if len(radians) >= 1:
+            sin_, cos_ = np.sin(radians[0]), np.cos(radians[0])
+            affine = np.array([
+                [1., 0., 0., 0.],
+                [0., cos_, -sin_, 0.],
+                [0., sin_, cos_, 0.],
+                [0., 0., 0., 1.],
+            ])
+        if len(radians) >= 2:
+            sin_, cos_ = np.sin(radians[1]), np.cos(radians[1])
+            affine = affine @ np.array([
+                [cos_, 0.0, sin_, 0.],
+                [0., 1., 0., 0.],
+                [-sin_, 0., cos_, 0.],
+                [0., 0., 0., 1.],
+            ])
+        if len(radians) >= 3:
+            sin_, cos_ = np.sin(radians[2]), np.cos(radians[2])
+            affine = affine @ np.array([
+                [cos_, -sin_, 0., 0.],
+                [sin_, cos_, 0., 0.],
+                [0., 0., 1., 0.],
+                [0., 0., 0., 1.],
+            ])
+        return affine
+
+    raise ValueError('create_rotate got spatial_dims={}, radians={}.'.format(spatial_dims, radians))
+
+
+def create_shear(spatial_dims, coefs):
+    """
+    create a shearing matrix
+    Args:
+        spatial_dims (int): spatial rank
+        coefs (floats): shearing factors, defaults to 0.
+    """
+    coefs = list(ensure_tuple(coefs))
+    if spatial_dims == 2:
+        while len(coefs) < 2:
+            coefs.append(0.0)
+        return np.array([
+            [1, coefs[0], 0.],
+            [coefs[1], 1., 0.],
+            [0., 0., 1.],
+        ])
+    if spatial_dims == 3:
+        while len(coefs) < 6:
+            coefs.append(0.0)
+        return np.array([
+            [1., coefs[0], coefs[1], 0.],
+            [coefs[2], 1., coefs[3], 0.],
+            [coefs[4], coefs[5], 1., 0.],
+            [0., 0., 0., 1.],
+        ])
+    raise NotImplementedError
+
+
+def create_scale(spatial_dims, scaling_factor):
+    """
+    create a scaling matrix
+    Args:
+        spatial_dims (int): spatial rank
+        scaling_factor (floats): scaling factors, defaults to 1.
+    """
+    scaling_factor = list(ensure_tuple(scaling_factor))
+    while len(scaling_factor) < spatial_dims:
+        scaling_factor.append(1.)
+    return np.diag(scaling_factor[:spatial_dims] + [1.])
+
+
+def create_translate(spatial_dims, shift):
+    """
+    create a translation matrix
+    Args:
+        spatial_dims (int): spatial rank
+        shift (floats): translate factors, defaults to 0.
+    """
+    shift = ensure_tuple(shift)
+    affine = np.eye(spatial_dims + 1)
+    for i, a in enumerate(shift[:spatial_dims]):
+        affine[i, spatial_dims] = a
+    return affine
