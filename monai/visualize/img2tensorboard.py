@@ -27,8 +27,8 @@ def _image3_animated_gif(imp, scale_factor=1):
     # x=numpy.random.randint(0,256,[10,10,10],numpy.uint8)
     (tag, ims) = imp
     ims = [
-        (np.asarray((ims[i, :, :])) * scale_factor).astype(np.uint8)
-        for i in range(ims.shape[0])
+        (np.asarray((ims[:, :, i])) * scale_factor).astype(np.uint8)
+        for i in range(ims.shape[2])
     ]
     ims = [GifImage.fromarray(im) for im in ims]
     img_str = b''
