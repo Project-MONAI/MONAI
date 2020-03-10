@@ -148,7 +148,7 @@ evaluator = create_supervised_evaluator(net, val_metrics, device, True,
 
 # Add stats event handler to print validation stats via evaluator
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-val_stats_handler = StatsHandler(output_transform=lambda output: (None, None))
+val_stats_handler = StatsHandler()
 val_stats_handler.attach(evaluator)
 
 # Add early stopping handler to evaluator.

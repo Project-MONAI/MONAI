@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import logging
-
+import torch
 from ignite.engine import Engine, Events
 
 KEY_VAL_FORMAT = '{}: {:.4f} '
@@ -128,14 +128,15 @@ class StatsHandler(object):
 
     def _default_iteration_print(self, engine: Engine):
         """Execute iteration log operation based on Ignite engine.state data.
-        print the values from ignite state.logs dict.
+        Print the values from ignite state.logs dict.
+        Default behaivor is to print loss from output[1], skip if output[1] is not loss.
 
         Args:
             engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.
 
         """
         loss = self.output_transform(engine.state.output)[1]
-        if loss is None:
+        if loss is None or (isinstance(loss, torch.Tensor) is True and len(loss.shape) > 0):
             return
         num_iterations = engine.state.epoch_length
         current_iteration = (engine.state.iteration - 1) % num_iterations + 1

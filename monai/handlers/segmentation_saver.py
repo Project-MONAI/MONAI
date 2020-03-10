@@ -95,9 +95,9 @@ class SegmentationSaver:
             'filename_or_obj' -- for output file name creation
             and optionally 'original_affine', 'affine' for data orientation handling.
             - output file datatype from `engine.state.output.dtype`.
+        And this method assumes self.batch_transform will extract meta data from the input batch.
         """
         meta_data = self.batch_transform(engine.state.batch)
-        meta_data = engine.state.batch[2]  # assuming 3rd output of input dataset is a meta data dict
         filenames = meta_data['filename_or_obj']
         original_affine = meta_data.get('original_affine', None)
         affine = meta_data.get('affine', None)
