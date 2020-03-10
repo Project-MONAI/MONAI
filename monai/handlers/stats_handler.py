@@ -148,6 +148,6 @@ class StatsHandler(object):
             num_epochs,
             current_iteration,
             num_iterations)
-        out_str += KEY_VAL_FORMAT.format('Loss', loss)
+        out_str += KEY_VAL_FORMAT.format('Loss', loss.item() if isinstance(loss, torch.Tensor) else loss)
 
         self.logger.info(out_str)
