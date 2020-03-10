@@ -14,14 +14,14 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 import numpy as np
+import scipy.ndimage
 import nibabel as nib
 import torch
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
 from skimage.transform import resize
-import scipy.ndimage
 
 import monai
-from monai.data.utils import get_random_patch, get_valid_patch_size
+from monai.data.utils import get_random_patch, get_valid_patch_size, correct_nifti_header_if_necessary
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.compose import Randomizable
 from monai.transforms.utils import (create_control_grid, create_grid, create_rotate, create_scale, create_shear,
@@ -29,6 +29,110 @@ from monai.transforms.utils import (create_control_grid, create_grid, create_rot
 from monai.utils.misc import ensure_tuple
 
 export = monai.utils.export("monai.transforms")
+
+
+@export
+class Spacing:
+    """
+    Resample input image into the specified `pixdim`.
+    """
+
+    def __init__(self, pixdim, keep_shape=False):
+        """
+        Args:
+            pixdim (sequence of floats): output voxel spacing.
+            keep_shape (bool): whether to maintain the original spatial shape
+                after resampling. Defaults to False.
+        """
+        self.pixdim = pixdim
+        self.keep_shape = keep_shape
+        self.original_pixdim = pixdim
+
+    def __call__(self, data_array, original_affine=None, original_pixdim=None, interp_order=1):
+        """
+        Args:
+            data_array (ndarray): in shape (num_channels, H[, W, ...]).
+            original_affine (4x4 matrix): original affine.
+            original_pixdim (sequence of floats): original voxel spacing.
+            interp_order (int): The order of the spline interpolation, default is 3.
+                The order has to be in the range 0-5.
+                https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.zoom.html
+        Returns:
+            resampled array (in spacing: `self.pixdim`), original pixdim, current pixdim.
+        """
+        if original_affine is None and original_pixdim is None:
+            raise ValueError('please provide either original_affine or original_pixdim.')
+        spatial_rank = data_array.ndim - 1
+        if original_affine is not None:
+            affine = np.array(original_affine, dtype=np.float64, copy=True)
+            if not affine.shape == (4, 4):
+                raise ValueError('`original_affine` must be 4 x 4.')
+            original_pixdim = np.sqrt(np.sum(np.square(affine[:spatial_rank, :spatial_rank]), 1))
+
+        inp_d = np.asarray(original_pixdim)[:spatial_rank]
+        if inp_d.size < spatial_rank:
+            inp_d = np.append(inp_d, [1.] * (inp_d.size - spatial_rank))
+        out_d = np.asarray(self.pixdim)[:spatial_rank]
+        if out_d.size < spatial_rank:
+            out_d = np.append(out_d, [1.] * (out_d.size - spatial_rank))
+
+        self.original_pixdim, self.pixdim = inp_d, out_d
+        scale = inp_d / out_d
+        if not np.isfinite(scale).all():
+            raise ValueError('Unknown pixdims: source {}, target {}'.format(inp_d, out_d))
+        zoom_ = monai.transforms.Zoom(scale, order=interp_order, mode='nearest', keep_size=self.keep_shape)
+        return zoom_(data_array), self.original_pixdim, self.pixdim
+
+
+@export
+class Orientation:
+    """
+    Change the input image's orientation into the specified based on `axcodes`.
+    """
+
+    def __init__(self, axcodes, labels=None):
+        """
+        Args:
+            axcodes (N elements sequence): for spatial ND input's orientation.
+                e.g. axcodes='RAS' represents 3D orientation:
+                    (Left, Right), (Posterior, Anterior), (Inferior, Superior).
+                default orientation labels options are: 'L' and 'R' for the first dimension,
+                'P' and 'A' for the second, 'I' and 'S' for the third.
+            labels : optional, None or sequence of (2,) sequences
+                (2,) sequences are labels for (beginning, end) of output axis.
+                see: ``nibabel.orientations.ornt2axcodes``.
+        """
+        self.axcodes = axcodes
+        self.labels = labels
+
+    def __call__(self, data_array, original_affine=None, original_axcodes=None):
+        """
+        if `original_affine` is provided, the orientation is computed from the affine.
+
+        Args:
+            data_array (ndarray): in shape (num_channels, H[, W, ...]).
+            original_affine (4x4 matrix): original affine.
+            original_axcodes (N elements sequence): for spatial ND input's orientation.
+        Returns:
+            data_array (reoriented in `self.axcodes`), original axcodes, current axcodes.
+        """
+        if original_affine is None and original_axcodes is None:
+            raise ValueError('please provide either original_affine or original_axcodes.')
+        spatial_rank = len(data_array.shape) - 1
+        if original_affine is not None:
+            affine = np.array(original_affine, dtype=np.float64, copy=True)
+            if not affine.shape == (4, 4):
+                raise ValueError('`original_affine` must be 4 x 4.')
+            original_axcodes = nib.aff2axcodes(original_affine, labels=self.labels)
+        original_axcodes = original_axcodes[:spatial_rank]
+        self.axcodes = self.axcodes[:spatial_rank]
+        src = nib.orientations.axcodes2ornt(original_axcodes, labels=self.labels)
+        dst = nib.orientations.axcodes2ornt(self.axcodes)
+        spatial_ornt = nib.orientations.ornt_transform(src, dst)
+        spatial_ornt[:, 0] += 1  # skip channel dim
+        ornt = np.concatenate([np.array([[0, 1]]), spatial_ornt])
+        data_array = nib.orientations.apply_orientation(data_array, ornt)
+        return data_array, original_axcodes, self.axcodes
 
 
 @export
@@ -60,6 +164,7 @@ class LoadNifti:
             filename (str or file): path to file or file-like object.
         """
         img = nib.load(filename)
+        img = correct_nifti_header_if_necessary(img)
 
         header = dict(img.header)
         header['filename_or_obj'] = filename
@@ -199,8 +304,7 @@ class Resize:
     """
 
     def __init__(self, output_shape, order=1, mode='reflect', cval=0,
-                 clip=True, preserve_range=True,
-                 anti_aliasing=True, anti_aliasing_sigma=None):
+                 clip=True, preserve_range=True, anti_aliasing=True, anti_aliasing_sigma=None):
         assert isinstance(order, int), "order must be integer."
         self.output_shape = output_shape
         self.order = order
@@ -223,7 +327,7 @@ class Resize:
 class Rotate:
     """
     Rotates an input image by given angle. Uses scipy.ndimage.rotate. For more details, see
-    http://lagrange.univ-lyon1.fr/docs/scipy/0.17.1/generated/scipy.ndimage.rotate.html.
+    https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.rotate.html
 
     Args:
         angle (float): Rotation angle in degrees.
@@ -238,8 +342,7 @@ class Rotate:
         prefiter (bool): Apply spline_filter before interpolation. Default: True.
     """
 
-    def __init__(self, angle, axes=(1, 2), reshape=True, order=1,
-                 mode='constant', cval=0, prefilter=True):
+    def __init__(self, angle, axes=(1, 2), reshape=True, order=1, mode='constant', cval=0, prefilter=True):
         self.angle = angle
         self.reshape = reshape
         self.order = order
@@ -250,8 +353,7 @@ class Rotate:
 
     def __call__(self, img):
         return scipy.ndimage.rotate(img, self.angle, self.axes,
-                                    reshape=self.reshape, order=self.order,
-                                    mode=self.mode, cval=self.cval,
+                                    reshape=self.reshape, order=self.order, mode=self.mode, cval=self.cval,
                                     prefilter=self.prefilter)
 
 
@@ -261,8 +363,9 @@ class Zoom:
     For details, please see https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.zoom.html.
 
     Args:
-        zoom (float or sequence): The zoom factor along the axes. If a float, zoom is the same for each axis.
-            If a sequence, zoom should contain one value for each axis.
+        zoom (float or sequence): The zoom factor along the spatial axes.
+            If a float, zoom is the same for each spatial axis.
+            If a sequence, zoom should contain one value for each spatial axis.
         order (int): order of interpolation. Default=3.
         mode (str): Determines how input is extended beyond boundaries. Default is 'constant'.
         cval (scalar, optional): Value to fill past edges. Default is 0.
@@ -270,6 +373,7 @@ class Zoom:
             'wrap' and 'reflect'. Defaults to cpu for these cases or if cupyx not found.
         keep_size (bool): Should keep original size (pad if needed).
     """
+
     def __init__(self, zoom, order=3, mode='constant', cval=0, prefilter=True, use_gpu=False, keep_size=False):
         assert isinstance(order, int), "Order must be integer."
         self.zoom = zoom
@@ -280,41 +384,59 @@ class Zoom:
         self.use_gpu = use_gpu
         self.keep_size = keep_size
 
-    def __call__(self, img):
-        zoomed = None
         if self.use_gpu:
             try:
-                import cupy
                 from cupyx.scipy.ndimage import zoom as zoom_gpu
 
-                zoomed_gpu = zoom_gpu(cupy.array(img), zoom=self.zoom, order=self.order,
-                                      mode=self.mode, cval=self.cval, prefilter=self.prefilter)
-                zoomed = cupy.asnumpy(zoomed_gpu)
-            except ModuleNotFoundError:
+                self._zoom = zoom_gpu
+            except ImportError:
                 print('For GPU zoom, please install cupy. Defaulting to cpu.')
-            except NotImplementedError:
-                print("Defaulting to CPU. cupyx doesn't support order > 1 and modes 'wrap' or 'reflect'.")
+                self._zoom = scipy.ndimage.zoom
+                self.use_gpu = False
+        else:
+            self._zoom = scipy.ndimage.zoom
 
-        if zoomed is None:
-            zoomed = scipy.ndimage.zoom(img, zoom=self.zoom, order=self.order,
-                                        mode=self.mode, cval=self.cval, prefilter=self.prefilter)
+    def __call__(self, img):
+        """
+        Args:
+            img (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
+        """
+        zoomed = []
+        if self.use_gpu:
+            import cupy
+            for channel in cupy.array(img):
+                zoom_channel = self._zoom(channel,
+                                          zoom=self.zoom,
+                                          order=self.order,
+                                          mode=self.mode,
+                                          cval=self.cval,
+                                          prefilter=self.prefilter)
+                zoomed.append(cupy.asnumpy(zoom_channel))
+        else:
+            for channel in img:
+                zoomed.append(
+                    self._zoom(channel,
+                               zoom=self.zoom,
+                               order=self.order,
+                               mode=self.mode,
+                               cval=self.cval,
+                               prefilter=self.prefilter))
+        zoomed = np.stack(zoomed)
 
-        # Crops to original size or pads.
-        if self.keep_size:
-            shape = img.shape
-            pad_vec = [[0, 0]] * len(shape)
-            crop_vec = list(zoomed.shape)
-            for d in range(len(shape)):
-                if zoomed.shape[d] > shape[d]:
-                    crop_vec[d] = shape[d]
-                elif zoomed.shape[d] < shape[d]:
-                    # pad_vec[d] = [0, shape[d] - zoomed.shape[d]]
-                    pad_h = (float(shape[d]) - float(zoomed.shape[d])) / 2
-                    pad_vec[d] = [int(np.floor(pad_h)), int(np.ceil(pad_h))]
-            zoomed = zoomed[0:crop_vec[0], 0:crop_vec[1], 0:crop_vec[2]]
-            zoomed = np.pad(zoomed, pad_vec, mode='constant', constant_values=self.cval)
+        if not self.keep_size or np.allclose(img.shape, zoomed.shape):
+            return zoomed
 
-        return zoomed
+        pad_vec = [[0, 0]] * len(img.shape)
+        slice_vec = [slice(None)] * len(img.shape)
+        for idx, (od, zd) in enumerate(zip(img.shape, zoomed.shape)):
+            diff = od - zd
+            half = abs(diff) // 2
+            if diff > 0:  # need padding
+                pad_vec[idx] = [half, diff - half]
+            elif diff < 0:  # need slicing
+                slice_vec[idx] = slice(half, half + od)
+        zoomed = np.pad(zoomed, pad_vec)
+        return zoomed[tuple(slice_vec)]
 
 
 @export
@@ -468,7 +590,7 @@ class RandRotate90(Randomizable):
 @export
 class SpatialCrop:
     """General purpose cropper to produce sub-volume region of interest (ROI).
-    It can support to crop 1, 2 or 3 dimensions spatial data.
+    It can support to crop ND spatial (channel-first) data.
     Either a center and size must be provided, or alternatively if center and size
     are not provided, the start and end coordinates of the ROI must be provided.
     The sub-volume must sit the within original image.
@@ -485,37 +607,27 @@ class SpatialCrop:
             roi_end (list or tuple): voxel coordinates for end of the crop ROI.
         """
         if roi_center is not None and roi_size is not None:
-            assert isinstance(roi_center, (list, tuple)), 'roi_center must be list or tuple.'
-            assert isinstance(roi_size, (list, tuple)), 'roi_size must be list or tuple.'
-            assert all(x > 0 for x in roi_center), 'all elements of roi_center must be positive.'
-            assert all(x > 0 for x in roi_size), 'all elements of roi_size must be positive.'
             roi_center = np.asarray(roi_center, dtype=np.uint16)
             roi_size = np.asarray(roi_size, dtype=np.uint16)
             self.roi_start = np.subtract(roi_center, np.floor_divide(roi_size, 2))
             self.roi_end = np.add(self.roi_start, roi_size)
         else:
             assert roi_start is not None and roi_end is not None, 'roi_start and roi_end must be provided.'
-            assert isinstance(roi_start, (list, tuple)), 'roi_start must be list or tuple.'
-            assert isinstance(roi_end, (list, tuple)), 'roi_end must be list or tuple.'
-            assert all(x >= 0 for x in roi_start), 'all elements of roi_start must be greater than or equal to 0.'
-            assert all(x > 0 for x in roi_end), 'all elements of roi_end must be positive.'
-            self.roi_start = roi_start
-            self.roi_end = roi_end
+            self.roi_start = np.asarray(roi_start, dtype=np.uint16)
+            self.roi_end = np.asarray(roi_end, dtype=np.uint16)
+
+        assert np.all(self.roi_start >= 0), 'all elements of roi_start must be greater than or equal to 0.'
+        assert np.all(self.roi_end > 0), 'all elements of roi_end must be positive.'
+        assert np.all(self.roi_end >= self.roi_start), 'invalid roi range.'
 
     def __call__(self, img):
         max_end = img.shape[1:]
-        assert (np.subtract(max_end, self.roi_start) >= 0).all(), 'roi start out of image space.'
-        assert (np.subtract(max_end, self.roi_end) >= 0).all(), 'roi end out of image space.'
-        assert (np.subtract(self.roi_end, self.roi_start) >= 0).all(), 'invalid roi range.'
-        if len(self.roi_start) == 1:
-            data = img[:, self.roi_start[0]:self.roi_end[0]].copy()
-        elif len(self.roi_start) == 2:
-            data = img[:, self.roi_start[0]:self.roi_end[0], self.roi_start[1]:self.roi_end[1]].copy()
-        elif len(self.roi_start) == 3:
-            data = img[:, self.roi_start[0]:self.roi_end[0], self.roi_start[1]:self.roi_end[1],
-                       self.roi_start[2]:self.roi_end[2]].copy()
-        else:
-            raise ValueError('unsupported image shape.')
+        sd = min(len(self.roi_start), len(max_end))
+        assert np.all(max_end[:sd] >= self.roi_start[:sd]), 'roi start out of image space.'
+        assert np.all(max_end[:sd] >= self.roi_end[:sd]), 'roi end out of image space.'
+
+        slices = [slice(None)] + [slice(s, e) for s, e in zip(self.roi_start[:sd], self.roi_end[:sd])]
+        data = img[tuple(slices)].copy()
         return data
 
 
