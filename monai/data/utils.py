@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 import math
 from itertools import starmap, product
 from torch.utils.data._utils.collate import default_collate
@@ -191,3 +192,64 @@ def list_data_collate(batch):
     elem = batch[0]
     data = [i for k in batch for i in k] if isinstance(elem, list) else batch
     return default_collate(data)
+
+
+def correct_nifti_header_if_necessary(img_nii):
+    """
+    check nifti object header's format, update the header if needed.
+    in the updated image pixdim matches the affine.
+
+    Args:
+        img (nifti image object)
+    """
+    dim = img_nii.header['dim'][0]
+    if dim >= 5:
+        return img_nii  # do nothing for high-dimensional array
+    # check that affine matches zooms
+    pixdim = np.asarray(img_nii.header.get_zooms())[:dim]
+    norm_affine = np.sqrt(np.sum(np.square(img_nii.affine[:dim, :dim]), 0))
+    if np.allclose(pixdim, norm_affine):
+        return img_nii
+    if hasattr(img_nii, 'get_sform'):
+        return rectify_header_sform_qform(img_nii)
+    return img_nii
+
+
+def rectify_header_sform_qform(img_nii):
+    """
+    Look at the sform and qform of the nifti object and correct it if any
+    incompatibilities with pixel dimensions
+
+    Adapted from https://github.com/NifTK/NiftyNet/blob/v0.6.0/niftynet/io/misc_io.py
+    """
+    d = img_nii.header['dim'][0]
+    pixdim = np.asarray(img_nii.header.get_zooms())[:d]
+    sform, qform = img_nii.get_sform(), img_nii.get_qform()
+    norm_sform = np.sqrt(np.sum(np.square(sform[:d, :d]), 0))
+    norm_qform = np.sqrt(np.sum(np.square(qform[:d, :d]), 0))
+    sform_mismatch = not np.allclose(norm_sform, pixdim)
+    qform_mismatch = not np.allclose(norm_qform, pixdim)
+
+    if img_nii.header['sform_code'] != 0:
+        if not sform_mismatch:
+            return img_nii
+        if not qform_mismatch:
+            img_nii.set_sform(img_nii.get_qform())
+            return img_nii
+    if img_nii.header['qform_code'] != 0:
+        if not qform_mismatch:
+            return img_nii
+        if not sform_mismatch:
+            img_nii.set_qform(img_nii.get_sform())
+            return img_nii
+
+    norm_affine = np.sqrt(np.sum(np.square(img_nii.affine[:, :3]), 0))
+    to_divide = np.tile(np.expand_dims(np.append(norm_affine, 1), axis=1), [1, 4])
+    pixdim = np.append(pixdim, [1.] * (4 - len(pixdim)))
+    to_multiply = np.tile(np.expand_dims(pixdim, axis=1), [1, 4])
+    affine = img_nii.affine / to_divide.T * to_multiply.T
+    warnings.warn('Modifying image affine from {} to {}'.format(img_nii.affine, affine))
+
+    img_nii.set_sform(affine)
+    img_nii.set_qform(affine)
+    return img_nii

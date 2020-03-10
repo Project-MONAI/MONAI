@@ -23,13 +23,15 @@ class SegmentationSaver:
     """
 
     def __init__(self, output_path='./', dtype='float32', output_postfix='seg', output_ext='.nii.gz',
-                 output_transform=lambda x: x, name=None):
+                 batch_transform=lambda x: x, output_transform=lambda x: x, name=None):
         """
         Args:
             output_path (str): output image directory.
             dtype (str): to convert the image to save to this datatype.
             output_postfix (str): a string appended to all output file names.
             output_ext (str): output file extension name.
+            batch_transform (Callable): a callable that is used to transform the
+                ignite.engine.batch into expected format to extract the meta_data dictionary.
             output_transform (Callable): a callable that is used to transform the
                 ignite.engine.output into the form expected nifti image data.
                 The first dimension of this transform's output will be treated as the
@@ -40,6 +42,7 @@ class SegmentationSaver:
         self.dtype = dtype
         self.output_postfix = output_postfix
         self.output_ext = output_ext
+        self.batch_transform = batch_transform
         self.output_transform = output_transform
 
         self.logger = None if name is None else logging.getLogger(name)
@@ -88,24 +91,28 @@ class SegmentationSaver:
 
     def __call__(self, engine):
         """
-        This method assumes:
-            - 3rd output of engine.state.batch is a meta data dict, and have the keys:
-            'filename_or_obj' -- for output file name creation
-            and optionally 'original_affine', 'affine' for data orientation handling.
-            - output file datatype from `engine.state.output.dtype`.
+        This method assumes self.batch_transform will extract Metadata from the input batch.
+        Metadata should have the following keys:
+
+            - ``'filename_or_obj'`` -- for output file name creation
+            - ``'original_affine'`` (optional) for data orientation handling
+            - ``'affine'`` (optional) for data output affine.
+
+        output file datatype is determined from ``engine.state.output.dtype``.
         """
-        meta_data = engine.state.batch[2]  # assuming 3rd output of input dataset is a meta data dict
+        meta_data = self.batch_transform(engine.state.batch)
         filenames = meta_data['filename_or_obj']
         original_affine = meta_data.get('original_affine', None)
         affine = meta_data.get('affine', None)
+
         engine_output = self.output_transform(engine.state.output)
         for batch_id, filename in enumerate(filenames):  # save a batch of files
             seg_output = engine_output[batch_id]
-            _affine = affine[batch_id]
-            _original_affine = original_affine[batch_id]
+            affine_ = affine[batch_id]
+            original_affine_ = original_affine[batch_id]
             if isinstance(seg_output, torch.Tensor):
                 seg_output = seg_output.detach().cpu().numpy()
             output_filename = self._create_file_basename(self.output_postfix, filename, self.output_path)
             output_filename = '{}{}'.format(output_filename, self.output_ext)
-            write_nifti(seg_output, _affine, output_filename, _original_affine, dtype=seg_output.dtype)
+            write_nifti(seg_output, affine_, output_filename, original_affine_, dtype=seg_output.dtype)
             self.logger.info('saved: {}'.format(output_filename))

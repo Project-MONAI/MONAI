@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import logging
-
+import torch
 from ignite.engine import Engine, Events
 
 KEY_VAL_FORMAT = '{}: {:.4f} '
@@ -19,28 +19,36 @@ KEY_VAL_FORMAT = '{}: {:.4f} '
 class StatsHandler(object):
     """StatsHandler defines a set of Ignite Event-handlers for all the log printing logics.
     It's can be used for any Ignite Engine(trainer, validator and evaluator).
-    And it can support logging for epoch level and iteration level with pre-defined StatsLoggers.
-    By default, this class logs the dictionary of `engine.state.metrics`.
+    And it can support logging for epoch level and iteration level with pre-defined loggers.
+    By default:
+    (1) epoch_print_logger logs `engine.state.metrics`.
+    (2) iteration_print_logger logs loss value, expected output format is (y_pred, loss).
     """
 
     def __init__(self,
                  epoch_print_logger=None,
                  iteration_print_logger=None,
+                 batch_transform=lambda x: x,
+                 output_transform=lambda x: x,
                  name=None):
         """
         Args:
             epoch_print_logger (Callable): customized callable printer for epoch level logging.
-                                            must accept parameter "engine", use default printer if None.
+                must accept parameter "engine", use default printer if None.
             iteration_print_logger (Callable): custimized callable printer for iteration level logging.
-                                            must accept parameter "engine", use default printer if None.
+                must accept parameter "engine", use default printer if None.
+            batch_transform (Callable): a callable that is used to transform the
+                ignite.engine.batch into expected format to extract input data.
+            output_transform (Callable): a callable that is used to transform the
+                ignite.engine.output into expected format to extract several output data.
             name (str): identifier of logging.logger to use, defaulting to `engine.logger`.
         """
 
         self.epoch_print_logger = epoch_print_logger
         self.iteration_print_logger = iteration_print_logger
-
+        self.batch_transform = batch_transform
+        self.output_transform = output_transform
         self.logger = None if name is None else logging.getLogger(name)
-
 
     def attach(self, engine: Engine):
         """Register a set of Ignite Event-Handlers to a specified Ignite engine.
@@ -119,15 +127,16 @@ class StatsHandler(object):
 
     def _default_iteration_print(self, engine: Engine):
         """Execute iteration log operation based on Ignite engine.state data.
-        print the values from ignite state.logs dict.
+        Print the values from ignite state.logs dict.
+        Default behaivor is to print loss from output[1], skip if output[1] is not loss.
 
         Args:
             engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.
 
         """
-        prints_dict = engine.state.metrics
-        if not prints_dict:
-            return
+        loss = self.output_transform(engine.state.output)[1]
+        if loss is None or (torch.is_tensor(loss) and len(loss.shape) > 0):
+            return  # not printing multi dimensional output
         num_iterations = engine.state.epoch_length
         current_iteration = (engine.state.iteration - 1) % num_iterations + 1
         current_epoch = engine.state.epoch
@@ -138,9 +147,6 @@ class StatsHandler(object):
             num_epochs,
             current_iteration,
             num_iterations)
-
-        for name in sorted(prints_dict):
-            value = prints_dict[name]
-            out_str += KEY_VAL_FORMAT.format(name, value)
+        out_str += KEY_VAL_FORMAT.format('Loss', loss.item() if torch.is_tensor(loss) else loss)
 
         self.logger.info(out_str)

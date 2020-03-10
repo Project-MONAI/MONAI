@@ -35,3 +35,15 @@ def calculate_out_shape(in_shape, kernel_size, stride, padding):
     out_shape = tuple(int(s) for s in out_shape)
 
     return tuple(out_shape) if len(out_shape) > 1 else out_shape[0]
+
+
+def gaussian_1d(sigma, truncated=4.):
+    if sigma <= 0:
+        raise ValueError('sigma must be positive')
+
+    tail = int(sigma * truncated + .5)
+    sigma2 = sigma * sigma
+    x = np.arange(-tail, tail + 1)
+    out = np.exp(-.5 / sigma2 * x ** 2)
+    out /= out.sum()
+    return out

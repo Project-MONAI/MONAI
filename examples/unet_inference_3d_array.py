@@ -17,13 +17,16 @@ from glob import glob
 import nibabel as nib
 import numpy as np
 import torch
-import torchvision.transforms as transforms
 from ignite.engine import Engine
 from torch.utils.data import DataLoader
+
+# assumes the framework is found here, change as necessary
+sys.path.append("..")
 
 from monai import config
 from monai.handlers.checkpoint_loader import CheckpointLoader
 from monai.handlers.segmentation_saver import SegmentationSaver
+import monai.transforms.compose as transforms
 from monai.data.nifti_reader import NiftiDataset
 from monai.transforms import AddChannel, Rescale, ToTensor
 from monai.networks.nets.unet import UNet
@@ -31,11 +34,11 @@ from monai.networks.utils import predict_segmentation
 from monai.data.synthetic import create_test_image_3d
 from monai.utils.sliding_window_inference import sliding_window_inference
 
-sys.path.append("..")  # assumes the framework is found here, change as necessary
 config.print_config()
 
 tempdir = tempfile.mkdtemp()
 # tempdir = './temp'
+print('generating synthetic data to {} (this may take a while)'.format(tempdir))
 for i in range(50):
     im, seg = create_test_image_3d(256, 256, 256)
 
@@ -51,7 +54,7 @@ imtrans = transforms.Compose([Rescale(), AddChannel(), ToTensor()])
 segtrans = transforms.Compose([AddChannel(), ToTensor()])
 ds = NiftiDataset(images, segs, transform=imtrans, seg_transform=segtrans, image_only=False)
 
-device = torch.device("cpu:0")
+device = torch.device("cuda:0")
 roi_size = (64, 64, 64)
 sw_batch_size = 4
 net = UNet(
@@ -65,7 +68,7 @@ net = UNet(
 net.to(device)
 
 
-def _sliding_window_processor(_engine, batch):
+def _sliding_window_processor(engine, batch):
     net.eval()
     img, seg, meta_data = batch
     with torch.no_grad():
@@ -75,11 +78,11 @@ def _sliding_window_processor(_engine, batch):
 
 infer_engine = Engine(_sliding_window_processor)
 
-# checkpoint_handler = ModelCheckpoint('./', 'net', n_saved=10, save_interval=3, require_empty=False)
-# infer_engine.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=checkpoint_handler, to_save={'net': net})
-
-SegmentationSaver(output_path='tempdir', output_ext='.nii.gz', output_postfix='seg').attach(infer_engine)
-CheckpointLoader(load_path='./net_checkpoint_9.pth', load_dict={'net': net}).attach(infer_engine)
+# for the arrary data format, assume the 3rd item of batch data is the meta_data
+SegmentationSaver(output_path='tempdir', output_ext='.nii.gz', output_postfix='seg',
+                  batch_transform=lambda x: x[2]).attach(infer_engine)
+# the model was trained by "unet_segmentation_3d_array" exmple
+CheckpointLoader(load_path='./runs/net_checkpoint_120.pth', load_dict={'net': net}).attach(infer_engine)
 
 loader = DataLoader(ds, batch_size=1, num_workers=1, pin_memory=torch.cuda.is_available())
 state = infer_engine.run(loader)
