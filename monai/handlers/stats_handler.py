@@ -30,7 +30,8 @@ class StatsHandler(object):
                  iteration_print_logger=None,
                  batch_transform=lambda x: x,
                  output_transform=lambda x: x,
-                 name=None):
+                 name=None,
+                 global_epoch_transform=None):
         """
         Args:
             epoch_print_logger (Callable): customized callable printer for epoch level logging.
@@ -42,12 +43,15 @@ class StatsHandler(object):
             output_transform (Callable): a callable that is used to transform the
                 ignite.engine.output into expected format to extract several output data.
             name (str): identifier of logging.logger to use, defaulting to `engine.logger`.
+            global_epoch_transform (Callable): a callable that is used to customize global epoch number.
+                For example, in evaluation, the evaluator engine needs to know current epoch from trainer.
         """
 
         self.epoch_print_logger = epoch_print_logger
         self.iteration_print_logger = iteration_print_logger
         self.batch_transform = batch_transform
         self.output_transform = output_transform
+        self.global_epoch_transform = global_epoch_transform
         self.logger = None if name is None else logging.getLogger(name)
 
     def attach(self, engine: Engine):
@@ -116,7 +120,8 @@ class StatsHandler(object):
         prints_dict = engine.state.metrics
         if not prints_dict:
             return
-        current_epoch = engine.state.epoch
+        current_epoch = self.global_epoch_transform() if self.global_epoch_transform is not None \
+            else engine.state.epoch
 
         out_str = "Epoch[{}] Metrics -- ".format(current_epoch)
         for name in sorted(prints_dict):

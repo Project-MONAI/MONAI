@@ -31,7 +31,7 @@ import monai.transforms.compose as transforms
 from monai.data.nifti_reader import NiftiDataset
 from monai.transforms import AddChannel, Rescale, ToTensor, UniformRandomPatch
 from monai.handlers.stats_handler import StatsHandler
-from monai.handlers.tensorboard_handler import TensorBoardHandler
+from monai.handlers.tensorboard_handlers import TensorBoardStatsHandler, TensorBoardImageHandler
 from monai.handlers.mean_dice import MeanDice
 from monai.data.synthetic import create_test_image_3d
 from monai.handlers.utils import stopping_fn_from_metric
@@ -123,23 +123,28 @@ val_metrics = {metric_name: MeanDice(
 }
 evaluator = create_supervised_evaluator(net, val_metrics, device, True)
 
-# Add stats event handler to print validation stats via evaluator
-val_stats_handler = StatsHandler()
-val_stats_handler.attach(evaluator)
-
 
 def _global_epoch_transform():
     return trainer.state.epoch
 
 
-val_tensorboard_handler = TensorBoardHandler(
+# Add stats event handler to print validation stats via evaluator
+val_stats_handler = StatsHandler(global_epoch_transform=_global_epoch_transform)
+val_stats_handler.attach(evaluator)
+
+# add handler to record metrics to TensorBoard
+val_tensorboard_stats_handler = TensorBoardStatsHandler(global_epoch_transform=_global_epoch_transform)
+val_tensorboard_stats_handler.attach(evaluator)
+# add handler to draw several images and the corresponding labels and model outputs
+# here we draw the first 3 images(draw the first channel) as GIF format along Depth axis
+val_tensorboard_image_handler = TensorBoardImageHandler(
     batch_transform=lambda batch: (batch[0][0:3, 0:1, ...], batch[1][0:3, 0:1, ...]),
     output_transform=lambda output: (output[0][1][0:3, 0:1, ...], None),
-    global_epoch_transform=_global_epoch_transform
+    global_step_transform=_global_epoch_transform
 )
-val_tensorboard_handler.attach(evaluator)
+evaluator.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=val_tensorboard_image_handler)
 
-# Add early stopping handler to evaluator.
+# Add early stopping handler to evaluator
 early_stopper = EarlyStopping(patience=4,
                               score_function=stopping_fn_from_metric(metric_name),
                               trainer=trainer)
