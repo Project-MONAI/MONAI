@@ -11,6 +11,9 @@
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+
+from monai.networks.layers.convutils import gaussian_1d, same_padding
 
 
 class SkipConnection(nn.Module):
@@ -30,3 +33,44 @@ class Flatten(nn.Module):
 
     def forward(self, x):
         return x.view(x.size(0), -1)
+
+
+class GaussianFilter:
+
+    def __init__(self, spatial_dims, sigma, truncated=4., device=None):
+        """
+        Args:
+            sigma (float): std.
+            truncated (float): spreads how many stds.
+        """
+        self.kernel = torch.nn.Parameter(torch.tensor(gaussian_1d(sigma, truncated)), False)
+        self.spatial_dims = spatial_dims
+        self.conv_n = [F.conv1d, F.conv2d, F.conv3d][spatial_dims - 1]
+        self.padding = same_padding(self.kernel.size()[0])
+        self.device = device
+
+        self.kernel = self.kernel.to(self.device)
+
+    def __call__(self, x):
+        """
+        Args:
+            x (tensor): in shape [Batch, chns, H, W, D].
+        """
+        if not torch.is_tensor(x):
+            x = torch.Tensor(x)
+        chns = x.shape[1]
+        sp_dim = self.spatial_dims
+        x = x.to(self.device)
+
+        def _conv(input_, d):
+            if d < 0:
+                return input_
+            s = [1] * (sp_dim + 2)
+            s[d + 2] = -1
+            kernel = self.kernel.reshape(s).float()
+            kernel = kernel.repeat([chns, 1] + [1] * sp_dim)
+            padding = [0] * sp_dim
+            padding[d] = self.padding
+            return self.conv_n(input=_conv(input_, d - 1), weight=kernel, padding=padding, groups=chns)
+
+        return _conv(x, sp_dim - 1)
