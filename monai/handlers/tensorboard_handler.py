@@ -126,6 +126,8 @@ class TensorBoardHandler(object):
                     writer.add_image('output' + str(i), show_outputs[i], current_epoch)
                     label_tensor = torch.where(show_labels[i] > 0, ones, show_labels[i])
                     writer.add_image('label' + str(i), label_tensor, current_epoch)
+            else:
+                raise ValueError('unsupported input data shape.')
 
     def _default_iteration_writer(self, engine: Engine, writer: SummaryWriter):
         """Execute iteration level event write operation based on Ignite engine.state data.
@@ -137,5 +139,5 @@ class TensorBoardHandler(object):
 
         """
         loss = self.output_transform(engine.state.output)[1]
-        if loss is not None:
+        if loss is None or (isinstance(loss, torch.Tensor) is True and len(loss.shape) > 0):
             writer.add_scalar('Loss', loss.item(), engine.state.iteration)
