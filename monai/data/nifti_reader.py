@@ -9,13 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import numpy as np
 import nibabel as nib
-
+import numpy as np
 from torch.utils.data import Dataset
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
-from monai.utils.module import export
+
+from monai.data.utils import correct_nifti_header_if_necessary
 from monai.transforms.compose import Randomizable
+from monai.utils.module import export
 
 
 def load_nifti(filename_or_obj, as_closest_canonical=False, image_only=True, dtype=None):
@@ -38,6 +39,7 @@ def load_nifti(filename_or_obj, as_closest_canonical=False, image_only=True, dty
     """
 
     img = nib.load(filename_or_obj)
+    img = correct_nifti_header_if_necessary(img)
 
     header = dict(img.header)
     header['filename_or_obj'] = filename_or_obj
