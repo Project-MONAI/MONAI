@@ -29,9 +29,9 @@ class ZoomTest(NumpyImageTestCase2D):
         (0.8, 1, 'reflect', 0, False, False, False)
     ])
     def test_correct_results(self, zoom, order, mode, cval, prefilter, use_gpu, keep_size):
-        zoom_fn = Zoom(zoom=zoom, order=order, mode=mode, cval=cval, 
+        zoom_fn = Zoom(zoom=zoom, order=order, mode=mode, cval=cval,
                        prefilter=prefilter, use_gpu=use_gpu, keep_size=keep_size)
-        zoomed = zoom_fn(self.imt)
+        zoomed = zoom_fn(self.imt[0])
         expected = zoom_scipy(self.imt, zoom=zoom, mode=mode, order=order,
                               cval=cval, prefilter=prefilter)
         self.assertTrue(np.allclose(expected, zoomed))
@@ -43,15 +43,19 @@ class ZoomTest(NumpyImageTestCase2D):
         if importlib.util.find_spec('cupy'):
             zoom_fn = Zoom(zoom=zoom, order=order, mode=mode, cval=cval,
                            prefilter=prefilter, use_gpu=True, keep_size=False)
-            zoomed = zoom_fn(self.imt)
+            zoomed = zoom_fn(self.imt[0])
             expected = zoom_scipy(self.imt, zoom=zoom, mode=mode, order=order,
                                   cval=cval, prefilter=prefilter)
             self.assertTrue(np.allclose(expected, zoomed))
 
     def test_keep_size(self):
         zoom_fn = Zoom(zoom=0.6, keep_size=True)
-        zoomed = zoom_fn(self.imt)
-        self.assertTrue(np.array_equal(zoomed.shape, self.imt.shape))
+        zoomed = zoom_fn(self.imt[0])
+        self.assertTrue(np.array_equal(zoomed.shape, self.imt.shape[1:]))
+
+        zoom_fn = Zoom(zoom=1.3, keep_size=True)
+        zoomed = zoom_fn(self.imt[0])
+        self.assertTrue(np.array_equal(zoomed.shape, self.imt.shape[1:]))
 
     @parameterized.expand([
         ("no_zoom", None, 1, TypeError),
