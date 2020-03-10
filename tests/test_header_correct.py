@@ -26,7 +26,7 @@ class TestCorrection(unittest.TestCase):
         np.testing.assert_allclose(
             test_img.affine, np.array([[100., 0., 0., 0.], [0., 100., 0., 0.], [0., 0., 100., 0.], [0., 0., 0., 1.]]))
 
-    def test_correcting(self):
+    def test_affine(self):
         test_img = nib.Nifti1Image(np.zeros((1, 2, 3)), np.eye(4) * 20.)
         test_img = correct_nifti_header_if_necessary(test_img)
         np.testing.assert_allclose(

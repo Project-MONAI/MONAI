@@ -16,7 +16,7 @@ import numpy as np
 from monai.transforms.composables import Spacingd
 
 
-class SpacingDTestCase(unittest.TestCase):
+class TestSpacingDCase(unittest.TestCase):
 
     def test_spacingd_3d(self):
         data = {'image': np.ones((2, 10, 15, 20)), 'affine': np.eye(4)}

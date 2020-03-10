@@ -16,7 +16,7 @@ import numpy as np
 from monai.transforms.composables import Orientationd
 
 
-class OrientationdTestCase(unittest.TestCase):
+class TestOrientationdCase(unittest.TestCase):
 
     def test_orntd(self):
         data = {'seg': np.ones((2, 1, 2, 3)), 'affine': np.eye(4)}

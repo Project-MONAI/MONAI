@@ -32,7 +32,7 @@ TEST_CASES = [
 ]
 
 
-class SpacingTestCase(unittest.TestCase):
+class TestSpacingCase(unittest.TestCase):
 
     @parameterized.expand(TEST_CASES)
     def test_spacing(self, init_param, img, data_param, expected_shape):

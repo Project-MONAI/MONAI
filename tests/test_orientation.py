@@ -26,7 +26,7 @@ TEST_CASES = [
 ]
 
 
-class OrientationTestCase(unittest.TestCase):
+class TestOrientationCase(unittest.TestCase):
 
     @parameterized.expand(TEST_CASES)
     def test_ornt(self, init_param, img, data_param, expected_shape):

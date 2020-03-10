@@ -13,14 +13,15 @@ A collection of "vanilla" transforms
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-import nibabel as nib
 import numpy as np
 import scipy.ndimage
+import nibabel as nib
 import torch
+from torch.utils.data._utils.collate import np_str_obj_array_pattern
 from skimage.transform import resize
 
 import monai
-from monai.data.utils import get_random_patch, get_valid_patch_size
+from monai.data.utils import get_random_patch, get_valid_patch_size, correct_nifti_header_if_necessary
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.compose import Randomizable
 from monai.transforms.utils import (create_control_grid, create_grid, create_rotate, create_scale, create_shear,
@@ -132,6 +133,80 @@ class Orientation:
         ornt = np.concatenate([np.array([[0, 1]]), spatial_ornt])
         data_array = nib.orientations.apply_orientation(data_array, ornt)
         return data_array, original_axcodes, self.axcodes
+
+
+@export
+class LoadNifti:
+    """
+    Load Nifti format file from provided path.
+    """
+
+    def __init__(self, as_closest_canonical=False, image_only=False, dtype=None):
+        """
+        Args:
+            as_closest_canonical (bool): if True, load the image as closest to canonical axis format.
+            image_only (bool): if True return only the image volume, other return image volume and header dict.
+            dtype (np.dtype, optional): if not None convert the loaded image to this data type.
+
+        Note:
+            The loaded image volume if `image_only` is True, or a tuple containing the volume and the Nifti
+            header in dict format otherwise.
+            header['original_affine'] stores the original affine loaded from `filename_or_obj`.
+            header['affine'] stores the affine after the optional `as_closest_canonical` transform.
+        """
+        self.as_closest_canonical = as_closest_canonical
+        self.image_only = image_only
+        self.dtype = dtype
+
+    def __call__(self, filename):
+        """
+        Args:
+            filename (str or file): path to file or file-like object.
+        """
+        img = nib.load(filename)
+        img = correct_nifti_header_if_necessary(img)
+
+        header = dict(img.header)
+        header['filename_or_obj'] = filename
+        header['original_affine'] = img.affine
+        header['affine'] = img.affine
+        header['as_closest_canonical'] = self.as_closest_canonical
+
+        if self.as_closest_canonical:
+            img = nib.as_closest_canonical(img)
+            header['affine'] = img.affine
+
+        if self.dtype is not None:
+            img = img.get_fdata(dtype=self.dtype)
+        else:
+            img = np.asanyarray(img.dataobj)
+
+        if self.image_only:
+            return img
+        compatible_meta = dict()
+        for meta_key in header:
+            meta_datum = header[meta_key]
+            if type(meta_datum).__name__ == 'ndarray' \
+                    and np_str_obj_array_pattern.search(meta_datum.dtype.str) is not None:
+                continue
+            compatible_meta[meta_key] = meta_datum
+        return img, compatible_meta
+
+
+@export
+class AsChannelFirst:
+    """
+    Change the channel dimension of the image to the first dimension.
+    Args:
+        channel_dim (int): which dimension of input image is the channel, default is the last dimension.
+    """
+
+    def __init__(self, channel_dim=-1):
+        assert isinstance(channel_dim, int) and channel_dim >= -1, 'invalid channel dimension.'
+        self.channel_dim = channel_dim
+
+    def __call__(self, img):
+        return np.moveaxis(img, self.channel_dim, 0)
 
 
 @export

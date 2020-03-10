@@ -28,13 +28,14 @@ sys.path.append("..")
 
 import monai
 import monai.transforms.compose as transforms
-from monai.data.nifti_reader import NiftiDatasetd
-from monai.transforms.composables import AddChanneld, RandRotate90d
+from monai.transforms.composables import \
+    LoadNiftid, AsChannelFirstd, RandCropByPosNegLabeld, RandRotate90d
 from monai.handlers.stats_handler import StatsHandler
 from monai.handlers.mean_dice import MeanDice
 from monai.visualize import img2tensorboard
 from monai.data.synthetic import create_test_image_3d
 from monai.handlers.utils import stopping_fn_from_metric
+from monai.data.utils import list_data_collate
 
 monai.config.print_config()
 
@@ -42,28 +43,37 @@ monai.config.print_config()
 tempdir = tempfile.mkdtemp()
 
 for i in range(50):
-    im, seg = create_test_image_3d(128, 128, 128)
+    im, seg = create_test_image_3d(128, 128, 128, channel_dim=-1)
 
     n = nib.Nifti1Image(im, np.eye(4))
-    nib.save(n, os.path.join(tempdir, 'im%i.nii.gz' % i))
+    nib.save(n, os.path.join(tempdir, 'img%i.nii.gz' % i))
 
     n = nib.Nifti1Image(seg, np.eye(4))
     nib.save(n, os.path.join(tempdir, 'seg%i.nii.gz' % i))
 
-images = sorted(glob(os.path.join(tempdir, 'im*.nii.gz')))
+images = sorted(glob(os.path.join(tempdir, 'img*.nii.gz')))
 segs = sorted(glob(os.path.join(tempdir, 'seg*.nii.gz')))
+train_files = [{'img': img, 'seg': seg} for img, seg in zip(images[:40], segs[:40])]
+val_files = [{'img': img, 'seg': seg} for img, seg in zip(images[-10:], segs[-10:])]
 
 # Define transforms for image and segmentation
-transforms = transforms.Compose([
-    AddChanneld(keys=['image', 'seg']),
-    RandRotate90d(keys=['image', 'seg'], prob=0.8, axes=[1, 3])
+train_transforms = transforms.Compose([
+    LoadNiftid(keys=['img', 'seg']),
+    AsChannelFirstd(keys=['img', 'seg'], channel_dim=-1),
+    RandCropByPosNegLabeld(keys=['img', 'seg'], label_key='seg', size=[96, 96, 96], pos=1, neg=1, num_samples=4),
+    RandRotate90d(keys=['img', 'seg'], prob=0.8, axes=[1, 3])
+])
+val_transforms = transforms.Compose([
+    LoadNiftid(keys=['img', 'seg']),
+    AsChannelFirstd(keys=['img', 'seg'], channel_dim=-1)
 ])
 
 # Define nifti dataset, dataloader.
-ds = NiftiDatasetd(images, segs, transform=transforms)
-loader = DataLoader(ds, batch_size=10, num_workers=2, pin_memory=torch.cuda.is_available())
+ds = monai.data.Dataset(data=train_files, transform=train_transforms)
+loader = DataLoader(ds, batch_size=2, num_workers=2, collate_fn=list_data_collate,
+                    pin_memory=torch.cuda.is_available())
 check_data = monai.utils.misc.first(loader)
-print(check_data['image'].shape, check_data['seg'].shape)
+print(check_data['img'].shape, check_data['seg'].shape)
 
 lr = 1e-5
 
@@ -88,7 +98,7 @@ def _loss_fn(i, j):
 
 # Create trainer
 def prepare_batch(batch, device=None, non_blocking=False):
-    return _prepare_batch((batch['image'], batch['seg']), device, non_blocking)
+    return _prepare_batch((batch['img'], batch['seg']), device, non_blocking)
 
 
 device = torch.device("cuda:0")
@@ -160,8 +170,9 @@ early_stopper = EarlyStopping(patience=4,
 evaluator.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=early_stopper)
 
 # create a validation data loader
-val_ds = NiftiDatasetd(images[-20:], segs[-20:], transform=transforms)
-val_loader = DataLoader(ds, batch_size=5, num_workers=8, pin_memory=torch.cuda.is_available())
+val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
+val_loader = DataLoader(ds, batch_size=5, num_workers=8, collate_fn=list_data_collate,
+                        pin_memory=torch.cuda.is_available())
 
 
 @trainer.on(Events.EPOCH_COMPLETED(every=validation_every_n_epochs))
@@ -178,8 +189,9 @@ def log_metrics_to_tensorboard(engine):
 # create a training data loader
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-train_ds = NiftiDatasetd(images[:20], segs[:20], transform=transforms)
-train_loader = DataLoader(train_ds, batch_size=5, num_workers=8, pin_memory=torch.cuda.is_available())
+train_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
+train_loader = DataLoader(train_ds, batch_size=2, num_workers=8, collate_fn=list_data_collate,
+                          pin_memory=torch.cuda.is_available())
 
 train_epochs = 30
 state = trainer.run(train_loader, train_epochs)
