@@ -50,7 +50,6 @@ class StatsHandler(object):
         self.output_transform = output_transform
         self.logger = None if name is None else logging.getLogger(name)
 
-
     def attach(self, engine: Engine):
         """Register a set of Ignite Event-Handlers to a specified Ignite engine.
 
@@ -136,8 +135,8 @@ class StatsHandler(object):
 
         """
         loss = self.output_transform(engine.state.output)[1]
-        if loss is None or (isinstance(loss, torch.Tensor) is True and len(loss.shape) > 0):
-            return
+        if loss is None or (torch.is_tensor(loss) and len(loss.shape) > 0):
+            return  # not printing multi dimensional output
         num_iterations = engine.state.epoch_length
         current_iteration = (engine.state.iteration - 1) % num_iterations + 1
         current_epoch = engine.state.epoch
@@ -148,6 +147,6 @@ class StatsHandler(object):
             num_epochs,
             current_iteration,
             num_iterations)
-        out_str += KEY_VAL_FORMAT.format('Loss', loss.item() if isinstance(loss, torch.Tensor) else loss)
+        out_str += KEY_VAL_FORMAT.format('Loss', loss.item() if torch.is_tensor(loss) else loss)
 
         self.logger.info(out_str)

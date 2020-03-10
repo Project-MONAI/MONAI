@@ -41,7 +41,7 @@ monai.config.print_config()
 
 # Create a temporary directory and 50 random image, mask paris
 tempdir = tempfile.mkdtemp()
-
+print('generating synthetic data to {} (this may take a while)'.format(tempdir))
 for i in range(50):
     im, seg = create_test_image_3d(128, 128, 128)
 

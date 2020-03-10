@@ -39,6 +39,7 @@ config.print_config()
 
 tempdir = tempfile.mkdtemp()
 # tempdir = './temp'
+print('generating synthetic data to {} (this may take a while)'.format(tempdir))
 for i in range(50):
     im, seg = create_test_image_3d(256, 256, 256, channel_dim=-1)
 

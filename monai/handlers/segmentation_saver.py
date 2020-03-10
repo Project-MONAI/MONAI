@@ -91,16 +91,20 @@ class SegmentationSaver:
 
     def __call__(self, engine):
         """
-        This method assumes to have the keys:
-            'filename_or_obj' -- for output file name creation
-            and optionally 'original_affine', 'affine' for data orientation handling.
-            - output file datatype from `engine.state.output.dtype`.
-        And this method assumes self.batch_transform will extract meta data from the input batch.
+        This method assumes self.batch_transform will extract Metadata from the input batch.
+        Metadata should have the following keys:
+
+            - ``'filename_or_obj'`` -- for output file name creation
+            - ``'original_affine'`` (optional) for data orientation handling
+            - ``'affine'`` (optional) for data output affine.
+
+        output file datatype is determined from ``engine.state.output.dtype``.
         """
         meta_data = self.batch_transform(engine.state.batch)
         filenames = meta_data['filename_or_obj']
         original_affine = meta_data.get('original_affine', None)
         affine = meta_data.get('affine', None)
+
         engine_output = self.output_transform(engine.state.output)
         for batch_id, filename in enumerate(filenames):  # save a batch of files
             seg_output = engine_output[batch_id]
