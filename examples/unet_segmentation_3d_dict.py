@@ -41,7 +41,7 @@ monai.config.print_config()
 
 # Create a temporary directory and 50 random image, mask paris
 tempdir = tempfile.mkdtemp()
-
+print('generating synthetic data to {} (this may take a while)'.format(tempdir))
 for i in range(50):
     im, seg = create_test_image_3d(128, 128, 128, channel_dim=-1)
 
@@ -70,7 +70,7 @@ val_transforms = transforms.Compose([
 
 # Define nifti dataset, dataloader.
 ds = monai.data.Dataset(data=train_files, transform=train_transforms)
-loader = DataLoader(ds, batch_size=2, num_workers=2, collate_fn=list_data_collate,
+loader = DataLoader(ds, batch_size=2, num_workers=4, collate_fn=list_data_collate,
                     pin_memory=torch.cuda.is_available())
 check_data = monai.utils.misc.first(loader)
 print(check_data['img'].shape, check_data['seg'].shape)
@@ -190,7 +190,7 @@ def log_metrics_to_tensorboard(engine):
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 train_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
-train_loader = DataLoader(train_ds, batch_size=2, num_workers=8, collate_fn=list_data_collate,
+train_loader = DataLoader(train_ds, batch_size=2, num_workers=4, collate_fn=list_data_collate,
                           pin_memory=torch.cuda.is_available())
 
 train_epochs = 30

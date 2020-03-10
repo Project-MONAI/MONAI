@@ -10,9 +10,8 @@
 # limitations under the License.
 
 import torch
-
+from ignite.utils import convert_tensor
 from monai.transforms.transforms import ImageEndPadder
-from monai.transforms.transforms import ToTensor
 from monai.data.utils import dense_patch_slices
 
 
@@ -49,7 +48,7 @@ def sliding_window_inference(inputs, roi_size, sw_batch_size, predictor, device)
     # in case that image size is smaller than roi size
     image_size = tuple(max(image_size[i], roi_size[i]) for i in range(num_spatial_dims))
     inputs = ImageEndPadder(roi_size, 'constant')(inputs)  # in np array
-    inputs = ToTensor()(inputs)
+    inputs = convert_tensor(torch.from_numpy(inputs), device, False)
 
     # TODO: interval from user's specification
     scan_interval = _get_scan_interval(image_size, roi_size, num_spatial_dims)

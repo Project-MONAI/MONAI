@@ -30,7 +30,7 @@ import monai
 import monai.transforms.compose as transforms
 
 from monai.data.nifti_reader import NiftiDataset
-from monai.transforms import (AddChannel, Rescale, ToTensor, UniformRandomPatch)
+from monai.transforms import AddChannel, Rescale, ToTensor, UniformRandomPatch
 from monai.handlers.stats_handler import StatsHandler
 from monai.handlers.mean_dice import MeanDice
 from monai.visualize import img2tensorboard
@@ -41,7 +41,7 @@ monai.config.print_config()
 
 # Create a temporary directory and 50 random image, mask paris
 tempdir = tempfile.mkdtemp()
-
+print('generating synthetic data to {} (this may take a while)'.format(tempdir))
 for i in range(50):
     im, seg = create_test_image_3d(128, 128, 128)
 
