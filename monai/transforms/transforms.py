@@ -632,6 +632,56 @@ class SpatialCrop:
 
 
 @export
+class RandRotate(Randomizable):
+    """Randomly rotates the input arrays.
+
+    Args:
+        prob (float): Probability of rotation.
+        degrees (tuple of float or float): Range of rotation in degrees. If single number,
+            angle is picked from (-degrees, degrees). 
+        axes (tuple of 2 ints): Axes of rotation. Default: (1, 2). This is the first two
+            axis in spatial dimensions according to MONAI channel first shape assumption.
+        reshape (bool): If true, output shape is made same as input. Default: True.
+        order (int): Order of spline interpolation. Range 0-5. Default: 1. This is
+            different from scipy where default interpolation is 3.
+        mode (str): Points outside boundary filled according to this mode. Options are 
+            'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
+        cval (scalar): Value to fill outside boundary. Default: 0.
+        prefiter (bool): Apply spline_filter before interpolation. Default: True.
+    """
+
+    def __init__(self, degrees, prob=0.1, axes=(1, 2), reshape=True, order=1, 
+                 mode='constant', cval=0, prefilter=True):
+        self.prob = prob
+        self.degrees = degrees
+        self.reshape = reshape
+        self.order = order
+        self.mode = mode
+        self.cval = cval
+        self.prefilter = prefilter
+        self.axes = axes
+
+        if not hasattr(self.degrees, '__iter__'):
+            self.degrees = (-self.degrees, self.degrees)
+        assert len(self.degrees) == 2, "degrees should be a number or pair of numbers."
+
+        self._do_transform = False
+        self.angle = None
+
+    def randomize(self):
+        self._do_transform = self.R.random_sample() < self.prob
+        self.angle = self.R.uniform(low=self.degrees[0], high=self.degrees[1])
+
+    def __call__(self, img):
+        self.randomize()
+        if not self._do_transform:
+            return img
+        rotator = Rotate(self.angle, self.axes, self.reshape, self.order,
+                         self.mode, self.cval, self.prefilter)
+        return rotator(img)
+
+
+@export
 class RandomFlip(Randomizable):
     """Randomly flips the image along axes.
 

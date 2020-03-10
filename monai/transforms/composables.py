@@ -85,7 +85,6 @@ class Spacingd(MapTransform):
         interp_order = ensure_tuple(interp_order)
         self.interp_order = interp_order \
             if len(interp_order) == len(self.keys) else interp_order * len(self.keys)
-        print(self.interp_order)
         self.output_key = output_key
 
     def __call__(self, data):
