@@ -94,7 +94,7 @@ def _loss_fn(i, j):
 
 
 # Create trainer
-device = torch.device("cuda:0")
+device = torch.device("cpu:0")
 trainer = create_supervised_trainer(net, opt, _loss_fn, device, False,
                                     output_transform=lambda x, y, y_pred, loss: [y_pred[1], loss.item(), y])
 
@@ -104,8 +104,16 @@ trainer.add_event_handler(event_name=Events.EPOCH_COMPLETED,
                           handler=checkpoint_handler,
                           to_save={'net': net, 'opt': opt})
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-train_stats_handler = StatsHandler()
+
+# print training loss to commandline
+train_stats_handler = StatsHandler(output_transform=lambda x: x[1])
 train_stats_handler.attach(trainer)
+
+# record training loss to TensorBoard at every iteration
+train_tensorboard_stats_handler = TensorBoardStatsHandler(
+    output_transform=lambda x: {'training_dice_loss': x[1]},  # plot under tag name taining_dice_loss
+    global_epoch_transform=lambda x: trainer.state.epoch)
+train_tensorboard_stats_handler.attach(trainer)
 
 
 @trainer.on(Events.EPOCH_COMPLETED)
@@ -119,28 +127,27 @@ metric_name = 'Mean_Dice'
 
 # add evaluation metric to the evaluator engine
 val_metrics = {metric_name: MeanDice(
-    add_sigmoid=True, output_transform=lambda output: (output[0][0], output[1]))
+    add_sigmoid=True, to_onehot_y=False, output_transform=lambda output: (output[0][0], output[1]))
 }
 evaluator = create_supervised_evaluator(net, val_metrics, device, True)
 
-
-def _global_epoch_transform():
-    return trainer.state.epoch
-
-
 # Add stats event handler to print validation stats via evaluator
-val_stats_handler = StatsHandler(global_epoch_transform=_global_epoch_transform)
+val_stats_handler = StatsHandler(
+    output_transform=lambda x: None,  # disable per iteration output
+    global_epoch_transform=lambda x: trainer.state.epoch)
 val_stats_handler.attach(evaluator)
 
-# add handler to record metrics to TensorBoard
-val_tensorboard_stats_handler = TensorBoardStatsHandler(global_epoch_transform=_global_epoch_transform)
+# add handler to record metrics to TensorBoard at every epoch
+val_tensorboard_stats_handler = TensorBoardStatsHandler(
+    output_transform=lambda x: None,  # no iteration plot
+    global_epoch_transform=lambda x: trainer.state.epoch)  # use epoch number from trainer
 val_tensorboard_stats_handler.attach(evaluator)
 # add handler to draw several images and the corresponding labels and model outputs
 # here we draw the first 3 images(draw the first channel) as GIF format along Depth axis
 val_tensorboard_image_handler = TensorBoardImageHandler(
-    batch_transform=lambda batch: (batch[0][0:3, 0:1, ...], batch[1][0:3, 0:1, ...]),
-    output_transform=lambda output: (output[0][1][0:3, 0:1, ...], None),
-    global_step_transform=_global_epoch_transform
+    batch_transform=lambda batch: (batch[0], batch[1]),
+    output_transform=lambda output: output[0][1],
+    global_iter_transform=lambda x: trainer.state.epoch
 )
 evaluator.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=val_tensorboard_image_handler)
 
