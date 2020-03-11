@@ -14,7 +14,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.transforms import RandomFlip
+from monai.transforms import RandFlip
 from tests.utils import NumpyImageTestCase2D
 
 
@@ -22,11 +22,11 @@ class RandomFlipTest(NumpyImageTestCase2D):
 
     @parameterized.expand([
         ("wrong_axis", ['s', 1], TypeError),
-        ("not_numbers", 's', AssertionError)
+        ("not_numbers", 's', TypeError)
     ])
     def test_invalid_inputs(self, _, axis, raises):
         with self.assertRaises(raises):
-            flip = RandomFlip(prob=1.0, axis=axis)
+            flip = RandFlip(prob=1.0, axis=axis)
             flip(self.imt)
 
     @parameterized.expand([
@@ -35,7 +35,7 @@ class RandomFlipTest(NumpyImageTestCase2D):
         ("many_axis", [0, 1, 2])
     ])
     def test_correct_results(self, _, axis):
-        flip = RandomFlip(prob=1.0, axis=axis)
+        flip = RandFlip(prob=1.0, axis=axis)
         expected = np.flip(self.imt, axis)
         self.assertTrue(np.allclose(expected, flip(self.imt)))
 

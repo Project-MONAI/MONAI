@@ -34,7 +34,7 @@ TEST_CASES = [
              as_tensor_output=True,
              spatial_size=(2, 2, 2),
              device=None), {'img': torch.ones((1, 3, 3, 3)), 'mode': 'bilinear'},
-        torch.tensor([[[[1.0000, 0.7776], [0.4174, 0.0780]], [[0.0835, 1.0000], [0.3026, 0.5732]]]],)
+        torch.tensor([[[[0.0000, 0.6577], [0.9911, 1.0000]], [[0.7781, 1.0000], [1.0000, 0.4000]]]])
     ],
     [
         dict(prob=0.9,
@@ -44,7 +44,7 @@ TEST_CASES = [
              scale_range=[.1, .2],
              as_tensor_output=True,
              device=None), {'img': torch.arange(64).reshape((1, 8, 8)), 'spatial_size': (3, 3)},
-        torch.tensor([[[27.3614, 18.0237, 8.6860], [40.0440, 30.7063, 21.3686], [52.7266, 43.3889, 34.0512]]])
+        torch.tensor([[[16.9127, 13.3079, 9.7031], [26.8129, 23.2081, 19.6033], [36.7131, 33.1083, 29.5035]]])
     ],
 ]
 

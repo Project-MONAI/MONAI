@@ -40,8 +40,11 @@ class GaussianFilter:
     def __init__(self, spatial_dims, sigma, truncated=4., device=None):
         """
         Args:
+            spatial_dims (int): number of spatial dimensions of the input image.
+                must have shape (Batch, channels, H[, W, ...]).
             sigma (float): std.
             truncated (float): spreads how many stds.
+            device (torch.device): device on which the tensor will be allocated.
         """
         self.kernel = torch.nn.Parameter(torch.tensor(gaussian_1d(sigma, truncated)), False)
         self.spatial_dims = spatial_dims
