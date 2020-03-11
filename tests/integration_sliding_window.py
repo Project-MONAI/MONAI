@@ -52,7 +52,7 @@ def run_test(batch_size=2, device=torch.device("cpu:0")):
         net.eval()
         img, seg, meta_data = batch
         with torch.no_grad():
-            seg_probs = sliding_window_inference(img, roi_size, sw_batch_size, lambda x: net(x)[0], device)
+            seg_probs = sliding_window_inference(img, roi_size, sw_batch_size, lambda x: net(x), device)
             return predict_segmentation(seg_probs)
 
     infer_engine = Engine(_sliding_window_processor)
