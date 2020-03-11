@@ -690,7 +690,7 @@ class RandFlip(Randomizable):
 
     def __init__(self, prob=0.1, axis=None):
         self.prob = prob
-        self.flipper = Flip(axis=self.axis)
+        self.flipper = Flip(axis=axis)
 
         self._do_transform = False
 
