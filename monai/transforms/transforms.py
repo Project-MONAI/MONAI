@@ -268,15 +268,13 @@ class GaussianNoise(Randomizable):
 @export
 class Flip:
     """Reverses the order of elements along the given axis. Preserves shape.
-    Uses np.flip in practice. See numpy.flip for additional details.
+    Uses ``np.flip`` in practice. See numpy.flip for additional details.
 
     Args:
-        axes (None, int or tuple of ints): Axes along which to flip over. Default is None.
+        axis (None, int or tuple of ints): Axes along which to flip over. Default is None.
     """
 
     def __init__(self, axis=None):
-        assert axis is None or isinstance(axis, (int, list, tuple)), \
-            "axis must be None, int or tuple of ints."
         self.axis = axis
 
     def __call__(self, img):
@@ -682,17 +680,17 @@ class RandRotate(Randomizable):
 
 
 @export
-class RandomFlip(Randomizable):
+class RandFlip(Randomizable):
     """Randomly flips the image along axes.
 
     Args:
         prob (float): Probability of flipping.
-        axes (None, int or tuple of ints): Axes along which to flip over. Default is None.
+        axis (None, int or tuple of ints): Axes along which to flip over. Default is None.
     """
 
     def __init__(self, prob=0.1, axis=None):
-        self.axis = axis
         self.prob = prob
+        self.flipper = Flip(axis=self.axis)
 
         self._do_transform = False
 
@@ -703,8 +701,7 @@ class RandomFlip(Randomizable):
         self.randomize()
         if not self._do_transform:
             return img
-        flipper = Flip(axis=self.axis)
-        return flipper(img)
+        return self.flipper(img)
 
 
 @export
