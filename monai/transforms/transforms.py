@@ -269,6 +269,7 @@ class GaussianNoise(Randomizable):
 class Flip:
     """Reverses the order of elements along the given axis. Preserves shape.
     Uses ``np.flip`` in practice. See numpy.flip for additional details.
+    https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
 
     Args:
         axis (None, int or tuple of ints): Axes along which to flip over. Default is None.
@@ -681,7 +682,9 @@ class RandRotate(Randomizable):
 
 @export
 class RandFlip(Randomizable):
-    """Randomly flips the image along axes.
+    """Randomly flips the image along axes. Preserves shape.
+    See numpy.flip for additional details.
+    https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
 
     Args:
         prob (float): Probability of flipping.
