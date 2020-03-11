@@ -22,7 +22,7 @@ class FlipTest(NumpyImageTestCase2D):
 
     @parameterized.expand([
         ("wrong_axis", ['s', 1], TypeError),
-        ("not_numbers", 's', AssertionError)
+        ("not_numbers", 's', TypeError)
     ])
     def test_invalid_inputs(self, _, axis, raises):
         with self.assertRaises(raises):
