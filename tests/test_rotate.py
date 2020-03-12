@@ -15,17 +15,16 @@ import numpy as np
 import scipy.ndimage
 from parameterized import parameterized
 
-from monai.transforms import Rotate
+from monai.transforms import Rotate, Rotated
 from tests.utils import NumpyImageTestCase2D
 
+TEST_CASES = [(90, (1, 2), True, 1, 'reflect', 0, True),
+              (-90, (2, 1), True, 3, 'constant', 0, True),
+              (180, (2, 3), False, 2, 'constant', 4, False)]
 
 class RotateTest(NumpyImageTestCase2D):
 
-    @parameterized.expand([
-        (90, (1, 2), True, 1, 'reflect', 0, True),
-        (-90, (2, 1), True, 3, 'constant', 0, True),
-        (180, (2, 3), False, 2, 'constant', 4, False),
-    ])
+    @parameterized.expand(TEST_CASES)
     def test_correct_results(self, angle, axes, reshape, 
                              order, mode, cval, prefilter):
         rotate_fn = Rotate(angle, axes, reshape, 
@@ -35,6 +34,18 @@ class RotateTest(NumpyImageTestCase2D):
         expected = scipy.ndimage.rotate(self.imt, angle, axes, reshape, order=order,
                                         mode=mode, cval=cval, prefilter=prefilter)
         self.assertTrue(np.allclose(expected, rotated))
+
+    @parameterized.expand(TEST_CASES)
+    def test_correct_results_dict(self, angle, axes, reshape, 
+                                  order, mode, cval, prefilter):
+        key = 'img'
+        rotate_fn = Rotated(key, angle, axes, reshape, order,
+                            mode, cval, prefilter)
+        rotated = rotate_fn({key: self.imt})
+
+        expected = scipy.ndimage.rotate(self.imt, angle, axes, reshape, order=order,
+                                        mode=mode, cval=cval, prefilter=prefilter)
+        self.assertTrue(np.allclose(expected, rotated[key]))
 
 
 if __name__ == '__main__':
