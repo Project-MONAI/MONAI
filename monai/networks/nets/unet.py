@@ -13,6 +13,7 @@ import torch.nn as nn
 
 from monai.networks.blocks.convolutions import Convolution, ResidualUnit
 from monai.networks.layers.simplelayers import SkipConnection
+from monai.networks.utils import predict_segmentation
 from monai.utils import export
 from monai.utils.aliases import alias
 
@@ -97,4 +98,4 @@ class UNet(nn.Module):
 
     def forward(self, x):
         x = self.model(x)
-        return x
+        return x, predict_segmentation(x)
