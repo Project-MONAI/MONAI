@@ -62,7 +62,7 @@ train_transforms = transforms.Compose([
     AsChannelFirstd(keys=['img', 'seg'], channel_dim=-1),
     Rescaled(keys=['img', 'seg']),
     RandCropByPosNegLabeld(keys=['img', 'seg'], label_key='seg', size=[96, 96, 96], pos=1, neg=1, num_samples=4),
-    RandRotate90d(keys=['img', 'seg'], prob=0.8, axes=[1, 3])
+    RandRotate90d(keys=['img', 'seg'], prob=0.8, spatial_axes=[0, 2])
 ])
 val_transforms = transforms.Compose([
     LoadNiftid(keys=['img', 'seg']),

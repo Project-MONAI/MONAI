@@ -15,38 +15,27 @@ import numpy as np
 import scipy.ndimage
 from parameterized import parameterized
 
-from monai.transforms import Rotate, Rotated
+from monai.transforms import Rotate
 from tests.utils import NumpyImageTestCase2D
 
-TEST_CASES = [(90, (1, 2), True, 1, 'reflect', 0, True),
-              (-90, (2, 1), True, 3, 'constant', 0, True),
-              (180, (2, 3), False, 2, 'constant', 4, False)]
+TEST_CASES = [(90, (0, 1), True, 1, 'reflect', 0, True),
+              (-90, (1, 0), True, 3, 'constant', 0, True),
+              (180, (1, 0), False, 2, 'constant', 4, False)]
 
-class RotateTest(NumpyImageTestCase2D):
+class TestRotate(NumpyImageTestCase2D):
 
     @parameterized.expand(TEST_CASES)
-    def test_correct_results(self, angle, axes, reshape, 
+    def test_correct_results(self, angle, spatial_axes, reshape, 
                              order, mode, cval, prefilter):
-        rotate_fn = Rotate(angle, axes, reshape, 
+        rotate_fn = Rotate(angle, spatial_axes, reshape, 
                            order, mode, cval, prefilter)
-        rotated = rotate_fn(self.imt)
-
-        expected = scipy.ndimage.rotate(self.imt, angle, axes, reshape, order=order,
-                                        mode=mode, cval=cval, prefilter=prefilter)
+        rotated = rotate_fn(self.imt[0])
+        expected = list()
+        for channel in self.imt[0]:
+            expected.append(scipy.ndimage.rotate(channel, angle, spatial_axes, reshape, order=order,
+                                                 mode=mode, cval=cval, prefilter=prefilter))
+        expected = np.stack(expected).astype(np.float32)
         self.assertTrue(np.allclose(expected, rotated))
-
-    @parameterized.expand(TEST_CASES)
-    def test_correct_results_dict(self, angle, axes, reshape, 
-                                  order, mode, cval, prefilter):
-        key = 'img'
-        rotate_fn = Rotated(key, angle, axes, reshape, order,
-                            mode, cval, prefilter)
-        rotated = rotate_fn({key: self.imt})
-
-        expected = scipy.ndimage.rotate(self.imt, angle, axes, reshape, order=order,
-                                        mode=mode, cval=cval, prefilter=prefilter)
-        self.assertTrue(np.allclose(expected, rotated[key]))
-
 
 if __name__ == '__main__':
     unittest.main()

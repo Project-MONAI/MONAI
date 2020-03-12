@@ -79,7 +79,7 @@ def _sliding_window_processor(engine, batch):
     net.eval()
     img, seg, meta_data = batch
     with torch.no_grad():
-        seg_probs = sliding_window_inference(img, roi_size, sw_batch_size, lambda x: net(x), device)
+        seg_probs = sliding_window_inference(img, roi_size, sw_batch_size, net, device)
         return seg_probs, seg.to(device)
 
 
@@ -101,7 +101,7 @@ SegmentationSaver(output_path='tempdir', output_ext='.nii.gz', output_postfix='s
                   batch_transform=lambda x: x[2], output_transform=lambda output: predict_segmentation(output[0])
                   ).attach(evaluator)
 # the model was trained by "unet_training_array" exmple
-CheckpointLoader(load_path='./runs/net_checkpoint_320.pth', load_dict={'net': net}).attach(evaluator)
+CheckpointLoader(load_path='./runs/net_checkpoint_120.pth', load_dict={'net': net}).attach(evaluator)
 
 # sliding window inferene need to input 1 image in every iteration
 loader = DataLoader(ds, batch_size=1, num_workers=1, pin_memory=torch.cuda.is_available())

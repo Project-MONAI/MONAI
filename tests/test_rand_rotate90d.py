@@ -17,45 +17,57 @@ from monai.transforms.composables import RandRotate90d
 from tests.utils import NumpyImageTestCase2D
 
 
-class Rotate90Test(NumpyImageTestCase2D):
+class TestRandRotate90d(NumpyImageTestCase2D):
 
     def test_default(self):
         key = None
         rotate = RandRotate90d(keys=key)
         rotate.set_random_state(123)
-        rotated = rotate({key: self.imt})
-        expected = np.rot90(self.imt, 0, (1, 2))
+        rotated = rotate({key: self.imt[0]})
+        expected = list()
+        for channel in self.imt[0]:
+            expected.append(np.rot90(channel, 0, (0, 1)))
+        expected = np.stack(expected)
         self.assertTrue(np.allclose(rotated[key], expected))
 
     def test_k(self):
         key = 'test'
         rotate = RandRotate90d(keys=key, max_k=2)
         rotate.set_random_state(234)
-        rotated = rotate({key: self.imt})
-        expected = np.rot90(self.imt, 0, (1, 2))
+        rotated = rotate({key: self.imt[0]})
+        expected = list()
+        for channel in self.imt[0]:
+            expected.append(np.rot90(channel, 0, (0, 1)))
+        expected = np.stack(expected)
         self.assertTrue(np.allclose(rotated[key], expected))
 
-    def test_axes(self):
-        key = ['test']
-        rotate = RandRotate90d(keys=key, axes=(1, 2))
+    def test_spatial_axes(self):
+        key = 'test'
+        rotate = RandRotate90d(keys=key, spatial_axes=(0, 1))
         rotate.set_random_state(234)
-        rotated = rotate({key[0]: self.imt})
-        expected = np.rot90(self.imt, 0, (1, 2))
-        self.assertTrue(np.allclose(rotated[key[0]], expected))
+        rotated = rotate({key: self.imt[0]})
+        expected = list()
+        for channel in self.imt[0]:
+            expected.append(np.rot90(channel, 0, (0, 1)))
+        expected = np.stack(expected)
+        self.assertTrue(np.allclose(rotated[key], expected))
 
-    def test_prob_k_axes(self):
-        key = ('test',)
-        rotate = RandRotate90d(keys=key, prob=1.0, max_k=2, axes=(2, 3))
+    def test_prob_k_spatial_axes(self):
+        key = 'test'
+        rotate = RandRotate90d(keys=key, prob=1.0, max_k=2, spatial_axes=(0, 1))
         rotate.set_random_state(234)
-        rotated = rotate({key[0]: self.imt})
-        expected = np.rot90(self.imt, 1, (2, 3))
-        self.assertTrue(np.allclose(rotated[key[0]], expected))
+        rotated = rotate({key: self.imt[0]})
+        expected = list()
+        for channel in self.imt[0]:
+            expected.append(np.rot90(channel, 1, (0, 1)))
+        expected = np.stack(expected)
+        self.assertTrue(np.allclose(rotated[key], expected))
 
     def test_no_key(self):
         key = 'unknown'
-        rotate = RandRotate90d(keys=key, prob=1.0, max_k=2, axes=(2, 3))
+        rotate = RandRotate90d(keys=key, prob=1.0, max_k=2, spatial_axes=(0, 1))
         with self.assertRaisesRegex(KeyError, ''):
-            rotated = rotate({'test': self.imt})
+            rotated = rotate({'test': self.imt[0]})
 
 
 if __name__ == '__main__':

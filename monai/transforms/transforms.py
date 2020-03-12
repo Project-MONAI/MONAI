@@ -253,8 +253,7 @@ class GaussianNoise(Randomizable):
 
     Args:
         mean (float or array of floats): Mean or “centre” of the distribution.
-        scale (float): Standard deviation (spread) of distribution.
-        size (int or tuple of ints): Output shape. Default: None (single value is returned).
+        std (float): Standard deviation (spread) of distribution.
     """
 
     def __init__(self, mean=0.0, std=0.1):
@@ -267,19 +266,28 @@ class GaussianNoise(Randomizable):
 
 @export
 class Flip:
-    """Reverses the order of elements along the given axis. Preserves shape.
+    """Reverses the order of elements along the given spatial axis. Preserves shape.
     Uses ``np.flip`` in practice. See numpy.flip for additional details.
     https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
 
     Args:
-        axis (None, int or tuple of ints): Axes along which to flip over. Default is None.
+        spatial_axis (None, int or tuple of ints): spatial axes along which to flip over. Default is None.
     """
 
-    def __init__(self, axis=None):
-        self.axis = axis
+    def __init__(self, spatial_axis=None):
+        self.spatial_axis = spatial_axis
 
     def __call__(self, img):
-        return np.flip(img, self.axis)
+        """
+        Args:
+            img (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
+        """
+        flipped = list()
+        for channel in img:
+            flipped.append(
+                np.flip(channel, self.spatial_axis)
+            )
+        return np.stack(flipped)
 
 
 @export
@@ -289,7 +297,7 @@ class Resize:
     For additional details, see https://scikit-image.org/docs/dev/api/skimage.transform.html#skimage.transform.resize.
 
     Args:
-        output_shape (tuple or list): expected shape after resize operation.
+        output_spatial_shape (tuple or list): expected shape of spatial dimensions after resize operation.
         order (int): Order of spline interpolation. Default=1.
         mode (str): Points outside boundaries are filled according to given mode.
             Options are 'constant', 'edge', 'symmetric', 'reflect', 'wrap'.
@@ -303,10 +311,10 @@ class Resize:
         anti_aliasing_sigma (float, tuple of floats): Standard deviation for gaussian filtering.
     """
 
-    def __init__(self, output_shape, order=1, mode='reflect', cval=0,
+    def __init__(self, output_spatial_shape, order=1, mode='reflect', cval=0,
                  clip=True, preserve_range=True, anti_aliasing=True, anti_aliasing_sigma=None):
         assert isinstance(order, int), "order must be integer."
-        self.output_shape = output_shape
+        self.output_spatial_shape = output_spatial_shape
         self.order = order
         self.mode = mode
         self.cval = cval
@@ -316,10 +324,14 @@ class Resize:
         self.anti_aliasing_sigma = anti_aliasing_sigma
 
     def __call__(self, img):
+        """
+        Args:
+            img (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
+        """
         resized = list()
         for channel in img:
             resized.append(
-                resize(channel, self.output_shape, order=self.order,
+                resize(channel, self.output_spatial_shape, order=self.order,
                        mode=self.mode, cval=self.cval,
                        clip=self.clip, preserve_range=self.preserve_range,
                        anti_aliasing=self.anti_aliasing,
@@ -336,8 +348,8 @@ class Rotate:
 
     Args:
         angle (float): Rotation angle in degrees.
-        axes (tuple of 2 ints): Axes of rotation. Default: (1, 2). This is the first two
-            axis in spatial dimensions according to MONAI channel first shape assumption.
+        spatial_axes (tuple of 2 ints): Spatial axes of rotation. Default: (0, 1).
+            This is the first two axis in spatial dimensions.
         reshape (bool): If true, output shape is made same as input. Default: True.
         order (int): Order of spline interpolation. Range 0-5. Default: 1. This is
             different from scipy where default interpolation is 3.
@@ -347,19 +359,27 @@ class Rotate:
         prefiter (bool): Apply spline_filter before interpolation. Default: True.
     """
 
-    def __init__(self, angle, axes=(1, 2), reshape=True, order=1, mode='constant', cval=0, prefilter=True):
+    def __init__(self, angle, spatial_axes=(0, 1), reshape=True, order=1, mode='constant', cval=0, prefilter=True):
         self.angle = angle
         self.reshape = reshape
         self.order = order
         self.mode = mode
         self.cval = cval
         self.prefilter = prefilter
-        self.axes = axes
+        self.spatial_axes = spatial_axes
 
     def __call__(self, img):
-        return scipy.ndimage.rotate(img, self.angle, self.axes,
-                                    reshape=self.reshape, order=self.order, mode=self.mode, cval=self.cval,
-                                    prefilter=self.prefilter).astype(np.float32)
+        """
+        Args:
+            img (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
+        """
+        rotated = list()
+        for channel in img:
+            rotated.append(
+                scipy.ndimage.rotate(channel, self.angle, self.spatial_axes, reshape=self.reshape,
+                                     order=self.order, mode=self.mode, cval=self.cval, prefilter=self.prefilter)
+            )
+        return np.stack(rotated).astype(np.float32)
 
 
 @export
@@ -406,7 +426,7 @@ class Zoom:
         Args:
             img (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
-        zoomed = []
+        zoomed = list()
         if self.use_gpu:
             import cupy
             for channel in cupy.array(img):
@@ -458,10 +478,13 @@ class ToTensor:
 class UniformRandomPatch(Randomizable):
     """
     Selects a patch of the given size chosen at a uniformly random position in the image.
+
+    Args:
+        patch_spatial_size (tuple or list): Expected patch size of spatial dimensions.
     """
 
-    def __init__(self, patch_size):
-        self.patch_size = (None,) + tuple(patch_size)
+    def __init__(self, patch_spatial_size):
+        self.patch_spatial_size = (None,) + tuple(patch_spatial_size)
 
         self._slices = None
 
@@ -469,8 +492,8 @@ class UniformRandomPatch(Randomizable):
         self._slices = get_random_patch(image_shape, patch_shape, self.R)
 
     def __call__(self, img):
-        patch_size = get_valid_patch_size(img.shape, self.patch_size)
-        self.randomize(img.shape, patch_size)
+        patch_spatial_size = get_valid_patch_size(img.shape, self.patch_spatial_size)
+        self.randomize(img.shape, patch_spatial_size)
         return img[self._slices]
 
 
@@ -537,39 +560,49 @@ class Rotate90:
     Rotate an array by 90 degrees in the plane specified by `axes`.
     """
 
-    def __init__(self, k=1, axes=(1, 2)):
+    def __init__(self, k=1, spatial_axes=(0, 1)):
         """
         Args:
             k (int): number of times to rotate by 90 degrees.
-            axes (2 ints): defines the plane to rotate with 2 axes.
+            spatial_axes (2 ints): defines the plane to rotate with 2 spatial axes.
+                Default: (0, 1), this is the first two axis in spatial dimensions.
         """
         self.k = k
-        self.plane_axes = axes
+        self.spatial_axes = spatial_axes
 
     def __call__(self, img):
-        return np.ascontiguousarray(np.rot90(img, self.k, self.plane_axes))
+        """
+        Args:
+            img (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
+        """
+        rotated = list()
+        for channel in img:
+            rotated.append(
+                np.rot90(channel, self.k, self.spatial_axes)
+            )
+        return np.stack(rotated)
 
 
 @export
 class RandRotate90(Randomizable):
     """
     With probability `prob`, input arrays are rotated by 90 degrees
-    in the plane specified by `axes`.
+    in the plane specified by `spatial_axes`.
     """
 
-    def __init__(self, prob=0.1, max_k=3, axes=(1, 2)):
+    def __init__(self, prob=0.1, max_k=3, spatial_axes=(0, 1)):
         """
         Args:
             prob (float): probability of rotating.
                 (Default 0.1, with 10% probability it returns a rotated array)
             max_k (int): number of rotations will be sampled from `np.random.randint(max_k) + 1`.
                 (Default 3)
-            axes (2 ints): defines the plane to rotate with 2 axes.
-                (Default (1, 2))
+            spatial_axes (2 ints): defines the plane to rotate with 2 spatial axes.
+                Default: (0, 1), this is the first two axis in spatial dimensions.
         """
         self.prob = min(max(prob, 0.0), 1.0)
         self.max_k = max_k
-        self.axes = axes
+        self.spatial_axes = spatial_axes
 
         self._do_transform = False
         self._rand_k = 0
@@ -582,7 +615,7 @@ class RandRotate90(Randomizable):
         self.randomize()
         if not self._do_transform:
             return img
-        rotator = Rotate90(self._rand_k, self.axes)
+        rotator = Rotate90(self._rand_k, self.spatial_axes)
         return rotator(img)
 
 
@@ -590,7 +623,7 @@ class RandRotate90(Randomizable):
 class SpatialCrop:
     """General purpose cropper to produce sub-volume region of interest (ROI).
     It can support to crop ND spatial (channel-first) data.
-    Either a center and size must be provided, or alternatively if center and size
+    Either a spatial center and size must be provided, or alternatively if center and size
     are not provided, the start and end coordinates of the ROI must be provided.
     The sub-volume must sit the within original image.
 
@@ -638,8 +671,8 @@ class RandRotate(Randomizable):
         prob (float): Probability of rotation.
         degrees (tuple of float or float): Range of rotation in degrees. If single number,
             angle is picked from (-degrees, degrees).
-        axes (tuple of 2 ints): Axes of rotation. Default: (1, 2). This is the first two
-            axis in spatial dimensions according to MONAI channel first shape assumption.
+        spatial_axes (tuple of 2 ints): Spatial axes of rotation. Default: (0, 1).
+            This is the first two axis in spatial dimensions.
         reshape (bool): If true, output shape is made same as input. Default: True.
         order (int): Order of spline interpolation. Range 0-5. Default: 1. This is
             different from scipy where default interpolation is 3.
@@ -649,7 +682,7 @@ class RandRotate(Randomizable):
         prefiter (bool): Apply spline_filter before interpolation. Default: True.
     """
 
-    def __init__(self, degrees, prob=0.1, axes=(1, 2), reshape=True, order=1,
+    def __init__(self, degrees, prob=0.1, spatial_axes=(0, 1), reshape=True, order=1,
                  mode='constant', cval=0, prefilter=True):
         self.prob = prob
         self.degrees = degrees
@@ -658,7 +691,7 @@ class RandRotate(Randomizable):
         self.mode = mode
         self.cval = cval
         self.prefilter = prefilter
-        self.axes = axes
+        self.spatial_axes = spatial_axes
 
         if not hasattr(self.degrees, '__iter__'):
             self.degrees = (-self.degrees, self.degrees)
@@ -675,7 +708,7 @@ class RandRotate(Randomizable):
         self.randomize()
         if not self._do_transform:
             return img
-        rotator = Rotate(self.angle, self.axes, self.reshape, self.order,
+        rotator = Rotate(self.angle, self.spatial_axes, self.reshape, self.order,
                          self.mode, self.cval, self.prefilter)
         return rotator(img)
 
@@ -688,15 +721,13 @@ class RandFlip(Randomizable):
 
     Args:
         prob (float): Probability of flipping.
-        axis (None, int or tuple of ints): Axes along which to flip over. Default is None.
+        spatial_axis (None, int or tuple of ints): Spatial axes along which to flip over. Default is None.
     """
 
-    def __init__(self, prob=0.1, axis=None):
+    def __init__(self, prob=0.1, spatial_axis=None):
         self.prob = prob
-        self.flipper = Flip(axis=axis)
-
+        self.flipper = Flip(spatial_axis=spatial_axis)
         self._do_transform = False
-        self.flipper = Flip(axis=axis)
 
     def randomize(self):
         self._do_transform = self.R.random_sample() < self.prob
@@ -715,7 +746,11 @@ class RandZoom(Randomizable):
     Args:
         prob (float): Probability of zooming.
         min_zoom (float or sequence): Min zoom factor. Can be float or sequence same size as image.
+            If a float, min_zoom is the same for each spatial axis.
+            If a sequence, min_zoom should contain one value for each spatial axis.
         max_zoom (float or sequence): Max zoom factor. Can be float or sequence same size as image.
+            If a float, max_zoom is the same for each spatial axis.
+            If a sequence, max_zoom should contain one value for each spatial axis.
         order (int): order of interpolation. Default=3.
         mode ('reflect', 'constant', 'nearest', 'mirror', 'wrap'): Determines how input is
             extended beyond boundaries. Default: 'constant'.

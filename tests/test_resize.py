@@ -19,37 +19,37 @@ from monai.transforms import Resize
 from tests.utils import NumpyImageTestCase2D
 
 
-class TestResized(NumpyImageTestCase2D):
+class TestResize(NumpyImageTestCase2D):
 
     @parameterized.expand([
         ("invalid_order", "order", AssertionError)
     ])
     def test_invalid_inputs(self, _, order, raises):
         with self.assertRaises(raises):
-            resize = Resize(output_shape=(128, 128, 3), order=order)
-            resize(self.imt)
+            resize = Resize(output_spatial_shape=(128, 128, 3), order=order)
+            resize(self.imt[0])
 
     @parameterized.expand([
         ((64, 64), 1, 'reflect', 0, True, True, True, None),
         ((32, 32), 2, 'constant', 3, False, False, False, None),
         ((256, 256), 3, 'constant', 3, False, False, False, None),
     ])
-    def test_correct_results(self, output_shape, order, mode, 
+    def test_correct_results(self, output_spatial_shape, order, mode, 
                              cval, clip, preserve_range, 
                              anti_aliasing, anti_aliasing_sigma):
-        resize = Resize(output_shape, order, mode, cval, clip, 
+        resize = Resize(output_spatial_shape, order, mode, cval, clip, 
                         preserve_range, anti_aliasing, 
                         anti_aliasing_sigma)
         expected = list()
-        for channel in self.imt:
-            expected.append(skimage.transform.resize(channel, output_shape, 
+        for channel in self.imt[0]:
+            expected.append(skimage.transform.resize(channel, output_spatial_shape, 
                                                      order=order, mode=mode, 
                                                      cval=cval, clip=clip, 
                                                      preserve_range=preserve_range, 
                                                      anti_aliasing=anti_aliasing, 
                                                      anti_aliasing_sigma=anti_aliasing_sigma))
         expected = np.stack(expected).astype(np.float32)
-        self.assertTrue(np.allclose(resize(self.imt), expected))
+        self.assertTrue(np.allclose(resize(self.imt[0]), expected))
 
 
 if __name__ == '__main__':

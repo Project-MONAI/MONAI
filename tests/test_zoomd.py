@@ -17,7 +17,7 @@ import importlib
 from scipy.ndimage import zoom as zoom_scipy
 from parameterized import parameterized
 
-from monai.transforms import Zoom
+from monai.transforms import Zoomd
 from tests.utils import NumpyImageTestCase2D
 
 VALID_CASES = [(1.1, 3, 'constant', 0, True, False, False),
@@ -30,47 +30,52 @@ INVALID_CASES = [("no_zoom", None, 1, TypeError),
                  ("invalid_order", 0.9, 's', AssertionError)]
 
 
-class TestZoom(NumpyImageTestCase2D):
+class TestZoomd(NumpyImageTestCase2D):
 
     @parameterized.expand(VALID_CASES)
     def test_correct_results(self, zoom, order, mode, cval, prefilter, use_gpu, keep_size):
-        zoom_fn = Zoom(zoom=zoom, order=order, mode=mode, cval=cval,
-                       prefilter=prefilter, use_gpu=use_gpu, keep_size=keep_size)
-        zoomed = zoom_fn(self.imt[0])
+        key = 'img'
+        zoom_fn = Zoomd(key, zoom=zoom, order=order, mode=mode, cval=cval,
+                        prefilter=prefilter, use_gpu=use_gpu, keep_size=keep_size)
+        zoomed = zoom_fn({key: self.imt[0]})
         expected = list()
         for channel in self.imt[0]:
             expected.append(zoom_scipy(channel, zoom=zoom, mode=mode, order=order,
                             cval=cval, prefilter=prefilter))
         expected = np.stack(expected).astype(np.float32)
-        self.assertTrue(np.allclose(expected, zoomed))
+        self.assertTrue(np.allclose(expected, zoomed[key]))
+
 
     @parameterized.expand(GPU_CASES)
     def test_gpu_zoom(self, _, zoom, order, mode, cval, prefilter):
+        key = 'img'
         if importlib.util.find_spec('cupy'):
-            zoom_fn = Zoom(zoom=zoom, order=order, mode=mode, cval=cval,
-                           prefilter=prefilter, use_gpu=True, keep_size=False)
-            zoomed = zoom_fn(self.imt[0])
+            zoom_fn = Zoomd(key, zoom=zoom, order=order, mode=mode, cval=cval,
+                            prefilter=prefilter, use_gpu=True, keep_size=False)
+            zoomed = zoom_fn({key: self.imt[0]})
             expected = list()
             for channel in self.imt[0]:
                 expected.append(zoom_scipy(channel, zoom=zoom, mode=mode, order=order,
                                 cval=cval, prefilter=prefilter))
             expected = np.stack(expected).astype(np.float32)
-            self.assertTrue(np.allclose(expected, zoomed))
+            self.assertTrue(np.allclose(expected, zoomed[key]))
 
     def test_keep_size(self):
-        zoom_fn = Zoom(zoom=0.6, keep_size=True)
-        zoomed = zoom_fn(self.imt[0])
-        self.assertTrue(np.array_equal(zoomed.shape, self.imt.shape[1:]))
+        key = 'img'
+        zoom_fn = Zoomd(key, zoom=0.6, keep_size=True)
+        zoomed = zoom_fn({key: self.imt[0]})
+        self.assertTrue(np.array_equal(zoomed[key].shape, self.imt.shape[1:]))
 
-        zoom_fn = Zoom(zoom=1.3, keep_size=True)
-        zoomed = zoom_fn(self.imt[0])
-        self.assertTrue(np.array_equal(zoomed.shape, self.imt.shape[1:]))
+        zoom_fn = Zoomd(key, zoom=1.3, keep_size=True)
+        zoomed = zoom_fn({key: self.imt[0]})
+        self.assertTrue(np.array_equal(zoomed[key].shape, self.imt.shape[1:]))
 
     @parameterized.expand(INVALID_CASES)
     def test_invalid_inputs(self, _, zoom, order, raises):
+        key = 'img'
         with self.assertRaises(raises):
-            zoom_fn = Zoom(zoom=zoom, order=order)
-            zoomed = zoom_fn(self.imt[0])
+            zoom_fn = Zoomd(key, zoom=zoom, order=order)
+            zoomed = zoom_fn({key: self.imt[0]})
 
 
 if __name__ == '__main__':

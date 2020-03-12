@@ -52,7 +52,7 @@ val_transforms = transforms.Compose([
     LoadNiftid(keys=['img']),
     AddChanneld(keys=['img']),
     Rescaled(keys=['img']),
-    Resized(keys=['img'], output_shape=(96, 96, 96))
+    Resized(keys=['img'], output_spatial_shape=(96, 96, 96))
 ])
 
 # Create DenseNet121

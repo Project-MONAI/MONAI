@@ -83,7 +83,7 @@ sw_batch_size = 4
 def _sliding_window_processor(engine, batch):
     net.eval()
     with torch.no_grad():
-        seg_probs = sliding_window_inference(batch['img'], roi_size, sw_batch_size, lambda x: net(x), device)
+        seg_probs = sliding_window_inference(batch['img'], roi_size, sw_batch_size, net, device)
         return seg_probs, batch['seg'].to(device)
 
 
