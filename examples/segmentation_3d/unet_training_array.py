@@ -14,7 +14,6 @@ import sys
 import tempfile
 from glob import glob
 import logging
-
 import nibabel as nib
 import numpy as np
 import torch
@@ -23,20 +22,22 @@ from ignite.handlers import ModelCheckpoint, EarlyStopping
 from torch.utils.data import DataLoader
 
 # assumes the framework is found here, change as necessary
-sys.path.append("..")
+sys.path.append("../..")
 
 import monai
 import monai.transforms.compose as transforms
 
 from monai.data.nifti_reader import NiftiDataset
-from monai.transforms import AddChannel, Rescale, UniformRandomPatch
+from monai.transforms import AddChannel, Rescale, UniformRandomPatch, Resize
 from monai.handlers.stats_handler import StatsHandler
 from monai.handlers.tensorboard_handlers import TensorBoardStatsHandler, TensorBoardImageHandler
 from monai.handlers.mean_dice import MeanDice
 from monai.data.synthetic import create_test_image_3d
 from monai.handlers.utils import stopping_fn_from_metric
+from monai.networks.utils import predict_segmentation
 
 monai.config.print_config()
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 # Create a temporary directory and 50 random image, mask paris
 tempdir = tempfile.mkdtemp()
@@ -54,25 +55,32 @@ images = sorted(glob(os.path.join(tempdir, 'im*.nii.gz')))
 segs = sorted(glob(os.path.join(tempdir, 'seg*.nii.gz')))
 
 # Define transforms for image and segmentation
-imtrans = transforms.Compose([
+train_imtrans = transforms.Compose([
     Rescale(),
     AddChannel(),
     UniformRandomPatch((96, 96, 96))
 ])
-segtrans = transforms.Compose([
+train_segtrans = transforms.Compose([
     AddChannel(),
     UniformRandomPatch((96, 96, 96))
 ])
+val_imtrans = transforms.Compose([
+    Rescale(),
+    AddChannel(),
+    Resize((96, 96, 96))
+])
+val_segtrans = transforms.Compose([
+    AddChannel(),
+    Resize((96, 96, 96))
+])
 
-# Define nifti dataset, dataloader.
-check_ds = NiftiDataset(images, segs, transform=imtrans, seg_transform=segtrans)
+# Define nifti dataset, dataloader
+check_ds = NiftiDataset(images, segs, transform=train_imtrans, seg_transform=train_segtrans)
 check_loader = DataLoader(check_ds, batch_size=10, num_workers=2, pin_memory=torch.cuda.is_available())
 im, seg = monai.utils.misc.first(check_loader)
 print(im.shape, seg.shape)
 
-lr = 1e-5
-
-# Create UNet, DiceLoss and Adam optimizer.
+# Create UNet, DiceLoss and Adam optimizer
 net = monai.networks.nets.UNet(
     dimensions=3,
     in_channels=1,
@@ -81,70 +89,59 @@ net = monai.networks.nets.UNet(
     strides=(2, 2, 2, 2),
     num_res_units=2,
 )
-
 loss = monai.losses.DiceLoss(do_sigmoid=True)
+lr = 1e-5
 opt = torch.optim.Adam(net.parameters(), lr)
+device = torch.device("cuda:0")
 
-
-# Since network outputs logits and segmentation, we need a custom function.
-def _loss_fn(i, j):
-    return loss(i[0], j)
-
-
-# Create trainer
-device = torch.device("cpu:0")
-trainer = create_supervised_trainer(net, opt, _loss_fn, device, False,
-                                    output_transform=lambda x, y, y_pred, loss: [y_pred[1], loss.item(), y])
+# ignite trainer expects batch=(img, seg) and returns output=loss at every iteration,
+# user can add output_transform to return other values, like: y_pred, y, etc.
+trainer = create_supervised_trainer(net, opt, loss, device, False)
 
 # adding checkpoint handler to save models (network params and optimizer stats) during training
 checkpoint_handler = ModelCheckpoint('./runs/', 'net', n_saved=10, require_empty=False)
 trainer.add_event_handler(event_name=Events.EPOCH_COMPLETED,
                           handler=checkpoint_handler,
                           to_save={'net': net, 'opt': opt})
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-# print training loss to commandline
-train_stats_handler = StatsHandler(output_transform=lambda x: x[1])
+# StatsHandler prints loss at every iteration and print metrics at every epoch,
+# we don't set metrics for trainer here, so just print loss, user can also customize print functions
+# and can use output_transform to convert engine.state.output if it's not loss value
+train_stats_handler = StatsHandler(name='trainer')
 train_stats_handler.attach(trainer)
 
-# record training loss to TensorBoard at every iteration
-train_tensorboard_stats_handler = TensorBoardStatsHandler(
-    output_transform=lambda x: {'training_dice_loss': x[1]},  # plot under tag name taining_dice_loss
-    global_epoch_transform=lambda x: trainer.state.epoch)
+# TensorBoardStatsHandler plots loss at every iteration and plots metrics at every epoch, same as StatsHandler
+train_tensorboard_stats_handler = TensorBoardStatsHandler()
 train_tensorboard_stats_handler.attach(trainer)
-
-
-@trainer.on(Events.EPOCH_COMPLETED)
-def log_training_loss(engine):
-    engine.logger.info("Epoch[%s] Loss: %s", engine.state.epoch, engine.state.output[1])
-
 
 # Set parameters for validation
 validation_every_n_epochs = 1
-metric_name = 'Mean_Dice'
 
+metric_name = 'Mean_Dice'
 # add evaluation metric to the evaluator engine
-val_metrics = {metric_name: MeanDice(
-    add_sigmoid=True, to_onehot_y=False, output_transform=lambda output: (output[0][0], output[1]))
-}
+val_metrics = {metric_name: MeanDice(add_sigmoid=True, to_onehot_y=False)}
+
+# ignite evaluator expects batch=(img, seg) and returns output=(y_pred, y) at every iteration,
+# user can add output_transform to return other values
 evaluator = create_supervised_evaluator(net, val_metrics, device, True)
 
 # Add stats event handler to print validation stats via evaluator
 val_stats_handler = StatsHandler(
-    output_transform=lambda x: None,  # disable per iteration output
-    global_epoch_transform=lambda x: trainer.state.epoch)
+    name='evaluator',
+    output_transform=lambda x: None,  # no need to print loss value, so disable per iteration output
+    global_epoch_transform=lambda x: trainer.state.epoch)  # fetch global epoch number from trainer
 val_stats_handler.attach(evaluator)
 
 # add handler to record metrics to TensorBoard at every epoch
 val_tensorboard_stats_handler = TensorBoardStatsHandler(
-    output_transform=lambda x: None,  # no iteration plot
-    global_epoch_transform=lambda x: trainer.state.epoch)  # use epoch number from trainer
+    output_transform=lambda x: None,  # no need to plot loss value, so disable per iteration output
+    global_epoch_transform=lambda x: trainer.state.epoch)  # fetch global epoch number from trainer
 val_tensorboard_stats_handler.attach(evaluator)
-# add handler to draw several images and the corresponding labels and model outputs
-# here we draw the first 3 images(draw the first channel) as GIF format along Depth axis
+# add handler to draw the first image and the corresponding label and model output in the last batch
+# here we draw the 3D output as GIF format along Depth axis
 val_tensorboard_image_handler = TensorBoardImageHandler(
     batch_transform=lambda batch: (batch[0], batch[1]),
-    output_transform=lambda output: output[0][1],
+    output_transform=lambda output: predict_segmentation(output[0]),
     global_iter_transform=lambda x: trainer.state.epoch
 )
 evaluator.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=val_tensorboard_image_handler)
@@ -156,7 +153,7 @@ early_stopper = EarlyStopping(patience=4,
 evaluator.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=early_stopper)
 
 # create a validation data loader
-val_ds = NiftiDataset(images[-20:], segs[-20:], transform=imtrans, seg_transform=segtrans)
+val_ds = NiftiDataset(images[-20:], segs[-20:], transform=val_imtrans, seg_transform=val_segtrans)
 val_loader = DataLoader(val_ds, batch_size=5, num_workers=8, pin_memory=torch.cuda.is_available())
 
 
@@ -166,9 +163,7 @@ def run_validation(engine):
 
 
 # create a training data loader
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-
-train_ds = NiftiDataset(images[:20], segs[:20], transform=imtrans, seg_transform=segtrans)
+train_ds = NiftiDataset(images[:20], segs[:20], transform=train_imtrans, seg_transform=train_segtrans)
 train_loader = DataLoader(train_ds, batch_size=5, num_workers=8, pin_memory=torch.cuda.is_available())
 
 train_epochs = 30

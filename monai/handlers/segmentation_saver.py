@@ -13,7 +13,7 @@ import os
 import numpy as np
 import torch
 from ignite.engine import Events
-
+import logging
 from monai.data.nifti_writer import write_nifti
 
 

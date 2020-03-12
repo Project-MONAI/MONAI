@@ -18,16 +18,18 @@ from ignite.handlers import ModelCheckpoint, EarlyStopping
 from torch.utils.data import DataLoader
 
 # assumes the framework is found here, change as necessary
-sys.path.append("..")
+sys.path.append("../..")
 import monai
 import monai.transforms.compose as transforms
 from monai.transforms.composables import \
     LoadNiftid, AddChanneld, Rescaled, Resized, RandRotate90d
 from monai.handlers.stats_handler import StatsHandler
+from monai.handlers.tensorboard_handlers import TensorBoardStatsHandler
 from ignite.metrics import Accuracy
 from monai.handlers.utils import stopping_fn_from_metric
 
 monai.config.print_config()
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 # demo dataset, user can easily change to own dataset
 images = [
@@ -73,56 +75,71 @@ val_transforms = transforms.Compose([
     Resized(keys=['img'], output_shape=(96, 96, 96))
 ])
 
-# Define dataset, dataloader.
+# Define dataset, dataloader
 check_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
 check_loader = DataLoader(check_ds, batch_size=2, num_workers=4, pin_memory=torch.cuda.is_available())
 check_data = monai.utils.misc.first(check_loader)
 print(check_data['img'].shape, check_data['label'])
 
-lr = 1e-5
-
-# Create DenseNet121, CrossEntropyLoss and Adam optimizer.
+# Create DenseNet121, CrossEntropyLoss and Adam optimizer
 net = monai.networks.nets.densenet3d.densenet121(
     in_channels=1,
     out_channels=2,
 )
-
 loss = torch.nn.CrossEntropyLoss()
+lr = 1e-5
 opt = torch.optim.Adam(net.parameters(), lr)
+device = torch.device("cuda:0")
 
 
-# Create trainer
+# ignite trainer expects batch=(img, label) and returns output=loss at every iteration,
+# user can add output_transform to return other values, like: y_pred, y, etc.
 def prepare_batch(batch, device=None, non_blocking=False):
     return _prepare_batch((batch['img'], batch['label']), device, non_blocking)
 
 
-# Create trainer
-device = torch.device("cuda:0")
-trainer = create_supervised_trainer(net, opt, loss, device, False, prepare_batch=prepare_batch,
-                                    output_transform=lambda x, y, y_pred, loss: [y_pred, loss.item(), y])
+trainer = create_supervised_trainer(net, opt, loss, device, False, prepare_batch=prepare_batch)
 
 # adding checkpoint handler to save models (network params and optimizer stats) during training
 checkpoint_handler = ModelCheckpoint('./runs/', 'net', n_saved=10, require_empty=False)
 trainer.add_event_handler(event_name=Events.EPOCH_COMPLETED,
                           handler=checkpoint_handler,
                           to_save={'net': net, 'opt': opt})
-train_stats_handler = StatsHandler()
+
+# StatsHandler prints loss at every iteration and print metrics at every epoch,
+# we don't set metrics for trainer here, so just print loss, user can also customize print functions
+# and can use output_transform to convert engine.state.output if it's not loss value
+train_stats_handler = StatsHandler(name='trainer')
 train_stats_handler.attach(trainer)
+
+# TensorBoardStatsHandler plots loss at every iteration and plots metrics at every epoch, same as StatsHandler
+train_tensorboard_stats_handler = TensorBoardStatsHandler()
+train_tensorboard_stats_handler.attach(trainer)
 
 # Set parameters for validation
 validation_every_n_epochs = 1
-metric_name = 'Accuracy'
 
+metric_name = 'Accuracy'
 # add evaluation metric to the evaluator engine
 val_metrics = {metric_name: Accuracy()}
+# ignite evaluator expects batch=(img, label) and returns output=(y_pred, y) at every iteration,
+# user can add output_transform to return other values
 evaluator = create_supervised_evaluator(net, val_metrics, device, True, prepare_batch=prepare_batch)
 
 # Add stats event handler to print validation stats via evaluator
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-val_stats_handler = StatsHandler()
+val_stats_handler = StatsHandler(
+    name='evaluator',
+    output_transform=lambda x: None,  # no need to print loss value, so disable per iteration output
+    global_epoch_transform=lambda x: trainer.state.epoch)  # fetch global epoch number from trainer
 val_stats_handler.attach(evaluator)
 
-# Add early stopping handler to evaluator.
+# add handler to record metrics to TensorBoard at every epoch
+val_tensorboard_stats_handler = TensorBoardStatsHandler(
+    output_transform=lambda x: None,  # no need to plot loss value, so disable per iteration output
+    global_epoch_transform=lambda x: trainer.state.epoch)  # fetch global epoch number from trainer
+val_tensorboard_stats_handler.attach(evaluator)
+
+# Add early stopping handler to evaluator
 early_stopper = EarlyStopping(patience=4,
                               score_function=stopping_fn_from_metric(metric_name),
                               trainer=trainer)
@@ -137,9 +154,8 @@ val_loader = DataLoader(val_ds, batch_size=2, num_workers=4, pin_memory=torch.cu
 def run_validation(engine):
     evaluator.run(val_loader)
 
-# create a training data loader
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
+# create a training data loader
 train_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
 train_loader = DataLoader(train_ds, batch_size=2, num_workers=4, pin_memory=torch.cuda.is_available())
 

@@ -18,7 +18,7 @@ from ignite.engine import create_supervised_evaluator, _prepare_batch
 from torch.utils.data import DataLoader
 
 # assumes the framework is found here, change as necessary
-sys.path.append("..")
+sys.path.append("../..")
 from monai.handlers.classification_saver import ClassificationSaver
 from monai.handlers.checkpoint_loader import CheckpointLoader
 from monai.handlers.stats_handler import StatsHandler
@@ -27,6 +27,7 @@ import monai.transforms.compose as transforms
 import monai
 
 monai.config.print_config()
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 # demo dataset, user can easily change to own dataset
 images = [
@@ -59,32 +60,34 @@ net = monai.networks.nets.densenet3d.densenet121(
     in_channels=1,
     out_channels=2,
 )
+device = torch.device("cuda:0")
 
 
 def prepare_batch(batch, device=None, non_blocking=False):
     return _prepare_batch((batch['img'], batch['label']), device, non_blocking)
 
 
-# Create trainer
-device = torch.device("cuda:0")
 metric_name = 'Accuracy'
-
 # add evaluation metric to the evaluator engine
 val_metrics = {metric_name: Accuracy()}
+# ignite evaluator expects batch=(img, label) and returns output=(y_pred, y) at every iteration,
+# user can add output_transform to return other values
 evaluator = create_supervised_evaluator(net, val_metrics, device, True, prepare_batch=prepare_batch)
 
 # Add stats event handler to print validation stats via evaluator
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-val_stats_handler = StatsHandler()
+val_stats_handler = StatsHandler(
+    name='evaluator',
+    output_transform=lambda x: None  # no need to print loss value, so disable per iteration output
+)
 val_stats_handler.attach(evaluator)
 
 # for the arrary data format, assume the 3rd item of batch data is the meta_data
-prediction_saver = ClassificationSaver(output_dir='tempdir', batch_transform=lambda batch: {
-                                       'filename_or_obj': batch['img.filename_or_obj']},
+prediction_saver = ClassificationSaver(output_dir='tempdir', name='evaluator',
+                                       batch_transform=lambda batch: {'filename_or_obj': batch['img.filename_or_obj']},
                                        output_transform=lambda output: output[0].argmax(1))
 prediction_saver.attach(evaluator)
 
-# the model was trained by "densenet_classification_3d_dict" exmple
+# the model was trained by "densenet_training_dict" exmple
 CheckpointLoader(load_path='./runs/net_checkpoint_40.pth', load_dict={'net': net}).attach(evaluator)
 
 # create a validation data loader

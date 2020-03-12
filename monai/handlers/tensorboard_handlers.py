@@ -18,6 +18,8 @@ from monai.visualize import img2tensorboard
 from monai.utils.misc import is_scalar
 from monai.transforms.utils import rescale_array
 
+DEFAULT_TAG = 'Loss'
+
 
 class TensorBoardStatsHandler(object):
     """TensorBoardStatsHandler defines a set of Ignite Event-handlers for all the TensorBoard logics.
@@ -37,7 +39,8 @@ class TensorBoardStatsHandler(object):
                  epoch_event_writer=None,
                  iteration_event_writer=None,
                  output_transform=lambda x: {'Loss': x},
-                 global_epoch_transform=lambda x: x):
+                 global_epoch_transform=lambda x: x,
+                 tag_name=DEFAULT_TAG):
         """
         Args:
             summary_writer (SummaryWriter): user can specify TensorBoard SummaryWriter,
@@ -52,12 +55,14 @@ class TensorBoardStatsHandler(object):
             global_epoch_transform (Callable): a callable that is used to customize global epoch number.
                 For example, in evaluation, the evaluator engine might want to use trainer engines epoch number
                 when plotting epoch vs metric curves.
+            tag_name (string): when iteration output is a scalar, tag_name is used to plot, defaults to ``'Loss'``.
         """
         self._writer = SummaryWriter() if summary_writer is None else summary_writer
         self.epoch_event_writer = epoch_event_writer
         self.iteration_event_writer = iteration_event_writer
         self.output_transform = output_transform
         self.global_epoch_transform = global_epoch_transform
+        self.tag_name = tag_name
 
     def attach(self, engine: Engine):
         """Register a set of Ignite Event-Handlers to a specified Ignite engine.
@@ -121,23 +126,27 @@ class TensorBoardStatsHandler(object):
             writer (SummaryWriter): TensorBoard writer, created in TensorBoardHandler.
 
         """
-        loss_dict = self.output_transform(engine.state.output)
-        if loss_dict is None:
+        loss = self.output_transform(engine.state.output)
+        if loss is None:
             return  # do nothing if output is empty
-        if not isinstance(loss_dict, dict):
-            raise ValueError('TensorBoardStatsHandler requires'
-                             ' output_transform(engine.state.output) returning a dictionary'
-                             ' of key and scalar pairs to plot'
-                             ' got {}.'.format(type(loss_dict)))
-        for name, value in loss_dict.items():
-            if not is_scalar(value):
-                warnings.warn('ignoring non-scalar output in tensorboard curve plotting,'
+        if isinstance(loss, dict):
+            for name in sorted(loss):
+                value = loss[name]
+                if not is_scalar(value):
+                    warnings.warn('ignoring non-scalar output in TensorBoardStatsHandler,'
+                                  ' make sure `output_transform(engine.state.output)` returns'
+                                  ' a scalar or dictionary of key and scalar pairs to avoid this warning.'
+                                  ' {}:{}'.format(name, type(value)))
+                    continue  # not plot multi dimensional output
+                writer.add_scalar(name, value.item() if torch.is_tensor(value) else value, engine.state.iteration)
+        else:
+            if is_scalar(loss):  # not printing multi dimensional output
+                writer.add_scalar(name, loss.item() if torch.is_tensor(loss) else loss, engine.state.iteration)
+            else:
+                warnings.warn('ignoring non-scalar output in TensorBoardStatsHandler,'
                               ' make sure `output_transform(engine.state.output)` returns'
-                              ' a dictionary of key and scalar pairs to avoid this warning.'
-                              ' Got {}:{}'.format(name, type(value)))
-                continue
-            plot_value = value.item() if torch.is_tensor(value) else value
-            writer.add_scalar(name, plot_value, engine.state.iteration)
+                              ' a scalar or a dictionary of key and scalar pairs to avoid this warning.'
+                              ' {}'.format(type(loss)))
         writer.flush()
 
 
@@ -230,9 +239,9 @@ class TensorBoardImageHandler(object):
             return
 
         if d.ndim == 3:
-            if d.shape[0] == 3 and self.max_channels == 3:  # rgb?
+            if d.shape[0] == 3 and self.max_channels == 3:  # RGB
                 dataformats = 'CHW'
-                self._writer.add_image('{}_{}'.format(tag, dataformats), d, step, dataformats='CHW')
+                self._writer.add_image('{}_{}'.format(tag, dataformats), d, step, dataformats=dataformats)
                 return
             for j, d2 in enumerate(d[:self.max_channels]):
                 d2 = rescale_array(d2, 0, 1)

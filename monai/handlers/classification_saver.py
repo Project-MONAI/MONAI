@@ -14,6 +14,7 @@ import csv
 import numpy as np
 import torch
 from ignite.engine import Events
+import logging
 
 
 class ClassificationSaver:
@@ -40,13 +41,7 @@ class ClassificationSaver:
         self.output_dir = output_dir
         self._prediction_dict = {}
         self._preds_filepath = os.path.join(output_dir, 'predictions.csv')
-        if not overwrite:
-            if os.path.exists(self._preds_filepath):
-                with open(self._path, 'r') as f:
-                    reader = csv.reader(f)
-                    for row in reader:
-                        self._prediction_dict[row[0]] = np.array(row[1:]).astype(np.float32)
-
+        self.overwrite = overwrite
         self.batch_transform = batch_transform
         self.output_transform = output_transform
 
@@ -62,6 +57,13 @@ class ClassificationSaver:
         Writes the prediction dict to a csv
 
         """
+        if not self.overwrite:
+            if os.path.exists(self._preds_filepath):
+                with open(self._preds_filepath, 'r') as f:
+                    reader = csv.reader(f)
+                    for row in reader:
+                        self._prediction_dict[row[0]] = np.array(row[1:]).astype(np.float32)
+
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
         with open(self._preds_filepath, 'w') as f:
@@ -88,4 +90,4 @@ class ClassificationSaver:
             output = engine_output[batch_id]
             if isinstance(output, torch.Tensor):
                 output = output.detach().cpu().numpy()
-            self._prediction_dict[filename] = output
+            self._prediction_dict[filename] = output.astype(np.float32)
