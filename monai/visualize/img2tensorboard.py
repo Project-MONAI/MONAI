@@ -27,8 +27,8 @@ def _image3_animated_gif(imp, scale_factor=1):
     # x=numpy.random.randint(0,256,[10,10,10],numpy.uint8)
     (tag, ims) = imp
     ims = [
-        (np.asarray((ims[i, :, :])) * scale_factor).astype(np.uint8)
-        for i in range(ims.shape[0])
+        (np.asarray((ims[:, :, i])) * scale_factor).astype(np.uint8)
+        for i in range(ims.shape[2])
     ]
     ims = [GifImage.fromarray(im) for im in ims]
     img_str = b''
@@ -49,8 +49,8 @@ def _image3_animated_gif(imp, scale_factor=1):
 def make_animated_gif_summary(tag,
                               tensor,
                               max_out=3,
-                              animation_axes=(1,),
-                              image_axes=(2, 3),
+                              animation_axes=(3,),
+                              image_axes=(1, 2),
                               other_indices=None,
                               scale_factor=1):
     """
@@ -58,7 +58,7 @@ def make_animated_gif_summary(tag,
 
     Args:
         tag: Data identifier
-        tensor: tensor for the image, expected to be in CDHW format
+        tensor: tensor for the image, expected to be in CHWD format
         max_out: maximum number of slices to animate through
         animation_axes: axis to animate on (not currently used)
         image_axes: axes of image (not currently used)

@@ -440,7 +440,7 @@ class Zoom:
                 pad_vec[idx] = [half, diff - half]
             elif diff < 0:  # need slicing
                 slice_vec[idx] = slice(half, half + od)
-        zoomed = np.pad(zoomed, pad_vec)
+        zoomed = np.pad(zoomed, pad_vec, mode='constant')
         return zoomed[tuple(slice_vec)]
 
 
@@ -484,7 +484,6 @@ class IntensityNormalizer:
     Args:
         subtrahend (ndarray): the amount to subtract by (usually the mean)
         divisor (ndarray): the amount to divide by (usually the standard deviation)
-        dtype: output data format
     """
 
     def __init__(self, subtrahend=None, divisor=None):
@@ -514,13 +513,12 @@ class ImageEndPadder:
     Args:
         out_size (list): the size of region of interest at the end of the operation.
         mode (string): a portion from numpy.lib.arraypad.pad is copied below.
-        dtype: output data format.
     """
 
     def __init__(self, out_size, mode):
-        assert out_size is not None and isinstance(out_size, (list, tuple)), 'out_size must be list or tuple'
+        assert out_size is not None and isinstance(out_size, (list, tuple)), 'out_size must be list or tuple.'
         self.out_size = out_size
-        assert isinstance(mode, str), 'mode must be str'
+        assert isinstance(mode, str), 'mode must be str.'
         self.mode = mode
 
     def _determine_data_pad_width(self, data_shape):
@@ -698,6 +696,7 @@ class RandFlip(Randomizable):
         self.flipper = Flip(axis=axis)
 
         self._do_transform = False
+        self.flipper = Flip(axis=axis)
 
     def randomize(self):
         self._do_transform = self.R.random_sample() < self.prob

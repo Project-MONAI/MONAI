@@ -111,7 +111,7 @@ checkpoint_handler = ModelCheckpoint('./runs/', 'net', n_saved=10, require_empty
 trainer.add_event_handler(event_name=Events.EPOCH_COMPLETED,
                           handler=checkpoint_handler,
                           to_save={'net': net, 'opt': opt})
-train_stats_handler = StatsHandler()
+train_stats_handler = StatsHandler(output_transform=lambda x: x[1])
 train_stats_handler.attach(trainer)
 
 
@@ -160,7 +160,7 @@ evaluator = create_supervised_evaluator(net, val_metrics, device, True,
 
 # Add stats event handler to print validation stats via evaluator
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-val_stats_handler = StatsHandler()
+val_stats_handler = StatsHandler(output_transform=lambda x: None)
 val_stats_handler.attach(evaluator)
 
 # Add early stopping handler to evaluator.

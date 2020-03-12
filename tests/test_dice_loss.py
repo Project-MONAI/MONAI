@@ -82,7 +82,7 @@ TEST_CASE_5 = [  # shape: (2, 2, 3), (2, 1, 3)
 
 TEST_CASE_6 = [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
     {
-        'include_background': False,
+        'include_background': True,
         'do_sigmoid': True,
     },
     {

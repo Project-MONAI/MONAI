@@ -51,12 +51,13 @@ def run_test(batch_size=64, train_steps=100, device=torch.device("cuda:0")):
     trainer = create_supervised_trainer(net, opt, loss_fn, device, False)
 
     trainer.run(src, 1)
-
-    return trainer.state.output
+    loss = trainer.state.output
+    print('Loss:', loss)
+    if loss >= 1:
+        print('Loss value is wrong, expect to be < 1.')
+    return loss
 
 
 if __name__ == "__main__":
     result = run_test()
-    print(result)
-
     sys.exit(0 if result < 1 else 1)
