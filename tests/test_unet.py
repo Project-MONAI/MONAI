@@ -26,7 +26,7 @@ TEST_CASE_1 = [  # single channel 2D, batch 16
         'num_res_units': 1,
     },
     torch.randn(16, 1, 32, 32),
-    (16, 32, 32),
+    (16, 1, 32, 32),
 ]
 
 TEST_CASE_2 = [  # single channel 3D, batch 16
@@ -39,7 +39,7 @@ TEST_CASE_2 = [  # single channel 3D, batch 16
         'num_res_units': 1,
     },
     torch.randn(16, 1, 32, 24, 48),
-    (16, 32, 24, 48),
+    (16, 1, 32, 24, 48),
 ]
 
 TEST_CASE_3 = [  # 4-channel 3D, batch 16
@@ -52,7 +52,7 @@ TEST_CASE_3 = [  # 4-channel 3D, batch 16
         'num_res_units': 1,
     },
     torch.randn(16, 4, 32, 64, 48),
-    (16, 32, 64, 48),
+    (16, 1, 32, 64, 48),
 ]
 
 

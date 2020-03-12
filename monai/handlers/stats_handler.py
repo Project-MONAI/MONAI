@@ -9,46 +9,62 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 import logging
 import torch
 from ignite.engine import Engine, Events
+from monai.utils.misc import is_scalar
 
-KEY_VAL_FORMAT = '{}: {:.4f} '
+DEFAULT_KEY_VAL_FORMAT = '{}: {:.4f} '
+DEFAULT_TAG = 'Loss'
 
 
 class StatsHandler(object):
     """StatsHandler defines a set of Ignite Event-handlers for all the log printing logics.
     It's can be used for any Ignite Engine(trainer, validator and evaluator).
     And it can support logging for epoch level and iteration level with pre-defined loggers.
-    By default:
-    (1) epoch_print_logger logs `engine.state.metrics`.
-    (2) iteration_print_logger logs loss value, expected output format is (y_pred, loss).
+
+    Default behaviors:
+        - When EPOCH_COMPLETED, logs ``engine.state.metrics`` using ``self.logger``.
+        - When ITERATION_COMPELTED, logs
+        ``self.output_transform(engine.state.output)`` using ``self.logger``.
     """
 
     def __init__(self,
                  epoch_print_logger=None,
                  iteration_print_logger=None,
-                 batch_transform=lambda x: x,
                  output_transform=lambda x: x,
-                 name=None):
+                 global_epoch_transform=lambda x: x,
+                 name=None,
+                 tag_name=DEFAULT_TAG,
+                 key_var_format=DEFAULT_KEY_VAL_FORMAT):
         """
         Args:
             epoch_print_logger (Callable): customized callable printer for epoch level logging.
                 must accept parameter "engine", use default printer if None.
             iteration_print_logger (Callable): custimized callable printer for iteration level logging.
                 must accept parameter "engine", use default printer if None.
-            batch_transform (Callable): a callable that is used to transform the
-                ignite.engine.batch into expected format to extract input data.
             output_transform (Callable): a callable that is used to transform the
-                ignite.engine.output into expected format to extract several output data.
-            name (str): identifier of logging.logger to use, defaulting to `engine.logger`.
+                ``ignite.engine.output`` into a scalar to print, or a dictionary of {key: scalar}.
+                in the latter case, the output string will be formated as key: value.
+                by default this value logging happens when every iteration completed.
+            global_epoch_transform (Callable): a callable that is used to customize global epoch number.
+                For example, in evaluation, the evaluator engine might want to print synced epoch number
+                with the trainer engine.
+            name (str): identifier of logging.logger to use, defaulting to ``engine.logger``.
+            tag_name (string): when iteration output is a scalar, tag_name is used to print
+                tag_name: scalar_value to logger. Defaults to ``'Loss'``.
+            key_var_format (string): a formatting string to control the output string format of key: value.
         """
 
         self.epoch_print_logger = epoch_print_logger
         self.iteration_print_logger = iteration_print_logger
-        self.batch_transform = batch_transform
         self.output_transform = output_transform
+        self.global_epoch_transform = global_epoch_transform
         self.logger = None if name is None else logging.getLogger(name)
+
+        self.tag_name = tag_name
+        self.key_var_format = key_var_format
 
     def attach(self, engine: Engine):
         """Register a set of Ignite Event-Handlers to a specified Ignite engine.
@@ -116,12 +132,12 @@ class StatsHandler(object):
         prints_dict = engine.state.metrics
         if not prints_dict:
             return
-        current_epoch = engine.state.epoch
+        current_epoch = self.global_epoch_transform(engine.state.epoch)
 
         out_str = "Epoch[{}] Metrics -- ".format(current_epoch)
         for name in sorted(prints_dict):
             value = prints_dict[name]
-            out_str += KEY_VAL_FORMAT.format(name, value)
+            out_str += self.key_var_format.format(name, value)
 
         self.logger.info(out_str)
 
@@ -134,19 +150,42 @@ class StatsHandler(object):
             engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.
 
         """
-        loss = self.output_transform(engine.state.output)[1]
-        if loss is None or (torch.is_tensor(loss) and len(loss.shape) > 0):
-            return  # not printing multi dimensional output
+        loss = self.output_transform(engine.state.output)
+        if loss is None:
+            return  # no printing if the output is empty
+
+        out_str = ''
+        if isinstance(loss, dict):  # print dictionary items
+            for name in sorted(loss):
+                value = loss[name]
+                if not is_scalar(value):
+                    warnings.warn('ignoring non-scalar output in StatsHandler,'
+                                  ' make sure `output_transform(engine.state.output)` returns'
+                                  ' a scalar or dictionary of key and scalar pairs to avoid this warning.'
+                                  ' {}:{}'.format(name, type(value)))
+                    continue  # not printing multi dimensional output
+                out_str += self.key_var_format.format(name, value.item() if torch.is_tensor(value) else value)
+        else:
+            if is_scalar(loss):  # not printing multi dimensional output
+                out_str += self.key_var_format.format(self.tag_name, loss.item() if torch.is_tensor(loss) else loss)
+            else:
+                warnings.warn('ignoring non-scalar output in StatsHandler,'
+                              ' make sure `output_transform(engine.state.output)` returns'
+                              ' a scalar or a dictionary of key and scalar pairs to avoid this warning.'
+                              ' {}'.format(type(loss)))
+
+        if not out_str:
+            return  # no value to print
+
         num_iterations = engine.state.epoch_length
         current_iteration = (engine.state.iteration - 1) % num_iterations + 1
         current_epoch = engine.state.epoch
         num_epochs = engine.state.max_epochs
 
-        out_str = "Epoch: {}/{}, Iter: {}/{} -- ".format(
+        base_str = "Epoch: {}/{}, Iter: {}/{} --".format(
             current_epoch,
             num_epochs,
             current_iteration,
             num_iterations)
-        out_str += KEY_VAL_FORMAT.format('Loss', loss.item() if torch.is_tensor(loss) else loss)
 
-        self.logger.info(out_str)
+        self.logger.info(' '.join([base_str, out_str]))

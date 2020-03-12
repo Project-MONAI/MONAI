@@ -65,17 +65,19 @@ def run_test(batch_size=2, device=torch.device("cpu:0")):
 
         basename = os.path.basename(img_name)[:-len('.nii.gz')]
         saved_name = os.path.join(temp_dir, basename, '{}_seg.nii.gz'.format(basename))
-        testing_shape = nib.load(saved_name).get_fdata().shape
+        # get spatial dimensions shape, the saved nifti image format: HWDC
+        testing_shape = nib.load(saved_name).get_fdata().shape[:-1]
 
     if os.path.exists(img_name):
         os.remove(img_name)
     if os.path.exists(seg_name):
         os.remove(seg_name)
-
-    return testing_shape == input_shape
+    if testing_shape != input_shape:
+        print('testing shape: {} does not match input shape: {}.'.format(testing_shape, input_shape))
+        return False
+    return True
 
 
 if __name__ == "__main__":
     result = run_test()
-
     sys.exit(0 if result else 1)

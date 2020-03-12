@@ -52,6 +52,6 @@ def predict_segmentation(logits):
     """
     # generate prediction outputs, logits has shape BCHW[D]
     if logits.shape[1] == 1:
-        return (logits[:, 0] >= 0).int()  # for binary segmentation threshold on channel 0
+        return (logits >= 0).int()  # for binary segmentation threshold on channel 0
     else:
-        return logits.max(1)[1]  # take the index of the max value along dimension 1
+        return logits.argmax(1).unsqueeze(1)  # take the index of the max value along dimension 1
