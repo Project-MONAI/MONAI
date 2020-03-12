@@ -14,30 +14,37 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.transforms import RandFlip
+from monai.transforms import RandFlip, RandFlipd
 from tests.utils import NumpyImageTestCase2D
 
+INVALID_CASES = [("wrong_axis", ['s', 1], TypeError),
+                 ("not_numbers", 's', TypeError)]
 
-class RandomFlipTest(NumpyImageTestCase2D):
+VALID_CASES = [("no_axis", None),
+               ("one_axis", 1),
+               ("many_axis", [0, 1, 2])]
 
-    @parameterized.expand([
-        ("wrong_axis", ['s', 1], TypeError),
-        ("not_numbers", 's', TypeError)
-    ])
+class RandFlipTest(NumpyImageTestCase2D):
+
+    @parameterized.expand(INVALID_CASES)
     def test_invalid_inputs(self, _, axis, raises):
         with self.assertRaises(raises):
             flip = RandFlip(prob=1.0, axis=axis)
             flip(self.imt)
 
-    @parameterized.expand([
-        ("no_axis", None),
-        ("one_axis", 1),
-        ("many_axis", [0, 1, 2])
-    ])
+    @parameterized.expand(VALID_CASES)
     def test_correct_results(self, _, axis):
         flip = RandFlip(prob=1.0, axis=axis)
         expected = np.flip(self.imt, axis)
         self.assertTrue(np.allclose(expected, flip(self.imt)))
+
+    @parameterized.expand(VALID_CASES)
+    def test_correct_results_dict(self, _, axis):
+        flip = RandFlipd(keys='img', prob=1.0, axis=axis)
+        res = flip({'img': self.imt})
+
+        expected = np.flip(self.imt, axis)
+        self.assertTrue(np.allclose(expected, res['img']))
 
 
 if __name__ == '__main__':

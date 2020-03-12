@@ -434,7 +434,7 @@ class Zoom:
                 pad_vec[idx] = [half, diff - half]
             elif diff < 0:  # need slicing
                 slice_vec[idx] = slice(half, half + od)
-        zoomed = np.pad(zoomed, pad_vec)
+        zoomed = np.pad(zoomed, pad_vec, mode='constant')
         return zoomed[tuple(slice_vec)]
 
 
@@ -696,6 +696,7 @@ class RandFlip(Randomizable):
         self.flipper = Flip(axis=axis)
 
         self._do_transform = False
+        self.flipper = Flip(axis=axis)
 
     def randomize(self):
         self._do_transform = self.R.random_sample() < self.prob
