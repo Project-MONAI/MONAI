@@ -46,7 +46,7 @@ def run_test(batch_size=64, train_steps=100, device=torch.device("cuda:0")):
     src = DataLoader(_TestBatch(), batch_size=batch_size)
 
     def loss_fn(pred, grnd):
-        return loss(pred[0], grnd)
+        return loss(pred, grnd)
 
     trainer = create_supervised_trainer(net, opt, loss_fn, device, False)
 
