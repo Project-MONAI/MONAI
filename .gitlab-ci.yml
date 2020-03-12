@@ -1,20 +1,34 @@
 stages:
-    - build
+  - build
+  - coverage
 
-.base_template : &BASE
-   script:
-   - nvidia-smi
-   - export CUDA_DEVICE_ORDER=PCI_BUS_ID
-   - export CUDA_VISIBLE_DEVICES=0,1
-   - python -m pip install --upgrade pip
-   - pip uninstall -y torch torchvision
-   - pip install -r requirements.txt
-   # - pip list
-   - ./runtests.sh --net
-   - echo "Done with runtests.sh"
+full integration:
+  stage: build
+  script:
+  - nvidia-smi
+  - export CUDA_DEVICE_ORDER=PCI_BUS_ID
+  - export CUDA_VISIBLE_DEVICES=0,1
+  - python -m pip install --upgrade pip
+  - pip uninstall -y torch torchvision
+  - pip install -q -r requirements.txt
+  - ./runtests.sh --net
+  - echo "Done with runtests.sh --net"
+  tags:
+  - test
 
-build-ci-test:
-    stage: build
-    tags:
-    - test
-    <<: *BASE
+coverage test:
+  stage: coverage
+  only:
+    - master
+    - ci-stages
+  script:
+  - nvidia-smi
+  - export CUDA_DEVICE_ORDER=PCI_BUS_ID
+  - export CUDA_VISIBLE_DEVICES=0,1
+  - python -m pip install --upgrade pip
+  - pip uninstall -y torch torchvision
+  - pip install -q -r requirements.txt
+  - pip list
+  - ./runtests.sh --coverage
+  tags:
+  - test
