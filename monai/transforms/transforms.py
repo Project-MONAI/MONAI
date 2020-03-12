@@ -289,6 +289,7 @@ class Resize:
     For additional details, see https://scikit-image.org/docs/dev/api/skimage.transform.html#skimage.transform.resize.
 
     Args:
+        output_shape (tuple or list): expected shape after resize operation.
         order (int): Order of spline interpolation. Default=1.
         mode (str): Points outside boundaries are filled according to given mode.
             Options are 'constant', 'edge', 'symmetric', 'reflect', 'wrap'.
@@ -315,11 +316,16 @@ class Resize:
         self.anti_aliasing_sigma = anti_aliasing_sigma
 
     def __call__(self, img):
-        return resize(img, self.output_shape, order=self.order,
-                      mode=self.mode, cval=self.cval,
-                      clip=self.clip, preserve_range=self.preserve_range,
-                      anti_aliasing=self.anti_aliasing,
-                      anti_aliasing_sigma=self.anti_aliasing_sigma)
+        resized = list()
+        for channel in img:
+            resized.append(
+                resize(channel, self.output_shape, order=self.order,
+                       mode=self.mode, cval=self.cval,
+                       clip=self.clip, preserve_range=self.preserve_range,
+                       anti_aliasing=self.anti_aliasing,
+                       anti_aliasing_sigma=self.anti_aliasing_sigma)
+            )
+        return np.stack(resized).astype(np.float32)
 
 
 @export
@@ -353,7 +359,7 @@ class Rotate:
     def __call__(self, img):
         return scipy.ndimage.rotate(img, self.angle, self.axes,
                                     reshape=self.reshape, order=self.order, mode=self.mode, cval=self.cval,
-                                    prefilter=self.prefilter)
+                                    prefilter=self.prefilter).astype(np.float32)
 
 
 @export
@@ -420,7 +426,7 @@ class Zoom:
                                mode=self.mode,
                                cval=self.cval,
                                prefilter=self.prefilter))
-        zoomed = np.stack(zoomed)
+        zoomed = np.stack(zoomed).astype(np.float32)
 
         if not self.keep_size or np.allclose(img.shape, zoomed.shape):
             return zoomed
@@ -478,16 +484,14 @@ class IntensityNormalizer:
     Args:
         subtrahend (ndarray): the amount to subtract by (usually the mean)
         divisor (ndarray): the amount to divide by (usually the standard deviation)
-        dtype: output data format
     """
 
-    def __init__(self, subtrahend=None, divisor=None, dtype=np.float32):
+    def __init__(self, subtrahend=None, divisor=None):
         if subtrahend is not None or divisor is not None:
             assert isinstance(subtrahend, np.ndarray) and isinstance(divisor, np.ndarray), \
                 'subtrahend and divisor must be set in pair and in numpy array.'
         self.subtrahend = subtrahend
         self.divisor = divisor
-        self.dtype = dtype
 
     def __call__(self, img):
         if self.subtrahend is not None and self.divisor is not None:
@@ -497,8 +501,6 @@ class IntensityNormalizer:
             img -= np.mean(img)
             img /= np.std(img)
 
-        if self.dtype != img.dtype:
-            img = img.astype(self.dtype)
         return img
 
 
@@ -511,15 +513,13 @@ class ImageEndPadder:
     Args:
         out_size (list): the size of region of interest at the end of the operation.
         mode (string): a portion from numpy.lib.arraypad.pad is copied below.
-        dtype: output data format.
     """
 
-    def __init__(self, out_size, mode, dtype=np.float32):
-        assert out_size is not None and isinstance(out_size, (list, tuple)), 'out_size must be list or tuple'
+    def __init__(self, out_size, mode):
+        assert out_size is not None and isinstance(out_size, (list, tuple)), 'out_size must be list or tuple.'
         self.out_size = out_size
-        assert isinstance(mode, str), 'mode must be str'
+        assert isinstance(mode, str), 'mode must be str.'
         self.mode = mode
-        self.dtype = dtype
 
     def _determine_data_pad_width(self, data_shape):
         return [(0, max(self.out_size[i] - data_shape[i], 0)) for i in range(len(self.out_size))]

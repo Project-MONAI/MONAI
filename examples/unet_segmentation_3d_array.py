@@ -29,7 +29,7 @@ import monai
 import monai.transforms.compose as transforms
 
 from monai.data.nifti_reader import NiftiDataset
-from monai.transforms import AddChannel, Rescale, ToTensor, UniformRandomPatch
+from monai.transforms import AddChannel, Rescale, UniformRandomPatch
 from monai.handlers.stats_handler import StatsHandler
 from monai.handlers.tensorboard_handlers import TensorBoardStatsHandler, TensorBoardImageHandler
 from monai.handlers.mean_dice import MeanDice
@@ -57,19 +57,17 @@ segs = sorted(glob(os.path.join(tempdir, 'seg*.nii.gz')))
 imtrans = transforms.Compose([
     Rescale(),
     AddChannel(),
-    UniformRandomPatch((96, 96, 96)),
-    ToTensor()
+    UniformRandomPatch((96, 96, 96))
 ])
 segtrans = transforms.Compose([
     AddChannel(),
-    UniformRandomPatch((96, 96, 96)),
-    ToTensor()
+    UniformRandomPatch((96, 96, 96))
 ])
 
 # Define nifti dataset, dataloader.
-ds = NiftiDataset(images, segs, transform=imtrans, seg_transform=segtrans)
-loader = DataLoader(ds, batch_size=10, num_workers=2, pin_memory=torch.cuda.is_available())
-im, seg = monai.utils.misc.first(loader)
+check_ds = NiftiDataset(images, segs, transform=imtrans, seg_transform=segtrans)
+check_loader = DataLoader(check_ds, batch_size=10, num_workers=2, pin_memory=torch.cuda.is_available())
+im, seg = monai.utils.misc.first(check_loader)
 print(im.shape, seg.shape)
 
 lr = 1e-5
@@ -159,7 +157,7 @@ evaluator.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=early_sto
 
 # create a validation data loader
 val_ds = NiftiDataset(images[-20:], segs[-20:], transform=imtrans, seg_transform=segtrans)
-val_loader = DataLoader(ds, batch_size=5, num_workers=8, pin_memory=torch.cuda.is_available())
+val_loader = DataLoader(val_ds, batch_size=5, num_workers=8, pin_memory=torch.cuda.is_available())
 
 
 @trainer.on(Events.EPOCH_COMPLETED(every=validation_every_n_epochs))

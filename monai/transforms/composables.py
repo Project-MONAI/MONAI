@@ -14,6 +14,7 @@ defined in `monai.transforms.transforms`.
 """
 
 import torch
+import numpy as np
 from collections.abc import Hashable
 
 import monai
@@ -23,7 +24,7 @@ from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.transforms import (LoadNifti, AsChannelFirst, Orientation,
                                          AddChannel, Spacing, Rotate90, SpatialCrop,
                                          RandAffine, Rand2DElastic, Rand3DElastic,
-                                         Flip, Rotate, Zoom)
+                                         Rescale, Resize, Flip, Rotate, Zoom)
 from monai.utils.misc import ensure_tuple
 from monai.transforms.utils import generate_pos_neg_label_crop_centers, create_grid
 from monai.utils.aliases import alias
@@ -246,6 +247,59 @@ class Rotate90d(MapTransform):
         d = dict(data)
         for key in self.keys:
             d[key] = self.rotator(d[key])
+        return d
+
+
+@export
+@alias('RescaleD', 'RescaleDict')
+class Rescaled(MapTransform):
+    """
+    dictionary-based wrapper of Rescale.
+    """
+
+    def __init__(self, keys, minv=0.0, maxv=1.0, dtype=np.float32):
+        MapTransform.__init__(self, keys)
+        self.rescaler = Rescale(minv, maxv, dtype)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.rescaler(d[key])
+        return d
+
+
+@export
+@alias('ResizeD', 'ResizeDict')
+class Resized(MapTransform):
+    """
+    dictionary-based wrapper of Resize.
+    Args:
+        keys (hashable items): keys of the corresponding items to be transformed.
+            See also: monai.transform.composables.MapTransform
+        output_shape (tuple or list): expected shape after resize operation.
+        order (int): Order of spline interpolation. Default=1.
+        mode (str): Points outside boundaries are filled according to given mode.
+            Options are 'constant', 'edge', 'symmetric', 'reflect', 'wrap'.
+        cval (float): Used with mode 'constant', the value outside image boundaries.
+        clip (bool): Wheter to clip range of output values after interpolation. Default: True.
+        preserve_range (bool): Whether to keep original range of values. Default is True.
+            If False, input is converted according to conventions of img_as_float. See
+            https://scikit-image.org/docs/dev/user_guide/data_types.html.
+        anti_aliasing (bool): Whether to apply a gaussian filter to image before down-scaling.
+            Default is True.
+        anti_aliasing_sigma (float, tuple of floats): Standard deviation for gaussian filtering.
+    """
+
+    def __init__(self, keys, output_shape, order=1, mode='reflect', cval=0,
+                 clip=True, preserve_range=True, anti_aliasing=True, anti_aliasing_sigma=None):
+        MapTransform.__init__(self, keys)
+        self.resizer = Resize(output_shape, order, mode, cval, clip, preserve_range,
+                              anti_aliasing, anti_aliasing_sigma)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.resizer(d[key])
         return d
 
 

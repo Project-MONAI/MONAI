@@ -68,11 +68,11 @@ val_transforms = transforms.Compose([
     AsChannelFirstd(keys=['img', 'seg'], channel_dim=-1)
 ])
 
-# Define nifti dataset, dataloader.
-ds = monai.data.Dataset(data=train_files, transform=train_transforms)
-loader = DataLoader(ds, batch_size=2, num_workers=4, collate_fn=list_data_collate,
-                    pin_memory=torch.cuda.is_available())
-check_data = monai.utils.misc.first(loader)
+# Define dataset, dataloader.
+check_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
+check_loader = DataLoader(check_ds, batch_size=2, num_workers=4, collate_fn=list_data_collate,
+                          pin_memory=torch.cuda.is_available())
+check_data = monai.utils.misc.first(check_loader)
 print(check_data['img'].shape, check_data['seg'].shape)
 
 lr = 1e-5
@@ -171,7 +171,7 @@ evaluator.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=early_sto
 
 # create a validation data loader
 val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
-val_loader = DataLoader(ds, batch_size=5, num_workers=8, collate_fn=list_data_collate,
+val_loader = DataLoader(val_ds, batch_size=5, num_workers=8, collate_fn=list_data_collate,
                         pin_memory=torch.cuda.is_available())
 
 
