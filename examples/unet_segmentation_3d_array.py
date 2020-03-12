@@ -18,7 +18,6 @@ import logging
 import nibabel as nib
 import numpy as np
 import torch
-from torch.utils.tensorboard import SummaryWriter
 from ignite.engine import Events, create_supervised_trainer, create_supervised_evaluator
 from ignite.handlers import ModelCheckpoint, EarlyStopping
 from torch.utils.data import DataLoader
@@ -32,8 +31,8 @@ import monai.transforms.compose as transforms
 from monai.data.nifti_reader import NiftiDataset
 from monai.transforms import AddChannel, Rescale, ToTensor, UniformRandomPatch
 from monai.handlers.stats_handler import StatsHandler
+from monai.handlers.tensorboard_handlers import TensorBoardStatsHandler, TensorBoardImageHandler
 from monai.handlers.mean_dice import MeanDice
-from monai.visualize import img2tensorboard
 from monai.data.synthetic import create_test_image_3d
 from monai.handlers.utils import stopping_fn_from_metric
 
@@ -88,70 +87,71 @@ net = monai.networks.nets.UNet(
 loss = monai.losses.DiceLoss(do_sigmoid=True)
 opt = torch.optim.Adam(net.parameters(), lr)
 
+
 # Since network outputs logits and segmentation, we need a custom function.
 def _loss_fn(i, j):
     return loss(i[0], j)
 
+
 # Create trainer
-device = torch.device("cuda:0")
+device = torch.device("cpu:0")
 trainer = create_supervised_trainer(net, opt, _loss_fn, device, False,
-                                    output_transform=lambda x, y, y_pred, loss: [y_pred, loss.item(), y])
+                                    output_transform=lambda x, y, y_pred, loss: [y_pred[1], loss.item(), y])
 
 # adding checkpoint handler to save models (network params and optimizer stats) during training
 checkpoint_handler = ModelCheckpoint('./runs/', 'net', n_saved=10, require_empty=False)
 trainer.add_event_handler(event_name=Events.EPOCH_COMPLETED,
                           handler=checkpoint_handler,
                           to_save={'net': net, 'opt': opt})
-train_stats_handler = StatsHandler()
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+
+# print training loss to commandline
+train_stats_handler = StatsHandler(output_transform=lambda x: x[1])
 train_stats_handler.attach(trainer)
+
+# record training loss to TensorBoard at every iteration
+train_tensorboard_stats_handler = TensorBoardStatsHandler(
+    output_transform=lambda x: {'training_dice_loss': x[1]},  # plot under tag name taining_dice_loss
+    global_epoch_transform=lambda x: trainer.state.epoch)
+train_tensorboard_stats_handler.attach(trainer)
+
 
 @trainer.on(Events.EPOCH_COMPLETED)
 def log_training_loss(engine):
-    # log loss to tensorboard with second item of engine.state.output, loss.item() from output_transform
-    writer.add_scalar('Loss/train', engine.state.output[1], engine.state.epoch)
-
-    # tensor of ones to use where for converting labels to zero and ones
-    ones = torch.ones(engine.state.batch[1][0].shape, dtype=torch.int32)
-    first_output_tensor = engine.state.output[0][1][0].detach().cpu()
-    # log model output to tensorboard, as three dimensional tensor with no channels dimension
-    img2tensorboard.add_animated_gif_no_channels(writer, "first_output_final_batch", first_output_tensor, 64,
-                                                 255, engine.state.epoch)
-    # get label tensor and convert to single class
-    first_label_tensor = torch.where(engine.state.batch[1][0] > 0, ones, engine.state.batch[1][0])
-    # log label tensor to tensorboard, there is a channel dimension when getting label from batch
-    img2tensorboard.add_animated_gif(writer, "first_label_final_batch", first_label_tensor, 64,
-                                     255, engine.state.epoch)
-    second_output_tensor = engine.state.output[0][1][1].detach().cpu()
-    img2tensorboard.add_animated_gif_no_channels(writer, "second_output_final_batch", second_output_tensor, 64,
-                                                 255, engine.state.epoch)
-    second_label_tensor = torch.where(engine.state.batch[1][1] > 0, ones, engine.state.batch[1][1])
-    img2tensorboard.add_animated_gif(writer, "second_label_final_batch", second_label_tensor, 64,
-                                     255, engine.state.epoch)
-    third_output_tensor = engine.state.output[0][1][2].detach().cpu()
-    img2tensorboard.add_animated_gif_no_channels(writer, "third_output_final_batch", third_output_tensor, 64,
-                                                 255, engine.state.epoch)
-    third_label_tensor = torch.where(engine.state.batch[1][2] > 0, ones, engine.state.batch[1][2])
-    img2tensorboard.add_animated_gif(writer, "third_label_final_batch", third_label_tensor, 64,
-                                     255, engine.state.epoch)
     engine.logger.info("Epoch[%s] Loss: %s", engine.state.epoch, engine.state.output[1])
 
-writer = SummaryWriter()
 
 # Set parameters for validation
 validation_every_n_epochs = 1
 metric_name = 'Mean_Dice'
 
 # add evaluation metric to the evaluator engine
-val_metrics = {metric_name: MeanDice(add_sigmoid=True)}
-evaluator = create_supervised_evaluator(net, val_metrics, device, True,
-                                        output_transform=lambda x, y, y_pred: (y_pred[0], y))
+val_metrics = {metric_name: MeanDice(
+    add_sigmoid=True, to_onehot_y=False, output_transform=lambda output: (output[0][0], output[1]))
+}
+evaluator = create_supervised_evaluator(net, val_metrics, device, True)
 
 # Add stats event handler to print validation stats via evaluator
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-val_stats_handler = StatsHandler()
+val_stats_handler = StatsHandler(
+    output_transform=lambda x: None,  # disable per iteration output
+    global_epoch_transform=lambda x: trainer.state.epoch)
 val_stats_handler.attach(evaluator)
 
-# Add early stopping handler to evaluator.
+# add handler to record metrics to TensorBoard at every epoch
+val_tensorboard_stats_handler = TensorBoardStatsHandler(
+    output_transform=lambda x: None,  # no iteration plot
+    global_epoch_transform=lambda x: trainer.state.epoch)  # use epoch number from trainer
+val_tensorboard_stats_handler.attach(evaluator)
+# add handler to draw several images and the corresponding labels and model outputs
+# here we draw the first 3 images(draw the first channel) as GIF format along Depth axis
+val_tensorboard_image_handler = TensorBoardImageHandler(
+    batch_transform=lambda batch: (batch[0], batch[1]),
+    output_transform=lambda output: output[0][1],
+    global_iter_transform=lambda x: trainer.state.epoch
+)
+evaluator.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=val_tensorboard_image_handler)
+
+# Add early stopping handler to evaluator
 early_stopper = EarlyStopping(patience=4,
                               score_function=stopping_fn_from_metric(metric_name),
                               trainer=trainer)
@@ -166,10 +166,6 @@ val_loader = DataLoader(ds, batch_size=5, num_workers=8, pin_memory=torch.cuda.i
 def run_validation(engine):
     evaluator.run(val_loader)
 
-@evaluator.on(Events.EPOCH_COMPLETED)
-def log_metrics_to_tensorboard(engine):
-    for name, value in engine.state.metrics.items():
-        writer.add_scalar('Metrics/{name}', value, trainer.state.epoch)
 
 # create a training data loader
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)

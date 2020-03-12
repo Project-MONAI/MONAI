@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import os
-
+import numpy as np
 import torch
 from ignite.engine import Events
 
@@ -114,5 +114,6 @@ class SegmentationSaver:
                 seg_output = seg_output.detach().cpu().numpy()
             output_filename = self._create_file_basename(self.output_postfix, filename, self.output_path)
             output_filename = '{}{}'.format(output_filename, self.output_ext)
-            write_nifti(seg_output, affine_, output_filename, original_affine_, dtype=seg_output.dtype)
+            # change output to "channel last" format and write to nifti format file
+            write_nifti(np.moveaxis(seg_output, 0, -1), affine_, output_filename, original_affine_, dtype=seg_output.dtype)
             self.logger.info('saved: {}'.format(output_filename))
