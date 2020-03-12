@@ -87,7 +87,7 @@ SegmentationSaver(output_path='tempdir', output_ext='.nii.gz', output_postfix='s
                                                  'original_affine': batch['img.original_affine'],
                                                  'affine': batch['img.affine'],
                                                  }).attach(infer_engine)
-# the model was trained by "unet_segmentation_3d_array" exmple
+# the model was trained by "unet_segmentation_3d_dict" exmple
 CheckpointLoader(load_path='./runs/net_checkpoint_120.pth', load_dict={'net': net}).attach(infer_engine)
 
 val_loader = DataLoader(val_ds, batch_size=1, num_workers=4, collate_fn=list_data_collate,

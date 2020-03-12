@@ -21,16 +21,15 @@ from torch.utils.data import DataLoader
 sys.path.append("..")
 import monai
 import monai.transforms.compose as transforms
-
 from monai.data.nifti_reader import NiftiDataset
-from monai.transforms import (AddChannel, Rescale, ToTensor, UniformRandomPatch)
+from monai.transforms import (AddChannel, Rescale, Resize, RandRotate90)
 from monai.handlers.stats_handler import StatsHandler
 from ignite.metrics import Accuracy
 from monai.handlers.utils import stopping_fn_from_metric
 
 monai.config.print_config()
 
-# FIXME: temp test dataset, Wenqi will replace later
+# demo dataset, user can easily change to own dataset
 images = [
     "/workspace/data/medical/ixi/IXI-T1/IXI314-IOP-0889-T1.nii.gz",
     "/workspace/data/medical/ixi/IXI-T1/IXI249-Guys-1072-T1.nii.gz",
@@ -57,18 +56,23 @@ labels = np.array([
     0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0
 ])
 
-# Define transforms for image and segmentation
-imtrans = transforms.Compose([
+# Define transforms for image
+train_transforms = transforms.Compose([
     Rescale(),
     AddChannel(),
-    UniformRandomPatch((96, 96, 96)),
-    ToTensor()
+    Resize((96, 96, 96)),
+    RandRotate90()
+])
+val_transforms = transforms.Compose([
+    Rescale(),
+    AddChannel(),
+    Resize((96, 96, 96))
 ])
 
 # Define nifti dataset, dataloader.
-ds = NiftiDataset(image_files=images, labels=labels, transform=imtrans)
-loader = DataLoader(ds, batch_size=2, num_workers=2, pin_memory=torch.cuda.is_available())
-im, label = monai.utils.misc.first(loader)
+check_ds = NiftiDataset(image_files=images, labels=labels, transform=train_transforms)
+check_loader = DataLoader(check_ds, batch_size=2, num_workers=2, pin_memory=torch.cuda.is_available())
+im, label = monai.utils.misc.first(check_loader)
 print(type(im), im.shape, label)
 
 lr = 1e-5
@@ -84,7 +88,8 @@ opt = torch.optim.Adam(net.parameters(), lr)
 
 # Create trainer
 device = torch.device("cuda:0")
-trainer = create_supervised_trainer(net, opt, loss, device, False)
+trainer = create_supervised_trainer(net, opt, loss, device, False,
+                                    output_transform=lambda x, y, y_pred, loss: [y_pred, loss.item(), y])
 
 # adding checkpoint handler to save models (network params and optimizer stats) during training
 checkpoint_handler = ModelCheckpoint('./runs/', 'net', n_saved=10, require_empty=False)
@@ -93,10 +98,6 @@ trainer.add_event_handler(event_name=Events.EPOCH_COMPLETED,
                           to_save={'net': net, 'opt': opt})
 train_stats_handler = StatsHandler()
 train_stats_handler.attach(trainer)
-
-@trainer.on(Events.EPOCH_COMPLETED)
-def log_training_loss(engine):
-    engine.logger.info("Epoch[%s] Loss: %s", engine.state.epoch, engine.state.output)
 
 # Set parameters for validation
 validation_every_n_epochs = 1
@@ -118,8 +119,8 @@ early_stopper = EarlyStopping(patience=4,
 evaluator.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=early_stopper)
 
 # create a validation data loader
-val_ds = NiftiDataset(image_files=images[-5:], labels=labels[-5:], transform=imtrans)
-val_loader = DataLoader(ds, batch_size=2, num_workers=2, pin_memory=torch.cuda.is_available())
+val_ds = NiftiDataset(image_files=images[-10:], labels=labels[-10:], transform=val_transforms)
+val_loader = DataLoader(val_ds, batch_size=2, num_workers=2, pin_memory=torch.cuda.is_available())
 
 
 @trainer.on(Events.EPOCH_COMPLETED(every=validation_every_n_epochs))
@@ -129,7 +130,7 @@ def run_validation(engine):
 # create a training data loader
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-train_ds = NiftiDataset(image_files=images[:15], labels=labels[:15], transform=imtrans)
+train_ds = NiftiDataset(image_files=images[:10], labels=labels[:10], transform=train_transforms)
 train_loader = DataLoader(train_ds, batch_size=2, num_workers=2, pin_memory=torch.cuda.is_available())
 
 train_epochs = 30

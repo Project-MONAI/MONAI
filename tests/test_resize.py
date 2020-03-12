@@ -30,9 +30,9 @@ class ResizeTest(NumpyImageTestCase2D):
             resize(self.imt)
 
     @parameterized.expand([
-        ((1, 1, 64, 64), 1, 'reflect', 0, True, True, True, None),
-        ((1, 1, 32, 32), 2, 'constant', 3, False, False, False, None),
-        ((1, 1, 256, 256), 3, 'constant', 3, False, False, False, None),
+        ((64, 64), 1, 'reflect', 0, True, True, True, None),
+        ((32, 32), 2, 'constant', 3, False, False, False, None),
+        ((256, 256), 3, 'constant', 3, False, False, False, None),
     ])
     def test_correct_results(self, output_shape, order, mode, 
                              cval, clip, preserve_range, 
@@ -40,12 +40,15 @@ class ResizeTest(NumpyImageTestCase2D):
         resize = Resize(output_shape, order, mode, cval, clip, 
                         preserve_range, anti_aliasing, 
                         anti_aliasing_sigma)
-        expected = skimage.transform.resize(self.imt, output_shape, 
-                                            order=order, mode=mode, 
-                                            cval=cval, clip=clip, 
-                                            preserve_range=preserve_range, 
-                                            anti_aliasing=anti_aliasing, 
-                                            anti_aliasing_sigma=anti_aliasing_sigma)
+        expected = list()
+        for channel in self.imt:
+            expected.append(skimage.transform.resize(channel, output_shape, 
+                                                     order=order, mode=mode, 
+                                                     cval=cval, clip=clip, 
+                                                     preserve_range=preserve_range, 
+                                                     anti_aliasing=anti_aliasing, 
+                                                     anti_aliasing_sigma=anti_aliasing_sigma))
+        expected = np.stack(expected).astype(np.float32)
         self.assertTrue(np.allclose(resize(self.imt), expected))
 
 

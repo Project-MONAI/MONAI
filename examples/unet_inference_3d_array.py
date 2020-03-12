@@ -28,7 +28,7 @@ from monai.handlers.checkpoint_loader import CheckpointLoader
 from monai.handlers.segmentation_saver import SegmentationSaver
 import monai.transforms.compose as transforms
 from monai.data.nifti_reader import NiftiDataset
-from monai.transforms import AddChannel, Rescale, ToTensor
+from monai.transforms import AddChannel, Rescale
 from monai.networks.nets.unet import UNet
 from monai.networks.utils import predict_segmentation
 from monai.data.synthetic import create_test_image_3d
@@ -50,8 +50,8 @@ for i in range(50):
 
 images = sorted(glob(os.path.join(tempdir, 'im*.nii.gz')))
 segs = sorted(glob(os.path.join(tempdir, 'seg*.nii.gz')))
-imtrans = transforms.Compose([Rescale(), AddChannel(), ToTensor()])
-segtrans = transforms.Compose([AddChannel(), ToTensor()])
+imtrans = transforms.Compose([Rescale(), AddChannel()])
+segtrans = transforms.Compose([AddChannel()])
 ds = NiftiDataset(images, segs, transform=imtrans, seg_transform=segtrans, image_only=False)
 
 device = torch.device("cuda:0")
