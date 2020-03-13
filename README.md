@@ -243,6 +243,7 @@ This document identifies key concepts of project MONAI at a high level, the goal
 
 ## Highlight features
 As a medical area-specific Deep Learning package, MONAI provides rich support on end-to-end medical DL research work, for example, 2D/3D medical image processing, model training & evaluation(like segmentation, classification tasks), statistics & 2D/3D image visualization, etc.  
+![image](https://github.com/Project-MONAI/MONAI/blob/173-add-highlight-features-to-README/docs/images/end_to_end_process.png)
 Here are the highlight features:
 ### 1. Transforms
 Data pre-processing is an important and challenging task in medical DL research work because the images are in the medical specific format with rich metadata information. And usually, the images are very large and in 3D shape which is much different from other common computer vision areas. So MONAI provides powerful and flexible transforms to enable these features:
@@ -292,7 +293,7 @@ When executing inference on very big medical images, the sliding window is a ver
 (2) Execute a batch of windows on the model per time, and complete all windows.  
 (3) Connect all the model outputs to construct 1 segmentation corresponding to the original image.  
 (4) Save segmentation result to file or compute metrics.  
-
+![image](https://github.com/Project-MONAI/MONAI/blob/173-add-highlight-features-to-README/docs/images/sliding_window.png)
 #### 2. Metrics for medical tasks
 There are many useful metrics to measure medical specific tasks, MONAI already implemented Mean Dice and AUC, will integrate more soon.  
 ### 5. Visualization
