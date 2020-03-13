@@ -38,7 +38,7 @@ class TensorBoardStatsHandler(object):
                  summary_writer=None,
                  epoch_event_writer=None,
                  iteration_event_writer=None,
-                 output_transform=lambda x: {'Loss': x},
+                 output_transform=lambda x: x,
                  global_epoch_transform=lambda x: x,
                  tag_name=DEFAULT_TAG):
         """
@@ -50,8 +50,9 @@ class TensorBoardStatsHandler(object):
             iteration_event_writer (Callable): custimized callable TensorBoard writer for iteration level.
                 must accept parameter "engine" and "summary_writer", use default event writer if None.
             output_transform (Callable): a callable that is used to transform the
-                ``ignite.engine.output`` into a dictionary of (tag_name: scalar) pairs to be plotted onto tensorboard.
-                by default this scalar plotting happens when every iteration completed.
+                ``ignite.engine.output`` into a scalar to plot, or a dictionary of {key: scalar}.
+                in the latter case, the output string will be formated as key: value.
+                by default this value plotting happens when every iteration completed.
             global_epoch_transform (Callable): a callable that is used to customize global epoch number.
                 For example, in evaluation, the evaluator engine might want to use trainer engines epoch number
                 when plotting epoch vs metric curves.
@@ -140,7 +141,7 @@ class TensorBoardStatsHandler(object):
                     continue  # not plot multi dimensional output
                 writer.add_scalar(name, value.item() if torch.is_tensor(value) else value, engine.state.iteration)
         elif is_scalar(loss):  # not printing multi dimensional output
-            writer.add_scalar(name, loss.item() if torch.is_tensor(loss) else loss, engine.state.iteration)
+            writer.add_scalar(self.tag_name, loss.item() if torch.is_tensor(loss) else loss, engine.state.iteration)
         else:
             warnings.warn('ignoring non-scalar output in TensorBoardStatsHandler,'
                           ' make sure `output_transform(engine.state.output)` returns'

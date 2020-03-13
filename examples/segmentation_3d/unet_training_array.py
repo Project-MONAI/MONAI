@@ -39,10 +39,10 @@ from monai.networks.utils import predict_segmentation
 monai.config.print_config()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-# Create a temporary directory and 50 random image, mask paris
+# Create a temporary directory and 40 random image, mask paris
 tempdir = tempfile.mkdtemp()
 print('generating synthetic data to {} (this may take a while)'.format(tempdir))
-for i in range(50):
+for i in range(40):
     im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1)
 
     n = nib.Nifti1Image(im, np.eye(4))

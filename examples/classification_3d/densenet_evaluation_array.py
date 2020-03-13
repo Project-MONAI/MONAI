@@ -43,6 +43,7 @@ images = [
     "/workspace/data/medical/ixi/IXI-T1/IXI574-IOP-1156-T1.nii.gz",
     "/workspace/data/medical/ixi/IXI-T1/IXI585-Guys-1130-T1.nii.gz"
 ]
+# 2 binary labels for gender classification: man and woman
 labels = np.array([
     0, 0, 1, 0, 1, 0, 1, 0, 1, 0
 ])
