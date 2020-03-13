@@ -31,7 +31,7 @@ from monai.handlers.utils import stopping_fn_from_metric
 monai.config.print_config()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-# demo dataset, user can easily change to own dataset
+# IXI dataset as a demo, dowloadable from https://brain-development.org/ixi-dataset/
 images = [
     "/workspace/data/medical/ixi/IXI-T1/IXI314-IOP-0889-T1.nii.gz",
     "/workspace/data/medical/ixi/IXI-T1/IXI249-Guys-1072-T1.nii.gz",

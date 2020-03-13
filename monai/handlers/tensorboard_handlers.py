@@ -139,22 +139,21 @@ class TensorBoardStatsHandler(object):
                                   ' {}:{}'.format(name, type(value)))
                     continue  # not plot multi dimensional output
                 writer.add_scalar(name, value.item() if torch.is_tensor(value) else value, engine.state.iteration)
+        elif is_scalar(loss):  # not printing multi dimensional output
+            writer.add_scalar(name, loss.item() if torch.is_tensor(loss) else loss, engine.state.iteration)
         else:
-            if is_scalar(loss):  # not printing multi dimensional output
-                writer.add_scalar(name, loss.item() if torch.is_tensor(loss) else loss, engine.state.iteration)
-            else:
-                warnings.warn('ignoring non-scalar output in TensorBoardStatsHandler,'
-                              ' make sure `output_transform(engine.state.output)` returns'
-                              ' a scalar or a dictionary of key and scalar pairs to avoid this warning.'
-                              ' {}'.format(type(loss)))
+            warnings.warn('ignoring non-scalar output in TensorBoardStatsHandler,'
+                          ' make sure `output_transform(engine.state.output)` returns'
+                          ' a scalar or a dictionary of key and scalar pairs to avoid this warning.'
+                          ' {}'.format(type(loss)))
         writer.flush()
 
 
 class TensorBoardImageHandler(object):
     """TensorBoardImageHandler is an ignite Event handler that can visualise images, labels and outputs as 2D/3D images.
     2D output (shape in Batch, channel, H, W) will be shown as simple image using the first element in the batch,
-    for 3D to ND output (shape in Batch, channel, H, W, D) input,
-    the last three dimensions will be shown as GIF image along the last axis (typically Depth).
+    for 3D to ND output (shape in Batch, channel, H, W, D) input, each of ``self.max_channels`` number of images'
+    last three dimensions will be shown as animated GIF along the last axis (typically Depth).
 
     It's can be used for any Ignite Engine (trainer, validator and evaluator).
     User can easily added it to engine for any expected Event, for example: ``EPOCH_COMPLETED``,

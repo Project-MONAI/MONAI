@@ -29,7 +29,7 @@ import monai
 monai.config.print_config()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-# demo dataset, user can easily change to own dataset
+# IXI dataset as a demo, dowloadable from https://brain-development.org/ixi-dataset/
 images = [
     "/workspace/data/medical/ixi/IXI-T1/IXI607-Guys-1097-T1.nii.gz",
     "/workspace/data/medical/ixi/IXI-T1/IXI175-HH-1570-T1.nii.gz",
@@ -95,4 +95,3 @@ val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
 val_loader = DataLoader(val_ds, batch_size=2, num_workers=4, pin_memory=torch.cuda.is_available())
 
 state = evaluator.run(val_loader)
-prediction_saver.finalize()

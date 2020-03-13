@@ -197,6 +197,16 @@ class LoadNifti:
 class AsChannelFirst:
     """
     Change the channel dimension of the image to the first dimension.
+
+    Most of the image transformations in ``monai.transforms``
+    assumes the input image is in the channel-first format, which has the shape
+    (num_channels, spatial_dim_1[, spatial_dim_2, ...]).
+
+    This transform could be used to convert, for example, a channel-last image array in shape
+    (spatial_dim_1[, spatial_dim_2, ...], num_channels) into the channel-first format,
+    so that the multidimensional image array can be correctly interpreted by the other
+    transforms.
+
     Args:
         channel_dim (int): which dimension of input image is the channel, default is the last dimension.
     """
@@ -213,6 +223,15 @@ class AsChannelFirst:
 class AddChannel:
     """
     Adds a 1-length channel dimension to the input image.
+
+    Most of the image transformations in ``monai.transforms``
+    assumes the input image is in the channel-first format, which has the shape
+    (num_channels, spatial_dim_1[, spatial_dim_2, ...]).
+
+    This transform could be used, for example, to convert a (spatial_dim_1[, spatial_dim_2, ...])
+    spatial image into the channel-first format so that the
+    multidimensional image array can be correctly interpreted by the other
+    transforms.
     """
 
     def __call__(self, img):
@@ -1020,7 +1039,7 @@ class Affine:
 
         Args:
             rotate_params (float, list of floats): a rotation angle in radians,
-                a scalar for 2D image, a tuple of 2 floats for 3D. Defaults to no rotation.
+                a scalar for 2D image, a tuple of 3 floats for 3D. Defaults to no rotation.
             shear_params (list of floats):
                 a tuple of 2 floats for 2D, a tuple of 6 floats for 3D. Defaults to no shearing.
             translate_params (list of floats):

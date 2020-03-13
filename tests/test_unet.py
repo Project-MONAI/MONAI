@@ -20,7 +20,7 @@ TEST_CASE_1 = [  # single channel 2D, batch 16
     {
         'dimensions': 2,
         'in_channels': 1,
-        'num_classes': 3,
+        'out_channels': 3,
         'channels': (16, 32, 64),
         'strides': (2, 2),
         'num_res_units': 1,
@@ -33,7 +33,7 @@ TEST_CASE_2 = [  # single channel 3D, batch 16
     {
         'dimensions': 3,
         'in_channels': 1,
-        'num_classes': 3,
+        'out_channels': 3,
         'channels': (16, 32, 64),
         'strides': (2, 2),
         'num_res_units': 1,
@@ -46,7 +46,7 @@ TEST_CASE_3 = [  # 4-channel 3D, batch 16
     {
         'dimensions': 3,
         'in_channels': 4,
-        'num_classes': 3,
+        'out_channels': 3,
         'channels': (16, 32, 64),
         'strides': (2, 2),
         'num_res_units': 1,

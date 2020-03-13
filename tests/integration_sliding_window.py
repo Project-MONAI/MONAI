@@ -40,7 +40,7 @@ def run_test(batch_size=2, device=torch.device("cpu:0")):
     net = UNet(
         dimensions=3,
         in_channels=1,
-        num_classes=1,
+        out_channels=1,
         channels=(4, 8, 16, 32),
         strides=(2, 2, 2),
         num_res_units=2,

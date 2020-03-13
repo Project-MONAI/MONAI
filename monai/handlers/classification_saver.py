@@ -50,19 +50,21 @@ class ClassificationSaver:
     def attach(self, engine):
         if self.logger is None:
             self.logger = engine.logger
-        return engine.add_event_handler(Events.ITERATION_COMPLETED, self)
+        if not engine.has_event_handler(self, Events.ITERATION_COMPLETED):
+            engine.add_event_handler(Events.ITERATION_COMPLETED, self)
+        if not engine.has_event_handler(self.finalize, Events.COMPLETED):
+            engine.add_event_handler(Events.COMPLETED, self.finalize)
 
-    def finalize(self):
+    def finalize(self, _engine=None):
         """
         Writes the prediction dict to a csv
 
         """
-        if not self.overwrite:
-            if os.path.exists(self._preds_filepath):
-                with open(self._preds_filepath, 'r') as f:
-                    reader = csv.reader(f)
-                    for row in reader:
-                        self._prediction_dict[row[0]] = np.array(row[1:]).astype(np.float32)
+        if not self.overwrite and os.path.exists(self._preds_filepath):
+            with open(self._preds_filepath, 'r') as f:
+                reader = csv.reader(f)
+                for row in reader:
+                    self._prediction_dict[row[0]] = np.array(row[1:]).astype(np.float32)
 
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)

@@ -43,7 +43,7 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 tempdir = tempfile.mkdtemp()
 print('generating synthetic data to {} (this may take a while)'.format(tempdir))
 for i in range(50):
-    im, seg = create_test_image_3d(128, 128, 128, channel_dim=-1)
+    im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1, channel_dim=-1)
 
     n = nib.Nifti1Image(im, np.eye(4))
     nib.save(n, os.path.join(tempdir, 'img%i.nii.gz' % i))
@@ -53,8 +53,8 @@ for i in range(50):
 
 images = sorted(glob(os.path.join(tempdir, 'img*.nii.gz')))
 segs = sorted(glob(os.path.join(tempdir, 'seg*.nii.gz')))
-train_files = [{'img': img, 'seg': seg} for img, seg in zip(images[:40], segs[:40])]
-val_files = [{'img': img, 'seg': seg} for img, seg in zip(images[-10:], segs[-10:])]
+train_files = [{'img': img, 'seg': seg} for img, seg in zip(images[:20], segs[:20])]
+val_files = [{'img': img, 'seg': seg} for img, seg in zip(images[-20:], segs[-20:])]
 
 # Define transforms for image and segmentation
 train_transforms = transforms.Compose([
@@ -78,17 +78,29 @@ check_loader = DataLoader(check_ds, batch_size=2, num_workers=4, collate_fn=list
 check_data = monai.utils.misc.first(check_loader)
 print(check_data['img'].shape, check_data['seg'].shape)
 
+
+# create a training data loader
+train_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
+# use batch_size=2 to load images and use RandCropByPosNegLabeld to generate 2 x 4 images for network training
+train_loader = DataLoader(train_ds, batch_size=2, num_workers=4, collate_fn=list_data_collate,
+                          pin_memory=torch.cuda.is_available())
+# create a validation data loader
+val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
+val_loader = DataLoader(val_ds, batch_size=5, num_workers=8, collate_fn=list_data_collate,
+                        pin_memory=torch.cuda.is_available())
+
+
 # Create UNet, DiceLoss and Adam optimizer
 net = monai.networks.nets.UNet(
     dimensions=3,
     in_channels=1,
-    num_classes=1,
+    out_channels=1,
     channels=(16, 32, 64, 128, 256),
     strides=(2, 2, 2, 2),
     num_res_units=2,
 )
 loss = monai.losses.DiceLoss(do_sigmoid=True)
-lr = 1e-5
+lr = 1e-3
 opt = torch.optim.Adam(net.parameters(), lr)
 device = torch.device("cuda:0")
 
@@ -117,9 +129,9 @@ train_stats_handler.attach(trainer)
 train_tensorboard_stats_handler = TensorBoardStatsHandler()
 train_tensorboard_stats_handler.attach(trainer)
 
-# Set parameters for validation
-validation_every_n_epochs = 1
 
+validation_every_n_iters = 5
+# Set parameters for validation
 metric_name = 'Mean_Dice'
 # add evaluation metric to the evaluator engine
 val_metrics = {metric_name: MeanDice(add_sigmoid=True, to_onehot_y=False)}
@@ -128,26 +140,11 @@ val_metrics = {metric_name: MeanDice(add_sigmoid=True, to_onehot_y=False)}
 # user can add output_transform to return other values
 evaluator = create_supervised_evaluator(net, val_metrics, device, True, prepare_batch=prepare_batch)
 
-# Add stats event handler to print validation stats via evaluator
-val_stats_handler = StatsHandler(
-    name='evaluator',
-    output_transform=lambda x: None,  # no need to print loss value, so disable per iteration output
-    global_epoch_transform=lambda x: trainer.state.epoch)  # fetch global epoch number from trainer
-val_stats_handler.attach(evaluator)
 
-# add handler to record metrics to TensorBoard at every epoch
-val_tensorboard_stats_handler = TensorBoardStatsHandler(
-    output_transform=lambda x: None,  # no need to plot loss value, so disable per iteration output
-    global_epoch_transform=lambda x: trainer.state.epoch)  # fetch global epoch number from trainer
-val_tensorboard_stats_handler.attach(evaluator)
-# add handler to draw the first image and the corresponding label and model output in the last batch
-# here we draw the 3D output as GIF format along Depth axis
-val_tensorboard_image_handler = TensorBoardImageHandler(
-    batch_transform=lambda batch: (batch['img'], batch['seg']),
-    output_transform=lambda output: predict_segmentation(output[0]),
-    global_iter_transform=lambda x: trainer.state.epoch
-)
-evaluator.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=val_tensorboard_image_handler)
+@trainer.on(Events.ITERATION_COMPLETED(every=validation_every_n_iters))
+def run_validation(engine):
+    evaluator.run(val_loader)
+
 
 # Add early stopping handler to evaluator
 early_stopper = EarlyStopping(patience=4,
@@ -155,22 +152,29 @@ early_stopper = EarlyStopping(patience=4,
                               trainer=trainer)
 evaluator.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=early_stopper)
 
-# create a validation data loader
-val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
-val_loader = DataLoader(val_ds, batch_size=5, num_workers=8, collate_fn=list_data_collate,
-                        pin_memory=torch.cuda.is_available())
+# Add stats event handler to print validation stats via evaluator
+val_stats_handler = StatsHandler(
+    name='evaluator',
+    output_transform=lambda x: None,  # no need to print loss value, so disable per iteration output
+    global_epoch_transform=lambda x: trainer.state.epoch)  # fetch global epoch number from trainer
+val_stats_handler.attach(evaluator)
+
+# add handler to record metrics to TensorBoard at every validation epoch
+val_tensorboard_stats_handler = TensorBoardStatsHandler(
+    output_transform=lambda x: None,  # no need to plot loss value, so disable per iteration output
+    global_epoch_transform=lambda x: trainer.state.iteration)  # fetch global iteration number from trainer
+val_tensorboard_stats_handler.attach(evaluator)
+
+# add handler to draw the first image and the corresponding label and model output in the last batch
+# here we draw the 3D output as GIF format along the depth axis, every 2 validation iterations.
+val_tensorboard_image_handler = TensorBoardImageHandler(
+    batch_transform=lambda batch: (batch['img'], batch['seg']),
+    output_transform=lambda output: predict_segmentation(output[0]),
+    global_iter_transform=lambda x: trainer.state.epoch
+)
+evaluator.add_event_handler(
+    event_name=Events.ITERATION_COMPLETED(every=2), handler=val_tensorboard_image_handler)
 
 
-@trainer.on(Events.EPOCH_COMPLETED(every=validation_every_n_epochs))
-def run_validation(engine):
-    evaluator.run(val_loader)
-
-
-# create a training data loader
-train_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
-# use batch_size=2 to load images and use RandCropByPosNegLabeld to generate 2 x 4 images for network training
-train_loader = DataLoader(train_ds, batch_size=2, num_workers=4, collate_fn=list_data_collate,
-                          pin_memory=torch.cuda.is_available())
-
-train_epochs = 30
+train_epochs = 5
 state = trainer.run(train_loader, train_epochs)

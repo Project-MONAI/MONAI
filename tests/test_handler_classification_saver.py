@@ -38,7 +38,6 @@ class TestHandlerClassificationSaver(unittest.TestCase):
 
         data = [{'filename_or_obj': ['testfile' + str(i) for i in range(8)]}]
         engine.run(data, epoch_length=2, max_epochs=1)
-        saver.finalize()
         filepath = os.path.join(default_dir, 'predictions.csv')
         self.assertTrue(os.path.exists(filepath))
         with open(filepath, 'r') as f:
