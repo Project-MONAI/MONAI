@@ -14,7 +14,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.transforms import Flip
+from monai.transforms import Flipd
 from tests.utils import NumpyImageTestCase2D
 
 INVALID_CASES = [("wrong_axis", ['s', 1], TypeError),
@@ -25,22 +25,23 @@ VALID_CASES = [("no_axis", None),
                ("many_axis", [0, 1])]
 
 
-class TestFlip(NumpyImageTestCase2D):
+class TestFlipd(NumpyImageTestCase2D):
 
     @parameterized.expand(INVALID_CASES)
-    def test_invalid_inputs(self, _, spatial_axis, raises):
+    def test_invalid_cases(self, _, spatial_axis, raises):
         with self.assertRaises(raises):
-            flip = Flip(spatial_axis)
-            flip(self.imt[0])
+            flip = Flipd(keys='img', spatial_axis=spatial_axis)
+            flip({'img': self.imt[0]})
 
     @parameterized.expand(VALID_CASES)
     def test_correct_results(self, _, spatial_axis):
-        flip = Flip(spatial_axis=spatial_axis)
+        flip = Flipd(keys='img', spatial_axis=spatial_axis)
         expected = list()
         for channel in self.imt[0]:
             expected.append(np.flip(channel, spatial_axis))
         expected = np.stack(expected)
-        self.assertTrue(np.allclose(expected, flip(self.imt[0])))
+        res = flip({'img': self.imt[0]})
+        assert np.allclose(expected, res['img'])
 
 
 if __name__ == '__main__':

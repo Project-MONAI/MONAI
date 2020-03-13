@@ -13,7 +13,6 @@ import torch.nn as nn
 
 from monai.networks.blocks.convolutions import Convolution, ResidualUnit
 from monai.networks.layers.simplelayers import SkipConnection
-from monai.networks.utils import predict_segmentation
 from monai.utils import export
 from monai.utils.aliases import alias
 
@@ -22,13 +21,13 @@ from monai.utils.aliases import alias
 @alias("Unet", "unet")
 class UNet(nn.Module):
 
-    def __init__(self, dimensions, in_channels, num_classes, channels, strides, kernel_size=3, up_kernel_size=3,
+    def __init__(self, dimensions, in_channels, out_channels, channels, strides, kernel_size=3, up_kernel_size=3,
                  num_res_units=0, instance_norm=True, dropout=0):
         super().__init__()
         assert len(channels) == (len(strides) + 1)
         self.dimensions = dimensions
         self.in_channels = in_channels
-        self.num_classes = num_classes
+        self.out_channels = out_channels
         self.channels = channels
         self.strides = strides
         self.kernel_size = kernel_size
@@ -58,7 +57,7 @@ class UNet(nn.Module):
 
             return nn.Sequential(down, SkipConnection(subblock), up)
 
-        self.model = _create_block(in_channels, num_classes, self.channels, self.strides, True)
+        self.model = _create_block(in_channels, out_channels, self.channels, self.strides, True)
 
     def _get_down_layer(self, in_channels, out_channels, strides, is_top):
         if self.num_res_units > 0:
@@ -98,4 +97,4 @@ class UNet(nn.Module):
 
     def forward(self, x):
         x = self.model(x)
-        return x, predict_segmentation(x)
+        return x

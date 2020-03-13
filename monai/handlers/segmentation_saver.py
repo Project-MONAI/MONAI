@@ -13,7 +13,7 @@ import os
 import numpy as np
 import torch
 from ignite.engine import Events
-
+import logging
 from monai.data.nifti_writer import write_nifti
 
 
@@ -50,7 +50,8 @@ class SegmentationSaver:
     def attach(self, engine):
         if self.logger is None:
             self.logger = engine.logger
-        return engine.add_event_handler(Events.ITERATION_COMPLETED, self)
+        if not engine.has_event_handler(self, Events.ITERATION_COMPLETED):
+            engine.add_event_handler(Events.ITERATION_COMPLETED, self)
 
     @staticmethod
     def _create_file_basename(postfix, input_file_name, folder_path, data_root_dir=""):
@@ -115,5 +116,6 @@ class SegmentationSaver:
             output_filename = self._create_file_basename(self.output_postfix, filename, self.output_path)
             output_filename = '{}{}'.format(output_filename, self.output_ext)
             # change output to "channel last" format and write to nifti format file
-            write_nifti(np.moveaxis(seg_output, 0, -1), affine_, output_filename, original_affine_, dtype=seg_output.dtype)
+            to_save = np.moveaxis(seg_output, 0, -1)
+            write_nifti(to_save, affine_, output_filename, original_affine_, dtype=seg_output.dtype)
             self.logger.info('saved: {}'.format(output_filename))

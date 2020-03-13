@@ -18,19 +18,20 @@ from ignite.handlers import ModelCheckpoint, EarlyStopping
 from torch.utils.data import DataLoader
 
 # assumes the framework is found here, change as necessary
-sys.path.append("..")
+sys.path.append("../..")
 import monai
 import monai.transforms.compose as transforms
-
 from monai.data.nifti_reader import NiftiDataset
-from monai.transforms import (AddChannel, Rescale, ToTensor, UniformRandomPatch)
+from monai.transforms import (AddChannel, Rescale, Resize, RandRotate90)
 from monai.handlers.stats_handler import StatsHandler
+from monai.handlers.tensorboard_handlers import TensorBoardStatsHandler
 from ignite.metrics import Accuracy
 from monai.handlers.utils import stopping_fn_from_metric
 
 monai.config.print_config()
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-# FIXME: temp test dataset, Wenqi will replace later
+# IXI dataset as a demo, dowloadable from https://brain-development.org/ixi-dataset/
 images = [
     "/workspace/data/medical/ixi/IXI-T1/IXI314-IOP-0889-T1.nii.gz",
     "/workspace/data/medical/ixi/IXI-T1/IXI249-Guys-1072-T1.nii.gz",
@@ -53,37 +54,42 @@ images = [
     "/workspace/data/medical/ixi/IXI-T1/IXI574-IOP-1156-T1.nii.gz",
     "/workspace/data/medical/ixi/IXI-T1/IXI585-Guys-1130-T1.nii.gz"
 ]
+# 2 binary labels for gender classification: man and woman
 labels = np.array([
     0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0
 ])
 
-# Define transforms for image and segmentation
-imtrans = transforms.Compose([
+# Define transforms
+train_transforms = transforms.Compose([
     Rescale(),
     AddChannel(),
-    UniformRandomPatch((96, 96, 96)),
-    ToTensor()
+    Resize((96, 96, 96)),
+    RandRotate90()
+])
+val_transforms = transforms.Compose([
+    Rescale(),
+    AddChannel(),
+    Resize((96, 96, 96))
 ])
 
-# Define nifti dataset, dataloader.
-ds = NiftiDataset(image_files=images, labels=labels, transform=imtrans)
-loader = DataLoader(ds, batch_size=2, num_workers=2, pin_memory=torch.cuda.is_available())
-im, label = monai.utils.misc.first(loader)
+# Define nifti dataset, dataloader
+check_ds = NiftiDataset(image_files=images, labels=labels, transform=train_transforms)
+check_loader = DataLoader(check_ds, batch_size=2, num_workers=2, pin_memory=torch.cuda.is_available())
+im, label = monai.utils.misc.first(check_loader)
 print(type(im), im.shape, label)
 
-lr = 1e-5
-
-# Create DenseNet121, CrossEntropyLoss and Adam optimizer.
+# Create DenseNet121, CrossEntropyLoss and Adam optimizer
 net = monai.networks.nets.densenet3d.densenet121(
     in_channels=1,
     out_channels=2,
 )
-
 loss = torch.nn.CrossEntropyLoss()
+lr = 1e-5
 opt = torch.optim.Adam(net.parameters(), lr)
-
-# Create trainer
 device = torch.device("cuda:0")
+
+# ignite trainer expects batch=(img, label) and returns output=loss at every iteration,
+# user can add output_transform to return other values, like: y_pred, y, etc.
 trainer = create_supervised_trainer(net, opt, loss, device, False)
 
 # adding checkpoint handler to save models (network params and optimizer stats) during training
@@ -91,45 +97,58 @@ checkpoint_handler = ModelCheckpoint('./runs/', 'net', n_saved=10, require_empty
 trainer.add_event_handler(event_name=Events.EPOCH_COMPLETED,
                           handler=checkpoint_handler,
                           to_save={'net': net, 'opt': opt})
-train_stats_handler = StatsHandler(output_transform=lambda x: x[3])
+
+# StatsHandler prints loss at every iteration and print metrics at every epoch,
+# we don't set metrics for trainer here, so just print loss, user can also customize print functions
+# and can use output_transform to convert engine.state.output if it's not loss value
+train_stats_handler = StatsHandler(name='trainer')
 train_stats_handler.attach(trainer)
 
-@trainer.on(Events.EPOCH_COMPLETED)
-def log_training_loss(engine):
-    engine.logger.info("Epoch[%s] Loss: %s", engine.state.epoch, engine.state.output)
+# TensorBoardStatsHandler plots loss at every iteration and plots metrics at every epoch, same as StatsHandler
+train_tensorboard_stats_handler = TensorBoardStatsHandler()
+train_tensorboard_stats_handler.attach(trainer)
 
 # Set parameters for validation
 validation_every_n_epochs = 1
-metric_name = 'Accuracy'
 
+metric_name = 'Accuracy'
 # add evaluation metric to the evaluator engine
 val_metrics = {metric_name: Accuracy()}
+# ignite evaluator expects batch=(img, label) and returns output=(y_pred, y) at every iteration,
+# user can add output_transform to return other values
 evaluator = create_supervised_evaluator(net, val_metrics, device, True)
 
 # Add stats event handler to print validation stats via evaluator
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-val_stats_handler = StatsHandler(output_transform=lambda x: None)
+val_stats_handler = StatsHandler(
+    name='evaluator',
+    output_transform=lambda x: None,  # no need to print loss value, so disable per iteration output
+    global_epoch_transform=lambda x: trainer.state.epoch)  # fetch global epoch number from trainer
 val_stats_handler.attach(evaluator)
 
-# Add early stopping handler to evaluator.
+# add handler to record metrics to TensorBoard at every epoch
+val_tensorboard_stats_handler = TensorBoardStatsHandler(
+    output_transform=lambda x: None,  # no need to plot loss value, so disable per iteration output
+    global_epoch_transform=lambda x: trainer.state.epoch)  # fetch global epoch number from trainer
+val_tensorboard_stats_handler.attach(evaluator)
+
+# Add early stopping handler to evaluator
 early_stopper = EarlyStopping(patience=4,
                               score_function=stopping_fn_from_metric(metric_name),
                               trainer=trainer)
 evaluator.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=early_stopper)
 
 # create a validation data loader
-val_ds = NiftiDataset(image_files=images[-5:], labels=labels[-5:], transform=imtrans)
-val_loader = DataLoader(ds, batch_size=2, num_workers=2, pin_memory=torch.cuda.is_available())
+val_ds = NiftiDataset(image_files=images[-10:], labels=labels[-10:], transform=val_transforms)
+val_loader = DataLoader(val_ds, batch_size=2, num_workers=2, pin_memory=torch.cuda.is_available())
 
 
 @trainer.on(Events.EPOCH_COMPLETED(every=validation_every_n_epochs))
 def run_validation(engine):
     evaluator.run(val_loader)
 
-# create a training data loader
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-train_ds = NiftiDataset(image_files=images[:15], labels=labels[:15], transform=imtrans)
+# create a training data loader
+train_ds = NiftiDataset(image_files=images[:10], labels=labels[:10], transform=train_transforms)
 train_loader = DataLoader(train_ds, batch_size=2, num_workers=2, pin_memory=torch.cuda.is_available())
 
 train_epochs = 30

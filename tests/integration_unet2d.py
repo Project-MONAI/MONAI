@@ -35,7 +35,7 @@ def run_test(batch_size=64, train_steps=100, device=torch.device("cuda:0")):
     net = UNet(
         dimensions=2,
         in_channels=1,
-        num_classes=1,
+        out_channels=1,
         channels=(4, 8, 16, 32),
         strides=(2, 2, 2),
         num_res_units=2,
@@ -45,10 +45,7 @@ def run_test(batch_size=64, train_steps=100, device=torch.device("cuda:0")):
     opt = torch.optim.Adam(net.parameters(), 1e-4)
     src = DataLoader(_TestBatch(), batch_size=batch_size)
 
-    def loss_fn(pred, grnd):
-        return loss(pred[0], grnd)
-
-    trainer = create_supervised_trainer(net, opt, loss_fn, device, False)
+    trainer = create_supervised_trainer(net, opt, loss, device, False)
 
     trainer.run(src, 1)
     loss = trainer.state.output

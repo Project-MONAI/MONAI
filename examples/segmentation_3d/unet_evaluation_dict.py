@@ -13,7 +13,7 @@ import os
 import sys
 import tempfile
 from glob import glob
-
+import logging
 import nibabel as nib
 import numpy as np
 import torch
@@ -21,7 +21,7 @@ from ignite.engine import Engine
 from torch.utils.data import DataLoader
 
 # assumes the framework is found here, change as necessary
-sys.path.append("..")
+sys.path.append("../..")
 
 import monai
 from monai.data.utils import list_data_collate
@@ -29,19 +29,22 @@ from monai.utils.sliding_window_inference import sliding_window_inference
 from monai.data.synthetic import create_test_image_3d
 from monai.networks.utils import predict_segmentation
 from monai.networks.nets.unet import UNet
-from monai.transforms.composables import LoadNiftid, AsChannelFirstd
+from monai.transforms.composables import LoadNiftid, AsChannelFirstd, Rescaled
 import monai.transforms.compose as transforms
 from monai.handlers.segmentation_saver import SegmentationSaver
 from monai.handlers.checkpoint_loader import CheckpointLoader
+from monai.handlers.stats_handler import StatsHandler
+from monai.handlers.mean_dice import MeanDice
 from monai import config
 
 config.print_config()
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 tempdir = tempfile.mkdtemp()
 # tempdir = './temp'
 print('generating synthetic data to {} (this may take a while)'.format(tempdir))
-for i in range(50):
-    im, seg = create_test_image_3d(256, 256, 256, channel_dim=-1)
+for i in range(5):
+    im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1, channel_dim=-1)
 
     n = nib.Nifti1Image(im, np.eye(4))
     nib.save(n, os.path.join(tempdir, 'im%i.nii.gz' % i))
@@ -52,44 +55,62 @@ for i in range(50):
 images = sorted(glob(os.path.join(tempdir, 'im*.nii.gz')))
 segs = sorted(glob(os.path.join(tempdir, 'seg*.nii.gz')))
 val_files = [{'img': img, 'seg': seg} for img, seg in zip(images, segs)]
+
+# Define transforms for image and segmentation
 val_transforms = transforms.Compose([
     LoadNiftid(keys=['img', 'seg']),
-    AsChannelFirstd(keys=['img', 'seg'], channel_dim=-1)
+    AsChannelFirstd(keys=['img', 'seg'], channel_dim=-1),
+    Rescaled(keys=['img', 'seg'])
 ])
 val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
 
 device = torch.device("cuda:0")
-roi_size = (64, 64, 64)
-sw_batch_size = 4
 net = UNet(
     dimensions=3,
     in_channels=1,
-    num_classes=1,
+    out_channels=1,
     channels=(16, 32, 64, 128, 256),
     strides=(2, 2, 2, 2),
     num_res_units=2,
 )
 net.to(device)
 
+# define sliding window size and batch size for windows inference
+roi_size = (96, 96, 96)
+sw_batch_size = 4
+
 
 def _sliding_window_processor(engine, batch):
     net.eval()
     with torch.no_grad():
-        seg_probs = sliding_window_inference(batch['img'], roi_size, sw_batch_size, lambda x: net(x)[0], device)
-        return predict_segmentation(seg_probs)
+        seg_probs = sliding_window_inference(batch['img'], roi_size, sw_batch_size, net, device)
+        return seg_probs, batch['seg'].to(device)
 
 
-infer_engine = Engine(_sliding_window_processor)
+evaluator = Engine(_sliding_window_processor)
 
-# for the arrary data format, assume the 3rd item of batch data is the meta_data
-SegmentationSaver(output_path='tempdir', output_ext='.nii.gz', output_postfix='seg',
+# add evaluation metric to the evaluator engine
+MeanDice(add_sigmoid=True, to_onehot_y=False).attach(evaluator, 'Mean_Dice')
+
+# StatsHandler prints loss at every iteration and print metrics at every epoch,
+# we don't need to print loss for evaluator, so just print metrics, user can also customize print functions
+val_stats_handler = StatsHandler(
+    name='evaluator',
+    output_transform=lambda x: None  # no need to print loss value, so disable per iteration output
+)
+val_stats_handler.attach(evaluator)
+
+# convert the necessary metadata from batch data
+SegmentationSaver(output_path='tempdir', output_ext='.nii.gz', output_postfix='seg', name='evaluator',
                   batch_transform=lambda batch: {'filename_or_obj': batch['img.filename_or_obj'],
                                                  'original_affine': batch['img.original_affine'],
                                                  'affine': batch['img.affine'],
-                                                 }).attach(infer_engine)
-# the model was trained by "unet_segmentation_3d_array" exmple
-CheckpointLoader(load_path='./runs/net_checkpoint_120.pth', load_dict={'net': net}).attach(infer_engine)
+                                                 },
+                  output_transform=lambda output: predict_segmentation(output[0])).attach(evaluator)
+# the model was trained by "unet_training_dict" exmple
+CheckpointLoader(load_path='./runs/net_checkpoint_50.pth', load_dict={'net': net}).attach(evaluator)
 
+# sliding window inferene need to input 1 image in every iteration
 val_loader = DataLoader(val_ds, batch_size=1, num_workers=4, collate_fn=list_data_collate,
                         pin_memory=torch.cuda.is_available())
-state = infer_engine.run(val_loader)
+state = evaluator.run(val_loader)
