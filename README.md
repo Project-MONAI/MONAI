@@ -241,3 +241,62 @@ This document identifies key concepts of project MONAI at a high level, the goal
   </tr>
 </table>
 
+## Highlight features
+As a medical area-specific Deep Learning package, MONAI provides rich support on end-to-end medical DL research work, for example, 2D/3D medical image processing, model training & evaluation(like segmentation, classification tasks), statistics & 2D/3D image visualization, etc.  
+Here are the highlight features:
+### 1. Transforms
+Data pre-processing is an important and challenging task in medical DL research work because the images are in the medical specific format with rich metadata information. And usually, the images are very large and in 3D shape which is much different from other common computer vision areas. So MONAI provides powerful and flexible transforms to enable these features:
+#### 1. Transforms support both Dictionary and Array format data
+(1) The traditional transforms(like Torchvision) execute operations on array data directly(rotate image, etc.), MONAI provides more transforms for both 2D and 3D data and can be composed with Torchvision transforms together.  
+(2) Additionally, as medical images contain much more information than common images and many DL tasks need to transform several data together(randomly crop image and label together in segmentation, etc.), MONAI also provides transforms for dictionary format 2D/3D data. Users just need to specify the keys corresponding to the expected data fields to operate transforms.  
+#### 2. Medical specific transforms
+MONAI provides many transforms that are popular in the medical DL area but not supported in common PyTorch libraries.  
+For example(check the webpage for all the transforms):  
+| Name | Description |
+| ------ | ------ |
+| LoadNifti | Load Nifti format file from provided path |
+| Spacing | Resample input image into the specified `pixdim` |
+| Orientation | Change image's orientation into the specified `axcodes` |
+| IntensityNormalizer | Normalize image based on mean and std |
+| AffineGrid | Affine transforms on the coordinates |
+| RandDeformGrid | Generate random deformation grid |
+| Affine | Transform image based on the affine parameters |
+| Rand3DElastic | Random elastic deformation and affine in 3D |
+#### 3. Fused spatial transforms and GPU acceleration
+As medical images are usually larger(especially 3D), pre-processing performance obviously affects the DL research work. So MONAI provides several affine transforms to execute fused spatial operations. And even support GPU acceleration to achieve much faster performance.  
+Example code:
+```py
+# create an Affine transform
+affine = Affine(
+    rotate_params=np.pi/4,
+    scale_params=(1.2, 1.2),
+    translate_params=(200, 40), 
+    padding_mode='zeros',
+    device=torch.device('cuda:0')
+)
+# convert the image using interpolation mode
+new_img = affine(image, spatial_size=(300, 400), mode='bilinear')
+```
+#### 4. Randomly crop out batch images based on positive/negative ratio
+Many medical images are very large and the dataset doesn't contain many labelled samples for training. A useful method is to crop out a batch of smaller samples from a big image. And the optimized method is to crop based on positive/negative labels ratio which can provide more stable and balanced dataset for the training process.  
+MONAI provides a transform "RandCropByPosNegLabelDict" for this feature, and all the following transforms in the chain can seamlessly operate on every item in the cropped batch.  
+### 2. Losses
+There are many specific and useful loss functions in the medical DL research area which are different from common PyTorch loss functions. That's an important module of MONAI, and already implemented Dice related loss functions,  will integrate more loss functions soon.  
+### 3. Models
+DL method in medical research work is becoming more and more popular in recent years and many networks come up to show great improvement in tasks like classification and segmentation, etc. MONAI already implemented UNet and DenseNet to support both 2D/3D segmentation and classification tasks, will integrate more networks soon.  
+### 4. Evaluation
+In order to accurately evaluate the model and execute inference, there are many optimized methods and metrics, MONAI already implemented several popular ones of them:
+#### 1. Sliding window inference
+When executing inference on very big medical images, the sliding window is a very popular method to achieve high accuracy without much memory.  
+(1) Select continuous windows on the original image.  
+(2) Execute a batch of windows on the model per time, and complete all windows.  
+(3) Connect all the model outputs to construct 1 segmentation corresponding to the original image.  
+(4) Save segmentation result to file or compute metrics.  
+
+#### 2. Metrics for medical tasks
+There are many useful metrics to measure medical specific tasks, MONAI already implemented Mean Dice and AUC, will integrate more soon.  
+### 5. Visualization
+Besides common curves of statistics on TensorBoard, in order to provide straight-forward checking of 3D image and the corresponding label & segmentation output, MONAI can draw a 3D data as GIF image on TensorBoard which can help users check model output very quickly.
+### 6. Savers
+For the segmentation task, MONAI can support to save model output as NIFTI format image and add affine information from corresponding input image.  
+For the classification task, MONAI can support to save classification result as a CSV sheet.
