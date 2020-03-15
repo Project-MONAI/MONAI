@@ -18,8 +18,8 @@ import torch.nn.functional as f
 
 def one_hot(labels, num_classes):
     """
-    For a tensor `labels' of dimensions B1[spatial_dims], return a tensor of dimensions BN[spatial_dims]
-    for `num_classes' N number of classes.
+    For a tensor `labels` of dimensions B1[spatial_dims], return a tensor of dimensions `BN[spatial_dims]`
+    for `num_classes` N number of classes.
 
     Example:
         For every value v = labels[b,1,h,w], the value in the result at [b,v,h,w] will be 1 and all others 0.
@@ -47,7 +47,7 @@ def slice_channels(tensor, *slicevals):
 
 def predict_segmentation(logits):
     """
-    Given the logits from a network, computing the segmentation by thresholding all values above 0 if `logits' has one
+    Given the logits from a network, computing the segmentation by thresholding all values above 0 if `logits` has one
     channel, or computing the argmax along the channel axis otherwise.
     """
     # generate prediction outputs, logits has shape BCHW[D]

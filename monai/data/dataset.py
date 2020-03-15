@@ -16,13 +16,14 @@ from monai.utils.module import export
 @export("monai.data")
 class Dataset(torch.utils.data.Dataset):
     """
-    General Dataset to handle dictionary format data, it can operate transforms for specific fields.
-    For example, typical input data can be a list of dictionaries:
-    [{                            {                            {
-         'img': 'image1.nii.gz',      'img': 'image2.nii.gz',      'img': 'image3.nii.gz',
-         'seg': 'label1.nii.gz',      'seg': 'label2.nii.gz',      'seg': 'label3.nii.gz',
-         'extra': 123                 'extra': 456                 'extra': 789
-     },                           },                           }]
+    Generic dataset to handle dictionary format data, it can operate transforms for specific fields.
+    For example, typical input data can be a list of dictionaries::
+
+        [{                            {                            {
+             'img': 'image1.nii.gz',      'img': 'image2.nii.gz',      'img': 'image3.nii.gz',
+             'seg': 'label1.nii.gz',      'seg': 'label2.nii.gz',      'seg': 'label3.nii.gz',
+             'extra': 123                 'extra': 456                 'extra': 789
+         },                           },                           }]
     """
 
     def __init__(self, data, transform=None):

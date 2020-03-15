@@ -14,6 +14,7 @@ import os
 import sys
 import subprocess
 sys.path.insert(0, os.path.abspath('..'))
+sys.path.insert(0, os.path.abspath(os.path.join('..', '..')))
 print(sys.path)
 
 
@@ -21,16 +22,25 @@ print(sys.path)
 # -- Project information -----------------------------------------------------
 
 project = 'MONAI'
-copyright = '2020, MONAI Consortium'
-author = 'MONAI Consortium'
+copyright = '2020, MONAI Contributors'
+author = 'MONAI Contributors'
 
 # The full version, including alpha/beta/rc tags
-release = 'v0.1'
-version = 'v0.1'
+release = 'public alpha'
+version = 'public alpha'
+
+
+# List of patterns, relative to source directory, that match files and
+# directories to ignore when looking for source files.
+# This pattern also affects html_static_path and html_extra_path.
+exclude_patterns = ['tests',
+                    os.path.join('monai', 'transforms'),
+                    os.path.join('monai', 'losses')]
+
 
 def generate_apidocs(*args):
     """Generate API docs automatically by trawling the available modules"""
-    module_path = os.path.abspath('..')
+    module_path = os.path.abspath(os.path.join('..', '..', 'monai'))
     output_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'apidocs'))
     apidoc_command_path = 'sphinx-apidoc'
     if hasattr(sys, 'real_prefix'):  # called from a virtualenv
@@ -39,9 +49,10 @@ def generate_apidocs(*args):
     print('output_path {}'.format(output_path))
     print('module_path {}'.format(module_path))
     subprocess.check_call(
-        [apidoc_command_path, '-f'] +
+        [apidoc_command_path, '-f', '-e'] +
         ['-o', output_path] +
-        [module_path])
+        [module_path] +
+        [os.path.join(module_path, p) for p in exclude_patterns])
 
 
 def setup(app):
@@ -77,11 +88,6 @@ autosectionlabel_prefix_document = True
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
-# List of patterns, relative to source directory, that match files and
-# directories to ignore when looking for source files.
-# This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = []
-
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
@@ -97,7 +103,7 @@ html_theme_options = {
     # 'logo_only': True,  # if we have a html_logo below, this shows /only/ the logo with no title text
 }
 html_scaled_image_link = False
-html_show_sourcelink = True 
+html_show_sourcelink = True
 html_favicon = 'favicon.ico'
 
 # Add any paths that contain custom static files (such as style sheets) here,

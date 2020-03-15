@@ -53,13 +53,14 @@ def _default_eval_transform(x, y, y_pred):
 def create_multigpu_supervised_trainer(net, optimizer, loss_fn, devices=None, non_blocking=False, 
                                        prepare_batch=_prepare_batch, output_transform=_default_transform):
     """
-    ***Derived from `create_supervised_trainer` in Ignite.
+    Derived from `create_supervised_trainer` in Ignite.
 
     Factory function for creating a trainer for supervised models.
+
     Args:
         net (`torch.nn.Module`): the network to train.
         optimizer (`torch.optim.Optimizer`): the optimizer to use.
-        loss_fn (torch.nn loss function): the loss function to use.
+        loss_fn (`torch.nn` loss function): the loss function to use.
         devices (list, optional): device(s) type specification (default: None).
             Applies to both model and batches. None is all devices used, empty list is CPU only.
         non_blocking (bool, optional): if True and this copy is between CPU and GPU, the copy may occur asynchronously
@@ -68,10 +69,13 @@ def create_multigpu_supervised_trainer(net, optimizer, loss_fn, devices=None, no
             tuple of tensors `(batch_x, batch_y)`.
         output_transform (callable, optional): function that receives 'x', 'y', 'y_pred', 'loss' and returns value
             to be assigned to engine's state.output after each iteration. Default is returning `loss.item()`.
-    Note: `engine.state.output` for this engine is defind by `output_transform` parameter and is the loss
-        of the processed batch by default.
+
     Returns:
         Engine: a trainer engine with supervised update function.
+
+    Note:
+        `engine.state.output` for this engine is defind by `output_transform` parameter and is the loss
+        of the processed batch by default.
     """
 
     devices = get_devices_spec(devices)
@@ -86,9 +90,10 @@ def create_multigpu_supervised_trainer(net, optimizer, loss_fn, devices=None, no
 def create_multigpu_supervised_evaluator(net, metrics=None, devices=None, non_blocking=False,
                                          prepare_batch=_prepare_batch, output_transform=_default_eval_transform):
     """
-    ***Derived from `create_supervised_evaluator` in Ignite.
+    Derived from `create_supervised_evaluator` in Ignite.
 
     Factory function for creating an evaluator for supervised models.
+
     Args:
         net (`torch.nn.Module`): the model to train.
         metrics (dict of str - :class:`~ignite.metrics.Metric`): a map of metric names to Metrics.
@@ -101,8 +106,11 @@ def create_multigpu_supervised_evaluator(net, metrics=None, devices=None, non_bl
         output_transform (callable, optional): function that receives 'x', 'y', 'y_pred' and returns value
             to be assigned to engine's state.output after each iteration. Default is returning `(y_pred, y,)` which fits
             output expected by metrics. If you change it you should use `output_transform` in metrics.
-    Note: `engine.state.output` for this engine is defind by `output_transform` parameter and is
+
+    Note:
+        `engine.state.output` for this engine is defind by `output_transform` parameter and is
         a tuple of `(batch_pred, batch_y)` by default.
+
     Returns:
         Engine: an evaluator engine with supervised inference function.
     """

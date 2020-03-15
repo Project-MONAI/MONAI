@@ -26,8 +26,8 @@ def same_padding(kernel_size, dilation=1):
 
 def calculate_out_shape(in_shape, kernel_size, stride, padding):
     """
-    Calculate the output tensor shape when applying a convolution to a tensor of shape `inShape' with kernel size
-    'kernel_size', stride value `stride', and input padding value `padding'. All arguments can be scalars or multiple
+    Calculate the output tensor shape when applying a convolution to a tensor of shape `inShape` with kernel size
+    `kernel_size`, stride value `stride`, and input padding value `padding`. All arguments can be scalars or multiple
     values, return value is a scalar if all inputs are scalars.
     """
     in_shape = np.atleast_1d(in_shape)
@@ -38,6 +38,16 @@ def calculate_out_shape(in_shape, kernel_size, stride, padding):
 
 
 def gaussian_1d(sigma, truncated=4.):
+    """
+    one dimensional gaussian kernel.
+
+    Args:
+        sigma: std of the kernel
+        truncated: tail length
+
+    Returns:
+        1D numpy array
+    """
     if sigma <= 0:
         raise ValueError('sigma must be positive')
 

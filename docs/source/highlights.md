@@ -1,9 +1,9 @@
-# Highlights
+# Modules
 MONAI aims at supporting deep learning in medical image analysis at multiple granuality.
 This figure shows modules currently available in the codebase.
 ![image](../images/end_to_end_process.png)
 The rest of this page provides more details for each module.
-### 1. Image transformations
+### Image transformations
 Medical image data pre-processing is challenging.  Data are often in specialized formats with rich meta information;  and the data volumes are often high-dimensional and requiring carefully designed manipulation procedures. As an important part of MONAI, powerful and flexible image transformations are provided to enable user-friednly, reproducible, optimized medical data pre-processing piepline.
 
 #### 1. Transforms support both Dictionary and Array format data
@@ -41,13 +41,13 @@ new_img = affine(image, spatial_size=(300, 400), mode='bilinear')
 #### 4. Randomly crop out batch images based on positive/negative ratio
 Medical image data volume may be too large to fit into GPU memory. A widely-used approach is to randomly draw small size data samples during training. MONAI currrently provides uniform random sampling strategy as well as class-balanced fixed ratio sampling which may help stabilize the patch-based training process.
 
-### 2. Losses
+### Losses
 There are domain-specific loss functions in the medical research area which are different from the generic computer vision ones. As an important module of MONAI, these loss functions are implemented in PyTorch, such as Dice loss and generalized Dice loss.
 
-### 3. Network architectures
+### Network architectures
 Some deep neural network architectures have shown to be particularly effective for medical imaging analysis tasks. MONAI implements reference networks with the aims of both flexibility and code readability.
 
-### 4. Evaluation
+### Evaluation
 To run model inferences and evaluate the model quality, MONAI provides reference implementation for the relevant widely-used approaches. Currently several popular evaluation metrics and inference patterns are included:
 
 #### 1. Sliding window inference
@@ -61,10 +61,10 @@ When executing inference on large medical images, the sliding window is a popula
 #### 2. Metrics for medical tasks
 There are many useful metrics to measure medical specific tasks, MONAI already implemented Mean Dice and AUC, will integrate more soon.
 
-### 5. Visualization
+### Visualization
 Besides common curves of statistics on TensorBoard, in order to provide straight-forward checking of 3D image and the corresponding label and segmentation output, MONAI can visualize 3D data as GIF animation on TensorBoard which can help users quickly check model output.
 
-### 6. Savers
+### Savers
 For the segmentation task, MONAI can support to save model output as NIFTI format image and add affine information from the corresponding input image.
 
 For the classification task, MONAI can support to save classification result as a CSV sheet.

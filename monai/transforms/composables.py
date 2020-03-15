@@ -10,16 +10,15 @@
 # limitations under the License.
 """
 A collection of dictionary-based wrappers around the "vanilla" transforms
-defined in `monai.transforms.transforms`.
+defined in :py:class:`monai.transforms.transforms`.
 """
 
 import torch
 import numpy as np
-from collections.abc import Hashable
 import monai
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers.simplelayers import GaussianFilter
-from monai.transforms.compose import Randomizable, Transform
+from monai.transforms.compose import Randomizable, MapTransform
 from monai.transforms.transforms import (LoadNifti, AsChannelFirst, Orientation,
                                          AddChannel, Spacing, Rotate90, SpatialCrop,
                                          RandAffine, Rand2DElastic, Rand3DElastic,
@@ -29,35 +28,6 @@ from monai.transforms.utils import generate_pos_neg_label_crop_centers, create_g
 from monai.utils.aliases import alias
 
 export = monai.utils.export("monai.transforms")
-
-
-@export
-class MapTransform(Transform):
-    """
-    A subclass of ``monai.transforms.compose.Transform`` with an assumption
-    that the ``data`` input of ``self.__call__`` is a MutableMapping such as ``dict``.
-
-    The ``keys`` parameter will be used to get and set the actual data
-    item to transform.  That is, the callable of this transform should
-    follow the pattern:
-    .. code-block:: python
-
-        def __call__(self, data):
-            for key in self.keys:
-                if key in data:
-                    # update output data with some_transform_function(data[key]).
-                else:
-                    # do nothing or some exceptions handling.
-            return data
-    """
-
-    def __init__(self, keys):
-        self.keys = ensure_tuple(keys)
-        if not self.keys:
-            raise ValueError('keys unspecified')
-        for key in self.keys:
-            if not isinstance(key, Hashable):
-                raise ValueError('keys should be a hashable or a sequence of hashables, got {}'.format(type(key)))
 
 
 @export
@@ -115,12 +85,14 @@ class Orientationd(MapTransform):
                 The affine will be used to compute input data's orientation.
             axcodes (N elements sequence): for spatial ND input's orientation.
                 e.g. axcodes='RAS' represents 3D orientation:
-                    (Left, Right), (Posterior, Anterior), (Inferior, Superior).
+                (Left, Right), (Posterior, Anterior), (Inferior, Superior).
                 default orientation labels options are: 'L' and 'R' for the first dimension,
                 'P' and 'A' for the second, 'I' and 'S' for the third.
             labels : optional, None or sequence of (2,) sequences
                 (2,) sequences are labels for (beginning, end) of output axis.
-                see: ``nibabel.orientations.ornt2axcodes``.
+
+        See Also:
+            `nibabel.orientations.ornt2axcodes`.
         """
         MapTransform.__init__(self, keys)
         self.affine_key = affine_key
@@ -273,6 +245,7 @@ class Rescaled(MapTransform):
 class Resized(MapTransform):
     """
     dictionary-based wrapper of Resize.
+
     Args:
         keys (hashable items): keys of the corresponding items to be transformed.
             See also: monai.transform.composables.MapTransform
@@ -285,8 +258,7 @@ class Resized(MapTransform):
         preserve_range (bool): Whether to keep original range of values. Default is True.
             If False, input is converted according to conventions of img_as_float. See
             https://scikit-image.org/docs/dev/user_guide/data_types.html.
-        anti_aliasing (bool): Whether to apply a gaussian filter to image before down-scaling.
-            Default is True.
+        anti_aliasing (bool): Whether to apply a gaussian filter to image before down-scaling. Default is True.
         anti_aliasing_sigma (float, tuple of floats): Standard deviation for gaussian filtering.
     """
 

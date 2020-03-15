@@ -95,12 +95,13 @@ class Orientation:
         Args:
             axcodes (N elements sequence): for spatial ND input's orientation.
                 e.g. axcodes='RAS' represents 3D orientation:
-                    (Left, Right), (Posterior, Anterior), (Inferior, Superior).
+                (Left, Right), (Posterior, Anterior), (Inferior, Superior).
                 default orientation labels options are: 'L' and 'R' for the first dimension,
                 'P' and 'A' for the second, 'I' and 'S' for the third.
             labels : optional, None or sequence of (2,) sequences
                 (2,) sequences are labels for (beginning, end) of output axis.
-                see: ``nibabel.orientations.ornt2axcodes``.
+
+        See Also: `nibabel.orientations.ornt2axcodes`.
         """
         self.axcodes = axcodes
         self.labels = labels
@@ -520,8 +521,8 @@ class UniformRandomPatch(Randomizable):
 class IntensityNormalizer:
     """Normalize input based on provided args, using calculated mean and std if not provided
     (shape of subtrahend and divisor must match. if 0, entire volume uses same subtrahend and
-     divisor, otherwise the shape can have dimension 1 for channels).
-     Current implementation can only support 'channel_last' format data.
+    divisor, otherwise the shape can have dimension 1 for channels).
+    Current implementation can only support 'channel_last' format data.
 
     Args:
         subtrahend (ndarray): the amount to subtract by (usually the mean)
