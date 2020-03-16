@@ -883,3 +883,25 @@ class RandZoomd(Randomizable, MapTransform):
         for key in self.keys:
             d[key] = zoomer(d[key])
         return d
+
+
+@export
+@alias('DeleteKeysD', 'DeleteKeysDict')
+class DeleteKeysd(MapTransform):
+    """
+    Delete specified keys from data dictionary to release memory.
+    It will remove the key-values and copy the others to construct a new dictionary.
+    """
+
+    def __init__(self, keys):
+        """
+        Args:
+            keys (hashable items): keys of the corresponding items to be transformed.
+                See also: monai.transform.composables.MapTransform
+        """
+        MapTransform.__init__(self, keys)
+
+    def __call__(self, data):
+        for key in self.keys:
+            del data[key]
+        return dict(data)
