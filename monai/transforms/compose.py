@@ -8,10 +8,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""
+A collection of generic interfaces for MONAI transforms.
+"""
 
 import warnings
+from typing import Hashable
 
 import numpy as np
+
+from monai.utils.misc import ensure_tuple
 
 
 class Transform:
@@ -21,19 +27,27 @@ class Transform:
 
     It could be stateful and may modify ``data`` in place,
     the implementation should be aware of:
-    - thread safety when mutating its own states.
-        When used from a multi-process context, transform's instance variables are read-only.
-    - ``data`` content unused by this transform may still be used in the
-        subsequent transforms in a composed transform.
-        see also: `monai.transforms.compose.Compose`.
-    - storing too much information in ``data`` may not scale.
+
+        #. thread safety when mutating its own states.
+           When used from a multi-process context, transform's instance variables are read-only.
+        #. ``data`` content unused by this transform may still be used in the
+           subsequent transforms in a composed transform.
+        #. storing too much information in ``data`` may not scale.
+
+    See Also
+
+        :py:class:`monai.transforms.compose.Compose`
     """
 
     def __call__(self, data):
         """
         ``data`` is an element which often comes from an iteration over an
-        iterable, such as``torch.utils.data.Dataset``. This method should
+        iterable, such as :py:class:`torch.utils.data.Dataset`. This method should
         return an updated version of ``data``.
+        To simplify the input validations, most of the transforms assume that
+
+        - ``data`` component is a "channel-first" array,
+        - the channel dimension is not omitted even if number of channels is one.
         """
         raise NotImplementedError
 
@@ -48,7 +62,7 @@ class Randomizable:
     def set_random_state(self, seed=None, state=None):
         """
         Set the random state locally, to control the randomness, the derived
-        classes should use `self.R` instead of `np.random` to introduce random
+        classes should use :py:attr:`self.R` instead of `np.random` to introduce random
         factors.
 
         Args:
@@ -76,63 +90,70 @@ class Randomizable:
 
     def randomize(self):
         """
-        all self.R calls happen here so that we have a better chance to identify errors of sync the random state.
+        Within this method, :py:attr:`self.R` should be used, instead of `np.random`, to introduce random factors.
+
+        all :py:attr:`self.R` calls happen here so that we have a better chance to
+        identify errors of sync the random state.
         """
         raise NotImplementedError
 
 
 class Compose(Randomizable):
     """
-    `Compose` provides the ability to chain a series of calls together in a
+    ``Compose`` provides the ability to chain a series of calls together in a
     sequence. Each transform in the sequence must take a single argument and
     return a single value, so that the transforms can be called in a chain.
 
-    `Compose` can be used in two ways:
-    1. With a series of transforms that accept and return a single ndarray /
-    / tensor / tensor-like parameter
-    2. With a series of transforms that accept and return a dictionary that
-    contains one or more parameters. Such transforms must have pass-through
-    semantics; unused values in the dictionary must be copied to the return
-    dictionary. It is required that the dictionary is copied between input
-    and output of each transform.
+    ``Compose`` can be used in two ways:
+
+    #. With a series of transforms that accept and return a single
+       ndarray / tensor / tensor-like parameter.
+    #. With a series of transforms that accept and return a dictionary that
+       contains one or more parameters. Such transforms must have pass-through
+       semantics; unused values in the dictionary must be copied to the return
+       dictionary. It is required that the dictionary is copied between input
+       and output of each transform.
+
     If some transform generates a list batch of data in the transform chain,
     every item in the list is still a dictionary, and all the following
     transforms will apply to every item of the list, for example:
-    (1) transformA normalizes the intensity of 'img' field in the dict data.
-    (2) transformB crops out a list batch of images on 'img' and 'seg' field.
-        And constructs a list of dict data, other fields are copied:
-        {                          [{                  {
-            'img': [1, 2],              'img': [1],        'img': [2],
-            'seg': [1, 2],              'seg': [1],        'seg': [2],
-            'extra': 123,    --->       'extra': 123,      'extra': 123,
-            'shape': 'CHWD'             'shape': 'CHWD'    'shape': 'CHWD'
-        }                           },                 }]
-    (3) transformC then randomly rotates or flips 'img' and 'seg' fields of
-        every dictionary item in the list.
+
+    #. transformA normalizes the intensity of 'img' field in the dict data.
+    #. transformB crops out a list batch of images on 'img' and 'seg' field.
+       And constructs a list of dict data, other fields are copied::
+
+            {                          [{                   {
+                'img': [1, 2],              'img': [1],         'img': [2],
+                'seg': [1, 2],              'seg': [1],         'seg': [2],
+                'extra': 123,    -->        'extra': 123,       'extra': 123,
+                'shape': 'CHWD'             'shape': 'CHWD'     'shape': 'CHWD'
+            }                           },                  }]
+
+    #. transformC then randomly rotates or flips 'img' and 'seg' fields of
+       every dictionary item in the list.
+
     When using the pass-through dictionary operation, you can make use of
-    `monai.data.transforms.adaptor` to wrap transforms that don't conform
+    :class:`monai.transforms.adaptors.adaptor` to wrap transforms that don't conform
     to the requirements. This approach allows you to use transforms from
     otherwise incompatible libraries with minimal additional work.
 
     Note:
-    In many cases, Compose is not the best way to create pre-processing
-    pipelines. Pre-processing is often not a strictly sequential series of
-    operations, and much of the complexity arises when a not-sequential
-    set of functions must be called as if it were a sequence.
 
-    Example: images and labels
-    Images typically require some kind of normalisation that labels do not.
-    Both are then typically augmented through the use of random rotations,
-    flips, and deformations.
-    Compose can be used with a series of transforms that take a dictionary
-    that contains 'image' and 'label' entries. This might require wrapping
-    `torchvision` transforms before passing them to compose.
-    Alternatively, one can create a class with a __call__ function that
-    calls your pre-processing functions taking into account that not all of
-    them are called on the labels
+        In many cases, Compose is not the best way to create pre-processing
+        pipelines. Pre-processing is often not a strictly sequential series of
+        operations, and much of the complexity arises when a not-sequential
+        set of functions must be called as if it were a sequence.
 
-    TODO: example / links to alternative approaches
-
+        Example: images and labels
+        Images typically require some kind of normalisation that labels do not.
+        Both are then typically augmented through the use of random rotations,
+        flips, and deformations.
+        Compose can be used with a series of transforms that take a dictionary
+        that contains 'image' and 'label' entries. This might require wrapping
+        `torchvision` transforms before passing them to compose.
+        Alternatively, one can create a class with a `__call__` function that
+        calls your pre-processing functions taking into account that not all of
+        them are called on the labels.
     """
 
     def __init__(self, transforms=None):
@@ -169,3 +190,33 @@ class Compose(Randomizable):
             else:
                 input_ = transform(input_)
         return input_
+
+
+class MapTransform(Transform):
+    """
+    A subclass of :py:class:`monai.transforms.compose.Transform` with an assumption
+    that the ``data`` input of ``self.__call__`` is a MutableMapping such as ``dict``.
+
+    The ``keys`` parameter will be used to get and set the actual data
+    item to transform.  That is, the callable of this transform should
+    follow the pattern:
+
+        .. code-block:: python
+
+            def __call__(self, data):
+                for key in self.keys:
+                    if key in data:
+                        # update output data with some_transform_function(data[key]).
+                    else:
+                        # do nothing or some exceptions handling.
+                return data
+
+    """
+
+    def __init__(self, keys):
+        self.keys = ensure_tuple(keys)
+        if not self.keys:
+            raise ValueError('keys unspecified')
+        for key in self.keys:
+            if not isinstance(key, Hashable):
+                raise ValueError('keys should be a hashable or a sequence of hashables, got {}'.format(type(key)))

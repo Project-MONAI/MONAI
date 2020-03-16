@@ -163,11 +163,12 @@ class TensorBoardImageHandler(object):
     Default behavior:
         - Show y_pred as images (GIF for 3D) on TensorBoard when Event triggered,
         - need to use ``batch_transform`` and ``output_transform`` to specify
-            how many images to show and show which channel.
+          how many images to show and show which channel.
         - Expects ``batch_transform(engine.state.batch)`` to return data
-            format: (image[N, channel, ...], label[N, channel, ...]).
+          format: (image[N, channel, ...], label[N, channel, ...]).
         - Expects ``output_transform(engine.state.output)`` to return a torch
-            tensor in format (y_pred[N, channel, ...], loss).
+          tensor in format (y_pred[N, channel, ...], loss).
+
      """
 
     def __init__(self,
@@ -189,7 +190,6 @@ class TensorBoardImageHandler(object):
                 For example, in evaluation, the evaluator engine needs to know current epoch from trainer.
             max_channels (int): number of channels to plot.
             max_frames (int): number of frames for 2D-t plot.
-
         """
         self._writer = SummaryWriter() if summary_writer is None else summary_writer
         self.batch_transform = batch_transform

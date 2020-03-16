@@ -9,10 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import monai
-
 """
 How to use the adaptor function
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The key to using 'adaptor' lies in understanding the function that want to
 adapt. The 'inputs' and 'outputs' parameters take either strings, lists/tuples
@@ -25,23 +24,27 @@ on the input parameter, and for functions that return a single value, it is
 only necessary to name the dictionary keyword to which that value is assigned.
 
 Use of `outputs`
+----------------
 
 `outputs` can take either a string, a list/tuple of string or a dict of string
 to string, depending on what the transform being adapted returns:
-. If the transform returns a single argument, then outputs can be supplied a
-  string that indicates what key to assign the return value to in the
-  dictionary
-. If the transform returns a list/tuple of values, then outputs can be supplied
-  a list/tuple of the same length. The strings in outputs map the return value
-  at the corresponding position to a key in the dictionary
-. If the transform returns a dictionary of values, then outputs must be supplied
-  a dictionary that maps keys in the function's return dictionary to the
-  dictionary being passed between functions
+
+    - If the transform returns a single argument, then outputs can be supplied a
+      string that indicates what key to assign the return value to in the
+      dictionary
+    - If the transform returns a list/tuple of values, then outputs can be supplied
+      a list/tuple of the same length. The strings in outputs map the return value
+      at the corresponding position to a key in the dictionary
+    - If the transform returns a dictionary of values, then outputs must be supplied
+      a dictionary that maps keys in the function's return dictionary to the
+      dictionary being passed between functions
 
 Note, the caller is free to use a more complex way of specifying the outputs
 parameter than is required. The following are synonymous and will be treated
 identically:
-```
+
+.. code-block:: python
+
    # single argument
    adaptor(MyTransform(), 'image')
    adaptor(MyTransform(), ['image'])
@@ -50,46 +53,50 @@ identically:
    # multiple arguments
    adaptor(MyTransform(), ['image', 'label'])
    adaptor(MyTransform(), {'image': 'image', 'label': 'label'})
-```
 
 Use of `inputs`
+---------------
 
 `inputs` can usually be omitted when using `adaptor`. It is only required when a
 the function's parameter names do not match the names in the dictionary that is
 used to chain transform calls.
 
-```
-class MyTransform1:
-    ...
-    def __call__(image):
-        return '''do stuff to image'''
+.. code-block:: python
 
-class MyTransform2:
-    ...
-    def __call__(img):
-        return '''do stuff to image'''
+    class MyTransform1:
+        ...
+        def __call__(image):
+            return '''do stuff to image'''
 
-d = {'image': i}
+    class MyTransform2:
+        ...
+        def __call__(img):
+            return '''do stuff to image'''
 
-Compose([
-    adaptor(MyTransform1(), 'image'),
-    adaptor(MyTransform2(), 'image', {'img':'image'})
-])
-```
+    d = {'image': i}
+
+    Compose([
+        adaptor(MyTransform1(), 'image'),
+        adaptor(MyTransform2(), 'image', {'img':'image'})
+    ])
 
 Inputs:
-dictionary in: None | Name maps
-params in (match): None | Name list | Name maps
-params in (mismatch): Name maps
-params & **kwargs (match) : None | Name maps
-params & **kwargs (mismatch) : Name maps
+
+- dictionary in: None | Name maps
+- params in (match): None | Name list | Name maps
+- params in (mismatch): Name maps
+- params & `**kwargs` (match) : None | Name maps
+- params & `**kwargs` (mismatch) : Name maps
 
 Outputs:
-dictionary out: None | Name maps
-list/tuple out: list/tuple
-variable out: string
+
+- dictionary out: None | Name maps
+- list/tuple out: list/tuple
+- variable out: string
 
 """
+
+import monai
 
 
 @monai.utils.export('monai.transforms')

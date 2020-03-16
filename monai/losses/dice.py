@@ -23,11 +23,11 @@ from monai.utils.aliases import alias
 @alias("dice", "Dice")
 class DiceLoss(_Loss):
     """
-    Multiclass dice loss. Input logits 'pred' (BNHW[D] where N is number of classes) is compared with ground truth
-    `ground' (B1HW[D]). Axis N of `pred' is expected to have logit predictions for each class rather than being image
-    channels, while the same axis of `ground' should be 1. If the N channel of `pred' is 1 binary dice loss will be
-    calculated. The `smooth' parameter is a value added to the intersection and union components of the inter-over-union
-    calculation to smooth results and prevent divide-by-0, this value should be small. The `include_background' class
+    Multiclass dice loss. Input logits `pred` (BNHW[D] where N is number of classes) is compared with ground truth
+    `ground' (B1HW[D]). Axis N of `pred` is expected to have logit predictions for each class rather than being image
+    channels, while the same axis of `ground` should be 1. If the N channel of `pred` is 1 binary dice loss will be
+    calculated. The `smooth` parameter is a value added to the intersection and union components of the inter-over-union
+    calculation to smooth results and prevent divide-by-0, this value should be small. The `include_background` class
     attribute can be set to False for an instance of DiceLoss to exclude the first category (channel index 0) which is
     by convention assumed to be background. If the non-background segmentations are small compared to the total image
     size they can get overwhelmed by the signal from the background so excluding it in such cases helps convergence.
@@ -86,6 +86,7 @@ class DiceLoss(_Loss):
 class GeneralizedDiceLoss(_Loss):
     """
     Compute the generalised Dice loss defined in:
+
         Sudre, C. et. al. (2017) Generalised Dice overlap as a deep learning
         loss function for highly unbalanced segmentations. DLMIA 2017.
 
