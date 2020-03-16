@@ -877,6 +877,4 @@ class DeleteKeysd(MapTransform):
         MapTransform.__init__(self, keys)
 
     def __call__(self, data):
-        for key in self.keys:
-            del data[key]
-        return dict(data)
+        return {key: val for key, val in data.items() if key not in self.keys}
