@@ -45,7 +45,7 @@ Technical highlights
    :maxdepth: 1
    :caption: APIs
 
-   transform_api
+   transforms
    losses
    networks
    metrics
