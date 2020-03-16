@@ -653,7 +653,7 @@ class Flipd(MapTransform):
 @alias('RandFlipD', 'RandFlipDict')
 class RandFlipd(Randomizable, MapTransform):
     """Dict-based wrapper of RandFlip.
-    
+
     See `numpy.flip` for additional details.
     https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
 
@@ -723,18 +723,18 @@ class RandRotated(Randomizable, MapTransform):
     Args:
         prob (float): Probability of rotation.
         degrees (tuple of float or float): Range of rotation in degrees. If single number,
-            angle is picked from (-degrees, degrees). 
+            angle is picked from (-degrees, degrees).
         spatial_axes (tuple of 2 ints): Spatial axes of rotation. Default: (0, 1).
             This is the first two axis in spatial dimensions.
         reshape (bool): If true, output shape is made same as input. Default: True.
         order (int): Order of spline interpolation. Range 0-5. Default: 1. This is
             different from scipy where default interpolation is 3.
-        mode (str): Points outside boundary filled according to this mode. Options are 
+        mode (str): Points outside boundary filled according to this mode. Options are
             'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
         cval (scalar): Value to fill outside boundary. Default: 0.
         prefiter (bool): Apply spline_filter before interpolation. Default: True.
     """
-    def __init__(self, keys, degrees, prob=0.1, spatial_axes=(0, 1), reshape=True, order=1, 
+    def __init__(self, keys, degrees, prob=0.1, spatial_axes=(0, 1), reshape=True, order=1,
                  mode='constant', cval=0, prefilter=True):
         MapTransform.__init__(self, keys)
         self.prob = prob
@@ -822,7 +822,7 @@ class RandZoomd(Randomizable, MapTransform):
         keep_size (bool): Should keep original size (pad if needed).
     """
 
-    def __init__(self, keys, prob=0.1, min_zoom=0.9, 
+    def __init__(self, keys, prob=0.1, min_zoom=0.9,
                  max_zoom=1.1, order=3, mode='constant',
                  cval=0, prefilter=True, use_gpu=False, keep_size=False):
         MapTransform.__init__(self, keys)
@@ -872,7 +872,7 @@ class DeleteKeysd(MapTransform):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
-                See also: monai.transform.composables.MapTransform
+                See also: :py:class:`monai.transforms.compose.MapTransform`
         """
         MapTransform.__init__(self, keys)
 

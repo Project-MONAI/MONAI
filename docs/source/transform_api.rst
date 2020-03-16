@@ -326,6 +326,11 @@ Dictionary-based Composables
     :members:
     :special-members: __call__
 
+`DeleteKeysd`
+~~~~~~~~~~~~~
+.. autoclass:: DeleteKeysd
+    :members:
+    :special-members: __call__
 
 Transform Adaptors
 ------------------

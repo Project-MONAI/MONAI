@@ -5,6 +5,13 @@ This figure shows modules currently available in the codebase.
 ![image](../images/end_to_end_process.png)
 The rest of this page provides more details for each module.
 
+* [Image transformations](#image-transformations)
+* [Loss functions](#losses)
+* [Network architectures](#network-architectures)
+* [Evaluation](#evaluation)
+* [Visualization](#visualization)
+* [Result writing](#result-writing)
+
 ## Image transformations
 Medical image data pre-processing is challenging.  Data are often in specialized formats with rich meta information;  and the data volumes are often high-dimensional and requiring carefully designed manipulation procedures. As an important part of MONAI, powerful and flexible image transformations are provided to enable user-friednly, reproducible, optimized medical data pre-processing piepline.
 
