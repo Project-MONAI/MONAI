@@ -1,3 +1,5 @@
+:github_url: https://github.com/Project-MONAI/MONAI
+
 .. MONAI documentation master file, created by
    sphinx-quickstart on Wed Feb  5 09:40:29 2020.
    You can adapt this file completely to your liking, but it should at least
@@ -75,3 +77,4 @@ Indices and tables
 
 * :ref:`genindex`
 * :ref:`modindex`
+

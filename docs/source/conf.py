@@ -106,7 +106,13 @@ html_theme_options = {
     # 'navigation_depth': 4,
     'sticky_navigation': True,  # Set to False to disable the sticky nav while scrolling.
     # 'logo_only': True,  # if we have a html_logo below, this shows /only/ the logo with no title text
-    'github_url': 'https://github.com/Project-MONAI/MONAI',
+}
+html_context = {
+    'display_github': True,
+    'github_user': 'Project-MONAI',
+    'github_repo': 'MONAI',
+    'github_version': 'master',
+    'conf_py_path': '/docs/',
 }
 html_scaled_image_link = False
 html_show_sourcelink = True
