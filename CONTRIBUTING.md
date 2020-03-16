@@ -57,6 +57,15 @@ License information: all source code files should start with this paragraph:
 
 ```
 
+### Building the documentation
+To build documentation via Sphinx in`docs/` folder:
+```bash
+cd docs/
+make html
+```
+The above commands build html documentation. Type `make help` for all supported formats,
+type `make clean` to remove the current build files.
+
 ## Unit testing
 MONAI tests are located under `tests/`.
 

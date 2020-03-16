@@ -95,12 +95,13 @@ class Orientation:
         Args:
             axcodes (N elements sequence): for spatial ND input's orientation.
                 e.g. axcodes='RAS' represents 3D orientation:
-                    (Left, Right), (Posterior, Anterior), (Inferior, Superior).
+                (Left, Right), (Posterior, Anterior), (Inferior, Superior).
                 default orientation labels options are: 'L' and 'R' for the first dimension,
                 'P' and 'A' for the second, 'I' and 'S' for the third.
             labels : optional, None or sequence of (2,) sequences
                 (2,) sequences are labels for (beginning, end) of output axis.
-                see: ``nibabel.orientations.ornt2axcodes``.
+
+        See Also: `nibabel.orientations.ornt2axcodes`.
         """
         self.axcodes = axcodes
         self.labels = labels
@@ -518,8 +519,8 @@ class UniformRandomPatch(Randomizable):
 class NormalizeIntensity:
     """Normalize input based on provided args, using calculated mean and std if not provided
     (shape of subtrahend and divisor must match. if 0, entire volume uses same subtrahend and
-     divisor, otherwise the shape can have dimension 1 for channels).
-     Current implementation can only support 'channel_last' format data.
+    divisor, otherwise the shape can have dimension 1 for channels).
+    Current implementation can only support 'channel_last' format data.
 
     Args:
         subtrahend (ndarray): the amount to subtract by (usually the mean)
@@ -924,7 +925,10 @@ class RandAffineGrid(Randomizable):
                 N-th parameter.
 
         See also:
-            `from monai.transforms.utils import (create_rotate, create_shear, create_translate, create_scale)`
+            - :py:meth:`monai.transforms.utils.create_rotate`
+            - :py:meth:`monai.transforms.utils.create_shear`
+            - :py:meth:`monai.transforms.utils.create_translate`
+            - :py:meth:`monai.transforms.utils.create_scale`
         """
         self.rotate_range = ensure_tuple(rotate_range)
         self.shear_range = ensure_tuple(shear_range)
@@ -971,8 +975,8 @@ class RandDeformGrid(Randomizable):
         Args:
             spacing (2 or 3 ints): spacing of the grid in 2D or 3D.
                 e.g., spacing=(1, 1) indicates pixel-wise deformation in 2D,
-                      spacing=(1, 1, 1) indicates voxel-wise deformation in 3D,
-                      spacing=(2, 2) indicates deformation field defined on every other pixel in 2D.
+                spacing=(1, 1, 1) indicates voxel-wise deformation in 3D,
+                spacing=(2, 2) indicates deformation field defined on every other pixel in 2D.
             magnitude_range (2 ints): the random offsets will be generated from
                 `uniform[magnitude[0], magnitude[1])`.
             as_tensor_output (bool): whether to output tensor instead of numpy array.
@@ -1139,8 +1143,8 @@ class RandAffine(Randomizable):
             device (torch.device): device on which the tensor will be allocated.
 
         See also:
-            RandAffineGrid for the random affine paramters configurations.
-            Affine for the affine transformation parameters configurations.
+            - :py:class:`RandAffineGrid` for the random affine paramters configurations.
+            - :py:class:`Affine` for the affine transformation parameters configurations.
         """
 
         self.rand_affine_grid = RandAffineGrid(rotate_range=rotate_range, shear_range=shear_range,
@@ -1218,8 +1222,8 @@ class Rand2DElastic(Randomizable):
             device (torch.device): device on which the tensor will be allocated.
 
         See also:
-            RandAffineGrid for the random affine paramters configurations.
-            Affine for the affine transformation parameters configurations.
+            - :py:class:`RandAffineGrid` for the random affine paramters configurations.
+            - :py:class:`Affine` for the affine transformation parameters configurations.
         """
         self.deform_grid = RandDeformGrid(spacing=spacing, magnitude_range=magnitude_range,
                                           as_tensor_output=True, device=device)
@@ -1300,8 +1304,8 @@ class Rand3DElastic(Randomizable):
             device (torch.device): device on which the tensor will be allocated.
 
         See also:
-            - ``RandAffineGrid`` for the random affine paramters configurations.
-            - ``Affine`` for the affine transformation parameters configurations.
+            - :py:class:`RandAffineGrid` for the random affine paramters configurations.
+            - :py:class:`Affine` for the affine transformation parameters configurations.
         """
         self.rand_affine_grid = RandAffineGrid(rotate_range, shear_range, translate_range, scale_range, True, device)
         self.resampler = Resample(padding_mode=padding_mode, as_tensor_output=as_tensor_output, device=device)

@@ -10,35 +10,29 @@
 # limitations under the License.
 
 import unittest
-
+import time
+import sys
 from parameterized import parameterized
+from monai.transforms.composables import DeleteKeysd
 
-from monai.transforms.compose import MapTransform
-
-TEST_CASES = [
-    ['item', ('item',)],
-    [None, (None,)],
-    [['item1', 'item2'], ('item1', 'item2')],
-]
-
-TEST_ILL_CASES = [
-    [list()],
-    [tuple()],
-    [[list()]],
+TEST_CASE_1 = [
+    {'keys': [str(i) for i in range(30)]},
+    20,
 ]
 
 
-class TestRandomizable(unittest.TestCase):
+class TestDeleteKeysd(unittest.TestCase):
 
-    @parameterized.expand(TEST_CASES)
-    def test_keys(self, keys, expected):
-        transform = MapTransform(keys=keys)
-        self.assertEqual(transform.keys, expected)
-
-    @parameterized.expand(TEST_ILL_CASES)
-    def test_wrong_keys(self, keys):
-        with self.assertRaisesRegex(ValueError, ''):
-            MapTransform(keys=keys)
+    @parameterized.expand([TEST_CASE_1])
+    def test_memory(self, input_param, expected_key_size):
+        input_data = dict()
+        for i in range(50):
+            input_data[str(i)] = [time.time()] * 100000
+        result = DeleteKeysd(**input_param)(input_data)
+        self.assertEqual(len(result.keys()), expected_key_size)
+        self.assertGreaterEqual(
+            sys.getsizeof(input_data) * float(expected_key_size) / len(input_data),
+            sys.getsizeof(result))
 
 
 if __name__ == '__main__':

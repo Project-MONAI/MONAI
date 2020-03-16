@@ -10,16 +10,17 @@
 # limitations under the License.
 """
 A collection of dictionary-based wrappers around the "vanilla" transforms
-defined in `monai.transforms.transforms`.
+defined in :py:class:`monai.transforms.transforms`.
+
+Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
 import torch
 import numpy as np
-from collections.abc import Hashable
 import monai
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers.simplelayers import GaussianFilter
-from monai.transforms.compose import Randomizable, Transform
+from monai.transforms.compose import Randomizable, MapTransform
 from monai.transforms.transforms import (LoadNifti, AsChannelFirst, Orientation,
                                          AddChannel, Spacing, Rotate90, SpatialCrop,
                                          RandAffine, Rand2DElastic, Rand3DElastic,
@@ -33,39 +34,10 @@ export = monai.utils.export("monai.transforms")
 
 
 @export
-class MapTransform(Transform):
-    """
-    A subclass of ``monai.transforms.compose.Transform`` with an assumption
-    that the ``data`` input of ``self.__call__`` is a MutableMapping such as ``dict``.
-
-    The ``keys`` parameter will be used to get and set the actual data
-    item to transform.  That is, the callable of this transform should
-    follow the pattern:
-    .. code-block:: python
-
-        def __call__(self, data):
-            for key in self.keys:
-                if key in data:
-                    # update output data with some_transform_function(data[key]).
-                else:
-                    # do nothing or some exceptions handling.
-            return data
-    """
-
-    def __init__(self, keys):
-        self.keys = ensure_tuple(keys)
-        if not self.keys:
-            raise ValueError('keys unspecified')
-        for key in self.keys:
-            if not isinstance(key, Hashable):
-                raise ValueError('keys should be a hashable or a sequence of hashables, got {}'.format(type(key)))
-
-
-@export
 @alias('SpacingD', 'SpacingDict')
 class Spacingd(MapTransform):
     """
-    dictionary-based wrapper of :class: `monai.transforms.transforms.Spacing`.
+    dictionary-based wrapper of :py:class:`monai.transforms.transforms.Spacing`.
     """
 
     def __init__(self, keys, affine_key, pixdim, interp_order=2, keep_shape=False, output_key='spacing'):
@@ -82,7 +54,6 @@ class Spacingd(MapTransform):
                 after resampling. Defaults to False.
             output_key (hashable): key to be added to the output dictionary to track
                 the pixdim status.
-
         """
         MapTransform.__init__(self, keys)
         self.affine_key = affine_key
@@ -106,7 +77,7 @@ class Spacingd(MapTransform):
 @alias('OrientationD', 'OrientationDict')
 class Orientationd(MapTransform):
     """
-    dictionary-based wrapper of :class: `monai.transforms.transforms.Orientation`.
+    dictionary-based wrapper of :py:class:`monai.transforms.transforms.Orientation`.
     """
 
     def __init__(self, keys, affine_key, axcodes, labels=None, output_key='orientation'):
@@ -116,12 +87,14 @@ class Orientationd(MapTransform):
                 The affine will be used to compute input data's orientation.
             axcodes (N elements sequence): for spatial ND input's orientation.
                 e.g. axcodes='RAS' represents 3D orientation:
-                    (Left, Right), (Posterior, Anterior), (Inferior, Superior).
+                (Left, Right), (Posterior, Anterior), (Inferior, Superior).
                 default orientation labels options are: 'L' and 'R' for the first dimension,
                 'P' and 'A' for the second, 'I' and 'S' for the third.
             labels : optional, None or sequence of (2,) sequences
                 (2,) sequences are labels for (beginning, end) of output axis.
-                see: ``nibabel.orientations.ornt2axcodes``.
+
+        See Also:
+            `nibabel.orientations.ornt2axcodes`.
         """
         MapTransform.__init__(self, keys)
         self.affine_key = affine_key
@@ -149,7 +122,7 @@ class LoadNiftid(MapTransform):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
-                See also: monai.transform.composables.MapTransform
+                See also: :py:class:`monai.transforms.compose.MapTransform`
             as_closest_canonical (bool): if True, load the image as closest to canonical axis format.
             dtype (np.dtype, optional): if not None convert the loaded image to this data type.
             meta_key_format (str): key format to store meta data of the nifti image.
@@ -188,7 +161,7 @@ class AsChannelFirstd(MapTransform):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
-                See also: monai.transform.composables.MapTransform
+                See also: :py:class:`monai.transforms.compose.MapTransform`
             channel_dim (int): which dimension of input image is the channel, default is the last dimension.
         """
         MapTransform.__init__(self, keys)
@@ -212,7 +185,7 @@ class AddChanneld(MapTransform):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
-                See also: monai.transform.composables.MapTransform
+                See also: :py:class:`monai.transforms.compose.MapTransform`
         """
         MapTransform.__init__(self, keys)
         self.adder = AddChannel()
@@ -277,7 +250,7 @@ class Resized(MapTransform):
 
     Args:
         keys (hashable items): keys of the corresponding items to be transformed.
-            See also: monai.transform.composables.MapTransform
+            See also: :py:class:`monai.transforms.compose.MapTransform`
         output_spatial_shape (tuple or list): expected shape of spatial dimensions after resize operation.
         order (int): Order of spline interpolation. Default=1.
         mode (str): Points outside boundaries are filled according to given mode.
@@ -287,8 +260,7 @@ class Resized(MapTransform):
         preserve_range (bool): Whether to keep original range of values. Default is True.
             If False, input is converted according to conventions of img_as_float. See
             https://scikit-image.org/docs/dev/user_guide/data_types.html.
-        anti_aliasing (bool): Whether to apply a gaussian filter to image before down-scaling.
-            Default is True.
+        anti_aliasing (bool): Whether to apply a gaussian filter to image before down-scaling. Default is True.
         anti_aliasing_sigma (float, tuple of floats): Standard deviation for gaussian filtering.
     """
 
@@ -348,7 +320,7 @@ class RandRotate90d(Randomizable, MapTransform):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
-                See also: monai.transform.composables.MapTransform
+                See also: :py:class:`monai.transforms.compose.MapTransform`
             prob (float): probability of rotating.
                 (Default 0.1, with 10% probability it returns a rotated array.)
             max_k (int): number of rotations will be sampled from `np.random.randint(max_k) + 1`.
@@ -492,7 +464,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
 @alias('RandAffineD', 'RandAffineDict')
 class RandAffined(Randomizable, MapTransform):
     """
-    A dictionary-based wrapper of ``monai.transforms.transforms.RandAffine``.
+    A dictionary-based wrapper of :py:class:`monai.transforms.transforms.RandAffine`.
     """
 
     def __init__(self, keys,
@@ -517,8 +489,8 @@ class RandAffined(Randomizable, MapTransform):
             device (torch.device): device on which the tensor will be allocated.
 
         See also:
-            - ``monai.transform.composables.MapTransform``
-            - ``RandAffineGrid`` for the random affine paramters configurations.
+            - :py:class:`monai.transforms.compose.MapTransform`
+            - :py:class:`RandAffineGrid` for the random affine paramters configurations.
         """
         MapTransform.__init__(self, keys)
         default_mode = 'bilinear' if isinstance(mode, (tuple, list)) else mode
@@ -562,7 +534,7 @@ class RandAffined(Randomizable, MapTransform):
 @alias('Rand2DElasticD', 'Rand2DElasticDict')
 class Rand2DElasticd(Randomizable, MapTransform):
     """
-    A dictionary-based wrapper of ``monai.transforms.transforms.Rand2DElastic``.
+    A dictionary-based wrapper of :py:class:`monai.transforms.transforms.Rand2DElastic`.
     """
 
     def __init__(self, keys,
@@ -588,8 +560,8 @@ class Rand2DElasticd(Randomizable, MapTransform):
                 whether to convert it back to numpy arrays.
             device (torch.device): device on which the tensor will be allocated.
         See also:
-            - ``RandAffineGrid`` for the random affine paramters configurations.
-            - ``Affine`` for the affine transformation parameters configurations.
+            - :py:class:`RandAffineGrid` for the random affine paramters configurations.
+            - :py:class:`Affine` for the affine transformation parameters configurations.
         """
         MapTransform.__init__(self, keys)
         default_mode = 'bilinear' if isinstance(mode, (tuple, list)) else mode
@@ -635,7 +607,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
 @alias('Rand3DElasticD', 'Rand3DElasticDict')
 class Rand3DElasticd(Randomizable, MapTransform):
     """
-    A dictionary-based wrapper of ``monai.transforms.transforms.Rand3DElastic``.
+    A dictionary-based wrapper of :py:class:`monai.transforms.transforms.Rand3DElastic`.
     """
 
     def __init__(self, keys,
@@ -662,8 +634,8 @@ class Rand3DElasticd(Randomizable, MapTransform):
                 whether to convert it back to numpy arrays.
             device (torch.device): device on which the tensor will be allocated.
         See also:
-            - ``RandAffineGrid`` for the random affine paramters configurations.
-            - ``Affine`` for the affine transformation parameters configurations.
+            - :py:class:`RandAffineGrid` for the random affine paramters configurations.
+            - :py:class:`Affine` for the affine transformation parameters configurations.
         """
         MapTransform.__init__(self, keys)
         default_mode = 'bilinear' if isinstance(mode, (tuple, list)) else mode
@@ -709,7 +681,8 @@ class Rand3DElasticd(Randomizable, MapTransform):
 @alias('FlipD', 'FlipDict')
 class Flipd(MapTransform):
     """Dictionary-based wrapper of Flip.
-    See numpy.flip for additional details.
+
+    See `numpy.flip` for additional details.
     https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
 
     Args:
@@ -732,7 +705,8 @@ class Flipd(MapTransform):
 @alias('RandFlipD', 'RandFlipDict')
 class RandFlipd(Randomizable, MapTransform):
     """Dict-based wrapper of RandFlip.
-    See numpy.flip for additional details.
+
+    See `numpy.flip` for additional details.
     https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
 
     Args:
@@ -801,18 +775,18 @@ class RandRotated(Randomizable, MapTransform):
     Args:
         prob (float): Probability of rotation.
         degrees (tuple of float or float): Range of rotation in degrees. If single number,
-            angle is picked from (-degrees, degrees). 
+            angle is picked from (-degrees, degrees).
         spatial_axes (tuple of 2 ints): Spatial axes of rotation. Default: (0, 1).
             This is the first two axis in spatial dimensions.
         reshape (bool): If true, output shape is made same as input. Default: True.
         order (int): Order of spline interpolation. Range 0-5. Default: 1. This is
             different from scipy where default interpolation is 3.
-        mode (str): Points outside boundary filled according to this mode. Options are 
+        mode (str): Points outside boundary filled according to this mode. Options are
             'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
         cval (scalar): Value to fill outside boundary. Default: 0.
         prefiter (bool): Apply spline_filter before interpolation. Default: True.
     """
-    def __init__(self, keys, degrees, prob=0.1, spatial_axes=(0, 1), reshape=True, order=1, 
+    def __init__(self, keys, degrees, prob=0.1, spatial_axes=(0, 1), reshape=True, order=1,
                  mode='constant', cval=0, prefilter=True):
         MapTransform.__init__(self, keys)
         self.prob = prob
@@ -900,7 +874,7 @@ class RandZoomd(Randomizable, MapTransform):
         keep_size (bool): Should keep original size (pad if needed).
     """
 
-    def __init__(self, keys, prob=0.1, min_zoom=0.9, 
+    def __init__(self, keys, prob=0.1, min_zoom=0.9,
                  max_zoom=1.1, order=3, mode='constant',
                  cval=0, prefilter=True, use_gpu=False, keep_size=False):
         MapTransform.__init__(self, keys)
@@ -936,3 +910,23 @@ class RandZoomd(Randomizable, MapTransform):
         for key in self.keys:
             d[key] = zoomer(d[key])
         return d
+
+
+@export
+@alias('DeleteKeysD', 'DeleteKeysDict')
+class DeleteKeysd(MapTransform):
+    """
+    Delete specified keys from data dictionary to release memory.
+    It will remove the key-values and copy the others to construct a new dictionary.
+    """
+
+    def __init__(self, keys):
+        """
+        Args:
+            keys (hashable items): keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+        """
+        MapTransform.__init__(self, keys)
+
+    def __call__(self, data):
+        return {key: val for key, val in data.items() if key not in self.keys}

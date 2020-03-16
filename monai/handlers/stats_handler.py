@@ -27,7 +27,8 @@ class StatsHandler(object):
     Default behaviors:
         - When EPOCH_COMPLETED, logs ``engine.state.metrics`` using ``self.logger``.
         - When ITERATION_COMPELTED, logs
-        ``self.output_transform(engine.state.output)`` using ``self.logger``.
+          ``self.output_transform(engine.state.output)`` using ``self.logger``.
+
     """
 
     def __init__(self,
@@ -39,6 +40,7 @@ class StatsHandler(object):
                  tag_name=DEFAULT_TAG,
                  key_var_format=DEFAULT_KEY_VAL_FORMAT):
         """
+
         Args:
             epoch_print_logger (Callable): customized callable printer for epoch level logging.
                 must accept parameter "engine", use default printer if None.
