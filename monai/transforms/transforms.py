@@ -517,7 +517,7 @@ class UniformRandomPatch(Randomizable):
 
 
 @export
-class IntensityNormalizer:
+class NormalizeIntensity:
     """Normalize input based on provided args, using calculated mean and std if not provided
     (shape of subtrahend and divisor must match. if 0, entire volume uses same subtrahend and
      divisor, otherwise the shape can have dimension 1 for channels).
@@ -547,7 +547,36 @@ class IntensityNormalizer:
 
 
 @export
-class ImageEndPadder:
+class ScaleIntensityRange:
+    """Apply specific intensity scaling to the whole numpy array.
+    Scaling from [a_min, a_max] to [b_min, b_max] with clip option.
+
+    Args:
+        a_min (int or float): intensity original range min.
+        a_max (int or float): intensity original range max.
+        b_min (int or float): intensity target range min.
+        b_max (int or float): intensity target range max.
+        do_clipping (bool): whether to perform clip after scaling.
+    """
+
+    def __init__(self, a_min, a_max, b_min, b_max, do_clipping=False):
+        self.a_min = a_min
+        self.a_max = a_max
+        self.b_min = b_min
+        self.b_max = b_max
+        self.do_clipping = do_clipping
+
+    def __call__(self, img):
+        img = (img - self.a_min) / (self.a_max - self.a_min)
+        img = img * (self.b_max - self.b_min) + self.b_min
+        if self.do_clipping:
+            img = np.clip(img, self.b_min, self.b_max)
+
+        return img
+
+
+@export
+class PadImageEnd:
     """Performs padding by appending to the end of the data all on one side for each dimension.
      Uses np.pad so in practice, a mode needs to be provided. See numpy.lib.arraypad.pad
      for additional details.
@@ -558,7 +587,7 @@ class ImageEndPadder:
     """
 
     def __init__(self, out_size, mode):
-        assert out_size is not None and isinstance(out_size, (list, tuple)), 'out_size must be list or tuple.'
+        assert isinstance(out_size, (list, tuple)), 'out_size must be list or tuple.'
         self.out_size = out_size
         assert isinstance(mode, str), 'mode must be str.'
         self.mode = mode

@@ -10,26 +10,21 @@
 # limitations under the License.
 
 import unittest
+
 import numpy as np
-from parameterized import parameterized
-from monai.transforms.transforms import ImageEndPadder
 
-TEST_CASE_1 = [
-    {
-        'out_size': [16, 16, 8],
-        'mode': 'constant'
-    },
-    np.zeros((1, 3, 8, 8, 4)),
-    np.zeros((1, 3, 16, 16, 8)),
-]
+from monai.transforms import ScaleIntensityRange
+from tests.utils import NumpyImageTestCase2D
 
-class TestImageEndPadder(unittest.TestCase):
 
-    @parameterized.expand([TEST_CASE_1])
-    def test_image_end_pad_shape(self, input_param, input_data, expected_val):
-        padder = ImageEndPadder(**input_param)
-        result = padder(input_data)
-        self.assertAlmostEqual(result.shape, expected_val.shape)
+class IntensityScaleIntensityRange(NumpyImageTestCase2D):
+
+    def test_image_scale_intensity_range(self):
+        scaler = ScaleIntensityRange(a_min=20, a_max=108, b_min=50, b_max=80)
+        scaled = scaler(self.imt)
+        expected = (self.imt - 20) / 88
+        expected = expected * 30 + 50
+        self.assertTrue(np.allclose(scaled, expected))
 
 
 if __name__ == '__main__':

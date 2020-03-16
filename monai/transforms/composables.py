@@ -23,7 +23,8 @@ from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.transforms import (LoadNifti, AsChannelFirst, Orientation,
                                          AddChannel, Spacing, Rotate90, SpatialCrop,
                                          RandAffine, Rand2DElastic, Rand3DElastic,
-                                         Rescale, Resize, Flip, Rotate, Zoom)
+                                         Rescale, Resize, Flip, Rotate, Zoom,
+                                         NormalizeIntensity, ScaleIntensityRange)
 from monai.utils.misc import ensure_tuple
 from monai.transforms.utils import generate_pos_neg_label_crop_centers, create_grid
 from monai.utils.aliases import alias
@@ -376,6 +377,42 @@ class RandRotate90d(Randomizable, MapTransform):
         d = dict(data)
         for key in self.keys:
             d[key] = rotator(d[key])
+        return d
+
+
+@export
+@alias('NormalizeIntensityD', 'NormalizeIntensityDict')
+class NormalizeIntensityd(MapTransform):
+    """
+    dictionary-based wrapper of NormalizeIntensity.
+    """
+
+    def __init__(self, keys, subtrahend=None, divisor=None):
+        MapTransform.__init__(self, keys)
+        self.normalizer = NormalizeIntensity(subtrahend, divisor)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.normalizer(d[key])
+        return d
+
+
+@export
+@alias('ScaleIntensityRangeD', 'ScaleIntensityRangeDict')
+class ScaleIntensityRanged(MapTransform):
+    """
+    dictionary-based wrapper of ScaleIntensityRange.
+    """
+
+    def __init__(self, keys, a_min, a_max, b_min, b_max, do_clipping=False):
+        MapTransform.__init__(self, keys)
+        self.scaler = ScaleIntensityRange(a_min, a_max, b_min, b_max, do_clipping)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.scaler(d[key])
         return d
 
 
