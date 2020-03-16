@@ -30,6 +30,7 @@ class MeanDice(Metric):
                  to_onehot_y=True,
                  mutually_exclusive=False,
                  add_sigmoid=False,
+                 add_softmax=False,
                  logit_thresh=0.5,
                  output_transform: Callable = lambda x: x,
                  device: Optional[Union[str, torch.device]] = None):
@@ -43,6 +44,8 @@ class MeanDice(Metric):
                 a combination of argmax and to_onehot. Defaults to False.
             add_sigmoid (Bool): whether to add sigmoid function to the output prediction before computing Dice.
                 Defaults to False.
+            add_softmax (Bool): whether to add softmax function to the output prediction before computing Dice.
+                Defaults to False.
             logit_thresh (Float): the threshold value to round value to 0.0 and 1.0. Defaults to None (no thresholding).
             output_transform (Callable): transform the ignite.engine.state.output into [y_pred, y] pair.
             device (torch.device): device specification in case of distributed computation usage.
@@ -55,6 +58,7 @@ class MeanDice(Metric):
         self.to_onehot_y = to_onehot_y
         self.mutually_exclusive = mutually_exclusive
         self.add_sigmoid = add_sigmoid
+        self.add_softmax = add_softmax
         self.logit_thresh = logit_thresh
 
         self._sum = 0
@@ -70,7 +74,7 @@ class MeanDice(Metric):
         assert len(output) == 2, 'MeanDice metric can only support y_pred and y.'
         y_pred, y = output
         scores = compute_meandice(y_pred, y, self.include_background, self.to_onehot_y, self.mutually_exclusive,
-                                  self.add_sigmoid, self.logit_thresh)
+                                  self.add_sigmoid, self.add_softmax, self.logit_thresh)
 
         # add all items in current batch
         for batch in scores:

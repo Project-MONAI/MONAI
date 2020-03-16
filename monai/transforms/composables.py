@@ -145,7 +145,7 @@ class LoadNiftid(MapTransform):
     dictionary-based wrapper of LoadNifti, must load image and metadata together.
     """
 
-    def __init__(self, keys, as_closest_canonical=False, dtype=None, meta_key_format='{}.{}', overwriting_keys=False):
+    def __init__(self, keys, as_closest_canonical=False, dtype=np.float32, meta_key_format='{}.{}', overwriting_keys=False):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -274,6 +274,7 @@ class Rescaled(MapTransform):
 class Resized(MapTransform):
     """
     dictionary-based wrapper of Resize.
+
     Args:
         keys (hashable items): keys of the corresponding items to be transformed.
             See also: monai.transform.composables.MapTransform
@@ -385,6 +386,12 @@ class RandRotate90d(Randomizable, MapTransform):
 class NormalizeIntensityd(MapTransform):
     """
     dictionary-based wrapper of NormalizeIntensity.
+
+    Args:
+        keys (hashable items): keys of the corresponding items to be transformed.
+            See also: monai.transform.composables.MapTransform
+        subtrahend (ndarray): the amount to subtract by (usually the mean)
+        divisor (ndarray): the amount to divide by (usually the standard deviation)
     """
 
     def __init__(self, keys, subtrahend=None, divisor=None):
@@ -403,11 +410,20 @@ class NormalizeIntensityd(MapTransform):
 class ScaleIntensityRanged(MapTransform):
     """
     dictionary-based wrapper of ScaleIntensityRange.
+
+    Args:
+        keys (hashable items): keys of the corresponding items to be transformed.
+            See also: monai.transform.composables.MapTransform
+        a_min (int or float): intensity original range min.
+        a_max (int or float): intensity original range max.
+        b_min (int or float): intensity target range min.
+        b_max (int or float): intensity target range max.
+        clip (bool): whether to perform clip after scaling.
     """
 
-    def __init__(self, keys, a_min, a_max, b_min, b_max, do_clipping=False):
+    def __init__(self, keys, a_min, a_max, b_min, b_max, clip=False):
         MapTransform.__init__(self, keys)
-        self.scaler = ScaleIntensityRange(a_min, a_max, b_min, b_max, do_clipping)
+        self.scaler = ScaleIntensityRange(a_min, a_max, b_min, b_max, clip)
 
     def __call__(self, data):
         d = dict(data)

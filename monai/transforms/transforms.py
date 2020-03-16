@@ -141,7 +141,7 @@ class LoadNifti:
     Load Nifti format file from provided path.
     """
 
-    def __init__(self, as_closest_canonical=False, image_only=False, dtype=None):
+    def __init__(self, as_closest_canonical=False, image_only=False, dtype=np.float32):
         """
         Args:
             as_closest_canonical (bool): if True, load the image as closest to canonical axis format.
@@ -176,13 +176,11 @@ class LoadNifti:
             img = nib.as_closest_canonical(img)
             header['affine'] = img.affine
 
-        if self.dtype is not None:
-            img = img.get_fdata(dtype=self.dtype)
-        else:
-            img = np.asanyarray(img.dataobj)
+        data = np.array(img.get_fdata(dtype=self.dtype))
+        img.uncache()
 
         if self.image_only:
-            return img
+            return data
         compatible_meta = dict()
         for meta_key in header:
             meta_datum = header[meta_key]
@@ -190,7 +188,7 @@ class LoadNifti:
                     and np_str_obj_array_pattern.search(meta_datum.dtype.str) is not None:
                 continue
             compatible_meta[meta_key] = meta_datum
-        return img, compatible_meta
+        return data, compatible_meta
 
 
 @export
@@ -556,20 +554,20 @@ class ScaleIntensityRange:
         a_max (int or float): intensity original range max.
         b_min (int or float): intensity target range min.
         b_max (int or float): intensity target range max.
-        do_clipping (bool): whether to perform clip after scaling.
+        clip (bool): whether to perform clip after scaling.
     """
 
-    def __init__(self, a_min, a_max, b_min, b_max, do_clipping=False):
+    def __init__(self, a_min, a_max, b_min, b_max, clip=False):
         self.a_min = a_min
         self.a_max = a_max
         self.b_min = b_min
         self.b_max = b_max
-        self.do_clipping = do_clipping
+        self.clip = clip
 
     def __call__(self, img):
         img = (img - self.a_min) / (self.a_max - self.a_min)
         img = img * (self.b_max - self.b_min) + self.b_min
-        if self.do_clipping:
+        if self.clip:
             img = np.clip(img, self.b_min, self.b_max)
 
         return img

@@ -22,6 +22,7 @@ def compute_meandice(y_pred,
                      to_onehot_y=True,
                      mutually_exclusive=False,
                      add_sigmoid=False,
+                     add_softmax=False,
                      logit_thresh=0.5):
     """Computes dice score metric from full size Tensor and collects average.
 
@@ -37,6 +38,7 @@ def compute_meandice(y_pred,
         mutually_exclusive (Bool): if True, `y_pred` will be converted into a binary matrix using
             a combination of argmax and to_onehot.  Defaults to False.
         add_sigmoid (Bool): whether to add sigmoid function to y_pred before computation. Defaults to False.
+        add_softmax (Bool): whether to add softmax function to y_pred before computation. Defaults to False.
         logit_thresh (Float): the threshold value used to convert (after sigmoid if `add_sigmoid=True`)
             `y_pred` into a binary matrix. Defaults to 0.5.
 
@@ -55,6 +57,9 @@ def compute_meandice(y_pred,
 
     if add_sigmoid:
         y_pred = y_pred.float().sigmoid()
+
+    if add_softmax:
+        y_pred = torch.nn.functional.softmax(y_pred.float(), dim=1)
 
     if n_classes == 1:
         if mutually_exclusive:
