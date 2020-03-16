@@ -42,8 +42,12 @@ class Transform:
     def __call__(self, data):
         """
         ``data`` is an element which often comes from an iteration over an
-        iterable, such as``torch.utils.data.Dataset``. This method should
+        iterable, such as :py:class:`torch.utils.data.Dataset`. This method should
         return an updated version of ``data``.
+        To simplify the input validations, most of the transforms assume that
+
+        - ``data`` component is a "channel-first" array,
+        - the channel dimension is not omitted even if number of channels is one.
         """
         raise NotImplementedError
 

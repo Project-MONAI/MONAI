@@ -11,6 +11,8 @@
 """
 A collection of dictionary-based wrappers around the "vanilla" transforms
 defined in :py:class:`monai.transforms.transforms`.
+
+Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
 import torch
@@ -34,7 +36,7 @@ export = monai.utils.export("monai.transforms")
 @alias('SpacingD', 'SpacingDict')
 class Spacingd(MapTransform):
     """
-    dictionary-based wrapper of :class: `monai.transforms.transforms.Spacing`.
+    dictionary-based wrapper of :py:class:`monai.transforms.transforms.Spacing`.
     """
 
     def __init__(self, keys, affine_key, pixdim, interp_order=2, keep_shape=False, output_key='spacing'):
@@ -51,7 +53,6 @@ class Spacingd(MapTransform):
                 after resampling. Defaults to False.
             output_key (hashable): key to be added to the output dictionary to track
                 the pixdim status.
-
         """
         MapTransform.__init__(self, keys)
         self.affine_key = affine_key
@@ -75,7 +76,7 @@ class Spacingd(MapTransform):
 @alias('OrientationD', 'OrientationDict')
 class Orientationd(MapTransform):
     """
-    dictionary-based wrapper of :class: `monai.transforms.transforms.Orientation`.
+    dictionary-based wrapper of :py:class:`monai.transforms.transforms.Orientation`.
     """
 
     def __init__(self, keys, affine_key, axcodes, labels=None, output_key='orientation'):
@@ -120,7 +121,7 @@ class LoadNiftid(MapTransform):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
-                See also: monai.transform.composables.MapTransform
+                See also: :py:class:`monai.transforms.compose.MapTransform`
             as_closest_canonical (bool): if True, load the image as closest to canonical axis format.
             dtype (np.dtype, optional): if not None convert the loaded image to this data type.
             meta_key_format (str): key format to store meta data of the nifti image.
@@ -159,7 +160,7 @@ class AsChannelFirstd(MapTransform):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
-                See also: monai.transform.composables.MapTransform
+                See also: :py:class:`monai.transforms.compose.MapTransform`
             channel_dim (int): which dimension of input image is the channel, default is the last dimension.
         """
         MapTransform.__init__(self, keys)
@@ -183,7 +184,7 @@ class AddChanneld(MapTransform):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
-                See also: monai.transform.composables.MapTransform
+                See also: :py:class:`monai.transforms.compose.MapTransform`
         """
         MapTransform.__init__(self, keys)
         self.adder = AddChannel()
@@ -248,7 +249,7 @@ class Resized(MapTransform):
 
     Args:
         keys (hashable items): keys of the corresponding items to be transformed.
-            See also: monai.transform.composables.MapTransform
+            See also: :py:class:`monai.transforms.compose.MapTransform`
         output_spatial_shape (tuple or list): expected shape of spatial dimensions after resize operation.
         order (int): Order of spline interpolation. Default=1.
         mode (str): Points outside boundaries are filled according to given mode.
@@ -318,7 +319,7 @@ class RandRotate90d(Randomizable, MapTransform):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
-                See also: monai.transform.composables.MapTransform
+                See also: :py:class:`monai.transforms.compose.MapTransform`
             prob (float): probability of rotating.
                 (Default 0.1, with 10% probability it returns a rotated array.)
             max_k (int): number of rotations will be sampled from `np.random.randint(max_k) + 1`.
@@ -411,7 +412,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
 @alias('RandAffineD', 'RandAffineDict')
 class RandAffined(Randomizable, MapTransform):
     """
-    A dictionary-based wrapper of ``monai.transforms.transforms.RandAffine``.
+    A dictionary-based wrapper of :py:class:`monai.transforms.transforms.RandAffine`.
     """
 
     def __init__(self, keys,
@@ -436,8 +437,8 @@ class RandAffined(Randomizable, MapTransform):
             device (torch.device): device on which the tensor will be allocated.
 
         See also:
-            - ``monai.transform.composables.MapTransform``
-            - ``RandAffineGrid`` for the random affine paramters configurations.
+            - :py:class:`monai.transforms.compose.MapTransform`
+            - :py:class:`RandAffineGrid` for the random affine paramters configurations.
         """
         MapTransform.__init__(self, keys)
         default_mode = 'bilinear' if isinstance(mode, (tuple, list)) else mode
@@ -481,7 +482,7 @@ class RandAffined(Randomizable, MapTransform):
 @alias('Rand2DElasticD', 'Rand2DElasticDict')
 class Rand2DElasticd(Randomizable, MapTransform):
     """
-    A dictionary-based wrapper of ``monai.transforms.transforms.Rand2DElastic``.
+    A dictionary-based wrapper of :py:class:`monai.transforms.transforms.Rand2DElastic`.
     """
 
     def __init__(self, keys,
@@ -507,8 +508,8 @@ class Rand2DElasticd(Randomizable, MapTransform):
                 whether to convert it back to numpy arrays.
             device (torch.device): device on which the tensor will be allocated.
         See also:
-            - ``RandAffineGrid`` for the random affine paramters configurations.
-            - ``Affine`` for the affine transformation parameters configurations.
+            - :py:class:`RandAffineGrid` for the random affine paramters configurations.
+            - :py:class:`Affine` for the affine transformation parameters configurations.
         """
         MapTransform.__init__(self, keys)
         default_mode = 'bilinear' if isinstance(mode, (tuple, list)) else mode
@@ -554,7 +555,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
 @alias('Rand3DElasticD', 'Rand3DElasticDict')
 class Rand3DElasticd(Randomizable, MapTransform):
     """
-    A dictionary-based wrapper of ``monai.transforms.transforms.Rand3DElastic``.
+    A dictionary-based wrapper of :py:class:`monai.transforms.transforms.Rand3DElastic`.
     """
 
     def __init__(self, keys,
@@ -581,8 +582,8 @@ class Rand3DElasticd(Randomizable, MapTransform):
                 whether to convert it back to numpy arrays.
             device (torch.device): device on which the tensor will be allocated.
         See also:
-            - ``RandAffineGrid`` for the random affine paramters configurations.
-            - ``Affine`` for the affine transformation parameters configurations.
+            - :py:class:`RandAffineGrid` for the random affine paramters configurations.
+            - :py:class:`Affine` for the affine transformation parameters configurations.
         """
         MapTransform.__init__(self, keys)
         default_mode = 'bilinear' if isinstance(mode, (tuple, list)) else mode
@@ -628,7 +629,8 @@ class Rand3DElasticd(Randomizable, MapTransform):
 @alias('FlipD', 'FlipDict')
 class Flipd(MapTransform):
     """Dictionary-based wrapper of Flip.
-    See numpy.flip for additional details.
+
+    See `numpy.flip` for additional details.
     https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
 
     Args:
@@ -651,7 +653,8 @@ class Flipd(MapTransform):
 @alias('RandFlipD', 'RandFlipDict')
 class RandFlipd(Randomizable, MapTransform):
     """Dict-based wrapper of RandFlip.
-    See numpy.flip for additional details.
+    
+    See `numpy.flip` for additional details.
     https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
 
     Args:

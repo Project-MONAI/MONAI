@@ -34,13 +34,16 @@ version = 'public alpha'
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ['tests',
-                    os.path.join('monai', 'transforms'),
-                    os.path.join('monai', 'losses')]
+                    os.path.join('transforms', 'compose.py'),
+                    os.path.join('transforms', 'adaptors.py'),
+                    os.path.join('transforms', 'composables.py'),
+                    os.path.join('transforms', 'transforms.py'),
+                    os.path.join('losses', 'dice.py')]
 
 
 def generate_apidocs(*args):
     """Generate API docs automatically by trawling the available modules"""
-    module_path = os.path.abspath(os.path.join('..', '..', 'monai'))
+    module_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'monai'))
     output_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'apidocs'))
     apidoc_command_path = 'sphinx-apidoc'
     if hasattr(sys, 'real_prefix'):  # called from a virtualenv
