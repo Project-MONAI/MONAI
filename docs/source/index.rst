@@ -7,7 +7,7 @@ Project MONAI
 =============
 
 
-Medical Open Network for AI
+*Medical Open Network for AI*
 
 MONAI is a `PyTorch <https://pytorch.org/>`_-based, `open-source <https://github.com/Project-MONAI/MONAI/blob/master/LICENSE>`_ platform
 for deep learning in healthcare imaging. Its ambitions are:
@@ -16,19 +16,58 @@ for deep learning in healthcare imaging. Its ambitions are:
 - creating state-of-the-art, end-to-end training workflows for healthcare imaging;
 - providing researchers with the optimized and standardized way to create and evaluate deep learning models.
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Highlights
+Features
+--------
+*The codebase is currently under active development*
 
-   highlights
+- flexible pre-processing for multi-dimensional medical imaging data;
+- compositional & portable APIs for ease of integration in existing workflows;
+- domain-specific implementations for networks, losses, evaluation metrics and more;
+- customizable design for varying user expertise;
+- multi-GPU data parallelism support.
+
+
+Getting started
+---------------
+
+Tutorials & examples are located at `monai/examples <https://github.com/Project-MONAI/MONAI/tree/master/examples>`_.
+
+Technical documentation is available via `Read the Docs <https://monai.readthedocs.io/en/latest/>`_.
+
+
+Technical highlights
+--------------------
+- `public alpha <highlights.html>`_
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: APIs
 
    transform_api
    losses
+   networks
+   metrics
+   data
+   engines
+   handlers
+   visualize
+   utils
 
+
+Contributing
+------------
+For guidance on making a contribution to MONAI, see the `contributing guidelines
+<https://github.com/Project-MONAI/MONAI/blob/master/CONTRIBUTING.md>`_.
+
+Links
+-----
+- Website: _(coming soon)_
+- API documentation: https://monai.readthedocs.io/en/latest/
+- Code: https://github.com/Project-MONAI/MONAI
+- Project tracker: https://github.com/Project-MONAI/MONAI/projects
+- Issue tracker: https://github.com/Project-MONAI/MONAI/issues
+- Wiki: https://github.com/Project-MONAI/MONAI/wiki
+- Test status: https://gitlab.com/project-monai/MONAI/pipelines
 
 
 Indices and tables

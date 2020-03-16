@@ -14,7 +14,7 @@ import os
 import sys
 import subprocess
 sys.path.insert(0, os.path.abspath('..'))
-sys.path.insert(0, os.path.abspath(os.path.join('..', '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 print(sys.path)
 
 
@@ -33,12 +33,14 @@ version = 'public alpha'
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['tests',
-                    os.path.join('transforms', 'compose.py'),
+exclude_patterns = [os.path.join('transforms', 'compose.py'),
                     os.path.join('transforms', 'adaptors.py'),
                     os.path.join('transforms', 'composables.py'),
                     os.path.join('transforms', 'transforms.py'),
-                    os.path.join('losses', 'dice.py')]
+                    os.path.join('networks', 'blocks'),
+                    os.path.join('networks', 'layers'),
+                    os.path.join('networks', 'nets'),
+                    'metrics', 'engine', 'data', 'handlers', 'losses', 'visualize', 'utils', 'tests']
 
 
 def generate_apidocs(*args):
@@ -104,12 +106,13 @@ html_theme_options = {
     # 'navigation_depth': 4,
     'sticky_navigation': True,  # Set to False to disable the sticky nav while scrolling.
     # 'logo_only': True,  # if we have a html_logo below, this shows /only/ the logo with no title text
+    'github_url': 'https://github.com/Project-MONAI/MONAI',
 }
 html_scaled_image_link = False
 html_show_sourcelink = True
-html_favicon = 'favicon.ico'
+# html_favicon = 'favicon.ico'
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+# html_static_path = ['_static']

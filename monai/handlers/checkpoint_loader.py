@@ -26,8 +26,9 @@ class CheckpointLoader:
 
     Args:
         load_path (string): the file path of checkpoint, it should be a PyTorch pth file.
-        load_dict (dict): target objects that load checkpoint to. examples:
-                          {'network': net, 'optimizer': optimizer, 'engine', engine}
+        load_dict (dict): target objects that load checkpoint to. examples::
+
+            {'network': net, 'optimizer': optimizer, 'engine', engine}
 
     """
 

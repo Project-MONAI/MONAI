@@ -93,8 +93,9 @@ def copypaste_arrays(src, dest, srccenter, destcenter, dims):
     source and destination arrays so a smaller area may be copied than expected. Return value is the tuples of slice
     objects indexing the copied area in `src`, and those indexing the copy area in `dest`.
 
-    Example:
-    .. code-block: python
+    Example
+
+    .. code-block:: python
 
         src = np.random.randint(0,10,(6,6))
         dest = np.zeros_like(src)
