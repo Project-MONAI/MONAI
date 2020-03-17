@@ -42,28 +42,39 @@ val_transforms = transforms.Compose([
     ScaleIntensityRanged(keys=['image'], a_min=-57, a_max=164, b_min=0.0, b_max=1.0, clip=True)
 ])
 
+check_transforms = transforms.Compose([
+    LoadNiftid(keys=['image', 'label']),
+    AddChanneld(keys=['image', 'label']),
+    ScaleIntensityRanged(keys=['image'], a_min=-57, a_max=164, b_min=0.0, b_max=1.0, clip=True)
+])
+check_ds = monai.data.Dataset(data=datalist['validation'], transform=check_transforms)
+check_loader = DataLoader(check_ds, batch_size=1)
+check_data = monai.utils.misc.first(check_loader)
+print('image shape:', check_data['image'].shape, 'label shape:', check_data['label'].shape)
+
 # create a training data loader
 train_ds = monai.data.Dataset(data=datalist['training'], transform=train_transforms)
 # use batch_size=2 to load images and use RandCropByPosNegLabeld to generate 2 x 4 images for network training
 train_loader = DataLoader(train_ds, batch_size=2, num_workers=4, collate_fn=list_data_collate)
 # create a validation data loader
 val_ds = monai.data.Dataset(data=datalist['validation'], transform=val_transforms)
-val_loader = DataLoader(val_ds, batch_size=1, num_workers=4, collate_fn=list_data_collate)
+val_loader = DataLoader(val_ds, batch_size=1, num_workers=4)
 
 # standard PyTorch program style: create UNet, DiceLoss and Adam optimizer
 device = torch.device("cuda:0")
 model = monai.networks.nets.UNet(dimensions=3, in_channels=1, out_channels=2, channels=(16, 32, 64, 128, 256),
-                                 strides=(2, 2, 2, 2), num_res_units=2).to(device)
+                                 strides=(2, 2, 2, 2), num_res_units=2, instance_norm=False).to(device)
 loss_function = monai.losses.DiceLoss(do_softmax=True)
 optimizer = torch.optim.Adam(model.parameters(), 1e-4)
 
-for epoch in range(1260):
-    print('Epoch {}/{}'.format(epoch + 1, 1260))
+best_metric = -1
+best_metric_epoch = -1
+for epoch in range(100):
     print('-' * 10)
+    print('Epoch {}/{}'.format(epoch + 1, 100))
     model.train()
     epoch_loss = 0
     step = 0
-    best_metric = -1
     for batch_data in train_loader:
         step += 1
         inputs, labels = (batch_data['image'].to(device), batch_data['label'].to(device))
@@ -74,25 +85,29 @@ for epoch in range(1260):
         optimizer.step()
         epoch_loss += loss.item()
         print("%d/%d,train_loss:%0.4f" % (step, len(train_ds) // train_loader.batch_size, loss.item()))
-    # do validation every 20 epochs
+    print("epoch %d average loss:%0.4f" % (epoch + 1, epoch_loss / step))
+    # do validation every 2 epochs
     if (epoch + 1) % 2 == 0:
         model.eval()
         with torch.no_grad():
             metric_sum = 0.
             metric_count = 0
             for val_data in val_loader:
-                roi_size = (96, 96, 96)
+                roi_size = (160, 160, 160)
                 sw_batch_size = 4
                 val_outputs = sliding_window_inference(val_data['image'], roi_size, sw_batch_size, model, device)
                 val_labels = val_data['label'].to(device)
-                value = compute_meandice(y_pred=val_outputs, y=val_labels, include_background=False, to_onehot_y=False,
-                                         mutually_exclusive=True, add_softmax=True)
+                value = compute_meandice(y_pred=val_outputs, y=val_labels, include_background=False,
+                                         to_onehot_y=True, mutually_exclusive=True)
                 for batch in value:
                     metric_count += 1
                     metric_sum += batch.item()
             metric = metric_sum / metric_count
-            print("epoch %d mean dice:%0.4f" % (epoch, metric))
             if metric > best_metric:
+                best_metric = metric
+                best_metric_epoch = epoch + 1
                 torch.save(model.state_dict(), 'best_metric_model.pth')
                 print('saved new best metric model')
-    print("epoch %d loss:%0.4f" % (epoch, epoch_loss / step))
+            print("current epoch %d current mean dice: %0.4f best mean dice: %0.4f at epoch %d"
+                  % (epoch + 1, metric, best_metric, best_metric_epoch))
+print('train completed, best_metric: %0.4f  at epoch: %d' % (best_metric, best_metric_epoch))
