@@ -1,6 +1,6 @@
 # Modules for public alpha
 
-MONAI aims at supporting deep learning in medical image analysis at multiple granuality.
+MONAI aims at supporting deep learning in medical image analysis at multiple granularities.
 This figure shows modules currently available in the codebase.
 ![image](../images/end_to_end_process.png)
 The rest of this page provides more details for each module.
@@ -13,14 +13,14 @@ The rest of this page provides more details for each module.
 * [Result writing](#result-writing)
 
 ## Image transformations
-Medical image data pre-processing is challenging.  Data are often in specialized formats with rich meta information;  and the data volumes are often high-dimensional and requiring carefully designed manipulation procedures. As an important part of MONAI, powerful and flexible image transformations are provided to enable user-friednly, reproducible, optimized medical data pre-processing piepline.
+Medical image data pre-processing is challenging.  Data are often in specialized formats with rich meta-information, and the data volumes are often high-dimensional and requiring carefully designed manipulation procedures. As an important part of MONAI, powerful and flexible image transformations are provided to enable user-friendly, reproducible, optimized medical data pre-processing pipeline.
 
 ### 1. Transforms support both Dictionary and Array format data
-1. The widely used computer vision packages (such as ``torchvision``) focus on spatially 2D array image processing. MONAI provides more domain specific transformations for both sptially 2D and 3D, and retains the flexible transformation "compose" feature.
+1. The widely used computer vision packages (such as ``torchvision``) focus on spatially 2D array image processing. MONAI provides more domain-specific transformations for both spatially 2D and 3D and retains the flexible transformation "compose" feature.
 2.  As medical image preprocessing often requires additional fine-grained system parameters, MONAI provides transforms for input data encapsulated in a python dictionary. Users are able to specify the keys corresponding to the expected data fields and system parameters to compose complex transformations.
 
 ### 2. Medical specific transforms
-MONAI aims at providing a rich set of popular medical image specific transformamtions. These currently include, for example:
+MONAI aims at providing a rich set of popular medical image specific transformations. These currently include, for example:
 
 
 - `LoadNifti`:  Load Nifti format file from provided path
@@ -57,7 +57,7 @@ There are domain-specific loss functions in the medical research area which are 
 Some deep neural network architectures have shown to be particularly effective for medical imaging analysis tasks. MONAI implements reference networks with the aims of both flexibility and code readability.
 
 ## Evaluation
-To run model inferences and evaluate the model quality, MONAI provides reference implementation for the relevant widely-used approaches. Currently several popular evaluation metrics and inference patterns are included:
+To run model inferences and evaluate the model quality, MONAI provides reference implementations for the relevant widely-used approaches. Currently, several popular evaluation metrics and inference patterns are included:
 
 ### 1. Sliding window inference
 When executing inference on large medical images, the sliding window is a popular method to achieve high performance with flexible memory requirements.
