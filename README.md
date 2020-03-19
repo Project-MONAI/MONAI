@@ -25,6 +25,8 @@ Tutorials & examples are located at [monai/examples](https://github.com/Project-
 
 Technical documentation is available via [Read the Docs](https://monai.readthedocs.io/en/latest/).
 
+Pre-built Docker image is available via [DockerHub](https://hub.docker.com/repository/docker/projectmonai/monai/).
+
 ## Contributing
 For guidance on making a contribution to MONAI, see the [contributing guidelines](https://github.com/Project-MONAI/MONAI/blob/master/CONTRIBUTING.md).
 

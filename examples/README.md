@@ -5,5 +5,5 @@ These could be installed by:
 ```bash
 python -m pip install -U pip
 python -m pip install -U matplotlib
-python -m pip install notebook
+python -m pip install -U notebook
 ```
