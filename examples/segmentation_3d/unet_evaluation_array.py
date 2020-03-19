@@ -20,9 +20,6 @@ import torch
 from ignite.engine import Engine
 from torch.utils.data import DataLoader
 
-# assumes the framework is found here, change as necessary
-sys.path.append("../..")
-
 from monai import config
 from monai.handlers.checkpoint_loader import CheckpointLoader
 from monai.handlers.segmentation_saver import SegmentationSaver

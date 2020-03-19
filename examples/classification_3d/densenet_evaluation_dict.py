@@ -17,8 +17,6 @@ import torch
 from ignite.engine import create_supervised_evaluator, _prepare_batch
 from torch.utils.data import DataLoader
 
-# assumes the framework is found here, change as necessary
-sys.path.append("../..")
 from monai.handlers.classification_saver import ClassificationSaver
 from monai.handlers.checkpoint_loader import CheckpointLoader
 from monai.handlers.stats_handler import StatsHandler
