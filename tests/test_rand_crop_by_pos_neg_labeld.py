@@ -21,7 +21,9 @@ TEST_CASE_1 = [
         'size': [2, 2, 2],
         'pos': 1,
         'neg': 1,
-        'num_samples': 2
+        'num_samples': 2,
+        'image_key': None,
+        'image_threshold': 0
     },
     {
         'image': np.random.randint(0, 2, size=[3, 3, 3, 3]),
