@@ -18,7 +18,7 @@ WORKDIR /opt/monai
 COPY . .
 
 ENV PYTHONPATH=$PYTHONPATH:/opt/monai
-ENV PATH=/opt/monai/tools:$PATH
+ENV PATH=/opt/tools:$PATH
 
 RUN python -m pip install -U pip
 # remove preintalls
@@ -28,7 +28,7 @@ RUN python -m pip install -r requirements.txt
 
 
 # NGC Client
-WORKDIR /opt/monai/tools
+WORKDIR /opt/tools
 RUN wget -q https://ngc.nvidia.com/downloads/ngccli_cat_linux.zip && \
     unzip ngccli_cat_linux.zip && chmod u+x ngc && \
     rm -rf ngccli_cat_linux.zip ngc.md5
