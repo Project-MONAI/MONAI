@@ -19,6 +19,16 @@ MONAI is a [PyTorch](https://pytorch.org/)-based, [open-source](https://github.c
 - customizable design for varying user expertise;
 - multi-GPU data parallelism support.
 
+## Installation
+Clone and build this repository from source
+
+```bash
+git clone https://github.com/Project-MONAI/MONAI.git
+pip install -e MONAI/
+```
+
+Run some of the examples in [Getting Started](##getting-started)
+
 ## Getting Started
 
 Tutorials & examples are located at [monai/examples](https://github.com/Project-MONAI/MONAI/tree/master/examples).

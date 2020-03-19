@@ -21,9 +21,6 @@ from ignite.engine import Events, create_supervised_trainer, create_supervised_e
 from ignite.handlers import ModelCheckpoint, EarlyStopping
 from torch.utils.data import DataLoader
 
-# assumes the framework is found here, change as necessary
-sys.path.append("../..")
-
 import monai
 import monai.transforms.compose as transforms
 

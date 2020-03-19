@@ -20,9 +20,6 @@ import torch
 from ignite.engine import Engine
 from torch.utils.data import DataLoader
 
-# assumes the framework is found here, change as necessary
-sys.path.append("../..")
-
 import monai
 from monai.data.utils import list_data_collate
 from monai.utils.sliding_window_inference import sliding_window_inference
