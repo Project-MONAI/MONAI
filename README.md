@@ -24,7 +24,7 @@ Clone and build this repository from source
 
 ```bash
 git clone https://github.com/Project-MONAI/MONAI.git
-python setup.py install
+pip install -e MONAI/
 ```
 
 Run some of the examples in [Getting Started](##getting-started)
