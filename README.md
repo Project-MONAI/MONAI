@@ -25,7 +25,7 @@ Tutorials & examples are located at [monai/examples](https://github.com/Project-
 
 Technical documentation is available via [Read the Docs](https://monai.readthedocs.io/en/latest/).
 
-Pre-built Docker image is available via [DockerHub](https://hub.docker.com/repository/docker/projectmonai/monai/):
+Pre-built Docker image is available via [DockerHub](https://hub.docker.com/r/projectmonai/monai):
 ```batch
 # with docker v19.03+
 docker run --gpus all --rm -ti --ipc=host projectmonai/monai:latest
