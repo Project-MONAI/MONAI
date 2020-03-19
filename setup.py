@@ -40,9 +40,9 @@ if __name__ == '__main__':
         # Metadata
         name="monai",
         version=VERSION,
-        author="MONAI Core Team",
+        author="MONAI Consortium",
         url="https://github.com/Project-MONAI/MONAI",
-        author_email="wenqil@nvidia.com",
+        author_email="monai.miccai2019@gmail.com",
         description="AI Toolkit for Healthcare Imaging",
         long_description_content_type="text/markdown",
         long_description=readme,
