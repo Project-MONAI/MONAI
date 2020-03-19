@@ -421,11 +421,13 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         neg (int, float): used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
           foreground voxel as a center rather than a background voxel.
         num_samples (int): number of samples (crop regions) to take in each list.
-        image_key (str): if image_key is not None, use (label = 0 & image > 0) to select background.
-            so the crop center will only exist on valid image area.
+        image_key (str): if image_key is not None, use ``label == 0 & image > image_threshold`` to select
+            the negative sample(background) center. so the crop center will only exist on valid image area.
+        image_threshold (int or float): if enabled image_key, use ``image > image_threshold`` to determine
+            the valid image content area.
     """
 
-    def __init__(self, keys, label_key, size, pos=1, neg=1, num_samples=1, image_key=None):
+    def __init__(self, keys, label_key, size, pos=1, neg=1, num_samples=1, image_key=None, image_threshold=0):
         MapTransform.__init__(self, keys)
         assert isinstance(label_key, str), 'label_key must be a string.'
         assert isinstance(size, (list, tuple)), 'size must be list or tuple.'
@@ -440,11 +442,12 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         self.pos_ratio = float(pos) / (float(pos) + float(neg))
         self.num_samples = num_samples
         self.image_key = image_key
+        self.image_threshold = image_threshold
         self.centers = None
 
     def randomize(self, label, image):
-        self.centers = generate_pos_neg_label_crop_centers(label, self.size, self.num_samples,
-                                                           self.pos_ratio, image, self.R)
+        self.centers = generate_pos_neg_label_crop_centers(label, self.size, self.num_samples, self.pos_ratio,
+                                                           image, self.image_threshold, self.R)
 
     def __call__(self, data):
         d = dict(data)
