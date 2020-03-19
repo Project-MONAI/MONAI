@@ -10,20 +10,26 @@
 # limitations under the License.
 
 import unittest
-
 import numpy as np
+from parameterized import parameterized
+from monai.transforms import PadImageEnd
 
-from monai.transforms.transforms import IntensityNormalizer
-from tests.utils import NumpyImageTestCase2D
+TEST_CASE_1 = [
+    {
+        'out_size': [16, 16, 8],
+        'mode': 'constant'
+    },
+    np.zeros((1, 3, 8, 8, 4)),
+    np.zeros((1, 3, 16, 16, 8)),
+]
 
+class TestPadImageEnd(unittest.TestCase):
 
-class IntensityNormTestCase(NumpyImageTestCase2D):
-
-    def test_image_normalizer_default(self):
-        normalizer = IntensityNormalizer()
-        normalised = normalizer(self.imt)
-        expected = (self.imt - np.mean(self.imt)) / np.std(self.imt)
-        self.assertTrue(np.allclose(normalised, expected))
+    @parameterized.expand([TEST_CASE_1])
+    def test_image_end_pad_shape(self, input_param, input_data, expected_val):
+        padder = PadImageEnd(**input_param)
+        result = padder(input_data)
+        self.assertAlmostEqual(result.shape, expected_val.shape)
 
 
 if __name__ == '__main__':

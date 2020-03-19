@@ -129,15 +129,21 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
-`IntensityNormalizer`
+`NormalizeIntensity`
 ~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: IntensityNormalizer
+.. autoclass:: NormalizeIntensity
     :members:
     :special-members: __call__
 
-`ImageEndPadder`
+`ScaleIntensityRange`
+~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: ScaleIntensityRange
+    :members:
+    :special-members: __call__
+
+`PadImageEnd`
 ~~~~~~~~~~~~~~~~
-.. autoclass:: ImageEndPadder
+.. autoclass:: PadImageEnd
     :members:
     :special-members: __call__
 
@@ -183,9 +189,27 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
+`Resample`
+~~~~~~~~~~~
+.. autoclass:: Resample
+    :members:
+    :special-members: __call__
+
 `RandAffine`
 ~~~~~~~~~~~~
 .. autoclass:: RandAffine
+    :members:
+    :special-members: __call__
+
+`RandDeformGrid`
+~~~~~~~~~~~~~~~~
+.. autoclass:: RandDeformGrid
+    :members:
+    :special-members: __call__
+
+`RandAffineGrid`
+~~~~~~~~~~~~~~~~
+.. autoclass:: RandAffineGrid
     :members:
     :special-members: __call__
 
@@ -259,6 +283,18 @@ Dictionary-based Composables
 `UniformRandomPatchd`
 ~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: UniformRandomPatchd
+    :members:
+    :special-members: __call__
+
+`NormalizeIntensityd`
+~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: NormalizeIntensityd
+    :members:
+    :special-members: __call__
+
+`ScaleIntensityRanged`
+~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: ScaleIntensityRanged
     :members:
     :special-members: __call__
 

@@ -78,17 +78,15 @@ check_loader = DataLoader(check_ds, batch_size=2, num_workers=4, collate_fn=list
 check_data = monai.utils.misc.first(check_loader)
 print(check_data['img'].shape, check_data['seg'].shape)
 
-
 # create a training data loader
 train_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
 # use batch_size=2 to load images and use RandCropByPosNegLabeld to generate 2 x 4 images for network training
-train_loader = DataLoader(train_ds, batch_size=2, num_workers=4, collate_fn=list_data_collate,
-                          pin_memory=torch.cuda.is_available())
+train_loader = DataLoader(train_ds, batch_size=2, shuffle=True, num_workers=4,
+                          collate_fn=list_data_collate, pin_memory=torch.cuda.is_available())
 # create a validation data loader
 val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
 val_loader = DataLoader(val_ds, batch_size=5, num_workers=8, collate_fn=list_data_collate,
                         pin_memory=torch.cuda.is_available())
-
 
 # Create UNet, DiceLoss and Adam optimizer
 net = monai.networks.nets.UNet(
@@ -103,7 +101,6 @@ loss = monai.losses.DiceLoss(do_sigmoid=True)
 lr = 1e-3
 opt = torch.optim.Adam(net.parameters(), lr)
 device = torch.device("cuda:0")
-
 
 # ignite trainer expects batch=(img, seg) and returns output=loss at every iteration,
 # user can add output_transform to return other values, like: y_pred, y, etc.
@@ -128,7 +125,6 @@ train_stats_handler.attach(trainer)
 # TensorBoardStatsHandler plots loss at every iteration and plots metrics at every epoch, same as StatsHandler
 train_tensorboard_stats_handler = TensorBoardStatsHandler()
 train_tensorboard_stats_handler.attach(trainer)
-
 
 validation_every_n_iters = 5
 # Set parameters for validation
@@ -174,7 +170,6 @@ val_tensorboard_image_handler = TensorBoardImageHandler(
 )
 evaluator.add_event_handler(
     event_name=Events.ITERATION_COMPLETED(every=2), handler=val_tensorboard_image_handler)
-
 
 train_epochs = 5
 state = trainer.run(train_loader, train_epochs)
