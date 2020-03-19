@@ -421,9 +421,11 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         neg (int, float): used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
           foreground voxel as a center rather than a background voxel.
         num_samples (int): number of samples (crop regions) to take in each list.
+        image_key (str): if image_key is not None, use (label = 0 & image > 0) to select background.
+            so the crop center will only exist on valid image area.
     """
 
-    def __init__(self, keys, label_key, size, pos=1, neg=1, num_samples=1):
+    def __init__(self, keys, label_key, size, pos=1, neg=1, num_samples=1, image_key=None):
         MapTransform.__init__(self, keys)
         assert isinstance(label_key, str), 'label_key must be a string.'
         assert isinstance(size, (list, tuple)), 'size must be list or tuple.'
@@ -437,15 +439,18 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         self.size = size
         self.pos_ratio = float(pos) / (float(pos) + float(neg))
         self.num_samples = num_samples
+        self.image_key = image_key
         self.centers = None
 
-    def randomize(self, label):
-        self.centers = generate_pos_neg_label_crop_centers(label, self.size, self.num_samples, self.pos_ratio, self.R)
+    def randomize(self, label, image):
+        self.centers = generate_pos_neg_label_crop_centers(label, self.size, self.num_samples,
+                                                           self.pos_ratio, image, self.R)
 
     def __call__(self, data):
         d = dict(data)
         label = d[self.label_key]
-        self.randomize(label)
+        image = d[self.image_key] if self.image_key else None
+        self.randomize(label, image)
         results = [dict() for _ in range(self.num_samples)]
         for key in data.keys():
             if key in self.keys:
