@@ -164,7 +164,8 @@ def one_hot(labels, num_classes):
     return onehot.reshape(tuple(labels.shape) + (num_classes,)).astype(labels.dtype)
 
 
-def generate_pos_neg_label_crop_centers(label, size, num_samples, pos_ratio, rand_state=np.random):
+def generate_pos_neg_label_crop_centers(label, size, num_samples, pos_ratio, image=None,
+                                        image_threshold=0, rand_state=np.random):
     """Generate valid sample locations based on image with option for specifying foreground ratio
     Valid: samples sitting entirely within image, expected input shape: [C, H, W, D] or [C, H, W]
 
@@ -173,6 +174,10 @@ def generate_pos_neg_label_crop_centers(label, size, num_samples, pos_ratio, ran
         size (list or tuple): size of the ROIs to be sampled.
         num_samples (int): total sample centers to be generated.
         pos_ratio (float): ratio of total locations generated that have center being foreground.
+        image (numpy.ndarray): if image is not None, use ``label = 0 & image > image_threshold``
+            to select background. so the crop center will only exist on valid image area.
+        image_threshold (int or float): if enabled image_key, use ``image > image_threshold`` to
+            determine the valid image content area.
         rand_state (random.RandomState): numpy randomState object to align with other modules.
     """
     max_size = label.shape[1:]
@@ -189,9 +194,13 @@ def generate_pos_neg_label_crop_centers(label, size, num_samples, pos_ratio, ran
             valid_end[i] += 1
 
     # Prepare fg/bg indices
-    label_flat = label.ravel()
-    fg_indicies = np.where(label_flat > 0)[0]
-    bg_indicies = np.where(label_flat == 0)[0]
+    label_flat = np.any(label, axis=0).ravel()  # in case label has multiple dimensions
+    fg_indicies = np.nonzero(label_flat)[0]
+    if image is not None:
+        img_flat = np.any(image > image_threshold, axis=0).ravel()
+        bg_indicies = np.nonzero(np.logical_and(img_flat, ~label_flat))[0]
+    else:
+        bg_indicies = np.nonzero(~label_flat)[0]
 
     centers = []
     for _ in range(num_samples):

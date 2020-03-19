@@ -24,7 +24,8 @@ from monai.transforms.compose import Randomizable, MapTransform
 from monai.transforms.transforms import (LoadNifti, AsChannelFirst, Orientation,
                                          AddChannel, Spacing, Rotate90, SpatialCrop,
                                          RandAffine, Rand2DElastic, Rand3DElastic,
-                                         Rescale, Resize, Flip, Rotate, Zoom)
+                                         Rescale, Resize, Flip, Rotate, Zoom,
+                                         NormalizeIntensity, ScaleIntensityRange)
 from monai.utils.misc import ensure_tuple
 from monai.transforms.utils import generate_pos_neg_label_crop_centers, create_grid
 from monai.utils.aliases import alias
@@ -117,7 +118,7 @@ class LoadNiftid(MapTransform):
     dictionary-based wrapper of LoadNifti, must load image and metadata together.
     """
 
-    def __init__(self, keys, as_closest_canonical=False, dtype=None, meta_key_format='{}.{}', overwriting_keys=False):
+    def __init__(self, keys, as_closest_canonical=False, dtype=np.float32, meta_key_format='{}.{}', overwriting_keys=False):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -353,6 +354,57 @@ class RandRotate90d(Randomizable, MapTransform):
 
 
 @export
+@alias('NormalizeIntensityD', 'NormalizeIntensityDict')
+class NormalizeIntensityd(MapTransform):
+    """
+    dictionary-based wrapper of NormalizeIntensity.
+
+    Args:
+        keys (hashable items): keys of the corresponding items to be transformed.
+            See also: monai.transform.composables.MapTransform
+        subtrahend (ndarray): the amount to subtract by (usually the mean)
+        divisor (ndarray): the amount to divide by (usually the standard deviation)
+    """
+
+    def __init__(self, keys, subtrahend=None, divisor=None):
+        MapTransform.__init__(self, keys)
+        self.normalizer = NormalizeIntensity(subtrahend, divisor)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.normalizer(d[key])
+        return d
+
+
+@export
+@alias('ScaleIntensityRangeD', 'ScaleIntensityRangeDict')
+class ScaleIntensityRanged(MapTransform):
+    """
+    dictionary-based wrapper of ScaleIntensityRange.
+
+    Args:
+        keys (hashable items): keys of the corresponding items to be transformed.
+            See also: monai.transform.composables.MapTransform
+        a_min (int or float): intensity original range min.
+        a_max (int or float): intensity original range max.
+        b_min (int or float): intensity target range min.
+        b_max (int or float): intensity target range max.
+        clip (bool): whether to perform clip after scaling.
+    """
+
+    def __init__(self, keys, a_min, a_max, b_min, b_max, clip=False):
+        MapTransform.__init__(self, keys)
+        self.scaler = ScaleIntensityRange(a_min, a_max, b_min, b_max, clip)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.scaler(d[key])
+        return d
+
+
+@export
 @alias('RandCropByPosNegLabelD', 'RandCropByPosNegLabelDict')
 class RandCropByPosNegLabeld(Randomizable, MapTransform):
     """
@@ -369,9 +421,13 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         neg (int, float): used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
           foreground voxel as a center rather than a background voxel.
         num_samples (int): number of samples (crop regions) to take in each list.
+        image_key (str): if image_key is not None, use ``label == 0 & image > image_threshold`` to select
+            the negative sample(background) center. so the crop center will only exist on valid image area.
+        image_threshold (int or float): if enabled image_key, use ``image > image_threshold`` to determine
+            the valid image content area.
     """
 
-    def __init__(self, keys, label_key, size, pos=1, neg=1, num_samples=1):
+    def __init__(self, keys, label_key, size, pos=1, neg=1, num_samples=1, image_key=None, image_threshold=0):
         MapTransform.__init__(self, keys)
         assert isinstance(label_key, str), 'label_key must be a string.'
         assert isinstance(size, (list, tuple)), 'size must be list or tuple.'
@@ -385,15 +441,19 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         self.size = size
         self.pos_ratio = float(pos) / (float(pos) + float(neg))
         self.num_samples = num_samples
+        self.image_key = image_key
+        self.image_threshold = image_threshold
         self.centers = None
 
-    def randomize(self, label):
-        self.centers = generate_pos_neg_label_crop_centers(label, self.size, self.num_samples, self.pos_ratio, self.R)
+    def randomize(self, label, image):
+        self.centers = generate_pos_neg_label_crop_centers(label, self.size, self.num_samples, self.pos_ratio,
+                                                           image, self.image_threshold, self.R)
 
     def __call__(self, data):
         d = dict(data)
         label = d[self.label_key]
-        self.randomize(label)
+        image = d[self.image_key] if self.image_key else None
+        self.randomize(label, image)
         results = [dict() for _ in range(self.num_samples)]
         for key in data.keys():
             if key in self.keys:

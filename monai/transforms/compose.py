@@ -71,8 +71,6 @@ class Randomizable:
 
         Returns:
             a Randomizable instance.
-        Note:
-            thread safety
         """
         if seed is not None:
             _seed = id(seed) if not isinstance(seed, int) else seed
