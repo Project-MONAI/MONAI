@@ -14,7 +14,9 @@ Sliding window inference
 Module utils
 ------------
 .. automodule:: monai.utils.module
+  :members:
 
 Aliases
 -------
 .. automodule:: monai.utils.aliases
+  :members:

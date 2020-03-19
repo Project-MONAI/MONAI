@@ -82,11 +82,10 @@ print(im.shape, seg.shape)
 
 # create a training data loader
 train_ds = NiftiDataset(images[:20], segs[:20], transform=train_imtrans, seg_transform=train_segtrans)
-train_loader = DataLoader(train_ds, batch_size=5, num_workers=8, pin_memory=torch.cuda.is_available())
+train_loader = DataLoader(train_ds, batch_size=5, shuffle=True, num_workers=8, pin_memory=torch.cuda.is_available())
 # create a validation data loader
 val_ds = NiftiDataset(images[-20:], segs[-20:], transform=val_imtrans, seg_transform=val_segtrans)
 val_loader = DataLoader(val_ds, batch_size=5, num_workers=8, pin_memory=torch.cuda.is_available())
-
 
 # Create UNet, DiceLoss and Adam optimizer
 net = monai.networks.nets.UNet(
@@ -101,7 +100,6 @@ loss = monai.losses.DiceLoss(do_sigmoid=True)
 lr = 1e-3
 opt = torch.optim.Adam(net.parameters(), lr)
 device = torch.device("cuda:0")
-
 
 # ignite trainer expects batch=(img, seg) and returns output=loss at every iteration,
 # user can add output_transform to return other values, like: y_pred, y, etc.
@@ -122,7 +120,6 @@ train_stats_handler.attach(trainer)
 # TensorBoardStatsHandler plots loss at every iteration and plots metrics at every epoch, same as StatsHandler
 train_tensorboard_stats_handler = TensorBoardStatsHandler()
 train_tensorboard_stats_handler.attach(trainer)
-
 
 validation_every_n_epochs = 1
 # Set parameters for validation
@@ -167,7 +164,6 @@ val_tensorboard_image_handler = TensorBoardImageHandler(
     global_iter_transform=lambda x: trainer.state.epoch
 )
 evaluator.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=val_tensorboard_image_handler)
-
 
 train_epochs = 30
 state = trainer.run(train_loader, train_epochs)

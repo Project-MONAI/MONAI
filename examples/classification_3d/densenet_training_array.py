@@ -149,7 +149,7 @@ def run_validation(engine):
 
 # create a training data loader
 train_ds = NiftiDataset(image_files=images[:10], labels=labels[:10], transform=train_transforms)
-train_loader = DataLoader(train_ds, batch_size=2, num_workers=2, pin_memory=torch.cuda.is_available())
+train_loader = DataLoader(train_ds, batch_size=2, shuffle=True, num_workers=2, pin_memory=torch.cuda.is_available())
 
 train_epochs = 30
 state = trainer.run(train_loader, train_epochs)

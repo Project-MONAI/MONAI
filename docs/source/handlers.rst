@@ -20,7 +20,7 @@ Mean Dice metrics handler
 .. automodule:: monai.handlers.mean_dice
     :members:
 
-Metrics logger
+Metric logger
 ---------------
 .. automodule:: monai.handlers.metric_logger
     :members:
