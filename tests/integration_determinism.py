@@ -13,7 +13,6 @@ import sys
 
 import numpy as np
 import torch
-from ignite.engine import create_supervised_trainer
 from torch.utils.data import DataLoader, Dataset
 
 from monai.data.synthetic import create_test_image_2d
@@ -45,16 +44,30 @@ def run_test(batch_size=64, train_steps=100, device=torch.device("cuda:0")):
     opt = torch.optim.Adam(net.parameters(), 1e-4)
     src = DataLoader(_TestBatch(), batch_size=batch_size)
 
-    trainer = create_supervised_trainer(net, opt, loss, device, False)
+    net.train()
+    epoch_loss = 0
+    step = 0
+    for img, seg in src:
+        step += 1
+        opt.zero_grad()
+        output = net(img.to(device))
+        step_loss = loss(output, seg.to(device))
+        step_loss.backward()
+        opt.step()
+        epoch_loss += step_loss.item()
+    epoch_loss /= step
 
-    trainer.run(src, 1)
-    loss = trainer.state.output
-    print('Loss:', loss)
-    if loss >= 1:
-        print('Loss value is wrong, expect to be < 1.')
-    return loss
+    print('Loss:', epoch_loss)
+    delta = abs(epoch_loss - 0.70605)
+    if delta > 0.0001:
+        print('Loss value is wrong, expect to be 0.70605.')
+    return delta
 
 
 if __name__ == "__main__":
+    np.random.seed(0)
+    torch.manual_seed(0)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
     result = run_test()
-    sys.exit(0 if result < 1 else 1)
+    sys.exit(1 if result > 0.0001 else 0)
