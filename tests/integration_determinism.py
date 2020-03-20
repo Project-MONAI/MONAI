@@ -14,7 +14,8 @@ import sys
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
-
+from monai.transforms import AddChannel, Rescale, UniformRandomPatch, RandRotate90
+import monai.transforms.compose as transforms
 from monai.data.synthetic import create_test_image_2d
 from monai.losses.dice import DiceLoss
 from monai.networks.nets.unet import UNet
@@ -24,9 +25,17 @@ def run_test(batch_size=64, train_steps=100, device=torch.device("cuda:0")):
 
     class _TestBatch(Dataset):
 
+        def __init__(self, transforms):
+            self.transforms = transforms
+
         def __getitem__(self, _unused_id):
             im, seg = create_test_image_2d(128, 128, noise_max=1, num_objs=4, num_seg_classes=1)
-            return im[None], seg[None].astype(np.float32)
+            seed = np.random.randint(2147483647)
+            self.transforms.set_random_state(seed=seed)
+            im = self.transforms(im)
+            self.transforms.set_random_state(seed=seed)
+            seg = self.transforms(seg)
+            return im, seg
 
         def __len__(self):
             return train_steps
@@ -41,8 +50,15 @@ def run_test(batch_size=64, train_steps=100, device=torch.device("cuda:0")):
     ).to(device)
 
     loss = DiceLoss(do_sigmoid=True)
-    opt = torch.optim.Adam(net.parameters(), 1e-4)
-    src = DataLoader(_TestBatch(), batch_size=batch_size)
+    opt = torch.optim.Adam(net.parameters(), 1e-2)
+    train_transforms = transforms.Compose([
+        AddChannel(),
+        Rescale(),
+        UniformRandomPatch((96, 96)),
+        RandRotate90()
+    ])
+
+    src = DataLoader(_TestBatch(train_transforms), batch_size=batch_size)
 
     net.train()
     epoch_loss = 0
@@ -58,10 +74,10 @@ def run_test(batch_size=64, train_steps=100, device=torch.device("cuda:0")):
     epoch_loss /= step
 
     print('Loss:', epoch_loss)
-    delta = abs(epoch_loss - 0.70605)
-    if delta > 0.0001:
-        print('Loss value is wrong, expect to be 0.70605.')
-    return delta
+    result = np.allclose(epoch_loss, 0.578675)
+    if result is False:
+        print('Loss value is wrong, expect to be 0.578675.')
+    return result
 
 
 if __name__ == "__main__":
@@ -69,5 +85,4 @@ if __name__ == "__main__":
     torch.manual_seed(0)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
-    result = run_test()
-    sys.exit(1 if result > 0.0001 else 0)
+    sys.exit(0 if run_test() is True else 1)
