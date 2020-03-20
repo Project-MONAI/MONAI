@@ -14,7 +14,7 @@ import sys
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
-from monai.transforms import AddChannel, Rescale, UniformRandomPatch, RandRotate90
+from monai.transforms import AddChannel, Rescale, RandUniformPatch, RandRotate90
 import monai.transforms.compose as transforms
 from monai.data.synthetic import create_test_image_2d
 from monai.losses.dice import DiceLoss
@@ -54,7 +54,7 @@ def run_test(batch_size=64, train_steps=100, device=torch.device("cuda:0")):
     train_transforms = transforms.Compose([
         AddChannel(),
         Rescale(),
-        UniformRandomPatch((96, 96)),
+        RandUniformPatch((96, 96)),
         RandRotate90()
     ])
 
