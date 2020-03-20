@@ -47,8 +47,26 @@ affine = Affine(
 # convert the image using interpolation mode
 new_img = affine(image, spatial_size=(300, 400), mode='bilinear')
 ```
+
 ### 4. Randomly crop out batch images based on positive/negative ratio
 Medical image data volume may be too large to fit into GPU memory. A widely-used approach is to randomly draw small size data samples during training. MONAI currrently provides uniform random sampling strategy as well as class-balanced fixed ratio sampling which may help stabilize the patch-based training process.
+
+### 5. Deterministic training for reproducibility
+Deterministic training support is necessary and important in DL research area, especially when sharing reproducible work with others. Users can easily set random seed to all the transforms in MONAI locally and will not affect other non-deterministic modules in the user's program.
+Example code:
+```py
+# define a transform chain for pre-processing
+train_transforms = monai.transforms.compose.Compose([
+    LoadNiftid(keys=['image', 'label']),
+    ... ...
+])
+# set determinism for reproducibility
+train_transforms.set_random_state(seed=0)
+np.random.seed(0)
+torch.manual_seed(0)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+```
 
 ## Losses
 There are domain-specific loss functions in the medical research area which are different from the generic computer vision ones. As an important module of MONAI, these loss functions are implemented in PyTorch, such as Dice loss and generalized Dice loss.

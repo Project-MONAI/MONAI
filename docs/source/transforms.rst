@@ -123,9 +123,9 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
-`UniformRandomPatch`
+`RandUniformPatch`
 ~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: UniformRandomPatch
+.. autoclass:: RandUniformPatch
     :members:
     :special-members: __call__
 
@@ -280,9 +280,9 @@ Dictionary-based Composables
     :members:
     :special-members: __call__
 
-`UniformRandomPatchd`
+`RandUniformPatchd`
 ~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: UniformRandomPatchd
+.. autoclass:: RandUniformPatchd
     :members:
     :special-members: __call__
 
