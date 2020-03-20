@@ -489,9 +489,11 @@ class ToTensor:
     """
     Converts the input image to a tensor without applying any other transformations.
     """
+    def __init__(self, dtype=torch.FloatTensor):
+        self.dtype = dtype
 
     def __call__(self, img):
-        return torch.from_numpy(img)
+        return torch.from_numpy(img).type(dtype=self.dtype)
 
 
 @export
