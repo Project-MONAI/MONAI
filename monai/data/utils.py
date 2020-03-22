@@ -243,13 +243,61 @@ def rectify_header_sform_qform(img_nii):
             img_nii.set_qform(img_nii.get_sform())
             return img_nii
 
-    norm_affine = np.sqrt(np.sum(np.square(img_nii.affine[:, :3]), 0))
-    to_divide = np.tile(np.expand_dims(np.append(norm_affine, 1), axis=1), [1, 4])
-    pixdim = np.append(pixdim, [1.] * (4 - len(pixdim)))
-    to_multiply = np.tile(np.expand_dims(pixdim, axis=1), [1, 4])
-    affine = img_nii.affine / to_divide.T * to_multiply.T
-    warnings.warn('Modifying image affine from {} to {}'.format(img_nii.affine, affine))
+    norm = np.sqrt(np.sum(np.square(img_nii.affine[:d, :d]), 0))
+    warnings.warn('Modifying image pixdim from {} to {}'.format(pixdim, norm))
 
-    img_nii.set_sform(affine)
-    img_nii.set_qform(affine)
+    img_nii.header.set_zooms(norm)
     return img_nii
+
+
+def zoom_affine(affine, scale, diagonal=True):
+    """
+    To make column norm of `affine` the same as `scale`.
+    if diagonal is False, returns an affine that combines orthogonal rotation,
+    translation, and the new scale. This is done by first decomposing`affine`,
+    then setting the zoom factors to `scale`, finally composing a new affine.
+    All non-orthogonal rotation and shearing factors are removed.
+    if diagonal is True, returns an diagonal matrix, the scaling factors
+    are set to the diagonal elements.
+
+    Args:
+        affine (nxn): a square matrix.
+        scale (sequence of floats): new scaling factor along each dimension.
+        diagnonal (bool): whether to return a diagnoal scaling matrix.
+            Defaults to True.
+
+    returns:
+        the updated `n x n` affine.
+    """
+    affine = np.array(affine, dtype=float, copy=True)
+    if len(affine) != len(affine[0]):
+        raise ValueError('affine should be a square matrix')
+    scale = np.array(scale, dtype=float, copy=True)
+    if np.any(scale <= 0):
+        raise ValueError('scale must be a sequence of positive numbers.')
+    translate = affine[:-1, -1]
+    rzs = affine[:-1, :-1]  # rotation zoom scale
+    zs = np.linalg.cholesky(rzs.T @ rzs).T
+    # compute original rotation
+    rotation = rzs @ np.linalg.inv(zs)
+    if np.linalg.det(rotation) < 0:
+        zs[0] *= -1
+        rotation = rzs @ np.linalg.inv(zs)
+    original_scale = np.diag(zs).copy()
+    # set new scale to zs
+    s = np.diag(zs).copy()
+    ds = min(len(s), len(scale))
+    s[:ds] = scale[:ds]
+    for i in range(ds):
+        zs[i, i] *= np.abs(s[i]) / np.abs(original_scale[i])
+
+    # construct new affine with rotation and zoom
+    new_affine = np.eye(len(affine))
+    if diagonal:
+        new_affine[:-1, :-1] = np.diag(np.diag(zs)).copy()
+        return new_affine
+
+    new_affine[:-1, :-1] = rotation @ np.diag(np.diag(zs)).copy()
+    ratio = np.diag(zs) / original_scale
+    new_affine[:-1, -1] = translate * ratio
+    return new_affine

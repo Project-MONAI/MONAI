@@ -103,19 +103,26 @@ class SegmentationSaver:
         """
         meta_data = self.batch_transform(engine.state.batch)
         filenames = meta_data['filename_or_obj']
-        original_affine = meta_data.get('original_affine', None)
-        affine = meta_data.get('affine', None)
+        original_affine_key, affine_key = 'original_affine', 'affine'
+        for meta_key in sorted(meta_data):
+            if 'original_affine' in meta_key:
+                original_affine_key = meta_key
+            elif 'affine' in meta_key:
+                affine_key = meta_key
+        original_affine = meta_data.get(original_affine_key, None)
+        affine = meta_data.get(affine_key, None)
 
         engine_output = self.output_transform(engine.state.output)
         for batch_id, filename in enumerate(filenames):  # save a batch of files
             seg_output = engine_output[batch_id]
-            affine_ = affine[batch_id]
-            original_affine_ = original_affine[batch_id]
+            affine_ = affine[batch_id] if affine is not None else None
+            original_affine_ = original_affine[batch_id] if original_affine is not None else None
             if isinstance(seg_output, torch.Tensor):
                 seg_output = seg_output.detach().cpu().numpy()
             output_filename = self._create_file_basename(self.output_postfix, filename, self.output_path)
             output_filename = '{}{}'.format(output_filename, self.output_ext)
             # change output to "channel last" format and write to nifti format file
             to_save = np.moveaxis(seg_output, 0, -1)
-            write_nifti(to_save, affine_, output_filename, original_affine_, dtype=seg_output.dtype)
+            write_nifti(data=to_save, file_name=output_filename,
+                        affine=affine_, target_affine=original_affine_, dtype=seg_output.dtype)
             self.logger.info('saved: {}'.format(output_filename))

@@ -240,7 +240,7 @@ def create_grid(spatial_size, spacing=None, homogeneous=True, dtype=float):
     coords = np.asarray(np.meshgrid(*ranges, indexing='ij'), dtype=dtype)
     if not homogeneous:
         return coords
-    return np.concatenate([coords, np.ones_like(coords[0:1, ...])])
+    return np.concatenate([coords, np.ones_like(coords[0:1])])
 
 
 def create_control_grid(spatial_shape, spacing, homogeneous=True, dtype=float):
@@ -357,3 +357,26 @@ def create_translate(spatial_dims, shift):
     for i, a in enumerate(shift[:spatial_dims]):
         affine[i, spatial_dims] = a
     return affine
+
+
+def compute_output_shape(spatial_shape, in_affine, out_affine):
+    """
+    Given input and target affine, compute appropriate shapes
+    in the target space based on the input array's shape.
+    """
+    shape = np.array(spatial_shape, copy=True, dtype=float)
+    dim_pad = 3 - len(spatial_shape)
+    if dim_pad < 0:
+        raise ValueError('this function supports up to 3D shapes.')
+    if dim_pad > 0:
+        shape = np.append(shape, [1.] * dim_pad)
+    in_coords = [(0., dim - 1.) for dim in shape]
+    corners = np.asarray(np.meshgrid(*in_coords, indexing='ij')).reshape((len(shape), -1))
+    corners = np.concatenate([corners, np.ones_like(corners[0:1])])
+    affine = np.linalg.inv(out_affine) @ in_affine
+    corners = affine @ corners
+    corners = corners[:-1] / corners[-1]
+    out_shape = np.ceil(np.max(corners, 1) - np.min(corners, 1)) + 1.
+    if dim_pad > 0:
+        out_shape = out_shape[:len(spatial_shape)]
+    return out_shape.astype(int)
