@@ -278,8 +278,8 @@ class Resized(MapTransform):
 
 
 @export
-@alias('UniformRandomPatchD', 'UniformRandomPatchDict')
-class UniformRandomPatchd(Randomizable, MapTransform):
+@alias('RandUniformPatchD', 'RandUniformPatchDict')
+class RandUniformPatchd(Randomizable, MapTransform):
     """
     Selects a patch of the given size chosen at a uniformly random position in the image.
 

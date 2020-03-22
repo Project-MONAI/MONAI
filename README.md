@@ -20,6 +20,7 @@ MONAI is a [PyTorch](https://pytorch.org/)-based, [open-source](https://github.c
 - multi-GPU data parallelism support.
 
 ## Installation
+<<<<<<< HEAD
 Clone and build this repository from source
 
 ```bash
@@ -28,6 +29,19 @@ pip install -e MONAI/
 ```
 
 Run some of the examples in [Getting Started](##getting-started)
+=======
+Clone and build this repository from source:
+  ```bash
+  git clone https://github.com/Project-MONAI/MONAI.git
+  pip install -e MONAI/
+  ```
+
+Alternatively, pre-built Docker image is available via [DockerHub](https://hub.docker.com/r/projectmonai/monai):
+  ```bash
+  # with docker v19.03+
+  docker run --gpus all --rm -ti --ipc=host projectmonai/monai:latest
+  ```
+>>>>>>> upstream/master
 
 ## Getting Started
 
