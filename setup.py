@@ -28,11 +28,13 @@ requirements = [
     "numpy",
     "pillow",
     "coverage",
+    "pydicom"
     "nibabel",
     "parameterized",
     "tensorboard",
     "scikit-image",
-    "scipy"
+    "scipy",
+    "SimpleITK"
 ]
 
 if __name__ == '__main__':
