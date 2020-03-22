@@ -25,7 +25,7 @@ import monai
 import monai.transforms.compose as transforms
 
 from monai.data.nifti_reader import NiftiDataset
-from monai.transforms import AddChannel, Rescale, UniformRandomPatch, Resize
+from monai.transforms import AddChannel, Rescale, RandUniformPatch, Resize
 from monai.handlers.stats_handler import StatsHandler
 from monai.handlers.tensorboard_handlers import TensorBoardStatsHandler, TensorBoardImageHandler
 from monai.handlers.mean_dice import MeanDice
@@ -55,11 +55,11 @@ segs = sorted(glob(os.path.join(tempdir, 'seg*.nii.gz')))
 train_imtrans = transforms.Compose([
     Rescale(),
     AddChannel(),
-    UniformRandomPatch((96, 96, 96))
+    RandUniformPatch((96, 96, 96))
 ])
 train_segtrans = transforms.Compose([
     AddChannel(),
-    UniformRandomPatch((96, 96, 96))
+    RandUniformPatch((96, 96, 96))
 ])
 val_imtrans = transforms.Compose([
     Rescale(),

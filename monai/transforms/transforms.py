@@ -493,7 +493,7 @@ class ToTensor:
 
 
 @export
-class UniformRandomPatch(Randomizable):
+class RandUniformPatch(Randomizable):
     """
     Selects a patch of the given size chosen at a uniformly random position in the image.
 

@@ -36,10 +36,32 @@ TEST_CASE_1 = [
     (3, 2, 2, 2),
 ]
 
+TEST_CASE_2 = [
+    {
+        'keys': ['image', 'extral', 'label'],
+        'label_key': 'label',
+        'size': [2, 2, 2],
+        'pos': 1,
+        'neg': 1,
+        'num_samples': 2,
+        'image_key': None,
+        'image_threshold': 0
+    },
+    {
+        'image': np.zeros([3, 3, 3, 3]) - 1,
+        'extral': np.zeros([3, 3, 3, 3]),
+        'label': np.ones([3, 3, 3, 3]),
+        'affine': np.eye(3),
+        'shape': 'CHWD'
+    },
+    list,
+    (3, 2, 2, 2),
+]
+
 
 class TestRandCropByPosNegLabeld(unittest.TestCase):
 
-    @parameterized.expand([TEST_CASE_1])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_type_shape(self, input_param, input_data, expected_type, expected_shape):
         result = RandCropByPosNegLabeld(**input_param)(input_data)
         self.assertIsInstance(result, expected_type)
