@@ -146,7 +146,6 @@ class DenseNet(nn.Module):
             OrderedDict([
                 ('relu', nn.ReLU(inplace=True)),
                 ('norm', get_avgpooling_type(spatial_dims, is_adaptive=True)(1)),
-                ('relu', nn.ReLU(inplace=True)),
                 ('flatten', nn.Flatten(1)),
                 ('class', nn.Linear(in_channels, out_channels)),
             ]))

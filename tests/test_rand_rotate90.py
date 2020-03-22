@@ -17,34 +17,46 @@ from monai.transforms.transforms import RandRotate90
 from tests.utils import NumpyImageTestCase2D
 
 
-class Rotate90Test(NumpyImageTestCase2D):
+class TestRandRotate90(NumpyImageTestCase2D):
 
     def test_default(self):
         rotate = RandRotate90()
         rotate.set_random_state(123)
-        rotated = rotate(self.imt)
-        expected = np.rot90(self.imt, 0, (1, 2))
+        rotated = rotate(self.imt[0])
+        expected = list()
+        for channel in self.imt[0]:
+            expected.append(np.rot90(channel, 0, (0, 1)))
+        expected = np.stack(expected)
         self.assertTrue(np.allclose(rotated, expected))
 
     def test_k(self):
         rotate = RandRotate90(max_k=2)
         rotate.set_random_state(234)
-        rotated = rotate(self.imt)
-        expected = np.rot90(self.imt, 0, (1, 2))
+        rotated = rotate(self.imt[0])
+        expected = list()
+        for channel in self.imt[0]:
+            expected.append(np.rot90(channel, 0, (0, 1)))
+        expected = np.stack(expected)
         self.assertTrue(np.allclose(rotated, expected))
 
-    def test_axes(self):
-        rotate = RandRotate90(axes=(1, 2))
+    def test_spatial_axes(self):
+        rotate = RandRotate90(spatial_axes=(0, 1))
         rotate.set_random_state(234)
-        rotated = rotate(self.imt)
-        expected = np.rot90(self.imt, 0, (1, 2))
+        rotated = rotate(self.imt[0])
+        expected = list()
+        for channel in self.imt[0]:
+            expected.append(np.rot90(channel, 0, (0, 1)))
+        expected = np.stack(expected)
         self.assertTrue(np.allclose(rotated, expected))
 
-    def test_prob_k_axes(self):
-        rotate = RandRotate90(prob=1.0, max_k=2, axes=(2, 3))
+    def test_prob_k_spatial_axes(self):
+        rotate = RandRotate90(prob=1.0, max_k=2, spatial_axes=(0, 1))
         rotate.set_random_state(234)
-        rotated = rotate(self.imt)
-        expected = np.rot90(self.imt, 1, (2, 3))
+        rotated = rotate(self.imt[0])
+        expected = list()
+        for channel in self.imt[0]:
+            expected.append(np.rot90(channel, 1, (0, 1)))
+        expected = np.stack(expected)
         self.assertTrue(np.allclose(rotated, expected))
 
 

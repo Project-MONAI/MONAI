@@ -20,15 +20,14 @@ def _image3_animated_gif(imp, scale_factor=1):
     Function to actually create the animated gif.
     Args:
         imp: tuple of tag and a list of image tensors
-        scale_factor: amount to multiply values by (if the image data is between 0 and 1, using 255 for this value will
-        scale it to displayable range)
+        scale_factor: amount to multiply values by. if the image data is between 0 and 1, using 255 for this value will
+        scale it to displayable range
     """
 
-    # x=numpy.random.randint(0,256,[10,10,10],numpy.uint8)
     (tag, ims) = imp
     ims = [
-        (np.asarray((ims[i, :, :])) * scale_factor).astype(np.uint8)
-        for i in range(ims.shape[0])
+        (np.asarray((ims[:, :, i])) * scale_factor).astype(np.uint8)
+        for i in range(ims.shape[2])
     ]
     ims = [GifImage.fromarray(im) for im in ims]
     img_str = b''
@@ -49,8 +48,8 @@ def _image3_animated_gif(imp, scale_factor=1):
 def make_animated_gif_summary(tag,
                               tensor,
                               max_out=3,
-                              animation_axes=(1,),
-                              image_axes=(2, 3),
+                              animation_axes=(3,),
+                              image_axes=(1, 2),
                               other_indices=None,
                               scale_factor=1):
     """
@@ -58,13 +57,13 @@ def make_animated_gif_summary(tag,
 
     Args:
         tag: Data identifier
-        tensor: tensor for the image, expected to be in CDHW format
+        tensor: tensor for the image, expected to be in CHWD format
         max_out: maximum number of slices to animate through
         animation_axes: axis to animate on (not currently used)
         image_axes: axes of image (not currently used)
         other_indices: (not currently used)
-        scale_factor: amount to multiply values by (if the image data is between 0 and 1, using 255 for this value will
-        scale it to displayable range)
+        scale_factor: amount to multiply values by.
+            if the image data is between 0 and 1, using 255 for this value will scale it to displayable range
     """
 
     if max_out == 1:
@@ -101,8 +100,8 @@ def add_animated_gif(writer, tag, image_tensor, max_out, scale_factor, global_st
         tag: Data identifier
         image_tensor: tensor for the image to add, expected to be in CDHW format
         max_out: maximum number of slices to animate through
-        scale_factor: amount to multiply values by (if the image data is between 0 and 1, using 255 for this value will
-        scale it to displayable range)
+        scale_factor: amount to multiply values by. If the image data is between 0 and 1, using 255 for this value will
+            scale it to displayable range
         global_step: Global step value to record
     """
     writer._get_file_writer().add_summary(make_animated_gif_summary(tag, image_tensor, max_out=max_out,
@@ -119,8 +118,8 @@ def add_animated_gif_no_channels(writer, tag, image_tensor, max_out, scale_facto
         tag: Data identifier
         image_tensor: tensor for the image to add, expected to be in DHW format
         max_out: maximum number of slices to animate through
-        scale_factor: amount to multiply values by (if the image data is between 0 and 1, using 255 for this value will
-        scale it to displayable range)
+        scale_factor: amount to multiply values by. If the image data is between 0 and 1, using 255 for this value will
+            scale it to displayable range
         global_step: Global step value to record
     """
     writer._get_file_writer().add_summary(make_animated_gif_summary(tag, image_tensor.unsqueeze(0),

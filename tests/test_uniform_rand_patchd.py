@@ -17,20 +17,20 @@ from monai.transforms.composables import UniformRandomPatchd
 from tests.utils import NumpyImageTestCase2D
 
 
-class UniformRandomPatchdTest(NumpyImageTestCase2D):
+class TestUniformRandomPatchd(NumpyImageTestCase2D):
 
     def test_2d(self):
-        patch_size = (1, 10, 10)
+        patch_spatial_size = (10, 10)
         key = 'test'
-        patch_transform = UniformRandomPatchd(keys='test', patch_size=patch_size)
-        patch = patch_transform({key: self.imt})
-        self.assertTrue(np.allclose(patch[key].shape[:-2], patch_size[:-2]))
+        patch_transform = UniformRandomPatchd(keys='test', patch_spatial_size=patch_spatial_size)
+        patch = patch_transform({key: self.imt[0]})
+        self.assertTrue(np.allclose(patch[key].shape[1:], patch_spatial_size))
 
     def test_sync(self):
-        patch_size = (1, 4, 4)
+        patch_spatial_size = (4, 4)
         key_1, key_2 = 'foo', 'bar'
         rand_image = np.random.rand(3, 10, 10)
-        patch_transform = UniformRandomPatchd(keys=(key_1, key_2), patch_size=patch_size)
+        patch_transform = UniformRandomPatchd(keys=(key_1, key_2), patch_spatial_size=patch_spatial_size)
         patch = patch_transform({key_1: rand_image, key_2: rand_image})
         self.assertTrue(np.allclose(patch[key_1], patch[key_2]))
 

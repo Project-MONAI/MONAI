@@ -40,7 +40,7 @@ def run_test(batch_size=2, device=torch.device("cpu:0")):
     net = UNet(
         dimensions=3,
         in_channels=1,
-        num_classes=1,
+        out_channels=1,
         channels=(4, 8, 16, 32),
         strides=(2, 2, 2),
         num_res_units=2,
@@ -52,29 +52,32 @@ def run_test(batch_size=2, device=torch.device("cpu:0")):
         net.eval()
         img, seg, meta_data = batch
         with torch.no_grad():
-            seg_probs = sliding_window_inference(img, roi_size, sw_batch_size, lambda x: net(x)[0], device)
+            seg_probs = sliding_window_inference(img, roi_size, sw_batch_size, net, device)
             return predict_segmentation(seg_probs)
 
     infer_engine = Engine(_sliding_window_processor)
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        SegmentationSaver(output_path=temp_dir, output_ext='.nii.gz', output_postfix='seg').attach(infer_engine)
+        SegmentationSaver(output_path=temp_dir, output_ext='.nii.gz', output_postfix='seg',
+                          batch_transform=lambda x: x[2]).attach(infer_engine)
 
         infer_engine.run(loader)
 
         basename = os.path.basename(img_name)[:-len('.nii.gz')]
         saved_name = os.path.join(temp_dir, basename, '{}_seg.nii.gz'.format(basename))
-        testing_shape = nib.load(saved_name).get_fdata().shape
+        # get spatial dimensions shape, the saved nifti image format: HWDC
+        testing_shape = nib.load(saved_name).get_fdata().shape[:-1]
 
     if os.path.exists(img_name):
         os.remove(img_name)
     if os.path.exists(seg_name):
         os.remove(seg_name)
-
-    return testing_shape == input_shape
+    if testing_shape != input_shape:
+        print('testing shape: {} does not match input shape: {}.'.format(testing_shape, input_shape))
+        return False
+    return True
 
 
 if __name__ == "__main__":
     result = run_test()
-
     sys.exit(0 if result else 1)

@@ -17,13 +17,13 @@ from monai.transforms.transforms import UniformRandomPatch
 from tests.utils import NumpyImageTestCase2D
 
 
-class UniformRandomPatchTest(NumpyImageTestCase2D):
+class TestUniformRandomPatch(NumpyImageTestCase2D):
 
     def test_2d(self):
-        patch_size = (1, 10, 10)
-        patch_transform = UniformRandomPatch(patch_size=patch_size)
-        patch = patch_transform(self.imt)
-        self.assertTrue(np.allclose(patch.shape[:-2], patch_size[:-2]))
+        patch_spatial_size = (10, 10)
+        patch_transform = UniformRandomPatch(patch_spatial_size=patch_spatial_size)
+        patch = patch_transform(self.imt[0])
+        self.assertTrue(np.allclose(patch.shape[1:], patch_spatial_size))
 
 
 if __name__ == '__main__':

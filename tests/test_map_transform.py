@@ -13,7 +13,7 @@ import unittest
 
 from parameterized import parameterized
 
-from monai.transforms.composables import MapTransform
+from monai.transforms.compose import MapTransform
 
 TEST_CASES = [
     ['item', ('item',)],

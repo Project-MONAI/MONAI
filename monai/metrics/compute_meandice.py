@@ -44,10 +44,10 @@ def compute_meandice(y_pred,
         Dice scores per batch and per class (shape: [batch_size, n_classes]).
 
     Note:
-        This method provide two options to convert `y_pred` into a binary matrix:
-            (1) when `mutually_exclusive` is True, it uses a combination of argmax and to_onehot,
-            (2) when `mutually_exclusive` is False, it uses a threshold `logit_thresh`
-                (optionally with a sigmoid function before thresholding).
+        This method provides two options to convert `y_pred` into a binary matrix
+            (1) when `mutually_exclusive` is True, it uses a combination of ``argmax`` and ``to_onehot``,
+            (2) when `mutually_exclusive` is False, it uses a threshold ``logit_thresh``
+                (optionally with a ``sigmoid`` function before thresholding).
 
     """
     n_classes = y_pred.shape[1]

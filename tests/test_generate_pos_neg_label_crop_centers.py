@@ -21,6 +21,8 @@ TEST_CASE_1 = [
         'size': [2, 2, 2],
         'num_samples': 2,
         'pos_ratio': 1.0,
+        'image': None,
+        'image_threshold': 0,
         'rand_state': np.random.RandomState()
     },
     list,

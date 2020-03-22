@@ -11,10 +11,13 @@
 
 import itertools
 
+import numpy as np
+import torch
+
 
 def zip_with(op, *vals, mapfunc=map):
     """
-    Map `op`, using `mapfunc`, to each tuple derived from zipping the iterables in `vals'.
+    Map `op`, using `mapfunc`, to each tuple derived from zipping the iterables in `vals`.
     """
     return mapfunc(op, zip(*vals))
 
@@ -40,3 +43,15 @@ def ensure_tuple(vals):
         vals = (vals,)
 
     return tuple(vals)
+
+
+def is_scalar_tensor(val):
+    if torch.is_tensor(val) and val.ndim == 0:
+        return True
+    return False
+
+
+def is_scalar(val):
+    if torch.is_tensor(val) and val.ndim == 0:
+        return True
+    return np.isscalar(val)

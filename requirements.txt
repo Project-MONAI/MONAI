@@ -8,3 +8,4 @@ nibabel
 parameterized
 tensorboard
 SimpleITK
+scipy

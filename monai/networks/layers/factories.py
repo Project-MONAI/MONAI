@@ -9,6 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+handles spatial 1D, 2D, 3D network components with a factory pattern.
+"""
+
 from torch import nn as nn
 
 
