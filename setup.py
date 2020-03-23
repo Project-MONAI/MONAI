@@ -28,7 +28,7 @@ requirements = [
     "numpy",
     "pillow",
     "coverage",
-    "pydicom"
+    "pydicom",
     "nibabel",
     "parameterized",
     "tensorboard",
