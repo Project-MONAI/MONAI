@@ -21,7 +21,7 @@ import monai
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.compose import Randomizable, MapTransform
-from monai.transforms.transforms import (LoadNifti, AsChannelFirst, Orientation,
+from monai.transforms.transforms import (LoadDICOM, LoadNifti, AsChannelFirst, Orientation,
                                          AddChannel, Spacing, Rotate90, SpatialCrop,
                                          RandAffine, Rand2DElastic, Rand3DElastic,
                                          Rescale, Resize, Flip, Rotate, Zoom,
@@ -108,6 +108,30 @@ class Orientationd(MapTransform):
         for key in self.keys:
             d[key], original_ornt, new_ornt = self.orientation_transform(d[key], affine)
         d[self.output_key] = {'original_ornt': original_ornt, 'current_ornt': new_ornt}
+        return d
+
+
+@export
+@alias('SomeAliases')
+class LoadDICOMd(MapTransform):
+    def __init__(self, keys, dtype=np.float32, meta_key_format='{}.{}', overwriting_keys=False):
+        MapTransform.__init__(self, keys)
+        self.loader = LoadDICOM(False, dtype)
+        self.meta_key_format = meta_key_format
+        self.overwriting_keys = overwriting_keys
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            data = self.loader(d[key])
+            assert isinstance(data, (tuple, list)), 'if data contains metadata, must be tuple or list.'
+            d[key] = data[0]
+            assert isinstance(data[1], dict), 'metadata must be in dict format.'
+            for k in sorted(data[1].keys()):
+                key_to_add = self.meta_key_format.format(key, k)
+                if key_to_add in d and self.overwriting_keys is False:
+                    raise KeyError('meta data key is alreay existing.')
+                d[key_to_add] = data[1][k]
         return d
 
 

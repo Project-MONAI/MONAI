@@ -15,6 +15,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 import numpy as np
 import scipy.ndimage
+import pydicom
 import nibabel as nib
 import torch
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
@@ -27,6 +28,7 @@ from monai.transforms.compose import Randomizable
 from monai.transforms.utils import (create_control_grid, create_grid, create_rotate, create_scale, create_shear,
                                     create_translate, rescale_array)
 from monai.utils.misc import ensure_tuple
+from monai.utils.medical_image_converter import dictify_dicom
 
 export = monai.utils.export("monai.transforms")
 
@@ -134,6 +136,30 @@ class Orientation:
         ornt = np.concatenate([np.array([[0, 1]]), spatial_ornt])
         data_array = nib.orientations.apply_orientation(data_array, ornt)
         return data_array, original_axcodes, self.axcodes
+
+
+@export
+class LoadDICOM:
+    def __init__(self, image_only=False, dtype=np.float32):
+        self.image_only = image_only
+        self.dtype = dtype
+
+    def __call__(self, filename):
+        dataset = pydicom.dcmread(filename)
+
+        data = dataset.pixel_array.astype(self.dtype)
+
+        if self.image_only:
+            return data
+        header = dictify_dicom(dataset)
+        compatible_meta = dict()
+        for meta_key in header:
+            meta_datum = header[meta_key]
+            if type(meta_datum).__name__ == 'ndarray' \
+                    and np_str_obj_array_pattern.search(meta_datum.dtype.str) is not None:
+                continue
+            compatible_meta[meta_key] = meta_datum
+        return data, compatible_meta
 
 
 @export
