@@ -12,6 +12,7 @@
 import os
 import argparse
 import numpy as np
+import pydicom
 import SimpleITK as Sitk
 
 ALLOWED_SRC_FORMATS = ['.nii', '.nii.gz', '.mhd', '.mha', '.dcm']
@@ -32,6 +33,38 @@ def contain_dicom(path):
             return True
 
     return False
+
+
+# Convert values from DICOM files to standard Python types
+def convert_value(value): # https://github.com/pydicom/pydicom/issues/319
+    t = type(value)
+    if t in (list, int, float):
+        pass
+    elif t == str:
+        value = value.encode()
+    elif t == pydicom.valuerep.MultiValue:
+        value = np.array(value)
+    elif t == pydicom.valuerep.PersonName3:
+        value = str(value)
+    elif t == pydicom.valuerep.DSfloat:
+        value = float(value)
+    elif t == pydicom.valuerep.IS:
+        value = int(value)
+    else:
+        value = repr(value)
+    return value
+
+# Convert a DICOM file into a dictionary
+def dictify_dicom(dataset):
+    dictionary = dict()
+    for element in dataset:
+        if element.tag == (0x7fe0, 0x0010): # skip pixel array tags
+            continue
+        if element.VR == 'SQ': # recursive call for sequences
+            dictionary[element.tag] = [dictify_dicom(item) for item in element]
+        else:
+            dictionary[element.tag] = convert_value(element.value)
+    return dictionary
 
 
 def get_dicom_dir_list(source_dir):
