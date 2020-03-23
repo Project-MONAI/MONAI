@@ -36,7 +36,7 @@ def contain_dicom(path):
 
 
 # Convert values from DICOM files to standard Python types
-def convert_value(value): # https://github.com/pydicom/pydicom/issues/319
+def convert_value(value):  # https://github.com/pydicom/pydicom/issues/319
     t = type(value)
     if t in (list, int, float):
         pass
@@ -58,9 +58,9 @@ def convert_value(value): # https://github.com/pydicom/pydicom/issues/319
 def dictify_dicom(dataset):
     dictionary = dict()
     for element in dataset:
-        if element.tag == (0x7fe0, 0x0010): # skip pixel array tags
+        if element.tag == (0x7fe0, 0x0010):  # skip pixel array tags
             continue
-        if element.VR == 'SQ': # recursive call for sequences
+        if element.VR == 'SQ':  # recursive call for sequences
             dictionary[element.tag] = [dictify_dicom(item) for item in element]
         else:
             dictionary[element.tag] = convert_value(element.value)
