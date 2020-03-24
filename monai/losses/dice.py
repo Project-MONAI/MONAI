@@ -150,7 +150,7 @@ class GeneralizedDiceLoss(_Loss):
         self.do_softmax = do_softmax
         self.w_func = torch.ones_like
         if w_type == 'simple':
-            self.w_func = lambda x: torch.reciprocal(x)
+            self.w_func = torch.reciprocal
         elif w_type == 'square':
             self.w_func = lambda x: torch.reciprocal(x * x)
         else:
