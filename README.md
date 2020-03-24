@@ -1,8 +1,9 @@
 # Project MONAI
 **M**edical **O**pen **N**etwork for **AI**
 
-[![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0) [![pipeline status](https://gitlab.com/project-monai/MONAI/badges/master/pipeline.svg)](https://github.com/Project-MONAI/MONAI/commits/master) [![Documentation Status](https://readthedocs.org/projects/monai/badge/?version=latest)](https://monai.readthedocs.io/en/latest/?badge=latest) [![coverage report](https://gitlab.com/project-monai/MONAI/badges/master/coverage.svg)](https://gitlab.com/project-monai/MONAI/pipelines/)
-
+[![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
+[![CI Build](https://github.com/Project-MONAI/MONAI/workflows/build/badge.svg?branch=master)](https://github.com/Project-MONAI/MONAI/commits/master)
+[![Documentation Status](https://readthedocs.org/projects/monai/badge/?version=latest)](https://monai.readthedocs.io/en/latest/?badge=latest)
 
 MONAI is a [PyTorch](https://pytorch.org/)-based, [open-source](https://github.com/Project-MONAI/MONAI/blob/master/LICENSE) platform for deep learning in healthcare imaging. Its ambitions are:
 - developing a community of academic, industrial and clinical researchers collaborating on a common foundation;
@@ -47,4 +48,4 @@ For guidance on making a contribution to MONAI, see the [contributing guidelines
 - Project tracker: https://github.com/Project-MONAI/MONAI/projects
 - Issue tracker: https://github.com/Project-MONAI/MONAI/issues
 - Wiki: https://github.com/Project-MONAI/MONAI/wiki
-- Test status: https://gitlab.com/project-monai/MONAI/pipelines
+- Test status: https://github.com/Project-MONAI/MONAI/actions

@@ -33,7 +33,7 @@ All code changes to the master branch must be done via pull requests.
 Ideally, the new branch should be based on the latest `master` branch.
 1. Make changes to the branch ([use detailed commit messages if possible](https://chris.beams.io/posts/git-commit/)). If the changes introduce new features, make sure that you write [unit tests](#unit-testing).
 1. [Create a new pull request](https://help.github.com/en/desktop/contributing-to-projects/creating-a-pull-request) from the task branch to the master branch, with detailed descriptions of the purpose of this pull request.
-1. Check [the CI/CD status of the pull request][gitlab ci], make sure all CI/CD tests passed.
+1. Check [the CI/CD status of the pull request][github ci], make sure all CI/CD tests passed.
 1. Wait for reviews; if there are reviews, make point-to-point responses, make further code changes if needed.
 1. If there're conflicts between the pull request branch and the master branch, pull the changes from the master and resolve the conflicts locally .
 1. Reviewer and contributor may have discussions back and forth until all comments addressed.
@@ -98,12 +98,12 @@ All new functionality should be accompanied by an appropriate set of tests. MONA
 
 ### Reviewing pull requests
 All code review comments should be specific, constructive, and actionable.
-1. Check [the CI/CD status of the pull request][gitlab ci], make sure all CI/CD tests passed before reviewing (contact the branch owner if needed).
+1. Check [the CI/CD status of the pull request][github ci], make sure all CI/CD tests passed before reviewing (contact the branch owner if needed).
 1. Read carefully the descriptions of the pull request and the files changed, write comments if needed.
 1. Make in-line comments to specific code segments, [request for changes](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/about-pull-request-reviews) if needed.
 1. Review any further code changes until all comments addressed by the contributors.
 1. Merge the pull request to the master branch.
 1. Close the corresponding task ticket on [the issue list][monai issue list].
 
-[gitlab ci]: https://gitlab.com/project-monai/MONAI/pipelines/
+[github ci]: https://github.com/Project-MONAI/MONAI/actions
 [monai issue list]: https://github.com/Project-MONAI/MONAI/issues
