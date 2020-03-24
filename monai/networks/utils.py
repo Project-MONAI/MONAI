@@ -54,11 +54,14 @@ def predict_segmentation(logits, mutually_exclusive=False, threshold=0):
 
     Args:
         logits (Tensor): raw data of model output.
-        mutually_exclusive (Bool): if True, `logits` will be converted into a binary matrix using
+        mutually_exclusive (bool): if True, `logits` will be converted into a binary matrix using
             a combination of argmax, which is suitable for multi-classes task. Defaults to False.
         threshold (float): thresholding the prediction values if multi-labels task.
     """
-    if mutually_exclusive is False:
+    if not mutually_exclusive:
         return (logits >= threshold).int()
     else:
-        return logits.argmax(1).unsqueeze(1)
+        if logits.shape[1] == 1:
+            warnings.warn('single channel prediction, `mutually_exclusive=True` ignored, use threshold instead.')
+            return (logits >= threshold).int()
+        return logits.argmax(1, keepdim=True)

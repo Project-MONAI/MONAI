@@ -24,6 +24,14 @@ from monai.utils.aliases import alias
 class DiceLoss(_Loss):
     """
     Compute average Dice loss between two tensors. It can support both multi-classes and multi-labels tasks.
+    Input logits `pred` (BNHW[D] where N is number of classes) is compared with ground truth `ground' (BNHW[D]).
+    Axis N of `pred` is expected to have logit predictions for each class rather than being image channels,
+    while the same axis of `ground` can be 1 or N(one-hot format). The `smooth` parameter is a value added to the
+    intersection and union components of the inter-over-union calculation to smooth results and prevent divide by 0,
+    this value should be small. The `include_background` class attribute can be set to False for an instance of
+    DiceLoss to exclude the first category (channel index 0) which is by convention assumed to be background.
+    If the non-background segmentations are small compared to the total image size they can get overwhelmed by
+    the signal from the background so excluding it in such cases helps convergence.
     """
 
     def __init__(
@@ -62,30 +70,33 @@ class DiceLoss(_Loss):
             ground (tensor): the shape should be BNH[WD].
             smooth (float): a small constant to avoid nan.
         """
-        n_pred_ch = pred.shape[1]
-        if self.do_sigmoid is True:
+        if self.do_sigmoid:
             pred = torch.sigmoid(pred)
-        if self.do_softmax is True:
-            pred = torch.softmax(pred, 1)
-        if self.to_onehot_y is True:
-            if n_pred_ch == 1:
+        n_pred_ch = pred.shape[1]
+        if n_pred_ch == 1:
+            if self.do_softmax:
+                warnings.warn('single channel prediction, `do_softmax=True` ignored.')
+            if self.to_onehot_y:
                 warnings.warn('single channel prediction, `to_onehot_y=True` ignored.')
-            else:
-                ground = one_hot(ground, n_pred_ch)
-
-        if self.include_background is False:
-            if n_pred_ch == 1:
+            if not self.include_background:
                 warnings.warn('single channel prediction, `include_background=False` ignored.')
-            else:
+        else:
+            if self.do_softmax:
+                pred = torch.softmax(pred, 1)
+            if self.to_onehot_y:
+                ground = one_hot(ground, n_pred_ch)
+            if not self.include_background:
                 # if skipping background, removing first channel
                 ground = ground[:, 1:]
                 pred = pred[:, 1:]
+                assert ground.shape == pred.shape, ('ground truth one-hot has differing shape (%r) from pred (%r)' %
+                                                    (ground.shape, pred.shape))
 
         # reducing only spatial dimensions (not batch nor channels)
         reduce_axis = list(range(2, len(pred.shape)))
         intersection = torch.sum(ground * pred, reduce_axis)
 
-        if self.squared_pred is True:
+        if self.squared_pred:
             ground = torch.pow(ground, 2)
             pred = torch.pow(pred, 2)
 
@@ -152,24 +163,27 @@ class GeneralizedDiceLoss(_Loss):
             ground (tensor): the shape should be BNH[WD].
             smooth (float): a small constant to avoid nan.
         """
-        n_pred_ch = pred.shape[1]
-        if self.do_sigmoid is True:
+        if self.do_sigmoid:
             pred = torch.sigmoid(pred)
-        if self.do_softmax is True:
-            pred = torch.softmax(pred, 1)
-        if self.to_onehot_y is True:
-            if n_pred_ch == 1:
+        n_pred_ch = pred.shape[1]
+        if n_pred_ch == 1:
+            if self.do_softmax:
+                warnings.warn('single channel prediction, `do_softmax=True` ignored.')
+            if self.to_onehot_y:
                 warnings.warn('single channel prediction, `to_onehot_y=True` ignored.')
-            else:
-                ground = one_hot(ground, n_pred_ch)
-
-        if self.include_background is False:
-            if n_pred_ch == 1:
+            if not self.include_background:
                 warnings.warn('single channel prediction, `include_background=False` ignored.')
-            else:
+        else:
+            if self.do_softmax:
+                pred = torch.softmax(pred, 1)
+            if self.to_onehot_y:
+                ground = one_hot(ground, n_pred_ch)
+            if not self.include_background:
                 # if skipping background, removing first channel
                 ground = ground[:, 1:]
                 pred = pred[:, 1:]
+                assert ground.shape == pred.shape, ('ground truth one-hot has differing shape (%r) from pred (%r)' %
+                                                    (ground.shape, pred.shape))
 
         # reducing only spatial dimensions (not batch nor channels)
         reduce_axis = list(range(2, len(pred.shape)))
