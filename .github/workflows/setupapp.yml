@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - master
-      - 199-simplify-instructions-for-pip-install
 
 jobs:
   install:
@@ -31,5 +30,7 @@ jobs:
     steps:
     - name: Import
       run: |
-        ls -al
         python -c 'import monai; print(monai.__version__)'
+        cd /opt/monai
+        ls -al
+        ngc --version
