@@ -60,14 +60,18 @@ class Spacingd(MapTransform):
         """
         Args:
             pixdim (sequence of floats): output voxel spacing.
-            diagonal (bool): whether to resample the input using only a diagonal affine matrix.
-                If True, the input data is resampled to a diagonal affine, that is::
+            diagonal (bool): whether to resample the input to have a diagonal affine matrix.
+                If True, the input data is resampled to the following affine::
 
                     np.diag((pixdim_0, pixdim_1, pixdim_2, 1))
 
-                the original affine's rotation, shearing, translation are not preserved.
-                If False, the orthogonal rotation and translations components from the original affine
-                will be preserved in the target affine.
+                This effectively resets the volume to the world coordinate system (RAS+ in nibabel).
+                The original orientation, rotation, shearing are not preserved.
+
+                If False, the axes orientation, orthogonal rotation and
+                translations components from the original affine will be
+                preserved in the target affine. This option will not flip/swap
+                axes against the original ones.
             mode (`reflect|constant|nearest|mirror|wrap`):
                 The mode parameter determines how the input array is extended beyond its boundaries.
             cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
