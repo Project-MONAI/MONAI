@@ -55,8 +55,8 @@ class Spacingd(MapTransform):
         :py:class:`monai.transforms.transforms.Spacing`
     """
 
-    def __init__(self, keys, pixdim, diagonal=True, mode='constant', cval=0,
-                 interp_order=2, meta_key_format='{}.{}'):
+    def __init__(self, keys, pixdim, diagonal=False, mode='constant', cval=0,
+                 interp_order=3, meta_key_format='{}.{}'):
         """
         Args:
             pixdim (sequence of floats): output voxel spacing.
@@ -78,7 +78,7 @@ class Spacingd(MapTransform):
             meta_key_format (str): key format to read/write affine matrices associated with data.
         """
         MapTransform.__init__(self, keys)
-        self.spacing_transform = Spacing(pixdim, diagonal=diagonal, mode=mode, cval=cval)
+        self.spacing_transform = Spacing(pixdim, diagonal=diagonal, mode=mode, cval=cval, dtype=None)
         interp_order = ensure_tuple(interp_order)
         self.interp_order = interp_order \
             if len(interp_order) == len(self.keys) else interp_order * len(self.keys)

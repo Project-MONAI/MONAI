@@ -21,11 +21,12 @@ from torch.utils.data._utils.collate import np_str_obj_array_pattern
 from skimage.transform import resize
 
 import monai
-from monai.data.utils import get_random_patch, get_valid_patch_size, correct_nifti_header_if_necessary, zoom_affine
+from monai.data.utils import (get_random_patch, get_valid_patch_size, correct_nifti_header_if_necessary, zoom_affine,
+                              compute_shape_offset)
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.compose import Randomizable
 from monai.transforms.utils import (create_control_grid, create_grid, create_rotate, create_scale, create_shear,
-                                    create_translate, rescale_array, compute_output_shape)
+                                    create_translate, rescale_array)
 from monai.utils.misc import ensure_tuple
 
 export = monai.utils.export("monai.transforms")
@@ -37,7 +38,7 @@ class Spacing:
     Resample input image into the specified `pixdim`.
     """
 
-    def __init__(self, pixdim, diagonal=True, mode='constant', cval=0):
+    def __init__(self, pixdim, diagonal=False, mode='constant', cval=0, dtype=None):
         """
         Args:
             pixdim (sequence of floats): output voxel spacing.
@@ -46,19 +47,24 @@ class Spacing:
 
                     np.diag((pixdim_0, pixdim_1, pixdim_2, 1))
 
-                the original affine's rotation, shearing, translation are not preserved.
+                The original affine's rotation, shearing are not preserved.
+                This effectively resets the volume to the real-world space (RAS+ used by nibabel).
+
                 If False, the orthogonal rotation and translations components from the original affine
-                will be preserved in the target affine.
+                will be preserved in the target affine. This option will not flip/swap axes against the
+                original affine.
             mode (`reflect|constant|nearest|mirror|wrap`):
                 The mode parameter determines how the input array is extended beyond its boundaries.
             cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
+            dtype (np.dtype): output array data type, defaults to that of input data array.
         """
         self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
         self.diagonal = diagonal
         self.mode = mode
         self.cval = cval
+        self.dtype = dtype
 
-    def __call__(self, data_array, original_affine=None, interp_order=1):
+    def __call__(self, data_array, original_affine=None, interp_order=3):
         """
         Args:
             data_array (ndarray): in shape (num_channels, H[, W, ...]).
@@ -86,25 +92,25 @@ class Spacing:
         if out_d.size < sr:
             out_d = np.append(out_d, [1.] * (out_d.size - sr))
         if np.any(out_d <= 0):
-            raise ValueError('pixdims must be positive, got {}'.format(out_d))
-
-        # compute output affine
+            raise ValueError('pixdim must be positive, got {}'.format(out_d))
+        # compute output affine, shape and offset
         new_affine = zoom_affine(affine, out_d, diagonal=self.diagonal)
-        # zoom the images
-        output_shape = compute_output_shape(data_array.shape[1:], affine, new_affine)
+        output_shape, offset = compute_shape_offset(data_array.shape[1:], affine, new_affine)
+        new_affine[:sr, -1] = offset[:sr]
         transform = np.linalg.inv(affine) @ new_affine
-        # refine based on the actual rank
+        # adapt to the actual rank
         transform_ = np.eye(sr + 1)
         transform_[:sr, :sr] = transform[:sr, :sr]
         transform_[:sr, -1] = transform[:sr, -1]
         # resample
+        dtype = data_array.dtype if self.dtype is None else self.dtype
         output_data = []
         for data in data_array:
-            data = scipy.ndimage.affine_transform(
-                data, transform_, output_shape=output_shape,
+            data_ = scipy.ndimage.affine_transform(
+                data.astype(dtype), matrix=transform_, output_shape=output_shape,
                 order=interp_order, mode=self.mode, cval=self.cval)
-            output_data.append(data)
-        output_data = np.stack(output_data).astype(data_array.dtype)
+            output_data.append(data_)
+        output_data = np.stack(output_data)
         return output_data, affine, new_affine
 
 
@@ -846,8 +852,7 @@ class RandZoom(Randomizable):
     def __init__(self, prob=0.1, min_zoom=0.9, max_zoom=1.1, order=3,
                  mode='constant', cval=0, prefilter=True,
                  use_gpu=False, keep_size=False):
-        if hasattr(min_zoom, '__iter__') and \
-           hasattr(max_zoom, '__iter__'):
+        if hasattr(min_zoom, '__iter__') and hasattr(max_zoom, '__iter__'):
             assert len(min_zoom) == len(max_zoom), "min_zoom and max_zoom must have same length."
         self.min_zoom = min_zoom
         self.max_zoom = max_zoom

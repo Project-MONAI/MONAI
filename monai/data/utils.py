@@ -11,6 +11,7 @@
 
 import warnings
 import math
+import nibabel as nib
 from itertools import starmap, product
 from torch.utils.data._utils.collate import default_collate
 import numpy as np
@@ -252,16 +253,16 @@ def rectify_header_sform_qform(img_nii):
 
 def zoom_affine(affine, scale, diagonal=True):
     """
-    To make column norm of `affine` the same as `scale`.
-    if diagonal is False, returns an affine that combines orthogonal rotation,
-    translation, and the new scale. This is done by first decomposing`affine`,
-    then setting the zoom factors to `scale`, finally composing a new affine.
-    All non-orthogonal rotation and shearing factors are removed.
-    if diagonal is True, returns an diagonal matrix, the scaling factors
-    are set to the diagonal elements.
+    To make column norm of `affine` the same as `scale`.  if diagonal is False,
+    returns an affine that combines orthogonal rotation and the new scale.
+    This is done by first decomposing`affine`, then setting the zoom factors to
+    `scale`, and composing a new affine; the shearing factors are removed.  If
+    diagonal is True, returns an diagonal matrix, the scaling factors are set
+    to the diagonal elements.  This function always return an affine with zero
+    translations.
 
     Args:
-        affine (nxn): a square matrix.
+        affine (nxn matrix): a square matrix.
         scale (sequence of floats): new scaling factor along each dimension.
         diagnonal (bool): whether to return a diagnoal scaling matrix.
             Defaults to True.
@@ -275,29 +276,55 @@ def zoom_affine(affine, scale, diagonal=True):
     scale = np.array(scale, dtype=float, copy=True)
     if np.any(scale <= 0):
         raise ValueError('scale must be a sequence of positive numbers.')
-    translate = affine[:-1, -1]
+    d = len(affine) - 1
+    if len(scale) < d:  # defaults based on affine
+        norm = np.sqrt(np.sum(np.square(affine), 0))[:-1]
+        scale = np.append(scale, norm[len(scale):])
+    scale = scale[:d]
+    if diagonal:
+        return np.diag(np.append(scale, [1.]))
     rzs = affine[:-1, :-1]  # rotation zoom scale
     zs = np.linalg.cholesky(rzs.T @ rzs).T
-    # compute original rotation
     rotation = rzs @ np.linalg.inv(zs)
-    if np.linalg.det(rotation) < 0:
-        zs[0] *= -1
-        rotation = rzs @ np.linalg.inv(zs)
-    original_scale = np.diag(zs).copy()
-    # set new scale to zs
-    s = np.diag(zs).copy()
-    ds = min(len(s), len(scale))
-    s[:ds] = scale[:ds]
-    for i in range(ds):
-        zs[i, i] *= np.abs(s[i]) / np.abs(original_scale[i])
-
+    s = np.sign(np.diag(zs)) * np.abs(scale)
     # construct new affine with rotation and zoom
     new_affine = np.eye(len(affine))
-    if diagonal:
-        new_affine[:-1, :-1] = np.diag(np.diag(zs)).copy()
-        return new_affine
-
-    new_affine[:-1, :-1] = rotation @ np.diag(np.diag(zs)).copy()
-    ratio = np.diag(zs) / original_scale
-    new_affine[:-1, -1] = translate * ratio
+    new_affine[:-1, :-1] = rotation @ np.diag(s)
     return new_affine
+
+
+def compute_shape_offset(spatial_shape, in_affine, out_affine):
+    """
+    Given input and target affine, compute appropriate shapes
+    in the target space based on the input array's shape.
+    This function also returns the offset to put the shape
+    in a good position with respect to the world coordinate system.
+    """
+    shape = np.array(spatial_shape, copy=True, dtype=float)
+    in_affine = np.array(in_affine, dtype=float)
+    out_affine = np.array(out_affine, dtype=float)
+    dim_pad = 3 - len(spatial_shape)
+    if dim_pad < 0:
+        raise ValueError('this function supports up to 3D shapes.')
+    if dim_pad > 0:
+        shape = np.append(shape, [1.] * dim_pad)
+    in_coords = [(0., dim - 1.) for dim in shape]
+    corners = np.asarray(np.meshgrid(*in_coords, indexing='ij')).reshape((len(shape), -1))
+    corners = np.concatenate((corners, np.ones_like(corners[:1])))
+    corners = in_affine @ corners
+    corners_out = np.linalg.inv(out_affine) @ corners
+    corners_out = corners_out[:-1] / corners_out[-1]
+    out_shape = np.ceil(np.max(corners_out, 1) - np.min(corners_out, 1)) + 1.
+    if np.allclose(nib.io_orientation(in_affine),
+                   nib.io_orientation(out_affine)):
+        # same orientation, get translate from the origin
+        offset = (in_affine @ [0, 0, 0, 1])
+        offset = offset[:-1] / offset[-1]
+    else:
+        # different orientation, the min is the origin
+        corners = corners[:-1] / corners[-1]
+        offset = np.min(corners, 1)
+    if dim_pad > 0:
+        out_shape = out_shape[:len(spatial_shape)]
+        offset = offset[:len(spatial_shape)]
+    return out_shape.astype(int), offset
