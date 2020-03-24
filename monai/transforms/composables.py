@@ -55,7 +55,7 @@ class Spacingd(MapTransform):
         :py:class:`monai.transforms.transforms.Spacing`
     """
 
-    def __init__(self, keys, pixdim, diagonal=False, mode='nearest', cval=0,
+    def __init__(self, keys, pixdim, diagonal=False, mode='constant', cval=0,
                  interp_order=3, dtype=None, meta_key_format='{}.{}'):
         """
         Args:
@@ -74,7 +74,7 @@ class Spacingd(MapTransform):
                 axes against the original ones.
             mode (`reflect|constant|nearest|mirror|wrap`):
                 The mode parameter determines how the input array is extended beyond its boundaries.
-                Default is 'nearest'.
+                Default is 'constant'.
             cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
             interp_order (int or sequence of ints): int: the same interpolation order
                 for all data indexed by `self.keys`; sequence of ints, should

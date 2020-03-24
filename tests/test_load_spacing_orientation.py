@@ -31,7 +31,7 @@ class TestLoadSpacingOrientation(unittest.TestCase):
         data = {'image': filename}
         data_dict = LoadNiftid(keys='image')(data)
         data_dict = AddChanneld(keys='image')(data_dict)
-        res_dict = Spacingd(keys='image', pixdim=(1, 2, 3), diagonal=True)(data_dict)
+        res_dict = Spacingd(keys='image', pixdim=(1, 2, 3), diagonal=True, mode='constant')(data_dict)
         np.testing.assert_allclose(data_dict['image.affine'], res_dict['image.original_affine'])
         anat = nibabel.Nifti1Image(data_dict['image'][0], data_dict['image.affine'])
         ref = resample_to_output(anat, (1, 2, 3))
@@ -47,7 +47,7 @@ class TestLoadSpacingOrientation(unittest.TestCase):
         affine = data_dict['image.affine']
         data_dict['image.affine'] = \
             np.array([[0, 0, 1, 0], [0, 1, 0, 0], [-1, 0, 0, 0], [0, 0, 0, 1]]) @ affine
-        res_dict = Spacingd(keys='image', pixdim=(1, 2, 3), diagonal=True)(data_dict)
+        res_dict = Spacingd(keys='image', pixdim=(1, 2, 3), diagonal=True, mode='constant')(data_dict)
         np.testing.assert_allclose(data_dict['image.affine'], res_dict['image.original_affine'])
         anat = nibabel.Nifti1Image(data_dict['image'][0], data_dict['image.affine'])
         ref = resample_to_output(anat, (1, 2, 3))
@@ -62,7 +62,7 @@ class TestLoadSpacingOrientation(unittest.TestCase):
         affine = data_dict['image.affine']
         data_dict['image.affine'] = \
             np.array([[0, 0, 1, 0], [0, 1, 0, 0], [-1, 0, 0, 0], [0, 0, 0, 1]]) @ affine
-        res_dict = Spacingd(keys='image', pixdim=(1, 2, 3), diagonal=False)(data_dict)
+        res_dict = Spacingd(keys='image', pixdim=(1, 2, 3), diagonal=False, mode='constant')(data_dict)
         # res_image = nibabel.Nifti1Image(res_dict['image'][0], res_dict['image.affine'])
         # nibabel.save(res_image, 'test.nii.gz')
         np.testing.assert_allclose(data_dict['image.affine'], res_dict['image.original_affine'])
