@@ -1,0 +1,36 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Set up Python 3.7
+      uses: actions/setup-python@v1
+      with:
+        python-version: 3.7
+    - name: Install the default branch
+      run: |
+        pip install git+https://github.com/Project-MONAI/MONAI#egg=MONAI
+    - name: Import
+      run: |
+        python -c 'import monai; print(monai.__version__)'
+    - name: Uninstall
+      run: |
+        pip uninstall -y monai
+
+  docker:
+    runs-on: ubuntu-latest
+    container:
+      image: docker://projectmonai/monai:latest
+    steps:
+    - name: Import
+      run: |
+        python -c 'import monai; print(monai.__version__)'
+        cd /opt/monai
+        ls -al
+        ngc --version
