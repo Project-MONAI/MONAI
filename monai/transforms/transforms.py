@@ -51,13 +51,13 @@ class Spacing:
                 The original orientation, rotation, shearing are not preserved.
 
                 If False, the axes orientation, orthogonal rotation and
-                translations components from the original affine will be
+                translation components from the original affine will be
                 preserved in the target affine. This option will not flip/swap
                 axes against the original ones.
             mode (`reflect|constant|nearest|mirror|wrap`):
                 The mode parameter determines how the input array is extended beyond its boundaries.
             cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
-            dtype (np.dtype): output array data type, defaults to that of input data array.
+            dtype (None or np.dtype): output array data type, defaults to None to use input data's dtype.
         """
         self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
         self.diagonal = diagonal
