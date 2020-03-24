@@ -2,7 +2,7 @@
 **M**edical **O**pen **N**etwork for **AI**
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
-[![RunTests](https://github.com/Project-MONAI/MONAI/workflows/RunTests/badge.svg?branch=master)](https://github.com/Project-MONAI/MONAI/commits/master)
+[![CI Build](https://github.com/Project-MONAI/MONAI/workflows/build/badge.svg?branch=master)](https://github.com/Project-MONAI/MONAI/commits/master)
 [![Documentation Status](https://readthedocs.org/projects/monai/badge/?version=latest)](https://monai.readthedocs.io/en/latest/?badge=latest)
 
 MONAI is a [PyTorch](https://pytorch.org/)-based, [open-source](https://github.com/Project-MONAI/MONAI/blob/master/LICENSE) platform for deep learning in healthcare imaging. Its ambitions are:

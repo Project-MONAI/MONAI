@@ -25,3 +25,9 @@ jobs:
         export CUDA_DEVICE_ORDER=PCI_BUS_ID
         export CUDA_VISIBLE_DEVICES=0,1
         ./runtests.sh --coverage
+        coverage xml
+    - name: Upload coverage
+      uses: codecov/codecov-action@v1
+      with:
+        fail_ci_if_error: true
+        file: ./coverage.xml
