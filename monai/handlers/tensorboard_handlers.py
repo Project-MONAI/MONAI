@@ -14,9 +14,8 @@ import warnings
 import torch
 from torch.utils.tensorboard import SummaryWriter
 from ignite.engine import Engine, Events
-from monai.visualize import img2tensorboard
+from monai.visualize.img2tensorboard import plot_2d_or_3d_image
 from monai.utils.misc import is_scalar
-from monai.transforms.utils import rescale_array
 
 DEFAULT_TAG = 'Loss'
 
@@ -176,6 +175,7 @@ class TensorBoardImageHandler(object):
                  batch_transform=lambda x: x,
                  output_transform=lambda x: x,
                  global_iter_transform=lambda x: x,
+                 index=0,
                  max_channels=1,
                  max_frames=64):
         """
@@ -188,6 +188,7 @@ class TensorBoardImageHandler(object):
                 ``ignite.engine.output`` into expected format to extract several output data.
             global_iter_transform (Callable): a callable that is used to customize global step number for TensorBoard.
                 For example, in evaluation, the evaluator engine needs to know current epoch from trainer.
+            index (int): plot which element in a data batch, default is the first element.
             max_channels (int): number of channels to plot.
             max_frames (int): number of frames for 2D-t plot.
         """
@@ -195,7 +196,7 @@ class TensorBoardImageHandler(object):
         self.batch_transform = batch_transform
         self.output_transform = output_transform
         self.global_iter_transform = global_iter_transform
-
+        self.index = index
         self.max_frames = max_frames
         self.max_channels = max_channels
 
@@ -208,7 +209,8 @@ class TensorBoardImageHandler(object):
         if show_images is not None:
             if not isinstance(show_images, np.ndarray):
                 raise ValueError('output_transform(engine.state.output)[0] must be an ndarray or tensor.')
-            self._add_2_or_3_d(show_images, step, 'input_0')
+            plot_2d_or_3d_image(show_images, step, self._writer, self.index,
+                                self.max_channels, self.max_frames, 'input_0')
 
         show_labels = self.batch_transform(engine.state.batch)[1]
         if torch.is_tensor(show_labels):
@@ -216,7 +218,8 @@ class TensorBoardImageHandler(object):
         if show_labels is not None:
             if not isinstance(show_labels, np.ndarray):
                 raise ValueError('batch_transform(engine.state.batch)[1] must be an ndarray or tensor.')
-            self._add_2_or_3_d(show_labels, step, 'input_1')
+            plot_2d_or_3d_image(show_labels, step, self._writer, self.index,
+                                self.max_channels, self.max_frames, 'input_1')
 
         show_outputs = self.output_transform(engine.state.output)
         if torch.is_tensor(show_outputs):
@@ -224,35 +227,7 @@ class TensorBoardImageHandler(object):
         if show_outputs is not None:
             if not isinstance(show_outputs, np.ndarray):
                 raise ValueError('output_transform(engine.state.output) must be an ndarray or tensor.')
-            self._add_2_or_3_d(show_outputs, step, 'output')
+            plot_2d_or_3d_image(show_outputs, step, self._writer, self.index,
+                                self.max_channels, self.max_frames, 'output')
 
         self._writer.flush()
-
-    def _add_2_or_3_d(self, data, step, tag='output'):
-        # for i, d in enumerate(data):  # go through a batch of images
-        d = data[0]  # show the first element in a batch
-
-        if d.ndim == 2:
-            d = rescale_array(d, 0, 1)
-            dataformats = 'HW'
-            self._writer.add_image('{}_{}'.format(tag, dataformats), d, step, dataformats=dataformats)
-            return
-
-        if d.ndim == 3:
-            if d.shape[0] == 3 and self.max_channels == 3:  # RGB
-                dataformats = 'CHW'
-                self._writer.add_image('{}_{}'.format(tag, dataformats), d, step, dataformats=dataformats)
-                return
-            for j, d2 in enumerate(d[:self.max_channels]):
-                d2 = rescale_array(d2, 0, 1)
-                dataformats = 'HW'
-                self._writer.add_image('{}_{}_{}'.format(tag, dataformats, j), d2, step, dataformats=dataformats)
-                return
-
-        if d.ndim >= 4:
-            spatial = d.shape[-3:]
-            for j, d3 in enumerate(d.reshape([-1] + list(spatial))[:self.max_channels]):
-                d3 = rescale_array(d3, 0, 255)
-                img2tensorboard.add_animated_gif(
-                    self._writer, '{}_HWD_{}'.format(tag, j), d3[None], self.max_frames, 1.0, step)
-            return

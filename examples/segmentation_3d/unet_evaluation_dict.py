@@ -20,9 +20,6 @@ import torch
 from ignite.engine import Engine
 from torch.utils.data import DataLoader
 
-# assumes the framework is found here, change as necessary
-sys.path.append("../..")
-
 import monai
 from monai.data.utils import list_data_collate
 from monai.utils.sliding_window_inference import sliding_window_inference
@@ -101,7 +98,7 @@ val_stats_handler = StatsHandler(
 val_stats_handler.attach(evaluator)
 
 # convert the necessary metadata from batch data
-SegmentationSaver(output_path='tempdir', output_ext='.nii.gz', output_postfix='seg', name='evaluator',
+SegmentationSaver(output_dir='tempdir', output_ext='.nii.gz', output_postfix='seg', name='evaluator',
                   batch_transform=lambda batch: {'filename_or_obj': batch['img.filename_or_obj'],
                                                  'original_affine': batch['img.original_affine'],
                                                  'affine': batch['img.affine'],

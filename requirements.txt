@@ -1,10 +1,10 @@
 torch>=1.4
 pytorch-ignite==0.3.0
 numpy
-jupyter
-pillow
-coverage
 nibabel
-parameterized
 tensorboard
+pillow
 scipy
+scikit-image
+coverage
+parameterized

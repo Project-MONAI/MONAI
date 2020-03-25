@@ -69,7 +69,7 @@ Links
 - Project tracker: https://github.com/Project-MONAI/MONAI/projects
 - Issue tracker: https://github.com/Project-MONAI/MONAI/issues
 - Wiki: https://github.com/Project-MONAI/MONAI/wiki
-- Test status: https://gitlab.com/project-monai/MONAI/pipelines
+- Test status: https://github.com/Project-MONAI/MONAI/actions
 
 
 Indices and tables

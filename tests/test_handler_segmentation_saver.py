@@ -10,17 +10,15 @@
 # limitations under the License.
 
 import os
-import csv
 import shutil
 import unittest
-import numpy as np
 import torch
 from ignite.engine import Engine
 
-from monai.handlers.classification_saver import ClassificationSaver
+from monai.handlers.segmentation_saver import SegmentationSaver
 
 
-class TestHandlerClassificationSaver(unittest.TestCase):
+class TestHandlerSegmentationSaver(unittest.TestCase):
 
     def test_saved_content(self):
         default_dir = os.path.join('.', 'tempdir')
@@ -28,26 +26,19 @@ class TestHandlerClassificationSaver(unittest.TestCase):
 
         # set up engine
         def _train_func(engine, batch):
-            return torch.zeros(8)
+            return torch.zeros(8, 1, 2, 2)
 
         engine = Engine(_train_func)
 
         # set up testing handler
-        saver = ClassificationSaver(output_dir=default_dir, filename='predictions.csv')
+        saver = SegmentationSaver(output_dir=default_dir, output_postfix='seg', output_ext='.nii.gz')
         saver.attach(engine)
 
         data = [{'filename_or_obj': ['testfile' + str(i) for i in range(8)]}]
         engine.run(data, max_epochs=1)
-        filepath = os.path.join(default_dir, 'predictions.csv')
-        self.assertTrue(os.path.exists(filepath))
-        with open(filepath, 'r') as f:
-            reader = csv.reader(f)
-            i = 0
-            for row in reader:
-                self.assertEqual(row[0], 'testfile' + str(i))
-                self.assertEqual(np.array(row[1:]).astype(np.float32), 0.0)
-                i += 1
-            self.assertEqual(i, 8)
+        for i in range(8):
+            filepath = os.path.join('testfile' + str(i), 'testfile' + str(i) + '_seg.nii.gz')
+            self.assertTrue(os.path.exists(os.path.join(default_dir, filepath)))
         shutil.rmtree(default_dir)
 
 

@@ -536,7 +536,7 @@ class ToTensor:
 
 
 @export
-class UniformRandomPatch(Randomizable):
+class RandUniformPatch(Randomizable):
     """
     Selects a patch of the given size chosen at a uniformly random position in the image.
 
@@ -563,7 +563,6 @@ class NormalizeIntensity:
     """Normalize input based on provided args, using calculated mean and std if not provided
     (shape of subtrahend and divisor must match. if 0, entire volume uses same subtrahend and
     divisor, otherwise the shape can have dimension 1 for channels).
-    Current implementation can only support 'channel_last' format data.
 
     Args:
         subtrahend (ndarray): the amount to subtract by (usually the mean)

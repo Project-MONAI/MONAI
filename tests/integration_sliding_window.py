@@ -28,7 +28,7 @@ from monai.utils.sliding_window_inference import sliding_window_inference
 from tests.utils import make_nifti_image
 
 
-def run_test(batch_size=2, device=torch.device("cpu:0")):
+def run_test(batch_size=2, device=torch.device("cuda:0")):
 
     im, seg = create_test_image_3d(25, 28, 63, rad_max=10, noise_max=1, num_objs=4, num_seg_classes=1)
     input_shape = im.shape
@@ -44,7 +44,7 @@ def run_test(batch_size=2, device=torch.device("cpu:0")):
         channels=(4, 8, 16, 32),
         strides=(2, 2, 2),
         num_res_units=2,
-    )
+    ).to(device)
     roi_size = (16, 32, 48)
     sw_batch_size = batch_size
 
@@ -58,7 +58,7 @@ def run_test(batch_size=2, device=torch.device("cpu:0")):
     infer_engine = Engine(_sliding_window_processor)
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        SegmentationSaver(output_path=temp_dir, output_ext='.nii.gz', output_postfix='seg',
+        SegmentationSaver(output_dir=temp_dir, output_ext='.nii.gz', output_postfix='seg',
                           batch_transform=lambda x: x[2]).attach(infer_engine)
 
         infer_engine.run(loader)

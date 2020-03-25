@@ -9,15 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import torch
 import numpy as np
 import PIL
 from PIL.GifImagePlugin import Image as GifImage
+from torch.utils.tensorboard import SummaryWriter
 from tensorboard.compat.proto import summary_pb2
+from monai.transforms.utils import rescale_array
 
 
 def _image3_animated_gif(imp, scale_factor=1):
-    """
-    Function to actually create the animated gif.
+    """Function to actually create the animated gif.
     Args:
         imp: tuple of tag and a list of image tensors
         scale_factor: amount to multiply values by. if the image data is between 0 and 1, using 255 for this value will
@@ -52,8 +54,7 @@ def make_animated_gif_summary(tag,
                               image_axes=(1, 2),
                               other_indices=None,
                               scale_factor=1):
-    """
-    Creates an animated gif out of an image tensor and returns Summary.
+    """Creates an animated gif out of an image tensor and returns Summary.
 
     Args:
         tag: Data identifier
@@ -92,8 +93,7 @@ def make_animated_gif_summary(tag,
 
 
 def add_animated_gif(writer, tag, image_tensor, max_out, scale_factor, global_step=None):
-    """
-    Creates an animated gif out of an image tensor and writes it with SummaryWriter.
+    """Creates an animated gif out of an image tensor and writes it with SummaryWriter.
 
     Args:
         writer: Tensorboard SummaryWriter to write to
@@ -110,8 +110,7 @@ def add_animated_gif(writer, tag, image_tensor, max_out, scale_factor, global_st
 
 
 def add_animated_gif_no_channels(writer, tag, image_tensor, max_out, scale_factor, global_step=None):
-    """
-    Creates an animated gif out of an image tensor and writes it with SummaryWriter.
+    """Creates an animated gif out of an image tensor and writes it with SummaryWriter.
 
     Args:
         writer: Tensorboard SummaryWriter to write to
@@ -126,3 +125,49 @@ def add_animated_gif_no_channels(writer, tag, image_tensor, max_out, scale_facto
                                                                     max_out=max_out, animation_axes=[1],
                                                                     image_axes=[2, 3], scale_factor=scale_factor),
                                           global_step)
+
+
+def plot_2d_or_3d_image(data, step, writer, index=0, max_channels=1, max_frames=64, tag='output'):
+    """Plot 2D or 3D image on the TensorBoard, 3D image will be converted to GIF image.
+
+    Note:
+        Plot 3D or 2D image(with more than 3 channels) as separate images.
+
+    Args:
+        data (Tensor or ndarray): target data to be plotted as image on the TensorBoard.
+            The data is expected to have 'NCHW[D]' dimensions, and only plot the first in the batch.
+        step (int): current step to plot in a chart.
+        writer (SummaryWriter): specify TensorBoard SummaryWriter to plot the image.
+        index (int): plot which element in the input data batch, default is the first element.
+        max_channels (int): number of channels to plot.
+        max_frames (int): number of frames for 2D-t plot.
+        tag (str): tag of the plotted image on TensorBoard.
+    """
+    assert isinstance(writer, SummaryWriter) is True, 'must provide a TensorBoard SummaryWriter.'
+    d = data[index]
+    if torch.is_tensor(d):
+        d = d.detach().cpu().numpy()
+
+    if d.ndim == 2:
+        d = rescale_array(d, 0, 1)
+        dataformats = 'HW'
+        writer.add_image('{}_{}'.format(tag, dataformats), d, step, dataformats=dataformats)
+        return
+
+    if d.ndim == 3:
+        if d.shape[0] == 3 and max_channels == 3:  # RGB
+            dataformats = 'CHW'
+            writer.add_image('{}_{}'.format(tag, dataformats), d, step, dataformats=dataformats)
+            return
+        for j, d2 in enumerate(d[:max_channels]):
+            d2 = rescale_array(d2, 0, 1)
+            dataformats = 'HW'
+            writer.add_image('{}_{}_{}'.format(tag, dataformats, j), d2, step, dataformats=dataformats)
+            return
+
+    if d.ndim >= 4:
+        spatial = d.shape[-3:]
+        for j, d3 in enumerate(d.reshape([-1] + list(spatial))[:max_channels]):
+            d3 = rescale_array(d3, 0, 255)
+            add_animated_gif(writer, '{}_HWD_{}'.format(tag, j), d3[None], max_frames, 1.0, step)
+        return

@@ -1,6 +1,10 @@
-name: Lint
+name: build
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - master
+  pull_request:
 
 jobs:
   flake8-py3:
@@ -21,3 +25,24 @@ jobs:
         pip install pep8-naming
         flake8 --version
         flake8 . --count --statistics --config .flake8
+
+  test-py3:
+    container:
+      image: nvcr.io/nvidia/pytorch:19.10-py3
+    runs-on: [self-hosted, linux, x64]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install the dependencies
+      run: |
+        which python
+        python -m pip install --upgrade pip --no-cache-dir
+        python -m pip uninstall -y torch torchvision
+        python -m pip install -q -r requirements.txt --no-cache-dir
+    - name: Run unit and integration tests
+      run: |
+        pwd
+        ls -a
+        nvidia-smi
+        export CUDA_DEVICE_ORDER=PCI_BUS_ID
+        export CUDA_VISIBLE_DEVICES=0,1
+        ./runtests.sh --net
