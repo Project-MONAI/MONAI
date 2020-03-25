@@ -45,6 +45,7 @@ TEST_CASE_1 = [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
 TEST_CASE_2 = [  # shape: (2, 2, 3), (2, 1, 3)
     {
         'include_background': False,
+        'to_onehot_y': True,
     },
     {
         'pred': torch.tensor([[[1., 1., 0.], [0., 0., 1.]], [[1., 0., 1.], [0., 1., 0.]]]),
@@ -57,6 +58,7 @@ TEST_CASE_2 = [  # shape: (2, 2, 3), (2, 1, 3)
 TEST_CASE_3 = [  # shape: (2, 2, 3), (2, 1, 3)
     {
         'include_background': True,
+        'to_onehot_y': True,
         'do_sigmoid': True,
     },
     {
@@ -70,6 +72,7 @@ TEST_CASE_3 = [  # shape: (2, 2, 3), (2, 1, 3)
 TEST_CASE_4 = [  # shape: (2, 2, 3), (2, 1, 3)
     {
         'include_background': True,
+        'to_onehot_y': True,
         'do_softmax': True,
     },
     {
@@ -83,6 +86,7 @@ TEST_CASE_4 = [  # shape: (2, 2, 3), (2, 1, 3)
 TEST_CASE_5 = [  # shape: (2, 2, 3), (2, 1, 3)
     {
         'include_background': False,
+        'to_onehot_y': True,
     },
     {
         'pred': torch.tensor([[[1., 1., 0.], [0., 0., 1.]], [[1., 0., 1.], [0., 1., 0.]]]),

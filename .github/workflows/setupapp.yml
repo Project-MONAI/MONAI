@@ -1,0 +1,62 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  coverage-py3:
+    container:
+      image: nvcr.io/nvidia/pytorch:19.10-py3
+    runs-on: [self-hosted, linux, x64]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install the dependencies
+      run: |
+        which python
+        python -m pip install --upgrade pip --no-cache-dir
+        python -m pip uninstall -y torch torchvision
+        python -m pip install -q -r requirements.txt --no-cache-dir
+        python -m pip list
+    - name: Run unit tests report coverage
+      run: |
+        nvidia-smi
+        export CUDA_DEVICE_ORDER=PCI_BUS_ID
+        export CUDA_VISIBLE_DEVICES=0,1
+        ./runtests.sh --coverage
+        coverage xml
+    - name: Upload coverage
+      uses: codecov/codecov-action@v1
+      with:
+        fail_ci_if_error: true
+        file: ./coverage.xml
+
+  install:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Set up Python 3.7
+      uses: actions/setup-python@v1
+      with:
+        python-version: 3.7
+    - name: Install the default branch
+      run: |
+        pip install git+https://github.com/Project-MONAI/MONAI#egg=MONAI
+    - name: Import
+      run: |
+        python -c 'import monai; print(monai.__version__)'
+    - name: Uninstall
+      run: |
+        pip uninstall -y monai
+
+  docker:
+    runs-on: ubuntu-latest
+    container:
+      image: docker://projectmonai/monai:latest
+    steps:
+    - name: Import
+      run: |
+        python -c 'import monai; print(monai.__version__)'
+        cd /opt/monai
+        ls -al
+        ngc --version

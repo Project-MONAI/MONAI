@@ -58,7 +58,7 @@ def run_test(batch_size=2, device=torch.device("cuda:0")):
     infer_engine = Engine(_sliding_window_processor)
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        SegmentationSaver(output_path=temp_dir, output_ext='.nii.gz', output_postfix='seg',
+        SegmentationSaver(output_dir=temp_dir, output_ext='.nii.gz', output_postfix='seg',
                           batch_transform=lambda x: x[2]).attach(infer_engine)
 
         infer_engine.run(loader)

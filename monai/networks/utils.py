@@ -46,12 +46,22 @@ def slice_channels(tensor, *slicevals):
     return tensor[slices]
 
 
-def predict_segmentation(logits):
+def predict_segmentation(logits, mutually_exclusive=False, threshold=0):
     """
-    Given the logits from a network, computing the segmentation by thresholding all values above 0 if `logits` has one
-    channel, or computing the `argmax` along the channel axis otherwise, logits has shape `BCHW[D]`
+    Given the logits from a network, computing the segmentation by thresholding all values above 0
+    if multi-labels task, computing the `argmax` along the channel axis if multi-classes task,
+    logits has shape `BCHW[D]`.
+
+    Args:
+        logits (Tensor): raw data of model output.
+        mutually_exclusive (bool): if True, `logits` will be converted into a binary matrix using
+            a combination of argmax, which is suitable for multi-classes task. Defaults to False.
+        threshold (float): thresholding the prediction values if multi-labels task.
     """
-    if logits.shape[1] == 1:
-        return (logits >= 0).int()  # for binary segmentation threshold on channel 0
+    if not mutually_exclusive:
+        return (logits >= threshold).int()
     else:
-        return logits.argmax(1).unsqueeze(1)  # take the index of the max value along dimension 1
+        if logits.shape[1] == 1:
+            warnings.warn('single channel prediction, `mutually_exclusive=True` ignored, use threshold instead.')
+            return (logits >= threshold).int()
+        return logits.argmax(1, keepdim=True)
