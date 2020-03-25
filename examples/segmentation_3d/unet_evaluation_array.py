@@ -95,7 +95,7 @@ val_stats_handler.attach(evaluator)
 
 # for the arrary data format, assume the 3rd item of batch data is the meta_data
 file_saver = SegmentationSaver(
-    output_path='tempdir', output_ext='.nii.gz', output_postfix='seg', name='evaluator',
+    output_dir='tempdir', output_ext='.nii.gz', output_postfix='seg', name='evaluator',
     batch_transform=lambda x: x[2], output_transform=lambda output: predict_segmentation(output[0]))
 file_saver.attach(evaluator)
 

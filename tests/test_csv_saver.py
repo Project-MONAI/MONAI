@@ -15,29 +15,22 @@ import shutil
 import unittest
 import numpy as np
 import torch
-from ignite.engine import Engine
-
-from monai.handlers.classification_saver import ClassificationSaver
 
 
-class TestHandlerClassificationSaver(unittest.TestCase):
+from monai.data.csv_saver import CSVSaver
+
+
+class TestCSVSaver(unittest.TestCase):
 
     def test_saved_content(self):
         default_dir = os.path.join('.', 'tempdir')
         shutil.rmtree(default_dir, ignore_errors=True)
 
-        # set up engine
-        def _train_func(engine, batch):
-            return torch.zeros(8)
+        saver = CSVSaver(output_dir=default_dir, filename='predictions.csv')
 
-        engine = Engine(_train_func)
-
-        # set up testing handler
-        saver = ClassificationSaver(output_dir=default_dir, filename='predictions.csv')
-        saver.attach(engine)
-
-        data = [{'filename_or_obj': ['testfile' + str(i) for i in range(8)]}]
-        engine.run(data, max_epochs=1)
+        meta_data = {'filename_or_obj': ['testfile' + str(i) for i in range(8)]}
+        saver.save_batch(torch.zeros(8), meta_data)
+        saver.finalize()
         filepath = os.path.join(default_dir, 'predictions.csv')
         self.assertTrue(os.path.exists(filepath))
         with open(filepath, 'r') as f:

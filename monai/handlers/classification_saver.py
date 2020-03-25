@@ -9,12 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-import csv
-import numpy as np
-import torch
 from ignite.engine import Events
 import logging
+from monai.data.csv_saver import CSVSaver
 
 
 class ClassificationSaver:
@@ -22,11 +19,12 @@ class ClassificationSaver:
     Event handler triggered on completing every iteration to save the classification predictions as CSV file.
     """
 
-    def __init__(self, output_dir='./', overwrite=True,
+    def __init__(self, output_dir='./', filename='predictions.csv', overwrite=True,
                  batch_transform=lambda x: x, output_transform=lambda x: x, name=None):
         """
         Args:
             output_dir (str): output CSV file directory.
+            filename (str): name of the saved CSV file name.
             overwrite (bool): whether to overwriting existing CSV file content. If we are not overwriting,
                 then we check if the results have been previously saved, and load them to the prediction_dict.
             batch_transform (Callable): a callable that is used to transform the
@@ -38,10 +36,7 @@ class ClassificationSaver:
             name (str): identifier of logging.logger to use, defaulting to `engine.logger`.
 
         """
-        self.output_dir = output_dir
-        self._prediction_dict = {}
-        self._preds_filepath = os.path.join(output_dir, 'predictions.csv')
-        self.overwrite = overwrite
+        self.saver = CSVSaver(output_dir, filename, overwrite)
         self.batch_transform = batch_transform
         self.output_transform = output_transform
 
@@ -52,44 +47,14 @@ class ClassificationSaver:
             self.logger = engine.logger
         if not engine.has_event_handler(self, Events.ITERATION_COMPLETED):
             engine.add_event_handler(Events.ITERATION_COMPLETED, self)
-        if not engine.has_event_handler(self.finalize, Events.COMPLETED):
-            engine.add_event_handler(Events.COMPLETED, self.finalize)
-
-    def finalize(self, _engine=None):
-        """
-        Writes the prediction dict to a csv
-
-        """
-        if not self.overwrite and os.path.exists(self._preds_filepath):
-            with open(self._preds_filepath, 'r') as f:
-                reader = csv.reader(f)
-                for row in reader:
-                    self._prediction_dict[row[0]] = np.array(row[1:]).astype(np.float32)
-
-        if not os.path.exists(self.output_dir):
-            os.makedirs(self.output_dir)
-        with open(self._preds_filepath, 'w') as f:
-            for k, v in sorted(self._prediction_dict.items()):
-                f.write(k)
-                for result in v.flatten():
-                    f.write("," + str(result))
-                f.write("\n")
-        self.logger.info('saved classification predictions into: {}'.format(self._preds_filepath))
+        if not engine.has_event_handler(self.saver.finalize, Events.COMPLETED):
+            engine.add_event_handler(Events.COMPLETED, lambda engine: self.saver.finalize())
 
     def __call__(self, engine):
         """
-        This method assumes self.batch_transform will extract Metadata from the input batch.
-        Metadata should have the following keys:
-
-            - ``'filename_or_obj'`` -- save the prediction corresponding to file name.
+        This method assumes self.batch_transform will extract metadata from the input batch.
 
         """
         meta_data = self.batch_transform(engine.state.batch)
-        filenames = meta_data['filename_or_obj']
-
         engine_output = self.output_transform(engine.state.output)
-        for batch_id, filename in enumerate(filenames):  # save a batch of files
-            output = engine_output[batch_id]
-            if isinstance(output, torch.Tensor):
-                output = output.detach().cpu().numpy()
-            self._prediction_dict[filename] = output.astype(np.float32)
+        self.saver.save_batch(engine_output, meta_data)

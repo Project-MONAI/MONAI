@@ -13,7 +13,7 @@ import numpy as np
 import nibabel as nib
 
 
-def write_nifti(data, affine, file_name, target_affine=None, dtype="float32"):
+def write_nifti(data, affine, file_name, target_affine=None, dtype=np.float32):
     """Write numpy data into nifti files to disk.
 
     Args:
