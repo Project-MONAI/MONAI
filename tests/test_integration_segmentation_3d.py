@@ -31,7 +31,6 @@ from monai.networks.nets.unet import UNet
 from monai.transforms.composables import (AsChannelFirstd, LoadNiftid, RandCropByPosNegLabeld, RandRotate90d, Rescaled)
 from monai.utils.sliding_window_inference import sliding_window_inference
 from monai.visualize.img2tensorboard import plot_2d_or_3d_image
-from tests.utils import compute_md5
 
 
 def run_training_test(root_dir, device=torch.device("cuda:0")):
@@ -204,7 +203,7 @@ def run_inference_test(root_dir, device=torch.device("cuda:0")):
             saver.save_batch(
                 val_outputs, {
                     'filename_or_obj': val_data['img.filename_or_obj'], 'original_affine':
-                    val_data['img.original_affine'], 'affine': val_data['img.affine']
+                        val_data['img.original_affine'], 'affine': val_data['img.affine']
                 })
         metric = metric_sum / metric_count
     return metric
@@ -251,14 +250,12 @@ class IntegrationSegmentation3D(unittest.TestCase):
         # check inference properties
         np.testing.assert_allclose(infer_metric, 0.9674960002303123)
         output_files = sorted(glob(os.path.join(self.data_dir, 'output', 'img*', '*.nii.gz')))
-        self.assertTrue(len(output_files) == 40)
-        import pdb; pdb.set_trace()
-        print('checking first output', output_files[0])
-        self.assertTrue(compute_md5(output_files[0]) == 'be524c8ac0f1021a74d769b0edadb2ea')
-        print('checking 11th output', output_files[11])
-        self.assertTrue(compute_md5(output_files[11]) == 'bdd1d5eda6342e4783149fca6f408570')
-        print('checking last output', output_files[-1])
-        self.assertEqual(compute_md5(output_files[-1]), '51bf3af59012e014f8c4b500c72ec647')
+        sums = [616752.0, 642981.0, 653042.0, 615904.0, 651592.0, 680353.0, 648408.0, 670216.0, 693561.0, 746859.0,
+                678080.0, 603877.0, 653672.0, 559537.0, 669992.0, 663388.0, 705862.0, 564044.0, 656242.0, 697152.0,
+                726184.0, 698474.0, 701097.0, 600841.0, 681251.0, 652593.0, 717659.0, 701682.0, 597122.0, 542172.0,
+                582078.0, 627985.0, 598525.0, 649180.0, 639703.0, 656896.0, 696359.0, 660675.0, 643457.0, 506309.0]
+        for (output, s) in zip(output_files, sums):
+            np.testing.assert_allclose(np.sum(nib.load(output).get_fdata()), s)
 
 
 if __name__ == '__main__':
