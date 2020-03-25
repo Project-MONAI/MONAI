@@ -13,18 +13,13 @@ import sys
 import logging
 import numpy as np
 import torch
-from ignite.engine import Events, create_supervised_trainer, create_supervised_evaluator
-from ignite.handlers import ModelCheckpoint, EarlyStopping
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 
 import monai
 import monai.transforms.compose as transforms
 from monai.data.nifti_reader import NiftiDataset
 from monai.transforms import (AddChannel, Rescale, Resize, RandRotate90)
-from monai.handlers.stats_handler import StatsHandler
-from monai.handlers.tensorboard_handlers import TensorBoardStatsHandler
-from ignite.metrics import Accuracy
-from monai.handlers.utils import stopping_fn_from_metric
 
 monai.config.print_config()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -76,78 +71,72 @@ check_loader = DataLoader(check_ds, batch_size=2, num_workers=2, pin_memory=torc
 im, label = monai.utils.misc.first(check_loader)
 print(type(im), im.shape, label)
 
-# Create DenseNet121, CrossEntropyLoss and Adam optimizer
-net = monai.networks.nets.densenet3d.densenet121(
-    in_channels=1,
-    out_channels=2,
-)
-loss = torch.nn.CrossEntropyLoss()
-lr = 1e-5
-opt = torch.optim.Adam(net.parameters(), lr)
-device = torch.device("cuda:0")
-
-# ignite trainer expects batch=(img, label) and returns output=loss at every iteration,
-# user can add output_transform to return other values, like: y_pred, y, etc.
-trainer = create_supervised_trainer(net, opt, loss, device, False)
-
-# adding checkpoint handler to save models (network params and optimizer stats) during training
-checkpoint_handler = ModelCheckpoint('./runs/', 'net', n_saved=10, require_empty=False)
-trainer.add_event_handler(event_name=Events.EPOCH_COMPLETED,
-                          handler=checkpoint_handler,
-                          to_save={'net': net, 'opt': opt})
-
-# StatsHandler prints loss at every iteration and print metrics at every epoch,
-# we don't set metrics for trainer here, so just print loss, user can also customize print functions
-# and can use output_transform to convert engine.state.output if it's not loss value
-train_stats_handler = StatsHandler(name='trainer')
-train_stats_handler.attach(trainer)
-
-# TensorBoardStatsHandler plots loss at every iteration and plots metrics at every epoch, same as StatsHandler
-train_tensorboard_stats_handler = TensorBoardStatsHandler()
-train_tensorboard_stats_handler.attach(trainer)
-
-# Set parameters for validation
-validation_every_n_epochs = 1
-
-metric_name = 'Accuracy'
-# add evaluation metric to the evaluator engine
-val_metrics = {metric_name: Accuracy()}
-# ignite evaluator expects batch=(img, label) and returns output=(y_pred, y) at every iteration,
-# user can add output_transform to return other values
-evaluator = create_supervised_evaluator(net, val_metrics, device, True)
-
-# Add stats event handler to print validation stats via evaluator
-val_stats_handler = StatsHandler(
-    name='evaluator',
-    output_transform=lambda x: None,  # no need to print loss value, so disable per iteration output
-    global_epoch_transform=lambda x: trainer.state.epoch)  # fetch global epoch number from trainer
-val_stats_handler.attach(evaluator)
-
-# add handler to record metrics to TensorBoard at every epoch
-val_tensorboard_stats_handler = TensorBoardStatsHandler(
-    output_transform=lambda x: None,  # no need to plot loss value, so disable per iteration output
-    global_epoch_transform=lambda x: trainer.state.epoch)  # fetch global epoch number from trainer
-val_tensorboard_stats_handler.attach(evaluator)
-
-# Add early stopping handler to evaluator
-early_stopper = EarlyStopping(patience=4,
-                              score_function=stopping_fn_from_metric(metric_name),
-                              trainer=trainer)
-evaluator.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=early_stopper)
+# create a training data loader
+train_ds = NiftiDataset(image_files=images[:10], labels=labels[:10], transform=train_transforms)
+train_loader = DataLoader(train_ds, batch_size=2, shuffle=True, num_workers=2, pin_memory=torch.cuda.is_available())
 
 # create a validation data loader
 val_ds = NiftiDataset(image_files=images[-10:], labels=labels[-10:], transform=val_transforms)
 val_loader = DataLoader(val_ds, batch_size=2, num_workers=2, pin_memory=torch.cuda.is_available())
 
+# Create DenseNet121, CrossEntropyLoss and Adam optimizer
+device = torch.device("cuda:0")
+model = monai.networks.nets.densenet3d.densenet121(
+    in_channels=1,
+    out_channels=2,
+).to(device)
+loss_function = torch.nn.CrossEntropyLoss()
+optimizer = torch.optim.Adam(model.parameters(), 1e-5)
 
-@trainer.on(Events.EPOCH_COMPLETED(every=validation_every_n_epochs))
-def run_validation(engine):
-    evaluator.run(val_loader)
+# start a typical PyTorch training
+val_interval = 2
+best_metric = -1
+best_metric_epoch = -1
+epoch_loss_values = list()
+metric_values = list()
+writer = SummaryWriter()
+for epoch in range(5):
+    print('-' * 10)
+    print('Epoch {}/{}'.format(epoch + 1, 5))
+    model.train()
+    epoch_loss = 0
+    step = 0
+    for batch_data in train_loader:
+        step += 1
+        inputs, labels = (batch_data[0].to(device), batch_data[1].to(device))
+        optimizer.zero_grad()
+        outputs = model(inputs)
+        loss = loss_function(outputs, labels)
+        loss.backward()
+        optimizer.step()
+        epoch_loss += loss.item()
+        epoch_len = len(train_ds) // train_loader.batch_size
+        print("%d/%d, train_loss:%0.4f" % (step, epoch_len, loss.item()))
+        writer.add_scalar('train_loss', loss.item(), epoch_len * epoch + step)
+    epoch_loss /= step
+    epoch_loss_values.append(epoch_loss)
+    print("epoch %d average loss:%0.4f" % (epoch + 1, epoch_loss))
 
-
-# create a training data loader
-train_ds = NiftiDataset(image_files=images[:10], labels=labels[:10], transform=train_transforms)
-train_loader = DataLoader(train_ds, batch_size=2, shuffle=True, num_workers=2, pin_memory=torch.cuda.is_available())
-
-train_epochs = 30
-state = trainer.run(train_loader, train_epochs)
+    if (epoch + 1) % val_interval == 0:
+        model.eval()
+        with torch.no_grad():
+            num_correct = 0.
+            metric_count = 0
+            for val_data in val_loader:
+                val_outputs = model(val_data[0].to(device))
+                val_labels = val_data[1].to(device)
+                value = torch.eq(val_outputs.argmax(dim=1), val_labels)
+                metric_count += len(value)
+                num_correct += value.sum().item()
+            metric = num_correct / metric_count
+            metric_values.append(metric)
+            if metric > best_metric:
+                best_metric = metric
+                best_metric_epoch = epoch + 1
+                torch.save(model.state_dict(), 'best_metric_model.pth')
+                print('saved new best metric model')
+            print("current epoch %d current accuracy: %0.4f best accuracy: %0.4f at epoch %d"
+                  % (epoch + 1, metric, best_metric, best_metric_epoch))
+            writer.add_scalar('val_accuracy', metric, epoch + 1)
+print('train completed, best_metric: %0.4f  at epoch: %d' % (best_metric, best_metric_epoch))
+writer.close()

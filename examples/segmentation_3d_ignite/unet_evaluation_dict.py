@@ -18,18 +18,22 @@ import logging
 import nibabel as nib
 import numpy as np
 import torch
+from ignite.engine import Engine
 from torch.utils.data import DataLoader
 
 import monai
-from monai import config
 from monai.data.utils import list_data_collate
 from monai.utils.sliding_window_inference import sliding_window_inference
-from monai.metrics.compute_meandice import compute_meandice
 from monai.data.synthetic import create_test_image_3d
+from monai.networks.utils import predict_segmentation
 from monai.networks.nets.unet import UNet
 from monai.transforms.composables import LoadNiftid, AsChannelFirstd, Rescaled
 import monai.transforms.compose as transforms
-from monai.data.nifti_saver import NiftiSaver
+from monai.handlers.segmentation_saver import SegmentationSaver
+from monai.handlers.checkpoint_loader import CheckpointLoader
+from monai.handlers.stats_handler import StatsHandler
+from monai.handlers.mean_dice import MeanDice
+from monai import config
 
 config.print_config()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -56,39 +60,55 @@ val_transforms = transforms.Compose([
     Rescaled(keys=['img', 'seg'])
 ])
 val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
-# sliding window inferene need to input 1 image in every iteration
-val_loader = DataLoader(val_ds, batch_size=1, num_workers=4, collate_fn=list_data_collate,
-                        pin_memory=torch.cuda.is_available())
 
 device = torch.device("cuda:0")
-model = UNet(
+net = UNet(
     dimensions=3,
     in_channels=1,
     out_channels=1,
     channels=(16, 32, 64, 128, 256),
     strides=(2, 2, 2, 2),
     num_res_units=2,
-).to(device)
+)
+net.to(device)
 
-model.load_state_dict(torch.load('best_metric_model.pth'))
-model.eval()
-with torch.no_grad():
-    metric_sum = 0.
-    metric_count = 0
-    saver = NiftiSaver(output_dir='./output')
-    for val_data in val_loader:
-        # define sliding window size and batch size for windows inference
-        roi_size = (96, 96, 96)
-        sw_batch_size = 4
-        val_outputs = sliding_window_inference(val_data['img'], roi_size, sw_batch_size, model, device)
-        val_labels = val_data['seg'].to(device)
-        value = compute_meandice(y_pred=val_outputs, y=val_labels, include_background=True,
-                                 to_onehot_y=False, mutually_exclusive=False)
-        metric_count += len(value)
-        metric_sum += value.sum().item()
-        saver.save_batch(val_outputs, {'filename_or_obj': val_data['img.filename_or_obj'],
-                                       'original_affine': val_data['img.original_affine'],
-                                       'affine': val_data['img.affine']})
-    metric = metric_sum / metric_count
-    print('evaluation metric:', metric)
+# define sliding window size and batch size for windows inference
+roi_size = (96, 96, 96)
+sw_batch_size = 4
+
+
+def _sliding_window_processor(engine, batch):
+    net.eval()
+    with torch.no_grad():
+        seg_probs = sliding_window_inference(batch['img'], roi_size, sw_batch_size, net, device)
+        return seg_probs, batch['seg'].to(device)
+
+
+evaluator = Engine(_sliding_window_processor)
+
+# add evaluation metric to the evaluator engine
+MeanDice(add_sigmoid=True, to_onehot_y=False).attach(evaluator, 'Mean_Dice')
+
+# StatsHandler prints loss at every iteration and print metrics at every epoch,
+# we don't need to print loss for evaluator, so just print metrics, user can also customize print functions
+val_stats_handler = StatsHandler(
+    name='evaluator',
+    output_transform=lambda x: None  # no need to print loss value, so disable per iteration output
+)
+val_stats_handler.attach(evaluator)
+
+# convert the necessary metadata from batch data
+SegmentationSaver(output_path='tempdir', output_ext='.nii.gz', output_postfix='seg', name='evaluator',
+                  batch_transform=lambda batch: {'filename_or_obj': batch['img.filename_or_obj'],
+                                                 'original_affine': batch['img.original_affine'],
+                                                 'affine': batch['img.affine'],
+                                                 },
+                  output_transform=lambda output: predict_segmentation(output[0])).attach(evaluator)
+# the model was trained by "unet_training_dict" exmple
+CheckpointLoader(load_path='./runs/net_checkpoint_50.pth', load_dict={'net': net}).attach(evaluator)
+
+# sliding window inferene need to input 1 image in every iteration
+val_loader = DataLoader(val_ds, batch_size=1, num_workers=4, collate_fn=list_data_collate,
+                        pin_memory=torch.cuda.is_available())
+state = evaluator.run(val_loader)
 shutil.rmtree(tempdir)
