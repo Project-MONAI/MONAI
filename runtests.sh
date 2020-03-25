@@ -99,6 +99,6 @@ fi
 # report on coverage
 if [ "$doCoverage" = 'true' ]
 then
-    ${cmdprefix}coverage report --omit='*/test/*' --skip-covered -m
+    ${cmdprefix}coverage report --skip-covered -m
 fi
 

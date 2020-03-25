@@ -10,7 +10,8 @@
 # limitations under the License.
 
 import sys
-
+import unittest
+import shutil, tempfile, os
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
@@ -21,8 +22,7 @@ from monai.losses.dice import DiceLoss
 from monai.networks.nets.unet import UNet
 
 
-def run_test(batch_size=64, train_steps=100, device=torch.device("cuda:0")):
-
+def run_test(batch_size=64, train_steps=200, device=torch.device("cuda:0")):
     class _TestBatch(Dataset):
 
         def __init__(self, transforms):
@@ -73,16 +73,24 @@ def run_test(batch_size=64, train_steps=100, device=torch.device("cuda:0")):
         epoch_loss += step_loss.item()
     epoch_loss /= step
 
-    print('Loss:', epoch_loss)
-    result = np.allclose(epoch_loss, 0.578675)
-    if result is False:
-        print('Loss value is wrong, expect to be 0.578675.')
-    return result
+    return epoch_loss, step
+
+
+class TestDeterminism(unittest.TestCase):
+
+    def setUp(self):
+        np.random.seed(0)
+        torch.manual_seed(0)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu:0')
+
+    def test_training(self):
+        loss, step = run_test(device=self.device)
+        print('Deterministic loss {} at training step {}'.format(loss, step))
+        np.testing.assert_allclose(step, 4)
+        np.testing.assert_allclose(loss, 0.5346279, rtol=1e-6, atol=1e-6)
 
 
 if __name__ == "__main__":
-    np.random.seed(0)
-    torch.manual_seed(0)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-    sys.exit(0 if run_test() is True else 1)
+    unittest.main()
