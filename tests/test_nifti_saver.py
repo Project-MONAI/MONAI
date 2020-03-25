@@ -15,7 +15,7 @@ import unittest
 import torch
 
 
-from monai.eval_savers.nifti_saver import NiftiSaver
+from monai.data.nifti_saver import NiftiSaver
 
 
 class TestNiftiSaver(unittest.TestCase):

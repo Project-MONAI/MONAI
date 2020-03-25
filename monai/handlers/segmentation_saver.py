@@ -11,7 +11,7 @@
 
 from ignite.engine import Events
 import logging
-from monai.eval_savers.nifti_saver import NiftiSaver
+from monai.data.nifti_saver import NiftiSaver
 
 
 class SegmentationSaver:
