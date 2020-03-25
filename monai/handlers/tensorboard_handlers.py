@@ -175,6 +175,7 @@ class TensorBoardImageHandler(object):
                  batch_transform=lambda x: x,
                  output_transform=lambda x: x,
                  global_iter_transform=lambda x: x,
+                 index=0,
                  max_channels=1,
                  max_frames=64):
         """
@@ -187,6 +188,7 @@ class TensorBoardImageHandler(object):
                 ``ignite.engine.output`` into expected format to extract several output data.
             global_iter_transform (Callable): a callable that is used to customize global step number for TensorBoard.
                 For example, in evaluation, the evaluator engine needs to know current epoch from trainer.
+            index (int): plot which element in a data batch, default is the first element.
             max_channels (int): number of channels to plot.
             max_frames (int): number of frames for 2D-t plot.
         """
@@ -194,7 +196,7 @@ class TensorBoardImageHandler(object):
         self.batch_transform = batch_transform
         self.output_transform = output_transform
         self.global_iter_transform = global_iter_transform
-
+        self.index = index
         self.max_frames = max_frames
         self.max_channels = max_channels
 
@@ -207,7 +209,8 @@ class TensorBoardImageHandler(object):
         if show_images is not None:
             if not isinstance(show_images, np.ndarray):
                 raise ValueError('output_transform(engine.state.output)[0] must be an ndarray or tensor.')
-            plot_2d_or_3d_image(show_images, step, self._writer, self.max_channels, self.max_frames, 'input_0')
+            plot_2d_or_3d_image(show_images, step, self._writer, self.index,
+                                self.max_channels, self.max_frames, 'input_0')
 
         show_labels = self.batch_transform(engine.state.batch)[1]
         if torch.is_tensor(show_labels):
@@ -215,7 +218,8 @@ class TensorBoardImageHandler(object):
         if show_labels is not None:
             if not isinstance(show_labels, np.ndarray):
                 raise ValueError('batch_transform(engine.state.batch)[1] must be an ndarray or tensor.')
-            plot_2d_or_3d_image(show_labels, step, self._writer, self.max_channels, self.max_frames, 'input_1')
+            plot_2d_or_3d_image(show_labels, step, self._writer, self.index,
+                                self.max_channels, self.max_frames, 'input_1')
 
         show_outputs = self.output_transform(engine.state.output)
         if torch.is_tensor(show_outputs):
@@ -223,6 +227,7 @@ class TensorBoardImageHandler(object):
         if show_outputs is not None:
             if not isinstance(show_outputs, np.ndarray):
                 raise ValueError('output_transform(engine.state.output) must be an ndarray or tensor.')
-            plot_2d_or_3d_image(show_outputs, step, self._writer, self.max_channels, self.max_frames, 'output')
+            plot_2d_or_3d_image(show_outputs, step, self._writer, self.index,
+                                self.max_channels, self.max_frames, 'output')
 
         self._writer.flush()

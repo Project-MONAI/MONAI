@@ -33,7 +33,7 @@ class TestHandlerClassificationSaver(unittest.TestCase):
         engine = Engine(_train_func)
 
         # set up testing handler
-        saver = ClassificationSaver(output_dir=default_dir, filename='predictions')
+        saver = ClassificationSaver(output_dir=default_dir, filename='predictions.csv')
         saver.attach(engine)
 
         data = [{'filename_or_obj': ['testfile' + str(i) for i in range(8)]}]

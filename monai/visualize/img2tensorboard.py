@@ -127,7 +127,7 @@ def add_animated_gif_no_channels(writer, tag, image_tensor, max_out, scale_facto
                                           global_step)
 
 
-def plot_2d_or_3d_image(data, step, writer, max_channels=1, max_frames=64, tag='output'):
+def plot_2d_or_3d_image(data, step, writer, index=0, max_channels=1, max_frames=64, tag='output'):
     """Plot 2D or 3D image on the TensorBoard, 3D image will be converted to GIF image.
 
     Note:
@@ -135,14 +135,16 @@ def plot_2d_or_3d_image(data, step, writer, max_channels=1, max_frames=64, tag='
 
     Args:
         data (Tensor or ndarray): target data to be plotted as image on the TensorBoard.
+            The data is expected to have 'NCHW[D]' dimensions, and only plot the first in the batch.
         step (int): current step to plot in a chart.
         writer (SummaryWriter): specify TensorBoard SummaryWriter to plot the image.
+        index (int): plot which element in the input data batch, default is the first element.
         max_channels (int): number of channels to plot.
         max_frames (int): number of frames for 2D-t plot.
         tag (str): tag of the plotted image on TensorBoard.
     """
     assert isinstance(writer, SummaryWriter) is True, 'must provide a TensorBoard SummaryWriter.'
-    d = data[0]  # show the first element in a batch
+    d = data[index]
     if torch.is_tensor(d):
         d = d.detach().cpu().numpy()
 

@@ -19,13 +19,15 @@ class SegmentationSaver:
     Event handler triggered on completing every iteration to save the segmentation predictions as nifti files.
     """
 
-    def __init__(self, output_dir='./', output_postfix='seg', output_ext='.nii.gz',
+    def __init__(self, output_dir='./', output_postfix='seg', output_ext='.nii.gz', dtype=None,
                  batch_transform=lambda x: x, output_transform=lambda x: x, name=None):
         """
         Args:
             output_dir (str): output image directory.
             output_postfix (str): a string appended to all output file names.
             output_ext (str): output file extension name.
+            dtype (np.dtype, optional): convert the image data to save to this data type.
+                If None, keep the original type of data.
             batch_transform (Callable): a callable that is used to transform the
                 ignite.engine.batch into expected format to extract the meta_data dictionary.
             output_transform (Callable): a callable that is used to transform the
@@ -35,7 +37,7 @@ class SegmentationSaver:
             name (str): identifier of logging.logger to use, defaulting to `engine.logger`.
 
         """
-        self.saver = NiftiSaver(output_dir, output_postfix, output_ext)
+        self.saver = NiftiSaver(output_dir, output_postfix, output_ext, dtype)
         self.batch_transform = batch_transform
         self.output_transform = output_transform
 

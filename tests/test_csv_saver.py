@@ -26,7 +26,7 @@ class TestCSVSaver(unittest.TestCase):
         default_dir = os.path.join('.', 'tempdir')
         shutil.rmtree(default_dir, ignore_errors=True)
 
-        saver = CSVSaver(output_dir=default_dir, filename='predictions')
+        saver = CSVSaver(output_dir=default_dir, filename='predictions.csv')
 
         meta_data = {'filename_or_obj': ['testfile' + str(i) for i in range(8)]}
         saver.save_batch(torch.zeros(8), meta_data)

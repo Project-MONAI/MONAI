@@ -15,16 +15,38 @@ import shutil
 import unittest
 from torch.utils.tensorboard import SummaryWriter
 import torch
+from parameterized import parameterized
 from monai.visualize.img2tensorboard import plot_2d_or_3d_image
+
+TEST_CASE_1 = [
+    (1, 1, 10, 10)
+]
+
+TEST_CASE_2 = [
+    (1, 3, 10, 10)
+]
+
+TEST_CASE_3 = [
+    (1, 4, 10, 10)
+]
+
+TEST_CASE_4 = [
+    (1, 1, 10, 10, 10)
+]
+
+TEST_CASE_5 = [
+    (1, 3, 10, 10, 10)
+]
 
 
 class TestPlot2dOr3dImage(unittest.TestCase):
 
-    def test_tb_image_shape(self):
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
+    def test_tb_image_shape(self, shape):
         default_dir = os.path.join('.', 'runs')
         shutil.rmtree(default_dir, ignore_errors=True)
 
-        plot_2d_or_3d_image(torch.zeros((1, 1, 10, 10)), 0, SummaryWriter())
+        plot_2d_or_3d_image(torch.zeros(shape), 0, SummaryWriter())
 
         self.assertTrue(os.path.exists(default_dir))
         self.assertTrue(len(glob.glob(default_dir)) > 0)
