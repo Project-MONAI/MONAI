@@ -13,7 +13,6 @@ import os
 import unittest
 import tempfile
 import nibabel as nib
-import hashlib
 
 import numpy as np
 import torch

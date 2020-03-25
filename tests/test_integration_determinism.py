@@ -9,20 +9,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import unittest
-import shutil, tempfile, os
+
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
-from monai.transforms import AddChannel, Rescale, RandUniformPatch, RandRotate90
+
 import monai.transforms.compose as transforms
 from monai.data.synthetic import create_test_image_2d
 from monai.losses.dice import DiceLoss
 from monai.networks.nets.unet import UNet
+from monai.transforms import (AddChannel, RandRotate90, RandUniformPatch, Rescale)
 
 
 def run_test(batch_size=64, train_steps=200, device=torch.device("cuda:0")):
+
     class _TestBatch(Dataset):
 
         def __init__(self, transforms):
@@ -51,12 +52,7 @@ def run_test(batch_size=64, train_steps=200, device=torch.device("cuda:0")):
 
     loss = DiceLoss(do_sigmoid=True)
     opt = torch.optim.Adam(net.parameters(), 1e-2)
-    train_transforms = transforms.Compose([
-        AddChannel(),
-        Rescale(),
-        RandUniformPatch((96, 96)),
-        RandRotate90()
-    ])
+    train_transforms = transforms.Compose([AddChannel(), Rescale(), RandUniformPatch((96, 96)), RandRotate90()])
 
     src = DataLoader(_TestBatch(train_transforms), batch_size=batch_size)
 

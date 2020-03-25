@@ -10,12 +10,11 @@
 # limitations under the License.
 
 import os
-import sys
 import tempfile
 import unittest
-import numpy as np
 
 import nibabel as nib
+import numpy as np
 import torch
 from ignite.engine import Engine
 from torch.utils.data import DataLoader
@@ -85,9 +84,11 @@ class TestIntegrationSlidingWindow(unittest.TestCase):
 
     def test_training(self):
         with tempfile.TemporaryDirectory() as temp_dir:
-            output_file = run_test(
-                batch_size=2, img_name=self.img_name, seg_name=self.seg_name,
-                output_dir=temp_dir, device=self.device)
+            output_file = run_test(batch_size=2,
+                                   img_name=self.img_name,
+                                   seg_name=self.seg_name,
+                                   output_dir=temp_dir,
+                                   device=self.device)
             output_image = nib.load(output_file).get_fdata()
             np.testing.assert_allclose(np.sum(output_image), 34070)
             np.testing.assert_allclose(output_image.shape, (28, 25, 63, 1))
