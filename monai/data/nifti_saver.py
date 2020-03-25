@@ -99,7 +99,7 @@ class NiftiSaver:
         filename = '{}{}'.format(filename, self.output_ext)
         # change data to "channel last" format and write to nifti format file
         data = np.moveaxis(data, 0, -1)
-        write_nifti(data, affine, filename, original_affine, dtype=self.dtype or data.dtype)
+        write_nifti(data, filename, affine, original_affine, dtype=self.dtype or data.dtype)
 
     def save_batch(self, batch_data, meta_data=None):
         """Save a batch of data into Nifti format files.
