@@ -170,7 +170,6 @@ def convtrans_factory(dim):
     return types[dim - 1]
 
 
-<<<<<<< 6fb24ed0defb868b9d4000d6e3cd0c3f6f8616d4
 @Conv.factory_function("maxpool")
 def get_maxpooling_type(dim, is_adaptive):
     if is_adaptive:
@@ -188,10 +187,8 @@ def get_avgpooling_type(dim, is_adaptive):
         types = [nn.AvgPool1d, nn.AvgPool2d, nn.AvgPool3d]
     return types[dim - 1]
 
-### old factory functions
-=======
+
 # old factory functions
->>>>>>> Tweaks
 
 
 def get_conv_type(dim, is_transpose):
@@ -215,7 +212,6 @@ def get_normalize_type(dim, is_instance):
         types = [nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d]
 
     return types[dim - 1]
-<<<<<<< 6fb24ed0defb868b9d4000d6e3cd0c3f6f8616d4
 
 
 def get_maxpooling_type(dim, is_adaptive):
@@ -232,5 +228,3 @@ def get_avgpooling_type(dim, is_adaptive):
     else:
         types = [nn.AvgPool1d, nn.AvgPool2d, nn.AvgPool3d]
     return types[dim - 1]
-=======
->>>>>>> Tweaks
