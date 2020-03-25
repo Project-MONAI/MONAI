@@ -12,31 +12,28 @@
 import os
 import sys
 import tempfile
+import shutil
 from glob import glob
 import logging
 import nibabel as nib
 import numpy as np
 import torch
-from ignite.engine import Events, create_supervised_trainer, create_supervised_evaluator
-from ignite.handlers import ModelCheckpoint, EarlyStopping
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 
 import monai
 import monai.transforms.compose as transforms
-
 from monai.data.nifti_reader import NiftiDataset
 from monai.transforms import AddChannel, Rescale, RandUniformPatch, Resize
-from monai.handlers.stats_handler import StatsHandler
-from monai.handlers.tensorboard_handlers import TensorBoardStatsHandler, TensorBoardImageHandler
-from monai.handlers.mean_dice import MeanDice
 from monai.data.synthetic import create_test_image_3d
-from monai.handlers.utils import stopping_fn_from_metric
-from monai.networks.utils import predict_segmentation
+from monai.utils.sliding_window_inference import sliding_window_inference
+from monai.metrics.compute_meandice import compute_meandice
+from monai.visualize.img2tensorboard import plot_2d_or_3d_image
 
 monai.config.print_config()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-# Create a temporary directory and 40 random image, mask paris
+# create a temporary directory and 40 random image, mask paris
 tempdir = tempfile.mkdtemp()
 print('generating synthetic data to {} (this may take a while)'.format(tempdir))
 for i in range(40):
@@ -51,7 +48,7 @@ for i in range(40):
 images = sorted(glob(os.path.join(tempdir, 'im*.nii.gz')))
 segs = sorted(glob(os.path.join(tempdir, 'seg*.nii.gz')))
 
-# Define transforms for image and segmentation
+# define transforms for image and segmentation
 train_imtrans = transforms.Compose([
     Rescale(),
     AddChannel(),
@@ -71,7 +68,7 @@ val_segtrans = transforms.Compose([
     Resize((96, 96, 96))
 ])
 
-# Define nifti dataset, dataloader
+# define nifti dataset, dataloader
 check_ds = NiftiDataset(images, segs, transform=train_imtrans, seg_transform=train_segtrans)
 check_loader = DataLoader(check_ds, batch_size=10, num_workers=2, pin_memory=torch.cuda.is_available())
 im, seg = monai.utils.misc.first(check_loader)
@@ -79,88 +76,85 @@ print(im.shape, seg.shape)
 
 # create a training data loader
 train_ds = NiftiDataset(images[:20], segs[:20], transform=train_imtrans, seg_transform=train_segtrans)
-train_loader = DataLoader(train_ds, batch_size=5, shuffle=True, num_workers=8, pin_memory=torch.cuda.is_available())
+train_loader = DataLoader(train_ds, batch_size=4, shuffle=True, num_workers=8, pin_memory=torch.cuda.is_available())
 # create a validation data loader
 val_ds = NiftiDataset(images[-20:], segs[-20:], transform=val_imtrans, seg_transform=val_segtrans)
-val_loader = DataLoader(val_ds, batch_size=5, num_workers=8, pin_memory=torch.cuda.is_available())
+val_loader = DataLoader(val_ds, batch_size=1, num_workers=4, pin_memory=torch.cuda.is_available())
 
-# Create UNet, DiceLoss and Adam optimizer
-net = monai.networks.nets.UNet(
+# create UNet, DiceLoss and Adam optimizer
+device = torch.device("cuda:0")
+model = monai.networks.nets.UNet(
     dimensions=3,
     in_channels=1,
     out_channels=1,
     channels=(16, 32, 64, 128, 256),
     strides=(2, 2, 2, 2),
     num_res_units=2,
-)
-loss = monai.losses.DiceLoss(do_sigmoid=True)
-lr = 1e-3
-opt = torch.optim.Adam(net.parameters(), lr)
-device = torch.device("cuda:0")
+).to(device)
+loss_function = monai.losses.DiceLoss(do_sigmoid=True)
+optimizer = torch.optim.Adam(model.parameters(), 1e-3)
 
-# ignite trainer expects batch=(img, seg) and returns output=loss at every iteration,
-# user can add output_transform to return other values, like: y_pred, y, etc.
-trainer = create_supervised_trainer(net, opt, loss, device, False)
+# start a typical PyTorch training
+val_interval = 2
+best_metric = -1
+best_metric_epoch = -1
+epoch_loss_values = list()
+metric_values = list()
+writer = SummaryWriter()
+for epoch in range(5):
+    print('-' * 10)
+    print('Epoch {}/{}'.format(epoch + 1, 5))
+    model.train()
+    epoch_loss = 0
+    step = 0
+    for batch_data in train_loader:
+        step += 1
+        inputs, labels = (batch_data[0].to(device), batch_data[1].to(device))
+        optimizer.zero_grad()
+        outputs = model(inputs)
+        loss = loss_function(outputs, labels)
+        loss.backward()
+        optimizer.step()
+        epoch_loss += loss.item()
+        epoch_len = len(train_ds) // train_loader.batch_size
+        print("%d/%d, train_loss:%0.4f" % (step, epoch_len, loss.item()))
+        writer.add_scalar('train_loss', loss.item(), epoch_len * epoch + step)
+    epoch_loss /= step
+    epoch_loss_values.append(epoch_loss)
+    print("epoch %d average loss:%0.4f" % (epoch + 1, epoch_loss))
 
-# adding checkpoint handler to save models (network params and optimizer stats) during training
-checkpoint_handler = ModelCheckpoint('./runs/', 'net', n_saved=10, require_empty=False)
-trainer.add_event_handler(event_name=Events.EPOCH_COMPLETED,
-                          handler=checkpoint_handler,
-                          to_save={'net': net, 'opt': opt})
-
-# StatsHandler prints loss at every iteration and print metrics at every epoch,
-# we don't set metrics for trainer here, so just print loss, user can also customize print functions
-# and can use output_transform to convert engine.state.output if it's not a loss value
-train_stats_handler = StatsHandler(name='trainer')
-train_stats_handler.attach(trainer)
-
-# TensorBoardStatsHandler plots loss at every iteration and plots metrics at every epoch, same as StatsHandler
-train_tensorboard_stats_handler = TensorBoardStatsHandler()
-train_tensorboard_stats_handler.attach(trainer)
-
-validation_every_n_epochs = 1
-# Set parameters for validation
-metric_name = 'Mean_Dice'
-# add evaluation metric to the evaluator engine
-val_metrics = {metric_name: MeanDice(add_sigmoid=True, to_onehot_y=False)}
-
-# ignite evaluator expects batch=(img, seg) and returns output=(y_pred, y) at every iteration,
-# user can add output_transform to return other values
-evaluator = create_supervised_evaluator(net, val_metrics, device, True)
-
-
-@trainer.on(Events.EPOCH_COMPLETED(every=validation_every_n_epochs))
-def run_validation(engine):
-    evaluator.run(val_loader)
-
-
-# Add early stopping handler to evaluator
-early_stopper = EarlyStopping(patience=4,
-                              score_function=stopping_fn_from_metric(metric_name),
-                              trainer=trainer)
-evaluator.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=early_stopper)
-
-# Add stats event handler to print validation stats via evaluator
-val_stats_handler = StatsHandler(
-    name='evaluator',
-    output_transform=lambda x: None,  # no need to print loss value, so disable per iteration output
-    global_epoch_transform=lambda x: trainer.state.epoch)  # fetch global epoch number from trainer
-val_stats_handler.attach(evaluator)
-
-# add handler to record metrics to TensorBoard at every validation epoch
-val_tensorboard_stats_handler = TensorBoardStatsHandler(
-    output_transform=lambda x: None,  # no need to plot loss value, so disable per iteration output
-    global_epoch_transform=lambda x: trainer.state.epoch)  # fetch global epoch number from trainer
-val_tensorboard_stats_handler.attach(evaluator)
-
-# add handler to draw the first image and the corresponding label and model output in the last batch
-# here we draw the 3D output as GIF format along Depth axis, at every validation epoch
-val_tensorboard_image_handler = TensorBoardImageHandler(
-    batch_transform=lambda batch: (batch[0], batch[1]),
-    output_transform=lambda output: predict_segmentation(output[0]),
-    global_iter_transform=lambda x: trainer.state.epoch
-)
-evaluator.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=val_tensorboard_image_handler)
-
-train_epochs = 30
-state = trainer.run(train_loader, train_epochs)
+    if (epoch + 1) % val_interval == 0:
+        model.eval()
+        with torch.no_grad():
+            metric_sum = 0.
+            metric_count = 0
+            val_images = None
+            val_labels = None
+            val_outputs = None
+            for val_data in val_loader:
+                val_images = val_data[0]
+                val_labels = val_data[1]
+                roi_size = (96, 96, 96)
+                sw_batch_size = 4
+                val_outputs = sliding_window_inference(val_images, roi_size, sw_batch_size, model, device)
+                value = compute_meandice(y_pred=val_outputs, y=val_labels.to(device), include_background=True,
+                                         to_onehot_y=False, mutually_exclusive=False)
+                metric_count += len(value)
+                metric_sum += value.sum().item()
+            metric = metric_sum / metric_count
+            metric_values.append(metric)
+            if metric > best_metric:
+                best_metric = metric
+                best_metric_epoch = epoch + 1
+                torch.save(model.state_dict(), 'best_metric_model.pth')
+                print('saved new best metric model')
+            print("current epoch %d current mean dice: %0.4f best mean dice: %0.4f at epoch %d"
+                  % (epoch + 1, metric, best_metric, best_metric_epoch))
+            writer.add_scalar('val_mean_dice', metric, epoch + 1)
+            # plot the last model output as GIF image in TensorBoard with the corresponding image and label
+            plot_2d_or_3d_image(val_images, epoch + 1, writer, index=0, tag='image')
+            plot_2d_or_3d_image(val_labels, epoch + 1, writer, index=0, tag='label')
+            plot_2d_or_3d_image(val_outputs, epoch + 1, writer, index=0, tag='output')
+shutil.rmtree(tempdir)
+print('train completed, best_metric: %0.4f  at epoch: %d' % (best_metric, best_metric_epoch))
+writer.close()

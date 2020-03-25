@@ -13,13 +13,17 @@ import sys
 import logging
 import numpy as np
 import torch
+from ignite.engine import create_supervised_evaluator, _prepare_batch
 from torch.utils.data import DataLoader
 
 import monai
 import monai.transforms.compose as transforms
 from monai.data.nifti_reader import NiftiDataset
-from monai.transforms import AddChannel, Rescale, Resize
-from monai.data.csv_saver import CSVSaver
+from monai.transforms import (AddChannel, Rescale, Resize)
+from monai.handlers.stats_handler import StatsHandler
+from monai.handlers.classification_saver import ClassificationSaver
+from monai.handlers.checkpoint_loader import CheckpointLoader
+from ignite.metrics import Accuracy
 
 monai.config.print_config()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -42,38 +46,50 @@ labels = np.array([
     0, 0, 1, 0, 1, 0, 1, 0, 1, 0
 ])
 
-# Define transforms for image
+# define transforms for image
 val_transforms = transforms.Compose([
     Rescale(),
     AddChannel(),
     Resize((96, 96, 96))
 ])
-
-# Define nifti dataset
+# define nifti dataset
 val_ds = NiftiDataset(image_files=images, labels=labels, transform=val_transforms, image_only=False)
+# create DenseNet121
+net = monai.networks.nets.densenet3d.densenet121(
+    in_channels=1,
+    out_channels=2,
+)
+device = torch.device("cuda:0")
+
+metric_name = 'Accuracy'
+# add evaluation metric to the evaluator engine
+val_metrics = {metric_name: Accuracy()}
+
+
+def prepare_batch(batch, device=None, non_blocking=False):
+    return _prepare_batch((batch[0], batch[1]), device, non_blocking)
+
+
+# ignite evaluator expects batch=(img, label) and returns output=(y_pred, y) at every iteration,
+# user can add output_transform to return other values
+evaluator = create_supervised_evaluator(net, val_metrics, device, True, prepare_batch=prepare_batch)
+
+# add stats event handler to print validation stats via evaluator
+val_stats_handler = StatsHandler(
+    name='evaluator',
+    output_transform=lambda x: None  # no need to print loss value, so disable per iteration output
+)
+val_stats_handler.attach(evaluator)
+
+# for the arrary data format, assume the 3rd item of batch data is the meta_data
+prediction_saver = ClassificationSaver(output_dir='tempdir', batch_transform=lambda batch: batch[2],
+                                       output_transform=lambda output: output[0].argmax(1))
+prediction_saver.attach(evaluator)
+
+# the model was trained by "densenet_training_array" exmple
+CheckpointLoader(load_path='./runs/net_checkpoint_40.pth', load_dict={'net': net}).attach(evaluator)
+
 # create a validation data loader
 val_loader = DataLoader(val_ds, batch_size=2, num_workers=4, pin_memory=torch.cuda.is_available())
 
-# Create DenseNet121
-device = torch.device("cuda:0")
-model = monai.networks.nets.densenet3d.densenet121(
-    in_channels=1,
-    out_channels=2,
-).to(device)
-
-model.load_state_dict(torch.load('best_metric_model.pth'))
-model.eval()
-with torch.no_grad():
-    num_correct = 0.
-    metric_count = 0
-    saver = CSVSaver(output_dir='./output')
-    for val_data in val_loader:
-        val_outputs = model(val_data[0].to(device)).argmax(dim=1)
-        val_labels = val_data[1].to(device)
-        value = torch.eq(val_outputs, val_labels)
-        metric_count += len(value)
-        num_correct += value.sum().item()
-        saver.save_batch(val_outputs, val_data[2])
-    metric = num_correct / metric_count
-    print('evaluation metric:', metric)
-    saver.finalize()
+state = evaluator.run(val_loader)
