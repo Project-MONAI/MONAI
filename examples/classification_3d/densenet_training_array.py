@@ -14,6 +14,7 @@ import logging
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 
 import monai
 import monai.transforms.compose as transforms
@@ -93,6 +94,7 @@ best_metric = -1
 best_metric_epoch = -1
 epoch_loss_values = list()
 metric_values = list()
+writer = SummaryWriter()
 for epoch in range(5):
     print('-' * 10)
     print('Epoch {}/{}'.format(epoch + 1, 5))
@@ -108,7 +110,9 @@ for epoch in range(5):
         loss.backward()
         optimizer.step()
         epoch_loss += loss.item()
-        print("%d/%d,train_loss:%0.4f" % (step, len(train_ds) // train_loader.batch_size, loss.item()))
+        epoch_len = len(train_ds) // train_loader.batch_size
+        print("%d/%d, train_loss:%0.4f" % (step, epoch_len, loss.item()))
+        writer.add_scalar('train_loss', loss.item(), epoch_len * epoch + step)
     epoch_loss /= step
     epoch_loss_values.append(epoch_loss)
     print("epoch %d average loss:%0.4f" % (epoch + 1, epoch_loss))
@@ -133,4 +137,6 @@ for epoch in range(5):
                 print('saved new best metric model')
             print("current epoch %d current accuracy: %0.4f best accuracy: %0.4f at epoch %d"
                   % (epoch + 1, metric, best_metric, best_metric_epoch))
+            writer.add_scalar('val_accuracy', metric, epoch + 1)
 print('train completed, best_metric: %0.4f  at epoch: %d' % (best_metric, best_metric_epoch))
+writer.close()

@@ -18,6 +18,7 @@ from torch.utils.data import DataLoader
 import monai
 from monai.transforms.composables import LoadNiftid, AddChanneld, Rescaled, Resized
 import monai.transforms.compose as transforms
+from monai.data.csv_saver import CSVSaver
 
 monai.config.print_config()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -65,11 +66,14 @@ model.eval()
 with torch.no_grad():
     num_correct = 0.
     metric_count = 0
+    saver = CSVSaver(output_dir='./output')
     for val_data in val_loader:
-        val_outputs = model(val_data['img'].to(device))
+        val_outputs = model(val_data['img'].to(device)).argmax(dim=1)
         val_labels = val_data['label'].to(device)
-        value = torch.eq(val_outputs.argmax(dim=1), val_labels)
+        value = torch.eq(val_outputs, val_labels)
         metric_count += len(value)
         num_correct += value.sum().item()
+        saver.save_batch(val_outputs, {'filename_or_obj': val_data['img.filename_or_obj']})
     metric = num_correct / metric_count
     print('evaluation metric:', metric)
+    saver.finalize()

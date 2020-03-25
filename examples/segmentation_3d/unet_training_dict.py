@@ -19,6 +19,7 @@ import nibabel as nib
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 
 import monai
 import monai.transforms.compose as transforms
@@ -28,6 +29,7 @@ from monai.data.synthetic import create_test_image_3d
 from monai.data.utils import list_data_collate
 from monai.utils.sliding_window_inference import sliding_window_inference
 from monai.metrics.compute_meandice import compute_meandice
+from monai.visualize.img2tensorboard import plot_2d_or_3d_image
 
 monai.config.print_config()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -100,6 +102,7 @@ best_metric = -1
 best_metric_epoch = -1
 epoch_loss_values = list()
 metric_values = list()
+writer = SummaryWriter()
 for epoch in range(5):
     print('-' * 10)
     print('Epoch {}/{}'.format(epoch + 1, 5))
@@ -115,7 +118,9 @@ for epoch in range(5):
         loss.backward()
         optimizer.step()
         epoch_loss += loss.item()
-        print("%d/%d,train_loss:%0.4f" % (step, len(train_ds) // train_loader.batch_size, loss.item()))
+        epoch_len = len(train_ds) // train_loader.batch_size
+        print("%d/%d, train_loss:%0.4f" % (step, epoch_len, loss.item()))
+        writer.add_scalar('train_loss', loss.item(), epoch_len * epoch + step)
     epoch_loss /= step
     epoch_loss_values.append(epoch_loss)
     print("epoch %d average loss:%0.4f" % (epoch + 1, epoch_loss))
@@ -125,12 +130,16 @@ for epoch in range(5):
         with torch.no_grad():
             metric_sum = 0.
             metric_count = 0
+            val_images = None
+            val_labels = None
+            val_outputs = None
             for val_data in val_loader:
+                val_images = val_data['img']
+                val_labels = val_data['seg']
                 roi_size = (96, 96, 96)
                 sw_batch_size = 4
-                val_outputs = sliding_window_inference(val_data['img'], roi_size, sw_batch_size, model, device)
-                val_labels = val_data['seg'].to(device)
-                value = compute_meandice(y_pred=val_outputs, y=val_labels, include_background=True,
+                val_outputs = sliding_window_inference(val_images, roi_size, sw_batch_size, model, device)
+                value = compute_meandice(y_pred=val_outputs, y=val_labels.to(device), include_background=True,
                                          to_onehot_y=False, mutually_exclusive=False)
                 metric_count += len(value)
                 metric_sum += value.sum().item()
@@ -143,5 +152,11 @@ for epoch in range(5):
                 print('saved new best metric model')
             print("current epoch %d current mean dice: %0.4f best mean dice: %0.4f at epoch %d"
                   % (epoch + 1, metric, best_metric, best_metric_epoch))
+            writer.add_scalar('val_mean_dice', metric, epoch + 1)
+            # plot the last model output as GIF image in TensorBoard with the corresponding image and label
+            plot_2d_or_3d_image(val_images, epoch + 1, writer, index=0, tag='image')
+            plot_2d_or_3d_image(val_labels, epoch + 1, writer, index=0, tag='label')
+            plot_2d_or_3d_image(val_outputs, epoch + 1, writer, index=0, tag='output')
 shutil.rmtree(tempdir)
 print('train completed, best_metric: %0.4f  at epoch: %d' % (best_metric, best_metric_epoch))
+writer.close()

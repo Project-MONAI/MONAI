@@ -21,6 +21,7 @@ import torch
 from torch.utils.data import DataLoader
 
 import monai
+from monai import config
 from monai.data.utils import list_data_collate
 from monai.utils.sliding_window_inference import sliding_window_inference
 from monai.metrics.compute_meandice import compute_meandice
@@ -28,7 +29,7 @@ from monai.data.synthetic import create_test_image_3d
 from monai.networks.nets.unet import UNet
 from monai.transforms.composables import LoadNiftid, AsChannelFirstd, Rescaled
 import monai.transforms.compose as transforms
-from monai import config
+from monai.data.nifti_saver import NiftiSaver
 
 config.print_config()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -74,6 +75,7 @@ model.eval()
 with torch.no_grad():
     metric_sum = 0.
     metric_count = 0
+    saver = NiftiSaver(output_dir='./output')
     for val_data in val_loader:
         # define sliding window size and batch size for windows inference
         roi_size = (96, 96, 96)
@@ -82,9 +84,11 @@ with torch.no_grad():
         val_labels = val_data['seg'].to(device)
         value = compute_meandice(y_pred=val_outputs, y=val_labels, include_background=True,
                                  to_onehot_y=False, mutually_exclusive=False)
-        for batch in value:
-            metric_count += 1
-            metric_sum += batch.item()
+        metric_count += len(value)
+        metric_sum += value.sum().item()
+        saver.save_batch(val_outputs, {'filename_or_obj': val_data['img.filename_or_obj'],
+                                       'original_affine': val_data['img.original_affine'],
+                                       'affine': val_data['img.affine']})
     metric = metric_sum / metric_count
     print('evaluation metric:', metric)
 shutil.rmtree(tempdir)
