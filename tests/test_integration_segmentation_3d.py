@@ -32,6 +32,8 @@ from monai.transforms.composables import (AsChannelFirstd, LoadNiftid, RandCropB
 from monai.utils.sliding_window_inference import sliding_window_inference
 from monai.visualize.img2tensorboard import plot_2d_or_3d_image
 
+from tests.utils import skip_if_quick
+
 
 def run_training_test(root_dir, device=torch.device("cuda:0")):
     monai.config.print_config()
@@ -231,6 +233,7 @@ class IntegrationSegmentation3D(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.data_dir)
 
+    @skip_if_quick
     def test_training(self):
         losses, best_metric, best_metric_epoch = run_training_test(self.data_dir, device=self.device)
 
@@ -238,8 +241,8 @@ class IntegrationSegmentation3D(unittest.TestCase):
         np.testing.assert_allclose(losses, [
             0.5241468191146851, 0.4485286593437195, 0.42851402163505553, 0.4130884766578674, 0.39990419149398804,
             0.38985557556152345
-        ])
-        np.testing.assert_allclose(best_metric, 0.9660249322652816)
+        ], rtol=1e-5)
+        np.testing.assert_allclose(best_metric, 0.9660249322652816, rtol=1e-5)
         np.testing.assert_allclose(best_metric_epoch, 4)
         self.assertTrue(len(glob(os.path.join(self.data_dir, 'runs'))) > 0)
         model_file = os.path.join(self.data_dir, 'best_metric_model.pth')
@@ -248,14 +251,14 @@ class IntegrationSegmentation3D(unittest.TestCase):
         infer_metric = run_inference_test(self.data_dir, device=self.device)
 
         # check inference properties
-        np.testing.assert_allclose(infer_metric, 0.9674960002303123)
+        np.testing.assert_allclose(infer_metric, 0.9674960002303123, rtol=1e-5)
         output_files = sorted(glob(os.path.join(self.data_dir, 'output', 'img*', '*.nii.gz')))
         sums = [616752.0, 642981.0, 653042.0, 615904.0, 651592.0, 680353.0, 648408.0, 670216.0, 693561.0, 746859.0,
                 678080.0, 603877.0, 653672.0, 559537.0, 669992.0, 663388.0, 705862.0, 564044.0, 656242.0, 697152.0,
                 726184.0, 698474.0, 701097.0, 600841.0, 681251.0, 652593.0, 717659.0, 701682.0, 597122.0, 542172.0,
                 582078.0, 627985.0, 598525.0, 649180.0, 639703.0, 656896.0, 696359.0, 660675.0, 643457.0, 506309.0]
         for (output, s) in zip(output_files, sums):
-            np.testing.assert_allclose(np.sum(nib.load(output).get_fdata()), s)
+            np.testing.assert_allclose(np.sum(nib.load(output).get_fdata()), s, rtol=1e-5)
 
 
 if __name__ == '__main__':
