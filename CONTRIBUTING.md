@@ -22,14 +22,16 @@ MONAI is based on the Ignite and PyTorch frameworks. These frameworks implement 
 
 _Pull request early_
 
-We encourage you to create pull requests early. It helps us track the contributions under development, whether they are ready to be merged or not. Tag your pull request as `[WIP]` until it is ready for formal review.
+We encourage you to create pull requests early. It helps us track the contributions under development, whether they are ready to be merged or not. Change your pull request's title to begin with `[WIP]` until it is ready for formal review.
 
 
 ### Submitting pull requests
-All code changes to the master branch must be done via pull requests.
+All code changes to the master branch must be done via [pull requests](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/proposing-changes-to-your-work-with-pull-requests).
 1. Create a new ticket or take a known ticket from [the issue list][monai issue list].
 1. Check if there's already a branch dedicated to the task.
-1. If the task has not been taken, [create a new branch](https://help.github.com/en/desktop/contributing-to-projects/creating-a-branch-for-your-work) in the codebase or a fork of the codebase named `[ticket_id]-[task_name]`. For example, branch name `19-ci-pipeline-setup` corresponds to [issue #19](https://github.com/Project-MONAI/MONAI/issues/19).
+1. If the task has not been taken, [create a new branch in your fork](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork)
+of the codebase named `[ticket_id]-[task_name]`.
+For example, branch name `19-ci-pipeline-setup` corresponds to [issue #19](https://github.com/Project-MONAI/MONAI/issues/19).
 Ideally, the new branch should be based on the latest `master` branch.
 1. Make changes to the branch ([use detailed commit messages if possible](https://chris.beams.io/posts/git-commit/)). If the changes introduce new features, make sure that you write [unit tests](#unit-testing).
 1. [Create a new pull request](https://help.github.com/en/desktop/contributing-to-projects/creating-a-pull-request) from the task branch to the master branch, with detailed descriptions of the purpose of this pull request.
@@ -89,9 +91,11 @@ flake8 . --count --statistics
 
 _If it's not tested, it's broken_
 
-All new functionality should be accompanied by an appropriate set of tests. MONAI functionality has plenty of unit tests from which you can draw inspiration, and you can reach out to us if you are unsure of how to proceed with testing.
+All new functionality should be accompanied by an appropriate set of tests.
+MONAI functionality has plenty of unit tests from which you can draw inspiration,
+and you can reach out to us if you are unsure of how to proceed with testing.
 
-
+MONAI's code coverage report is available at [CodeCov](https://codecov.io/gh/Project-MONAI/MONAI).
 
 ## The code reviewing process
 
