@@ -23,9 +23,33 @@ passed to the factory function:
     dimension = 3
     name = Conv.CONVTRANS
     conv = Conv[name, dimension]
-
-This allows the `dimension` value to be set in constructor for example so that the dimensionality of a network is 
+    
+This allows the `dimension` value to be set in the constructor, for example so that the dimensionality of a network is 
 parameterizable. Not all factories require arguments after the name, the caller must be aware which are required.
+
+Defining new factories involves creating the object then associating it with factory functions:
+
+    fact = LayerFactory()
+    
+    @fact.factory_function('test')
+    def make_something(x, y):
+        # do something with x and y to choose which layer type to return
+        return SomeLayerType
+    ...    
+    
+    layer = fact[fact.TEST, 1, 2]  # request object from factory TEST with 1 and 2 as values for x and y
+    
+Typically the caller of a factory would know what arguments to pass (ie. the dimensionality of the requested type) but
+can be parameterized with the factory name and the arguments to pass to the created type at instantiation time:
+
+    def use_factory(fact_args):
+        fact_name, type_args = split_args
+        layer_type = fact[fact_name, 1, 2]
+        return layer_type(**type_args)
+    ...    
+
+    kw_args = {'arg0':0, 'arg1':True}
+    layer = use_factory( (fact.TEST, kwargs) )
 """
 
 from typing import Callable
@@ -85,9 +109,9 @@ class LayerFactory:
         itself and is returned, otherwise it should be the factory name or a pair containing the name and arguments.
         """
 
-        # `args` is actually a type or constructor
-        if callable(args):
-            return args
+        # `args[0]` is actually a type or constructor
+        if callable(args[0]):
+            return args[0]
 
         # `args` is a factory name or a name with arguments
         if isinstance(args, str):
@@ -120,9 +144,8 @@ def split_args(args):
         name_obj, args = args
 
         if not isinstance(name_obj, (str, Callable)) or not isinstance(args, dict):
-            raise ValueError(
-                "Layer specifiers must be single strings or pairs of the form (name/object-types, argument dict)"
-            )
+            msg = "Layer specifiers must be single strings or pairs of the form (name/object-types, argument dict)"
+            raise ValueError(msg)
 
         return name_obj, args
 
@@ -133,6 +156,7 @@ Dropout = LayerFactory()
 Norm = LayerFactory()
 Act = LayerFactory()
 Conv = LayerFactory()
+Pool = LayerFactory()
 
 
 @Dropout.factory_function("dropout")
@@ -170,21 +194,27 @@ def convtrans_factory(dim):
     return types[dim - 1]
 
 
-@Conv.factory_function("maxpool")
-def get_maxpooling_type(dim, is_adaptive):
-    if is_adaptive:
-        types = [nn.AdaptiveMaxPool1d, nn.AdaptiveMaxPool2d, nn.AdaptiveMaxPool3d]
-    else:
-        types = [nn.MaxPool1d, nn.MaxPool2d, nn.MaxPool3d]
+@Pool.factory_function("max")
+def maxpooling_factory(dim):
+    types = [nn.MaxPool1d, nn.MaxPool2d, nn.MaxPool3d]
     return types[dim - 1]
 
 
-@Conv.factory_function("avgpool")
-def get_avgpooling_type(dim, is_adaptive):
-    if is_adaptive:
-        types = [nn.AdaptiveAvgPool1d, nn.AdaptiveAvgPool2d, nn.AdaptiveAvgPool3d]
-    else:
-        types = [nn.AvgPool1d, nn.AvgPool2d, nn.AvgPool3d]
+@Pool.factory_function("adaptivemax")
+def adaptive_maxpooling_factory(dim):
+    types = [nn.AdaptiveMaxPool1d, nn.AdaptiveMaxPool2d, nn.AdaptiveMaxPool3d]
+    return types[dim - 1]
+
+
+@Pool.factory_function("avg")
+def avgpooling_factory(dim):
+    types = [nn.AvgPool1d, nn.AvgPool2d, nn.AvgPool3d]
+    return types[dim - 1]
+
+
+@Pool.factory_function("adaptiveavg")
+def adaptive_avgpooling_factory(dim):
+    types = [nn.AdaptiveAvgPool1d, nn.AdaptiveAvgPool2d, nn.AdaptiveAvgPool3d]
     return types[dim - 1]
 
 

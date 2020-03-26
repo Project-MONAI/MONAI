@@ -22,7 +22,7 @@ from monai.utils.aliases import alias
 @alias("Unet", "unet")
 class UNet(nn.Module):
 
-    def __init__(self, dimensions, in_channels, num_classes, channels, strides, kernel_size=3, up_kernel_size=3,
+    def __init__(self, dimensions, in_channels, out_channels, channels, strides, kernel_size=3, up_kernel_size=3,
                  num_res_units=0, act=Act.PRELU, norm=Norm.INSTANCE, dropout=0):
         super().__init__()
         assert len(channels) == (len(strides) + 1)
