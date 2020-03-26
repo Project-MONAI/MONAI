@@ -50,7 +50,7 @@ class _DenseLayer(nn.Sequential):
         conv_type = Conv[Conv.CONV, spatial_dims]  
         norm_type = Norm[Norm.BATCH, spatial_dims]
         dropout_type = Dropout[Dropout.DROPOUT, spatial_dims]
-        
+
         self.add_module('norm1', norm_type(in_channels))
         self.add_module('relu1', nn.ReLU(inplace=True))
         self.add_module('conv1', conv_type(in_channels, out_channels, kernel_size=1, bias=False))
@@ -81,7 +81,7 @@ class _Transition(nn.Sequential):
 
     def __init__(self, spatial_dims, in_channels, out_channels):
         super(_Transition, self).__init__()
-        
+
         conv_type = Conv[Conv.CONV, spatial_dims]  
         norm_type = Norm[Norm.BATCH, spatial_dims]
         pool_type = Pool[Pool.AVG, spatial_dims]

@@ -23,22 +23,22 @@ passed to the factory function:
     dimension = 3
     name = Conv.CONVTRANS
     conv = Conv[name, dimension]
-    
+
 This allows the `dimension` value to be set in the constructor, for example so that the dimensionality of a network is 
 parameterizable. Not all factories require arguments after the name, the caller must be aware which are required.
 
 Defining new factories involves creating the object then associating it with factory functions:
 
     fact = LayerFactory()
-    
+
     @fact.factory_function('test')
     def make_something(x, y):
         # do something with x and y to choose which layer type to return
         return SomeLayerType
     ...    
-    
+
     layer = fact[fact.TEST, 1, 2]  # request object from factory TEST with 1 and 2 as values for x and y
-    
+
 Typically the caller of a factory would know what arguments to pass (ie. the dimensionality of the requested type) but
 can be parameterized with the factory name and the arguments to pass to the created type at instantiation time:
 
