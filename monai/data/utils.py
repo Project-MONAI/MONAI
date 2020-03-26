@@ -15,7 +15,7 @@ import nibabel as nib
 from itertools import starmap, product
 from torch.utils.data._utils.collate import default_collate
 import numpy as np
-from monai.transforms.utils import ensure_tuple_size
+from monai.transforms.utils import ensure_tuple_size, to_affine_nd
 
 
 def get_random_patch(dims, patch_size, rand_state=None):
@@ -281,6 +281,7 @@ def zoom_affine(affine, scale, diagonal=True):
         norm = np.sqrt(np.sum(np.square(affine), 0))[:-1]
         scale = np.append(scale, norm[len(scale):])
     scale = scale[:d]
+    scale[scale == 0] = 1.
     if diagonal:
         return np.diag(np.append(scale, [1.]))
     rzs = affine[:-1, :-1]  # rotation zoom scale
@@ -301,13 +302,9 @@ def compute_shape_offset(spatial_shape, in_affine, out_affine):
     in a good position with respect to the world coordinate system.
     """
     shape = np.array(spatial_shape, copy=True, dtype=float)
-    in_affine = np.array(in_affine, dtype=float)
-    out_affine = np.array(out_affine, dtype=float)
-    dim_pad = 3 - len(spatial_shape)
-    if dim_pad < 0:
-        raise ValueError('this function supports up to 3D shapes.')
-    if dim_pad > 0:
-        shape = np.append(shape, [1.] * dim_pad)
+    sr = len(shape)
+    in_affine = to_affine_nd(sr, in_affine)
+    out_affine = to_affine_nd(sr, out_affine)
     in_coords = [(0., dim - 1.) for dim in shape]
     corners = np.asarray(np.meshgrid(*in_coords, indexing='ij')).reshape((len(shape), -1))
     corners = np.concatenate((corners, np.ones_like(corners[:1])))
@@ -318,13 +315,10 @@ def compute_shape_offset(spatial_shape, in_affine, out_affine):
     if np.allclose(nib.io_orientation(in_affine),
                    nib.io_orientation(out_affine)):
         # same orientation, get translate from the origin
-        offset = (in_affine @ [0, 0, 0, 1])
+        offset = in_affine @ ([0] * sr + [1])
         offset = offset[:-1] / offset[-1]
     else:
         # different orientation, the min is the origin
         corners = corners[:-1] / corners[-1]
         offset = np.min(corners, 1)
-    if dim_pad > 0:
-        out_shape = out_shape[:len(spatial_shape)]
-        offset = offset[:len(spatial_shape)]
     return out_shape.astype(int), offset

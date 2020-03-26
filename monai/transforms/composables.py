@@ -38,7 +38,7 @@ export = monai.utils.export("monai.transforms")
 @alias('SpacingD', 'SpacingDict')
 class Spacingd(MapTransform):
     """
-    dictionary-based wrapper of :py:class:`monai.transforms.transforms.Spacing`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transforms.Spacing`.
 
     This transform assumes the ``data`` dictionary has a field for the input
     data's affine.  The field is created by either ``meta_key_format.format(key,
@@ -81,7 +81,7 @@ class Spacingd(MapTransform):
                 correspond to an interpolation order for each data item indexed
                 by `self.keys` respectively.
             dtype (None or np.dtype): output array data type, defaults to None to use input data's dtype.
-            meta_key_format (str): key format to read/write affine matrices associated with data.
+            meta_key_format (str): key format to read/write affine matrices to the data dictionary.
         """
         MapTransform.__init__(self, keys)
         self.spacing_transform = Spacing(pixdim, diagonal=diagonal, mode=mode, cval=cval, dtype=dtype)
@@ -114,37 +114,54 @@ class Spacingd(MapTransform):
 @alias('OrientationD', 'OrientationDict')
 class Orientationd(MapTransform):
     """
-    dictionary-based wrapper of :py:class:`monai.transforms.transforms.Orientation`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transforms.Orientation`.
+
+    This transform assumes the ``data`` dictionary has a field for the input
+    data's affine.  The field is created by either ``meta_key_format.format(key,
+    'affine')`` or ``meta_key_format.format(key, 'original_affine')``.
+
+    After reorientate the input array, this transform will store the current
+    affine in the ``data`` dictionary,
+    at the same time, if ``meta_key_format.format(key, 'original_affine')`` doesn't exist,
+    the field will be created and set to the affine before resampling.
     """
 
-    def __init__(self, keys, affine_key, axcodes, labels=None, output_key='orientation'):
+    def __init__(self, keys, axcodes=None, as_closest_canonical=False,
+                 labels=tuple(zip('LPI', 'RAS')), meta_key_format='{}.{}'):
         """
         Args:
-            affine_key (hashable): the key to the original affine.
-                The affine will be used to compute input data's orientation.
             axcodes (N elements sequence): for spatial ND input's orientation.
                 e.g. axcodes='RAS' represents 3D orientation:
                 (Left, Right), (Posterior, Anterior), (Inferior, Superior).
                 default orientation labels options are: 'L' and 'R' for the first dimension,
                 'P' and 'A' for the second, 'I' and 'S' for the third.
+            as_closest_canonical (boo): if True, load the image as closest to canonical axis format.
             labels : optional, None or sequence of (2,) sequences
                 (2,) sequences are labels for (beginning, end) of output axis.
+                Defaults to ``(('L', 'R'), ('P', 'A'), ('I', 'S'))``.
+            meta_key_format (str): key format to read/write affine matrices to the data dictionary.
 
         See Also:
             `nibabel.orientations.ornt2axcodes`.
         """
         MapTransform.__init__(self, keys)
-        self.affine_key = affine_key
-        self.orientation_transform = Orientation(axcodes=axcodes, labels=labels)
-        self.output_key = output_key
+        self.ornt_transform = Orientation(
+            axcodes=axcodes, as_closest_canonical=as_closest_canonical, labels=labels)
+        self.meta_key_format = meta_key_format
 
     def __call__(self, data):
         d = dict(data)
-        affine = d[self.affine_key]
-        original_ornt, new_ornt = None, None
         for key in self.keys:
-            d[key], original_ornt, new_ornt = self.orientation_transform(d[key], affine)
-        d[self.output_key] = {'original_ornt': original_ornt, 'current_ornt': new_ornt}
+            affine_key = self.meta_key_format.format(key, 'affine')
+            original_key = self.meta_key_format.format(key, 'original_affine')
+
+            affine = d.get(affine_key, None)
+            if affine is None:
+                affine = d.get(original_key, None)
+            d[key], affine_, new_affine = self.ornt_transform(d[key], affine)
+            if d.get(original_key, None) is None:
+                d[original_key] = affine_
+            d[affine_key] = new_affine
         return d
 
 

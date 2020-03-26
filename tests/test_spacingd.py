@@ -33,8 +33,8 @@ class TestSpacingDCase(unittest.TestCase):
         res = spacing(data)
         self.assertEqual(('image', 'image.affine', 'image.original_affine'), tuple(sorted(res)))
         np.testing.assert_allclose(res['image'].shape, (2, 10, 11))
-        np.testing.assert_allclose(res['image.affine'], np.diag((1, 2, 1, 1)))
-        np.testing.assert_allclose(res['image.original_affine'], np.eye(4))
+        np.testing.assert_allclose(res['image.affine'], np.diag((1, 2, 1)))
+        np.testing.assert_allclose(res['image.original_affine'], np.eye(3))
 
     def test_spacingd_1d(self):
         data = {'image': np.arange(20).reshape((2, 10)), 'image.original_affine': np.diag((3, 2, 1, 1))}
