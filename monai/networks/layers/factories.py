@@ -110,8 +110,8 @@ class LayerFactory:
         """
 
         # `args[0]` is actually a type or constructor
-        if callable(args[0]):
-            return args[0]
+        if callable(args):
+            return args
 
         # `args` is a factory name or a name with arguments
         if isinstance(args, str):
