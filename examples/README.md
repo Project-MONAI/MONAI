@@ -33,7 +33,7 @@ The example shows the flexibility of MONAI modules in a PyTorch-based program:
 #### 6. [notebooks/transform_speed](https://github.com/Project-MONAI/MONAI/blob/master/examples/notebooks/transform_speed.ipynb)
 Illustrate reading NIfTI files and test speed of different transforms on different devices.
 #### 7. [notebooks/transforms_demo_2d](https://github.com/Project-MONAI/MONAI/blob/master/examples/notebooks/transforms_demo_2d.ipynb)
-This notebook demonstrates the medical domain specific transforms on 2D medical images.
+This notebook demonstrates the image transformations on histology images using [the GlaS Contest dataset](https://warwick.ac.uk/fac/sci/dcs/research/tia/glascontest/download/).
 #### 8. [notebooks/unet_segmentation_3d_ignite](https://github.com/Project-MONAI/MONAI/blob/master/examples/notebooks/unet_segmentation_3d_ignite.ipynb)
 This notebook is an end-to-end training & evaluation example of 3D segmentation based on synthetic dataset.
 The example is a PyTorch Ignite program and shows several key features of MONAI,
