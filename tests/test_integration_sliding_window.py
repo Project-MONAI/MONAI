@@ -10,10 +10,11 @@
 # limitations under the License.
 
 import os
-import sys
 import tempfile
+import unittest
 
 import nibabel as nib
+import numpy as np
 import torch
 from ignite.engine import Engine
 from torch.utils.data import DataLoader
@@ -28,12 +29,7 @@ from monai.utils.sliding_window_inference import sliding_window_inference
 from tests.utils import make_nifti_image
 
 
-def run_test(batch_size=2, device=torch.device("cuda:0")):
-
-    im, seg = create_test_image_3d(25, 28, 63, rad_max=10, noise_max=1, num_objs=4, num_seg_classes=1)
-    input_shape = im.shape
-    img_name = make_nifti_image(im)
-    seg_name = make_nifti_image(seg)
+def run_test(batch_size, img_name, seg_name, output_dir, device=torch.device("cuda:0")):
     ds = NiftiDataset([img_name], [seg_name], transform=AddChannel(), seg_transform=AddChannel(), image_only=False)
     loader = DataLoader(ds, batch_size=1, pin_memory=torch.cuda.is_available())
 
@@ -57,27 +53,46 @@ def run_test(batch_size=2, device=torch.device("cuda:0")):
 
     infer_engine = Engine(_sliding_window_processor)
 
-    with tempfile.TemporaryDirectory() as temp_dir:
-        SegmentationSaver(output_dir=temp_dir, output_ext='.nii.gz', output_postfix='seg',
-                          batch_transform=lambda x: x[2]).attach(infer_engine)
+    SegmentationSaver(output_dir=output_dir, output_ext='.nii.gz', output_postfix='seg',
+                      batch_transform=lambda x: x[2]).attach(infer_engine)
 
-        infer_engine.run(loader)
+    infer_engine.run(loader)
 
-        basename = os.path.basename(img_name)[:-len('.nii.gz')]
-        saved_name = os.path.join(temp_dir, basename, '{}_seg.nii.gz'.format(basename))
-        # get spatial dimensions shape, the saved nifti image format: HWDC
-        testing_shape = nib.load(saved_name).get_fdata().shape[:-1]
+    basename = os.path.basename(img_name)[:-len('.nii.gz')]
+    saved_name = os.path.join(output_dir, basename, '{}_seg.nii.gz'.format(basename))
+    return saved_name
 
-    if os.path.exists(img_name):
-        os.remove(img_name)
-    if os.path.exists(seg_name):
-        os.remove(seg_name)
-    if testing_shape != input_shape:
-        print('testing shape: {} does not match input shape: {}.'.format(testing_shape, input_shape))
-        return False
-    return True
+
+class TestIntegrationSlidingWindow(unittest.TestCase):
+
+    def setUp(self):
+        np.random.seed(0)
+        torch.manual_seed(0)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+
+        im, seg = create_test_image_3d(25, 28, 63, rad_max=10, noise_max=1, num_objs=4, num_seg_classes=1)
+        self.img_name = make_nifti_image(im)
+        self.seg_name = make_nifti_image(seg)
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu:0')
+
+    def tearDown(self):
+        if os.path.exists(self.img_name):
+            os.remove(self.img_name)
+        if os.path.exists(self.seg_name):
+            os.remove(self.seg_name)
+
+    def test_training(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_file = run_test(batch_size=2,
+                                   img_name=self.img_name,
+                                   seg_name=self.seg_name,
+                                   output_dir=temp_dir,
+                                   device=self.device)
+            output_image = nib.load(output_file).get_fdata()
+            np.testing.assert_allclose(np.sum(output_image), 34070)
+            np.testing.assert_allclose(output_image.shape, (28, 25, 63, 1))
 
 
 if __name__ == "__main__":
-    result = run_test()
-    sys.exit(0 if result else 1)
+    unittest.main()
