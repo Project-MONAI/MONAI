@@ -11,17 +11,20 @@ python -m pip install -U notebook
 
 ### 2. List of examples
 #### 1. [classification_3d](https://github.com/Project-MONAI/MONAI/tree/master/examples/classification_3d)
-Training and evaluation examples of 3D classification based on DenseNet3D and IXI dataset.  
+Training and evaluation examples of 3D classification based on DenseNet3D and IXI dataset:  
+https://brain-development.org/ixi-dataset  
 The examples are standard PyTorch programs and have both `dictionary data` and `array data` versions.
 #### 2. [classification_3d_ignite](https://github.com/Project-MONAI/MONAI/tree/master/examples/classification_3d_ignite)
-Training and evaluation examples of 3D classification based on DenseNet3D and IXI dataset.  
+Training and evaluation examples of 3D classification based on DenseNet3D and IXI dataset:  
+https://brain-development.org/ixi-dataset  
 The examples are PyTorch ignite programs and have both `dictionary data` and `array data` versions.
 #### 3. [notebooks/multi_gpu_test](https://github.com/Project-MONAI/MONAI/blob/master/examples/notebooks/multi_gpu_test.ipynb)
 This notebook is a quick test for devices, run the ignite trainer engine on CPU, single GPU and multi-GPUs.
 #### 4. [notebooks/nifti_read_example](https://github.com/Project-MONAI/MONAI/blob/master/examples/notebooks/nifti_read_example.ipynb)
 Illustrate reading Nifti files and iterating over patches of the volumes loaded from them.
 #### 5. [notebooks/spleen_segmentation_3d](https://github.com/Project-MONAI/MONAI/blob/master/examples/notebooks/spleen_segmentation_3d.ipynb)
-This notebook is an end-to-end training & evaluation example of 3D segmentation based on MSD Spleen dataset.  
+This notebook is an end-to-end training & evaluation example of 3D segmentation based on MSD Spleen dataset:  
+http://medicaldecathlon.com  
 The example is a standard PyTorch program and shows several key features of MONAI:  
 (1) Transforms for dictionary format data.  
 (2) Load Nifti image with metadata.  
