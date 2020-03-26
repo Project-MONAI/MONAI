@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - fixes-ci-tests
 
 jobs:
   coverage-py3:
