@@ -19,7 +19,7 @@ from monai.networks.utils import one_hot
 def compute_meandice(y_pred,
                      y,
                      include_background=True,
-                     to_onehot_y=True,
+                     to_onehot_y=False,
                      mutually_exclusive=False,
                      add_sigmoid=False,
                      logit_thresh=0.5):
@@ -33,7 +33,7 @@ def compute_meandice(y_pred,
             alternative shape: [16, 3, 32, 32] and set `to_onehot_y=False` to use 3-class labels directly.
         include_background (Bool): whether to skip Dice computation on the first channel of
             the predicted output. Defaults to True.
-        to_onehot_y (Bool): whether to convert `y` into the one-hot format. Defaults to True.
+        to_onehot_y (Bool): whether to convert `y` into the one-hot format. Defaults to False.
         mutually_exclusive (Bool): if True, `y_pred` will be converted into a binary matrix using
             a combination of argmax and to_onehot.  Defaults to False.
         add_sigmoid (Bool): whether to add sigmoid function to y_pred before computation. Defaults to False.
