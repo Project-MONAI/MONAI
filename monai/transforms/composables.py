@@ -116,6 +116,9 @@ class Orientationd(MapTransform):
 class LoadNiftid(MapTransform):
     """
     dictionary-based wrapper of LoadNifti, must load image and metadata together.
+    If load a list of files in 1 key, stack them together and add a new dimension as first dim,
+    and use the meta data of the first image to represent the stacked result.
+    Note that the affine data of all stacked images should be same.
     """
 
     def __init__(self, keys, as_closest_canonical=False, dtype=np.float32, meta_key_format='{}.{}', overwriting_keys=False):
