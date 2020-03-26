@@ -95,7 +95,7 @@ def run_training_test(root_dir, device=torch.device("cuda:0")):
     model_filename = os.path.join(root_dir, 'best_metric_model.pth')
     for epoch in range(6):
         print('-' * 10)
-        print('Epoch {}/{}'.format(epoch + 1, 5))
+        print('Epoch {}/{}'.format(epoch + 1, 6))
         model.train()
         epoch_loss = 0
         step = 0
