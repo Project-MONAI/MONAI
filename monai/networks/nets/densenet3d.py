@@ -121,7 +121,7 @@ class DenseNet(nn.Module):
                  dropout_prob=0):
 
         super(DenseNet, self).__init__()
-        
+
         conv_type = Conv[Conv.CONV, spatial_dims]  
         norm_type = Norm[Norm.BATCH, spatial_dims]
         pool_type = Pool[Pool.MAX, spatial_dims]
