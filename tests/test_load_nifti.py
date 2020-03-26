@@ -11,40 +11,60 @@
 
 import unittest
 import os
-import shutil
 import numpy as np
 import tempfile
 import nibabel as nib
 from parameterized import parameterized
 from monai.transforms.transforms import LoadNifti
 
-TEST_CASE_IMAGE_ONLY = [
+TEST_CASE_1 = [
     {
         'as_closest_canonical': False,
         'image_only': True
     },
+    ['test_image.nii.gz'],
     (128, 128, 128)
 ]
 
-TEST_CASE_IMAGE_METADATA = [
+TEST_CASE_2 = [
     {
         'as_closest_canonical': False,
         'image_only': False
     },
+    ['test_image.nii.gz'],
     (128, 128, 128)
+]
+
+TEST_CASE_3 = [
+    {
+        'as_closest_canonical': False,
+        'image_only': True
+    },
+    ['test_image1.nii.gz', 'test_image2.nii.gz', 'test_image3.nii.gz'],
+    (3, 128, 128, 128)
+]
+
+TEST_CASE_4 = [
+    {
+        'as_closest_canonical': False,
+        'image_only': False
+    },
+    ['test_image1.nii.gz', 'test_image2.nii.gz', 'test_image3.nii.gz'],
+    (3, 128, 128, 128)
 ]
 
 
 class TestLoadNifti(unittest.TestCase):
 
-    @parameterized.expand([TEST_CASE_IMAGE_ONLY, TEST_CASE_IMAGE_METADATA])
-    def test_shape(self, input_param, expected_shape):
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
+    def test_shape(self, input_param, filenames, expected_shape):
         test_image = np.random.randint(0, 2, size=[128, 128, 128])
         tempdir = tempfile.mkdtemp()
-        nib.save(nib.Nifti1Image(test_image, np.eye(4)), os.path.join(tempdir, 'test_image.nii.gz'))
-        test_data = os.path.join(tempdir, 'test_image.nii.gz')
-        result = LoadNifti(**input_param)(test_data)
-        shutil.rmtree(tempdir)
+        with tempfile.TemporaryDirectory() as tempdir:
+            for i, name in enumerate(filenames):
+                filenames[i] = os.path.join(tempdir, name)
+                nib.save(nib.Nifti1Image(test_image, np.eye(4)), filenames[i])
+            result = LoadNifti(**input_param)(filenames)
         if isinstance(result, tuple):
             result = result[0]
         self.assertTupleEqual(result.shape, expected_shape)

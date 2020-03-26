@@ -152,8 +152,12 @@ class Orientationd(MapTransform):
 @alias('LoadNiftiD', 'LoadNiftiDict')
 class LoadNiftid(MapTransform):
     """
-    dictionary-based wrapper of LoadNifti, loads image and metadata.
-    the metadata field will be created as ``self.meta_key_format(key, metadata_key)``.
+    Dictionary-based wrapper of LoadNifti, must load image and metadata
+    together. If loading a list of files in one key, stack them together and
+    add a new dimension as the first dimension, and use the meta data of the
+    first image to represent the stacked result. Note that the affine transform
+    of all the stacked images should be same. The output metadata field will be created as
+    ``self.meta_key_format(key, metadata_key)``.
     """
 
     def __init__(self, keys, as_closest_canonical=False, dtype=np.float32,
