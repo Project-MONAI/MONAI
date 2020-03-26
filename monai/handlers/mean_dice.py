@@ -27,7 +27,7 @@ class MeanDice(Metric):
 
     def __init__(self,
                  include_background=True,
-                 to_onehot_y=True,
+                 to_onehot_y=False,
                  mutually_exclusive=False,
                  add_sigmoid=False,
                  logit_thresh=0.5,
@@ -38,7 +38,7 @@ class MeanDice(Metric):
         Args:
             include_background (Bool): whether to include dice computation on the first channel of the predicted output.
                 Defaults to True.
-            to_onehot_y (Bool): whether to convert the output prediction into the one-hot format. Defaults to True.
+            to_onehot_y (Bool): whether to convert the output prediction into the one-hot format. Defaults to False.
             mutually_exclusive (Bool): if True, the output prediction will be converted into a binary matrix using
                 a combination of argmax and to_onehot. Defaults to False.
             add_sigmoid (Bool): whether to add sigmoid function to the output prediction before computing Dice.
