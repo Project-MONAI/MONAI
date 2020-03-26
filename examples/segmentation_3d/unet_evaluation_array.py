@@ -77,9 +77,10 @@ with torch.no_grad():
         val_outputs = sliding_window_inference(val_data[0], roi_size, sw_batch_size, model, device)
         val_labels = val_data[1].to(device)
         value = compute_meandice(y_pred=val_outputs, y=val_labels, include_background=True,
-                                 to_onehot_y=False, mutually_exclusive=False)
+                                 to_onehot_y=False, add_sigmoid=True)
         metric_count += len(value)
         metric_sum += value.sum().item()
+        val_outputs = (val_outputs.sigmoid() >= 0.5).float()
         saver.save_batch(val_outputs, val_data[2])
     metric = metric_sum / metric_count
     print('evaluation metric:', metric)
