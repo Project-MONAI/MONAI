@@ -139,9 +139,10 @@ class Orientation:
 @export
 class LoadNifti:
     """
-    Load Nifti format file or files from provided path.
-    If load a list of files, stack them together and add a new dimension as first dim, and use the meta data of
-    the first image to represent the stacked result. Note that the affine data of all images should be same.
+    Load Nifti format file or files from provided path. If loading a list of
+    files, stack them together and add a new dimension as first dimension, and
+    use the meta data of the first image to represent the stacked result. Note
+    that the affine transform of all the images should be same if ``image_only=False``.
     """
 
     def __init__(self, as_closest_canonical=False, image_only=False, dtype=np.float32):
