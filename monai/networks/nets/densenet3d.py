@@ -14,10 +14,6 @@ from collections import OrderedDict
 import torch
 import torch.nn as nn
 
-# from monai.networks.layers.factories import (get_avgpooling_type, get_conv_type, get_dropout_type, get_maxpooling_type,
-#                                              get_normalize_type)
-
-
 from monai.networks.layers.factories import Conv, Dropout, Pool, Norm
 
 

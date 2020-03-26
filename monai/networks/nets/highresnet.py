@@ -13,11 +13,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from monai.networks.layers.convutils import same_padding
-from monai.networks.layers.factories import (get_conv_type, get_dropout_type, get_normalize_type)
+from monai.networks.layers.factories import Conv, Dropout, Norm
 
 SUPPORTED_NORM = {
-    'batch': lambda spatial_dims: get_normalize_type(spatial_dims, is_instance=False),
-    'instance': lambda spatial_dims: get_normalize_type(spatial_dims, is_instance=True),
+    'batch': lambda spatial_dims: Norm[Norm.BATCH, spatial_dims],
+    'instance': lambda spatial_dims: Norm[Norm.INSTANCE, spatial_dims],
 }
 SUPPORTED_ACTI = {'relu': nn.ReLU, 'prelu': nn.PReLU, 'relu6': nn.ReLU6}
 DEFAULT_LAYER_PARAMS_3D = (
@@ -48,7 +48,7 @@ class ConvNormActi(nn.Module):
 
         layers = nn.ModuleList()
 
-        conv_type = get_conv_type(spatial_dims, is_transpose=False)
+        conv_type = Conv[Conv.CONV, spatial_dims]  
         padding_size = same_padding(kernel_size)
         conv = conv_type(in_channels, out_channels, kernel_size, padding=padding_size)
         layers.append(conv)
@@ -58,7 +58,7 @@ class ConvNormActi(nn.Module):
         if acti_type is not None:
             layers.append(SUPPORTED_ACTI[acti_type](inplace=True))
         if dropout_prob is not None:
-            dropout_type = get_dropout_type(spatial_dims)
+            dropout_type = Dropout[Dropout.DROPOUT, spatial_dims]
             layers.append(dropout_type(p=dropout_prob))
         self.layers = nn.Sequential(*layers)
 
@@ -84,7 +84,7 @@ class HighResBlock(nn.Module):
                 with either zero padding ('pad') or a trainable conv with kernel size 1 ('project').
         """
         super(HighResBlock, self).__init__()
-        conv_type = get_conv_type(spatial_dims, is_transpose=False)
+        conv_type = Conv[Conv.CONV, spatial_dims]
 
         self.project, self.pad = None, None
         if in_channels != out_channels:
