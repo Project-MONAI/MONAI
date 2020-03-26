@@ -11,7 +11,6 @@
 
 import unittest
 import os
-import shutil
 import numpy as np
 import tempfile
 import nibabel as nib
@@ -61,11 +60,11 @@ class TestLoadNifti(unittest.TestCase):
     def test_shape(self, input_param, filenames, expected_shape):
         test_image = np.random.randint(0, 2, size=[128, 128, 128])
         tempdir = tempfile.mkdtemp()
-        for i, name in enumerate(filenames):
-            filenames[i] = os.path.join(tempdir, name)
-            nib.save(nib.Nifti1Image(test_image, np.eye(4)), filenames[i])
-        result = LoadNifti(**input_param)(filenames)
-        shutil.rmtree(tempdir)
+        with tempfile.TemporaryDirectory() as tempdir:
+            for i, name in enumerate(filenames):
+                filenames[i] = os.path.join(tempdir, name)
+                nib.save(nib.Nifti1Image(test_image, np.eye(4)), filenames[i])
+            result = LoadNifti(**input_param)(filenames)
         if isinstance(result, tuple):
             result = result[0]
         self.assertTupleEqual(result.shape, expected_shape)

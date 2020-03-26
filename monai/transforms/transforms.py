@@ -166,8 +166,7 @@ class LoadNifti:
         Args:
             filename (str, list, tuple, file): path file or file-like object or a list of files.
         """
-        if not isinstance(filename, (tuple, list)):
-            filename = (filename,)
+        filename = ensure_tuple(filename)
         img_array = list()
         compatible_meta = dict()
         for name in filename:
@@ -186,7 +185,10 @@ class LoadNifti:
             img_array.append(np.array(img.get_fdata(dtype=self.dtype)))
             img.uncache()
 
-            if len(compatible_meta) == 0:
+            if self.image_only:
+                continue
+
+            if not compatible_meta:
                 for meta_key in header:
                     meta_datum = header[meta_key]
                     if type(meta_datum).__name__ == 'ndarray' \
@@ -194,7 +196,7 @@ class LoadNifti:
                         continue
                     compatible_meta[meta_key] = meta_datum
             else:
-                assert np.array_equal(header['affine'], compatible_meta['affine']), \
+                assert np.allclose(header['affine'], compatible_meta['affine']), \
                     'affine data of all images should be same.'
 
         img_array = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
