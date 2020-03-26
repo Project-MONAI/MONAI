@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
+import unittest
 
 import numpy as np
 import torch
@@ -49,12 +49,16 @@ def run_test(batch_size=64, train_steps=100, device=torch.device("cuda:0")):
 
     trainer.run(src, 1)
     loss = trainer.state.output
-    print('Loss:', loss)
-    if loss >= 1:
-        print('Loss value is wrong, expect to be < 1.')
     return loss
 
 
-if __name__ == "__main__":
-    result = run_test()
-    sys.exit(0 if result < 1 else 1)
+class TestIntegrationUnet2D(unittest.TestCase):
+
+    def test_unet_training(self):
+        loss = run_test(device=torch.device('cuda:0' if torch.cuda.is_available() else 'cpu:0'))
+        print(loss)
+        self.assertGreaterEqual(0.85, loss)
+
+
+if __name__ == '__main__':
+    unittest.main()
