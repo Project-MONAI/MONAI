@@ -83,9 +83,10 @@ with torch.no_grad():
         val_outputs = sliding_window_inference(val_data['img'], roi_size, sw_batch_size, model, device)
         val_labels = val_data['seg'].to(device)
         value = compute_meandice(y_pred=val_outputs, y=val_labels, include_background=True,
-                                 to_onehot_y=False, mutually_exclusive=False)
+                                 to_onehot_y=False, add_sigmoid=True)
         metric_count += len(value)
         metric_sum += value.sum().item()
+        val_outputs = (val_outputs.sigmoid() >= 0.5).float()
         saver.save_batch(val_outputs, {'filename_or_obj': val_data['img.filename_or_obj'],
                                        'original_affine': val_data['img.original_affine'],
                                        'affine': val_data['img.affine']})

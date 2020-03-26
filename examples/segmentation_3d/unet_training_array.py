@@ -138,7 +138,7 @@ for epoch in range(5):
                 sw_batch_size = 4
                 val_outputs = sliding_window_inference(val_images, roi_size, sw_batch_size, model, device)
                 value = compute_meandice(y_pred=val_outputs, y=val_labels.to(device), include_background=True,
-                                         to_onehot_y=False, mutually_exclusive=False)
+                                         to_onehot_y=False, add_sigmoid=True)
                 metric_count += len(value)
                 metric_sum += value.sum().item()
             metric = metric_sum / metric_count
