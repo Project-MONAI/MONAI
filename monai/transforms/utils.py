@@ -398,5 +398,4 @@ def to_affine_nd(r, affine):
     d = min(len(new_affine) - 1, len(affine) - 1)
     new_affine[:d, :d] = affine[:d, :d]
     new_affine[:d, -1] = affine[:d, -1]
-    # new_affine[-1, :r] = affine[-1, :r]
     return new_affine
