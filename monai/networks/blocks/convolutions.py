@@ -12,14 +12,17 @@
 import numpy as np
 import torch.nn as nn
 
-from monai.networks.layers.factories import get_conv_type, get_dropout_type, get_normalize_type
+from monai.networks.layers.factories import Dropout, Norm, Act, Conv, split_args
 from monai.networks.layers.convutils import same_padding
 
 
 class Convolution(nn.Sequential):
+    """
+    Constructs a convolution with optional dropout, normalization, and activation layers.
+    """
 
-    def __init__(self, dimensions, in_channels, out_channels, strides=1, kernel_size=3, instance_norm=True, dropout=0,
-                 dilation=1, bias=True, conv_only=False, is_transposed=False):
+    def __init__(self, dimensions, in_channels, out_channels, strides=1, kernel_size=3, act=Act.PRELU, 
+                 norm=Norm.INSTANCE, dropout=None, dilation=1, bias=True, conv_only=False, is_transposed=False):
         super().__init__()
         self.dimensions = dimensions
         self.in_channels = in_channels
@@ -27,9 +30,25 @@ class Convolution(nn.Sequential):
         self.is_transposed = is_transposed
 
         padding = same_padding(kernel_size, dilation)
-        normalize_type = get_normalize_type(dimensions, instance_norm)
-        conv_type = get_conv_type(dimensions, is_transposed)
-        drop_type = get_dropout_type(dimensions)
+        conv_type = Conv[Conv.CONVTRANS if is_transposed else Conv.CONV, dimensions]
+
+        # define the normalisation type and the arguments to the constructor
+        norm_name, norm_args = split_args(norm)
+        norm_type = Norm[norm_name, dimensions]
+
+        # define the activation type and the arguments to the constructor
+        act_name, act_args = split_args(act)
+        act_type = Act[act_name]
+
+        if dropout:
+            # if dropout was specified simply as a p value, use default name and make a keyword map with the value
+            if isinstance(dropout, (int, float)):
+                drop_name = Dropout.DROPOUT
+                drop_args = {"p": dropout}
+            else:
+                drop_name, drop_args = split_args(dropout)
+
+            drop_type = Dropout[drop_name, dimensions]
 
         if is_transposed:
             conv = conv_type(in_channels, out_channels, kernel_size, strides, padding, strides - 1, 1, bias, dilation)
@@ -39,17 +58,16 @@ class Convolution(nn.Sequential):
         self.add_module("conv", conv)
 
         if not conv_only:
-            self.add_module("norm", normalize_type(out_channels))
-            if dropout > 0:  # omitting Dropout2d appears faster than relying on it short-circuiting when dropout==0
-                self.add_module("dropout", drop_type(dropout))
+            self.add_module("norm", norm_type(out_channels, **norm_args))
+            if dropout:
+                self.add_module("dropout", drop_type(**drop_args))
 
-            self.add_module("prelu", nn.modules.PReLU())
+            self.add_module("act", act_type(**act_args))
 
 
 class ResidualUnit(nn.Module):
-
-    def __init__(self, dimensions, in_channels, out_channels, strides=1, kernel_size=3, subunits=2, instance_norm=True,
-                 dropout=0, dilation=1, bias=True, last_conv_only=False):
+    def __init__(self, dimensions, in_channels, out_channels, strides=1, kernel_size=3, subunits=2, 
+                 act=Act.PRELU, norm=Norm.INSTANCE, dropout=None, dilation=1, bias=True, last_conv_only=False):
         super().__init__()
         self.dimensions = dimensions
         self.in_channels = in_channels
@@ -64,10 +82,13 @@ class ResidualUnit(nn.Module):
 
         for su in range(subunits):
             conv_only = last_conv_only and su == (subunits - 1)
-            unit = Convolution(dimensions, schannels, out_channels, sstrides, kernel_size, instance_norm, dropout,
-                               dilation, bias, conv_only)
+            unit = Convolution(dimensions, schannels, out_channels, sstrides, 
+                               kernel_size, act, norm, dropout, dilation, bias, conv_only)
+
             self.conv.add_module("unit%i" % su, unit)
-            schannels = out_channels  # after first loop set channels and strides to what they should be for subsequent units
+
+            # after first loop set channels and strides to what they should be for subsequent units
+            schannels = out_channels  
             sstrides = 1
 
         # apply convolution to input to change number of output channels and size to match that coming from self.conv
@@ -79,7 +100,7 @@ class ResidualUnit(nn.Module):
                 rkernel_size = 1
                 rpadding = 0
 
-            conv_type = get_conv_type(dimensions, False)
+            conv_type = Conv[Conv.CONV, dimensions]
             self.residual = conv_type(in_channels, out_channels, rkernel_size, strides, rpadding, bias=bias)
 
     def forward(self, x):

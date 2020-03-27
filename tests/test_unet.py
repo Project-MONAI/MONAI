@@ -14,7 +14,22 @@ import unittest
 import torch
 from parameterized import parameterized
 
+from monai.networks.layers.factories import Norm, Act
 from monai.networks.nets.unet import UNet
+
+
+TEST_CASE_0 = [  # single channel 2D, batch 16, no residual
+    {
+        'dimensions': 2,
+        'in_channels': 1,
+        'out_channels': 3,
+        'channels': (16, 32, 64),
+        'strides': (2, 2),
+        'num_res_units': 0,
+    },
+    torch.randn(16, 1, 32, 32),
+    (16, 3, 32, 32),
+]
 
 TEST_CASE_1 = [  # single channel 2D, batch 16
     {
@@ -55,10 +70,54 @@ TEST_CASE_3 = [  # 4-channel 3D, batch 16
     (16, 3, 32, 64, 48),
 ]
 
+TEST_CASE_4 = [  # 4-channel 3D, batch 16, batch normalisation
+    {
+        'dimensions': 3,
+        'in_channels': 4,
+        'out_channels': 3,
+        'channels': (16, 32, 64),
+        'strides': (2, 2),
+        'num_res_units': 1,
+        'norm': Norm.BATCH,
+    },
+    torch.randn(16, 4, 32, 64, 48),
+    (16, 3, 32, 64, 48),
+]
+
+TEST_CASE_5 = [  # 4-channel 3D, batch 16, LeakyReLU activation
+    {
+        'dimensions': 3,
+        'in_channels': 4,
+        'out_channels': 3,
+        'channels': (16, 32, 64),
+        'strides': (2, 2),
+        'num_res_units': 1,
+        'act': (Act.LEAKYRELU, {'negative_slope': 0.2}),
+    },
+    torch.randn(16, 4, 32, 64, 48),
+    (16, 3, 32, 64, 48),
+]
+
+TEST_CASE_6 = [  # 4-channel 3D, batch 16, LeakyReLU activation explicit
+    {
+        'dimensions': 3,
+        'in_channels': 4,
+        'out_channels': 3,
+        'channels': (16, 32, 64),
+        'strides': (2, 2),
+        'num_res_units': 1,
+        'act': (torch.nn.LeakyReLU, {'negative_slope': 0.2}),
+    },
+    torch.randn(16, 4, 32, 64, 48),
+    (16, 3, 32, 64, 48),
+]
+
+CASES = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6]
+
 
 class TestUNET(unittest.TestCase):
 
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
+    @parameterized.expand(CASES)
     def test_shape(self, input_param, input_data, expected_shape):
         net = UNet(**input_param)
         net.eval()
