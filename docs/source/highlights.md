@@ -72,7 +72,16 @@ torch.backends.cudnn.benchmark = False
 There are domain-specific loss functions in the medical research area which are different from the generic computer vision ones. As an important module of MONAI, these loss functions are implemented in PyTorch, such as Dice loss and generalized Dice loss.
 
 ## Network architectures
-Some deep neural network architectures have shown to be particularly effective for medical imaging analysis tasks. MONAI implements reference networks with the aims of both flexibility and code readability.
+Some deep neural network architectures have shown to be particularly effective for medical imaging analysis tasks. MONAI implements reference networks with the aims of both flexibility and code readability.  
+In order to leverage the common network layers and blocks, MONAI provides several predefined layers and blocks which are compatible with 1D, 2D and 3D networks. Users can easily integrate the layer factories in their own networks.  
+For example:  
+```py
+# add Convolution layer to the network which is compatible with different spatial dimensions.
+dimension = 3
+name = Conv.CONVTRANS
+conv_type = Conv[name, dimension]
+add_module('conv1', conv_type(in_channels, out_channels, kernel_size=1, bias=False))
+```
 
 ## Evaluation
 To run model inferences and evaluate the model quality, MONAI provides reference implementations for the relevant widely-used approaches. Currently, several popular evaluation metrics and inference patterns are included:
