@@ -5,7 +5,6 @@ coverage:
         target: 70%
         threshold: 10
         base: parent
-        branches: null
         if_no_uploads: error
         if_not_found: success
         if_ci_failed: error
@@ -18,7 +17,6 @@ coverage:
         # Allows PRs without tests, overall stats count
         threshold: 100
         base: auto
-        branches: null
         if_no_uploads: error
         if_not_found: success
         if_ci_failed: error
