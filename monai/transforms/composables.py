@@ -15,8 +15,6 @@ defined in :py:class:`monai.transforms.transforms`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from copy import copy
-
 import numpy as np
 import torch
 
@@ -100,11 +98,11 @@ class Spacingd(MapTransform):
                 affine = d.get(original_key, None)
             # resample array of each corresponding key
             # using affine fetched from d[affine_key]
-            d[key], affine, new_affine = self.spacing_transform(
+            d[key], affine_, new_affine = self.spacing_transform(
                 data_array=d[key], original_affine=affine, interp_order=interp)
             if d.get(original_key, None) is None:
                 # set the 'original_affine' field
-                d[original_key] = copy(affine)
+                d[original_key] = affine_
             # set the 'affine' key
             d[affine_key] = new_affine
         return d

@@ -219,7 +219,6 @@ class LoadNifti:
             img = correct_nifti_header_if_necessary(img)
             header = dict(img.header)
             header['filename_or_obj'] = name
-            # header['original_affine'] = img.affine
             header['affine'] = img.affine
             header['as_closest_canonical'] = self.as_closest_canonical
 
