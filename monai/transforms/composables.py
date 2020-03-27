@@ -115,10 +115,15 @@ class Orientationd(MapTransform):
 @alias('LoadNiftiD', 'LoadNiftiDict')
 class LoadNiftid(MapTransform):
     """
-    dictionary-based wrapper of LoadNifti, must load image and metadata together.
+    Dictionary-based wrapper of LoadNifti, must load image and metadata
+    together. If loading a list of files in one key, stack them together and
+    add a new dimension as the first dimension, and use the meta data of the
+    first image to represent the stacked result. Note that the affine transform
+    of all the stacked images should be same.
     """
 
-    def __init__(self, keys, as_closest_canonical=False, dtype=np.float32, meta_key_format='{}.{}', overwriting_keys=False):
+    def __init__(self, keys, as_closest_canonical=False, dtype=np.float32,
+                 meta_key_format='{}.{}', overwriting_keys=False):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -794,6 +799,7 @@ class RandRotated(Randomizable, MapTransform):
         cval (scalar): Value to fill outside boundary. Default: 0.
         prefiter (bool): Apply spline_filter before interpolation. Default: True.
     """
+
     def __init__(self, keys, degrees, prob=0.1, spatial_axes=(0, 1), reshape=True, order=1,
                  mode='constant', cval=0, prefilter=True):
         MapTransform.__init__(self, keys)

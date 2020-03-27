@@ -139,7 +139,10 @@ class Orientation:
 @export
 class LoadNifti:
     """
-    Load Nifti format file from provided path.
+    Load Nifti format file or files from provided path. If loading a list of
+    files, stack them together and add a new dimension as first dimension, and
+    use the meta data of the first image to represent the stacked result. Note
+    that the affine transform of all the images should be same if ``image_only=False``.
     """
 
     def __init__(self, as_closest_canonical=False, image_only=False, dtype=np.float32):
@@ -162,34 +165,45 @@ class LoadNifti:
     def __call__(self, filename):
         """
         Args:
-            filename (str or file): path to file or file-like object.
+            filename (str, list, tuple, file): path file or file-like object or a list of files.
         """
-        img = nib.load(filename)
-        img = correct_nifti_header_if_necessary(img)
-
-        header = dict(img.header)
-        header['filename_or_obj'] = filename
-        header['original_affine'] = img.affine
-        header['affine'] = img.affine
-        header['as_closest_canonical'] = self.as_closest_canonical
-
-        if self.as_closest_canonical:
-            img = nib.as_closest_canonical(img)
-            header['affine'] = img.affine
-
-        data = np.array(img.get_fdata(dtype=self.dtype))
-        img.uncache()
-
-        if self.image_only:
-            return data
+        filename = ensure_tuple(filename)
+        img_array = list()
         compatible_meta = dict()
-        for meta_key in header:
-            meta_datum = header[meta_key]
-            if type(meta_datum).__name__ == 'ndarray' \
-                    and np_str_obj_array_pattern.search(meta_datum.dtype.str) is not None:
+        for name in filename:
+            img = nib.load(name)
+            img = correct_nifti_header_if_necessary(img)
+            header = dict(img.header)
+            header['filename_or_obj'] = name
+            header['original_affine'] = img.affine
+            header['affine'] = img.affine
+            header['as_closest_canonical'] = self.as_closest_canonical
+
+            if self.as_closest_canonical:
+                img = nib.as_closest_canonical(img)
+                header['affine'] = img.affine
+
+            img_array.append(np.array(img.get_fdata(dtype=self.dtype)))
+            img.uncache()
+
+            if self.image_only:
                 continue
-            compatible_meta[meta_key] = meta_datum
-        return data, compatible_meta
+
+            if not compatible_meta:
+                for meta_key in header:
+                    meta_datum = header[meta_key]
+                    if type(meta_datum).__name__ == 'ndarray' \
+                            and np_str_obj_array_pattern.search(meta_datum.dtype.str) is not None:
+                        continue
+                    compatible_meta[meta_key] = meta_datum
+            else:
+                assert np.allclose(header['affine'], compatible_meta['affine']), \
+                    'affine data of all images should be same.'
+
+        img_array = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
+        if self.image_only:
+            return img_array
+        return img_array, compatible_meta
 
 
 @export
