@@ -100,9 +100,7 @@ val_stats_handler.attach(evaluator)
 # convert the necessary metadata from batch data
 SegmentationSaver(output_path='tempdir', output_ext='.nii.gz', output_postfix='seg', name='evaluator',
                   batch_transform=lambda batch: {'filename_or_obj': batch['img.filename_or_obj'],
-                                                 'original_affine': batch['img.original_affine'],
-                                                 'affine': batch['img.affine'],
-                                                 },
+                                                 'affine': batch['img.affine']},
                   output_transform=lambda output: predict_segmentation(output[0])).attach(evaluator)
 # the model was trained by "unet_training_dict" exmple
 CheckpointLoader(load_path='./runs/net_checkpoint_50.pth', load_dict={'net': net}).attach(evaluator)
