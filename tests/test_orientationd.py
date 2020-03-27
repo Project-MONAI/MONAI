@@ -11,6 +11,7 @@
 
 import unittest
 
+import nibabel as nib
 import numpy as np
 
 from monai.transforms.composables import Orientationd
@@ -19,36 +20,58 @@ from monai.transforms.composables import Orientationd
 class TestOrientationdCase(unittest.TestCase):
 
     def test_orntd(self):
-        data = {'seg': np.ones((2, 1, 2, 3)), 'affine': np.eye(4)}
-        ornt = Orientationd(keys='seg', affine_key='affine', axcodes='RAS')
+        data = {'seg': np.ones((2, 1, 2, 3)), 'seg.affine': np.eye(4)}
+        ornt = Orientationd(keys='seg', axcodes='RAS')
         res = ornt(data)
         np.testing.assert_allclose(res['seg'].shape, (2, 1, 2, 3))
-        self.assertEqual(res['orientation']['original_ornt'], ('R', 'A', 'S'))
-        self.assertEqual(res['orientation']['current_ornt'], 'RAS')
+        code = nib.aff2axcodes(res['seg.affine'], ornt.ornt_transform.labels)
+        self.assertEqual(code, ('R', 'A', 'S'))
 
     def test_orntd_3d(self):
-        data = {'seg': np.ones((2, 1, 2, 3)), 'img': np.ones((2, 1, 2, 3)), 'affine': np.eye(4)}
-        ornt = Orientationd(keys=('img', 'seg'), affine_key='affine', axcodes='PLI')
+        data = {
+            'seg': np.ones((2, 1, 2, 3)), 'img': np.ones((2, 1, 2, 3)), 'seg.affine': np.eye(4), 'img.affine': np.eye(4)
+        }
+        ornt = Orientationd(keys=('img', 'seg'), axcodes='PLI')
         res = ornt(data)
         np.testing.assert_allclose(res['img'].shape, (2, 2, 1, 3))
-        self.assertEqual(res['orientation']['original_ornt'], ('R', 'A', 'S'))
-        self.assertEqual(res['orientation']['current_ornt'], 'PLI')
+        np.testing.assert_allclose(res['seg'].shape, (2, 2, 1, 3))
+        code = nib.aff2axcodes(res['seg.affine'], ornt.ornt_transform.labels)
+        self.assertEqual(code, ('P', 'L', 'I'))
+        code = nib.aff2axcodes(res['img.affine'], ornt.ornt_transform.labels)
+        self.assertEqual(code, ('P', 'L', 'I'))
 
     def test_orntd_2d(self):
-        data = {'seg': np.ones((2, 1, 3)), 'img': np.ones((2, 1, 3)), 'affine': np.eye(4)}
-        ornt = Orientationd(keys=('img', 'seg'), affine_key='affine', axcodes='PLI')
+        data = {'seg': np.ones((2, 1, 3)), 'img': np.ones((2, 1, 3)), 'seg.affine': np.eye(4), 'img.affine': np.eye(4)}
+        ornt = Orientationd(keys=('img', 'seg'), axcodes='PLI')
         res = ornt(data)
         np.testing.assert_allclose(res['img'].shape, (2, 3, 1))
-        self.assertEqual(res['orientation']['original_ornt'], ('R', 'A'))
-        self.assertEqual(res['orientation']['current_ornt'], 'PL')
+        code = nib.aff2axcodes(res['seg.affine'], ornt.ornt_transform.labels)
+        self.assertEqual(code, ('P', 'L', 'S'))
+        code = nib.aff2axcodes(res['img.affine'], ornt.ornt_transform.labels)
+        self.assertEqual(code, ('P', 'L', 'S'))
 
     def test_orntd_1d(self):
-        data = {'seg': np.ones((2, 3)), 'img': np.ones((2, 3)), 'affine': np.eye(4)}
-        ornt = Orientationd(keys=('img', 'seg'), affine_key='affine', axcodes='L')
+        data = {'seg': np.ones((2, 3)), 'img': np.ones((2, 3)), 'seg.affine': np.eye(4), 'img.affine': np.eye(4)}
+        ornt = Orientationd(keys=('img', 'seg'), axcodes='L')
         res = ornt(data)
         np.testing.assert_allclose(res['img'].shape, (2, 3))
-        self.assertEqual(res['orientation']['original_ornt'], ('R',))
-        self.assertEqual(res['orientation']['current_ornt'], 'L')
+        code = nib.aff2axcodes(res['seg.affine'], ornt.ornt_transform.labels)
+        self.assertEqual(code, ('L', 'A', 'S'))
+        code = nib.aff2axcodes(res['img.affine'], ornt.ornt_transform.labels)
+        self.assertEqual(code, ('L', 'A', 'S'))
+
+    def test_orntd_canonical(self):
+        data = {
+            'seg': np.ones((2, 1, 2, 3)), 'img': np.ones((2, 1, 2, 3)), 'seg.affine': np.eye(4), 'img.affine': np.eye(4)
+        }
+        ornt = Orientationd(keys=('img', 'seg'), as_closest_canonical=True)
+        res = ornt(data)
+        np.testing.assert_allclose(res['img'].shape, (2, 1, 2, 3))
+        np.testing.assert_allclose(res['seg'].shape, (2, 1, 2, 3))
+        code = nib.aff2axcodes(res['seg.affine'], ornt.ornt_transform.labels)
+        self.assertEqual(code, ('R', 'A', 'S'))
+        code = nib.aff2axcodes(res['img.affine'], ornt.ornt_transform.labels)
+        self.assertEqual(code, ('R', 'A', 'S'))
 
 
 if __name__ == '__main__':

@@ -13,6 +13,7 @@ A collection of "vanilla" transforms
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
+import warnings
 import numpy as np
 import scipy.ndimage
 import nibabel as nib
@@ -21,11 +22,12 @@ from torch.utils.data._utils.collate import np_str_obj_array_pattern
 from skimage.transform import resize
 
 import monai
-from monai.data.utils import get_random_patch, get_valid_patch_size, correct_nifti_header_if_necessary
+from monai.data.utils import (get_random_patch, get_valid_patch_size, correct_nifti_header_if_necessary, zoom_affine,
+                              compute_shape_offset)
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.compose import Randomizable
 from monai.transforms.utils import (create_control_grid, create_grid, create_rotate, create_scale, create_shear,
-                                    create_translate, rescale_array)
+                                    create_translate, rescale_array, to_affine_nd)
 from monai.utils.misc import ensure_tuple
 
 export = monai.utils.export("monai.transforms")
@@ -37,51 +39,75 @@ class Spacing:
     Resample input image into the specified `pixdim`.
     """
 
-    def __init__(self, pixdim, keep_shape=False):
+    def __init__(self, pixdim, diagonal=False, mode='constant', cval=0, dtype=None):
         """
         Args:
             pixdim (sequence of floats): output voxel spacing.
-            keep_shape (bool): whether to maintain the original spatial shape
-                after resampling. Defaults to False.
-        """
-        self.pixdim = pixdim
-        self.keep_shape = keep_shape
-        self.original_pixdim = pixdim
+            diagonal (bool): whether to resample the input to have a diagonal affine matrix.
+                If True, the input data is resampled to the following affine::
 
-    def __call__(self, data_array, original_affine=None, original_pixdim=None, interp_order=1):
+                    np.diag((pixdim_0, pixdim_1, ..., pixdim_n, 1))
+
+                This effectively resets the volume to the world coordinate system (RAS+ in nibabel).
+                The original orientation, rotation, shearing are not preserved.
+
+                If False, this transform preserves the axes orientation, orthogonal rotation and
+                translation components from the original affine. This option will not flip/swap axes
+                of the original data.
+            mode (`reflect|constant|nearest|mirror|wrap`):
+                The mode parameter determines how the input array is extended beyond its boundaries.
+            cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
+            dtype (None or np.dtype): output array data type, defaults to None to use input data's dtype.
+        """
+        self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
+        self.diagonal = diagonal
+        self.mode = mode
+        self.cval = cval
+        self.dtype = dtype
+
+    def __call__(self, data_array, original_affine=None, interp_order=3):
         """
         Args:
             data_array (ndarray): in shape (num_channels, H[, W, ...]).
-            original_affine (4x4 matrix): original affine.
-            original_pixdim (sequence of floats): original voxel spacing.
+            original_affine (4x4 matrix): original affine. Defaults to "eye(4)".
             interp_order (int): The order of the spline interpolation, default is 3.
                 The order has to be in the range 0-5.
                 https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.zoom.html
         Returns:
-            resampled array (in spacing: `self.pixdim`), original pixdim, current pixdim.
+            data_array (resampled into `self.pixdim`), original pixdim, current pixdim.
         """
-        if original_affine is None and original_pixdim is None:
-            raise ValueError('please provide either original_affine or original_pixdim.')
-        spatial_rank = data_array.ndim - 1
-        if original_affine is not None:
-            affine = np.array(original_affine, dtype=np.float64, copy=True)
-            if not affine.shape == (4, 4):
-                raise ValueError('`original_affine` must be 4 x 4.')
-            original_pixdim = np.sqrt(np.sum(np.square(affine[:spatial_rank, :spatial_rank]), 1))
-
-        inp_d = np.asarray(original_pixdim)[:spatial_rank]
-        if inp_d.size < spatial_rank:
-            inp_d = np.append(inp_d, [1.] * (inp_d.size - spatial_rank))
-        out_d = np.asarray(self.pixdim)[:spatial_rank]
-        if out_d.size < spatial_rank:
-            out_d = np.append(out_d, [1.] * (out_d.size - spatial_rank))
-
-        self.original_pixdim, self.pixdim = inp_d, out_d
-        scale = inp_d / out_d
-        if not np.isfinite(scale).all():
-            raise ValueError('Unknown pixdims: source {}, target {}'.format(inp_d, out_d))
-        zoom_ = monai.transforms.Zoom(scale, order=interp_order, mode='nearest', keep_size=self.keep_shape)
-        return zoom_(data_array), self.original_pixdim, self.pixdim
+        sr = data_array.ndim - 1
+        if sr <= 0:
+            raise ValueError('the array should have at least one spatial dimension.')
+        if original_affine is None:
+            # default to identity
+            original_affine = np.eye(sr + 1, dtype=np.float64)
+            affine = np.eye(sr + 1, dtype=np.float64)
+        else:
+            affine = to_affine_nd(sr, original_affine)
+        out_d = self.pixdim[:sr]
+        if out_d.size < sr:
+            out_d = np.append(out_d, [1.] * (out_d.size - sr))
+        if np.any(out_d <= 0):
+            raise ValueError('pixdim must be positive, got {}'.format(out_d))
+        # compute output affine, shape and offset
+        new_affine = zoom_affine(affine, out_d, diagonal=self.diagonal)
+        output_shape, offset = compute_shape_offset(data_array.shape[1:], affine, new_affine)
+        new_affine[:sr, -1] = offset[:sr]
+        transform = np.linalg.inv(affine) @ new_affine
+        # adapt to the actual rank
+        transform_ = to_affine_nd(sr, transform)
+        # resample
+        dtype = data_array.dtype if self.dtype is None else self.dtype
+        output_data = []
+        for data in data_array:
+            data_ = scipy.ndimage.affine_transform(
+                data.astype(dtype), matrix=transform_, output_shape=output_shape,
+                order=interp_order, mode=self.mode, cval=self.cval)
+            output_data.append(data_)
+        output_data = np.stack(output_data)
+        new_affine = to_affine_nd(original_affine, new_affine)
+        return output_data, original_affine, new_affine
 
 
 @export
@@ -90,7 +116,7 @@ class Orientation:
     Change the input image's orientation into the specified based on `axcodes`.
     """
 
-    def __init__(self, axcodes, labels=None):
+    def __init__(self, axcodes=None, as_closest_canonical=False, labels=tuple(zip('LPI', 'RAS'))):
         """
         Args:
             axcodes (N elements sequence): for spatial ND input's orientation.
@@ -98,42 +124,56 @@ class Orientation:
                 (Left, Right), (Posterior, Anterior), (Inferior, Superior).
                 default orientation labels options are: 'L' and 'R' for the first dimension,
                 'P' and 'A' for the second, 'I' and 'S' for the third.
+            as_closest_canonical (boo): if True, load the image as closest to canonical axis format.
             labels : optional, None or sequence of (2,) sequences
                 (2,) sequences are labels for (beginning, end) of output axis.
+                Defaults to ``(('L', 'R'), ('P', 'A'), ('I', 'S'))``.
 
         See Also: `nibabel.orientations.ornt2axcodes`.
         """
+        if axcodes is None and not as_closest_canonical:
+            raise ValueError('provide either `axcodes` or `as_closest_canonical=True`.')
+        if axcodes is not None and as_closest_canonical:
+            warnings.warn('using as_closest_canonical=True, axcodes ignored.')
         self.axcodes = axcodes
+        self.as_closest_canonical = as_closest_canonical
         self.labels = labels
 
-    def __call__(self, data_array, original_affine=None, original_axcodes=None):
+    def __call__(self, data_array, original_affine=None):
         """
-        if `original_affine` is provided, the orientation is computed from the affine.
+        original orientation of `data_array` is defined by `original_affine`.
 
         Args:
             data_array (ndarray): in shape (num_channels, H[, W, ...]).
             original_affine (4x4 matrix): original affine.
-            original_axcodes (N elements sequence): for spatial ND input's orientation.
         Returns:
             data_array (reoriented in `self.axcodes`), original axcodes, current axcodes.
         """
-        if original_affine is None and original_axcodes is None:
-            raise ValueError('please provide either original_affine or original_axcodes.')
-        spatial_rank = len(data_array.shape) - 1
-        if original_affine is not None:
-            affine = np.array(original_affine, dtype=np.float64, copy=True)
-            if not affine.shape == (4, 4):
-                raise ValueError('`original_affine` must be 4 x 4.')
-            original_axcodes = nib.aff2axcodes(original_affine, labels=self.labels)
-        original_axcodes = original_axcodes[:spatial_rank]
-        self.axcodes = self.axcodes[:spatial_rank]
-        src = nib.orientations.axcodes2ornt(original_axcodes, labels=self.labels)
-        dst = nib.orientations.axcodes2ornt(self.axcodes)
-        spatial_ornt = nib.orientations.ornt_transform(src, dst)
-        spatial_ornt[:, 0] += 1  # skip channel dim
-        ornt = np.concatenate([np.array([[0, 1]]), spatial_ornt])
+        sr = data_array.ndim - 1
+        if sr <= 0:
+            raise ValueError('the array should have at least one spatial dimension.')
+        if original_affine is None:
+            original_affine = np.eye(sr + 1, dtype=np.float64)
+            affine = np.eye(sr + 1, dtype=np.float64)
+        else:
+            affine = to_affine_nd(sr, original_affine)
+        src = nib.io_orientation(affine)
+        if self.as_closest_canonical:
+            spatial_ornt = src
+        else:
+            dst = nib.orientations.axcodes2ornt(self.axcodes[:sr], labels=self.labels)
+            if len(dst) < sr:
+                raise ValueError('`self.axcodes` should have at least {0} elements'
+                                 ' given the data array is in spatial {0}D, got "{1}"'.format(sr, self.axcodes))
+            spatial_ornt = nib.orientations.ornt_transform(src, dst)
+        ornt = spatial_ornt.copy()
+        ornt[:, 0] += 1  # skip channel dim
+        ornt = np.concatenate([np.array([[0, 1]]), ornt])
+        shape = data_array.shape[1:]
         data_array = nib.orientations.apply_orientation(data_array, ornt)
-        return data_array, original_axcodes, self.axcodes
+        new_affine = affine @ nib.orientations.inv_ornt_aff(spatial_ornt, shape)
+        new_affine = to_affine_nd(original_affine, new_affine)
+        return data_array, original_affine, new_affine
 
 
 @export
@@ -149,14 +189,18 @@ class LoadNifti:
         """
         Args:
             as_closest_canonical (bool): if True, load the image as closest to canonical axis format.
-            image_only (bool): if True return only the image volume, other return image volume and header dict.
+            image_only (bool): if True return only the image volume, otherwise return image data array and header dict.
             dtype (np.dtype, optional): if not None convert the loaded image to this data type.
 
         Note:
-            The loaded image volume if `image_only` is True, or a tuple containing the volume and the Nifti
-            header in dict format otherwise.
-            header['original_affine'] stores the original affine loaded from `filename_or_obj`.
-            header['affine'] stores the affine after the optional `as_closest_canonical` transform.
+            The transform returns image data array if `image_only` is True,
+            or a tuple of two elements containing the data array, and the Nifti
+            header in a dict format otherwise.
+            if a dictionary header is returned:
+
+            - header['affine'] stores the affine of the image.
+            - header['original_affine'] will be additionally created to store the original affine,
+              if the current affine is different from that loaded from `filename_or_obj`.
         """
         self.as_closest_canonical = as_closest_canonical
         self.image_only = image_only
@@ -175,11 +219,11 @@ class LoadNifti:
             img = correct_nifti_header_if_necessary(img)
             header = dict(img.header)
             header['filename_or_obj'] = name
-            header['original_affine'] = img.affine
             header['affine'] = img.affine
             header['as_closest_canonical'] = self.as_closest_canonical
 
             if self.as_closest_canonical:
+                header['original_affine'] = img.affine
                 img = nib.as_closest_canonical(img)
                 header['affine'] = img.affine
 
@@ -292,8 +336,14 @@ class GaussianNoise(Randomizable):
         self.mean = mean
         self.std = std
 
+        self._noise = None
+
+    def randomize(self, im_shape):
+        self._noise = self.R.normal(self.mean, self.R.uniform(0, self.std), size=im_shape)
+
     def __call__(self, img):
-        return img + self.R.normal(self.mean, self.R.uniform(0, self.std), size=img.shape)
+        self.randomize(img.shape)
+        return img + self._noise
 
 
 @export
@@ -334,7 +384,7 @@ class Resize:
         mode (str): Points outside boundaries are filled according to given mode.
             Options are 'constant', 'edge', 'symmetric', 'reflect', 'wrap'.
         cval (float): Used with mode 'constant', the value outside image boundaries.
-        clip (bool): Wheter to clip range of output values after interpolation. Default: True.
+        clip (bool): Whether to clip range of output values after interpolation. Default: True.
         preserve_range (bool): Whether to keep original range of values. Default is True.
             If False, input is converted according to conventions of img_as_float. See
             https://scikit-image.org/docs/dev/user_guide/data_types.html.
@@ -388,7 +438,7 @@ class Rotate:
         mode (str): Points outside boundary filled according to this mode. Options are
             'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
         cval (scalar): Values to fill outside boundary. Default: 0.
-        prefiter (bool): Apply spline_filter before interpolation. Default: True.
+        prefilter (bool): Apply spline_filter before interpolation. Default: True.
     """
 
     def __init__(self, angle, spatial_axes=(0, 1), reshape=True, order=1, mode='constant', cval=0, prefilter=True):
@@ -739,7 +789,7 @@ class RandRotate(Randomizable):
         mode (str): Points outside boundary filled according to this mode. Options are
             'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
         cval (scalar): Value to fill outside boundary. Default: 0.
-        prefiter (bool): Apply spline_filter before interpolation. Default: True.
+        prefilter (bool): Apply spline_filter before interpolation. Default: True.
     """
 
     def __init__(self, degrees, prob=0.1, spatial_axes=(0, 1), reshape=True, order=1,
@@ -823,8 +873,7 @@ class RandZoom(Randomizable):
     def __init__(self, prob=0.1, min_zoom=0.9, max_zoom=1.1, order=3,
                  mode='constant', cval=0, prefilter=True,
                  use_gpu=False, keep_size=False):
-        if hasattr(min_zoom, '__iter__') and \
-           hasattr(max_zoom, '__iter__'):
+        if hasattr(min_zoom, '__iter__') and hasattr(max_zoom, '__iter__'):
             assert len(min_zoom) == len(max_zoom), "min_zoom and max_zoom must have same length."
         self.min_zoom = min_zoom
         self.max_zoom = max_zoom
@@ -898,7 +947,7 @@ class AffineGrid:
             affine = affine @ create_scale(spatial_dims, self.scale_params)
         affine = torch.tensor(affine, device=self.device)
 
-        grid = torch.tensor(grid) if not torch.is_tensor(grid) else grid.clone().detach()
+        grid = torch.tensor(np.ascontiguousarray(grid)) if not torch.is_tensor(grid) else grid.detach().clone()
         if self.device:
             grid = grid.to(self.device)
         grid = (affine.float() @ grid.reshape((grid.shape[0], -1)).float()).reshape([-1] + list(grid.shape[1:]))
@@ -1013,7 +1062,7 @@ class RandDeformGrid(Randomizable):
         self.randomize(control_grid.shape[1:])
         control_grid[:len(spatial_size)] += self.rand_mag * self.random_offset
         if self.as_tensor_output:
-            control_grid = torch.tensor(control_grid, device=self.device)
+            control_grid = torch.tensor(np.ascontiguousarray(control_grid), device=self.device)
         return control_grid
 
 
@@ -1041,8 +1090,8 @@ class Resample:
             mode ('nearest'|'bilinear'): interpolation order. Defaults to 'bilinear'.
         """
         if not torch.is_tensor(img):
-            img = torch.tensor(img)
-        grid = torch.tensor(grid) if not torch.is_tensor(grid) else grid.clone().detach()
+            img = torch.from_numpy(np.ascontiguousarray(img))
+        grid = torch.from_numpy(np.ascontiguousarray(grid)) if not torch.is_tensor(grid) else grid.detach().clone()
         if self.device:
             img = img.to(self.device)
             grid = grid.to(self.device)
@@ -1079,7 +1128,7 @@ class Affine:
                  as_tensor_output=False,
                  device=None):
         """
-        The affines are applied in rotate, shear, translate, scale order.
+        The affine transformations are applied in rotate, shear, translate, scale order.
 
         Args:
             rotate_params (float, list of floats): a rotation angle in radians,
@@ -1156,7 +1205,7 @@ class RandAffine(Randomizable):
             device (torch.device): device on which the tensor will be allocated.
 
         See also:
-            - :py:class:`RandAffineGrid` for the random affine paramters configurations.
+            - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
         """
 
@@ -1235,7 +1284,7 @@ class Rand2DElastic(Randomizable):
             device (torch.device): device on which the tensor will be allocated.
 
         See also:
-            - :py:class:`RandAffineGrid` for the random affine paramters configurations.
+            - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
         """
         self.deform_grid = RandDeformGrid(spacing=spacing, magnitude_range=magnitude_range,
@@ -1317,7 +1366,7 @@ class Rand3DElastic(Randomizable):
             device (torch.device): device on which the tensor will be allocated.
 
         See also:
-            - :py:class:`RandAffineGrid` for the random affine paramters configurations.
+            - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
         """
         self.rand_affine_grid = RandAffineGrid(rotate_range, shear_range, translate_range, scale_range, True, device)
@@ -1360,7 +1409,7 @@ class Rand3DElastic(Randomizable):
         self.randomize(spatial_size)
         grid = create_grid(spatial_size)
         if self.do_transform:
-            grid = torch.tensor(grid).to(self.device)
+            grid = torch.tensor(np.ascontiguousarray(grid)).to(self.device)
             gaussian = GaussianFilter(3, self.sigma, 3., device=self.device)
             grid[:3] += gaussian(self.rand_offset[None])[0] * self.magnitude
             grid = self.rand_affine_grid(grid=grid)

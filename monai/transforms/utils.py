@@ -245,7 +245,7 @@ def create_grid(spatial_size, spacing=None, homogeneous=True, dtype=float):
     coords = np.asarray(np.meshgrid(*ranges, indexing='ij'), dtype=dtype)
     if not homogeneous:
         return coords
-    return np.concatenate([coords, np.ones_like(coords[0:1, ...])])
+    return np.concatenate([coords, np.ones_like(coords[:1])])
 
 
 def create_control_grid(spatial_shape, spacing, homogeneous=True, dtype=float):
@@ -362,3 +362,40 @@ def create_translate(spatial_dims, shift):
     for i, a in enumerate(shift[:spatial_dims]):
         affine[i, spatial_dims] = a
     return affine
+
+
+def to_affine_nd(r, affine):
+    """
+    Using elements from affine, to create a new affine matrix by
+    assigning the rotation/zoom/scaling matrix and the translation vector.
+
+    when ``r`` is an integer, output is an (r+1)x(r+1) matrix,
+    where the top left kxk elements are copied from ``affine``,
+    the last column of the output affine is copied from ``affine``'s last column.
+    `k` is determined by `min(r, len(affine) - 1)`.
+
+    when ``r`` is an affine matrix, the output has the same as ``r``,
+    the top left kxk elments are  copied from ``affine``,
+    the last column of the output affine is copied from ``affine``'s last column.
+    `k` is determined by `min(len(r) - 1, len(affine) - 1)`.
+
+
+    Args:
+        r (int or matrix): number of spatial dimensions or an output affine to be filled.
+        affine (matrix): 2D affine matrix
+    Returns:
+        a (r+1) x (r+1) matrix
+    """
+    affine = np.array(affine, dtype=np.float64)
+    if affine.ndim != 2:
+        raise ValueError('input affine must have two dimensions')
+    new_affine = np.array(r, dtype=np.float64, copy=True)
+    if new_affine.ndim == 0:
+        sr = new_affine.astype(int)
+        if not np.isfinite(sr) or sr < 0:
+            raise ValueError('r must be postive.')
+        new_affine = np.eye(sr + 1, dtype=np.float64)
+    d = min(len(new_affine) - 1, len(affine) - 1)
+    new_affine[:d, :d] = affine[:d, :d]
+    new_affine[:d, -1] = affine[:d, -1]
+    return new_affine

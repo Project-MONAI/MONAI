@@ -11,10 +11,11 @@
 
 import warnings
 import math
+import nibabel as nib
 from itertools import starmap, product
 from torch.utils.data._utils.collate import default_collate
 import numpy as np
-from monai.transforms.utils import ensure_tuple_size
+from monai.transforms.utils import ensure_tuple_size, to_affine_nd
 
 
 def get_random_patch(dims, patch_size, rand_state=None):
@@ -243,13 +244,81 @@ def rectify_header_sform_qform(img_nii):
             img_nii.set_qform(img_nii.get_sform())
             return img_nii
 
-    norm_affine = np.sqrt(np.sum(np.square(img_nii.affine[:, :3]), 0))
-    to_divide = np.tile(np.expand_dims(np.append(norm_affine, 1), axis=1), [1, 4])
-    pixdim = np.append(pixdim, [1.] * (4 - len(pixdim)))
-    to_multiply = np.tile(np.expand_dims(pixdim, axis=1), [1, 4])
-    affine = img_nii.affine / to_divide.T * to_multiply.T
-    warnings.warn('Modifying image affine from {} to {}'.format(img_nii.affine, affine))
+    norm = np.sqrt(np.sum(np.square(img_nii.affine[:d, :d]), 0))
+    warnings.warn('Modifying image pixdim from {} to {}'.format(pixdim, norm))
 
-    img_nii.set_sform(affine)
-    img_nii.set_qform(affine)
+    img_nii.header.set_zooms(norm)
     return img_nii
+
+
+def zoom_affine(affine, scale, diagonal=True):
+    """
+    To make column norm of `affine` the same as `scale`.  if diagonal is False,
+    returns an affine that combines orthogonal rotation and the new scale.
+    This is done by first decomposing`affine`, then setting the zoom factors to
+    `scale`, and composing a new affine; the shearing factors are removed.  If
+    diagonal is True, returns an diagonal matrix, the scaling factors are set
+    to the diagonal elements.  This function always return an affine with zero
+    translations.
+
+    Args:
+        affine (nxn matrix): a square matrix.
+        scale (sequence of floats): new scaling factor along each dimension.
+        diagnonal (bool): whether to return a diagnoal scaling matrix.
+            Defaults to True.
+
+    returns:
+        the updated `n x n` affine.
+    """
+    affine = np.array(affine, dtype=float, copy=True)
+    if len(affine) != len(affine[0]):
+        raise ValueError('affine should be a square matrix')
+    scale = np.array(scale, dtype=float, copy=True)
+    if np.any(scale <= 0):
+        raise ValueError('scale must be a sequence of positive numbers.')
+    d = len(affine) - 1
+    if len(scale) < d:  # defaults based on affine
+        norm = np.sqrt(np.sum(np.square(affine), 0))[:-1]
+        scale = np.append(scale, norm[len(scale):])
+    scale = scale[:d]
+    scale[scale == 0] = 1.
+    if diagonal:
+        return np.diag(np.append(scale, [1.]))
+    rzs = affine[:-1, :-1]  # rotation zoom scale
+    zs = np.linalg.cholesky(rzs.T @ rzs).T
+    rotation = rzs @ np.linalg.inv(zs)
+    s = np.sign(np.diag(zs)) * np.abs(scale)
+    # construct new affine with rotation and zoom
+    new_affine = np.eye(len(affine))
+    new_affine[:-1, :-1] = rotation @ np.diag(s)
+    return new_affine
+
+
+def compute_shape_offset(spatial_shape, in_affine, out_affine):
+    """
+    Given input and target affine, compute appropriate shapes
+    in the target space based on the input array's shape.
+    This function also returns the offset to put the shape
+    in a good position with respect to the world coordinate system.
+    """
+    shape = np.array(spatial_shape, copy=True, dtype=float)
+    sr = len(shape)
+    in_affine = to_affine_nd(sr, in_affine)
+    out_affine = to_affine_nd(sr, out_affine)
+    in_coords = [(0., dim - 1.) for dim in shape]
+    corners = np.asarray(np.meshgrid(*in_coords, indexing='ij')).reshape((len(shape), -1))
+    corners = np.concatenate((corners, np.ones_like(corners[:1])))
+    corners = in_affine @ corners
+    corners_out = np.linalg.inv(out_affine) @ corners
+    corners_out = corners_out[:-1] / corners_out[-1]
+    out_shape = np.ceil(np.max(corners_out, 1) - np.min(corners_out, 1)) + 1.
+    if np.allclose(nib.io_orientation(in_affine),
+                   nib.io_orientation(out_affine)):
+        # same orientation, get translate from the origin
+        offset = in_affine @ ([0] * sr + [1])
+        offset = offset[:-1] / offset[-1]
+    else:
+        # different orientation, the min is the origin
+        corners = corners[:-1] / corners[-1]
+        offset = np.min(corners, 1)
+    return out_shape.astype(int), offset

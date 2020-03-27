@@ -19,7 +19,7 @@ from parameterized import parameterized
 from monai.data.nifti_reader import load_nifti
 from monai.data.nifti_writer import write_nifti
 
-from .utils import make_nifti_image
+from tests.utils import make_nifti_image
 
 TEST_IMAGE = np.zeros((1, 2, 3))
 TEST_AFFINE = np.array([[-5.3, 0., 0., 102.01], [0., 0.52, 2.17, -7.50], [-0., 1.98, -0.26, -23.12], [0., 0., 0., 1.]])
@@ -48,9 +48,9 @@ class TestNiftiLoadRead(unittest.TestCase):
 
         # write test cases
         if header is not None:
-            write_nifti(data_array, header['affine'], test_image, header['original_affine'])
+            write_nifti(data_array, test_image, header['affine'], header['original_affine'])
         else:
-            write_nifti(data_array, affine, test_image)
+            write_nifti(data_array, test_image, affine)
         saved = nib.load(test_image)
         saved_affine = saved.affine
         saved_shape = saved.get_fdata().shape

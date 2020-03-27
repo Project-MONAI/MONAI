@@ -15,20 +15,19 @@ defined in :py:class:`monai.transforms.transforms`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-import torch
 import numpy as np
+import torch
+
 import monai
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers.simplelayers import GaussianFilter
-from monai.transforms.compose import Randomizable, MapTransform
-from monai.transforms.transforms import (LoadNifti, AsChannelFirst, Orientation,
-                                         AddChannel, Spacing, Rotate90, SpatialCrop,
-                                         RandAffine, Rand2DElastic, Rand3DElastic,
-                                         Rescale, Resize, Flip, Rotate, Zoom,
-                                         NormalizeIntensity, ScaleIntensityRange)
-from monai.utils.misc import ensure_tuple
-from monai.transforms.utils import generate_pos_neg_label_crop_centers, create_grid
+from monai.transforms.compose import MapTransform, Randomizable
+from monai.transforms.transforms import (AddChannel, AsChannelFirst, Flip, LoadNifti, NormalizeIntensity, Orientation,
+                                         Rand2DElastic, Rand3DElastic, RandAffine, Rescale, Resize, Rotate, Rotate90,
+                                         ScaleIntensityRange, Spacing, SpatialCrop, Zoom)
+from monai.transforms.utils import (create_grid, generate_pos_neg_label_crop_centers)
 from monai.utils.aliases import alias
+from monai.utils.misc import ensure_tuple
 
 export = monai.utils.export("monai.transforms")
 
@@ -37,39 +36,75 @@ export = monai.utils.export("monai.transforms")
 @alias('SpacingD', 'SpacingDict')
 class Spacingd(MapTransform):
     """
-    dictionary-based wrapper of :py:class:`monai.transforms.transforms.Spacing`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transforms.Spacing`.
+
+    This transform assumes the ``data`` dictionary has a field for the input
+    data's affine.  The field is created by either ``meta_key_format.format(key,
+    'affine')`` or ``meta_key_format.format(key, 'original_affine')``.
+
+    After resampling the input array, this transform will write the affine
+    after resampling to the field ``meta_key_format.format(key, 'affine')``,
+    at the same time, if ``meta_key_format.format(key, 'original_affine')`` doesn't exist,
+    the field will be created and set to the affine before resampling.
+
+    if no affine is specified in the input data, defauting to "eye(4)".
+
+    see also:
+        :py:class:`monai.transforms.transforms.Spacing`
     """
 
-    def __init__(self, keys, affine_key, pixdim, interp_order=2, keep_shape=False, output_key='spacing'):
+    def __init__(self, keys, pixdim, diagonal=False, mode='constant', cval=0,
+                 interp_order=3, dtype=None, meta_key_format='{}.{}'):
         """
         Args:
-            affine_key (hashable): the key to the original affine.
-                The affine will be used to compute input data's pixdim.
             pixdim (sequence of floats): output voxel spacing.
+            diagonal (bool): whether to resample the input to have a diagonal affine matrix.
+                If True, the input data is resampled to the following affine::
+
+                    np.diag((pixdim_0, pixdim_1, pixdim_2, 1))
+
+                This effectively resets the volume to the world coordinate system (RAS+ in nibabel).
+                The original orientation, rotation, shearing are not preserved.
+
+                If False, the axes orientation, orthogonal rotation and
+                translations components from the original affine will be
+                preserved in the target affine. This option will not flip/swap
+                axes against the original ones.
+            mode (`reflect|constant|nearest|mirror|wrap`):
+                The mode parameter determines how the input array is extended beyond its boundaries.
+                Default is 'constant'.
+            cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
             interp_order (int or sequence of ints): int: the same interpolation order
-                for all data indexed by `self,keys`; sequence of ints, should
+                for all data indexed by `self.keys`; sequence of ints, should
                 correspond to an interpolation order for each data item indexed
                 by `self.keys` respectively.
-            keep_shape (bool): whether to maintain the original spatial shape
-                after resampling. Defaults to False.
-            output_key (hashable): key to be added to the output dictionary to track
-                the pixdim status.
+            dtype (None or np.dtype): output array data type, defaults to None to use input data's dtype.
+            meta_key_format (str): key format to read/write affine matrices to the data dictionary.
         """
         MapTransform.__init__(self, keys)
-        self.affine_key = affine_key
-        self.spacing_transform = Spacing(pixdim, keep_shape=keep_shape)
+        self.spacing_transform = Spacing(pixdim, diagonal=diagonal, mode=mode, cval=cval, dtype=dtype)
         interp_order = ensure_tuple(interp_order)
         self.interp_order = interp_order \
             if len(interp_order) == len(self.keys) else interp_order * len(self.keys)
-        self.output_key = output_key
+        self.meta_key_format = meta_key_format
 
     def __call__(self, data):
         d = dict(data)
-        affine = d[self.affine_key]
-        original_pixdim, new_pixdim = None, None
         for key, interp in zip(self.keys, self.interp_order):
-            d[key], original_pixdim, new_pixdim = self.spacing_transform(d[key], affine, interp_order=interp)
-        d[self.output_key] = {'original_pixdim': original_pixdim, 'current_pixdim': new_pixdim}
+            affine_key = self.meta_key_format.format(key, 'affine')
+            original_key = self.meta_key_format.format(key, 'original_affine')
+            affine = d.get(affine_key, None)
+            if affine is None:
+                affine = d.get(original_key, None)
+            # resample array of each corresponding key
+            # using affine fetched from d[affine_key]
+            d[key], affine_, new_affine = self.spacing_transform(
+                data_array=d[key], original_affine=affine, interp_order=interp)
+            if d.get(original_key, None) is None:
+                # set the 'original_affine' field
+                d[original_key] = affine_
+            # set the 'affine' key
+            d[affine_key] = new_affine
         return d
 
 
@@ -77,37 +112,54 @@ class Spacingd(MapTransform):
 @alias('OrientationD', 'OrientationDict')
 class Orientationd(MapTransform):
     """
-    dictionary-based wrapper of :py:class:`monai.transforms.transforms.Orientation`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transforms.Orientation`.
+
+    This transform assumes the ``data`` dictionary has a field for the input
+    data's affine.  The field is created by either ``meta_key_format.format(key,
+    'affine')`` or ``meta_key_format.format(key, 'original_affine')``.
+
+    After reorientate the input array, this transform will store the current
+    affine in the ``data`` dictionary,
+    at the same time, if ``meta_key_format.format(key, 'original_affine')`` doesn't exist,
+    the field will be created and set to the affine before resampling.
     """
 
-    def __init__(self, keys, affine_key, axcodes, labels=None, output_key='orientation'):
+    def __init__(self, keys, axcodes=None, as_closest_canonical=False,
+                 labels=tuple(zip('LPI', 'RAS')), meta_key_format='{}.{}'):
         """
         Args:
-            affine_key (hashable): the key to the original affine.
-                The affine will be used to compute input data's orientation.
             axcodes (N elements sequence): for spatial ND input's orientation.
                 e.g. axcodes='RAS' represents 3D orientation:
                 (Left, Right), (Posterior, Anterior), (Inferior, Superior).
                 default orientation labels options are: 'L' and 'R' for the first dimension,
                 'P' and 'A' for the second, 'I' and 'S' for the third.
+            as_closest_canonical (boo): if True, load the image as closest to canonical axis format.
             labels : optional, None or sequence of (2,) sequences
                 (2,) sequences are labels for (beginning, end) of output axis.
+                Defaults to ``(('L', 'R'), ('P', 'A'), ('I', 'S'))``.
+            meta_key_format (str): key format to read/write affine matrices to the data dictionary.
 
         See Also:
             `nibabel.orientations.ornt2axcodes`.
         """
         MapTransform.__init__(self, keys)
-        self.affine_key = affine_key
-        self.orientation_transform = Orientation(axcodes=axcodes, labels=labels)
-        self.output_key = output_key
+        self.ornt_transform = Orientation(
+            axcodes=axcodes, as_closest_canonical=as_closest_canonical, labels=labels)
+        self.meta_key_format = meta_key_format
 
     def __call__(self, data):
         d = dict(data)
-        affine = d[self.affine_key]
-        original_ornt, new_ornt = None, None
         for key in self.keys:
-            d[key], original_ornt, new_ornt = self.orientation_transform(d[key], affine)
-        d[self.output_key] = {'original_ornt': original_ornt, 'current_ornt': new_ornt}
+            affine_key = self.meta_key_format.format(key, 'affine')
+            original_key = self.meta_key_format.format(key, 'original_affine')
+
+            affine = d.get(affine_key, None)
+            if affine is None:
+                affine = d.get(original_key, None)
+            d[key], affine_, new_affine = self.ornt_transform(d[key], affine)
+            if d.get(original_key, None) is None:
+                d[original_key] = affine_
+            d[affine_key] = new_affine
         return d
 
 
@@ -119,7 +171,8 @@ class LoadNiftid(MapTransform):
     together. If loading a list of files in one key, stack them together and
     add a new dimension as the first dimension, and use the meta data of the
     first image to represent the stacked result. Note that the affine transform
-    of all the stacked images should be same.
+    of all the stacked images should be same. The output metadata field will be created as
+    ``self.meta_key_format(key, metadata_key)``.
     """
 
     def __init__(self, keys, as_closest_canonical=False, dtype=np.float32,
@@ -144,13 +197,13 @@ class LoadNiftid(MapTransform):
         d = dict(data)
         for key in self.keys:
             data = self.loader(d[key])
-            assert isinstance(data, (tuple, list)), 'if data contains metadata, must be tuple or list.'
+            assert isinstance(data, (tuple, list)), 'loader must return a tuple or list.'
             d[key] = data[0]
-            assert isinstance(data[1], dict), 'metadata must be in dict format.'
-            for k in sorted(data[1].keys()):
+            assert isinstance(data[1], dict), 'metadata must be a dict.'
+            for k in sorted(data[1]):
                 key_to_add = self.meta_key_format.format(key, k)
-                if key_to_add in d and self.overwriting_keys is False:
-                    raise KeyError('meta data key is alreay existing.')
+                if key_to_add in d and not self.overwriting_keys:
+                    raise KeyError('meta data key {} already exists.'.format(key_to_add))
                 d[key_to_add] = data[1][k]
         return d
 
@@ -261,7 +314,7 @@ class Resized(MapTransform):
         mode (str): Points outside boundaries are filled according to given mode.
             Options are 'constant', 'edge', 'symmetric', 'reflect', 'wrap'.
         cval (float): Used with mode 'constant', the value outside image boundaries.
-        clip (bool): Wheter to clip range of output values after interpolation. Default: True.
+        clip (bool): Whether to clip range of output values after interpolation. Default: True.
         preserve_range (bool): Whether to keep original range of values. Default is True.
             If False, input is converted according to conventions of img_as_float. See
             https://scikit-image.org/docs/dev/user_guide/data_types.html.
@@ -503,7 +556,7 @@ class RandAffined(Randomizable, MapTransform):
 
         See also:
             - :py:class:`monai.transforms.compose.MapTransform`
-            - :py:class:`RandAffineGrid` for the random affine paramters configurations.
+            - :py:class:`RandAffineGrid` for the random affine parameters configurations.
         """
         MapTransform.__init__(self, keys)
         default_mode = 'bilinear' if isinstance(mode, (tuple, list)) else mode
@@ -573,7 +626,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
                 whether to convert it back to numpy arrays.
             device (torch.device): device on which the tensor will be allocated.
         See also:
-            - :py:class:`RandAffineGrid` for the random affine paramters configurations.
+            - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
         """
         MapTransform.__init__(self, keys)
@@ -647,7 +700,7 @@ class Rand3DElasticd(Randomizable, MapTransform):
                 whether to convert it back to numpy arrays.
             device (torch.device): device on which the tensor will be allocated.
         See also:
-            - :py:class:`RandAffineGrid` for the random affine paramters configurations.
+            - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
         """
         MapTransform.__init__(self, keys)
@@ -764,7 +817,7 @@ class Rotated(MapTransform):
         mode (str): Points outside boundary filled according to this mode. Options are
             'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
         cval (scalar): Values to fill outside boundary. Default: 0.
-        prefiter (bool): Apply spline_filter before interpolation. Default: True.
+        prefilter (bool): Apply spline_filter before interpolation. Default: True.
     """
 
     def __init__(self, keys, angle, spatial_axes=(0, 1), reshape=True, order=1,
@@ -797,7 +850,7 @@ class RandRotated(Randomizable, MapTransform):
         mode (str): Points outside boundary filled according to this mode. Options are
             'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
         cval (scalar): Value to fill outside boundary. Default: 0.
-        prefiter (bool): Apply spline_filter before interpolation. Default: True.
+        prefilter (bool): Apply spline_filter before interpolation. Default: True.
     """
 
     def __init__(self, keys, degrees, prob=0.1, spatial_axes=(0, 1), reshape=True, order=1,
