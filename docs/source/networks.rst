@@ -26,26 +26,14 @@ Blocks
 Layers
 ------
 
-`get_conv_type`
-~~~~~~~~~~~~~~~
-.. automethod:: monai.networks.layers.factories.get_conv_type
+`Factories`
+~~~~~~~~~~~
+.. automodule:: monai.networks.layers.factories
+.. currentmodule:: monai.networks.layers.factories
 
-`get_dropout_type`
-~~~~~~~~~~~~~~~~~~
-.. automethod:: monai.networks.layers.factories.get_dropout_type
-
-`get_normalize_type`
-~~~~~~~~~~~~~~~~~~~~
-.. automethod:: monai.networks.layers.factories.get_normalize_type
-
-`get_maxpooling_type`
-~~~~~~~~~~~~~~~~~~~~~
-.. automethod:: monai.networks.layers.factories.get_maxpooling_type
-
-`get_avgpooling_type`
-~~~~~~~~~~~~~~~~~~~~~
-.. automethod:: monai.networks.layers.factories.get_avgpooling_type
-
+`LayerFactory`
+##############
+.. autoclass:: LayerFactory
 
 .. automodule:: monai.networks.layers.simplelayers
 .. currentmodule:: monai.networks.layers.simplelayers

@@ -14,8 +14,7 @@ from collections import OrderedDict
 import torch
 import torch.nn as nn
 
-from monai.networks.layers.factories import (get_avgpooling_type, get_conv_type, get_dropout_type, get_maxpooling_type,
-                                             get_normalize_type)
+from monai.networks.layers.factories import Conv, Dropout, Pool, Norm
 
 
 def densenet121(**kwargs):
@@ -44,17 +43,20 @@ class _DenseLayer(nn.Sequential):
         super(_DenseLayer, self).__init__()
 
         out_channels = bn_size * growth_rate
-        conv_type = get_conv_type(spatial_dims, is_transpose=False)
-        self.add_module('norm1', get_normalize_type(spatial_dims, is_instance=False)(in_channels))
+        conv_type = Conv[Conv.CONV, spatial_dims]  
+        norm_type = Norm[Norm.BATCH, spatial_dims]
+        dropout_type = Dropout[Dropout.DROPOUT, spatial_dims]
+
+        self.add_module('norm1', norm_type(in_channels))
         self.add_module('relu1', nn.ReLU(inplace=True))
         self.add_module('conv1', conv_type(in_channels, out_channels, kernel_size=1, bias=False))
 
-        self.add_module('norm2', get_normalize_type(spatial_dims, is_instance=False)(out_channels))
+        self.add_module('norm2', norm_type(out_channels))
         self.add_module('relu2', nn.ReLU(inplace=True))
         self.add_module('conv2', conv_type(out_channels, growth_rate, kernel_size=3, padding=1, bias=False))
 
         if dropout_prob > 0:
-            self.add_module('dropout', get_dropout_type(spatial_dims)(dropout_prob))
+            self.add_module('dropout', dropout_type(dropout_prob))
 
     def forward(self, x):
         new_features = super(_DenseLayer, self).forward(x)
@@ -75,12 +77,15 @@ class _Transition(nn.Sequential):
 
     def __init__(self, spatial_dims, in_channels, out_channels):
         super(_Transition, self).__init__()
-        conv_type = get_conv_type(spatial_dims, is_transpose=False)
 
-        self.add_module('norm', get_normalize_type(spatial_dims, is_instance=False)(in_channels))
+        conv_type = Conv[Conv.CONV, spatial_dims]  
+        norm_type = Norm[Norm.BATCH, spatial_dims]
+        pool_type = Pool[Pool.AVG, spatial_dims]
+
+        self.add_module('norm', norm_type(in_channels))
         self.add_module('relu', nn.ReLU(inplace=True))
         self.add_module('conv', conv_type(in_channels, out_channels, kernel_size=1, bias=False))
-        self.add_module('pool', get_avgpooling_type(spatial_dims, is_adaptive=False)(kernel_size=2, stride=2))
+        self.add_module('pool', pool_type(kernel_size=2, stride=2))
 
 
 class DenseNet(nn.Module):
@@ -112,15 +117,18 @@ class DenseNet(nn.Module):
                  dropout_prob=0):
 
         super(DenseNet, self).__init__()
-        conv_type = get_conv_type(spatial_dims, is_transpose=False)
-        norm_type = get_normalize_type(spatial_dims, is_instance=False)
+
+        conv_type = Conv[Conv.CONV, spatial_dims]  
+        norm_type = Norm[Norm.BATCH, spatial_dims]
+        pool_type = Pool[Pool.MAX, spatial_dims]
+        avg_pool_type = Pool[Pool.ADAPTIVEAVG, spatial_dims]
 
         self.features = nn.Sequential(
             OrderedDict([
                 ('conv0', conv_type(in_channels, init_features, kernel_size=7, stride=2, padding=3, bias=False)),
                 ('norm0', norm_type(init_features)),
                 ('relu0', nn.ReLU(inplace=True)),
-                ('pool0', get_maxpooling_type(spatial_dims, is_adaptive=False)(kernel_size=3, stride=2, padding=1)),
+                ('pool0', pool_type(kernel_size=3, stride=2, padding=1)),
             ]))
 
         in_channels = init_features
@@ -145,7 +153,7 @@ class DenseNet(nn.Module):
         self.class_layers = nn.Sequential(
             OrderedDict([
                 ('relu', nn.ReLU(inplace=True)),
-                ('norm', get_avgpooling_type(spatial_dims, is_adaptive=True)(1)),
+                ('norm', avg_pool_type(1)),
                 ('flatten', nn.Flatten(1)),
                 ('class', nn.Linear(in_channels, out_channels)),
             ]))
