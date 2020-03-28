@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - master
-      - 197-set-up-versioneer
 
 jobs:
   coverage-py3:
