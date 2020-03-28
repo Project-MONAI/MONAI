@@ -42,7 +42,7 @@ Ideally, the new branch should be based on the latest `master` branch.
 1. Wait for the pull request to be merged.
 
 ### Coding style
-Coding style is checked by flake8, using [a flake8 configuration](https://github.com/Project-MONAI/MONAI/blob/master/.flake8) similar to [PyTorch's](https://github.com/pytorch/pytorch/blob/master/.flake8).
+Coding style is checked by flake8, using [a flake8 configuration](./setup.cfg) similar to [PyTorch's](https://github.com/pytorch/pytorch/blob/master/.flake8).
 
 License information: all source code files should start with this paragraph:
 ```
