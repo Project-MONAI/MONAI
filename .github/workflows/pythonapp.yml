@@ -10,7 +10,7 @@ jobs:
   flake8-py3:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: Set up Python 3.7
       uses: actions/setup-python@v1
       with:
@@ -24,7 +24,8 @@ jobs:
         pip install flake8 flake8-mypy flake8-bugbear flake8-comprehensions flake8-executable flake8-pyi mccabe pycodestyle pyflakes
         pip install pep8-naming
         flake8 --version
-        flake8 . --count --statistics --config .flake8
+        python -c 'import monai; monai.config.print_config()'
+        flake8 . --count --statistics
 
   test-py3:
     container:
@@ -51,3 +52,49 @@ jobs:
       uses: codecov/codecov-action@v1
       with:
         file: ./coverage.xml
+
+  packaging:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Set up Python 3.x
+      uses: actions/setup-python@v1
+      with:
+        python-version: '3.x'
+    - name: Install setuptools
+      run: |
+        python -m pip install --user --upgrade setuptools wheel
+    - name: Test source archive and wheel file
+      run: |
+        git fetch --depth=1 origin +refs/tags/*:refs/tags/*
+        root_dir=$PWD
+        echo "$root_dir"
+        set -e
+
+        # build tar.gz and wheel
+        python setup.py sdist bdist_wheel
+        tmp_dir=$(mktemp -d)
+        cp dist/monai* "$tmp_dir"
+        rm -r build dist monai.egg-info
+        cd "$tmp_dir"
+        ls -al
+
+        # install from wheel
+        python -m pip install monai*.whl
+        python -c 'import monai; monai.config.print_config()' 2>&1 | grep -iv "unknown"
+        python -c 'import monai; print(monai.__file__)'
+        python -m pip uninstall -y monai
+        rm monai*.whl
+
+        # install from tar.gz
+        python -m pip install monai*.tar.gz
+        python -c 'import monai; monai.config.print_config()' 2>&1 | grep -iv "unknown"
+        python -c 'import monai; print(monai.__file__)'
+        python -m pip uninstall -y monai
+        rm monai*.tar.gz
+
+        # clean up
+        cd "$root_dir"
+        rm -r "$tmp_dir"

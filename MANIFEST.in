@@ -1,0 +1,2 @@
+include versioneer.py
+include monai/_version.py

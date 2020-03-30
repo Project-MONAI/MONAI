@@ -42,7 +42,7 @@ Ideally, the new branch should be based on the latest `master` branch.
 1. Wait for the pull request to be merged.
 
 ### Coding style
-Coding style is checked by flake8, using [a flake8 configuration](https://github.com/Project-MONAI/MONAI/blob/master/.flake8) similar to [PyTorch's](https://github.com/pytorch/pytorch/blob/master/.flake8).
+Coding style is checked by flake8, using [a flake8 configuration](./setup.cfg) similar to [PyTorch's](https://github.com/pytorch/pytorch/blob/master/.flake8).
 
 License information: all source code files should start with this paragraph:
 ```
@@ -111,3 +111,17 @@ All code review comments should be specific, constructive, and actionable.
 
 [github ci]: https://github.com/Project-MONAI/MONAI/actions
 [monai issue list]: https://github.com/Project-MONAI/MONAI/issues
+
+
+## Admin tasks
+
+### Release a new version
+- Prepare [a release note](https://github.com/Project-MONAI/MONAI/releases)
+- Checkout a new branch `releasing-version-N`
+- Create a tag, for example `git tag -a 0.1a -m "version 0.1a"`
+- [Generate distribution archives](https://packaging.python.org/tutorials/packaging-projects/) `python3 setup.py sdist bdist_wheel`
+- Test the package locally `pip install monai`
+- Upload the package to [PyPI](https://pypi.org/project/monai/)
+- Publish the release note
+
+Note that the release should be tagged with a [PEP440](https://www.python.org/dev/peps/pep-0440/) compliant [semantic versioning](https://semver.org/spec/v2.0.0.html) number.

@@ -1,55 +1,20 @@
-import os
-import io
-import re
-from setuptools import setup, find_packages
+# Copyright 2020 MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-# inspired by https://github.com/pytorch/ignite/blob/master/setup.py
-def read(*names, **kwargs):
-    print(os.path.join(os.path.dirname(__file__), *names))
-    with io.open(
-        os.path.join(os.path.dirname(__file__), *names), 
-        encoding=kwargs.get("encoding", "utf8")
-    ) as fp:
-        return fp.read()
+from setuptools import find_packages, setup
 
-def find_version(*file_paths):
-    version_file = read(*file_paths)
-    version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]",
-                              version_file, re.M)
-    if version_match:
-        return version_match.group(1)
-    raise RuntimeError("Unable to find version string.")
-
-readme = read("README.md")
-VERSION = find_version("monai", "__init__.py")
-requirements = [
-    "torch",
-    "pytorch-ignite",
-    "numpy",
-    "pillow",
-    "coverage",
-    "nibabel",
-    "parameterized",
-    "tensorboard",
-    "scikit-image",
-    "scipy"
-]
+import versioneer
 
 if __name__ == '__main__':
-    setup(
-        # Metadata
-        name="monai",
-        version=VERSION,
-        author="MONAI Consortium",
-        url="https://github.com/Project-MONAI/MONAI",
-        author_email="monai.miccai2019@gmail.com",
-        description="AI Toolkit for Healthcare Imaging",
-        long_description_content_type="text/markdown",
-        long_description=readme,
-        license="Apache License 2.0",
-
-        # Package info
-        packages=find_packages(exclude=('docs', 'examples', 'tests')),
-        zip_safe=True,
-        install_requires=requirements
-    )
+    setup(version=versioneer.get_version(),
+          cmdclass=versioneer.get_cmdclass(),
+          packages=find_packages(exclude=('docs', 'examples', 'tests')),
+          zip_safe=True)

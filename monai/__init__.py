@@ -12,10 +12,13 @@
 import os
 import sys
 
+from ._version import get_versions
 from .utils.module import load_submodules
 
+__version__ = get_versions()['version']
+del get_versions
+
 __copyright__ = "(c) 2020 MONAI Consortium"
-__version__ = "0.0.1"
 
 __basedir__ = os.path.dirname(__file__)
 
