@@ -20,7 +20,7 @@ from torch.utils.data import DataLoader
 import monai
 import monai.transforms.compose as transforms
 from monai.transforms.composables import \
-    LoadNiftid, AddChanneld, Rescaled, Resized, RandRotate90d
+    LoadNiftid, AddChanneld, Rescaled, Resized, RandRotate90d, ToTensord
 from monai.handlers.stats_handler import StatsHandler
 from monai.handlers.tensorboard_handlers import TensorBoardStatsHandler
 from ignite.metrics import Accuracy
@@ -65,13 +65,15 @@ train_transforms = transforms.Compose([
     AddChanneld(keys=['img']),
     Rescaled(keys=['img']),
     Resized(keys=['img'], output_spatial_shape=(96, 96, 96)),
-    RandRotate90d(keys=['img'], prob=0.8, spatial_axes=[0, 2])
+    RandRotate90d(keys=['img'], prob=0.8, spatial_axes=[0, 2]),
+    ToTensord(keys=['img'])
 ])
 val_transforms = transforms.Compose([
     LoadNiftid(keys=['img']),
     AddChanneld(keys=['img']),
     Rescaled(keys=['img']),
-    Resized(keys=['img'], output_spatial_shape=(96, 96, 96))
+    Resized(keys=['img'], output_spatial_shape=(96, 96, 96)),
+    ToTensord(keys=['img'])
 ])
 
 # define dataset, dataloader

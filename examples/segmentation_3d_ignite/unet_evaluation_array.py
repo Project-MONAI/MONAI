@@ -26,7 +26,7 @@ from monai.handlers.checkpoint_loader import CheckpointLoader
 from monai.handlers.segmentation_saver import SegmentationSaver
 import monai.transforms.compose as transforms
 from monai.data.nifti_reader import NiftiDataset
-from monai.transforms import AddChannel, Rescale
+from monai.transforms import AddChannel, Rescale, ToTensor
 from monai.networks.nets.unet import UNet
 from monai.networks.utils import predict_segmentation
 from monai.data.synthetic import create_test_image_3d
@@ -52,8 +52,8 @@ images = sorted(glob(os.path.join(tempdir, 'im*.nii.gz')))
 segs = sorted(glob(os.path.join(tempdir, 'seg*.nii.gz')))
 
 # define transforms for image and segmentation
-imtrans = transforms.Compose([Rescale(), AddChannel()])
-segtrans = transforms.Compose([AddChannel()])
+imtrans = transforms.Compose([Rescale(), AddChannel(), ToTensor()])
+segtrans = transforms.Compose([AddChannel(), ToTensor()])
 ds = NiftiDataset(images, segs, transform=imtrans, seg_transform=segtrans, image_only=False)
 
 device = torch.device("cuda:0")
@@ -74,10 +74,10 @@ sw_batch_size = 4
 
 def _sliding_window_processor(engine, batch):
     net.eval()
-    img, seg, meta_data = batch
     with torch.no_grad():
-        seg_probs = sliding_window_inference(img, roi_size, sw_batch_size, net, device)
-        return seg_probs, seg.to(device)
+        val_images, val_labels = batch[0].to(device), batch[1].to(device)
+        seg_probs = sliding_window_inference(val_images, roi_size, sw_batch_size, net)
+        return seg_probs, val_labels
 
 
 evaluator = Engine(_sliding_window_processor)
@@ -95,7 +95,7 @@ val_stats_handler.attach(evaluator)
 
 # for the arrary data format, assume the 3rd item of batch data is the meta_data
 file_saver = SegmentationSaver(
-    output_path='tempdir', output_ext='.nii.gz', output_postfix='seg', name='evaluator',
+    output_dir='tempdir', output_ext='.nii.gz', output_postfix='seg', name='evaluator',
     batch_transform=lambda x: x[2], output_transform=lambda output: predict_segmentation(output[0]))
 file_saver.attach(evaluator)
 

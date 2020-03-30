@@ -20,7 +20,7 @@ from torch.utils.data import DataLoader
 from monai.handlers.classification_saver import ClassificationSaver
 from monai.handlers.checkpoint_loader import CheckpointLoader
 from monai.handlers.stats_handler import StatsHandler
-from monai.transforms.composables import LoadNiftid, AddChanneld, Rescaled, Resized
+from monai.transforms.composables import LoadNiftid, AddChanneld, Rescaled, Resized, ToTensord
 import monai.transforms.compose as transforms
 import monai
 
@@ -51,7 +51,8 @@ val_transforms = transforms.Compose([
     LoadNiftid(keys=['img']),
     AddChanneld(keys=['img']),
     Rescaled(keys=['img']),
-    Resized(keys=['img'], output_spatial_shape=(96, 96, 96))
+    Resized(keys=['img'], output_spatial_shape=(96, 96, 96)),
+    ToTensord(keys=['img'])
 ])
 
 # create DenseNet121

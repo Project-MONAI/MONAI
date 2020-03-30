@@ -25,7 +25,7 @@ from torch.utils.data import DataLoader
 import monai
 import monai.transforms.compose as transforms
 from monai.transforms.composables import \
-    LoadNiftid, AsChannelFirstd, Rescaled, RandCropByPosNegLabeld, RandRotate90d
+    LoadNiftid, AsChannelFirstd, Rescaled, RandCropByPosNegLabeld, RandRotate90d, ToTensord
 from monai.handlers.stats_handler import StatsHandler
 from monai.handlers.tensorboard_handlers import TensorBoardStatsHandler, TensorBoardImageHandler
 from monai.handlers.mean_dice import MeanDice
@@ -60,12 +60,14 @@ train_transforms = transforms.Compose([
     AsChannelFirstd(keys=['img', 'seg'], channel_dim=-1),
     Rescaled(keys=['img', 'seg']),
     RandCropByPosNegLabeld(keys=['img', 'seg'], label_key='seg', size=[96, 96, 96], pos=1, neg=1, num_samples=4),
-    RandRotate90d(keys=['img', 'seg'], prob=0.8, spatial_axes=[0, 2])
+    RandRotate90d(keys=['img', 'seg'], prob=0.5, spatial_axes=[0, 2]),
+    ToTensord(keys=['img', 'seg'])
 ])
 val_transforms = transforms.Compose([
     LoadNiftid(keys=['img', 'seg']),
     AsChannelFirstd(keys=['img', 'seg'], channel_dim=-1),
-    Rescaled(keys=['img', 'seg'])
+    Rescaled(keys=['img', 'seg']),
+    ToTensord(keys=['img', 'seg'])
 ])
 
 # define dataset, dataloader

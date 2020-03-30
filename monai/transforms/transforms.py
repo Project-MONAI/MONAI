@@ -553,7 +553,7 @@ class ToTensor:
     """
 
     def __call__(self, img):
-        return torch.from_numpy(img)
+        return torch.as_tensor(np.ascontiguousarray(img))
 
 
 @export
