@@ -56,16 +56,16 @@ jobs:
         cd "$root_dir"
         rm -r "$tmp_dir"
 
-    - if: matrix.python-version == '3.8'
+    - if: matrix.python-version == '3.8' && startsWith(github.ref, 'refs/tags/')
       name: Publish to Test PyPI
       uses: pypa/gh-action-pypi-publish@master
       with:
         password: ${{ secrets.TEST_PYPI }}
         repository_url: https://test.pypi.org/legacy/
 
-    - if: matrix.python-version == '3.8'
+    - if: matrix.python-version == '3.8' && startsWith(github.ref, 'refs/tags/')
       name: Upload artifacts
       uses: actions/upload-artifact@v1
       with:
-        name: dist-packages
+        name: dist
         path: dist/
