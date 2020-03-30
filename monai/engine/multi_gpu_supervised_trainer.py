@@ -14,8 +14,6 @@ import torch
 
 from ignite.engine import create_supervised_trainer, create_supervised_evaluator, _prepare_batch
 
-import monai
-
 
 def get_devices_spec(devices=None):
     """
@@ -49,8 +47,7 @@ def _default_eval_transform(x, y, y_pred):
     return y_pred, y
 
 
-@monai.utils.export("monai.engine")
-def create_multigpu_supervised_trainer(net, optimizer, loss_fn, devices=None, non_blocking=False, 
+def create_multigpu_supervised_trainer(net, optimizer, loss_fn, devices=None, non_blocking=False,
                                        prepare_batch=_prepare_batch, output_transform=_default_transform):
     """
     Derived from `create_supervised_trainer` in Ignite.
@@ -86,7 +83,6 @@ def create_multigpu_supervised_trainer(net, optimizer, loss_fn, devices=None, no
     return create_supervised_trainer(net, optimizer, loss_fn, devices[0], non_blocking, prepare_batch, output_transform)
 
 
-@monai.utils.export("monai.engine")
 def create_multigpu_supervised_evaluator(net, metrics=None, devices=None, non_blocking=False,
                                          prepare_batch=_prepare_batch, output_transform=_default_eval_transform):
     """

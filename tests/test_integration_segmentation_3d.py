@@ -26,7 +26,7 @@ import monai.transforms.compose as transforms
 from monai.data.nifti_saver import NiftiSaver
 from monai.data.synthetic import create_test_image_3d
 from monai.data.utils import list_data_collate
-from monai.metrics.compute_meandice import compute_meandice
+from monai.metrics.meandice import compute_meandice
 from monai.networks.nets.unet import UNet
 from monai.transforms.composables import (AsChannelFirstd, LoadNiftid, RandCropByPosNegLabeld, RandRotate90d, Rescaled)
 from monai.utils.sliding_window_inference import sliding_window_inference

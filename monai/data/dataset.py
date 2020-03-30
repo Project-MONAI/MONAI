@@ -10,10 +10,8 @@
 # limitations under the License.
 
 import torch
-from monai.utils.module import export
 
 
-@export("monai.data")
 class Dataset(torch.utils.data.Dataset):
     """
     Generic dataset to handle dictionary format data, it can operate transforms for specific fields.

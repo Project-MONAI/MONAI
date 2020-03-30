@@ -21,7 +21,6 @@ import torch
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
 from skimage.transform import resize
 
-import monai
 from monai.data.utils import (get_random_patch, get_valid_patch_size, correct_nifti_header_if_necessary, zoom_affine,
                               compute_shape_offset)
 from monai.networks.layers.simplelayers import GaussianFilter
@@ -30,10 +29,7 @@ from monai.transforms.utils import (create_control_grid, create_grid, create_rot
                                     create_translate, rescale_array, to_affine_nd)
 from monai.utils.misc import ensure_tuple
 
-export = monai.utils.export("monai.transforms")
 
-
-@export
 class Spacing:
     """
     Resample input image into the specified `pixdim`.
@@ -110,7 +106,6 @@ class Spacing:
         return output_data, original_affine, new_affine
 
 
-@export
 class Orientation:
     """
     Change the input image's orientation into the specified based on `axcodes`.
@@ -176,7 +171,6 @@ class Orientation:
         return data_array, original_affine, new_affine
 
 
-@export
 class LoadNifti:
     """
     Load Nifti format file or files from provided path. If loading a list of
@@ -250,7 +244,6 @@ class LoadNifti:
         return img_array, compatible_meta
 
 
-@export
 class AsChannelFirst:
     """
     Change the channel dimension of the image to the first dimension.
@@ -276,7 +269,6 @@ class AsChannelFirst:
         return np.moveaxis(img, self.channel_dim, 0)
 
 
-@export
 class AddChannel:
     """
     Adds a 1-length channel dimension to the input image.
@@ -295,7 +287,6 @@ class AddChannel:
         return img[None]
 
 
-@export
 class Transpose:
     """
     Transposes the input image based on the given `indices` dimension ordering.
@@ -308,7 +299,6 @@ class Transpose:
         return img.transpose(self.indices)
 
 
-@export
 class Rescale:
     """
     Rescales the input image to the given value range.
@@ -323,7 +313,6 @@ class Rescale:
         return rescale_array(img, self.minv, self.maxv, self.dtype)
 
 
-@export
 class GaussianNoise(Randomizable):
     """Add gaussian noise to image.
 
@@ -346,7 +335,6 @@ class GaussianNoise(Randomizable):
         return img + self._noise
 
 
-@export
 class Flip:
     """Reverses the order of elements along the given spatial axis. Preserves shape.
     Uses ``np.flip`` in practice. See numpy.flip for additional details.
@@ -372,7 +360,6 @@ class Flip:
         return np.stack(flipped)
 
 
-@export
 class Resize:
     """
     Resize the input image to given resolution. Uses skimage.transform.resize underneath.
@@ -422,7 +409,6 @@ class Resize:
         return np.stack(resized).astype(np.float32)
 
 
-@export
 class Rotate:
     """
     Rotates an input image by given angle. Uses scipy.ndimage.rotate. For more details, see
@@ -464,7 +450,6 @@ class Rotate:
         return np.stack(rotated).astype(np.float32)
 
 
-@export
 class Zoom:
     """ Zooms a nd image. Uses scipy.ndimage.zoom or cupyx.scipy.ndimage.zoom in case of gpu.
     For details, please see https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.zoom.html.
@@ -546,7 +531,6 @@ class Zoom:
         return zoomed[tuple(slice_vec)]
 
 
-@export
 class ToTensor:
     """
     Converts the input image to a tensor without applying any other transformations.
@@ -556,7 +540,6 @@ class ToTensor:
         return torch.from_numpy(img)
 
 
-@export
 class RandUniformPatch(Randomizable):
     """
     Selects a patch of the given size chosen at a uniformly random position in the image.
@@ -579,7 +562,6 @@ class RandUniformPatch(Randomizable):
         return img[self._slices]
 
 
-@export
 class NormalizeIntensity:
     """Normalize input based on provided args, using calculated mean and std if not provided
     (shape of subtrahend and divisor must match. if 0, entire volume uses same subtrahend and
@@ -608,7 +590,6 @@ class NormalizeIntensity:
         return img
 
 
-@export
 class ScaleIntensityRange:
     """Apply specific intensity scaling to the whole numpy array.
     Scaling from [a_min, a_max] to [b_min, b_max] with clip option.
@@ -637,7 +618,6 @@ class ScaleIntensityRange:
         return img
 
 
-@export
 class PadImageEnd:
     """Performs padding by appending to the end of the data all on one side for each dimension.
      Uses np.pad so in practice, a mode needs to be provided. See numpy.lib.arraypad.pad
@@ -664,7 +644,6 @@ class PadImageEnd:
         return img
 
 
-@export
 class Rotate90:
     """
     Rotate an array by 90 degrees in the plane specified by `axes`.
@@ -693,7 +672,6 @@ class Rotate90:
         return np.stack(rotated)
 
 
-@export
 class RandRotate90(Randomizable):
     """
     With probability `prob`, input arrays are rotated by 90 degrees
@@ -729,7 +707,6 @@ class RandRotate90(Randomizable):
         return rotator(img)
 
 
-@export
 class SpatialCrop:
     """General purpose cropper to produce sub-volume region of interest (ROI).
     It can support to crop ND spatial (channel-first) data.
@@ -773,7 +750,6 @@ class SpatialCrop:
         return data
 
 
-@export
 class RandRotate(Randomizable):
     """Randomly rotates the input arrays.
 
@@ -823,7 +799,6 @@ class RandRotate(Randomizable):
         return rotator(img)
 
 
-@export
 class RandFlip(Randomizable):
     """Randomly flips the image along axes. Preserves shape.
     See numpy.flip for additional details.
@@ -849,7 +824,6 @@ class RandFlip(Randomizable):
         return self.flipper(img)
 
 
-@export
 class RandZoom(Randomizable):
     """Randomly zooms input arrays with given probability within given zoom range.
 
@@ -1111,7 +1085,6 @@ class Resample:
         return out
 
 
-@export
 class Affine:
     """
     transform ``img`` given the affine parameters.
@@ -1174,7 +1147,6 @@ class Affine:
         return self.resampler(img=img, grid=grid, mode=mode)
 
 
-@export
 class RandAffine(Randomizable):
     """
     Random affine transform.
@@ -1248,7 +1220,6 @@ class RandAffine(Randomizable):
         return self.resampler(img=img, grid=grid, mode=mode)
 
 
-@export
 class Rand2DElastic(Randomizable):
     """
     Random elastic deformation and affine in 2D
@@ -1329,7 +1300,6 @@ class Rand2DElastic(Randomizable):
         return self.resampler(img, grid, mode)
 
 
-@export
 class Rand3DElastic(Randomizable):
     """
     Random elastic deformation and affine in 3D

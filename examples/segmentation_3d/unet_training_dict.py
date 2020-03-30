@@ -28,7 +28,7 @@ from monai.transforms.composables import \
 from monai.data.synthetic import create_test_image_3d
 from monai.data.utils import list_data_collate
 from monai.utils.sliding_window_inference import sliding_window_inference
-from monai.metrics.compute_meandice import compute_meandice
+from monai.metrics.meandice import compute_meandice
 from monai.visualize.img2tensorboard import plot_2d_or_3d_image
 
 monai.config.print_config()

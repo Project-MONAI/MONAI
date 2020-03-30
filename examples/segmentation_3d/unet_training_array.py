@@ -27,7 +27,7 @@ from monai.data.nifti_reader import NiftiDataset
 from monai.transforms import AddChannel, Rescale, RandUniformPatch, Resize
 from monai.data.synthetic import create_test_image_3d
 from monai.utils.sliding_window_inference import sliding_window_inference
-from monai.metrics.compute_meandice import compute_meandice
+from monai.metrics.meandice import compute_meandice
 from monai.visualize.img2tensorboard import plot_2d_or_3d_image
 
 monai.config.print_config()
