@@ -116,16 +116,18 @@ All code review comments should be specific, constructive, and actionable.
 ## Admin tasks
 
 ### Release a new version
-- Prepare [a release note](https://github.com/Project-MONAI/MONAI/releases)
-- Checkout a new branch `releases/[version numbere]`
-- Create a tag, for example `git tag -a 0.1a -m "version 0.1a"`
-- Push the tag to the codebase `git push origin 0.1a`
-  This step will trigger package building and testing. The resultant packages are automatically uploaded to
+- Prepare [a release note](https://github.com/Project-MONAI/MONAI/releases).
+- Checkout a new branch `releases/[version numbere]`.
+- Create a tag, for example `git tag -a 0.1a -m "version 0.1a"`.
+- Push the tag to the codebase, for example `git push origin 0.1a`.
+  This step will trigger package building and testing.
+  The resultant packages are automatically uploaded to
   [TestPyPI](https://test.pypi.org/project/monai/).  The packages are also available for downloading as
-  repository's artifacts.
-- Upload the package to [PyPI](https://pypi.org/project/monai/)
-  This could be done manually by ``twine upload dist/*``, given the artifacts are in the folder ``dist/``.
-- Publish the release note
+  repository's artifacts (e.g. the file at https://github.com/Project-MONAI/MONAI/actions/runs/66570977).
+- Check the release test at [TestPyPI](https://test.pypi.org/project/monai/), download the artifacts when the CI finishes
+- Upload the packages to [PyPI](https://pypi.org/project/monai/).
+  This could be done manually by ``twine upload dist/*``, given the artifacts are unzipped to the folder ``dist/``.
+- Publish the release note.
 
 Note that the release should be tagged with a [PEP440](https://www.python.org/dev/peps/pep-0440/) compliant
 [semantic versioning](https://semver.org/spec/v2.0.0.html) number.
