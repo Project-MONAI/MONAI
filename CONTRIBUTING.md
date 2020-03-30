@@ -117,7 +117,7 @@ All code review comments should be specific, constructive, and actionable.
 
 ### Release a new version
 - Prepare [a release note](https://github.com/Project-MONAI/MONAI/releases).
-- Checkout a new branch `releases/[version numbere]`.
+- Checkout a new branch `releases/[version numbere]` from the master branch.
 - Create a tag, for example `git tag -a 0.1a -m "version 0.1a"`.
 - Push the tag to the codebase, for example `git push origin 0.1a`.
   This step will trigger package building and testing.
