@@ -62,3 +62,10 @@ jobs:
       with:
         password: ${{ secrets.TEST_PYPI }}
         repository_url: https://test.pypi.org/legacy/
+
+    - if: matrix.python-version == '3.8'
+      name: Upload artifacts
+      uses: actions/upload-artifact@v1
+      with:
+        name: dist-packages
+        path: dist/monai*

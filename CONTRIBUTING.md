@@ -119,10 +119,13 @@ All code review comments should be specific, constructive, and actionable.
 - Prepare [a release note](https://github.com/Project-MONAI/MONAI/releases)
 - Checkout a new branch `releases/[version numbere]`
 - Create a tag, for example `git tag -a 0.1a -m "version 0.1a"`
+- Push the tag to the codebase `git push origin 0.1a`
+  This step will trigger package building and testing. The resultant packages are automatically uploaded to
+  [TestPyPI](https://test.pypi.org/project/monai/).
 - [Generate distribution archives](https://packaging.python.org/tutorials/packaging-projects/) `python3 setup.py sdist bdist_wheel`
 - Test the package locally `pip install monai`
 - Upload the package to [PyPI](https://pypi.org/project/monai/)
 - Publish the release note
 
-Note that the release should be tagged with a [PEP440](https://www.python.org/dev/peps/pep-0440/) compliant 
+Note that the release should be tagged with a [PEP440](https://www.python.org/dev/peps/pep-0440/) compliant
 [semantic versioning](https://semver.org/spec/v2.0.0.html) number.
