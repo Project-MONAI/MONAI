@@ -5,12 +5,6 @@
 Utils
 =====
 
-Sliding window inference
-------------------------
-
-.. automodule:: monai.utils.sliding_window_inference
-  :members:
-
 Module utils
 ------------
 .. automodule:: monai.utils.module
