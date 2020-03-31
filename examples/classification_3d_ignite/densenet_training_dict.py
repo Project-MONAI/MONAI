@@ -15,16 +15,12 @@ import numpy as np
 import torch
 from ignite.engine import Events, create_supervised_trainer, create_supervised_evaluator, _prepare_batch
 from ignite.handlers import ModelCheckpoint, EarlyStopping
+from ignite.metrics import Accuracy
 from torch.utils.data import DataLoader
 
 import monai
-import monai.transforms.compose as transforms
-from monai.transforms.composables import \
-    LoadNiftid, AddChanneld, Rescaled, Resized, RandRotate90d, ToTensord
-from monai.handlers.stats_handler import StatsHandler
-from monai.handlers.tensorboard_handlers import TensorBoardStatsHandler
-from ignite.metrics import Accuracy
-from monai.handlers.utils import stopping_fn_from_metric
+from monai.transforms import Compose, LoadNiftid, AddChanneld, Rescaled, Resized, RandRotate90d, ToTensord
+from monai.handlers import StatsHandler, TensorBoardStatsHandler, stopping_fn_from_metric
 
 monai.config.print_config()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -60,7 +56,7 @@ train_files = [{'img': img, 'label': label} for img, label in zip(images[:10], l
 val_files = [{'img': img, 'label': label} for img, label in zip(images[-10:], labels[-10:])]
 
 # define transforms for image
-train_transforms = transforms.Compose([
+train_transforms = Compose([
     LoadNiftid(keys=['img']),
     AddChanneld(keys=['img']),
     Rescaled(keys=['img']),
@@ -68,7 +64,7 @@ train_transforms = transforms.Compose([
     RandRotate90d(keys=['img'], prob=0.8, spatial_axes=[0, 2]),
     ToTensord(keys=['img'])
 ])
-val_transforms = transforms.Compose([
+val_transforms = Compose([
     LoadNiftid(keys=['img']),
     AddChanneld(keys=['img']),
     Rescaled(keys=['img']),

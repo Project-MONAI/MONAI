@@ -356,5 +356,3 @@ def create_translate(spatial_dims, shift):
     for i, a in enumerate(shift[:spatial_dims]):
         affine[i, spatial_dims] = a
     return affine
-
-

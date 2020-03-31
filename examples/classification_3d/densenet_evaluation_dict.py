@@ -16,9 +16,8 @@ import torch
 from torch.utils.data import DataLoader
 
 import monai
-from monai.transforms.composables import LoadNiftid, AddChanneld, Rescaled, Resized, ToTensord
-import monai.transforms.compose as transforms
-from monai.data.csv_saver import CSVSaver
+from monai.transforms import Compose, LoadNiftid, AddChanneld, Rescaled, Resized, ToTensord
+from monai.data import CSVSaver
 
 monai.config.print_config()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -43,7 +42,7 @@ labels = np.array([
 val_files = [{'img': img, 'label': label} for img, label in zip(images, labels)]
 
 # Define transforms for image
-val_transforms = transforms.Compose([
+val_transforms = Compose([
     LoadNiftid(keys=['img']),
     AddChanneld(keys=['img']),
     Rescaled(keys=['img']),

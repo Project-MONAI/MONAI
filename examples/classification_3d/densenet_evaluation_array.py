@@ -16,10 +16,8 @@ import torch
 from torch.utils.data import DataLoader
 
 import monai
-import monai.transforms.compose as transforms
-from monai.data.nifti_reader import NiftiDataset
-from monai.transforms import AddChannel, Rescale, Resize, ToTensor
-from monai.data.csv_saver import CSVSaver
+from monai.data import NiftiDataset, CSVSaver
+from monai.transforms import Compose, AddChannel, Rescale, Resize, ToTensor
 
 monai.config.print_config()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -43,7 +41,7 @@ labels = np.array([
 ])
 
 # Define transforms for image
-val_transforms = transforms.Compose([
+val_transforms = Compose([
     Rescale(),
     AddChannel(),
     Resize((96, 96, 96)),

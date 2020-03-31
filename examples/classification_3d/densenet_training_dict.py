@@ -17,9 +17,7 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 import monai
-import monai.transforms.compose as transforms
-from monai.transforms.composables import \
-    LoadNiftid, AddChanneld, Rescaled, Resized, RandRotate90d, ToTensord
+from monai.transforms import Compose, LoadNiftid, AddChanneld, Rescaled, Resized, RandRotate90d, ToTensord
 
 monai.config.print_config()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -55,7 +53,7 @@ train_files = [{'img': img, 'label': label} for img, label in zip(images[:10], l
 val_files = [{'img': img, 'label': label} for img, label in zip(images[-10:], labels[-10:])]
 
 # Define transforms for image
-train_transforms = transforms.Compose([
+train_transforms = Compose([
     LoadNiftid(keys=['img']),
     AddChanneld(keys=['img']),
     Rescaled(keys=['img']),
@@ -63,7 +61,7 @@ train_transforms = transforms.Compose([
     RandRotate90d(keys=['img'], prob=0.8, spatial_axes=[0, 2]),
     ToTensord(keys=['img'])
 ])
-val_transforms = transforms.Compose([
+val_transforms = Compose([
     LoadNiftid(keys=['img']),
     AddChanneld(keys=['img']),
     Rescaled(keys=['img']),

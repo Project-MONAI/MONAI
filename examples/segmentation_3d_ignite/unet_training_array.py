@@ -23,15 +23,10 @@ from ignite.handlers import ModelCheckpoint, EarlyStopping
 from torch.utils.data import DataLoader
 
 import monai
-import monai.transforms.compose as transforms
-
-from monai.data.nifti_reader import NiftiDataset
-from monai.transforms import AddChannel, Rescale, RandUniformPatch, Resize, ToTensor
-from monai.handlers.stats_handler import StatsHandler
-from monai.handlers.tensorboard_handlers import TensorBoardStatsHandler, TensorBoardImageHandler
-from monai.handlers.mean_dice import MeanDice
-from monai.data.synthetic import create_test_image_3d
-from monai.handlers.utils import stopping_fn_from_metric
+from monai.data import NiftiDataset, create_test_image_3d
+from monai.transforms import Compose, AddChannel, Rescale, RandUniformPatch, Resize, ToTensor
+from monai.handlers import \
+    StatsHandler, TensorBoardStatsHandler, TensorBoardImageHandler, MeanDice, stopping_fn_from_metric
 from monai.networks.utils import predict_segmentation
 
 monai.config.print_config()
@@ -53,24 +48,24 @@ images = sorted(glob(os.path.join(tempdir, 'im*.nii.gz')))
 segs = sorted(glob(os.path.join(tempdir, 'seg*.nii.gz')))
 
 # define transforms for image and segmentation
-train_imtrans = transforms.Compose([
+train_imtrans = Compose([
     Rescale(),
     AddChannel(),
     RandUniformPatch((96, 96, 96)),
     ToTensor()
 ])
-train_segtrans = transforms.Compose([
+train_segtrans = Compose([
     AddChannel(),
     RandUniformPatch((96, 96, 96)),
     ToTensor()
 ])
-val_imtrans = transforms.Compose([
+val_imtrans = Compose([
     Rescale(),
     AddChannel(),
     Resize((96, 96, 96)),
     ToTensor()
 ])
-val_segtrans = transforms.Compose([
+val_segtrans = Compose([
     AddChannel(),
     Resize((96, 96, 96)),
     ToTensor()
