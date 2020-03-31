@@ -12,5 +12,4 @@
 # have to explicitly bring these in here to resolve circular import issues
 from .module import export
 from .decorators import *
-from .sliding_window_inference import *
 from .misc import *

@@ -23,7 +23,7 @@ from torch.utils.data import DataLoader
 
 import monai
 from monai.data.utils import list_data_collate
-from monai.utils.sliding_window_inference import sliding_window_inference
+from monai.data.sliding_window_inference import sliding_window_inference
 from monai.data.synthetic import create_test_image_3d
 from monai.networks.utils import predict_segmentation
 from monai.networks.nets.unet import UNet

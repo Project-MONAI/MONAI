@@ -9,4 +9,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .multi_gpu_supervised_trainer import create_multigpu_supervised_trainer, create_multigpu_supervised_evaluator
+from .multi_gpu_supervised_trainer import *

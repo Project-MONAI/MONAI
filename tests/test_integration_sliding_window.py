@@ -25,7 +25,7 @@ from monai.handlers.segmentation_saver import SegmentationSaver
 from monai.networks.nets.unet import UNet
 from monai.networks.utils import predict_segmentation
 from monai.transforms.transforms import AddChannel
-from monai.utils.sliding_window_inference import sliding_window_inference
+from monai.data.sliding_window_inference import sliding_window_inference
 from tests.utils import make_nifti_image
 
 

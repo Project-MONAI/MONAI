@@ -30,7 +30,7 @@ from monai.metrics.meandice import compute_meandice
 from monai.networks.nets.unet import UNet
 from monai.transforms.composables import \
     AsChannelFirstd, LoadNiftid, RandCropByPosNegLabeld, RandRotate90d, Rescaled, ToTensord
-from monai.utils.sliding_window_inference import sliding_window_inference
+from monai.data.sliding_window_inference import sliding_window_inference
 from monai.visualize.img2tensorboard import plot_2d_or_3d_image
 
 from tests.utils import skip_if_quick

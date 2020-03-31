@@ -22,11 +22,11 @@ from torch.utils.data._utils.collate import np_str_obj_array_pattern
 from skimage.transform import resize
 
 from monai.data.utils import (get_random_patch, get_valid_patch_size, correct_nifti_header_if_necessary, zoom_affine,
-                              compute_shape_offset)
+                              compute_shape_offset, to_affine_nd)
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.compose import Randomizable
 from monai.transforms.utils import (create_control_grid, create_grid, create_rotate, create_scale, create_shear,
-                                    create_translate, rescale_array, to_affine_nd)
+                                    create_translate, rescale_array)
 from monai.utils.misc import ensure_tuple
 
 

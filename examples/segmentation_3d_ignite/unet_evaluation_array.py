@@ -30,7 +30,7 @@ from monai.transforms import AddChannel, Rescale, ToTensor
 from monai.networks.nets.unet import UNet
 from monai.networks.utils import predict_segmentation
 from monai.data.synthetic import create_test_image_3d
-from monai.utils.sliding_window_inference import sliding_window_inference
+from monai.data.sliding_window_inference import sliding_window_inference
 from monai.handlers.stats_handler import StatsHandler
 from monai.handlers.mean_dice import MeanDice
 

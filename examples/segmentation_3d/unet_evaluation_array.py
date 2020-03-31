@@ -26,7 +26,7 @@ from monai.data.nifti_reader import NiftiDataset
 from monai.transforms import AddChannel, Rescale, ToTensor
 from monai.networks.nets.unet import UNet
 from monai.data.synthetic import create_test_image_3d
-from monai.utils.sliding_window_inference import sliding_window_inference
+from monai.data.sliding_window_inference import sliding_window_inference
 from monai.metrics.meandice import compute_meandice
 from monai.data.nifti_saver import NiftiSaver
 
