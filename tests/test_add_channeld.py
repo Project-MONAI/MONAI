@@ -12,7 +12,7 @@
 import unittest
 import numpy as np
 from parameterized import parameterized
-from monai.transforms.composables import AddChanneld
+from monai.transforms import AddChanneld
 
 TEST_CASE_1 = [
     {'keys': ['img', 'seg']},

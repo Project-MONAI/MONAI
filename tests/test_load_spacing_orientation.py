@@ -17,7 +17,7 @@ import numpy as np
 from nibabel.processing import resample_to_output
 from parameterized import parameterized
 
-from monai.transforms.composables import (AddChanneld, LoadNiftid, Orientationd, Spacingd)
+from monai.transforms import (AddChanneld, LoadNiftid, Orientationd, Spacingd)
 
 FILES = tuple(
     os.path.join(os.path.dirname(__file__), 'testing_data', filename)

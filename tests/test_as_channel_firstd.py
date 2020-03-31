@@ -12,7 +12,7 @@
 import unittest
 import numpy as np
 from parameterized import parameterized
-from monai.transforms.composables import AsChannelFirstd
+from monai.transforms import AsChannelFirstd
 
 TEST_CASE_1 = [
     {

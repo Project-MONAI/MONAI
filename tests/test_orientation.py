@@ -15,8 +15,7 @@ import nibabel as nib
 import numpy as np
 from parameterized import parameterized
 
-from monai.transforms.transforms import Orientation
-from monai.transforms.utils import create_rotate, create_translate
+from monai.transforms import Orientation, create_rotate, create_translate
 
 TEST_CASES = [
     [{'axcodes': 'RAS'},

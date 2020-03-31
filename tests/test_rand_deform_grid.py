@@ -15,7 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.transforms.transforms import RandDeformGrid
+from monai.transforms import RandDeformGrid
 
 TEST_CASES = [
     [

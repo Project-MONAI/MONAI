@@ -19,7 +19,7 @@ import torch
 from ignite.engine import Engine, Events
 from parameterized import parameterized
 
-from monai.handlers.tensorboard_handlers import TensorBoardImageHandler
+from monai.handlers import TensorBoardImageHandler
 
 TEST_CASES = [
     [[20, 20]],

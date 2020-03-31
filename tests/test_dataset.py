@@ -16,8 +16,8 @@ import numpy as np
 import tempfile
 import nibabel as nib
 from parameterized import parameterized
-from monai.data.dataset import Dataset
-from monai.transforms.composables import LoadNiftid
+from monai.data import Dataset
+from monai.transforms import LoadNiftid
 
 TEST_CASE_1 = [
     (128, 128, 128)

@@ -15,7 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.transforms.composables import Rand3DElasticd
+from monai.transforms import Rand3DElasticd
 
 TEST_CASES = [
     [{'keys': ('img', 'seg'), 'magnitude_range': (.3, 2.3), 'sigma_range': (1., 20.),

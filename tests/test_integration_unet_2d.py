@@ -16,9 +16,9 @@ import torch
 from ignite.engine import create_supervised_trainer
 from torch.utils.data import DataLoader, Dataset
 
-from monai.data.synthetic import create_test_image_2d
-from monai.losses.dice import DiceLoss
-from monai.networks.nets.unet import UNet
+from monai.data import create_test_image_2d
+from monai.losses import DiceLoss
+from monai.networks.nets import UNet
 
 
 def run_test(batch_size=64, train_steps=100, device=torch.device("cuda:0")):

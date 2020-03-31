@@ -14,7 +14,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.handlers.mean_dice import MeanDice
+from monai.handlers import MeanDice
 
 TEST_CASE_1 = [{'to_onehot_y': True, 'mutually_exclusive': True}, 0.75]
 TEST_CASE_2 = [{'include_background': False, 'to_onehot_y': True, 'mutually_exclusive': False}, 0.66666]

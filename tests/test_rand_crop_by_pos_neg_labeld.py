@@ -12,7 +12,7 @@
 import unittest
 import numpy as np
 from parameterized import parameterized
-from monai.transforms.composables import RandCropByPosNegLabeld
+from monai.transforms import RandCropByPosNegLabeld
 
 TEST_CASE_1 = [
     {
