@@ -1,0 +1,5 @@
+change-template: '- $TITLE (#$NUMBER)'
+template: |
+  ## What’s Changed
+
+  $CHANGES
