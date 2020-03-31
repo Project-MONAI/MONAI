@@ -537,6 +537,8 @@ class ToTensor:
     """
 
     def __call__(self, img):
+        if torch.is_tensor(img):
+            return img.contiguous()
         return torch.as_tensor(np.ascontiguousarray(img))
 
 
