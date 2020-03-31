@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import unittest
-
 import numpy as np
 import torch
 from parameterized import parameterized
@@ -30,13 +29,13 @@ class TestSlidingWindowInference(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_sliding_window_default(self, image_shape, roi_shape, sw_batch_size):
-        inputs = np.ones(image_shape)
+        inputs = torch.ones(*image_shape)
         device = torch.device("cpu:0")
 
         def compute(data):
             return data + 1
 
-        result = sliding_window_inference(inputs, roi_shape, sw_batch_size, compute, device)
+        result = sliding_window_inference(inputs.to(device), roi_shape, sw_batch_size, compute)
         expected_val = np.ones(image_shape, dtype=np.float32) + 1
         self.assertTrue(np.allclose(result.numpy(), expected_val))
 

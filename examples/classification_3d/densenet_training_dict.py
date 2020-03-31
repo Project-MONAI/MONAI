@@ -19,7 +19,7 @@ from torch.utils.tensorboard import SummaryWriter
 import monai
 import monai.transforms.compose as transforms
 from monai.transforms.composables import \
-    LoadNiftid, AddChanneld, Rescaled, Resized, RandRotate90d
+    LoadNiftid, AddChanneld, Rescaled, Resized, RandRotate90d, ToTensord
 
 monai.config.print_config()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -60,13 +60,15 @@ train_transforms = transforms.Compose([
     AddChanneld(keys=['img']),
     Rescaled(keys=['img']),
     Resized(keys=['img'], output_spatial_shape=(96, 96, 96)),
-    RandRotate90d(keys=['img'], prob=0.8, spatial_axes=[0, 2])
+    RandRotate90d(keys=['img'], prob=0.8, spatial_axes=[0, 2]),
+    ToTensord(keys=['img'])
 ])
 val_transforms = transforms.Compose([
     LoadNiftid(keys=['img']),
     AddChanneld(keys=['img']),
     Rescaled(keys=['img']),
-    Resized(keys=['img'], output_spatial_shape=(96, 96, 96))
+    Resized(keys=['img'], output_spatial_shape=(96, 96, 96)),
+    ToTensord(keys=['img'])
 ])
 
 # Define dataset, dataloader
@@ -107,7 +109,7 @@ for epoch in range(5):
     step = 0
     for batch_data in train_loader:
         step += 1
-        inputs, labels = (batch_data['img'].to(device), batch_data['label'].to(device))
+        inputs, labels = batch_data['img'].to(device), batch_data['label'].to(device)
         optimizer.zero_grad()
         outputs = model(inputs)
         loss = loss_function(outputs, labels)
@@ -127,8 +129,8 @@ for epoch in range(5):
             num_correct = 0.
             metric_count = 0
             for val_data in val_loader:
-                val_outputs = model(val_data['img'].to(device))
-                val_labels = val_data['label'].to(device)
+                val_images, val_labels = val_data['img'].to(device), val_data['label'].to(device)
+                val_outputs = model(val_images)
                 value = torch.eq(val_outputs.argmax(dim=1), val_labels)
                 metric_count += len(value)
                 num_correct += value.sum().item()

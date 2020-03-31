@@ -19,7 +19,7 @@ import monai.transforms.compose as transforms
 from monai.data.synthetic import create_test_image_2d
 from monai.losses.dice import DiceLoss
 from monai.networks.nets.unet import UNet
-from monai.transforms import (AddChannel, RandRotate90, RandUniformPatch, Rescale)
+from monai.transforms import AddChannel, RandRotate90, RandUniformPatch, Rescale, ToTensor
 
 
 def run_test(batch_size=64, train_steps=200, device=torch.device("cuda:0")):
@@ -52,7 +52,8 @@ def run_test(batch_size=64, train_steps=200, device=torch.device("cuda:0")):
 
     loss = DiceLoss(do_sigmoid=True)
     opt = torch.optim.Adam(net.parameters(), 1e-2)
-    train_transforms = transforms.Compose([AddChannel(), Rescale(), RandUniformPatch((96, 96)), RandRotate90()])
+    train_transforms = transforms.Compose([AddChannel(), Rescale(), RandUniformPatch((96, 96)),
+                                           RandRotate90(), ToTensor()])
 
     src = DataLoader(_TestBatch(train_transforms), batch_size=batch_size)
 

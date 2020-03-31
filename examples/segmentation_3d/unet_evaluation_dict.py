@@ -27,7 +27,7 @@ from monai.utils.sliding_window_inference import sliding_window_inference
 from monai.metrics.compute_meandice import compute_meandice
 from monai.data.synthetic import create_test_image_3d
 from monai.networks.nets.unet import UNet
-from monai.transforms.composables import LoadNiftid, AsChannelFirstd, Rescaled
+from monai.transforms.composables import LoadNiftid, AsChannelFirstd, Rescaled, ToTensord
 import monai.transforms.compose as transforms
 from monai.data.nifti_saver import NiftiSaver
 
@@ -53,7 +53,8 @@ val_files = [{'img': img, 'seg': seg} for img, seg in zip(images, segs)]
 val_transforms = transforms.Compose([
     LoadNiftid(keys=['img', 'seg']),
     AsChannelFirstd(keys=['img', 'seg'], channel_dim=-1),
-    Rescaled(keys=['img', 'seg'])
+    Rescaled(keys=['img', 'seg']),
+    ToTensord(keys=['img', 'seg'])
 ])
 val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
 # sliding window inferene need to input 1 image in every iteration
@@ -77,11 +78,11 @@ with torch.no_grad():
     metric_count = 0
     saver = NiftiSaver(output_dir='./output')
     for val_data in val_loader:
+        val_images, val_labels = val_data['img'].to(device), val_data['seg'].to(device)
         # define sliding window size and batch size for windows inference
         roi_size = (96, 96, 96)
         sw_batch_size = 4
-        val_outputs = sliding_window_inference(val_data['img'], roi_size, sw_batch_size, model, device)
-        val_labels = val_data['seg'].to(device)
+        val_outputs = sliding_window_inference(val_images, roi_size, sw_batch_size, model)
         value = compute_meandice(y_pred=val_outputs, y=val_labels, include_background=True,
                                  to_onehot_y=False, add_sigmoid=True)
         metric_count += len(value)

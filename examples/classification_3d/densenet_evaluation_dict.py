@@ -16,7 +16,7 @@ import torch
 from torch.utils.data import DataLoader
 
 import monai
-from monai.transforms.composables import LoadNiftid, AddChanneld, Rescaled, Resized
+from monai.transforms.composables import LoadNiftid, AddChanneld, Rescaled, Resized, ToTensord
 import monai.transforms.compose as transforms
 from monai.data.csv_saver import CSVSaver
 
@@ -47,7 +47,8 @@ val_transforms = transforms.Compose([
     LoadNiftid(keys=['img']),
     AddChanneld(keys=['img']),
     Rescaled(keys=['img']),
-    Resized(keys=['img'], output_spatial_shape=(96, 96, 96))
+    Resized(keys=['img'], output_spatial_shape=(96, 96, 96)),
+    ToTensord(keys=['img'])
 ])
 
 # create a validation data loader
@@ -68,8 +69,8 @@ with torch.no_grad():
     metric_count = 0
     saver = CSVSaver(output_dir='./output')
     for val_data in val_loader:
-        val_outputs = model(val_data['img'].to(device)).argmax(dim=1)
-        val_labels = val_data['label'].to(device)
+        val_images, val_labels = val_data['img'].to(device), val_data['label'].to(device)
+        val_outputs = model(val_images).argmax(dim=1)
         value = torch.eq(val_outputs, val_labels)
         metric_count += len(value)
         num_correct += value.sum().item()

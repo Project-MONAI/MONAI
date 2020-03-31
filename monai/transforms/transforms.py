@@ -553,7 +553,7 @@ class ToTensor:
     """
 
     def __call__(self, img):
-        return torch.from_numpy(img)
+        return torch.as_tensor(np.ascontiguousarray(img))
 
 
 @export
@@ -945,9 +945,9 @@ class AffineGrid:
             affine = affine @ create_translate(spatial_dims, self.translate_params)
         if self.scale_params:
             affine = affine @ create_scale(spatial_dims, self.scale_params)
-        affine = torch.tensor(affine, device=self.device)
+        affine = torch.as_tensor(np.ascontiguousarray(affine), device=self.device)
 
-        grid = torch.tensor(np.ascontiguousarray(grid)) if not torch.is_tensor(grid) else grid.detach().clone()
+        grid = torch.as_tensor(np.ascontiguousarray(grid)) if not torch.is_tensor(grid) else grid.detach().clone()
         if self.device:
             grid = grid.to(self.device)
         grid = (affine.float() @ grid.reshape((grid.shape[0], -1)).float()).reshape([-1] + list(grid.shape[1:]))
@@ -1062,7 +1062,7 @@ class RandDeformGrid(Randomizable):
         self.randomize(control_grid.shape[1:])
         control_grid[:len(spatial_size)] += self.rand_mag * self.random_offset
         if self.as_tensor_output:
-            control_grid = torch.tensor(np.ascontiguousarray(control_grid), device=self.device)
+            control_grid = torch.as_tensor(np.ascontiguousarray(control_grid), device=self.device)
         return control_grid
 
 
@@ -1090,8 +1090,8 @@ class Resample:
             mode ('nearest'|'bilinear'): interpolation order. Defaults to 'bilinear'.
         """
         if not torch.is_tensor(img):
-            img = torch.from_numpy(np.ascontiguousarray(img))
-        grid = torch.from_numpy(np.ascontiguousarray(grid)) if not torch.is_tensor(grid) else grid.detach().clone()
+            img = torch.as_tensor(np.ascontiguousarray(img))
+        grid = torch.as_tensor(np.ascontiguousarray(grid)) if not torch.is_tensor(grid) else grid.detach().clone()
         if self.device:
             img = img.to(self.device)
             grid = grid.to(self.device)
@@ -1106,9 +1106,9 @@ class Resample:
                                               mode=mode,
                                               padding_mode=self.padding_mode,
                                               align_corners=False)[0]
-        if not self.as_tensor_output:
-            return out.cpu().numpy()
-        return out
+        if self.as_tensor_output:
+            return out
+        return out.cpu().numpy()
 
 
 @export
@@ -1409,7 +1409,7 @@ class Rand3DElastic(Randomizable):
         self.randomize(spatial_size)
         grid = create_grid(spatial_size)
         if self.do_transform:
-            grid = torch.tensor(np.ascontiguousarray(grid)).to(self.device)
+            grid = torch.as_tensor(np.ascontiguousarray(grid), device=self.device)
             gaussian = GaussianFilter(3, self.sigma, 3., device=self.device)
             grid[:3] += gaussian(self.rand_offset[None])[0] * self.magnitude
             grid = self.rand_affine_grid(grid=grid)

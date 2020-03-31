@@ -18,7 +18,7 @@ from torch.utils.data import DataLoader
 import monai
 import monai.transforms.compose as transforms
 from monai.data.nifti_reader import NiftiDataset
-from monai.transforms import AddChannel, Rescale, Resize
+from monai.transforms import AddChannel, Rescale, Resize, ToTensor
 from monai.data.csv_saver import CSVSaver
 
 monai.config.print_config()
@@ -46,7 +46,8 @@ labels = np.array([
 val_transforms = transforms.Compose([
     Rescale(),
     AddChannel(),
-    Resize((96, 96, 96))
+    Resize((96, 96, 96)),
+    ToTensor()
 ])
 
 # Define nifti dataset
@@ -68,8 +69,8 @@ with torch.no_grad():
     metric_count = 0
     saver = CSVSaver(output_dir='./output')
     for val_data in val_loader:
-        val_outputs = model(val_data[0].to(device)).argmax(dim=1)
-        val_labels = val_data[1].to(device)
+        val_images, val_labels = val_data[0].to(device), val_data[1].to(device)
+        val_outputs = model(val_images).argmax(dim=1)
         value = torch.eq(val_outputs, val_labels)
         metric_count += len(value)
         num_correct += value.sum().item()

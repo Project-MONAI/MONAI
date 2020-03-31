@@ -19,7 +19,7 @@ from torch.utils.tensorboard import SummaryWriter
 import monai
 import monai.transforms.compose as transforms
 from monai.data.nifti_reader import NiftiDataset
-from monai.transforms import (AddChannel, Rescale, Resize, RandRotate90)
+from monai.transforms import AddChannel, Rescale, Resize, RandRotate90, ToTensor
 
 monai.config.print_config()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -57,12 +57,14 @@ train_transforms = transforms.Compose([
     Rescale(),
     AddChannel(),
     Resize((96, 96, 96)),
-    RandRotate90()
+    RandRotate90(),
+    ToTensor()
 ])
 val_transforms = transforms.Compose([
     Rescale(),
     AddChannel(),
-    Resize((96, 96, 96))
+    Resize((96, 96, 96)),
+    ToTensor()
 ])
 
 # Define nifti dataset, dataloader
@@ -103,7 +105,7 @@ for epoch in range(5):
     step = 0
     for batch_data in train_loader:
         step += 1
-        inputs, labels = (batch_data[0].to(device), batch_data[1].to(device))
+        inputs, labels = batch_data[0].to(device), batch_data[1].to(device)
         optimizer.zero_grad()
         outputs = model(inputs)
         loss = loss_function(outputs, labels)
@@ -123,8 +125,8 @@ for epoch in range(5):
             num_correct = 0.
             metric_count = 0
             for val_data in val_loader:
-                val_outputs = model(val_data[0].to(device))
-                val_labels = val_data[1].to(device)
+                val_images, val_labels = val_data[0].to(device), val_data[1].to(device)
+                val_outputs = model(val_images)
                 value = torch.eq(val_outputs.argmax(dim=1), val_labels)
                 metric_count += len(value)
                 num_correct += value.sum().item()

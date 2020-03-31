@@ -24,7 +24,7 @@ from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.transforms import (AddChannel, AsChannelFirst, Flip, LoadNifti, NormalizeIntensity, Orientation,
                                          Rand2DElastic, Rand3DElastic, RandAffine, Rescale, Resize, Rotate, Rotate90,
-                                         ScaleIntensityRange, Spacing, SpatialCrop, Zoom)
+                                         ScaleIntensityRange, Spacing, SpatialCrop, Zoom, ToTensor)
 from monai.transforms.utils import (create_grid, generate_pos_neg_label_crop_centers)
 from monai.utils.aliases import alias
 from monai.utils.misc import ensure_tuple
@@ -252,6 +252,29 @@ class AddChanneld(MapTransform):
         d = dict(data)
         for key in self.keys:
             d[key] = self.adder(d[key])
+        return d
+
+
+@export
+@alias('ToTensorD', 'ToTensorDict')
+class ToTensord(MapTransform):
+    """
+    dictionary-based wrapper of ToTensor.
+    """
+
+    def __init__(self, keys):
+        """
+        Args:
+            keys (hashable items): keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+        """
+        MapTransform.__init__(self, keys)
+        self.converter = ToTensor()
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.converter(d[key])
         return d
 
 

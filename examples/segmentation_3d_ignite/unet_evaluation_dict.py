@@ -27,7 +27,7 @@ from monai.utils.sliding_window_inference import sliding_window_inference
 from monai.data.synthetic import create_test_image_3d
 from monai.networks.utils import predict_segmentation
 from monai.networks.nets.unet import UNet
-from monai.transforms.composables import LoadNiftid, AsChannelFirstd, Rescaled
+from monai.transforms.composables import LoadNiftid, AsChannelFirstd, Rescaled, ToTensord
 import monai.transforms.compose as transforms
 from monai.handlers.segmentation_saver import SegmentationSaver
 from monai.handlers.checkpoint_loader import CheckpointLoader
@@ -57,7 +57,8 @@ val_files = [{'img': img, 'seg': seg} for img, seg in zip(images, segs)]
 val_transforms = transforms.Compose([
     LoadNiftid(keys=['img', 'seg']),
     AsChannelFirstd(keys=['img', 'seg'], channel_dim=-1),
-    Rescaled(keys=['img', 'seg'])
+    Rescaled(keys=['img', 'seg']),
+    ToTensord(keys=['img', 'seg'])
 ])
 val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
 
@@ -80,8 +81,9 @@ sw_batch_size = 4
 def _sliding_window_processor(engine, batch):
     net.eval()
     with torch.no_grad():
-        seg_probs = sliding_window_inference(batch['img'], roi_size, sw_batch_size, net, device)
-        return seg_probs, batch['seg'].to(device)
+        val_images, val_labels = batch['img'].to(device), batch['seg'].to(device)
+        seg_probs = sliding_window_inference(val_images, roi_size, sw_batch_size, net)
+        return seg_probs, val_labels
 
 
 evaluator = Engine(_sliding_window_processor)
@@ -98,7 +100,7 @@ val_stats_handler = StatsHandler(
 val_stats_handler.attach(evaluator)
 
 # convert the necessary metadata from batch data
-SegmentationSaver(output_path='tempdir', output_ext='.nii.gz', output_postfix='seg', name='evaluator',
+SegmentationSaver(output_dir='tempdir', output_ext='.nii.gz', output_postfix='seg', name='evaluator',
                   batch_transform=lambda batch: {'filename_or_obj': batch['img.filename_or_obj'],
                                                  'affine': batch['img.affine']},
                   output_transform=lambda output: predict_segmentation(output[0])).attach(evaluator)
