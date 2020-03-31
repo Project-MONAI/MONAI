@@ -2,8 +2,10 @@
 - [The contribution process](#the-contribution-process)
   * [Submitting pull requests](#submitting-pull-requests)
   * [Coding style](#coding-style)
+  * [Utility functions](#utility-functions)
 - [Unit testing](#unit-testing)
 - [The code reviewing process (for the maintainers)](#the-code-reviewing-process)
+- [Admin tasks](#admin-tasks)
 
 ## Introduction
 
@@ -58,6 +60,16 @@ License information: all source code files should start with this paragraph:
 # limitations under the License.
 
 ```
+
+### Utility functions
+MONAI provides a set of generic utility functions and frequently used routines.
+These are located in [``monai/utils``](./monai/utils/) and in the module folders such as [``networks/utils.py``](./monai/networks/).
+Users are encouraged to use these common routines to improve code readability and reduce the code maintenance burdens.
+
+Notably,
+- ``monai.module.export`` decorator can make the module name shorter when importing,
+for example, ``import monai.transforms.Spacing`` is the equivalent of ``monai.transforms.transforms.Spacing`` if
+``class Spacing`` defined in file `monai/transforms/transforms.py` is decorated with ``@export("monai.transforms")``.
 
 ### Building the documentation
 To build documentation via Sphinx in`docs/` folder:
@@ -116,12 +128,31 @@ All code review comments should be specific, constructive, and actionable.
 ## Admin tasks
 
 ### Release a new version
-- Prepare [a release note](https://github.com/Project-MONAI/MONAI/releases)
-- Checkout a new branch `releasing-version-N`
-- Create a tag, for example `git tag -a 0.1a -m "version 0.1a"`
-- [Generate distribution archives](https://packaging.python.org/tutorials/packaging-projects/) `python3 setup.py sdist bdist_wheel`
-- Test the package locally `pip install monai`
-- Upload the package to [PyPI](https://pypi.org/project/monai/)
-- Publish the release note
+- Prepare [a release note](https://github.com/Project-MONAI/MONAI/releases).
+- Checkout a new branch `releases/[version number]` from the master branch.
+- Create a tag, for example `git tag -a 0.1a -m "version 0.1a"`.
+- Push the tag to the codebase, for example `git push origin 0.1a`.
+  This step will trigger package building and testing.
+  The resultant packages are automatically uploaded to
+  [TestPyPI](https://test.pypi.org/project/monai/).  The packages are also available for downloading as
+  repository's artifacts (e.g. the file at https://github.com/Project-MONAI/MONAI/actions/runs/66570977).
+- Check the release test at [TestPyPI](https://test.pypi.org/project/monai/), download the artifacts when the CI finishes.
+- Upload the packages to [PyPI](https://pypi.org/project/monai/).
+  This could be done manually by ``twine upload dist/*``, given the artifacts are unzipped to the folder ``dist/``.
+- Publish the release note.
 
-Note that the release should be tagged with a [PEP440](https://www.python.org/dev/peps/pep-0440/) compliant [semantic versioning](https://semver.org/spec/v2.0.0.html) number.
+Note that the release should be tagged with a [PEP440](https://www.python.org/dev/peps/pep-0440/) compliant
+[semantic versioning](https://semver.org/spec/v2.0.0.html) number.
+
+If any error occurs during the release process, first checkout a new branch from the master, make PRs to the master
+to fix the bugs via the regular contribution procedure.
+Then rollback the release branch and tag:
+ - remove any artifacts (website UI) and tag (`git tag -d` and `git push origin -d`).
+ - reset the `releases/[version number]` branch to the latest master:
+ ```bash
+git checkout master
+git pull origin master
+git checkout releases/[version number]
+git reset --hard master
+```
+Finally, repeat the tagging and TestPyPI uploading process.

@@ -19,7 +19,7 @@ from torch.utils.data import DataLoader
 import monai
 import monai.transforms.compose as transforms
 from monai.data.nifti_reader import NiftiDataset
-from monai.transforms import (AddChannel, Rescale, Resize)
+from monai.transforms import AddChannel, Rescale, Resize, ToTensor
 from monai.handlers.stats_handler import StatsHandler
 from monai.handlers.classification_saver import ClassificationSaver
 from monai.handlers.checkpoint_loader import CheckpointLoader
@@ -50,7 +50,8 @@ labels = np.array([
 val_transforms = transforms.Compose([
     Rescale(),
     AddChannel(),
-    Resize((96, 96, 96))
+    Resize((96, 96, 96)),
+    ToTensor()
 ])
 # define nifti dataset
 val_ds = NiftiDataset(image_files=images, labels=labels, transform=val_transforms, image_only=False)

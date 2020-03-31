@@ -24,7 +24,7 @@ from torch.utils.tensorboard import SummaryWriter
 import monai
 import monai.transforms.compose as transforms
 from monai.transforms.composables import \
-    LoadNiftid, AsChannelFirstd, Rescaled, RandCropByPosNegLabeld, RandRotate90d
+    LoadNiftid, AsChannelFirstd, Rescaled, RandCropByPosNegLabeld, RandRotate90d, ToTensord
 from monai.data.synthetic import create_test_image_3d
 from monai.data.utils import list_data_collate
 from monai.utils.sliding_window_inference import sliding_window_inference
@@ -57,12 +57,14 @@ train_transforms = transforms.Compose([
     AsChannelFirstd(keys=['img', 'seg'], channel_dim=-1),
     Rescaled(keys=['img', 'seg']),
     RandCropByPosNegLabeld(keys=['img', 'seg'], label_key='seg', size=[96, 96, 96], pos=1, neg=1, num_samples=4),
-    RandRotate90d(keys=['img', 'seg'], prob=0.8, spatial_axes=[0, 2])
+    RandRotate90d(keys=['img', 'seg'], prob=0.5, spatial_axes=[0, 2]),
+    ToTensord(keys=['img', 'seg'])
 ])
 val_transforms = transforms.Compose([
     LoadNiftid(keys=['img', 'seg']),
     AsChannelFirstd(keys=['img', 'seg'], channel_dim=-1),
-    Rescaled(keys=['img', 'seg'])
+    Rescaled(keys=['img', 'seg']),
+    ToTensord(keys=['img', 'seg'])
 ])
 
 # define dataset, dataloader
@@ -111,7 +113,7 @@ for epoch in range(5):
     step = 0
     for batch_data in train_loader:
         step += 1
-        inputs, labels = (batch_data['img'].to(device), batch_data['seg'].to(device))
+        inputs, labels = batch_data['img'].to(device), batch_data['seg'].to(device)
         optimizer.zero_grad()
         outputs = model(inputs)
         loss = loss_function(outputs, labels)
@@ -134,12 +136,11 @@ for epoch in range(5):
             val_labels = None
             val_outputs = None
             for val_data in val_loader:
-                val_images = val_data['img']
-                val_labels = val_data['seg']
+                val_images, val_labels = val_data['img'].to(device), val_data['seg'].to(device)
                 roi_size = (96, 96, 96)
                 sw_batch_size = 4
-                val_outputs = sliding_window_inference(val_images, roi_size, sw_batch_size, model, device)
-                value = compute_meandice(y_pred=val_outputs, y=val_labels.to(device), include_background=True,
+                val_outputs = sliding_window_inference(val_images, roi_size, sw_batch_size, model)
+                value = compute_meandice(y_pred=val_outputs, y=val_labels, include_background=True,
                                          to_onehot_y=False, add_sigmoid=True)
                 metric_count += len(value)
                 metric_sum += value.sum().item()

@@ -10,22 +10,20 @@
 # limitations under the License.
 
 import torch
-from ignite.utils import convert_tensor
-from monai.transforms.transforms import PadImageEnd
+import torch.nn.functional as F
 from monai.data.utils import dense_patch_slices
 
 
-def sliding_window_inference(inputs, roi_size, sw_batch_size, predictor, device):
+def sliding_window_inference(inputs, roi_size, sw_batch_size, predictor):
     """Use SlidingWindow method to execute inference.
 
     Args:
-        inputs (numpy array): input image to be processed (assuming NCHW[D])
+        inputs (torch Tensor): input image to be processed (assuming NCHW[D])
         roi_size (list, tuple): the window size to execute SlidingWindow inference.
         sw_batch_size (int): the batch size to run window slices.
         predictor (Callable): given input tensor `patch_data` in shape NCHW[D], `predictor(patch_data)`
             should return a prediction with the same spatial shape and batch_size, i.e. NMHW[D];
             where HW[D] represents the patch spatial size, M is the number of output channels, N is `sw_batch_size`.
-        device: on which device to execute model inference, cpu or gpu.
 
     Note:
         must be channel first, support both 2D and 3D.
@@ -40,20 +38,20 @@ def sliding_window_inference(inputs, roi_size, sw_batch_size, predictor, device)
     image_size = list(inputs.shape[2:])
     batch_size = inputs.shape[0]
 
-    # TODO: Enable batch sizes > 1 in future.
+    # TODO: Enable batch sizes > 1 in future
     if batch_size > 1:
         raise NotImplementedError
 
     original_image_size = [image_size[i] for i in range(num_spatial_dims)]
     # in case that image size is smaller than roi size
     image_size = tuple(max(image_size[i], roi_size[i]) for i in range(num_spatial_dims))
-    inputs = PadImageEnd(roi_size, 'constant')(inputs)  # in np array
-    inputs = convert_tensor(torch.from_numpy(inputs), device, False)
+    pad_size = [i for k in range(len(inputs.shape) - 1, 1, -1) for i in (0, max(roi_size[k - 2] - inputs.shape[k], 0))]
+    inputs = F.pad(inputs, pad=pad_size, mode='constant', value=0)
 
     # TODO: interval from user's specification
     scan_interval = _get_scan_interval(image_size, roi_size, num_spatial_dims)
 
-    # Store all slices in list.
+    # Store all slices in list
     slices = dense_patch_slices(image_size, roi_size, scan_interval)
 
     slice_batches = []
@@ -80,8 +78,8 @@ def sliding_window_inference(inputs, roi_size, sw_batch_size, predictor, device)
     output_shape = [batch_size, output_classes] + list(image_size)
 
     # allocate memory to store the full output and the count for overlapping parts
-    output_image = torch.zeros(output_shape, dtype=torch.float32, device=device)
-    count_map = torch.zeros(output_shape, dtype=torch.float32, device=device)
+    output_image = torch.zeros(output_shape, dtype=torch.float32, device=inputs.device)
+    count_map = torch.zeros(output_shape, dtype=torch.float32, device=inputs.device)
 
     for window_id, slice_index in enumerate(range(0, len(slices), sw_batch_size)):
         slice_index_range = range(slice_index, min(slice_index + sw_batch_size, len(slices)))

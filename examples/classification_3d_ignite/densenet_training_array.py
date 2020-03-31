@@ -20,7 +20,7 @@ from torch.utils.data import DataLoader
 import monai
 import monai.transforms.compose as transforms
 from monai.data.nifti_reader import NiftiDataset
-from monai.transforms import (AddChannel, Rescale, Resize, RandRotate90)
+from monai.transforms import AddChannel, Rescale, Resize, RandRotate90, ToTensor
 from monai.handlers.stats_handler import StatsHandler
 from monai.handlers.tensorboard_handlers import TensorBoardStatsHandler
 from ignite.metrics import Accuracy
@@ -62,12 +62,14 @@ train_transforms = transforms.Compose([
     Rescale(),
     AddChannel(),
     Resize((96, 96, 96)),
-    RandRotate90()
+    RandRotate90(),
+    ToTensor()
 ])
 val_transforms = transforms.Compose([
     Rescale(),
     AddChannel(),
-    Resize((96, 96, 96))
+    Resize((96, 96, 96)),
+    ToTensor()
 ])
 
 # define nifti dataset, dataloader
