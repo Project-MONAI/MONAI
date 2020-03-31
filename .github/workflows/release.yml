@@ -1,0 +1,71 @@
+name: release
+
+on:
+  push:
+    branches:
+      - 'releases/*'
+    tags:
+      - '*'
+
+jobs:
+  packaging:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.5, 3.6, 3.7, 3.8]
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install setuptools
+      run: |
+        python -m pip install --user --upgrade setuptools wheel
+    - name: Build and test source archive and wheel file
+      run: |
+        git fetch --depth=1 origin +refs/tags/*:refs/tags/*
+        root_dir=$PWD
+        echo "$root_dir"
+        set -e
+
+        # build tar.gz and wheel
+        python setup.py sdist bdist_wheel
+        tmp_dir=$(mktemp -d)
+        cp dist/monai* "$tmp_dir"
+        cd "$tmp_dir"
+        ls -al
+
+        # install from wheel
+        python -m pip install monai*.whl
+        python -c 'import monai; monai.config.print_config()' 2>&1 | grep -iv "unknown"
+        python -c 'import monai; print(monai.__file__)'
+        python -m pip uninstall -y monai
+        rm monai*.whl
+
+        # install from tar.gz
+        python -m pip install monai*.tar.gz
+        python -c 'import monai; monai.config.print_config()' 2>&1 | grep -iv "unknown"
+        python -c 'import monai; print(monai.__file__)'
+        python -m pip uninstall -y monai
+        rm monai*.tar.gz
+
+        # clean up
+        cd "$root_dir"
+        rm -r "$tmp_dir"
+
+    - if: matrix.python-version == '3.8' && startsWith(github.ref, 'refs/tags/')
+      name: Publish to Test PyPI
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        password: ${{ secrets.TEST_PYPI }}
+        repository_url: https://test.pypi.org/legacy/
+
+    - if: matrix.python-version == '3.8' && startsWith(github.ref, 'refs/tags/')
+      name: Upload artifacts
+      uses: actions/upload-artifact@v1
+      with:
+        name: dist
+        path: dist/
