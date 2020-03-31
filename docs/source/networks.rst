@@ -64,12 +64,12 @@ Nets
 
 `Densenet3D`
 ~~~~~~~~~~~~
-.. automodule:: monai.networks.nets.densenet3d
+.. automodule:: monai.networks.nets.densenet
   :members:
-.. automethod:: monai.networks.nets.densenet3d.densenet121
-.. automethod:: monai.networks.nets.densenet3d.densenet169
-.. automethod:: monai.networks.nets.densenet3d.densenet201
-.. automethod:: monai.networks.nets.densenet3d.densenet264
+.. automethod:: monai.networks.nets.densenet.densenet121
+.. automethod:: monai.networks.nets.densenet.densenet169
+.. automethod:: monai.networks.nets.densenet.densenet201
+.. automethod:: monai.networks.nets.densenet.densenet264
 
 `Highresnet`
 ~~~~~~~~~~~~

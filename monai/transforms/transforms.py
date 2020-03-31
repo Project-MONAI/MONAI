@@ -17,6 +17,7 @@ import warnings
 import numpy as np
 import scipy.ndimage
 import nibabel as nib
+from PIL import Image
 import torch
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
 from skimage.transform import resize
@@ -248,6 +249,36 @@ class LoadNifti:
         if self.image_only:
             return img_array
         return img_array, compatible_meta
+
+
+@export
+class LoadPNG:
+    """
+    Load common 2D image format(PNG, JPG, etc.) file or files from provided path.
+    It's based on the Image module in PIL library.
+    """
+
+    def __init__(self, dtype=np.float32):
+        """Args:
+            dtype (np.dtype, optional): if not None convert the loaded image to this data type.
+
+        """
+        self.dtype = dtype
+
+    def __call__(self, filename):
+        """
+        Args:
+            filename (str, list, tuple, file): path file or file-like object or a list of files.
+        """
+        filename = ensure_tuple(filename)
+        img_array = list()
+        for name in filename:
+            img = np.asarray(Image.open(name))
+            if self.dtype:
+                img = img.astype(self.dtype)
+            img_array.append(img)
+
+        return np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
 
 
 @export

@@ -24,7 +24,7 @@ from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.transforms import (AddChannel, AsChannelFirst, Flip, LoadNifti, NormalizeIntensity, Orientation,
                                          Rand2DElastic, Rand3DElastic, RandAffine, Rescale, Resize, Rotate, Rotate90,
-                                         ScaleIntensityRange, Spacing, SpatialCrop, Zoom, ToTensor)
+                                         ScaleIntensityRange, Spacing, SpatialCrop, Zoom, ToTensor, LoadPNG)
 from monai.transforms.utils import (create_grid, generate_pos_neg_label_crop_centers)
 from monai.utils.aliases import alias
 from monai.utils.misc import ensure_tuple
@@ -205,6 +205,30 @@ class LoadNiftid(MapTransform):
                 if key_to_add in d and not self.overwriting_keys:
                     raise KeyError('meta data key {} already exists.'.format(key_to_add))
                 d[key_to_add] = data[1][k]
+        return d
+
+
+@export
+@alias('LoadPNGD', 'LoadPNGDict')
+class LoadPNGd(MapTransform):
+    """
+    dictionary-based wrapper of LoadPNG.
+    """
+
+    def __init__(self, keys, dtype=np.float32):
+        """
+        Args:
+            keys (hashable items): keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            dtype (np.dtype, optional): if not None convert the loaded image to this data type.
+        """
+        MapTransform.__init__(self, keys)
+        self.loader = LoadPNG(dtype)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.loader(d[key])
         return d
 
 
