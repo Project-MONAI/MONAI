@@ -32,8 +32,8 @@ All code changes to the master branch must be done via [pull requests](https://h
 1. Create a new ticket or take a known ticket from [the issue list][monai issue list].
 1. Check if there's already a branch dedicated to the task.
 1. If the task has not been taken, [create a new branch in your fork](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork)
-of the codebase named `[ticket_id]-[task_name]`.
-For example, branch name `19-ci-pipeline-setup` corresponds to [issue #19](https://github.com/Project-MONAI/MONAI/issues/19).
+of the codebase named `[category]/[ticket_id]-[task_name]`, where category is either `feature` or `fix`.
+For example, branch name `feature/19-ci-pipeline-setup` corresponds to a new feature described in [issue #19](https://github.com/Project-MONAI/MONAI/issues/19).
 Ideally, the new branch should be based on the latest `master` branch.
 1. Make changes to the branch ([use detailed commit messages if possible](https://chris.beams.io/posts/git-commit/)). If the changes introduce new features, make sure that you write [unit tests](#unit-testing).
 1. [Create a new pull request](https://help.github.com/en/desktop/contributing-to-projects/creating-a-pull-request) from the task branch to the master branch, with detailed descriptions of the purpose of this pull request.
