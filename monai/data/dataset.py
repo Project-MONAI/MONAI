@@ -44,3 +44,29 @@ class Dataset(torch.utils.data.Dataset):
             data = self.transform(data)
 
         return data
+
+
+@export("monai.data")
+class CacheDataset(torch.utils.data.Dataset):
+    """
+    Dataset with cache mechanism.
+    """
+
+    def __init__(self, data, transform=None):
+        """
+        Args:
+            data (Iterable): input data to load and transform to generate dataset for model.
+            transform (Callable, optional): transforms to excute operations on input data.
+        """
+        self.data = data
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, index):
+        data = self.data[index]
+        if self.transform is not None:
+            data = self.transform(data)
+
+        return data

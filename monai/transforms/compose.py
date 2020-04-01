@@ -179,14 +179,56 @@ class Compose(Randomizable):
                     RuntimeWarning)
 
     def __call__(self, input_):
-        for transform in self.transforms:
+        for _transform in self.transforms:
             # if some transform generated batch list of data in the transform chain,
             # all the following transforms should apply to every item of the list.
             if isinstance(input_, list):
                 for i, item in enumerate(input_):
-                    input_[i] = transform(item)
+                    input_[i] = _transform(item)
             else:
-                input_ = transform(input_)
+                input_ = _transform(input_)
+        return input_
+
+
+class CacheCompose(Compose):
+    """
+    Compose with cache mechanism.
+    """
+
+    def __init__(self, data_list, cache_num=None, cache_rate=None, transforms=None):
+        if transforms is None:
+            transforms = []
+        if not isinstance(transforms, (list, tuple)):
+            raise ValueError("Parameters 'transforms' must be a list or tuple")
+        self.transforms = transforms
+        self._cache = dict()
+
+    def set_random_state(self, seed=None, state=None):
+        for _transform in self.transforms:
+            if not isinstance(_transform, Randomizable):
+                continue
+            _transform.set_random_state(seed, state)
+
+    def randomize(self):
+        for _transform in self.transforms:
+            if not isinstance(_transform, Randomizable):
+                continue
+            try:
+                _transform.randomize()
+            except TypeError as type_error:
+                warnings.warn(
+                    'Transform "{0}" in Compose not randomized\n{0}.{1}.'.format(type(_transform).__name__, type_error),
+                    RuntimeWarning)
+
+    def __call__(self, input_):
+        for _transform in self.transforms:
+            # if some transform generated batch list of data in the transform chain,
+            # all the following transforms should apply to every item of the list.
+            if isinstance(input_, list):
+                for i, item in enumerate(input_):
+                    input_[i] = _transform(item)
+            else:
+                input_ = _transform(input_)
         return input_
 
 
