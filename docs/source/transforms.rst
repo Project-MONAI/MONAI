@@ -63,6 +63,12 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
+`LoadPNG`
+~~~~~~~~~~~
+.. autoclass:: LoadPNG
+    :members:
+    :special-members: __call__
+
 `AsChannelFirst`
 ~~~~~~~~~~~~~~~~
 .. autoclass:: AsChannelFirst
@@ -247,6 +253,12 @@ Dictionary-based Composables
 `LoadNiftid`
 ~~~~~~~~~~~~
 .. autoclass:: LoadNiftid
+    :members:
+    :special-members: __call__
+
+`LoadPNGd`
+~~~~~~~~~~~~
+.. autoclass:: LoadPNGd
     :members:
     :special-members: __call__
 

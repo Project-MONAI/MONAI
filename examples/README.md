@@ -16,6 +16,11 @@ The examples are standard PyTorch programs and have both dictionary-based and ar
 #### [classification_3d_ignite](./classification_3d_ignite)
 Training and evaluation examples of 3D classification based on DenseNet3D and [IXI dataset](https://brain-development.org/ixi-dataset):
 The examples are PyTorch ignite programs and have both dictionary-based and array-based transformation versions.
+#### [notebooks/3d_image_transforms](./notebooks/3d_image_transforms.ipynb)
+This notebook demonstrates the transformations on volumetric images.
+#### [notebooks/mednist_tutorial](./notebooks/mednist_tutorial.ipynb)
+This notebook shows how to easily integrate MONAI features into existing PyTorch programs.
+It's based on the MedNIST dataset which is very suitable for beginners as a tutorial.
 #### [notebooks/multi_gpu_test](./notebooks/multi_gpu_test.ipynb)
 This notebook is a quick demo for devices, run the Ignite trainer engine on CPU, GPU and multiple GPUs.
 #### [notebooks/nifti_read_example](./notebooks/nifti_read_example.ipynb)
@@ -35,8 +40,6 @@ Illustrate reading NIfTI files and test speed of different transforms on differe
 #### [notebooks/transforms_demo_2d](./notebooks/transforms_demo_2d.ipynb)
 This notebook demonstrates the image transformations on histology images using
 [the GlaS Contest dataset](https://warwick.ac.uk/fac/sci/dcs/research/tia/glascontest/download/).
-#### [notebooks/3d_image_transforms](./notebooks/3D_image_transforms.ipynb)
-This notebook demonstrates the transformations on volumetric images.
 #### [notebooks/unet_segmentation_3d_ignite](./notebooks/unet_segmentation_3d_ignite.ipynb)
 This notebook is an end-to-end training & evaluation example of 3D segmentation based on synthetic dataset.
 The example is a PyTorch Ignite program and shows several key features of MONAI,
