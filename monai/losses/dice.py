@@ -15,12 +15,8 @@ import torch
 from torch.nn.modules.loss import _Loss
 
 from monai.networks.utils import one_hot
-from monai.utils import export
-from monai.utils.aliases import alias
 
 
-@export("monai.losses")
-@alias("dice", "Dice")
 class DiceLoss(_Loss):
     """
     Compute average Dice loss between two tensors. It can support both multi-classes and multi-labels tasks.
@@ -112,7 +108,6 @@ class DiceLoss(_Loss):
         return 1.0 - f.mean()  # final reduce_mean across batches and channels
 
 
-@alias("generalized_dice", "generalised_dice")
 class GeneralizedDiceLoss(_Loss):
     """
     Compute the generalised Dice loss defined in:
@@ -202,3 +197,7 @@ class GeneralizedDiceLoss(_Loss):
 
         f = (2.0 * intersection * w + smooth) / (denominator * w + smooth)
         return 1.0 - f.mean()  # final reduce_mean across batches and channels
+
+
+dice = Dice = DiceLoss
+generalized_dice = generalised_dice = GeneralizedDiceLoss

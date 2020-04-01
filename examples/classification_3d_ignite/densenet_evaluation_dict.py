@@ -17,12 +17,9 @@ import torch
 from ignite.engine import create_supervised_evaluator, _prepare_batch
 from torch.utils.data import DataLoader
 
-from monai.handlers.classification_saver import ClassificationSaver
-from monai.handlers.checkpoint_loader import CheckpointLoader
-from monai.handlers.stats_handler import StatsHandler
-from monai.transforms.composables import LoadNiftid, AddChanneld, Rescaled, Resized, ToTensord
-import monai.transforms.compose as transforms
 import monai
+from monai.handlers import StatsHandler, CheckpointLoader, ClassificationSaver
+from monai.transforms import Compose, LoadNiftid, AddChanneld, Rescaled, Resized, ToTensord
 
 monai.config.print_config()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -47,7 +44,7 @@ labels = np.array([
 val_files = [{'img': img, 'label': label} for img, label in zip(images, labels)]
 
 # define transforms for image
-val_transforms = transforms.Compose([
+val_transforms = Compose([
     LoadNiftid(keys=['img']),
     AddChanneld(keys=['img']),
     Rescaled(keys=['img']),

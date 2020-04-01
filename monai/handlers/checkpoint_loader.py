@@ -13,11 +13,7 @@ import torch
 from ignite.engine import Events
 from ignite.handlers import Checkpoint
 
-import monai
 
-
-@monai.utils.export("monai.handlers")
-@monai.utils.alias("CheckpointLoader")
 class CheckpointLoader:
     """
     CheckpointLoader acts as an ignite handler to load checkpoint data from file.

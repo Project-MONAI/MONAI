@@ -14,7 +14,7 @@ import unittest
 import nibabel as nib
 import numpy as np
 
-from monai.data.utils import correct_nifti_header_if_necessary
+from monai.data import correct_nifti_header_if_necessary
 
 
 class TestCorrection(unittest.TestCase):

@@ -15,7 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.transforms.transforms import Affine
+from monai.transforms import Affine
 
 TEST_CASES = [
     [

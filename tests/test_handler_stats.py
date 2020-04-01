@@ -17,7 +17,7 @@ from io import StringIO
 
 from ignite.engine import Engine, Events
 
-from monai.handlers.stats_handler import StatsHandler
+from monai.handlers import StatsHandler
 
 
 class TestHandlerStats(unittest.TestCase):

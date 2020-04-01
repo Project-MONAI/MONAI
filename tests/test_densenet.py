@@ -14,7 +14,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.networks.nets.densenet import densenet121, densenet169, densenet201, densenet264
+from monai.networks.nets import densenet121, densenet169, densenet201, densenet264
 
 
 TEST_CASE_1 = [  # 4-channel 3D, batch 16

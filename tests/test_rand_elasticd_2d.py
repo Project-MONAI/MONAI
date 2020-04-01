@@ -15,7 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.transforms.composables import Rand2DElasticd
+from monai.transforms import Rand2DElasticd
 
 TEST_CASES = [
     [

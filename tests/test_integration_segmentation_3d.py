@@ -22,16 +22,12 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 import monai
-import monai.transforms.compose as transforms
-from monai.data.nifti_saver import NiftiSaver
-from monai.data.synthetic import create_test_image_3d
-from monai.data.utils import list_data_collate
-from monai.metrics.compute_meandice import compute_meandice
-from monai.networks.nets.unet import UNet
-from monai.transforms.composables import \
-    AsChannelFirstd, LoadNiftid, RandCropByPosNegLabeld, RandRotate90d, Rescaled, ToTensord
-from monai.utils.sliding_window_inference import sliding_window_inference
-from monai.visualize.img2tensorboard import plot_2d_or_3d_image
+from monai.data import create_test_image_3d, sliding_window_inference, NiftiSaver, list_data_collate
+from monai.metrics import compute_meandice
+from monai.networks.nets import UNet
+from monai.transforms import \
+    Compose, AsChannelFirstd, LoadNiftid, RandCropByPosNegLabeld, RandRotate90d, Rescaled, ToTensord
+from monai.visualize import plot_2d_or_3d_image
 
 from tests.utils import skip_if_quick
 
@@ -44,7 +40,7 @@ def run_training_test(root_dir, device=torch.device("cuda:0")):
     val_files = [{'img': img, 'seg': seg} for img, seg in zip(images[-20:], segs[-20:])]
 
     # define transforms for image and segmentation
-    train_transforms = transforms.Compose([
+    train_transforms = Compose([
         LoadNiftid(keys=['img', 'seg']),
         AsChannelFirstd(keys=['img', 'seg'], channel_dim=-1),
         Rescaled(keys=['img', 'seg']),
@@ -53,7 +49,7 @@ def run_training_test(root_dir, device=torch.device("cuda:0")):
         ToTensord(keys=['img', 'seg'])
     ])
     train_transforms.set_random_state(1234)
-    val_transforms = transforms.Compose([
+    val_transforms = Compose([
         LoadNiftid(keys=['img', 'seg']),
         AsChannelFirstd(keys=['img', 'seg'], channel_dim=-1),
         Rescaled(keys=['img', 'seg']),
@@ -159,7 +155,7 @@ def run_inference_test(root_dir, device=torch.device("cuda:0")):
     val_files = [{'img': img, 'seg': seg} for img, seg in zip(images, segs)]
 
     # define transforms for image and segmentation
-    val_transforms = transforms.Compose([
+    val_transforms = Compose([
         LoadNiftid(keys=['img', 'seg']),
         AsChannelFirstd(keys=['img', 'seg'], channel_dim=-1),
         Rescaled(keys=['img', 'seg']),

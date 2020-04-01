@@ -15,7 +15,7 @@ import numpy as np
 import tempfile
 import nibabel as nib
 from parameterized import parameterized
-from monai.transforms.composables import LoadNiftid
+from monai.transforms import LoadNiftid
 
 KEYS = ['image', 'label', 'extra']
 

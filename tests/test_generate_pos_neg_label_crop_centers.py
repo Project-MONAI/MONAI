@@ -13,7 +13,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.transforms.utils import generate_pos_neg_label_crop_centers
+from monai.transforms import generate_pos_neg_label_crop_centers
 
 TEST_CASE_1 = [
     {

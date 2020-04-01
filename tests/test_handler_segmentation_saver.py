@@ -15,7 +15,7 @@ import unittest
 import torch
 from ignite.engine import Engine
 
-from monai.handlers.segmentation_saver import SegmentationSaver
+from monai.handlers import SegmentationSaver
 
 
 class TestHandlerSegmentationSaver(unittest.TestCase):

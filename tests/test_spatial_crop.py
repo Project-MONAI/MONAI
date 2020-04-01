@@ -12,7 +12,7 @@
 import unittest
 import numpy as np
 from parameterized import parameterized
-from monai.transforms.transforms import SpatialCrop
+from monai.transforms import SpatialCrop
 
 TEST_CASE_1 = [
     {
