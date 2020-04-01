@@ -858,7 +858,8 @@ class Rotated(MapTransform):
         angle (float): Rotation angle in degrees.
         spatial_axes (tuple of 2 ints): Spatial axes of rotation. Default: (0, 1).
             This is the first two axis in spatial dimensions.
-        reshape (bool): If true, output shape is made same as input. Default: True.
+        reshape (bool): If reshape is true, the output shape is adapted so that the
+            input array is contained completely in the output. Default is True.
         order (int): Order of spline interpolation. Range 0-5. Default: 1. This is
             different from scipy where default interpolation is 3.
         mode (str): Points outside boundary filled according to this mode. Options are
@@ -891,7 +892,8 @@ class RandRotated(Randomizable, MapTransform):
             angle is picked from (-degrees, degrees).
         spatial_axes (tuple of 2 ints): Spatial axes of rotation. Default: (0, 1).
             This is the first two axis in spatial dimensions.
-        reshape (bool): If true, output shape is made same as input. Default: True.
+        reshape (bool): If reshape is true, the output shape is adapted so that the
+            input array is contained completely in the output. Default is True.
         order (int): Order of spline interpolation. Range 0-5. Default: 1. This is
             different from scipy where default interpolation is 3.
         mode (str): Points outside boundary filled according to this mode. Options are
