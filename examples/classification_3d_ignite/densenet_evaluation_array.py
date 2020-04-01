@@ -56,7 +56,8 @@ val_transforms = transforms.Compose([
 # define nifti dataset
 val_ds = NiftiDataset(image_files=images, labels=labels, transform=val_transforms, image_only=False)
 # create DenseNet121
-net = monai.networks.nets.densenet3d.densenet121(
+net = monai.networks.nets.densenet.densenet121(
+    spatial_dims=3,
     in_channels=1,
     out_channels=2,
 )

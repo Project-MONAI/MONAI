@@ -83,7 +83,8 @@ val_loader = DataLoader(val_ds, batch_size=2, num_workers=2, pin_memory=torch.cu
 
 # Create DenseNet121, CrossEntropyLoss and Adam optimizer
 device = torch.device("cuda:0")
-model = monai.networks.nets.densenet3d.densenet121(
+model = monai.networks.nets.densenet.densenet121(
+    spatial_dims=3,
     in_channels=1,
     out_channels=2,
 ).to(device)

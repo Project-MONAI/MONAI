@@ -17,6 +17,7 @@ import warnings
 import numpy as np
 import scipy.ndimage
 import nibabel as nib
+from PIL import Image
 import torch
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
 from skimage.transform import resize
@@ -251,6 +252,36 @@ class LoadNifti:
 
 
 @export
+class LoadPNG:
+    """
+    Load common 2D image format(PNG, JPG, etc.) file or files from provided path.
+    It's based on the Image module in PIL library.
+    """
+
+    def __init__(self, dtype=np.float32):
+        """Args:
+            dtype (np.dtype, optional): if not None convert the loaded image to this data type.
+
+        """
+        self.dtype = dtype
+
+    def __call__(self, filename):
+        """
+        Args:
+            filename (str, list, tuple, file): path file or file-like object or a list of files.
+        """
+        filename = ensure_tuple(filename)
+        img_array = list()
+        for name in filename:
+            img = np.asarray(Image.open(name))
+            if self.dtype:
+                img = img.astype(self.dtype)
+            img_array.append(img)
+
+        return np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
+
+
+@export
 class AsChannelFirst:
     """
     Change the channel dimension of the image to the first dimension.
@@ -432,7 +463,8 @@ class Rotate:
         angle (float): Rotation angle in degrees.
         spatial_axes (tuple of 2 ints): Spatial axes of rotation. Default: (0, 1).
             This is the first two axis in spatial dimensions.
-        reshape (bool): If true, output shape is made same as input. Default: True.
+        reshape (bool): If reshape is true, the output shape is adapted so that the
+            input array is contained completely in the output. Default is True.
         order (int): Order of spline interpolation. Range 0-5. Default: 1. This is
             different from scipy where default interpolation is 3.
         mode (str): Points outside boundary filled according to this mode. Options are
@@ -783,7 +815,8 @@ class RandRotate(Randomizable):
             angle is picked from (-degrees, degrees).
         spatial_axes (tuple of 2 ints): Spatial axes of rotation. Default: (0, 1).
             This is the first two axis in spatial dimensions.
-        reshape (bool): If true, output shape is made same as input. Default: True.
+        reshape (bool): If reshape is true, the output shape is adapted so that the
+            input array is contained completely in the output. Default is True.
         order (int): Order of spline interpolation. Range 0-5. Default: 1. This is
             different from scipy where default interpolation is 3.
         mode (str): Points outside boundary filled according to this mode. Options are

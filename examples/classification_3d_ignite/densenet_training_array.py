@@ -79,7 +79,8 @@ im, label = monai.utils.misc.first(check_loader)
 print(type(im), im.shape, label)
 
 # create DenseNet121, CrossEntropyLoss and Adam optimizer
-net = monai.networks.nets.densenet3d.densenet121(
+net = monai.networks.nets.densenet.densenet121(
+    spatial_dims=3,
     in_channels=1,
     out_channels=2,
 )
