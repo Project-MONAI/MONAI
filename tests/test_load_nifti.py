@@ -15,7 +15,7 @@ import numpy as np
 import tempfile
 import nibabel as nib
 from parameterized import parameterized
-from monai.transforms.transforms import LoadNifti
+from monai.transforms import LoadNifti
 
 TEST_CASE_1 = [
     {

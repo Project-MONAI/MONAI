@@ -15,11 +15,9 @@ import math
 import torch
 from torch.utils.data import IterableDataset
 
-from monai.utils.module import export
 from monai.data.utils import iter_patch
 
 
-@export("monai.data")
 class GridPatchDataset(IterableDataset):
     """
     Yields patches from arrays read from an input dataset. The patches are chosen in a contiguous grid sampling scheme.

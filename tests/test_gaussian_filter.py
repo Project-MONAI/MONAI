@@ -14,7 +14,7 @@ import unittest
 import numpy as np
 import torch
 
-from monai.networks.layers.simplelayers import GaussianFilter
+from monai.networks.layers import GaussianFilter
 
 
 class GaussianFilterTestCase(unittest.TestCase):

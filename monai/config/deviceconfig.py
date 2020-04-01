@@ -24,10 +24,7 @@ try:
 except ImportError:
     ignite_version = 'NOT INSTALLED'
 
-export = monai.utils.export("monai.config")
 
-
-@export
 def get_config_values():
     output = OrderedDict()
 
@@ -40,12 +37,10 @@ def get_config_values():
     return output
 
 
-@export
 def print_config(file=sys.stdout):
     for kv in get_config_values().items():
         print("%s: %s" % kv, file=file, flush=True)
 
 
-@export
 def set_visible_devices(*dev_inds):
     os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, dev_inds))

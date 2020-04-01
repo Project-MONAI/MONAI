@@ -14,7 +14,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.networks.nets.highresnet import HighResNet
+from monai.networks.nets import HighResNet
 
 TEST_CASE_1 = [  # single channel 3D, batch 16
     {

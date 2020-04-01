@@ -21,14 +21,10 @@ import torch
 from torch.utils.data import DataLoader
 
 from monai import config
-import monai.transforms.compose as transforms
-from monai.data.nifti_reader import NiftiDataset
-from monai.transforms import AddChannel, Rescale, ToTensor
-from monai.networks.nets.unet import UNet
-from monai.data.synthetic import create_test_image_3d
-from monai.utils.sliding_window_inference import sliding_window_inference
-from monai.metrics.compute_meandice import compute_meandice
-from monai.data.nifti_saver import NiftiSaver
+from monai.transforms import Compose, AddChannel, Rescale, ToTensor
+from monai.networks.nets import UNet
+from monai.data import create_test_image_3d, sliding_window_inference, NiftiSaver, NiftiDataset
+from monai.metrics import compute_meandice
 
 config.print_config()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -48,8 +44,8 @@ images = sorted(glob(os.path.join(tempdir, 'im*.nii.gz')))
 segs = sorted(glob(os.path.join(tempdir, 'seg*.nii.gz')))
 
 # define transforms for image and segmentation
-imtrans = transforms.Compose([Rescale(), AddChannel(), ToTensor()])
-segtrans = transforms.Compose([AddChannel(), ToTensor()])
+imtrans = Compose([Rescale(), AddChannel(), ToTensor()])
+segtrans = Compose([AddChannel(), ToTensor()])
 val_ds = NiftiDataset(images, segs, transform=imtrans, seg_transform=segtrans, image_only=False)
 # sliding window inferene need to input 1 image in every iteration
 val_loader = DataLoader(val_ds, batch_size=1, num_workers=1, pin_memory=torch.cuda.is_available())

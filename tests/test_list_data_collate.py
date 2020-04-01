@@ -14,7 +14,7 @@ import torch
 import numpy as np
 from parameterized import parameterized
 
-from monai.data.utils import list_data_collate
+from monai.data import list_data_collate
 
 a = {'image': np.array([1, 2, 3]), 'label': np.array([4, 5, 6])}
 b = {'image': np.array([7, 8, 9]), 'label': np.array([10, 11, 12])}

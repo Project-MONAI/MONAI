@@ -13,7 +13,7 @@ import unittest
 
 import numpy as np
 
-from monai.transforms.composables import RandUniformPatchd
+from monai.transforms import RandUniformPatchd
 from tests.utils import NumpyImageTestCase2D
 
 

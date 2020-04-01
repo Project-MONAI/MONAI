@@ -17,7 +17,7 @@ import numpy as np
 import torch
 
 
-from monai.data.csv_saver import CSVSaver
+from monai.data import CSVSaver
 
 
 class TestCSVSaver(unittest.TestCase):

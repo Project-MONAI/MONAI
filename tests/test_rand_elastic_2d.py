@@ -15,7 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.transforms.transforms import Rand2DElastic
+from monai.transforms import Rand2DElastic
 
 TEST_CASES = [
     [{'spacing': (.3, .3), 'magnitude_range': (1., 2.), 'prob': 0.0, 'as_tensor_output': False, 'device': None},

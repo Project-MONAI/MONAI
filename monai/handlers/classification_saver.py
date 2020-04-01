@@ -11,7 +11,7 @@
 
 from ignite.engine import Events
 import logging
-from monai.data.csv_saver import CSVSaver
+from monai.data import CSVSaver
 
 
 class ClassificationSaver:

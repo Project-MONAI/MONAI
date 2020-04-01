@@ -17,7 +17,7 @@ import numpy as np
 import torch
 from ignite.engine import Engine
 
-from monai.handlers.classification_saver import ClassificationSaver
+from monai.handlers import ClassificationSaver
 
 
 class TestHandlerClassificationSaver(unittest.TestCase):

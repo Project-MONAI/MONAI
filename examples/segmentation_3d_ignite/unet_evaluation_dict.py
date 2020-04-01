@@ -22,20 +22,13 @@ from ignite.engine import Engine
 from torch.utils.data import DataLoader
 
 import monai
-from monai.data.utils import list_data_collate
-from monai.utils.sliding_window_inference import sliding_window_inference
-from monai.data.synthetic import create_test_image_3d
+from monai.data import list_data_collate, sliding_window_inference, create_test_image_3d
 from monai.networks.utils import predict_segmentation
-from monai.networks.nets.unet import UNet
-from monai.transforms.composables import LoadNiftid, AsChannelFirstd, Rescaled, ToTensord
-import monai.transforms.compose as transforms
-from monai.handlers.segmentation_saver import SegmentationSaver
-from monai.handlers.checkpoint_loader import CheckpointLoader
-from monai.handlers.stats_handler import StatsHandler
-from monai.handlers.mean_dice import MeanDice
-from monai import config
+from monai.networks.nets import UNet
+from monai.transforms import Compose, LoadNiftid, AsChannelFirstd, Rescaled, ToTensord
+from monai.handlers import SegmentationSaver, CheckpointLoader, StatsHandler, MeanDice
 
-config.print_config()
+monai.config.print_config()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 tempdir = tempfile.mkdtemp()
@@ -54,7 +47,7 @@ segs = sorted(glob(os.path.join(tempdir, 'seg*.nii.gz')))
 val_files = [{'img': img, 'seg': seg} for img, seg in zip(images, segs)]
 
 # define transforms for image and segmentation
-val_transforms = transforms.Compose([
+val_transforms = Compose([
     LoadNiftid(keys=['img', 'seg']),
     AsChannelFirstd(keys=['img', 'seg'], channel_dim=-1),
     Rescaled(keys=['img', 'seg']),

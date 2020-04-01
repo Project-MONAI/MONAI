@@ -11,12 +11,9 @@
 
 from collections import defaultdict
 
-import monai
 from ignite.engine import Events
 
 
-@monai.utils.export("monai.handlers")
-@monai.utils.alias("metriclogger")
 class MetricLogger:
 
     def __init__(self, loss_transform=lambda x: x, metric_transform=lambda x: x):
@@ -39,3 +36,6 @@ class MetricLogger:
             #                 self.metrics[m].append([v[0]]*len(self.loss))
 
             self.metrics[m].append(v)
+
+
+metriclogger = MetricLogger

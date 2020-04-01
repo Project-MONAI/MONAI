@@ -22,17 +22,11 @@ from ignite.engine import Engine
 from torch.utils.data import DataLoader
 
 from monai import config
-from monai.handlers.checkpoint_loader import CheckpointLoader
-from monai.handlers.segmentation_saver import SegmentationSaver
-import monai.transforms.compose as transforms
-from monai.data.nifti_reader import NiftiDataset
-from monai.transforms import AddChannel, Rescale, ToTensor
-from monai.networks.nets.unet import UNet
+from monai.handlers import CheckpointLoader, SegmentationSaver, StatsHandler, MeanDice
+from monai.data import NiftiDataset, create_test_image_3d, sliding_window_inference
+from monai.transforms import Compose, AddChannel, Rescale, ToTensor
+from monai.networks.nets import UNet
 from monai.networks.utils import predict_segmentation
-from monai.data.synthetic import create_test_image_3d
-from monai.utils.sliding_window_inference import sliding_window_inference
-from monai.handlers.stats_handler import StatsHandler
-from monai.handlers.mean_dice import MeanDice
 
 config.print_config()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -52,8 +46,8 @@ images = sorted(glob(os.path.join(tempdir, 'im*.nii.gz')))
 segs = sorted(glob(os.path.join(tempdir, 'seg*.nii.gz')))
 
 # define transforms for image and segmentation
-imtrans = transforms.Compose([Rescale(), AddChannel(), ToTensor()])
-segtrans = transforms.Compose([AddChannel(), ToTensor()])
+imtrans = Compose([Rescale(), AddChannel(), ToTensor()])
+segtrans = Compose([AddChannel(), ToTensor()])
 ds = NiftiDataset(images, segs, transform=imtrans, seg_transform=segtrans, image_only=False)
 
 device = torch.device("cuda:0")

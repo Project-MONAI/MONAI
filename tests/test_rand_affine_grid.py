@@ -15,7 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.transforms.transforms import RandAffineGrid
+from monai.transforms import RandAffineGrid
 
 TEST_CASES = [
     [{'as_tensor_output': False, 'device': None}, {'grid': torch.ones((3, 3, 3))},

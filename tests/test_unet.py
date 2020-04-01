@@ -14,8 +14,8 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.networks.layers.factories import Norm, Act
-from monai.networks.nets.unet import UNet
+from monai.networks.layers import Norm, Act
+from monai.networks.nets import UNet
 
 
 TEST_CASE_0 = [  # single channel 2D, batch 16, no residual

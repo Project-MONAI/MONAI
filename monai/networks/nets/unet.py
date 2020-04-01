@@ -14,8 +14,6 @@ import torch.nn as nn
 from monai.networks.blocks.convolutions import Convolution, ResidualUnit
 from monai.networks.layers.factories import Norm, Act
 from monai.networks.layers.simplelayers import SkipConnection
-from monai.utils import export
-from monai.utils.aliases import alias
 
 
 @export("monai.networks.nets")
@@ -86,3 +84,6 @@ class UNet(nn.Module):
     def forward(self, x):
         x = self.model(x)
         return x
+
+
+Unet = unet = UNet

@@ -12,12 +12,7 @@
 import time
 from functools import wraps
 
-import monai
 
-export = monai.utils.export("monai.utils")
-
-
-@export
 def timing(func):
     """
     This simple timing function decorator prints to stdout/logfile (it uses printFlush) how many seconds a call to the
@@ -36,7 +31,6 @@ def timing(func):
     return timingwrap
 
 
-@export
 class RestartGenerator:
     """
     Wraps a generator callable which will be called whenever this class is iterated and its result returned. This is
@@ -50,7 +44,6 @@ class RestartGenerator:
         return self.create_gen()
 
 
-@export
 class MethodReplacer(object):
     """
     Base class for method decorators which can be used to replace methods pass to replace_method() with wrapped versions.

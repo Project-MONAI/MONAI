@@ -15,7 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.transforms.transforms import Resample
+from monai.transforms import Resample
 from monai.transforms.utils import create_grid
 
 TEST_CASES = [
