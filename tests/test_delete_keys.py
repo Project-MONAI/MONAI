@@ -13,7 +13,7 @@ import unittest
 import time
 import sys
 from parameterized import parameterized
-from monai.transforms.composables import DeleteKeysd
+from monai.transforms import DeleteKeysd
 
 TEST_CASE_1 = [
     {'keys': [str(i) for i in range(30)]},

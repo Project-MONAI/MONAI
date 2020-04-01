@@ -17,9 +17,8 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 import monai
-import monai.transforms.compose as transforms
-from monai.data.nifti_reader import NiftiDataset
-from monai.transforms import AddChannel, Rescale, Resize, RandRotate90, ToTensor
+from monai.data import NiftiDataset
+from monai.transforms import Compose, AddChannel, Rescale, Resize, RandRotate90, ToTensor
 
 monai.config.print_config()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -53,14 +52,14 @@ labels = np.array([
 ])
 
 # Define transforms
-train_transforms = transforms.Compose([
+train_transforms = Compose([
     Rescale(),
     AddChannel(),
     Resize((96, 96, 96)),
     RandRotate90(),
     ToTensor()
 ])
-val_transforms = transforms.Compose([
+val_transforms = Compose([
     Rescale(),
     AddChannel(),
     Resize((96, 96, 96)),

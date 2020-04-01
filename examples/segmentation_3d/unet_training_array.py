@@ -22,12 +22,9 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 import monai
-import monai.transforms.compose as transforms
-from monai.data.nifti_reader import NiftiDataset
-from monai.transforms import AddChannel, Rescale, RandUniformPatch, RandRotate90, ToTensor
-from monai.data.synthetic import create_test_image_3d
-from monai.utils.sliding_window_inference import sliding_window_inference
-from monai.metrics.compute_meandice import compute_meandice
+from monai.data import NiftiDataset, create_test_image_3d, sliding_window_inference
+from monai.transforms import Compose, AddChannel, Rescale, RandUniformPatch, RandRotate90, ToTensor
+from monai.metrics import compute_meandice
 from monai.visualize.img2tensorboard import plot_2d_or_3d_image
 
 monai.config.print_config()
@@ -49,25 +46,25 @@ images = sorted(glob(os.path.join(tempdir, 'im*.nii.gz')))
 segs = sorted(glob(os.path.join(tempdir, 'seg*.nii.gz')))
 
 # define transforms for image and segmentation
-train_imtrans = transforms.Compose([
+train_imtrans = Compose([
     Rescale(),
     AddChannel(),
     RandUniformPatch((96, 96, 96)),
     RandRotate90(prob=0.5, spatial_axes=(0, 2)),
     ToTensor()
 ])
-train_segtrans = transforms.Compose([
+train_segtrans = Compose([
     AddChannel(),
     RandUniformPatch((96, 96, 96)),
     RandRotate90(prob=0.5, spatial_axes=(0, 2)),
     ToTensor()
 ])
-val_imtrans = transforms.Compose([
+val_imtrans = Compose([
     Rescale(),
     AddChannel(),
     ToTensor()
 ])
-val_segtrans = transforms.Compose([
+val_segtrans = Compose([
     AddChannel(),
     ToTensor()
 ])

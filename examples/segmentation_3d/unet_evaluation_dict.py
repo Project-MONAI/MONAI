@@ -22,14 +22,10 @@ from torch.utils.data import DataLoader
 
 import monai
 from monai import config
-from monai.data.utils import list_data_collate
-from monai.utils.sliding_window_inference import sliding_window_inference
-from monai.metrics.compute_meandice import compute_meandice
-from monai.data.synthetic import create_test_image_3d
-from monai.networks.nets.unet import UNet
-from monai.transforms.composables import LoadNiftid, AsChannelFirstd, Rescaled, ToTensord
-import monai.transforms.compose as transforms
-from monai.data.nifti_saver import NiftiSaver
+from monai.data import list_data_collate, sliding_window_inference, create_test_image_3d, NiftiSaver
+from monai.metrics import compute_meandice
+from monai.networks.nets import UNet
+from monai.transforms import Compose, LoadNiftid, AsChannelFirstd, Rescaled, ToTensord
 
 config.print_config()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -50,7 +46,7 @@ segs = sorted(glob(os.path.join(tempdir, 'seg*.nii.gz')))
 val_files = [{'img': img, 'seg': seg} for img, seg in zip(images, segs)]
 
 # define transforms for image and segmentation
-val_transforms = transforms.Compose([
+val_transforms = Compose([
     LoadNiftid(keys=['img', 'seg']),
     AsChannelFirstd(keys=['img', 'seg'], channel_dim=-1),
     Rescaled(keys=['img', 'seg']),

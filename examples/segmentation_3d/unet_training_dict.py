@@ -22,14 +22,11 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 import monai
-import monai.transforms.compose as transforms
-from monai.transforms.composables import \
-    LoadNiftid, AsChannelFirstd, Rescaled, RandCropByPosNegLabeld, RandRotate90d, ToTensord
-from monai.data.synthetic import create_test_image_3d
-from monai.data.utils import list_data_collate
-from monai.utils.sliding_window_inference import sliding_window_inference
-from monai.metrics.compute_meandice import compute_meandice
-from monai.visualize.img2tensorboard import plot_2d_or_3d_image
+from monai.transforms import \
+    Compose, LoadNiftid, AsChannelFirstd, Rescaled, RandCropByPosNegLabeld, RandRotate90d, ToTensord
+from monai.data import create_test_image_3d, list_data_collate, sliding_window_inference
+from monai.metrics import compute_meandice
+from monai.visualize import plot_2d_or_3d_image
 
 monai.config.print_config()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -52,7 +49,7 @@ train_files = [{'img': img, 'seg': seg} for img, seg in zip(images[:20], segs[:2
 val_files = [{'img': img, 'seg': seg} for img, seg in zip(images[-20:], segs[-20:])]
 
 # define transforms for image and segmentation
-train_transforms = transforms.Compose([
+train_transforms = Compose([
     LoadNiftid(keys=['img', 'seg']),
     AsChannelFirstd(keys=['img', 'seg'], channel_dim=-1),
     Rescaled(keys=['img', 'seg']),
@@ -60,7 +57,7 @@ train_transforms = transforms.Compose([
     RandRotate90d(keys=['img', 'seg'], prob=0.5, spatial_axes=[0, 2]),
     ToTensord(keys=['img', 'seg'])
 ])
-val_transforms = transforms.Compose([
+val_transforms = Compose([
     LoadNiftid(keys=['img', 'seg']),
     AsChannelFirstd(keys=['img', 'seg'], channel_dim=-1),
     Rescaled(keys=['img', 'seg']),

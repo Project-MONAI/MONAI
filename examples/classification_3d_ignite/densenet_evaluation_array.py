@@ -14,16 +14,13 @@ import logging
 import numpy as np
 import torch
 from ignite.engine import create_supervised_evaluator, _prepare_batch
+from ignite.metrics import Accuracy
 from torch.utils.data import DataLoader
 
 import monai
-import monai.transforms.compose as transforms
-from monai.data.nifti_reader import NiftiDataset
-from monai.transforms import AddChannel, Rescale, Resize, ToTensor
-from monai.handlers.stats_handler import StatsHandler
-from monai.handlers.classification_saver import ClassificationSaver
-from monai.handlers.checkpoint_loader import CheckpointLoader
-from ignite.metrics import Accuracy
+from monai.data import NiftiDataset
+from monai.transforms import Compose, AddChannel, Rescale, Resize, ToTensor
+from monai.handlers import StatsHandler, ClassificationSaver, CheckpointLoader
 
 monai.config.print_config()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -47,7 +44,7 @@ labels = np.array([
 ])
 
 # define transforms for image
-val_transforms = transforms.Compose([
+val_transforms = Compose([
     Rescale(),
     AddChannel(),
     Resize((96, 96, 96)),

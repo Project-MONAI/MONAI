@@ -15,7 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.transforms.transforms import AffineGrid
+from monai.transforms import AffineGrid
 
 TEST_CASES = [
     [{'as_tensor_output': False, 'device': torch.device('cpu:0')}, {'spatial_size': (2, 2)},

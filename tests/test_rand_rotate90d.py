@@ -13,7 +13,7 @@ import unittest
 
 import numpy as np
 
-from monai.transforms.composables import RandRotate90d
+from monai.transforms import RandRotate90d
 from tests.utils import NumpyImageTestCase2D
 
 

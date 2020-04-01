@@ -14,7 +14,7 @@ import unittest
 import nibabel as nib
 import numpy as np
 
-from monai.transforms.composables import Orientationd
+from monai.transforms import Orientationd
 
 
 class TestOrientationdCase(unittest.TestCase):

@@ -14,7 +14,7 @@ import nibabel as nib
 
 import numpy as np
 
-from monai.data.utils import rectify_header_sform_qform
+from monai.data import rectify_header_sform_qform
 
 
 class TestRectifyHeaderSformQform(unittest.TestCase):

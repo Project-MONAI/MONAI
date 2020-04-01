@@ -15,16 +15,13 @@ import numpy as np
 import torch
 from ignite.engine import Events, create_supervised_trainer, create_supervised_evaluator
 from ignite.handlers import ModelCheckpoint, EarlyStopping
+from ignite.metrics import Accuracy
 from torch.utils.data import DataLoader
 
 import monai
-import monai.transforms.compose as transforms
-from monai.data.nifti_reader import NiftiDataset
-from monai.transforms import AddChannel, Rescale, Resize, RandRotate90, ToTensor
-from monai.handlers.stats_handler import StatsHandler
-from monai.handlers.tensorboard_handlers import TensorBoardStatsHandler
-from ignite.metrics import Accuracy
-from monai.handlers.utils import stopping_fn_from_metric
+from monai.data import NiftiDataset
+from monai.transforms import Compose, AddChannel, Rescale, Resize, RandRotate90, ToTensor
+from monai.handlers import StatsHandler, TensorBoardStatsHandler, stopping_fn_from_metric
 
 monai.config.print_config()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -58,14 +55,14 @@ labels = np.array([
 ])
 
 # define transforms
-train_transforms = transforms.Compose([
+train_transforms = Compose([
     Rescale(),
     AddChannel(),
     Resize((96, 96, 96)),
     RandRotate90(),
     ToTensor()
 ])
-val_transforms = transforms.Compose([
+val_transforms = Compose([
     Rescale(),
     AddChannel(),
     Resize((96, 96, 96)),

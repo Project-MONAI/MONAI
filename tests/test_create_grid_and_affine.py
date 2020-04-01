@@ -13,8 +13,8 @@ import unittest
 
 import numpy as np
 
-from monai.transforms.utils import (create_control_grid, create_grid, create_rotate, create_scale, create_shear,
-                                    create_translate)
+from monai.transforms import (create_control_grid, create_grid, create_rotate, create_scale, create_shear,
+                              create_translate)
 
 
 class TestCreateGrid(unittest.TestCase):

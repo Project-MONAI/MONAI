@@ -18,7 +18,6 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 import numpy as np
 import torch
 
-import monai
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.compose import MapTransform, Randomizable
@@ -26,14 +25,9 @@ from monai.transforms.transforms import (AddChannel, AsChannelFirst, Flip, LoadN
                                          Rand2DElastic, Rand3DElastic, RandAffine, Rescale, Resize, Rotate, Rotate90,
                                          ScaleIntensityRange, Spacing, SpatialCrop, Zoom, ToTensor, LoadPNG)
 from monai.transforms.utils import (create_grid, generate_pos_neg_label_crop_centers)
-from monai.utils.aliases import alias
 from monai.utils.misc import ensure_tuple
 
-export = monai.utils.export("monai.transforms")
 
-
-@export
-@alias('SpacingD', 'SpacingDict')
 class Spacingd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.transforms.Spacing`.
@@ -108,8 +102,6 @@ class Spacingd(MapTransform):
         return d
 
 
-@export
-@alias('OrientationD', 'OrientationDict')
 class Orientationd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.transforms.Orientation`.
@@ -163,8 +155,6 @@ class Orientationd(MapTransform):
         return d
 
 
-@export
-@alias('LoadNiftiD', 'LoadNiftiDict')
 class LoadNiftid(MapTransform):
     """
     Dictionary-based wrapper of LoadNifti, must load image and metadata
@@ -208,8 +198,6 @@ class LoadNiftid(MapTransform):
         return d
 
 
-@export
-@alias('LoadPNGD', 'LoadPNGDict')
 class LoadPNGd(MapTransform):
     """
     dictionary-based wrapper of LoadPNG.
@@ -232,8 +220,6 @@ class LoadPNGd(MapTransform):
         return d
 
 
-@export
-@alias('AsChannelFirstD', 'AsChannelFirstDict')
 class AsChannelFirstd(MapTransform):
     """
     dictionary-based wrapper of AsChannelFirst.
@@ -256,8 +242,6 @@ class AsChannelFirstd(MapTransform):
         return d
 
 
-@export
-@alias('AddChannelD', 'AddChannelDict')
 class AddChanneld(MapTransform):
     """
     dictionary-based wrapper of AddChannel.
@@ -279,8 +263,6 @@ class AddChanneld(MapTransform):
         return d
 
 
-@export
-@alias('ToTensorD', 'ToTensorDict')
 class ToTensord(MapTransform):
     """
     dictionary-based wrapper of ToTensor.
@@ -302,8 +284,6 @@ class ToTensord(MapTransform):
         return d
 
 
-@export
-@alias('Rotate90D', 'Rotate90Dict')
 class Rotate90d(MapTransform):
     """
     dictionary-based wrapper of Rotate90.
@@ -329,8 +309,6 @@ class Rotate90d(MapTransform):
         return d
 
 
-@export
-@alias('RescaleD', 'RescaleDict')
 class Rescaled(MapTransform):
     """
     dictionary-based wrapper of Rescale.
@@ -347,8 +325,6 @@ class Rescaled(MapTransform):
         return d
 
 
-@export
-@alias('ResizeD', 'ResizeDict')
 class Resized(MapTransform):
     """
     dictionary-based wrapper of Resize.
@@ -382,8 +358,6 @@ class Resized(MapTransform):
         return d
 
 
-@export
-@alias('RandUniformPatchD', 'RandUniformPatchDict')
 class RandUniformPatchd(Randomizable, MapTransform):
     """
     Selects a patch of the given size chosen at a uniformly random position in the image.
@@ -413,8 +387,6 @@ class RandUniformPatchd(Randomizable, MapTransform):
         return d
 
 
-@export
-@alias('RandRotate90D', 'RandRotate90Dict')
 class RandRotate90d(Randomizable, MapTransform):
     """
     With probability `prob`, input arrays are rotated by 90 degrees
@@ -458,8 +430,6 @@ class RandRotate90d(Randomizable, MapTransform):
         return d
 
 
-@export
-@alias('NormalizeIntensityD', 'NormalizeIntensityDict')
 class NormalizeIntensityd(MapTransform):
     """
     dictionary-based wrapper of NormalizeIntensity.
@@ -482,8 +452,6 @@ class NormalizeIntensityd(MapTransform):
         return d
 
 
-@export
-@alias('ScaleIntensityRangeD', 'ScaleIntensityRangeDict')
 class ScaleIntensityRanged(MapTransform):
     """
     dictionary-based wrapper of ScaleIntensityRange.
@@ -509,8 +477,6 @@ class ScaleIntensityRanged(MapTransform):
         return d
 
 
-@export
-@alias('RandCropByPosNegLabelD', 'RandCropByPosNegLabelDict')
 class RandCropByPosNegLabeld(Randomizable, MapTransform):
     """
     Crop random fixed sized regions with the center being a foreground or background voxel
@@ -573,8 +539,6 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         return results
 
 
-@export
-@alias('RandAffineD', 'RandAffineDict')
 class RandAffined(Randomizable, MapTransform):
     """
     A dictionary-based wrapper of :py:class:`monai.transforms.transforms.RandAffine`.
@@ -643,8 +607,6 @@ class RandAffined(Randomizable, MapTransform):
         return d
 
 
-@export
-@alias('Rand2DElasticD', 'Rand2DElasticDict')
 class Rand2DElasticd(Randomizable, MapTransform):
     """
     A dictionary-based wrapper of :py:class:`monai.transforms.transforms.Rand2DElastic`.
@@ -716,8 +678,6 @@ class Rand2DElasticd(Randomizable, MapTransform):
         return d
 
 
-@export
-@alias('Rand3DElasticD', 'Rand3DElasticDict')
 class Rand3DElasticd(Randomizable, MapTransform):
     """
     A dictionary-based wrapper of :py:class:`monai.transforms.transforms.Rand3DElastic`.
@@ -790,8 +750,6 @@ class Rand3DElasticd(Randomizable, MapTransform):
         return d
 
 
-@export
-@alias('FlipD', 'FlipDict')
 class Flipd(MapTransform):
     """Dictionary-based wrapper of Flip.
 
@@ -814,8 +772,6 @@ class Flipd(MapTransform):
         return d
 
 
-@export
-@alias('RandFlipD', 'RandFlipDict')
 class RandFlipd(Randomizable, MapTransform):
     """Dict-based wrapper of RandFlip.
 
@@ -848,8 +804,6 @@ class RandFlipd(Randomizable, MapTransform):
         return d
 
 
-@export
-@alias('RotateD', 'RotateDict')
 class Rotated(MapTransform):
     """Dictionary-based wrapper of Rotate.
 
@@ -881,8 +835,6 @@ class Rotated(MapTransform):
         return d
 
 
-@export
-@alias('RandRotateD', 'RandRotateDict')
 class RandRotated(Randomizable, MapTransform):
     """Randomly rotates the input arrays.
 
@@ -937,8 +889,6 @@ class RandRotated(Randomizable, MapTransform):
         return d
 
 
-@export
-@alias('ZoomD', 'ZoomDict')
 class Zoomd(MapTransform):
     """Dictionary-based wrapper of Zoom transform.
 
@@ -967,8 +917,6 @@ class Zoomd(MapTransform):
         return d
 
 
-@export
-@alias('RandZoomD', 'RandZoomDict')
 class RandZoomd(Randomizable, MapTransform):
     """Dict-based wrapper of RandZoom.
 
@@ -1028,8 +976,6 @@ class RandZoomd(Randomizable, MapTransform):
         return d
 
 
-@export
-@alias('DeleteKeysD', 'DeleteKeysDict')
 class DeleteKeysd(MapTransform):
     """
     Delete specified keys from data dictionary to release memory.
@@ -1046,3 +992,30 @@ class DeleteKeysd(MapTransform):
 
     def __call__(self, data):
         return {key: val for key, val in data.items() if key not in self.keys}
+
+
+SpacingD = SpacingDict = Spacingd
+OrientationD = OrientationDict = Orientationd
+LoadNiftiD = LoadNiftiDict = LoadNiftid
+LoadPNGD = LoadPNGDict = LoadPNGd
+AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
+AddChannelD = AddChannelDict = AddChanneld
+ToTensorD = ToTensorDict = ToTensord
+Rotate90D = Rotate90Dict = Rotate90d
+RescaleD = RescaleDict = Rescaled
+ResizeD = ResizeDict = Resized
+RandUniformPatchD = RandUniformPatchDict = RandUniformPatchd
+RandRotate90D = RandRotate90Dict = RandRotate90d
+NormalizeIntensityD = NormalizeIntensityDict = NormalizeIntensityd
+ScaleIntensityRangeD = ScaleIntensityRangeDict = ScaleIntensityRanged
+RandCropByPosNegLabelD = RandCropByPosNegLabelDict = RandCropByPosNegLabeld
+RandAffineD = RandAffineDict = RandAffined
+Rand2DElasticD = Rand2DElasticDict = Rand2DElasticd
+Rand3DElasticD = Rand3DElasticDict = Rand3DElasticd
+FlipD = FlipDict = Flipd
+RandFlipD = RandFlipDict = RandFlipd
+RotateD = RotateDict = Rotated
+RandRotateD = RandRotateDict = RandRotated
+ZoomD = ZoomDict = Zoomd
+RandZoomD = RandZoomDict = RandZoomd
+DeleteKeysD = DeleteKeysDict = DeleteKeysd

@@ -14,7 +14,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.transforms.transforms import Spacing
+from monai.transforms import Spacing
 
 TEST_CASES = [
     [

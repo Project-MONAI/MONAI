@@ -45,6 +45,12 @@ def ensure_tuple(vals):
     return tuple(vals)
 
 
+def ensure_tuple_size(tup, dim):
+    """Returns a copy of `tup` with `dim` values by either shortened or padded with zeros as necessary."""
+    tup = tuple(tup) + (0,) * dim
+    return tup[:dim]
+
+
 def is_scalar_tensor(val):
     if torch.is_tensor(val) and val.ndim == 0:
         return True

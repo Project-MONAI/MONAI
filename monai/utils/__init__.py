@@ -10,5 +10,6 @@
 # limitations under the License.
 
 # have to explicitly bring these in here to resolve circular import issues
-from .aliases import alias, resolve_name
 from .module import export
+from .decorators import *
+from .misc import *

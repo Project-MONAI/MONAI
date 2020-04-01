@@ -11,7 +11,7 @@
 
 import unittest
 
-from monai.transforms.compose import Compose, Randomizable
+from monai.transforms import Compose, Randomizable
 
 
 class TestCompose(unittest.TestCase):

@@ -16,7 +16,7 @@ from ignite.exceptions import NotComputableError
 from ignite.metrics import Metric
 from ignite.metrics.metric import reinit__is_reduced, sync_all_reduce
 
-from monai.metrics.compute_meandice import compute_meandice
+from monai.metrics import compute_meandice
 
 __all__ = ['MeanDice']
 

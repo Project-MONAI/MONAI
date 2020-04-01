@@ -18,7 +18,7 @@ import glob
 from ignite.engine import Engine, Events
 from torch.utils.tensorboard import SummaryWriter
 
-from monai.handlers.tensorboard_handlers import TensorBoardStatsHandler
+from monai.handlers import TensorBoardStatsHandler
 
 
 class TestHandlerTBStats(unittest.TestCase):

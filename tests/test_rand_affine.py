@@ -15,7 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.transforms.transforms import RandAffine
+from monai.transforms import RandAffine
 
 TEST_CASES = [
     [

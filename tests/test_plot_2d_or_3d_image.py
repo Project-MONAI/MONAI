@@ -16,7 +16,7 @@ import unittest
 from torch.utils.tensorboard import SummaryWriter
 import torch
 from parameterized import parameterized
-from monai.visualize.img2tensorboard import plot_2d_or_3d_image
+from monai.visualize import plot_2d_or_3d_image
 
 TEST_CASE_1 = [
     (1, 1, 10, 10)

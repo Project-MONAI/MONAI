@@ -14,7 +14,7 @@ import warnings
 import torch
 from torch.utils.tensorboard import SummaryWriter
 from ignite.engine import Engine, Events
-from monai.visualize.img2tensorboard import plot_2d_or_3d_image
+from monai.visualize import plot_2d_or_3d_image
 from monai.utils.misc import is_scalar
 
 DEFAULT_TAG = 'Loss'
