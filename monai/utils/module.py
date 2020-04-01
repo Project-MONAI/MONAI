@@ -22,6 +22,10 @@ def export(modname):
         if not hasattr(mod, obj.__name__):
             setattr(mod, obj.__name__, obj)
 
+            # add the aliases for `obj` to the target module
+            for alias in getattr(obj,'__aliases__',()):
+                setattr(mod, alias, obj)
+
         return obj
 
     return _inner

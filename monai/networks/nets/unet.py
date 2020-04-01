@@ -19,7 +19,7 @@ from monai.utils.aliases import alias
 
 
 @export("monai.networks.nets")
-@alias("Unet", "unet")
+@alias("Unet")
 class UNet(nn.Module):
 
     def __init__(self, dimensions, in_channels, out_channels, channels, strides, kernel_size=3, up_kernel_size=3,
