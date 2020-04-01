@@ -2,8 +2,10 @@
 - [The contribution process](#the-contribution-process)
   * [Submitting pull requests](#submitting-pull-requests)
   * [Coding style](#coding-style)
+  * [Utility functions](#utility-functions)
 - [Unit testing](#unit-testing)
 - [The code reviewing process (for the maintainers)](#the-code-reviewing-process)
+- [Admin tasks](#admin-tasks)
 
 ## Introduction
 
@@ -58,6 +60,16 @@ License information: all source code files should start with this paragraph:
 # limitations under the License.
 
 ```
+
+### Utility functions
+MONAI provides a set of generic utility functions and frequently used routines.
+These are located in [``monai/utils``](./monai/utils/) and in the module folders such as [``networks/utils.py``](./monai/networks/).
+Users are encouraged to use these common routines to improve code readability and reduce the code maintenance burdens.
+
+Notably,
+- ``monai.module.export`` decorator can make the module name shorter when importing,
+for example, ``import monai.transforms.Spacing`` is the equivalent of ``monai.transforms.transforms.Spacing`` if
+``class Spacing`` defined in file `monai/transforms/transforms.py` is decorated with ``@export("monai.transforms")``.
 
 ### Building the documentation
 To build documentation via Sphinx in`docs/` folder:
