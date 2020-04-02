@@ -18,6 +18,8 @@ Training and evaluation examples of 3D classification based on DenseNet3D and [I
 The examples are PyTorch ignite programs and have both dictionary-based and array-based transformation versions.
 #### [notebooks/3d_image_transforms](./notebooks/3d_image_transforms.ipynb)
 This notebook demonstrates the transformations on volumetric images.
+#### [notebooks/cache_dataset_speed](./notebooks/cache_dataset_speed.ipynb)
+This tutorial shows how to accelerate PyTorch medical DL program based on MONAI CacheDataset.
 #### [notebooks/mednist_tutorial](./notebooks/mednist_tutorial.ipynb)
 This notebook shows how to easily integrate MONAI features into existing PyTorch programs.
 It's based on the MedNIST dataset which is very suitable for beginners as a tutorial.
