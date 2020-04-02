@@ -68,6 +68,12 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 ```
 
+### 5. Cache IO and transforms results to acclerate training
+Medical image data volume is usually very large and users need to train many
+epochs(even more than 1000 epochs) to achieve expected metrics. The typical PyTorch program repeatedly loads data and run transforms for every epoch during training, which is time-consuming operation and unnecessary.  
+MONAI provides cache mechanism to obviously optimize this situation that runs transforms before training and caches the result before the first non-deterministic transform in the chain. Then the training program only needs to load the cached data and run the random transforms. The optimized training speed can be even more than 10x faster than the original speed.
+![image](../images/cache_dataset.png)
+
 ## Losses
 There are domain-specific loss functions in the medical research area which are different from the generic computer vision ones. As an important module of MONAI, these loss functions are implemented in PyTorch, such as Dice loss and generalized Dice loss.
 

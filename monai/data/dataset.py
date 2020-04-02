@@ -9,7 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
 import torch
+from monai.transforms.compose import Compose
+from monai.utils import process_bar
 
 
 class Dataset(torch.utils.data.Dataset):
@@ -44,27 +47,38 @@ class Dataset(torch.utils.data.Dataset):
         return data
 
 
-@export("monai.data")
-class CacheDataset(torch.utils.data.Dataset):
+class CacheDataset(Dataset):
     """
-    Dataset with cache mechanism.
+    Dataset with cache mechanism that loads data and runs deterministic transforms before training.
+    During the training process, it will skip the deterministic transforms and load data from cache
+    for the random transforms directly, so it's much faster than repeatedly running these operations
+    for every epoch. If the data is not in cache, run all the transforms directly.
+    And users can set the cache rate or cache data number according to the memory size.
     """
 
-    def __init__(self, data, transform=None):
+    def __init__(self, data, transform, cache_num=sys.maxsize, cache_rate=1.0):
         """
         Args:
             data (Iterable): input data to load and transform to generate dataset for model.
             transform (Callable, optional): transforms to excute operations on input data.
+            cache_num (int): number of cached items, default is infinity.
+                will take the minimum of (cache_num, data_length x cache_rate, data_length).
+            cache_rate (float): percentage of cached data in total, default is 1.0(cache all).
+                will take the minimum of (cache_num, data_length x cache_rate, data_length).
         """
-        self.data = data
-        self.transform = transform
-
-    def __len__(self):
-        return len(self.data)
+        assert isinstance(transform, Compose), 'CacheDataset expects Compose transform.'
+        super().__init__(data, transform)
+        self.cache_num = min(cache_num, int(len(data) * cache_rate), len(data))
+        self._cache = list()
+        print('Loading data to cache and executing transforms...')
+        for i in range(self.cache_num):
+            process_bar(i + 1, self.cache_num)
+            self._cache.append(transform(data[i], deterministic=True))
 
     def __getitem__(self, index):
-        data = self.data[index]
-        if self.transform is not None:
-            data = self.transform(data)
+        if index < self.cache_num:
+            data = self.transform(self._cache[index], deterministic=False)
+        else:
+            data = self.transform(self.data[index], deterministic=None)
 
         return data
