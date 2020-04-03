@@ -13,6 +13,7 @@ import sys
 import torch
 from monai.transforms.compose import Compose
 from monai.utils import process_bar
+from monai.transforms.compose import Randomizable
 
 
 class Dataset(torch.utils.data.Dataset):
@@ -54,6 +55,19 @@ class CacheDataset(Dataset):
     for the random transforms directly, so it's much faster than repeatedly running these operations
     for every epoch. If the data is not in cache, run all the transforms directly.
     And users can set the cache rate or cache data number according to the memory size.
+
+    For example, if define the training transforms as:
+    transforms = Compose([
+        LoadNiftid(),
+        AddChanneld(),
+        Spacingd(),
+        Orientationd(),
+        ScaleIntensityRanged(),
+        RandCropByPosNegLabeld(),
+        ToTensord()
+    ])
+    Before training, run: `LoadNiftid`, `AddChanneld`, `Spacingd`, `Orientationd`, `ScaleIntensityRanged`.
+    During training, load cache and run: `RandCropByPosNegLabeld`, `ToTensord`.
     """
 
     def __init__(self, data, transform, cache_num=sys.maxsize, cache_rate=1.0):
@@ -73,12 +87,27 @@ class CacheDataset(Dataset):
         print('Loading data to cache and executing transforms...')
         for i in range(self.cache_num):
             process_bar(i + 1, self.cache_num)
-            self._cache.append(transform.deterministic_call(data[i]))
+            item = data[i]
+            for _transform in transform.transforms:
+                # execute all the deterministic transforms before the first random transform
+                if isinstance(_transform, Randomizable):
+                    break
+                item = transform.do_transform(item, _transform)
+            self._cache.append(item)
 
     def __getitem__(self, index):
         if index < self.cache_num:
-            data = self.transform.nondeterministic_call(self._cache[index])
+            # load data from cache and execute from the first random transform
+            start_run = False
+            data = self._cache[index]
+            for _transform in self.transform.transforms:
+                if not start_run and not isinstance(_transform, Randomizable):
+                    continue
+                else:
+                    start_run = True
+                data = self.transform.do_transform(data, _transform)
         else:
+            # if didn't cache this data, execute all the transforms directly
             data = self.transform(self.data[index])
 
         return data

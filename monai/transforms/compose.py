@@ -178,9 +178,12 @@ class Compose(Randomizable):
                     'Transform "{0}" in Compose not randomized\n{0}.{1}.'.format(type(_transform).__name__, type_error),
                     RuntimeWarning)
 
-    def _do_transform(self, data, transform):
-        # if some transform generated batch list of data in the transform chain,
-        # all the following transforms should apply to every item of the list.
+    def do_transform(self, data, transform):
+        """
+        Execute 1 transform on expected data.
+        If some transform generated batch list of data in the transform chain,
+        all the following transforms should apply to every item of the list.
+        """
         if isinstance(data, list):
             for i, item in enumerate(data):
                 data[i] = transform(item)
@@ -190,54 +193,7 @@ class Compose(Randomizable):
 
     def __call__(self, input_):
         for _transform in self.transforms:
-            input_ = self._do_transform(input_, _transform)
-        return input_
-
-    def deterministic_call(self, input_):
-        """execute transforms on the input data, only run the non-random transforms
-        before the first random transform, so the output data will be deterministic.
-        For example, if define the training transforms as:
-        transforms = Compose([
-            LoadNiftid(),
-            AddChanneld(),
-            Spacingd(),
-            Orientationd(),
-            ScaleIntensityRanged(),
-            RandCropByPosNegLabeld(),
-            ToTensord()
-        ])
-        Will run: `LoadNiftid`, `AddChanneld`, `Spacingd`, `Orientationd`, `ScaleIntensityRanged`.
-        """
-
-        for _transform in self.transforms:
-            if isinstance(_transform, Randomizable):
-                break
-            input_ = self._do_transform(input_, _transform)
-        return input_
-
-    def nondeterministic_call(self, input_):
-        """execute transforms on the input data, only run the transforms begin from
-        the first random transform, so it will only execute the random parts of the transform chain.
-        For example, if define the training transforms as:
-        transforms = Compose([
-            LoadNiftid(),
-            AddChanneld(),
-            Spacingd(),
-            Orientationd(),
-            ScaleIntensityRanged(),
-            RandCropByPosNegLabeld(),
-            ToTensord()
-        ])
-        Will run: `RandCropByPosNegLabeld`, `ToTensord`.
-        """
-
-        start_run = False
-        for _transform in self.transforms:
-            if not start_run and not isinstance(_transform, Randomizable):
-                continue
-            else:
-                start_run = True
-            input_ = self._do_transform(input_, _transform)
+            input_ = self.do_transform(input_, _transform)
         return input_
 
 
