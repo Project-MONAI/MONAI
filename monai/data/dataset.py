@@ -73,12 +73,12 @@ class CacheDataset(Dataset):
         print('Loading data to cache and executing transforms...')
         for i in range(self.cache_num):
             process_bar(i + 1, self.cache_num)
-            self._cache.append(transform(data[i], deterministic=True))
+            self._cache.append(transform.deterministic_call(data[i]))
 
     def __getitem__(self, index):
         if index < self.cache_num:
-            data = self.transform(self._cache[index], deterministic=False)
+            data = self.transform.nondeterministic_call(self._cache[index])
         else:
-            data = self.transform(self.data[index], deterministic=None)
+            data = self.transform(self.data[index])
 
         return data
