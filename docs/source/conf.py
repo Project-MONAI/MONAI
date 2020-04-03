@@ -13,22 +13,22 @@
 import os
 import sys
 import subprocess
+
 sys.path.insert(0, os.path.abspath('..'))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 print(sys.path)
 
-
+import monai  # noqa: E402
 
 # -- Project information -----------------------------------------------------
-
 project = 'MONAI'
 copyright = '2020, MONAI Contributors'
 author = 'MONAI Contributors'
 
 # The full version, including alpha/beta/rc tags
-release = 'public alpha'
-version = 'public alpha'
-
+short_version = monai.__version__.split('+')[0]
+release = short_version
+version = short_version
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
