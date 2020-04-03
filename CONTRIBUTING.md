@@ -80,6 +80,11 @@ make html
 The above commands build html documentation. Type `make help` for all supported formats,
 type `make clean` to remove the current build files.
 
+When new classes or methods are added, it is recommended to:
+- build html documentation locally,
+- check the auto-generated documentation from python docstrings,
+- edit relevant `.rst` files in [`docs/source`](./docs/source) accordingly.
+
 ## Unit testing
 MONAI tests are located under `tests/`.
 
