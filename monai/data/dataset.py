@@ -54,7 +54,12 @@ class CacheDataset(Dataset):
     During the training process, it will skip the deterministic transforms and load data from cache
     for the random transforms directly, so it's much faster than repeatedly running these operations
     for every epoch. If the data is not in cache, run all the transforms directly.
-    And users can set the cache rate or cache data number according to the memory size.
+
+    And users can set the cache rate or cache data number according to the memory size, suggest to set
+    the `cache_num` or `cache_rate` to the biggest value to achieve best training performance.
+
+    To improve the caching efficiency, please always put as many as possible non-random transforms
+    before the randomised ones when composing the chain of transforms.
 
     For example, if define the training transforms as:
     transforms = Compose([

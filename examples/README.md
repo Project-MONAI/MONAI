@@ -34,6 +34,7 @@ The example shows the flexibility of MONAI modules in a PyTorch-based program:
 - Load NIfTI images with metadata.
 - Scale medical image intensity with expected range.
 - Crop out a batch of balanced image patch samples based on positive / negative label ratio.
+- Cache IO and transforms to accelerate training and validation.
 - 3D UNet, Dice loss function, Mean Dice metric for 3D segmentation task.
 - Sliding window inference.
 - Deterministic training for reproducibility.
