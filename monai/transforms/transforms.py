@@ -214,13 +214,16 @@ class LoadNifti:
             img = correct_nifti_header_if_necessary(img)
             header = dict(img.header)
             header['filename_or_obj'] = name
-            header['affine'] = img.affine
+            header['original_affine'] = img.affine.copy()
+            header['affine'] = img.affine.copy()
             header['as_closest_canonical'] = self.as_closest_canonical
+            ndim = img.header['dim'][0]
+            spatial_rank = min(ndim, 3)
+            header['spatial_shape'] = img.header['dim'][1:spatial_rank + 1]
 
             if self.as_closest_canonical:
-                header['original_affine'] = img.affine
                 img = nib.as_closest_canonical(img)
-                header['affine'] = img.affine
+                header['affine'] = img.affine.copy()
 
             img_array.append(np.array(img.get_fdata(dtype=self.dtype)))
             img.uncache()

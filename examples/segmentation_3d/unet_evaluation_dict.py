@@ -53,7 +53,7 @@ val_transforms = Compose([
     ToTensord(keys=['img', 'seg'])
 ])
 val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
-# sliding window inferene need to input 1 image in every iteration
+# sliding window inference need to input 1 image in every iteration
 val_loader = DataLoader(val_ds, batch_size=1, num_workers=4, collate_fn=list_data_collate,
                         pin_memory=torch.cuda.is_available())
 

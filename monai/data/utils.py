@@ -296,8 +296,8 @@ def zoom_affine(affine, scale, diagonal=True):
 
 def compute_shape_offset(spatial_shape, in_affine, out_affine):
     """
-    Given input and target affine, compute appropriate shapes
-    in the target space based on the input array's shape.
+    Given input and output affine, compute appropriate shapes
+    in the output space based on the input array's shape.
     This function also returns the offset to put the shape
     in a good position with respect to the world coordinate system.
     """
@@ -311,7 +311,7 @@ def compute_shape_offset(spatial_shape, in_affine, out_affine):
     corners = in_affine @ corners
     corners_out = np.linalg.inv(out_affine) @ corners
     corners_out = corners_out[:-1] / corners_out[-1]
-    out_shape = np.ceil(np.max(corners_out, 1) - np.min(corners_out, 1)) + 1.
+    out_shape = np.round(np.max(corners_out, 1) - np.min(corners_out, 1) + 1.)
     if np.allclose(nib.io_orientation(in_affine),
                    nib.io_orientation(out_affine)):
         # same orientation, get translate from the origin
@@ -355,7 +355,8 @@ def to_affine_nd(r, affine):
         if not np.isfinite(sr) or sr < 0:
             raise ValueError('r must be postive.')
         new_affine = np.eye(sr + 1, dtype=np.float64)
-    d = min(len(new_affine) - 1, len(affine) - 1)
+    d = max(min(len(new_affine) - 1, len(affine) - 1), 1)
     new_affine[:d, :d] = affine[:d, :d]
-    new_affine[:d, -1] = affine[:d, -1]
+    if d > 1:
+        new_affine[:d, -1] = affine[:d, -1]
     return new_affine
