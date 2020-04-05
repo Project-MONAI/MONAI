@@ -74,6 +74,11 @@ for example, ``import monai.transforms.Spacing`` is the equivalent of ``monai.tr
 ### Building the documentation
 To build documentation via Sphinx in`docs/` folder:
 ```bash
+# install the doc-related dependencies
+pip install --upgrade pip
+pip install -r docs/requirements.txt
+
+# build the docs
 cd docs/
 make html
 ```
