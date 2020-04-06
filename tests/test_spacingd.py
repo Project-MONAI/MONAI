@@ -22,22 +22,21 @@ class TestSpacingDCase(unittest.TestCase):
         data = {'image': np.ones((2, 10, 15, 20)), 'image.affine': np.eye(4)}
         spacing = Spacingd(keys='image', pixdim=(1, 2, 1.4))
         res = spacing(data)
-        self.assertEqual(('image', 'image.affine', 'image.original_affine'), tuple(sorted(res)))
+        self.assertEqual(('image', 'image.affine'), tuple(sorted(res)))
         np.testing.assert_allclose(res['image'].shape, (2, 10, 8, 15))
         np.testing.assert_allclose(res['image.affine'], np.diag([1, 2, 1.4, 1.]))
-        np.testing.assert_allclose(res['image.original_affine'], np.eye(4))
 
     def test_spacingd_2d(self):
-        data = {'image': np.ones((2, 10, 20))}
+        data = {'image': np.ones((2, 10, 20)), 'image.affine': np.eye(3)}
         spacing = Spacingd(keys='image', pixdim=(1, 2, 1.4))
         res = spacing(data)
-        self.assertEqual(('image', 'image.affine', 'image.original_affine'), tuple(sorted(res)))
-        np.testing.assert_allclose(res['image'].shape, (2, 10, 11))
+        self.assertEqual(('image', 'image.affine'), tuple(sorted(res)))
+        np.testing.assert_allclose(res['image'].shape, (2, 10, 10))
         np.testing.assert_allclose(res['image.affine'], np.diag((1, 2, 1)))
-        np.testing.assert_allclose(res['image.original_affine'], np.eye(3))
 
     def test_spacingd_1d(self):
         data = {'image': np.arange(20).reshape((2, 10)), 'image.original_affine': np.diag((3, 2, 1, 1))}
+        data['image.affine'] = data['image.original_affine']
         spacing = Spacingd(keys='image', pixdim=(0.2,))
         res = spacing(data)
         self.assertEqual(('image', 'image.affine', 'image.original_affine'), tuple(sorted(res)))
@@ -50,24 +49,18 @@ class TestSpacingDCase(unittest.TestCase):
                 'image.affine': np.eye(4), 'seg.affine': np.eye(4)}
         spacing = Spacingd(keys=('image', 'seg'), interp_order=0, pixdim=(0.2,))
         res = spacing(data)
-        self.assertEqual(('image', 'image.affine', 'image.original_affine',
-                          'seg', 'seg.affine', 'seg.original_affine'),
-                         tuple(sorted(res)))
+        self.assertEqual(('image', 'image.affine', 'seg', 'seg.affine'), tuple(sorted(res)))
         np.testing.assert_allclose(res['image'].shape, (2, 46))
         np.testing.assert_allclose(res['image.affine'], np.diag((0.2, 1, 1, 1)))
-        np.testing.assert_allclose(res['image.original_affine'], np.eye(4))
 
     def test_interp_sep(self):
         data = {'image': np.ones((2, 10)), 'seg': np.ones((2, 10)),
-                'image.affine': np.eye(4)}
+                'image.affine': np.eye(4), 'seg.affine': np.eye(4)}
         spacing = Spacingd(keys=('image', 'seg'), interp_order=(2, 0), pixdim=(0.2,))
         res = spacing(data)
-        self.assertEqual(('image', 'image.affine', 'image.original_affine',
-                          'seg', 'seg.affine', 'seg.original_affine'),
-                         tuple(sorted(res)))
+        self.assertEqual(('image', 'image.affine', 'seg', 'seg.affine'), tuple(sorted(res)))
         np.testing.assert_allclose(res['image'].shape, (2, 46))
         np.testing.assert_allclose(res['image.affine'], np.diag((0.2, 1, 1, 1)))
-        np.testing.assert_allclose(res['image.original_affine'], np.eye(4))
 
 
 if __name__ == '__main__':

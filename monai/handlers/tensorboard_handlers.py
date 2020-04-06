@@ -29,7 +29,7 @@ class TensorBoardStatsHandler(object):
     Default behaviors:
         - When EPOCH_COMPLETED, write each dictionary item in
           ``engine.state.metrics`` to TensorBoard.
-        - When ITERATION_COMPELTED, write each dictionary item in
+        - When ITERATION_COMPLETED, write each dictionary item in
           ``self.output_transform(engine.state.output)`` to TensorBoard.
     """
 
@@ -46,11 +46,11 @@ class TensorBoardStatsHandler(object):
                 default to create a new writer.
             epoch_event_writer (Callable): customized callable TensorBoard writer for epoch level.
                 must accept parameter "engine" and "summary_writer", use default event writer if None.
-            iteration_event_writer (Callable): custimized callable TensorBoard writer for iteration level.
+            iteration_event_writer (Callable): customized callable TensorBoard writer for iteration level.
                 must accept parameter "engine" and "summary_writer", use default event writer if None.
             output_transform (Callable): a callable that is used to transform the
                 ``ignite.engine.output`` into a scalar to plot, or a dictionary of {key: scalar}.
-                in the latter case, the output string will be formated as key: value.
+                in the latter case, the output string will be formatted as key: value.
                 by default this value plotting happens when every iteration completed.
             global_epoch_transform (Callable): a callable that is used to customize global epoch number.
                 For example, in evaluation, the evaluator engine might want to use trainer engines epoch number

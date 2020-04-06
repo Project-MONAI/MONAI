@@ -190,25 +190,25 @@ def generate_pos_neg_label_crop_centers(label, size, num_samples, pos_ratio, ima
 
     # Prepare fg/bg indices
     label_flat = np.any(label, axis=0).ravel()  # in case label has multiple dimensions
-    fg_indicies = np.nonzero(label_flat)[0]
+    fg_indices = np.nonzero(label_flat)[0]
     if image is not None:
         img_flat = np.any(image > image_threshold, axis=0).ravel()
-        bg_indicies = np.nonzero(np.logical_and(img_flat, ~label_flat))[0]
+        bg_indices = np.nonzero(np.logical_and(img_flat, ~label_flat))[0]
     else:
-        bg_indicies = np.nonzero(~label_flat)[0]
+        bg_indices = np.nonzero(~label_flat)[0]
 
-    if not len(fg_indicies) or not len(bg_indicies):
-        if not len(fg_indicies) and not len(bg_indicies):
+    if not len(fg_indices) or not len(bg_indices):
+        if not len(fg_indices) and not len(bg_indices):
             raise ValueError('no sampling location available.')
         warnings.warn('N foreground {}, N  background {}, unable to generate class balanced samples.'.format(
-            len(fg_indicies), len(bg_indicies)))
-        pos_ratio = 0 if not len(fg_indicies) else 1
+            len(fg_indices), len(bg_indices)))
+        pos_ratio = 0 if not len(fg_indices) else 1
 
     centers = []
     for _ in range(num_samples):
-        indicies_to_use = fg_indicies if rand_state.rand() < pos_ratio else bg_indicies
-        random_int = rand_state.randint(len(indicies_to_use))
-        center = np.unravel_index(indicies_to_use[random_int], label.shape)
+        indices_to_use = fg_indices if rand_state.rand() < pos_ratio else bg_indices
+        random_int = rand_state.randint(len(indices_to_use))
+        center = np.unravel_index(indices_to_use[random_int], label.shape)
         center = center[1:]
         # shift center to range of valid centers
         center_ori = [c for c in center]

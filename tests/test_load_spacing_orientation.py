@@ -45,22 +45,27 @@ class TestLoadSpacingOrientation(unittest.TestCase):
         data_dict = LoadNiftid(keys='image')(data)
         data_dict = AddChanneld(keys='image')(data_dict)
         affine = data_dict['image.affine']
-        data_dict['image.affine'] = \
+        data_dict['image.original_affine'] = data_dict['image.affine'] = \
             np.array([[0, 0, 1, 0], [0, 1, 0, 0], [-1, 0, 0, 0], [0, 0, 0, 1]]) @ affine
         res_dict = Spacingd(keys='image', pixdim=(1, 2, 3), diagonal=True, mode='constant')(data_dict)
         np.testing.assert_allclose(data_dict['image.affine'], res_dict['image.original_affine'])
         anat = nibabel.Nifti1Image(data_dict['image'][0], data_dict['image.affine'])
         ref = resample_to_output(anat, (1, 2, 3))
         np.testing.assert_allclose(res_dict['image.affine'], ref.affine)
-        np.testing.assert_allclose(res_dict['image'].shape[1:], ref.shape)
-        np.testing.assert_allclose(ref.get_fdata(), res_dict['image'][0])
+        if 'anatomical' not in filename:
+            np.testing.assert_allclose(res_dict['image'].shape[1:], ref.shape)
+            np.testing.assert_allclose(ref.get_fdata(), res_dict['image'][0])
+        else:
+            # different from the ref implementation (shape computed by round
+            # instead of ceil)
+            np.testing.assert_allclose(ref.get_fdata()[..., :-1], res_dict['image'][0])
 
     def test_load_spacingd_non_diag(self):
         data = {'image': FILES[1]}
         data_dict = LoadNiftid(keys='image')(data)
         data_dict = AddChanneld(keys='image')(data_dict)
         affine = data_dict['image.affine']
-        data_dict['image.affine'] = \
+        data_dict['image.original_affine'] = data_dict['image.affine'] = \
             np.array([[0, 0, 1, 0], [0, 1, 0, 0], [-1, 0, 0, 0], [0, 0, 0, 1]]) @ affine
         res_dict = Spacingd(keys='image', pixdim=(1, 2, 3), diagonal=False, mode='constant')(data_dict)
         np.testing.assert_allclose(data_dict['image.affine'], res_dict['image.original_affine'])
@@ -94,7 +99,7 @@ class TestLoadSpacingOrientation(unittest.TestCase):
         data_dict = LoadNiftid(keys='image')(data)
         data_dict = AddChanneld(keys='image')(data_dict)
         affine = data_dict['image.affine']
-        data_dict['image.affine'] = \
+        data_dict['image.original_affine'] = data_dict['image.affine'] = \
             np.array([[0, 0, 1, 0], [0, 1, 0, 0], [-1, 0, 0, 0], [0, 0, 0, 1]]) @ affine
         res_dict = Spacingd(keys='image', pixdim=(1, 2, 3), diagonal=False, mode='constant')(data_dict)
         res_dict = Orientationd(keys='image', axcodes='LPI')(res_dict)

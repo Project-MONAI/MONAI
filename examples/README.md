@@ -44,9 +44,9 @@ This notebook demonstrates the image transformations on histology images using
 This notebook is an end-to-end training & evaluation example of 3D segmentation based on synthetic dataset.
 The example is a PyTorch Ignite program and shows several key features of MONAI,
 especially with medical domain specific transforms and event handlers.
-#### [segmentation_3d](./examples/segmentation_3d)
+#### [segmentation_3d](./segmentation_3d)
 Training and evaluation examples of 3D segmentation based on UNet3D and synthetic dataset.
 The examples are standard PyTorch programs and have both dictionary-based and array-based versions.
-#### [segmentation_3d_ignite](./examples/segmentation_3d_ignite)
+#### [segmentation_3d_ignite](./segmentation_3d_ignite)
 Training and evaluation examples of 3D segmentation based on UNet3D and synthetic dataset.
 The examples are PyTorch Ignite programs and have both dictionary-base and array-based transformations.
