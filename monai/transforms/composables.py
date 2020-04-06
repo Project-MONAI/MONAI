@@ -23,7 +23,8 @@ from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.transforms import (AddChannel, AsChannelFirst, Flip, LoadNifti, NormalizeIntensity, Orientation,
                                          Rand2DElastic, Rand3DElastic, RandAffine, Rescale, Resize, Rotate, Rotate90,
-                                         ScaleIntensityRange, Spacing, SpatialCrop, Zoom, ToTensor, LoadPNG)
+                                         ScaleIntensityRange, Spacing, SpatialCrop, Zoom, ToTensor, LoadPNG,
+                                         AsChannelLast, ThresholdIntensity)
 from monai.transforms.utils import (create_grid, generate_pos_neg_label_crop_centers)
 from monai.utils.misc import ensure_tuple
 
@@ -242,6 +243,28 @@ class AsChannelFirstd(MapTransform):
         return d
 
 
+class AsChannelLastd(MapTransform):
+    """
+    dictionary-based wrapper of AsChannelLast.
+    """
+
+    def __init__(self, keys, channel_dim=0):
+        """
+        Args:
+            keys (hashable items): keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            channel_dim (int): which dimension of input image is the channel, default is the first dimension.
+        """
+        MapTransform.__init__(self, keys)
+        self.converter = AsChannelLast(channel_dim=channel_dim)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.converter(d[key])
+        return d
+
+
 class AddChanneld(MapTransform):
     """
     dictionary-based wrapper of AddChannel.
@@ -449,6 +472,29 @@ class NormalizeIntensityd(MapTransform):
         d = dict(data)
         for key in self.keys:
             d[key] = self.normalizer(d[key])
+        return d
+
+
+class ThresholdIntensityd(MapTransform):
+    """
+    dictionary-based wrapper of ThresholdIntensity.
+
+    Args:
+        keys (hashable items): keys of the corresponding items to be transformed.
+            See also: monai.transform.composables.MapTransform
+        threshold (float or int): the threshold to filter intensity values.
+        above (bool): filter values above the threshold or below the threshold, default is True.
+        cval (float or int): valuat to fill the remaining parts of the image, default is 0.
+    """
+
+    def __init__(self, keys, threshold, above=True, cval=0):
+        MapTransform.__init__(self, keys)
+        self.filter = ThresholdIntensity(threshold, above, cval)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.filter(d[key])
         return d
 
 
