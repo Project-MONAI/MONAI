@@ -75,6 +75,12 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
+`AsChannelLast`
+~~~~~~~~~~~~~~~~
+.. autoclass:: AsChannelLast
+    :members:
+    :special-members: __call__
+
 `AddChannel`
 ~~~~~~~~~~~~
 .. autoclass:: AddChannel
@@ -138,6 +144,12 @@ Vanilla Transforms
 `NormalizeIntensity`
 ~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: NormalizeIntensity
+    :members:
+    :special-members: __call__
+
+`ThresholdIntensity`
+~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: ThresholdIntensity
     :members:
     :special-members: __call__
 
@@ -268,6 +280,12 @@ Dictionary-based Composables
     :members:
     :special-members: __call__
 
+`AsChannelLastd`
+~~~~~~~~~~~~~~~~~
+.. autoclass:: AsChannelLastd
+    :members:
+    :special-members: __call__
+
 `AddChanneld`
 ~~~~~~~~~~~~~
 .. autoclass:: AddChanneld
@@ -301,6 +319,12 @@ Dictionary-based Composables
 `NormalizeIntensityd`
 ~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: NormalizeIntensityd
+    :members:
+    :special-members: __call__
+
+`ThresholdIntensityd`
+~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: ThresholdIntensityd
     :members:
     :special-members: __call__
 
