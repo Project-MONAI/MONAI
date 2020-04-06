@@ -24,14 +24,14 @@ class NiftiSaver:
     """
 
     def __init__(self, output_dir='./', output_postfix='seg', output_ext='.nii.gz',
-                 resample=True, interp_order=3, mode='constant', cval=0, dtype=None):
+                 resample=True, interp_order=0, mode='constant', cval=0, dtype=None):
         """
         Args:
             output_dir (str): output image directory.
             output_postfix (str): a string appended to all output file names.
             output_ext (str): output file extension name.
             resample (bool): whether to resample before saving the data array.
-            interp_order (int): the order of the spline interpolation, default is 3.
+            interp_order (int): the order of the spline interpolation, default is 0.
                 The order has to be in the range 0 - 5.
                 https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.affine_transform.html
                 this option is used when `resample = True`.
@@ -99,13 +99,13 @@ class NiftiSaver:
             - ``'filename_or_obj'`` -- for output file name creation, corresponding to filename or object.
             - ``'original_affine'`` -- for data orientation handling, defaulting to an identity matrix.
             - ``'affine'`` -- for data output affine, defaulting to an identity matrix.
-            - ``'spatial_shape'`` (optional) for data output shape.
+            - ``'spatial_shape'`` -- for data output shape.
 
         If meta_data is None, use the default index from 0 to save data instead.
 
         args:
-            data (Tensor or ndarray): target data content that save into Nifti format file.
-                Assuming the data shape starts with spatial dimensions, and followed by time steps or channels.
+            data (Tensor or ndarray): target data content that to be saved as a NIfTI format file.
+                Assuming the data shape starts with a channel dimension and followed by spatial dimensions.
             meta_data (dict): the meta data information corresponding to the data.
 
         See Also
@@ -131,8 +131,8 @@ class NiftiSaver:
         """Save a batch of data into Nifti format files.
 
         args:
-            batch_data (Tensor or ndarray): target batch data content that save into Nifti format files.
-            meta_data (dict): every key-value in the meta_data is corresponding to 1 batch of data.
+            batch_data (Tensor or ndarray): target batch data content that save into NIfTI format.
+            meta_data (dict): every key-value in the meta_data is corresponding to a batch of data.
         """
         for i, data in enumerate(batch_data):  # save a batch of files
             self.save(data, {k: meta_data[k][i] for k in meta_data} if meta_data else None)

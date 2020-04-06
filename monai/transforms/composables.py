@@ -84,7 +84,7 @@ class Spacingd(MapTransform):
             # resample array of each corresponding key
             # using affine fetched from d[affine_key]
             d[key], _, new_affine = self.spacing_transform(
-                data_array=d[key], original_affine=d[affine_key], interp_order=interp)
+                data_array=d[key], affine=d[affine_key], interp_order=interp)
             # set the 'affine' key
             d[affine_key] = new_affine
         return d
@@ -128,7 +128,7 @@ class Orientationd(MapTransform):
         d = dict(data)
         for key in self.keys:
             affine_key = self.meta_key_format.format(key, 'affine')
-            d[key], _, new_affine = self.ornt_transform(d[key], original_affine=d[affine_key])
+            d[key], _, new_affine = self.ornt_transform(d[key], affine=d[affine_key])
             d[affine_key] = new_affine
         return d
 

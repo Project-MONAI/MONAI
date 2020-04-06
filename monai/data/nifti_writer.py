@@ -46,11 +46,13 @@ def write_nifti(data,
     when `affine` and `target_affine` are None, the data will be saved with an
     identity matrix as the image affine.
 
-    This function assumes the NIfTI dimension notations, that is, the first 3
-    dimensions are spatial dimensions. When saving multiple time steps or
-    multiple channels, time and/or modality axes should be appended after the
-    first three dimensions.
-
+    This function assumes the NIfTI dimension notations.
+    Spatially It supports up to three dimensions, that is, H, HW, HWD for
+    1D, 2D, 3D respectively.
+    When saving multiple time steps or multiple channels `data`, time and/or
+    modality axes should be appended after the first three dimensions.  For
+    example, shape of 2D eight-class segmentation probabilities to be saved
+    could be `(64, 64, 1, 8)`,
 
     Args:
         data (numpy.ndarray): input data to write to file.
