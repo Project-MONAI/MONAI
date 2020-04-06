@@ -71,7 +71,7 @@ def create_multigpu_supervised_trainer(net, optimizer, loss_fn, devices=None, no
         Engine: a trainer engine with supervised update function.
 
     Note:
-        `engine.state.output` for this engine is defind by `output_transform` parameter and is the loss
+        `engine.state.output` for this engine is defined by `output_transform` parameter and is the loss
         of the processed batch by default.
     """
 
@@ -104,7 +104,7 @@ def create_multigpu_supervised_evaluator(net, metrics=None, devices=None, non_bl
             output expected by metrics. If you change it you should use `output_transform` in metrics.
 
     Note:
-        `engine.state.output` for this engine is defind by `output_transform` parameter and is
+        `engine.state.output` for this engine is defined by `output_transform` parameter and is
         a tuple of `(batch_pred, batch_y)` by default.
 
     Returns:
