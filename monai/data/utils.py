@@ -264,7 +264,7 @@ def zoom_affine(affine, scale, diagonal=True):
     Args:
         affine (nxn matrix): a square matrix.
         scale (sequence of floats): new scaling factor along each dimension.
-        diagnonal (bool): whether to return a diagnoal scaling matrix.
+        diagonal (bool): whether to return a diagonal scaling matrix.
             Defaults to True.
 
     returns:
@@ -335,7 +335,7 @@ def to_affine_nd(r, affine):
     `k` is determined by `min(r, len(affine) - 1)`.
 
     when ``r`` is an affine matrix, the output has the same as ``r``,
-    the top left kxk elments are  copied from ``affine``,
+    the top left kxk elements are  copied from ``affine``,
     the last column of the output affine is copied from ``affine``'s last column.
     `k` is determined by `min(len(r) - 1, len(affine) - 1)`.
 
@@ -353,7 +353,7 @@ def to_affine_nd(r, affine):
     if new_affine.ndim == 0:
         sr = new_affine.astype(int)
         if not np.isfinite(sr) or sr < 0:
-            raise ValueError('r must be postive.')
+            raise ValueError('r must be positive.')
         new_affine = np.eye(sr + 1, dtype=np.float64)
     d = max(min(len(new_affine) - 1, len(affine) - 1), 1)
     new_affine[:d, :d] = affine[:d, :d]

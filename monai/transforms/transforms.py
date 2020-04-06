@@ -66,7 +66,7 @@ class Spacing:
         """
         Args:
             data_array (ndarray): in shape (num_channels, H[, W, ...]).
-            affine (4x4 matrix): original affine. Defaults to "eye(4)".
+            affine (matrix): (N+1)x(N+1) original affine matrix for spatially ND `data_array`. Defaults to identity.
             interp_order (int): The order of the spline interpolation, default is 3.
                 The order has to be in the range 0-5.
                 https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.zoom.html
@@ -141,7 +141,7 @@ class Orientation:
 
         Args:
             data_array (ndarray): in shape (num_channels, H[, W, ...]).
-            affine (4x4 matrix): original affine.
+            affine (matrix): (N+1)x(N+1) original affine matrix for spatially ND `data_array`. Defaults to identity.
         Returns:
             data_array (reoriented in `self.axcodes`), original axcodes, current axcodes.
         """
