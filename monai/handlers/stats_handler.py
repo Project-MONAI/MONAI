@@ -26,7 +26,7 @@ class StatsHandler(object):
 
     Default behaviors:
         - When EPOCH_COMPLETED, logs ``engine.state.metrics`` using ``self.logger``.
-        - When ITERATION_COMPELTED, logs
+        - When ITERATION_COMPLETED, logs
           ``self.output_transform(engine.state.output)`` using ``self.logger``.
 
     """
@@ -44,11 +44,11 @@ class StatsHandler(object):
         Args:
             epoch_print_logger (Callable): customized callable printer for epoch level logging.
                 must accept parameter "engine", use default printer if None.
-            iteration_print_logger (Callable): custimized callable printer for iteration level logging.
+            iteration_print_logger (Callable): customized callable printer for iteration level logging.
                 must accept parameter "engine", use default printer if None.
             output_transform (Callable): a callable that is used to transform the
                 ``ignite.engine.output`` into a scalar to print, or a dictionary of {key: scalar}.
-                in the latter case, the output string will be formated as key: value.
+                in the latter case, the output string will be formatted as key: value.
                 by default this value logging happens when every iteration completed.
             global_epoch_transform (Callable): a callable that is used to customize global epoch number.
                 For example, in evaluation, the evaluator engine might want to print synced epoch number
@@ -116,7 +116,7 @@ class StatsHandler(object):
 
         Args:
             engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.
-            e (Exception): the exception catched in Ignite during engine.run().
+            e (Exception): the exception caught in Ignite during engine.run().
 
         """
         self.logger.exception('Exception: {}'.format(e))
@@ -146,7 +146,7 @@ class StatsHandler(object):
     def _default_iteration_print(self, engine: Engine):
         """Execute iteration log operation based on Ignite engine.state data.
         Print the values from ignite state.logs dict.
-        Default behaivor is to print loss from output[1], skip if output[1] is not loss.
+        Default behavior is to print loss from output[1], skip if output[1] is not loss.
 
         Args:
             engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.

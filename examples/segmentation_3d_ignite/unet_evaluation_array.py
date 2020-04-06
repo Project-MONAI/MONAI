@@ -87,17 +87,17 @@ val_stats_handler = StatsHandler(
 )
 val_stats_handler.attach(evaluator)
 
-# for the arrary data format, assume the 3rd item of batch data is the meta_data
+# for the array data format, assume the 3rd item of batch data is the meta_data
 file_saver = SegmentationSaver(
     output_dir='tempdir', output_ext='.nii.gz', output_postfix='seg', name='evaluator',
     batch_transform=lambda x: x[2], output_transform=lambda output: predict_segmentation(output[0]))
 file_saver.attach(evaluator)
 
-# the model was trained by "unet_training_array" exmple
+# the model was trained by "unet_training_array" example
 ckpt_saver = CheckpointLoader(load_path='./runs/net_checkpoint_50.pth', load_dict={'net': net})
 ckpt_saver.attach(evaluator)
 
-# sliding window inferene need to input 1 image in every iteration
+# sliding window inference for one image at every iteration
 loader = DataLoader(ds, batch_size=1, num_workers=1, pin_memory=torch.cuda.is_available())
 state = evaluator.run(loader)
 shutil.rmtree(tempdir)

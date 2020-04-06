@@ -42,7 +42,7 @@ class CSVSaver:
 
     def finalize(self):
         """
-        Writes the cahced dict to a csv
+        Writes the cached dict to a csv
 
         """
         if not self.overwrite and os.path.exists(self._filepath):
@@ -63,7 +63,7 @@ class CSVSaver:
     def save(self, data, meta_data=None):
         """Save data into the cache dictionary. The metadata should have the following key:
             - ``'filename_or_obj'`` -- save the data corresponding to file name or object.
-        If meta_data is None, use the detault index from 0 to save data instead.
+        If meta_data is None, use the default index from 0 to save data instead.
 
         args:
             data (Tensor or ndarray): target data content that save into cache.

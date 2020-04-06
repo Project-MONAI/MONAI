@@ -62,11 +62,11 @@ class Spacing:
         self.cval = cval
         self.dtype = dtype
 
-    def __call__(self, data_array, original_affine=None, interp_order=3):
+    def __call__(self, data_array, affine=None, interp_order=3):
         """
         Args:
             data_array (ndarray): in shape (num_channels, H[, W, ...]).
-            original_affine (4x4 matrix): original affine. Defaults to "eye(4)".
+            affine (matrix): (N+1)x(N+1) original affine matrix for spatially ND `data_array`. Defaults to identity.
             interp_order (int): The order of the spline interpolation, default is 3.
                 The order has to be in the range 0-5.
                 https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.zoom.html
@@ -76,22 +76,22 @@ class Spacing:
         sr = data_array.ndim - 1
         if sr <= 0:
             raise ValueError('the array should have at least one spatial dimension.')
-        if original_affine is None:
+        if affine is None:
             # default to identity
-            original_affine = np.eye(sr + 1, dtype=np.float64)
             affine = np.eye(sr + 1, dtype=np.float64)
+            affine_ = np.eye(sr + 1, dtype=np.float64)
         else:
-            affine = to_affine_nd(sr, original_affine)
+            affine_ = to_affine_nd(sr, affine)
         out_d = self.pixdim[:sr]
         if out_d.size < sr:
             out_d = np.append(out_d, [1.] * (out_d.size - sr))
         if np.any(out_d <= 0):
             raise ValueError('pixdim must be positive, got {}'.format(out_d))
         # compute output affine, shape and offset
-        new_affine = zoom_affine(affine, out_d, diagonal=self.diagonal)
-        output_shape, offset = compute_shape_offset(data_array.shape[1:], affine, new_affine)
+        new_affine = zoom_affine(affine_, out_d, diagonal=self.diagonal)
+        output_shape, offset = compute_shape_offset(data_array.shape[1:], affine_, new_affine)
         new_affine[:sr, -1] = offset[:sr]
-        transform = np.linalg.inv(affine) @ new_affine
+        transform = np.linalg.inv(affine_) @ new_affine
         # adapt to the actual rank
         transform_ = to_affine_nd(sr, transform)
         # resample
@@ -103,8 +103,8 @@ class Spacing:
                 order=interp_order, mode=self.mode, cval=self.cval)
             output_data.append(data_)
         output_data = np.stack(output_data)
-        new_affine = to_affine_nd(original_affine, new_affine)
-        return output_data, original_affine, new_affine
+        new_affine = to_affine_nd(affine, new_affine)
+        return output_data, affine, new_affine
 
 
 class Orientation:
@@ -135,25 +135,25 @@ class Orientation:
         self.as_closest_canonical = as_closest_canonical
         self.labels = labels
 
-    def __call__(self, data_array, original_affine=None):
+    def __call__(self, data_array, affine=None):
         """
-        original orientation of `data_array` is defined by `original_affine`.
+        original orientation of `data_array` is defined by `affine`.
 
         Args:
             data_array (ndarray): in shape (num_channels, H[, W, ...]).
-            original_affine (4x4 matrix): original affine.
+            affine (matrix): (N+1)x(N+1) original affine matrix for spatially ND `data_array`. Defaults to identity.
         Returns:
             data_array (reoriented in `self.axcodes`), original axcodes, current axcodes.
         """
         sr = data_array.ndim - 1
         if sr <= 0:
             raise ValueError('the array should have at least one spatial dimension.')
-        if original_affine is None:
-            original_affine = np.eye(sr + 1, dtype=np.float64)
+        if affine is None:
             affine = np.eye(sr + 1, dtype=np.float64)
+            affine_ = np.eye(sr + 1, dtype=np.float64)
         else:
-            affine = to_affine_nd(sr, original_affine)
-        src = nib.io_orientation(affine)
+            affine_ = to_affine_nd(sr, affine)
+        src = nib.io_orientation(affine_)
         if self.as_closest_canonical:
             spatial_ornt = src
         else:
@@ -167,9 +167,9 @@ class Orientation:
         ornt = np.concatenate([np.array([[0, 1]]), ornt])
         shape = data_array.shape[1:]
         data_array = nib.orientations.apply_orientation(data_array, ornt)
-        new_affine = affine @ nib.orientations.inv_ornt_aff(spatial_ornt, shape)
-        new_affine = to_affine_nd(original_affine, new_affine)
-        return data_array, original_affine, new_affine
+        new_affine = affine_ @ nib.orientations.inv_ornt_aff(spatial_ornt, shape)
+        new_affine = to_affine_nd(affine, new_affine)
+        return data_array, affine, new_affine
 
 
 class LoadNifti:
@@ -194,8 +194,7 @@ class LoadNifti:
             if a dictionary header is returned:
 
             - header['affine'] stores the affine of the image.
-            - header['original_affine'] will be additionally created to store the original affine,
-              if the current affine is different from that loaded from `filename_or_obj`.
+            - header['original_affine'] will be additionally created to store the original affine.
         """
         self.as_closest_canonical = as_closest_canonical
         self.image_only = image_only
@@ -215,10 +214,13 @@ class LoadNifti:
             header = dict(img.header)
             header['filename_or_obj'] = name
             header['affine'] = img.affine
+            header['original_affine'] = img.affine.copy()
             header['as_closest_canonical'] = self.as_closest_canonical
+            ndim = img.header['dim'][0]
+            spatial_rank = min(ndim, 3)
+            header['spatial_shape'] = img.header['dim'][1:spatial_rank + 1]
 
             if self.as_closest_canonical:
-                header['original_affine'] = img.affine
                 img = nib.as_closest_canonical(img)
                 header['affine'] = img.affine
 

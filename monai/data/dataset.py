@@ -28,7 +28,7 @@ class Dataset(torch.utils.data.Dataset):
         """
         Args:
             data (Iterable): input data to load and transform to generate dataset for model.
-            transform (Callable, optional): transforms to excute operations on input data.
+            transform (Callable, optional): transforms to execute operations on input data.
         """
         self.data = data
         self.transform = transform

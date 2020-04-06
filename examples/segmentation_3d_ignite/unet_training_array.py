@@ -71,7 +71,7 @@ val_segtrans = Compose([
     ToTensor()
 ])
 
-# define nifti dataset, dataloader
+# define nifti dataset, data loader
 check_ds = NiftiDataset(images, segs, transform=train_imtrans, seg_transform=train_segtrans)
 check_loader = DataLoader(check_ds, batch_size=10, num_workers=2, pin_memory=torch.cuda.is_available())
 im, seg = monai.utils.misc.first(check_loader)

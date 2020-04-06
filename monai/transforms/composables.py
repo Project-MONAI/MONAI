@@ -32,16 +32,11 @@ class Spacingd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.transforms.Spacing`.
 
-    This transform assumes the ``data`` dictionary has a field for the input
-    data's affine.  The field is created by either ``meta_key_format.format(key,
-    'affine')`` or ``meta_key_format.format(key, 'original_affine')``.
+    This transform assumes the ``data`` dictionary has a key for the input
+    data's affine.  The key is formed by ``meta_key_format.format(key, 'affine')``.
 
-    After resampling the input array, this transform will write the affine
-    after resampling to the field ``meta_key_format.format(key, 'affine')``,
-    at the same time, if ``meta_key_format.format(key, 'original_affine')`` doesn't exist,
-    the field will be created and set to the affine before resampling.
-
-    if no affine is specified in the input data, defauting to "eye(4)".
+    After resampling the input array, this transform will write the new affine
+     to the key formed by ``meta_key_format.format(key, 'affine')``.
 
     see also:
         :py:class:`monai.transforms.transforms.Spacing`
@@ -86,17 +81,10 @@ class Spacingd(MapTransform):
         d = dict(data)
         for key, interp in zip(self.keys, self.interp_order):
             affine_key = self.meta_key_format.format(key, 'affine')
-            original_key = self.meta_key_format.format(key, 'original_affine')
-            affine = d.get(affine_key, None)
-            if affine is None:
-                affine = d.get(original_key, None)
             # resample array of each corresponding key
             # using affine fetched from d[affine_key]
-            d[key], affine_, new_affine = self.spacing_transform(
-                data_array=d[key], original_affine=affine, interp_order=interp)
-            if d.get(original_key, None) is None:
-                # set the 'original_affine' field
-                d[original_key] = affine_
+            d[key], _, new_affine = self.spacing_transform(
+                data_array=d[key], affine=d[affine_key], interp_order=interp)
             # set the 'affine' key
             d[affine_key] = new_affine
         return d
@@ -106,14 +94,11 @@ class Orientationd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.transforms.Orientation`.
 
-    This transform assumes the ``data`` dictionary has a field for the input
-    data's affine.  The field is created by either ``meta_key_format.format(key,
-    'affine')`` or ``meta_key_format.format(key, 'original_affine')``.
+    This transform assumes the ``data`` dictionary has a key for the input
+    data's affine.  The key is formed by ``meta_key_format.format(key, 'affine')``.
 
-    After reorientate the input array, this transform will store the current
-    affine in the ``data`` dictionary,
-    at the same time, if ``meta_key_format.format(key, 'original_affine')`` doesn't exist,
-    the field will be created and set to the affine before resampling.
+    After reorientate the input array, this transform will write the new affine
+     to the key formed by ``meta_key_format.format(key, 'affine')``.
     """
 
     def __init__(self, keys, axcodes=None, as_closest_canonical=False,
@@ -143,14 +128,7 @@ class Orientationd(MapTransform):
         d = dict(data)
         for key in self.keys:
             affine_key = self.meta_key_format.format(key, 'affine')
-            original_key = self.meta_key_format.format(key, 'original_affine')
-
-            affine = d.get(affine_key, None)
-            if affine is None:
-                affine = d.get(original_key, None)
-            d[key], affine_, new_affine = self.ornt_transform(d[key], affine)
-            if d.get(original_key, None) is None:
-                d[original_key] = affine_
+            d[key], _, new_affine = self.ornt_transform(d[key], affine=d[affine_key])
             d[affine_key] = new_affine
         return d
 
