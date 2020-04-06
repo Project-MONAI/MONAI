@@ -35,7 +35,7 @@ def alias(*names):
                 GlobalAliases[n] = obj
 
         # set the member list __aliases__ to contain the alias names defined by the decorator for `obj`
-        setattr(obj, '__aliases__', getattr(obj, '__aliases__', ()) + tuple(names))
+        obj.__aliases__ = getattr(obj, '__aliases__', ()) + tuple(names)
 
         return obj
 
