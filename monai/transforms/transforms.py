@@ -281,13 +281,12 @@ class AsChannelFirst:
     Change the channel dimension of the image to the first dimension.
 
     Most of the image transformations in ``monai.transforms``
-    assumes the input image is in the channel-first format, which has the shape
+    assume the input image is in the channel-first format, which has the shape
     (num_channels, spatial_dim_1[, spatial_dim_2, ...]).
 
     This transform could be used to convert, for example, a channel-last image array in shape
     (spatial_dim_1[, spatial_dim_2, ...], num_channels) into the channel-first format,
-    so that the multidimensional image array can be correctly interpreted by the other
-    transforms.
+    so that the multidimensional image array can be correctly interpreted by the other transforms.
 
     Args:
         channel_dim (int): which dimension of input image is the channel, default is the last dimension.
@@ -299,6 +298,29 @@ class AsChannelFirst:
 
     def __call__(self, img):
         return np.moveaxis(img, self.channel_dim, 0)
+
+
+class AsChannelLast:
+    """
+    Change the channel dimension of the image to the last dimension.
+
+    Some of other 3rd party transforms assume the input image is in the channel-last format with shape
+    (spatial_dim_1[, spatial_dim_2, ...], num_channels).
+
+    This transform could be used to convert, for example, a channel-first image array in shape
+    (num_channels, spatial_dim_1[, spatial_dim_2, ...]) into the channel-last format,
+    so that MONAI transforms can construct a chain with other 3rd party transforms together.
+
+    Args:
+        channel_dim (int): which dimension of input image is the channel, default is the first dimension.
+    """
+
+    def __init__(self, channel_dim=0):
+        assert isinstance(channel_dim, int) and channel_dim >= -1, 'invalid channel dimension.'
+        self.channel_dim = channel_dim
+
+    def __call__(self, img):
+        return np.moveaxis(img, self.channel_dim, -1)
 
 
 class AddChannel:
@@ -603,8 +625,8 @@ class NormalizeIntensity:
     divisor, otherwise the shape can have dimension 1 for channels).
 
     Args:
-        subtrahend (ndarray): the amount to subtract by (usually the mean)
-        divisor (ndarray): the amount to divide by (usually the standard deviation)
+        subtrahend (ndarray): the amount to subtract by (usually the mean).
+        divisor (ndarray): the amount to divide by (usually the standard deviation).
     """
 
     def __init__(self, subtrahend=None, divisor=None):
@@ -623,6 +645,26 @@ class NormalizeIntensity:
             img /= np.std(img)
 
         return img
+
+
+class ThresholdIntensity:
+    """Filter the intensity values of whole image to below threshold or above threshold.
+    And fill the remaining parts of the image to the `cval` value.
+
+    Args:
+        threshold (float or int): the threshold to filter intensity values.
+        above (bool): filter values above the threshold or below the threshold, default is True.
+        cval (float or int): valuat to fill the remaining parts of the image, default is 0.
+    """
+
+    def __init__(self, threshold, above=True, cval=0):
+        assert isinstance(threshold, (float, int)), 'must set the threshold to filter intensity.'
+        self.threshold = threshold
+        self.above = above
+        self.cval = cval
+
+    def __call__(self, img):
+        return np.where(img > self.threshold if self.above else img < self.threshold, img, self.cval)
 
 
 class ScaleIntensityRange:
