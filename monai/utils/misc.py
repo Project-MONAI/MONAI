@@ -72,7 +72,7 @@ def process_bar(index, count, bar_len=30, newline=False):
         bar_len(int): the total length of the bar on screen, default is 30 char.
         newline (bool): whether to print in a new line for every index.
     """
-    end = '\r' if newline is False else '\n\r'
+    end = '\r' if newline is False else '\r\n'
     filled_len = int(bar_len * index // count)
     bar = '[' + '=' * filled_len + ' ' * (bar_len - filled_len) + ']'
     print("{}/{} {:s}  ".format(index, count, bar), end=end)
