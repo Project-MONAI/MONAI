@@ -26,7 +26,7 @@ MONAI aims at providing a rich set of popular medical image specific transformat
 - `LoadNifti`:  Load Nifti format file from provided path
 - `Spacing`:  Resample input image into the specified `pixdim`
 - `Orientation`: Change image's orientation into the specified `axcodes`
-- `GaussianNoise`: Pertubate image intensities by adding statistical noises
+- `RandGaussianNoise`: Pertubate image intensities by adding statistical noises
 - `IntensityNormalizer`: Intensity Normalization based on mean and standard deviation
 - `Affine`: Transform image based on the affine parameters
 - `Rand2DElastic`: Random elastic deformation and affine in 2D

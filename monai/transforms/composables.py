@@ -24,7 +24,7 @@ from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.transforms import (AddChannel, AsChannelFirst, Flip, LoadNifti, NormalizeIntensity, Orientation,
                                          Rand2DElastic, Rand3DElastic, RandAffine, Rescale, Resize, Rotate, Rotate90,
                                          ScaleIntensityRange, Spacing, SpatialCrop, Zoom, ToTensor, LoadPNG,
-                                         AsChannelLast, ThresholdIntensity)
+                                         AsChannelLast, ThresholdIntensity, AdjustContrast, RandAdjustContrast)
 from monai.transforms.utils import (create_grid, generate_pos_neg_label_crop_centers)
 from monai.utils.misc import ensure_tuple
 
@@ -359,11 +359,42 @@ class Resized(MapTransform):
         return d
 
 
+class RandGaussianNoised(Randomizable, MapTransform):
+    """Add gaussian noise to image.
+
+    Args:
+        keys (hashable items): keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        mean (float or array of floats): Mean or “centre” of the distribution.
+        std (float): Standard deviation (spread) of distribution.
+    """
+
+    def __init__(self, keys, mean=0.0, std=0.1):
+        MapTransform.__init__(self, keys)
+        self.mean = mean
+        self.std = std
+        self._noise = None
+
+    def randomize(self, im_shape):
+        self._noise = self.R.normal(self.mean, self.R.uniform(0, self.std), size=im_shape)
+
+    def __call__(self, data):
+        d = dict(data)
+
+        image_shape = d[self.keys[0]].shape  # image shape from the first data key
+        self.randomize(image_shape)
+        for key in self.keys:
+            d[key] = d[key] + self._noise
+        return d
+
+
 class RandUniformPatchd(Randomizable, MapTransform):
     """
     Selects a patch of the given size chosen at a uniformly random position in the image.
 
     Args:
+        keys (hashable items): keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
         patch_spatial_size (tuple or list): Expected patch size of spatial dimensions.
     """
 
@@ -498,6 +529,52 @@ class ScaleIntensityRanged(MapTransform):
         d = dict(data)
         for key in self.keys:
             d[key] = self.scaler(d[key])
+        return d
+
+
+class AdjustContrastd(MapTransform):
+    """
+    dictionary-based wrapper of AdjustContrast.
+    Changes image intensity by gamma. Each pixel/voxel intensity is updated as:
+        `x = ((x - min) / intensity_range) ^ gamma * intensity_range + min`
+
+    Args:
+        gamma (float): gamma value to adjust the contrast as function.
+    """
+
+    def __init__(self, keys, gamma):
+        MapTransform.__init__(self, keys)
+        self.adjuster = AdjustContrast(gamma)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.adjuster(d[key])
+        return d
+
+
+class RandAdjustContrastd(Randomizable, MapTransform):
+    """
+    dictionary-based wrapper of RandAdjustContrast.
+    Randomly changes image intensity by gamma. Each pixel/voxel intensity is updated as:
+        `x = ((x - min) / intensity_range) ^ gamma * intensity_range + min`
+
+    Args:
+        keys (hashable items): keys of the corresponding items to be transformed.
+            See also: monai.transform.composables.MapTransform
+        prob (float): Probability of adjustment.
+        gamma (tuple of float or float): Range of gamma values.
+            If single number, value is picked from (0.5, gamma), default is (0.5, 4.5).
+    """
+
+    def __init__(self, keys, prob=0.1, gamma=(0.5, 4.5)):
+        MapTransform.__init__(self, keys)
+        self.adjuster = RandAdjustContrast(prob, gamma)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.adjuster(d[key])
         return d
 
 
@@ -1029,11 +1106,14 @@ ToTensorD = ToTensorDict = ToTensord
 Rotate90D = Rotate90Dict = Rotate90d
 RescaleD = RescaleDict = Rescaled
 ResizeD = ResizeDict = Resized
+RandGaussianNoiseD = RandGaussianNoiseDict = RandGaussianNoised
 RandUniformPatchD = RandUniformPatchDict = RandUniformPatchd
 RandRotate90D = RandRotate90Dict = RandRotate90d
 NormalizeIntensityD = NormalizeIntensityDict = NormalizeIntensityd
 ThresholdIntensityD = ThresholdIntensityDict = ThresholdIntensityd
 ScaleIntensityRangeD = ScaleIntensityRangeDict = ScaleIntensityRanged
+AdjustContrastD = AdjustContrastDict = AdjustContrastd
+RandAdjustContrastD = RandAdjustContrastDict = RandAdjustContrastd
 RandCropByPosNegLabelD = RandCropByPosNegLabelDict = RandCropByPosNegLabeld
 RandAffineD = RandAffineDict = RandAffined
 Rand2DElasticD = Rand2DElasticDict = Rand2DElasticd
