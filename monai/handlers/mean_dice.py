@@ -48,7 +48,7 @@ class MeanDice(Metric):
             device (torch.device): device specification in case of distributed computation usage.
 
         See also:
-            monai.metrics.compute_meandice.compute_meandice
+            :py:meth:`monai.metrics.meandice.compute_meandice`
         """
         super(MeanDice, self).__init__(output_transform, device=device)
         self.include_background = include_background

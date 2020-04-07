@@ -64,7 +64,7 @@ val_transforms = Compose([
     ToTensord(keys=['img', 'seg'])
 ])
 
-# define dataset, dataloader
+# define dataset, data loader
 check_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
 # use batch_size=2 to load images and use RandCropByPosNegLabeld to generate 2 x 4 images for network training
 check_loader = DataLoader(check_ds, batch_size=2, num_workers=4, collate_fn=list_data_collate,

@@ -47,7 +47,7 @@ segs = sorted(glob(os.path.join(tempdir, 'seg*.nii.gz')))
 imtrans = Compose([Rescale(), AddChannel(), ToTensor()])
 segtrans = Compose([AddChannel(), ToTensor()])
 val_ds = NiftiDataset(images, segs, transform=imtrans, seg_transform=segtrans, image_only=False)
-# sliding window inferene need to input 1 image in every iteration
+# sliding window inference for one image at every iteration
 val_loader = DataLoader(val_ds, batch_size=1, num_workers=1, pin_memory=torch.cuda.is_available())
 
 device = torch.device("cuda:0")

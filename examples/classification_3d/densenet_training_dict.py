@@ -22,7 +22,7 @@ from monai.transforms import Compose, LoadNiftid, AddChanneld, Rescaled, Resized
 monai.config.print_config()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-# IXI dataset as a demo, dowloadable from https://brain-development.org/ixi-dataset/
+# IXI dataset as a demo, downloadable from https://brain-development.org/ixi-dataset/
 images = [
     "/workspace/data/medical/ixi/IXI-T1/IXI314-IOP-0889-T1.nii.gz",
     "/workspace/data/medical/ixi/IXI-T1/IXI249-Guys-1072-T1.nii.gz",
@@ -69,7 +69,7 @@ val_transforms = Compose([
     ToTensord(keys=['img'])
 ])
 
-# Define dataset, dataloader
+# Define dataset, data loader
 check_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
 check_loader = DataLoader(check_ds, batch_size=2, num_workers=4, pin_memory=torch.cuda.is_available())
 check_data = monai.utils.misc.first(check_loader)

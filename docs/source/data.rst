@@ -52,6 +52,9 @@ Reading
 
 Writing
 ~~~~~~~
+.. automodule:: monai.data.nifti_saver
+  :members:
+
 .. automodule:: monai.data.nifti_writer
   :members:
 

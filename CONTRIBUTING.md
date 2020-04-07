@@ -74,11 +74,21 @@ for example, ``import monai.transforms.Spacing`` is the equivalent of ``monai.tr
 ### Building the documentation
 To build documentation via Sphinx in`docs/` folder:
 ```bash
+# install the doc-related dependencies
+pip install --upgrade pip
+pip install -r docs/requirements.txt
+
+# build the docs
 cd docs/
 make html
 ```
 The above commands build html documentation. Type `make help` for all supported formats,
 type `make clean` to remove the current build files.
+
+When new classes or methods are added, it is recommended to:
+- build html documentation locally,
+- check the auto-generated documentation from python docstrings,
+- edit relevant `.rst` files in [`docs/source`](./docs/source) accordingly.
 
 ## Unit testing
 MONAI tests are located under `tests/`.

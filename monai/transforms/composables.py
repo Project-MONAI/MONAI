@@ -23,7 +23,8 @@ from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.transforms import (AddChannel, AsChannelFirst, Flip, LoadNifti, NormalizeIntensity, Orientation,
                                          Rand2DElastic, Rand3DElastic, RandAffine, Rescale, Resize, Rotate, Rotate90,
-                                         ScaleIntensityRange, Spacing, SpatialCrop, Zoom, ToTensor, LoadPNG)
+                                         ScaleIntensityRange, Spacing, SpatialCrop, Zoom, ToTensor, LoadPNG,
+                                         AsChannelLast, ThresholdIntensity)
 from monai.transforms.utils import (create_grid, generate_pos_neg_label_crop_centers)
 from monai.utils.misc import ensure_tuple
 
@@ -32,16 +33,11 @@ class Spacingd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.transforms.Spacing`.
 
-    This transform assumes the ``data`` dictionary has a field for the input
-    data's affine.  The field is created by either ``meta_key_format.format(key,
-    'affine')`` or ``meta_key_format.format(key, 'original_affine')``.
+    This transform assumes the ``data`` dictionary has a key for the input
+    data's affine.  The key is formed by ``meta_key_format.format(key, 'affine')``.
 
-    After resampling the input array, this transform will write the affine
-    after resampling to the field ``meta_key_format.format(key, 'affine')``,
-    at the same time, if ``meta_key_format.format(key, 'original_affine')`` doesn't exist,
-    the field will be created and set to the affine before resampling.
-
-    if no affine is specified in the input data, defauting to "eye(4)".
+    After resampling the input array, this transform will write the new affine
+     to the key formed by ``meta_key_format.format(key, 'affine')``.
 
     see also:
         :py:class:`monai.transforms.transforms.Spacing`
@@ -86,17 +82,10 @@ class Spacingd(MapTransform):
         d = dict(data)
         for key, interp in zip(self.keys, self.interp_order):
             affine_key = self.meta_key_format.format(key, 'affine')
-            original_key = self.meta_key_format.format(key, 'original_affine')
-            affine = d.get(affine_key, None)
-            if affine is None:
-                affine = d.get(original_key, None)
             # resample array of each corresponding key
             # using affine fetched from d[affine_key]
-            d[key], affine_, new_affine = self.spacing_transform(
-                data_array=d[key], original_affine=affine, interp_order=interp)
-            if d.get(original_key, None) is None:
-                # set the 'original_affine' field
-                d[original_key] = affine_
+            d[key], _, new_affine = self.spacing_transform(
+                data_array=d[key], affine=d[affine_key], interp_order=interp)
             # set the 'affine' key
             d[affine_key] = new_affine
         return d
@@ -106,14 +95,11 @@ class Orientationd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.transforms.Orientation`.
 
-    This transform assumes the ``data`` dictionary has a field for the input
-    data's affine.  The field is created by either ``meta_key_format.format(key,
-    'affine')`` or ``meta_key_format.format(key, 'original_affine')``.
+    This transform assumes the ``data`` dictionary has a key for the input
+    data's affine.  The key is formed by ``meta_key_format.format(key, 'affine')``.
 
-    After reorientate the input array, this transform will store the current
-    affine in the ``data`` dictionary,
-    at the same time, if ``meta_key_format.format(key, 'original_affine')`` doesn't exist,
-    the field will be created and set to the affine before resampling.
+    After reorientate the input array, this transform will write the new affine
+     to the key formed by ``meta_key_format.format(key, 'affine')``.
     """
 
     def __init__(self, keys, axcodes=None, as_closest_canonical=False,
@@ -143,14 +129,7 @@ class Orientationd(MapTransform):
         d = dict(data)
         for key in self.keys:
             affine_key = self.meta_key_format.format(key, 'affine')
-            original_key = self.meta_key_format.format(key, 'original_affine')
-
-            affine = d.get(affine_key, None)
-            if affine is None:
-                affine = d.get(original_key, None)
-            d[key], affine_, new_affine = self.ornt_transform(d[key], affine)
-            if d.get(original_key, None) is None:
-                d[original_key] = affine_
+            d[key], _, new_affine = self.ornt_transform(d[key], affine=d[affine_key])
             d[affine_key] = new_affine
         return d
 
@@ -234,6 +213,28 @@ class AsChannelFirstd(MapTransform):
         """
         MapTransform.__init__(self, keys)
         self.converter = AsChannelFirst(channel_dim=channel_dim)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.converter(d[key])
+        return d
+
+
+class AsChannelLastd(MapTransform):
+    """
+    dictionary-based wrapper of AsChannelLast.
+    """
+
+    def __init__(self, keys, channel_dim=0):
+        """
+        Args:
+            keys (hashable items): keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            channel_dim (int): which dimension of input image is the channel, default is the first dimension.
+        """
+        MapTransform.__init__(self, keys)
+        self.converter = AsChannelLast(channel_dim=channel_dim)
 
     def __call__(self, data):
         d = dict(data)
@@ -449,6 +450,29 @@ class NormalizeIntensityd(MapTransform):
         d = dict(data)
         for key in self.keys:
             d[key] = self.normalizer(d[key])
+        return d
+
+
+class ThresholdIntensityd(MapTransform):
+    """
+    dictionary-based wrapper of ThresholdIntensity.
+
+    Args:
+        keys (hashable items): keys of the corresponding items to be transformed.
+            See also: monai.transform.composables.MapTransform
+        threshold (float or int): the threshold to filter intensity values.
+        above (bool): filter values above the threshold or below the threshold, default is True.
+        cval (float or int): valuat to fill the remaining parts of the image, default is 0.
+    """
+
+    def __init__(self, keys, threshold, above=True, cval=0):
+        MapTransform.__init__(self, keys)
+        self.filter = ThresholdIntensity(threshold, above, cval)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.filter(d[key])
         return d
 
 
@@ -999,6 +1023,7 @@ OrientationD = OrientationDict = Orientationd
 LoadNiftiD = LoadNiftiDict = LoadNiftid
 LoadPNGD = LoadPNGDict = LoadPNGd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
+AsChannelLastD = AsChannelLastDict = AsChannelLastd
 AddChannelD = AddChannelDict = AddChanneld
 ToTensorD = ToTensorDict = ToTensord
 Rotate90D = Rotate90Dict = Rotate90d
@@ -1007,6 +1032,7 @@ ResizeD = ResizeDict = Resized
 RandUniformPatchD = RandUniformPatchDict = RandUniformPatchd
 RandRotate90D = RandRotate90Dict = RandRotate90d
 NormalizeIntensityD = NormalizeIntensityDict = NormalizeIntensityd
+ThresholdIntensityD = ThresholdIntensityDict = ThresholdIntensityd
 ScaleIntensityRangeD = ScaleIntensityRangeDict = ScaleIntensityRanged
 RandCropByPosNegLabelD = RandCropByPosNegLabelDict = RandCropByPosNegLabeld
 RandAffineD = RandAffineDict = RandAffined
