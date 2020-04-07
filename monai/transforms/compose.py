@@ -18,6 +18,7 @@ from typing import Hashable
 import numpy as np
 
 from monai.utils.misc import ensure_tuple
+from .utils import apply_transform
 
 
 class Transform:
@@ -178,22 +179,9 @@ class Compose(Randomizable):
                     'Transform "{0}" in Compose not randomized\n{0}.{1}.'.format(type(_transform).__name__, type_error),
                     RuntimeWarning)
 
-    def do_transform(self, data, transform):
-        """
-        Execute 1 transform on expected data.
-        If some transform generated batch list of data in the transform chain,
-        all the following transforms should apply to every item of the list.
-        """
-        if isinstance(data, list):
-            for i, item in enumerate(data):
-                data[i] = transform(item)
-        else:
-            data = transform(data)
-        return data
-
     def __call__(self, input_):
         for _transform in self.transforms:
-            input_ = self.do_transform(input_, _transform)
+            input_ = apply_transform(_transform, input_)
         return input_
 
 

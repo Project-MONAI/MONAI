@@ -10,10 +10,12 @@
 # limitations under the License.
 
 import sys
+
 import torch
-from monai.transforms.compose import Compose
+
+from monai.transforms.compose import Compose, Randomizable
+from monai.transforms.utils import apply_transform
 from monai.utils import process_bar
-from monai.transforms.compose import Randomizable
 
 
 class Dataset(torch.utils.data.Dataset):
@@ -50,46 +52,54 @@ class Dataset(torch.utils.data.Dataset):
 
 class CacheDataset(Dataset):
     """
-    Dataset with cache mechanism that loads data and runs deterministic transforms before training.
-    During the training process, it will skip the deterministic transforms and load data from cache
-    for the random transforms directly, so it's much faster than repeatedly running these operations
-    for every epoch. If the data is not in cache, run all the transforms directly.
+    Dataset with cache mechanism that can load data and cache deterministic transforms' result during training.
 
-    And users can set the cache rate or cache data number according to the memory size, suggest to set
-    the `cache_num` or `cache_rate` to the biggest value to achieve best training performance.
+    By caching the results of non-random preprocessing transforms, it accelerates the training data pipeline.
+    If the requested data is not in the cache, all transforms will run normally
+    (see also :py:class:`monai.data.dataset.Dataset`).
+
+    Users can set the cache rate or number of items to cache.
+    It is recommended to experiment with different `cache_num` or `cache_rate` to identify the best training speed.
 
     To improve the caching efficiency, please always put as many as possible non-random transforms
     before the randomised ones when composing the chain of transforms.
 
-    For example, if define the training transforms as:
-    transforms = Compose([
-        LoadNiftid(),
-        AddChanneld(),
-        Spacingd(),
-        Orientationd(),
-        ScaleIntensityRanged(),
-        RandCropByPosNegLabeld(),
-        ToTensord()
-    ])
-    Before training, run: `LoadNiftid`, `AddChanneld`, `Spacingd`, `Orientationd`, `ScaleIntensityRanged`.
-    During training, load cache and run: `RandCropByPosNegLabeld`, `ToTensord`.
+    For example, if the transform is a `Compose` of::
+
+        transforms = Compose([
+            LoadNiftid(),
+            AddChanneld(),
+            Spacingd(),
+            Orientationd(),
+            ScaleIntensityRanged(),
+            RandCropByPosNegLabeld(),
+            ToTensord()
+        ])
+
+    when `transforms` is used in a multi-epoch training pipeline, before the first training epoch,
+    this dataset will cache the results up to ``ScaleIntensityRanged``, as
+    all non-random transforms `LoadNiftid`, `AddChanneld`, `Spacingd`, `Orientationd`, `ScaleIntensityRanged`
+    can be cached. During training, the dataset will load the cached results and run
+    ``RandCropByPosNegLabeld`` and ``ToTensord``, as ``RandCropByPosNegLabeld`` is a randomised transform
+    and the outcome not cached.
     """
 
     def __init__(self, data, transform, cache_num=sys.maxsize, cache_rate=1.0):
         """
         Args:
             data (Iterable): input data to load and transform to generate dataset for model.
-            transform (Callable, optional): transforms to execute operations on input data.
-            cache_num (int): number of cached items, default is infinity.
+            transform (Callable): transforms to execute operations on input data.
+            cache_num (int): number of items to be cached. Default is `sys.maxsize`.
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
-            cache_rate (float): percentage of cached data in total, default is 1.0(cache all).
+            cache_rate (float): percentage of cached data in total, default is 1.0 (cache all).
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
         """
-        assert isinstance(transform, Compose), 'CacheDataset expects Compose transform.'
+        if not isinstance(transform, Compose):
+            transform = Compose(transform)
         super().__init__(data, transform)
-        self.cache_num = min(cache_num, int(len(data) * cache_rate), len(data))
+        self.cache_num = min(cache_num, int(len(self) * cache_rate), len(self))
         self._cache = list()
-        print('Loading data to cache and executing transforms...')
+        print('Load and cache transformed data...')
         for i in range(self.cache_num):
             process_bar(i + 1, self.cache_num)
             item = data[i]
@@ -97,7 +107,7 @@ class CacheDataset(Dataset):
                 # execute all the deterministic transforms before the first random transform
                 if isinstance(_transform, Randomizable):
                     break
-                item = transform.do_transform(item, _transform)
+                item = apply_transform(_transform, item)
             self._cache.append(item)
 
     def __getitem__(self, index):
@@ -110,9 +120,9 @@ class CacheDataset(Dataset):
                     continue
                 else:
                     start_run = True
-                data = self.transform.do_transform(data, _transform)
+                data = apply_transform(_transform, data)
         else:
-            # if didn't cache this data, execute all the transforms directly
-            data = self.transform(self.data[index])
+            # no cache for this data, execute all the transforms directly
+            data = super(CacheDataset, self).__getitem__(index)
 
         return data

@@ -17,7 +17,7 @@ Generic Interfaces
   :special-members: __getitem__
 
 `CacheDataset`
-~~~~~~~~~
+~~~~~~~~~~~~~~
 .. autoclass:: CacheDataset
   :members:
   :special-members: __getitem__
