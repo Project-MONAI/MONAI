@@ -367,7 +367,7 @@ class Rescale:
         return rescale_array(img, self.minv, self.maxv, self.dtype)
 
 
-class GaussianNoise(Randomizable):
+class RandGaussianNoise(Randomizable):
     """Add gaussian noise to image.
 
     Args:
@@ -693,6 +693,60 @@ class ScaleIntensityRange:
             img = np.clip(img, self.b_min, self.b_max)
 
         return img
+
+
+class AdjustContrast:
+    """Changes image intensity by gamma. Each pixel/voxel intensity is updated as:
+        `x = ((x - min) / intensity_range) ^ gamma * intensity_range + min`
+
+    Args:
+        gamma (float): gamma value to adjust the contrast as function.
+    """
+
+    def __init__(self, gamma):
+        assert isinstance(gamma, (float, int)), 'gamma must be a float or int number.'
+        self.gamma = gamma
+
+    def __call__(self, img):
+        epsilon = 1e-7
+        img_min = img.min()
+        img_range = img.max() - img_min
+        return np.power(((img - img_min) / float(img_range + epsilon)), self.gamma) * img_range + img_min
+
+
+class RandAdjustContrast(Randomizable):
+    """Randomly changes image intensity by gamma. Each pixel/voxel intensity is updated as:
+        `x = ((x - min) / intensity_range) ^ gamma * intensity_range + min`
+
+    Args:
+        prob (float): Probability of adjustment.
+        gamma (tuple of float or float): Range of gamma values.
+            If single number, value is picked from (0.5, gamma), default is (0.5, 4.5).
+    """
+
+    def __init__(self, prob=0.1, gamma=(0.5, 4.5)):
+        self.prob = prob
+        if not isinstance(gamma, (tuple, list)):
+            assert gamma > 0.5, \
+                'if gamma is single number, must greater than 0.5 and value is picked from (0.5, gamma)'
+            self.gamma = (0.5, gamma)
+        else:
+            self.gamma = gamma
+        assert len(self.gamma) == 2, "gamma should be a number or pair of numbers."
+
+        self._do_transform = False
+        self.gamma_value = None
+
+    def randomize(self):
+        self._do_transform = self.R.random_sample() < self.prob
+        self.gamma_value = self.R.uniform(low=self.gamma[0], high=self.gamma[1])
+
+    def __call__(self, img):
+        self.randomize()
+        if not self._do_transform:
+            return img
+        adjuster = AdjustContrast(self.gamma_value)
+        return adjuster(img)
 
 
 class PadImageEnd:

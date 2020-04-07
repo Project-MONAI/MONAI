@@ -99,9 +99,9 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
-`GaussianNoise`
+`RandGaussianNoise`
 ~~~~~~~~~~~~~~~
-.. autoclass:: GaussianNoise
+.. autoclass:: RandGaussianNoise
     :members:
     :special-members: __call__
 
@@ -156,6 +156,18 @@ Vanilla Transforms
 `ScaleIntensityRange`
 ~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: ScaleIntensityRange
+    :members:
+    :special-members: __call__
+
+`AdjustContrast`
+~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: AdjustContrast
+    :members:
+    :special-members: __call__
+
+`RandAdjustContrast`
+~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: RandAdjustContrast
     :members:
     :special-members: __call__
 
@@ -310,6 +322,12 @@ Dictionary-based Composables
     :members:
     :special-members: __call__
 
+`RandGaussianNoised`
+~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: RandGaussianNoised
+    :members:
+    :special-members: __call__
+
 `RandUniformPatchd`
 ~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: RandUniformPatchd
@@ -331,6 +349,18 @@ Dictionary-based Composables
 `ScaleIntensityRanged`
 ~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: ScaleIntensityRanged
+    :members:
+    :special-members: __call__
+
+`AdjustContrastd`
+~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: AdjustContrastd
+    :members:
+    :special-members: __call__
+
+`RandAdjustContrastd`
+~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: RandAdjustContrastd
     :members:
     :special-members: __call__
 
