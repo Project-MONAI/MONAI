@@ -654,7 +654,7 @@ class ThresholdIntensity:
     Args:
         threshold (float or int): the threshold to filter intensity values.
         above (bool): filter values above the threshold or below the threshold, default is True.
-        cval (float or int): valuat to fill the remaining parts of the image, default is 0.
+        cval (float or int): value to fill the remaining parts of the image, default is 0.
     """
 
     def __init__(self, threshold, above=True, cval=0):

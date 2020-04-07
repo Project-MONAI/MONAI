@@ -79,7 +79,7 @@ class CacheDataset(Dataset):
         """
         Args:
             data (Iterable): input data to load and transform to generate dataset for model.
-            transform (Callable, optional): transforms to excute operations on input data.
+            transform (Callable, optional): transforms to execute operations on input data.
             cache_num (int): number of cached items, default is infinity.
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
             cache_rate (float): percentage of cached data in total, default is 1.0(cache all).
