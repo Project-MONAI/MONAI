@@ -25,8 +25,8 @@ MONAI aims at providing a rich set of popular medical image specific transformat
 
 - `LoadNifti`:  Load Nifti format file from provided path
 - `Spacing`:  Resample input image into the specified `pixdim`
-- `Orientation`: Change image's orientation into the specified `axcodes`
-- `RandGaussianNoise`: Pertubate image intensities by adding statistical noises
+- `Orientation`: Change the image's orientation into the specified `axcodes`
+- `RandGaussianNoise`: Perturb image intensities by adding statistical noises
 - `IntensityNormalizer`: Intensity Normalization based on mean and standard deviation
 - `Affine`: Transform image based on the affine parameters
 - `Rand2DElastic`: Random elastic deformation and affine in 2D
@@ -49,10 +49,10 @@ new_img = affine(image, spatial_size=(300, 400), mode='bilinear')
 ```
 
 ### 4. Randomly crop out batch images based on positive/negative ratio
-Medical image data volume may be too large to fit into GPU memory. A widely-used approach is to randomly draw small size data samples during training. MONAI currrently provides uniform random sampling strategy as well as class-balanced fixed ratio sampling which may help stabilize the patch-based training process.
+Medical image data volume may be too large to fit into GPU memory. A widely-used approach is to randomly draw small size data samples during training. MONAI currently provides uniform random sampling strategy as well as class-balanced fixed ratio sampling which may help stabilize the patch-based training process.
 
 ### 5. Deterministic training for reproducibility
-Deterministic training support is necessary and important in DL research area, especially when sharing reproducible work with others. Users can easily set random seed to all the transforms in MONAI locally and will not affect other non-deterministic modules in the user's program.
+Deterministic training support is necessary and important in DL research area, especially when sharing reproducible work with others. Users can easily set the random seed to all the transforms in MONAI locally and will not affect other non-deterministic modules in the user's program.
 Example code:
 ```py
 # define a transform chain for pre-processing
@@ -67,6 +67,12 @@ torch.manual_seed(0)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 ```
+
+### 6. Cache IO and transforms data to accelerate training
+Medical image data volume is usually very large and users need to train many
+epochs(even more than 1000 epochs) to achieve expected metrics. The typical PyTorch program repeatedly loads data and run transforms for every epoch during training, which is time-consuming operation and unnecessary.  
+MONAI provides cache mechanism to obviously optimize this situation that runs transforms before training and caches the result before the first non-deterministic transform in the chain. Then the training program only needs to load the cached data and run the random transforms. The optimized training speed can be even more than 10x faster than the original speed.
+![image](../images/cache_dataset.png)
 
 ## Losses
 There are domain-specific loss functions in the medical research area which are different from the generic computer vision ones. As an important module of MONAI, these loss functions are implemented in PyTorch, such as Dice loss and generalized Dice loss.
@@ -98,9 +104,9 @@ When executing inference on large medical images, the sliding window is a popula
 There are many useful metrics to measure medical specific tasks, MONAI already implemented Mean Dice and AUC, will integrate more soon.
 
 ## Visualization
-Besides common curves of statistics on TensorBoard, in order to provide straight-forward checking of 3D image and the corresponding label and segmentation output, MONAI can visualize 3D data as GIF animation on TensorBoard which can help users quickly check model output.
+Besides common curves of statistics on TensorBoard, in order to provide straight-forward checking of 3D image and the corresponding label and segmentation output, MONAI can visualize 3D data as GIF animation on TensorBoard which can help users quickly check the model output.
 
 ## Result writing
-For the segmentation task, MONAI supports to save model output as NIFTI format image and add affine information from the corresponding input image.
+For the segmentation task, MONAI supports to save the model output as NIFTI format image and add affine information from the corresponding input image.
 
 For the classification task, MONAI supports to save classification result as a CSV file.

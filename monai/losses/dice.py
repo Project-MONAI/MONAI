@@ -53,7 +53,7 @@ class DiceLoss(_Loss):
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         if do_sigmoid and do_softmax:
-            raise ValueError('do_sigmoid=True and do_softmax=Ture are not compatible.')
+            raise ValueError('do_sigmoid=True and do_softmax=True are not compatible.')
         self.do_sigmoid = do_sigmoid
         self.do_softmax = do_softmax
         self.squared_pred = squared_pred
@@ -140,7 +140,7 @@ class GeneralizedDiceLoss(_Loss):
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         if do_sigmoid and do_softmax:
-            raise ValueError('do_sigmoid=True and do_softmax=Ture are not compatible.')
+            raise ValueError('do_sigmoid=True and do_softmax=True are not compatible.')
         self.do_sigmoid = do_sigmoid
         self.do_softmax = do_softmax
         self.w_func = torch.ones_like

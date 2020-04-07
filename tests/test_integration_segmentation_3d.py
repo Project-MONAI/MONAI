@@ -32,7 +32,7 @@ from monai.visualize import plot_2d_or_3d_image
 from tests.utils import skip_if_quick
 
 
-def run_training_test(root_dir, device=torch.device("cuda:0")):
+def run_training_test(root_dir, device=torch.device("cuda:0"), cachedataset=False):
     monai.config.print_config()
     images = sorted(glob(os.path.join(root_dir, 'img*.nii.gz')))
     segs = sorted(glob(os.path.join(root_dir, 'seg*.nii.gz')))
@@ -57,7 +57,10 @@ def run_training_test(root_dir, device=torch.device("cuda:0")):
     ])
 
     # create a training data loader
-    train_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
+    if cachedataset:
+        train_ds = monai.data.CacheDataset(data=train_files, transform=train_transforms, cache_rate=0.8)
+    else:
+        train_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
     # use batch_size=2 to load images and use RandCropByPosNegLabeld to generate 2 x 4 images for network training
     train_loader = DataLoader(train_ds,
                               batch_size=2,
@@ -227,11 +230,12 @@ class IntegrationSegmentation3D(unittest.TestCase):
     @skip_if_quick
     def test_training(self):
         repeated = []
-        for i in range(2):
+        for i in range(3):
             torch.manual_seed(0)
 
             repeated.append([])
-            losses, best_metric, best_metric_epoch = run_training_test(self.data_dir, device=self.device)
+            losses, best_metric, best_metric_epoch = \
+                run_training_test(self.data_dir, device=self.device, cachedataset=(i == 2))
 
             # check training properties
             np.testing.assert_allclose(losses, [
@@ -266,6 +270,7 @@ class IntegrationSegmentation3D(unittest.TestCase):
                 np.testing.assert_allclose(ave, s, rtol=1e-3)
                 repeated[i].append(ave)
         np.testing.assert_allclose(repeated[0], repeated[1])
+        np.testing.assert_allclose(repeated[0], repeated[2])
 
 
 if __name__ == '__main__':
