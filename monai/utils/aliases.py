@@ -25,13 +25,17 @@ GlobalAliases = {}
 
 def alias(*names):
     """
-    Stores the decorated function or class in the global aliases table under the given names.
+    Stores the decorated function or class in the global aliases table under the given names and as the `__aliases__`
+    member of the decorated object. This new member will contain all alias names declared for that object.
     """
 
     def _outer(obj):
         for n in names:
             with alias_lock:
                 GlobalAliases[n] = obj
+
+        # set the member list __aliases__ to contain the alias names defined by the decorator for `obj`
+        obj.__aliases__ = getattr(obj, '__aliases__', ()) + tuple(names)
 
         return obj
 

@@ -66,7 +66,11 @@ class TestLoadNifti(unittest.TestCase):
                 nib.save(nib.Nifti1Image(test_image, np.eye(4)), filenames[i])
             result = LoadNifti(**input_param)(filenames)
         if isinstance(result, tuple):
-            result = result[0]
+            result, header = result
+            self.assertTrue('affine' in header)
+            np.testing.assert_allclose(header['affine'], np.eye(4))
+            if input_param['as_closest_canonical']:
+                np.testing.asesrt_allclose(header['original_affine'], np.eye(4))
         self.assertTupleEqual(result.shape, expected_shape)
 
 

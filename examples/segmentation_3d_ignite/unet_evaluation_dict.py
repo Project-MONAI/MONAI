@@ -97,10 +97,10 @@ SegmentationSaver(output_dir='tempdir', output_ext='.nii.gz', output_postfix='se
                   batch_transform=lambda batch: {'filename_or_obj': batch['img.filename_or_obj'],
                                                  'affine': batch['img.affine']},
                   output_transform=lambda output: predict_segmentation(output[0])).attach(evaluator)
-# the model was trained by "unet_training_dict" exmple
+# the model was trained by "unet_training_dict" example
 CheckpointLoader(load_path='./runs/net_checkpoint_50.pth', load_dict={'net': net}).attach(evaluator)
 
-# sliding window inferene need to input 1 image in every iteration
+# sliding window inference for one image at every iteration
 val_loader = DataLoader(val_ds, batch_size=1, num_workers=4, collate_fn=list_data_collate,
                         pin_memory=torch.cuda.is_available())
 state = evaluator.run(val_loader)

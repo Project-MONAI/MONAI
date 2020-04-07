@@ -264,7 +264,7 @@ def zoom_affine(affine, scale, diagonal=True):
     Args:
         affine (nxn matrix): a square matrix.
         scale (sequence of floats): new scaling factor along each dimension.
-        diagnonal (bool): whether to return a diagnoal scaling matrix.
+        diagonal (bool): whether to return a diagonal scaling matrix.
             Defaults to True.
 
     returns:
@@ -296,8 +296,8 @@ def zoom_affine(affine, scale, diagonal=True):
 
 def compute_shape_offset(spatial_shape, in_affine, out_affine):
     """
-    Given input and target affine, compute appropriate shapes
-    in the target space based on the input array's shape.
+    Given input and output affine, compute appropriate shapes
+    in the output space based on the input array's shape.
     This function also returns the offset to put the shape
     in a good position with respect to the world coordinate system.
     """
@@ -311,7 +311,7 @@ def compute_shape_offset(spatial_shape, in_affine, out_affine):
     corners = in_affine @ corners
     corners_out = np.linalg.inv(out_affine) @ corners
     corners_out = corners_out[:-1] / corners_out[-1]
-    out_shape = np.ceil(np.max(corners_out, 1) - np.min(corners_out, 1)) + 1.
+    out_shape = np.round(np.max(corners_out, 1) - np.min(corners_out, 1) + 1.)
     if np.allclose(nib.io_orientation(in_affine),
                    nib.io_orientation(out_affine)):
         # same orientation, get translate from the origin
@@ -335,7 +335,7 @@ def to_affine_nd(r, affine):
     `k` is determined by `min(r, len(affine) - 1)`.
 
     when ``r`` is an affine matrix, the output has the same as ``r``,
-    the top left kxk elments are  copied from ``affine``,
+    the top left kxk elements are  copied from ``affine``,
     the last column of the output affine is copied from ``affine``'s last column.
     `k` is determined by `min(len(r) - 1, len(affine) - 1)`.
 
@@ -353,9 +353,10 @@ def to_affine_nd(r, affine):
     if new_affine.ndim == 0:
         sr = new_affine.astype(int)
         if not np.isfinite(sr) or sr < 0:
-            raise ValueError('r must be postive.')
+            raise ValueError('r must be positive.')
         new_affine = np.eye(sr + 1, dtype=np.float64)
-    d = min(len(new_affine) - 1, len(affine) - 1)
+    d = max(min(len(new_affine) - 1, len(affine) - 1), 1)
     new_affine[:d, :d] = affine[:d, :d]
-    new_affine[:d, -1] = affine[:d, -1]
+    if d > 1:
+        new_affine[:d, -1] = affine[:d, -1]
     return new_affine
