@@ -183,6 +183,12 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
+`CropForeground`
+~~~~~~~~~~~~~
+.. autoclass:: CropForeground
+    :members:
+    :special-members: __call__
+
 `RandRotate`
 ~~~~~~~~~~~~
 .. autoclass:: RandRotate
@@ -295,6 +301,18 @@ Dictionary-based Composables
 `Rotate90d`
 ~~~~~~~~~~~
 .. autoclass:: Rotate90d
+    :members:
+    :special-members: __call__
+
+`SpatialCropd`
+~~~~~~~~~~~
+.. autoclass:: SpatialCropd
+    :members:
+    :special-members: __call__
+
+`CropForegroundd`
+~~~~~~~~~~~
+.. autoclass:: CropForegroundd
     :members:
     :special-members: __call__
 

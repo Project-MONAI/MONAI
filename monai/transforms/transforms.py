@@ -27,7 +27,7 @@ from monai.data.utils import (get_random_patch, get_valid_patch_size, correct_ni
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.compose import Randomizable
 from monai.transforms.utils import (create_control_grid, create_grid, create_rotate, create_scale, create_shear,
-                                    create_translate, rescale_array)
+                                    create_translate, rescale_array, generate_spatial_bounding_box)
 from monai.utils.misc import ensure_tuple
 
 
@@ -825,6 +825,18 @@ class SpatialCrop:
         slices = [slice(None)] + [slice(s, e) for s, e in zip(self.roi_start[:sd], self.roi_end[:sd])]
         data = img[tuple(slices)].copy()
         return data
+
+
+class CropForeground:
+    def __init__(self, select_fn=lambda x: x > 0, channel_index=None, margin=0):
+        self.select_fn = select_fn
+        self.channel_index = channel_index
+        self.margin = margin
+
+    def __call__(self, img):
+        box_start, box_end = generate_spatial_bounding_box(img, self.select_fn, self.channel_index, self.margin)
+        cropper = SpatialCrop(roi_start=box_start, roi_end=[i + 1 for i in box_end])
+        return cropper(img)
 
 
 class RandRotate(Randomizable):

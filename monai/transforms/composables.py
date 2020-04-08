@@ -25,7 +25,7 @@ from monai.transforms.transforms import (AddChannel, AsChannelFirst, Flip, LoadN
                                          Rand2DElastic, Rand3DElastic, RandAffine, Rescale, Resize, Rotate, Rotate90,
                                          ScaleIntensityRange, Spacing, SpatialCrop, Zoom, ToTensor, LoadPNG,
                                          AsChannelLast, ThresholdIntensity)
-from monai.transforms.utils import (create_grid, generate_pos_neg_label_crop_centers)
+from monai.transforms.utils import (create_grid, generate_pos_neg_label_crop_centers, generate_spatial_bounding_box)
 from monai.utils.misc import ensure_tuple
 
 
@@ -298,15 +298,61 @@ class Rotate90d(MapTransform):
                 Default: (0, 1), this is the first two axis in spatial dimensions.
         """
         MapTransform.__init__(self, keys)
-        self.k = k
-        self.spatial_axes = spatial_axes
-
-        self.rotator = Rotate90(self.k, self.spatial_axes)
+        self.rotator = Rotate90(k, spatial_axes)
 
     def __call__(self, data):
         d = dict(data)
         for key in self.keys:
             d[key] = self.rotator(d[key])
+        return d
+
+
+class SpatialCropd(MapTransform):
+    """
+    dictionary-based wrapper of SpatialCrop.
+    Either a spatial center and size must be provided, or alternatively if center and size
+    are not provided, the start and end coordinates of the ROI must be provided.
+    """
+
+    def __init__(self, keys, roi_center=None, roi_size=None, roi_start=None, roi_end=None):
+        """
+        Args:
+            keys (hashable items): keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            roi_center (list or tuple): voxel coordinates for center of the crop ROI.
+            roi_size (list or tuple): size of the crop ROI.
+            roi_start (list or tuple): voxel coordinates for start of the crop ROI.
+            roi_end (list or tuple): voxel coordinates for end of the crop ROI.
+        """
+        MapTransform.__init__(self, keys)
+        self.cropper = SpatialCrop(roi_center, roi_size, roi_start, roi_end)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.cropper(d[key])
+        return d
+
+
+class CropForegroundd(MapTransform):
+    """
+    dictionary-based version CropForeground.
+    """
+
+    def __init__(self, keys, source_key, select_fn=lambda x: x > 0, channel_index=None, margin=0):
+        MapTransform.__init__(self, keys)
+        self.source_key = source_key
+        self.select_fn = select_fn
+        self.channel_index = channel_index
+        self.margin = margin
+
+    def __call__(self, data):
+        d = dict(data)
+        box_start, box_end = \
+            generate_spatial_bounding_box(data[self.source_key], self.select_fn, self.channel_index, self.margin)
+        cropper = SpatialCrop(roi_start=box_start, roi_end=[i + 1 for i in box_end])
+        for key in self.keys:
+            d[key] = cropper(d[key])
         return d
 
 
@@ -1027,6 +1073,8 @@ AsChannelLastD = AsChannelLastDict = AsChannelLastd
 AddChannelD = AddChannelDict = AddChanneld
 ToTensorD = ToTensorDict = ToTensord
 Rotate90D = Rotate90Dict = Rotate90d
+SpatialCropD = SpatialCropDict = SpatialCropd
+CropForegroundD = CropForegroundDict = CropForegroundd
 RescaleD = RescaleDict = Rescaled
 ResizeD = ResizeDict = Resized
 RandUniformPatchD = RandUniformPatchDict = RandUniformPatchd

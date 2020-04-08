@@ -356,3 +356,17 @@ def create_translate(spatial_dims, shift):
     for i, a in enumerate(shift[:spatial_dims]):
         affine[i, spatial_dims] = a
     return affine
+
+
+def generate_spatial_bounding_box(img, select_fn=lambda x: x > 0, channel_index=None, margin=0):
+    data = img[channel_index: channel_index + 1] if channel_index is not None else img
+    data = np.any(select_fn(data), axis=0)
+    nonzero_idx = np.nonzero(data)
+
+    box_start = list()
+    box_end = list()
+    for i in range(data.ndim):
+        assert len(nonzero_idx[i]) > 0, 'did not find nonzero index at spatial dim {}'.format(i)
+        box_start.append(max(0, np.min(nonzero_idx[i]) - margin))
+        box_end.append(min(data.shape[i], np.max(nonzero_idx[i]) + margin))
+    return box_start, box_end
