@@ -63,7 +63,7 @@ For guidance on making a contribution to MONAI, see the `contributing guidelines
 
 Links
 -----
-- Website: _(coming soon)_
+- Website: https://monai.io/
 - API documentation: https://monai.readthedocs.io/en/latest/
 - Code: https://github.com/Project-MONAI/MONAI
 - Project tracker: https://github.com/Project-MONAI/MONAI/projects
