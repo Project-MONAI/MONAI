@@ -882,7 +882,21 @@ class SpatialCrop:
 
 
 class CropForeground:
+    """
+    Crop only the foreground object of the image.
+    The typical usage is to help training and evaluation if the valid part is small in the whole medical image.
+    Users can define arbitrary function to select expected foreground from the whole image or only 1 channel.
+    And it can also add margin to every dim of the bounding box of foreground object.
+    """
+
     def __init__(self, select_fn=lambda x: x > 0, channel_index=None, margin=0):
+        """
+        Args:
+            select_fn (Callable): function to select expected foreground, default is to select values > 0.
+            channel_index (int): if defined, select foregound only on this specified channel of image.
+                if None, select foreground on the whole image.
+            margin (int): add margin to all dims of the bounding box.
+        """
         self.select_fn = select_fn
         self.channel_index = channel_index
         self.margin = margin

@@ -336,10 +336,27 @@ class SpatialCropd(MapTransform):
 
 class CropForegroundd(MapTransform):
     """
-    dictionary-based version CropForeground.
+    dictionary-based version CropForeground. Crop only the foreground object of the expected images.
+    The typical usage is to help training and evaluation if the valid part is small in the whole medical image.
+    The valid part can be determined by any field in the data with `source_key`, for example:
+    - Select values > 0 in image field as the foreground and crop on all fields specified by `keys`.
+    - Select label = 3 in label field as the foreground to crop on all fields specified by `keys`.
+    - Select label > 0 in the third channel of a One-Hot label field as the foreground to crop all `keys` fields.
+    Users can define arbitrary function to select expected foreground from the whole source image or only 1 channel.
+    And it can also add margin to every dim of the bounding box of foreground object.
     """
 
     def __init__(self, keys, source_key, select_fn=lambda x: x > 0, channel_index=None, margin=0):
+        """
+        Args:
+            keys (hashable items): keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            source_key (str): data source to generate the bounding box of foreground, can be image or label, etc.
+            select_fn (Callable): function to select expected foreground, default is to select values > 0.
+            channel_index (int): if defined, select foregound only on this specified channel of image.
+                if None, select foreground on the whole image.
+            margin (int): add margin to all dims of the bounding box.
+        """
         MapTransform.__init__(self, keys)
         self.source_key = source_key
         self.select_fn = select_fn

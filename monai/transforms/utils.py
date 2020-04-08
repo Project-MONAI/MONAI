@@ -375,6 +375,17 @@ def create_translate(spatial_dims, shift):
 
 
 def generate_spatial_bounding_box(img, select_fn=lambda x: x > 0, channel_index=None, margin=0):
+    """
+    generate the spatial bounding box of foreground in the image with start-end positions.
+    Users can define arbitrary function to select expected foreground from the whole image or only 1 channel.
+    And it can also add margin to every dim of the bounding box.
+    Args:
+        img (ndarrary): source image to generate bounding box from.
+        select_fn (Callable): function to select expected foreground, default is to select values > 0.
+        channel_index (int): if defined, select foregound only on this specified channel of image.
+            if None, select foreground on the whole image.
+        margin (int): add margin to all dims of the bounding box.
+    """
     data = img[channel_index: channel_index + 1] if channel_index is not None else img
     data = np.any(select_fn(data), axis=0)
     nonzero_idx = np.nonzero(data)
