@@ -617,28 +617,6 @@ class ToTensor:
         return torch.as_tensor(np.ascontiguousarray(img))
 
 
-class RandUniformPatch(Randomizable):
-    """
-    Selects a patch of the given size chosen at a uniformly random position in the image.
-
-    Args:
-        patch_spatial_size (tuple or list): Expected patch size of spatial dimensions.
-    """
-
-    def __init__(self, patch_spatial_size):
-        self.patch_spatial_size = (None,) + tuple(patch_spatial_size)
-
-        self._slices = None
-
-    def randomize(self, image_shape, patch_shape):
-        self._slices = get_random_patch(image_shape, patch_shape, self.R)
-
-    def __call__(self, img):
-        patch_spatial_size = get_valid_patch_size(img.shape, self.patch_spatial_size)
-        self.randomize(img.shape, patch_spatial_size)
-        return img[self._slices]
-
-
 class NormalizeIntensity:
     """Normalize input based on provided args, using calculated mean and std if not provided
     (shape of subtrahend and divisor must match. if 0, entire volume uses same subtrahend and
@@ -908,7 +886,7 @@ class CenterSpatialCrop:
     Crop at the center of image with specified ROI size.
 
     Args:
-        roi_size (list, tuple): the size of the crop region e.g. [224,224,128]
+        roi_size (list, tuple): the spatial size of the crop region e.g. [224,224,128]
     """
 
     def __init__(self, roi_size):
@@ -920,6 +898,28 @@ class CenterSpatialCrop:
         return cropper(img)
 
 
+class RandCenterSpatialCrop(Randomizable):
+    """
+    Crop at a random position in the image with the specified ROI size.
+
+    Args:
+        roi_size (list, tuple): the spatial size of the crop region e.g. [224,224,128]
+    """
+
+    def __init__(self, roi_size):
+        self.roi_size = (None,) + tuple(roi_size)
+
+        self._slices = None
+
+    def randomize(self, image_shape, roi_size):
+        self._slices = get_random_patch(image_shape, roi_size, self.R)
+
+    def __call__(self, img):
+        roi_size = get_valid_patch_size(img.shape, self.roi_size)
+        self.randomize(img.shape, roi_size)
+        return img[self._slices]
+
+
 class RandSizeSpatialCrop(Randomizable):
     """
     Crop image with random size ROI. It can crop at a random position as center
@@ -927,7 +927,7 @@ class RandSizeSpatialCrop(Randomizable):
     generated ROI. Suppose all the expected fields specified by `keys` have same shape.
 
     Args:
-        min_roi_size (list, tuple): the size of the minimum crop region e.g. [224,224,128]
+        min_roi_size (list, tuple): the spatial size of the minimum crop region e.g. [224,224,128]
         random_center (bool): crop at random position as center or the image center.
     """
 
@@ -942,7 +942,7 @@ class RandSizeSpatialCrop(Randomizable):
     def __call__(self, img):
         self.randomize(img.shape[1:])
         if self.random_center:
-            cropper = RandUniformPatch(self.roi_size)
+            cropper = RandCenterSpatialCrop(self.roi_size)
         else:
             cropper = CenterSpatialCrop(self.roi_size)
         return cropper(img)

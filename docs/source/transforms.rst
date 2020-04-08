@@ -141,9 +141,9 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
-`RandUniformPatch`
+`RandCenterSpatialCrop`
 ~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: RandUniformPatch
+.. autoclass:: RandCenterSpatialCrop
     :members:
     :special-members: __call__
 
@@ -352,9 +352,9 @@ Dictionary-based Composables
     :members:
     :special-members: __call__
 
-`RandUniformPatchd`
+`RandCenterSpatialCropd`
 ~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: RandUniformPatchd
+.. autoclass:: RandCenterSpatialCropd
     :members:
     :special-members: __call__
 

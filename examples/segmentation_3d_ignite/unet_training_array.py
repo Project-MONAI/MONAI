@@ -24,7 +24,7 @@ from torch.utils.data import DataLoader
 
 import monai
 from monai.data import NiftiDataset, create_test_image_3d
-from monai.transforms import Compose, AddChannel, Rescale, RandUniformPatch, Resize, ToTensor
+from monai.transforms import Compose, AddChannel, Rescale, RandCenterSpatialCrop, Resize, ToTensor
 from monai.handlers import \
     StatsHandler, TensorBoardStatsHandler, TensorBoardImageHandler, MeanDice, stopping_fn_from_metric
 from monai.networks.utils import predict_segmentation
@@ -51,12 +51,12 @@ segs = sorted(glob(os.path.join(tempdir, 'seg*.nii.gz')))
 train_imtrans = Compose([
     Rescale(),
     AddChannel(),
-    RandUniformPatch((96, 96, 96)),
+    RandCenterSpatialCrop((96, 96, 96)),
     ToTensor()
 ])
 train_segtrans = Compose([
     AddChannel(),
-    RandUniformPatch((96, 96, 96)),
+    RandCenterSpatialCrop((96, 96, 96)),
     ToTensor()
 ])
 val_imtrans = Compose([

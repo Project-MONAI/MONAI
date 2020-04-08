@@ -13,24 +13,24 @@ import unittest
 
 import numpy as np
 
-from monai.transforms import RandUniformPatchd
+from monai.transforms import RandCenterSpatialCropd
 from tests.utils import NumpyImageTestCase2D
 
 
-class TestRandUniformPatchd(NumpyImageTestCase2D):
+class TestRandCenterSpatialCropd(NumpyImageTestCase2D):
 
     def test_2d(self):
-        patch_spatial_size = (10, 10)
+        roi_size = (10, 10)
         key = 'test'
-        patch_transform = RandUniformPatchd(keys='test', patch_spatial_size=patch_spatial_size)
+        patch_transform = RandCenterSpatialCropd(keys='test', roi_size=roi_size)
         patch = patch_transform({key: self.imt[0]})
-        self.assertTrue(np.allclose(patch[key].shape[1:], patch_spatial_size))
+        self.assertTrue(np.allclose(patch[key].shape[1:], roi_size))
 
     def test_sync(self):
-        patch_spatial_size = (4, 4)
+        roi_size = (4, 4)
         key_1, key_2 = 'foo', 'bar'
         rand_image = np.random.rand(3, 10, 10)
-        patch_transform = RandUniformPatchd(keys=(key_1, key_2), patch_spatial_size=patch_spatial_size)
+        patch_transform = RandCenterSpatialCropd(keys=(key_1, key_2), roi_size=roi_size)
         patch = patch_transform({key_1: rand_image, key_2: rand_image})
         self.assertTrue(np.allclose(patch[key_1], patch[key_2]))
 

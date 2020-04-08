@@ -25,7 +25,7 @@ from monai.transforms.transforms import (AddChannel, AsChannelFirst, Flip, LoadN
                                          Rand2DElastic, Rand3DElastic, RandAffine, Rescale, Resize, Rotate, Rotate90,
                                          ScaleIntensityRange, Spacing, SpatialCrop, Zoom, ToTensor, LoadPNG,
                                          AsChannelLast, ThresholdIntensity, AdjustContrast, CenterSpatialCrop,
-                                         RandUniformPatch, CastToType)
+                                         RandCenterSpatialCrop, CastToType)
 from monai.transforms.utils import (create_grid, generate_pos_neg_label_crop_centers)
 from monai.utils.misc import ensure_tuple
 
@@ -417,37 +417,6 @@ class RandGaussianNoised(Randomizable, MapTransform):
         return d
 
 
-class RandUniformPatchd(Randomizable, MapTransform):
-    """
-    Selects a patch of the given size chosen at a uniformly random position in the image.
-
-    Args:
-        keys (hashable items): keys of the corresponding items to be transformed.
-            See also: :py:class:`monai.transforms.compose.MapTransform`
-        patch_spatial_size (tuple or list): Expected patch size of spatial dimensions.
-    """
-
-    def __init__(self, keys, patch_spatial_size):
-        MapTransform.__init__(self, keys)
-
-        self.patch_spatial_size = (None,) + tuple(patch_spatial_size)
-
-        self._slices = None
-
-    def randomize(self, image_shape, patch_shape):
-        self._slices = get_random_patch(image_shape, patch_shape, self.R)
-
-    def __call__(self, data):
-        d = dict(data)
-
-        image_shape = d[self.keys[0]].shape  # image shape from the first data key
-        patch_spatial_size = get_valid_patch_size(image_shape, self.patch_spatial_size)
-        self.randomize(image_shape, patch_spatial_size)
-        for key in self.keys:
-            d[key] = d[key][self._slices]
-        return d
-
-
 class RandRotate90d(Randomizable, MapTransform):
     """
     With probability `prob`, input arrays are rotated by 90 degrees
@@ -646,6 +615,38 @@ class CenterSpatialCropd(MapTransform):
         return d
 
 
+class RandCenterSpatialCropd(Randomizable, MapTransform):
+    """
+    dictionary-based version RandCenterSpatialCrop.
+    Crop at a random position in the image with the specified ROI size.
+
+    Args:
+        keys (hashable items): keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        roi_size (list, tuple): the spatial size of the crop region e.g. [224,224,128]
+    """
+
+    def __init__(self, keys, roi_size):
+        MapTransform.__init__(self, keys)
+
+        self.roi_size = (None,) + tuple(roi_size)
+
+        self._slices = None
+
+    def randomize(self, image_shape, roi_size):
+        self._slices = get_random_patch(image_shape, roi_size, self.R)
+
+    def __call__(self, data):
+        d = dict(data)
+
+        image_shape = d[self.keys[0]].shape  # image shape from the first data key
+        roi_size = get_valid_patch_size(image_shape, self.roi_size)
+        self.randomize(image_shape, roi_size)
+        for key in self.keys:
+            d[key] = d[key][self._slices]
+        return d
+
+
 class RandSizeSpatialCropd(Randomizable, MapTransform):
     """
     dictionary-based version RandSizeSpatialCrop. Crop image with random size ROI.
@@ -673,7 +674,7 @@ class RandSizeSpatialCropd(Randomizable, MapTransform):
         d = dict(data)
         self.randomize(d[self.keys[0]].shape[1:])  # image shape from the first data key
         if self.random_center:
-            cropper = RandUniformPatch(self.roi_size)
+            cropper = RandCenterSpatialCrop(self.roi_size)
         else:
             cropper = CenterSpatialCrop(self.roi_size)
         for key in self.keys:
@@ -1211,7 +1212,7 @@ Rotate90D = Rotate90Dict = Rotate90d
 RescaleD = RescaleDict = Rescaled
 ResizeD = ResizeDict = Resized
 RandGaussianNoiseD = RandGaussianNoiseDict = RandGaussianNoised
-RandUniformPatchD = RandUniformPatchDict = RandUniformPatchd
+RandCenterSpatialCropD = RandCenterSpatialCropDict = RandCenterSpatialCropd
 RandRotate90D = RandRotate90Dict = RandRotate90d
 NormalizeIntensityD = NormalizeIntensityDict = NormalizeIntensityd
 ThresholdIntensityD = ThresholdIntensityDict = ThresholdIntensityd
