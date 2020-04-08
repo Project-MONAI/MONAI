@@ -67,7 +67,6 @@ class TestRandSizeSpatialCropd(unittest.TestCase):
         result = cropper(input_data)
         roi = [(2 - i // 2, 2 + i - i // 2) for i in cropper.roi_size]
         np.testing.assert_allclose(result['img'], input_data['img'][:, roi[0][0]:roi[0][1], roi[1][0]:roi[1][1]])
-        
 
 
 if __name__ == '__main__':
