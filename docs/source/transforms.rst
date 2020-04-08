@@ -87,6 +87,12 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
+`CastToType`
+~~~~~~~~~~~~
+.. autoclass:: CastToType
+    :members:
+    :special-members: __call__
+
 `Transpose`
 ~~~~~~~~~~~
 .. autoclass:: Transpose
@@ -192,6 +198,18 @@ Vanilla Transforms
 `SpatialCrop`
 ~~~~~~~~~~~~~
 .. autoclass:: SpatialCrop
+    :members:
+    :special-members: __call__
+
+`CenterSpatialCrop`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: CenterSpatialCrop
+    :members:
+    :special-members: __call__
+
+`RandSizeSpatialCrop`
+~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: RandSizeSpatialCrop
     :members:
     :special-members: __call__
 
@@ -304,6 +322,12 @@ Dictionary-based Composables
     :members:
     :special-members: __call__
 
+`CastToTyped`
+~~~~~~~~~~~~~
+.. autoclass:: CastToTyped
+    :members:
+    :special-members: __call__
+
 `Rotate90d`
 ~~~~~~~~~~~
 .. autoclass:: Rotate90d
@@ -361,6 +385,18 @@ Dictionary-based Composables
 `RandAdjustContrastd`
 ~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: RandAdjustContrastd
+    :members:
+    :special-members: __call__
+
+`CenterSpatialCropd`
+~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: CenterSpatialCropd
+    :members:
+    :special-members: __call__
+
+`RandSizeSpatialCropd`
+~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: RandSizeSpatialCropd
     :members:
     :special-members: __call__
 

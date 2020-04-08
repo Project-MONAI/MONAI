@@ -24,7 +24,8 @@ from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.transforms import (AddChannel, AsChannelFirst, Flip, LoadNifti, NormalizeIntensity, Orientation,
                                          Rand2DElastic, Rand3DElastic, RandAffine, Rescale, Resize, Rotate, Rotate90,
                                          ScaleIntensityRange, Spacing, SpatialCrop, Zoom, ToTensor, LoadPNG,
-                                         AsChannelLast, ThresholdIntensity, AdjustContrast, RandAdjustContrast)
+                                         AsChannelLast, ThresholdIntensity, AdjustContrast, CenterSpatialCrop,
+                                         RandUniformPatch, CastToType)
 from monai.transforms.utils import (create_grid, generate_pos_neg_label_crop_centers)
 from monai.utils.misc import ensure_tuple
 
@@ -264,6 +265,28 @@ class AddChanneld(MapTransform):
         return d
 
 
+class CastToTyped(MapTransform):
+    """
+    dictionary-based wrapper of CastToType.
+    """
+
+    def __init__(self, keys, dtype=np.float32):
+        """
+        Args:
+            keys (hashable items): keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            dtype (np.dtype): convert image to this data type, default is `np.float32`.
+        """
+        MapTransform.__init__(self, keys)
+        self.converter = CastToType(dtype)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.converter(d[key])
+        return d
+
+
 class ToTensord(MapTransform):
     """
     dictionary-based wrapper of ToTensor.
@@ -360,22 +383,26 @@ class Resized(MapTransform):
 
 
 class RandGaussianNoised(Randomizable, MapTransform):
-    """Add gaussian noise to image.
+    """Add gaussian noise to image. Suppose all the expected fields have same shape.
 
     Args:
         keys (hashable items): keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
+        prob (float): Probability to add gaussian noise.
         mean (float or array of floats): Mean or “centre” of the distribution.
         std (float): Standard deviation (spread) of distribution.
     """
 
-    def __init__(self, keys, mean=0.0, std=0.1):
+    def __init__(self, keys, prob=0.1, mean=0.0, std=0.1):
         MapTransform.__init__(self, keys)
+        self.prob = prob
         self.mean = mean
         self.std = std
+        self._do_transform = False
         self._noise = None
 
     def randomize(self, im_shape):
+        self._do_transform = self.R.random() < self.prob
         self._noise = self.R.normal(self.mean, self.R.uniform(0, self.std), size=im_shape)
 
     def __call__(self, data):
@@ -383,6 +410,8 @@ class RandGaussianNoised(Randomizable, MapTransform):
 
         image_shape = d[self.keys[0]].shape  # image shape from the first data key
         self.randomize(image_shape)
+        if not self._do_transform:
+            return d
         for key in self.keys:
             d[key] = d[key] + self._noise
         return d
@@ -555,7 +584,7 @@ class AdjustContrastd(MapTransform):
 
 class RandAdjustContrastd(Randomizable, MapTransform):
     """
-    dictionary-based wrapper of RandAdjustContrast.
+    dictionary-based version RandAdjustContrast.
     Randomly changes image intensity by gamma. Each pixel/voxel intensity is updated as:
         `x = ((x - min) / intensity_range) ^ gamma * intensity_range + min`
 
@@ -569,12 +598,86 @@ class RandAdjustContrastd(Randomizable, MapTransform):
 
     def __init__(self, keys, prob=0.1, gamma=(0.5, 4.5)):
         MapTransform.__init__(self, keys)
-        self.adjuster = RandAdjustContrast(prob, gamma)
+        self.prob = prob
+        if not isinstance(gamma, (tuple, list)):
+            assert gamma > 0.5, \
+                'if gamma is single number, must greater than 0.5 and value is picked from (0.5, gamma)'
+            self.gamma = (0.5, gamma)
+        else:
+            self.gamma = gamma
+        assert len(self.gamma) == 2, 'gamma should be a number or pair of numbers.'
+
+        self._do_transform = False
+        self.gamma_value = None
+
+    def randomize(self):
+        self._do_transform = self.R.random_sample() < self.prob
+        self.gamma_value = self.R.uniform(low=self.gamma[0], high=self.gamma[1])
+
+    def __call__(self, data):
+        d = dict(data)
+        self.randomize()
+        if not self._do_transform:
+            return d
+        adjuster = AdjustContrast(self.gamma_value)
+        for key in self.keys:
+            d[key] = adjuster(d[key])
+        return d
+
+
+class CenterSpatialCropd(MapTransform):
+    """
+    dictionary-based wrapper of CenterSpatialCrop.
+
+    Args:
+        keys (hashable items): keys of the corresponding items to be transformed.
+            See also: monai.transform.composables.MapTransform
+        roi_size (list, tuple): the size of the crop region e.g. [224,224,128]
+    """
+
+    def __init__(self, keys, roi_size):
+        MapTransform.__init__(self, keys)
+        self.cropper = CenterSpatialCrop(roi_size)
 
     def __call__(self, data):
         d = dict(data)
         for key in self.keys:
-            d[key] = self.adjuster(d[key])
+            d[key] = self.cropper(d[key])
+        return d
+
+
+class RandSizeSpatialCropd(Randomizable, MapTransform):
+    """
+    dictionary-based version RandSizeSpatialCrop. Crop image with random size ROI.
+    It can crop at a random position as center or at the image center.
+    And allows to set the minimum size to limit the randomly generated ROI.
+    Suppose all the expected fields specified by `keys` have same shape.
+
+    Args:
+        keys (hashable items): keys of the corresponding items to be transformed.
+            See also: monai.transform.composables.MapTransform
+        min_roi_size (list, tuple): the size of the minimum crop region e.g. [224,224,128]
+        random_center (bool): crop at random position as center or the image center.
+    """
+
+    def __init__(self, keys, min_roi_size, random_center=True):
+        MapTransform.__init__(self, keys)
+        self.min_size = min_roi_size
+        self.random_center = random_center
+
+    def randomize(self, img_size):
+        min_size = [self.min_size] * len(img_size) if not isinstance(self.min_size, (list, tuple)) else self.min_size
+        self.roi_size = [self.R.randint(low=min_size[i], high=img_size[i] + 1) for i in range(len(img_size))]
+
+    def __call__(self, data):
+        d = dict(data)
+        self.randomize(d[self.keys[0]].shape[1:])  # image shape from the first data key
+        if self.random_center:
+            cropper = RandUniformPatch(self.roi_size)
+        else:
+            cropper = CenterSpatialCrop(self.roi_size)
+        for key in self.keys:
+            d[key] = cropper(d[key])
         return d
 
 
@@ -631,7 +734,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
             if key in self.keys:
                 img = d[key]
                 for i, center in enumerate(self.centers):
-                    cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.size)
+                    cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.size, copy=True)
                     results[i][key] = cropper(img)
             else:
                 for i in range(self.num_samples):
@@ -969,7 +1072,7 @@ class RandRotated(Randomizable, MapTransform):
 
         if not hasattr(self.degrees, '__iter__'):
             self.degrees = (-self.degrees, self.degrees)
-        assert len(self.degrees) == 2, "degrees should be a number or pair of numbers."
+        assert len(self.degrees) == 2, 'degrees should be a number or pair of numbers.'
 
         self._do_transform = False
         self.angle = None
@@ -1045,7 +1148,7 @@ class RandZoomd(Randomizable, MapTransform):
         MapTransform.__init__(self, keys)
         if hasattr(min_zoom, '__iter__') and \
            hasattr(max_zoom, '__iter__'):
-            assert len(min_zoom) == len(max_zoom), "min_zoom and max_zoom must have same length."
+            assert len(min_zoom) == len(max_zoom), 'min_zoom and max_zoom must have same length.'
         self.min_zoom = min_zoom
         self.max_zoom = max_zoom
         self.prob = prob
@@ -1102,6 +1205,7 @@ LoadPNGD = LoadPNGDict = LoadPNGd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
 AddChannelD = AddChannelDict = AddChanneld
+CastToTypeD = CastToTypeDict = CastToTyped
 ToTensorD = ToTensorDict = ToTensord
 Rotate90D = Rotate90Dict = Rotate90d
 RescaleD = RescaleDict = Rescaled
@@ -1113,6 +1217,8 @@ NormalizeIntensityD = NormalizeIntensityDict = NormalizeIntensityd
 ThresholdIntensityD = ThresholdIntensityDict = ThresholdIntensityd
 ScaleIntensityRangeD = ScaleIntensityRangeDict = ScaleIntensityRanged
 AdjustContrastD = AdjustContrastDict = AdjustContrastd
+CenterSpatialCropD = CenterSpatialCropDict = CenterSpatialCropd
+RandSizeSpatialCropD = RandSizeSpatialCropDict = RandSizeSpatialCropd
 RandAdjustContrastD = RandAdjustContrastDict = RandAdjustContrastd
 RandCropByPosNegLabelD = RandCropByPosNegLabelDict = RandCropByPosNegLabeld
 RandAffineD = RandAffineDict = RandAffined

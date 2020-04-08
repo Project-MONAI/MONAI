@@ -341,6 +341,23 @@ class AddChannel:
         return img[None]
 
 
+class CastToType:
+    """
+    Cast the image data to specified numpy data type.
+    """
+
+    def __init__(self, dtype=np.float32):
+        """
+        Args:
+            dtype (np.dtype): convert image to this data type, default is `np.float32`.
+        """
+        self.dtype = dtype
+
+    def __call__(self, img):
+        assert isinstance(img, np.ndarray), 'image must be numpy array.'
+        return img.astype(self.dtype)
+
+
 class Transpose:
     """
     Transposes the input image based on the given `indices` dimension ordering.
@@ -371,22 +388,25 @@ class RandGaussianNoise(Randomizable):
     """Add gaussian noise to image.
 
     Args:
+        prob (float): Probability to add gaussian noise.
         mean (float or array of floats): Mean or “centre” of the distribution.
         std (float): Standard deviation (spread) of distribution.
     """
 
-    def __init__(self, mean=0.0, std=0.1):
+    def __init__(self, prob=0.1, mean=0.0, std=0.1):
+        self.prob = prob
         self.mean = mean
         self.std = std
-
+        self._do_transform = False
         self._noise = None
 
     def randomize(self, im_shape):
+        self._do_transform = self.R.random() < self.prob
         self._noise = self.R.normal(self.mean, self.R.uniform(0, self.std), size=im_shape)
 
     def __call__(self, img):
         self.randomize(img.shape)
-        return img + self._noise
+        return img + self._noise if self._do_transform else img
 
 
 class Flip:
@@ -732,7 +752,7 @@ class RandAdjustContrast(Randomizable):
             self.gamma = (0.5, gamma)
         else:
             self.gamma = gamma
-        assert len(self.gamma) == 2, "gamma should be a number or pair of numbers."
+        assert len(self.gamma) == 2, 'gamma should be a number or pair of numbers.'
 
         self._do_transform = False
         self.gamma_value = None
@@ -848,13 +868,14 @@ class SpatialCrop:
     Note: This transform will not work if the crop region is larger than the image itself.
     """
 
-    def __init__(self, roi_center=None, roi_size=None, roi_start=None, roi_end=None):
+    def __init__(self, roi_center=None, roi_size=None, roi_start=None, roi_end=None, copy=False):
         """
         Args:
             roi_center (list or tuple): voxel coordinates for center of the crop ROI.
             roi_size (list or tuple): size of the crop ROI.
             roi_start (list or tuple): voxel coordinates for start of the crop ROI.
             roi_end (list or tuple): voxel coordinates for end of the crop ROI.
+            copy (bool): whether copy the cropped slices to a new array, default is False.
         """
         if roi_center is not None and roi_size is not None:
             roi_center = np.asarray(roi_center, dtype=np.uint16)
@@ -865,6 +886,7 @@ class SpatialCrop:
             assert roi_start is not None and roi_end is not None, 'roi_start and roi_end must be provided.'
             self.roi_start = np.asarray(roi_start, dtype=np.uint16)
             self.roi_end = np.asarray(roi_end, dtype=np.uint16)
+        self.copy = copy
 
         assert np.all(self.roi_start >= 0), 'all elements of roi_start must be greater than or equal to 0.'
         assert np.all(self.roi_end > 0), 'all elements of roi_end must be positive.'
@@ -877,8 +899,53 @@ class SpatialCrop:
         assert np.all(max_end[:sd] >= self.roi_end[:sd]), 'roi end out of image space.'
 
         slices = [slice(None)] + [slice(s, e) for s, e in zip(self.roi_start[:sd], self.roi_end[:sd])]
-        data = img[tuple(slices)].copy()
-        return data
+        data = img[tuple(slices)]
+        return data.copy() if self.copy else data
+
+
+class CenterSpatialCrop:
+    """
+    Crop at the center of image with specified ROI size.
+
+    Args:
+        roi_size (list, tuple): the size of the crop region e.g. [224,224,128]
+    """
+
+    def __init__(self, roi_size):
+        self.roi_size = roi_size
+
+    def __call__(self, img):
+        center = [i // 2 for i in img.shape[1:]]
+        cropper = SpatialCrop(roi_center=center, roi_size=self.roi_size, copy=False)
+        return cropper(img)
+
+
+class RandSizeSpatialCrop(Randomizable):
+    """
+    Crop image with random size ROI. It can crop at a random position as center
+    or at the image center. And allows to set the minimum size to limit the randomly
+    generated ROI. Suppose all the expected fields specified by `keys` have same shape.
+
+    Args:
+        min_roi_size (list, tuple): the size of the minimum crop region e.g. [224,224,128]
+        random_center (bool): crop at random position as center or the image center.
+    """
+
+    def __init__(self, min_roi_size, random_center=True):
+        self.min_size = min_roi_size
+        self.random_center = random_center
+
+    def randomize(self, img_size):
+        min_size = [self.min_size] * len(img_size) if not isinstance(self.min_size, (list, tuple)) else self.min_size
+        self.roi_size = [self.R.randint(low=min_size[i], high=img_size[i] + 1) for i in range(len(img_size))]
+
+    def __call__(self, img):
+        self.randomize(img.shape[1:])
+        if self.random_center:
+            cropper = RandUniformPatch(self.roi_size)
+        else:
+            cropper = CenterSpatialCrop(self.roi_size)
+        return cropper(img)
 
 
 class RandRotate(Randomizable):
@@ -913,7 +980,7 @@ class RandRotate(Randomizable):
 
         if not hasattr(self.degrees, '__iter__'):
             self.degrees = (-self.degrees, self.degrees)
-        assert len(self.degrees) == 2, "degrees should be a number or pair of numbers."
+        assert len(self.degrees) == 2, 'degrees should be a number or pair of numbers.'
 
         self._do_transform = False
         self.angle = None
@@ -980,7 +1047,7 @@ class RandZoom(Randomizable):
                  mode='constant', cval=0, prefilter=True,
                  use_gpu=False, keep_size=False):
         if hasattr(min_zoom, '__iter__') and hasattr(max_zoom, '__iter__'):
-            assert len(min_zoom) == len(max_zoom), "min_zoom and max_zoom must have same length."
+            assert len(min_zoom) == len(max_zoom), 'min_zoom and max_zoom must have same length.'
         self.min_zoom = min_zoom
         self.max_zoom = max_zoom
         self.prob = prob
