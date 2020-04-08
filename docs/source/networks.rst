@@ -1,6 +1,6 @@
 :github_url: https://github.com/Project-MONAI/MONAI
 
-.. _networkss:
+.. _networks:
 
 Network architectures
 =====================

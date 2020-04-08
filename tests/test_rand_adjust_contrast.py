@@ -11,27 +11,31 @@
 
 import unittest
 import numpy as np
-
 from parameterized import parameterized
-
-from monai.transforms import GaussianNoise
+from monai.transforms import RandAdjustContrast
 from tests.utils import NumpyImageTestCase2D
 
+TEST_CASE_1 = [
+    (0.5, 4.5)
+]
 
-class GaussianNoiseTest(NumpyImageTestCase2D):
+TEST_CASE_2 = [
+    1.5
+]
 
-    @parameterized.expand([
-        ("test_zero_mean", 0, 0.1),
-        ("test_non_zero_mean", 1, 0.5)
-    ])
-    def test_correct_results(self, _, mean, std):
-        seed = 42
-        gaussian_fn = GaussianNoise(mean=mean, std=std)
-        gaussian_fn.set_random_state(seed)
-        noised = gaussian_fn(self.imt)
-        np.random.seed(seed)
-        expected = self.imt + np.random.normal(mean, np.random.uniform(0, std), size=self.imt.shape)
-        assert np.allclose(expected, noised)
+
+class TestRandAdjustContrast(NumpyImageTestCase2D):
+
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    def test_correct_results(self, gamma):
+        adjuster = RandAdjustContrast(prob=1.0, gamma=gamma)
+        result = adjuster(self.imt)
+        epsilon = 1e-7
+        img_min = self.imt.min()
+        img_range = self.imt.max() - img_min
+        expected = np.power(((self.imt - img_min) / float(img_range + epsilon)), adjuster.gamma_value) * \
+            img_range + img_min
+        np.testing.assert_allclose(expected, result, rtol=1e-05)
 
 
 if __name__ == '__main__':

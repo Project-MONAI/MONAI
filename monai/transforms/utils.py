@@ -9,8 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
 import random
+import warnings
 
 import numpy as np
 
@@ -222,6 +222,22 @@ def generate_pos_neg_label_crop_centers(label, size, num_samples, pos_ratio, ima
         centers.append(center_ori)
 
     return centers
+
+
+def apply_transform(transform, data):
+    """
+    Transform `data` with `transform`.
+    If `data` is a list or tuple, each item of `data` will be transformed
+    and this method returns a list of outcomes.
+    otherwise transform will be applied once with `data` as the argument.
+
+    Args:
+        transform (callable): a callable to be used to transform `data`
+        data (object): an object to be transformed.
+    """
+    if isinstance(data, (list, tuple)):
+        return [transform(item) for item in data]
+    return transform(data)
 
 
 def create_grid(spatial_size, spacing=None, homogeneous=True, dtype=float):

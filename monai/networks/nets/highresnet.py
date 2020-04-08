@@ -141,7 +141,7 @@ class HighResNet(nn.Module):
         acti_type ('relu'|'prelu'|'relu6'): non-linear activation using ReLU or PReLU.
         dropout_prob (float): probability of the feature map to be zeroed
             (only applies to the penultimate conv layer).
-        layer_params (a list of dictionaries): specifying key paraemters of each layer/block.
+        layer_params (a list of dictionaries): specifying key parameters of each layer/block.
     """
 
     def __init__(self,
