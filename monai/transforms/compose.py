@@ -40,6 +40,7 @@ class Transform:
         :py:class:`monai.transforms.compose.Compose`
     """
 
+    @abstractmethod
     def __call__(self, data):
         """
         ``data`` is an element which often comes from an iteration over an
@@ -87,6 +88,7 @@ class Randomizable:
         self.R = np.random.RandomState()
         return self
 
+    @abstractmethod
     def randomize(self):
         """
         Within this method, :py:attr:`self.R` should be used, instead of `np.random`, to introduce random factors.
