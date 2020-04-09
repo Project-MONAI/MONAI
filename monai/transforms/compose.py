@@ -87,12 +87,15 @@ class Randomizable:
         self.R = np.random.RandomState()
         return self
 
-    def randomize(self):
+    def randomize(self, *args, **kwargs):
         """
         Within this method, :py:attr:`self.R` should be used, instead of `np.random`, to introduce random factors.
 
         all :py:attr:`self.R` calls happen here so that we have a better chance to
         identify errors of sync the random state.
+
+        This method can optionally take additional arguments so that the random factors are generated based on
+        properties of the input data.
         """
         raise NotImplementedError
 
