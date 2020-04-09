@@ -569,12 +569,30 @@ class RandAdjustContrastd(Randomizable, MapTransform):
 
     def __init__(self, keys, prob=0.1, gamma=(0.5, 4.5)):
         MapTransform.__init__(self, keys)
-        self.adjuster = RandAdjustContrast(prob, gamma)
+        self.prob = prob
+        if not isinstance(gamma, (tuple, list)):
+            assert gamma > 0.5, \
+                'if gamma is single number, must greater than 0.5 and value is picked from (0.5, gamma)'
+            self.gamma = (0.5, gamma)
+        else:
+            self.gamma = gamma
+        assert len(self.gamma) == 2, 'gamma should be a number or pair of numbers.'
+
+        self._do_transform = False
+        self.gamma_value = None
+
+    def randomize(self):
+        self._do_transform = self.R.random_sample() < self.prob
+        self.gamma_value = self.R.uniform(low=self.gamma[0], high=self.gamma[1])
 
     def __call__(self, data):
         d = dict(data)
+        self.randomize()
+        if not self._do_transform:
+            return d
+        adjuster = AdjustContrast(self.gamma_value)
         for key in self.keys:
-            d[key] = self.adjuster(d[key])
+            d[key] = adjuster(d[key])
         return d
 
 

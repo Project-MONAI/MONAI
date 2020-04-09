@@ -219,3 +219,7 @@ class MapTransform(Transform):
         for key in self.keys:
             if not isinstance(key, Hashable):
                 raise ValueError('keys should be a hashable or a sequence of hashables, got {}'.format(type(key)))
+
+    @abstractmethod
+    def __call__(self, data):
+        raise NotImplementedError
