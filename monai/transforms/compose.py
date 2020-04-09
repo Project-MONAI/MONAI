@@ -176,8 +176,12 @@ class Compose(Randomizable):
                 _transform.randomize()
             except TypeError as type_error:
                 warnings.warn(
-                    'Transform "{0}" in Compose not randomized\n{0}.{1}.'.format(type(_transform).__name__, type_error),
-                    RuntimeWarning)
+                    'Transform "{0}" in Compose not randomized\n{0}.{1}.'.format(
+                        type(_transform).__name__,
+                        type_error
+                    ),
+                    RuntimeWarning
+                )
 
     def __call__(self, input_):
         for _transform in self.transforms:
