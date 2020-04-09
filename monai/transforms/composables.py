@@ -24,7 +24,7 @@ from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.transforms import (AddChannel, AsChannelFirst, Flip, LoadNifti, NormalizeIntensity, Orientation,
                                          Rand2DElastic, Rand3DElastic, RandAffine, Rescale, Resize, Rotate, Rotate90,
                                          ScaleIntensityRange, Spacing, SpatialCrop, Zoom, ToTensor, LoadPNG,
-                                         AsChannelLast, ThresholdIntensity, AdjustContrast, RandAdjustContrast)
+                                         AsChannelLast, ThresholdIntensity, AdjustContrast)
 from monai.transforms.utils import (create_grid, generate_pos_neg_label_crop_centers)
 from monai.utils.misc import ensure_tuple
 
