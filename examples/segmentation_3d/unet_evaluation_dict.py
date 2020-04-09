@@ -20,13 +20,13 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from monai import config
-from monai.data import Dataset, list_data_collate, sliding_window_inference, create_test_image_3d, NiftiSaver
+import monai
+from monai.data import list_data_collate, sliding_window_inference, create_test_image_3d, NiftiSaver
 from monai.metrics import compute_meandice
 from monai.networks.nets import UNet
 from monai.transforms import Compose, LoadNiftid, AsChannelFirstd, Rescaled, ToTensord
 
-config.print_config()
+monai.config.print_config()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 tempdir = tempfile.mkdtemp()
@@ -51,7 +51,7 @@ val_transforms = Compose([
     Rescaled(keys=['img', 'seg']),
     ToTensord(keys=['img', 'seg'])
 ])
-val_ds = Dataset(data=val_files, transform=val_transforms)
+val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
 # sliding window inference need to input 1 image in every iteration
 val_loader = DataLoader(val_ds, batch_size=1, num_workers=4, collate_fn=list_data_collate,
                         pin_memory=torch.cuda.is_available())
