@@ -1326,7 +1326,7 @@ class RandAffine(Randomizable, Transform):
 
     def set_random_state(self, seed=None, state=None):
         self.rand_affine_grid.set_random_state(seed, state)
-        Randomizable.set_random_state(self, seed, state)
+        super().set_random_state(seed, state)
         return self
 
     def randomize(self):
@@ -1405,7 +1405,7 @@ class Rand2DElastic(Randomizable, Transform):
     def set_random_state(self, seed=None, state=None):
         self.deform_grid.set_random_state(seed, state)
         self.rand_affine_grid.set_random_state(seed, state)
-        Randomizable.set_random_state(self, seed, state)
+        super().set_random_state(seed, state)
         return self
 
     def randomize(self, spatial_size):
@@ -1488,7 +1488,7 @@ class Rand3DElastic(Randomizable, Transform):
 
     def set_random_state(self, seed=None, state=None):
         self.rand_affine_grid.set_random_state(seed, state)
-        Randomizable.set_random_state(self, seed, state)
+        super().set_random_state(seed, state)
         return self
 
     def randomize(self, grid_size):

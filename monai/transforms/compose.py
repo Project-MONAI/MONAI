@@ -41,7 +41,7 @@ class Transform(ABC):
     """
 
     @abstractmethod
-    def __call__(self, data):
+    def __call__(self, data, *args, **kwargs):
         """
         ``data`` is an element which often comes from an iteration over an
         iterable, such as :py:class:`torch.utils.data.Dataset`. This method should
@@ -50,6 +50,8 @@ class Transform(ABC):
 
         - ``data`` component is a "channel-first" array,
         - the channel dimension is not omitted even if number of channels is one.
+
+        This method can optionally take additional arguments to help execute transformation operation.
         """
         raise NotImplementedError
 
@@ -221,5 +223,5 @@ class MapTransform(Transform):
                 raise ValueError('keys should be a hashable or a sequence of hashables, got {}'.format(type(key)))
 
     @abstractmethod
-    def __call__(self, data):
+    def __call__(self, data, *args, **kwargs):
         raise NotImplementedError
