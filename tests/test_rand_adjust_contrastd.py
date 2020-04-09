@@ -33,7 +33,7 @@ class TestRandAdjustContrastd(NumpyImageTestCase2D):
         epsilon = 1e-7
         img_min = self.imt.min()
         img_range = self.imt.max() - img_min
-        expected = np.power(((self.imt - img_min) / float(img_range + epsilon)), adjuster.adjuster.gamma_value) * \
+        expected = np.power(((self.imt - img_min) / float(img_range + epsilon)), adjuster.gamma_value) * \
             img_range + img_min
         np.testing.assert_allclose(expected, result['img'], rtol=1e-05)
 

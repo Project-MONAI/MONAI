@@ -12,6 +12,7 @@
 Utilities and types for defining networks, these depend on PyTorch.
 """
 
+import warnings
 import torch
 import torch.nn.functional as f
 
