@@ -116,7 +116,8 @@ html_context = {
 }
 html_scaled_image_link = False
 html_show_sourcelink = True
-# html_favicon = 'favicon.ico'
+html_favicon = '../images/favicon.ico'
+html_logo = '../images/MNN-icon.png'
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
