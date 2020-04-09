@@ -25,13 +25,13 @@ from skimage.transform import resize
 from monai.data.utils import (get_random_patch, get_valid_patch_size, correct_nifti_header_if_necessary, zoom_affine,
                               compute_shape_offset, to_affine_nd)
 from monai.networks.layers.simplelayers import GaussianFilter
-from monai.transforms.compose import Randomizable
+from monai.transforms.compose import Transform, Randomizable
 from monai.transforms.utils import (create_control_grid, create_grid, create_rotate, create_scale, create_shear,
                                     create_translate, rescale_array)
 from monai.utils.misc import ensure_tuple
 
 
-class Spacing:
+class Spacing(Transform):
     """
     Resample input image into the specified `pixdim`.
     """
@@ -107,7 +107,7 @@ class Spacing:
         return output_data, affine, new_affine
 
 
-class Orientation:
+class Orientation(Transform):
     """
     Change the input image's orientation into the specified based on `axcodes`.
     """
@@ -172,7 +172,7 @@ class Orientation:
         return data_array, affine, new_affine
 
 
-class LoadNifti:
+class LoadNifti(Transform):
     """
     Load Nifti format file or files from provided path. If loading a list of
     files, stack them together and add a new dimension as first dimension, and
@@ -247,7 +247,7 @@ class LoadNifti:
         return img_array, compatible_meta
 
 
-class LoadPNG:
+class LoadPNG(Transform):
     """
     Load common 2D image format (PNG, JPG, etc. using PIL) file or files from provided path.
     It's based on the Image module in PIL library.
@@ -276,7 +276,7 @@ class LoadPNG:
         return np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
 
 
-class AsChannelFirst:
+class AsChannelFirst(Transform):
     """
     Change the channel dimension of the image to the first dimension.
 
@@ -300,7 +300,7 @@ class AsChannelFirst:
         return np.moveaxis(img, self.channel_dim, 0)
 
 
-class AsChannelLast:
+class AsChannelLast(Transform):
     """
     Change the channel dimension of the image to the last dimension.
 
@@ -323,7 +323,7 @@ class AsChannelLast:
         return np.moveaxis(img, self.channel_dim, -1)
 
 
-class AddChannel:
+class AddChannel(Transform):
     """
     Adds a 1-length channel dimension to the input image.
 
@@ -341,7 +341,7 @@ class AddChannel:
         return img[None]
 
 
-class Transpose:
+class Transpose(Transform):
     """
     Transposes the input image based on the given `indices` dimension ordering.
     """
@@ -353,7 +353,7 @@ class Transpose:
         return img.transpose(self.indices)
 
 
-class Rescale:
+class Rescale(Transform):
     """
     Rescales the input image to the given value range.
     """
@@ -367,7 +367,7 @@ class Rescale:
         return rescale_array(img, self.minv, self.maxv, self.dtype)
 
 
-class RandGaussianNoise(Randomizable):
+class RandGaussianNoise(Randomizable, Transform):
     """Add gaussian noise to image.
 
     Args:
@@ -389,7 +389,7 @@ class RandGaussianNoise(Randomizable):
         return img + self._noise
 
 
-class Flip:
+class Flip(Transform):
     """Reverses the order of elements along the given spatial axis. Preserves shape.
     Uses ``np.flip`` in practice. See numpy.flip for additional details.
     https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
@@ -414,7 +414,7 @@ class Flip:
         return np.stack(flipped)
 
 
-class Resize:
+class Resize(Transform):
     """
     Resize the input image to given resolution. Uses skimage.transform.resize underneath.
     For additional details, see https://scikit-image.org/docs/dev/api/skimage.transform.html#skimage.transform.resize.
@@ -463,7 +463,7 @@ class Resize:
         return np.stack(resized).astype(np.float32)
 
 
-class Rotate:
+class Rotate(Transform):
     """
     Rotates an input image by given angle. Uses scipy.ndimage.rotate. For more details, see
     https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.rotate.html
@@ -505,7 +505,7 @@ class Rotate:
         return np.stack(rotated).astype(np.float32)
 
 
-class Zoom:
+class Zoom(Transform):
     """ Zooms a nd image. Uses scipy.ndimage.zoom or cupyx.scipy.ndimage.zoom in case of gpu.
     For details, please see https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.zoom.html.
 
@@ -586,7 +586,7 @@ class Zoom:
         return zoomed[tuple(slice_vec)]
 
 
-class ToTensor:
+class ToTensor(Transform):
     """
     Converts the input image to a tensor without applying any other transformations.
     """
@@ -597,7 +597,7 @@ class ToTensor:
         return torch.as_tensor(np.ascontiguousarray(img))
 
 
-class RandUniformPatch(Randomizable):
+class RandUniformPatch(Randomizable, Transform):
     """
     Selects a patch of the given size chosen at a uniformly random position in the image.
 
@@ -619,7 +619,7 @@ class RandUniformPatch(Randomizable):
         return img[self._slices]
 
 
-class NormalizeIntensity:
+class NormalizeIntensity(Transform):
     """Normalize input based on provided args, using calculated mean and std if not provided
     (shape of subtrahend and divisor must match. if 0, entire volume uses same subtrahend and
     divisor, otherwise the shape can have dimension 1 for channels).
@@ -647,7 +647,7 @@ class NormalizeIntensity:
         return img
 
 
-class ThresholdIntensity:
+class ThresholdIntensity(Transform):
     """Filter the intensity values of whole image to below threshold or above threshold.
     And fill the remaining parts of the image to the `cval` value.
 
@@ -667,7 +667,7 @@ class ThresholdIntensity:
         return np.where(img > self.threshold if self.above else img < self.threshold, img, self.cval)
 
 
-class ScaleIntensityRange:
+class ScaleIntensityRange(Transform):
     """Apply specific intensity scaling to the whole numpy array.
     Scaling from [a_min, a_max] to [b_min, b_max] with clip option.
 
@@ -695,7 +695,7 @@ class ScaleIntensityRange:
         return img
 
 
-class AdjustContrast:
+class AdjustContrast(Transform):
     """Changes image intensity by gamma. Each pixel/voxel intensity is updated as:
         `x = ((x - min) / intensity_range) ^ gamma * intensity_range + min`
 
@@ -714,7 +714,7 @@ class AdjustContrast:
         return np.power(((img - img_min) / float(img_range + epsilon)), self.gamma) * img_range + img_min
 
 
-class RandAdjustContrast(Randomizable):
+class RandAdjustContrast(Randomizable, Transform):
     """Randomly changes image intensity by gamma. Each pixel/voxel intensity is updated as:
         `x = ((x - min) / intensity_range) ^ gamma * intensity_range + min`
 
@@ -749,7 +749,7 @@ class RandAdjustContrast(Randomizable):
         return adjuster(img)
 
 
-class PadImageEnd:
+class PadImageEnd(Transform):
     """Performs padding by appending to the end of the data all on one side for each dimension.
      Uses np.pad so in practice, a mode needs to be provided. See numpy.lib.arraypad.pad
      for additional details.
@@ -775,7 +775,7 @@ class PadImageEnd:
         return img
 
 
-class Rotate90:
+class Rotate90(Transform):
     """
     Rotate an array by 90 degrees in the plane specified by `axes`.
     """
@@ -803,7 +803,7 @@ class Rotate90:
         return np.stack(rotated)
 
 
-class RandRotate90(Randomizable):
+class RandRotate90(Randomizable, Transform):
     """
     With probability `prob`, input arrays are rotated by 90 degrees
     in the plane specified by `spatial_axes`.
@@ -838,7 +838,7 @@ class RandRotate90(Randomizable):
         return rotator(img)
 
 
-class SpatialCrop:
+class SpatialCrop(Transform):
     """General purpose cropper to produce sub-volume region of interest (ROI).
     It can support to crop ND spatial (channel-first) data.
     Either a spatial center and size must be provided, or alternatively if center and size
@@ -881,7 +881,7 @@ class SpatialCrop:
         return data
 
 
-class RandRotate(Randomizable):
+class RandRotate(Randomizable, Transform):
     """Randomly rotates the input arrays.
 
     Args:
@@ -931,7 +931,7 @@ class RandRotate(Randomizable):
         return rotator(img)
 
 
-class RandFlip(Randomizable):
+class RandFlip(Randomizable, Transform):
     """Randomly flips the image along axes. Preserves shape.
     See numpy.flip for additional details.
     https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
@@ -956,7 +956,7 @@ class RandFlip(Randomizable):
         return self.flipper(img)
 
 
-class RandZoom(Randomizable):
+class RandZoom(Randomizable, Transform):
     """Randomly zooms input arrays with given probability within given zoom range.
 
     Args:
@@ -1009,7 +1009,7 @@ class RandZoom(Randomizable):
         return zoomer(img)
 
 
-class AffineGrid:
+class AffineGrid(Transform):
     """
     Affine transforms on the coordinates.
     """
@@ -1062,7 +1062,7 @@ class AffineGrid:
         return grid.cpu().numpy()
 
 
-class RandAffineGrid(Randomizable):
+class RandAffineGrid(Randomizable, Transform):
     """
     generate randomised affine grid
     """
@@ -1133,7 +1133,7 @@ class RandAffineGrid(Randomizable):
         return affine_grid(spatial_size, grid)
 
 
-class RandDeformGrid(Randomizable):
+class RandDeformGrid(Randomizable, Transform):
     """
     generate random deformation grid
     """
@@ -1172,7 +1172,7 @@ class RandDeformGrid(Randomizable):
         return control_grid
 
 
-class Resample:
+class Resample(Transform):
 
     def __init__(self, padding_mode='zeros', as_tensor_output=False, device=None):
         """
@@ -1217,7 +1217,7 @@ class Resample:
         return out.cpu().numpy()
 
 
-class Affine:
+class Affine(Transform):
     """
     transform ``img`` given the affine parameters.
     """
@@ -1279,7 +1279,7 @@ class Affine:
         return self.resampler(img=img, grid=grid, mode=mode)
 
 
-class RandAffine(Randomizable):
+class RandAffine(Randomizable, Transform):
     """
     Random affine transform.
     """
@@ -1326,7 +1326,7 @@ class RandAffine(Randomizable):
 
     def set_random_state(self, seed=None, state=None):
         self.rand_affine_grid.set_random_state(seed, state)
-        Randomizable.set_random_state(self, seed, state)
+        super().set_random_state(seed, state)
         return self
 
     def randomize(self):
@@ -1352,7 +1352,7 @@ class RandAffine(Randomizable):
         return self.resampler(img=img, grid=grid, mode=mode)
 
 
-class Rand2DElastic(Randomizable):
+class Rand2DElastic(Randomizable, Transform):
     """
     Random elastic deformation and affine in 2D
     """
@@ -1405,7 +1405,7 @@ class Rand2DElastic(Randomizable):
     def set_random_state(self, seed=None, state=None):
         self.deform_grid.set_random_state(seed, state)
         self.rand_affine_grid.set_random_state(seed, state)
-        Randomizable.set_random_state(self, seed, state)
+        super().set_random_state(seed, state)
         return self
 
     def randomize(self, spatial_size):
@@ -1432,7 +1432,7 @@ class Rand2DElastic(Randomizable):
         return self.resampler(img, grid, mode)
 
 
-class Rand3DElastic(Randomizable):
+class Rand3DElastic(Randomizable, Transform):
     """
     Random elastic deformation and affine in 3D
     """
@@ -1488,7 +1488,7 @@ class Rand3DElastic(Randomizable):
 
     def set_random_state(self, seed=None, state=None):
         self.rand_affine_grid.set_random_state(seed, state)
-        Randomizable.set_random_state(self, seed, state)
+        super().set_random_state(seed, state)
         return self
 
     def randomize(self, grid_size):

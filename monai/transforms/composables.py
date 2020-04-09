@@ -24,7 +24,7 @@ from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.transforms import (AddChannel, AsChannelFirst, Flip, LoadNifti, NormalizeIntensity, Orientation,
                                          Rand2DElastic, Rand3DElastic, RandAffine, Rescale, Resize, Rotate, Rotate90,
                                          ScaleIntensityRange, Spacing, SpatialCrop, Zoom, ToTensor, LoadPNG,
-                                         AsChannelLast, ThresholdIntensity, AdjustContrast, RandAdjustContrast)
+                                         AsChannelLast, ThresholdIntensity, AdjustContrast)
 from monai.transforms.utils import (create_grid, generate_pos_neg_label_crop_centers)
 from monai.utils.misc import ensure_tuple
 
@@ -71,7 +71,7 @@ class Spacingd(MapTransform):
             dtype (None or np.dtype): output array data type, defaults to None to use input data's dtype.
             meta_key_format (str): key format to read/write affine matrices to the data dictionary.
         """
-        MapTransform.__init__(self, keys)
+        super().__init__(keys)
         self.spacing_transform = Spacing(pixdim, diagonal=diagonal, mode=mode, cval=cval, dtype=dtype)
         interp_order = ensure_tuple(interp_order)
         self.interp_order = interp_order \
@@ -120,7 +120,7 @@ class Orientationd(MapTransform):
         See Also:
             `nibabel.orientations.ornt2axcodes`.
         """
-        MapTransform.__init__(self, keys)
+        super().__init__(keys)
         self.ornt_transform = Orientation(
             axcodes=axcodes, as_closest_canonical=as_closest_canonical, labels=labels)
         self.meta_key_format = meta_key_format
@@ -157,7 +157,7 @@ class LoadNiftid(MapTransform):
             overwriting_keys (bool): whether allow to overwrite existing keys of meta data.
                 default is False, which will raise exception if encountering existing key.
         """
-        MapTransform.__init__(self, keys)
+        super().__init__(keys)
         self.loader = LoadNifti(as_closest_canonical, False, dtype)
         self.meta_key_format = meta_key_format
         self.overwriting_keys = overwriting_keys
@@ -189,7 +189,7 @@ class LoadPNGd(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             dtype (np.dtype, optional): if not None convert the loaded image to this data type.
         """
-        MapTransform.__init__(self, keys)
+        super().__init__(keys)
         self.loader = LoadPNG(dtype)
 
     def __call__(self, data):
@@ -211,7 +211,7 @@ class AsChannelFirstd(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             channel_dim (int): which dimension of input image is the channel, default is the last dimension.
         """
-        MapTransform.__init__(self, keys)
+        super().__init__(keys)
         self.converter = AsChannelFirst(channel_dim=channel_dim)
 
     def __call__(self, data):
@@ -233,7 +233,7 @@ class AsChannelLastd(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             channel_dim (int): which dimension of input image is the channel, default is the first dimension.
         """
-        MapTransform.__init__(self, keys)
+        super().__init__(keys)
         self.converter = AsChannelLast(channel_dim=channel_dim)
 
     def __call__(self, data):
@@ -254,7 +254,7 @@ class AddChanneld(MapTransform):
             keys (hashable items): keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
         """
-        MapTransform.__init__(self, keys)
+        super().__init__(keys)
         self.adder = AddChannel()
 
     def __call__(self, data):
@@ -275,7 +275,7 @@ class ToTensord(MapTransform):
             keys (hashable items): keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
         """
-        MapTransform.__init__(self, keys)
+        super().__init__(keys)
         self.converter = ToTensor()
 
     def __call__(self, data):
@@ -297,7 +297,7 @@ class Rotate90d(MapTransform):
             spatial_axes (2 ints): defines the plane to rotate with 2 spatial axes.
                 Default: (0, 1), this is the first two axis in spatial dimensions.
         """
-        MapTransform.__init__(self, keys)
+        super().__init__(keys)
         self.k = k
         self.spatial_axes = spatial_axes
 
@@ -316,7 +316,7 @@ class Rescaled(MapTransform):
     """
 
     def __init__(self, keys, minv=0.0, maxv=1.0, dtype=np.float32):
-        MapTransform.__init__(self, keys)
+        super().__init__(keys)
         self.rescaler = Rescale(minv, maxv, dtype)
 
     def __call__(self, data):
@@ -348,7 +348,7 @@ class Resized(MapTransform):
 
     def __init__(self, keys, output_spatial_shape, order=1, mode='reflect', cval=0,
                  clip=True, preserve_range=True, anti_aliasing=True, anti_aliasing_sigma=None):
-        MapTransform.__init__(self, keys)
+        super().__init__(keys)
         self.resizer = Resize(output_spatial_shape, order, mode, cval, clip, preserve_range,
                               anti_aliasing, anti_aliasing_sigma)
 
@@ -370,7 +370,7 @@ class RandGaussianNoised(Randomizable, MapTransform):
     """
 
     def __init__(self, keys, mean=0.0, std=0.1):
-        MapTransform.__init__(self, keys)
+        super().__init__(keys)
         self.mean = mean
         self.std = std
         self._noise = None
@@ -399,7 +399,7 @@ class RandUniformPatchd(Randomizable, MapTransform):
     """
 
     def __init__(self, keys, patch_spatial_size):
-        MapTransform.__init__(self, keys)
+        super().__init__(keys)
 
         self.patch_spatial_size = (None,) + tuple(patch_spatial_size)
 
@@ -437,7 +437,7 @@ class RandRotate90d(Randomizable, MapTransform):
             spatial_axes (2 ints): defines the plane to rotate with 2 spatial axes.
                 Default: (0, 1), this is the first two axis in spatial dimensions.
         """
-        MapTransform.__init__(self, keys)
+        super().__init__(keys)
 
         self.prob = min(max(prob, 0.0), 1.0)
         self.max_k = max_k
@@ -474,7 +474,7 @@ class NormalizeIntensityd(MapTransform):
     """
 
     def __init__(self, keys, subtrahend=None, divisor=None):
-        MapTransform.__init__(self, keys)
+        super().__init__(keys)
         self.normalizer = NormalizeIntensity(subtrahend, divisor)
 
     def __call__(self, data):
@@ -497,7 +497,7 @@ class ThresholdIntensityd(MapTransform):
     """
 
     def __init__(self, keys, threshold, above=True, cval=0):
-        MapTransform.__init__(self, keys)
+        super().__init__(keys)
         self.filter = ThresholdIntensity(threshold, above, cval)
 
     def __call__(self, data):
@@ -522,7 +522,7 @@ class ScaleIntensityRanged(MapTransform):
     """
 
     def __init__(self, keys, a_min, a_max, b_min, b_max, clip=False):
-        MapTransform.__init__(self, keys)
+        super().__init__(keys)
         self.scaler = ScaleIntensityRange(a_min, a_max, b_min, b_max, clip)
 
     def __call__(self, data):
@@ -543,7 +543,7 @@ class AdjustContrastd(MapTransform):
     """
 
     def __init__(self, keys, gamma):
-        MapTransform.__init__(self, keys)
+        super().__init__(keys)
         self.adjuster = AdjustContrast(gamma)
 
     def __call__(self, data):
@@ -568,13 +568,31 @@ class RandAdjustContrastd(Randomizable, MapTransform):
     """
 
     def __init__(self, keys, prob=0.1, gamma=(0.5, 4.5)):
-        MapTransform.__init__(self, keys)
-        self.adjuster = RandAdjustContrast(prob, gamma)
+        super().__init__(keys)
+        self.prob = prob
+        if not isinstance(gamma, (tuple, list)):
+            assert gamma > 0.5, \
+                'if gamma is single number, must greater than 0.5 and value is picked from (0.5, gamma)'
+            self.gamma = (0.5, gamma)
+        else:
+            self.gamma = gamma
+        assert len(self.gamma) == 2, 'gamma should be a number or pair of numbers.'
+
+        self._do_transform = False
+        self.gamma_value = None
+
+    def randomize(self):
+        self._do_transform = self.R.random_sample() < self.prob
+        self.gamma_value = self.R.uniform(low=self.gamma[0], high=self.gamma[1])
 
     def __call__(self, data):
         d = dict(data)
+        self.randomize()
+        if not self._do_transform:
+            return d
+        adjuster = AdjustContrast(self.gamma_value)
         for key in self.keys:
-            d[key] = self.adjuster(d[key])
+            d[key] = adjuster(d[key])
         return d
 
 
@@ -600,7 +618,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
     """
 
     def __init__(self, keys, label_key, size, pos=1, neg=1, num_samples=1, image_key=None, image_threshold=0):
-        MapTransform.__init__(self, keys)
+        super().__init__(keys)
         assert isinstance(label_key, str), 'label_key must be a string.'
         assert isinstance(size, (list, tuple)), 'size must be list or tuple.'
         assert all(isinstance(x, int) and x > 0 for x in size), 'all elements of size must be positive integers.'
@@ -670,7 +688,7 @@ class RandAffined(Randomizable, MapTransform):
             - :py:class:`monai.transforms.compose.MapTransform`
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
         """
-        MapTransform.__init__(self, keys)
+        super().__init__(keys)
         default_mode = 'bilinear' if isinstance(mode, (tuple, list)) else mode
         self.rand_affine = RandAffine(prob=prob,
                                       rotate_range=rotate_range, shear_range=shear_range,
@@ -682,7 +700,7 @@ class RandAffined(Randomizable, MapTransform):
 
     def set_random_state(self, seed=None, state=None):
         self.rand_affine.set_random_state(seed, state)
-        Randomizable.set_random_state(self, seed, state)
+        super().set_random_state(seed, state)
         return self
 
     def randomize(self):
@@ -739,7 +757,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
         """
-        MapTransform.__init__(self, keys)
+        super().__init__(keys)
         default_mode = 'bilinear' if isinstance(mode, (tuple, list)) else mode
         self.rand_2d_elastic = Rand2DElastic(spacing=spacing, magnitude_range=magnitude_range, prob=prob,
                                              rotate_range=rotate_range, shear_range=shear_range,
@@ -751,7 +769,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
 
     def set_random_state(self, seed=None, state=None):
         self.rand_2d_elastic.set_random_state(seed, state)
-        Randomizable.set_random_state(self, seed, state)
+        super().set_random_state(seed, state)
         return self
 
     def randomize(self, spatial_size):
@@ -811,7 +829,7 @@ class Rand3DElasticd(Randomizable, MapTransform):
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
         """
-        MapTransform.__init__(self, keys)
+        super().__init__(keys)
         default_mode = 'bilinear' if isinstance(mode, (tuple, list)) else mode
         self.rand_3d_elastic = Rand3DElastic(sigma_range=sigma_range, magnitude_range=magnitude_range, prob=prob,
                                              rotate_range=rotate_range, shear_range=shear_range,
@@ -823,7 +841,7 @@ class Rand3DElasticd(Randomizable, MapTransform):
 
     def set_random_state(self, seed=None, state=None):
         self.rand_3d_elastic.set_random_state(seed, state)
-        Randomizable.set_random_state(self, seed, state)
+        super().set_random_state(seed, state)
         return self
 
     def randomize(self, grid_size):
@@ -863,7 +881,7 @@ class Flipd(MapTransform):
     """
 
     def __init__(self, keys, spatial_axis=None):
-        MapTransform.__init__(self, keys)
+        super().__init__(keys)
         self.flipper = Flip(spatial_axis=spatial_axis)
 
     def __call__(self, data):
@@ -885,7 +903,7 @@ class RandFlipd(Randomizable, MapTransform):
     """
 
     def __init__(self, keys, prob=0.1, spatial_axis=None):
-        MapTransform.__init__(self, keys)
+        super().__init__(keys)
         self.spatial_axis = spatial_axis
         self.prob = prob
 
@@ -925,7 +943,7 @@ class Rotated(MapTransform):
 
     def __init__(self, keys, angle, spatial_axes=(0, 1), reshape=True, order=1,
                  mode='constant', cval=0, prefilter=True):
-        MapTransform.__init__(self, keys)
+        super().__init__(keys)
         self.rotator = Rotate(angle=angle, spatial_axes=spatial_axes, reshape=reshape,
                               order=order, mode=mode, cval=cval, prefilter=prefilter)
 
@@ -957,7 +975,7 @@ class RandRotated(Randomizable, MapTransform):
 
     def __init__(self, keys, degrees, prob=0.1, spatial_axes=(0, 1), reshape=True, order=1,
                  mode='constant', cval=0, prefilter=True):
-        MapTransform.__init__(self, keys)
+        super().__init__(keys)
         self.prob = prob
         self.degrees = degrees
         self.reshape = reshape
@@ -1007,7 +1025,7 @@ class Zoomd(MapTransform):
 
     def __init__(self, keys, zoom, order=3, mode='constant', cval=0,
                  prefilter=True, use_gpu=False, keep_size=False):
-        MapTransform.__init__(self, keys)
+        super().__init__(keys)
         self.zoomer = Zoom(zoom=zoom, order=order, mode=mode, cval=cval,
                            prefilter=prefilter, use_gpu=use_gpu, keep_size=keep_size)
 
@@ -1042,7 +1060,7 @@ class RandZoomd(Randomizable, MapTransform):
     def __init__(self, keys, prob=0.1, min_zoom=0.9,
                  max_zoom=1.1, order=3, mode='constant',
                  cval=0, prefilter=True, use_gpu=False, keep_size=False):
-        MapTransform.__init__(self, keys)
+        super().__init__(keys)
         if hasattr(min_zoom, '__iter__') and \
            hasattr(max_zoom, '__iter__'):
             assert len(min_zoom) == len(max_zoom), "min_zoom and max_zoom must have same length."
@@ -1089,7 +1107,7 @@ class DeleteKeysd(MapTransform):
             keys (hashable items): keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
         """
-        MapTransform.__init__(self, keys)
+        super().__init__(keys)
 
     def __call__(self, data):
         return {key: val for key, val in data.items() if key not in self.keys}

@@ -28,17 +28,22 @@ TEST_ILL_CASES = [
 ]
 
 
+class MapTest(MapTransform):
+    def __call__(self, data):
+        pass
+
+
 class TestRandomizable(unittest.TestCase):
 
     @parameterized.expand(TEST_CASES)
     def test_keys(self, keys, expected):
-        transform = MapTransform(keys=keys)
+        transform = MapTest(keys=keys)
         self.assertEqual(transform.keys, expected)
 
     @parameterized.expand(TEST_ILL_CASES)
     def test_wrong_keys(self, keys):
         with self.assertRaisesRegex(ValueError, ''):
-            MapTransform(keys=keys)
+            MapTest(keys=keys)
 
 
 if __name__ == '__main__':
