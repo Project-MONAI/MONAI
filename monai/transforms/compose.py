@@ -14,14 +14,14 @@ A collection of generic interfaces for MONAI transforms.
 
 import warnings
 from typing import Hashable
-
+from abc import ABC, abstractmethod
 import numpy as np
 
 from monai.utils.misc import ensure_tuple
 from .utils import apply_transform
 
 
-class Transform:
+class Transform(ABC):
     """
     An abstract class of a ``Transform``.
     A transform is callable that processes ``data``.
@@ -54,7 +54,7 @@ class Transform:
         raise NotImplementedError
 
 
-class Randomizable:
+class Randomizable(ABC):
     """
     An interface for handling local numpy random state.
     this is mainly for randomized data augmentation transforms.
