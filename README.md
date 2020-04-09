@@ -7,7 +7,7 @@
 [![codecov](https://codecov.io/gh/Project-MONAI/MONAI/branch/master/graph/badge.svg)](https://codecov.io/gh/Project-MONAI/MONAI)
 [![Total alerts](https://img.shields.io/lgtm/alerts/g/Project-MONAI/MONAI.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/Project-MONAI/MONAI/alerts/)
 [![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/Project-MONAI/MONAI.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/Project-MONAI/MONAI/context:python)
-![PyPI](https://img.shields.io/pypi/v/monai)
+[![PyPI](https://img.shields.io/pypi/v/monai)](https://pypi.org/project/monai/)
 
 MONAI is a [PyTorch](https://pytorch.org/)-based, [open-source](https://github.com/Project-MONAI/MONAI/blob/master/LICENSE) platform for deep learning in healthcare imaging. Its ambitions are:
 - developing a community of academic, industrial and clinical researchers collaborating on a common foundation;
