@@ -1,4 +1,7 @@
-# Project MONAI
+<p align="center">
+  <img src="./docs/images/MONAI-logo-color.png" width="50%" alt='project-monai'>
+</p>
+
 **M**edical **O**pen **N**etwork for **AI**
 
 [![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
