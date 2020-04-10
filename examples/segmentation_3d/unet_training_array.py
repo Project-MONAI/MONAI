@@ -23,7 +23,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 import monai
 from monai.data import NiftiDataset, create_test_image_3d, sliding_window_inference
-from monai.transforms import Compose, AddChannel, Rescale, RandUniformPatch, RandRotate90, ToTensor
+from monai.transforms import Compose, AddChannel, ScaleIntensity, RandUniformPatch, RandRotate90, ToTensor
 from monai.metrics import compute_meandice
 from monai.visualize.img2tensorboard import plot_2d_or_3d_image
 
@@ -47,7 +47,7 @@ segs = sorted(glob(os.path.join(tempdir, 'seg*.nii.gz')))
 
 # define transforms for image and segmentation
 train_imtrans = Compose([
-    Rescale(),
+    ScaleIntensity(),
     AddChannel(),
     RandUniformPatch((96, 96, 96)),
     RandRotate90(prob=0.5, spatial_axes=(0, 2)),
@@ -60,7 +60,7 @@ train_segtrans = Compose([
     ToTensor()
 ])
 val_imtrans = Compose([
-    Rescale(),
+    ScaleIntensity(),
     AddChannel(),
     ToTensor()
 ])

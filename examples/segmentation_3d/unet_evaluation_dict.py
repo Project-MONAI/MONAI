@@ -24,7 +24,7 @@ import monai
 from monai.data import list_data_collate, sliding_window_inference, create_test_image_3d, NiftiSaver
 from monai.metrics import compute_meandice
 from monai.networks.nets import UNet
-from monai.transforms import Compose, LoadNiftid, AsChannelFirstd, Rescaled, ToTensord
+from monai.transforms import Compose, LoadNiftid, AsChannelFirstd, ScaleIntensityd, ToTensord
 
 monai.config.print_config()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -48,7 +48,7 @@ val_files = [{'img': img, 'seg': seg} for img, seg in zip(images, segs)]
 val_transforms = Compose([
     LoadNiftid(keys=['img', 'seg']),
     AsChannelFirstd(keys=['img', 'seg'], channel_dim=-1),
-    Rescaled(keys=['img', 'seg']),
+    ScaleIntensityd(keys=['img', 'seg']),
     ToTensord(keys=['img', 'seg'])
 ])
 val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
