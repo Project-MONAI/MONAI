@@ -336,7 +336,7 @@ class SpatialCropd(MapTransform):
 
 class CropForegroundd(MapTransform):
     """
-    dictionary-based version :py:class:`monai.transforms.compose.CropForeground`.
+    dictionary-based version :py:class:`monai.transforms.transforms.CropForeground`.
     Crop only the foreground object of the expected images.
     The typical usage is to help training and evaluation if the valid part is small in the whole medical image.
     The valid part can be determined by any field in the data with `source_key`, for example:
@@ -600,6 +600,7 @@ class AdjustContrastd(MapTransform):
     """
     dictionary-based wrapper of AdjustContrast.
     Changes image intensity by gamma. Each pixel/voxel intensity is updated as:
+
         `x = ((x - min) / intensity_range) ^ gamma * intensity_range + min`
 
     Args:
@@ -621,6 +622,7 @@ class RandAdjustContrastd(Randomizable, MapTransform):
     """
     dictionary-based wrapper of RandAdjustContrast.
     Randomly changes image intensity by gamma. Each pixel/voxel intensity is updated as:
+
         `x = ((x - min) / intensity_range) ^ gamma * intensity_range + min`
 
     Args:

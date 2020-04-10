@@ -379,6 +379,7 @@ def generate_spatial_bounding_box(img, select_fn=lambda x: x > 0, channel_indexe
     generate the spatial bounding box of foreground in the image with start-end positions.
     Users can define arbitrary function to select expected foreground from the whole image or specified channels.
     And it can also add margin to every dim of the bounding box.
+
     Args:
         img (ndarrary): source image to generate bounding box from.
         select_fn (Callable): function to select expected foreground, default is to select values > 0.

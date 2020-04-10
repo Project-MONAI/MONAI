@@ -888,13 +888,21 @@ class CropForeground(Transform):
     The typical usage is to help training and evaluation if the valid part is small in the whole medical image.
     Users can define arbitrary function to select expected foreground from the whole image or specified channels.
     And it can also add margin to every dim of the bounding box of foreground object.
-    For example, crop the nonzero ROI from below array::
+    For example:
 
-       [[0, 0, 0, 0, 0],
-        [0, 1, 2, 1, 0],         [[1, 2, 1],
-        [0, 2, 3, 2, 0],   -->    [2, 3, 2],
-        [0, 1, 2, 1, 0],          [1, 2, 1]]
-        [0, 0, 0, 0, 0]]
+    .. code-block:: python
+
+        image = np.array(
+            [[[0, 0, 0, 0, 0],
+              [0, 1, 2, 1, 0],
+              [0, 1, 3, 2, 0],
+              [0, 1, 2, 1, 0],
+              [0, 0, 0, 0, 0]]])  # 1x5x5, single channel 5x5 image
+        cropper = CropForeground(select_fn=lambda x: x > 1, margin=0)
+        print(cropper(image))
+        [[[2, 1],
+          [3, 2],
+          [2, 1]]]
 
     """
 
