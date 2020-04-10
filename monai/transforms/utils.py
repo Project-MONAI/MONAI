@@ -386,6 +386,7 @@ def generate_spatial_bounding_box(img, select_fn=lambda x: x > 0, channel_indexe
             of image. if None, select foreground on the whole image.
         margin (int): add margin to all dims of the bounding box.
     """
+    assert isinstance(margin, int), 'margin must be int type.'
     data = img[[*(ensure_tuple(channel_indexes))]] if channel_indexes is not None else img
     data = np.any(select_fn(data), axis=0)
     nonzero_idx = np.nonzero(data)
