@@ -27,10 +27,10 @@ TEST_CASE_1 = [
             ]
         ]),
         'select_fn': lambda x: x > 0,
-        'channel_index': None,
+        'channel_indexes': None,
         'margin': 0
     },
-    ([1, 1], [3, 3])
+    ([1, 1], [4, 4])
 ]
 
 TEST_CASE_2 = [
@@ -45,10 +45,10 @@ TEST_CASE_2 = [
             ]
         ]),
         'select_fn': lambda x: x > 1,
-        'channel_index': None,
+        'channel_indexes': None,
         'margin': 0
     },
-    ([2, 2], [2, 2])
+    ([2, 2], [3, 3])
 ]
 
 TEST_CASE_3 = [
@@ -63,10 +63,10 @@ TEST_CASE_3 = [
             ]
         ]),
         'select_fn': lambda x: x > 0,
-        'channel_index': 0,
+        'channel_indexes': 0,
         'margin': 0
     },
-    ([1, 1], [3, 3])
+    ([1, 1], [4, 4])
 ]
 
 TEST_CASE_4 = [
@@ -81,10 +81,10 @@ TEST_CASE_4 = [
             ]
         ]),
         'select_fn': lambda x: x > 0,
-        'channel_index': None,
+        'channel_indexes': None,
         'margin': 1
     },
-    ([0, 0], [3, 4])
+    ([0, 0], [4, 5])
 ]
 
 

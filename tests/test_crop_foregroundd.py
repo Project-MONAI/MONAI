@@ -20,7 +20,7 @@ TEST_CASE_1 = [
         'keys': ['img', 'label'],
         'source_key': 'label',
         'select_fn': lambda x: x > 0,
-        'channel_index': None,
+        'channel_indexes': None,
         'margin': 0
     },
     {
@@ -57,7 +57,7 @@ TEST_CASE_2 = [
         'keys': ['img'],
         'source_key': 'img',
         'select_fn': lambda x: x > 1,
-        'channel_index': None,
+        'channel_indexes': None,
         'margin': 0
     },
     {
@@ -83,7 +83,7 @@ TEST_CASE_3 = [
         'keys': ['img'],
         'source_key': 'img',
         'select_fn': lambda x: x > 0,
-        'channel_index': 0,
+        'channel_indexes': 0,
         'margin': 0
     },
     {
@@ -111,7 +111,7 @@ TEST_CASE_4 = [
         'keys': ['img'],
         'source_key': 'img',
         'select_fn': lambda x: x > 0,
-        'channel_index': None,
+        'channel_indexes': None,
         'margin': 1
     },
     {
