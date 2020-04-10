@@ -14,14 +14,14 @@ A collection of generic interfaces for MONAI transforms.
 
 import warnings
 from typing import Hashable
-
+from abc import ABC, abstractmethod
 import numpy as np
 
 from monai.utils.misc import ensure_tuple
 from .utils import apply_transform
 
 
-class Transform:
+class Transform(ABC):
     """
     An abstract class of a ``Transform``.
     A transform is callable that processes ``data``.
@@ -40,7 +40,8 @@ class Transform:
         :py:class:`monai.transforms.compose.Compose`
     """
 
-    def __call__(self, data):
+    @abstractmethod
+    def __call__(self, data, *args, **kwargs):
         """
         ``data`` is an element which often comes from an iteration over an
         iterable, such as :py:class:`torch.utils.data.Dataset`. This method should
@@ -49,11 +50,13 @@ class Transform:
 
         - ``data`` component is a "channel-first" array,
         - the channel dimension is not omitted even if number of channels is one.
+
+        This method can optionally take additional arguments to help execute transformation operation.
         """
         raise NotImplementedError
 
 
-class Randomizable:
+class Randomizable(ABC):
     """
     An interface for handling local numpy random state.
     this is mainly for randomized data augmentation transforms.
@@ -87,12 +90,16 @@ class Randomizable:
         self.R = np.random.RandomState()
         return self
 
-    def randomize(self):
+    @abstractmethod
+    def randomize(self, *args, **kwargs):
         """
         Within this method, :py:attr:`self.R` should be used, instead of `np.random`, to introduce random factors.
 
         all :py:attr:`self.R` calls happen here so that we have a better chance to
         identify errors of sync the random state.
+
+        This method can optionally take additional arguments so that the random factors are generated based on
+        properties of the input data.
         """
         raise NotImplementedError
 
@@ -176,8 +183,12 @@ class Compose(Randomizable):
                 _transform.randomize()
             except TypeError as type_error:
                 warnings.warn(
-                    'Transform "{0}" in Compose not randomized\n{0}.{1}.'.format(type(_transform).__name__, type_error),
-                    RuntimeWarning)
+                    'Transform "{0}" in Compose not randomized\n{0}.{1}.'.format(
+                        type(_transform).__name__,
+                        type_error
+                    ),
+                    RuntimeWarning
+                )
 
     def __call__(self, input_):
         for _transform in self.transforms:
@@ -213,3 +224,7 @@ class MapTransform(Transform):
         for key in self.keys:
             if not isinstance(key, Hashable):
                 raise ValueError('keys should be a hashable or a sequence of hashables, got {}'.format(type(key)))
+
+    @abstractmethod
+    def __call__(self, data, *args, **kwargs):
+        raise NotImplementedError

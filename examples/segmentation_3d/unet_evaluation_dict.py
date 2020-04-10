@@ -21,13 +21,12 @@ import torch
 from torch.utils.data import DataLoader
 
 import monai
-from monai import config
 from monai.data import list_data_collate, sliding_window_inference, create_test_image_3d, NiftiSaver
 from monai.metrics import compute_meandice
 from monai.networks.nets import UNet
 from monai.transforms import Compose, LoadNiftid, AsChannelFirstd, Rescaled, ToTensord
 
-config.print_config()
+monai.config.print_config()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 tempdir = tempfile.mkdtemp()
