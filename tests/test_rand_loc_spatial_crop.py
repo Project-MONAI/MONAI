@@ -13,15 +13,15 @@ import unittest
 
 import numpy as np
 
-from monai.transforms import RandCenterSpatialCrop
+from monai.transforms import RandLocSpatialCrop
 from tests.utils import NumpyImageTestCase2D
 
 
-class TestRandCenterSpatialCrop(NumpyImageTestCase2D):
+class TestRandLocSpatialCrop(NumpyImageTestCase2D):
 
     def test_2d(self):
         roi_size = (10, 10)
-        patch_transform = RandCenterSpatialCrop(roi_size=roi_size)
+        patch_transform = RandLocSpatialCrop(roi_size=roi_size)
         patch = patch_transform(self.imt[0])
         self.assertTrue(np.allclose(patch.shape[1:], roi_size))
 

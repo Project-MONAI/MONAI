@@ -25,7 +25,7 @@ from monai.transforms.transforms import (AddChannel, AsChannelFirst, Flip, LoadN
                                          Rand2DElastic, Rand3DElastic, RandAffine, Rescale, Resize, Rotate, Rotate90,
                                          ScaleIntensityRange, Spacing, SpatialCrop, Zoom, ToTensor, LoadPNG,
                                          AsChannelLast, ThresholdIntensity, AdjustContrast, CenterSpatialCrop,
-                                         RandCenterSpatialCrop, CastToType)
+                                         RandLocSpatialCrop, CastToType)
 from monai.transforms.utils import (create_grid, generate_pos_neg_label_crop_centers)
 from monai.utils.misc import ensure_tuple
 
@@ -137,12 +137,12 @@ class Orientationd(MapTransform):
 
 class LoadNiftid(MapTransform):
     """
-    Dictionary-based wrapper of LoadNifti, must load image and metadata
-    together. If loading a list of files in one key, stack them together and
-    add a new dimension as the first dimension, and use the meta data of the
-    first image to represent the stacked result. Note that the affine transform
-    of all the stacked images should be same. The output metadata field will be created as
-    ``self.meta_key_format(key, metadata_key)``.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.LoadNifti`,
+    must load image and metadata together. If loading a list of files in one key,
+    stack them together and add a new dimension as the first dimension, and use the
+    meta data of the first image to represent the stacked result. Note that the affine
+    transform of all the stacked images should be same. The output metadata field will
+    be created as ``self.meta_key_format(key, metadata_key)``.
     """
 
     def __init__(self, keys, as_closest_canonical=False, dtype=np.float32,
@@ -180,7 +180,7 @@ class LoadNiftid(MapTransform):
 
 class LoadPNGd(MapTransform):
     """
-    dictionary-based wrapper of LoadPNG.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.LoadPNG`.
     """
 
     def __init__(self, keys, dtype=np.float32):
@@ -202,7 +202,7 @@ class LoadPNGd(MapTransform):
 
 class AsChannelFirstd(MapTransform):
     """
-    dictionary-based wrapper of AsChannelFirst.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.AsChannelFirst`.
     """
 
     def __init__(self, keys, channel_dim=-1):
@@ -224,7 +224,7 @@ class AsChannelFirstd(MapTransform):
 
 class AsChannelLastd(MapTransform):
     """
-    dictionary-based wrapper of AsChannelLast.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.AsChannelLast`.
     """
 
     def __init__(self, keys, channel_dim=0):
@@ -246,7 +246,7 @@ class AsChannelLastd(MapTransform):
 
 class AddChanneld(MapTransform):
     """
-    dictionary-based wrapper of AddChannel.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.AddChannel`.
     """
 
     def __init__(self, keys):
@@ -267,7 +267,7 @@ class AddChanneld(MapTransform):
 
 class CastToTyped(MapTransform):
     """
-    dictionary-based wrapper of CastToType.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.CastToType`.
     """
 
     def __init__(self, keys, dtype=np.float32):
@@ -289,7 +289,7 @@ class CastToTyped(MapTransform):
 
 class ToTensord(MapTransform):
     """
-    dictionary-based wrapper of ToTensor.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.ToTensor`.
     """
 
     def __init__(self, keys):
@@ -310,7 +310,7 @@ class ToTensord(MapTransform):
 
 class Rotate90d(MapTransform):
     """
-    dictionary-based wrapper of Rotate90.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.Rotate90`.
     """
 
     def __init__(self, keys, k=1, spatial_axes=(0, 1)):
@@ -335,7 +335,7 @@ class Rotate90d(MapTransform):
 
 class Rescaled(MapTransform):
     """
-    dictionary-based wrapper of Rescale.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.Rescale`.
     """
 
     def __init__(self, keys, minv=0.0, maxv=1.0, dtype=np.float32):
@@ -351,7 +351,7 @@ class Rescaled(MapTransform):
 
 class Resized(MapTransform):
     """
-    dictionary-based wrapper of Resize.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.Resize`.
 
     Args:
         keys (hashable items): keys of the corresponding items to be transformed.
@@ -383,12 +383,13 @@ class Resized(MapTransform):
 
 
 class RandGaussianNoised(Randomizable, MapTransform):
-    """Add gaussian noise to image. Suppose all the expected fields have same shape.
+    """Dictionary-based version :py:class:`monai.transforms.transfroms.RandGaussianNoise`.
+    Add Gaussian noise to image. This transform assumes all the expected fields have same shape.
 
     Args:
         keys (hashable items): keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
-        prob (float): Probability to add gaussian noise.
+        prob (float): Probability to add Gaussian noise.
         mean (float or array of floats): Mean or “centre” of the distribution.
         std (float): Standard deviation (spread) of distribution.
     """
@@ -418,7 +419,7 @@ class RandGaussianNoised(Randomizable, MapTransform):
 
 
 class RandRotate90d(Randomizable, MapTransform):
-    """
+    """Dictionary-based version :py:class:`monai.transforms.transfroms.RandRotate90`.
     With probability `prob`, input arrays are rotated by 90 degrees
     in the plane specified by `spatial_axes`.
     """
@@ -462,7 +463,7 @@ class RandRotate90d(Randomizable, MapTransform):
 
 class NormalizeIntensityd(MapTransform):
     """
-    dictionary-based wrapper of NormalizeIntensity.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.NormalizeIntensity`.
 
     Args:
         keys (hashable items): keys of the corresponding items to be transformed.
@@ -484,7 +485,7 @@ class NormalizeIntensityd(MapTransform):
 
 class ThresholdIntensityd(MapTransform):
     """
-    dictionary-based wrapper of ThresholdIntensity.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.ThresholdIntensity`.
 
     Args:
         keys (hashable items): keys of the corresponding items to be transformed.
@@ -507,7 +508,7 @@ class ThresholdIntensityd(MapTransform):
 
 class ScaleIntensityRanged(MapTransform):
     """
-    dictionary-based wrapper of ScaleIntensityRange.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.ScaleIntensityRange`.
 
     Args:
         keys (hashable items): keys of the corresponding items to be transformed.
@@ -532,7 +533,7 @@ class ScaleIntensityRanged(MapTransform):
 
 class AdjustContrastd(MapTransform):
     """
-    dictionary-based wrapper of AdjustContrast.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.AdjustContrast`.
     Changes image intensity by gamma. Each pixel/voxel intensity is updated as:
         `x = ((x - min) / intensity_range) ^ gamma * intensity_range + min`
 
@@ -553,7 +554,7 @@ class AdjustContrastd(MapTransform):
 
 class RandAdjustContrastd(Randomizable, MapTransform):
     """
-    dictionary-based version RandAdjustContrast.
+    Dictionary-based version :py:class:`monai.transforms.transfroms.RandAdjustContrast`.
     Randomly changes image intensity by gamma. Each pixel/voxel intensity is updated as:
         `x = ((x - min) / intensity_range) ^ gamma * intensity_range + min`
 
@@ -596,7 +597,7 @@ class RandAdjustContrastd(Randomizable, MapTransform):
 
 class CenterSpatialCropd(MapTransform):
     """
-    dictionary-based wrapper of CenterSpatialCrop.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.CenterSpatialCrop`.
 
     Args:
         keys (hashable items): keys of the corresponding items to be transformed.
@@ -615,9 +616,9 @@ class CenterSpatialCropd(MapTransform):
         return d
 
 
-class RandCenterSpatialCropd(Randomizable, MapTransform):
+class RandLocSpatialCropd(Randomizable, MapTransform):
     """
-    dictionary-based version RandCenterSpatialCrop.
+    Dictionary-based version :py:class:`monai.transforms.transfroms.RandLocSpatialCrop`.
     Crop at a random position in the image with the specified ROI size.
 
     Args:
@@ -649,9 +650,9 @@ class RandCenterSpatialCropd(Randomizable, MapTransform):
 
 class RandSizeSpatialCropd(Randomizable, MapTransform):
     """
-    dictionary-based version RandSizeSpatialCrop. Crop image with random size ROI.
-    It can crop at a random position as center or at the image center.
-    And allows to set the minimum size to limit the randomly generated ROI.
+    Dictionary-based version :py:class:`monai.transforms.transfroms.RandSizeSpatialCrop`.
+    Crop image with random size ROI. It can crop at a random position as center or at the
+    image center. And allows to set the minimum size to limit the randomly generated ROI.
     Suppose all the expected fields specified by `keys` have same shape.
 
     Args:
@@ -674,7 +675,7 @@ class RandSizeSpatialCropd(Randomizable, MapTransform):
         d = dict(data)
         self.randomize(d[self.keys[0]].shape[1:])  # image shape from the first data key
         if self.random_center:
-            cropper = RandCenterSpatialCrop(self.roi_size)
+            cropper = RandLocSpatialCrop(self.roi_size)
         else:
             cropper = CenterSpatialCrop(self.roi_size)
         for key in self.keys:
@@ -746,7 +747,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
 
 class RandAffined(Randomizable, MapTransform):
     """
-    A dictionary-based wrapper of :py:class:`monai.transforms.transforms.RandAffine`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transforms.RandAffine`.
     """
 
     def __init__(self, keys,
@@ -814,7 +815,7 @@ class RandAffined(Randomizable, MapTransform):
 
 class Rand2DElasticd(Randomizable, MapTransform):
     """
-    A dictionary-based wrapper of :py:class:`monai.transforms.transforms.Rand2DElastic`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transforms.Rand2DElastic`.
     """
 
     def __init__(self, keys,
@@ -885,7 +886,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
 
 class Rand3DElasticd(Randomizable, MapTransform):
     """
-    A dictionary-based wrapper of :py:class:`monai.transforms.transforms.Rand3DElastic`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transforms.Rand3DElastic`.
     """
 
     def __init__(self, keys,
@@ -956,7 +957,7 @@ class Rand3DElasticd(Randomizable, MapTransform):
 
 
 class Flipd(MapTransform):
-    """Dictionary-based wrapper of Flip.
+    """Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.Flip`.
 
     See `numpy.flip` for additional details.
     https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
@@ -978,7 +979,7 @@ class Flipd(MapTransform):
 
 
 class RandFlipd(Randomizable, MapTransform):
-    """Dict-based wrapper of RandFlip.
+    """Dictionary-based version :py:class:`monai.transforms.transfroms.RandFlip`.
 
     See `numpy.flip` for additional details.
     https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
@@ -1010,7 +1011,7 @@ class RandFlipd(Randomizable, MapTransform):
 
 
 class Rotated(MapTransform):
-    """Dictionary-based wrapper of Rotate.
+    """Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.Rotate`.
 
     Args:
         keys (dict): Keys to pick data for transformation.
@@ -1041,7 +1042,8 @@ class Rotated(MapTransform):
 
 
 class RandRotated(Randomizable, MapTransform):
-    """Randomly rotates the input arrays.
+    """Dictionary-based version :py:class:`monai.transforms.transfroms.RandRotate`
+    Randomly rotates the input arrays.
 
     Args:
         prob (float): Probability of rotation.
@@ -1095,7 +1097,7 @@ class RandRotated(Randomizable, MapTransform):
 
 
 class Zoomd(MapTransform):
-    """Dictionary-based wrapper of Zoom transform.
+    """Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.Zoom`.
 
     Args:
         zoom (float or sequence): The zoom factor along the spatial axes.
@@ -1123,7 +1125,7 @@ class Zoomd(MapTransform):
 
 
 class RandZoomd(Randomizable, MapTransform):
-    """Dict-based wrapper of RandZoom.
+    """Dict-based version :py:class:`monai.transforms.transfroms.RandZoom`.
 
     Args:
         keys (dict): Keys to pick data for transformation.
@@ -1212,7 +1214,7 @@ Rotate90D = Rotate90Dict = Rotate90d
 RescaleD = RescaleDict = Rescaled
 ResizeD = ResizeDict = Resized
 RandGaussianNoiseD = RandGaussianNoiseDict = RandGaussianNoised
-RandCenterSpatialCropD = RandCenterSpatialCropDict = RandCenterSpatialCropd
+RandLocSpatialCropD = RandLocSpatialCropDict = RandLocSpatialCropd
 RandRotate90D = RandRotate90Dict = RandRotate90d
 NormalizeIntensityD = NormalizeIntensityDict = NormalizeIntensityd
 ThresholdIntensityD = ThresholdIntensityDict = ThresholdIntensityd

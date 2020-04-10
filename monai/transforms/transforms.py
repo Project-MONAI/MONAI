@@ -385,10 +385,10 @@ class Rescale(Transform):
 
 
 class RandGaussianNoise(Randomizable, Transform):
-    """Add gaussian noise to image.
+    """Add Gaussian noise to image.
 
     Args:
-        prob (float): Probability to add gaussian noise.
+        prob (float): Probability to add Gaussian noise.
         mean (float or array of floats): Mean or “centre” of the distribution.
         std (float): Standard deviation (spread) of distribution.
     """
@@ -898,7 +898,7 @@ class CenterSpatialCrop(Transform):
         return cropper(img)
 
 
-class RandCenterSpatialCrop(Randomizable, Transform):
+class RandLocSpatialCrop(Randomizable, Transform):
     """
     Crop at a random position in the image with the specified ROI size.
 
@@ -924,7 +924,8 @@ class RandSizeSpatialCrop(Randomizable, Transform):
     """
     Crop image with random size ROI. It can crop at a random position as center
     or at the image center. And allows to set the minimum size to limit the randomly
-    generated ROI. Suppose all the expected fields specified by `keys` have same shape.
+    generated ROI. This transform assumes all the expected fields specified by `keys`
+    have same shape.
 
     Args:
         min_roi_size (list, tuple): the spatial size of the minimum crop region e.g. [224,224,128]
@@ -942,7 +943,7 @@ class RandSizeSpatialCrop(Randomizable, Transform):
     def __call__(self, img):
         self.randomize(img.shape[1:])
         if self.random_center:
-            cropper = RandCenterSpatialCrop(self.roi_size)
+            cropper = RandLocSpatialCrop(self.roi_size)
         else:
             cropper = CenterSpatialCrop(self.roi_size)
         return cropper(img)
