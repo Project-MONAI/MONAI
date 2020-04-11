@@ -26,7 +26,7 @@ from monai.transforms.transforms import (AddChannel, AsChannelFirst, Flip, LoadN
                                          ScaleIntensityRange, Spacing, SpatialCrop, Zoom, ToTensor, LoadPNG,
                                          AsChannelLast, ThresholdIntensity, AdjustContrast, CenterSpatialCrop,
                                          RandLocSpatialCrop, CastToType)
-from monai.transforms.utils import (create_grid, generate_pos_neg_label_crop_centers)
+from monai.transforms.utils import (create_grid, generate_pos_neg_label_crop_centers, generate_spatial_bounding_box)
 from monai.utils.misc import ensure_tuple
 
 
@@ -321,10 +321,7 @@ class Rotate90d(MapTransform):
                 Default: (0, 1), this is the first two axis in spatial dimensions.
         """
         super().__init__(keys)
-        self.k = k
-        self.spatial_axes = spatial_axes
-
-        self.rotator = Rotate90(self.k, self.spatial_axes)
+        self.rotator = Rotate90(k, spatial_axes)
 
     def __call__(self, data):
         d = dict(data)
@@ -535,6 +532,7 @@ class AdjustContrastd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.AdjustContrast`.
     Changes image intensity by gamma. Each pixel/voxel intensity is updated as:
+
         `x = ((x - min) / intensity_range) ^ gamma * intensity_range + min`
 
     Args:
@@ -556,6 +554,7 @@ class RandAdjustContrastd(Randomizable, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.transfroms.RandAdjustContrast`.
     Randomly changes image intensity by gamma. Each pixel/voxel intensity is updated as:
+
         `x = ((x - min) / intensity_range) ^ gamma * intensity_range + min`
 
     Args:
@@ -592,6 +591,33 @@ class RandAdjustContrastd(Randomizable, MapTransform):
         adjuster = AdjustContrast(self.gamma_value)
         for key in self.keys:
             d[key] = adjuster(d[key])
+        return d
+
+
+class SpatialCropd(MapTransform):
+    """
+    dictionary-based wrapper of :py:class:`monai.transforms.compose.SpatialCrop`.
+    Either a spatial center and size must be provided, or alternatively if center and size
+    are not provided, the start and end coordinates of the ROI must be provided.
+    """
+
+    def __init__(self, keys, roi_center=None, roi_size=None, roi_start=None, roi_end=None):
+        """
+        Args:
+            keys (hashable items): keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            roi_center (list or tuple): voxel coordinates for center of the crop ROI.
+            roi_size (list or tuple): size of the crop ROI.
+            roi_start (list or tuple): voxel coordinates for start of the crop ROI.
+            roi_end (list or tuple): voxel coordinates for end of the crop ROI.
+        """
+        super().__init__(keys)
+        self.cropper = SpatialCrop(roi_center, roi_size, roi_start, roi_end)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.cropper(d[key])
         return d
 
 
@@ -678,6 +704,46 @@ class RandSizeSpatialCropd(Randomizable, MapTransform):
             cropper = RandLocSpatialCrop(self.roi_size)
         else:
             cropper = CenterSpatialCrop(self.roi_size)
+        for key in self.keys:
+            d[key] = cropper(d[key])
+        return d
+
+
+class CropForegroundd(MapTransform):
+    """
+    dictionary-based version :py:class:`monai.transforms.transforms.CropForeground`.
+    Crop only the foreground object of the expected images.
+    The typical usage is to help training and evaluation if the valid part is small in the whole medical image.
+    The valid part can be determined by any field in the data with `source_key`, for example:
+    - Select values > 0 in image field as the foreground and crop on all fields specified by `keys`.
+    - Select label = 3 in label field as the foreground to crop on all fields specified by `keys`.
+    - Select label > 0 in the third channel of a One-Hot label field as the foreground to crop all `keys` fields.
+    Users can define arbitrary function to select expected foreground from the whole source image or specified
+    channels. And it can also add margin to every dim of the bounding box of foreground object.
+    """
+
+    def __init__(self, keys, source_key, select_fn=lambda x: x > 0, channel_indexes=None, margin=0):
+        """
+        Args:
+            keys (hashable items): keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            source_key (str): data source to generate the bounding box of foreground, can be image or label, etc.
+            select_fn (Callable): function to select expected foreground, default is to select values > 0.
+            channel_indexes (int, tuple or list): if defined, select foregound only on the specified channels
+                of image. if None, select foreground on the whole image.
+            margin (int): add margin to all dims of the bounding box.
+        """
+        super().__init__(keys)
+        self.source_key = source_key
+        self.select_fn = select_fn
+        self.channel_indexes = ensure_tuple(channel_indexes) if channel_indexes is not None else None
+        self.margin = margin
+
+    def __call__(self, data):
+        d = dict(data)
+        box_start, box_end = \
+            generate_spatial_bounding_box(data[self.source_key], self.select_fn, self.channel_indexes, self.margin)
+        cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
         for key in self.keys:
             d[key] = cropper(d[key])
         return d
@@ -1214,15 +1280,17 @@ Rotate90D = Rotate90Dict = Rotate90d
 RescaleD = RescaleDict = Rescaled
 ResizeD = ResizeDict = Resized
 RandGaussianNoiseD = RandGaussianNoiseDict = RandGaussianNoised
-RandLocSpatialCropD = RandLocSpatialCropDict = RandLocSpatialCropd
 RandRotate90D = RandRotate90Dict = RandRotate90d
 NormalizeIntensityD = NormalizeIntensityDict = NormalizeIntensityd
 ThresholdIntensityD = ThresholdIntensityDict = ThresholdIntensityd
 ScaleIntensityRangeD = ScaleIntensityRangeDict = ScaleIntensityRanged
 AdjustContrastD = AdjustContrastDict = AdjustContrastd
-CenterSpatialCropD = CenterSpatialCropDict = CenterSpatialCropd
-RandSizeSpatialCropD = RandSizeSpatialCropDict = RandSizeSpatialCropd
 RandAdjustContrastD = RandAdjustContrastDict = RandAdjustContrastd
+SpatialCropD = SpatialCropDict = SpatialCropd
+CenterSpatialCropD = CenterSpatialCropDict = CenterSpatialCropd
+RandLocSpatialCropD = RandLocSpatialCropDict = RandLocSpatialCropd
+RandSizeSpatialCropD = RandSizeSpatialCropDict = RandSizeSpatialCropd
+CropForegroundD = CropForegroundDict = CropForegroundd
 RandCropByPosNegLabelD = RandCropByPosNegLabelDict = RandCropByPosNegLabeld
 RandAffineD = RandAffineDict = RandAffined
 Rand2DElasticD = Rand2DElasticDict = Rand2DElasticd

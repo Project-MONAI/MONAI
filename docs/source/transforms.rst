@@ -64,7 +64,7 @@ Vanilla Transforms
     :special-members: __call__
 
 `LoadPNG`
-~~~~~~~~~~~
+~~~~~~~~~
 .. autoclass:: LoadPNG
     :members:
     :special-members: __call__
@@ -76,7 +76,7 @@ Vanilla Transforms
     :special-members: __call__
 
 `AsChannelLast`
-~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
 .. autoclass:: AsChannelLast
     :members:
     :special-members: __call__
@@ -106,7 +106,7 @@ Vanilla Transforms
     :special-members: __call__
 
 `RandGaussianNoise`
-~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
 .. autoclass:: RandGaussianNoise
     :members:
     :special-members: __call__
@@ -141,20 +141,14 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
-`RandLocSpatialCrop`
-~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: RandLocSpatialCrop
-    :members:
-    :special-members: __call__
-
 `NormalizeIntensity`
-~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: NormalizeIntensity
     :members:
     :special-members: __call__
 
 `ThresholdIntensity`
-~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: ThresholdIntensity
     :members:
     :special-members: __call__
@@ -166,19 +160,19 @@ Vanilla Transforms
     :special-members: __call__
 
 `AdjustContrast`
-~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~
 .. autoclass:: AdjustContrast
     :members:
     :special-members: __call__
 
 `RandAdjustContrast`
-~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: RandAdjustContrast
     :members:
     :special-members: __call__
 
 `PadImageEnd`
-~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~
 .. autoclass:: PadImageEnd
     :members:
     :special-members: __call__
@@ -207,9 +201,21 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
+`RandLocSpatialCrop`
+~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: RandLocSpatialCrop
+    :members:
+    :special-members: __call__
+
 `RandSizeSpatialCrop`
 ~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: RandSizeSpatialCrop
+    :members:
+    :special-members: __call__
+
+`CropForeground`
+~~~~~~~~~~~~~~~~
+.. autoclass:: CropForeground
     :members:
     :special-members: __call__
 
@@ -238,7 +244,7 @@ Vanilla Transforms
     :special-members: __call__
 
 `Resample`
-~~~~~~~~~~~
+~~~~~~~~~~
 .. autoclass:: Resample
     :members:
     :special-members: __call__
@@ -299,7 +305,7 @@ Dictionary-based Composables
     :special-members: __call__
 
 `LoadPNGd`
-~~~~~~~~~~~~
+~~~~~~~~~~
 .. autoclass:: LoadPNGd
     :members:
     :special-members: __call__
@@ -311,7 +317,7 @@ Dictionary-based Composables
     :special-members: __call__
 
 `AsChannelLastd`
-~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~
 .. autoclass:: AsChannelLastd
     :members:
     :special-members: __call__
@@ -347,14 +353,14 @@ Dictionary-based Composables
     :special-members: __call__
 
 `RandGaussianNoised`
-~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: RandGaussianNoised
     :members:
     :special-members: __call__
 
-`RandLocSpatialCropd`
-~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: RandLocSpatialCropd
+`RandRotate90d`
+~~~~~~~~~~~~~~~
+.. autoclass:: RandRotate90d
     :members:
     :special-members: __call__
 
@@ -377,14 +383,20 @@ Dictionary-based Composables
     :special-members: __call__
 
 `AdjustContrastd`
-~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
 .. autoclass:: AdjustContrastd
     :members:
     :special-members: __call__
 
 `RandAdjustContrastd`
-~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: RandAdjustContrastd
+    :members:
+    :special-members: __call__
+
+`SpatialCropd`
+~~~~~~~~~~~~~~
+.. autoclass:: SpatialCropd
     :members:
     :special-members: __call__
 
@@ -394,15 +406,21 @@ Dictionary-based Composables
     :members:
     :special-members: __call__
 
+`RandLocSpatialCropd`
+~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: RandLocSpatialCropd
+    :members:
+    :special-members: __call__
+
 `RandSizeSpatialCropd`
 ~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: RandSizeSpatialCropd
     :members:
     :special-members: __call__
 
-`RandRotate90d`
-~~~~~~~~~~~~~~~
-.. autoclass:: RandRotate90d
+`CropForegroundd`
+~~~~~~~~~~~~~~~~~
+.. autoclass:: CropForegroundd
     :members:
     :special-members: __call__
 
