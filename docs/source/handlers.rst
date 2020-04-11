@@ -20,6 +20,11 @@ Mean Dice metrics handler
 .. automodule:: monai.handlers.mean_dice
     :members:
 
+ROC AUC metrics handler
+-------------------------
+.. automodule:: monai.handlers.roc_auc
+    :members:
+
 Metric logger
 ---------------
 .. automodule:: monai.handlers.metric_logger

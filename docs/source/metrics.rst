@@ -15,3 +15,7 @@ Segmentation metrics
 `compute_meandice`
 ~~~~~~~~~~~~~~~~~~~
 .. automethod:: monai.metrics.compute_meandice
+
+`compute_roc_auc`
+~~~~~~~~~~~~~~~~~~~
+.. automethod:: monai.metrics.compute_roc_auc

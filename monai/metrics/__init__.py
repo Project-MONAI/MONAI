@@ -10,3 +10,4 @@
 # limitations under the License.
 
 from .meandice import compute_meandice
+from .rocauc import compute_roc_auc

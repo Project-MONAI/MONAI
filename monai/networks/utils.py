@@ -28,10 +28,9 @@ def one_hot(labels, num_classes):
         Note that this will include the background label, thus a binary mask should be treated as having 2 classes.
     """
     num_dims = labels.dim()
-    if num_dims < 2 or labels.shape[1] != 1:
-        raise ValueError('labels should have a channel with length equals to one.')
-
-    labels = torch.squeeze(labels, 1)
+    if num_dims > 1:
+        assert labels.shape[1] == 1, 'labels should have a channel with length equals to one.'
+        labels = torch.squeeze(labels, 1)
     labels = f.one_hot(labels.long(), num_classes)
     new_axes = [0, -1] + list(range(1, num_dims - 1))
     labels = labels.permute(*new_axes)
