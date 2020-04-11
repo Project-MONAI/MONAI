@@ -8,3 +8,4 @@ scipy
 scikit-image
 coverage
 parameterized
+sklearn
