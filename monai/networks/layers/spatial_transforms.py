@@ -9,7 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .convutils import *
-from .factories import *
-from .simplelayers import *
-from .spatial_transforms import *
+import torch.nn as nn
+
+__all__ = ['SpatialTransformer']
+
+
+class SpatialTransformer(nn.Module):
+
+    def __init__(self):
+        pass
+
+    def forward(self):
+        pass
