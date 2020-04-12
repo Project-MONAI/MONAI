@@ -17,26 +17,44 @@ from ignite.metrics import Metric
 from monai.metrics import compute_roc_auc
 
 
-class ROC_AUC(Metric):
+class ROCAUC(Metric):
     """Computes Area Under the Receiver Operating Characteristic Curve (ROC AUC).
     accumulating predictions and the ground-truth during an epoch and applying `compute_roc_auc`.
 
     Args:
+        to_onehot_y (bool): whether to convert `y` into the one-hot format. Defaults to False.
+        add_softmax (bool): whether to add softmax function to `y_pred` before computation. Defaults to False.
+        add_sigmoid (bool): whether to add sigmoid function to `y_pred` before computation. Defaults to False.
+        average: {'macro', 'weighted', 'micro'} or None, type of averaging performed if not binary
+        classification. default is 'macro'.
+            'macro': calculate metrics for each label, and find their unweighted mean.
+                this does not take label imbalance into account.
+            'weighted': calculate metrics for each label, and find their average,
+                weighted by support (the number of true instances for each label).
+            'micro': calculate metrics globally by considering each element of the label
+                indicator matrix as a label.
+            None: the scores for each class are returned.
         output_transform (callable, optional): a callable that is used to transform the
             :class:`~ignite.engine.Engine`'s `process_function`'s output into the
             form expected by the metric. This can be useful if, for example, you have a multi-output model and
             you want to compute the metric with respect to one of the outputs.
 
     Note:
-        ROC_AUC expects y to be comprised of 0's and 1's.
+        ROCAUC expects y to be comprised of 0's and 1's.
         y_pred must either be probability estimates or confidence values.
 
     """
-    def __init__(self, to_onehot_y=False, add_softmax=False, add_sigmoid=False, output_transform=lambda x: x):
-        super(ROC_AUC, self).__init__(output_transform=output_transform)
+    def __init__(self,
+                 to_onehot_y=False,
+                 add_softmax=False,
+                 add_sigmoid=False,
+                 average='macro',
+                 output_transform=lambda x: x):
+        super().__init__(output_transform=output_transform)
         self.to_onehot_y = to_onehot_y
         self.add_softmax = add_softmax
         self.add_sigmoid = add_sigmoid
+        self.average = average
 
     def reset(self):
         self._predictions = torch.tensor([], dtype=torch.float32)
@@ -56,4 +74,5 @@ class ROC_AUC(Metric):
         self._targets = torch.cat([self._targets, y], dim=0)
 
     def compute(self):
-        return compute_roc_auc(self._predictions, self._targets, self.to_onehot_y, self.add_softmax, self.add_sigmoid)
+        return compute_roc_auc(self._predictions, self._targets, self.to_onehot_y,
+                               self.add_softmax, self.add_sigmoid, self.average)

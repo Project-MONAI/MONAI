@@ -13,13 +13,13 @@ import unittest
 import numpy as np
 import torch
 
-from monai.handlers import ROC_AUC
+from monai.handlers import ROCAUC
 
 
-class TestHandlerROC_AUC(unittest.TestCase):
+class TestHandlerROCAUC(unittest.TestCase):
 
     def test_compute(self):
-        auc_metric = ROC_AUC(to_onehot_y=True, add_softmax=True)
+        auc_metric = ROCAUC(to_onehot_y=True, add_softmax=True)
 
         y_pred = torch.Tensor([[0.1, 0.9], [0.3, 1.4]])
         y = torch.Tensor([[0], [1]])
