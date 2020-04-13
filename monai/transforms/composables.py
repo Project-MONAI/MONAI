@@ -24,7 +24,8 @@ from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.transforms import (AddChannel, AsChannelFirst, Flip, LoadNifti, NormalizeIntensity, Orientation,
                                          Rand2DElastic, Rand3DElastic, RandAffine, Rescale, Resize, Rotate, Rotate90,
                                          ScaleIntensityRange, Spacing, SpatialCrop, Zoom, ToTensor, LoadPNG,
-                                         AsChannelLast, ThresholdIntensity, AdjustContrast)
+                                         AsChannelLast, ThresholdIntensity, AdjustContrast, CenterSpatialCrop,
+                                         CastToType)
 from monai.transforms.utils import (create_grid, generate_pos_neg_label_crop_centers, generate_spatial_bounding_box)
 from monai.utils.misc import ensure_tuple
 
@@ -136,12 +137,12 @@ class Orientationd(MapTransform):
 
 class LoadNiftid(MapTransform):
     """
-    Dictionary-based wrapper of LoadNifti, must load image and metadata
-    together. If loading a list of files in one key, stack them together and
-    add a new dimension as the first dimension, and use the meta data of the
-    first image to represent the stacked result. Note that the affine transform
-    of all the stacked images should be same. The output metadata field will be created as
-    ``self.meta_key_format(key, metadata_key)``.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.LoadNifti`,
+    must load image and metadata together. If loading a list of files in one key,
+    stack them together and add a new dimension as the first dimension, and use the
+    meta data of the first image to represent the stacked result. Note that the affine
+    transform of all the stacked images should be same. The output metadata field will
+    be created as ``self.meta_key_format(key, metadata_key)``.
     """
 
     def __init__(self, keys, as_closest_canonical=False, dtype=np.float32,
@@ -179,7 +180,7 @@ class LoadNiftid(MapTransform):
 
 class LoadPNGd(MapTransform):
     """
-    dictionary-based wrapper of LoadPNG.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.LoadPNG`.
     """
 
     def __init__(self, keys, dtype=np.float32):
@@ -201,7 +202,7 @@ class LoadPNGd(MapTransform):
 
 class AsChannelFirstd(MapTransform):
     """
-    dictionary-based wrapper of AsChannelFirst.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.AsChannelFirst`.
     """
 
     def __init__(self, keys, channel_dim=-1):
@@ -223,7 +224,7 @@ class AsChannelFirstd(MapTransform):
 
 class AsChannelLastd(MapTransform):
     """
-    dictionary-based wrapper of AsChannelLast.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.AsChannelLast`.
     """
 
     def __init__(self, keys, channel_dim=0):
@@ -245,7 +246,7 @@ class AsChannelLastd(MapTransform):
 
 class AddChanneld(MapTransform):
     """
-    dictionary-based wrapper of AddChannel.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.AddChannel`.
     """
 
     def __init__(self, keys):
@@ -264,9 +265,31 @@ class AddChanneld(MapTransform):
         return d
 
 
+class CastToTyped(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.CastToType`.
+    """
+
+    def __init__(self, keys, dtype=np.float32):
+        """
+        Args:
+            keys (hashable items): keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            dtype (np.dtype): convert image to this data type, default is `np.float32`.
+        """
+        MapTransform.__init__(self, keys)
+        self.converter = CastToType(dtype)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.converter(d[key])
+        return d
+
+
 class ToTensord(MapTransform):
     """
-    dictionary-based wrapper of ToTensor.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.ToTensor`.
     """
 
     def __init__(self, keys):
@@ -287,7 +310,7 @@ class ToTensord(MapTransform):
 
 class Rotate90d(MapTransform):
     """
-    dictionary-based wrapper of Rotate90.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.Rotate90`.
     """
 
     def __init__(self, keys, k=1, spatial_axes=(0, 1)):
@@ -307,76 +330,9 @@ class Rotate90d(MapTransform):
         return d
 
 
-class SpatialCropd(MapTransform):
-    """
-    dictionary-based wrapper of :py:class:`monai.transforms.compose.SpatialCrop`.
-    Either a spatial center and size must be provided, or alternatively if center and size
-    are not provided, the start and end coordinates of the ROI must be provided.
-    """
-
-    def __init__(self, keys, roi_center=None, roi_size=None, roi_start=None, roi_end=None):
-        """
-        Args:
-            keys (hashable items): keys of the corresponding items to be transformed.
-                See also: :py:class:`monai.transforms.compose.MapTransform`
-            roi_center (list or tuple): voxel coordinates for center of the crop ROI.
-            roi_size (list or tuple): size of the crop ROI.
-            roi_start (list or tuple): voxel coordinates for start of the crop ROI.
-            roi_end (list or tuple): voxel coordinates for end of the crop ROI.
-        """
-        super().__init__(keys)
-        self.cropper = SpatialCrop(roi_center, roi_size, roi_start, roi_end)
-
-    def __call__(self, data):
-        d = dict(data)
-        for key in self.keys:
-            d[key] = self.cropper(d[key])
-        return d
-
-
-class CropForegroundd(MapTransform):
-    """
-    dictionary-based version :py:class:`monai.transforms.transforms.CropForeground`.
-    Crop only the foreground object of the expected images.
-    The typical usage is to help training and evaluation if the valid part is small in the whole medical image.
-    The valid part can be determined by any field in the data with `source_key`, for example:
-    - Select values > 0 in image field as the foreground and crop on all fields specified by `keys`.
-    - Select label = 3 in label field as the foreground to crop on all fields specified by `keys`.
-    - Select label > 0 in the third channel of a One-Hot label field as the foreground to crop all `keys` fields.
-    Users can define arbitrary function to select expected foreground from the whole source image or specified
-    channels. And it can also add margin to every dim of the bounding box of foreground object.
-    """
-
-    def __init__(self, keys, source_key, select_fn=lambda x: x > 0, channel_indexes=None, margin=0):
-        """
-        Args:
-            keys (hashable items): keys of the corresponding items to be transformed.
-                See also: :py:class:`monai.transforms.compose.MapTransform`
-            source_key (str): data source to generate the bounding box of foreground, can be image or label, etc.
-            select_fn (Callable): function to select expected foreground, default is to select values > 0.
-            channel_indexes (int, tuple or list): if defined, select foregound only on the specified channels
-                of image. if None, select foreground on the whole image.
-            margin (int): add margin to all dims of the bounding box.
-        """
-        super().__init__(keys)
-        self.source_key = source_key
-        self.select_fn = select_fn
-        self.channel_indexes = ensure_tuple(channel_indexes) if channel_indexes is not None else None
-        self.margin = margin
-
-    def __call__(self, data):
-        d = dict(data)
-        box_start, box_end = \
-            generate_spatial_bounding_box(data[self.source_key], self.select_fn, self.channel_indexes, self.margin)
-        cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
-        for key in self.keys:
-            d[key] = cropper(d[key])
-        return d
-
-
 class Rescaled(MapTransform):
     """
-    dictionary-based wrapper of Rescale.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.Rescale`.
     """
 
     def __init__(self, keys, minv=0.0, maxv=1.0, dtype=np.float32):
@@ -392,7 +348,7 @@ class Rescaled(MapTransform):
 
 class Resized(MapTransform):
     """
-    dictionary-based wrapper of Resize.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.Resize`.
 
     Args:
         keys (hashable items): keys of the corresponding items to be transformed.
@@ -424,22 +380,27 @@ class Resized(MapTransform):
 
 
 class RandGaussianNoised(Randomizable, MapTransform):
-    """Add gaussian noise to image.
+    """Dictionary-based version :py:class:`monai.transforms.transfroms.RandGaussianNoise`.
+    Add Gaussian noise to image. This transform assumes all the expected fields have same shape.
 
     Args:
         keys (hashable items): keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
+        prob (float): Probability to add Gaussian noise.
         mean (float or array of floats): Mean or “centre” of the distribution.
         std (float): Standard deviation (spread) of distribution.
     """
 
-    def __init__(self, keys, mean=0.0, std=0.1):
+    def __init__(self, keys, prob=0.1, mean=0.0, std=0.1):
         super().__init__(keys)
+        self.prob = prob
         self.mean = mean
         self.std = std
+        self._do_transform = False
         self._noise = None
 
     def randomize(self, im_shape):
+        self._do_transform = self.R.random() < self.prob
         self._noise = self.R.normal(self.mean, self.R.uniform(0, self.std), size=im_shape)
 
     def __call__(self, data):
@@ -447,44 +408,15 @@ class RandGaussianNoised(Randomizable, MapTransform):
 
         image_shape = d[self.keys[0]].shape  # image shape from the first data key
         self.randomize(image_shape)
+        if not self._do_transform:
+            return d
         for key in self.keys:
             d[key] = d[key] + self._noise
         return d
 
 
-class RandUniformPatchd(Randomizable, MapTransform):
-    """
-    Selects a patch of the given size chosen at a uniformly random position in the image.
-
-    Args:
-        keys (hashable items): keys of the corresponding items to be transformed.
-            See also: :py:class:`monai.transforms.compose.MapTransform`
-        patch_spatial_size (tuple or list): Expected patch size of spatial dimensions.
-    """
-
-    def __init__(self, keys, patch_spatial_size):
-        super().__init__(keys)
-
-        self.patch_spatial_size = (None,) + tuple(patch_spatial_size)
-
-        self._slices = None
-
-    def randomize(self, image_shape, patch_shape):
-        self._slices = get_random_patch(image_shape, patch_shape, self.R)
-
-    def __call__(self, data):
-        d = dict(data)
-
-        image_shape = d[self.keys[0]].shape  # image shape from the first data key
-        patch_spatial_size = get_valid_patch_size(image_shape, self.patch_spatial_size)
-        self.randomize(image_shape, patch_spatial_size)
-        for key in self.keys:
-            d[key] = d[key][self._slices]
-        return d
-
-
 class RandRotate90d(Randomizable, MapTransform):
-    """
+    """Dictionary-based version :py:class:`monai.transforms.transfroms.RandRotate90`.
     With probability `prob`, input arrays are rotated by 90 degrees
     in the plane specified by `spatial_axes`.
     """
@@ -528,7 +460,7 @@ class RandRotate90d(Randomizable, MapTransform):
 
 class NormalizeIntensityd(MapTransform):
     """
-    dictionary-based wrapper of NormalizeIntensity.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.NormalizeIntensity`.
 
     Args:
         keys (hashable items): keys of the corresponding items to be transformed.
@@ -550,7 +482,7 @@ class NormalizeIntensityd(MapTransform):
 
 class ThresholdIntensityd(MapTransform):
     """
-    dictionary-based wrapper of ThresholdIntensity.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.ThresholdIntensity`.
 
     Args:
         keys (hashable items): keys of the corresponding items to be transformed.
@@ -573,7 +505,7 @@ class ThresholdIntensityd(MapTransform):
 
 class ScaleIntensityRanged(MapTransform):
     """
-    dictionary-based wrapper of ScaleIntensityRange.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.ScaleIntensityRange`.
 
     Args:
         keys (hashable items): keys of the corresponding items to be transformed.
@@ -598,7 +530,7 @@ class ScaleIntensityRanged(MapTransform):
 
 class AdjustContrastd(MapTransform):
     """
-    dictionary-based wrapper of AdjustContrast.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.AdjustContrast`.
     Changes image intensity by gamma. Each pixel/voxel intensity is updated as:
 
         `x = ((x - min) / intensity_range) ^ gamma * intensity_range + min`
@@ -620,7 +552,7 @@ class AdjustContrastd(MapTransform):
 
 class RandAdjustContrastd(Randomizable, MapTransform):
     """
-    dictionary-based wrapper of RandAdjustContrast.
+    Dictionary-based version :py:class:`monai.transforms.transfroms.RandAdjustContrast`.
     Randomly changes image intensity by gamma. Each pixel/voxel intensity is updated as:
 
         `x = ((x - min) / intensity_range) ^ gamma * intensity_range + min`
@@ -659,6 +591,136 @@ class RandAdjustContrastd(Randomizable, MapTransform):
         adjuster = AdjustContrast(self.gamma_value)
         for key in self.keys:
             d[key] = adjuster(d[key])
+        return d
+
+
+class SpatialCropd(MapTransform):
+    """
+    dictionary-based wrapper of :py:class:`monai.transforms.compose.SpatialCrop`.
+    Either a spatial center and size must be provided, or alternatively if center and size
+    are not provided, the start and end coordinates of the ROI must be provided.
+    """
+
+    def __init__(self, keys, roi_center=None, roi_size=None, roi_start=None, roi_end=None):
+        """
+        Args:
+            keys (hashable items): keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            roi_center (list or tuple): voxel coordinates for center of the crop ROI.
+            roi_size (list or tuple): size of the crop ROI.
+            roi_start (list or tuple): voxel coordinates for start of the crop ROI.
+            roi_end (list or tuple): voxel coordinates for end of the crop ROI.
+        """
+        super().__init__(keys)
+        self.cropper = SpatialCrop(roi_center, roi_size, roi_start, roi_end)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.cropper(d[key])
+        return d
+
+
+class CenterSpatialCropd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.CenterSpatialCrop`.
+
+    Args:
+        keys (hashable items): keys of the corresponding items to be transformed.
+            See also: monai.transform.composables.MapTransform
+        roi_size (list, tuple): the size of the crop region e.g. [224,224,128]
+    """
+
+    def __init__(self, keys, roi_size):
+        super().__init__(keys)
+        self.cropper = CenterSpatialCrop(roi_size)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.cropper(d[key])
+        return d
+
+
+class RandSpatialCropd(Randomizable, MapTransform):
+    """
+    Dictionary-based version :py:class:`monai.transforms.transfroms.RandSpatialCrop`.
+    Crop image with random size or specific size ROI. It can crop at a random position as
+    center or at the image center. And allows to set the minimum size to limit the randomly
+    generated ROI. Suppose all the expected fields specified by `keys` have same shape.
+
+    Args:
+        keys (hashable items): keys of the corresponding items to be transformed.
+            See also: monai.transform.composables.MapTransform
+        roi_size (list, tuple): if `random_size` is True, the spatial size of the minimum crop region.
+            if `random_size` is False, specify the expected ROI size to crop. e.g. [224, 224, 128]
+        random_center (bool): crop at random position as center or the image center.
+        random_size (bool): crop with random size or specific size ROI.
+    """
+
+    def __init__(self, keys, roi_size, random_center=True, random_size=True):
+        super().__init__(keys)
+        self.roi_size = roi_size
+        self.random_center = random_center
+        self.random_size = random_size
+
+    def randomize(self, img_size):
+        self._size = [self.roi_size] * len(img_size) if not isinstance(self.roi_size, (list, tuple)) else self.roi_size
+        if self.random_size:
+            self._size = [self.R.randint(low=self._size[i], high=img_size[i] + 1) for i in range(len(img_size))]
+        if self.random_center:
+            valid_size = get_valid_patch_size(img_size, self._size)
+            self._slices = ensure_tuple(slice(None)) + get_random_patch(img_size, valid_size, self.R)
+
+    def __call__(self, data):
+        d = dict(data)
+        self.randomize(d[self.keys[0]].shape[1:])  # image shape from the first data key
+        for key in self.keys:
+            if self.random_center:
+                d[key] = d[key][self._slices]
+            else:
+                cropper = CenterSpatialCrop(self._size)
+                d[key] = cropper(d[key])
+        return d
+
+
+class CropForegroundd(MapTransform):
+    """
+    dictionary-based version :py:class:`monai.transforms.transforms.CropForeground`.
+    Crop only the foreground object of the expected images.
+    The typical usage is to help training and evaluation if the valid part is small in the whole medical image.
+    The valid part can be determined by any field in the data with `source_key`, for example:
+    - Select values > 0 in image field as the foreground and crop on all fields specified by `keys`.
+    - Select label = 3 in label field as the foreground to crop on all fields specified by `keys`.
+    - Select label > 0 in the third channel of a One-Hot label field as the foreground to crop all `keys` fields.
+    Users can define arbitrary function to select expected foreground from the whole source image or specified
+    channels. And it can also add margin to every dim of the bounding box of foreground object.
+    """
+
+    def __init__(self, keys, source_key, select_fn=lambda x: x > 0, channel_indexes=None, margin=0):
+        """
+        Args:
+            keys (hashable items): keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            source_key (str): data source to generate the bounding box of foreground, can be image or label, etc.
+            select_fn (Callable): function to select expected foreground, default is to select values > 0.
+            channel_indexes (int, tuple or list): if defined, select foregound only on the specified channels
+                of image. if None, select foreground on the whole image.
+            margin (int): add margin to all dims of the bounding box.
+        """
+        super().__init__(keys)
+        self.source_key = source_key
+        self.select_fn = select_fn
+        self.channel_indexes = ensure_tuple(channel_indexes) if channel_indexes is not None else None
+        self.margin = margin
+
+    def __call__(self, data):
+        d = dict(data)
+        box_start, box_end = \
+            generate_spatial_bounding_box(data[self.source_key], self.select_fn, self.channel_indexes, self.margin)
+        cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
+        for key in self.keys:
+            d[key] = cropper(d[key])
         return d
 
 
@@ -715,7 +777,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
             if key in self.keys:
                 img = d[key]
                 for i, center in enumerate(self.centers):
-                    cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.size)
+                    cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.size, copy=True)
                     results[i][key] = cropper(img)
             else:
                 for i in range(self.num_samples):
@@ -726,7 +788,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
 
 class RandAffined(Randomizable, MapTransform):
     """
-    A dictionary-based wrapper of :py:class:`monai.transforms.transforms.RandAffine`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transforms.RandAffine`.
     """
 
     def __init__(self, keys,
@@ -794,7 +856,7 @@ class RandAffined(Randomizable, MapTransform):
 
 class Rand2DElasticd(Randomizable, MapTransform):
     """
-    A dictionary-based wrapper of :py:class:`monai.transforms.transforms.Rand2DElastic`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transforms.Rand2DElastic`.
     """
 
     def __init__(self, keys,
@@ -865,7 +927,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
 
 class Rand3DElasticd(Randomizable, MapTransform):
     """
-    A dictionary-based wrapper of :py:class:`monai.transforms.transforms.Rand3DElastic`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.transforms.Rand3DElastic`.
     """
 
     def __init__(self, keys,
@@ -936,7 +998,7 @@ class Rand3DElasticd(Randomizable, MapTransform):
 
 
 class Flipd(MapTransform):
-    """Dictionary-based wrapper of Flip.
+    """Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.Flip`.
 
     See `numpy.flip` for additional details.
     https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
@@ -958,7 +1020,7 @@ class Flipd(MapTransform):
 
 
 class RandFlipd(Randomizable, MapTransform):
-    """Dict-based wrapper of RandFlip.
+    """Dictionary-based version :py:class:`monai.transforms.transfroms.RandFlip`.
 
     See `numpy.flip` for additional details.
     https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
@@ -990,7 +1052,7 @@ class RandFlipd(Randomizable, MapTransform):
 
 
 class Rotated(MapTransform):
-    """Dictionary-based wrapper of Rotate.
+    """Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.Rotate`.
 
     Args:
         keys (dict): Keys to pick data for transformation.
@@ -1021,7 +1083,8 @@ class Rotated(MapTransform):
 
 
 class RandRotated(Randomizable, MapTransform):
-    """Randomly rotates the input arrays.
+    """Dictionary-based version :py:class:`monai.transforms.transfroms.RandRotate`
+    Randomly rotates the input arrays.
 
     Args:
         prob (float): Probability of rotation.
@@ -1053,7 +1116,7 @@ class RandRotated(Randomizable, MapTransform):
 
         if not hasattr(self.degrees, '__iter__'):
             self.degrees = (-self.degrees, self.degrees)
-        assert len(self.degrees) == 2, "degrees should be a number or pair of numbers."
+        assert len(self.degrees) == 2, 'degrees should be a number or pair of numbers.'
 
         self._do_transform = False
         self.angle = None
@@ -1075,7 +1138,7 @@ class RandRotated(Randomizable, MapTransform):
 
 
 class Zoomd(MapTransform):
-    """Dictionary-based wrapper of Zoom transform.
+    """Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.Zoom`.
 
     Args:
         zoom (float or sequence): The zoom factor along the spatial axes.
@@ -1103,7 +1166,7 @@ class Zoomd(MapTransform):
 
 
 class RandZoomd(Randomizable, MapTransform):
-    """Dict-based wrapper of RandZoom.
+    """Dict-based version :py:class:`monai.transforms.transfroms.RandZoom`.
 
     Args:
         keys (dict): Keys to pick data for transformation.
@@ -1129,7 +1192,7 @@ class RandZoomd(Randomizable, MapTransform):
         super().__init__(keys)
         if hasattr(min_zoom, '__iter__') and \
            hasattr(max_zoom, '__iter__'):
-            assert len(min_zoom) == len(max_zoom), "min_zoom and max_zoom must have same length."
+            assert len(min_zoom) == len(max_zoom), 'min_zoom and max_zoom must have same length.'
         self.min_zoom = min_zoom
         self.max_zoom = max_zoom
         self.prob = prob
@@ -1186,20 +1249,22 @@ LoadPNGD = LoadPNGDict = LoadPNGd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
 AddChannelD = AddChannelDict = AddChanneld
+CastToTypeD = CastToTypeDict = CastToTyped
 ToTensorD = ToTensorDict = ToTensord
 Rotate90D = Rotate90Dict = Rotate90d
-SpatialCropD = SpatialCropDict = SpatialCropd
-CropForegroundD = CropForegroundDict = CropForegroundd
 RescaleD = RescaleDict = Rescaled
 ResizeD = ResizeDict = Resized
 RandGaussianNoiseD = RandGaussianNoiseDict = RandGaussianNoised
-RandUniformPatchD = RandUniformPatchDict = RandUniformPatchd
 RandRotate90D = RandRotate90Dict = RandRotate90d
 NormalizeIntensityD = NormalizeIntensityDict = NormalizeIntensityd
 ThresholdIntensityD = ThresholdIntensityDict = ThresholdIntensityd
 ScaleIntensityRangeD = ScaleIntensityRangeDict = ScaleIntensityRanged
 AdjustContrastD = AdjustContrastDict = AdjustContrastd
 RandAdjustContrastD = RandAdjustContrastDict = RandAdjustContrastd
+SpatialCropD = SpatialCropDict = SpatialCropd
+CenterSpatialCropD = CenterSpatialCropDict = CenterSpatialCropd
+RandSpatialCropD = RandSpatialCropDict = RandSpatialCropd
+CropForegroundD = CropForegroundDict = CropForegroundd
 RandCropByPosNegLabelD = RandCropByPosNegLabelDict = RandCropByPosNegLabeld
 RandAffineD = RandAffineDict = RandAffined
 Rand2DElasticD = Rand2DElasticDict = Rand2DElasticd

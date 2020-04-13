@@ -49,7 +49,7 @@ new_img = affine(image, spatial_size=(300, 400), mode='bilinear')
 ```
 
 ### 4. Randomly crop out batch images based on positive/negative ratio
-Medical image data volume may be too large to fit into GPU memory. A widely-used approach is to randomly draw small size data samples during training. MONAI currently provides uniform random sampling strategy as well as class-balanced fixed ratio sampling which may help stabilize the patch-based training process.
+Medical image data volume may be too large to fit into GPU memory. A widely-used approach is to randomly draw small size data samples during training. MONAI currently provides general random sampling strategies including class-balanced fixed ratio sampling which may help stabilize the patch-based training process.
 
 ### 5. Deterministic training for reproducibility
 Deterministic training support is necessary and important in DL research area, especially when sharing reproducible work with others. Users can easily set the random seed to all the transforms in MONAI locally and will not affect other non-deterministic modules in the user's program.

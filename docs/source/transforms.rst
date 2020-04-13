@@ -87,6 +87,12 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
+`CastToType`
+~~~~~~~~~~~~
+.. autoclass:: CastToType
+    :members:
+    :special-members: __call__
+
 `Transpose`
 ~~~~~~~~~~~
 .. autoclass:: Transpose
@@ -132,12 +138,6 @@ Vanilla Transforms
 `ToTensor`
 ~~~~~~~~~~
 .. autoclass:: ToTensor
-    :members:
-    :special-members: __call__
-
-`RandUniformPatch`
-~~~~~~~~~~~~~~~~~~
-.. autoclass:: RandUniformPatch
     :members:
     :special-members: __call__
 
@@ -192,6 +192,18 @@ Vanilla Transforms
 `SpatialCrop`
 ~~~~~~~~~~~~~
 .. autoclass:: SpatialCrop
+    :members:
+    :special-members: __call__
+
+`CenterSpatialCrop`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: CenterSpatialCrop
+    :members:
+    :special-members: __call__
+
+`RandSpatialCrop`
+~~~~~~~~~~~~~~~~~
+.. autoclass:: RandSpatialCrop
     :members:
     :special-members: __call__
 
@@ -310,21 +322,15 @@ Dictionary-based Composables
     :members:
     :special-members: __call__
 
+`CastToTyped`
+~~~~~~~~~~~~~
+.. autoclass:: CastToTyped
+    :members:
+    :special-members: __call__
+
 `Rotate90d`
 ~~~~~~~~~~~
 .. autoclass:: Rotate90d
-    :members:
-    :special-members: __call__
-
-`SpatialCropd`
-~~~~~~~~~~~~~~
-.. autoclass:: SpatialCropd
-    :members:
-    :special-members: __call__
-
-`CropForegroundd`
-~~~~~~~~~~~~~~~~~
-.. autoclass:: CropForegroundd
     :members:
     :special-members: __call__
 
@@ -346,9 +352,9 @@ Dictionary-based Composables
     :members:
     :special-members: __call__
 
-`RandUniformPatchd`
-~~~~~~~~~~~~~~~~~~~
-.. autoclass:: RandUniformPatchd
+`RandRotate90d`
+~~~~~~~~~~~~~~~
+.. autoclass:: RandRotate90d
     :members:
     :special-members: __call__
 
@@ -382,9 +388,27 @@ Dictionary-based Composables
     :members:
     :special-members: __call__
 
-`RandRotate90d`
-~~~~~~~~~~~~~~~
-.. autoclass:: RandRotate90d
+`SpatialCropd`
+~~~~~~~~~~~~~~
+.. autoclass:: SpatialCropd
+    :members:
+    :special-members: __call__
+
+`CenterSpatialCropd`
+~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: CenterSpatialCropd
+    :members:
+    :special-members: __call__
+
+`RandSpatialCropd`
+~~~~~~~~~~~~~~~~~~
+.. autoclass:: RandSpatialCropd
+    :members:
+    :special-members: __call__
+
+`CropForegroundd`
+~~~~~~~~~~~~~~~~~
+.. autoclass:: CropForegroundd
     :members:
     :special-members: __call__
 
