@@ -716,18 +716,18 @@ class NormalizeIntensity(Transform):
         subtrahend (ndarray): the amount to subtract by (usually the mean).
         divisor (ndarray): the amount to divide by (usually the standard deviation).
         nonzero (bool): whether only normalize non-zero values.
-        each_channel (bool): if using calculated mean and std, calculate on each channel separately
+        channel_wise (bool): if using calculated mean and std, calculate on each channel separately
             or calculate on the entire image directly.
     """
 
-    def __init__(self, subtrahend=None, divisor=None, nonzero=False, each_channel=False):
+    def __init__(self, subtrahend=None, divisor=None, nonzero=False, channel_wise=False):
         if subtrahend is not None or divisor is not None:
             assert isinstance(subtrahend, np.ndarray) and isinstance(divisor, np.ndarray), \
                 'subtrahend and divisor must be set in pair and in numpy array.'
         self.subtrahend = subtrahend
         self.divisor = divisor
         self.nonzero = nonzero
-        self.each_channel = each_channel
+        self.channel_wise = channel_wise
 
     def _normalize(self, img):
         slices = (img != 0) if self.nonzero else np.ones(img.shape, dtype=np.bool_)
@@ -739,7 +739,7 @@ class NormalizeIntensity(Transform):
         return img
 
     def __call__(self, img):
-        if self.each_channel:
+        if self.channel_wise:
             for i, d in enumerate(img):
                 img[i] = self._normalize(d)
         else:

@@ -581,13 +581,13 @@ class NormalizeIntensityd(MapTransform):
         subtrahend (ndarray): the amount to subtract by (usually the mean)
         divisor (ndarray): the amount to divide by (usually the standard deviation)
         nonzero (bool): whether only normalize non-zero values.
-        each_channel (bool): if using calculated mean and std, calculate on each channel separately
+        channel_wise (bool): if using calculated mean and std, calculate on each channel separately
             or calculate on the entire image directly.
     """
 
-    def __init__(self, keys, subtrahend=None, divisor=None, nonzero=False, each_channel=False):
+    def __init__(self, keys, subtrahend=None, divisor=None, nonzero=False, channel_wise=False):
         super().__init__(keys)
-        self.normalizer = NormalizeIntensity(subtrahend, divisor, nonzero, each_channel)
+        self.normalizer = NormalizeIntensity(subtrahend, divisor, nonzero, channel_wise)
 
     def __call__(self, data):
         d = dict(data)

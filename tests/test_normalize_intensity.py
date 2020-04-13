@@ -56,8 +56,8 @@ class TestNormalizeIntensity(NumpyImageTestCase2D):
         normalizer = NormalizeIntensity(**input_param)
         np.testing.assert_allclose(expected_data, normalizer(input_data))
 
-    def test_each_channel(self):
-        normalizer = NormalizeIntensity(nonzero=True, each_channel=True)
+    def test_channel_wise(self):
+        normalizer = NormalizeIntensity(nonzero=True, channel_wise=True)
         input_data = np.array([[0., 3., 0., 4.], [0., 4., 0., 5.]])
         expected = np.array([[0., -1., 0., 1.], [0., -1., 0., 1.]])
         np.testing.assert_allclose(expected, normalizer(input_data))
