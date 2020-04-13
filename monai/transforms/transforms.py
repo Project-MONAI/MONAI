@@ -341,6 +341,24 @@ class AddChannel(Transform):
         return img[None]
 
 
+class RepeatChannel(Transform):
+    """
+    Repeat channel data to construct expected input shape for models.
+    The `repeats` count includes the origin data, for example:
+    ``RepeatChannel(repeats=2)([[1, 2], [3, 4]])`` generates: ``[[1, 2], [1, 2], [3, 4], [3, 4]]``
+
+    Args:
+        repeats (int): the number of repetitions for each element.
+    """
+
+    def __init__(self, repeats):
+        assert repeats > 0, 'repeats count must be greater than 0.'
+        self.repeats = repeats
+
+    def __call__(self, img):
+        return np.repeat(img, self.repeats, 0)
+
+
 class Transpose(Transform):
     """
     Transposes the input image based on the given `indices` dimension ordering.
@@ -749,28 +767,40 @@ class RandAdjustContrast(Randomizable, Transform):
         return adjuster(img)
 
 
-class PadImageEnd(Transform):
-    """Performs padding by appending to the end of the data all on one side for each dimension.
+class SpatialPad(Transform):
+    """Performs padding to the data, symmetric for all sides or all on one side for each dimension.
      Uses np.pad so in practice, a mode needs to be provided. See numpy.lib.arraypad.pad
      for additional details.
 
     Args:
-        out_size (list): the size of region of interest at the end of the operation.
-        mode (string): a portion from numpy.lib.arraypad.pad is copied below.
+        spatial_out_size (list): the spatial size of region of interest at the end of the operation.
+        method (str): pad image symmetric on every side or only pad at the end sides. default is 'symmetric'.
+        mode (str): one of the following string values or a user supplied function: {'constant', 'edge', 'linear_ramp',
+            'maximum', 'mean', 'median', 'minimum', 'reflect', 'symmetric', 'wrap', 'empty', <function>}
+            for more details, please check: https://docs.scipy.org/doc/numpy/reference/generated/numpy.pad.html
     """
 
-    def __init__(self, out_size, mode):
-        assert isinstance(out_size, (list, tuple)), 'out_size must be list or tuple.'
-        self.out_size = out_size
+    def __init__(self, spatial_out_size, method='symmetric', mode='constant'):
+        assert isinstance(spatial_out_size, (list, tuple)), 'spatial_out_size must be list or tuple.'
+        self.spatial_out_size = spatial_out_size
+        assert method in ('symmetric', 'end'), 'unsupported padding type.'
+        self.method = method
         assert isinstance(mode, str), 'mode must be str.'
         self.mode = mode
 
     def _determine_data_pad_width(self, data_shape):
-        return [(0, max(self.out_size[i] - data_shape[i], 0)) for i in range(len(self.out_size))]
+        if self.method == 'symmetric':
+            pad_width = list()
+            for i in range(len(self.spatial_out_size)):
+                width = max(self.spatial_out_size[i] - data_shape[i], 0)
+                pad_width.append((width // 2, width - (width // 2)))
+            return pad_width
+        else:
+            return [(0, max(self.spatial_out_size[i] - data_shape[i], 0)) for i in range(len(self.spatial_out_size))]
 
     def __call__(self, img):
-        data_pad_width = self._determine_data_pad_width(img.shape[2:])
-        all_pad_width = [(0, 0), (0, 0)] + data_pad_width
+        data_pad_width = self._determine_data_pad_width(img.shape[1:])
+        all_pad_width = [(0, 0)] + data_pad_width
         img = np.pad(img, all_pad_width, self.mode)
         return img
 
@@ -843,9 +873,8 @@ class SpatialCrop(Transform):
     It can support to crop ND spatial (channel-first) data.
     Either a spatial center and size must be provided, or alternatively if center and size
     are not provided, the start and end coordinates of the ROI must be provided.
-    The sub-volume must sit the within original image.
-
-    Note: This transform will not work if the crop region is larger than the image itself.
+    If the sub-volume is not totally within original image, align to image size,
+    so the size of output may be smaller than ROI size.
     """
 
     def __init__(self, roi_center=None, roi_size=None, roi_start=None, roi_end=None):
@@ -857,26 +886,26 @@ class SpatialCrop(Transform):
             roi_end (list or tuple): voxel coordinates for end of the crop ROI.
         """
         if roi_center is not None and roi_size is not None:
-            roi_center = np.asarray(roi_center, dtype=np.uint16)
-            roi_size = np.asarray(roi_size, dtype=np.uint16)
+            roi_center = np.asarray(roi_center, dtype=np.int32)
+            roi_size = np.asarray(roi_size, dtype=np.int32)
             self.roi_start = np.subtract(roi_center, np.floor_divide(roi_size, 2))
             self.roi_end = np.add(self.roi_start, roi_size)
         else:
             assert roi_start is not None and roi_end is not None, 'roi_start and roi_end must be provided.'
-            self.roi_start = np.asarray(roi_start, dtype=np.uint16)
-            self.roi_end = np.asarray(roi_end, dtype=np.uint16)
+            self.roi_start = np.asarray(roi_start, dtype=np.int32)
+            self.roi_end = np.asarray(roi_end, dtype=np.int32)
 
-        assert np.all(self.roi_start >= 0), 'all elements of roi_start must be greater than or equal to 0.'
         assert np.all(self.roi_end > 0), 'all elements of roi_end must be positive.'
         assert np.all(self.roi_end >= self.roi_start), 'invalid roi range.'
 
     def __call__(self, img):
         max_end = img.shape[1:]
         sd = min(len(self.roi_start), len(max_end))
-        assert np.all(max_end[:sd] >= self.roi_start[:sd]), 'roi start out of image space.'
-        assert np.all(max_end[:sd] >= self.roi_end[:sd]), 'roi end out of image space.'
+        assert np.all(max_end[:sd] >= self.roi_start[:sd]) and np.all(self.roi_end[:sd] > 0), 'roi out of image space.'
+        roi_start = [max(0, start) for start in self.roi_start[:sd]]
+        roi_end = [min(size, end) for size, end in zip(max_end[:sd], self.roi_end[:sd])]
 
-        slices = [slice(None)] + [slice(s, e) for s, e in zip(self.roi_start[:sd], self.roi_end[:sd])]
+        slices = [slice(None)] + [slice(s, e) for s, e in zip(roi_start, roi_end)]
         data = img[tuple(slices)].copy()
         return data
 

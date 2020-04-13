@@ -181,7 +181,7 @@ def generate_pos_neg_label_crop_centers(label, size, num_samples, pos_ratio, ima
 
     # Select subregion to assure valid roi
     valid_start = np.floor_divide(size, 2)
-    valid_end = np.subtract(max_size + np.array(1), size / np.array(2)).astype(np.uint16)  # add 1 for random
+    valid_end = np.subtract(max_size + np.array(1), size / np.array(2)).astype(np.int32)  # add 1 for random
     # int generation to have full range on upper side, but subtract unfloored size/2 to prevent rounded range
     # from being too high
     for i in range(len(valid_start)):  # need this because np.random.randint does not work with same start and end

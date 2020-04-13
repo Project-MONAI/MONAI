@@ -24,7 +24,7 @@ from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.transforms import (AddChannel, AsChannelFirst, Flip, LoadNifti, NormalizeIntensity, Orientation,
                                          Rand2DElastic, Rand3DElastic, RandAffine, Rescale, Resize, Rotate, Rotate90,
                                          ScaleIntensityRange, Spacing, SpatialCrop, Zoom, ToTensor, LoadPNG,
-                                         AsChannelLast, ThresholdIntensity, AdjustContrast)
+                                         AsChannelLast, ThresholdIntensity, AdjustContrast, SpatialPad, RepeatChannel)
 from monai.transforms.utils import (create_grid, generate_pos_neg_label_crop_centers, generate_spatial_bounding_box)
 from monai.utils.misc import ensure_tuple
 
@@ -264,6 +264,28 @@ class AddChanneld(MapTransform):
         return d
 
 
+class RepeatChanneld(MapTransform):
+    """
+    dictionary-based wrapper of :py:class:`monai.transforms.transforms.RepeatChannel`.
+    """
+
+    def __init__(self, keys, repeats):
+        """
+        Args:
+            keys (hashable items): keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            repeats (int): the number of repetitions for each element.
+        """
+        super().__init__(keys)
+        self.repeater = RepeatChannel(repeats)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.repeater(d[key])
+        return d
+
+
 class ToTensord(MapTransform):
     """
     dictionary-based wrapper of ToTensor.
@@ -282,6 +304,34 @@ class ToTensord(MapTransform):
         d = dict(data)
         for key in self.keys:
             d[key] = self.converter(d[key])
+        return d
+
+
+class SpatialPadd(MapTransform):
+    """
+    dictionary-based wrapper of :py:class:`monai.transforms.compose.SpatialPad`.
+    Performs padding to the data, symmetric for all sides or all on one side for each dimension.
+    """
+
+    def __init__(self, keys, spatial_out_size, method='symmetric', mode='constant'):
+        """
+        Args:
+            keys (hashable items): keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            spatial_out_size (list): the spatial size of region of interest at the end of the operation.
+            method (str): pad image symmetric on every side or only pad at the end sides. default is 'symmetric'.
+            mode (str): one of the following string values or a user supplied function: {'constant', 'edge',
+                'linear_ramp', 'maximum', 'mean', 'median', 'minimum', 'reflect', 'symmetric',
+                'wrap', 'empty', <function>}
+                for more details, please check: https://docs.scipy.org/doc/numpy/reference/generated/numpy.pad.html
+        """
+        super().__init__(keys)
+        self.padder = SpatialPad(spatial_out_size, method, mode)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.padder(d[key])
         return d
 
 
@@ -1186,7 +1236,9 @@ LoadPNGD = LoadPNGDict = LoadPNGd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
 AddChannelD = AddChannelDict = AddChanneld
+RepeatChannelD = RepeatChannelDict = RepeatChanneld
 ToTensorD = ToTensorDict = ToTensord
+SpatialPadD = SpatialPadDict = SpatialPadd
 Rotate90D = Rotate90Dict = Rotate90d
 SpatialCropD = SpatialCropDict = SpatialCropd
 CropForegroundD = CropForegroundDict = CropForegroundd

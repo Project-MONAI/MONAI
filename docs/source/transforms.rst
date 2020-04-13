@@ -171,9 +171,9 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
-`PadImageEnd`
-~~~~~~~~~~~~~
-.. autoclass:: PadImageEnd
+`SpatialPad`
+~~~~~~~~~~~~
+.. autoclass:: SpatialPad
     :members:
     :special-members: __call__
 
@@ -307,6 +307,24 @@ Dictionary-based Composables
 `AddChanneld`
 ~~~~~~~~~~~~~
 .. autoclass:: AddChanneld
+    :members:
+    :special-members: __call__
+
+`RepeatChanneld`
+~~~~~~~~~~~~~~~~
+.. autoclass:: RepeatChanneld
+    :members:
+    :special-members: __call__
+
+`ToTensord`
+~~~~~~~~~~~
+.. autoclass:: ToTensord
+    :members:
+    :special-members: __call__
+
+`SpatialPadd`
+~~~~~~~~~~~~~
+.. autoclass:: SpatialPadd
     :members:
     :special-members: __call__
 

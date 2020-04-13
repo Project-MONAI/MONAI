@@ -54,10 +54,30 @@ TEST_CASE_4 = [
     (3, 2, 2, 2),
 ]
 
+TEST_CASE_5 = [
+    {
+        'keys': ['img'],
+        'roi_center': [1, 1, 1],
+        'roi_size': [4, 2, 4]
+    },
+    {'img': np.random.randint(0, 2, size=[3, 3, 3, 3])},
+    (3, 3, 2, 3)
+]
+
+TEST_CASE_6 = [
+    {
+        'keys': ['img'],
+        'roi_start': [0, 0, 0],
+        'roi_end': [4, 3, 2]
+    },
+    {'img': np.random.randint(0, 2, size=[3, 3, 3, 3])},
+    (3, 3, 3, 2)
+]
+
 
 class TestSpatialCropd(unittest.TestCase):
 
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
     def test_shape(self, input_param, input_data, expected_shape):
         result = SpatialCropd(**input_param)(input_data)
         self.assertTupleEqual(result['img'].shape, expected_shape)
