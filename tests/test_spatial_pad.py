@@ -16,7 +16,7 @@ from monai.transforms import SpatialPad
 
 TEST_CASE_1 = [
     {
-        'spatial_out_size': [15, 8, 8],
+        'spatial_size': [15, 8, 8],
         'method': 'symmetric',
         'mode': 'constant'
     },
@@ -26,7 +26,7 @@ TEST_CASE_1 = [
 
 TEST_CASE_2 = [
     {
-        'spatial_out_size': [15, 8, 8],
+        'spatial_size': [15, 8, 8],
         'method': 'end',
         'mode': 'constant'
     },

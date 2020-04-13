@@ -50,28 +50,10 @@ TEST_CASE_4 = [
     (3, 2, 2, 2),
 ]
 
-TEST_CASE_5 = [
-    {
-        'roi_center': [1, 1, 1],
-        'roi_size': [4, 2, 4]
-    },
-    np.random.randint(0, 2, size=[3, 3, 3, 3]),
-    (3, 3, 2, 3)
-]
-
-TEST_CASE_6 = [
-    {
-        'roi_start': [0, 0, 0],
-        'roi_end': [4, 3, 2]
-    },
-    np.random.randint(0, 2, size=[3, 3, 3, 3]),
-    (3, 3, 3, 2)
-]
-
 
 class TestSpatialCrop(unittest.TestCase):
 
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_shape(self, input_param, input_data, expected_shape):
         result = SpatialCrop(**input_param)(input_data)
         self.assertTupleEqual(result.shape, expected_shape)

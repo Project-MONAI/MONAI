@@ -313,12 +313,12 @@ class SpatialPadd(MapTransform):
     Performs padding to the data, symmetric for all sides or all on one side for each dimension.
     """
 
-    def __init__(self, keys, spatial_out_size, method='symmetric', mode='constant'):
+    def __init__(self, keys, spatial_size, method='symmetric', mode='constant'):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            spatial_out_size (list): the spatial size of region of interest at the end of the operation.
+            spatial_size (list): the spatial size of output data after padding.
             method (str): pad image symmetric on every side or only pad at the end sides. default is 'symmetric'.
             mode (str): one of the following string values or a user supplied function: {'constant', 'edge',
                 'linear_ramp', 'maximum', 'mean', 'median', 'minimum', 'reflect', 'symmetric',
@@ -326,7 +326,7 @@ class SpatialPadd(MapTransform):
                 for more details, please check: https://docs.scipy.org/doc/numpy/reference/generated/numpy.pad.html
         """
         super().__init__(keys)
-        self.padder = SpatialPad(spatial_out_size, method, mode)
+        self.padder = SpatialPad(spatial_size, method, mode)
 
     def __call__(self, data):
         d = dict(data)
@@ -447,7 +447,7 @@ class Resized(MapTransform):
     Args:
         keys (hashable items): keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
-        output_spatial_shape (tuple or list): expected shape of spatial dimensions after resize operation.
+        spatial_size (tuple or list): expected shape of spatial dimensions after resize operation.
         order (int): Order of spline interpolation. Default=1.
         mode (str): Points outside boundaries are filled according to given mode.
             Options are 'constant', 'edge', 'symmetric', 'reflect', 'wrap'.
@@ -460,10 +460,10 @@ class Resized(MapTransform):
         anti_aliasing_sigma (float, tuple of floats): Standard deviation for gaussian filtering.
     """
 
-    def __init__(self, keys, output_spatial_shape, order=1, mode='reflect', cval=0,
+    def __init__(self, keys, spatial_size, order=1, mode='reflect', cval=0,
                  clip=True, preserve_range=True, anti_aliasing=True, anti_aliasing_sigma=None):
         super().__init__(keys)
-        self.resizer = Resize(output_spatial_shape, order, mode, cval, clip, preserve_range,
+        self.resizer = Resize(spatial_size, order, mode, cval, clip, preserve_range,
                               anti_aliasing, anti_aliasing_sigma)
 
     def __call__(self, data):
