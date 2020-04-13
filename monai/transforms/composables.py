@@ -25,7 +25,7 @@ from monai.transforms.transforms import (AddChannel, AsChannelFirst, Flip, LoadN
                                          Rand2DElastic, Rand3DElastic, RandAffine, Rescale, Resize, Rotate, Rotate90,
                                          ScaleIntensityRange, Spacing, SpatialCrop, Zoom, ToTensor, LoadPNG,
                                          AsChannelLast, ThresholdIntensity, AdjustContrast, CenterSpatialCrop,
-                                         RandLocSpatialCrop, CastToType)
+                                         CastToType)
 from monai.transforms.utils import (create_grid, generate_pos_neg_label_crop_centers, generate_spatial_bounding_box)
 from monai.utils.misc import ensure_tuple
 
@@ -642,70 +642,45 @@ class CenterSpatialCropd(MapTransform):
         return d
 
 
-class RandLocSpatialCropd(Randomizable, MapTransform):
+class RandSpatialCropd(Randomizable, MapTransform):
     """
-    Dictionary-based version :py:class:`monai.transforms.transfroms.RandLocSpatialCrop`.
-    Crop at a random position in the image with the specified ROI size.
-
-    Args:
-        keys (hashable items): keys of the corresponding items to be transformed.
-            See also: :py:class:`monai.transforms.compose.MapTransform`
-        roi_size (list, tuple): the spatial size of the crop region e.g. [224,224,128]
-    """
-
-    def __init__(self, keys, roi_size):
-        super().__init__(keys)
-
-        self.roi_size = (None,) + tuple(roi_size)
-
-        self._slices = None
-
-    def randomize(self, image_shape, roi_size):
-        self._slices = get_random_patch(image_shape, roi_size, self.R)
-
-    def __call__(self, data):
-        d = dict(data)
-
-        image_shape = d[self.keys[0]].shape  # image shape from the first data key
-        roi_size = get_valid_patch_size(image_shape, self.roi_size)
-        self.randomize(image_shape, roi_size)
-        for key in self.keys:
-            d[key] = d[key][self._slices]
-        return d
-
-
-class RandSizeSpatialCropd(Randomizable, MapTransform):
-    """
-    Dictionary-based version :py:class:`monai.transforms.transfroms.RandSizeSpatialCrop`.
-    Crop image with random size ROI. It can crop at a random position as center or at the
-    image center. And allows to set the minimum size to limit the randomly generated ROI.
-    Suppose all the expected fields specified by `keys` have same shape.
+    Dictionary-based version :py:class:`monai.transforms.transfroms.RandSpatialCrop`.
+    Crop image with random size or specific size ROI. It can crop at a random position as
+    center or at the image center. And allows to set the minimum size to limit the randomly
+    generated ROI. Suppose all the expected fields specified by `keys` have same shape.
 
     Args:
         keys (hashable items): keys of the corresponding items to be transformed.
             See also: monai.transform.composables.MapTransform
-        min_roi_size (list, tuple): the size of the minimum crop region e.g. [224,224,128]
+        roi_size (list, tuple): if `random_size` is True, the spatial size of the minimum crop region.
+            if `random_size` is False, specify the expected ROI size to crop. e.g. [224, 224, 128]
         random_center (bool): crop at random position as center or the image center.
+        random_size (bool): crop with random size or specific size ROI.
     """
 
-    def __init__(self, keys, min_roi_size, random_center=True):
+    def __init__(self, keys, roi_size, random_center=True, random_size=True):
         super().__init__(keys)
-        self.min_size = min_roi_size
+        self.roi_size = roi_size
         self.random_center = random_center
+        self.random_size = random_size
 
     def randomize(self, img_size):
-        min_size = [self.min_size] * len(img_size) if not isinstance(self.min_size, (list, tuple)) else self.min_size
-        self.roi_size = [self.R.randint(low=min_size[i], high=img_size[i] + 1) for i in range(len(img_size))]
+        self._size = [self.roi_size] * len(img_size) if not isinstance(self.roi_size, (list, tuple)) else self.roi_size
+        if self.random_size:
+            self._size = [self.R.randint(low=self._size[i], high=img_size[i] + 1) for i in range(len(img_size))]
+        if self.random_center:
+            valid_size = get_valid_patch_size(img_size, self._size)
+            self._slices = ensure_tuple(slice(None)) + get_random_patch(img_size, valid_size, self.R)
 
     def __call__(self, data):
         d = dict(data)
         self.randomize(d[self.keys[0]].shape[1:])  # image shape from the first data key
-        if self.random_center:
-            cropper = RandLocSpatialCrop(self.roi_size)
-        else:
-            cropper = CenterSpatialCrop(self.roi_size)
         for key in self.keys:
-            d[key] = cropper(d[key])
+            if self.random_center:
+                d[key] = d[key][self._slices]
+            else:
+                cropper = CenterSpatialCrop(self._size)
+                d[key] = cropper(d[key])
         return d
 
 
@@ -1288,8 +1263,7 @@ AdjustContrastD = AdjustContrastDict = AdjustContrastd
 RandAdjustContrastD = RandAdjustContrastDict = RandAdjustContrastd
 SpatialCropD = SpatialCropDict = SpatialCropd
 CenterSpatialCropD = CenterSpatialCropDict = CenterSpatialCropd
-RandLocSpatialCropD = RandLocSpatialCropDict = RandLocSpatialCropd
-RandSizeSpatialCropD = RandSizeSpatialCropDict = RandSizeSpatialCropd
+RandSpatialCropD = RandSpatialCropDict = RandSpatialCropd
 CropForegroundD = CropForegroundDict = CropForegroundd
 RandCropByPosNegLabelD = RandCropByPosNegLabelDict = RandCropByPosNegLabeld
 RandAffineD = RandAffineDict = RandAffined

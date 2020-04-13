@@ -201,15 +201,9 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
-`RandLocSpatialCrop`
-~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: RandLocSpatialCrop
-    :members:
-    :special-members: __call__
-
-`RandSizeSpatialCrop`
-~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: RandSizeSpatialCrop
+`RandSpatialCrop`
+~~~~~~~~~~~~~~~~~
+.. autoclass:: RandSpatialCrop
     :members:
     :special-members: __call__
 
@@ -406,15 +400,9 @@ Dictionary-based Composables
     :members:
     :special-members: __call__
 
-`RandLocSpatialCropd`
-~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: RandLocSpatialCropd
-    :members:
-    :special-members: __call__
-
-`RandSizeSpatialCropd`
-~~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: RandSizeSpatialCropd
+`RandSpatialCropd`
+~~~~~~~~~~~~~~~~~~
+.. autoclass:: RandSpatialCropd
     :members:
     :special-members: __call__
 

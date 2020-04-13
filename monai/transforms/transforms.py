@@ -898,55 +898,39 @@ class CenterSpatialCrop(Transform):
         return cropper(img)
 
 
-class RandLocSpatialCrop(Randomizable, Transform):
+class RandSpatialCrop(Randomizable, Transform):
     """
-    Crop at a random position in the image with the specified ROI size.
+    Crop image with random size or specific size ROI. It can crop at a random position as center
+    or at the image center. And allows to set the minimum size to limit the randomly generated ROI.
+    This transform assumes all the expected fields specified by `keys` have same shape.
 
     Args:
-        roi_size (list, tuple): the spatial size of the crop region e.g. [224,224,128]
-    """
-
-    def __init__(self, roi_size):
-        self.roi_size = (None,) + tuple(roi_size)
-
-        self._slices = None
-
-    def randomize(self, image_shape, roi_size):
-        self._slices = get_random_patch(image_shape, roi_size, self.R)
-
-    def __call__(self, img):
-        roi_size = get_valid_patch_size(img.shape, self.roi_size)
-        self.randomize(img.shape, roi_size)
-        return img[self._slices]
-
-
-class RandSizeSpatialCrop(Randomizable, Transform):
-    """
-    Crop image with random size ROI. It can crop at a random position as center
-    or at the image center. And allows to set the minimum size to limit the randomly
-    generated ROI. This transform assumes all the expected fields specified by `keys`
-    have same shape.
-
-    Args:
-        min_roi_size (list, tuple): the spatial size of the minimum crop region e.g. [224,224,128]
+        roi_size (list, tuple): if `random_size` is True, the spatial size of the minimum crop region.
+            if `random_size` is False, specify the expected ROI size to crop. e.g. [224, 224, 128]
         random_center (bool): crop at random position as center or the image center.
+        random_size (bool): crop with random size or specific size ROI.
     """
 
-    def __init__(self, min_roi_size, random_center=True):
-        self.min_size = min_roi_size
+    def __init__(self, roi_size, random_center=True, random_size=True):
+        self.roi_size = roi_size
         self.random_center = random_center
+        self.random_size = random_size
 
     def randomize(self, img_size):
-        min_size = [self.min_size] * len(img_size) if not isinstance(self.min_size, (list, tuple)) else self.min_size
-        self.roi_size = [self.R.randint(low=min_size[i], high=img_size[i] + 1) for i in range(len(img_size))]
+        self._size = [self.roi_size] * len(img_size) if not isinstance(self.roi_size, (list, tuple)) else self.roi_size
+        if self.random_size:
+            self._size = [self.R.randint(low=self._size[i], high=img_size[i] + 1) for i in range(len(img_size))]
+        if self.random_center:
+            valid_size = get_valid_patch_size(img_size, self._size)
+            self._slices = ensure_tuple(slice(None)) + get_random_patch(img_size, valid_size, self.R)
 
     def __call__(self, img):
         self.randomize(img.shape[1:])
         if self.random_center:
-            cropper = RandLocSpatialCrop(self.roi_size)
+            return img[self._slices]
         else:
-            cropper = CenterSpatialCrop(self.roi_size)
-        return cropper(img)
+            cropper = CenterSpatialCrop(self._size)
+            return cropper(img)
 
 
 class CropForeground(Transform):

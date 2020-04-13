@@ -12,11 +12,11 @@
 import unittest
 import numpy as np
 from parameterized import parameterized
-from monai.transforms import RandSizeSpatialCrop
+from monai.transforms import RandSpatialCrop
 
 TEST_CASE_1 = [
     {
-        'min_roi_size': [3, 3, 3],
+        'roi_size': [3, 3, 3],
         'random_center': True
     },
     np.random.randint(0, 2, size=[3, 3, 3, 3]),
@@ -25,7 +25,7 @@ TEST_CASE_1 = [
 
 TEST_CASE_2 = [
     {
-        'min_roi_size': [3, 3, 3],
+        'roi_size': [3, 3, 3],
         'random_center': False
     },
     np.random.randint(0, 2, size=[3, 3, 3, 3]),
@@ -34,7 +34,7 @@ TEST_CASE_2 = [
 
 TEST_CASE_3 = [
     {
-        'min_roi_size': [3, 3],
+        'roi_size': [3, 3],
         'random_center': False
     },
     np.array([
@@ -49,18 +49,18 @@ TEST_CASE_3 = [
 ]
 
 
-class TestRandSizeSpatialCrop(unittest.TestCase):
+class TestRandSpatialCrop(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_shape(self, input_param, input_data, expected_shape):
-        result = RandSizeSpatialCrop(**input_param)(input_data)
+        result = RandSpatialCrop(**input_param)(input_data)
         self.assertTupleEqual(result.shape, expected_shape)
 
     @parameterized.expand([TEST_CASE_3])
     def test_value(self, input_param, input_data):
-        cropper = RandSizeSpatialCrop(**input_param)
+        cropper = RandSpatialCrop(**input_param)
         result = cropper(input_data)
-        roi = [(2 - i // 2, 2 + i - i // 2) for i in cropper.roi_size]
+        roi = [(2 - i // 2, 2 + i - i // 2) for i in cropper._size]
         np.testing.assert_allclose(result, input_data[:, roi[0][0]:roi[0][1], roi[1][0]:roi[1][1]])
 
 
