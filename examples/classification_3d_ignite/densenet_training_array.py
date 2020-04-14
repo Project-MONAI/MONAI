@@ -20,7 +20,7 @@ from torch.utils.data import DataLoader
 
 import monai
 from monai.data import NiftiDataset
-from monai.transforms import Compose, AddChannel, Rescale, Resize, RandRotate90, ToTensor
+from monai.transforms import Compose, AddChannel, ScaleIntensity, Resize, RandRotate90, ToTensor
 from monai.handlers import StatsHandler, TensorBoardStatsHandler, stopping_fn_from_metric
 
 monai.config.print_config()
@@ -56,14 +56,14 @@ labels = np.array([
 
 # define transforms
 train_transforms = Compose([
-    Rescale(),
+    ScaleIntensity(),
     AddChannel(),
     Resize((96, 96, 96)),
     RandRotate90(),
     ToTensor()
 ])
 val_transforms = Compose([
-    Rescale(),
+    ScaleIntensity(),
     AddChannel(),
     Resize((96, 96, 96)),
     ToTensor()
