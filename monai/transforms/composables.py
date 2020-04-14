@@ -25,7 +25,7 @@ from monai.transforms.transforms import (AddChannel, AsChannelFirst, Flip, LoadN
                                          Rand2DElastic, Rand3DElastic, RandAffine, Rescale, Resize, Rotate, Rotate90,
                                          ScaleIntensityRange, Spacing, SpatialCrop, Zoom, ToTensor, LoadPNG,
                                          AsChannelLast, ThresholdIntensity, AdjustContrast, CenterSpatialCrop,
-                                         CastToType)
+                                         CastToType, SpatialPad, RepeatChannel)
 from monai.transforms.utils import (create_grid, generate_pos_neg_label_crop_centers, generate_spatial_bounding_box)
 from monai.utils.misc import ensure_tuple
 
@@ -265,6 +265,28 @@ class AddChanneld(MapTransform):
         return d
 
 
+class RepeatChanneld(MapTransform):
+    """
+    dictionary-based wrapper of :py:class:`monai.transforms.transforms.RepeatChannel`.
+    """
+
+    def __init__(self, keys, repeats):
+        """
+        Args:
+            keys (hashable items): keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            repeats (int): the number of repetitions for each element.
+        """
+        super().__init__(keys)
+        self.repeater = RepeatChannel(repeats)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.repeater(d[key])
+        return d
+
+
 class CastToTyped(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.CastToType`.
@@ -353,7 +375,7 @@ class Resized(MapTransform):
     Args:
         keys (hashable items): keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
-        output_spatial_shape (tuple or list): expected shape of spatial dimensions after resize operation.
+        spatial_size (tuple or list): expected shape of spatial dimensions after resize operation.
         order (int): Order of spline interpolation. Default=1.
         mode (str): Points outside boundaries are filled according to given mode.
             Options are 'constant', 'edge', 'symmetric', 'reflect', 'wrap'.
@@ -366,10 +388,10 @@ class Resized(MapTransform):
         anti_aliasing_sigma (float, tuple of floats): Standard deviation for gaussian filtering.
     """
 
-    def __init__(self, keys, output_spatial_shape, order=1, mode='reflect', cval=0,
+    def __init__(self, keys, spatial_size, order=1, mode='reflect', cval=0,
                  clip=True, preserve_range=True, anti_aliasing=True, anti_aliasing_sigma=None):
         super().__init__(keys)
-        self.resizer = Resize(output_spatial_shape, order, mode, cval, clip, preserve_range,
+        self.resizer = Resize(spatial_size, order, mode, cval, clip, preserve_range,
                               anti_aliasing, anti_aliasing_sigma)
 
     def __call__(self, data):
@@ -591,6 +613,34 @@ class RandAdjustContrastd(Randomizable, MapTransform):
         adjuster = AdjustContrast(self.gamma_value)
         for key in self.keys:
             d[key] = adjuster(d[key])
+        return d
+
+
+class SpatialPadd(MapTransform):
+    """
+    dictionary-based wrapper of :py:class:`monai.transforms.compose.SpatialPad`.
+    Performs padding to the data, symmetric for all sides or all on one side for each dimension.
+    """
+
+    def __init__(self, keys, spatial_size, method='symmetric', mode='constant'):
+        """
+        Args:
+            keys (hashable items): keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            spatial_size (list): the spatial size of output data after padding.
+            method (str): pad image symmetric on every side or only pad at the end sides. default is 'symmetric'.
+            mode (str): one of the following string values or a user supplied function: {'constant', 'edge',
+                'linear_ramp', 'maximum', 'mean', 'median', 'minimum', 'reflect', 'symmetric',
+                'wrap', 'empty', <function>}
+                for more details, please check: https://docs.scipy.org/doc/numpy/reference/generated/numpy.pad.html
+        """
+        super().__init__(keys)
+        self.padder = SpatialPad(spatial_size, method, mode)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.padder(d[key])
         return d
 
 
@@ -1249,6 +1299,7 @@ LoadPNGD = LoadPNGDict = LoadPNGd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
 AddChannelD = AddChannelDict = AddChanneld
+RepeatChannelD = RepeatChannelDict = RepeatChanneld
 CastToTypeD = CastToTypeDict = CastToTyped
 ToTensorD = ToTensorDict = ToTensord
 Rotate90D = Rotate90Dict = Rotate90d
@@ -1261,6 +1312,7 @@ ThresholdIntensityD = ThresholdIntensityDict = ThresholdIntensityd
 ScaleIntensityRangeD = ScaleIntensityRangeDict = ScaleIntensityRanged
 AdjustContrastD = AdjustContrastDict = AdjustContrastd
 RandAdjustContrastD = RandAdjustContrastDict = RandAdjustContrastd
+SpatialPadD = SpatialPadDict = SpatialPadd
 SpatialCropD = SpatialCropDict = SpatialCropd
 CenterSpatialCropD = CenterSpatialCropDict = CenterSpatialCropd
 RandSpatialCropD = RandSpatialCropDict = RandSpatialCropd

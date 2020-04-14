@@ -57,7 +57,7 @@ train_transforms = Compose([
     LoadNiftid(keys=['img']),
     AddChanneld(keys=['img']),
     Rescaled(keys=['img']),
-    Resized(keys=['img'], output_spatial_shape=(96, 96, 96)),
+    Resized(keys=['img'], spatial_size=(96, 96, 96)),
     RandRotate90d(keys=['img'], prob=0.8, spatial_axes=[0, 2]),
     ToTensord(keys=['img'])
 ])
@@ -65,7 +65,7 @@ val_transforms = Compose([
     LoadNiftid(keys=['img']),
     AddChanneld(keys=['img']),
     Rescaled(keys=['img']),
-    Resized(keys=['img'], output_spatial_shape=(96, 96, 96)),
+    Resized(keys=['img'], spatial_size=(96, 96, 96)),
     ToTensord(keys=['img'])
 ])
 

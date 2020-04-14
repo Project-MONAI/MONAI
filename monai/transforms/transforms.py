@@ -341,6 +341,24 @@ class AddChannel(Transform):
         return img[None]
 
 
+class RepeatChannel(Transform):
+    """
+    Repeat channel data to construct expected input shape for models.
+    The `repeats` count includes the origin data, for example:
+    ``RepeatChannel(repeats=2)([[1, 2], [3, 4]])`` generates: ``[[1, 2], [1, 2], [3, 4], [3, 4]]``
+
+    Args:
+        repeats (int): the number of repetitions for each element.
+    """
+
+    def __init__(self, repeats):
+        assert repeats > 0, 'repeats count must be greater than 0.'
+        self.repeats = repeats
+
+    def __call__(self, img):
+        return np.repeat(img, self.repeats, 0)
+
+
 class CastToType(Transform):
     """
     Cast the image data to specified numpy data type.
@@ -356,6 +374,17 @@ class CastToType(Transform):
     def __call__(self, img):
         assert isinstance(img, np.ndarray), 'image must be numpy array.'
         return img.astype(self.dtype)
+
+
+class ToTensor(Transform):
+    """
+    Converts the input image to a tensor without applying any other transformations.
+    """
+
+    def __call__(self, img):
+        if torch.is_tensor(img):
+            return img.contiguous()
+        return torch.as_tensor(np.ascontiguousarray(img))
 
 
 class Transpose(Transform):
@@ -440,7 +469,7 @@ class Resize(Transform):
     For additional details, see https://scikit-image.org/docs/dev/api/skimage.transform.html#skimage.transform.resize.
 
     Args:
-        output_spatial_shape (tuple or list): expected shape of spatial dimensions after resize operation.
+        spatial_size (tuple or list): expected shape of spatial dimensions after resize operation.
         order (int): Order of spline interpolation. Default=1.
         mode (str): Points outside boundaries are filled according to given mode.
             Options are 'constant', 'edge', 'symmetric', 'reflect', 'wrap'.
@@ -454,10 +483,10 @@ class Resize(Transform):
         anti_aliasing_sigma (float, tuple of floats): Standard deviation for gaussian filtering.
     """
 
-    def __init__(self, output_spatial_shape, order=1, mode='reflect', cval=0,
+    def __init__(self, spatial_size, order=1, mode='reflect', cval=0,
                  clip=True, preserve_range=True, anti_aliasing=True, anti_aliasing_sigma=None):
         assert isinstance(order, int), "order must be integer."
-        self.output_spatial_shape = output_spatial_shape
+        self.spatial_size = spatial_size
         self.order = order
         self.mode = mode
         self.cval = cval
@@ -474,7 +503,7 @@ class Resize(Transform):
         resized = list()
         for channel in img:
             resized.append(
-                resize(channel, self.output_spatial_shape, order=self.order,
+                resize(channel, self.spatial_size, order=self.order,
                        mode=self.mode, cval=self.cval,
                        clip=self.clip, preserve_range=self.preserve_range,
                        anti_aliasing=self.anti_aliasing,
@@ -604,17 +633,6 @@ class Zoom(Transform):
                 slice_vec[idx] = slice(half, half + od)
         zoomed = np.pad(zoomed, pad_vec, mode='constant')
         return zoomed[tuple(slice_vec)]
-
-
-class ToTensor(Transform):
-    """
-    Converts the input image to a tensor without applying any other transformations.
-    """
-
-    def __call__(self, img):
-        if torch.is_tensor(img):
-            return img.contiguous()
-        return torch.as_tensor(np.ascontiguousarray(img))
 
 
 class NormalizeIntensity(Transform):
@@ -747,32 +765,6 @@ class RandAdjustContrast(Randomizable, Transform):
         return adjuster(img)
 
 
-class PadImageEnd(Transform):
-    """Performs padding by appending to the end of the data all on one side for each dimension.
-     Uses np.pad so in practice, a mode needs to be provided. See numpy.lib.arraypad.pad
-     for additional details.
-
-    Args:
-        out_size (list): the size of region of interest at the end of the operation.
-        mode (string): a portion from numpy.lib.arraypad.pad is copied below.
-    """
-
-    def __init__(self, out_size, mode):
-        assert isinstance(out_size, (list, tuple)), 'out_size must be list or tuple.'
-        self.out_size = out_size
-        assert isinstance(mode, str), 'mode must be str.'
-        self.mode = mode
-
-    def _determine_data_pad_width(self, data_shape):
-        return [(0, max(self.out_size[i] - data_shape[i], 0)) for i in range(len(self.out_size))]
-
-    def __call__(self, img):
-        data_pad_width = self._determine_data_pad_width(img.shape[2:])
-        all_pad_width = [(0, 0), (0, 0)] + data_pad_width
-        img = np.pad(img, all_pad_width, self.mode)
-        return img
-
-
 class Rotate90(Transform):
     """
     Rotate an array by 90 degrees in the plane specified by `axes`.
@@ -836,13 +828,50 @@ class RandRotate90(Randomizable, Transform):
         return rotator(img)
 
 
+class SpatialPad(Transform):
+    """Performs padding to the data, symmetric for all sides or all on one side for each dimension.
+     Uses np.pad so in practice, a mode needs to be provided. See numpy.lib.arraypad.pad
+     for additional details.
+
+    Args:
+        spatial_size (list): the spatial size of output data after padding.
+        method (str): pad image symmetric on every side or only pad at the end sides. default is 'symmetric'.
+        mode (str): one of the following string values or a user supplied function: {'constant', 'edge', 'linear_ramp',
+            'maximum', 'mean', 'median', 'minimum', 'reflect', 'symmetric', 'wrap', 'empty', <function>}
+            for more details, please check: https://docs.scipy.org/doc/numpy/reference/generated/numpy.pad.html
+    """
+
+    def __init__(self, spatial_size, method='symmetric', mode='constant'):
+        assert isinstance(spatial_size, (list, tuple)), 'spatial_out_size must be list or tuple.'
+        self.spatial_size = spatial_size
+        assert method in ('symmetric', 'end'), 'unsupported padding type.'
+        self.method = method
+        assert isinstance(mode, str), 'mode must be str.'
+        self.mode = mode
+
+    def _determine_data_pad_width(self, data_shape):
+        if self.method == 'symmetric':
+            pad_width = list()
+            for i in range(len(self.spatial_size)):
+                width = max(self.spatial_size[i] - data_shape[i], 0)
+                pad_width.append((width // 2, width - (width // 2)))
+            return pad_width
+        else:
+            return [(0, max(self.spatial_size[i] - data_shape[i], 0)) for i in range(len(self.spatial_size))]
+
+    def __call__(self, img):
+        data_pad_width = self._determine_data_pad_width(img.shape[1:])
+        all_pad_width = [(0, 0)] + data_pad_width
+        img = np.pad(img, all_pad_width, self.mode)
+        return img
+
+
 class SpatialCrop(Transform):
     """General purpose cropper to produce sub-volume region of interest (ROI).
     It can support to crop ND spatial (channel-first) data.
     Either a spatial center and size must be provided, or alternatively if center and size
     are not provided, the start and end coordinates of the ROI must be provided.
     The sub-volume must sit the within original image.
-
     Note: This transform will not work if the crop region is larger than the image itself.
     """
 

@@ -87,6 +87,12 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
+`RepeatChannel`
+~~~~~~~~~~~~~~~~
+.. autoclass:: RepeatChannel
+    :members:
+    :special-members: __call__
+
 `CastToType`
 ~~~~~~~~~~~~
 .. autoclass:: CastToType
@@ -171,12 +177,6 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
-`PadImageEnd`
-~~~~~~~~~~~~~
-.. autoclass:: PadImageEnd
-    :members:
-    :special-members: __call__
-
 `Rotate90`
 ~~~~~~~~~~
 .. autoclass:: Rotate90
@@ -186,6 +186,12 @@ Vanilla Transforms
 `RandRotate90`
 ~~~~~~~~~~~~~~
 .. autoclass:: RandRotate90
+    :members:
+    :special-members: __call__
+
+`SpatialPad`
+~~~~~~~~~~~~
+.. autoclass:: SpatialPad
     :members:
     :special-members: __call__
 
@@ -322,9 +328,21 @@ Dictionary-based Composables
     :members:
     :special-members: __call__
 
+`RepeatChanneld`
+~~~~~~~~~~~~~~~~
+.. autoclass:: RepeatChanneld
+    :members:
+    :special-members: __call__
+
 `CastToTyped`
 ~~~~~~~~~~~~~
 .. autoclass:: CastToTyped
+    :members:
+    :special-members: __call__
+
+`ToTensord`
+~~~~~~~~~~~
+.. autoclass:: ToTensord
     :members:
     :special-members: __call__
 
@@ -385,6 +403,12 @@ Dictionary-based Composables
 `RandAdjustContrastd`
 ~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: RandAdjustContrastd
+    :members:
+    :special-members: __call__
+
+`SpatialPadd`
+~~~~~~~~~~~~~
+.. autoclass:: SpatialPadd
     :members:
     :special-members: __call__
 
