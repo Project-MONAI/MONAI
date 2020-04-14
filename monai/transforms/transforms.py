@@ -359,6 +359,34 @@ class RepeatChannel(Transform):
         return np.repeat(img, self.repeats, 0)
 
 
+class CastToType(Transform):
+    """
+    Cast the image data to specified numpy data type.
+    """
+
+    def __init__(self, dtype=np.float32):
+        """
+        Args:
+            dtype (np.dtype): convert image to this data type, default is `np.float32`.
+        """
+        self.dtype = dtype
+
+    def __call__(self, img):
+        assert isinstance(img, np.ndarray), 'image must be numpy array.'
+        return img.astype(self.dtype)
+
+
+class ToTensor(Transform):
+    """
+    Converts the input image to a tensor without applying any other transformations.
+    """
+
+    def __call__(self, img):
+        if torch.is_tensor(img):
+            return img.contiguous()
+        return torch.as_tensor(np.ascontiguousarray(img))
+
+
 class Transpose(Transform):
     """
     Transposes the input image based on the given `indices` dimension ordering.
@@ -386,25 +414,28 @@ class Rescale(Transform):
 
 
 class RandGaussianNoise(Randomizable, Transform):
-    """Add gaussian noise to image.
+    """Add Gaussian noise to image.
 
     Args:
+        prob (float): Probability to add Gaussian noise.
         mean (float or array of floats): Mean or “centre” of the distribution.
         std (float): Standard deviation (spread) of distribution.
     """
 
-    def __init__(self, mean=0.0, std=0.1):
+    def __init__(self, prob=0.1, mean=0.0, std=0.1):
+        self.prob = prob
         self.mean = mean
         self.std = std
-
+        self._do_transform = False
         self._noise = None
 
     def randomize(self, im_shape):
+        self._do_transform = self.R.random() < self.prob
         self._noise = self.R.normal(self.mean, self.R.uniform(0, self.std), size=im_shape)
 
     def __call__(self, img):
         self.randomize(img.shape)
-        return img + self._noise
+        return img + self._noise if self._do_transform else img
 
 
 class Flip(Transform):
@@ -604,39 +635,6 @@ class Zoom(Transform):
         return zoomed[tuple(slice_vec)]
 
 
-class ToTensor(Transform):
-    """
-    Converts the input image to a tensor without applying any other transformations.
-    """
-
-    def __call__(self, img):
-        if torch.is_tensor(img):
-            return img.contiguous()
-        return torch.as_tensor(np.ascontiguousarray(img))
-
-
-class RandUniformPatch(Randomizable, Transform):
-    """
-    Selects a patch of the given size chosen at a uniformly random position in the image.
-
-    Args:
-        patch_spatial_size (tuple or list): Expected patch size of spatial dimensions.
-    """
-
-    def __init__(self, patch_spatial_size):
-        self.patch_spatial_size = (None,) + tuple(patch_spatial_size)
-
-        self._slices = None
-
-    def randomize(self, image_shape, patch_shape):
-        self._slices = get_random_patch(image_shape, patch_shape, self.R)
-
-    def __call__(self, img):
-        patch_spatial_size = get_valid_patch_size(img.shape, self.patch_spatial_size)
-        self.randomize(img.shape, patch_spatial_size)
-        return img[self._slices]
-
-
 class NormalizeIntensity(Transform):
     """Normalize input based on provided args, using calculated mean and std if not provided
     (shape of subtrahend and divisor must match. if 0, entire volume uses same subtrahend and
@@ -750,7 +748,7 @@ class RandAdjustContrast(Randomizable, Transform):
             self.gamma = (0.5, gamma)
         else:
             self.gamma = gamma
-        assert len(self.gamma) == 2, "gamma should be a number or pair of numbers."
+        assert len(self.gamma) == 2, 'gamma should be a number or pair of numbers.'
 
         self._do_transform = False
         self.gamma_value = None
@@ -765,44 +763,6 @@ class RandAdjustContrast(Randomizable, Transform):
             return img
         adjuster = AdjustContrast(self.gamma_value)
         return adjuster(img)
-
-
-class SpatialPad(Transform):
-    """Performs padding to the data, symmetric for all sides or all on one side for each dimension.
-     Uses np.pad so in practice, a mode needs to be provided. See numpy.lib.arraypad.pad
-     for additional details.
-
-    Args:
-        spatial_size (list): the spatial size of output data after padding.
-        method (str): pad image symmetric on every side or only pad at the end sides. default is 'symmetric'.
-        mode (str): one of the following string values or a user supplied function: {'constant', 'edge', 'linear_ramp',
-            'maximum', 'mean', 'median', 'minimum', 'reflect', 'symmetric', 'wrap', 'empty', <function>}
-            for more details, please check: https://docs.scipy.org/doc/numpy/reference/generated/numpy.pad.html
-    """
-
-    def __init__(self, spatial_size, method='symmetric', mode='constant'):
-        assert isinstance(spatial_size, (list, tuple)), 'spatial_out_size must be list or tuple.'
-        self.spatial_size = spatial_size
-        assert method in ('symmetric', 'end'), 'unsupported padding type.'
-        self.method = method
-        assert isinstance(mode, str), 'mode must be str.'
-        self.mode = mode
-
-    def _determine_data_pad_width(self, data_shape):
-        if self.method == 'symmetric':
-            pad_width = list()
-            for i in range(len(self.spatial_size)):
-                width = max(self.spatial_size[i] - data_shape[i], 0)
-                pad_width.append((width // 2, width - (width // 2)))
-            return pad_width
-        else:
-            return [(0, max(self.spatial_size[i] - data_shape[i], 0)) for i in range(len(self.spatial_size))]
-
-    def __call__(self, img):
-        data_pad_width = self._determine_data_pad_width(img.shape[1:])
-        all_pad_width = [(0, 0)] + data_pad_width
-        img = np.pad(img, all_pad_width, self.mode)
-        return img
 
 
 class Rotate90(Transform):
@@ -868,6 +828,44 @@ class RandRotate90(Randomizable, Transform):
         return rotator(img)
 
 
+class SpatialPad(Transform):
+    """Performs padding to the data, symmetric for all sides or all on one side for each dimension.
+     Uses np.pad so in practice, a mode needs to be provided. See numpy.lib.arraypad.pad
+     for additional details.
+
+    Args:
+        spatial_size (list): the spatial size of output data after padding.
+        method (str): pad image symmetric on every side or only pad at the end sides. default is 'symmetric'.
+        mode (str): one of the following string values or a user supplied function: {'constant', 'edge', 'linear_ramp',
+            'maximum', 'mean', 'median', 'minimum', 'reflect', 'symmetric', 'wrap', 'empty', <function>}
+            for more details, please check: https://docs.scipy.org/doc/numpy/reference/generated/numpy.pad.html
+    """
+
+    def __init__(self, spatial_size, method='symmetric', mode='constant'):
+        assert isinstance(spatial_size, (list, tuple)), 'spatial_out_size must be list or tuple.'
+        self.spatial_size = spatial_size
+        assert method in ('symmetric', 'end'), 'unsupported padding type.'
+        self.method = method
+        assert isinstance(mode, str), 'mode must be str.'
+        self.mode = mode
+
+    def _determine_data_pad_width(self, data_shape):
+        if self.method == 'symmetric':
+            pad_width = list()
+            for i in range(len(self.spatial_size)):
+                width = max(self.spatial_size[i] - data_shape[i], 0)
+                pad_width.append((width // 2, width - (width // 2)))
+            return pad_width
+        else:
+            return [(0, max(self.spatial_size[i] - data_shape[i], 0)) for i in range(len(self.spatial_size))]
+
+    def __call__(self, img):
+        data_pad_width = self._determine_data_pad_width(img.shape[1:])
+        all_pad_width = [(0, 0)] + data_pad_width
+        img = np.pad(img, all_pad_width, self.mode)
+        return img
+
+
 class SpatialCrop(Transform):
     """General purpose cropper to produce sub-volume region of interest (ROI).
     It can support to crop ND spatial (channel-first) data.
@@ -877,13 +875,14 @@ class SpatialCrop(Transform):
     Note: This transform will not work if the crop region is larger than the image itself.
     """
 
-    def __init__(self, roi_center=None, roi_size=None, roi_start=None, roi_end=None):
+    def __init__(self, roi_center=None, roi_size=None, roi_start=None, roi_end=None, copy=False):
         """
         Args:
             roi_center (list or tuple): voxel coordinates for center of the crop ROI.
             roi_size (list or tuple): size of the crop ROI.
             roi_start (list or tuple): voxel coordinates for start of the crop ROI.
             roi_end (list or tuple): voxel coordinates for end of the crop ROI.
+            copy (bool): whether copy the cropped slices to a new array, default is False.
         """
         if roi_center is not None and roi_size is not None:
             roi_center = np.asarray(roi_center, dtype=np.uint16)
@@ -894,6 +893,7 @@ class SpatialCrop(Transform):
             assert roi_start is not None and roi_end is not None, 'roi_start and roi_end must be provided.'
             self.roi_start = np.asarray(roi_start, dtype=np.uint16)
             self.roi_end = np.asarray(roi_end, dtype=np.uint16)
+        self.copy = copy
 
         assert np.all(self.roi_start >= 0), 'all elements of roi_start must be greater than or equal to 0.'
         assert np.all(self.roi_end > 0), 'all elements of roi_end must be positive.'
@@ -906,8 +906,60 @@ class SpatialCrop(Transform):
         assert np.all(max_end[:sd] >= self.roi_end[:sd]), 'roi end out of image space.'
 
         slices = [slice(None)] + [slice(s, e) for s, e in zip(self.roi_start[:sd], self.roi_end[:sd])]
-        data = img[tuple(slices)].copy()
-        return data
+        data = img[tuple(slices)]
+        return data.copy() if self.copy else data
+
+
+class CenterSpatialCrop(Transform):
+    """
+    Crop at the center of image with specified ROI size.
+
+    Args:
+        roi_size (list, tuple): the spatial size of the crop region e.g. [224,224,128]
+    """
+
+    def __init__(self, roi_size):
+        self.roi_size = roi_size
+
+    def __call__(self, img):
+        center = [i // 2 for i in img.shape[1:]]
+        cropper = SpatialCrop(roi_center=center, roi_size=self.roi_size, copy=False)
+        return cropper(img)
+
+
+class RandSpatialCrop(Randomizable, Transform):
+    """
+    Crop image with random size or specific size ROI. It can crop at a random position as center
+    or at the image center. And allows to set the minimum size to limit the randomly generated ROI.
+    This transform assumes all the expected fields specified by `keys` have same shape.
+
+    Args:
+        roi_size (list, tuple): if `random_size` is True, the spatial size of the minimum crop region.
+            if `random_size` is False, specify the expected ROI size to crop. e.g. [224, 224, 128]
+        random_center (bool): crop at random position as center or the image center.
+        random_size (bool): crop with random size or specific size ROI.
+    """
+
+    def __init__(self, roi_size, random_center=True, random_size=True):
+        self.roi_size = roi_size
+        self.random_center = random_center
+        self.random_size = random_size
+
+    def randomize(self, img_size):
+        self._size = [self.roi_size] * len(img_size) if not isinstance(self.roi_size, (list, tuple)) else self.roi_size
+        if self.random_size:
+            self._size = [self.R.randint(low=self._size[i], high=img_size[i] + 1) for i in range(len(img_size))]
+        if self.random_center:
+            valid_size = get_valid_patch_size(img_size, self._size)
+            self._slices = ensure_tuple(slice(None)) + get_random_patch(img_size, valid_size, self.R)
+
+    def __call__(self, img):
+        self.randomize(img.shape[1:])
+        if self.random_center:
+            return img[self._slices]
+        else:
+            cropper = CenterSpatialCrop(self._size)
+            return cropper(img)
 
 
 class CropForeground(Transform):
@@ -985,7 +1037,7 @@ class RandRotate(Randomizable, Transform):
 
         if not hasattr(self.degrees, '__iter__'):
             self.degrees = (-self.degrees, self.degrees)
-        assert len(self.degrees) == 2, "degrees should be a number or pair of numbers."
+        assert len(self.degrees) == 2, 'degrees should be a number or pair of numbers.'
 
         self._do_transform = False
         self.angle = None
@@ -1052,7 +1104,7 @@ class RandZoom(Randomizable, Transform):
                  mode='constant', cval=0, prefilter=True,
                  use_gpu=False, keep_size=False):
         if hasattr(min_zoom, '__iter__') and hasattr(max_zoom, '__iter__'):
-            assert len(min_zoom) == len(max_zoom), "min_zoom and max_zoom must have same length."
+            assert len(min_zoom) == len(max_zoom), 'min_zoom and max_zoom must have same length.'
         self.min_zoom = min_zoom
         self.max_zoom = max_zoom
         self.prob = prob

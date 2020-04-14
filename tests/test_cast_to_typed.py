@@ -10,20 +10,33 @@
 # limitations under the License.
 
 import unittest
-
 import numpy as np
+from parameterized import parameterized
+from monai.transforms import CastToTyped
 
-from monai.transforms import RandUniformPatch
-from tests.utils import NumpyImageTestCase2D
+TEST_CASE_1 = [
+    {
+        'keys': ['img'],
+        'dtype': np.float64
+    },
+    {
+        'img': np.array([[0, 1], [1, 2]], dtype=np.float32),
+        'seg': np.array([[0, 1], [1, 2]], dtype=np.int8)
+    },
+    {
+        'img': np.float64,
+        'seg': np.int8
+    }
+]
 
 
-class TestRandUniformPatch(NumpyImageTestCase2D):
+class TestCastToTyped(unittest.TestCase):
 
-    def test_2d(self):
-        patch_spatial_size = (10, 10)
-        patch_transform = RandUniformPatch(patch_spatial_size=patch_spatial_size)
-        patch = patch_transform(self.imt[0])
-        self.assertTrue(np.allclose(patch.shape[1:], patch_spatial_size))
+    @parameterized.expand([TEST_CASE_1])
+    def test_type(self, input_param, input_data, expected_type):
+        result = CastToTyped(**input_param)(input_data)
+        for k, v in result.items():
+            self.assertEqual(v.dtype, expected_type[k])
 
 
 if __name__ == '__main__':
