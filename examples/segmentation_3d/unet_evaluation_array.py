@@ -21,7 +21,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from monai import config
-from monai.transforms import Compose, AddChannel, Rescale, ToTensor
+from monai.transforms import Compose, AddChannel, ScaleIntensity, ToTensor
 from monai.networks.nets import UNet
 from monai.data import create_test_image_3d, sliding_window_inference, NiftiSaver, NiftiDataset
 from monai.metrics import compute_meandice
@@ -44,7 +44,7 @@ images = sorted(glob(os.path.join(tempdir, 'im*.nii.gz')))
 segs = sorted(glob(os.path.join(tempdir, 'seg*.nii.gz')))
 
 # define transforms for image and segmentation
-imtrans = Compose([Rescale(), AddChannel(), ToTensor()])
+imtrans = Compose([ScaleIntensity(), AddChannel(), ToTensor()])
 segtrans = Compose([AddChannel(), ToTensor()])
 val_ds = NiftiDataset(images, segs, transform=imtrans, seg_transform=segtrans, image_only=False)
 # sliding window inference for one image at every iteration
