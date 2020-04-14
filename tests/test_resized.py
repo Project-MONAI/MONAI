@@ -26,7 +26,7 @@ class TestResized(NumpyImageTestCase2D):
     ])
     def test_invalid_inputs(self, _, order, raises):
         with self.assertRaises(raises):
-            resize = Resized(keys='img', output_spatial_shape=(128, 128, 3), order=order)
+            resize = Resized(keys='img', spatial_size=(128, 128, 3), order=order)
             resize({'img': self.imt[0]})
 
     @parameterized.expand([
@@ -34,15 +34,15 @@ class TestResized(NumpyImageTestCase2D):
         ((32, 32), 2, 'constant', 3, False, False, False, None),
         ((256, 256), 3, 'constant', 3, False, False, False, None),
     ])
-    def test_correct_results(self, output_spatial_shape, order, mode, 
+    def test_correct_results(self, spatial_size, order, mode, 
                              cval, clip, preserve_range, 
                              anti_aliasing, anti_aliasing_sigma):
-        resize = Resized('img', output_spatial_shape, order, mode, cval, clip, 
+        resize = Resized('img', spatial_size, order, mode, cval, clip, 
                          preserve_range, anti_aliasing, 
                          anti_aliasing_sigma)
         expected = list()
         for channel in self.imt[0]:
-            expected.append(skimage.transform.resize(channel, output_spatial_shape, 
+            expected.append(skimage.transform.resize(channel, spatial_size, 
                                                      order=order, mode=mode, 
                                                      cval=cval, clip=clip, 
                                                      preserve_range=preserve_range, 
