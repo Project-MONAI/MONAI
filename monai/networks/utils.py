@@ -13,6 +13,7 @@ Utilities and types for defining networks, these depend on PyTorch.
 """
 
 import warnings
+
 import torch
 import torch.nn.functional as f
 
@@ -65,3 +66,61 @@ def predict_segmentation(logits, mutually_exclusive=False, threshold=0):
             warnings.warn("single channel prediction, `mutually_exclusive=True` ignored, use threshold instead.")
             return (logits >= threshold).int()
         return logits.argmax(1, keepdim=True)
+
+
+def normalize_transform(shape, device, dtype, align_corners=False):
+    """
+    Compute an affine matrix according to the input shape.
+    The transform normalizes the homogeneous image coordinates to the
+    range of `[-1, 1]`.
+
+    Args:
+        shape (a sequence of integers): input spatial shape
+        device (torch device): device on which the returned affine will be allocated.
+        dtype (torch dtype): data type of the returned affine
+        align_corners (bool): if True, consider -1 and 1 to refer to the centers of the
+            corner pixels rather than the image corners.
+            See also: https://pytorch.org/docs/stable/nn.functional.html#torch.nn.functional.grid_sample
+    """
+    shape_ = list(shape)[::-1]
+    if align_corners:
+        norm = torch.as_tensor(shape_ + [1.0], dtype=dtype, device=device)
+        norm[:-1] = 2.0 / (norm[:-1] - 1.0)
+        norm = torch.diag(norm)
+        norm[:-1, -1] = -1.0
+    else:
+        norm = torch.as_tensor(shape_ + [1.0], dtype=dtype, device=device)
+        norm[:-1] = 2.0 / norm[:-1]
+        norm = torch.diag(norm)
+        norm[:-1, -1] = 1.0 / torch.as_tensor(shape_, dtype=dtype, device=device) - 1.0
+    norm = norm.unsqueeze(0)  # adds a batch dim.
+    return norm
+
+
+def to_norm_affine(affine, src_size, dst_size, align_corners=False):
+    """
+    Given `affine` in the pixel space, compute the corresponding affine
+    for the normalized coordinates.
+
+    Args:
+        affine (torch tensor): Nxdxd batched square matrix
+        src_size (sequence of int): source image spatial shape
+        dst_size (sequence of int): target image spatial shape
+        align_corners (bool): if True, consider -1 and 1 to refer to the centers of the
+            corner pixels rather than the image corners.
+            See also: https://pytorch.org/docs/stable/nn.functional.html#torch.nn.functional.grid_sample
+    """
+    if not torch.is_tensor(affine):
+        raise ValueError("affine must be a tensor")
+    if affine.ndim != 3 or affine.shape[1] != affine.shape[2]:
+        raise ValueError("affine must be Nxdxd, got {}".format(tuple(affine.shape)))
+    sr = affine.shape[1] - 1
+    if sr != len(src_size) or sr != len(dst_size):
+        raise ValueError(
+            "affine suggests a {}D transform, but sizes are src_size={}, dst_size={}".format(sr, src_size, dst_size)
+        )
+
+    src_xform = normalize_transform(src_size, affine.device, affine.dtype, align_corners)
+    dst_xform = normalize_transform(dst_size, affine.device, affine.dtype, align_corners)
+    new_affine = src_xform @ affine @ torch.inverse(dst_xform)
+    return new_affine
