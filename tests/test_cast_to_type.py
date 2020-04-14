@@ -11,28 +11,24 @@
 
 import unittest
 import numpy as np
-
 from parameterized import parameterized
+from monai.transforms import CastToType
 
-from monai.transforms import RandGaussianNoise
-from tests.utils import NumpyImageTestCase2D
+TEST_CASE_1 = [
+    {
+        'dtype': np.float64
+    },
+    np.array([[0, 1], [1, 2]], dtype=np.float32),
+    np.float64
+]
 
 
-class TestRandGaussianNoise(NumpyImageTestCase2D):
+class TestCastToType(unittest.TestCase):
 
-    @parameterized.expand([
-        ("test_zero_mean", 0, 0.1),
-        ("test_non_zero_mean", 1, 0.5)
-    ])
-    def test_correct_results(self, _, mean, std):
-        seed = 0
-        gaussian_fn = RandGaussianNoise(prob=1.0, mean=mean, std=std)
-        gaussian_fn.set_random_state(seed)
-        noised = gaussian_fn(self.imt)
-        np.random.seed(seed)
-        np.random.random()
-        expected = self.imt + np.random.normal(mean, np.random.uniform(0, std), size=self.imt.shape)
-        np.testing.assert_allclose(expected, noised)
+    @parameterized.expand([TEST_CASE_1])
+    def test_type(self, input_param, input_data, expected_type):
+        result = CastToType(**input_param)(input_data)
+        self.assertEqual(result.dtype, expected_type)
 
 
 if __name__ == '__main__':

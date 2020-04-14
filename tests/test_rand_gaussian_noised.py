@@ -26,10 +26,11 @@ class TestRandGaussianNoised(NumpyImageTestCase2D):
     ])
     def test_correct_results(self, _, keys, mean, std):
         seed = 0
-        gaussian_fn = RandGaussianNoised(keys=keys, mean=mean, std=std)
+        gaussian_fn = RandGaussianNoised(keys=keys, prob=1.0, mean=mean, std=std)
         gaussian_fn.set_random_state(seed)
         noised = gaussian_fn({'img': self.imt})
         np.random.seed(seed)
+        np.random.random()
         expected = self.imt + np.random.normal(mean, np.random.uniform(0, std), size=self.imt.shape)
         np.testing.assert_allclose(expected, noised['img'])
 
