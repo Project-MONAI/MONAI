@@ -27,7 +27,7 @@ MONAI aims at providing a rich set of popular medical image specific transformat
 - `Spacing`:  Resample input image into the specified `pixdim`
 - `Orientation`: Change the image's orientation into the specified `axcodes`
 - `RandGaussianNoise`: Perturb image intensities by adding statistical noises
-- `IntensityNormalizer`: Intensity Normalization based on mean and standard deviation
+- `NormalizeIntensity`: Intensity Normalization based on mean and standard deviation
 - `Affine`: Transform image based on the affine parameters
 - `Rand2DElastic`: Random elastic deformation and affine in 2D
 - `Rand3DElastic`: Random elastic deformation and affine in 3D
@@ -49,7 +49,7 @@ new_img = affine(image, spatial_size=(300, 400), mode='bilinear')
 ```
 
 ### 4. Randomly crop out batch images based on positive/negative ratio
-Medical image data volume may be too large to fit into GPU memory. A widely-used approach is to randomly draw small size data samples during training. MONAI currently provides uniform random sampling strategy as well as class-balanced fixed ratio sampling which may help stabilize the patch-based training process.
+Medical image data volume may be too large to fit into GPU memory. A widely-used approach is to randomly draw small size data samples during training. MONAI currently provides general random sampling strategies including class-balanced fixed ratio sampling which may help stabilize the patch-based training process.
 
 ### 5. Deterministic training for reproducibility
 Deterministic training support is necessary and important in DL research area, especially when sharing reproducible work with others. Users can easily set the random seed to all the transforms in MONAI locally and will not affect other non-deterministic modules in the user's program.

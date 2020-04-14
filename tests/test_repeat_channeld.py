@@ -10,20 +10,26 @@
 # limitations under the License.
 
 import unittest
-
 import numpy as np
+from parameterized import parameterized
+from monai.transforms import RepeatChanneld
 
-from monai.transforms import RandUniformPatch
-from tests.utils import NumpyImageTestCase2D
+TEST_CASE_1 = [
+    {'keys': ['img'], 'repeats': 3},
+    {
+        'img': np.array([[[0, 1], [1, 2]]]),
+        'seg': np.array([[[0, 1], [1, 2]]])
+    },
+    (3, 2, 2),
+]
 
 
-class TestRandUniformPatch(NumpyImageTestCase2D):
+class TestRepeatChanneld(unittest.TestCase):
 
-    def test_2d(self):
-        patch_spatial_size = (10, 10)
-        patch_transform = RandUniformPatch(patch_spatial_size=patch_spatial_size)
-        patch = patch_transform(self.imt[0])
-        self.assertTrue(np.allclose(patch.shape[1:], patch_spatial_size))
+    @parameterized.expand([TEST_CASE_1])
+    def test_shape(self, input_param, input_data, expected_shape):
+        result = RepeatChanneld(**input_param)(input_data)
+        self.assertEqual(result['img'].shape, expected_shape)
 
 
 if __name__ == '__main__':

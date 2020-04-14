@@ -64,7 +64,7 @@ Vanilla Transforms
     :special-members: __call__
 
 `LoadPNG`
-~~~~~~~~~~~
+~~~~~~~~~
 .. autoclass:: LoadPNG
     :members:
     :special-members: __call__
@@ -76,7 +76,7 @@ Vanilla Transforms
     :special-members: __call__
 
 `AsChannelLast`
-~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
 .. autoclass:: AsChannelLast
     :members:
     :special-members: __call__
@@ -87,6 +87,24 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
+`RepeatChannel`
+~~~~~~~~~~~~~~~~
+.. autoclass:: RepeatChannel
+    :members:
+    :special-members: __call__
+
+`CastToType`
+~~~~~~~~~~~~
+.. autoclass:: CastToType
+    :members:
+    :special-members: __call__
+
+`ToTensor`
+~~~~~~~~~~
+.. autoclass:: ToTensor
+    :members:
+    :special-members: __call__
+
 `Transpose`
 ~~~~~~~~~~~
 .. autoclass:: Transpose
@@ -94,7 +112,7 @@ Vanilla Transforms
     :special-members: __call__
 
 `RandGaussianNoise`
-~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
 .. autoclass:: RandGaussianNoise
     :members:
     :special-members: __call__
@@ -123,18 +141,6 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
-`ToTensor`
-~~~~~~~~~~
-.. autoclass:: ToTensor
-    :members:
-    :special-members: __call__
-
-`RandUniformPatch`
-~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: RandUniformPatch
-    :members:
-    :special-members: __call__
-
 `ShiftIntensity`
 ~~~~~~~~~~~~~~~~
 .. autoclass:: ShiftIntensity
@@ -160,13 +166,13 @@ Vanilla Transforms
     :special-members: __call__
 
 `NormalizeIntensity`
-~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: NormalizeIntensity
     :members:
     :special-members: __call__
 
 `ThresholdIntensity`
-~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: ThresholdIntensity
     :members:
     :special-members: __call__
@@ -178,20 +184,14 @@ Vanilla Transforms
     :special-members: __call__
 
 `AdjustContrast`
-~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~
 .. autoclass:: AdjustContrast
     :members:
     :special-members: __call__
 
 `RandAdjustContrast`
-~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: RandAdjustContrast
-    :members:
-    :special-members: __call__
-
-`PadImageEnd`
-~~~~~~~~~~~~~~~~
-.. autoclass:: PadImageEnd
     :members:
     :special-members: __call__
 
@@ -207,9 +207,33 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
+`SpatialPad`
+~~~~~~~~~~~~
+.. autoclass:: SpatialPad
+    :members:
+    :special-members: __call__
+
 `SpatialCrop`
 ~~~~~~~~~~~~~
 .. autoclass:: SpatialCrop
+    :members:
+    :special-members: __call__
+
+`CenterSpatialCrop`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: CenterSpatialCrop
+    :members:
+    :special-members: __call__
+
+`RandSpatialCrop`
+~~~~~~~~~~~~~~~~~
+.. autoclass:: RandSpatialCrop
+    :members:
+    :special-members: __call__
+
+`CropForeground`
+~~~~~~~~~~~~~~~~
+.. autoclass:: CropForeground
     :members:
     :special-members: __call__
 
@@ -238,7 +262,7 @@ Vanilla Transforms
     :special-members: __call__
 
 `Resample`
-~~~~~~~~~~~
+~~~~~~~~~~
 .. autoclass:: Resample
     :members:
     :special-members: __call__
@@ -299,7 +323,7 @@ Dictionary-based Composables
     :special-members: __call__
 
 `LoadPNGd`
-~~~~~~~~~~~~
+~~~~~~~~~~
 .. autoclass:: LoadPNGd
     :members:
     :special-members: __call__
@@ -311,7 +335,7 @@ Dictionary-based Composables
     :special-members: __call__
 
 `AsChannelLastd`
-~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~
 .. autoclass:: AsChannelLastd
     :members:
     :special-members: __call__
@@ -319,6 +343,24 @@ Dictionary-based Composables
 `AddChanneld`
 ~~~~~~~~~~~~~
 .. autoclass:: AddChanneld
+    :members:
+    :special-members: __call__
+
+`RepeatChanneld`
+~~~~~~~~~~~~~~~~
+.. autoclass:: RepeatChanneld
+    :members:
+    :special-members: __call__
+
+`CastToTyped`
+~~~~~~~~~~~~~
+.. autoclass:: CastToTyped
+    :members:
+    :special-members: __call__
+
+`ToTensord`
+~~~~~~~~~~~
+.. autoclass:: ToTensord
     :members:
     :special-members: __call__
 
@@ -335,14 +377,14 @@ Dictionary-based Composables
     :special-members: __call__
 
 `RandGaussianNoised`
-~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: RandGaussianNoised
     :members:
     :special-members: __call__
 
-`RandUniformPatchd`
-~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: RandUniformPatchd
+`RandRotate90d`
+~~~~~~~~~~~~~~~
+.. autoclass:: RandRotate90d
     :members:
     :special-members: __call__
 
@@ -389,20 +431,44 @@ Dictionary-based Composables
     :special-members: __call__
 
 `AdjustContrastd`
-~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
 .. autoclass:: AdjustContrastd
     :members:
     :special-members: __call__
 
 `RandAdjustContrastd`
-~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: RandAdjustContrastd
     :members:
     :special-members: __call__
 
-`RandRotate90d`
-~~~~~~~~~~~~~~~
-.. autoclass:: RandRotate90d
+`SpatialPadd`
+~~~~~~~~~~~~~
+.. autoclass:: SpatialPadd
+    :members:
+    :special-members: __call__
+
+`SpatialCropd`
+~~~~~~~~~~~~~~
+.. autoclass:: SpatialCropd
+    :members:
+    :special-members: __call__
+
+`CenterSpatialCropd`
+~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: CenterSpatialCropd
+    :members:
+    :special-members: __call__
+
+`RandSpatialCropd`
+~~~~~~~~~~~~~~~~~~
+.. autoclass:: RandSpatialCropd
+    :members:
+    :special-members: __call__
+
+`CropForegroundd`
+~~~~~~~~~~~~~~~~~
+.. autoclass:: CropForegroundd
     :members:
     :special-members: __call__
 
