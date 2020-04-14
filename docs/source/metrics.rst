@@ -5,17 +5,14 @@
 Metrics
 ========
 
-Segmentation metrics
---------------------
-
 .. automodule:: monai.metrics
 .. currentmodule:: monai.metrics
 
 
-`compute_meandice`
-~~~~~~~~~~~~~~~~~~~
-.. automethod:: monai.metrics.compute_meandice
+`Mean Dice`
+-----------
+.. automethod:: monai.metrics.meandice.compute_meandice
 
-`compute_roc_auc`
-~~~~~~~~~~~~~~~~~~~
-.. automethod:: monai.metrics.compute_roc_auc
+`Area under the ROC curve`
+--------------------------
+.. automethod:: monai.metrics.rocauc.compute_roc_auc

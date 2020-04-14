@@ -49,19 +49,19 @@ def compute_roc_auc(y_pred, y, to_onehot_y=False, add_softmax=False, add_sigmoid
         to_onehot_y (bool): whether to convert `y` into the one-hot format. Defaults to False.
         add_softmax (bool): whether to add softmax function to y_pred before computation. Defaults to False.
         add_sigmoid (bool): whether to add sigmoid function to y_pred before computation. Defaults to False.
-        average: {'macro', 'weighted', 'micro'} or None, type of averaging performed if not binary
-        classification. default is 'macro'.
-            'macro': calculate metrics for each label, and find their unweighted mean.
-                this does not take label imbalance into account.
-            'weighted': calculate metrics for each label, and find their average,
-                weighted by support (the number of true instances for each label).
-            'micro': calculate metrics globally by considering each element of the label
-                indicator matrix as a label.
-            None: the scores for each class are returned.
+        average (`macro|weighted|micro|None`): type of averaging performed if not binary
+            classification. default is 'macro'.
+
+            - 'macro': calculate metrics for each label, and find their unweighted mean.
+              this does not take label imbalance into account.
+            - 'weighted': calculate metrics for each label, and find their average,
+              weighted by support (the number of true instances for each label).
+            - 'micro': calculate metrics globally by considering each element of the label
+              indicator matrix as a label.
+            - None: the scores for each class are returned.
 
     Note:
-        ROCAUC expects y to be comprised of 0's and 1's.
-        y_pred must either be probability estimates or confidence values.
+        ROCAUC expects y to be comprised of 0's and 1's. y_pred must be either prob. estimates or confidence values.
 
     """
     if add_softmax and add_sigmoid:
