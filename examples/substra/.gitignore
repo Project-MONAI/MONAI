@@ -1,0 +1,14 @@
+assets/train_data_samples/
+assets/test_data_samples/
+assets/model
+assets/model-epoch-*
+assets/predictions
+assets/predictions-epoch-*
+assets/algo.zip
+assets/metrics.zip
+sandbox
+
+output/
+runs/
+local-worker/
+best_metric_model.pth
