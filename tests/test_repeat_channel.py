@@ -12,24 +12,21 @@
 import unittest
 import numpy as np
 from parameterized import parameterized
-from monai.transforms import PadImageEnd
+from monai.transforms import RepeatChannel
 
 TEST_CASE_1 = [
-    {
-        'out_size': [16, 16, 8],
-        'mode': 'constant'
-    },
-    np.zeros((1, 3, 8, 8, 4)),
-    np.zeros((1, 3, 16, 16, 8)),
+    {'repeats': 3},
+    np.array([[[0, 1], [1, 2]]]),
+    (3, 2, 2)
 ]
 
-class TestPadImageEnd(unittest.TestCase):
+
+class TestRepeatChannel(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_1])
-    def test_image_end_pad_shape(self, input_param, input_data, expected_val):
-        padder = PadImageEnd(**input_param)
-        result = padder(input_data)
-        self.assertAlmostEqual(result.shape, expected_val.shape)
+    def test_shape(self, input_param, input_data, expected_shape):
+        result = RepeatChannel(**input_param)(input_data)
+        self.assertEqual(result.shape, expected_shape)
 
 
 if __name__ == '__main__':
