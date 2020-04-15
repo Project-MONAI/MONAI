@@ -19,7 +19,7 @@ from ignite.metrics import Accuracy
 from torch.utils.data import DataLoader
 
 import monai
-from monai.transforms import Compose, LoadNiftid, AddChanneld, Rescaled, Resized, RandRotate90d, ToTensord
+from monai.transforms import Compose, LoadNiftid, AddChanneld, ScaleIntensityd, Resized, RandRotate90d, ToTensord
 from monai.handlers import StatsHandler, TensorBoardStatsHandler, stopping_fn_from_metric
 
 monai.config.print_config()
@@ -59,7 +59,7 @@ val_files = [{'img': img, 'label': label} for img, label in zip(images[-10:], la
 train_transforms = Compose([
     LoadNiftid(keys=['img']),
     AddChanneld(keys=['img']),
-    Rescaled(keys=['img']),
+    ScaleIntensityd(keys=['img']),
     Resized(keys=['img'], spatial_size=(96, 96, 96)),
     RandRotate90d(keys=['img'], prob=0.8, spatial_axes=[0, 2]),
     ToTensord(keys=['img'])
@@ -67,7 +67,7 @@ train_transforms = Compose([
 val_transforms = Compose([
     LoadNiftid(keys=['img']),
     AddChanneld(keys=['img']),
-    Rescaled(keys=['img']),
+    ScaleIntensityd(keys=['img']),
     Resized(keys=['img'], spatial_size=(96, 96, 96)),
     ToTensord(keys=['img'])
 ])

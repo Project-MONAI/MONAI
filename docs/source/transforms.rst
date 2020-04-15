@@ -99,15 +99,15 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
-`Transpose`
-~~~~~~~~~~~
-.. autoclass:: Transpose
+`ToTensor`
+~~~~~~~~~~
+.. autoclass:: ToTensor
     :members:
     :special-members: __call__
 
-`Rescale`
-~~~~~~~~~
-.. autoclass:: Rescale
+`Transpose`
+~~~~~~~~~~~
+.. autoclass:: Transpose
     :members:
     :special-members: __call__
 
@@ -141,9 +141,27 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
-`ToTensor`
-~~~~~~~~~~
-.. autoclass:: ToTensor
+`ShiftIntensity`
+~~~~~~~~~~~~~~~~
+.. autoclass:: ShiftIntensity
+    :members:
+    :special-members: __call__
+
+`RandShiftIntensity`
+~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: RandShiftIntensity
+    :members:
+    :special-members: __call__
+
+`ScaleIntensity`
+~~~~~~~~~~~~~~~~
+.. autoclass:: ScaleIntensity
+    :members:
+    :special-members: __call__
+
+`RandScaleIntensity`
+~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: RandScaleIntensity
     :members:
     :special-members: __call__
 
@@ -352,12 +370,6 @@ Dictionary-based Composables
     :members:
     :special-members: __call__
 
-`Rescaled`
-~~~~~~~~~~
-.. autoclass:: Rescaled
-    :members:
-    :special-members: __call__
-
 `Resized`
 ~~~~~~~~~
 .. autoclass:: Resized
@@ -373,6 +385,30 @@ Dictionary-based Composables
 `RandRotate90d`
 ~~~~~~~~~~~~~~~
 .. autoclass:: RandRotate90d
+    :members:
+    :special-members: __call__
+
+`ShiftIntensityd`
+~~~~~~~~~~~~~~~~~
+.. autoclass:: ShiftIntensityd
+    :members:
+    :special-members: __call__
+
+`RandShiftIntensityd`
+~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: RandShiftIntensityd
+    :members:
+    :special-members: __call__
+
+`ScaleIntensityd`
+~~~~~~~~~~~~~~~~~
+.. autoclass:: ScaleIntensityd
+    :members:
+    :special-members: __call__
+
+`RandScaleIntensityd`
+~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: RandScaleIntensityd
     :members:
     :special-members: __call__
 

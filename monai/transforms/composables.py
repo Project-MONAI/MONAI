@@ -22,10 +22,10 @@ from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.transforms import (AddChannel, AsChannelFirst, Flip, LoadNifti, NormalizeIntensity, Orientation,
-                                         Rand2DElastic, Rand3DElastic, RandAffine, Rescale, Resize, Rotate, Rotate90,
+                                         Rand2DElastic, Rand3DElastic, RandAffine, Resize, Rotate, Rotate90,
                                          ScaleIntensityRange, Spacing, SpatialCrop, Zoom, ToTensor, LoadPNG,
                                          AsChannelLast, ThresholdIntensity, AdjustContrast, CenterSpatialCrop,
-                                         CastToType, SpatialPad, RepeatChannel)
+                                         CastToType, SpatialPad, RepeatChannel, ShiftIntensity, ScaleIntensity)
 from monai.transforms.utils import (create_grid, generate_pos_neg_label_crop_centers, generate_spatial_bounding_box)
 from monai.utils.misc import ensure_tuple
 
@@ -352,22 +352,6 @@ class Rotate90d(MapTransform):
         return d
 
 
-class Rescaled(MapTransform):
-    """
-    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.Rescale`.
-    """
-
-    def __init__(self, keys, minv=0.0, maxv=1.0, dtype=np.float32):
-        super().__init__(keys)
-        self.rescaler = Rescale(minv, maxv, dtype)
-
-    def __call__(self, data):
-        d = dict(data)
-        for key in self.keys:
-            d[key] = self.rescaler(d[key])
-        return d
-
-
 class Resized(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.Resize`.
@@ -480,20 +464,147 @@ class RandRotate90d(Randomizable, MapTransform):
         return d
 
 
+class ShiftIntensityd(MapTransform):
+    """
+    dictionary-based wrapper of :py:class:`monai.transforms.transforms.ShiftIntensity`.
+    """
+
+    def __init__(self, keys, offset):
+        """
+        Args:
+            keys (hashable items): keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            offset (int or float): offset value to shift the intensity of image.
+        """
+        super().__init__(keys)
+        self.shifter = ShiftIntensity(offset)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.shifter(d[key])
+        return d
+
+
+class RandShiftIntensityd(Randomizable, MapTransform):
+    """
+    dictionary-based version :py:class:`monai.transforms.transforms.RandShiftIntensity`.
+    """
+
+    def __init__(self, keys, offsets, prob=0.1):
+        """
+        Args:
+            keys (hashable items): keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            offsets(int, float, tuple or list): offset range to randomly shift.
+                if single number, offset value is picked from (-offsets, offsets).
+            prob (float): probability of rotating.
+                (Default 0.1, with 10% probability it returns a rotated array.)
+        """
+        super().__init__(keys)
+        self.offsets = (-offsets, offsets) if not isinstance(offsets, (list, tuple)) else offsets
+        assert len(self.offsets) == 2, 'offsets should be a number or pair of numbers.'
+        self.prob = prob
+        self._do_transform = False
+
+    def randomize(self):
+        self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
+        self._do_transform = self.R.random() < self.prob
+
+    def __call__(self, data):
+        d = dict(data)
+        self.randomize()
+        if not self._do_transform:
+            return d
+        shifter = ShiftIntensity(self._offset)
+        for key in self.keys:
+            d[key] = shifter(d[key])
+        return d
+
+
+class ScaleIntensityd(MapTransform):
+    """
+    dictionary-based wrapper of :py:class:`monai.transforms.transforms.ScaleIntensity`.
+    Scale the intensity of input image to the given value range (minv, maxv).
+    If `minv` and `maxv` not provided, use `factor` to scale image by ``v = v * (1 + factor)``.
+    """
+
+    def __init__(self, keys, minv=0.0, maxv=1.0, factor=None, dtype=np.float32):
+        """
+        keys (hashable items): keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+            minv (int or float): minimum value of output data.
+            maxv (int or float): maximum value of output data.
+            factor (float): factor scale by ``v = v * (1 + factor)``.
+            dtype (np.dtype): expected output data type.
+        """
+        super().__init__(keys)
+        self.scaler = ScaleIntensity(minv, maxv, factor, dtype)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.scaler(d[key])
+        return d
+
+
+class RandScaleIntensityd(Randomizable, MapTransform):
+    """
+    dictionary-based version :py:class:`monai.transforms.transforms.RandScaleIntensity`.
+    """
+
+    def __init__(self, keys, factors, prob=0.1, dtype=np.float32):
+        """
+        Args:
+            keys (hashable items): keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            factors(float, tuple or list): factor range to randomly scale by ``v = v * (1 + factor)``.
+                if single number, factor value is picked from (-factors, factors).
+            prob (float): probability of rotating.
+                (Default 0.1, with 10% probability it returns a rotated array.)
+            dtype (np.dtype): expected output data type.
+        """
+        super().__init__(keys)
+        self.factors = (-factors, factors) if not isinstance(factors, (list, tuple)) else factors
+        assert len(self.factors) == 2, 'factors should be a number or pair of numbers.'
+        self.prob = prob
+        self.dtype = dtype
+        self._do_transform = False
+
+    def randomize(self):
+        self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
+        self._do_transform = self.R.random() < self.prob
+
+    def __call__(self, data):
+        d = dict(data)
+        self.randomize()
+        if not self._do_transform:
+            return d
+        scaler = ScaleIntensity(minv=None, maxv=None, factor=self.factor, dtype=self.dtype)
+        for key in self.keys:
+            d[key] = scaler(d[key])
+        return d
+
+
 class NormalizeIntensityd(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.NormalizeIntensity`.
+    dictionary-based wrapper of :py:class:`monai.transforms.transforms.NormalizeIntensity`.
+    This transform can normalize only non-zero values or entire image, and can also calculate
+    mean and std on each channel separately.
 
     Args:
         keys (hashable items): keys of the corresponding items to be transformed.
             See also: monai.transform.composables.MapTransform
         subtrahend (ndarray): the amount to subtract by (usually the mean)
         divisor (ndarray): the amount to divide by (usually the standard deviation)
+        nonzero (bool): whether only normalize non-zero values.
+        channel_wise (bool): if using calculated mean and std, calculate on each channel separately
+            or calculate on the entire image directly.
     """
 
-    def __init__(self, keys, subtrahend=None, divisor=None):
+    def __init__(self, keys, subtrahend=None, divisor=None, nonzero=False, channel_wise=False):
         super().__init__(keys)
-        self.normalizer = NormalizeIntensity(subtrahend, divisor)
+        self.normalizer = NormalizeIntensity(subtrahend, divisor, nonzero, channel_wise)
 
     def __call__(self, data):
         d = dict(data)
@@ -1303,10 +1414,13 @@ RepeatChannelD = RepeatChannelDict = RepeatChanneld
 CastToTypeD = CastToTypeDict = CastToTyped
 ToTensorD = ToTensorDict = ToTensord
 Rotate90D = Rotate90Dict = Rotate90d
-RescaleD = RescaleDict = Rescaled
 ResizeD = ResizeDict = Resized
 RandGaussianNoiseD = RandGaussianNoiseDict = RandGaussianNoised
 RandRotate90D = RandRotate90Dict = RandRotate90d
+ShiftIntensityD = ShiftIntensityDict = ShiftIntensityd
+RandShiftIntensityD = RandShiftIntensityDict = RandShiftIntensityd
+ScaleIntensityD = ScaleIntensityDict = ScaleIntensityd
+RandScaleIntensityD = RandScaleIntensityDict = RandScaleIntensityd
 NormalizeIntensityD = NormalizeIntensityDict = NormalizeIntensityd
 ThresholdIntensityD = ThresholdIntensityDict = ThresholdIntensityd
 ScaleIntensityRangeD = ScaleIntensityRangeDict = ScaleIntensityRanged
