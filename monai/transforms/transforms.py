@@ -399,20 +399,6 @@ class Transpose(Transform):
         return img.transpose(self.indices)
 
 
-class Rescale(Transform):
-    """
-    Rescales the input image to the given value range.
-    """
-
-    def __init__(self, minv=0.0, maxv=1.0, dtype=np.float32):
-        self.minv = minv
-        self.maxv = maxv
-        self.dtype = dtype
-
-    def __call__(self, img):
-        return rescale_array(img, self.minv, self.maxv, self.dtype)
-
-
 class RandGaussianNoise(Randomizable, Transform):
     """Add Gaussian noise to image.
 
@@ -635,30 +621,145 @@ class Zoom(Transform):
         return zoomed[tuple(slice_vec)]
 
 
+class ShiftIntensity(Transform):
+    """Shift intensity uniformly for the entire image with specified `offset`.
+
+    Args:
+        offset (int or float): offset value to shift the intensity of image.
+    """
+
+    def __init__(self, offset):
+        self.offset = offset
+
+    def __call__(self, img):
+        return img + self.offset
+
+
+class RandShiftIntensity(Randomizable, Transform):
+    """Randomly shift intensity with randomly picked offset.
+    """
+
+    def __init__(self, offsets, prob=0.1):
+        """
+        Args:
+            offsets(int, float, tuple or list): offset range to randomly shift.
+                if single number, offset value is picked from (-offsets, offsets).
+            prob (float): probability of shift.
+        """
+        self.offsets = (-offsets, offsets) if not isinstance(offsets, (list, tuple)) else offsets
+        assert len(self.offsets) == 2, 'offsets should be a number or pair of numbers.'
+        self.prob = prob
+        self._do_transform = False
+
+    def randomize(self):
+        self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
+        self._do_transform = self.R.random() < self.prob
+
+    def __call__(self, img):
+        self.randomize()
+        if not self._do_transform:
+            return img
+        shifter = ShiftIntensity(self._offset)
+        return shifter(img)
+
+
+class ScaleIntensity(Transform):
+    """
+    Scale the intensity of input image to the given value range (minv, maxv).
+    If `minv` and `maxv` not provided, use `factor` to scale image by ``v = v * (1 + factor)``.
+    """
+
+    def __init__(self, minv=0.0, maxv=1.0, factor=None, dtype=np.float32):
+        """
+        Args:
+            minv (int or float): minimum value of output data.
+            maxv (int or float): maximum value of output data.
+            factor (float): factor scale by ``v = v * (1 + factor)``.
+            dtype (np.dtype): expected output data type.
+        """
+        self.minv = minv
+        self.maxv = maxv
+        self.factor = factor
+        self.dtype = dtype
+
+    def __call__(self, img):
+        if self.minv is not None and self.maxv is not None:
+            return rescale_array(img, self.minv, self.maxv, self.dtype)
+        else:
+            return (img * (1 + self.factor)).astype(self.dtype)
+
+
+class RandScaleIntensity(Randomizable, Transform):
+    """
+    Randomly scale the intensity of input image by ``v = v * (1 + factor)`` where the `factor`
+    is randomly picked from (factors[0], factors[0]).
+    """
+
+    def __init__(self, factors, prob=0.1, dtype=np.float32):
+        """
+        Args:
+            factors(float, tuple or list): factor range to randomly scale by ``v = v * (1 + factor)``.
+                if single number, factor value is picked from (-factors, factors).
+            prob (float): probability of scale.
+            dtype (np.dtype): expected output data type.
+        """
+        self.factors = (-factors, factors) if not isinstance(factors, (list, tuple)) else factors
+        assert len(self.factors) == 2, 'factors should be a number or pair of numbers.'
+        self.prob = prob
+        self.dtype = dtype
+        self._do_transform = False
+
+    def randomize(self):
+        self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
+        self._do_transform = self.R.random() < self.prob
+
+    def __call__(self, img):
+        self.randomize()
+        if not self._do_transform:
+            return img
+        scaler = ScaleIntensity(minv=None, maxv=None, factor=self.factor, dtype=self.dtype)
+        return scaler(img)
+
+
 class NormalizeIntensity(Transform):
     """Normalize input based on provided args, using calculated mean and std if not provided
     (shape of subtrahend and divisor must match. if 0, entire volume uses same subtrahend and
     divisor, otherwise the shape can have dimension 1 for channels).
+    This transform can normalize only non-zero values or entire image, and can also calculate
+    mean and std on each channel separately.
 
     Args:
         subtrahend (ndarray): the amount to subtract by (usually the mean).
         divisor (ndarray): the amount to divide by (usually the standard deviation).
+        nonzero (bool): whether only normalize non-zero values.
+        channel_wise (bool): if using calculated mean and std, calculate on each channel separately
+            or calculate on the entire image directly.
     """
 
-    def __init__(self, subtrahend=None, divisor=None):
+    def __init__(self, subtrahend=None, divisor=None, nonzero=False, channel_wise=False):
         if subtrahend is not None or divisor is not None:
             assert isinstance(subtrahend, np.ndarray) and isinstance(divisor, np.ndarray), \
                 'subtrahend and divisor must be set in pair and in numpy array.'
         self.subtrahend = subtrahend
         self.divisor = divisor
+        self.nonzero = nonzero
+        self.channel_wise = channel_wise
+
+    def _normalize(self, img):
+        slices = (img != 0) if self.nonzero else np.ones(img.shape, dtype=np.bool_)
+        if np.any(slices):
+            if self.subtrahend is not None and self.divisor is not None:
+                img[slices] = (img[slices] - self.subtrahend[slices]) / self.divisor[slices]
+            else:
+                img[slices] = (img[slices] - np.mean(img[slices])) / np.std(img[slices])
+        return img
 
     def __call__(self, img):
-        if self.subtrahend is not None and self.divisor is not None:
-            img -= self.subtrahend
-            img /= self.divisor
+        if self.channel_wise:
+            for i, d in enumerate(img):
+                img[i] = self._normalize(d)
         else:
-            img -= np.mean(img)
-            img /= np.std(img)
+            img = self._normalize(img)
 
         return img
 

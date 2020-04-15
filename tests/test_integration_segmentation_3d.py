@@ -26,7 +26,7 @@ from monai.data import create_test_image_3d, sliding_window_inference, NiftiSave
 from monai.metrics import compute_meandice
 from monai.networks.nets import UNet
 from monai.transforms import \
-    Compose, AsChannelFirstd, LoadNiftid, RandCropByPosNegLabeld, RandRotate90d, Rescaled, ToTensord
+    Compose, AsChannelFirstd, LoadNiftid, RandCropByPosNegLabeld, RandRotate90d, ScaleIntensityd, ToTensord
 from monai.visualize import plot_2d_or_3d_image
 
 from tests.utils import skip_if_quick
@@ -43,7 +43,7 @@ def run_training_test(root_dir, device=torch.device("cuda:0"), cachedataset=Fals
     train_transforms = Compose([
         LoadNiftid(keys=['img', 'seg']),
         AsChannelFirstd(keys=['img', 'seg'], channel_dim=-1),
-        Rescaled(keys=['img', 'seg']),
+        ScaleIntensityd(keys=['img', 'seg']),
         RandCropByPosNegLabeld(keys=['img', 'seg'], label_key='seg', size=[96, 96, 96], pos=1, neg=1, num_samples=4),
         RandRotate90d(keys=['img', 'seg'], prob=0.8, spatial_axes=[0, 2]),
         ToTensord(keys=['img', 'seg'])
@@ -52,7 +52,7 @@ def run_training_test(root_dir, device=torch.device("cuda:0"), cachedataset=Fals
     val_transforms = Compose([
         LoadNiftid(keys=['img', 'seg']),
         AsChannelFirstd(keys=['img', 'seg'], channel_dim=-1),
-        Rescaled(keys=['img', 'seg']),
+        ScaleIntensityd(keys=['img', 'seg']),
         ToTensord(keys=['img', 'seg'])
     ])
 
@@ -161,7 +161,7 @@ def run_inference_test(root_dir, device=torch.device("cuda:0")):
     val_transforms = Compose([
         LoadNiftid(keys=['img', 'seg']),
         AsChannelFirstd(keys=['img', 'seg'], channel_dim=-1),
-        Rescaled(keys=['img', 'seg']),
+        ScaleIntensityd(keys=['img', 'seg']),
         ToTensord(keys=['img', 'seg'])
     ])
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
