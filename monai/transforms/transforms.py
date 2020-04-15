@@ -976,14 +976,13 @@ class SpatialCrop(Transform):
     Note: This transform will not work if the crop region is larger than the image itself.
     """
 
-    def __init__(self, roi_center=None, roi_size=None, roi_start=None, roi_end=None, copy=False):
+    def __init__(self, roi_center=None, roi_size=None, roi_start=None, roi_end=None):
         """
         Args:
             roi_center (list or tuple): voxel coordinates for center of the crop ROI.
             roi_size (list or tuple): size of the crop ROI.
             roi_start (list or tuple): voxel coordinates for start of the crop ROI.
             roi_end (list or tuple): voxel coordinates for end of the crop ROI.
-            copy (bool): whether copy the cropped slices to a new array, default is False.
         """
         if roi_center is not None and roi_size is not None:
             roi_center = np.asarray(roi_center, dtype=np.uint16)
@@ -994,7 +993,6 @@ class SpatialCrop(Transform):
             assert roi_start is not None and roi_end is not None, 'roi_start and roi_end must be provided.'
             self.roi_start = np.asarray(roi_start, dtype=np.uint16)
             self.roi_end = np.asarray(roi_end, dtype=np.uint16)
-        self.copy = copy
 
         assert np.all(self.roi_start >= 0), 'all elements of roi_start must be greater than or equal to 0.'
         assert np.all(self.roi_end > 0), 'all elements of roi_end must be positive.'
@@ -1007,8 +1005,7 @@ class SpatialCrop(Transform):
         assert np.all(max_end[:sd] >= self.roi_end[:sd]), 'roi end out of image space.'
 
         slices = [slice(None)] + [slice(s, e) for s, e in zip(self.roi_start[:sd], self.roi_end[:sd])]
-        data = img[tuple(slices)]
-        return data.copy() if self.copy else data
+        return img[tuple(slices)]
 
 
 class CenterSpatialCrop(Transform):
@@ -1024,7 +1021,7 @@ class CenterSpatialCrop(Transform):
 
     def __call__(self, img):
         center = [i // 2 for i in img.shape[1:]]
-        cropper = SpatialCrop(roi_center=center, roi_size=self.roi_size, copy=False)
+        cropper = SpatialCrop(roi_center=center, roi_size=self.roi_size)
         return cropper(img)
 
 

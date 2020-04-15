@@ -938,7 +938,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
             if key in self.keys:
                 img = d[key]
                 for i, center in enumerate(self.centers):
-                    cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.size, copy=True)
+                    cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.size)
                     results[i][key] = cropper(img)
             else:
                 for i in range(self.num_samples):
