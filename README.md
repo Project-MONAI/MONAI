@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./docs/images/MONAI-logo-color.png" width="50%" alt='project-monai'>
+  <img src="https://github.com/Project-MONAI/MONAI/raw/master/docs/images/MONAI-logo-color.png" width="50%" alt='project-monai'>
 </p>
 
 **M**edical **O**pen **N**etwork for **AI**
