@@ -10,7 +10,7 @@
 [![codecov](https://codecov.io/gh/Project-MONAI/MONAI/branch/master/graph/badge.svg)](https://codecov.io/gh/Project-MONAI/MONAI)
 [![PyPI version](https://badge.fury.io/py/monai.svg)](https://badge.fury.io/py/monai)
 
-MONAI is a [PyTorch](https://pytorch.org/)-based, [open-source](https://github.com/Project-MONAI/MONAI/blob/master/LICENSE) platform for deep learning in healthcare imaging. Its ambitions are:
+MONAI is a [PyTorch](https://pytorch.org/)-based, [open-source](https://github.com/Project-MONAI/MONAI/blob/master/LICENSE) framework for deep learning in healthcare imaging. Its ambitions are:
 - developing a community of academic, industrial and clinical researchers collaborating on a common foundation;
 - creating state-of-the-art, end-to-end training workflows for healthcare imaging;
 - providing researchers with the optimized and standardized way to create and evaluate deep learning models.
