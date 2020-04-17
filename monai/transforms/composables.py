@@ -531,8 +531,9 @@ class ScaleIntensityd(MapTransform):
 
     def __init__(self, keys, minv=0.0, maxv=1.0, factor=None, dtype=np.float32):
         """
-        keys (hashable items): keys of the corresponding items to be transformed.
-            See also: :py:class:`monai.transforms.compose.MapTransform`
+        Args:
+            keys (hashable items): keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
             minv (int or float): minimum value of output data.
             maxv (int or float): maximum value of output data.
             factor (float): factor scale by ``v = v * (1 + factor)``.
