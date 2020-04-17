@@ -18,6 +18,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 import monai
 from monai.transforms import Compose, LoadNiftid, AddChanneld, ScaleIntensityd, Resized, RandRotate90d, ToTensord
+from monai.metrics import compute_roc_auc
 
 monai.config.print_config()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -97,8 +98,6 @@ optimizer = torch.optim.Adam(model.parameters(), 1e-5)
 val_interval = 2
 best_metric = -1
 best_metric_epoch = -1
-epoch_loss_values = list()
-metric_values = list()
 writer = SummaryWriter()
 for epoch in range(5):
     print('-' * 10)
@@ -119,29 +118,28 @@ for epoch in range(5):
         print("%d/%d, train_loss:%0.4f" % (step, epoch_len, loss.item()))
         writer.add_scalar('train_loss', loss.item(), epoch_len * epoch + step)
     epoch_loss /= step
-    epoch_loss_values.append(epoch_loss)
     print("epoch %d average loss:%0.4f" % (epoch + 1, epoch_loss))
 
     if (epoch + 1) % val_interval == 0:
         model.eval()
         with torch.no_grad():
-            num_correct = 0.
-            metric_count = 0
+            y_pred = torch.tensor([], dtype=torch.float32, device=device)
+            y = torch.tensor([], dtype=torch.long, device=device)
             for val_data in val_loader:
                 val_images, val_labels = val_data['img'].to(device), val_data['label'].to(device)
-                val_outputs = model(val_images)
-                value = torch.eq(val_outputs.argmax(dim=1), val_labels)
-                metric_count += len(value)
-                num_correct += value.sum().item()
-            metric = num_correct / metric_count
-            metric_values.append(metric)
-            if metric > best_metric:
-                best_metric = metric
+                y_pred = torch.cat([y_pred, model(val_images)], dim=0)
+                y = torch.cat([y, val_labels], dim=0)
+
+            acc_value = torch.eq(y_pred.argmax(dim=1), y)
+            acc_metric = acc_value.sum().item() / len(acc_value)
+            auc_metric = compute_roc_auc(y_pred, y, to_onehot_y=True, add_softmax=True)
+            if acc_metric > best_metric:
+                best_metric = acc_metric
                 best_metric_epoch = epoch + 1
                 torch.save(model.state_dict(), 'best_metric_model.pth')
                 print('saved new best metric model')
-            print("current epoch %d current accuracy: %0.4f best accuracy: %0.4f at epoch %d"
-                  % (epoch + 1, metric, best_metric, best_metric_epoch))
-            writer.add_scalar('val_accuracy', metric, epoch + 1)
+            print("current epoch %d current accuracy: %0.4f current AUC: %0.4f best accuracy: %0.4f at epoch %d"
+                  % (epoch + 1, acc_metric, auc_metric, best_metric, best_metric_epoch))
+            writer.add_scalar('val_accuracy', acc_metric, epoch + 1)
 print('train completed, best_metric: %0.4f  at epoch: %d' % (best_metric, best_metric_epoch))
 writer.close()

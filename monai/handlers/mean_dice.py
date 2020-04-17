@@ -18,8 +18,6 @@ from ignite.metrics.metric import reinit__is_reduced, sync_all_reduce
 
 from monai.metrics import compute_meandice
 
-__all__ = ['MeanDice']
-
 
 class MeanDice(Metric):
     """Computes dice score metric from full size Tensor and collects average over batch, class-channels, iterations.

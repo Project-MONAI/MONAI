@@ -20,7 +20,7 @@ from torch.utils.data import DataLoader
 
 import monai
 from monai.transforms import Compose, LoadNiftid, AddChanneld, ScaleIntensityd, Resized, RandRotate90d, ToTensord
-from monai.handlers import StatsHandler, TensorBoardStatsHandler, stopping_fn_from_metric
+from monai.handlers import StatsHandler, TensorBoardStatsHandler, stopping_fn_from_metric, ROCAUC
 
 monai.config.print_config()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -119,7 +119,7 @@ validation_every_n_epochs = 1
 
 metric_name = 'Accuracy'
 # add evaluation metric to the evaluator engine
-val_metrics = {metric_name: Accuracy()}
+val_metrics = {metric_name: Accuracy(), 'AUC': ROCAUC(to_onehot_y=True, add_softmax=True)}
 # ignite evaluator expects batch=(img, label) and returns output=(y_pred, y) at every iteration,
 # user can add output_transform to return other values
 evaluator = create_supervised_evaluator(net, val_metrics, device, True, prepare_batch=prepare_batch)

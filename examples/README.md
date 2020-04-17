@@ -23,6 +23,7 @@ This tutorial shows how to accelerate PyTorch medical DL program based on MONAI 
 #### [notebooks/mednist_tutorial](./notebooks/mednist_tutorial.ipynb)
 This notebook shows how to easily integrate MONAI features into existing PyTorch programs.
 It's based on the MedNIST dataset which is very suitable for beginners as a tutorial.
+The content is also available as [a Colab tutorial](https://colab.research.google.com/drive/1wy8XUSnNWlhDNazFdvGBHLfdkGvOHBKe).
 #### [notebooks/multi_gpu_test](./notebooks/multi_gpu_test.ipynb)
 This notebook is a quick demo for devices, run the Ignite trainer engine on CPU, GPU and multiple GPUs.
 #### [notebooks/nifti_read_example](./notebooks/nifti_read_example.ipynb)
