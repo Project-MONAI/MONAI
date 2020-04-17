@@ -12,7 +12,6 @@
 ARG PYTORCH_IMAGE=nvcr.io/nvidia/pytorch:19.10-py3
 
 FROM ${PYTORCH_IMAGE} as base
-RUN apt-get update
 
 WORKDIR /opt/monai
 COPY . .
@@ -20,12 +19,9 @@ COPY . .
 ENV PYTHONPATH=$PYTHONPATH:/opt/monai
 ENV PATH=/opt/tools:$PATH
 
-RUN python -m pip install -U pip
-# remove preintalls
-RUN python -m pip uninstall -y torch torchvision
-# install dependencies
-RUN python -m pip install -r requirements.txt
-
+RUN python -m pip install --no-cache-dir -U pip \
+  && python -m pip uninstall -y torch torchvision \
+  && python -m pip install --no-cache-dir -r requirements.txt
 
 # NGC Client
 WORKDIR /opt/tools
