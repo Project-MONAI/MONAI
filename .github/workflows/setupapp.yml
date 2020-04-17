@@ -51,9 +51,9 @@ jobs:
         pip uninstall -y monai
 
   docker:
-    runs-on: ubuntu-latest
     container:
       image: docker://projectmonai/monai:latest
+    runs-on: [self-hosted, linux, x64]
     steps:
     - name: Import
       run: |
