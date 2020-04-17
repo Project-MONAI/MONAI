@@ -11,7 +11,7 @@ Project MONAI
 
 *Medical Open Network for AI*
 
-MONAI is a `PyTorch <https://pytorch.org/>`_-based, `open-source <https://github.com/Project-MONAI/MONAI/blob/master/LICENSE>`_ platform
+MONAI is a `PyTorch <https://pytorch.org/>`_-based, `open-source <https://github.com/Project-MONAI/MONAI/blob/master/LICENSE>`_ framework
 for deep learning in healthcare imaging. Its ambitions are:
 
 - developing a community of academic, industrial and clinical researchers collaborating on a common foundation;
