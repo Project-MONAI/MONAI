@@ -15,36 +15,47 @@ import numpy as np
 from monai.networks.utils import one_hot
 
 
-def _calculate(y, y_pred):
+def _calculate(y, y_pred, fast=False):
     assert y.ndimension() == y_pred.ndimension() == 1 and len(y) == len(y_pred), \
         'y and y_pred must be 1 dimension data with same length.'
-    assert y.unique().equal(torch.tensor([0, 1])), 'y values must be 0 or 1, can not be all 0 or all 1.'
-    pos_indexes, neg_indexes = list(), list()
-    for index, y_ in enumerate(y):
-        if y_ == 1:
-            pos_indexes.append(index)
-        elif y_ == 0:
-            neg_indexes.append(index)
+    assert y.unique().equal(torch.tensor([0, 1], device=y.device)), \
+        'y values must be 0 or 1, can not be all 0 or all 1.'
+    n = len(y)
+    indexes = y_pred.argsort()
+    y = y[indexes]
+    if fast:
+        npos = y.sum()
+        nneg = n - npos
+        rank = torch.arange(1., len(y) + 1, device=y.device)
+        return (((y * rank).sum() - npos * (npos + 1.) / 2.) / (npos * nneg)).item()
+
+    y = y.cpu().numpy()
+    y_pred = y_pred[indexes].cpu().numpy()
+    nneg = auc = tmp_pos = tmp_neg = 0
+
+    for i in range(n):
+        y_i = y[i]
+        if i + 1 < n and y_pred[i] == y_pred[i + 1]:
+            tmp_pos += y_i
+            tmp_neg += 1 - y_i
+            continue
+        if tmp_pos + tmp_neg > 0:
+            tmp_pos += y_i
+            tmp_neg += 1 - y_i
+            nneg += tmp_neg
+            auc += tmp_pos * (nneg - tmp_neg / 2)
+            tmp_pos = tmp_neg = 0
+            continue
+        if y_i == 1:
+            auc += nneg
         else:
-            raise ValueError('labels should be binary values.')
-
-    def compare(a, b):
-        if a > b:
-            return 1
-        elif a == b:
-            return 0.5
-        else:
-            return 0
-    auc = sum([sum([compare(y_pred[i], y_pred[j]) for j in neg_indexes]) for i in pos_indexes])
-
-    return auc / (len(pos_indexes) * len(neg_indexes))
+            nneg += 1
+    return auc / (nneg * (n - nneg))
 
 
-def compute_roc_auc(y_pred, y, to_onehot_y=False, add_softmax=False, add_sigmoid=False, average='macro'):
-    """Computes Area Under the Receiver Operating Characteristic Curve (ROC AUC) based on:
-    `sklearn.metrics.roc_auc_score <http://scikit-learn.org/stable/modules/generated/
-    sklearn.metrics.roc_auc_score.html#sklearn.metrics.roc_auc_score>`_ .
-
+def compute_roc_auc(y_pred, y, to_onehot_y=False, add_softmax=False, add_sigmoid=False, average='macro', fast=False):
+    """Computes Area Under the Receiver Operating Characteristic Curve (ROC AUC).
+    Support both regular algorithm and fast version algorithm.
     Args:
         y_pred (torch.Tensor): input data to compute, typical classification model output.
             it must be One-Hot format and first dim is batch, example shape: [16] or [16, 2].
@@ -63,6 +74,8 @@ def compute_roc_auc(y_pred, y, to_onehot_y=False, add_softmax=False, add_sigmoid
             - 'micro': calculate metrics globally by considering each element of the label
               indicator matrix as a label.
             - None: the scores for each class are returned.
+        fast (bool): whether to use the fast version implementation which doesn't consider
+            equal values in predictions. default is False.
 
     Note:
         ROCAUC expects y to be comprised of 0's and 1's. y_pred must be either prob. estimates or confidence values.
@@ -92,7 +105,7 @@ def compute_roc_auc(y_pred, y, to_onehot_y=False, add_softmax=False, add_sigmoid
             warnings.warn('y_pred has only one channel, to_onehot_y=True ignored.')
         if add_softmax:
             warnings.warn('y_pred has only one channel, add_softmax=True ignored.')
-        return _calculate(y, y_pred)
+        return _calculate(y, y_pred, fast)
     else:
         n_classes = y_pred.shape[1]
         if to_onehot_y:
@@ -103,10 +116,10 @@ def compute_roc_auc(y_pred, y, to_onehot_y=False, add_softmax=False, add_sigmoid
         assert y.shape == y_pred.shape, 'data shapes of y_pred and y do not match.'
 
         if average == 'micro':
-            return _calculate(y.flatten(), y_pred.flatten())
+            return _calculate(y.flatten(), y_pred.flatten(), fast)
         else:
             y, y_pred = y.transpose(0, 1), y_pred.transpose(0, 1)
-            auc_values = [_calculate(y_, y_pred_) for y_, y_pred_ in zip(y, y_pred)]
+            auc_values = [_calculate(y_, y_pred_, fast) for y_, y_pred_ in zip(y, y_pred)]
             if average is None:
                 return auc_values
             if average == 'macro':
