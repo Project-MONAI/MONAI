@@ -18,7 +18,7 @@ from monai.networks.utils import one_hot
 def _calculate(y, y_pred):
     assert y.ndimension() == y_pred.ndimension() == 1 and len(y) == len(y_pred), \
         'y and y_pred must be 1 dimension data with same length.'
-    assert y.unique().equal(torch.tensor([0, 1], device=y.device)), \
+    assert y.unique().equal(torch.tensor([0, 1], dtype=y.dtype, device=y.device)), \
         'y values must be 0 or 1, can not be all 0 or all 1.'
     n = len(y)
     indexes = y_pred.argsort()
