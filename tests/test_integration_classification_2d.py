@@ -158,7 +158,6 @@ def run_inference_test(root_dir, test_x, test_y, device=torch.device("cuda:0")):
 class IntegrationClassification2D(unittest.TestCase):
 
     def setUp(self):
-        torch.manual_seed(0)
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
         np.random.seed(0)
