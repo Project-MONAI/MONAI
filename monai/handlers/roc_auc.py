@@ -24,7 +24,6 @@ class ROCAUC(Metric):
     Args:
         to_onehot_y (bool): whether to convert `y` into the one-hot format. Defaults to False.
         add_softmax (bool): whether to add softmax function to `y_pred` before computation. Defaults to False.
-        add_sigmoid (bool): whether to add sigmoid function to `y_pred` before computation. Defaults to False.
         average (`macro|weighted|micro|None`): type of averaging performed if not binary classification. default is 'macro'.
 
             - 'macro': calculate metrics for each label, and find their unweighted mean.
@@ -47,13 +46,11 @@ class ROCAUC(Metric):
     def __init__(self,
                  to_onehot_y=False,
                  add_softmax=False,
-                 add_sigmoid=False,
                  average='macro',
                  output_transform=lambda x: x):
         super().__init__(output_transform=output_transform)
         self.to_onehot_y = to_onehot_y
         self.add_softmax = add_softmax
-        self.add_sigmoid = add_sigmoid
         self.average = average
 
     def reset(self):
@@ -75,4 +72,4 @@ class ROCAUC(Metric):
 
     def compute(self):
         return compute_roc_auc(self._predictions, self._targets, self.to_onehot_y,
-                               self.add_softmax, self.add_sigmoid, self.average)
+                               self.add_softmax, self.average)

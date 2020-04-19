@@ -18,33 +18,38 @@ from monai.networks.utils import one_hot
 def _calculate(y, y_pred):
     assert y.ndimension() == y_pred.ndimension() == 1 and len(y) == len(y_pred), \
         'y and y_pred must be 1 dimension data with same length.'
-    assert y.unique().equal(torch.tensor([0, 1])), 'y values must be 0 or 1, can not be all 0 or all 1.'
-    pos_indexes, neg_indexes = list(), list()
-    for index, y_ in enumerate(y):
-        if y_ == 1:
-            pos_indexes.append(index)
-        elif y_ == 0:
-            neg_indexes.append(index)
+    assert y.unique().equal(torch.tensor([0, 1], dtype=y.dtype, device=y.device)), \
+        'y values must be 0 or 1, can not be all 0 or all 1.'
+    n = len(y)
+    indexes = y_pred.argsort()
+    y = y[indexes].cpu().numpy()
+    y_pred = y_pred[indexes].cpu().numpy()
+    nneg = auc = tmp_pos = tmp_neg = 0
+
+    for i in range(n):
+        y_i = y[i]
+        if i + 1 < n and y_pred[i] == y_pred[i + 1]:
+            tmp_pos += y_i
+            tmp_neg += 1 - y_i
+            continue
+        if tmp_pos + tmp_neg > 0:
+            tmp_pos += y_i
+            tmp_neg += 1 - y_i
+            nneg += tmp_neg
+            auc += tmp_pos * (nneg - tmp_neg / 2)
+            tmp_pos = tmp_neg = 0
+            continue
+        if y_i == 1:
+            auc += nneg
         else:
-            raise ValueError('labels should be binary values.')
-
-    def compare(a, b):
-        if a > b:
-            return 1
-        elif a == b:
-            return 0.5
-        else:
-            return 0
-    auc = sum([sum([compare(y_pred[i], y_pred[j]) for j in neg_indexes]) for i in pos_indexes])
-
-    return auc / (len(pos_indexes) * len(neg_indexes))
+            nneg += 1
+    return auc / (nneg * (n - nneg))
 
 
-def compute_roc_auc(y_pred, y, to_onehot_y=False, add_softmax=False, add_sigmoid=False, average='macro'):
-    """Computes Area Under the Receiver Operating Characteristic Curve (ROC AUC) based on:
+def compute_roc_auc(y_pred, y, to_onehot_y=False, add_softmax=False, average='macro'):
+    """Computes Area Under the Receiver Operating Characteristic Curve (ROC AUC). Referring to:
     `sklearn.metrics.roc_auc_score <http://scikit-learn.org/stable/modules/generated/
     sklearn.metrics.roc_auc_score.html#sklearn.metrics.roc_auc_score>`_ .
-
     Args:
         y_pred (torch.Tensor): input data to compute, typical classification model output.
             it must be One-Hot format and first dim is batch, example shape: [16] or [16, 2].
@@ -52,7 +57,6 @@ def compute_roc_auc(y_pred, y, to_onehot_y=False, add_softmax=False, add_sigmoid
             example shape: [16, 1] will be converted into [16, 3].
         to_onehot_y (bool): whether to convert `y` into the one-hot format. Defaults to False.
         add_softmax (bool): whether to add softmax function to y_pred before computation. Defaults to False.
-        add_sigmoid (bool): whether to add sigmoid function to y_pred before computation. Defaults to False.
         average (`macro|weighted|micro|None`): type of averaging performed if not binary
             classification. default is 'macro'.
 
@@ -68,9 +72,6 @@ def compute_roc_auc(y_pred, y, to_onehot_y=False, add_softmax=False, add_sigmoid
         ROCAUC expects y to be comprised of 0's and 1's. y_pred must be either prob. estimates or confidence values.
 
     """
-    if add_softmax and add_sigmoid:
-        raise ValueError('add_softmax=True and add_sigmoid=True are not compatible.')
-
     y_pred_ndim = y_pred.ndimension()
     y_ndim = y.ndimension()
     if y_pred_ndim not in (1, 2):
@@ -83,9 +84,6 @@ def compute_roc_auc(y_pred, y, to_onehot_y=False, add_softmax=False, add_sigmoid
     if y_ndim == 2 and y.shape[1] == 1:
         y = y.squeeze(dim=-1)
         y_ndim = 1
-
-    if add_sigmoid:
-        y_pred = y_pred.float().sigmoid()
 
     if y_pred_ndim == 1:
         if to_onehot_y:
