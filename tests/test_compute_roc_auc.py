@@ -30,8 +30,7 @@ TEST_CASE_1 = [
 TEST_CASE_2 = [
     {
         'y_pred': torch.tensor([[0.5], [0.5], [0.2], [8.3]]),
-        'y': torch.tensor([[0], [1], [0], [1]]),
-        'add_sigmoid': True
+        'y': torch.tensor([[0], [1], [0], [1]])
     },
     0.875
 ]
@@ -39,8 +38,7 @@ TEST_CASE_2 = [
 TEST_CASE_3 = [
     {
         'y_pred': torch.tensor([[0.5], [0.5], [0.2], [8.3]]),
-        'y': torch.tensor([0, 1, 0, 1]),
-        'add_sigmoid': True
+        'y': torch.tensor([0, 1, 0, 1])
     },
     0.875
 ]
@@ -48,8 +46,7 @@ TEST_CASE_3 = [
 TEST_CASE_4 = [
     {
         'y_pred': torch.tensor([0.5, 0.5, 0.2, 8.3]),
-        'y': torch.tensor([0, 1, 0, 1]),
-        'add_sigmoid': True
+        'y': torch.tensor([0, 1, 0, 1])
     },
     0.875
 ]
