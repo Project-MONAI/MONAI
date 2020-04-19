@@ -35,8 +35,6 @@ class ROCAUC(Metric):
               indicator matrix as a label.
             - None: the scores for each class are returned.
 
-        fast (bool): whether to use the fast version implementation which doesn't consider
-            equal values in predictions. default is False.
         output_transform (callable, optional): a callable that is used to transform the
             :class:`~ignite.engine.Engine` `process_function` output into the
             form expected by the metric. This can be useful if, for example, you have a multi-output model and
@@ -51,14 +49,12 @@ class ROCAUC(Metric):
                  add_softmax=False,
                  add_sigmoid=False,
                  average='macro',
-                 fast=False,
                  output_transform=lambda x: x):
         super().__init__(output_transform=output_transform)
         self.to_onehot_y = to_onehot_y
         self.add_softmax = add_softmax
         self.add_sigmoid = add_sigmoid
         self.average = average
-        self.fast = fast
 
     def reset(self):
         self._predictions = torch.tensor([], dtype=torch.float32)
@@ -78,5 +74,5 @@ class ROCAUC(Metric):
         self._targets = torch.cat([self._targets, y], dim=0)
 
     def compute(self):
-        return compute_roc_auc(self._predictions, self._targets, self.to_onehot_y, self.add_softmax,
-                               self.add_sigmoid, self.average, self.fast)
+        return compute_roc_auc(self._predictions, self._targets, self.to_onehot_y,
+                               self.add_softmax, self.add_sigmoid, self.average)

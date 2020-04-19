@@ -15,21 +15,14 @@ import numpy as np
 from monai.networks.utils import one_hot
 
 
-def _calculate(y, y_pred, fast=False):
+def _calculate(y, y_pred):
     assert y.ndimension() == y_pred.ndimension() == 1 and len(y) == len(y_pred), \
         'y and y_pred must be 1 dimension data with same length.'
     assert y.unique().equal(torch.tensor([0, 1], device=y.device)), \
         'y values must be 0 or 1, can not be all 0 or all 1.'
     n = len(y)
     indexes = y_pred.argsort()
-    y = y[indexes]
-    if fast:
-        npos = y.sum()
-        nneg = n - npos
-        rank = torch.arange(1., len(y) + 1, device=y.device)
-        return (((y * rank).sum() - npos * (npos + 1.) / 2.) / (npos * nneg)).item()
-
-    y = y.cpu().numpy()
+    y = y[indexes].cpu().numpy()
     y_pred = y_pred[indexes].cpu().numpy()
     nneg = auc = tmp_pos = tmp_neg = 0
 
@@ -53,7 +46,7 @@ def _calculate(y, y_pred, fast=False):
     return auc / (nneg * (n - nneg))
 
 
-def compute_roc_auc(y_pred, y, to_onehot_y=False, add_softmax=False, add_sigmoid=False, average='macro', fast=False):
+def compute_roc_auc(y_pred, y, to_onehot_y=False, add_softmax=False, add_sigmoid=False, average='macro'):
     """Computes Area Under the Receiver Operating Characteristic Curve (ROC AUC).
     Support both regular algorithm and fast version algorithm.
     Args:
@@ -74,8 +67,6 @@ def compute_roc_auc(y_pred, y, to_onehot_y=False, add_softmax=False, add_sigmoid
             - 'micro': calculate metrics globally by considering each element of the label
               indicator matrix as a label.
             - None: the scores for each class are returned.
-        fast (bool): whether to use the fast version implementation which doesn't consider
-            equal values in predictions. default is False.
 
     Note:
         ROCAUC expects y to be comprised of 0's and 1's. y_pred must be either prob. estimates or confidence values.
@@ -105,7 +96,7 @@ def compute_roc_auc(y_pred, y, to_onehot_y=False, add_softmax=False, add_sigmoid
             warnings.warn('y_pred has only one channel, to_onehot_y=True ignored.')
         if add_softmax:
             warnings.warn('y_pred has only one channel, add_softmax=True ignored.')
-        return _calculate(y, y_pred, fast)
+        return _calculate(y, y_pred)
     else:
         n_classes = y_pred.shape[1]
         if to_onehot_y:
@@ -116,10 +107,10 @@ def compute_roc_auc(y_pred, y, to_onehot_y=False, add_softmax=False, add_sigmoid
         assert y.shape == y_pred.shape, 'data shapes of y_pred and y do not match.'
 
         if average == 'micro':
-            return _calculate(y.flatten(), y_pred.flatten(), fast)
+            return _calculate(y.flatten(), y_pred.flatten())
         else:
             y, y_pred = y.transpose(0, 1), y_pred.transpose(0, 1)
-            auc_values = [_calculate(y_, y_pred_, fast) for y_, y_pred_ in zip(y, y_pred)]
+            auc_values = [_calculate(y_, y_pred_) for y_, y_pred_ in zip(y, y_pred)]
             if average is None:
                 return auc_values
             if average == 'macro':
