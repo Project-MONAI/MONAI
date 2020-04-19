@@ -18,7 +18,7 @@ jobs:
         which python
         python -m pip install --upgrade pip --no-cache-dir
         python -m pip uninstall -y torch torchvision
-        python -m pip install -q -r requirements.txt --no-cache-dir
+        python -m pip install --upgrade -q -r requirements.txt --no-cache-dir
         python -m pip list
     - name: Run unit tests report coverage
       run: |
