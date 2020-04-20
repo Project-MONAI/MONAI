@@ -555,4 +555,9 @@ Transform Adaptors
 
 `to_kwargs`
 ~~~~~~~~~~~
-.. automethod:: monai.transforms.adaptors.to_kwargs
+
+
+Utilities
+---------
+.. automodule:: monai.transforms.utils
+    :members:

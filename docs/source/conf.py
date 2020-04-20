@@ -33,14 +33,8 @@ version = short_version
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = [os.path.join('transforms', 'compose.py'),
-                    os.path.join('transforms', 'adaptors.py'),
-                    os.path.join('transforms', 'composables.py'),
-                    os.path.join('transforms', 'transforms.py'),
-                    os.path.join('networks', 'blocks'),
-                    os.path.join('networks', 'layers'),
-                    os.path.join('networks', 'nets'),
-                    'metrics', 'engine', 'data', 'handlers', 'losses', 'visualize', 'utils', 'tests']
+exclude_patterns = ['transforms', 'networks', 'metrics', 'engine', 'data',
+                    'application', 'config', 'handlers', 'losses', 'visualize', 'utils']
 
 
 def generate_apidocs(*args):

@@ -54,6 +54,11 @@ Layers
     :members:
     :special-members: __call__
 
+`Utilities`
+~~~~~~~~~~~
+.. automodule:: monai.networks.layers.convutils
+    :members:
+
 
 Nets
 ----
@@ -79,4 +84,10 @@ Nets
 `Unet`
 ~~~~~~
 .. automodule:: monai.networks.nets.unet
+  :members:
+
+
+Utilities
+---------
+.. automodule:: monai.networks.utils
   :members:

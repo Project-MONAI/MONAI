@@ -49,7 +49,8 @@ def _calculate(y, y_pred):
 def compute_roc_auc(y_pred, y, to_onehot_y=False, add_softmax=False, average='macro'):
     """Computes Area Under the Receiver Operating Characteristic Curve (ROC AUC). Referring to:
     `sklearn.metrics.roc_auc_score <http://scikit-learn.org/stable/modules/generated/
-    sklearn.metrics.roc_auc_score.html#sklearn.metrics.roc_auc_score>`_ .
+    sklearn.metrics.roc_auc_score.html#sklearn.metrics.roc_auc_score>`_.
+
     Args:
         y_pred (torch.Tensor): input data to compute, typical classification model output.
             it must be One-Hot format and first dim is batch, example shape: [16] or [16, 2].

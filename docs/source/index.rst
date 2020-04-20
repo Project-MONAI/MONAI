@@ -20,6 +20,7 @@ for deep learning in healthcare imaging. Its ambitions are:
 
 Features
 --------
+
 *The codebase is currently under active development*
 
 - flexible pre-processing for multi-dimensional medical imaging data;
@@ -36,10 +37,11 @@ Tutorials & examples are located at `monai/examples <https://github.com/Project-
 
 Technical documentation is available via `Read the Docs <https://monai.readthedocs.io/en/latest/>`_.
 
+.. toctree::
+   :maxdepth: 1
+   :caption: Technical highlights
 
-Technical highlights
---------------------
-- `public alpha <highlights.html>`_
+   highlights.md
 
 .. toctree::
    :maxdepth: 1
@@ -58,18 +60,24 @@ Technical highlights
 
 Contributing
 ------------
+
 For guidance on making a contribution to MONAI, see the `contributing guidelines
 <https://github.com/Project-MONAI/MONAI/blob/master/CONTRIBUTING.md>`_.
 
+
 Links
 -----
+
 - Website: https://monai.io/
 - API documentation: https://monai.readthedocs.io/en/latest/
 - Code: https://github.com/Project-MONAI/MONAI
 - Project tracker: https://github.com/Project-MONAI/MONAI/projects
 - Issue tracker: https://github.com/Project-MONAI/MONAI/issues
+- Changelog: https://github.com/Project-MONAI/MONAI/blob/master/CHANGELOG.md
 - Wiki: https://github.com/Project-MONAI/MONAI/wiki
 - Test status: https://github.com/Project-MONAI/MONAI/actions
+- PyPI package: https://pypi.org/project/monai/
+- Docker Hub: https://hub.docker.com/r/projectmonai/monai
 
 
 Indices and tables
@@ -77,4 +85,3 @@ Indices and tables
 
 * :ref:`genindex`
 * :ref:`modindex`
-
