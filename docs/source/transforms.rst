@@ -542,19 +542,18 @@ Transform Adaptors
 ------------------
 
 .. automodule:: monai.transforms.adaptors
-.. currentmodule:: monai.transforms.adaptors
 
 `adaptor`
 ~~~~~~~~~
-.. automethod:: monai.transforms.adaptors.adaptor
+.. autofunction:: monai.transforms.adaptors.adaptor
 
 `apply_alias`
 ~~~~~~~~~~~~~
-.. automethod:: monai.transforms.adaptors.apply_alias
-
+.. autofunction:: monai.transforms.adaptors.apply_alias
 
 `to_kwargs`
 ~~~~~~~~~~~
+.. autofunction:: monai.transforms.adaptors.to_kwargs
 
 
 Utilities

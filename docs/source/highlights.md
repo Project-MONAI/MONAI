@@ -28,7 +28,7 @@ pipelines.
    transformation "compose" feature.
 2.  As medical image preprocessing often requires additional fine-grained
     system parameters, MONAI provides transforms for input data encapsulated in
-    python dictionaries. Users are able to specify the keys corresponding to
+    python dictionaries. Users can specify the keys corresponding to
     the expected data fields and system parameters to compose complex
     transformations.
 
@@ -114,7 +114,7 @@ loss and generalized Dice loss.
 ## Network architectures
 Some deep neural network architectures have shown to be particularly effective
 for medical imaging analysis tasks. MONAI implements reference networks with
-the aims of both flexibility and code readability.  In order to leverage the
+the aims of both flexibility and code readability.  To leverage the
 common network layers and blocks, MONAI provides several predefined layers
 and blocks which are compatible with 1D, 2D and 3D networks. Users can easily
 integrate the layer factories in their own networks.

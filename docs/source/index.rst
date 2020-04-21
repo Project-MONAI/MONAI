@@ -78,6 +78,8 @@ Links
 - Test status: https://github.com/Project-MONAI/MONAI/actions
 - PyPI package: https://pypi.org/project/monai/
 - Docker Hub: https://hub.docker.com/r/projectmonai/monai
+- Google Group: https://groups.google.com/forum/#!forum/project-monai
+- Reddit: https://www.reddit.com/r/projectmonai/
 
 
 Indices and tables
