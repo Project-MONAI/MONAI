@@ -48,18 +48,18 @@ def _calculate(y, y_pred):
 
 def compute_roc_auc(y_pred, y, to_onehot_y=False, add_softmax=False, average='macro'):
     """Computes Area Under the Receiver Operating Characteristic Curve (ROC AUC). Referring to:
-    `sklearn.metrics.roc_auc_score <http://scikit-learn.org/stable/modules/generated/
+    `sklearn.metrics.roc_auc_score <https://scikit-learn.org/stable/modules/generated/
     sklearn.metrics.roc_auc_score.html#sklearn.metrics.roc_auc_score>`_.
 
     Args:
         y_pred (torch.Tensor): input data to compute, typical classification model output.
             it must be One-Hot format and first dim is batch, example shape: [16] or [16, 2].
         y (torch.Tensor): ground truth to compute ROC AUC metric, the first dim is batch.
-            example shape: [16, 1] will be converted into [16, 3].
+            example shape: [16, 1] will be converted into [16, 2] (where `2` is inferred from `y_pred`).
         to_onehot_y (bool): whether to convert `y` into the one-hot format. Defaults to False.
-        add_softmax (bool): whether to add softmax function to y_pred before computation. Defaults to False.
+        add_softmax (bool): whether to add softmax function to `y_pred` before computation. Defaults to False.
         average (`macro|weighted|micro|None`): type of averaging performed if not binary
-            classification. default is 'macro'.
+            classification. Default is 'macro'.
 
             - 'macro': calculate metrics for each label, and find their unweighted mean.
               this does not take label imbalance into account.
@@ -70,7 +70,7 @@ def compute_roc_auc(y_pred, y, to_onehot_y=False, add_softmax=False, average='ma
             - None: the scores for each class are returned.
 
     Note:
-        ROCAUC expects y to be comprised of 0's and 1's. y_pred must be either prob. estimates or confidence values.
+        ROCAUC expects y to be comprised of 0's and 1's. `y_pred` must be either prob. estimates or confidence values.
 
     """
     y_pred_ndim = y_pred.ndimension()

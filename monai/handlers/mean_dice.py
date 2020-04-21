@@ -20,7 +20,7 @@ from monai.metrics import compute_meandice
 
 
 class MeanDice(Metric):
-    """Computes dice score metric from full size Tensor and collects average over batch, class-channels, iterations.
+    """Computes Dice score metric from full size Tensor and collects average over batch, class-channels, iterations.
     """
 
     def __init__(self,
