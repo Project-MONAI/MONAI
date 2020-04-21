@@ -23,11 +23,11 @@ def compute_meandice(y_pred,
                      mutually_exclusive=False,
                      add_sigmoid=False,
                      logit_thresh=0.5):
-    """Computes dice score metric from full size Tensor and collects average.
+    """Computes Dice score metric from full size Tensor and collects average.
 
     Args:
         y_pred (torch.Tensor): input data to compute, typical segmentation model output.
-            it must be One-Hot format and first dim is batch, example shape: [16, 3, 32, 32].
+            it must be one-hot format and first dim is batch, example shape: [16, 3, 32, 32].
         y (torch.Tensor): ground truth to compute mean dice metric, the first dim is batch.
             example shape: [16, 1, 32, 32] will be converted into [16, 3, 32, 32].
             alternative shape: [16, 3, 32, 32] and set `to_onehot_y=False` to use 3-class labels directly.
@@ -41,7 +41,7 @@ def compute_meandice(y_pred,
             `y_pred` into a binary matrix. Defaults to 0.5.
 
     Returns:
-        Dice scores per batch and per class (shape: [batch_size, n_classes]).
+        Dice scores per batch and per class, (shape [batch_size, n_classes]).
 
     Note:
         This method provides two options to convert `y_pred` into a binary matrix

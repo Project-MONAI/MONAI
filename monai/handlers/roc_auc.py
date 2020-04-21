@@ -24,7 +24,8 @@ class ROCAUC(Metric):
     Args:
         to_onehot_y (bool): whether to convert `y` into the one-hot format. Defaults to False.
         add_softmax (bool): whether to add softmax function to `y_pred` before computation. Defaults to False.
-        average (`macro|weighted|micro|None`): type of averaging performed if not binary classification. default is 'macro'.
+        average (`macro|weighted|micro|None`): type of averaging performed if not binary classification.
+            Default is 'macro'.
 
             - 'macro': calculate metrics for each label, and find their unweighted mean.
               this does not take label imbalance into account.
