@@ -39,6 +39,7 @@ jobs:
         which python
         python -m pip install --upgrade pip --no-cache-dir
         python -m pip uninstall -y torch torchvision
+        pip install torch==1.5.0+cu101 -f https://download.pytorch.org/whl/torch_stable.html
         python -m pip install -q -r requirements.txt --no-cache-dir
     - name: Run unit and integration tests
       run: |
