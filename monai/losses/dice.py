@@ -20,7 +20,7 @@ from monai.networks.utils import one_hot
 class DiceLoss(_Loss):
     """
     Compute average Dice loss between two tensors. It can support both multi-classes and multi-labels tasks.
-    Input logits `pred` (BNHW[D] where N is number of classes) is compared with ground truth `ground' (BNHW[D]).
+    Input logits `pred` (BNHW[D] where N is number of classes) is compared with ground truth `ground` (BNHW[D]).
     Axis N of `pred` is expected to have logit predictions for each class rather than being image channels,
     while the same axis of `ground` can be 1 or N(one-hot format). The `smooth` parameter is a value added to the
     intersection and union components of the inter-over-union calculation to smooth results and prevent divide by 0,
@@ -53,7 +53,7 @@ class DiceLoss(_Loss):
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         if do_sigmoid and do_softmax:
-            raise ValueError('do_sigmoid=True and do_softmax=Ture are not compatible.')
+            raise ValueError('do_sigmoid=True and do_softmax=True are not compatible.')
         self.do_sigmoid = do_sigmoid
         self.do_softmax = do_softmax
         self.squared_pred = squared_pred
@@ -140,7 +140,7 @@ class GeneralizedDiceLoss(_Loss):
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         if do_sigmoid and do_softmax:
-            raise ValueError('do_sigmoid=True and do_softmax=Ture are not compatible.')
+            raise ValueError('do_sigmoid=True and do_softmax=True are not compatible.')
         self.do_sigmoid = do_sigmoid
         self.do_softmax = do_softmax
         self.w_func = torch.ones_like

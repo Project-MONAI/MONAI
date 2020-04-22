@@ -24,7 +24,7 @@ from torch.utils.data import DataLoader
 
 import monai
 from monai.data import NiftiDataset, create_test_image_3d
-from monai.transforms import Compose, AddChannel, Rescale, RandUniformPatch, Resize, ToTensor
+from monai.transforms import Compose, AddChannel, ScaleIntensity, RandSpatialCrop, Resize, ToTensor
 from monai.handlers import \
     StatsHandler, TensorBoardStatsHandler, TensorBoardImageHandler, MeanDice, stopping_fn_from_metric
 from monai.networks.utils import predict_segmentation
@@ -49,18 +49,18 @@ segs = sorted(glob(os.path.join(tempdir, 'seg*.nii.gz')))
 
 # define transforms for image and segmentation
 train_imtrans = Compose([
-    Rescale(),
+    ScaleIntensity(),
     AddChannel(),
-    RandUniformPatch((96, 96, 96)),
+    RandSpatialCrop((96, 96, 96), random_size=False),
     ToTensor()
 ])
 train_segtrans = Compose([
     AddChannel(),
-    RandUniformPatch((96, 96, 96)),
+    RandSpatialCrop((96, 96, 96), random_size=False),
     ToTensor()
 ])
 val_imtrans = Compose([
-    Rescale(),
+    ScaleIntensity(),
     AddChannel(),
     Resize((96, 96, 96)),
     ToTensor()
@@ -71,7 +71,7 @@ val_segtrans = Compose([
     ToTensor()
 ])
 
-# define nifti dataset, dataloader
+# define nifti dataset, data loader
 check_ds = NiftiDataset(images, segs, transform=train_imtrans, seg_transform=train_segtrans)
 check_loader = DataLoader(check_ds, batch_size=10, num_workers=2, pin_memory=torch.cuda.is_available())
 im, seg = monai.utils.misc.first(check_loader)

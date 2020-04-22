@@ -15,12 +15,21 @@ from re import match
 
 
 def export(modname):
-    """Make the decorated object a member of the named module."""
+    """
+    Make the decorated object a member of the named module. This will also add the object under its aliases if it has
+    a `__aliases__` member, thus this decorator should be before the `alias` decorator to pick up those names. Alias
+    names which conflict with package names or existing members will be ignored.
+    """
 
     def _inner(obj):
         mod = import_module(modname)
         if not hasattr(mod, obj.__name__):
             setattr(mod, obj.__name__, obj)
+
+            # add the aliases for `obj` to the target module
+            for alias in getattr(obj, '__aliases__', ()):
+                if not hasattr(mod, alias):
+                    setattr(mod, alias, obj)
 
         return obj
 

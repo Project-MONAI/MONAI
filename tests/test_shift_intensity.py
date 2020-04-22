@@ -10,26 +10,19 @@
 # limitations under the License.
 
 import unittest
+
 import numpy as np
-from parameterized import parameterized
-from monai.transforms import PadImageEnd
+from monai.transforms import ShiftIntensity
+from tests.utils import NumpyImageTestCase2D
 
-TEST_CASE_1 = [
-    {
-        'out_size': [16, 16, 8],
-        'mode': 'constant'
-    },
-    np.zeros((1, 3, 8, 8, 4)),
-    np.zeros((1, 3, 16, 16, 8)),
-]
 
-class TestPadImageEnd(unittest.TestCase):
+class TestShiftIntensity(NumpyImageTestCase2D):
 
-    @parameterized.expand([TEST_CASE_1])
-    def test_image_end_pad_shape(self, input_param, input_data, expected_val):
-        padder = PadImageEnd(**input_param)
-        result = padder(input_data)
-        self.assertAlmostEqual(result.shape, expected_val.shape)
+    def test_value(self):
+        shifter = ShiftIntensity(offset=1.0)
+        result = shifter(self.imt)
+        expected = self.imt + 1.0
+        np.testing.assert_allclose(result, expected)
 
 
 if __name__ == '__main__':

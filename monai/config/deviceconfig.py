@@ -26,6 +26,9 @@ except ImportError:
 
 
 def get_config_values():
+    """
+    Read the package versions into a dictionary.
+    """
     output = OrderedDict()
 
     output["MONAI version"] = monai.__version__
@@ -38,6 +41,10 @@ def get_config_values():
 
 
 def print_config(file=sys.stdout):
+    """
+    Print the package versions to `file`.
+    Defaults to `sys.stdout`.
+    """
     for kv in get_config_values().items():
         print("%s: %s" % kv, file=file, flush=True)
 

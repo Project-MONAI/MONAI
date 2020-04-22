@@ -18,9 +18,12 @@ Training and evaluation examples of 3D classification based on DenseNet3D and [I
 The examples are PyTorch ignite programs and have both dictionary-based and array-based transformation versions.
 #### [notebooks/3d_image_transforms](./notebooks/3d_image_transforms.ipynb)
 This notebook demonstrates the transformations on volumetric images.
+#### [notebooks/cache_dataset_speed](./notebooks/cache_dataset_speed.ipynb)
+This tutorial shows how to accelerate PyTorch medical DL program based on MONAI CacheDataset.
 #### [notebooks/mednist_tutorial](./notebooks/mednist_tutorial.ipynb)
 This notebook shows how to easily integrate MONAI features into existing PyTorch programs.
 It's based on the MedNIST dataset which is very suitable for beginners as a tutorial.
+The content is also available as [a Colab tutorial](https://colab.research.google.com/drive/1wy8XUSnNWlhDNazFdvGBHLfdkGvOHBKe).
 #### [notebooks/multi_gpu_test](./notebooks/multi_gpu_test.ipynb)
 This notebook is a quick demo for devices, run the Ignite trainer engine on CPU, GPU and multiple GPUs.
 #### [notebooks/nifti_read_example](./notebooks/nifti_read_example.ipynb)
@@ -32,9 +35,12 @@ The example shows the flexibility of MONAI modules in a PyTorch-based program:
 - Load NIfTI images with metadata.
 - Scale medical image intensity with expected range.
 - Crop out a batch of balanced image patch samples based on positive / negative label ratio.
+- Cache IO and transforms to accelerate training and validation.
 - 3D UNet, Dice loss function, Mean Dice metric for 3D segmentation task.
 - Sliding window inference.
 - Deterministic training for reproducibility.
+#### [notebooks/spleen_segmentation_3d_lightning](./notebooks/spleen_segmentation_3d_lightning.ipynb)
+This notebook shows how MONAI may be used in conjunction with the [PyTorch Lightning](https://github.com/PyTorchLightning/pytorch-lightning) framework.
 #### [notebooks/transform_speed](./notebooks/transform_speed.ipynb)
 Illustrate reading NIfTI files and test speed of different transforms on different devices.
 #### [notebooks/transforms_demo_2d](./notebooks/transforms_demo_2d.ipynb)
@@ -44,9 +50,9 @@ This notebook demonstrates the image transformations on histology images using
 This notebook is an end-to-end training & evaluation example of 3D segmentation based on synthetic dataset.
 The example is a PyTorch Ignite program and shows several key features of MONAI,
 especially with medical domain specific transforms and event handlers.
-#### [segmentation_3d](./examples/segmentation_3d)
+#### [segmentation_3d](./segmentation_3d)
 Training and evaluation examples of 3D segmentation based on UNet3D and synthetic dataset.
 The examples are standard PyTorch programs and have both dictionary-based and array-based versions.
-#### [segmentation_3d_ignite](./examples/segmentation_3d_ignite)
+#### [segmentation_3d_ignite](./segmentation_3d_ignite)
 Training and evaluation examples of 3D segmentation based on UNet3D and synthetic dataset.
 The examples are PyTorch Ignite programs and have both dictionary-base and array-based transformations.

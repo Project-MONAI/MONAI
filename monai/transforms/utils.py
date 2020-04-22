@@ -9,8 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
 import random
+import warnings
 
 import numpy as np
 
@@ -190,25 +190,25 @@ def generate_pos_neg_label_crop_centers(label, size, num_samples, pos_ratio, ima
 
     # Prepare fg/bg indices
     label_flat = np.any(label, axis=0).ravel()  # in case label has multiple dimensions
-    fg_indicies = np.nonzero(label_flat)[0]
+    fg_indices = np.nonzero(label_flat)[0]
     if image is not None:
         img_flat = np.any(image > image_threshold, axis=0).ravel()
-        bg_indicies = np.nonzero(np.logical_and(img_flat, ~label_flat))[0]
+        bg_indices = np.nonzero(np.logical_and(img_flat, ~label_flat))[0]
     else:
-        bg_indicies = np.nonzero(~label_flat)[0]
+        bg_indices = np.nonzero(~label_flat)[0]
 
-    if not len(fg_indicies) or not len(bg_indicies):
-        if not len(fg_indicies) and not len(bg_indicies):
+    if not len(fg_indices) or not len(bg_indices):
+        if not len(fg_indices) and not len(bg_indices):
             raise ValueError('no sampling location available.')
         warnings.warn('N foreground {}, N  background {}, unable to generate class balanced samples.'.format(
-            len(fg_indicies), len(bg_indicies)))
-        pos_ratio = 0 if not len(fg_indicies) else 1
+            len(fg_indices), len(bg_indices)))
+        pos_ratio = 0 if not len(fg_indices) else 1
 
     centers = []
     for _ in range(num_samples):
-        indicies_to_use = fg_indicies if rand_state.rand() < pos_ratio else bg_indicies
-        random_int = rand_state.randint(len(indicies_to_use))
-        center = np.unravel_index(indicies_to_use[random_int], label.shape)
+        indices_to_use = fg_indices if rand_state.rand() < pos_ratio else bg_indices
+        random_int = rand_state.randint(len(indices_to_use))
+        center = np.unravel_index(indices_to_use[random_int], label.shape)
         center = center[1:]
         # shift center to range of valid centers
         center_ori = [c for c in center]
@@ -222,6 +222,22 @@ def generate_pos_neg_label_crop_centers(label, size, num_samples, pos_ratio, ima
         centers.append(center_ori)
 
     return centers
+
+
+def apply_transform(transform, data):
+    """
+    Transform `data` with `transform`.
+    If `data` is a list or tuple, each item of `data` will be transformed
+    and this method returns a list of outcomes.
+    otherwise transform will be applied once with `data` as the argument.
+
+    Args:
+        transform (callable): a callable to be used to transform `data`
+        data (object): an object to be transformed.
+    """
+    if isinstance(data, (list, tuple)):
+        return [transform(item) for item in data]
+    return transform(data)
 
 
 def create_grid(spatial_size, spacing=None, homogeneous=True, dtype=float):
@@ -356,3 +372,30 @@ def create_translate(spatial_dims, shift):
     for i, a in enumerate(shift[:spatial_dims]):
         affine[i, spatial_dims] = a
     return affine
+
+
+def generate_spatial_bounding_box(img, select_fn=lambda x: x > 0, channel_indexes=None, margin=0):
+    """
+    generate the spatial bounding box of foreground in the image with start-end positions.
+    Users can define arbitrary function to select expected foreground from the whole image or specified channels.
+    And it can also add margin to every dim of the bounding box.
+
+    Args:
+        img (ndarrary): source image to generate bounding box from.
+        select_fn (Callable): function to select expected foreground, default is to select values > 0.
+        channel_indexes (int, tuple or list): if defined, select foregound only on the specified channels
+            of image. if None, select foreground on the whole image.
+        margin (int): add margin to all dims of the bounding box.
+    """
+    assert isinstance(margin, int), 'margin must be int type.'
+    data = img[[*(ensure_tuple(channel_indexes))]] if channel_indexes is not None else img
+    data = np.any(select_fn(data), axis=0)
+    nonzero_idx = np.nonzero(data)
+
+    box_start = list()
+    box_end = list()
+    for i in range(data.ndim):
+        assert len(nonzero_idx[i]) > 0, 'did not find nonzero index at spatial dim {}'.format(i)
+        box_start.append(max(0, np.min(nonzero_idx[i]) - margin))
+        box_end.append(min(data.shape[i], np.max(nonzero_idx[i]) + margin + 1))
+    return box_start, box_end

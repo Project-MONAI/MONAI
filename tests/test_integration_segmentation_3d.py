@@ -26,13 +26,13 @@ from monai.data import create_test_image_3d, sliding_window_inference, NiftiSave
 from monai.metrics import compute_meandice
 from monai.networks.nets import UNet
 from monai.transforms import \
-    Compose, AsChannelFirstd, LoadNiftid, RandCropByPosNegLabeld, RandRotate90d, Rescaled, ToTensord
+    Compose, AsChannelFirstd, LoadNiftid, RandCropByPosNegLabeld, RandRotate90d, ScaleIntensityd, ToTensord
 from monai.visualize import plot_2d_or_3d_image
 
 from tests.utils import skip_if_quick
 
 
-def run_training_test(root_dir, device=torch.device("cuda:0")):
+def run_training_test(root_dir, device=torch.device("cuda:0"), cachedataset=False):
     monai.config.print_config()
     images = sorted(glob(os.path.join(root_dir, 'img*.nii.gz')))
     segs = sorted(glob(os.path.join(root_dir, 'seg*.nii.gz')))
@@ -43,7 +43,7 @@ def run_training_test(root_dir, device=torch.device("cuda:0")):
     train_transforms = Compose([
         LoadNiftid(keys=['img', 'seg']),
         AsChannelFirstd(keys=['img', 'seg'], channel_dim=-1),
-        Rescaled(keys=['img', 'seg']),
+        ScaleIntensityd(keys=['img', 'seg']),
         RandCropByPosNegLabeld(keys=['img', 'seg'], label_key='seg', size=[96, 96, 96], pos=1, neg=1, num_samples=4),
         RandRotate90d(keys=['img', 'seg'], prob=0.8, spatial_axes=[0, 2]),
         ToTensord(keys=['img', 'seg'])
@@ -52,12 +52,15 @@ def run_training_test(root_dir, device=torch.device("cuda:0")):
     val_transforms = Compose([
         LoadNiftid(keys=['img', 'seg']),
         AsChannelFirstd(keys=['img', 'seg'], channel_dim=-1),
-        Rescaled(keys=['img', 'seg']),
+        ScaleIntensityd(keys=['img', 'seg']),
         ToTensord(keys=['img', 'seg'])
     ])
 
     # create a training data loader
-    train_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
+    if cachedataset:
+        train_ds = monai.data.CacheDataset(data=train_files, transform=train_transforms, cache_rate=0.8)
+    else:
+        train_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
     # use batch_size=2 to load images and use RandCropByPosNegLabeld to generate 2 x 4 images for network training
     train_loader = DataLoader(train_ds,
                               batch_size=2,
@@ -158,7 +161,7 @@ def run_inference_test(root_dir, device=torch.device("cuda:0")):
     val_transforms = Compose([
         LoadNiftid(keys=['img', 'seg']),
         AsChannelFirstd(keys=['img', 'seg'], channel_dim=-1),
-        Rescaled(keys=['img', 'seg']),
+        ScaleIntensityd(keys=['img', 'seg']),
         ToTensord(keys=['img', 'seg'])
     ])
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
@@ -227,11 +230,12 @@ class IntegrationSegmentation3D(unittest.TestCase):
     @skip_if_quick
     def test_training(self):
         repeated = []
-        for i in range(2):
+        for i in range(3):
             torch.manual_seed(0)
 
             repeated.append([])
-            losses, best_metric, best_metric_epoch = run_training_test(self.data_dir, device=self.device)
+            losses, best_metric, best_metric_epoch = \
+                run_training_test(self.data_dir, device=self.device, cachedataset=(i == 2))
 
             # check training properties
             np.testing.assert_allclose(losses, [
@@ -266,6 +270,7 @@ class IntegrationSegmentation3D(unittest.TestCase):
                 np.testing.assert_allclose(ave, s, rtol=1e-3)
                 repeated[i].append(ave)
         np.testing.assert_allclose(repeated[0], repeated[1])
+        np.testing.assert_allclose(repeated[0], repeated[2])
 
 
 if __name__ == '__main__':

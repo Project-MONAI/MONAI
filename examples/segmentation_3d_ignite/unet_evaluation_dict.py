@@ -25,7 +25,7 @@ import monai
 from monai.data import list_data_collate, sliding_window_inference, create_test_image_3d
 from monai.networks.utils import predict_segmentation
 from monai.networks.nets import UNet
-from monai.transforms import Compose, LoadNiftid, AsChannelFirstd, Rescaled, ToTensord
+from monai.transforms import Compose, LoadNiftid, AsChannelFirstd, ScaleIntensityd, ToTensord
 from monai.handlers import SegmentationSaver, CheckpointLoader, StatsHandler, MeanDice
 
 monai.config.print_config()
@@ -50,7 +50,7 @@ val_files = [{'img': img, 'seg': seg} for img, seg in zip(images, segs)]
 val_transforms = Compose([
     LoadNiftid(keys=['img', 'seg']),
     AsChannelFirstd(keys=['img', 'seg'], channel_dim=-1),
-    Rescaled(keys=['img', 'seg']),
+    ScaleIntensityd(keys=['img', 'seg']),
     ToTensord(keys=['img', 'seg'])
 ])
 val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
@@ -97,10 +97,10 @@ SegmentationSaver(output_dir='tempdir', output_ext='.nii.gz', output_postfix='se
                   batch_transform=lambda batch: {'filename_or_obj': batch['img.filename_or_obj'],
                                                  'affine': batch['img.affine']},
                   output_transform=lambda output: predict_segmentation(output[0])).attach(evaluator)
-# the model was trained by "unet_training_dict" exmple
+# the model was trained by "unet_training_dict" example
 CheckpointLoader(load_path='./runs/net_checkpoint_50.pth', load_dict={'net': net}).attach(evaluator)
 
-# sliding window inferene need to input 1 image in every iteration
+# sliding window inference for one image at every iteration
 val_loader = DataLoader(val_ds, batch_size=1, num_workers=4, collate_fn=list_data_collate,
                         pin_memory=torch.cuda.is_available())
 state = evaluator.run(val_loader)

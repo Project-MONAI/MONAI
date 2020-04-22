@@ -2,8 +2,13 @@
 
 .. _utils:
 
-Utils
-=====
+Utilities
+=========
+
+Configurations
+--------------
+.. automodule:: monai.config.deviceconfig
+  :members:
 
 Module utils
 ------------

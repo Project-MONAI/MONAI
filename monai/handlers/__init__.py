@@ -12,6 +12,7 @@
 from .checkpoint_loader import CheckpointLoader
 from .classification_saver import ClassificationSaver
 from .mean_dice import MeanDice
+from .roc_auc import ROCAUC
 from .metric_logger import *
 from .segmentation_saver import SegmentationSaver
 from .stats_handler import StatsHandler

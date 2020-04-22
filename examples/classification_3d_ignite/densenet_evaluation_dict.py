@@ -19,12 +19,12 @@ from torch.utils.data import DataLoader
 
 import monai
 from monai.handlers import StatsHandler, CheckpointLoader, ClassificationSaver
-from monai.transforms import Compose, LoadNiftid, AddChanneld, Rescaled, Resized, ToTensord
+from monai.transforms import Compose, LoadNiftid, AddChanneld, ScaleIntensityd, Resized, ToTensord
 
 monai.config.print_config()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-# IXI dataset as a demo, dowloadable from https://brain-development.org/ixi-dataset/
+# IXI dataset as a demo, downloadable from https://brain-development.org/ixi-dataset/
 images = [
     "/workspace/data/medical/ixi/IXI-T1/IXI607-Guys-1097-T1.nii.gz",
     "/workspace/data/medical/ixi/IXI-T1/IXI175-HH-1570-T1.nii.gz",
@@ -47,8 +47,8 @@ val_files = [{'img': img, 'label': label} for img, label in zip(images, labels)]
 val_transforms = Compose([
     LoadNiftid(keys=['img']),
     AddChanneld(keys=['img']),
-    Rescaled(keys=['img']),
-    Resized(keys=['img'], output_spatial_shape=(96, 96, 96)),
+    ScaleIntensityd(keys=['img']),
+    Resized(keys=['img'], spatial_size=(96, 96, 96)),
     ToTensord(keys=['img'])
 ])
 
@@ -79,13 +79,13 @@ val_stats_handler = StatsHandler(
 )
 val_stats_handler.attach(evaluator)
 
-# for the arrary data format, assume the 3rd item of batch data is the meta_data
+# for the array data format, assume the 3rd item of batch data is the meta_data
 prediction_saver = ClassificationSaver(output_dir='tempdir', name='evaluator',
                                        batch_transform=lambda batch: {'filename_or_obj': batch['img.filename_or_obj']},
                                        output_transform=lambda output: output[0].argmax(1))
 prediction_saver.attach(evaluator)
 
-# the model was trained by "densenet_training_dict" exmple
+# the model was trained by "densenet_training_dict" example
 CheckpointLoader(load_path='./runs/net_checkpoint_40.pth', load_dict={'net': net}).attach(evaluator)
 
 # create a validation data loader

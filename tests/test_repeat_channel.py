@@ -11,27 +11,22 @@
 
 import unittest
 import numpy as np
-
 from parameterized import parameterized
+from monai.transforms import RepeatChannel
 
-from monai.transforms import GaussianNoise
-from tests.utils import NumpyImageTestCase2D
+TEST_CASE_1 = [
+    {'repeats': 3},
+    np.array([[[0, 1], [1, 2]]]),
+    (3, 2, 2)
+]
 
 
-class GaussianNoiseTest(NumpyImageTestCase2D):
+class TestRepeatChannel(unittest.TestCase):
 
-    @parameterized.expand([
-        ("test_zero_mean", 0, 0.1),
-        ("test_non_zero_mean", 1, 0.5)
-    ])
-    def test_correct_results(self, _, mean, std):
-        seed = 42
-        gaussian_fn = GaussianNoise(mean=mean, std=std)
-        gaussian_fn.set_random_state(seed)
-        noised = gaussian_fn(self.imt)
-        np.random.seed(seed)
-        expected = self.imt + np.random.normal(mean, np.random.uniform(0, std), size=self.imt.shape)
-        assert np.allclose(expected, noised)
+    @parameterized.expand([TEST_CASE_1])
+    def test_shape(self, input_param, input_data, expected_shape):
+        result = RepeatChannel(**input_param)(input_data)
+        self.assertEqual(result.shape, expected_shape)
 
 
 if __name__ == '__main__':

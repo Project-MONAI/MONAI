@@ -16,13 +16,13 @@ import torch
 from torch.utils.data import DataLoader
 
 import monai
-from monai.transforms import Compose, LoadNiftid, AddChanneld, Rescaled, Resized, ToTensord
+from monai.transforms import Compose, LoadNiftid, AddChanneld, ScaleIntensityd, Resized, ToTensord
 from monai.data import CSVSaver
 
 monai.config.print_config()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-# IXI dataset as a demo, dowloadable from https://brain-development.org/ixi-dataset/
+# IXI dataset as a demo, downloadable from https://brain-development.org/ixi-dataset/
 images = [
     "/workspace/data/medical/ixi/IXI-T1/IXI607-Guys-1097-T1.nii.gz",
     "/workspace/data/medical/ixi/IXI-T1/IXI175-HH-1570-T1.nii.gz",
@@ -45,8 +45,8 @@ val_files = [{'img': img, 'label': label} for img, label in zip(images, labels)]
 val_transforms = Compose([
     LoadNiftid(keys=['img']),
     AddChanneld(keys=['img']),
-    Rescaled(keys=['img']),
-    Resized(keys=['img'], output_spatial_shape=(96, 96, 96)),
+    ScaleIntensityd(keys=['img']),
+    Resized(keys=['img'], spatial_size=(96, 96, 96)),
     ToTensord(keys=['img'])
 ])
 

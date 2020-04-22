@@ -19,13 +19,13 @@ from ignite.metrics import Accuracy
 from torch.utils.data import DataLoader
 
 import monai
-from monai.transforms import Compose, LoadNiftid, AddChanneld, Rescaled, Resized, RandRotate90d, ToTensord
-from monai.handlers import StatsHandler, TensorBoardStatsHandler, stopping_fn_from_metric
+from monai.transforms import Compose, LoadNiftid, AddChanneld, ScaleIntensityd, Resized, RandRotate90d, ToTensord
+from monai.handlers import StatsHandler, TensorBoardStatsHandler, stopping_fn_from_metric, ROCAUC
 
 monai.config.print_config()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-# IXI dataset as a demo, dowloadable from https://brain-development.org/ixi-dataset/
+# IXI dataset as a demo, downloadable from https://brain-development.org/ixi-dataset/
 images = [
     "/workspace/data/medical/ixi/IXI-T1/IXI314-IOP-0889-T1.nii.gz",
     "/workspace/data/medical/ixi/IXI-T1/IXI249-Guys-1072-T1.nii.gz",
@@ -59,20 +59,20 @@ val_files = [{'img': img, 'label': label} for img, label in zip(images[-10:], la
 train_transforms = Compose([
     LoadNiftid(keys=['img']),
     AddChanneld(keys=['img']),
-    Rescaled(keys=['img']),
-    Resized(keys=['img'], output_spatial_shape=(96, 96, 96)),
+    ScaleIntensityd(keys=['img']),
+    Resized(keys=['img'], spatial_size=(96, 96, 96)),
     RandRotate90d(keys=['img'], prob=0.8, spatial_axes=[0, 2]),
     ToTensord(keys=['img'])
 ])
 val_transforms = Compose([
     LoadNiftid(keys=['img']),
     AddChanneld(keys=['img']),
-    Rescaled(keys=['img']),
-    Resized(keys=['img'], output_spatial_shape=(96, 96, 96)),
+    ScaleIntensityd(keys=['img']),
+    Resized(keys=['img'], spatial_size=(96, 96, 96)),
     ToTensord(keys=['img'])
 ])
 
-# define dataset, dataloader
+# define dataset, data loader
 check_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
 check_loader = DataLoader(check_ds, batch_size=2, num_workers=4, pin_memory=torch.cuda.is_available())
 check_data = monai.utils.misc.first(check_loader)
@@ -119,7 +119,7 @@ validation_every_n_epochs = 1
 
 metric_name = 'Accuracy'
 # add evaluation metric to the evaluator engine
-val_metrics = {metric_name: Accuracy()}
+val_metrics = {metric_name: Accuracy(), 'AUC': ROCAUC(to_onehot_y=True, add_softmax=True)}
 # ignite evaluator expects batch=(img, label) and returns output=(y_pred, y) at every iteration,
 # user can add output_transform to return other values
 evaluator = create_supervised_evaluator(net, val_metrics, device, True, prepare_batch=prepare_batch)

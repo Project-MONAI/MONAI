@@ -18,11 +18,9 @@ from ignite.metrics.metric import reinit__is_reduced, sync_all_reduce
 
 from monai.metrics import compute_meandice
 
-__all__ = ['MeanDice']
-
 
 class MeanDice(Metric):
-    """Computes dice score metric from full size Tensor and collects average over batch, class-channels, iterations.
+    """Computes Dice score metric from full size Tensor and collects average over batch, class-channels, iterations.
     """
 
     def __init__(self,
@@ -48,7 +46,7 @@ class MeanDice(Metric):
             device (torch.device): device specification in case of distributed computation usage.
 
         See also:
-            monai.metrics.compute_meandice.compute_meandice
+            :py:meth:`monai.metrics.meandice.compute_meandice`
         """
         super(MeanDice, self).__init__(output_transform, device=device)
         self.include_background = include_background

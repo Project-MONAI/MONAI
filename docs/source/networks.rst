@@ -1,6 +1,6 @@
 :github_url: https://github.com/Project-MONAI/MONAI
 
-.. _networkss:
+.. _networks:
 
 Network architectures
 =====================
@@ -54,6 +54,11 @@ Layers
     :members:
     :special-members: __call__
 
+`Utilities`
+~~~~~~~~~~~
+.. automodule:: monai.networks.layers.convutils
+    :members:
+
 
 Nets
 ----
@@ -66,10 +71,10 @@ Nets
 ~~~~~~~~~~~~
 .. automodule:: monai.networks.nets.densenet
   :members:
-.. automethod:: monai.networks.nets.densenet.densenet121
-.. automethod:: monai.networks.nets.densenet.densenet169
-.. automethod:: monai.networks.nets.densenet.densenet201
-.. automethod:: monai.networks.nets.densenet.densenet264
+.. autofunction:: monai.networks.nets.densenet.densenet121
+.. autofunction:: monai.networks.nets.densenet.densenet169
+.. autofunction:: monai.networks.nets.densenet.densenet201
+.. autofunction:: monai.networks.nets.densenet.densenet264
 
 `Highresnet`
 ~~~~~~~~~~~~
@@ -79,4 +84,10 @@ Nets
 `Unet`
 ~~~~~~
 .. automodule:: monai.networks.nets.unet
+  :members:
+
+
+Utilities
+---------
+.. automodule:: monai.networks.utils
   :members:

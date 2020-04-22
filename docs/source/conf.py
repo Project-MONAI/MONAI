@@ -13,34 +13,28 @@
 import os
 import sys
 import subprocess
+
 sys.path.insert(0, os.path.abspath('..'))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 print(sys.path)
 
-
+import monai  # noqa: E402
 
 # -- Project information -----------------------------------------------------
-
 project = 'MONAI'
 copyright = '2020, MONAI Contributors'
 author = 'MONAI Contributors'
 
 # The full version, including alpha/beta/rc tags
-release = 'public alpha'
-version = 'public alpha'
-
+short_version = monai.__version__.split('+')[0]
+release = short_version
+version = short_version
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = [os.path.join('transforms', 'compose.py'),
-                    os.path.join('transforms', 'adaptors.py'),
-                    os.path.join('transforms', 'composables.py'),
-                    os.path.join('transforms', 'transforms.py'),
-                    os.path.join('networks', 'blocks'),
-                    os.path.join('networks', 'layers'),
-                    os.path.join('networks', 'nets'),
-                    'metrics', 'engine', 'data', 'handlers', 'losses', 'visualize', 'utils', 'tests']
+exclude_patterns = ['transforms', 'networks', 'metrics', 'engine', 'data',
+                    'application', 'config', 'handlers', 'losses', 'visualize', 'utils']
 
 
 def generate_apidocs(*args):
@@ -103,9 +97,9 @@ html_theme = 'sphinx_rtd_theme'
 html_theme_options = {
     'collapse_navigation': True,
     'display_version': True,
-    # 'navigation_depth': 4,
     'sticky_navigation': True,  # Set to False to disable the sticky nav while scrolling.
-    # 'logo_only': True,  # if we have a html_logo below, this shows /only/ the logo with no title text
+    'logo_only': True,  # if we have a html_logo below, this shows /only/ the logo with no title text
+    'style_nav_header_background': '#FBFBFB',
 }
 html_context = {
     'display_github': True,
@@ -116,9 +110,11 @@ html_context = {
 }
 html_scaled_image_link = False
 html_show_sourcelink = True
-# html_favicon = 'favicon.ico'
+html_favicon = '../images/favicon.ico'
+html_logo = '../images/MONAI-logo-color.png'
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-# html_static_path = ['_static']
+html_static_path = ['../_static']
+html_css_files = ['custom.css']

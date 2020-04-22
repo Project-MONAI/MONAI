@@ -16,6 +16,12 @@ Generic Interfaces
   :members:
   :special-members: __getitem__
 
+`CacheDataset`
+~~~~~~~~~~~~~~
+.. autoclass:: CacheDataset
+  :members:
+  :special-members: __getitem__
+
 
 Patch-based dataset
 -------------------
@@ -46,6 +52,9 @@ Reading
 
 Writing
 ~~~~~~~
+.. automodule:: monai.data.nifti_saver
+  :members:
+
 .. automodule:: monai.data.nifti_writer
   :members:
 

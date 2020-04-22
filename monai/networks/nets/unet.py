@@ -14,8 +14,12 @@ import torch.nn as nn
 from monai.networks.blocks.convolutions import Convolution, ResidualUnit
 from monai.networks.layers.factories import Norm, Act
 from monai.networks.layers.simplelayers import SkipConnection
+from monai.utils import export
+from monai.utils.aliases import alias
 
 
+@export("monai.networks.nets")
+@alias("Unet")
 class UNet(nn.Module):
 
     def __init__(self, dimensions, in_channels, out_channels, channels, strides, kernel_size=3, up_kernel_size=3,

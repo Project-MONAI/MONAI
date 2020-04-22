@@ -12,18 +12,20 @@
 import unittest
 
 import numpy as np
-
-from monai.transforms import RandUniformPatch
+from monai.transforms import RandShiftIntensityd
 from tests.utils import NumpyImageTestCase2D
 
 
-class TestRandUniformPatch(NumpyImageTestCase2D):
+class TestRandShiftIntensityd(NumpyImageTestCase2D):
 
-    def test_2d(self):
-        patch_spatial_size = (10, 10)
-        patch_transform = RandUniformPatch(patch_spatial_size=patch_spatial_size)
-        patch = patch_transform(self.imt[0])
-        self.assertTrue(np.allclose(patch.shape[1:], patch_spatial_size))
+    def test_value(self):
+        key = 'img'
+        shifter = RandShiftIntensityd(keys=[key], offsets=1.0, prob=1.0)
+        shifter.set_random_state(seed=0)
+        result = shifter({key: self.imt})
+        np.random.seed(0)
+        expected = self.imt + np.random.uniform(low=-1.0, high=1.0)
+        np.testing.assert_allclose(result[key], expected)
 
 
 if __name__ == '__main__':

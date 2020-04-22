@@ -32,7 +32,7 @@ jobs:
         set -e
 
         # build tar.gz and wheel
-        python setup.py sdist bdist_wheel
+        python setup.py sdist bdist_wheel --build-number $(date +'%Y%m%d%H%M')
         tmp_dir=$(mktemp -d)
         cp dist/monai* "$tmp_dir"
         cd "$tmp_dir"
@@ -57,15 +57,23 @@ jobs:
         rm -r "$tmp_dir"
 
     - if: matrix.python-version == '3.8' && startsWith(github.ref, 'refs/tags/')
+      name: Upload artifacts
+      uses: actions/upload-artifact@v1
+      with:
+        name: dist
+        path: dist/
+
+    - if: matrix.python-version == '3.8' && startsWith(github.ref, 'refs/tags/')
+      name: Check artifacts
+      run: |
+        ls -al dist/
+        rm dist/monai*.tar.gz
+        ls -al dist/
+
+    - if: matrix.python-version == '3.8' && startsWith(github.ref, 'refs/tags/')
       name: Publish to Test PyPI
       uses: pypa/gh-action-pypi-publish@master
       with:
         password: ${{ secrets.TEST_PYPI }}
         repository_url: https://test.pypi.org/legacy/
 
-    - if: matrix.python-version == '3.8' && startsWith(github.ref, 'refs/tags/')
-      name: Upload artifacts
-      uses: actions/upload-artifact@v1
-      with:
-        name: dist
-        path: dist/

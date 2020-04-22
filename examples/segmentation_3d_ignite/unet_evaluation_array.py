@@ -24,7 +24,7 @@ from torch.utils.data import DataLoader
 from monai import config
 from monai.handlers import CheckpointLoader, SegmentationSaver, StatsHandler, MeanDice
 from monai.data import NiftiDataset, create_test_image_3d, sliding_window_inference
-from monai.transforms import Compose, AddChannel, Rescale, ToTensor
+from monai.transforms import Compose, AddChannel, ScaleIntensity, ToTensor
 from monai.networks.nets import UNet
 from monai.networks.utils import predict_segmentation
 
@@ -46,7 +46,7 @@ images = sorted(glob(os.path.join(tempdir, 'im*.nii.gz')))
 segs = sorted(glob(os.path.join(tempdir, 'seg*.nii.gz')))
 
 # define transforms for image and segmentation
-imtrans = Compose([Rescale(), AddChannel(), ToTensor()])
+imtrans = Compose([ScaleIntensity(), AddChannel(), ToTensor()])
 segtrans = Compose([AddChannel(), ToTensor()])
 ds = NiftiDataset(images, segs, transform=imtrans, seg_transform=segtrans, image_only=False)
 
@@ -87,17 +87,17 @@ val_stats_handler = StatsHandler(
 )
 val_stats_handler.attach(evaluator)
 
-# for the arrary data format, assume the 3rd item of batch data is the meta_data
+# for the array data format, assume the 3rd item of batch data is the meta_data
 file_saver = SegmentationSaver(
     output_dir='tempdir', output_ext='.nii.gz', output_postfix='seg', name='evaluator',
     batch_transform=lambda x: x[2], output_transform=lambda output: predict_segmentation(output[0]))
 file_saver.attach(evaluator)
 
-# the model was trained by "unet_training_array" exmple
+# the model was trained by "unet_training_array" example
 ckpt_saver = CheckpointLoader(load_path='./runs/net_checkpoint_50.pth', load_dict={'net': net})
 ckpt_saver.attach(evaluator)
 
-# sliding window inferene need to input 1 image in every iteration
+# sliding window inference for one image at every iteration
 loader = DataLoader(ds, batch_size=1, num_workers=1, pin_memory=torch.cuda.is_available())
 state = evaluator.run(loader)
 shutil.rmtree(tempdir)

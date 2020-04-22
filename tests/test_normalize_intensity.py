@@ -12,18 +12,55 @@
 import unittest
 
 import numpy as np
-
+from parameterized import parameterized
 from monai.transforms import NormalizeIntensity
 from tests.utils import NumpyImageTestCase2D
+
+TEST_CASE_1 = [
+    {
+        'nonzero': True
+    },
+    np.array([0., 3., 0., 4.]),
+    np.array([0., -1., 0., 1.])
+]
+
+TEST_CASE_2 = [
+    {
+        'subtrahend': np.array([3.5, 3.5, 3.5, 3.5]),
+        'divisor': np.array([0.5, 0.5, 0.5, 0.5]),
+        'nonzero': True
+    },
+    np.array([0., 3., 0., 4.]),
+    np.array([0., -1., 0., 1.])
+]
+
+TEST_CASE_3 = [
+    {
+        'nonzero': True
+    },
+    np.array([0., 0., 0., 0.]),
+    np.array([0., 0., 0., 0.])
+]
 
 
 class TestNormalizeIntensity(NumpyImageTestCase2D):
 
-    def test_image_normalize_intensity(self):
+    def test_default(self):
         normalizer = NormalizeIntensity()
-        normalised = normalizer(self.imt)
+        normalized = normalizer(self.imt)
         expected = (self.imt - np.mean(self.imt)) / np.std(self.imt)
-        self.assertTrue(np.allclose(normalised, expected))
+        np.testing.assert_allclose(normalized, expected, rtol=1e-6)
+
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
+    def test_nonzero(self, input_param, input_data, expected_data):
+        normalizer = NormalizeIntensity(**input_param)
+        np.testing.assert_allclose(expected_data, normalizer(input_data))
+
+    def test_channel_wise(self):
+        normalizer = NormalizeIntensity(nonzero=True, channel_wise=True)
+        input_data = np.array([[0., 3., 0., 4.], [0., 4., 0., 5.]])
+        expected = np.array([[0., -1., 0., 1.], [0., -1., 0., 1.]])
+        np.testing.assert_allclose(expected, normalizer(input_data))
 
 
 if __name__ == '__main__':
