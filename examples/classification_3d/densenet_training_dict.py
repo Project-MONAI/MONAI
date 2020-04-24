@@ -25,26 +25,26 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 # IXI dataset as a demo, downloadable from https://brain-development.org/ixi-dataset/
 images = [
-    "/workspace/data/medical/ixi/IXI-T1/IXI314-IOP-0889-T1.nii.gz",
-    "/workspace/data/medical/ixi/IXI-T1/IXI249-Guys-1072-T1.nii.gz",
-    "/workspace/data/medical/ixi/IXI-T1/IXI609-HH-2600-T1.nii.gz",
-    "/workspace/data/medical/ixi/IXI-T1/IXI173-HH-1590-T1.nii.gz",
-    "/workspace/data/medical/ixi/IXI-T1/IXI020-Guys-0700-T1.nii.gz",
-    "/workspace/data/medical/ixi/IXI-T1/IXI342-Guys-0909-T1.nii.gz",
-    "/workspace/data/medical/ixi/IXI-T1/IXI134-Guys-0780-T1.nii.gz",
-    "/workspace/data/medical/ixi/IXI-T1/IXI577-HH-2661-T1.nii.gz",
-    "/workspace/data/medical/ixi/IXI-T1/IXI066-Guys-0731-T1.nii.gz",
-    "/workspace/data/medical/ixi/IXI-T1/IXI130-HH-1528-T1.nii.gz",
-    "/workspace/data/medical/ixi/IXI-T1/IXI607-Guys-1097-T1.nii.gz",
-    "/workspace/data/medical/ixi/IXI-T1/IXI175-HH-1570-T1.nii.gz",
-    "/workspace/data/medical/ixi/IXI-T1/IXI385-HH-2078-T1.nii.gz",
-    "/workspace/data/medical/ixi/IXI-T1/IXI344-Guys-0905-T1.nii.gz",
-    "/workspace/data/medical/ixi/IXI-T1/IXI409-Guys-0960-T1.nii.gz",
-    "/workspace/data/medical/ixi/IXI-T1/IXI584-Guys-1129-T1.nii.gz",
-    "/workspace/data/medical/ixi/IXI-T1/IXI253-HH-1694-T1.nii.gz",
-    "/workspace/data/medical/ixi/IXI-T1/IXI092-HH-1436-T1.nii.gz",
-    "/workspace/data/medical/ixi/IXI-T1/IXI574-IOP-1156-T1.nii.gz",
-    "/workspace/data/medical/ixi/IXI-T1/IXI585-Guys-1130-T1.nii.gz"
+    '/workspace/data/medical/ixi/IXI-T1/IXI314-IOP-0889-T1.nii.gz',
+    '/workspace/data/medical/ixi/IXI-T1/IXI249-Guys-1072-T1.nii.gz',
+    '/workspace/data/medical/ixi/IXI-T1/IXI609-HH-2600-T1.nii.gz',
+    '/workspace/data/medical/ixi/IXI-T1/IXI173-HH-1590-T1.nii.gz',
+    '/workspace/data/medical/ixi/IXI-T1/IXI020-Guys-0700-T1.nii.gz',
+    '/workspace/data/medical/ixi/IXI-T1/IXI342-Guys-0909-T1.nii.gz',
+    '/workspace/data/medical/ixi/IXI-T1/IXI134-Guys-0780-T1.nii.gz',
+    '/workspace/data/medical/ixi/IXI-T1/IXI577-HH-2661-T1.nii.gz',
+    '/workspace/data/medical/ixi/IXI-T1/IXI066-Guys-0731-T1.nii.gz',
+    '/workspace/data/medical/ixi/IXI-T1/IXI130-HH-1528-T1.nii.gz',
+    '/workspace/data/medical/ixi/IXI-T1/IXI607-Guys-1097-T1.nii.gz',
+    '/workspace/data/medical/ixi/IXI-T1/IXI175-HH-1570-T1.nii.gz',
+    '/workspace/data/medical/ixi/IXI-T1/IXI385-HH-2078-T1.nii.gz',
+    '/workspace/data/medical/ixi/IXI-T1/IXI344-Guys-0905-T1.nii.gz',
+    '/workspace/data/medical/ixi/IXI-T1/IXI409-Guys-0960-T1.nii.gz',
+    '/workspace/data/medical/ixi/IXI-T1/IXI584-Guys-1129-T1.nii.gz',
+    '/workspace/data/medical/ixi/IXI-T1/IXI253-HH-1694-T1.nii.gz',
+    '/workspace/data/medical/ixi/IXI-T1/IXI092-HH-1436-T1.nii.gz',
+    '/workspace/data/medical/ixi/IXI-T1/IXI574-IOP-1156-T1.nii.gz',
+    '/workspace/data/medical/ixi/IXI-T1/IXI585-Guys-1130-T1.nii.gz'
 ]
 # 2 binary labels for gender classification: man and woman
 labels = np.array([
@@ -85,7 +85,7 @@ val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
 val_loader = DataLoader(val_ds, batch_size=2, num_workers=4, pin_memory=torch.cuda.is_available())
 
 # Create DenseNet121, CrossEntropyLoss and Adam optimizer
-device = torch.device("cuda:0")
+device = torch.device('cuda:0')
 model = monai.networks.nets.densenet.densenet121(
     spatial_dims=3,
     in_channels=1,
@@ -101,7 +101,7 @@ best_metric_epoch = -1
 writer = SummaryWriter()
 for epoch in range(5):
     print('-' * 10)
-    print('Epoch {}/{}'.format(epoch + 1, 5))
+    print('epoch {}/{}'.format(epoch + 1, 5))
     model.train()
     epoch_loss = 0
     step = 0
@@ -115,10 +115,10 @@ for epoch in range(5):
         optimizer.step()
         epoch_loss += loss.item()
         epoch_len = len(train_ds) // train_loader.batch_size
-        print("%d/%d, train_loss:%0.4f" % (step, epoch_len, loss.item()))
+        print('{}/{}, train_loss: {:.4f}'.format(step, epoch_len, loss.item()))
         writer.add_scalar('train_loss', loss.item(), epoch_len * epoch + step)
     epoch_loss /= step
-    print("epoch %d average loss:%0.4f" % (epoch + 1, epoch_loss))
+    print('epoch {} average loss: {:.4f}'.format(epoch + 1, epoch_loss))
 
     if (epoch + 1) % val_interval == 0:
         model.eval()
@@ -138,8 +138,8 @@ for epoch in range(5):
                 best_metric_epoch = epoch + 1
                 torch.save(model.state_dict(), 'best_metric_model.pth')
                 print('saved new best metric model')
-            print("current epoch %d current accuracy: %0.4f current AUC: %0.4f best accuracy: %0.4f at epoch %d"
-                  % (epoch + 1, acc_metric, auc_metric, best_metric, best_metric_epoch))
+            print('current epoch: {} current accuracy: {:.4f} current AUC: {:.4f} best accuracy: {:.4f} at epoch {}'.format(
+                epoch + 1, acc_metric, auc_metric, best_metric, best_metric_epoch))
             writer.add_scalar('val_accuracy', acc_metric, epoch + 1)
-print('train completed, best_metric: %0.4f  at epoch: %d' % (best_metric, best_metric_epoch))
+print('train completed, best_metric: {:.4f} at epoch: {}'.format(best_metric, best_metric_epoch))
 writer.close()

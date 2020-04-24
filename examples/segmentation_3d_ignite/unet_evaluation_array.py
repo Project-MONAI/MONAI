@@ -50,7 +50,7 @@ imtrans = Compose([ScaleIntensity(), AddChannel(), ToTensor()])
 segtrans = Compose([AddChannel(), ToTensor()])
 ds = NiftiDataset(images, segs, transform=imtrans, seg_transform=segtrans, image_only=False)
 
-device = torch.device("cuda:0")
+device = torch.device('cuda:0')
 net = UNet(
     dimensions=3,
     in_channels=1,
