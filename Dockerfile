@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG PYTORCH_IMAGE=nvcr.io/nvidia/pytorch:19.10-py3
+ARG PYTORCH_IMAGE=nvcr.io/nvidia/pytorch:20.03-py3
 
 FROM ${PYTORCH_IMAGE} as base
 
