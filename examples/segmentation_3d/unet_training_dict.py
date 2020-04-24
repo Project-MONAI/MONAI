@@ -83,7 +83,7 @@ val_loader = DataLoader(val_ds, batch_size=1, num_workers=4, collate_fn=list_dat
                         pin_memory=torch.cuda.is_available())
 
 # create UNet, DiceLoss and Adam optimizer
-device = torch.device("cuda:0")
+device = torch.device('cuda:0')
 model = monai.networks.nets.UNet(
     dimensions=3,
     in_channels=1,
@@ -104,7 +104,7 @@ metric_values = list()
 writer = SummaryWriter()
 for epoch in range(5):
     print('-' * 10)
-    print('Epoch {}/{}'.format(epoch + 1, 5))
+    print('epoch {}/{}'.format(epoch + 1, 5))
     model.train()
     epoch_loss = 0
     step = 0
@@ -118,11 +118,11 @@ for epoch in range(5):
         optimizer.step()
         epoch_loss += loss.item()
         epoch_len = len(train_ds) // train_loader.batch_size
-        print("%d/%d, train_loss:%0.4f" % (step, epoch_len, loss.item()))
+        print('{}/{}, train_loss: {:.4f}'.format(step, epoch_len, loss.item()))
         writer.add_scalar('train_loss', loss.item(), epoch_len * epoch + step)
     epoch_loss /= step
     epoch_loss_values.append(epoch_loss)
-    print("epoch %d average loss:%0.4f" % (epoch + 1, epoch_loss))
+    print('epoch {} average loss: {:.4f}'.format(epoch + 1, epoch_loss))
 
     if (epoch + 1) % val_interval == 0:
         model.eval()
@@ -148,13 +148,13 @@ for epoch in range(5):
                 best_metric_epoch = epoch + 1
                 torch.save(model.state_dict(), 'best_metric_model.pth')
                 print('saved new best metric model')
-            print("current epoch %d current mean dice: %0.4f best mean dice: %0.4f at epoch %d"
-                  % (epoch + 1, metric, best_metric, best_metric_epoch))
+            print('current epoch: {} current mean dice: {:.4f} best mean dice: {:.4f} at epoch {}'.format(
+                epoch + 1, metric, best_metric, best_metric_epoch))
             writer.add_scalar('val_mean_dice', metric, epoch + 1)
             # plot the last model output as GIF image in TensorBoard with the corresponding image and label
             plot_2d_or_3d_image(val_images, epoch + 1, writer, index=0, tag='image')
             plot_2d_or_3d_image(val_labels, epoch + 1, writer, index=0, tag='label')
             plot_2d_or_3d_image(val_outputs, epoch + 1, writer, index=0, tag='output')
 shutil.rmtree(tempdir)
-print('train completed, best_metric: %0.4f  at epoch: %d' % (best_metric, best_metric_epoch))
+print('train completed, best_metric: {:.4f} at epoch: {}'.format(best_metric, best_metric_epoch))
 writer.close()

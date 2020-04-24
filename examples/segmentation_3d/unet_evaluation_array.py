@@ -50,7 +50,7 @@ val_ds = NiftiDataset(images, segs, transform=imtrans, seg_transform=segtrans, i
 # sliding window inference for one image at every iteration
 val_loader = DataLoader(val_ds, batch_size=1, num_workers=1, pin_memory=torch.cuda.is_available())
 
-device = torch.device("cuda:0")
+device = torch.device('cuda:0')
 model = UNet(
     dimensions=3,
     in_channels=1,
