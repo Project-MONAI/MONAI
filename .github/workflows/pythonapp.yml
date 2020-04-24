@@ -41,6 +41,7 @@ jobs:
         python -m pip install -q -r requirements.txt --no-cache-dir
     - name: Run unit and integration tests
       run: |
+        python -m pip list
         pwd
         ls -a
         nvidia-smi
