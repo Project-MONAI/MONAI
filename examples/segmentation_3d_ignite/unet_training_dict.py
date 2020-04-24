@@ -96,7 +96,7 @@ net = monai.networks.nets.UNet(
 loss = monai.losses.DiceLoss(do_sigmoid=True)
 lr = 1e-3
 opt = torch.optim.Adam(net.parameters(), lr)
-device = torch.device("cuda:0")
+device = torch.device('cuda:0')
 
 # ignite trainer expects batch=(img, seg) and returns output=loss at every iteration,
 # user can add output_transform to return other values, like: y_pred, y, etc.

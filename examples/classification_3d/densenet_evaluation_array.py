@@ -24,16 +24,16 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 # IXI dataset as a demo, downloadable from https://brain-development.org/ixi-dataset/
 images = [
-    "/workspace/data/medical/ixi/IXI-T1/IXI607-Guys-1097-T1.nii.gz",
-    "/workspace/data/medical/ixi/IXI-T1/IXI175-HH-1570-T1.nii.gz",
-    "/workspace/data/medical/ixi/IXI-T1/IXI385-HH-2078-T1.nii.gz",
-    "/workspace/data/medical/ixi/IXI-T1/IXI344-Guys-0905-T1.nii.gz",
-    "/workspace/data/medical/ixi/IXI-T1/IXI409-Guys-0960-T1.nii.gz",
-    "/workspace/data/medical/ixi/IXI-T1/IXI584-Guys-1129-T1.nii.gz",
-    "/workspace/data/medical/ixi/IXI-T1/IXI253-HH-1694-T1.nii.gz",
-    "/workspace/data/medical/ixi/IXI-T1/IXI092-HH-1436-T1.nii.gz",
-    "/workspace/data/medical/ixi/IXI-T1/IXI574-IOP-1156-T1.nii.gz",
-    "/workspace/data/medical/ixi/IXI-T1/IXI585-Guys-1130-T1.nii.gz"
+    '/workspace/data/medical/ixi/IXI-T1/IXI607-Guys-1097-T1.nii.gz',
+    '/workspace/data/medical/ixi/IXI-T1/IXI175-HH-1570-T1.nii.gz',
+    '/workspace/data/medical/ixi/IXI-T1/IXI385-HH-2078-T1.nii.gz',
+    '/workspace/data/medical/ixi/IXI-T1/IXI344-Guys-0905-T1.nii.gz',
+    '/workspace/data/medical/ixi/IXI-T1/IXI409-Guys-0960-T1.nii.gz',
+    '/workspace/data/medical/ixi/IXI-T1/IXI584-Guys-1129-T1.nii.gz',
+    '/workspace/data/medical/ixi/IXI-T1/IXI253-HH-1694-T1.nii.gz',
+    '/workspace/data/medical/ixi/IXI-T1/IXI092-HH-1436-T1.nii.gz',
+    '/workspace/data/medical/ixi/IXI-T1/IXI574-IOP-1156-T1.nii.gz',
+    '/workspace/data/medical/ixi/IXI-T1/IXI585-Guys-1130-T1.nii.gz'
 ]
 # 2 binary labels for gender classification: man and woman
 labels = np.array([
@@ -54,7 +54,7 @@ val_ds = NiftiDataset(image_files=images, labels=labels, transform=val_transform
 val_loader = DataLoader(val_ds, batch_size=2, num_workers=4, pin_memory=torch.cuda.is_available())
 
 # Create DenseNet121
-device = torch.device("cuda:0")
+device = torch.device('cuda:0')
 model = monai.networks.nets.densenet.densenet121(
     spatial_dims=3,
     in_channels=1,

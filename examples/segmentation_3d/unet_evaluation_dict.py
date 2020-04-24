@@ -56,7 +56,7 @@ val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
 val_loader = DataLoader(val_ds, batch_size=1, num_workers=4, collate_fn=list_data_collate,
                         pin_memory=torch.cuda.is_available())
 
-device = torch.device("cuda:0")
+device = torch.device('cuda:0')
 model = UNet(
     dimensions=3,
     in_channels=1,

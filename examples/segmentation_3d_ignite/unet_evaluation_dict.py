@@ -55,7 +55,7 @@ val_transforms = Compose([
 ])
 val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
 
-device = torch.device("cuda:0")
+device = torch.device('cuda:0')
 net = UNet(
     dimensions=3,
     in_channels=1,
