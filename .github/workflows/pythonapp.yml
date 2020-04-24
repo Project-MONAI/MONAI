@@ -47,7 +47,9 @@ jobs:
         nvidia-smi
         export CUDA_DEVICE_ORDER=PCI_BUS_ID
         export CUDA_VISIBLE_DEVICES=0,1
+        python -c "import torch; print('{} of GPUs available'.format(torch.cuda.device_count()))"
         ./runtests.sh --quick
+        pip list
         coverage xml
     - name: Upload coverage
       uses: codecov/codecov-action@v1
