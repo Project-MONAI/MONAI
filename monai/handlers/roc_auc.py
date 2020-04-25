@@ -65,8 +65,8 @@ class ROCAUC(Metric):
         if y.ndimension() not in (1, 2):
             raise ValueError("targets should be of shape (batch_size, n_classes) or (batch_size, ).")
 
-        y_pred = y_pred.to(dtype=torch.float32, device="cpu").clone()
-        y = y.to(dtype=torch.long, device="cpu").clone()
+        y_pred = y_pred.to(dtype=torch.float32).clone()
+        y = y.to(dtype=torch.long).clone()
 
         self._predictions.append(y_pred)
         self._targets.append(y)
