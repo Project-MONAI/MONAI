@@ -55,8 +55,8 @@ class ROCAUC(Metric):
         self.average = average
 
     def reset(self):
-        self._predictions = torch.tensor([], dtype=torch.float32)
-        self._targets = torch.tensor([], dtype=torch.long)
+        self._predictions = []
+        self._targets = []
 
     def update(self, output: Sequence[torch.Tensor]):
         y_pred, y = output
@@ -65,12 +65,11 @@ class ROCAUC(Metric):
         if y.ndimension() not in (1, 2):
             raise ValueError("targets should be of shape (batch_size, n_classes) or (batch_size, ).")
 
-        y_pred = y_pred.to(self._predictions)
-        y = y.to(self._targets)
-
-        self._predictions = torch.cat([self._predictions, y_pred], dim=0)
-        self._targets = torch.cat([self._targets, y], dim=0)
+        self._predictions.append(y_pred.clone())
+        self._targets.append(y.clone())
 
     def compute(self):
-        return compute_roc_auc(self._predictions, self._targets, self.to_onehot_y,
+        _prediction_tensor = torch.cat(self._predictions, dim=0)
+        _target_tensor = torch.cat(self._targets, dim=0)
+        return compute_roc_auc(_prediction_tensor, _target_tensor, self.to_onehot_y,
                                self.add_softmax, self.average)
