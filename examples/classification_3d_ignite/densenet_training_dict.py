@@ -94,6 +94,7 @@ if __name__ == '__main__':
     # ignite trainer expects batch=(img, label) and returns output=loss at every iteration,
     # user can add output_transform to return other values, like: y_pred, y, etc.
     def prepare_batch(batch, device=None, non_blocking=False):
+
         return _prepare_batch((batch['img'], batch['label']), device, non_blocking)
 
 
