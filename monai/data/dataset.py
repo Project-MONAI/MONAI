@@ -13,6 +13,8 @@ import sys
 
 import torch
 
+from multiprocessing import Pool
+
 from monai.transforms.compose import Compose, Randomizable
 from monai.transforms.utils import apply_transform
 from monai.utils import process_bar
@@ -84,7 +86,7 @@ class CacheDataset(Dataset):
     and the outcome not cached.
     """
 
-    def __init__(self, data, transform, cache_num=sys.maxsize, cache_rate=1.0):
+    def __init__(self, data, transform, cache_num=sys.maxsize, cache_rate=1.0, num_workers=0):
         """
         Args:
             data (Iterable): input data to load and transform to generate dataset for model.
@@ -93,6 +95,8 @@ class CacheDataset(Dataset):
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
             cache_rate (float): percentage of cached data in total, default is 1.0 (cache all).
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
+            num_workers (int): the number of worker processes to use.
+                If 0 a single thread wil be used. Default is 0.
         """
         if not isinstance(transform, Compose):
             transform = Compose(transform)
@@ -100,15 +104,29 @@ class CacheDataset(Dataset):
         self.cache_num = min(cache_num, int(len(self) * cache_rate), len(self))
         self._cache = list()
         print('Load and cache transformed data...')
-        for i in range(self.cache_num):
-            process_bar(i + 1, self.cache_num)
-            item = data[i]
-            for _transform in transform.transforms:
-                # execute all the deterministic transforms before the first random transform
-                if isinstance(_transform, Randomizable):
-                    break
-                item = apply_transform(_transform, item)
-            self._cache.append(item)
+        if num_workers > 0:
+            def _update_bar(i):
+                process_bar(i + 1, self.cache_num)
+            with Pool(num_workers) as p:
+                for i in range(self.cache_num):
+                    p.apply_async(self._load_cache_item, args=(i, transform, data), callback=_update_bar)
+                p.close()
+                p.join()
+        else:
+            for i in range(self.cache_num):
+                process_bar(i + 1, self.cache_num)
+                self._load_cache_item(i, transform, data)
+
+    def _load_cache_item(self, i, transform, data):
+        item = data[i]
+        for _transform in transform.transforms:
+            # execute all the deterministic transforms before the first random transform
+            if isinstance(_transform, Randomizable):
+                break
+            item = apply_transform(_transform, item)
+        self._cache.append(item)
+        return i
+
 
     def __getitem__(self, index):
         if index < self.cache_num:

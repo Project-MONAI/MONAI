@@ -20,14 +20,17 @@ from monai.data import CacheDataset
 from monai.transforms import Compose, LoadNiftid
 
 TEST_CASE_1 = [
-    (128, 128, 128)
+    (128, 128, 128), 0
 ]
 
+TEST_CASE_2 = [
+    (128, 128, 128), 2
+]
 
 class TestCacheDataset(unittest.TestCase):
 
-    @parameterized.expand([TEST_CASE_1])
-    def test_shape(self, expected_shape):
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    def test_shape(self, expected_shape, num_workers):
         test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]), np.eye(4))
         tempdir = tempfile.mkdtemp()
         nib.save(test_image, os.path.join(tempdir, 'test_image1.nii.gz'))
@@ -51,7 +54,8 @@ class TestCacheDataset(unittest.TestCase):
         dataset = CacheDataset(
             data=test_data,
             transform=Compose([LoadNiftid(keys=['image', 'label', 'extra'])]),
-            cache_rate=0.5
+            cache_rate=0.5,
+            num_workers=num_workers
         )
         data1 = dataset[0]
         data2 = dataset[1]
