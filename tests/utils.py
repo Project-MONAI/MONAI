@@ -37,8 +37,9 @@ def make_nifti_image(array, affine=None):
         affine = np.eye(4)
     test_image = nib.Nifti1Image(array, affine)
 
-    _, image_name = tempfile.mkstemp(suffix='.nii.gz')
+    temp_f, image_name = tempfile.mkstemp(suffix='.nii.gz')
     nib.save(test_image, image_name)
+    os.close(temp_f)
     return image_name
 
 

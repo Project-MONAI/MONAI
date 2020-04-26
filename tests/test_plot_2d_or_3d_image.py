@@ -50,7 +50,7 @@ class TestPlot2dOr3dImage(unittest.TestCase):
 
         self.assertTrue(os.path.exists(default_dir))
         self.assertTrue(len(glob.glob(default_dir)) > 0)
-        shutil.rmtree(default_dir)
+        shutil.rmtree(default_dir, ignore_errors=True)
 
 
 if __name__ == '__main__':

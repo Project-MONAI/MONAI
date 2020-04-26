@@ -47,8 +47,8 @@ class TestCreateGrid(unittest.TestCase):
         expected = np.array([[[[0.]]], [[[0.]]], [[[0.]]]])
         np.testing.assert_allclose(g, expected)
 
-        g = create_grid((1, 1, 1), spacing=(1.2, 1.3, 1.0), dtype=int)
-        np.testing.assert_equal(g.dtype, np.int64)
+        g = create_grid((1, 1, 1), spacing=(1.2, 1.3, 1.0), dtype=np.int32)
+        np.testing.assert_equal(g.dtype, np.int32)
 
         g = create_grid((2, 2, 2))
         expected = np.array([[[[-0.5, -0.5], [-0.5, -0.5]], [[0.5, 0.5], [0.5, 0.5]]],

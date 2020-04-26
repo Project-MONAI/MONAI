@@ -1,10 +1,10 @@
 name: build
 
 on:
+  # quick tests for every pull request
   push:
     branches:
       - master
-      - 310-add-ci-test-for-windows
   pull_request:
 
 jobs:
@@ -28,7 +28,39 @@ jobs:
         python -c 'import monai; monai.config.print_config()'
         flake8 . --count --statistics
 
-  test-py3:
+  quick-py3:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macOS-latest, ubuntu-latest]
+    timeout-minutes: 20
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.x
+      uses: actions/setup-python@v1
+      with:
+        python-version: '3.x'
+    - if: runner.os == 'windows'
+      name: Modify requirements.txt (Windows only)
+      run: |
+        python -c "txt = [line for line in open('requirements.txt') if not line.startswith('torch')]; open('requirements.txt', 'w').writelines(txt); print(txt)"
+        # install torch without version requirements from 'requirements.txt'
+        python -m pip install --upgrade pip
+        python -m pip install torch -f https://download.pytorch.org/whl/cpu/torch_stable.html -q
+    - name: Install the dependencies
+      run: |
+        which python
+        python -m pip install --upgrade pip
+        python -m pip install -q -r requirements.txt
+    - name: Run quick tests (CPU ${{ runner.os }})
+      run: |
+        python -m pip list
+        python -m unittest -v
+      env:
+        QUICKTEST: True
+
+  GPU-quick-py3:
     container:
       image: nvcr.io/nvidia/pytorch:20.03-py3
       options: --gpus all
@@ -40,7 +72,7 @@ jobs:
         which python
         python -m pip install --upgrade pip --no-cache-dir
         python -m pip install -q -r requirements.txt --no-cache-dir
-    - name: Run unit and integration tests
+    - name: Run quick tests (GPU)
       run: |
         python -m pip list
         pwd
