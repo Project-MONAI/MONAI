@@ -1,6 +1,7 @@
 name: deploy
 
 on:
+  # master only tests
   push:
     branches:
       - master
