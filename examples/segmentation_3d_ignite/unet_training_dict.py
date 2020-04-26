@@ -30,7 +30,7 @@ from monai.handlers import \
 from monai.data import create_test_image_3d, list_data_collate
 from monai.networks.utils import predict_segmentation
 
-if __name__ == '__main__':
+def main():
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
@@ -171,3 +171,6 @@ if __name__ == '__main__':
     train_epochs = 5
     state = trainer.run(train_loader, train_epochs)
     shutil.rmtree(tempdir)
+
+if __name__ == '__main__':
+    main()

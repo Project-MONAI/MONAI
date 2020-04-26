@@ -26,7 +26,7 @@ from monai.networks.nets import UNet
 from monai.data import create_test_image_3d, sliding_window_inference, NiftiSaver, NiftiDataset
 from monai.metrics import compute_meandice
 
-if __name__ == '__main__':
+def main():
     config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
@@ -82,3 +82,6 @@ if __name__ == '__main__':
         metric = metric_sum / metric_count
         print('evaluation metric:', metric)
     shutil.rmtree(tempdir)
+
+if __name__ == '__main__':
+    main()

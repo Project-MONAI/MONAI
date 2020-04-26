@@ -22,7 +22,7 @@ from monai.data import NiftiDataset
 from monai.transforms import Compose, AddChannel, ScaleIntensity, Resize, ToTensor
 from monai.handlers import StatsHandler, ClassificationSaver, CheckpointLoader
 
-if __name__ == '__main__':
+def main():
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
@@ -93,3 +93,6 @@ if __name__ == '__main__':
     val_loader = DataLoader(val_ds, batch_size=2, num_workers=4, pin_memory=torch.cuda.is_available())
 
     state = evaluator.run(val_loader)
+
+if __name__ == '__main__':
+    main()

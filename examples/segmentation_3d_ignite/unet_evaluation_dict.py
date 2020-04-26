@@ -28,7 +28,7 @@ from monai.networks.nets import UNet
 from monai.transforms import Compose, LoadNiftid, AsChannelFirstd, ScaleIntensityd, ToTensord
 from monai.handlers import SegmentationSaver, CheckpointLoader, StatsHandler, MeanDice
 
-if __name__ == '__main__':
+def main():
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
@@ -106,3 +106,6 @@ if __name__ == '__main__':
                             pin_memory=torch.cuda.is_available())
     state = evaluator.run(val_loader)
     shutil.rmtree(tempdir)
+
+if __name__ == '__main__':
+    main()

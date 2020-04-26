@@ -19,7 +19,7 @@ import monai
 from monai.data import NiftiDataset, CSVSaver
 from monai.transforms import Compose, AddChannel, ScaleIntensity, Resize, ToTensor
 
-if __name__ == '__main__':
+def main():
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
@@ -78,3 +78,6 @@ if __name__ == '__main__':
         metric = num_correct / metric_count
         print('evaluation metric:', metric)
         saver.finalize()
+
+if __name__ == '__main__':
+    main()

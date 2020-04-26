@@ -27,7 +27,7 @@ from monai.transforms import Compose, AddChannel, ScaleIntensity, RandSpatialCro
 from monai.metrics import compute_meandice
 from monai.visualize.img2tensorboard import plot_2d_or_3d_image
 
-if __name__ == '__main__':
+def main():
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
@@ -159,3 +159,6 @@ if __name__ == '__main__':
     shutil.rmtree(tempdir)
     print('train completed, best_metric: {:.4f} at epoch: {}'.format(best_metric, best_metric_epoch))
     writer.close()
+
+if __name__ == '__main__':
+    main()

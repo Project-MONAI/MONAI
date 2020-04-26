@@ -28,7 +28,7 @@ from monai.transforms import Compose, AddChannel, ScaleIntensity, ToTensor
 from monai.networks.nets import UNet
 from monai.networks.utils import predict_segmentation
 
-if __name__ == '__main__':
+def main():
     config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
@@ -102,3 +102,6 @@ if __name__ == '__main__':
     loader = DataLoader(ds, batch_size=1, num_workers=1, pin_memory=torch.cuda.is_available())
     state = evaluator.run(loader)
     shutil.rmtree(tempdir)
+
+if __name__ == '__main__':
+    main()

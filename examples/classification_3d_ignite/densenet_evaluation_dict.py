@@ -21,7 +21,7 @@ import monai
 from monai.handlers import StatsHandler, CheckpointLoader, ClassificationSaver
 from monai.transforms import Compose, LoadNiftid, AddChanneld, ScaleIntensityd, Resized, ToTensord
 
-if __name__ == '__main__':
+def main():
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
@@ -94,3 +94,6 @@ if __name__ == '__main__':
     val_loader = DataLoader(val_ds, batch_size=2, num_workers=4, pin_memory=torch.cuda.is_available())
 
     state = evaluator.run(val_loader)
+
+if __name__ == '__main__':
+    main()

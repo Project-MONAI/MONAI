@@ -20,7 +20,7 @@ import monai
 from monai.transforms import Compose, LoadNiftid, AddChanneld, ScaleIntensityd, Resized, RandRotate90d, ToTensord
 from monai.metrics import compute_roc_auc
 
-if __name__ == '__main__':
+def main():
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
@@ -144,3 +144,6 @@ if __name__ == '__main__':
                 writer.add_scalar('val_accuracy', acc_metric, epoch + 1)
     print('train completed, best_metric: {:.4f} at epoch: {}'.format(best_metric, best_metric_epoch))
     writer.close()
+
+if __name__ == '__main__':
+    main()

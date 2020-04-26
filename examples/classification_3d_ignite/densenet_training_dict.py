@@ -22,7 +22,7 @@ import monai
 from monai.transforms import Compose, LoadNiftid, AddChanneld, ScaleIntensityd, Resized, RandRotate90d, ToTensord
 from monai.handlers import StatsHandler, TensorBoardStatsHandler, stopping_fn_from_metric, ROCAUC
 
-if __name__ == '__main__':
+def main():
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
@@ -161,3 +161,6 @@ if __name__ == '__main__':
 
     train_epochs = 30
     state = trainer.run(train_loader, train_epochs)
+
+if __name__ == '__main__':
+    main()
