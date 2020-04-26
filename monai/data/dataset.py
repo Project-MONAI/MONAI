@@ -96,7 +96,7 @@ class CacheDataset(Dataset):
             cache_rate (float): percentage of cached data in total, default is 1.0 (cache all).
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
             num_workers (int): the number of worker processes to use.
-                If 0 a single thread wil be used. Default is 0.
+                If 0 a single thread will be used. Default is 0.
         """
         if not isinstance(transform, Compose):
             transform = Compose(transform)
