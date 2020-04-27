@@ -108,8 +108,8 @@ class CacheDataset(Dataset):
         print('Load and cache transformed data...')
         if num_workers > 0:
             self._item_processed = 0
-            lock = Lock()
             if mode == "thread":
+                lock = Lock()
                 def _update_bar(arg):
                     self._item_processed += 1
                     lock.acquire()
@@ -125,11 +125,7 @@ class CacheDataset(Dataset):
                 def _add_item(item):
                     self._cache.append(item)
                     self._item_processed += 1
-                    lock.acquire()
-                    try:
-                        process_bar(self._item_processed, self.cache_num)
-                    finally:
-                        lock.release()
+                    process_bar(self._item_processed, self.cache_num)
                 with Pool(num_workers) as p:
                     for i in range(self.cache_num):
                         item = data[i]

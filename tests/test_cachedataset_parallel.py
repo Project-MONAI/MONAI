@@ -28,11 +28,11 @@ TEST_CASE_2 = [
 ]
 
 TEST_CASE_3 = [
-    0, "process", 100
+    0, "process", 50
 ]
 
 TEST_CASE_4 = [
-    4, "process", 100
+    4, "process", 50
 ]
 
 class TestCacheDatasetParallel(unittest.TestCase):
