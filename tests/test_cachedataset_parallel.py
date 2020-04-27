@@ -56,12 +56,11 @@ class TestCacheDatasetParallel(unittest.TestCase):
             transform=Compose([LoadNiftid(keys=['image', 'label', 'extra'])]),
             cache_rate=1,
             num_workers=num_workers,
-            node=mode
+            mode=mode
         )
         data1 = dataset[0]
         data2 = dataset[1]
         shutil.rmtree(tempdir)
-        self.assertTupleEqual(0, 1)
 
 def time_dataset(num_workers, mode, dataset_size):
     import time
@@ -88,6 +87,8 @@ def time_dataset(num_workers, mode, dataset_size):
     print(f"{num_workers} workers in mode {mode} took {time.time() - start}s to cache {dataset_size} items.")
 
 if __name__ == '__main__':
+    unittest.main()
+    """ Uncomment to time
     time_dataset(0, "thread", dataset_size=100)
     # should be the same as previous since not parallelising
     time_dataset(0, "process", dataset_size=100)
@@ -95,3 +96,4 @@ if __name__ == '__main__':
     time_dataset(1, "process", dataset_size=50)
     time_dataset(4, "thread", dataset_size=100)
     time_dataset(4, "process", dataset_size=50)
+    """
