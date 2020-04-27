@@ -42,10 +42,8 @@ jobs:
       with:
         python-version: '3.x'
     - if: runner.os == 'windows'
-      name: Modify requirements.txt (Windows only)
+      name: Install torch cpu from pytorch.org (Windows only)
       run: |
-        python -c "txt = [line for line in open('requirements.txt') if not line.startswith('torch')]; open('requirements.txt', 'w').writelines(txt); print(txt)"
-        # install torch without version requirements from 'requirements.txt'
         python -m pip install --upgrade pip
         python -m pip install torch -f https://download.pytorch.org/whl/cpu/torch_stable.html -q
     - name: Install the dependencies
