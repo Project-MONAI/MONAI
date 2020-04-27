@@ -110,6 +110,7 @@ class CacheDataset(Dataset):
             self._item_processed = 0
             if mode == "thread":
                 lock = Lock()
+
                 def _update_bar(arg):
                     self._item_processed += 1
                     lock.acquire()
