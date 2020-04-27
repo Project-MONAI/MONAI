@@ -297,6 +297,11 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
+`SqueezeDim`
+~~~~~~~~~~~~
+.. autoclass:: SqueezeDim
+    :members:
+    :special-members: __call__
 
 Dictionary-based Composables
 ----------------------------
@@ -535,6 +540,12 @@ Dictionary-based Composables
 `DeleteKeysd`
 ~~~~~~~~~~~~~
 .. autoclass:: DeleteKeysd
+    :members:
+    :special-members: __call__
+
+`SqueezeDimd`
+~~~~~~~~~~~~~
+.. autoclass:: SqueezeDimd
     :members:
     :special-members: __call__
 
