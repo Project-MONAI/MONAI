@@ -29,7 +29,7 @@ class GaussianFilterTestCase(unittest.TestCase):
             ],
         ]])
         expected = np.tile(expected, (1, 8, 1))
-        np.testing.assert_allclose(g(a).cpu().numpy(), expected)
+        np.testing.assert_allclose(g(a).cpu().numpy(), expected, rtol=1e-5)
 
     def test_2d(self):
         a = torch.ones(1, 1, 3, 3)
@@ -37,7 +37,7 @@ class GaussianFilterTestCase(unittest.TestCase):
         expected = np.array([[[[0.13380532, 0.14087981, 0.13380532], [0.14087981, 0.14832835, 0.14087981],
                                [0.13380532, 0.14087981, 0.13380532]]]])
 
-        np.testing.assert_allclose(g(a).cpu().numpy(), expected)
+        np.testing.assert_allclose(g(a).cpu().numpy(), expected, rtol=1e-5)
 
     def test_3d(self):
         a = torch.ones(1, 1, 4, 3, 4)
@@ -51,7 +51,7 @@ class GaussianFilterTestCase(unittest.TestCase):
                 [0.08033235, 0.08846396, 0.08846396, 0.08033236]],
                [[0.07294822, 0.08033235, 0.08033235, 0.07294822], [0.07680509, 0.08457965, 0.08457965, 0.07680509],
                 [0.07294822, 0.08033235, 0.08033235, 0.07294822]]]]],)
-        np.testing.assert_allclose(g(a).cpu().numpy(), expected)
+        np.testing.assert_allclose(g(a).cpu().numpy(), expected, rtol=1e-5)
 
 
 if __name__ == '__main__':
