@@ -23,10 +23,6 @@ TEST_CASE_1 = [
     (128, 128, 128), 0
 ]
 
-TEST_CASE_2 = [
-    (128, 128, 128), 2
-]
-
 class TestCacheDataset(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
@@ -54,8 +50,7 @@ class TestCacheDataset(unittest.TestCase):
         dataset = CacheDataset(
             data=test_data,
             transform=Compose([LoadNiftid(keys=['image', 'label', 'extra'])]),
-            cache_rate=0.5,
-            num_workers=num_workers
+            cache_rate=0.5
         )
         data1 = dataset[0]
         data2 = dataset[1]

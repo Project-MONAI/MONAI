@@ -13,7 +13,9 @@ import sys
 
 import torch
 
+from concurrent.futures import ThreadPoolExecutor
 from multiprocessing import Pool
+from threading import Lock
 
 from monai.transforms.compose import Compose, Randomizable
 from monai.transforms.utils import apply_transform
@@ -86,7 +88,7 @@ class CacheDataset(Dataset):
     and the outcome not cached.
     """
 
-    def __init__(self, data, transform, cache_num=sys.maxsize, cache_rate=1.0, num_workers=0):
+    def __init__(self, data, transform, cache_num=sys.maxsize, cache_rate=1.0, num_workers=0, mode="thread"):
         """
         Args:
             data (Iterable): input data to load and transform to generate dataset for model.
@@ -105,19 +107,41 @@ class CacheDataset(Dataset):
         self._cache = list()
         print('Load and cache transformed data...')
         if num_workers > 0:
-            def _update_bar(i):
-                process_bar(i + 1, self.cache_num)
-            with Pool(num_workers) as p:
-                for i in range(self.cache_num):
-                    p.apply_async(self._load_cache_item, args=(i, transform, data), callback=_update_bar)
-                p.close()
-                p.join()
+            self._item_processed = 0
+            lock = Lock()
+            if mode == "thread":
+                def _update_bar(arg):
+                    self._item_processed += 1
+                    lock.acquire()
+                    try:
+                        process_bar(self._item_processed, self.cache_num)
+                    finally:
+                        lock.release()
+                with ThreadPoolExecutor(max_workers=num_workers) as executor:
+                    for i in range(self.cache_num):
+                        future = executor.submit(self._load_cache_item_thread, i, transform, data)
+                        future.add_done_callback(_update_bar)
+            elif mode == "process":
+                def _add_item(item):
+                    self._cache.append(item)
+                    self._item_processed += 1
+                    lock.acquire()
+                    try:
+                        process_bar(self._item_processed, self.cache_num)
+                    finally:
+                        lock.release()
+                with Pool(num_workers) as p:
+                    for i in range(self.cache_num):
+                        item = data[i]
+                        p.apply_async(self._load_cache_item_process, args=(i, transform, item), callback=_add_item)
+                    p.close()
+                    p.join()
         else:
             for i in range(self.cache_num):
                 process_bar(i + 1, self.cache_num)
-                self._load_cache_item(i, transform, data)
+                self._load_cache_item_thread(i, transform, data)
 
-    def _load_cache_item(self, i, transform, data):
+    def _load_cache_item_thread(self, i, transform, data):
         item = data[i]
         for _transform in transform.transforms:
             # execute all the deterministic transforms before the first random transform
@@ -125,7 +149,14 @@ class CacheDataset(Dataset):
                 break
             item = apply_transform(_transform, item)
         self._cache.append(item)
-        return i
+
+    def _load_cache_item_process(self, i, transform, item):
+        for _transform in transform.transforms:
+            # execute all the deterministic transforms before the first random transform
+            if isinstance(_transform, Randomizable):
+                break
+            item = apply_transform(_transform, item)
+        return item
 
 
     def __getitem__(self, index):
