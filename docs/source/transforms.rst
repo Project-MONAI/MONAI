@@ -42,8 +42,8 @@ Generic Interfaces
 Vanilla Transforms
 ------------------
 
-.. automodule:: monai.transforms.transforms
-.. currentmodule:: monai.transforms.transforms
+.. automodule:: monai.transforms
+.. currentmodule:: monai.transforms
 
 `Spacing`
 ~~~~~~~~~
@@ -303,11 +303,11 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
-Dictionary-based Composables
+Dictionary-based Transforms
 ----------------------------
 
-.. automodule:: monai.transforms.composables
-.. currentmodule:: monai.transforms.composables
+.. automodule:: monai.transforms
+.. currentmodule:: monai.transforms
 
 `Spacingd`
 ~~~~~~~~~~

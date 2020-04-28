@@ -15,7 +15,7 @@ import numpy as np
 import tempfile
 from PIL import Image
 from parameterized import parameterized
-from monai.transforms.transforms import LoadPNG
+from monai.transforms import LoadPNG
 
 TEST_CASE_1 = [
     (128, 128),
