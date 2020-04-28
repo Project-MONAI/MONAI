@@ -20,6 +20,14 @@ from monai.networks.utils import one_hot
 class TverskyLoss(_Loss):
 
     """
+    Compute the Tversky loss defined in:        
+
+        Sadegh et al. (2017) Tversky loss function for image segmentation
+        using 3D fully convolutional deep networks
+
+    Adapted from:
+        https://github.com/NifTK/NiftyNet/blob/v0.6.0/niftynet/layer/loss_segmentation.py#L631
+
     """
 
     def __init__(
@@ -38,8 +46,8 @@ class TverskyLoss(_Loss):
             to_onehot_y (bool): whether to convert `y` into the one-hot format. Defaults to False.
             do_sigmoid (bool): If True, apply a sigmoid function to the prediction.
             do_softmax (bool): If True, apply a softmax function to the prediction.
-            alpha : weight of false positives
-            beta  : weight of false negatives
+            alpha (float): weight of false positives
+            beta  (float): weight of false negatives
         """
 
         super().__init__()
