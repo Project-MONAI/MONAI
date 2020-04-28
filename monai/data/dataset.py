@@ -104,7 +104,7 @@ class CacheDataset(Dataset):
             transform = Compose(transform)
         super().__init__(data, transform)
         self.cache_num = min(cache_num, int(len(self) * cache_rate), len(self))
-        self._cache = list()
+        self._cache = [None] * self.cache_num
         print('Load and cache transformed data...')
         if num_workers > 0:
             self._item_processed = 0
@@ -123,8 +123,9 @@ class CacheDataset(Dataset):
                         future = executor.submit(self._load_cache_item_thread, i, transform, data)
                         future.add_done_callback(_update_bar)
             elif mode == "process":
-                def _add_item(item):
-                    self._cache.append(item)
+                def _add_item(res):
+                    item, i = res
+                    self._cache[i] = item
                     self._item_processed += 1
                     process_bar(self._item_processed, self.cache_num)
                 with Pool(num_workers) as p:
@@ -135,8 +136,8 @@ class CacheDataset(Dataset):
                     p.join()
         else:
             for i in range(self.cache_num):
-                process_bar(i + 1, self.cache_num)
                 self._load_cache_item_thread(i, transform, data)
+                process_bar(i + 1, self.cache_num)
 
     def _load_cache_item_thread(self, i, transform, data):
         item = data[i]
@@ -145,7 +146,7 @@ class CacheDataset(Dataset):
             if isinstance(_transform, Randomizable):
                 break
             item = apply_transform(_transform, item)
-        self._cache.append(item)
+        self._cache[i] = item
 
     def _load_cache_item_process(self, i, transform, item):
         for _transform in transform.transforms:
@@ -153,8 +154,7 @@ class CacheDataset(Dataset):
             if isinstance(_transform, Randomizable):
                 break
             item = apply_transform(_transform, item)
-        return item
-
+        return (item, i)
 
     def __getitem__(self, index):
         if index < self.cache_num:
