@@ -25,7 +25,8 @@ from monai.transforms.transforms import (AddChannel, AsChannelFirst, Flip, LoadN
                                          Rand2DElastic, Rand3DElastic, RandAffine, Resize, Rotate, Rotate90,
                                          ScaleIntensityRange, Spacing, SpatialCrop, Zoom, ToTensor, LoadPNG,
                                          AsChannelLast, ThresholdIntensity, AdjustContrast, CenterSpatialCrop,
-                                         CastToType, SpatialPad, RepeatChannel, ShiftIntensity, ScaleIntensity)
+                                         CastToType, SpatialPad, RepeatChannel, ShiftIntensity, ScaleIntensity,
+                                         SqueezeDim)
 from monai.transforms.utils import (create_grid, generate_pos_neg_label_crop_centers, generate_spatial_bounding_box)
 from monai.utils.misc import ensure_tuple
 
@@ -1404,6 +1405,29 @@ class DeleteKeysd(MapTransform):
         return {key: val for key, val in data.items() if key not in self.keys}
 
 
+class SqueezeDimd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.transforms.SqueezeDim`.
+    """
+
+    def __init__(self, keys, dim=None):
+        """
+        Args:
+            keys (hashable items): keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            dim (int): dimension to be squeezed.
+                Default: None (all dimensions of size 1 will be removed)
+        """
+        super().__init__(keys)
+        self.converter = SqueezeDim(dim=dim)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.converter(d[key])
+        return d
+
+
 SpacingD = SpacingDict = Spacingd
 OrientationD = OrientationDict = Orientationd
 LoadNiftiD = LoadNiftiDict = LoadNiftid
@@ -1443,3 +1467,4 @@ RandRotateD = RandRotateDict = RandRotated
 ZoomD = ZoomDict = Zoomd
 RandZoomD = RandZoomDict = RandZoomd
 DeleteKeysD = DeleteKeysDict = DeleteKeysd
+SqueezeDimD = SqueezeDimDict = SqueezeDimd

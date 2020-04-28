@@ -1738,3 +1738,26 @@ class Rand3DElastic(Randomizable, Transform):
             grid[:3] += gaussian(self.rand_offset[None])[0] * self.magnitude
             grid = self.rand_affine_grid(grid=grid)
         return self.resampler(img, grid, mode)
+
+
+class SqueezeDim(Transform):
+    """
+    Squeeze undesired unitary dimensions
+    """
+
+    def __init__(self, dim=None):
+        """
+        Args:
+            dim (int): dimension to be squeezed.
+                Default: None (all dimensions of size 1 will be removed)
+        """
+        if dim is not None:
+            assert isinstance(dim, int) and dim >= -1, 'invalid channel dimension.'
+        self.dim = dim
+
+    def __call__(self, img):
+        """
+        Args:
+            img (ndarray): numpy arrays with required dimension `dim` removed
+        """
+        return np.squeeze(img, self.dim)
