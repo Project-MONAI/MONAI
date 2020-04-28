@@ -60,7 +60,7 @@ class TestCacheDatasetParallel(unittest.TestCase):
         )
         shutil.rmtree(tempdir)
         self.assertEqual(len(dataset._cache), dataset.cache_num)
-        for i in range(len(dataset.cache_num)):
+        for i in range(dataset.cache_num):
             self.assertIsNotNone(dataset._cache[i])
 
 def time_dataset(num_workers, mode, dataset_size):
