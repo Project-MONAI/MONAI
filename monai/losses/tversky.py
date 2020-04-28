@@ -28,6 +28,8 @@ class TverskyLoss(_Loss):
         to_onehot_y=False,
         do_sigmoid=False,
         do_softmax=False,
+        alpha = 0.5,
+        beta  = 0.5
     ):
 
         """
@@ -36,17 +38,20 @@ class TverskyLoss(_Loss):
             to_onehot_y (bool): whether to convert `y` into the one-hot format. Defaults to False.
             do_sigmoid (bool): If True, apply a sigmoid function to the prediction.
             do_softmax (bool): If True, apply a softmax function to the prediction.
+            alpha : weight of false positives
+            beta  : weight of false negatives
         """
 
         super().__init__()
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
+
         if do_sigmoid and do_softmax:
             raise ValueError('do_sigmoid=True and do_softmax=True are not compatible.')
         self.do_sigmoid = do_sigmoid
         self.do_softmax = do_softmax
-        self.alpha = 0.5
-        self.beta  = 0.5
+        self.alpha = alpha
+        self.beta  = beta
 
     def forward(self, pred, ground, smooth=1e-5):
         """
@@ -89,7 +94,7 @@ class TverskyLoss(_Loss):
         fp = self.alpha * torch.sum( p0 * g1 , reduce_axis)
         fn = self.beta  * torch.sum( p1 * g0 , reduce_axis)
 
-        numerator = tp
+        numerator = tp + smooth
         denominator = tp + fp + fn + smooth
 
         score = numerator / denominator 

@@ -96,14 +96,13 @@ TEST_CASE_6 = [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
     0.307576,
 ]
 
+
 class TestTverskyLoss(unittest.TestCase):
 
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4,
-                           TEST_CASE_5, TEST_CASE_6])
-    def test_s(self, input_param, input_data, expected_val):
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4,TEST_CASE_5, TEST_CASE_6])
+    def test_shape(self, input_param, input_data, expected_val):
         result = TverskyLoss(**input_param).forward(**input_data)
-        self.assertAlmostEqual(result.item(), expected_val, places=5)
-
+        self.assertAlmostEqual(result.item(), expected_val, places=4)
 
 if __name__ == '__main__':
     unittest.main()
