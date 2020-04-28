@@ -28,8 +28,8 @@ class TverskyLoss(_Loss):
         to_onehot_y=False,
         do_sigmoid=False,
         do_softmax=False,
-        alpha = 0.5,
-        beta  = 0.5
+        alpha=0.5,
+        beta=0.5
     ):
 
         """
@@ -51,7 +51,7 @@ class TverskyLoss(_Loss):
         self.do_sigmoid = do_sigmoid
         self.do_softmax = do_softmax
         self.alpha = alpha
-        self.beta  = beta
+        self.beta = beta
 
     def forward(self, pred, ground, smooth=1e-5):
         """
@@ -82,21 +82,21 @@ class TverskyLoss(_Loss):
                 assert ground.shape == pred.shape, ('ground truth one-hot has differing shape (%r) from pred (%r)' %
                                                     (ground.shape, pred.shape))
 
-        p0  = pred
-        p1  = 1 - p0
-        g0  = ground
-        g1  = 1 - g0
+        p0 = pred
+        p1 = 1 - p0
+        g0 = ground
+        g1 = 1 - g0
 
         # reducing only spatial dimensions (not batch nor channels)
         reduce_axis = list(range(2, len(pred.shape)))
 
-        tp = torch.sum( p0 * g0 , reduce_axis)
-        fp = self.alpha * torch.sum( p0 * g1 , reduce_axis)
-        fn = self.beta  * torch.sum( p1 * g0 , reduce_axis)
+        tp = torch.sum(p0 * g0 , reduce_axis)
+        fp = self.alpha * torch.sum(p0 * g1 , reduce_axis)
+        fn = self.beta * torch.sum(p1 * g0 , reduce_axis)
 
         numerator = tp + smooth
         denominator = tp + fp + fn + smooth
 
         score = numerator / denominator 
-        
+
         return 1.0 - score.mean()  
