@@ -880,6 +880,11 @@ class Rotate90(Transform):
         """
         self.k = k
         self.spatial_axes = spatial_axes
+        theta = np.radians(k * 90) * np.sign(spatial_axes[1] - spatial_axes[0])
+        self.rotate_matrix = np.array([
+                [np.cos(theta), np.sin(theta)],
+                [-np.sin(theta), np.cos(theta)]
+            ])
 
     def __call__(self, img):
         """
@@ -892,6 +897,12 @@ class Rotate90(Transform):
                 np.rot90(channel, self.k, self.spatial_axes)
             )
         return np.stack(rotated)
+
+    def __call_box__(self, bboxes, center):
+        bboxes = bboxes.reshape(-1, 3) - center
+        bboxes[:, self.spatial_axes] = (self.rotate_matrix @ bboxes[:, self.spatial_axes].T).T
+        bboxes = bboxes + center
+        return bboxes.reshape(-1, 6).astype(np.int32)
 
 
 class RandRotate90(Randomizable, Transform):

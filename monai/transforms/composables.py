@@ -87,7 +87,7 @@ class Spacingd(MapTransform):
             # resample array of each corresponding key
             # using affine fetched from d[affine_key]
             d[key], _, new_affine = self.spacing_transform(
-                data_array=d[key], affine=d[affine_key], interp_order=interp)
+                data_array=d[key], affine=d.get(affine_key, None), interp_order=interp)
             # set the 'affine' key
             d[affine_key] = new_affine
         return d
@@ -349,7 +349,11 @@ class Rotate90d(MapTransform):
     def __call__(self, data):
         d = dict(data)
         for key in self.keys:
-            d[key] = self.rotator(d[key])
+            if key == 'bboxes':
+                center = np.array(d['image'].shape[1:]) // 2  # need center coordinate used to rotate
+                d[key] = self.rotator.__call_box__(d[key], center)
+            else:
+                d[key] = self.rotator(d[key])
         return d
 
 
