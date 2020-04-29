@@ -23,7 +23,7 @@ class TverskyLoss(_Loss):
     Compute the Tversky loss defined in:        
 
         Sadegh et al. (2017) Tversky loss function for image segmentation
-        using 3D fully convolutional deep networks
+        using 3D fully convolutional deep networks. (https://arxiv.org/abs/1706.05721)
 
     Adapted from:
         https://github.com/NifTK/NiftyNet/blob/v0.6.0/niftynet/layer/loss_segmentation.py#L631

@@ -21,3 +21,12 @@ Segmentation Losses
 ~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: GeneralizedDiceLoss
     :members:
+
+
+.. automodule:: monai.losses.tversky
+.. currentmodule:: monai.losses.tversky
+
+`TverskyLoss`
+~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: TverskyLoss
+    :members:
