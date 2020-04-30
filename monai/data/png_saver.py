@@ -118,7 +118,8 @@ class PngSaver:
         # change data to "channel last" format
         data = np.moveaxis(data, 0, -1)
 
-        write_png(data, file_name=filename, output_shape=spatial_shape, interp_order=self.interp_order, mode=self.mode, cval=self.cval)
+        write_png(data, file_name=filename, output_shape=spatial_shape, 
+                  interp_order=self.interp_order, mode=self.mode, cval=self.cval)
 
     def save_batch(self, batch_data, meta_data=None):
         """Save a batch of data into png format files.
