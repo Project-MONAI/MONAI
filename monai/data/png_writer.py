@@ -48,7 +48,7 @@ def write_png(data,
         assert isinstance(output_shape, (list, tuple)) and len(output_shape) == 2, 'output_shape must be a list of 2 values (H, W).'
         output_shape += (data.shape[2],)
         data = transform.resize(data, output_shape, order=interp_order, mode=mode, cval=cval)
-    
+
     data = scale_factor * data 
     data = data.astype(np.uint8)
     io.imsave(file_name, data)
