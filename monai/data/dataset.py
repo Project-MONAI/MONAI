@@ -13,9 +13,11 @@ import sys
 
 import torch
 
-from concurrent.futures import ThreadPoolExecutor
 from multiprocessing import Pool
-from threading import Lock
+from multiprocessing.pool import ThreadPool
+import multiprocessing
+import threading
+from functools import partial
 
 from monai.transforms.compose import Compose, Randomizable
 from monai.transforms.utils import apply_transform
@@ -107,54 +109,45 @@ class CacheDataset(Dataset):
         self._cache = [None] * self.cache_num
         print('Load and cache transformed data...')
         if num_workers > 0:
-            self._item_processed = 0
             if mode == "thread":
-                lock = Lock()
-
-                def _update_bar(arg):
-                    self._item_processed += 1
-                    lock.acquire()
-                    try:
-                        process_bar(self._item_processed, self.cache_num)
-                    finally:
-                        lock.release()
-                with ThreadPoolExecutor(max_workers=num_workers) as executor:
-                    for i in range(self.cache_num):
-                        future = executor.submit(self._load_cache_item_thread, i, transform, data)
-                        future.add_done_callback(_update_bar)
+                self._item_processed = 0
+                self._thread_lock = threading.Lock()
+                with ThreadPool(num_workers) as p:
+                    p.map(self._load_cache_item_thread, [(i, data[i], transform.transforms) for i in range(self.cache_num)])
             elif mode == "process":
-                def _add_item(res):
-                    item, i = res
-                    self._cache[i] = item
-                    self._item_processed += 1
-                    process_bar(self._item_processed, self.cache_num)
+                m = multiprocessing.Manager()
+                lock = m.Lock()
+                shared_counter = m.Value('i', 0)
+                partial_load_cache_item = partial(self._load_cache_item_process, lock, shared_counter)
                 with Pool(num_workers) as p:
-                    for i in range(self.cache_num):
-                        item = data[i]
-                        p.apply_async(self._load_cache_item_process, args=(i, transform, item), callback=_add_item)
-                    p.close()
-                    p.join()
+                    self._cache = p.map(partial_load_cache_item, [(transform.transforms, data[i]) for i in range(self.cache_num)])
         else:
             for i in range(self.cache_num):
-                self._load_cache_item_thread(i, transform, data)
+                self._cache[i] = self._load_cache_item(data[i], transform.transforms)
                 process_bar(i + 1, self.cache_num)
 
-    def _load_cache_item_thread(self, i, transform, data):
-        item = data[i]
-        for _transform in transform.transforms:
+    def _load_cache_item(self, item, transforms):
+        for _transform in transforms:
             # execute all the deterministic transforms before the first random transform
             if isinstance(_transform, Randomizable):
                 break
             item = apply_transform(_transform, item)
-        self._cache[i] = item
+        return item
 
-    def _load_cache_item_process(self, i, transform, item):
-        for _transform in transform.transforms:
-            # execute all the deterministic transforms before the first random transform
-            if isinstance(_transform, Randomizable):
-                break
-            item = apply_transform(_transform, item)
-        return (item, i)
+    def _load_cache_item_thread(self, args):
+        i, item, transforms = args
+        self._cache[i] = self._load_cache_item(item, transforms)
+        with self._thread_lock:
+            self._item_processed += 1
+            process_bar(self._item_processed, self.cache_num)
+
+    def _load_cache_item_process(self, lock, shared_counter, args):
+        transforms, item = args
+        item = self._load_cache_item(item, transforms)
+        with lock:
+            shared_counter.value += 1
+            process_bar(shared_counter.value, self.cache_num)
+        return item
 
     def __getitem__(self, index):
         if index < self.cache_num:
@@ -170,5 +163,4 @@ class CacheDataset(Dataset):
         else:
             # no cache for this data, execute all the transforms directly
             data = super(CacheDataset, self).__getitem__(index)
-
         return data
