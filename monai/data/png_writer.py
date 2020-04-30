@@ -46,7 +46,7 @@ def write_png(data,
 
     if output_shape is not None:
         assert isinstance(output_shape, (list, tuple)) and len(output_shape) == 2, \
-               'output_shape must be a list of 2 values (H, W).'
+            'output_shape must be a list of 2 values (H, W).'
 
         if len(data.shape) > 2:
             output_shape += (data.shape[2],)
