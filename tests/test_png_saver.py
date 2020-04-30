@@ -26,7 +26,7 @@ class TestPngSaver(unittest.TestCase):
         saver = PngSaver(output_dir=default_dir, output_postfix='seg', output_ext='.png')
 
         meta_data = {'filename_or_obj': ['testfile' + str(i) for i in range(8)]}
-        saver.save_batch(torch.randint(1,200,(8,2,2)), meta_data)
+        saver.save_batch(torch.randint(1, 200, (8, 1, 2, 2)), meta_data)
         for i in range(8):
             filepath = os.path.join('testfile' + str(i), 'testfile' + str(i) + '_seg.png')
             self.assertTrue(os.path.exists(os.path.join(default_dir, filepath)))

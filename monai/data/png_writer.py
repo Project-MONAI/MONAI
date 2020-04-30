@@ -10,16 +10,16 @@
 # limitations under the License.
 
 import numpy as np
-from skimage import io,transform
+from skimage import io, transform
 
 
 def write_png(data,
-                file_name,
-                output_shape=None,
-                interp_order=3,
-                mode='constant',
-                cval=0,
-                scale_factor=255):
+              file_name,
+              output_shape=None,
+              interp_order=3,
+              mode='constant',
+              cval=0,
+              scale_factor=255):
     """
     Write numpy data into png files to disk.  
     Spatially It supports HW for 2D.
@@ -42,15 +42,15 @@ def write_png(data,
     if scale_factor > 0:
         max_val = np.max(data)
         min_val = np.min(data)
-        data = scale_factor * (( data - min_val )/(max_val - min_val))
+        data = (data - min_val) / (max_val - min_val)
 
+    if output_shape is not None:
+        assert isinstance(output_shape, (list, tuple)) and len(output_shape) == 2, 'output_shape must be a list of 2 values (H, W).'
+        output_shape += (data.shape[2],)
+        data = transform.resize(data, output_shape, order=interp_order, mode=mode, cval=cval)
+    
+    data = scale_factor * data 
     data = data.astype(np.uint8)
-
-    if output_shape is None:
-        io.imsave(file_name,data) 
-        return
-
-    data = transform.resize(data,output_shape,order=interp_order,mode=mode,cval=cval)
-    io.imsave(file_name,data)
+    io.imsave(file_name, data)
 
     return

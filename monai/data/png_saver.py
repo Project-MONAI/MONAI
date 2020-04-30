@@ -10,9 +10,10 @@
 # limitations under the License.
 
 import os
-import numpy as np
 import torch
 from monai.data.png_writer import write_png
+
+import numpy as np
 
 
 class PngSaver:
@@ -30,15 +31,11 @@ class PngSaver:
             output_dir (str): output image directory.
             output_postfix (str): a string appended to all output file names.
             output_ext (str): output file extension name.
-            interp_order (int): the order of the spline interpolation, default is 0.
+            interp_order (int): the order of the spline interpolation, default is 0. This option is used when spatial_shape is specified and different from the data shape.
                 The order has to be in the range 0 - 5.
             mode (`reflect|constant|nearest|mirror|wrap`):
-                The mode parameter determines how the input array is extended beyond its boundaries.
-                this option is used when `resample = True`.
-            cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
-                this option is used when `resample = True`.
-            dtype (np.dtype, optional): convert the image data to save to this data type.
-                If None, keep the original type of data.
+                The mode parameter determines how the input array is extended beyond its boundaries.This option is used when spatial_shape is specified and different from the data shape.
+            cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.This option is used when spatial_shape is specified and different from the data shape.
 
         """
         self.output_dir = output_dir
@@ -110,15 +107,21 @@ class PngSaver:
 
         if torch.is_tensor(data):
             data = data.detach().cpu().numpy()
+
+
         filename = self._create_file_basename(self.output_postfix, filename, self.output_dir)
         filename = '{}{}'.format(filename, self.output_ext)
-        write_png(data, file_name=filename,output_shape=spatial_shape, interp_order=self.interp_order, mode=self.mode, cval=self.cval)
+
+        # change data to "channel last" format and write to nifti format file
+        data = np.moveaxis(data, 0, -1)
+
+        write_png(data, file_name=filename, output_shape=spatial_shape, interp_order=self.interp_order, mode=self.mode, cval=self.cval)
 
     def save_batch(self, batch_data, meta_data=None):
         """Save a batch of data into png format files.
 
         args:
-            batch_data (Tensor or ndarray): target batch data content that save into NIfTI format.
+            batch_data (Tensor or ndarray): target batch data content that save into png format.
             meta_data (dict): every key-value in the meta_data is corresponding to a batch of data.
         """
         for i, data in enumerate(batch_data):  # save a batch of files
