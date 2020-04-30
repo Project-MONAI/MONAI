@@ -17,24 +17,21 @@ from monai.data.png_writer import write_png
 
 class PngSaver:
     """
-    Save the data as NIfTI file, it can support single data content or a batch of data.
+    Save the data as png file, it can support single data content or a batch of data.
     Typically, the data can be segmentation predictions, call `save` for single data
     or call `save_batch` to save a batch of data together. If no meta data provided,
     use index from 0 as the filename prefix.
     """
 
     def __init__(self, output_dir='./', output_postfix='seg', output_ext='.png',
-                 interp_order=0, mode='constant', cval=0, dtype=None):
+                 interp_order=3, mode='constant', cval=0):
         """
         Args:
             output_dir (str): output image directory.
             output_postfix (str): a string appended to all output file names.
             output_ext (str): output file extension name.
-            resample (bool): whether to resample before saving the data array.
             interp_order (int): the order of the spline interpolation, default is 0.
                 The order has to be in the range 0 - 5.
-                https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.affine_transform.html
-                this option is used when `resample = True`.
             mode (`reflect|constant|nearest|mirror|wrap`):
                 The mode parameter determines how the input array is extended beyond its boundaries.
                 this option is used when `resample = True`.
@@ -50,7 +47,6 @@ class PngSaver:
         self.interp_order = interp_order
         self.mode = mode
         self.cval = cval
-        self.dtype = dtype
         self._data_index = 0
 
     @staticmethod
@@ -92,7 +88,7 @@ class PngSaver:
 
     def save(self, data, meta_data=None):
         """
-        Save data into a Nifti file.
+        Save data into a png file.
         The metadata could optionally have the following keys:
 
             - ``'filename_or_obj'`` -- for output file name creation, corresponding to filename or object.
@@ -102,11 +98,11 @@ class PngSaver:
 
         args:
             data (Tensor or ndarray): target data content that to be saved as a png format file.
-                Assuming the data shape starts with a channel dimension and followed by spatial dimensions.
+                Assuming the data shape are spatial dimensions.
             meta_data (dict): the meta data information corresponding to the data.
 
         See Also
-            :py:meth:`monai.data.nifti_writer.write_nifti`
+            :py:meth:`monai.data.png_writer.write_png`
         """
         filename = meta_data['filename_or_obj'] if meta_data else str(self._data_index)
         self._data_index += 1
@@ -116,7 +112,6 @@ class PngSaver:
             data = data.detach().cpu().numpy()
         filename = self._create_file_basename(self.output_postfix, filename, self.output_dir)
         filename = '{}{}'.format(filename, self.output_ext)
-        # change data to "channel last" format and write to nifti format file
         write_png(data, file_name=filename,output_shape=spatial_shape, interp_order=self.interp_order, mode=self.mode, cval=self.cval)
 
     def save_batch(self, batch_data, meta_data=None):
