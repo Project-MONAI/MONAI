@@ -39,7 +39,7 @@ class TestPngSaver(unittest.TestCase):
 
         saver = PngSaver(output_dir=default_dir, output_postfix='seg', output_ext='.png')
 
-        meta_data = {'filename_or_obj': ['testfile' + str(i) for i in range(8)],'spatial_shape':[(4,4) for i in range(8)]}
+        meta_data = {'filename_or_obj': ['testfile' + str(i) for i in range(8)], 'spatial_shape' : [(4, 4) for i in range(8)]}
         saver.save_batch(torch.randint(1, 200, (8, 1, 2, 2)), meta_data)
         for i in range(8):
             filepath = os.path.join('testfile' + str(i), 'testfile' + str(i) + '_seg.png')

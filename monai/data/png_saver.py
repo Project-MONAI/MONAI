@@ -31,11 +31,14 @@ class PngSaver:
             output_dir (str): output image directory.
             output_postfix (str): a string appended to all output file names.
             output_ext (str): output file extension name.
-            interp_order (int): the order of the spline interpolation, default is 0. This option is used when spatial_shape is specified and different from the data shape.
+            interp_order (int): the order of the spline interpolation, default is 0. 
+                This option is used when spatial_shape is specified and different from the data shape.
                 The order has to be in the range 0 - 5.
             mode (`reflect|constant|nearest|mirror|wrap`):
-                The mode parameter determines how the input array is extended beyond its boundaries.This option is used when spatial_shape is specified and different from the data shape.
-            cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.This option is used when spatial_shape is specified and different from the data shape.
+                The mode parameter determines how the input array is extended beyond its boundaries.
+                This option is used when spatial_shape is specified and different from the data shape.
+            cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
+                This option is used when spatial_shape is specified and different from the data shape.
 
         """
         self.output_dir = output_dir
@@ -112,7 +115,7 @@ class PngSaver:
         filename = self._create_file_basename(self.output_postfix, filename, self.output_dir)
         filename = '{}{}'.format(filename, self.output_ext)
 
-        # change data to "channel last" format and write to nifti format file
+        # change data to "channel last" format
         data = np.moveaxis(data, 0, -1)
 
         write_png(data, file_name=filename, output_shape=spatial_shape, interp_order=self.interp_order, mode=self.mode, cval=self.cval)
