@@ -68,8 +68,8 @@ Users are encouraged to use these common routines to improve code readability an
 
 Notably,
 - ``monai.module.export`` decorator can make the module name shorter when importing,
-for example, ``import monai.transforms.Spacing`` is the equivalent of ``monai.transforms.transforms.Spacing`` if
-``class Spacing`` defined in file `monai/transforms/transforms.py` is decorated with ``@export("monai.transforms")``.
+for example, ``import monai.transforms.Spacing`` is the equivalent of ``monai.transforms.spatial.array.Spacing`` if
+``class Spacing`` defined in file `monai/transforms/spatial/array.py` is decorated with ``@export("monai.transforms")``.
 
 ### Building the documentation
 To build documentation via Sphinx in`docs/` folder:
