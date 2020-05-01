@@ -13,6 +13,9 @@ import sys
 
 import torch
 
+from multiprocessing.pool import ThreadPool
+import threading
+
 from monai.transforms.compose import Compose, Randomizable
 from monai.transforms.utils import apply_transform
 from monai.utils import process_bar
@@ -84,7 +87,7 @@ class CacheDataset(Dataset):
     and the outcome not cached.
     """
 
-    def __init__(self, data, transform, cache_num=sys.maxsize, cache_rate=1.0):
+    def __init__(self, data, transform, cache_num=sys.maxsize, cache_rate=1.0, num_workers=0):
         """
         Args:
             data (Iterable): input data to load and transform to generate dataset for model.
@@ -93,22 +96,39 @@ class CacheDataset(Dataset):
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
             cache_rate (float): percentage of cached data in total, default is 1.0 (cache all).
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
+            num_workers (int): the number of worker processes to use.
+                If 0 a single thread will be used. Default is 0.
         """
         if not isinstance(transform, Compose):
             transform = Compose(transform)
         super().__init__(data, transform)
         self.cache_num = min(cache_num, int(len(self) * cache_rate), len(self))
-        self._cache = list()
+        self._cache = [None] * self.cache_num
         print('Load and cache transformed data...')
-        for i in range(self.cache_num):
-            process_bar(i + 1, self.cache_num)
-            item = data[i]
-            for _transform in transform.transforms:
-                # execute all the deterministic transforms before the first random transform
-                if isinstance(_transform, Randomizable):
-                    break
-                item = apply_transform(_transform, item)
-            self._cache.append(item)
+        if num_workers > 0:
+            self._item_processed = 0
+            self._thread_lock = threading.Lock()
+            with ThreadPool(num_workers) as p:
+                p.map(self._load_cache_item_thread, [(i, data[i], transform.transforms) for i in range(self.cache_num)])
+        else:
+            for i in range(self.cache_num):
+                self._cache[i] = self._load_cache_item(data[i], transform.transforms)
+                process_bar(i + 1, self.cache_num)
+
+    def _load_cache_item(self, item, transforms):
+        for _transform in transforms:
+            # execute all the deterministic transforms before the first random transform
+            if isinstance(_transform, Randomizable):
+                break
+            item = apply_transform(_transform, item)
+        return item
+
+    def _load_cache_item_thread(self, args):
+        i, item, transforms = args
+        self._cache[i] = self._load_cache_item(item, transforms)
+        with self._thread_lock:
+            self._item_processed += 1
+            process_bar(self._item_processed, self.cache_num)
 
     def __getitem__(self, index):
         if index < self.cache_num:
@@ -124,5 +144,4 @@ class CacheDataset(Dataset):
         else:
             # no cache for this data, execute all the transforms directly
             data = super(CacheDataset, self).__getitem__(index)
-
         return data
