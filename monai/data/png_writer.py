@@ -22,7 +22,7 @@ def write_png(data,
               scale_factor=255):
     """
     Write numpy data into png files to disk.  
-    Spatially It supports HW for 2D.
+    Spatially It supports HW for 2D.(H,W) or (H,W,3) or (H,W,4)
 
     Args:
         data (numpy.ndarray): input data to write to file.
@@ -48,7 +48,7 @@ def write_png(data,
         assert isinstance(output_shape, (list, tuple)) and len(output_shape) == 2, \
             'output_shape must be a list of 2 values (H, W).'
 
-        if len(data.shape) > 2:
+        if 2 < len(data.shape) < 5:
             output_shape += (data.shape[2],)
 
         data = transform.resize(data, output_shape, order=interp_order, mode=mode, cval=cval)

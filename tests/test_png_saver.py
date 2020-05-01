@@ -32,6 +32,19 @@ class TestPngSaver(unittest.TestCase):
             self.assertTrue(os.path.exists(os.path.join(default_dir, filepath)))
         shutil.rmtree(default_dir)
 
+    def test_saved_content_three_channel(self):
+        default_dir = os.path.join('.', 'tempdir')
+        shutil.rmtree(default_dir, ignore_errors=True)
+
+        saver = PngSaver(output_dir=default_dir, output_postfix='seg', output_ext='.png')
+
+        meta_data = {'filename_or_obj': ['testfile' + str(i) for i in range(8)]}
+        saver.save_batch(torch.randint(1, 200, (8, 3, 2, 2)), meta_data)
+        for i in range(8):
+            filepath = os.path.join('testfile' + str(i), 'testfile' + str(i) + '_seg.png')
+            self.assertTrue(os.path.exists(os.path.join(default_dir, filepath)))
+        shutil.rmtree(default_dir)
+
     def test_saved_content_spatial_size(self):
 
         default_dir = os.path.join('.', 'tempdir')

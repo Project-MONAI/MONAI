@@ -100,7 +100,7 @@ class PngSaver:
             data (Tensor or ndarray): target data content that to be saved as a png format file.
                 Assuming the data shape are spatial dimensions.
                 Shape of the spatial dimensions (C,H,W).
-                C should be 1-4
+                C should be 1, 3 or 4
             meta_data (dict): the meta data information corresponding to the data.
 
         See Also
@@ -119,10 +119,10 @@ class PngSaver:
 
         if data.shape[0] == 1:
             data = data.squeeze(0)
-        elif 1 < data.shape[0] < 5:
+        elif 2 < data.shape[0] < 5:
             data = np.moveaxis(data, 0, -1)
         else:
-            raise ValueError('PNG image should only have 1 - 4 channels.') 
+            raise ValueError('PNG image should only have 1, 3 or 4 channels.') 
 
         write_png(data, file_name=filename, output_shape=spatial_shape, 
                   interp_order=self.interp_order, mode=self.mode, cval=self.cval)
