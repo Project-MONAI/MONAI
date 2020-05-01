@@ -17,7 +17,7 @@ import tempfile
 import nibabel as nib
 from parameterized import parameterized
 from monai.data import Dataset
-from monai.transforms import LoadNiftid
+from monai.transforms import Compose, LoadNiftid, SimulateDelayd
 
 TEST_CASE_1 = [
     (128, 128, 128)
@@ -48,7 +48,10 @@ class TestDataset(unittest.TestCase):
                 'extra': os.path.join(tempdir, 'test_extra2.nii.gz')
             }
         ]
-        dataset = Dataset(data=test_data, transform=LoadNiftid(keys=['image', 'label', 'extra']))
+        test_transform = Compose([LoadNiftid(keys=['image', 'label', 'extra']),
+                                  SimulateDelayd(keys=['image', 'label', 'extra'],
+                                                 delay_time=[1e-7, 1e-6, 1e-5])])
+        dataset = Dataset(data=test_data, transform=test_transform)
         data1 = dataset[0]
         data2 = dataset[1]
         shutil.rmtree(tempdir)
