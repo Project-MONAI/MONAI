@@ -13,11 +13,8 @@ import sys
 
 import torch
 
-from multiprocessing import Pool
 from multiprocessing.pool import ThreadPool
-import multiprocessing
 import threading
-from functools import partial
 
 from monai.transforms.compose import Compose, Randomizable
 from monai.transforms.utils import apply_transform
@@ -90,7 +87,7 @@ class CacheDataset(Dataset):
     and the outcome not cached.
     """
 
-    def __init__(self, data, transform, cache_num=sys.maxsize, cache_rate=1.0, num_workers=0, mode="thread"):
+    def __init__(self, data, transform, cache_num=sys.maxsize, cache_rate=1.0, num_workers=0):
         """
         Args:
             data (Iterable): input data to load and transform to generate dataset for model.
@@ -109,18 +106,10 @@ class CacheDataset(Dataset):
         self._cache = [None] * self.cache_num
         print('Load and cache transformed data...')
         if num_workers > 0:
-            if mode == "thread":
-                self._item_processed = 0
-                self._thread_lock = threading.Lock()
-                with ThreadPool(num_workers) as p:
-                    p.map(self._load_cache_item_thread, [(i, data[i], transform.transforms) for i in range(self.cache_num)])
-            elif mode == "process":
-                m = multiprocessing.Manager()
-                lock = m.Lock()
-                shared_counter = m.Value('i', 0)
-                partial_load_cache_item = partial(self._load_cache_item_process, lock, shared_counter)
-                with Pool(num_workers) as p:
-                    self._cache = p.map(partial_load_cache_item, [(transform.transforms, data[i]) for i in range(self.cache_num)])
+            self._item_processed = 0
+            self._thread_lock = threading.Lock()
+            with ThreadPool(num_workers) as p:
+                p.map(self._load_cache_item_thread, [(i, data[i], transform.transforms) for i in range(self.cache_num)])
         else:
             for i in range(self.cache_num):
                 self._cache[i] = self._load_cache_item(data[i], transform.transforms)
@@ -140,14 +129,6 @@ class CacheDataset(Dataset):
         with self._thread_lock:
             self._item_processed += 1
             process_bar(self._item_processed, self.cache_num)
-
-    def _load_cache_item_process(self, lock, shared_counter, args):
-        transforms, item = args
-        item = self._load_cache_item(item, transforms)
-        with lock:
-            shared_counter.value += 1
-            process_bar(shared_counter.value, self.cache_num)
-        return item
 
     def __getitem__(self, index):
         if index < self.cache_num:
