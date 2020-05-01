@@ -10,7 +10,7 @@
 # limitations under the License.
 """
 A collection of dictionary-based wrappers around the "vanilla" transforms for intensity adjustment
-defined in :py:class:`monai.transforms.transforms`.
+defined in :py:class:`monai.transforms.intensity.array`.
 
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
@@ -60,7 +60,7 @@ class RandGaussianNoised(Randomizable, MapTransform):
 
 class ShiftIntensityd(MapTransform):
     """
-    dictionary-based wrapper of :py:class:`monai.transforms.transforms.ShiftIntensity`.
+    dictionary-based wrapper of :py:class:`monai.transforms.ShiftIntensity`.
     """
 
     def __init__(self, keys, offset):
@@ -82,7 +82,7 @@ class ShiftIntensityd(MapTransform):
 
 class RandShiftIntensityd(Randomizable, MapTransform):
     """
-    dictionary-based version :py:class:`monai.transforms.transforms.RandShiftIntensity`.
+    dictionary-based version :py:class:`monai.transforms.RandShiftIntensity`.
     """
 
     def __init__(self, keys, offsets, prob=0.1):
@@ -118,7 +118,7 @@ class RandShiftIntensityd(Randomizable, MapTransform):
 
 class ScaleIntensityd(MapTransform):
     """
-    dictionary-based wrapper of :py:class:`monai.transforms.transforms.ScaleIntensity`.
+    dictionary-based wrapper of :py:class:`monai.transforms.ScaleIntensity`.
     Scale the intensity of input image to the given value range (minv, maxv).
     If `minv` and `maxv` not provided, use `factor` to scale image by ``v = v * (1 + factor)``.
     """
@@ -145,7 +145,7 @@ class ScaleIntensityd(MapTransform):
 
 class RandScaleIntensityd(Randomizable, MapTransform):
     """
-    dictionary-based version :py:class:`monai.transforms.transforms.RandScaleIntensity`.
+    dictionary-based version :py:class:`monai.transforms.RandScaleIntensity`.
     """
 
     def __init__(self, keys, factors, prob=0.1, dtype=np.float32):
@@ -183,13 +183,13 @@ class RandScaleIntensityd(Randomizable, MapTransform):
 
 class NormalizeIntensityd(MapTransform):
     """
-    dictionary-based wrapper of :py:class:`monai.transforms.transforms.NormalizeIntensity`.
+    dictionary-based wrapper of :py:class:`monai.transforms.NormalizeIntensity`.
     This transform can normalize only non-zero values or entire image, and can also calculate
     mean and std on each channel separately.
 
     Args:
         keys (hashable items): keys of the corresponding items to be transformed.
-            See also: monai.transform.composables.MapTransform
+            See also: monai.transforms.MapTransform
         subtrahend (ndarray): the amount to subtract by (usually the mean)
         divisor (ndarray): the amount to divide by (usually the standard deviation)
         nonzero (bool): whether only normalize non-zero values.
@@ -214,7 +214,7 @@ class ThresholdIntensityd(MapTransform):
 
     Args:
         keys (hashable items): keys of the corresponding items to be transformed.
-            See also: monai.transform.composables.MapTransform
+            See also: monai.transforms.MapTransform
         threshold (float or int): the threshold to filter intensity values.
         above (bool): filter values above the threshold or below the threshold, default is True.
         cval (float or int): value to fill the remaining parts of the image, default is 0.
@@ -237,7 +237,7 @@ class ScaleIntensityRanged(MapTransform):
 
     Args:
         keys (hashable items): keys of the corresponding items to be transformed.
-            See also: monai.transform.composables.MapTransform
+            See also: monai.transforms.MapTransform
         a_min (int or float): intensity original range min.
         a_max (int or float): intensity original range max.
         b_min (int or float): intensity target range min.
@@ -287,7 +287,7 @@ class RandAdjustContrastd(Randomizable, MapTransform):
 
     Args:
         keys (hashable items): keys of the corresponding items to be transformed.
-            See also: monai.transform.composables.MapTransform
+            See also: monai.transforms.MapTransform
         prob (float): Probability of adjustment.
         gamma (tuple of float or float): Range of gamma values.
             If single number, value is picked from (0.5, gamma), default is (0.5, 4.5).

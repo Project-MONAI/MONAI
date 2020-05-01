@@ -10,7 +10,7 @@
 # limitations under the License.
 """
 A collection of dictionary-based wrappers around the "vanilla" transforms for spatial operations
-defined in :py:class:`monai.transforms.transforms`.
+defined in :py:class:`monai.transforms.spatial.array`.
 
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
@@ -27,7 +27,7 @@ from monai.utils.misc import ensure_tuple
 
 class Spacingd(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.transforms.Spacing`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.Spacing`.
 
     This transform assumes the ``data`` dictionary has a key for the input
     data's affine.  The key is formed by ``meta_key_format.format(key, 'affine')``.
@@ -36,7 +36,7 @@ class Spacingd(MapTransform):
      to the key formed by ``meta_key_format.format(key, 'affine')``.
 
     see also:
-        :py:class:`monai.transforms.transforms.Spacing`
+        :py:class:`monai.transforms.Spacing`
     """
 
     def __init__(self, keys, pixdim, diagonal=False, mode='constant', cval=0,
@@ -89,7 +89,7 @@ class Spacingd(MapTransform):
 
 class Orientationd(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.transforms.Orientation`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.Orientation`.
 
     This transform assumes the ``data`` dictionary has a key for the input
     data's affine.  The key is formed by ``meta_key_format.format(key, 'affine')``.
@@ -230,7 +230,7 @@ class Resized(MapTransform):
 
 class RandAffined(Randomizable, MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.transforms.RandAffine`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.RandAffine`.
     """
 
     def __init__(self, keys,
@@ -298,7 +298,7 @@ class RandAffined(Randomizable, MapTransform):
 
 class Rand2DElasticd(Randomizable, MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.transforms.Rand2DElastic`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.Rand2DElastic`.
     """
 
     def __init__(self, keys,
@@ -369,7 +369,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
 
 class Rand3DElasticd(Randomizable, MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.transforms.Rand3DElastic`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.Rand3DElastic`.
     """
 
     def __init__(self, keys,

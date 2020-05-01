@@ -10,7 +10,7 @@
 # limitations under the License.
 """
 A collection of dictionary-based wrappers around the "vanilla" transforms for crop and pad operations
-defined in :py:class:`monai.transforms.transforms`.
+defined in :py:class:`monai.transforms.croppad.array`.
 
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
@@ -83,7 +83,7 @@ class CenterSpatialCropd(MapTransform):
 
     Args:
         keys (hashable items): keys of the corresponding items to be transformed.
-            See also: monai.transform.composables.MapTransform
+            See also: monai.transforms.MapTransform
         roi_size (list, tuple): the size of the crop region e.g. [224,224,128]
     """
 
@@ -107,7 +107,7 @@ class RandSpatialCropd(Randomizable, MapTransform):
 
     Args:
         keys (hashable items): keys of the corresponding items to be transformed.
-            See also: monai.transform.composables.MapTransform
+            See also: monai.transforms.MapTransform
         roi_size (list, tuple): if `random_size` is True, the spatial size of the minimum crop region.
             if `random_size` is False, specify the expected ROI size to crop. e.g. [224, 224, 128]
         random_center (bool): crop at random position as center or the image center.
@@ -142,7 +142,7 @@ class RandSpatialCropd(Randomizable, MapTransform):
 
 class CropForegroundd(MapTransform):
     """
-    dictionary-based version :py:class:`monai.transforms.transforms.CropForeground`.
+    dictionary-based version :py:class:`monai.transforms.CropForeground`.
     Crop only the foreground object of the expected images.
     The typical usage is to help training and evaluation if the valid part is small in the whole medical image.
     The valid part can be determined by any field in the data with `source_key`, for example:

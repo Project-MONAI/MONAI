@@ -10,7 +10,7 @@
 # limitations under the License.
 """
 A collection of dictionary-based wrappers around the "vanilla" transforms for utility functions
-defined in :py:class:`monai.transforms.transforms`.
+defined in :py:class:`monai.transforms.utility.array`.
 
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
@@ -18,73 +18,8 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 import numpy as np
 
 from monai.transforms.compose import MapTransform
-from monai.transforms.utility.array import AddChannel, AsChannelFirst, LoadNifti, ToTensor, \
-    LoadPNG, AsChannelLast, CastToType, RepeatChannel, SqueezeDim
-
-
-class LoadNiftid(MapTransform):
-    """
-    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.LoadNifti`,
-    must load image and metadata together. If loading a list of files in one key,
-    stack them together and add a new dimension as the first dimension, and use the
-    meta data of the first image to represent the stacked result. Note that the affine
-    transform of all the stacked images should be same. The output metadata field will
-    be created as ``self.meta_key_format(key, metadata_key)``.
-    """
-
-    def __init__(self, keys, as_closest_canonical=False, dtype=np.float32,
-                 meta_key_format='{}.{}', overwriting_keys=False):
-        """
-        Args:
-            keys (hashable items): keys of the corresponding items to be transformed.
-                See also: :py:class:`monai.transforms.compose.MapTransform`
-            as_closest_canonical (bool): if True, load the image as closest to canonical axis format.
-            dtype (np.dtype, optional): if not None convert the loaded image to this data type.
-            meta_key_format (str): key format to store meta data of the nifti image.
-                it must contain 2 fields for the key of this image and the key of every meta data item.
-            overwriting_keys (bool): whether allow to overwrite existing keys of meta data.
-                default is False, which will raise exception if encountering existing key.
-        """
-        super().__init__(keys)
-        self.loader = LoadNifti(as_closest_canonical, False, dtype)
-        self.meta_key_format = meta_key_format
-        self.overwriting_keys = overwriting_keys
-
-    def __call__(self, data):
-        d = dict(data)
-        for key in self.keys:
-            data = self.loader(d[key])
-            assert isinstance(data, (tuple, list)), 'loader must return a tuple or list.'
-            d[key] = data[0]
-            assert isinstance(data[1], dict), 'metadata must be a dict.'
-            for k in sorted(data[1]):
-                key_to_add = self.meta_key_format.format(key, k)
-                if key_to_add in d and not self.overwriting_keys:
-                    raise KeyError('meta data key {} already exists.'.format(key_to_add))
-                d[key_to_add] = data[1][k]
-        return d
-
-
-class LoadPNGd(MapTransform):
-    """
-    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.LoadPNG`.
-    """
-
-    def __init__(self, keys, dtype=np.float32):
-        """
-        Args:
-            keys (hashable items): keys of the corresponding items to be transformed.
-                See also: :py:class:`monai.transforms.compose.MapTransform`
-            dtype (np.dtype, optional): if not None convert the loaded image to this data type.
-        """
-        super().__init__(keys)
-        self.loader = LoadPNG(dtype)
-
-    def __call__(self, data):
-        d = dict(data)
-        for key in self.keys:
-            d[key] = self.loader(d[key])
-        return d
+from monai.transforms.utility.array import AddChannel, AsChannelFirst, ToTensor, \
+    AsChannelLast, CastToType, RepeatChannel, SqueezeDim
 
 
 class AsChannelFirstd(MapTransform):
@@ -154,7 +89,7 @@ class AddChanneld(MapTransform):
 
 class RepeatChanneld(MapTransform):
     """
-    dictionary-based wrapper of :py:class:`monai.transforms.transforms.RepeatChannel`.
+    dictionary-based wrapper of :py:class:`monai.transforms.RepeatChannel`.
     """
 
     def __init__(self, keys, repeats):
@@ -237,7 +172,7 @@ class DeleteKeysd(MapTransform):
 
 class SqueezeDimd(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.transforms.SqueezeDim`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.SqueezeDim`.
     """
 
     def __init__(self, keys, dim=None):
@@ -258,8 +193,6 @@ class SqueezeDimd(MapTransform):
         return d
 
 
-LoadNiftiD = LoadNiftiDict = LoadNiftid
-LoadPNGD = LoadPNGDict = LoadPNGd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
 AddChannelD = AddChannelDict = AddChanneld
