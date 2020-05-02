@@ -19,7 +19,7 @@ import numpy as np
 
 from monai.transforms.compose import MapTransform
 from monai.transforms.utility.array import AddChannel, AsChannelFirst, ToTensor, \
-    AsChannelLast, CastToType, RepeatChannel, SqueezeDim
+    AsChannelLast, CastToType, RepeatChannel, SqueezeDim, DataStats
 
 
 class AsChannelFirstd(MapTransform):
@@ -193,6 +193,41 @@ class SqueezeDimd(MapTransform):
         return d
 
 
+class DataStatsd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.DataStats`.
+    """
+
+    def __init__(
+        self,
+        keys,
+        prefix='Data',
+        data_shape=True,
+        intensity_range=True,
+        data_value=False,
+        additional_info=None
+    ):
+        """
+        Args:
+            keys (hashable items): keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            prefix (string): will be printed in format: "{prefix} statistics".
+            data_shape (bool): whether to show the shape of input data.
+            intensity_range (bool): whether to show the intensity value range of input data.
+            data_value (bool): whether to show the raw value of input data.
+                a typical example is to print some properties of Nifti image: affine, pixdim, etc.
+            additional_info (Callable): user can define callable function to extract additional info from input data.
+        """
+        super().__init__(keys)
+        self.printer = DataStats(prefix, data_shape, intensity_range, data_value, additional_info)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.printer(d[key])
+        return d
+
+
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
 AddChannelD = AddChannelDict = AddChanneld
@@ -201,3 +236,4 @@ CastToTypeD = CastToTypeDict = CastToTyped
 ToTensorD = ToTensorDict = ToTensord
 DeleteKeysD = DeleteKeysDict = DeleteKeysd
 SqueezeDimD = SqueezeDimDict = SqueezeDimd
+DataStatsD = DataStatsDict = DataStatsd

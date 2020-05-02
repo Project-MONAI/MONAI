@@ -303,6 +303,12 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
+`DataStats`
+~~~~~~~~~~~
+.. autoclass:: DataStats
+    :members:
+    :special-members: __call__
+
 Dictionary-based Transforms
 ----------------------------
 
@@ -546,6 +552,12 @@ Dictionary-based Transforms
 `SqueezeDimd`
 ~~~~~~~~~~~~~
 .. autoclass:: SqueezeDimd
+    :members:
+    :special-members: __call__
+
+`DataStatsd`
+~~~~~~~~~~~~
+.. autoclass:: DataStatsd
     :members:
     :special-members: __call__
 

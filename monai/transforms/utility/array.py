@@ -13,6 +13,7 @@ A collection of "vanilla" transforms for utility functions
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
+from typing import Callable
 import numpy as np
 import torch
 from monai.transforms.compose import Transform
@@ -162,3 +163,48 @@ class SqueezeDim(Transform):
             img (ndarray): numpy arrays with required dimension `dim` removed
         """
         return np.squeeze(img, self.dim)
+
+
+class DataStats(Transform):
+    """
+    Utility transform to show the statistics of data for debug or analysis.
+    It can be inserted into any place of a transform chain and check results of previous transforms.
+    """
+    def __init__(
+        self,
+        prefix='Data',
+        data_shape=True,
+        intensity_range=True,
+        data_value=False,
+        additional_info: Callable = None
+    ):
+        """
+        Args:
+            prefix (string): will be printed in format: "{prefix} statistics".
+            data_shape (bool): whether to show the shape of input data.
+            intensity_range (bool): whether to show the intensity value range of input data.
+            data_value (bool): whether to show the raw value of input data.
+                a typical example is to print some properties of Nifti image: affine, pixdim, etc.
+            additional_info (Callable): user can define callable function to extract additional info from input data.
+        """
+        assert isinstance(prefix, str), 'prefix must be a string.'
+        self.prefix = prefix
+        self.data_shape = data_shape
+        self.intensity_range = intensity_range
+        self.data_value = data_value
+        if additional_info is not None:
+            assert isinstance(additional_info, Callable), 'additional_info must be a Callable function.'
+        self.additional_info = additional_info
+        self.output = None
+
+    def __call__(self, img):
+        data_shape_info = '\nShape: {}'.format(img.shape) if self.data_shape else ''
+        intensity_range_info = \
+            '\nIntensity range: ({}, {})'.format(np.min(img), np.max(img)) if self.intensity_range else ''
+        data_value_info = '\nValue: {}'.format(img) if self.data_value else ''
+        additional_info = \
+            '\nAdditional_info: {}'.format(self.additional_info(img)) if self.additional_info else ''
+        self.output = '{} statistics:{}{}{}{}'.format(self.prefix, data_shape_info, intensity_range_info,
+                                                      data_value_info, additional_info)
+        print(self.output)
+        return img
