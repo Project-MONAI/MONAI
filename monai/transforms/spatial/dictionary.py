@@ -132,7 +132,7 @@ class Orientationd(MapTransform):
 
 class Rotate90d(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.Rotate90`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.Rotate90`.
     """
 
     def __init__(self, keys, k=1, spatial_axes=(0, 1)):
@@ -153,7 +153,7 @@ class Rotate90d(MapTransform):
 
 
 class RandRotate90d(Randomizable, MapTransform):
-    """Dictionary-based version :py:class:`monai.transforms.transfroms.RandRotate90`.
+    """Dictionary-based version :py:class:`monai.transforms.RandRotate90`.
     With probability `prob`, input arrays are rotated by 90 degrees
     in the plane specified by `spatial_axes`.
     """
@@ -197,7 +197,7 @@ class RandRotate90d(Randomizable, MapTransform):
 
 class Resized(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.Resize`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.Resize`.
 
     Args:
         keys (hashable items): keys of the corresponding items to be transformed.
@@ -440,7 +440,7 @@ class Rand3DElasticd(Randomizable, MapTransform):
 
 
 class Flipd(MapTransform):
-    """Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.Flip`.
+    """Dictionary-based wrapper of :py:class:`monai.transforms.Flip`.
 
     See `numpy.flip` for additional details.
     https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
@@ -462,7 +462,7 @@ class Flipd(MapTransform):
 
 
 class RandFlipd(Randomizable, MapTransform):
-    """Dictionary-based version :py:class:`monai.transforms.transfroms.RandFlip`.
+    """Dictionary-based version :py:class:`monai.transforms.RandFlip`.
 
     See `numpy.flip` for additional details.
     https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
@@ -494,7 +494,7 @@ class RandFlipd(Randomizable, MapTransform):
 
 
 class Rotated(MapTransform):
-    """Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.Rotate`.
+    """Dictionary-based wrapper of :py:class:`monai.transforms.Rotate`.
 
     Args:
         keys (dict): Keys to pick data for transformation.
@@ -525,7 +525,7 @@ class Rotated(MapTransform):
 
 
 class RandRotated(Randomizable, MapTransform):
-    """Dictionary-based version :py:class:`monai.transforms.transfroms.RandRotate`
+    """Dictionary-based version :py:class:`monai.transforms.RandRotate`
     Randomly rotates the input arrays.
 
     Args:
@@ -580,7 +580,7 @@ class RandRotated(Randomizable, MapTransform):
 
 
 class Zoomd(MapTransform):
-    """Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.Zoom`.
+    """Dictionary-based wrapper of :py:class:`monai.transforms.Zoom`.
 
     Args:
         zoom (float or sequence): The zoom factor along the spatial axes.
@@ -608,7 +608,7 @@ class Zoomd(MapTransform):
 
 
 class RandZoomd(Randomizable, MapTransform):
-    """Dict-based version :py:class:`monai.transforms.transfroms.RandZoom`.
+    """Dict-based version :py:class:`monai.transforms.RandZoom`.
 
     Args:
         keys (dict): Keys to pick data for transformation.

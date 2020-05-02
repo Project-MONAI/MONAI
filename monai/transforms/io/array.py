@@ -101,14 +101,16 @@ class LoadNifti(Transform):
 class LoadPNG(Transform):
     """
     Load common 2D image format (PNG, JPG, etc. using PIL) file or files from provided path.
-    It's based on the Image module in PIL library.
+    It's based on the Image module in PIL library:
+    https://pillow.readthedocs.io/en/stable/reference/Image.html
     """
 
-    def __init__(self, dtype=np.float32):
+    def __init__(self, image_only=False, dtype=np.float32):
         """Args:
+            image_only (bool): if True return only the image volume, otherwise return image data array and metadata.
             dtype (np.dtype, optional): if not None convert the loaded image to this data type.
-
         """
+        self.image_only = image_only
         self.dtype = dtype
 
     def __call__(self, filename):
@@ -118,10 +120,30 @@ class LoadPNG(Transform):
         """
         filename = ensure_tuple(filename)
         img_array = list()
+        compatible_meta = None
         for name in filename:
-            img = np.asarray(Image.open(name))
+            img = Image.open(name)
+            data = np.asarray(img)
             if self.dtype:
-                img = img.astype(self.dtype)
-            img_array.append(img)
+                data = data.astype(self.dtype)
+            img_array.append(data)
+            meta = dict()
+            meta['filename_or_obj'] = name
+            meta['spatial_shape'] = data.shape[:2]
+            meta['format'] = img.format
+            meta['mode'] = img.mode
+            meta['width'] = img.width
+            meta['height'] = img.height
+            meta['info'] = img.info
 
-        return np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
+            if self.image_only:
+                continue
+
+            if not compatible_meta:
+                compatible_meta = meta
+            else:
+                assert np.allclose(meta['spatial_shape'], compatible_meta['spatial_shape']), \
+                    'all the images in the list should have same spatial shape.'
+
+        img_array = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
+        return img_array if self.image_only else (img_array, compatible_meta)
