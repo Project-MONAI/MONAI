@@ -30,8 +30,6 @@ do
         ;;
         --quick)
             doQuickTests=true
-            doCoverage=true
-            export QUICKTEST=True
         ;;
         --net)
             doNetTests=true
@@ -49,6 +47,13 @@ do
     esac
 done
 
+# When running --quick, require doCoverage as well and set QUICKTEST environmental
+# variable to disable slow unit tests from running.
+if [ "$doQuickTests" = 'true' ]
+then
+    doCoverage=true
+    export QUICKTEST=True
+fi
 
 # commands are echoed instead of run in this case
 if [ "$doDryRun" = 'true' ]
@@ -57,9 +62,8 @@ then
     cmdprefix="dryrun "
 
     # create a dry run function which prints the command prepended with spaces for neatness
-    function dryrun { echo "  " $* ; }
+    function dryrun { echo "  " "$@" ; }
 fi
-
 
 # set command and clear previous coverage data
 if [ "$doCoverage" = 'true' ]
@@ -84,17 +88,17 @@ if [ "$doNetTests" = 'true' ]
 then
     for i in tests/integration_*.py
     do
-        echo $i
-        ${cmdprefix}${cmd} $i
+        echo "$i"
+        ${cmdprefix}${cmd} "$i"
     done
 fi
 
-
-# # run model zoo tests
-# if [ "$doZooTests" = 'true' ]
-# then
-# fi
-
+# run model zoo tests
+if [ "$doZooTests" = 'true' ]
+then
+    echo "ERROR:  --zoo options not yet implemented"
+    exit 255
+fi
 
 # report on coverage
 if [ "$doCoverage" = 'true' ]
