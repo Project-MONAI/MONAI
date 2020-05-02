@@ -15,7 +15,7 @@ from torch.utils.data import Dataset
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
 
 from monai.data.utils import correct_nifti_header_if_necessary
-from monai.transforms.compose import Randomizable
+from monai.transforms import Randomizable
 
 
 def load_nifti(filename_or_obj, as_closest_canonical=False, image_only=True, dtype=None):

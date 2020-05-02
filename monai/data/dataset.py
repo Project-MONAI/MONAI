@@ -16,7 +16,7 @@ import torch
 from multiprocessing.pool import ThreadPool
 import threading
 
-from monai.transforms.compose import Compose, Randomizable
+from monai.transforms import Compose, Randomizable
 from monai.transforms.utils import apply_transform
 from monai.utils import process_bar
 
