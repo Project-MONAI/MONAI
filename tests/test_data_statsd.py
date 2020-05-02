@@ -100,6 +100,7 @@ class TestDataStatsd(unittest.TestCase):
     def test_file(self, input_data, expected_print):
         with tempfile.TemporaryDirectory() as tempdir:
             filename = os.path.join(tempdir, 'test.log')
+            handler = logging.FileHandler(filename, mode='w')
             input_param = {
                 'keys': 'img',
                 'prefix': 'test data',
@@ -107,10 +108,11 @@ class TestDataStatsd(unittest.TestCase):
                 'intensity_range': True,
                 'data_value': True,
                 'additional_info': lambda x: np.mean(x),
-                'logger_handler': logging.FileHandler(filename, mode='w')
+                'logger_handler': handler
             }
             transform = DataStatsd(**input_param)
             _ = transform(input_data)
+            handler.stream.close()
             with open(filename, 'r') as f:
                 content = f.read()
                 self.assertEqual(content, expected_print)
