@@ -14,6 +14,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 from typing import Callable
+import logging
 import numpy as np
 import torch
 from monai.transforms.compose import Transform
@@ -176,7 +177,8 @@ class DataStats(Transform):
         data_shape=True,
         intensity_range=True,
         data_value=False,
-        additional_info: Callable = None
+        additional_info: Callable = None,
+        logger_handler=None
     ):
         """
         Args:
@@ -186,6 +188,8 @@ class DataStats(Transform):
             data_value (bool): whether to show the raw value of input data.
                 a typical example is to print some properties of Nifti image: affine, pixdim, etc.
             additional_info (Callable): user can define callable function to extract additional info from input data.
+            logger_handler (logging.handler): add additional handler to output data: save to file, etc.
+                add existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html
         """
         assert isinstance(prefix, str), 'prefix must be a string.'
         self.prefix = prefix
@@ -196,6 +200,10 @@ class DataStats(Transform):
             assert isinstance(additional_info, Callable), 'additional_info must be a Callable function.'
         self.additional_info = additional_info
         self.output = None
+        logging.basicConfig(level=logging.NOTSET)
+        self._logger = logging.getLogger('DataStats')
+        if logger_handler is not None:
+            self._logger.addHandler(logger_handler)
 
     def __call__(self, img):
         data_shape_info = '\nShape: {}'.format(img.shape) if self.data_shape else ''
@@ -206,5 +214,5 @@ class DataStats(Transform):
             '\nAdditional_info: {}'.format(self.additional_info(img)) if self.additional_info else ''
         self.output = '{} statistics:{}{}{}{}'.format(self.prefix, data_shape_info, intensity_range_info,
                                                       data_value_info, additional_info)
-        print(self.output)
+        self._logger.debug(self.output)
         return img

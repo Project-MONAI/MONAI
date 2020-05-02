@@ -205,7 +205,8 @@ class DataStatsd(MapTransform):
         data_shape=True,
         intensity_range=True,
         data_value=False,
-        additional_info=None
+        additional_info=None,
+        logger_handler=None
     ):
         """
         Args:
@@ -217,9 +218,11 @@ class DataStatsd(MapTransform):
             data_value (bool): whether to show the raw value of input data.
                 a typical example is to print some properties of Nifti image: affine, pixdim, etc.
             additional_info (Callable): user can define callable function to extract additional info from input data.
+            logger_handler (logging.handler): add additional handler to output data: save to file, etc.
+                add existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html
         """
         super().__init__(keys)
-        self.printer = DataStats(prefix, data_shape, intensity_range, data_value, additional_info)
+        self.printer = DataStats(prefix, data_shape, intensity_range, data_value, additional_info, logger_handler)
 
     def __call__(self, data):
         d = dict(data)

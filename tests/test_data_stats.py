@@ -10,6 +10,9 @@
 # limitations under the License.
 
 import unittest
+import os
+import logging
+import tempfile
 import numpy as np
 from parameterized import parameterized
 from monai.transforms import DataStats
@@ -20,7 +23,8 @@ TEST_CASE_1 = [
         'data_shape': False,
         'intensity_range': False,
         'data_value': False,
-        'additional_info': None
+        'additional_info': None,
+        'logger_handler': None
     },
     np.array([[0, 1], [1, 2]]),
     'test data statistics:'
@@ -32,7 +36,8 @@ TEST_CASE_2 = [
         'data_shape': True,
         'intensity_range': False,
         'data_value': False,
-        'additional_info': None
+        'additional_info': None,
+        'logger_handler': None
     },
     np.array([[0, 1], [1, 2]]),
     'test data statistics:\nShape: (2, 2)'
@@ -44,7 +49,8 @@ TEST_CASE_3 = [
         'data_shape': True,
         'intensity_range': True,
         'data_value': False,
-        'additional_info': None
+        'additional_info': None,
+        'logger_handler': None
     },
     np.array([[0, 1], [1, 2]]),
     'test data statistics:\nShape: (2, 2)\nIntensity range: (0, 2)'
@@ -56,7 +62,8 @@ TEST_CASE_4 = [
         'data_shape': True,
         'intensity_range': True,
         'data_value': True,
-        'additional_info': None
+        'additional_info': None,
+        'logger_handler': None
     },
     np.array([[0, 1], [1, 2]]),
     'test data statistics:\nShape: (2, 2)\nIntensity range: (0, 2)\nValue: [[0 1]\n [1 2]]'
@@ -68,10 +75,16 @@ TEST_CASE_5 = [
         'data_shape': True,
         'intensity_range': True,
         'data_value': True,
-        'additional_info': lambda x: np.mean(x)
+        'additional_info': lambda x: np.mean(x),
+        'logger_handler': None
     },
     np.array([[0, 1], [1, 2]]),
     'test data statistics:\nShape: (2, 2)\nIntensity range: (0, 2)\nValue: [[0 1]\n [1 2]]\nAdditional_info: 1.0'
+]
+
+TEST_CASE_6 = [
+    np.array([[0, 1], [1, 2]]),
+    'test data statistics:\nShape: (2, 2)\nIntensity range: (0, 2)\nValue: [[0 1]\n [1 2]]\nAdditional_info: 1.0\n'
 ]
 
 
@@ -82,6 +95,24 @@ class TestDataStats(unittest.TestCase):
         transform = DataStats(**input_param)
         _ = transform(input_data)
         self.assertEqual(transform.output, expected_print)
+
+    @parameterized.expand([TEST_CASE_6])
+    def test_file(self, input_data, expected_print):
+        with tempfile.TemporaryDirectory() as tempdir:
+            filename = os.path.join(tempdir, 'test.log')
+            input_param = {
+                'prefix': 'test data',
+                'data_shape': True,
+                'intensity_range': True,
+                'data_value': True,
+                'additional_info': lambda x: np.mean(x),
+                'logger_handler': logging.FileHandler(filename, mode='w')
+            }
+            transform = DataStats(**input_param)
+            _ = transform(input_data)
+            with open(filename, 'r') as f:
+                content = f.read()
+                self.assertEqual(content, expected_print)
 
 
 if __name__ == '__main__':
