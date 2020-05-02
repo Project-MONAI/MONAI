@@ -24,7 +24,7 @@ from monai.transforms.utility.array import AddChannel, AsChannelFirst, ToTensor,
 
 class AsChannelFirstd(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.AsChannelFirst`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.AsChannelFirst`.
     """
 
     def __init__(self, keys, channel_dim=-1):
@@ -46,7 +46,7 @@ class AsChannelFirstd(MapTransform):
 
 class AsChannelLastd(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.AsChannelLast`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.AsChannelLast`.
     """
 
     def __init__(self, keys, channel_dim=0):
@@ -68,7 +68,7 @@ class AsChannelLastd(MapTransform):
 
 class AddChanneld(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.AddChannel`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.AddChannel`.
     """
 
     def __init__(self, keys):
@@ -111,7 +111,7 @@ class RepeatChanneld(MapTransform):
 
 class CastToTyped(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.CastToType`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.CastToType`.
     """
 
     def __init__(self, keys, dtype=np.float32):
@@ -133,7 +133,7 @@ class CastToTyped(MapTransform):
 
 class ToTensord(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.ToTensor`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.ToTensor`.
     """
 
     def __init__(self, keys):

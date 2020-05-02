@@ -37,7 +37,7 @@ class Transform(ABC):
 
     See Also
 
-        :py:class:`monai.transforms.compose.Compose`
+        :py:class:`monai.transforms.Compose`
     """
 
     @abstractmethod
@@ -198,7 +198,7 @@ class Compose(Randomizable):
 
 class MapTransform(Transform):
     """
-    A subclass of :py:class:`monai.transforms.compose.Transform` with an assumption
+    A subclass of :py:class:`monai.transforms.Transform` with an assumption
     that the ``data`` input of ``self.__call__`` is a MutableMapping such as ``dict``.
 
     The ``keys`` parameter will be used to get and set the actual data
