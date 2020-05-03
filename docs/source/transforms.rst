@@ -303,6 +303,12 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
+`SimulateDelay`
+~~~~~~~~~~~~~~~
+.. autoclass:: SimulateDelay
+    :members:
+    :special-members: __call__
+
 Dictionary-based Transforms
 ----------------------------
 
@@ -546,6 +552,13 @@ Dictionary-based Transforms
 `SqueezeDimd`
 ~~~~~~~~~~~~~
 .. autoclass:: SqueezeDimd
+    :members:
+    :special-members: __call__
+
+
+`SimulateDelayd`
+~~~~~~~~~~~~~~~~
+.. autoclass:: SimulateDelayd
     :members:
     :special-members: __call__
 
