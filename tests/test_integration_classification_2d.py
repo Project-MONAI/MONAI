@@ -49,7 +49,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device=torch.dev
     monai.config.print_config()
     # define transforms for image and classification
     train_transforms = Compose([
-        LoadPNG(),
+        LoadPNG(image_only=True),
         AddChannel(),
         ScaleIntensity(),
         RandRotate(degrees=15, prob=0.5),
@@ -59,7 +59,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device=torch.dev
         ToTensor()
     ])
     train_transforms.set_random_state(1234)
-    val_transforms = Compose([LoadPNG(), AddChannel(), ScaleIntensity(), ToTensor()])
+    val_transforms = Compose([LoadPNG(image_only=True), AddChannel(), ScaleIntensity(), ToTensor()])
 
     # create train, val data loaders
     train_ds = MedNISTDataset(train_x, train_y, train_transforms)
@@ -129,7 +129,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device=torch.dev
 
 def run_inference_test(root_dir, test_x, test_y, device=torch.device("cuda:0")):
     # define transforms for image and classification
-    val_transforms = Compose([LoadPNG(), AddChannel(), ScaleIntensity(), ToTensor()])
+    val_transforms = Compose([LoadPNG(image_only=True), AddChannel(), ScaleIntensity(), ToTensor()])
     val_ds = MedNISTDataset(test_x, test_y, val_transforms)
     val_loader = DataLoader(val_ds, batch_size=300, num_workers=10)
 

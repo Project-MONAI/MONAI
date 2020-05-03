@@ -20,48 +20,40 @@ from monai.data import CacheDataset
 from monai.transforms import Compose, LoadNiftid
 
 TEST_CASE_1 = [
-    (128, 128, 128)
+    0, 100
 ]
 
-class TestCacheDataset(unittest.TestCase):
+TEST_CASE_2 = [
+    4, 100
+]
 
-    @parameterized.expand([TEST_CASE_1])
-    def test_shape(self, expected_shape):
+
+class TestCacheDatasetParallel(unittest.TestCase):
+
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    def test_shape(self, num_workers, dataset_size):
         test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]), np.eye(4))
         tempdir = tempfile.mkdtemp()
         nib.save(test_image, os.path.join(tempdir, 'test_image1.nii.gz'))
         nib.save(test_image, os.path.join(tempdir, 'test_label1.nii.gz'))
         nib.save(test_image, os.path.join(tempdir, 'test_extra1.nii.gz'))
-        nib.save(test_image, os.path.join(tempdir, 'test_image2.nii.gz'))
-        nib.save(test_image, os.path.join(tempdir, 'test_label2.nii.gz'))
-        nib.save(test_image, os.path.join(tempdir, 'test_extra2.nii.gz'))
         test_data = [
             {
                 'image': os.path.join(tempdir, 'test_image1.nii.gz'),
                 'label': os.path.join(tempdir, 'test_label1.nii.gz'),
                 'extra': os.path.join(tempdir, 'test_extra1.nii.gz')
-            },
-            {
-                'image': os.path.join(tempdir, 'test_image2.nii.gz'),
-                'label': os.path.join(tempdir, 'test_label2.nii.gz'),
-                'extra': os.path.join(tempdir, 'test_extra2.nii.gz')
             }
-        ]
+        ] * dataset_size
         dataset = CacheDataset(
             data=test_data,
             transform=Compose([LoadNiftid(keys=['image', 'label', 'extra'])]),
-            cache_rate=0.5
+            cache_rate=1,
+            num_workers=num_workers
         )
-        data1 = dataset[0]
-        data2 = dataset[1]
         shutil.rmtree(tempdir)
-        self.assertTupleEqual(data1['image'].shape, expected_shape)
-        self.assertTupleEqual(data1['label'].shape, expected_shape)
-        self.assertTupleEqual(data1['extra'].shape, expected_shape)
-        self.assertTupleEqual(data2['image'].shape, expected_shape)
-        self.assertTupleEqual(data2['label'].shape, expected_shape)
-        self.assertTupleEqual(data2['extra'].shape, expected_shape)
-
+        self.assertEqual(len(dataset._cache), dataset.cache_num)
+        for i in range(dataset.cache_num):
+            self.assertIsNotNone(dataset._cache[i])
 
 if __name__ == '__main__':
     unittest.main()

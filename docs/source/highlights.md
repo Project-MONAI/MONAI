@@ -81,7 +81,7 @@ non-deterministic modules in the user's program.
 For example:
 ```py
 # define a transform chain for pre-processing
-train_transforms = monai.transforms.compose.Compose([
+train_transforms = monai.transforms.Compose([
     LoadNiftid(keys=['image', 'label']),
     RandRotate90d(keys=['image', 'label'], prob=0.2, spatial_axes=[0, 2]),
     ... ...

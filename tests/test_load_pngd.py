@@ -15,7 +15,7 @@ import numpy as np
 import tempfile
 from PIL import Image
 from parameterized import parameterized
-from monai.transforms.composables import LoadPNGd
+from monai.transforms import LoadPNGd
 
 KEYS = ['image', 'label', 'extra']
 
