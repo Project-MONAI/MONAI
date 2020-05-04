@@ -1,0 +1,7 @@
+[flake8]
+ignore = E203, E266, E501, W503, E231, B950
+# line length is intentionally set to 80 here because black uses Bugbear
+# See https://github.com/psf/black/blob/master/README.md#line-length for more details
+max-line-length = 88
+#Future checks max-complexity = 18
+#Future checks select = B,C,E,F,W,T4,B9
