@@ -24,7 +24,7 @@ from monai.utils.misc import ensure_tuple
 
 class SpatialPadd(MapTransform):
     """
-    dictionary-based wrapper of :py:class:`monai.transforms.compose.SpatialPad`.
+    dictionary-based wrapper of :py:class:`monai.transforms.SpatialPad`.
     Performs padding to the data, symmetric for all sides or all on one side for each dimension.
     """
 
@@ -52,7 +52,7 @@ class SpatialPadd(MapTransform):
 
 class SpatialCropd(MapTransform):
     """
-    dictionary-based wrapper of :py:class:`monai.transforms.compose.SpatialCrop`.
+    dictionary-based wrapper of :py:class:`monai.transforms.SpatialCrop`.
     Either a spatial center and size must be provided, or alternatively if center and size
     are not provided, the start and end coordinates of the ROI must be provided.
     """
@@ -79,7 +79,7 @@ class SpatialCropd(MapTransform):
 
 class CenterSpatialCropd(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.CenterSpatialCrop`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.CenterSpatialCrop`.
 
     Args:
         keys (hashable items): keys of the corresponding items to be transformed.
@@ -100,7 +100,7 @@ class CenterSpatialCropd(MapTransform):
 
 class RandSpatialCropd(Randomizable, MapTransform):
     """
-    Dictionary-based version :py:class:`monai.transforms.transfroms.RandSpatialCrop`.
+    Dictionary-based version :py:class:`monai.transforms.RandSpatialCrop`.
     Crop image with random size or specific size ROI. It can crop at a random position as
     center or at the image center. And allows to set the minimum size to limit the randomly
     generated ROI. Suppose all the expected fields specified by `keys` have same shape.

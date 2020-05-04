@@ -23,7 +23,7 @@ from monai.transforms.io.array import LoadNifti, LoadPNG
 
 class LoadNiftid(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.LoadNifti`,
+    Dictionary-based wrapper of :py:class:`monai.transforms.LoadNifti`,
     must load image and metadata together. If loading a list of files in one key,
     stack them together and add a new dimension as the first dimension, and use the
     meta data of the first image to represent the stacked result. Note that the affine
@@ -66,23 +66,32 @@ class LoadNiftid(MapTransform):
 
 class LoadPNGd(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.LoadPNG`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.LoadPNG`.
     """
 
-    def __init__(self, keys, dtype=np.float32):
+    def __init__(self, keys, dtype=np.float32, meta_key_format='{}.{}'):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             dtype (np.dtype, optional): if not None convert the loaded image to this data type.
+            meta_key_format (str): key format to store meta data of the loaded image.
+                it must contain 2 fields for the key of this image and the key of every meta data item.
         """
         super().__init__(keys)
-        self.loader = LoadPNG(dtype)
+        self.loader = LoadPNG(False, dtype)
+        self.meta_key_format = meta_key_format
 
     def __call__(self, data):
         d = dict(data)
         for key in self.keys:
-            d[key] = self.loader(d[key])
+            data = self.loader(d[key])
+            assert isinstance(data, (tuple, list)), 'loader must return a tuple or list.'
+            d[key] = data[0]
+            assert isinstance(data[1], dict), 'metadata must be a dict.'
+            for k in sorted(data[1]):
+                key_to_add = self.meta_key_format.format(key, k)
+                d[key_to_add] = data[1][k]
         return d
 
 

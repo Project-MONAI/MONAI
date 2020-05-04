@@ -23,7 +23,7 @@ from monai.transforms.intensity.array import NormalizeIntensity, ScaleIntensityR
 
 
 class RandGaussianNoised(Randomizable, MapTransform):
-    """Dictionary-based version :py:class:`monai.transforms.transfroms.RandGaussianNoise`.
+    """Dictionary-based version :py:class:`monai.transforms.RandGaussianNoise`.
     Add Gaussian noise to image. This transform assumes all the expected fields have same shape.
 
     Args:
@@ -210,7 +210,7 @@ class NormalizeIntensityd(MapTransform):
 
 class ThresholdIntensityd(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.ThresholdIntensity`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.ThresholdIntensity`.
 
     Args:
         keys (hashable items): keys of the corresponding items to be transformed.
@@ -233,7 +233,7 @@ class ThresholdIntensityd(MapTransform):
 
 class ScaleIntensityRanged(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.ScaleIntensityRange`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.ScaleIntensityRange`.
 
     Args:
         keys (hashable items): keys of the corresponding items to be transformed.
@@ -258,7 +258,7 @@ class ScaleIntensityRanged(MapTransform):
 
 class AdjustContrastd(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.transfroms.AdjustContrast`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.AdjustContrast`.
     Changes image intensity by gamma. Each pixel/voxel intensity is updated as:
 
         `x = ((x - min) / intensity_range) ^ gamma * intensity_range + min`
@@ -280,7 +280,7 @@ class AdjustContrastd(MapTransform):
 
 class RandAdjustContrastd(Randomizable, MapTransform):
     """
-    Dictionary-based version :py:class:`monai.transforms.transfroms.RandAdjustContrast`.
+    Dictionary-based version :py:class:`monai.transforms.RandAdjustContrast`.
     Randomly changes image intensity by gamma. Each pixel/voxel intensity is updated as:
 
         `x = ((x - min) / intensity_range) ^ gamma * intensity_range + min`
