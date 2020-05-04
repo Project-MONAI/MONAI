@@ -24,7 +24,9 @@ class CSVSaver:
     the cached data into CSV file. If no meta data provided, use index from 0 to save data.
     """
 
-    def __init__(self, output_dir='./', filename='predictions.csv', overwrite=True):
+    def __init__(
+        self, output_dir="./", filename="predictions.csv", overwrite=True,
+    ):
         """
         Args:
             output_dir (str): output CSV file directory.
@@ -35,32 +37,36 @@ class CSVSaver:
         """
         self.output_dir = output_dir
         self._cache_dict = OrderedDict()
-        assert isinstance(filename, str) and filename[-4:] == '.csv', 'filename must be a string with CSV format.'
-        self._filepath = os.path.join(output_dir, filename)
+        assert (
+            isinstance(filename, str,) and filename[-4:] == ".csv"
+        ), "filename must be a string with CSV format."
+        self._filepath = os.path.join(output_dir, filename,)
         self.overwrite = overwrite
         self._data_index = 0
 
-    def finalize(self):
+    def finalize(self,):
         """
         Writes the cached dict to a csv
 
         """
         if not self.overwrite and os.path.exists(self._filepath):
-            with open(self._filepath, 'r') as f:
+            with open(self._filepath, "r",) as f:
                 reader = csv.reader(f)
                 for row in reader:
                     self._cache_dict[row[0]] = np.array(row[1:]).astype(np.float32)
 
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
-        with open(self._filepath, 'w') as f:
-            for k, v in self._cache_dict.items():
+        with open(self._filepath, "w",) as f:
+            for (k, v,) in self._cache_dict.items():
                 f.write(k)
                 for result in v.flatten():
                     f.write("," + str(result))
                 f.write("\n")
 
-    def save(self, data, meta_data=None):
+    def save(
+        self, data, meta_data=None,
+    ):
         """Save data into the cache dictionary. The metadata should have the following key:
             - ``'filename_or_obj'`` -- save the data corresponding to file name or object.
         If meta_data is None, use the default index from 0 to save data instead.
@@ -70,13 +76,15 @@ class CSVSaver:
             meta_data (dict): the meta data information corresponding to the data.
 
         """
-        save_key = meta_data['filename_or_obj'] if meta_data else str(self._data_index)
+        save_key = meta_data["filename_or_obj"] if meta_data else str(self._data_index)
         self._data_index += 1
         if torch.is_tensor(data):
             data = data.detach().cpu().numpy()
         self._cache_dict[save_key] = data.astype(np.float32)
 
-    def save_batch(self, batch_data, meta_data=None):
+    def save_batch(
+        self, batch_data, meta_data=None,
+    ):
         """Save a batch of data into the cache dictionary.
 
         args:
@@ -84,5 +92,7 @@ class CSVSaver:
             meta_data (dict): every key-value in the meta_data is corresponding to 1 batch of data.
 
         """
-        for i, data in enumerate(batch_data):  # save a batch of files
-            self.save(data, {k: meta_data[k][i] for k in meta_data} if meta_data else None)
+        for (i, data,) in enumerate(batch_data):  # save a batch of files
+            self.save(
+                data, {k: meta_data[k][i] for k in meta_data} if meta_data else None,
+            )

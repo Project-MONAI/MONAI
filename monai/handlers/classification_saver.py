@@ -19,8 +19,15 @@ class ClassificationSaver:
     Event handler triggered on completing every iteration to save the classification predictions as CSV file.
     """
 
-    def __init__(self, output_dir='./', filename='predictions.csv', overwrite=True,
-                 batch_transform=lambda x: x, output_transform=lambda x: x, name=None):
+    def __init__(
+        self,
+        output_dir="./",
+        filename="predictions.csv",
+        overwrite=True,
+        batch_transform=lambda x: x,
+        output_transform=lambda x: x,
+        name=None,
+    ):
         """
         Args:
             output_dir (str): output CSV file directory.
@@ -36,25 +43,35 @@ class ClassificationSaver:
             name (str): identifier of logging.logger to use, defaulting to `engine.logger`.
 
         """
-        self.saver = CSVSaver(output_dir, filename, overwrite)
+        self.saver = CSVSaver(output_dir, filename, overwrite,)
         self.batch_transform = batch_transform
         self.output_transform = output_transform
 
         self.logger = None if name is None else logging.getLogger(name)
 
-    def attach(self, engine):
+    def attach(
+        self, engine,
+    ):
         if self.logger is None:
             self.logger = engine.logger
-        if not engine.has_event_handler(self, Events.ITERATION_COMPLETED):
-            engine.add_event_handler(Events.ITERATION_COMPLETED, self)
-        if not engine.has_event_handler(self.saver.finalize, Events.COMPLETED):
-            engine.add_event_handler(Events.COMPLETED, lambda engine: self.saver.finalize())
+        if not engine.has_event_handler(self, Events.ITERATION_COMPLETED,):
+            engine.add_event_handler(
+                Events.ITERATION_COMPLETED, self,
+            )
+        if not engine.has_event_handler(self.saver.finalize, Events.COMPLETED,):
+            engine.add_event_handler(
+                Events.COMPLETED, lambda engine: self.saver.finalize(),
+            )
 
-    def __call__(self, engine):
+    def __call__(
+        self, engine,
+    ):
         """
         This method assumes self.batch_transform will extract metadata from the input batch.
 
         """
         meta_data = self.batch_transform(engine.state.batch)
         engine_output = self.output_transform(engine.state.output)
-        self.saver.save_batch(engine_output, meta_data)
+        self.saver.save_batch(
+            engine_output, meta_data,
+        )

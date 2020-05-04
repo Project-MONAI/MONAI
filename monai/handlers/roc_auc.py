@@ -44,32 +44,46 @@ class ROCAUC(Metric):
         ROCAUC expects y to be comprised of 0's and 1's.  y_pred must either be probability estimates or confidence values.
 
     """
-    def __init__(self,
-                 to_onehot_y=False,
-                 add_softmax=False,
-                 average='macro',
-                 output_transform=lambda x: x):
+
+    def __init__(
+        self,
+        to_onehot_y=False,
+        add_softmax=False,
+        average="macro",
+        output_transform=lambda x: x,
+    ):
         super().__init__(output_transform=output_transform)
         self.to_onehot_y = to_onehot_y
         self.add_softmax = add_softmax
         self.average = average
 
-    def reset(self):
+    def reset(self,):
         self._predictions = []
         self._targets = []
 
-    def update(self, output: Sequence[torch.Tensor]):
-        y_pred, y = output
-        if y_pred.ndimension() not in (1, 2):
-            raise ValueError("predictions should be of shape (batch_size, n_classes) or (batch_size, ).")
-        if y.ndimension() not in (1, 2):
-            raise ValueError("targets should be of shape (batch_size, n_classes) or (batch_size, ).")
+    def update(
+        self, output: Sequence[torch.Tensor],
+    ):
+        (y_pred, y,) = output
+        if y_pred.ndimension() not in (1, 2,):
+            raise ValueError(
+                "predictions should be of shape (batch_size, n_classes) or (batch_size, )."
+            )
+        if y.ndimension() not in (1, 2,):
+            raise ValueError(
+                "targets should be of shape (batch_size, n_classes) or (batch_size, )."
+            )
 
         self._predictions.append(y_pred.clone())
         self._targets.append(y.clone())
 
-    def compute(self):
-        _prediction_tensor = torch.cat(self._predictions, dim=0)
-        _target_tensor = torch.cat(self._targets, dim=0)
-        return compute_roc_auc(_prediction_tensor, _target_tensor, self.to_onehot_y,
-                               self.add_softmax, self.average)
+    def compute(self,):
+        _prediction_tensor = torch.cat(self._predictions, dim=0,)
+        _target_tensor = torch.cat(self._targets, dim=0,)
+        return compute_roc_auc(
+            _prediction_tensor,
+            _target_tensor,
+            self.to_onehot_y,
+            self.add_softmax,
+            self.average,
+        )

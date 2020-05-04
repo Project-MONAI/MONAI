@@ -15,20 +15,25 @@ from ignite.engine import Events
 
 
 class MetricLogger:
-
-    def __init__(self, loss_transform=lambda x: x, metric_transform=lambda x: x):
+    def __init__(
+        self, loss_transform=lambda x: x, metric_transform=lambda x: x,
+    ):
         self.loss_transform = loss_transform
         self.metric_transform = metric_transform
         self.loss = []
         self.metrics = defaultdict(list)
 
-    def attach(self, engine):
-        return engine.add_event_handler(Events.ITERATION_COMPLETED, self)
+    def attach(
+        self, engine,
+    ):
+        return engine.add_event_handler(Events.ITERATION_COMPLETED, self,)
 
-    def __call__(self, engine):
+    def __call__(
+        self, engine,
+    ):
         self.loss.append(self.loss_transform(engine.state.output))
 
-        for m, v in engine.state.metrics.items():
+        for (m, v,) in engine.state.metrics.items():
             v = self.metric_transform(v)
             #             # metrics may not be added on the first timestep, pad the list if this is the case
             #             # so that each metric list is the same length as self.loss

@@ -18,9 +18,22 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 import torch
 
 from monai.networks.layers.simplelayers import GaussianFilter
-from monai.transforms.compose import MapTransform, Randomizable
-from monai.transforms.spatial.array import Flip, Orientation, Rand2DElastic, Rand3DElastic, \
-    RandAffine, Resize, Rotate, Rotate90, Spacing, Zoom
+from monai.transforms.compose import (
+    MapTransform,
+    Randomizable,
+)
+from monai.transforms.spatial.array import (
+    Flip,
+    Orientation,
+    Rand2DElastic,
+    Rand3DElastic,
+    RandAffine,
+    Resize,
+    Rotate,
+    Rotate90,
+    Spacing,
+    Zoom,
+)
 from monai.transforms.utils import create_grid
 from monai.utils.misc import ensure_tuple
 
@@ -39,8 +52,17 @@ class Spacingd(MapTransform):
         :py:class:`monai.transforms.Spacing`
     """
 
-    def __init__(self, keys, pixdim, diagonal=False, mode='constant', cval=0,
-                 interp_order=3, dtype=None, meta_key_format='{}.{}'):
+    def __init__(
+        self,
+        keys,
+        pixdim,
+        diagonal=False,
+        mode="constant",
+        cval=0,
+        interp_order=3,
+        dtype=None,
+        meta_key_format="{}.{}",
+    ):
         """
         Args:
             pixdim (sequence of floats): output voxel spacing.
@@ -68,20 +90,28 @@ class Spacingd(MapTransform):
             meta_key_format (str): key format to read/write affine matrices to the data dictionary.
         """
         super().__init__(keys)
-        self.spacing_transform = Spacing(pixdim, diagonal=diagonal, mode=mode, cval=cval, dtype=dtype)
+        self.spacing_transform = Spacing(
+            pixdim, diagonal=diagonal, mode=mode, cval=cval, dtype=dtype,
+        )
         interp_order = ensure_tuple(interp_order)
-        self.interp_order = interp_order \
-            if len(interp_order) == len(self.keys) else interp_order * len(self.keys)
+        self.interp_order = (
+            interp_order
+            if len(interp_order) == len(self.keys)
+            else interp_order * len(self.keys)
+        )
         self.meta_key_format = meta_key_format
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         d = dict(data)
-        for key, interp in zip(self.keys, self.interp_order):
-            affine_key = self.meta_key_format.format(key, 'affine')
+        for (key, interp,) in zip(self.keys, self.interp_order,):
+            affine_key = self.meta_key_format.format(key, "affine",)
             # resample array of each corresponding key
             # using affine fetched from d[affine_key]
-            d[key], _, new_affine = self.spacing_transform(
-                data_array=d[key], affine=d[affine_key], interp_order=interp)
+            (d[key], _, new_affine,) = self.spacing_transform(
+                data_array=d[key], affine=d[affine_key], interp_order=interp,
+            )
             # set the 'affine' key
             d[affine_key] = new_affine
         return d
@@ -98,8 +128,14 @@ class Orientationd(MapTransform):
      to the key formed by ``meta_key_format.format(key, 'affine')``.
     """
 
-    def __init__(self, keys, axcodes=None, as_closest_canonical=False,
-                 labels=tuple(zip('LPI', 'RAS')), meta_key_format='{}.{}'):
+    def __init__(
+        self,
+        keys,
+        axcodes=None,
+        as_closest_canonical=False,
+        labels=tuple(zip("LPI", "RAS",)),
+        meta_key_format="{}.{}",
+    ):
         """
         Args:
             axcodes (N elements sequence): for spatial ND input's orientation.
@@ -118,14 +154,19 @@ class Orientationd(MapTransform):
         """
         super().__init__(keys)
         self.ornt_transform = Orientation(
-            axcodes=axcodes, as_closest_canonical=as_closest_canonical, labels=labels)
+            axcodes=axcodes, as_closest_canonical=as_closest_canonical, labels=labels,
+        )
         self.meta_key_format = meta_key_format
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         d = dict(data)
         for key in self.keys:
-            affine_key = self.meta_key_format.format(key, 'affine')
-            d[key], _, new_affine = self.ornt_transform(d[key], affine=d[affine_key])
+            affine_key = self.meta_key_format.format(key, "affine",)
+            (d[key], _, new_affine,) = self.ornt_transform(
+                d[key], affine=d[affine_key],
+            )
             d[affine_key] = new_affine
         return d
 
@@ -135,7 +176,9 @@ class Rotate90d(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.Rotate90`.
     """
 
-    def __init__(self, keys, k=1, spatial_axes=(0, 1)):
+    def __init__(
+        self, keys, k=1, spatial_axes=(0, 1,),
+    ):
         """
         Args:
             k (int): number of times to rotate by 90 degrees.
@@ -143,22 +186,28 @@ class Rotate90d(MapTransform):
                 Default: (0, 1), this is the first two axis in spatial dimensions.
         """
         super().__init__(keys)
-        self.rotator = Rotate90(k, spatial_axes)
+        self.rotator = Rotate90(k, spatial_axes,)
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         d = dict(data)
         for key in self.keys:
             d[key] = self.rotator(d[key])
         return d
 
 
-class RandRotate90d(Randomizable, MapTransform):
+class RandRotate90d(
+    Randomizable, MapTransform,
+):
     """Dictionary-based version :py:class:`monai.transforms.RandRotate90`.
     With probability `prob`, input arrays are rotated by 90 degrees
     in the plane specified by `spatial_axes`.
     """
 
-    def __init__(self, keys, prob=0.1, max_k=3, spatial_axes=(0, 1)):
+    def __init__(
+        self, keys, prob=0.1, max_k=3, spatial_axes=(0, 1,),
+    ):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -172,23 +221,25 @@ class RandRotate90d(Randomizable, MapTransform):
         """
         super().__init__(keys)
 
-        self.prob = min(max(prob, 0.0), 1.0)
+        self.prob = min(max(prob, 0.0,), 1.0,)
         self.max_k = max_k
         self.spatial_axes = spatial_axes
 
         self._do_transform = False
         self._rand_k = 0
 
-    def randomize(self):
+    def randomize(self,):
         self._rand_k = self.R.randint(self.max_k) + 1
         self._do_transform = self.R.random() < self.prob
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         self.randomize()
         if not self._do_transform:
             return data
 
-        rotator = Rotate90(self._rand_k, self.spatial_axes)
+        rotator = Rotate90(self._rand_k, self.spatial_axes,)
         d = dict(data)
         for key in self.keys:
             d[key] = rotator(d[key])
@@ -215,28 +266,60 @@ class Resized(MapTransform):
         anti_aliasing_sigma (float, tuple of floats): Standard deviation for gaussian filtering.
     """
 
-    def __init__(self, keys, spatial_size, order=1, mode='reflect', cval=0,
-                 clip=True, preserve_range=True, anti_aliasing=True, anti_aliasing_sigma=None):
+    def __init__(
+        self,
+        keys,
+        spatial_size,
+        order=1,
+        mode="reflect",
+        cval=0,
+        clip=True,
+        preserve_range=True,
+        anti_aliasing=True,
+        anti_aliasing_sigma=None,
+    ):
         super().__init__(keys)
-        self.resizer = Resize(spatial_size, order, mode, cval, clip, preserve_range,
-                              anti_aliasing, anti_aliasing_sigma)
+        self.resizer = Resize(
+            spatial_size,
+            order,
+            mode,
+            cval,
+            clip,
+            preserve_range,
+            anti_aliasing,
+            anti_aliasing_sigma,
+        )
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         d = dict(data)
         for key in self.keys:
             d[key] = self.resizer(d[key])
         return d
 
 
-class RandAffined(Randomizable, MapTransform):
+class RandAffined(
+    Randomizable, MapTransform,
+):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.RandAffine`.
     """
 
-    def __init__(self, keys,
-                 spatial_size, prob=0.1,
-                 rotate_range=None, shear_range=None, translate_range=None, scale_range=None,
-                 mode='bilinear', padding_mode='zeros', as_tensor_output=True, device=None):
+    def __init__(
+        self,
+        keys,
+        spatial_size,
+        prob=0.1,
+        rotate_range=None,
+        shear_range=None,
+        translate_range=None,
+        scale_range=None,
+        mode="bilinear",
+        padding_mode="zeros",
+        as_tensor_output=True,
+        device=None,
+    ):
         """
         Args:
             keys (Hashable items): keys of the corresponding items to be transformed.
@@ -259,24 +342,38 @@ class RandAffined(Randomizable, MapTransform):
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
         """
         super().__init__(keys)
-        default_mode = 'bilinear' if isinstance(mode, (tuple, list)) else mode
-        self.rand_affine = RandAffine(prob=prob,
-                                      rotate_range=rotate_range, shear_range=shear_range,
-                                      translate_range=translate_range, scale_range=scale_range,
-                                      spatial_size=spatial_size,
-                                      mode=default_mode, padding_mode=padding_mode,
-                                      as_tensor_output=as_tensor_output, device=device)
+        default_mode = "bilinear" if isinstance(mode, (tuple, list,),) else mode
+        self.rand_affine = RandAffine(
+            prob=prob,
+            rotate_range=rotate_range,
+            shear_range=shear_range,
+            translate_range=translate_range,
+            scale_range=scale_range,
+            spatial_size=spatial_size,
+            mode=default_mode,
+            padding_mode=padding_mode,
+            as_tensor_output=as_tensor_output,
+            device=device,
+        )
         self.mode = mode
 
-    def set_random_state(self, seed=None, state=None):
-        self.rand_affine.set_random_state(seed, state)
-        super().set_random_state(seed, state)
+    def set_random_state(
+        self, seed=None, state=None,
+    ):
+        self.rand_affine.set_random_state(
+            seed, state,
+        )
+        super().set_random_state(
+            seed, state,
+        )
         return self
 
-    def randomize(self):
+    def randomize(self,):
         self.rand_affine.randomize()
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         d = dict(data)
         self.randomize()
 
@@ -286,25 +383,39 @@ class RandAffined(Randomizable, MapTransform):
         else:
             grid = create_grid(spatial_size)
 
-        if isinstance(self.mode, (tuple, list)):
-            for key, m in zip(self.keys, self.mode):
-                d[key] = self.rand_affine.resampler(d[key], grid, mode=m)
+        if isinstance(self.mode, (tuple, list,),):
+            for (key, m,) in zip(self.keys, self.mode,):
+                d[key] = self.rand_affine.resampler(d[key], grid, mode=m,)
             return d
 
         for key in self.keys:  # same interpolation mode
-            d[key] = self.rand_affine.resampler(d[key], grid, self.rand_affine.mode)
+            d[key] = self.rand_affine.resampler(d[key], grid, self.rand_affine.mode,)
         return d
 
 
-class Rand2DElasticd(Randomizable, MapTransform):
+class Rand2DElasticd(
+    Randomizable, MapTransform,
+):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Rand2DElastic`.
     """
 
-    def __init__(self, keys,
-                 spatial_size, spacing, magnitude_range, prob=0.1,
-                 rotate_range=None, shear_range=None, translate_range=None, scale_range=None,
-                 mode='bilinear', padding_mode='zeros', as_tensor_output=False, device=None):
+    def __init__(
+        self,
+        keys,
+        spatial_size,
+        spacing,
+        magnitude_range,
+        prob=0.1,
+        rotate_range=None,
+        shear_range=None,
+        translate_range=None,
+        scale_range=None,
+        mode="bilinear",
+        padding_mode="zeros",
+        as_tensor_output=False,
+        device=None,
+    ):
         """
         Args:
             keys (Hashable items): keys of the corresponding items to be transformed.
@@ -328,24 +439,42 @@ class Rand2DElasticd(Randomizable, MapTransform):
             - :py:class:`Affine` for the affine transformation parameters configurations.
         """
         super().__init__(keys)
-        default_mode = 'bilinear' if isinstance(mode, (tuple, list)) else mode
-        self.rand_2d_elastic = Rand2DElastic(spacing=spacing, magnitude_range=magnitude_range, prob=prob,
-                                             rotate_range=rotate_range, shear_range=shear_range,
-                                             translate_range=translate_range, scale_range=scale_range,
-                                             spatial_size=spatial_size,
-                                             mode=default_mode, padding_mode=padding_mode,
-                                             as_tensor_output=as_tensor_output, device=device)
+        default_mode = "bilinear" if isinstance(mode, (tuple, list,),) else mode
+        self.rand_2d_elastic = Rand2DElastic(
+            spacing=spacing,
+            magnitude_range=magnitude_range,
+            prob=prob,
+            rotate_range=rotate_range,
+            shear_range=shear_range,
+            translate_range=translate_range,
+            scale_range=scale_range,
+            spatial_size=spatial_size,
+            mode=default_mode,
+            padding_mode=padding_mode,
+            as_tensor_output=as_tensor_output,
+            device=device,
+        )
         self.mode = mode
 
-    def set_random_state(self, seed=None, state=None):
-        self.rand_2d_elastic.set_random_state(seed, state)
-        super().set_random_state(seed, state)
+    def set_random_state(
+        self, seed=None, state=None,
+    ):
+        self.rand_2d_elastic.set_random_state(
+            seed, state,
+        )
+        super().set_random_state(
+            seed, state,
+        )
         return self
 
-    def randomize(self, spatial_size):
+    def randomize(
+        self, spatial_size,
+    ):
         self.rand_2d_elastic.randomize(spatial_size)
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         d = dict(data)
         spatial_size = self.rand_2d_elastic.spatial_size
         self.randomize(spatial_size)
@@ -353,29 +482,47 @@ class Rand2DElasticd(Randomizable, MapTransform):
         if self.rand_2d_elastic.do_transform:
             grid = self.rand_2d_elastic.deform_grid(spatial_size)
             grid = self.rand_2d_elastic.rand_affine_grid(grid=grid)
-            grid = torch.nn.functional.interpolate(grid[None], spatial_size, mode='bicubic', align_corners=False)[0]
+            grid = torch.nn.functional.interpolate(
+                grid[None], spatial_size, mode="bicubic", align_corners=False,
+            )[0]
         else:
             grid = create_grid(spatial_size)
 
-        if isinstance(self.mode, (tuple, list)):
-            for key, m in zip(self.keys, self.mode):
-                d[key] = self.rand_2d_elastic.resampler(d[key], grid, mode=m)
+        if isinstance(self.mode, (tuple, list,),):
+            for (key, m,) in zip(self.keys, self.mode,):
+                d[key] = self.rand_2d_elastic.resampler(d[key], grid, mode=m,)
             return d
 
         for key in self.keys:  # same interpolation mode
-            d[key] = self.rand_2d_elastic.resampler(d[key], grid, mode=self.rand_2d_elastic.mode)
+            d[key] = self.rand_2d_elastic.resampler(
+                d[key], grid, mode=self.rand_2d_elastic.mode,
+            )
         return d
 
 
-class Rand3DElasticd(Randomizable, MapTransform):
+class Rand3DElasticd(
+    Randomizable, MapTransform,
+):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Rand3DElastic`.
     """
 
-    def __init__(self, keys,
-                 spatial_size, sigma_range, magnitude_range, prob=0.1,
-                 rotate_range=None, shear_range=None, translate_range=None, scale_range=None,
-                 mode='bilinear', padding_mode='zeros', as_tensor_output=False, device=None):
+    def __init__(
+        self,
+        keys,
+        spatial_size,
+        sigma_range,
+        magnitude_range,
+        prob=0.1,
+        rotate_range=None,
+        shear_range=None,
+        translate_range=None,
+        scale_range=None,
+        mode="bilinear",
+        padding_mode="zeros",
+        as_tensor_output=False,
+        device=None,
+    ):
         """
         Args:
             keys (Hashable items): keys of the corresponding items to be transformed.
@@ -400,24 +547,42 @@ class Rand3DElasticd(Randomizable, MapTransform):
             - :py:class:`Affine` for the affine transformation parameters configurations.
         """
         super().__init__(keys)
-        default_mode = 'bilinear' if isinstance(mode, (tuple, list)) else mode
-        self.rand_3d_elastic = Rand3DElastic(sigma_range=sigma_range, magnitude_range=magnitude_range, prob=prob,
-                                             rotate_range=rotate_range, shear_range=shear_range,
-                                             translate_range=translate_range, scale_range=scale_range,
-                                             spatial_size=spatial_size,
-                                             mode=default_mode, padding_mode=padding_mode,
-                                             as_tensor_output=as_tensor_output, device=device)
+        default_mode = "bilinear" if isinstance(mode, (tuple, list,),) else mode
+        self.rand_3d_elastic = Rand3DElastic(
+            sigma_range=sigma_range,
+            magnitude_range=magnitude_range,
+            prob=prob,
+            rotate_range=rotate_range,
+            shear_range=shear_range,
+            translate_range=translate_range,
+            scale_range=scale_range,
+            spatial_size=spatial_size,
+            mode=default_mode,
+            padding_mode=padding_mode,
+            as_tensor_output=as_tensor_output,
+            device=device,
+        )
         self.mode = mode
 
-    def set_random_state(self, seed=None, state=None):
-        self.rand_3d_elastic.set_random_state(seed, state)
-        super().set_random_state(seed, state)
+    def set_random_state(
+        self, seed=None, state=None,
+    ):
+        self.rand_3d_elastic.set_random_state(
+            seed, state,
+        )
+        super().set_random_state(
+            seed, state,
+        )
         return self
 
-    def randomize(self, grid_size):
+    def randomize(
+        self, grid_size,
+    ):
         self.rand_3d_elastic.randomize(grid_size)
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         d = dict(data)
         spatial_size = self.rand_3d_elastic.spatial_size
         self.randomize(spatial_size)
@@ -425,17 +590,27 @@ class Rand3DElasticd(Randomizable, MapTransform):
         if self.rand_3d_elastic.do_transform:
             device = self.rand_3d_elastic.device
             grid = torch.tensor(grid).to(device)
-            gaussian = GaussianFilter(spatial_dims=3, sigma=self.rand_3d_elastic.sigma, truncated=3., device=device)
-            grid[:3] += gaussian(self.rand_3d_elastic.rand_offset[None])[0] * self.rand_3d_elastic.magnitude
+            gaussian = GaussianFilter(
+                spatial_dims=3,
+                sigma=self.rand_3d_elastic.sigma,
+                truncated=3.0,
+                device=device,
+            )
+            grid[:3] += (
+                gaussian(self.rand_3d_elastic.rand_offset[None])[0]
+                * self.rand_3d_elastic.magnitude
+            )
             grid = self.rand_3d_elastic.rand_affine_grid(grid=grid)
 
-        if isinstance(self.mode, (tuple, list)):
-            for key, m in zip(self.keys, self.mode):
-                d[key] = self.rand_3d_elastic.resampler(d[key], grid, mode=m)
+        if isinstance(self.mode, (tuple, list,),):
+            for (key, m,) in zip(self.keys, self.mode,):
+                d[key] = self.rand_3d_elastic.resampler(d[key], grid, mode=m,)
             return d
 
         for key in self.keys:  # same interpolation mode
-            d[key] = self.rand_3d_elastic.resampler(d[key], grid, mode=self.rand_3d_elastic.mode)
+            d[key] = self.rand_3d_elastic.resampler(
+                d[key], grid, mode=self.rand_3d_elastic.mode,
+            )
         return d
 
 
@@ -450,18 +625,24 @@ class Flipd(MapTransform):
         spatial_axis (None, int or tuple of ints): Spatial axes along which to flip over. Default is None.
     """
 
-    def __init__(self, keys, spatial_axis=None):
+    def __init__(
+        self, keys, spatial_axis=None,
+    ):
         super().__init__(keys)
         self.flipper = Flip(spatial_axis=spatial_axis)
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         d = dict(data)
         for key in self.keys:
             d[key] = self.flipper(d[key])
         return d
 
 
-class RandFlipd(Randomizable, MapTransform):
+class RandFlipd(
+    Randomizable, MapTransform,
+):
     """Dictionary-based version :py:class:`monai.transforms.RandFlip`.
 
     See `numpy.flip` for additional details.
@@ -472,7 +653,9 @@ class RandFlipd(Randomizable, MapTransform):
         spatial_axis (None, int or tuple of ints): Spatial axes along which to flip over. Default is None.
     """
 
-    def __init__(self, keys, prob=0.1, spatial_axis=None):
+    def __init__(
+        self, keys, prob=0.1, spatial_axis=None,
+    ):
         super().__init__(keys)
         self.spatial_axis = spatial_axis
         self.prob = prob
@@ -480,10 +663,12 @@ class RandFlipd(Randomizable, MapTransform):
         self._do_transform = False
         self.flipper = Flip(spatial_axis=spatial_axis)
 
-    def randomize(self):
+    def randomize(self,):
         self._do_transform = self.R.random_sample() < self.prob
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         self.randomize()
         d = dict(data)
         if not self._do_transform:
@@ -511,20 +696,40 @@ class Rotated(MapTransform):
         prefilter (bool): Apply spline_filter before interpolation. Default: True.
     """
 
-    def __init__(self, keys, angle, spatial_axes=(0, 1), reshape=True, order=1,
-                 mode='constant', cval=0, prefilter=True):
+    def __init__(
+        self,
+        keys,
+        angle,
+        spatial_axes=(0, 1,),
+        reshape=True,
+        order=1,
+        mode="constant",
+        cval=0,
+        prefilter=True,
+    ):
         super().__init__(keys)
-        self.rotator = Rotate(angle=angle, spatial_axes=spatial_axes, reshape=reshape,
-                              order=order, mode=mode, cval=cval, prefilter=prefilter)
+        self.rotator = Rotate(
+            angle=angle,
+            spatial_axes=spatial_axes,
+            reshape=reshape,
+            order=order,
+            mode=mode,
+            cval=cval,
+            prefilter=prefilter,
+        )
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         d = dict(data)
         for key in self.keys:
             d[key] = self.rotator(d[key])
         return d
 
 
-class RandRotated(Randomizable, MapTransform):
+class RandRotated(
+    Randomizable, MapTransform,
+):
     """Dictionary-based version :py:class:`monai.transforms.RandRotate`
     Randomly rotates the input arrays.
 
@@ -544,8 +749,18 @@ class RandRotated(Randomizable, MapTransform):
         prefilter (bool): Apply spline_filter before interpolation. Default: True.
     """
 
-    def __init__(self, keys, degrees, prob=0.1, spatial_axes=(0, 1), reshape=True, order=1,
-                 mode='constant', cval=0, prefilter=True):
+    def __init__(
+        self,
+        keys,
+        degrees,
+        prob=0.1,
+        spatial_axes=(0, 1,),
+        reshape=True,
+        order=1,
+        mode="constant",
+        cval=0,
+        prefilter=True,
+    ):
         super().__init__(keys)
         self.prob = prob
         self.degrees = degrees
@@ -556,24 +771,36 @@ class RandRotated(Randomizable, MapTransform):
         self.prefilter = prefilter
         self.spatial_axes = spatial_axes
 
-        if not hasattr(self.degrees, '__iter__'):
-            self.degrees = (-self.degrees, self.degrees)
-        assert len(self.degrees) == 2, 'degrees should be a number or pair of numbers.'
+        if not hasattr(self.degrees, "__iter__",):
+            self.degrees = (
+                -self.degrees,
+                self.degrees,
+            )
+        assert len(self.degrees) == 2, "degrees should be a number or pair of numbers."
 
         self._do_transform = False
         self.angle = None
 
-    def randomize(self):
+    def randomize(self,):
         self._do_transform = self.R.random_sample() < self.prob
-        self.angle = self.R.uniform(low=self.degrees[0], high=self.degrees[1])
+        self.angle = self.R.uniform(low=self.degrees[0], high=self.degrees[1],)
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         self.randomize()
         d = dict(data)
         if not self._do_transform:
             return d
-        rotator = Rotate(self.angle, self.spatial_axes, self.reshape, self.order,
-                         self.mode, self.cval, self.prefilter)
+        rotator = Rotate(
+            self.angle,
+            self.spatial_axes,
+            self.reshape,
+            self.order,
+            self.mode,
+            self.cval,
+            self.prefilter,
+        )
         for key in self.keys:
             d[key] = rotator(d[key])
         return d
@@ -594,20 +821,40 @@ class Zoomd(MapTransform):
         keep_size (bool): Should keep original size (pad if needed).
     """
 
-    def __init__(self, keys, zoom, order=3, mode='constant', cval=0,
-                 prefilter=True, use_gpu=False, keep_size=False):
+    def __init__(
+        self,
+        keys,
+        zoom,
+        order=3,
+        mode="constant",
+        cval=0,
+        prefilter=True,
+        use_gpu=False,
+        keep_size=False,
+    ):
         super().__init__(keys)
-        self.zoomer = Zoom(zoom=zoom, order=order, mode=mode, cval=cval,
-                           prefilter=prefilter, use_gpu=use_gpu, keep_size=keep_size)
+        self.zoomer = Zoom(
+            zoom=zoom,
+            order=order,
+            mode=mode,
+            cval=cval,
+            prefilter=prefilter,
+            use_gpu=use_gpu,
+            keep_size=keep_size,
+        )
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         d = dict(data)
         for key in self.keys:
             d[key] = self.zoomer(d[key])
         return d
 
 
-class RandZoomd(Randomizable, MapTransform):
+class RandZoomd(
+    Randomizable, MapTransform,
+):
     """Dict-based version :py:class:`monai.transforms.RandZoom`.
 
     Args:
@@ -628,13 +875,24 @@ class RandZoomd(Randomizable, MapTransform):
         keep_size (bool): Should keep original size (pad if needed).
     """
 
-    def __init__(self, keys, prob=0.1, min_zoom=0.9,
-                 max_zoom=1.1, order=3, mode='constant',
-                 cval=0, prefilter=True, use_gpu=False, keep_size=False):
+    def __init__(
+        self,
+        keys,
+        prob=0.1,
+        min_zoom=0.9,
+        max_zoom=1.1,
+        order=3,
+        mode="constant",
+        cval=0,
+        prefilter=True,
+        use_gpu=False,
+        keep_size=False,
+    ):
         super().__init__(keys)
-        if hasattr(min_zoom, '__iter__') and \
-           hasattr(max_zoom, '__iter__'):
-            assert len(min_zoom) == len(max_zoom), 'min_zoom and max_zoom must have same length.'
+        if hasattr(min_zoom, "__iter__",) and hasattr(max_zoom, "__iter__",):
+            assert len(min_zoom) == len(
+                max_zoom
+            ), "min_zoom and max_zoom must have same length."
         self.min_zoom = min_zoom
         self.max_zoom = max_zoom
         self.prob = prob
@@ -648,19 +906,31 @@ class RandZoomd(Randomizable, MapTransform):
         self._do_transform = False
         self._zoom = None
 
-    def randomize(self):
+    def randomize(self,):
         self._do_transform = self.R.random_sample() < self.prob
-        if hasattr(self.min_zoom, '__iter__'):
-            self._zoom = (self.R.uniform(l, h) for l, h in zip(self.min_zoom, self.max_zoom))
+        if hasattr(self.min_zoom, "__iter__",):
+            self._zoom = (
+                self.R.uniform(l, h,) for l, h in zip(self.min_zoom, self.max_zoom,)
+            )
         else:
-            self._zoom = self.R.uniform(self.min_zoom, self.max_zoom)
+            self._zoom = self.R.uniform(self.min_zoom, self.max_zoom,)
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         self.randomize()
         d = dict(data)
         if not self._do_transform:
             return d
-        zoomer = Zoom(self._zoom, self.order, self.mode, self.cval, self.prefilter, self.use_gpu, self.keep_size)
+        zoomer = Zoom(
+            self._zoom,
+            self.order,
+            self.mode,
+            self.cval,
+            self.prefilter,
+            self.use_gpu,
+            self.keep_size,
+        )
         for key in self.keys:
             d[key] = zoomer(d[key])
         return d

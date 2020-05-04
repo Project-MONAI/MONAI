@@ -13,19 +13,25 @@ import time
 from functools import wraps
 
 
-def timing(func):
+def timing(func,):
     """
     This simple timing function decorator prints to stdout/logfile (it uses printFlush) how many seconds a call to the
     original function took to execute, as well as the name before and after the call.
     """
 
     @wraps(func)
-    def timingwrap(*args, **kwargs):
-        print(func.__name__, flush=True)
+    def timingwrap(
+        *args, **kwargs,
+    ):
+        print(
+            func.__name__, flush=True,
+        )
         start = time.time()
-        res = func(*args, **kwargs)
+        res = func(*args, **kwargs,)
         end = time.time()
-        print(func.__name__, "dT (s) =", (end - start), flush=True)
+        print(
+            func.__name__, "dT (s) =", (end - start), flush=True,
+        )
         return res
 
     return timingwrap
@@ -37,10 +43,12 @@ class RestartGenerator:
     used to create an iterator which can start iteration over the given generator multiple times.
     """
 
-    def __init__(self, create_gen):
+    def __init__(
+        self, create_gen,
+    ):
         self.create_gen = create_gen
 
-    def __iter__(self):
+    def __iter__(self,):
         return self.create_gen()
 
 
@@ -51,43 +59,63 @@ class MethodReplacer(object):
 
     replace_list_name = "__replacemethods__"
 
-    def __init__(self, meth):
+    def __init__(
+        self, meth,
+    ):
         self.meth = meth
 
-    def replace_method(self, meth):
+    def replace_method(
+        self, meth,
+    ):
         """Return a new method to replace `meth` in the instantiated object, or `meth` to do nothing."""
         return meth
 
-    def __set_name__(self, owner, name):
+    def __set_name__(
+        self, owner, name,
+    ):
         """
         Add the (name,self.replace_method) pair to the list named by replace_list_name in `owner`, creating the list and
         replacing the constructor of `owner` if necessary. The replaced constructor will call the old one then do the
         replacing operation of substituting, for each (name,self.replace_method) pair, the named method with the returned
         value from self.replace_method.
         """
-        entry = (name, owner, self.replace_method)
+        entry = (
+            name,
+            owner,
+            self.replace_method,
+        )
 
-        if not hasattr(owner, self.replace_list_name):
+        if not hasattr(owner, self.replace_list_name,):
             oldinit = owner.__init__
 
             # replace the constructor with a new one which calls the old then replaces methods
             @wraps(oldinit)
-            def newinit(_self, *args, **kwargs):
-                oldinit(_self, *args, **kwargs)
+            def newinit(
+                _self, *args, **kwargs,
+            ):
+                oldinit(
+                    _self, *args, **kwargs,
+                )
 
                 # replace each listed method of this newly constructed object
-                for m, owner, replacer in getattr(_self, self.replace_list_name):
-                    if isinstance(_self, owner):
-                        meth = getattr(_self, m)
+                for (m, owner, replacer,) in getattr(_self, self.replace_list_name,):
+                    if isinstance(_self, owner,):
+                        meth = getattr(_self, m,)
                         newmeth = replacer(meth)
-                        setattr(_self, m, newmeth)
+                        setattr(
+                            _self, m, newmeth,
+                        )
 
             owner.__init__ = newinit
-            setattr(owner, self.replace_list_name, [entry])
+            setattr(
+                owner, self.replace_list_name, [entry],
+            )
         else:
-            namelist = getattr(owner, self.replace_list_name)
+            namelist = getattr(owner, self.replace_list_name,)
 
             if not any(nl[0] == name for nl in namelist):
                 namelist.append(entry)
 
-        setattr(owner, name, self.meth)
+        setattr(
+            owner, name, self.meth,
+        )

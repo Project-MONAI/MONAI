@@ -13,19 +13,24 @@ import nibabel as nib
 import numpy as np
 import scipy.ndimage
 
-from monai.data.utils import compute_shape_offset, to_affine_nd
+from monai.data.utils import (
+    compute_shape_offset,
+    to_affine_nd,
+)
 
 
-def write_nifti(data,
-                file_name,
-                affine=None,
-                target_affine=None,
-                resample=True,
-                output_shape=None,
-                interp_order=3,
-                mode='constant',
-                cval=0,
-                dtype=None):
+def write_nifti(
+    data,
+    file_name,
+    affine=None,
+    target_affine=None,
+    resample=True,
+    output_shape=None,
+    interp_order=3,
+    mode="constant",
+    cval=0,
+    dtype=None,
+):
     """
     Write numpy data into NIfTI files to disk.  This function converts data
     into the coordinate system defined by `target_affine` when `target_affine`
@@ -76,61 +81,79 @@ def write_nifti(data,
             this option is used when `resample = True`.
         dtype (np.dtype, optional): convert the image to save to this data type.
     """
-    assert isinstance(data, np.ndarray), 'input data must be numpy array.'
-    sr = min(data.ndim, 3)
+    assert isinstance(data, np.ndarray,), "input data must be numpy array."
+    sr = min(data.ndim, 3,)
     if affine is None:
-        affine = np.eye(4, dtype=np.float64)
-    affine = to_affine_nd(sr, affine)
+        affine = np.eye(4, dtype=np.float64,)
+    affine = to_affine_nd(sr, affine,)
 
     if target_affine is None:
         target_affine = affine
-    target_affine = to_affine_nd(sr, target_affine)
+    target_affine = to_affine_nd(sr, target_affine,)
 
-    if np.allclose(affine, target_affine):
+    if np.allclose(affine, target_affine,):
         # no affine changes, save (data, affine)
-        results_img = nib.Nifti1Image(data.astype(dtype), to_affine_nd(3, target_affine))
-        nib.save(results_img, file_name)
+        results_img = nib.Nifti1Image(
+            data.astype(dtype), to_affine_nd(3, target_affine,),
+        )
+        nib.save(
+            results_img, file_name,
+        )
         return
 
     # resolve orientation
     start_ornt = nib.orientations.io_orientation(affine)
     target_ornt = nib.orientations.io_orientation(target_affine)
-    ornt_transform = nib.orientations.ornt_transform(start_ornt, target_ornt)
+    ornt_transform = nib.orientations.ornt_transform(start_ornt, target_ornt,)
     data_shape = data.shape
-    data = nib.orientations.apply_orientation(data, ornt_transform)
-    _affine = affine @ nib.orientations.inv_ornt_aff(ornt_transform, data_shape)
-    if np.allclose(_affine, target_affine) or not resample:
-        results_img = nib.Nifti1Image(data.astype(dtype), to_affine_nd(3, target_affine))
-        nib.save(results_img, file_name)
+    data = nib.orientations.apply_orientation(data, ornt_transform,)
+    _affine = affine @ nib.orientations.inv_ornt_aff(ornt_transform, data_shape,)
+    if np.allclose(_affine, target_affine,) or not resample:
+        results_img = nib.Nifti1Image(
+            data.astype(dtype), to_affine_nd(3, target_affine,),
+        )
+        nib.save(
+            results_img, file_name,
+        )
         return
 
     # need resampling
     transform = np.linalg.inv(_affine) @ target_affine
     if output_shape is None:
-        output_shape, _ = compute_shape_offset(data.shape, _affine, target_affine)
+        (output_shape, _,) = compute_shape_offset(data.shape, _affine, target_affine,)
     dtype = dtype or data.dtype
     if data.ndim > 3:  # multi channel, resampling each channel
-        spatial_shape, channel_shape = data.shape[:3], data.shape[3:]
+        (spatial_shape, channel_shape,) = (
+            data.shape[:3],
+            data.shape[3:],
+        )
         data_ = data.astype(dtype).reshape(list(spatial_shape) + [-1])
         data_chns = []
         for chn in range(data_.shape[-1]):
             data_chns.append(
-                scipy.ndimage.affine_transform(data_[..., chn],
-                                               matrix=transform,
-                                               output_shape=output_shape[:3],
-                                               order=interp_order,
-                                               mode=mode,
-                                               cval=cval))
-        data_chns = np.stack(data_chns, axis=-1)
+                scipy.ndimage.affine_transform(
+                    data_[..., chn,],
+                    matrix=transform,
+                    output_shape=output_shape[:3],
+                    order=interp_order,
+                    mode=mode,
+                    cval=cval,
+                )
+            )
+        data_chns = np.stack(data_chns, axis=-1,)
         data_ = data_chns.reshape(list(data_chns.shape[:3]) + list(channel_shape))
     else:
         data_ = data.astype(dtype)
-        data_ = scipy.ndimage.affine_transform(data_,
-                                               matrix=transform,
-                                               output_shape=output_shape[:data_.ndim],
-                                               order=interp_order,
-                                               mode=mode,
-                                               cval=cval)
-    results_img = nib.Nifti1Image(data_, to_affine_nd(3, target_affine))
-    nib.save(results_img, file_name)
+        data_ = scipy.ndimage.affine_transform(
+            data_,
+            matrix=transform,
+            output_shape=output_shape[: data_.ndim],
+            order=interp_order,
+            mode=mode,
+            cval=cval,
+        )
+    results_img = nib.Nifti1Image(data_, to_affine_nd(3, target_affine,),)
+    nib.save(
+        results_img, file_name,
+    )
     return

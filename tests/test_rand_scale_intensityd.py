@@ -17,16 +17,19 @@ from tests.utils import NumpyImageTestCase2D
 
 
 class TestRandScaleIntensityd(NumpyImageTestCase2D):
-
-    def test_value(self):
-        key = 'img'
-        scaler = RandScaleIntensityd(keys=[key], factors=0.5, prob=1.0)
+    def test_value(self,):
+        key = "img"
+        scaler = RandScaleIntensityd(keys=[key], factors=0.5, prob=1.0,)
         scaler.set_random_state(seed=0)
         result = scaler({key: self.imt})
         np.random.seed(0)
-        expected = (self.imt * (1 + np.random.uniform(low=-0.5, high=0.5))).astype(np.float32)
-        np.testing.assert_allclose(result[key], expected)
+        expected = (self.imt * (1 + np.random.uniform(low=-0.5, high=0.5,))).astype(
+            np.float32
+        )
+        np.testing.assert_allclose(
+            result[key], expected,
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

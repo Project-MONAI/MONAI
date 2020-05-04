@@ -9,12 +9,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Sequence, Union
+from typing import (
+    Callable,
+    Optional,
+    Sequence,
+    Union,
+)
 
 import torch
 from ignite.exceptions import NotComputableError
 from ignite.metrics import Metric
-from ignite.metrics.metric import reinit__is_reduced, sync_all_reduce
+from ignite.metrics.metric import (
+    reinit__is_reduced,
+    sync_all_reduce,
+)
 
 from monai.metrics import compute_meandice
 
@@ -23,14 +31,16 @@ class MeanDice(Metric):
     """Computes Dice score metric from full size Tensor and collects average over batch, class-channels, iterations.
     """
 
-    def __init__(self,
-                 include_background=True,
-                 to_onehot_y=False,
-                 mutually_exclusive=False,
-                 add_sigmoid=False,
-                 logit_thresh=0.5,
-                 output_transform: Callable = lambda x: x,
-                 device: Optional[Union[str, torch.device]] = None):
+    def __init__(
+        self,
+        include_background=True,
+        to_onehot_y=False,
+        mutually_exclusive=False,
+        add_sigmoid=False,
+        logit_thresh=0.5,
+        output_transform: Callable = lambda x: x,
+        device: Optional[Union[str, torch.device,]] = None,
+    ):
         """
 
         Args:
@@ -48,7 +58,9 @@ class MeanDice(Metric):
         See also:
             :py:meth:`monai.metrics.meandice.compute_meandice`
         """
-        super(MeanDice, self).__init__(output_transform, device=device)
+        super(MeanDice, self,).__init__(
+            output_transform, device=device,
+        )
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         self.mutually_exclusive = mutually_exclusive
@@ -59,16 +71,25 @@ class MeanDice(Metric):
         self._num_examples = 0
 
     @reinit__is_reduced
-    def reset(self):
+    def reset(self,):
         self._sum = 0
         self._num_examples = 0
 
     @reinit__is_reduced
-    def update(self, output: Sequence[Union[torch.Tensor, dict]]):
-        assert len(output) == 2, 'MeanDice metric can only support y_pred and y.'
-        y_pred, y = output
-        scores = compute_meandice(y_pred, y, self.include_background, self.to_onehot_y, self.mutually_exclusive,
-                                  self.add_sigmoid, self.logit_thresh)
+    def update(
+        self, output: Sequence[Union[torch.Tensor, dict,]],
+    ):
+        assert len(output) == 2, "MeanDice metric can only support y_pred and y."
+        (y_pred, y,) = output
+        scores = compute_meandice(
+            y_pred,
+            y,
+            self.include_background,
+            self.to_onehot_y,
+            self.mutually_exclusive,
+            self.add_sigmoid,
+            self.logit_thresh,
+        )
 
         # add all items in current batch
         for batch in scores:
@@ -79,8 +100,12 @@ class MeanDice(Metric):
             self._sum += class_avg
             self._num_examples += 1
 
-    @sync_all_reduce("_sum", "_num_examples")
-    def compute(self):
+    @sync_all_reduce(
+        "_sum", "_num_examples",
+    )
+    def compute(self,):
         if self._num_examples == 0:
-            raise NotComputableError('MeanDice must have at least one example before it can be computed.')
+            raise NotComputableError(
+                "MeanDice must have at least one example before it can be computed."
+            )
         return self._sum / self._num_examples

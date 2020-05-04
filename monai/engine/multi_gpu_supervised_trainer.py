@@ -12,10 +12,14 @@
 
 import torch
 
-from ignite.engine import create_supervised_trainer, create_supervised_evaluator, _prepare_batch
+from ignite.engine import (
+    create_supervised_trainer,
+    create_supervised_evaluator,
+    _prepare_batch,
+)
 
 
-def get_devices_spec(devices=None):
+def get_devices_spec(devices=None,):
     """
     Get a valid specification for one or more devices. If `devices` is None get devices for all CUDA devices available.
     If `devices` is and zero-length structure a single CPU compute device is returned. In any other cases `devices` is
@@ -28,7 +32,9 @@ def get_devices_spec(devices=None):
         list of torch.device: list of devices.
     """
     if devices is None:
-        devices = [torch.device('cuda:%i' % d) for d in range(torch.cuda.device_count())]
+        devices = [
+            torch.device("cuda:%i" % d) for d in range(torch.cuda.device_count())
+        ]
 
         if len(devices) == 0:
             raise ValueError("No GPU devices available")
@@ -39,16 +45,30 @@ def get_devices_spec(devices=None):
     return devices
 
 
-def _default_transform(x, y, y_pred, loss):
+def _default_transform(
+    x, y, y_pred, loss,
+):
     return loss.item()
 
 
-def _default_eval_transform(x, y, y_pred): 
-    return y_pred, y
+def _default_eval_transform(
+    x, y, y_pred,
+):
+    return (
+        y_pred,
+        y,
+    )
 
 
-def create_multigpu_supervised_trainer(net, optimizer, loss_fn, devices=None, non_blocking=False,
-                                       prepare_batch=_prepare_batch, output_transform=_default_transform):
+def create_multigpu_supervised_trainer(
+    net,
+    optimizer,
+    loss_fn,
+    devices=None,
+    non_blocking=False,
+    prepare_batch=_prepare_batch,
+    output_transform=_default_transform,
+):
     """
     Derived from `create_supervised_trainer` in Ignite.
 
@@ -80,11 +100,25 @@ def create_multigpu_supervised_trainer(net, optimizer, loss_fn, devices=None, no
     if len(devices) > 1:
         net = torch.nn.parallel.DataParallel(net)
 
-    return create_supervised_trainer(net, optimizer, loss_fn, devices[0], non_blocking, prepare_batch, output_transform)
+    return create_supervised_trainer(
+        net,
+        optimizer,
+        loss_fn,
+        devices[0],
+        non_blocking,
+        prepare_batch,
+        output_transform,
+    )
 
 
-def create_multigpu_supervised_evaluator(net, metrics=None, devices=None, non_blocking=False,
-                                         prepare_batch=_prepare_batch, output_transform=_default_eval_transform):
+def create_multigpu_supervised_evaluator(
+    net,
+    metrics=None,
+    devices=None,
+    non_blocking=False,
+    prepare_batch=_prepare_batch,
+    output_transform=_default_eval_transform,
+):
     """
     Derived from `create_supervised_evaluator` in Ignite.
 
@@ -116,4 +150,6 @@ def create_multigpu_supervised_evaluator(net, metrics=None, devices=None, non_bl
     if len(devices) > 1:
         net = torch.nn.parallel.DataParallel(net)
 
-    return create_supervised_evaluator(net, metrics, devices[0], non_blocking, prepare_batch, output_transform)
+    return create_supervised_evaluator(
+        net, metrics, devices[0], non_blocking, prepare_batch, output_transform,
+    )

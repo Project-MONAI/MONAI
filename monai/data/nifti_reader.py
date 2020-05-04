@@ -18,7 +18,9 @@ from monai.data.utils import correct_nifti_header_if_necessary
 from monai.transforms import Randomizable
 
 
-def load_nifti(filename_or_obj, as_closest_canonical=False, image_only=True, dtype=None):
+def load_nifti(
+    filename_or_obj, as_closest_canonical=False, image_only=True, dtype=None,
+):
     """
     Loads a Nifti file from the given path or file-like object.
 
@@ -41,14 +43,14 @@ def load_nifti(filename_or_obj, as_closest_canonical=False, image_only=True, dty
     img = correct_nifti_header_if_necessary(img)
 
     header = dict(img.header)
-    header['filename_or_obj'] = filename_or_obj
-    header['original_affine'] = img.affine
-    header['affine'] = img.affine
-    header['as_closest_canonical'] = as_closest_canonical
+    header["filename_or_obj"] = filename_or_obj
+    header["original_affine"] = img.affine
+    header["affine"] = img.affine
+    header["as_closest_canonical"] = as_closest_canonical
 
     if as_closest_canonical:
         img = nib.as_closest_canonical(img)
-        header['affine'] = img.affine
+        header["affine"] = img.affine
 
     if dtype is not None:
         dat = img.get_fdata(dtype=dtype)
@@ -57,7 +59,10 @@ def load_nifti(filename_or_obj, as_closest_canonical=False, image_only=True, dty
 
     if image_only:
         return dat
-    return dat, header
+    return (
+        dat,
+        header,
+    )
 
 
 class NiftiDataset(Dataset):
@@ -66,8 +71,17 @@ class NiftiDataset(Dataset):
     for the image and segmentation arrays separately.
     """
 
-    def __init__(self, image_files, seg_files=None, labels=None, as_closest_canonical=False,
-                 transform=None, seg_transform=None, image_only=True, dtype=None):
+    def __init__(
+        self,
+        image_files,
+        seg_files=None,
+        labels=None,
+        as_closest_canonical=False,
+        transform=None,
+        seg_transform=None,
+        image_only=True,
+        dtype=None,
+    ):
         """
         Initializes the dataset with the image and segmentation filename lists. The transform `transform` is applied
         to the images and `seg_transform` to the segmentations.
@@ -84,7 +98,7 @@ class NiftiDataset(Dataset):
         """
 
         if seg_files is not None and len(image_files) != len(seg_files):
-            raise ValueError('Must have same number of image and segmentation files')
+            raise ValueError("Must have same number of image and segmentation files")
 
         self.image_files = image_files
         self.seg_files = seg_files
@@ -95,17 +109,27 @@ class NiftiDataset(Dataset):
         self.image_only = image_only
         self.dtype = dtype
 
-    def __len__(self):
+    def __len__(self,):
         return len(self.image_files)
 
-    def __getitem__(self, index):
+    def __getitem__(
+        self, index,
+    ):
         meta_data = None
         if self.image_only:
-            img = load_nifti(self.image_files[index], as_closest_canonical=self.as_closest_canonical,
-                             image_only=self.image_only, dtype=self.dtype)
+            img = load_nifti(
+                self.image_files[index],
+                as_closest_canonical=self.as_closest_canonical,
+                image_only=self.image_only,
+                dtype=self.dtype,
+            )
         else:
-            img, meta_data = load_nifti(self.image_files[index], as_closest_canonical=self.as_closest_canonical,
-                                        image_only=self.image_only, dtype=self.dtype)
+            (img, meta_data,) = load_nifti(
+                self.image_files[index],
+                as_closest_canonical=self.as_closest_canonical,
+                image_only=self.image_only,
+                dtype=self.dtype,
+            )
         target = None
         if self.seg_files is not None:
             target = load_nifti(self.seg_files[index])
@@ -115,23 +139,32 @@ class NiftiDataset(Dataset):
         seed = np.random.randint(2147483647)
 
         if self.transform is not None:
-            if isinstance(self.transform, Randomizable):
+            if isinstance(self.transform, Randomizable,):
                 self.transform.set_random_state(seed=seed)
             img = self.transform(img)
 
         if self.seg_transform is not None:
-            if isinstance(self.seg_transform, Randomizable):
+            if isinstance(self.seg_transform, Randomizable,):
                 self.seg_transform.set_random_state(seed=seed)
             target = self.seg_transform(target)
 
         if self.image_only or meta_data is None:
-            return img, target
+            return (
+                img,
+                target,
+            )
 
         compatible_meta = {}
         for meta_key in meta_data:
             meta_datum = meta_data[meta_key]
-            if type(meta_datum).__name__ == 'ndarray' \
-                    and np_str_obj_array_pattern.search(meta_datum.dtype.str) is not None:
+            if (
+                type(meta_datum).__name__ == "ndarray"
+                and np_str_obj_array_pattern.search(meta_datum.dtype.str) is not None
+            ):
                 continue
             compatible_meta[meta_key] = meta_datum
-        return img, target, compatible_meta
+        return (
+            img,
+            target,
+            compatible_meta,
+        )

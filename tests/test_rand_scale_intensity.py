@@ -17,15 +17,18 @@ from tests.utils import NumpyImageTestCase2D
 
 
 class TestRandScaleIntensity(NumpyImageTestCase2D):
-
-    def test_value(self):
-        scaler = RandScaleIntensity(factors=0.5, prob=1.0)
+    def test_value(self,):
+        scaler = RandScaleIntensity(factors=0.5, prob=1.0,)
         scaler.set_random_state(seed=0)
         result = scaler(self.imt)
         np.random.seed(0)
-        expected = (self.imt * (1 + np.random.uniform(low=-0.5, high=0.5))).astype(np.float32)
-        np.testing.assert_allclose(result, expected)
+        expected = (self.imt * (1 + np.random.uniform(low=-0.5, high=0.5,))).astype(
+            np.float32
+        )
+        np.testing.assert_allclose(
+            result, expected,
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

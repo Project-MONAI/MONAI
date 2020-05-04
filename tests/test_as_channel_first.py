@@ -15,35 +15,34 @@ from parameterized import parameterized
 from monai.transforms import AsChannelFirst
 
 TEST_CASE_1 = [
-    {
-        'channel_dim': -1
-    },
-    (4, 1, 2, 3)
+    {"channel_dim": -1},
+    (4, 1, 2, 3,),
 ]
 
 TEST_CASE_2 = [
-    {
-        'channel_dim': 3
-    },
-    (4, 1, 2, 3)
+    {"channel_dim": 3},
+    (4, 1, 2, 3,),
 ]
 
 TEST_CASE_3 = [
-    {
-        'channel_dim': 2
-    },
-    (3, 1, 2, 4)
+    {"channel_dim": 2},
+    (3, 1, 2, 4,),
 ]
 
 
 class TestAsChannelFirst(unittest.TestCase):
-
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
-    def test_shape(self, input_param, expected_shape):
-        test_data = np.random.randint(0, 2, size=[1, 2, 3, 4])
+    @parameterized.expand(
+        [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3,]
+    )
+    def test_shape(
+        self, input_param, expected_shape,
+    ):
+        test_data = np.random.randint(0, 2, size=[1, 2, 3, 4,],)
         result = AsChannelFirst(**input_param)(test_data)
-        self.assertTupleEqual(result.shape, expected_shape)
+        self.assertTupleEqual(
+            result.shape, expected_shape,
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

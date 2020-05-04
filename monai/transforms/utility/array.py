@@ -36,12 +36,18 @@ class AsChannelFirst(Transform):
         channel_dim (int): which dimension of input image is the channel, default is the last dimension.
     """
 
-    def __init__(self, channel_dim=-1):
-        assert isinstance(channel_dim, int) and channel_dim >= -1, 'invalid channel dimension.'
+    def __init__(
+        self, channel_dim=-1,
+    ):
+        assert (
+            isinstance(channel_dim, int,) and channel_dim >= -1
+        ), "invalid channel dimension."
         self.channel_dim = channel_dim
 
-    def __call__(self, img):
-        return np.moveaxis(img, self.channel_dim, 0)
+    def __call__(
+        self, img,
+    ):
+        return np.moveaxis(img, self.channel_dim, 0,)
 
 
 class AsChannelLast(Transform):
@@ -59,12 +65,18 @@ class AsChannelLast(Transform):
         channel_dim (int): which dimension of input image is the channel, default is the first dimension.
     """
 
-    def __init__(self, channel_dim=0):
-        assert isinstance(channel_dim, int) and channel_dim >= -1, 'invalid channel dimension.'
+    def __init__(
+        self, channel_dim=0,
+    ):
+        assert (
+            isinstance(channel_dim, int,) and channel_dim >= -1
+        ), "invalid channel dimension."
         self.channel_dim = channel_dim
 
-    def __call__(self, img):
-        return np.moveaxis(img, self.channel_dim, -1)
+    def __call__(
+        self, img,
+    ):
+        return np.moveaxis(img, self.channel_dim, -1,)
 
 
 class AddChannel(Transform):
@@ -81,7 +93,9 @@ class AddChannel(Transform):
     transforms.
     """
 
-    def __call__(self, img):
+    def __call__(
+        self, img,
+    ):
         return img[None]
 
 
@@ -95,12 +109,16 @@ class RepeatChannel(Transform):
         repeats (int): the number of repetitions for each element.
     """
 
-    def __init__(self, repeats):
-        assert repeats > 0, 'repeats count must be greater than 0.'
+    def __init__(
+        self, repeats,
+    ):
+        assert repeats > 0, "repeats count must be greater than 0."
         self.repeats = repeats
 
-    def __call__(self, img):
-        return np.repeat(img, self.repeats, 0)
+    def __call__(
+        self, img,
+    ):
+        return np.repeat(img, self.repeats, 0,)
 
 
 class CastToType(Transform):
@@ -108,15 +126,19 @@ class CastToType(Transform):
     Cast the image data to specified numpy data type.
     """
 
-    def __init__(self, dtype=np.float32):
+    def __init__(
+        self, dtype=np.float32,
+    ):
         """
         Args:
             dtype (np.dtype): convert image to this data type, default is `np.float32`.
         """
         self.dtype = dtype
 
-    def __call__(self, img):
-        assert isinstance(img, np.ndarray), 'image must be numpy array.'
+    def __call__(
+        self, img,
+    ):
+        assert isinstance(img, np.ndarray,), "image must be numpy array."
         return img.astype(self.dtype)
 
 
@@ -125,7 +147,9 @@ class ToTensor(Transform):
     Converts the input image to a tensor without applying any other transformations.
     """
 
-    def __call__(self, img):
+    def __call__(
+        self, img,
+    ):
         if torch.is_tensor(img):
             return img.contiguous()
         return torch.as_tensor(np.ascontiguousarray(img))
@@ -136,10 +160,14 @@ class Transpose(Transform):
     Transposes the input image based on the given `indices` dimension ordering.
     """
 
-    def __init__(self, indices):
+    def __init__(
+        self, indices,
+    ):
         self.indices = indices
 
-    def __call__(self, img):
+    def __call__(
+        self, img,
+    ):
         return img.transpose(self.indices)
 
 
@@ -148,22 +176,26 @@ class SqueezeDim(Transform):
     Squeeze undesired unitary dimensions
     """
 
-    def __init__(self, dim=None):
+    def __init__(
+        self, dim=None,
+    ):
         """
         Args:
             dim (int): dimension to be squeezed.
                 Default: None (all dimensions of size 1 will be removed)
         """
         if dim is not None:
-            assert isinstance(dim, int) and dim >= -1, 'invalid channel dimension.'
+            assert isinstance(dim, int,) and dim >= -1, "invalid channel dimension."
         self.dim = dim
 
-    def __call__(self, img):
+    def __call__(
+        self, img,
+    ):
         """
         Args:
             img (ndarray): numpy arrays with required dimension `dim` removed
         """
-        return np.squeeze(img, self.dim)
+        return np.squeeze(img, self.dim,)
 
 
 class SimulateDelay(Transform):
@@ -178,7 +210,9 @@ class SimulateDelay(Transform):
     to sub-optimal design choices.
     """
 
-    def __init__(self, delay_time=0.0):
+    def __init__(
+        self, delay_time=0.0,
+    ):
         """
         Args:
             delay_time(float): The minimum amount of time, in fractions of seconds,
@@ -187,6 +221,8 @@ class SimulateDelay(Transform):
         super().__init__()
         self.delay_time: float = delay_time
 
-    def __call__(self, img):
+    def __call__(
+        self, img,
+    ):
         time.sleep(self.delay_time)
         return img

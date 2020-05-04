@@ -12,7 +12,9 @@
 import numpy as np
 
 
-def same_padding(kernel_size, dilation=1):
+def same_padding(
+    kernel_size, dilation=1,
+):
     """
     Return the padding value needed to ensure a convolution using the given kernel size produces an output of the same
     shape as the input for a stride of 1, otherwise ensure a shape of the input divided by the stride rounded down.
@@ -24,7 +26,9 @@ def same_padding(kernel_size, dilation=1):
     return tuple(padding) if len(padding) > 1 else padding[0]
 
 
-def calculate_out_shape(in_shape, kernel_size, stride, padding):
+def calculate_out_shape(
+    in_shape, kernel_size, stride, padding,
+):
     """
     Calculate the output tensor shape when applying a convolution to a tensor of shape `inShape` with kernel size
     `kernel_size`, stride value `stride`, and input padding value `padding`. All arguments can be scalars or multiple
@@ -37,7 +41,9 @@ def calculate_out_shape(in_shape, kernel_size, stride, padding):
     return tuple(out_shape) if len(out_shape) > 1 else out_shape[0]
 
 
-def gaussian_1d(sigma, truncated=4.):
+def gaussian_1d(
+    sigma, truncated=4.0,
+):
     """
     one dimensional gaussian kernel.
 
@@ -49,11 +55,11 @@ def gaussian_1d(sigma, truncated=4.):
         1D numpy array
     """
     if sigma <= 0:
-        raise ValueError('sigma must be positive')
+        raise ValueError("sigma must be positive")
 
-    tail = int(sigma * truncated + .5)
+    tail = int(sigma * truncated + 0.5)
     sigma2 = sigma * sigma
-    x = np.arange(-tail, tail + 1)
-    out = np.exp(-.5 / sigma2 * x ** 2)
+    x = np.arange(-tail, tail + 1,)
+    out = np.exp(-0.5 / sigma2 * x ** 2)
     out /= out.sum()
     return out

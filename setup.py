@@ -9,12 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from setuptools import find_packages, setup
+from setuptools import (
+    find_packages,
+    setup,
+)
 
 import versioneer
 
-if __name__ == '__main__':
-    setup(version=versioneer.get_version(),
-          cmdclass=versioneer.get_cmdclass(),
-          packages=find_packages(exclude=('docs', 'examples', 'tests')),
-          zip_safe=True)
+if __name__ == "__main__":
+    setup(
+        version=versioneer.get_version(),
+        cmdclass=versioneer.get_cmdclass(),
+        packages=find_packages(exclude=("docs", "examples", "tests",)),
+        zip_safe=True,
+    )

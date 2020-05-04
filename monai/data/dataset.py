@@ -20,7 +20,10 @@ import torch
 from multiprocessing.pool import ThreadPool
 import threading
 
-from monai.transforms import Compose, Randomizable
+from monai.transforms import (
+    Compose,
+    Randomizable,
+)
 from monai.transforms.utils import apply_transform
 from monai.utils import process_bar
 from monai.utils.misc import ensure_tuple
@@ -38,22 +41,26 @@ class Dataset(torch.utils.data.Dataset):
          },                           },                           }]
     """
 
-    def __init__(self, data, transform=None):
+    def __init__(
+        self, data, transform=None,
+    ):
         """
         Args:
             data (Iterable): input data to load and transform to generate dataset for model.
             transform (Callable, optional): transforms to execute operations on input data.
         """
         self.data = data
-        if isinstance(transform, Compose):
+        if isinstance(transform, Compose,):
             self.transform = transform
         else:
             self.transform = Compose(ensure_tuple(transform))
 
-    def __len__(self):
+    def __len__(self,):
         return len(self.data)
 
-    def __getitem__(self, index):
+    def __getitem__(
+        self, index,
+    ):
         data = self.data[index]
         if self.transform is not None:
             data = self.transform(data)
@@ -95,7 +102,9 @@ class PersistentDataset(Dataset):
 
     """
 
-    def __init__(self, data, transform=None, cache_dir=None):
+    def __init__(
+        self, data, transform=None, cache_dir=None,
+    ):
         """
         Args:
             data (Iterable): input data to load and transform to generate dataset for model.
@@ -106,10 +115,14 @@ class PersistentDataset(Dataset):
                 may share a common cache dir provided that the trasnsforms pre-processing is
                 consistent.
         """
-        super().__init__(data=data, transform=transform)
+        super().__init__(
+            data=data, transform=transform,
+        )
         self.cache_dir = Path(cache_dir) if cache_dir is not None else None
 
-    def _pre_first_random_transform(self, item_transformed):
+    def _pre_first_random_transform(
+        self, item_transformed,
+    ):
         """
         Process the data from original state up to the first random element.
 
@@ -121,12 +134,14 @@ class PersistentDataset(Dataset):
         """
         for _transform in self.transform.transforms:
             # execute all the deterministic transforms before the first random transform
-            if isinstance(_transform, Randomizable):
+            if isinstance(_transform, Randomizable,):
                 break
-            item_transformed = apply_transform(_transform, item_transformed)
+            item_transformed = apply_transform(_transform, item_transformed,)
         return item_transformed
 
-    def _first_random_and_beyond_transform(self, item_transformed):
+    def _first_random_and_beyond_transform(
+        self, item_transformed,
+    ):
         """
         Process the data from before the first random transform to the final state ready for evaluation.
         Args:
@@ -136,12 +151,14 @@ class PersistentDataset(Dataset):
         """
         start_post_randomize_run = False
         for _transform in self.transform.transforms:
-            if start_post_randomize_run or isinstance(_transform, Randomizable):
+            if start_post_randomize_run or isinstance(_transform, Randomizable,):
                 start_post_randomize_run = True
-                item_transformed = apply_transform(_transform, item_transformed)
+                item_transformed = apply_transform(_transform, item_transformed,)
         return item_transformed
 
-    def _pre_first_random_cachecheck(self, item_transformed):
+    def _pre_first_random_cachecheck(
+        self, item_transformed,
+    ):
         """
             A function to cache the expensive input data transform operations
             so that huge data sets (larger than computer memory) can be processed
@@ -159,13 +176,15 @@ class PersistentDataset(Dataset):
             changed in any way, the objects in the cache dir will be invalid.  The hash for the
             cache is ONLY dependant on the input filename paths.
         """
-        if item_transformed.get("cached", False) is False:
+        if item_transformed.get("cached", False,) is False:
             hashfile = None
             if self.cache_dir is not None:
                 cache_dir_path: Path = Path(self.cache_dir)
                 if cache_dir_path.is_dir():
                     # TODO: Find way to hash transforms content as part of the cache
-                    data_item_md5 = hashlib.md5(json.dumps(item_transformed, sort_keys=True).encode('utf-8')).hexdigest()
+                    data_item_md5 = hashlib.md5(
+                        json.dumps(item_transformed, sort_keys=True,).encode("utf-8")
+                    ).hexdigest()
                     hashfile: Path = Path(cache_dir_path) / f"{data_item_md5}.pt"
 
             if hashfile is not None and hashfile.is_file():
@@ -179,12 +198,16 @@ class PersistentDataset(Dataset):
                     #       to make the cache more robust to manual killing of parent process
                     #       which may leave partially written cache files in an incomplete state
                     temp_hash_file: Path = hashfile.with_suffix(".temp_write_cache")
-                    torch.save(item_transformed, temp_hash_file)
+                    torch.save(
+                        item_transformed, temp_hash_file,
+                    )
                     temp_hash_file.rename(hashfile)
 
         return item_transformed
 
-    def __getitem__(self, index):
+    def __getitem__(
+        self, index,
+    ):
         pre_random_item = self._pre_first_random_cachecheck(self.data[index])
         post_random_item = self._first_random_and_beyond_transform(pre_random_item)
         return post_random_item
@@ -224,7 +247,9 @@ class CacheDataset(Dataset):
     and the outcome not cached.
     """
 
-    def __init__(self, data, transform, cache_num=sys.maxsize, cache_rate=1.0, num_workers=0):
+    def __init__(
+        self, data, transform, cache_num=sys.maxsize, cache_rate=1.0, num_workers=0,
+    ):
         """
         Args:
             data (Iterable): input data to load and transform to generate dataset for model.
@@ -236,49 +261,67 @@ class CacheDataset(Dataset):
             num_workers (int): the number of worker processes to use.
                 If 0 a single thread will be used. Default is 0.
         """
-        if not isinstance(transform, Compose):
+        if not isinstance(transform, Compose,):
             transform = Compose(transform)
-        super().__init__(data, transform)
-        self.cache_num = min(cache_num, int(len(self) * cache_rate), len(self))
+        super().__init__(
+            data, transform,
+        )
+        self.cache_num = min(cache_num, int(len(self) * cache_rate), len(self),)
         self._cache = [None] * self.cache_num
-        print('Load and cache transformed data...')
+        print("Load and cache transformed data...")
         if num_workers > 0:
             self._item_processed = 0
             self._thread_lock = threading.Lock()
             with ThreadPool(num_workers) as p:
-                p.map(self._load_cache_item_thread, [(i, data[i], transform.transforms) for i in range(self.cache_num)])
+                p.map(
+                    self._load_cache_item_thread,
+                    [
+                        (i, data[i], transform.transforms,)
+                        for i in range(self.cache_num)
+                    ],
+                )
         else:
             for i in range(self.cache_num):
-                self._cache[i] = self._load_cache_item(data[i], transform.transforms)
-                process_bar(i + 1, self.cache_num)
+                self._cache[i] = self._load_cache_item(data[i], transform.transforms,)
+                process_bar(
+                    i + 1, self.cache_num,
+                )
 
-    def _load_cache_item(self, item, transforms):
+    def _load_cache_item(
+        self, item, transforms,
+    ):
         for _transform in transforms:
             # execute all the deterministic transforms before the first random transform
-            if isinstance(_transform, Randomizable):
+            if isinstance(_transform, Randomizable,):
                 break
-            item = apply_transform(_transform, item)
+            item = apply_transform(_transform, item,)
         return item
 
-    def _load_cache_item_thread(self, args):
-        i, item, transforms = args
-        self._cache[i] = self._load_cache_item(item, transforms)
+    def _load_cache_item_thread(
+        self, args,
+    ):
+        (i, item, transforms,) = args
+        self._cache[i] = self._load_cache_item(item, transforms,)
         with self._thread_lock:
             self._item_processed += 1
-            process_bar(self._item_processed, self.cache_num)
+            process_bar(
+                self._item_processed, self.cache_num,
+            )
 
-    def __getitem__(self, index):
+    def __getitem__(
+        self, index,
+    ):
         if index < self.cache_num:
             # load data from cache and execute from the first random transform
             start_run = False
             data = self._cache[index]
             for _transform in self.transform.transforms:
-                if not start_run and not isinstance(_transform, Randomizable):
+                if not start_run and not isinstance(_transform, Randomizable,):
                     continue
                 else:
                     start_run = True
-                data = apply_transform(_transform, data)
+                data = apply_transform(_transform, data,)
         else:
             # no cache for this data, execute all the transforms directly
-            data = super(CacheDataset, self).__getitem__(index)
+            data = super(CacheDataset, self,).__getitem__(index)
         return data

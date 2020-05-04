@@ -20,9 +20,10 @@ import monai
 
 try:
     import ignite
+
     ignite_version = ignite.__version__
 except ImportError:
-    ignite_version = 'NOT INSTALLED'
+    ignite_version = "NOT INSTALLED"
 
 
 def get_config_values():
@@ -32,7 +33,7 @@ def get_config_values():
     output = OrderedDict()
 
     output["MONAI version"] = monai.__version__
-    output["Python version"] = sys.version.replace("\n", " ")
+    output["Python version"] = sys.version.replace("\n", " ",)
     output["Numpy version"] = np.version.full_version
     output["Pytorch version"] = torch.__version__
     output["Ignite version"] = ignite_version
@@ -40,14 +41,16 @@ def get_config_values():
     return output
 
 
-def print_config(file=sys.stdout):
+def print_config(file=sys.stdout,):
     """
     Print the package versions to `file`.
     Defaults to `sys.stdout`.
     """
     for kv in get_config_values().items():
-        print("%s: %s" % kv, file=file, flush=True)
+        print(
+            "%s: %s" % kv, file=file, flush=True,
+        )
 
 
-def set_visible_devices(*dev_inds):
-    os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, dev_inds))
+def set_visible_devices(*dev_inds,):
+    os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, dev_inds,))

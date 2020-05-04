@@ -14,7 +14,10 @@ A collection of generic interfaces for MONAI transforms.
 
 import warnings
 from typing import Hashable
-from abc import ABC, abstractmethod
+from abc import (
+    ABC,
+    abstractmethod,
+)
 import numpy as np
 
 from monai.utils.misc import ensure_tuple
@@ -41,7 +44,9 @@ class Transform(ABC):
     """
 
     @abstractmethod
-    def __call__(self, data, *args, **kwargs):
+    def __call__(
+        self, data, *args, **kwargs,
+    ):
         """
         ``data`` is an element which often comes from an iteration over an
         iterable, such as :py:class:`torch.utils.data.Dataset`. This method should
@@ -61,9 +66,12 @@ class Randomizable(ABC):
     An interface for handling local numpy random state.
     this is mainly for randomized data augmentation transforms.
     """
+
     R = np.random.RandomState()
 
-    def set_random_state(self, seed=None, state=None):
+    def set_random_state(
+        self, seed=None, state=None,
+    ):
         """
         Set the random state locally, to control the randomness, the derived
         classes should use :py:attr:`self.R` instead of `np.random` to introduce random
@@ -77,13 +85,17 @@ class Randomizable(ABC):
             a Randomizable instance.
         """
         if seed is not None:
-            _seed = id(seed) if not isinstance(seed, int) else seed
+            _seed = id(seed) if not isinstance(seed, int,) else seed
             self.R = np.random.RandomState(_seed)
             return self
 
         if state is not None:
-            if not isinstance(state, np.random.RandomState):
-                raise ValueError('`state` must be a `np.random.RandomState`, got {}'.format(type(state)))
+            if not isinstance(state, np.random.RandomState,):
+                raise ValueError(
+                    "`state` must be a `np.random.RandomState`, got {}".format(
+                        type(state)
+                    )
+                )
             self.R = state
             return self
 
@@ -91,7 +103,9 @@ class Randomizable(ABC):
         return self
 
     @abstractmethod
-    def randomize(self, *args, **kwargs):
+    def randomize(
+        self, *args, **kwargs,
+    ):
         """
         Within this method, :py:attr:`self.R` should be used, instead of `np.random`, to introduce random factors.
 
@@ -162,37 +176,44 @@ class Compose(Randomizable):
         them are called on the labels.
     """
 
-    def __init__(self, transforms=None):
+    def __init__(
+        self, transforms=None,
+    ):
         if transforms is None:
             transforms = []
-        if not isinstance(transforms, (list, tuple)):
+        if not isinstance(transforms, (list, tuple,),):
             raise ValueError("Parameters 'transforms' must be a list or tuple")
         self.transforms = transforms
 
-    def set_random_state(self, seed=None, state=None):
+    def set_random_state(
+        self, seed=None, state=None,
+    ):
         for _transform in self.transforms:
-            if not isinstance(_transform, Randomizable):
+            if not isinstance(_transform, Randomizable,):
                 continue
-            _transform.set_random_state(seed, state)
+            _transform.set_random_state(
+                seed, state,
+            )
 
-    def randomize(self):
+    def randomize(self,):
         for _transform in self.transforms:
-            if not isinstance(_transform, Randomizable):
+            if not isinstance(_transform, Randomizable,):
                 continue
             try:
                 _transform.randomize()
             except TypeError as type_error:
                 warnings.warn(
                     'Transform "{0}" in Compose not randomized\n{0}.{1}.'.format(
-                        type(_transform).__name__,
-                        type_error
+                        type(_transform).__name__, type_error,
                     ),
-                    RuntimeWarning
+                    RuntimeWarning,
                 )
 
-    def __call__(self, input_):
+    def __call__(
+        self, input_,
+    ):
         for _transform in self.transforms:
-            input_ = apply_transform(_transform, input_)
+            input_ = apply_transform(_transform, input_,)
         return input_
 
 
@@ -217,14 +238,22 @@ class MapTransform(Transform):
 
     """
 
-    def __init__(self, keys):
+    def __init__(
+        self, keys,
+    ):
         self.keys = ensure_tuple(keys)
         if not self.keys:
-            raise ValueError('keys unspecified')
+            raise ValueError("keys unspecified")
         for key in self.keys:
-            if not isinstance(key, Hashable):
-                raise ValueError('keys should be a hashable or a sequence of hashables, got {}'.format(type(key)))
+            if not isinstance(key, Hashable,):
+                raise ValueError(
+                    "keys should be a hashable or a sequence of hashables, got {}".format(
+                        type(key)
+                    )
+                )
 
     @abstractmethod
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         raise NotImplementedError

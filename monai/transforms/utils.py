@@ -17,40 +17,48 @@ import numpy as np
 from monai.utils.misc import ensure_tuple
 
 
-def rand_choice(prob=0.5):
+def rand_choice(prob=0.5,):
     """Returns True if a randomly chosen number is less than or equal to `prob`, by default this is a 50/50 chance."""
     return random.random() <= prob
 
 
-def img_bounds(img):
+def img_bounds(img,):
     """Returns the minimum and maximum indices of non-zero lines in axis 0 of `img`, followed by that for axis 1."""
-    ax0 = np.any(img, axis=0)
-    ax1 = np.any(img, axis=1)
-    return np.concatenate((np.where(ax0)[0][[0, -1]], np.where(ax1)[0][[0, -1]]))
+    ax0 = np.any(img, axis=0,)
+    ax1 = np.any(img, axis=1,)
+    return np.concatenate((np.where(ax0)[0][[0, -1,]], np.where(ax1)[0][[0, -1,]],))
 
 
-def in_bounds(x, y, margin, maxx, maxy):
+def in_bounds(
+    x, y, margin, maxx, maxy,
+):
     """Returns True if (x,y) is within the rectangle (margin, margin, maxx-margin, maxy-margin)."""
     return margin <= x < (maxx - margin) and margin <= y < (maxy - margin)
 
 
-def is_empty(img):
+def is_empty(img,):
     """Returns True if `img` is empty, that is its maximum value is not greater than its minimum."""
-    return not (img.max() > img.min())  # use > instead of <= so that an image full of NaNs will result in True
+    return not (
+        img.max() > img.min()
+    )  # use > instead of <= so that an image full of NaNs will result in True
 
 
-def zero_margins(img, margin):
+def zero_margins(
+    img, margin,
+):
     """Returns True if the values within `margin` indices of the edges of `img` in dimensions 1 and 2 are 0."""
-    if np.any(img[:, :, :margin]) or np.any(img[:, :, -margin:]):
+    if np.any(img[:, :, :margin,]) or np.any(img[:, :, -margin:,]):
         return False
 
-    if np.any(img[:, :margin, :]) or np.any(img[:, -margin:, :]):
+    if np.any(img[:, :margin, :,]) or np.any(img[:, -margin:, :,]):
         return False
 
     return True
 
 
-def rescale_array(arr, minv=0.0, maxv=1.0, dtype=np.float32):
+def rescale_array(
+    arr, minv=0.0, maxv=1.0, dtype=np.float32,
+):
     """Rescale the values of numpy array `arr` to be from `minv` to `maxv`."""
     if dtype is not None:
         arr = arr.astype(dtype)
@@ -62,25 +70,33 @@ def rescale_array(arr, minv=0.0, maxv=1.0, dtype=np.float32):
         return arr * minv
 
     norm = (arr - mina) / (maxa - mina)  # normalize the array first
-    return (norm * (maxv - minv)) + minv  # rescale by minv and maxv, which is the normalized array by default
+    return (
+        norm * (maxv - minv)
+    ) + minv  # rescale by minv and maxv, which is the normalized array by default
 
 
-def rescale_instance_array(arr, minv=0.0, maxv=1.0, dtype=np.float32):
+def rescale_instance_array(
+    arr, minv=0.0, maxv=1.0, dtype=np.float32,
+):
     """Rescale each array slice along the first dimension of `arr` independently."""
-    out = np.zeros(arr.shape, dtype)
+    out = np.zeros(arr.shape, dtype,)
     for i in range(arr.shape[0]):
-        out[i] = rescale_array(arr[i], minv, maxv, dtype)
+        out[i] = rescale_array(arr[i], minv, maxv, dtype,)
 
     return out
 
 
-def rescale_array_int_max(arr, dtype=np.uint16):
+def rescale_array_int_max(
+    arr, dtype=np.uint16,
+):
     """Rescale the array `arr` to be between the minimum and maximum values of the type `dtype`."""
     info = np.iinfo(dtype)
-    return rescale_array(arr, info.min, info.max).astype(dtype)
+    return rescale_array(arr, info.min, info.max,).astype(dtype)
 
 
-def copypaste_arrays(src, dest, srccenter, destcenter, dims):
+def copypaste_arrays(
+    src, dest, srccenter, destcenter, dims,
+):
     """
     Calculate the slices to copy a sliced area of array `src` into array `dest`. The area has dimensions `dims` (use 0
     or None to copy everything in that dimension), the source area is centered at `srccenter` index in `src` and copied
@@ -116,20 +132,27 @@ def copypaste_arrays(src, dest, srccenter, destcenter, dims):
     srcslices = [slice(None)] * src.ndim
     destslices = [slice(None)] * dest.ndim
 
-    for i, ss, ds, sc, dc, dim in zip(range(src.ndim), src.shape, dest.shape, srccenter, destcenter, dims):
+    for (i, ss, ds, sc, dc, dim,) in zip(
+        range(src.ndim), src.shape, dest.shape, srccenter, destcenter, dims,
+    ):
         if dim:
             # dimension before midpoint, clip to size fitting in both arrays
-            d1 = np.clip(dim // 2, 0, min(sc, dc))
+            d1 = np.clip(dim // 2, 0, min(sc, dc,),)
             # dimension after midpoint, clip to size fitting in both arrays
-            d2 = np.clip(dim // 2 + 1, 0, min(ss - sc, ds - dc))
+            d2 = np.clip(dim // 2 + 1, 0, min(ss - sc, ds - dc,),)
 
-            srcslices[i] = slice(sc - d1, sc + d2)
-            destslices[i] = slice(dc - d1, dc + d2)
+            srcslices[i] = slice(sc - d1, sc + d2,)
+            destslices[i] = slice(dc - d1, dc + d2,)
 
-    return tuple(srcslices), tuple(destslices)
+    return (
+        tuple(srcslices),
+        tuple(destslices),
+    )
 
 
-def resize_center(img, *resize_dims, fill_value=0):
+def resize_center(
+    img, *resize_dims, fill_value=0,
+):
     """
     Resize `img` by cropping or expanding the image from the center. The `resize_dims` values are the output dimensions
     (or None to use original dimension of `img`). If a dimension is smaller than that of `img` then the result will be
@@ -138,17 +161,21 @@ def resize_center(img, *resize_dims, fill_value=0):
     """
     resize_dims = tuple(resize_dims[i] or img.shape[i] for i in range(len(resize_dims)))
 
-    dest = np.full(resize_dims, fill_value, img.dtype)
+    dest = np.full(resize_dims, fill_value, img.dtype,)
     half_img_shape = np.asarray(img.shape) // 2
     half_dest_shape = np.asarray(dest.shape) // 2
 
-    srcslices, destslices = copypaste_arrays(img, dest, half_img_shape, half_dest_shape, resize_dims)
+    (srcslices, destslices,) = copypaste_arrays(
+        img, dest, half_img_shape, half_dest_shape, resize_dims,
+    )
     dest[destslices] = img[srcslices]
 
     return dest
 
 
-def one_hot(labels, num_classes):
+def one_hot(
+    labels, num_classes,
+):
     """
     Converts label image `labels` to a one-hot vector with `num_classes` number of channels as last dimension.
     """
@@ -159,8 +186,15 @@ def one_hot(labels, num_classes):
     return onehot.reshape(tuple(labels.shape) + (num_classes,)).astype(labels.dtype)
 
 
-def generate_pos_neg_label_crop_centers(label, size, num_samples, pos_ratio, image=None,
-                                        image_threshold=0, rand_state=np.random):
+def generate_pos_neg_label_crop_centers(
+    label,
+    size,
+    num_samples,
+    pos_ratio,
+    image=None,
+    image_threshold=0,
+    rand_state=np.random,
+):
     """Generate valid sample locations based on image with option for specifying foreground ratio
     Valid: samples sitting entirely within image, expected input shape: [C, H, W, D] or [C, H, W]
 
@@ -176,43 +210,52 @@ def generate_pos_neg_label_crop_centers(label, size, num_samples, pos_ratio, ima
         rand_state (random.RandomState): numpy randomState object to align with other modules.
     """
     max_size = label.shape[1:]
-    assert len(max_size) == len(size), 'expected size does not match label dim.'
-    assert (np.subtract(max_size, size) >= 0).all(), 'proposed roi is larger than image itself.'
+    assert len(max_size) == len(size), "expected size does not match label dim."
+    assert (
+        np.subtract(max_size, size,) >= 0
+    ).all(), "proposed roi is larger than image itself."
 
     # Select subregion to assure valid roi
-    valid_start = np.floor_divide(size, 2)
-    valid_end = np.subtract(max_size + np.array(1), size / np.array(2)).astype(np.uint16)  # add 1 for random
+    valid_start = np.floor_divide(size, 2,)
+    valid_end = np.subtract(max_size + np.array(1), size / np.array(2),).astype(
+        np.uint16
+    )  # add 1 for random
     # int generation to have full range on upper side, but subtract unfloored size/2 to prevent rounded range
     # from being too high
-    for i in range(len(valid_start)):  # need this because np.random.randint does not work with same start and end
+    for i in range(
+        len(valid_start)
+    ):  # need this because np.random.randint does not work with same start and end
         if valid_start[i] == valid_end[i]:
             valid_end[i] += 1
 
     # Prepare fg/bg indices
-    label_flat = np.any(label, axis=0).ravel()  # in case label has multiple dimensions
+    label_flat = np.any(label, axis=0,).ravel()  # in case label has multiple dimensions
     fg_indices = np.nonzero(label_flat)[0]
     if image is not None:
-        img_flat = np.any(image > image_threshold, axis=0).ravel()
-        bg_indices = np.nonzero(np.logical_and(img_flat, ~label_flat))[0]
+        img_flat = np.any(image > image_threshold, axis=0,).ravel()
+        bg_indices = np.nonzero(np.logical_and(img_flat, ~label_flat,))[0]
     else:
         bg_indices = np.nonzero(~label_flat)[0]
 
     if not len(fg_indices) or not len(bg_indices):
         if not len(fg_indices) and not len(bg_indices):
-            raise ValueError('no sampling location available.')
-        warnings.warn('N foreground {}, N  background {}, unable to generate class balanced samples.'.format(
-            len(fg_indices), len(bg_indices)))
+            raise ValueError("no sampling location available.")
+        warnings.warn(
+            "N foreground {}, N  background {}, unable to generate class balanced samples.".format(
+                len(fg_indices), len(bg_indices),
+            )
+        )
         pos_ratio = 0 if not len(fg_indices) else 1
 
     centers = []
     for _ in range(num_samples):
         indices_to_use = fg_indices if rand_state.rand() < pos_ratio else bg_indices
         random_int = rand_state.randint(len(indices_to_use))
-        center = np.unravel_index(indices_to_use[random_int], label.shape)
+        center = np.unravel_index(indices_to_use[random_int], label.shape,)
         center = center[1:]
         # shift center to range of valid centers
         center_ori = [c for c in center]
-        for i, c in enumerate(center):
+        for (i, c,) in enumerate(center):
             center_i = c
             if c < valid_start[i]:
                 center_i = valid_start[i]
@@ -224,7 +267,9 @@ def generate_pos_neg_label_crop_centers(label, size, num_samples, pos_ratio, ima
     return centers
 
 
-def apply_transform(transform, data):
+def apply_transform(
+    transform, data,
+):
     """
     Transform `data` with `transform`.
     If `data` is a list or tuple, each item of `data` will be transformed
@@ -235,12 +280,14 @@ def apply_transform(transform, data):
         transform (callable): a callable to be used to transform `data`
         data (object): an object to be transformed.
     """
-    if isinstance(data, (list, tuple)):
+    if isinstance(data, (list, tuple,),):
         return [transform(item) for item in data]
     return transform(data)
 
 
-def create_grid(spatial_size, spacing=None, homogeneous=True, dtype=float):
+def create_grid(
+    spatial_size, spacing=None, homogeneous=True, dtype=float,
+):
     """
     compute a `spatial_size` mesh.
 
@@ -251,28 +298,35 @@ def create_grid(spatial_size, spacing=None, homogeneous=True, dtype=float):
         dtype (type): output grid data type.
     """
     spacing = spacing or tuple(1.0 for _ in spatial_size)
-    ranges = [np.linspace(-(d - 1.) / 2. * s, (d - 1.) / 2. * s, int(d)) for d, s in zip(spatial_size, spacing)]
-    coords = np.asarray(np.meshgrid(*ranges, indexing='ij'), dtype=dtype)
+    ranges = [
+        np.linspace(-(d - 1.0) / 2.0 * s, (d - 1.0) / 2.0 * s, int(d),)
+        for d, s in zip(spatial_size, spacing,)
+    ]
+    coords = np.asarray(np.meshgrid(*ranges, indexing="ij",), dtype=dtype,)
     if not homogeneous:
         return coords
-    return np.concatenate([coords, np.ones_like(coords[:1])])
+    return np.concatenate([coords, np.ones_like(coords[:1]),])
 
 
-def create_control_grid(spatial_shape, spacing, homogeneous=True, dtype=float):
+def create_control_grid(
+    spatial_shape, spacing, homogeneous=True, dtype=float,
+):
     """
     control grid with two additional point in each direction
     """
     grid_shape = []
-    for d, s in zip(spatial_shape, spacing):
+    for (d, s,) in zip(spatial_shape, spacing,):
         d = int(d)
         if d % 2 == 0:
-            grid_shape.append(np.ceil((d - 1.) / (2. * s) + 0.5) * 2. + 2.)
+            grid_shape.append(np.ceil((d - 1.0) / (2.0 * s) + 0.5) * 2.0 + 2.0)
         else:
-            grid_shape.append(np.ceil((d - 1.) / (2. * s)) * 2. + 3.)
-    return create_grid(grid_shape, spacing, homogeneous, dtype)
+            grid_shape.append(np.ceil((d - 1.0) / (2.0 * s)) * 2.0 + 3.0)
+    return create_grid(grid_shape, spacing, homogeneous, dtype,)
 
 
-def create_rotate(spatial_dims, radians):
+def create_rotate(
+    spatial_dims, radians,
+):
     """
     create a 2D or 3D rotation matrix
 
@@ -285,41 +339,65 @@ def create_rotate(spatial_dims, radians):
     radians = ensure_tuple(radians)
     if spatial_dims == 2:
         if len(radians) >= 1:
-            sin_, cos_ = np.sin(radians[0]), np.cos(radians[0])
-            return np.array([[cos_, -sin_, 0.], [sin_, cos_, 0.], [0., 0., 1.]])
+            (sin_, cos_,) = (
+                np.sin(radians[0]),
+                np.cos(radians[0]),
+            )
+            return np.array(
+                [[cos_, -sin_, 0.0,], [sin_, cos_, 0.0,], [0.0, 0.0, 1.0,],]
+            )
 
     if spatial_dims == 3:
         affine = None
         if len(radians) >= 1:
-            sin_, cos_ = np.sin(radians[0]), np.cos(radians[0])
-            affine = np.array([
-                [1., 0., 0., 0.],
-                [0., cos_, -sin_, 0.],
-                [0., sin_, cos_, 0.],
-                [0., 0., 0., 1.],
-            ])
+            (sin_, cos_,) = (
+                np.sin(radians[0]),
+                np.cos(radians[0]),
+            )
+            affine = np.array(
+                [
+                    [1.0, 0.0, 0.0, 0.0,],
+                    [0.0, cos_, -sin_, 0.0,],
+                    [0.0, sin_, cos_, 0.0,],
+                    [0.0, 0.0, 0.0, 1.0,],
+                ]
+            )
         if len(radians) >= 2:
-            sin_, cos_ = np.sin(radians[1]), np.cos(radians[1])
-            affine = affine @ np.array([
-                [cos_, 0.0, sin_, 0.],
-                [0., 1., 0., 0.],
-                [-sin_, 0., cos_, 0.],
-                [0., 0., 0., 1.],
-            ])
+            (sin_, cos_,) = (
+                np.sin(radians[1]),
+                np.cos(radians[1]),
+            )
+            affine = affine @ np.array(
+                [
+                    [cos_, 0.0, sin_, 0.0,],
+                    [0.0, 1.0, 0.0, 0.0,],
+                    [-sin_, 0.0, cos_, 0.0,],
+                    [0.0, 0.0, 0.0, 1.0,],
+                ]
+            )
         if len(radians) >= 3:
-            sin_, cos_ = np.sin(radians[2]), np.cos(radians[2])
-            affine = affine @ np.array([
-                [cos_, -sin_, 0., 0.],
-                [sin_, cos_, 0., 0.],
-                [0., 0., 1., 0.],
-                [0., 0., 0., 1.],
-            ])
+            (sin_, cos_,) = (
+                np.sin(radians[2]),
+                np.cos(radians[2]),
+            )
+            affine = affine @ np.array(
+                [
+                    [cos_, -sin_, 0.0, 0.0,],
+                    [sin_, cos_, 0.0, 0.0,],
+                    [0.0, 0.0, 1.0, 0.0,],
+                    [0.0, 0.0, 0.0, 1.0,],
+                ]
+            )
         return affine
 
-    raise ValueError('create_rotate got spatial_dims={}, radians={}.'.format(spatial_dims, radians))
+    raise ValueError(
+        "create_rotate got spatial_dims={}, radians={}.".format(spatial_dims, radians,)
+    )
 
 
-def create_shear(spatial_dims, coefs):
+def create_shear(
+    spatial_dims, coefs,
+):
     """
     create a shearing matrix
     Args:
@@ -330,24 +408,24 @@ def create_shear(spatial_dims, coefs):
     if spatial_dims == 2:
         while len(coefs) < 2:
             coefs.append(0.0)
-        return np.array([
-            [1, coefs[0], 0.],
-            [coefs[1], 1., 0.],
-            [0., 0., 1.],
-        ])
+        return np.array([[1, coefs[0], 0.0,], [coefs[1], 1.0, 0.0,], [0.0, 0.0, 1.0,],])
     if spatial_dims == 3:
         while len(coefs) < 6:
             coefs.append(0.0)
-        return np.array([
-            [1., coefs[0], coefs[1], 0.],
-            [coefs[2], 1., coefs[3], 0.],
-            [coefs[4], coefs[5], 1., 0.],
-            [0., 0., 0., 1.],
-        ])
+        return np.array(
+            [
+                [1.0, coefs[0], coefs[1], 0.0,],
+                [coefs[2], 1.0, coefs[3], 0.0,],
+                [coefs[4], coefs[5], 1.0, 0.0,],
+                [0.0, 0.0, 0.0, 1.0,],
+            ]
+        )
     raise NotImplementedError
 
 
-def create_scale(spatial_dims, scaling_factor):
+def create_scale(
+    spatial_dims, scaling_factor,
+):
     """
     create a scaling matrix
     Args:
@@ -356,11 +434,13 @@ def create_scale(spatial_dims, scaling_factor):
     """
     scaling_factor = list(ensure_tuple(scaling_factor))
     while len(scaling_factor) < spatial_dims:
-        scaling_factor.append(1.)
-    return np.diag(scaling_factor[:spatial_dims] + [1.])
+        scaling_factor.append(1.0)
+    return np.diag(scaling_factor[:spatial_dims] + [1.0])
 
 
-def create_translate(spatial_dims, shift):
+def create_translate(
+    spatial_dims, shift,
+):
     """
     create a translation matrix
     Args:
@@ -369,12 +449,14 @@ def create_translate(spatial_dims, shift):
     """
     shift = ensure_tuple(shift)
     affine = np.eye(spatial_dims + 1)
-    for i, a in enumerate(shift[:spatial_dims]):
-        affine[i, spatial_dims] = a
+    for (i, a,) in enumerate(shift[:spatial_dims]):
+        affine[i, spatial_dims,] = a
     return affine
 
 
-def generate_spatial_bounding_box(img, select_fn=lambda x: x > 0, channel_indexes=None, margin=0):
+def generate_spatial_bounding_box(
+    img, select_fn=lambda x: x > 0, channel_indexes=None, margin=0,
+):
     """
     generate the spatial bounding box of foreground in the image with start-end positions.
     Users can define arbitrary function to select expected foreground from the whole image or specified channels.
@@ -387,15 +469,22 @@ def generate_spatial_bounding_box(img, select_fn=lambda x: x > 0, channel_indexe
             of image. if None, select foreground on the whole image.
         margin (int): add margin to all dims of the bounding box.
     """
-    assert isinstance(margin, int), 'margin must be int type.'
-    data = img[[*(ensure_tuple(channel_indexes))]] if channel_indexes is not None else img
-    data = np.any(select_fn(data), axis=0)
+    assert isinstance(margin, int,), "margin must be int type."
+    data = (
+        img[[*(ensure_tuple(channel_indexes))]] if channel_indexes is not None else img
+    )
+    data = np.any(select_fn(data), axis=0,)
     nonzero_idx = np.nonzero(data)
 
     box_start = list()
     box_end = list()
     for i in range(data.ndim):
-        assert len(nonzero_idx[i]) > 0, 'did not find nonzero index at spatial dim {}'.format(i)
-        box_start.append(max(0, np.min(nonzero_idx[i]) - margin))
-        box_end.append(min(data.shape[i], np.max(nonzero_idx[i]) + margin + 1))
-    return box_start, box_end
+        assert (
+            len(nonzero_idx[i]) > 0
+        ), "did not find nonzero index at spatial dim {}".format(i)
+        box_start.append(max(0, np.min(nonzero_idx[i]) - margin,))
+        box_end.append(min(data.shape[i], np.max(nonzero_idx[i]) + margin + 1,))
+    return (
+        box_start,
+        box_end,
+    )

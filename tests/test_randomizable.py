@@ -17,33 +17,40 @@ from monai.transforms import Randomizable
 
 
 class RandTest(Randomizable):
-    def randomize(self):
+    def randomize(self,):
         pass
 
 
 class TestRandomizable(unittest.TestCase):
-
-    def test_default(self):
+    def test_default(self,):
         inst = RandTest()
         r1 = inst.R.rand()
-        self.assertTrue(isinstance(inst.R, np.random.RandomState))
+        self.assertTrue(isinstance(inst.R, np.random.RandomState,))
         inst.set_random_state()
         r2 = inst.R.rand()
-        self.assertNotAlmostEqual(r1, r2)
+        self.assertNotAlmostEqual(
+            r1, r2,
+        )
 
-    def test_seed(self):
+    def test_seed(self,):
         inst = RandTest()
         inst.set_random_state(seed=123)
-        self.assertAlmostEqual(inst.R.rand(), 0.69646918)
+        self.assertAlmostEqual(
+            inst.R.rand(), 0.69646918,
+        )
         inst.set_random_state(123)
-        self.assertAlmostEqual(inst.R.rand(), 0.69646918)
+        self.assertAlmostEqual(
+            inst.R.rand(), 0.69646918,
+        )
 
-    def test_state(self):
+    def test_state(self,):
         inst = RandTest()
         inst_r = np.random.RandomState(123)
         inst.set_random_state(state=inst_r)
-        self.assertAlmostEqual(inst.R.rand(), 0.69646918)
+        self.assertAlmostEqual(
+            inst.R.rand(), 0.69646918,
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

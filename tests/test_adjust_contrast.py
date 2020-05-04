@@ -15,23 +15,20 @@ from parameterized import parameterized
 from monai.transforms import AdjustContrast
 from tests.utils import NumpyImageTestCase2D
 
-TEST_CASE_1 = [
-    1.0
-]
+TEST_CASE_1 = [1.0]
 
-TEST_CASE_2 = [
-    0.5
-]
+TEST_CASE_2 = [0.5]
 
-TEST_CASE_3 = [
-    4.5
-]
+TEST_CASE_3 = [4.5]
 
 
 class TestAdjustContrast(NumpyImageTestCase2D):
-
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
-    def test_correct_results(self, gamma):
+    @parameterized.expand(
+        [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3,]
+    )
+    def test_correct_results(
+        self, gamma,
+    ):
         adjuster = AdjustContrast(gamma=gamma)
         result = adjuster(self.imt)
         if gamma == 1.0:
@@ -40,9 +37,15 @@ class TestAdjustContrast(NumpyImageTestCase2D):
             epsilon = 1e-7
             img_min = self.imt.min()
             img_range = self.imt.max() - img_min
-            expected = np.power(((self.imt - img_min) / float(img_range + epsilon)), gamma) * img_range + img_min
-        np.testing.assert_allclose(expected, result, rtol=1e-05)
+            expected = (
+                np.power(((self.imt - img_min) / float(img_range + epsilon)), gamma,)
+                * img_range
+                + img_min
+            )
+        np.testing.assert_allclose(
+            expected, result, rtol=1e-05,
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

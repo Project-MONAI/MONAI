@@ -16,9 +16,9 @@ from parameterized import parameterized
 from monai.transforms import MapTransform
 
 TEST_CASES = [
-    ['item', ('item',)],
-    [None, (None,)],
-    [['item1', 'item2'], ('item1', 'item2')],
+    ["item", ("item",),],
+    [None, (None,),],
+    [["item1", "item2",], ("item1", "item2",),],
 ]
 
 TEST_ILL_CASES = [
@@ -29,22 +29,31 @@ TEST_ILL_CASES = [
 
 
 class MapTest(MapTransform):
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         pass
 
 
 class TestRandomizable(unittest.TestCase):
-
     @parameterized.expand(TEST_CASES)
-    def test_keys(self, keys, expected):
+    def test_keys(
+        self, keys, expected,
+    ):
         transform = MapTest(keys=keys)
-        self.assertEqual(transform.keys, expected)
+        self.assertEqual(
+            transform.keys, expected,
+        )
 
     @parameterized.expand(TEST_ILL_CASES)
-    def test_wrong_keys(self, keys):
-        with self.assertRaisesRegex(ValueError, ''):
+    def test_wrong_keys(
+        self, keys,
+    ):
+        with self.assertRaisesRegex(
+            ValueError, "",
+        ):
             MapTest(keys=keys)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

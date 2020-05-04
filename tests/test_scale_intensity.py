@@ -17,22 +17,25 @@ from tests.utils import NumpyImageTestCase2D
 
 
 class TestScaleIntensity(NumpyImageTestCase2D):
-
-    def test_range_scale(self):
-        scaler = ScaleIntensity(minv=1.0, maxv=2.0)
+    def test_range_scale(self,):
+        scaler = ScaleIntensity(minv=1.0, maxv=2.0,)
         result = scaler(self.imt)
         mina = np.min(self.imt)
         maxa = np.max(self.imt)
         norm = (self.imt - mina) / (maxa - mina)
         expected = (norm * (2.0 - 1.0)) + 1.0
-        np.testing.assert_allclose(result, expected)
+        np.testing.assert_allclose(
+            result, expected,
+        )
 
-    def test_factor_scale(self):
-        scaler = ScaleIntensity(minv=None, maxv=None, factor=0.1)
+    def test_factor_scale(self,):
+        scaler = ScaleIntensity(minv=None, maxv=None, factor=0.1,)
         result = scaler(self.imt)
         expected = (self.imt * (1 + 0.1)).astype(np.float32)
-        np.testing.assert_allclose(result, expected)
+        np.testing.assert_allclose(
+            result, expected,
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -15,11 +15,15 @@ import numpy as np
 from monai.networks.utils import one_hot
 
 
-def _calculate(y, y_pred):
-    assert y.ndimension() == y_pred.ndimension() == 1 and len(y) == len(y_pred), \
-        'y and y_pred must be 1 dimension data with same length.'
-    assert y.unique().equal(torch.tensor([0, 1], dtype=y.dtype, device=y.device)), \
-        'y values must be 0 or 1, can not be all 0 or all 1.'
+def _calculate(
+    y, y_pred,
+):
+    assert y.ndimension() == y_pred.ndimension() == 1 and len(y) == len(
+        y_pred
+    ), "y and y_pred must be 1 dimension data with same length."
+    assert y.unique().equal(
+        torch.tensor([0, 1,], dtype=y.dtype, device=y.device,)
+    ), "y values must be 0 or 1, can not be all 0 or all 1."
     n = len(y)
     indexes = y_pred.argsort()
     y = y[indexes].cpu().numpy()
@@ -46,7 +50,9 @@ def _calculate(y, y_pred):
     return auc / (nneg * (n - nneg))
 
 
-def compute_roc_auc(y_pred, y, to_onehot_y=False, add_softmax=False, average='macro'):
+def compute_roc_auc(
+    y_pred, y, to_onehot_y=False, add_softmax=False, average="macro",
+):
     """Computes Area Under the Receiver Operating Characteristic Curve (ROC AUC). Referring to:
     `sklearn.metrics.roc_auc_score <https://scikit-learn.org/stable/modules/generated/
     sklearn.metrics.roc_auc_score.html#sklearn.metrics.roc_auc_score>`_.
@@ -75,10 +81,14 @@ def compute_roc_auc(y_pred, y, to_onehot_y=False, add_softmax=False, average='ma
     """
     y_pred_ndim = y_pred.ndimension()
     y_ndim = y.ndimension()
-    if y_pred_ndim not in (1, 2):
-        raise ValueError("predictions should be of shape (batch_size, n_classes) or (batch_size, ).")
-    if y_ndim not in (1, 2):
-        raise ValueError("targets should be of shape (batch_size, n_classes) or (batch_size, ).")
+    if y_pred_ndim not in (1, 2,):
+        raise ValueError(
+            "predictions should be of shape (batch_size, n_classes) or (batch_size, )."
+        )
+    if y_ndim not in (1, 2,):
+        raise ValueError(
+            "targets should be of shape (batch_size, n_classes) or (batch_size, )."
+        )
     if y_pred_ndim == 2 and y_pred.shape[1] == 1:
         y_pred = y_pred.squeeze(dim=-1)
         y_pred_ndim = 1
@@ -88,29 +98,32 @@ def compute_roc_auc(y_pred, y, to_onehot_y=False, add_softmax=False, average='ma
 
     if y_pred_ndim == 1:
         if to_onehot_y:
-            warnings.warn('y_pred has only one channel, to_onehot_y=True ignored.')
+            warnings.warn("y_pred has only one channel, to_onehot_y=True ignored.")
         if add_softmax:
-            warnings.warn('y_pred has only one channel, add_softmax=True ignored.')
-        return _calculate(y, y_pred)
+            warnings.warn("y_pred has only one channel, add_softmax=True ignored.")
+        return _calculate(y, y_pred,)
     else:
         n_classes = y_pred.shape[1]
         if to_onehot_y:
-            y = one_hot(y, n_classes)
+            y = one_hot(y, n_classes,)
         if add_softmax:
             y_pred = y_pred.float().softmax(dim=1)
 
-        assert y.shape == y_pred.shape, 'data shapes of y_pred and y do not match.'
+        assert y.shape == y_pred.shape, "data shapes of y_pred and y do not match."
 
-        if average == 'micro':
-            return _calculate(y.flatten(), y_pred.flatten())
+        if average == "micro":
+            return _calculate(y.flatten(), y_pred.flatten(),)
         else:
-            y, y_pred = y.transpose(0, 1), y_pred.transpose(0, 1)
-            auc_values = [_calculate(y_, y_pred_) for y_, y_pred_ in zip(y, y_pred)]
+            (y, y_pred,) = (
+                y.transpose(0, 1,),
+                y_pred.transpose(0, 1,),
+            )
+            auc_values = [_calculate(y_, y_pred_,) for y_, y_pred_ in zip(y, y_pred,)]
             if average is None:
                 return auc_values
-            if average == 'macro':
+            if average == "macro":
                 return np.mean(auc_values)
-            if average == 'weighted':
+            if average == "weighted":
                 weights = [sum(y_) for y_ in y]
-                return np.average(auc_values, weights=weights)
-            raise ValueError('unsupported average method.')
+                return np.average(auc_values, weights=weights,)
+            raise ValueError("unsupported average method.")

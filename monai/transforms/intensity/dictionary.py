@@ -17,12 +17,23 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 import numpy as np
 
-from monai.transforms.compose import MapTransform, Randomizable
-from monai.transforms.intensity.array import NormalizeIntensity, ScaleIntensityRange, \
-    ThresholdIntensity, AdjustContrast, ShiftIntensity, ScaleIntensity
+from monai.transforms.compose import (
+    MapTransform,
+    Randomizable,
+)
+from monai.transforms.intensity.array import (
+    NormalizeIntensity,
+    ScaleIntensityRange,
+    ThresholdIntensity,
+    AdjustContrast,
+    ShiftIntensity,
+    ScaleIntensity,
+)
 
 
-class RandGaussianNoised(Randomizable, MapTransform):
+class RandGaussianNoised(
+    Randomizable, MapTransform,
+):
     """Dictionary-based version :py:class:`monai.transforms.RandGaussianNoise`.
     Add Gaussian noise to image. This transform assumes all the expected fields have same shape.
 
@@ -34,7 +45,9 @@ class RandGaussianNoised(Randomizable, MapTransform):
         std (float): Standard deviation (spread) of distribution.
     """
 
-    def __init__(self, keys, prob=0.1, mean=0.0, std=0.1):
+    def __init__(
+        self, keys, prob=0.1, mean=0.0, std=0.1,
+    ):
         super().__init__(keys)
         self.prob = prob
         self.mean = mean
@@ -42,11 +55,17 @@ class RandGaussianNoised(Randomizable, MapTransform):
         self._do_transform = False
         self._noise = None
 
-    def randomize(self, im_shape):
+    def randomize(
+        self, im_shape,
+    ):
         self._do_transform = self.R.random() < self.prob
-        self._noise = self.R.normal(self.mean, self.R.uniform(0, self.std), size=im_shape)
+        self._noise = self.R.normal(
+            self.mean, self.R.uniform(0, self.std,), size=im_shape,
+        )
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         d = dict(data)
 
         image_shape = d[self.keys[0]].shape  # image shape from the first data key
@@ -63,7 +82,9 @@ class ShiftIntensityd(MapTransform):
     dictionary-based wrapper of :py:class:`monai.transforms.ShiftIntensity`.
     """
 
-    def __init__(self, keys, offset):
+    def __init__(
+        self, keys, offset,
+    ):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -73,19 +94,25 @@ class ShiftIntensityd(MapTransform):
         super().__init__(keys)
         self.shifter = ShiftIntensity(offset)
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         d = dict(data)
         for key in self.keys:
             d[key] = self.shifter(d[key])
         return d
 
 
-class RandShiftIntensityd(Randomizable, MapTransform):
+class RandShiftIntensityd(
+    Randomizable, MapTransform,
+):
     """
     dictionary-based version :py:class:`monai.transforms.RandShiftIntensity`.
     """
 
-    def __init__(self, keys, offsets, prob=0.1):
+    def __init__(
+        self, keys, offsets, prob=0.1,
+    ):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -96,16 +123,22 @@ class RandShiftIntensityd(Randomizable, MapTransform):
                 (Default 0.1, with 10% probability it returns a rotated array.)
         """
         super().__init__(keys)
-        self.offsets = (-offsets, offsets) if not isinstance(offsets, (list, tuple)) else offsets
-        assert len(self.offsets) == 2, 'offsets should be a number or pair of numbers.'
+        self.offsets = (
+            (-offsets, offsets,)
+            if not isinstance(offsets, (list, tuple,),)
+            else offsets
+        )
+        assert len(self.offsets) == 2, "offsets should be a number or pair of numbers."
         self.prob = prob
         self._do_transform = False
 
-    def randomize(self):
-        self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
+    def randomize(self,):
+        self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1],)
         self._do_transform = self.R.random() < self.prob
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         d = dict(data)
         self.randomize()
         if not self._do_transform:
@@ -123,7 +156,9 @@ class ScaleIntensityd(MapTransform):
     If `minv` and `maxv` not provided, use `factor` to scale image by ``v = v * (1 + factor)``.
     """
 
-    def __init__(self, keys, minv=0.0, maxv=1.0, factor=None, dtype=np.float32):
+    def __init__(
+        self, keys, minv=0.0, maxv=1.0, factor=None, dtype=np.float32,
+    ):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -134,21 +169,27 @@ class ScaleIntensityd(MapTransform):
             dtype (np.dtype): expected output data type.
         """
         super().__init__(keys)
-        self.scaler = ScaleIntensity(minv, maxv, factor, dtype)
+        self.scaler = ScaleIntensity(minv, maxv, factor, dtype,)
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         d = dict(data)
         for key in self.keys:
             d[key] = self.scaler(d[key])
         return d
 
 
-class RandScaleIntensityd(Randomizable, MapTransform):
+class RandScaleIntensityd(
+    Randomizable, MapTransform,
+):
     """
     dictionary-based version :py:class:`monai.transforms.RandScaleIntensity`.
     """
 
-    def __init__(self, keys, factors, prob=0.1, dtype=np.float32):
+    def __init__(
+        self, keys, factors, prob=0.1, dtype=np.float32,
+    ):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -160,22 +201,30 @@ class RandScaleIntensityd(Randomizable, MapTransform):
             dtype (np.dtype): expected output data type.
         """
         super().__init__(keys)
-        self.factors = (-factors, factors) if not isinstance(factors, (list, tuple)) else factors
-        assert len(self.factors) == 2, 'factors should be a number or pair of numbers.'
+        self.factors = (
+            (-factors, factors,)
+            if not isinstance(factors, (list, tuple,),)
+            else factors
+        )
+        assert len(self.factors) == 2, "factors should be a number or pair of numbers."
         self.prob = prob
         self.dtype = dtype
         self._do_transform = False
 
-    def randomize(self):
-        self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
+    def randomize(self,):
+        self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1],)
         self._do_transform = self.R.random() < self.prob
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         d = dict(data)
         self.randomize()
         if not self._do_transform:
             return d
-        scaler = ScaleIntensity(minv=None, maxv=None, factor=self.factor, dtype=self.dtype)
+        scaler = ScaleIntensity(
+            minv=None, maxv=None, factor=self.factor, dtype=self.dtype,
+        )
         for key in self.keys:
             d[key] = scaler(d[key])
         return d
@@ -197,11 +246,17 @@ class NormalizeIntensityd(MapTransform):
             or calculate on the entire image directly.
     """
 
-    def __init__(self, keys, subtrahend=None, divisor=None, nonzero=False, channel_wise=False):
+    def __init__(
+        self, keys, subtrahend=None, divisor=None, nonzero=False, channel_wise=False,
+    ):
         super().__init__(keys)
-        self.normalizer = NormalizeIntensity(subtrahend, divisor, nonzero, channel_wise)
+        self.normalizer = NormalizeIntensity(
+            subtrahend, divisor, nonzero, channel_wise,
+        )
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         d = dict(data)
         for key in self.keys:
             d[key] = self.normalizer(d[key])
@@ -220,11 +275,15 @@ class ThresholdIntensityd(MapTransform):
         cval (float or int): value to fill the remaining parts of the image, default is 0.
     """
 
-    def __init__(self, keys, threshold, above=True, cval=0):
+    def __init__(
+        self, keys, threshold, above=True, cval=0,
+    ):
         super().__init__(keys)
-        self.filter = ThresholdIntensity(threshold, above, cval)
+        self.filter = ThresholdIntensity(threshold, above, cval,)
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         d = dict(data)
         for key in self.keys:
             d[key] = self.filter(d[key])
@@ -245,11 +304,15 @@ class ScaleIntensityRanged(MapTransform):
         clip (bool): whether to perform clip after scaling.
     """
 
-    def __init__(self, keys, a_min, a_max, b_min, b_max, clip=False):
+    def __init__(
+        self, keys, a_min, a_max, b_min, b_max, clip=False,
+    ):
         super().__init__(keys)
-        self.scaler = ScaleIntensityRange(a_min, a_max, b_min, b_max, clip)
+        self.scaler = ScaleIntensityRange(a_min, a_max, b_min, b_max, clip,)
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         d = dict(data)
         for key in self.keys:
             d[key] = self.scaler(d[key])
@@ -267,18 +330,24 @@ class AdjustContrastd(MapTransform):
         gamma (float): gamma value to adjust the contrast as function.
     """
 
-    def __init__(self, keys, gamma):
+    def __init__(
+        self, keys, gamma,
+    ):
         super().__init__(keys)
         self.adjuster = AdjustContrast(gamma)
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         d = dict(data)
         for key in self.keys:
             d[key] = self.adjuster(d[key])
         return d
 
 
-class RandAdjustContrastd(Randomizable, MapTransform):
+class RandAdjustContrastd(
+    Randomizable, MapTransform,
+):
     """
     Dictionary-based version :py:class:`monai.transforms.RandAdjustContrast`.
     Randomly changes image intensity by gamma. Each pixel/voxel intensity is updated as:
@@ -293,25 +362,33 @@ class RandAdjustContrastd(Randomizable, MapTransform):
             If single number, value is picked from (0.5, gamma), default is (0.5, 4.5).
     """
 
-    def __init__(self, keys, prob=0.1, gamma=(0.5, 4.5)):
+    def __init__(
+        self, keys, prob=0.1, gamma=(0.5, 4.5,),
+    ):
         super().__init__(keys)
         self.prob = prob
-        if not isinstance(gamma, (tuple, list)):
-            assert gamma > 0.5, \
-                'if gamma is single number, must greater than 0.5 and value is picked from (0.5, gamma)'
-            self.gamma = (0.5, gamma)
+        if not isinstance(gamma, (tuple, list,),):
+            assert (
+                gamma > 0.5
+            ), "if gamma is single number, must greater than 0.5 and value is picked from (0.5, gamma)"
+            self.gamma = (
+                0.5,
+                gamma,
+            )
         else:
             self.gamma = gamma
-        assert len(self.gamma) == 2, 'gamma should be a number or pair of numbers.'
+        assert len(self.gamma) == 2, "gamma should be a number or pair of numbers."
 
         self._do_transform = False
         self.gamma_value = None
 
-    def randomize(self):
+    def randomize(self,):
         self._do_transform = self.R.random_sample() < self.prob
-        self.gamma_value = self.R.uniform(low=self.gamma[0], high=self.gamma[1])
+        self.gamma_value = self.R.uniform(low=self.gamma[0], high=self.gamma[1],)
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         d = dict(data)
         self.randomize()
         if not self._do_transform:

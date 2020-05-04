@@ -17,16 +17,17 @@ from tests.utils import NumpyImageTestCase2D
 
 
 class TestRandShiftIntensityd(NumpyImageTestCase2D):
-
-    def test_value(self):
-        key = 'img'
-        shifter = RandShiftIntensityd(keys=[key], offsets=1.0, prob=1.0)
+    def test_value(self,):
+        key = "img"
+        shifter = RandShiftIntensityd(keys=[key], offsets=1.0, prob=1.0,)
         shifter.set_random_state(seed=0)
         result = shifter({key: self.imt})
         np.random.seed(0)
-        expected = self.imt + np.random.uniform(low=-1.0, high=1.0)
-        np.testing.assert_allclose(result[key], expected)
+        expected = self.imt + np.random.uniform(low=-1.0, high=1.0,)
+        np.testing.assert_allclose(
+            result[key], expected,
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

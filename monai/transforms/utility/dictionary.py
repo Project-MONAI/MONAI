@@ -18,8 +18,16 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 import numpy as np
 
 from monai.transforms.compose import MapTransform
-from monai.transforms.utility.array import AddChannel, AsChannelFirst, ToTensor, \
-    AsChannelLast, CastToType, RepeatChannel, SqueezeDim, SimulateDelay
+from monai.transforms.utility.array import (
+    AddChannel,
+    AsChannelFirst,
+    ToTensor,
+    AsChannelLast,
+    CastToType,
+    RepeatChannel,
+    SqueezeDim,
+    SimulateDelay,
+)
 
 
 class AsChannelFirstd(MapTransform):
@@ -27,7 +35,9 @@ class AsChannelFirstd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.AsChannelFirst`.
     """
 
-    def __init__(self, keys, channel_dim=-1):
+    def __init__(
+        self, keys, channel_dim=-1,
+    ):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -37,7 +47,9 @@ class AsChannelFirstd(MapTransform):
         super().__init__(keys)
         self.converter = AsChannelFirst(channel_dim=channel_dim)
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         d = dict(data)
         for key in self.keys:
             d[key] = self.converter(d[key])
@@ -49,7 +61,9 @@ class AsChannelLastd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.AsChannelLast`.
     """
 
-    def __init__(self, keys, channel_dim=0):
+    def __init__(
+        self, keys, channel_dim=0,
+    ):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -59,7 +73,9 @@ class AsChannelLastd(MapTransform):
         super().__init__(keys)
         self.converter = AsChannelLast(channel_dim=channel_dim)
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         d = dict(data)
         for key in self.keys:
             d[key] = self.converter(d[key])
@@ -71,7 +87,9 @@ class AddChanneld(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.AddChannel`.
     """
 
-    def __init__(self, keys):
+    def __init__(
+        self, keys,
+    ):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -80,7 +98,9 @@ class AddChanneld(MapTransform):
         super().__init__(keys)
         self.adder = AddChannel()
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         d = dict(data)
         for key in self.keys:
             d[key] = self.adder(d[key])
@@ -92,7 +112,9 @@ class RepeatChanneld(MapTransform):
     dictionary-based wrapper of :py:class:`monai.transforms.RepeatChannel`.
     """
 
-    def __init__(self, keys, repeats):
+    def __init__(
+        self, keys, repeats,
+    ):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -102,7 +124,9 @@ class RepeatChanneld(MapTransform):
         super().__init__(keys)
         self.repeater = RepeatChannel(repeats)
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         d = dict(data)
         for key in self.keys:
             d[key] = self.repeater(d[key])
@@ -114,17 +138,23 @@ class CastToTyped(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.CastToType`.
     """
 
-    def __init__(self, keys, dtype=np.float32):
+    def __init__(
+        self, keys, dtype=np.float32,
+    ):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             dtype (np.dtype): convert image to this data type, default is `np.float32`.
         """
-        MapTransform.__init__(self, keys)
+        MapTransform.__init__(
+            self, keys,
+        )
         self.converter = CastToType(dtype)
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         d = dict(data)
         for key in self.keys:
             d[key] = self.converter(d[key])
@@ -136,7 +166,9 @@ class ToTensord(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.ToTensor`.
     """
 
-    def __init__(self, keys):
+    def __init__(
+        self, keys,
+    ):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -145,7 +177,9 @@ class ToTensord(MapTransform):
         super().__init__(keys)
         self.converter = ToTensor()
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         d = dict(data)
         for key in self.keys:
             d[key] = self.converter(d[key])
@@ -158,7 +192,9 @@ class DeleteKeysd(MapTransform):
     It will remove the key-values and copy the others to construct a new dictionary.
     """
 
-    def __init__(self, keys):
+    def __init__(
+        self, keys,
+    ):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -166,7 +202,9 @@ class DeleteKeysd(MapTransform):
         """
         super().__init__(keys)
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         return {key: val for key, val in data.items() if key not in self.keys}
 
 
@@ -175,7 +213,9 @@ class SqueezeDimd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.SqueezeDim`.
     """
 
-    def __init__(self, keys, dim=None):
+    def __init__(
+        self, keys, dim=None,
+    ):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -186,7 +226,9 @@ class SqueezeDimd(MapTransform):
         super().__init__(keys)
         self.converter = SqueezeDim(dim=dim)
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         d = dict(data)
         for key in self.keys:
             d[key] = self.converter(d[key])
@@ -198,7 +240,9 @@ class SimulateDelayd(MapTransform):
     dictionary-based wrapper of :py:class:monai.transforms.utility.array.SimulateDelay.
     """
 
-    def __init__(self, keys, delay_time=0.0):
+    def __init__(
+        self, keys, delay_time=0.0,
+    ):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -209,13 +253,17 @@ class SimulateDelayd(MapTransform):
         """
         super().__init__(keys)
 
-        if not isinstance(delay_time, (tuple, list)):
+        if not isinstance(delay_time, (tuple, list,),):
             delay_time = [delay_time] * len(keys)
         self.converter_dictionary = dict()
-        for key, keyed_default_delay in zip(self.keys, delay_time):
-            self.converter_dictionary[key] = SimulateDelay(delay_time=keyed_default_delay)
+        for (key, keyed_default_delay,) in zip(self.keys, delay_time,):
+            self.converter_dictionary[key] = SimulateDelay(
+                delay_time=keyed_default_delay
+            )
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         d = dict(data)
         for key in self.keys:
             d[key] = self.converter_dictionary[key](d[key])

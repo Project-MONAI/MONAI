@@ -22,51 +22,63 @@ from monai.data.synthetic import create_test_image_2d
 quick_test_var = "QUICKTEST"
 
 
-def skip_if_quick(obj):
-    is_quick = os.environ.get(quick_test_var, "").lower() == "true"
+def skip_if_quick(obj,):
+    is_quick = os.environ.get(quick_test_var, "",).lower() == "true"
 
-    return unittest.skipIf(is_quick, "Skipping slow tests")(obj)
+    return unittest.skipIf(is_quick, "Skipping slow tests",)(obj)
 
 
-def make_nifti_image(array, affine=None):
+def make_nifti_image(
+    array, affine=None,
+):
     """
     Create a temporary nifti image on the disk and return the image name.
     User is responsible for deleting the temporary file when done with it.
     """
     if affine is None:
         affine = np.eye(4)
-    test_image = nib.Nifti1Image(array, affine)
+    test_image = nib.Nifti1Image(array, affine,)
 
-    temp_f, image_name = tempfile.mkstemp(suffix='.nii.gz')
-    nib.save(test_image, image_name)
+    (temp_f, image_name,) = tempfile.mkstemp(suffix=".nii.gz")
+    nib.save(
+        test_image, image_name,
+    )
     os.close(temp_f)
     return image_name
 
 
 class NumpyImageTestCase2D(unittest.TestCase):
-    im_shape = (128, 128)
+    im_shape = (
+        128,
+        128,
+    )
     input_channels = 1
     output_channels = 4
     num_classes = 3
 
-    def setUp(self):
-        im, msk = create_test_image_2d(self.im_shape[0], self.im_shape[1], 4, 20, 0, self.num_classes)
+    def setUp(self,):
+        (im, msk,) = create_test_image_2d(
+            self.im_shape[0], self.im_shape[1], 4, 20, 0, self.num_classes,
+        )
 
-        self.imt = im[None, None]
-        self.seg1 = (msk[None, None] > 0).astype(np.float32)
-        self.segn = msk[None, None]
+        self.imt = im[
+            None, None,
+        ]
+        self.seg1 = (msk[None, None,] > 0).astype(np.float32)
+        self.segn = msk[
+            None, None,
+        ]
 
 
 class TorchImageTestCase2D(NumpyImageTestCase2D):
-
-    def setUp(self):
+    def setUp(self,):
         NumpyImageTestCase2D.setUp(self)
         self.imt = torch.tensor(self.imt)
         self.seg1 = torch.tensor(self.seg1)
         self.segn = torch.tensor(self.segn)
 
 
-def expect_failure_if_no_gpu(test):
+def expect_failure_if_no_gpu(test,):
     if not torch.cuda.is_available():
         return unittest.expectedFailure(test)
     else:

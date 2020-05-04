@@ -18,7 +18,10 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 import numpy as np
 
 from monai.transforms.compose import MapTransform
-from monai.transforms.io.array import LoadNifti, LoadPNG
+from monai.transforms.io.array import (
+    LoadNifti,
+    LoadPNG,
+)
 
 
 class LoadNiftid(MapTransform):
@@ -31,8 +34,14 @@ class LoadNiftid(MapTransform):
     be created as ``self.meta_key_format(key, metadata_key)``.
     """
 
-    def __init__(self, keys, as_closest_canonical=False, dtype=np.float32,
-                 meta_key_format='{}.{}', overwriting_keys=False):
+    def __init__(
+        self,
+        keys,
+        as_closest_canonical=False,
+        dtype=np.float32,
+        meta_key_format="{}.{}",
+        overwriting_keys=False,
+    ):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -45,21 +54,27 @@ class LoadNiftid(MapTransform):
                 default is False, which will raise exception if encountering existing key.
         """
         super().__init__(keys)
-        self.loader = LoadNifti(as_closest_canonical, False, dtype)
+        self.loader = LoadNifti(as_closest_canonical, False, dtype,)
         self.meta_key_format = meta_key_format
         self.overwriting_keys = overwriting_keys
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         d = dict(data)
         for key in self.keys:
             data = self.loader(d[key])
-            assert isinstance(data, (tuple, list)), 'loader must return a tuple or list.'
+            assert isinstance(
+                data, (tuple, list,),
+            ), "loader must return a tuple or list."
             d[key] = data[0]
-            assert isinstance(data[1], dict), 'metadata must be a dict.'
+            assert isinstance(data[1], dict,), "metadata must be a dict."
             for k in sorted(data[1]):
-                key_to_add = self.meta_key_format.format(key, k)
+                key_to_add = self.meta_key_format.format(key, k,)
                 if key_to_add in d and not self.overwriting_keys:
-                    raise KeyError('meta data key {} already exists.'.format(key_to_add))
+                    raise KeyError(
+                        "meta data key {} already exists.".format(key_to_add)
+                    )
                 d[key_to_add] = data[1][k]
         return d
 
@@ -69,7 +84,9 @@ class LoadPNGd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.LoadPNG`.
     """
 
-    def __init__(self, keys, dtype=np.float32, meta_key_format='{}.{}'):
+    def __init__(
+        self, keys, dtype=np.float32, meta_key_format="{}.{}",
+    ):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -79,18 +96,22 @@ class LoadPNGd(MapTransform):
                 it must contain 2 fields for the key of this image and the key of every meta data item.
         """
         super().__init__(keys)
-        self.loader = LoadPNG(False, dtype)
+        self.loader = LoadPNG(False, dtype,)
         self.meta_key_format = meta_key_format
 
-    def __call__(self, data):
+    def __call__(
+        self, data,
+    ):
         d = dict(data)
         for key in self.keys:
             data = self.loader(d[key])
-            assert isinstance(data, (tuple, list)), 'loader must return a tuple or list.'
+            assert isinstance(
+                data, (tuple, list,),
+            ), "loader must return a tuple or list."
             d[key] = data[0]
-            assert isinstance(data[1], dict), 'metadata must be a dict.'
+            assert isinstance(data[1], dict,), "metadata must be a dict."
             for k in sorted(data[1]):
-                key_to_add = self.meta_key_format.format(key, k)
+                key_to_add = self.meta_key_format.format(key, k,)
                 d[key_to_add] = data[1][k]
         return d
 

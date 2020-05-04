@@ -18,14 +18,13 @@ from tests.utils import NumpyImageTestCase2D
 
 
 class IntensityScaleIntensityRange(NumpyImageTestCase2D):
-
-    def test_image_scale_intensity_range(self):
-        scaler = ScaleIntensityRange(a_min=20, a_max=108, b_min=50, b_max=80)
+    def test_image_scale_intensity_range(self,):
+        scaler = ScaleIntensityRange(a_min=20, a_max=108, b_min=50, b_max=80,)
         scaled = scaler(self.imt)
         expected = (self.imt - 20) / 88
         expected = expected * 30 + 50
-        self.assertTrue(np.allclose(scaled, expected))
+        self.assertTrue(np.allclose(scaled, expected,))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

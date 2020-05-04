@@ -12,11 +12,14 @@
 import warnings
 import logging
 import torch
-from ignite.engine import Engine, Events
+from ignite.engine import (
+    Engine,
+    Events,
+)
 from monai.utils.misc import is_scalar
 
-DEFAULT_KEY_VAL_FORMAT = '{}: {:.4f} '
-DEFAULT_TAG = 'Loss'
+DEFAULT_KEY_VAL_FORMAT = "{}: {:.4f} "
+DEFAULT_TAG = "Loss"
 
 
 class StatsHandler(object):
@@ -31,14 +34,16 @@ class StatsHandler(object):
 
     """
 
-    def __init__(self,
-                 epoch_print_logger=None,
-                 iteration_print_logger=None,
-                 output_transform=lambda x: x,
-                 global_epoch_transform=lambda x: x,
-                 name=None,
-                 tag_name=DEFAULT_TAG,
-                 key_var_format=DEFAULT_KEY_VAL_FORMAT):
+    def __init__(
+        self,
+        epoch_print_logger=None,
+        iteration_print_logger=None,
+        output_transform=lambda x: x,
+        global_epoch_transform=lambda x: x,
+        name=None,
+        tag_name=DEFAULT_TAG,
+        key_var_format=DEFAULT_KEY_VAL_FORMAT,
+    ):
         """
 
         Args:
@@ -68,7 +73,9 @@ class StatsHandler(object):
         self.tag_name = tag_name
         self.key_var_format = key_var_format
 
-    def attach(self, engine: Engine):
+    def attach(
+        self, engine: Engine,
+    ):
         """Register a set of Ignite Event-Handlers to a specified Ignite engine.
 
         Args:
@@ -77,14 +84,26 @@ class StatsHandler(object):
         """
         if self.logger is None:
             self.logger = engine.logger
-        if not engine.has_event_handler(self.iteration_completed, Events.ITERATION_COMPLETED):
-            engine.add_event_handler(Events.ITERATION_COMPLETED, self.iteration_completed)
-        if not engine.has_event_handler(self.epoch_completed, Events.EPOCH_COMPLETED):
-            engine.add_event_handler(Events.EPOCH_COMPLETED, self.epoch_completed)
-        if not engine.has_event_handler(self.exception_raised, Events.EXCEPTION_RAISED):
-            engine.add_event_handler(Events.EXCEPTION_RAISED, self.exception_raised)
+        if not engine.has_event_handler(
+            self.iteration_completed, Events.ITERATION_COMPLETED,
+        ):
+            engine.add_event_handler(
+                Events.ITERATION_COMPLETED, self.iteration_completed,
+            )
+        if not engine.has_event_handler(self.epoch_completed, Events.EPOCH_COMPLETED,):
+            engine.add_event_handler(
+                Events.EPOCH_COMPLETED, self.epoch_completed,
+            )
+        if not engine.has_event_handler(
+            self.exception_raised, Events.EXCEPTION_RAISED,
+        ):
+            engine.add_event_handler(
+                Events.EXCEPTION_RAISED, self.exception_raised,
+            )
 
-    def epoch_completed(self, engine: Engine):
+    def epoch_completed(
+        self, engine: Engine,
+    ):
         """handler for train or validation/evaluation epoch completed Event.
         Print epoch level log, default values are from ignite state.metrics dict.
 
@@ -97,7 +116,9 @@ class StatsHandler(object):
         else:
             self._default_epoch_print(engine)
 
-    def iteration_completed(self, engine: Engine):
+    def iteration_completed(
+        self, engine: Engine,
+    ):
         """handler for train or validation/evaluation iteration completed Event.
         Print iteration level log, default values are from ignite state.logs dict.
 
@@ -110,7 +131,9 @@ class StatsHandler(object):
         else:
             self._default_iteration_print(engine)
 
-    def exception_raised(self, engine: Engine, e):
+    def exception_raised(
+        self, engine: Engine, e,
+    ):
         """handler for train or validation/evaluation exception raised Event.
         Print the exception information and traceback.
 
@@ -119,11 +142,13 @@ class StatsHandler(object):
             e (Exception): the exception caught in Ignite during engine.run().
 
         """
-        self.logger.exception('Exception: {}'.format(e))
+        self.logger.exception("Exception: {}".format(e))
         # import traceback
         # traceback.print_exc()
 
-    def _default_epoch_print(self, engine: Engine):
+    def _default_epoch_print(
+        self, engine: Engine,
+    ):
         """Execute epoch level log operation based on Ignite engine.state data.
         print the values from ignite state.metrics dict.
 
@@ -139,11 +164,13 @@ class StatsHandler(object):
         out_str = "Epoch[{}] Metrics -- ".format(current_epoch)
         for name in sorted(prints_dict):
             value = prints_dict[name]
-            out_str += self.key_var_format.format(name, value)
+            out_str += self.key_var_format.format(name, value,)
 
         self.logger.info(out_str)
 
-    def _default_iteration_print(self, engine: Engine):
+    def _default_iteration_print(
+        self, engine: Engine,
+    ):
         """Execute iteration log operation based on Ignite engine.state data.
         Print the values from ignite state.logs dict.
         Default behavior is to print loss from output[1], skip if output[1] is not loss.
@@ -156,25 +183,33 @@ class StatsHandler(object):
         if loss is None:
             return  # no printing if the output is empty
 
-        out_str = ''
-        if isinstance(loss, dict):  # print dictionary items
+        out_str = ""
+        if isinstance(loss, dict,):  # print dictionary items
             for name in sorted(loss):
                 value = loss[name]
                 if not is_scalar(value):
-                    warnings.warn('ignoring non-scalar output in StatsHandler,'
-                                  ' make sure `output_transform(engine.state.output)` returns'
-                                  ' a scalar or dictionary of key and scalar pairs to avoid this warning.'
-                                  ' {}:{}'.format(name, type(value)))
+                    warnings.warn(
+                        "ignoring non-scalar output in StatsHandler,"
+                        " make sure `output_transform(engine.state.output)` returns"
+                        " a scalar or dictionary of key and scalar pairs to avoid this warning."
+                        " {}:{}".format(name, type(value),)
+                    )
                     continue  # not printing multi dimensional output
-                out_str += self.key_var_format.format(name, value.item() if torch.is_tensor(value) else value)
+                out_str += self.key_var_format.format(
+                    name, value.item() if torch.is_tensor(value) else value,
+                )
         else:
             if is_scalar(loss):  # not printing multi dimensional output
-                out_str += self.key_var_format.format(self.tag_name, loss.item() if torch.is_tensor(loss) else loss)
+                out_str += self.key_var_format.format(
+                    self.tag_name, loss.item() if torch.is_tensor(loss) else loss,
+                )
             else:
-                warnings.warn('ignoring non-scalar output in StatsHandler,'
-                              ' make sure `output_transform(engine.state.output)` returns'
-                              ' a scalar or a dictionary of key and scalar pairs to avoid this warning.'
-                              ' {}'.format(type(loss)))
+                warnings.warn(
+                    "ignoring non-scalar output in StatsHandler,"
+                    " make sure `output_transform(engine.state.output)` returns"
+                    " a scalar or a dictionary of key and scalar pairs to avoid this warning."
+                    " {}".format(type(loss))
+                )
 
         if not out_str:
             return  # no value to print
@@ -185,9 +220,7 @@ class StatsHandler(object):
         num_epochs = engine.state.max_epochs
 
         base_str = "Epoch: {}/{}, Iter: {}/{} --".format(
-            current_epoch,
-            num_epochs,
-            current_iteration,
-            num_iterations)
+            current_epoch, num_epochs, current_iteration, num_iterations,
+        )
 
-        self.logger.info(' '.join([base_str, out_str]))
+        self.logger.info(" ".join([base_str, out_str,]))

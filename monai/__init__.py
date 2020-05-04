@@ -15,12 +15,16 @@ import sys
 from ._version import get_versions
 from .utils.module import load_submodules
 
-__version__ = get_versions()['version']
+__version__ = get_versions()["version"]
 del get_versions
 
 __copyright__ = "(c) 2020 MONAI Consortium"
 
 __basedir__ = os.path.dirname(__file__)
 
-load_submodules(sys.modules[__name__], False)  # load directory modules only, skip loading individual files
-load_submodules(sys.modules[__name__], True)  # load all modules, this will trigger all export decorations
+load_submodules(
+    sys.modules[__name__], False,
+)  # load directory modules only, skip loading individual files
+load_submodules(
+    sys.modules[__name__], True,
+)  # load all modules, this will trigger all export decorations

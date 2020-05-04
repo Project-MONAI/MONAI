@@ -37,7 +37,7 @@ class DiceLoss(_Loss):
         do_sigmoid=False,
         do_softmax=False,
         squared_pred=False,
-        jaccard=False
+        jaccard=False,
     ):
         """
         Args:
@@ -53,13 +53,15 @@ class DiceLoss(_Loss):
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         if do_sigmoid and do_softmax:
-            raise ValueError('do_sigmoid=True and do_softmax=True are not compatible.')
+            raise ValueError("do_sigmoid=True and do_softmax=True are not compatible.")
         self.do_sigmoid = do_sigmoid
         self.do_softmax = do_softmax
         self.squared_pred = squared_pred
         self.jaccard = jaccard
 
-    def forward(self, pred, ground, smooth=1e-5):
+    def forward(
+        self, pred, ground, smooth=1e-5,
+    ):
         """
         Args:
             pred (tensor): the shape should be BNH[WD].
@@ -71,33 +73,41 @@ class DiceLoss(_Loss):
         n_pred_ch = pred.shape[1]
         if n_pred_ch == 1:
             if self.do_softmax:
-                warnings.warn('single channel prediction, `do_softmax=True` ignored.')
+                warnings.warn("single channel prediction, `do_softmax=True` ignored.")
             if self.to_onehot_y:
-                warnings.warn('single channel prediction, `to_onehot_y=True` ignored.')
+                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
             if not self.include_background:
-                warnings.warn('single channel prediction, `include_background=False` ignored.')
+                warnings.warn(
+                    "single channel prediction, `include_background=False` ignored."
+                )
         else:
             if self.do_softmax:
-                pred = torch.softmax(pred, 1)
+                pred = torch.softmax(pred, 1,)
             if self.to_onehot_y:
-                ground = one_hot(ground, n_pred_ch)
+                ground = one_hot(ground, n_pred_ch,)
             if not self.include_background:
                 # if skipping background, removing first channel
-                ground = ground[:, 1:]
-                pred = pred[:, 1:]
-                assert ground.shape == pred.shape, ('ground truth one-hot has differing shape (%r) from pred (%r)' %
-                                                    (ground.shape, pred.shape))
+                ground = ground[
+                    :, 1:,
+                ]
+                pred = pred[
+                    :, 1:,
+                ]
+                assert ground.shape == pred.shape, (
+                    "ground truth one-hot has differing shape (%r) from pred (%r)"
+                    % (ground.shape, pred.shape,)
+                )
 
         # reducing only spatial dimensions (not batch nor channels)
-        reduce_axis = list(range(2, len(pred.shape)))
-        intersection = torch.sum(ground * pred, reduce_axis)
+        reduce_axis = list(range(2, len(pred.shape),))
+        intersection = torch.sum(ground * pred, reduce_axis,)
 
         if self.squared_pred:
-            ground = torch.pow(ground, 2)
-            pred = torch.pow(pred, 2)
+            ground = torch.pow(ground, 2,)
+            pred = torch.pow(pred, 2,)
 
-        ground_o = torch.sum(ground, reduce_axis)
-        pred_o = torch.sum(pred, reduce_axis)
+        ground_o = torch.sum(ground, reduce_axis,)
+        pred_o = torch.sum(pred, reduce_axis,)
 
         denominator = ground_o + pred_o
 
@@ -125,7 +135,7 @@ class GeneralizedDiceLoss(_Loss):
         to_onehot_y=False,
         do_sigmoid=False,
         do_softmax=False,
-        w_type='square'
+        w_type="square",
     ):
         """
         Args:
@@ -140,18 +150,20 @@ class GeneralizedDiceLoss(_Loss):
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         if do_sigmoid and do_softmax:
-            raise ValueError('do_sigmoid=True and do_softmax=True are not compatible.')
+            raise ValueError("do_sigmoid=True and do_softmax=True are not compatible.")
         self.do_sigmoid = do_sigmoid
         self.do_softmax = do_softmax
         self.w_func = torch.ones_like
-        if w_type == 'simple':
+        if w_type == "simple":
             self.w_func = torch.reciprocal
-        elif w_type == 'square':
+        elif w_type == "square":
             self.w_func = lambda x: torch.reciprocal(x * x)
         else:
-            raise ValueError('unknown option for `w_type`: {}'.format(w_type))
+            raise ValueError("unknown option for `w_type`: {}".format(w_type))
 
-    def forward(self, pred, ground, smooth=1e-5):
+    def forward(
+        self, pred, ground, smooth=1e-5,
+    ):
         """
         Args:
             pred (tensor): the shape should be BNH[WD].
@@ -163,29 +175,37 @@ class GeneralizedDiceLoss(_Loss):
         n_pred_ch = pred.shape[1]
         if n_pred_ch == 1:
             if self.do_softmax:
-                warnings.warn('single channel prediction, `do_softmax=True` ignored.')
+                warnings.warn("single channel prediction, `do_softmax=True` ignored.")
             if self.to_onehot_y:
-                warnings.warn('single channel prediction, `to_onehot_y=True` ignored.')
+                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
             if not self.include_background:
-                warnings.warn('single channel prediction, `include_background=False` ignored.')
+                warnings.warn(
+                    "single channel prediction, `include_background=False` ignored."
+                )
         else:
             if self.do_softmax:
-                pred = torch.softmax(pred, 1)
+                pred = torch.softmax(pred, 1,)
             if self.to_onehot_y:
-                ground = one_hot(ground, n_pred_ch)
+                ground = one_hot(ground, n_pred_ch,)
             if not self.include_background:
                 # if skipping background, removing first channel
-                ground = ground[:, 1:]
-                pred = pred[:, 1:]
-                assert ground.shape == pred.shape, ('ground truth one-hot has differing shape (%r) from pred (%r)' %
-                                                    (ground.shape, pred.shape))
+                ground = ground[
+                    :, 1:,
+                ]
+                pred = pred[
+                    :, 1:,
+                ]
+                assert ground.shape == pred.shape, (
+                    "ground truth one-hot has differing shape (%r) from pred (%r)"
+                    % (ground.shape, pred.shape,)
+                )
 
         # reducing only spatial dimensions (not batch nor channels)
-        reduce_axis = list(range(2, len(pred.shape)))
-        intersection = torch.sum(ground * pred, reduce_axis)
+        reduce_axis = list(range(2, len(pred.shape),))
+        intersection = torch.sum(ground * pred, reduce_axis,)
 
-        ground_o = torch.sum(ground, reduce_axis)
-        pred_o = torch.sum(pred, reduce_axis)
+        ground_o = torch.sum(ground, reduce_axis,)
+        pred_o = torch.sum(pred, reduce_axis,)
 
         denominator = ground_o + pred_o
 

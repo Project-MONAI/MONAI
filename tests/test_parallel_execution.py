@@ -18,13 +18,15 @@ from monai.engine import create_multigpu_supervised_trainer
 from tests.utils import expect_failure_if_no_gpu
 
 
-def fake_loss(y_pred, y):
+def fake_loss(
+    y_pred, y,
+):
     return (y_pred[0] + y).sum()
 
 
 def fake_data_stream():
     while True:
-        yield torch.rand((10, 1, 64, 64)), torch.rand((10, 1, 64, 64))
+        yield torch.rand((10, 1, 64, 64,)), torch.rand((10, 1, 64, 64,))
 
 
 class TestParallelExecution(unittest.TestCase):
@@ -33,26 +35,36 @@ class TestParallelExecution(unittest.TestCase):
     """
 
     @expect_failure_if_no_gpu
-    def test_single_gpu(self):
-        net = torch.nn.Conv2d(1, 1, 3, padding=1)
-        opt = torch.optim.Adam(net.parameters(), 1e-3)
-        trainer = create_multigpu_supervised_trainer(net, opt, fake_loss, [torch.device("cuda:0")])
-        trainer.run(fake_data_stream(), 2, 2)
+    def test_single_gpu(self,):
+        net = torch.nn.Conv2d(1, 1, 3, padding=1,)
+        opt = torch.optim.Adam(net.parameters(), 1e-3,)
+        trainer = create_multigpu_supervised_trainer(
+            net, opt, fake_loss, [torch.device("cuda:0")],
+        )
+        trainer.run(
+            fake_data_stream(), 2, 2,
+        )
 
     @expect_failure_if_no_gpu
-    def test_multi_gpu(self):
-        net = torch.nn.Conv2d(1, 1, 3, padding=1)
-        opt = torch.optim.Adam(net.parameters(), 1e-3)
+    def test_multi_gpu(self,):
+        net = torch.nn.Conv2d(1, 1, 3, padding=1,)
+        opt = torch.optim.Adam(net.parameters(), 1e-3,)
 
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore")  # ignore warnings about imbalanced GPU memory
+            warnings.simplefilter(
+                "ignore"
+            )  # ignore warnings about imbalanced GPU memory
 
-            trainer = create_multigpu_supervised_trainer(net, opt, fake_loss, None)
+            trainer = create_multigpu_supervised_trainer(net, opt, fake_loss, None,)
 
-        trainer.run(fake_data_stream(), 2, 2)
+        trainer.run(
+            fake_data_stream(), 2, 2,
+        )
 
-    def test_cpu(self):
-        net = torch.nn.Conv2d(1, 1, 3, padding=1)
-        opt = torch.optim.Adam(net.parameters(), 1e-3)
-        trainer = create_multigpu_supervised_trainer(net, opt, fake_loss, [])
-        trainer.run(fake_data_stream(), 2, 2)
+    def test_cpu(self,):
+        net = torch.nn.Conv2d(1, 1, 3, padding=1,)
+        opt = torch.optim.Adam(net.parameters(), 1e-3,)
+        trainer = create_multigpu_supervised_trainer(net, opt, fake_loss, [],)
+        trainer.run(
+            fake_data_stream(), 2, 2,
+        )

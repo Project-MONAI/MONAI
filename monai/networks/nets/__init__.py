@@ -9,6 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .densenet import DenseNet, densenet121, densenet169, densenet201, densenet264
-from .highresnet import HighResNet, HighResBlock
+from .densenet import (
+    DenseNet,
+    densenet121,
+    densenet169,
+    densenet201,
+    densenet264,
+)
+from .highresnet import (
+    HighResNet,
+    HighResBlock,
+)
 from .unet import *

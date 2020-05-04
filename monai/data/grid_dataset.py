@@ -23,7 +23,9 @@ class GridPatchDataset(IterableDataset):
     Yields patches from arrays read from an input dataset. The patches are chosen in a contiguous grid sampling scheme.
     """
 
-    def __init__(self, dataset, patch_size, start_pos=(), pad_mode="wrap", **pad_opts):
+    def __init__(
+        self, dataset, patch_size, start_pos=(), pad_mode="wrap", **pad_opts,
+    ):
         """
         Initializes this dataset in terms of the input dataset and patch size. The `patch_size` is the size of the 
         patch to sample from the input arrays. Tt is assumed the arrays first dimension is the channel dimension which
@@ -45,21 +47,33 @@ class GridPatchDataset(IterableDataset):
         self.pad_mode = pad_mode
         self.pad_opts = pad_opts
 
-    def __iter__(self):
+    def __iter__(self,):
         worker_info = torch.utils.data.get_worker_info()
         iter_start = 0
         iter_end = len(self.dataset)
 
-        if worker_info is not None:  
+        if worker_info is not None:
             # split workload
-            per_worker = int(math.ceil((iter_end - iter_start) / float(worker_info.num_workers)))
+            per_worker = int(
+                math.ceil((iter_end - iter_start) / float(worker_info.num_workers))
+            )
             worker_id = worker_info.id
             iter_start = iter_start + worker_id * per_worker
-            iter_end = min(iter_start + per_worker, iter_end)
+            iter_end = min(iter_start + per_worker, iter_end,)
 
-        for index in range(iter_start, iter_end):
+        for index in range(iter_start, iter_end,):
             arrays = self.dataset[index]
 
-            iters = [iter_patch(a, self.patch_size, self.start_pos, False, self.pad_mode, **self.pad_opts) for a in arrays]
+            iters = [
+                iter_patch(
+                    a,
+                    self.patch_size,
+                    self.start_pos,
+                    False,
+                    self.pad_mode,
+                    **self.pad_opts,
+                )
+                for a in arrays
+            ]
 
             yield from zip(*iters)

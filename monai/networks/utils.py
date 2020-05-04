@@ -17,7 +17,9 @@ import torch
 import torch.nn.functional as f
 
 
-def one_hot(labels, num_classes):
+def one_hot(
+    labels, num_classes,
+):
     """
     For a tensor `labels` of dimensions B1[spatial_dims], return a tensor of dimensions `BN[spatial_dims]`
     for `num_classes` N number of classes.
@@ -29,24 +31,30 @@ def one_hot(labels, num_classes):
     """
     num_dims = labels.dim()
     if num_dims > 1:
-        assert labels.shape[1] == 1, 'labels should have a channel with length equals to one.'
-        labels = torch.squeeze(labels, 1)
-    labels = f.one_hot(labels.long(), num_classes)
-    new_axes = [0, -1] + list(range(1, num_dims - 1))
+        assert (
+            labels.shape[1] == 1
+        ), "labels should have a channel with length equals to one."
+        labels = torch.squeeze(labels, 1,)
+    labels = f.one_hot(labels.long(), num_classes,)
+    new_axes = [0, -1,] + list(range(1, num_dims - 1,))
     labels = labels.permute(*new_axes)
     if not labels.is_contiguous():
         return labels.contiguous()
     return labels
 
 
-def slice_channels(tensor, *slicevals):
+def slice_channels(
+    tensor, *slicevals,
+):
     slices = [slice(None)] * len(tensor.shape)
     slices[1] = slice(*slicevals)
 
     return tensor[slices]
 
 
-def predict_segmentation(logits, mutually_exclusive=False, threshold=0):
+def predict_segmentation(
+    logits, mutually_exclusive=False, threshold=0,
+):
     """
     Given the logits from a network, computing the segmentation by thresholding all values above 0
     if multi-labels task, computing the `argmax` along the channel axis if multi-classes task,
@@ -62,6 +70,8 @@ def predict_segmentation(logits, mutually_exclusive=False, threshold=0):
         return (logits >= threshold).int()
     else:
         if logits.shape[1] == 1:
-            warnings.warn('single channel prediction, `mutually_exclusive=True` ignored, use threshold instead.')
+            warnings.warn(
+                "single channel prediction, `mutually_exclusive=True` ignored, use threshold instead."
+            )
             return (logits >= threshold).int()
-        return logits.argmax(1, keepdim=True)
+        return logits.argmax(1, keepdim=True,)

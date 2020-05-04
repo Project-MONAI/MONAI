@@ -99,89 +99,122 @@ Outputs:
 import monai
 
 
-@monai.utils.export('monai.transforms')
-def adaptor(function, outputs, inputs=None):
-
-    def must_be_types_or_none(variable_name, variable, types):
+@monai.utils.export("monai.transforms")
+def adaptor(
+    function, outputs, inputs=None,
+):
+    def must_be_types_or_none(
+        variable_name, variable, types,
+    ):
         if variable is not None:
-            if not isinstance(variable, types):
+            if not isinstance(variable, types,):
                 raise ValueError(
                     "'{}' must be None or {} but is {}".format(
-                        variable_name, types, type(variable)))
+                        variable_name, types, type(variable),
+                    )
+                )
 
-    def must_be_types(variable_name, variable, types):
-        if not isinstance(variable, types):
+    def must_be_types(
+        variable_name, variable, types,
+    ):
+        if not isinstance(variable, types,):
             raise ValueError(
                 "'{}' must be one of {} but is {}".format(
-                    variable_name, types, type(variable)))
+                    variable_name, types, type(variable),
+                )
+            )
 
-    def map_names(ditems, input_map):
-        return {input_map(k, k): v for k, v in ditems.items()}
+    def map_names(
+        ditems, input_map,
+    ):
+        return {input_map(k, k,): v for k, v in ditems.items()}
 
-    def map_only_names(ditems, input_map):
+    def map_only_names(
+        ditems, input_map,
+    ):
         return {v: ditems[k] for k, v in input_map.items()}
 
-    def _inner(ditems):
+    def _inner(ditems,):
 
         sig = FunctionSignature(function)
 
         if sig.found_kwargs:
-            must_be_types_or_none('inputs', inputs, (dict,))
+            must_be_types_or_none(
+                "inputs", inputs, (dict,),
+            )
             # we just forward all arguments unless we have been provided an input map
             if inputs is None:
                 dinputs = dict(ditems)
             else:
                 # dict
-                dinputs = map_names(ditems, inputs)
+                dinputs = map_names(ditems, inputs,)
 
         else:
             # no **kwargs
             # select only items from the method signature
-            dinputs = dict((k, v) for k, v in ditems.items() if k in sig.non_var_parameters)
-            must_be_types_or_none('inputs', inputs, (str, list, tuple, dict))
+            dinputs = dict(
+                (k, v,) for k, v in ditems.items() if k in sig.non_var_parameters
+            )
+            must_be_types_or_none(
+                "inputs", inputs, (str, list, tuple, dict,),
+            )
             if inputs is None:
                 pass
-            elif isinstance(inputs, str):
+            elif isinstance(inputs, str,):
                 if len(sig.non_var_parameters) != 1:
-                    raise ValueError("if 'inputs' is a string, function may only have a single non-variadic parameter")
+                    raise ValueError(
+                        "if 'inputs' is a string, function may only have a single non-variadic parameter"
+                    )
                 dinputs = {inputs: ditems[inputs]}
-            elif isinstance(inputs, (list, tuple)):
-                dinputs = dict((k, dinputs[k]) for k in inputs)
+            elif isinstance(inputs, (list, tuple,),):
+                dinputs = dict((k, dinputs[k],) for k in inputs)
             else:
                 # dict
-                dinputs = map_only_names(ditems, inputs)
+                dinputs = map_only_names(ditems, inputs,)
 
         ret = function(**dinputs)
 
         # now the mapping back to the output dictionary depends on outputs and what was returned from the function
         op = outputs
-        if isinstance(ret, dict):
-            must_be_types_or_none('outputs', op, (dict,))
+        if isinstance(ret, dict,):
+            must_be_types_or_none(
+                "outputs", op, (dict,),
+            )
             if op is not None:
                 ret = {v: ret[k] for k, v in op.items()}
-        elif isinstance(ret, (list, tuple)):
+        elif isinstance(ret, (list, tuple,),):
             if len(ret) == 1:
-                must_be_types('outputs', op, (str, list, tuple))
+                must_be_types(
+                    "outputs", op, (str, list, tuple,),
+                )
             else:
-                must_be_types('outputs', op, (list, tuple))
+                must_be_types(
+                    "outputs", op, (list, tuple,),
+                )
 
-            if isinstance(op, str):
+            if isinstance(op, str,):
                 op = [op]
 
             if len(ret) != len(outputs):
-                raise ValueError("'outputs' must have the same length as the number of elements that were returned")
+                raise ValueError(
+                    "'outputs' must have the same length as the number of elements that were returned"
+                )
 
-            ret = dict((k, v) for k, v in zip(op, ret))
+            ret = dict((k, v,) for k, v in zip(op, ret,))
         else:
-            must_be_types('outputs', op, (str, list, tuple))
-            if isinstance(op, (list, tuple)):
+            must_be_types(
+                "outputs", op, (str, list, tuple,),
+            )
+            if isinstance(op, (list, tuple,),):
                 if len(op) != 1:
-                    raise ValueError("'outputs' must be of length one if it is a list or tuple")
+                    raise ValueError(
+                        "'outputs' must be of length one if it is a list or tuple"
+                    )
                 op = op[0]
             ret = {op: ret}
 
         ditems = dict(ditems)
-        for k, v in ret.items():
+        for (k, v,) in ret.items():
             ditems[k] = v
 
         return ditems
@@ -189,21 +222,22 @@ def adaptor(function, outputs, inputs=None):
     return _inner
 
 
-@monai.utils.export('monai.transforms')
-def apply_alias(fn, name_map):
-
-    def _inner(data):
+@monai.utils.export("monai.transforms")
+def apply_alias(
+    fn, name_map,
+):
+    def _inner(data,):
 
         # map names
         pre_call = dict(data)
-        for _from, _to in name_map.items():
+        for (_from, _to,) in name_map.items():
             pre_call[_to] = pre_call.pop(_from)
 
         # execute
         post_call = fn(pre_call)
 
         # map names back
-        for _from, _to in name_map.items():
+        for (_from, _to,) in name_map.items():
             post_call[_from] = post_call.pop(_to)
 
         return post_call
@@ -211,17 +245,20 @@ def apply_alias(fn, name_map):
     return _inner
 
 
-@monai.utils.export('monai.transforms')
-def to_kwargs(fn):
-    def _inner(data):
+@monai.utils.export("monai.transforms")
+def to_kwargs(fn,):
+    def _inner(data,):
         return fn(**data)
 
     return _inner
 
 
 class FunctionSignature:
-    def __init__(self, function):
+    def __init__(
+        self, function,
+    ):
         import inspect
+
         sfn = inspect.signature(function)
         self.found_args = False
         self.found_kwargs = False
@@ -236,9 +273,9 @@ class FunctionSignature:
                 self.non_var_parameters.add(p.name)
                 self.defaults[p.name] = p.default is not p.empty
 
-    def __repr__(self):
+    def __repr__(self,):
         s = "<class 'FunctionSignature': found_args={}, found_kwargs={}, defaults={}"
-        return s.format(self.found_args, self.found_kwargs, self.defaults)
+        return s.format(self.found_args, self.found_kwargs, self.defaults,)
 
-    def __str__(self):
+    def __str__(self,):
         return self.__repr__()

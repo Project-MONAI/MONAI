@@ -19,8 +19,16 @@ class SegmentationSaver:
     Event handler triggered on completing every iteration to save the segmentation predictions as nifti files.
     """
 
-    def __init__(self, output_dir='./', output_postfix='seg', output_ext='.nii.gz', dtype=None,
-                 batch_transform=lambda x: x, output_transform=lambda x: x, name=None):
+    def __init__(
+        self,
+        output_dir="./",
+        output_postfix="seg",
+        output_ext=".nii.gz",
+        dtype=None,
+        batch_transform=lambda x: x,
+        output_transform=lambda x: x,
+        name=None,
+    ):
         """
         Args:
             output_dir (str): output image directory.
@@ -37,19 +45,25 @@ class SegmentationSaver:
             name (str): identifier of logging.logger to use, defaulting to `engine.logger`.
 
         """
-        self.saver = NiftiSaver(output_dir, output_postfix, output_ext, dtype)
+        self.saver = NiftiSaver(output_dir, output_postfix, output_ext, dtype,)
         self.batch_transform = batch_transform
         self.output_transform = output_transform
 
         self.logger = None if name is None else logging.getLogger(name)
 
-    def attach(self, engine):
+    def attach(
+        self, engine,
+    ):
         if self.logger is None:
             self.logger = engine.logger
-        if not engine.has_event_handler(self, Events.ITERATION_COMPLETED):
-            engine.add_event_handler(Events.ITERATION_COMPLETED, self)
+        if not engine.has_event_handler(self, Events.ITERATION_COMPLETED,):
+            engine.add_event_handler(
+                Events.ITERATION_COMPLETED, self,
+            )
 
-    def __call__(self, engine):
+    def __call__(
+        self, engine,
+    ):
         """
         This method assumes self.batch_transform will extract metadata from the input batch.
         output file datatype is determined from ``engine.state.output.dtype``.
@@ -57,5 +71,7 @@ class SegmentationSaver:
         """
         meta_data = self.batch_transform(engine.state.batch)
         engine_output = self.output_transform(engine.state.output)
-        self.saver.save_batch(engine_output, meta_data)
-        self.logger.info('saved all the model outputs as nifti files.')
+        self.saver.save_batch(
+            engine_output, meta_data,
+        )
+        self.logger.info("saved all the model outputs as nifti files.")

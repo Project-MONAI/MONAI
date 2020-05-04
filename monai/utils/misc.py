@@ -15,21 +15,27 @@ import numpy as np
 import torch
 
 
-def zip_with(op, *vals, mapfunc=map):
+def zip_with(
+    op, *vals, mapfunc=map,
+):
     """
     Map `op`, using `mapfunc`, to each tuple derived from zipping the iterables in `vals`.
     """
-    return mapfunc(op, zip(*vals))
+    return mapfunc(op, zip(*vals),)
 
 
-def star_zip_with(op, *vals):
+def star_zip_with(
+    op, *vals,
+):
     """
     Use starmap as the mapping function in zipWith.
     """
-    return zip_with(op, *vals, mapfunc=itertools.starmap)
+    return zip_with(op, *vals, mapfunc=itertools.starmap,)
 
 
-def first(iterable, default=None):
+def first(
+    iterable, default=None,
+):
     """
     Returns the first item in the given iterable or `default` if empty, meaningful mostly with 'for' expressions.
     """
@@ -38,32 +44,36 @@ def first(iterable, default=None):
     return default
 
 
-def ensure_tuple(vals):
-    if not isinstance(vals, (list, tuple)):
+def ensure_tuple(vals,):
+    if not isinstance(vals, (list, tuple,),):
         vals = (vals,)
 
     return tuple(vals)
 
 
-def ensure_tuple_size(tup, dim):
+def ensure_tuple_size(
+    tup, dim,
+):
     """Returns a copy of `tup` with `dim` values by either shortened or padded with zeros as necessary."""
     tup = tuple(tup) + (0,) * dim
     return tup[:dim]
 
 
-def is_scalar_tensor(val):
+def is_scalar_tensor(val,):
     if torch.is_tensor(val) and val.ndim == 0:
         return True
     return False
 
 
-def is_scalar(val):
+def is_scalar(val,):
     if torch.is_tensor(val) and val.ndim == 0:
         return True
     return np.isscalar(val)
 
 
-def process_bar(index, count, bar_len=30, newline=False):
+def process_bar(
+    index, count, bar_len=30, newline=False,
+):
     """print a process bar to track some time consuming task.
 
     Args:
@@ -72,9 +82,11 @@ def process_bar(index, count, bar_len=30, newline=False):
         bar_len(int): the total length of the bar on screen, default is 30 char.
         newline (bool): whether to print in a new line for every index.
     """
-    end = '\r' if newline is False else '\r\n'
+    end = "\r" if newline is False else "\r\n"
     filled_len = int(bar_len * index // count)
-    bar = '[' + '=' * filled_len + ' ' * (bar_len - filled_len) + ']'
-    print("{}/{} {:s}  ".format(index, count, bar), end=end)
+    bar = "[" + "=" * filled_len + " " * (bar_len - filled_len) + "]"
+    print(
+        "{}/{} {:s}  ".format(index, count, bar,), end=end,
+    )
     if index == count:
-        print('')
+        print("")

@@ -15,34 +15,31 @@ from parameterized import parameterized
 from monai.transforms import SpatialPad
 
 TEST_CASE_1 = [
-    {
-        'spatial_size': [15, 8, 8],
-        'method': 'symmetric',
-        'mode': 'constant'
-    },
-    np.zeros((3, 8, 8, 4)),
-    np.zeros((3, 15, 8, 8)),
+    {"spatial_size": [15, 8, 8,], "method": "symmetric", "mode": "constant",},
+    np.zeros((3, 8, 8, 4,)),
+    np.zeros((3, 15, 8, 8,)),
 ]
 
 TEST_CASE_2 = [
-    {
-        'spatial_size': [15, 8, 8],
-        'method': 'end',
-        'mode': 'constant'
-    },
-    np.zeros((3, 8, 8, 4)),
-    np.zeros((3, 15, 8, 8)),
+    {"spatial_size": [15, 8, 8,], "method": "end", "mode": "constant",},
+    np.zeros((3, 8, 8, 4,)),
+    np.zeros((3, 15, 8, 8,)),
 ]
 
 
 class TestSpatialPad(unittest.TestCase):
-
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
-    def test_pad_shape(self, input_param, input_data, expected_val):
+    @parameterized.expand(
+        [TEST_CASE_1, TEST_CASE_2,]
+    )
+    def test_pad_shape(
+        self, input_param, input_data, expected_val,
+    ):
         padder = SpatialPad(**input_param)
         result = padder(input_data)
-        self.assertAlmostEqual(result.shape, expected_val.shape)
+        self.assertAlmostEqual(
+            result.shape, expected_val.shape,
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

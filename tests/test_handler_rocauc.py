@@ -17,21 +17,26 @@ from monai.handlers import ROCAUC
 
 
 class TestHandlerROCAUC(unittest.TestCase):
+    def test_compute(self,):
+        auc_metric = ROCAUC(to_onehot_y=True, add_softmax=True,)
 
-    def test_compute(self):
-        auc_metric = ROCAUC(to_onehot_y=True, add_softmax=True)
+        y_pred = torch.Tensor([[0.1, 0.9,], [0.3, 1.4,],])
+        y = torch.Tensor([[0], [1],])
+        auc_metric.update(
+            [y_pred, y,]
+        )
 
-        y_pred = torch.Tensor([[0.1, 0.9], [0.3, 1.4]])
-        y = torch.Tensor([[0], [1]])
-        auc_metric.update([y_pred, y])
-
-        y_pred = torch.Tensor([[0.2, 0.1], [0.1, 0.5]])
-        y = torch.Tensor([[0], [1]])
-        auc_metric.update([y_pred, y])
+        y_pred = torch.Tensor([[0.2, 0.1,], [0.1, 0.5,],])
+        y = torch.Tensor([[0], [1],])
+        auc_metric.update(
+            [y_pred, y,]
+        )
 
         auc = auc_metric.compute()
-        np.testing.assert_allclose(0.75, auc)
+        np.testing.assert_allclose(
+            0.75, auc,
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

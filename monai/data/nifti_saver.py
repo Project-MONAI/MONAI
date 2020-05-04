@@ -23,8 +23,17 @@ class NiftiSaver:
     use index from 0 as the filename prefix.
     """
 
-    def __init__(self, output_dir='./', output_postfix='seg', output_ext='.nii.gz',
-                 resample=True, interp_order=0, mode='constant', cval=0, dtype=None):
+    def __init__(
+        self,
+        output_dir="./",
+        output_postfix="seg",
+        output_ext=".nii.gz",
+        resample=True,
+        interp_order=0,
+        mode="constant",
+        cval=0,
+        dtype=None,
+    ):
         """
         Args:
             output_dir (str): output image directory.
@@ -55,7 +64,9 @@ class NiftiSaver:
         self._data_index = 0
 
     @staticmethod
-    def _create_file_basename(postfix, input_file_name, folder_path, data_root_dir=""):
+    def _create_file_basename(
+        postfix, input_file_name, folder_path, data_root_dir="",
+    ):
         """
         Utility function to create the path to the output file based on the input
         filename (extension is added by lib level writer before writing the file)
@@ -71,27 +82,29 @@ class NiftiSaver:
         """
 
         # get the filename and directory
-        filedir, filename = os.path.split(input_file_name)
+        (filedir, filename,) = os.path.split(input_file_name)
 
         # jettison the extension to have just filename
-        filename, ext = os.path.splitext(filename)
+        (filename, ext,) = os.path.splitext(filename)
         while ext != "":
-            filename, ext = os.path.splitext(filename)
+            (filename, ext,) = os.path.splitext(filename)
 
         # use data_root_dir to find relative path to file
         filedir_rel_path = ""
         if data_root_dir:
-            filedir_rel_path = os.path.relpath(filedir, data_root_dir)
+            filedir_rel_path = os.path.relpath(filedir, data_root_dir,)
 
         # sub-folder path will be original name without the extension
-        subfolder_path = os.path.join(folder_path, filedir_rel_path, filename)
+        subfolder_path = os.path.join(folder_path, filedir_rel_path, filename,)
         if not os.path.exists(subfolder_path):
             os.makedirs(subfolder_path)
 
         # add the sub-folder plus the postfix name to become the file basename in the output path
-        return os.path.join(subfolder_path, filename + "_" + postfix)
+        return os.path.join(subfolder_path, filename + "_" + postfix,)
 
-    def save(self, data, meta_data=None):
+    def save(
+        self, data, meta_data=None,
+    ):
         """
         Save data into a Nifti file.
         The metadata could optionally have the following keys:
@@ -111,28 +124,43 @@ class NiftiSaver:
         See Also
             :py:meth:`monai.data.nifti_writer.write_nifti`
         """
-        filename = meta_data['filename_or_obj'] if meta_data else str(self._data_index)
+        filename = meta_data["filename_or_obj"] if meta_data else str(self._data_index)
         self._data_index += 1
-        original_affine = meta_data.get('original_affine', None) if meta_data else None
-        affine = meta_data.get('affine', None) if meta_data else None
-        spatial_shape = meta_data.get('spatial_shape', None) if meta_data else None
+        original_affine = meta_data.get("original_affine", None,) if meta_data else None
+        affine = meta_data.get("affine", None,) if meta_data else None
+        spatial_shape = meta_data.get("spatial_shape", None,) if meta_data else None
 
         if torch.is_tensor(data):
             data = data.detach().cpu().numpy()
-        filename = self._create_file_basename(self.output_postfix, filename, self.output_dir)
-        filename = '{}{}'.format(filename, self.output_ext)
+        filename = self._create_file_basename(
+            self.output_postfix, filename, self.output_dir,
+        )
+        filename = "{}{}".format(filename, self.output_ext,)
         # change data to "channel last" format and write to nifti format file
-        data = np.moveaxis(data, 0, -1)
-        write_nifti(data, file_name=filename, affine=affine, target_affine=original_affine,
-                    resample=self.resample, output_shape=spatial_shape, interp_order=self.interp_order,
-                    mode=self.mode, cval=self.cval, dtype=self.dtype or data.dtype)
+        data = np.moveaxis(data, 0, -1,)
+        write_nifti(
+            data,
+            file_name=filename,
+            affine=affine,
+            target_affine=original_affine,
+            resample=self.resample,
+            output_shape=spatial_shape,
+            interp_order=self.interp_order,
+            mode=self.mode,
+            cval=self.cval,
+            dtype=self.dtype or data.dtype,
+        )
 
-    def save_batch(self, batch_data, meta_data=None):
+    def save_batch(
+        self, batch_data, meta_data=None,
+    ):
         """Save a batch of data into Nifti format files.
 
         args:
             batch_data (Tensor or ndarray): target batch data content that save into NIfTI format.
             meta_data (dict): every key-value in the meta_data is corresponding to a batch of data.
         """
-        for i, data in enumerate(batch_data):  # save a batch of files
-            self.save(data, {k: meta_data[k][i] for k in meta_data} if meta_data else None)
+        for (i, data,) in enumerate(batch_data):  # save a batch of files
+            self.save(
+                data, {k: meta_data[k][i] for k in meta_data} if meta_data else None,
+            )

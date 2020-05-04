@@ -15,19 +15,22 @@ from parameterized import parameterized
 from monai.transforms import RepeatChannel
 
 TEST_CASE_1 = [
-    {'repeats': 3},
-    np.array([[[0, 1], [1, 2]]]),
-    (3, 2, 2)
+    {"repeats": 3},
+    np.array([[[0, 1,], [1, 2,],]]),
+    (3, 2, 2,),
 ]
 
 
 class TestRepeatChannel(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_1])
-    def test_shape(self, input_param, input_data, expected_shape):
+    def test_shape(
+        self, input_param, input_data, expected_shape,
+    ):
         result = RepeatChannel(**input_param)(input_data)
-        self.assertEqual(result.shape, expected_shape)
+        self.assertEqual(
+            result.shape, expected_shape,
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
