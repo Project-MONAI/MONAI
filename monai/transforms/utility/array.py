@@ -12,11 +12,13 @@
 A collection of "vanilla" transforms for utility functions
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
+import time
 
 from typing import Callable
 import logging
 import numpy as np
 import torch
+
 from monai.transforms.compose import Transform
 
 
@@ -215,4 +217,30 @@ class DataStats(Transform):
         self.output = '{} statistics:{}{}{}{}'.format(self.prefix, data_shape_info, intensity_range_info,
                                                       data_value_info, additional_info)
         self._logger.debug(self.output)
+        return img
+
+
+class SimulateDelay(Transform):
+    """
+    This is a pass through transform to be used for testing purposes. It allows
+    adding fake behaviors that are useful for testing purposes to simulate
+    how large datasets behave without needing to test on large data sets.
+
+    For example, simulating slow NFS data transfers, or slow network transfers
+    in testing by adding explicit timing delays. Testing of small test data
+    can lead to incomplete understanding of real world issues, and may lead
+    to sub-optimal design choices.
+    """
+
+    def __init__(self, delay_time=0.0):
+        """
+        Args:
+            delay_time(float): The minimum amount of time, in fractions of seconds,
+                to accomplish this delay task.
+        """
+        super().__init__()
+        self.delay_time: float = delay_time
+
+    def __call__(self, img):
+        time.sleep(self.delay_time)
         return img

@@ -309,6 +309,12 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
+`SimulateDelay`
+~~~~~~~~~~~~~~~
+.. autoclass:: SimulateDelay
+    :members:
+    :special-members: __call__
+
 Dictionary-based Transforms
 ----------------------------
 
@@ -558,6 +564,12 @@ Dictionary-based Transforms
 `DataStatsd`
 ~~~~~~~~~~~~
 .. autoclass:: DataStatsd
+    :members:
+    :special-members: __call__
+
+`SimulateDelayd`
+~~~~~~~~~~~~~~~~
+.. autoclass:: SimulateDelayd
     :members:
     :special-members: __call__
 

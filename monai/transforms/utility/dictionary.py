@@ -19,7 +19,7 @@ import numpy as np
 
 from monai.transforms.compose import MapTransform
 from monai.transforms.utility.array import AddChannel, AsChannelFirst, ToTensor, \
-    AsChannelLast, CastToType, RepeatChannel, SqueezeDim, DataStats
+    AsChannelLast, CastToType, RepeatChannel, SqueezeDim, DataStats, SimulateDelay
 
 
 class AsChannelFirstd(MapTransform):
@@ -231,6 +231,35 @@ class DataStatsd(MapTransform):
         return d
 
 
+class SimulateDelayd(MapTransform):
+    """
+    dictionary-based wrapper of :py:class:monai.transforms.utility.array.SimulateDelay.
+    """
+
+    def __init__(self, keys, delay_time=0.0):
+        """
+        Args:
+            keys (hashable items): keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            delay_time(float or list of float): The minimum amount of time, in fractions of seconds,
+                to accomplish this identity task. If a list is provided, it must be of length equal
+                to the keys representing the delay for each key element.
+        """
+        super().__init__(keys)
+
+        if not isinstance(delay_time, (tuple, list)):
+            delay_time = [delay_time] * len(keys)
+        self.converter_dictionary = dict()
+        for key, keyed_default_delay in zip(self.keys, delay_time):
+            self.converter_dictionary[key] = SimulateDelay(delay_time=keyed_default_delay)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.converter_dictionary[key](d[key])
+        return d
+
+
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
 AddChannelD = AddChannelDict = AddChanneld
@@ -240,3 +269,4 @@ ToTensorD = ToTensorDict = ToTensord
 DeleteKeysD = DeleteKeysDict = DeleteKeysd
 SqueezeDimD = SqueezeDimDict = SqueezeDimd
 DataStatsD = DataStatsDict = DataStatsd
+SimulateDelayD = SimulateDelayDict = SimulateDelayd
