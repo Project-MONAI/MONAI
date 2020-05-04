@@ -61,6 +61,17 @@ License information: all source code files should start with this paragraph:
 
 ```
 
+### Automatic code formatting
+MONAI provides support of automatic Python code formatting via [a customised GitHub actions](https://github.com/Project-MONAI/monai-code-formatter).
+This mainly makes the project's Python coding style consistent and reduces the maintenance burdens.
+The 'autoformat' label [defined at the project level](https://github.com/Project-MONAI/MONAI/labels) is the flag to trigger the formatter.
+
+Steps for the formatting process:
+- After submitting a pull request or push to an existing pull request, apply the "autoformat" [label](https://help.github.com/en/github/managing-your-work-on-github/applying-labels-to-issues-and-pull-requests).
+- [Auto] The GitHub action tries to format all Python files (using [psf/Black](https://github.com/psf/black)) in the branch and makes a commit under the name "MONAI bot" if there's code change.
+- [Auto] The GitHub action removes the 'autoformat' label.
+- The above steps could be repeated multiple times.
+
 ### Utility functions
 MONAI provides a set of generic utility functions and frequently used routines.
 These are located in [``monai/utils``](./monai/utils/) and in the module folders such as [``networks/utils.py``](./monai/networks/).

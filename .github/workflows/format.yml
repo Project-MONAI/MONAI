@@ -1,0 +1,41 @@
+name: format
+
+on:
+  pull_request:
+    types: [labeled]
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+    - if: contains( github.event.pull_request.labels.*.name, 'autoformat')
+      name: Run format
+      uses: project-monai/monai-code-formatter@master
+      with:
+        token: ${{ secrets.PR_MAINTAIN }}
+        format_args: "--line-length 120 ."
+        email: "monai.miccai2019@gmail.com"
+        username: "MONAI bot"
+        message: "[MONAI] Python code formatting"
+    - if: contains( github.event.pull_request.labels.*.name, 'autoformat')
+      name: Remove PR label ('autoformat')
+      uses: actions/github-script@0.9.0
+      with:
+        github-token: ${{ github.token }}
+        script: |
+          const opts = github.issues.listLabelsOnIssue.endpoint.merge({
+            ...context.repo,
+            issue_number: context.issue.number
+          });
+          const labels = await github.paginate(opts);
+          for (const label of labels) {
+            if (label.name === 'autoformat') {
+              await github.issues.removeLabel({
+                ...context.repo,
+                issue_number: context.issue.number,
+                name: 'autoformat'
+              })
+              return;
+            }
+          }
+
