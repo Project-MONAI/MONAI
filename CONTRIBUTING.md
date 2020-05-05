@@ -45,6 +45,7 @@ Ideally, the new branch should be based on the latest `master` branch.
 
 ### Coding style
 Coding style is checked by flake8, using [a flake8 configuration](./setup.cfg) similar to [PyTorch's](https://github.com/pytorch/pytorch/blob/master/.flake8).
+Python code file formatting could be done locally before submitting a pull request (e.g. using [`psf/Black`](https://github.com/psf/black)), or during the pull request review using MONAI's automatic code formatting workflow.
 
 License information: all source code files should start with this paragraph:
 ```
