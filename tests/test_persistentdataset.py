@@ -11,16 +11,18 @@
 
 import unittest
 import os
+import shutil
 import numpy as np
 import tempfile
 import nibabel as nib
 from parameterized import parameterized
-from monai.data import Dataset
+from monai.data import PersistentDataset
 from monai.transforms import Compose, LoadNiftid, SimulateDelayd
 
 TEST_CASE_1 = [
     (128, 128, 128)
 ]
+
 
 class TestDataset(unittest.TestCase):
 
@@ -49,27 +51,29 @@ class TestDataset(unittest.TestCase):
         test_transform = Compose([LoadNiftid(keys=['image', 'label', 'extra']),
                                   SimulateDelayd(keys=['image', 'label', 'extra'],
                                                  delay_time=[1e-7, 1e-6, 1e-5])])
-        dataset = Dataset(data=test_data, transform=test_transform)
-        data1 = dataset[0]
-        data2 = dataset[1]
 
-        self.assertTupleEqual(data1['image'].shape, expected_shape)
-        self.assertTupleEqual(data1['label'].shape, expected_shape)
-        self.assertTupleEqual(data1['extra'].shape, expected_shape)
-        self.assertTupleEqual(data2['image'].shape, expected_shape)
-        self.assertTupleEqual(data2['label'].shape, expected_shape)
-        self.assertTupleEqual(data2['extra'].shape, expected_shape)
+        dataset_precached = PersistentDataset(data=test_data, transform=test_transform, cache_dir=tempdir)
+        data1_precached = dataset_precached[0]
+        data2_precached = dataset_precached[1]
 
-        dataset = Dataset(data=test_data, transform=LoadNiftid(keys=['image', 'label', 'extra']))
-        data1_simple = dataset[0]
-        data2_simple = dataset[1]
+        dataset_postcached = PersistentDataset(data=test_data, transform=test_transform, cache_dir=tempdir)
+        data1_postcached = dataset_postcached[0]
+        data2_postcached = dataset_postcached[1]
+        shutil.rmtree(tempdir)
 
-        self.assertTupleEqual(data1_simple['image'].shape, expected_shape)
-        self.assertTupleEqual(data1_simple['label'].shape, expected_shape)
-        self.assertTupleEqual(data1_simple['extra'].shape, expected_shape)
-        self.assertTupleEqual(data2_simple['image'].shape, expected_shape)
-        self.assertTupleEqual(data2_simple['label'].shape, expected_shape)
-        self.assertTupleEqual(data2_simple['extra'].shape, expected_shape)
+        self.assertTupleEqual(data1_precached['image'].shape, expected_shape)
+        self.assertTupleEqual(data1_precached['label'].shape, expected_shape)
+        self.assertTupleEqual(data1_precached['extra'].shape, expected_shape)
+        self.assertTupleEqual(data2_precached['image'].shape, expected_shape)
+        self.assertTupleEqual(data2_precached['label'].shape, expected_shape)
+        self.assertTupleEqual(data2_precached['extra'].shape, expected_shape)
+
+        self.assertTupleEqual(data1_postcached['image'].shape, expected_shape)
+        self.assertTupleEqual(data1_postcached['label'].shape, expected_shape)
+        self.assertTupleEqual(data1_postcached['extra'].shape, expected_shape)
+        self.assertTupleEqual(data2_postcached['image'].shape, expected_shape)
+        self.assertTupleEqual(data2_postcached['label'].shape, expected_shape)
+        self.assertTupleEqual(data2_postcached['extra'].shape, expected_shape)
 
 
 if __name__ == '__main__':

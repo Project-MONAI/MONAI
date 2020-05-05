@@ -22,6 +22,12 @@ Generic Interfaces
   :members:
   :special-members: __getitem__
 
+`PersistentDataset`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: PersistentDataset
+  :members:
+  :special-members: __getitem__
+
 
 Patch-based dataset
 -------------------
