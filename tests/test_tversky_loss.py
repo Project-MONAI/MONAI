@@ -17,7 +17,7 @@ from parameterized import parameterized
 from monai.losses import TverskyLoss
 
 TEST_CASE_1 = [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
-    {"include_background": True, "do_sigmoid": True,},
+    {"include_background": True, "do_sigmoid": True},
     {
         "pred": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
         "ground": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
@@ -27,7 +27,7 @@ TEST_CASE_1 = [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
 ]
 
 TEST_CASE_2 = [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
-    {"include_background": True, "do_sigmoid": True,},
+    {"include_background": True, "do_sigmoid": True},
     {
         "pred": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]], [[[1.0, -1.0], [-1.0, 1.0]]]]),
         "ground": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]]], [[[1.0, 0.0], [1.0, 0.0]]]]),
@@ -37,7 +37,7 @@ TEST_CASE_2 = [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
 ]
 
 TEST_CASE_3 = [  # shape: (2, 2, 3), (2, 1, 3)
-    {"include_background": False, "to_onehot_y": True,},
+    {"include_background": False, "to_onehot_y": True},
     {
         "pred": torch.tensor([[[1.0, 1.0, 0.0], [0.0, 0.0, 1.0]], [[1.0, 0.0, 1.0], [0.0, 1.0, 0.0]]]),
         "ground": torch.tensor([[[0.0, 0.0, 1.0]], [[0.0, 1.0, 0.0]]]),
@@ -47,7 +47,7 @@ TEST_CASE_3 = [  # shape: (2, 2, 3), (2, 1, 3)
 ]
 
 TEST_CASE_4 = [  # shape: (2, 2, 3), (2, 1, 3)
-    {"include_background": True, "to_onehot_y": True, "do_sigmoid": True,},
+    {"include_background": True, "to_onehot_y": True, "do_sigmoid": True},
     {
         "pred": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
         "ground": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
@@ -57,7 +57,7 @@ TEST_CASE_4 = [  # shape: (2, 2, 3), (2, 1, 3)
 ]
 
 TEST_CASE_5 = [  # shape: (2, 2, 3), (2, 1, 3)
-    {"include_background": True, "to_onehot_y": True, "do_softmax": True,},
+    {"include_background": True, "to_onehot_y": True, "do_softmax": True},
     {
         "pred": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
         "ground": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
@@ -67,7 +67,7 @@ TEST_CASE_5 = [  # shape: (2, 2, 3), (2, 1, 3)
 ]
 
 TEST_CASE_6 = [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
-    {"include_background": True, "do_sigmoid": True, "alpha": 0.3, "beta": 0.7,},
+    {"include_background": True, "do_sigmoid": True, "alpha": 0.3, "beta": 0.7},
     {
         "pred": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
         "ground": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
@@ -77,7 +77,7 @@ TEST_CASE_6 = [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
 ]
 
 TEST_CASE_7 = [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
-    {"include_background": True, "do_sigmoid": True, "alpha": 0.7, "beta": 0.3,},
+    {"include_background": True, "do_sigmoid": True, "alpha": 0.7, "beta": 0.3},
     {
         "pred": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
         "ground": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),

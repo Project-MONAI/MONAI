@@ -297,17 +297,17 @@ def create_rotate(spatial_dims, radians):
         if len(radians) >= 1:
             sin_, cos_ = np.sin(radians[0]), np.cos(radians[0])
             affine = np.array(
-                [[1.0, 0.0, 0.0, 0.0], [0.0, cos_, -sin_, 0.0], [0.0, sin_, cos_, 0.0], [0.0, 0.0, 0.0, 1.0],]
+                [[1.0, 0.0, 0.0, 0.0], [0.0, cos_, -sin_, 0.0], [0.0, sin_, cos_, 0.0], [0.0, 0.0, 0.0, 1.0]]
             )
         if len(radians) >= 2:
             sin_, cos_ = np.sin(radians[1]), np.cos(radians[1])
             affine = affine @ np.array(
-                [[cos_, 0.0, sin_, 0.0], [0.0, 1.0, 0.0, 0.0], [-sin_, 0.0, cos_, 0.0], [0.0, 0.0, 0.0, 1.0],]
+                [[cos_, 0.0, sin_, 0.0], [0.0, 1.0, 0.0, 0.0], [-sin_, 0.0, cos_, 0.0], [0.0, 0.0, 0.0, 1.0]]
             )
         if len(radians) >= 3:
             sin_, cos_ = np.sin(radians[2]), np.cos(radians[2])
             affine = affine @ np.array(
-                [[cos_, -sin_, 0.0, 0.0], [sin_, cos_, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0],]
+                [[cos_, -sin_, 0.0, 0.0], [sin_, cos_, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
             )
         return affine
 
@@ -325,7 +325,7 @@ def create_shear(spatial_dims, coefs):
     if spatial_dims == 2:
         while len(coefs) < 2:
             coefs.append(0.0)
-        return np.array([[1, coefs[0], 0.0], [coefs[1], 1.0, 0.0], [0.0, 0.0, 1.0],])
+        return np.array([[1, coefs[0], 0.0], [coefs[1], 1.0, 0.0], [0.0, 0.0, 1.0]])
     if spatial_dims == 3:
         while len(coefs) < 6:
             coefs.append(0.0)

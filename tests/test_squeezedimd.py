@@ -17,36 +17,36 @@ from monai.transforms import SqueezeDimd
 
 TEST_CASE_1 = [
     {"keys": ["img", "seg"], "dim": None},
-    {"img": np.random.rand(1, 2, 1, 3), "seg": np.random.randint(0, 2, size=[1, 2, 1, 3]),},
+    {"img": np.random.rand(1, 2, 1, 3), "seg": np.random.randint(0, 2, size=[1, 2, 1, 3])},
     (2, 3),
 ]
 
 TEST_CASE_2 = [
     {"keys": ["img", "seg"], "dim": 2},
-    {"img": np.random.rand(1, 2, 1, 8, 16), "seg": np.random.randint(0, 2, size=[1, 2, 1, 8, 16]),},
+    {"img": np.random.rand(1, 2, 1, 8, 16), "seg": np.random.randint(0, 2, size=[1, 2, 1, 8, 16])},
     (1, 2, 8, 16),
 ]
 
 TEST_CASE_3 = [
     {"keys": ["img", "seg"], "dim": -1},
-    {"img": np.random.rand(1, 1, 16, 8, 1), "seg": np.random.randint(0, 2, size=[1, 1, 16, 8, 1]),},
+    {"img": np.random.rand(1, 1, 16, 8, 1), "seg": np.random.randint(0, 2, size=[1, 1, 16, 8, 1])},
     (1, 1, 16, 8),
 ]
 
 TEST_CASE_4 = [
     {"keys": ["img", "seg"]},
-    {"img": np.random.rand(1, 2, 1, 3), "seg": np.random.randint(0, 2, size=[1, 2, 1, 3]),},
+    {"img": np.random.rand(1, 2, 1, 3), "seg": np.random.randint(0, 2, size=[1, 2, 1, 3])},
     (2, 3),
 ]
 
 TEST_CASE_5 = [
     {"keys": ["img", "seg"], "dim": -2},
-    {"img": np.random.rand(1, 1, 16, 8, 1), "seg": np.random.randint(0, 2, size=[1, 1, 16, 8, 1]),},
+    {"img": np.random.rand(1, 1, 16, 8, 1), "seg": np.random.randint(0, 2, size=[1, 1, 16, 8, 1])},
 ]
 
 TEST_CASE_6 = [
     {"keys": ["img", "seg"], "dim": 0.5},
-    {"img": np.random.rand(1, 1, 16, 8, 1), "seg": np.random.randint(0, 2, size=[1, 1, 16, 8, 1]),},
+    {"img": np.random.rand(1, 1, 16, 8, 1), "seg": np.random.randint(0, 2, size=[1, 1, 16, 8, 1])},
 ]
 
 
