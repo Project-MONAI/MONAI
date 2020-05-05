@@ -61,6 +61,20 @@ License information: all source code files should start with this paragraph:
 
 ```
 
+### Automatic code formatting
+MONAI provides support of automatic Python code formatting via [a customised GitHub action](https://github.com/Project-MONAI/monai-code-formatter).
+This makes the project's Python coding style consistent and reduces maintenance burdens.
+Commenting a pull request with `/black` triggers the formatting action based on [`psf/Black`](https://github.com/psf/black) (this is implemented with [`slach command dispatch`](https://github.com/marketplace/actions/slash-command-dispatch)).
+
+
+Steps for the formatting process:
+- After submitting a pull request or push to an existing pull request,
+make a comment to the pull request to trigger the formatting action.
+The first line of the comment must be `/black` so that it will be interpreted by [the comment parser](https://github.com/marketplace/actions/slash-command-dispatch#how-are-comments-parsed-for-slash-commands).
+- [Auto] The GitHub action tries to format all Python files (using [`psf/Black`](https://github.com/psf/black)) in the branch and makes a commit under the name "MONAI bot" if there's code change (The actual formatting action is deployed at [project-monai/monai-code-formatter](https://github.com/Project-MONAI/monai-code-formatter).
+- [Auto] After the formatting commit, the GitHub action adds an emoji to the comment that triggered the process.
+- Repeat the above steps if necessary.
+
 ### Utility functions
 MONAI provides a set of generic utility functions and frequently used routines.
 These are located in [``monai/utils``](./monai/utils/) and in the module folders such as [``networks/utils.py``](./monai/networks/).
