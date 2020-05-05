@@ -14,38 +14,16 @@ import numpy as np
 from parameterized import parameterized
 from monai.transforms import CenterSpatialCrop
 
-TEST_CASE_1 = [
-    {
-        'roi_size': [2, 2, 2]
-    },
-    np.random.randint(0, 2, size=[3, 3, 3, 3]),
-    (3, 2, 2, 2)
-]
+TEST_CASE_1 = [{"roi_size": [2, 2, 2]}, np.random.randint(0, 2, size=[3, 3, 3, 3]), (3, 2, 2, 2)]
 
 TEST_CASE_2 = [
-    {
-        'roi_size': [2, 2]
-    },
-    np.array([
-        [
-            [0, 0, 0, 0, 0],
-            [0, 1, 2, 1, 0],
-            [0, 2, 3, 2, 0],
-            [0, 1, 2, 1, 0],
-            [0, 0, 0, 0, 0]
-        ]
-    ]),
-    np.array([
-        [
-            [1, 2],
-            [2, 3]
-        ]
-    ]),
+    {"roi_size": [2, 2]},
+    np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),
+    np.array([[[1, 2], [2, 3]]]),
 ]
 
 
 class TestCenterSpatialCrop(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_1])
     def test_shape(self, input_param, input_data, expected_shape):
         result = CenterSpatialCrop(**input_param)(input_data)
@@ -57,5 +35,5 @@ class TestCenterSpatialCrop(unittest.TestCase):
         np.testing.assert_allclose(result, expected_value)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

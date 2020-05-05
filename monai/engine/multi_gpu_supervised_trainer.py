@@ -28,7 +28,7 @@ def get_devices_spec(devices=None):
         list of torch.device: list of devices.
     """
     if devices is None:
-        devices = [torch.device('cuda:%i' % d) for d in range(torch.cuda.device_count())]
+        devices = [torch.device("cuda:%i" % d) for d in range(torch.cuda.device_count())]
 
         if len(devices) == 0:
             raise ValueError("No GPU devices available")
@@ -43,12 +43,19 @@ def _default_transform(x, y, y_pred, loss):
     return loss.item()
 
 
-def _default_eval_transform(x, y, y_pred): 
+def _default_eval_transform(x, y, y_pred):
     return y_pred, y
 
 
-def create_multigpu_supervised_trainer(net, optimizer, loss_fn, devices=None, non_blocking=False,
-                                       prepare_batch=_prepare_batch, output_transform=_default_transform):
+def create_multigpu_supervised_trainer(
+    net,
+    optimizer,
+    loss_fn,
+    devices=None,
+    non_blocking=False,
+    prepare_batch=_prepare_batch,
+    output_transform=_default_transform,
+):
     """
     Derived from `create_supervised_trainer` in Ignite.
 
@@ -83,8 +90,14 @@ def create_multigpu_supervised_trainer(net, optimizer, loss_fn, devices=None, no
     return create_supervised_trainer(net, optimizer, loss_fn, devices[0], non_blocking, prepare_batch, output_transform)
 
 
-def create_multigpu_supervised_evaluator(net, metrics=None, devices=None, non_blocking=False,
-                                         prepare_batch=_prepare_batch, output_transform=_default_eval_transform):
+def create_multigpu_supervised_evaluator(
+    net,
+    metrics=None,
+    devices=None,
+    non_blocking=False,
+    prepare_batch=_prepare_batch,
+    output_transform=_default_eval_transform,
+):
     """
     Derived from `create_supervised_evaluator` in Ignite.
 

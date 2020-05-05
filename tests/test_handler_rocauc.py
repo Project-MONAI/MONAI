@@ -17,7 +17,6 @@ from monai.handlers import ROCAUC
 
 
 class TestHandlerROCAUC(unittest.TestCase):
-
     def test_compute(self):
         auc_metric = ROCAUC(to_onehot_y=True, add_softmax=True)
 
@@ -33,5 +32,5 @@ class TestHandlerROCAUC(unittest.TestCase):
         np.testing.assert_allclose(0.75, auc)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

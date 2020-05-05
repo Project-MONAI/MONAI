@@ -16,13 +16,12 @@ from parameterized import parameterized
 from monai.transforms import DeleteKeysd
 
 TEST_CASE_1 = [
-    {'keys': [str(i) for i in range(30)]},
+    {"keys": [str(i) for i in range(30)]},
     20,
 ]
 
 
 class TestDeleteKeysd(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_1])
     def test_memory(self, input_param, expected_key_size):
         input_data = dict()
@@ -31,9 +30,9 @@ class TestDeleteKeysd(unittest.TestCase):
         result = DeleteKeysd(**input_param)(input_data)
         self.assertEqual(len(result.keys()), expected_key_size)
         self.assertGreaterEqual(
-            sys.getsizeof(input_data) * float(expected_key_size) / len(input_data),
-            sys.getsizeof(result))
+            sys.getsizeof(input_data) * float(expected_key_size) / len(input_data), sys.getsizeof(result)
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

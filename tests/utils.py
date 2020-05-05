@@ -37,7 +37,7 @@ def make_nifti_image(array, affine=None):
         affine = np.eye(4)
     test_image = nib.Nifti1Image(array, affine)
 
-    temp_f, image_name = tempfile.mkstemp(suffix='.nii.gz')
+    temp_f, image_name = tempfile.mkstemp(suffix=".nii.gz")
     nib.save(test_image, image_name)
     os.close(temp_f)
     return image_name
@@ -58,7 +58,6 @@ class NumpyImageTestCase2D(unittest.TestCase):
 
 
 class TorchImageTestCase2D(NumpyImageTestCase2D):
-
     def setUp(self):
         NumpyImageTestCase2D.setUp(self)
         self.imt = torch.tensor(self.imt)

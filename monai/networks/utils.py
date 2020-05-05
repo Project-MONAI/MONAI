@@ -29,7 +29,7 @@ def one_hot(labels, num_classes):
     """
     num_dims = labels.dim()
     if num_dims > 1:
-        assert labels.shape[1] == 1, 'labels should have a channel with length equals to one.'
+        assert labels.shape[1] == 1, "labels should have a channel with length equals to one."
         labels = torch.squeeze(labels, 1)
     labels = f.one_hot(labels.long(), num_classes)
     new_axes = [0, -1] + list(range(1, num_dims - 1))
@@ -62,6 +62,6 @@ def predict_segmentation(logits, mutually_exclusive=False, threshold=0):
         return (logits >= threshold).int()
     else:
         if logits.shape[1] == 1:
-            warnings.warn('single channel prediction, `mutually_exclusive=True` ignored, use threshold instead.')
+            warnings.warn("single channel prediction, `mutually_exclusive=True` ignored, use threshold instead.")
             return (logits >= threshold).int()
         return logits.argmax(1, keepdim=True)

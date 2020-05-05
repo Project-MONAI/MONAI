@@ -17,18 +17,12 @@ from PIL import Image
 from parameterized import parameterized
 from monai.transforms import LoadPNGd
 
-KEYS = ['image', 'label', 'extra']
+KEYS = ["image", "label", "extra"]
 
-TEST_CASE_1 = [
-    {
-        'keys': KEYS
-    },
-    (128, 128, 3)
-]
+TEST_CASE_1 = [{"keys": KEYS}, (128, 128, 3)]
 
 
 class TestLoadPNGd(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_1])
     def test_shape(self, input_param, expected_shape):
         test_image = np.random.randint(0, 256, size=[128, 128, 3])
@@ -36,12 +30,12 @@ class TestLoadPNGd(unittest.TestCase):
         test_data = dict()
         with tempfile.TemporaryDirectory() as tempdir:
             for key in KEYS:
-                Image.fromarray(test_image.astype('uint8')).save(os.path.join(tempdir, key + '.png'))
-                test_data.update({key: os.path.join(tempdir, key + '.png')})
+                Image.fromarray(test_image.astype("uint8")).save(os.path.join(tempdir, key + ".png"))
+                test_data.update({key: os.path.join(tempdir, key + ".png")})
             result = LoadPNGd(**input_param)(test_data)
         for key in KEYS:
             self.assertTupleEqual(result[key].shape, expected_shape)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

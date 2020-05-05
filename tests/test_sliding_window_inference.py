@@ -26,7 +26,6 @@ TEST_CASE_4 = [(1, 3, 16, 7), (80, 50), 7]  # 2D large roi
 
 
 class TestSlidingWindowInference(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_sliding_window_default(self, image_shape, roi_shape, sw_batch_size):
         inputs = torch.ones(*image_shape)
@@ -40,5 +39,5 @@ class TestSlidingWindowInference(unittest.TestCase):
         self.assertTrue(np.allclose(result.numpy(), expected_val))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

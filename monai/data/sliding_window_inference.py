@@ -31,7 +31,7 @@ def sliding_window_inference(inputs, roi_size, sw_batch_size, predictor):
         execute on 1 image/per inference, run a batch of window slices of 1 input image.
     """
     num_spatial_dims = len(inputs.shape) - 2
-    assert len(roi_size) == num_spatial_dims, 'roi_size {} does not match input dims.'.format(roi_size)
+    assert len(roi_size) == num_spatial_dims, "roi_size {} does not match input dims.".format(roi_size)
 
     # determine image spatial size and batch size
     # Note: all input images must have the same image size and batch size
@@ -46,7 +46,7 @@ def sliding_window_inference(inputs, roi_size, sw_batch_size, predictor):
     # in case that image size is smaller than roi size
     image_size = tuple(max(image_size[i], roi_size[i]) for i in range(num_spatial_dims))
     pad_size = [i for k in range(len(inputs.shape) - 1, 1, -1) for i in (0, max(roi_size[k - 2] - inputs.shape[k], 0))]
-    inputs = F.pad(inputs, pad=pad_size, mode='constant', value=0)
+    inputs = F.pad(inputs, pad=pad_size, mode="constant", value=0)
 
     # TODO: interval from user's specification
     scan_interval = _get_scan_interval(image_size, roi_size, num_spatial_dims)
@@ -88,23 +88,23 @@ def sliding_window_inference(inputs, roi_size, sw_batch_size, predictor):
             if num_spatial_dims == 3:
                 slice_i, slice_j, slice_k = slices[curr_index]
                 output_image[0, :, slice_i, slice_j, slice_k] += output_rois[window_id][curr_index - slice_index, :]
-                count_map[0, :, slice_i, slice_j, slice_k] += 1.
+                count_map[0, :, slice_i, slice_j, slice_k] += 1.0
             else:
                 slice_i, slice_j = slices[curr_index]
                 output_image[0, :, slice_i, slice_j] += output_rois[window_id][curr_index - slice_index, :]
-                count_map[0, :, slice_i, slice_j] += 1.
+                count_map[0, :, slice_i, slice_j] += 1.0
 
     # account for any overlapping sections
     output_image /= count_map
 
     if num_spatial_dims == 3:
-        return output_image[..., :original_image_size[0], :original_image_size[1], :original_image_size[2]]
-    return output_image[..., :original_image_size[0], :original_image_size[1]]  # 2D
+        return output_image[..., : original_image_size[0], : original_image_size[1], : original_image_size[2]]
+    return output_image[..., : original_image_size[0], : original_image_size[1]]  # 2D
 
 
 def _get_scan_interval(image_size, roi_size, num_spatial_dims):
-    assert (len(image_size) == num_spatial_dims), 'image coord different from spatial dims.'
-    assert (len(roi_size) == num_spatial_dims), 'roi coord different from spatial dims.'
+    assert len(image_size) == num_spatial_dims, "image coord different from spatial dims."
+    assert len(roi_size) == num_spatial_dims, "roi coord different from spatial dims."
 
     scan_interval = [1 for _ in range(num_spatial_dims)]
     for i in range(num_spatial_dims):

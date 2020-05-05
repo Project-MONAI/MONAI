@@ -83,12 +83,14 @@ def dense_patch_slices(image_size, patch_size, scan_interval):
     """
     num_spatial_dims = len(image_size)
     if num_spatial_dims not in (2, 3):
-        raise ValueError('image_size should has 2 or 3 elements')
+        raise ValueError("image_size should has 2 or 3 elements")
     patch_size = get_valid_patch_size(image_size, patch_size)
     scan_interval = ensure_tuple_size(scan_interval, num_spatial_dims)
 
-    scan_num = [int(math.ceil(float(image_size[i]) / scan_interval[i])) if scan_interval[i] != 0 else 1
-                for i in range(num_spatial_dims)]
+    scan_num = [
+        int(math.ceil(float(image_size[i]) / scan_interval[i])) if scan_interval[i] != 0 else 1
+        for i in range(num_spatial_dims)
+    ]
     slices = []
     if num_spatial_dims == 3:
         for i in range(scan_num[0]):
@@ -203,7 +205,7 @@ def correct_nifti_header_if_necessary(img_nii):
     Args:
         img (nifti image object)
     """
-    dim = img_nii.header['dim'][0]
+    dim = img_nii.header["dim"][0]
     if dim >= 5:
         return img_nii  # do nothing for high-dimensional array
     # check that affine matches zooms
@@ -211,7 +213,7 @@ def correct_nifti_header_if_necessary(img_nii):
     norm_affine = np.sqrt(np.sum(np.square(img_nii.affine[:dim, :dim]), 0))
     if np.allclose(pixdim, norm_affine):
         return img_nii
-    if hasattr(img_nii, 'get_sform'):
+    if hasattr(img_nii, "get_sform"):
         return rectify_header_sform_qform(img_nii)
     return img_nii
 
@@ -223,7 +225,7 @@ def rectify_header_sform_qform(img_nii):
 
     Adapted from https://github.com/NifTK/NiftyNet/blob/v0.6.0/niftynet/io/misc_io.py
     """
-    d = img_nii.header['dim'][0]
+    d = img_nii.header["dim"][0]
     pixdim = np.asarray(img_nii.header.get_zooms())[:d]
     sform, qform = img_nii.get_sform(), img_nii.get_qform()
     norm_sform = np.sqrt(np.sum(np.square(sform[:d, :d]), 0))
@@ -231,13 +233,13 @@ def rectify_header_sform_qform(img_nii):
     sform_mismatch = not np.allclose(norm_sform, pixdim)
     qform_mismatch = not np.allclose(norm_qform, pixdim)
 
-    if img_nii.header['sform_code'] != 0:
+    if img_nii.header["sform_code"] != 0:
         if not sform_mismatch:
             return img_nii
         if not qform_mismatch:
             img_nii.set_sform(img_nii.get_qform())
             return img_nii
-    if img_nii.header['qform_code'] != 0:
+    if img_nii.header["qform_code"] != 0:
         if not qform_mismatch:
             return img_nii
         if not sform_mismatch:
@@ -245,7 +247,7 @@ def rectify_header_sform_qform(img_nii):
             return img_nii
 
     norm = np.sqrt(np.sum(np.square(img_nii.affine[:d, :d]), 0))
-    warnings.warn('Modifying image pixdim from {} to {}'.format(pixdim, norm))
+    warnings.warn("Modifying image pixdim from {} to {}".format(pixdim, norm))
 
     img_nii.header.set_zooms(norm)
     return img_nii
@@ -272,18 +274,18 @@ def zoom_affine(affine, scale, diagonal=True):
     """
     affine = np.array(affine, dtype=float, copy=True)
     if len(affine) != len(affine[0]):
-        raise ValueError('affine should be a square matrix')
+        raise ValueError("affine should be a square matrix")
     scale = np.array(scale, dtype=float, copy=True)
     if np.any(scale <= 0):
-        raise ValueError('scale must be a sequence of positive numbers.')
+        raise ValueError("scale must be a sequence of positive numbers.")
     d = len(affine) - 1
     if len(scale) < d:  # defaults based on affine
         norm = np.sqrt(np.sum(np.square(affine), 0))[:-1]
-        scale = np.append(scale, norm[len(scale):])
+        scale = np.append(scale, norm[len(scale) :])
     scale = scale[:d]
-    scale[scale == 0] = 1.
+    scale[scale == 0] = 1.0
     if diagonal:
-        return np.diag(np.append(scale, [1.]))
+        return np.diag(np.append(scale, [1.0]))
     rzs = affine[:-1, :-1]  # rotation zoom scale
     zs = np.linalg.cholesky(rzs.T @ rzs).T
     rotation = rzs @ np.linalg.inv(zs)
@@ -305,15 +307,14 @@ def compute_shape_offset(spatial_shape, in_affine, out_affine):
     sr = len(shape)
     in_affine = to_affine_nd(sr, in_affine)
     out_affine = to_affine_nd(sr, out_affine)
-    in_coords = [(0., dim - 1.) for dim in shape]
-    corners = np.asarray(np.meshgrid(*in_coords, indexing='ij')).reshape((len(shape), -1))
+    in_coords = [(0.0, dim - 1.0) for dim in shape]
+    corners = np.asarray(np.meshgrid(*in_coords, indexing="ij")).reshape((len(shape), -1))
     corners = np.concatenate((corners, np.ones_like(corners[:1])))
     corners = in_affine @ corners
     corners_out = np.linalg.inv(out_affine) @ corners
     corners_out = corners_out[:-1] / corners_out[-1]
-    out_shape = np.round(np.max(corners_out, 1) - np.min(corners_out, 1) + 1.)
-    if np.allclose(nib.io_orientation(in_affine),
-                   nib.io_orientation(out_affine)):
+    out_shape = np.round(np.max(corners_out, 1) - np.min(corners_out, 1) + 1.0)
+    if np.allclose(nib.io_orientation(in_affine), nib.io_orientation(out_affine)):
         # same orientation, get translate from the origin
         offset = in_affine @ ([0] * sr + [1])
         offset = offset[:-1] / offset[-1]
@@ -348,12 +349,12 @@ def to_affine_nd(r, affine):
     """
     affine = np.array(affine, dtype=np.float64)
     if affine.ndim != 2:
-        raise ValueError('input affine must have two dimensions')
+        raise ValueError("input affine must have two dimensions")
     new_affine = np.array(r, dtype=np.float64, copy=True)
     if new_affine.ndim == 0:
         sr = new_affine.astype(int)
         if not np.isfinite(sr) or sr < 0:
-            raise ValueError('r must be positive.')
+            raise ValueError("r must be positive.")
         new_affine = np.eye(sr + 1, dtype=np.float64)
     d = max(min(len(new_affine) - 1, len(affine) - 1), 1)
     new_affine[:d, :d] = affine[:d, :d]

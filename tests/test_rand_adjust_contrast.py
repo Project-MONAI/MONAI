@@ -15,17 +15,12 @@ from parameterized import parameterized
 from monai.transforms import RandAdjustContrast
 from tests.utils import NumpyImageTestCase2D
 
-TEST_CASE_1 = [
-    (0.5, 4.5)
-]
+TEST_CASE_1 = [(0.5, 4.5)]
 
-TEST_CASE_2 = [
-    1.5
-]
+TEST_CASE_2 = [1.5]
 
 
 class TestRandAdjustContrast(NumpyImageTestCase2D):
-
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_correct_results(self, gamma):
         adjuster = RandAdjustContrast(prob=1.0, gamma=gamma)
@@ -33,10 +28,11 @@ class TestRandAdjustContrast(NumpyImageTestCase2D):
         epsilon = 1e-7
         img_min = self.imt.min()
         img_range = self.imt.max() - img_min
-        expected = np.power(((self.imt - img_min) / float(img_range + epsilon)), adjuster.gamma_value) * \
-            img_range + img_min
+        expected = (
+            np.power(((self.imt - img_min) / float(img_range + epsilon)), adjuster.gamma_value) * img_range + img_min
+        )
         np.testing.assert_allclose(expected, result, rtol=1e-05)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
