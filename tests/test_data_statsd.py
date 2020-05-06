@@ -79,12 +79,12 @@ TEST_CASE_5 = [
         'additional_info': lambda x: np.mean(x)
     },
     {'img': np.array([[0, 1], [1, 2]])},
-    'test data statistics:\nShape: (2, 2)\nIntensity range: (0, 2)\nValue: [[0 1]\n [1 2]]\nAdditional_info: 1.0'
+    'test data statistics:\nShape: (2, 2)\nIntensity range: (0, 2)\nValue: [[0 1]\n [1 2]]\nAdditional info: 1.0'
 ]
 
 TEST_CASE_6 = [
     {'img': np.array([[0, 1], [1, 2]])},
-    'test data statistics:\nShape: (2, 2)\nIntensity range: (0, 2)\nValue: [[0 1]\n [1 2]]\nAdditional_info: 1.0\n'
+    'test data statistics:\nShape: (2, 2)\nIntensity range: (0, 2)\nValue: [[0 1]\n [1 2]]\nAdditional info: 1.0\n'
 ]
 
 
@@ -99,7 +99,7 @@ class TestDataStatsd(unittest.TestCase):
     @parameterized.expand([TEST_CASE_6])
     def test_file(self, input_data, expected_print):
         with tempfile.TemporaryDirectory() as tempdir:
-            filename = os.path.join(tempdir, 'test.log')
+            filename = os.path.join(tempdir, 'test_stats.log')
             handler = logging.FileHandler(filename, mode='w')
             input_param = {
                 'keys': 'img',
@@ -112,10 +112,10 @@ class TestDataStatsd(unittest.TestCase):
             }
             transform = DataStatsd(**input_param)
             _ = transform(input_data)
-            handler.stream.close()
             with open(filename, 'r') as f:
                 content = f.read()
                 self.assertEqual(content, expected_print)
+            os.remove(filename)
 
 
 if __name__ == '__main__':

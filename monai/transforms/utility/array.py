@@ -208,15 +208,19 @@ class DataStats(Transform):
             self._logger.addHandler(logger_handler)
 
     def __call__(self, img):
-        data_shape_info = '\nShape: {}'.format(img.shape) if self.data_shape else ''
-        intensity_range_info = \
-            '\nIntensity range: ({}, {})'.format(np.min(img), np.max(img)) if self.intensity_range else ''
-        data_value_info = '\nValue: {}'.format(img) if self.data_value else ''
-        additional_info = \
-            '\nAdditional_info: {}'.format(self.additional_info(img)) if self.additional_info else ''
-        self.output = '{} statistics:{}{}{}{}'.format(self.prefix, data_shape_info, intensity_range_info,
-                                                      data_value_info, additional_info)
+        lines = [f'{self.prefix} statistics:']
+        if self.data_shape:
+            lines.append(f'Shape: {img.shape}')
+        if self.intensity_range:
+            lines.append(f'Intensity range: ({np.min(img)}, {np.max(img)})')
+        if self.data_value:
+            lines.append(f'Value: {img}')
+        if self.additional_info:
+            lines.append(f'Additional info: {self.additional_info(img)}')
+        separator = '\n'
+        self.output = f'{separator.join(lines)}'
         self._logger.debug(self.output)
+
         return img
 
 
