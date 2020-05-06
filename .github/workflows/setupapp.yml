@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - master
-      - tests-with-py36-37-38
 
 jobs:
   coverage-py3:
