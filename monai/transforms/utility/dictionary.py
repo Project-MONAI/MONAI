@@ -18,8 +18,16 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 import numpy as np
 
 from monai.transforms.compose import MapTransform
-from monai.transforms.utility.array import AddChannel, AsChannelFirst, ToTensor, \
-    AsChannelLast, CastToType, RepeatChannel, SqueezeDim, SimulateDelay
+from monai.transforms.utility.array import (
+    AddChannel,
+    AsChannelFirst,
+    ToTensor,
+    AsChannelLast,
+    CastToType,
+    RepeatChannel,
+    SqueezeDim,
+    SimulateDelay,
+)
 
 
 class AsChannelFirstd(MapTransform):

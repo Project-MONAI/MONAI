@@ -19,8 +19,16 @@ class SegmentationSaver:
     Event handler triggered on completing every iteration to save the segmentation predictions as nifti files.
     """
 
-    def __init__(self, output_dir='./', output_postfix='seg', output_ext='.nii.gz', dtype=None,
-                 batch_transform=lambda x: x, output_transform=lambda x: x, name=None):
+    def __init__(
+        self,
+        output_dir="./",
+        output_postfix="seg",
+        output_ext=".nii.gz",
+        dtype=None,
+        batch_transform=lambda x: x,
+        output_transform=lambda x: x,
+        name=None,
+    ):
         """
         Args:
             output_dir (str): output image directory.
@@ -58,4 +66,4 @@ class SegmentationSaver:
         meta_data = self.batch_transform(engine.state.batch)
         engine_output = self.output_transform(engine.state.output)
         self.saver.save_batch(engine_output, meta_data)
-        self.logger.info('saved all the model outputs as nifti files.')
+        self.logger.info("saved all the model outputs as nifti files.")

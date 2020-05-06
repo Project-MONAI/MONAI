@@ -50,7 +50,7 @@ class GridPatchDataset(IterableDataset):
         iter_start = 0
         iter_end = len(self.dataset)
 
-        if worker_info is not None:  
+        if worker_info is not None:
             # split workload
             per_worker = int(math.ceil((iter_end - iter_start) / float(worker_info.num_workers)))
             worker_id = worker_info.id
@@ -60,6 +60,8 @@ class GridPatchDataset(IterableDataset):
         for index in range(iter_start, iter_end):
             arrays = self.dataset[index]
 
-            iters = [iter_patch(a, self.patch_size, self.start_pos, False, self.pad_mode, **self.pad_opts) for a in arrays]
+            iters = [
+                iter_patch(a, self.patch_size, self.start_pos, False, self.pad_mode, **self.pad_opts) for a in arrays
+            ]
 
             yield from zip(*iters)

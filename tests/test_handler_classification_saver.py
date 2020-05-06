@@ -21,9 +21,8 @@ from monai.handlers import ClassificationSaver
 
 
 class TestHandlerClassificationSaver(unittest.TestCase):
-
     def test_saved_content(self):
-        default_dir = os.path.join('.', 'tempdir')
+        default_dir = os.path.join(".", "tempdir")
         shutil.rmtree(default_dir, ignore_errors=True)
 
         # set up engine
@@ -33,23 +32,23 @@ class TestHandlerClassificationSaver(unittest.TestCase):
         engine = Engine(_train_func)
 
         # set up testing handler
-        saver = ClassificationSaver(output_dir=default_dir, filename='predictions.csv')
+        saver = ClassificationSaver(output_dir=default_dir, filename="predictions.csv")
         saver.attach(engine)
 
-        data = [{'filename_or_obj': ['testfile' + str(i) for i in range(8)]}]
+        data = [{"filename_or_obj": ["testfile" + str(i) for i in range(8)]}]
         engine.run(data, max_epochs=1)
-        filepath = os.path.join(default_dir, 'predictions.csv')
+        filepath = os.path.join(default_dir, "predictions.csv")
         self.assertTrue(os.path.exists(filepath))
-        with open(filepath, 'r') as f:
+        with open(filepath, "r") as f:
             reader = csv.reader(f)
             i = 0
             for row in reader:
-                self.assertEqual(row[0], 'testfile' + str(i))
+                self.assertEqual(row[0], "testfile" + str(i))
                 self.assertEqual(np.array(row[1:]).astype(np.float32), 0.0)
                 i += 1
             self.assertEqual(i, 8)
         shutil.rmtree(default_dir)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

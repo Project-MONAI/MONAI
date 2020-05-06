@@ -17,19 +17,12 @@ import nibabel as nib
 from parameterized import parameterized
 from monai.transforms import LoadNiftid
 
-KEYS = ['image', 'label', 'extra']
+KEYS = ["image", "label", "extra"]
 
-TEST_CASE_1 = [
-    {
-        'keys': KEYS,
-        'as_closest_canonical': False
-    },
-    (128, 128, 128)
-]
+TEST_CASE_1 = [{"keys": KEYS, "as_closest_canonical": False}, (128, 128, 128)]
 
 
 class TestLoadNiftid(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_1])
     def test_shape(self, input_param, expected_shape):
         test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]), np.eye(4))
@@ -37,12 +30,12 @@ class TestLoadNiftid(unittest.TestCase):
         test_data = dict()
         with tempfile.TemporaryDirectory() as tempdir:
             for key in KEYS:
-                nib.save(test_image, os.path.join(tempdir, key + '.nii.gz'))
-                test_data.update({key: os.path.join(tempdir, key + '.nii.gz')})
+                nib.save(test_image, os.path.join(tempdir, key + ".nii.gz"))
+                test_data.update({key: os.path.join(tempdir, key + ".nii.gz")})
             result = LoadNiftid(**input_param)(test_data)
         for key in KEYS:
             self.assertTupleEqual(result[key].shape, expected_shape)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

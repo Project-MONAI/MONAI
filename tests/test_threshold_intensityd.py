@@ -15,50 +15,30 @@ from parameterized import parameterized
 from monai.transforms import ThresholdIntensityd
 
 TEST_CASE_1 = [
-    {
-        'keys': ['image', 'label', 'extra'],
-        'threshold': 5,
-        'above': True,
-        'cval': 0
-    },
-    (0, 0, 0, 0, 0, 0, 6, 7, 8, 9)
+    {"keys": ["image", "label", "extra"], "threshold": 5, "above": True, "cval": 0},
+    (0, 0, 0, 0, 0, 0, 6, 7, 8, 9),
 ]
 
 TEST_CASE_2 = [
-    {
-        'keys': ['image', 'label', 'extra'],
-        'threshold': 5,
-        'above': False,
-        'cval': 0
-    },
-    (0, 1, 2, 3, 4, 0, 0, 0, 0, 0)
+    {"keys": ["image", "label", "extra"], "threshold": 5, "above": False, "cval": 0},
+    (0, 1, 2, 3, 4, 0, 0, 0, 0, 0),
 ]
 
 TEST_CASE_3 = [
-    {
-        'keys': ['image', 'label', 'extra'],
-        'threshold': 5,
-        'above': True,
-        'cval': 5
-    },
-    (5, 5, 5, 5, 5, 5, 6, 7, 8, 9)
+    {"keys": ["image", "label", "extra"], "threshold": 5, "above": True, "cval": 5},
+    (5, 5, 5, 5, 5, 5, 6, 7, 8, 9),
 ]
 
 
 class TestThresholdIntensityd(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_value(self, input_param, expected_value):
-        test_data = {
-            'image': np.arange(10),
-            'label': np.arange(10),
-            'extra': np.arange(10)
-        }
+        test_data = {"image": np.arange(10), "label": np.arange(10), "extra": np.arange(10)}
         result = ThresholdIntensityd(**input_param)(test_data)
-        np.testing.assert_allclose(result['image'], expected_value)
-        np.testing.assert_allclose(result['label'], expected_value)
-        np.testing.assert_allclose(result['extra'], expected_value)
+        np.testing.assert_allclose(result["image"], expected_value)
+        np.testing.assert_allclose(result["label"], expected_value)
+        np.testing.assert_allclose(result["extra"], expected_value)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

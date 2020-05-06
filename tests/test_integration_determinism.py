@@ -22,9 +22,7 @@ from monai.transforms import Compose, AddChannel, RandRotate90, RandSpatialCrop,
 
 
 def run_test(batch_size=64, train_steps=200, device=torch.device("cuda:0")):
-
     class _TestBatch(Dataset):
-
         def __init__(self, transforms):
             self.transforms = transforms
 
@@ -41,23 +39,14 @@ def run_test(batch_size=64, train_steps=200, device=torch.device("cuda:0")):
             return train_steps
 
     net = UNet(
-        dimensions=2,
-        in_channels=1,
-        out_channels=1,
-        channels=(4, 8, 16, 32),
-        strides=(2, 2, 2),
-        num_res_units=2,
+        dimensions=2, in_channels=1, out_channels=1, channels=(4, 8, 16, 32), strides=(2, 2, 2), num_res_units=2,
     ).to(device)
 
     loss = DiceLoss(do_sigmoid=True)
     opt = torch.optim.Adam(net.parameters(), 1e-2)
-    train_transforms = Compose([
-        AddChannel(),
-        ScaleIntensity(),
-        RandSpatialCrop((96, 96), random_size=False),
-        RandRotate90(),
-        ToTensor()
-    ])
+    train_transforms = Compose(
+        [AddChannel(), ScaleIntensity(), RandSpatialCrop((96, 96), random_size=False), RandRotate90(), ToTensor()]
+    )
 
     src = DataLoader(_TestBatch(train_transforms), batch_size=batch_size)
 
@@ -78,17 +67,16 @@ def run_test(batch_size=64, train_steps=200, device=torch.device("cuda:0")):
 
 
 class TestDeterminism(unittest.TestCase):
-
     def setUp(self):
         np.random.seed(0)
         torch.manual_seed(0)
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
-        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu:0')
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")
 
     def test_training(self):
         loss, step = run_test(device=self.device)
-        print('Deterministic loss {} at training step {}'.format(loss, step))
+        print("Deterministic loss {} at training step {}".format(loss, step))
         np.testing.assert_allclose(step, 4)
         np.testing.assert_allclose(loss, 0.5346279, rtol=1e-6)
 

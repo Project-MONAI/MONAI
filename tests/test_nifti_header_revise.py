@@ -18,12 +18,11 @@ from monai.data import rectify_header_sform_qform
 
 
 class TestRectifyHeaderSformQform(unittest.TestCase):
-
     def test_revise_q(self):
         img = nib.Nifti1Image(np.zeros((10, 10, 10)), np.eye(4))
         img.header.set_zooms((0.1, 0.2, 0.3))
         output = rectify_header_sform_qform(img)
-        expected = np.diag([0.1, 0.2, 0.3, 1.])
+        expected = np.diag([0.1, 0.2, 0.3, 1.0])
         np.testing.assert_allclose(output.affine, expected)
 
     def test_revise_both(self):
@@ -32,9 +31,9 @@ class TestRectifyHeaderSformQform(unittest.TestCase):
         img.header.set_qform(np.diag([2, 3, 4, 1]))
         img.header.set_zooms((0.1, 0.2, 0.3))
         output = rectify_header_sform_qform(img)
-        expected = np.diag([0.1, 0.2, 0.3, 1.])
+        expected = np.diag([0.1, 0.2, 0.3, 1.0])
         np.testing.assert_allclose(output.affine, expected)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -17,22 +17,20 @@ from parameterized import parameterized
 from monai.transforms import RandFlipd
 from tests.utils import NumpyImageTestCase2D
 
-VALID_CASES = [("no_axis", None),
-               ("one_axis", 1),
-               ("many_axis", [0, 1])]
+VALID_CASES = [("no_axis", None), ("one_axis", 1), ("many_axis", [0, 1])]
+
 
 class TestRandFlipd(NumpyImageTestCase2D):
-
     @parameterized.expand(VALID_CASES)
     def test_correct_results(self, _, spatial_axis):
-        flip = RandFlipd(keys='img', prob=1.0, spatial_axis=spatial_axis)
-        res = flip({'img': self.imt[0]})
+        flip = RandFlipd(keys="img", prob=1.0, spatial_axis=spatial_axis)
+        res = flip({"img": self.imt[0]})
         expected = list()
         for channel in self.imt[0]:
             expected.append(np.flip(channel, spatial_axis))
         expected = np.stack(expected)
-        self.assertTrue(np.allclose(expected, res['img']))
+        self.assertTrue(np.allclose(expected, res["img"]))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

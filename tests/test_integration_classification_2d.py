@@ -23,15 +23,23 @@ from torch.utils.data import DataLoader
 import monai
 from monai.metrics import compute_roc_auc
 from monai.networks.nets import densenet121
-from monai.transforms import (AddChannel, Compose, LoadPNG, RandFlip, RandRotate, RandZoom, Resize, ScaleIntensity,
-                              ToTensor)
+from monai.transforms import (
+    AddChannel,
+    Compose,
+    LoadPNG,
+    RandFlip,
+    RandRotate,
+    RandZoom,
+    Resize,
+    ScaleIntensity,
+    ToTensor,
+)
 from tests.utils import skip_if_quick
 
-TEST_DATA_URL = 'https://www.dropbox.com/s/5wwskxctvcxiuea/MedNIST.tar.gz'
+TEST_DATA_URL = "https://www.dropbox.com/s/5wwskxctvcxiuea/MedNIST.tar.gz"
 
 
 class MedNISTDataset(torch.utils.data.Dataset):
-
     def __init__(self, image_files, labels, transforms):
         self.image_files = image_files
         self.labels = labels
@@ -48,16 +56,18 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device=torch.dev
 
     monai.config.print_config()
     # define transforms for image and classification
-    train_transforms = Compose([
-        LoadPNG(image_only=True),
-        AddChannel(),
-        ScaleIntensity(),
-        RandRotate(degrees=15, prob=0.5),
-        RandFlip(spatial_axis=0, prob=0.5),
-        RandZoom(min_zoom=0.9, max_zoom=1.1, prob=0.5),
-        Resize(spatial_size=(64, 64), mode='constant'),
-        ToTensor()
-    ])
+    train_transforms = Compose(
+        [
+            LoadPNG(image_only=True),
+            AddChannel(),
+            ScaleIntensity(),
+            RandRotate(degrees=15, prob=0.5),
+            RandFlip(spatial_axis=0, prob=0.5),
+            RandZoom(min_zoom=0.9, max_zoom=1.1, prob=0.5),
+            Resize(spatial_size=(64, 64), mode="constant"),
+            ToTensor(),
+        ]
+    )
     train_transforms.set_random_state(1234)
     val_transforms = Compose([LoadPNG(image_only=True), AddChannel(), ScaleIntensity(), ToTensor()])
 
@@ -68,11 +78,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device=torch.dev
     val_ds = MedNISTDataset(val_x, val_y, val_transforms)
     val_loader = DataLoader(val_ds, batch_size=300, num_workers=10)
 
-    model = densenet121(
-        spatial_dims=2,
-        in_channels=1,
-        out_channels=len(np.unique(train_y)),
-    ).to(device)
+    model = densenet121(spatial_dims=2, in_channels=1, out_channels=len(np.unique(train_y)),).to(device)
     loss_function = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), 1e-5)
     epoch_num = 4
@@ -83,10 +89,10 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device=torch.dev
     best_metric_epoch = -1
     epoch_loss_values = list()
     metric_values = list()
-    model_filename = os.path.join(root_dir, 'best_metric_model.pth')
+    model_filename = os.path.join(root_dir, "best_metric_model.pth")
     for epoch in range(epoch_num):
-        print('-' * 10)
-        print('Epoch {}/{}'.format(epoch + 1, epoch_num))
+        print("-" * 10)
+        print("Epoch {}/{}".format(epoch + 1, epoch_num))
         model.train()
         epoch_loss = 0
         step = 0
@@ -120,10 +126,12 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device=torch.dev
                     best_metric = auc_metric
                     best_metric_epoch = epoch + 1
                     torch.save(model.state_dict(), model_filename)
-                    print('saved new best metric model')
-                print("current epoch %d current AUC: %0.4f current accuracy: %0.4f best AUC: %0.4f at epoch %d" %
-                      (epoch + 1, auc_metric, acc_metric, best_metric, best_metric_epoch))
-    print('train completed, best_metric: %0.4f  at epoch: %d' % (best_metric, best_metric_epoch))
+                    print("saved new best metric model")
+                print(
+                    "current epoch %d current AUC: %0.4f current accuracy: %0.4f best AUC: %0.4f at epoch %d"
+                    % (epoch + 1, auc_metric, acc_metric, best_metric, best_metric_epoch)
+                )
+    print("train completed, best_metric: %0.4f  at epoch: %d" % (best_metric, best_metric_epoch))
     return epoch_loss_values, best_metric, best_metric_epoch
 
 
@@ -133,13 +141,9 @@ def run_inference_test(root_dir, test_x, test_y, device=torch.device("cuda:0")):
     val_ds = MedNISTDataset(test_x, test_y, val_transforms)
     val_loader = DataLoader(val_ds, batch_size=300, num_workers=10)
 
-    model = densenet121(
-        spatial_dims=2,
-        in_channels=1,
-        out_channels=len(np.unique(test_y)),
-    ).to(device)
+    model = densenet121(spatial_dims=2, in_channels=1, out_channels=len(np.unique(test_y)),).to(device)
 
-    model_filename = os.path.join(root_dir, 'best_metric_model.pth')
+    model_filename = os.path.join(root_dir, "best_metric_model.pth")
     model.load_state_dict(torch.load(model_filename))
     model.eval()
     y_true = list()
@@ -156,7 +160,6 @@ def run_inference_test(root_dir, test_x, test_y, device=torch.device("cuda:0")):
 
 
 class IntegrationClassification2D(unittest.TestCase):
-
     def setUp(self):
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
@@ -164,8 +167,8 @@ class IntegrationClassification2D(unittest.TestCase):
         self.data_dir = tempfile.mkdtemp()
 
         # download
-        subprocess.call(['wget', '-nv', '-P', self.data_dir, TEST_DATA_URL])
-        dataset_file = os.path.join(self.data_dir, 'MedNIST.tar.gz')
+        subprocess.call(["wget", "-nv", "-P", self.data_dir, TEST_DATA_URL])
+        dataset_file = os.path.join(self.data_dir, "MedNIST.tar.gz")
         assert os.path.exists(dataset_file)
 
         # extract tarfile
@@ -174,11 +177,12 @@ class IntegrationClassification2D(unittest.TestCase):
         datafile.close()
 
         # find image files and labels
-        data_dir = os.path.join(self.data_dir, 'MedNIST')
+        data_dir = os.path.join(self.data_dir, "MedNIST")
         class_names = sorted([x for x in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, x))])
-        image_files = [[
-            os.path.join(data_dir, class_name, x) for x in sorted(os.listdir(os.path.join(data_dir, class_name)))
-        ] for class_name in class_names]
+        image_files = [
+            [os.path.join(data_dir, class_name, x) for x in sorted(os.listdir(os.path.join(data_dir, class_name)))]
+            for class_name in class_names
+        ]
         image_file_list, image_classes = [], []
         for i, class_name in enumerate(class_names):
             image_file_list.extend(image_files[i])
@@ -202,7 +206,7 @@ class IntegrationClassification2D(unittest.TestCase):
                 self.train_y.append(image_classes[i])
 
         np.random.seed(seed=None)
-        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu:0')
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")
 
     def tearDown(self):
         shutil.rmtree(self.data_dir)
@@ -214,18 +218,20 @@ class IntegrationClassification2D(unittest.TestCase):
             torch.manual_seed(0)
 
             repeated.append([])
-            losses, best_metric, best_metric_epoch = \
-                run_training_test(self.data_dir, self.train_x, self.train_y, self.val_x, self.val_y, device=self.device)
+            losses, best_metric, best_metric_epoch = run_training_test(
+                self.data_dir, self.train_x, self.train_y, self.val_x, self.val_y, device=self.device
+            )
 
             # check training properties
             np.testing.assert_allclose(
-                losses, [0.8501208358129878, 0.18469145818121113, 0.08108749352158255, 0.04965383692342005], rtol=1e-3)
+                losses, [0.8501208358129878, 0.18469145818121113, 0.08108749352158255, 0.04965383692342005], rtol=1e-3
+            )
             repeated[i].extend(losses)
-            print('best metric', best_metric)
+            print("best metric", best_metric)
             np.testing.assert_allclose(best_metric, 0.9999480167572079, rtol=1e-4)
             repeated[i].append(best_metric)
             np.testing.assert_allclose(best_metric_epoch, 4)
-            model_file = os.path.join(self.data_dir, 'best_metric_model.pth')
+            model_file = os.path.join(self.data_dir, "best_metric_model.pth")
             self.assertTrue(os.path.exists(model_file))
 
             infer_metric = run_inference_test(self.data_dir, self.test_x, self.test_y, device=self.device)
@@ -237,5 +243,5 @@ class IntegrationClassification2D(unittest.TestCase):
         np.testing.assert_allclose(repeated[0], repeated[1])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

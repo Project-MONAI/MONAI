@@ -27,48 +27,46 @@ from monai.transforms import Compose, AddChannel, ScaleIntensity, RandSpatialCro
 from monai.metrics import compute_meandice
 from monai.visualize.img2tensorboard import plot_2d_or_3d_image
 
+
 def main():
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
     # create a temporary directory and 40 random image, mask paris
     tempdir = tempfile.mkdtemp()
-    print('generating synthetic data to {} (this may take a while)'.format(tempdir))
+    print("generating synthetic data to {} (this may take a while)".format(tempdir))
     for i in range(40):
         im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1)
 
         n = nib.Nifti1Image(im, np.eye(4))
-        nib.save(n, os.path.join(tempdir, 'im%i.nii.gz' % i))
+        nib.save(n, os.path.join(tempdir, "im%i.nii.gz" % i))
 
         n = nib.Nifti1Image(seg, np.eye(4))
-        nib.save(n, os.path.join(tempdir, 'seg%i.nii.gz' % i))
+        nib.save(n, os.path.join(tempdir, "seg%i.nii.gz" % i))
 
-    images = sorted(glob(os.path.join(tempdir, 'im*.nii.gz')))
-    segs = sorted(glob(os.path.join(tempdir, 'seg*.nii.gz')))
+    images = sorted(glob(os.path.join(tempdir, "im*.nii.gz")))
+    segs = sorted(glob(os.path.join(tempdir, "seg*.nii.gz")))
 
     # define transforms for image and segmentation
-    train_imtrans = Compose([
-        ScaleIntensity(),
-        AddChannel(),
-        RandSpatialCrop((96, 96, 96), random_size=False),
-        RandRotate90(prob=0.5, spatial_axes=(0, 2)),
-        ToTensor()
-    ])
-    train_segtrans = Compose([
-        AddChannel(),
-        RandSpatialCrop((96, 96, 96), random_size=False),
-        RandRotate90(prob=0.5, spatial_axes=(0, 2)),
-        ToTensor()
-    ])
-    val_imtrans = Compose([
-        ScaleIntensity(),
-        AddChannel(),
-        ToTensor()
-    ])
-    val_segtrans = Compose([
-        AddChannel(),
-        ToTensor()
-    ])
+    train_imtrans = Compose(
+        [
+            ScaleIntensity(),
+            AddChannel(),
+            RandSpatialCrop((96, 96, 96), random_size=False),
+            RandRotate90(prob=0.5, spatial_axes=(0, 2)),
+            ToTensor(),
+        ]
+    )
+    train_segtrans = Compose(
+        [
+            AddChannel(),
+            RandSpatialCrop((96, 96, 96), random_size=False),
+            RandRotate90(prob=0.5, spatial_axes=(0, 2)),
+            ToTensor(),
+        ]
+    )
+    val_imtrans = Compose([ScaleIntensity(), AddChannel(), ToTensor()])
+    val_segtrans = Compose([AddChannel(), ToTensor()])
 
     # define nifti dataset, data loader
     check_ds = NiftiDataset(images, segs, transform=train_imtrans, seg_transform=train_segtrans)
@@ -84,7 +82,7 @@ def main():
     val_loader = DataLoader(val_ds, batch_size=1, num_workers=4, pin_memory=torch.cuda.is_available())
 
     # create UNet, DiceLoss and Adam optimizer
-    device = torch.device('cuda:0')
+    device = torch.device("cuda:0")
     model = monai.networks.nets.UNet(
         dimensions=3,
         in_channels=1,
@@ -104,8 +102,8 @@ def main():
     metric_values = list()
     writer = SummaryWriter()
     for epoch in range(5):
-        print('-' * 10)
-        print('epoch {}/{}'.format(epoch + 1, 5))
+        print("-" * 10)
+        print("epoch {}/{}".format(epoch + 1, 5))
         model.train()
         epoch_loss = 0
         step = 0
@@ -119,16 +117,16 @@ def main():
             optimizer.step()
             epoch_loss += loss.item()
             epoch_len = len(train_ds) // train_loader.batch_size
-            print('{}/{}, train_loss: {:.4f}'.format(step, epoch_len, loss.item()))
-            writer.add_scalar('train_loss', loss.item(), epoch_len * epoch + step)
+            print("{}/{}, train_loss: {:.4f}".format(step, epoch_len, loss.item()))
+            writer.add_scalar("train_loss", loss.item(), epoch_len * epoch + step)
         epoch_loss /= step
         epoch_loss_values.append(epoch_loss)
-        print('epoch {} average loss: {:.4f}'.format(epoch + 1, epoch_loss))
+        print("epoch {} average loss: {:.4f}".format(epoch + 1, epoch_loss))
 
         if (epoch + 1) % val_interval == 0:
             model.eval()
             with torch.no_grad():
-                metric_sum = 0.
+                metric_sum = 0.0
                 metric_count = 0
                 val_images = None
                 val_labels = None
@@ -138,8 +136,9 @@ def main():
                     roi_size = (96, 96, 96)
                     sw_batch_size = 4
                     val_outputs = sliding_window_inference(val_images, roi_size, sw_batch_size, model)
-                    value = compute_meandice(y_pred=val_outputs, y=val_labels, include_background=True,
-                                             to_onehot_y=False, add_sigmoid=True)
+                    value = compute_meandice(
+                        y_pred=val_outputs, y=val_labels, include_background=True, to_onehot_y=False, add_sigmoid=True
+                    )
                     metric_count += len(value)
                     metric_sum += value.sum().item()
                 metric = metric_sum / metric_count
@@ -147,18 +146,22 @@ def main():
                 if metric > best_metric:
                     best_metric = metric
                     best_metric_epoch = epoch + 1
-                    torch.save(model.state_dict(), 'best_metric_model.pth')
-                    print('saved new best metric model')
-                print('current epoch: {} current mean dice: {:.4f} best mean dice: {:.4f} at epoch {}'.format(
-                    epoch + 1, metric, best_metric, best_metric_epoch))
-                writer.add_scalar('val_mean_dice', metric, epoch + 1)
+                    torch.save(model.state_dict(), "best_metric_model.pth")
+                    print("saved new best metric model")
+                print(
+                    "current epoch: {} current mean dice: {:.4f} best mean dice: {:.4f} at epoch {}".format(
+                        epoch + 1, metric, best_metric, best_metric_epoch
+                    )
+                )
+                writer.add_scalar("val_mean_dice", metric, epoch + 1)
                 # plot the last model output as GIF image in TensorBoard with the corresponding image and label
-                plot_2d_or_3d_image(val_images, epoch + 1, writer, index=0, tag='image')
-                plot_2d_or_3d_image(val_labels, epoch + 1, writer, index=0, tag='label')
-                plot_2d_or_3d_image(val_outputs, epoch + 1, writer, index=0, tag='output')
+                plot_2d_or_3d_image(val_images, epoch + 1, writer, index=0, tag="image")
+                plot_2d_or_3d_image(val_labels, epoch + 1, writer, index=0, tag="label")
+                plot_2d_or_3d_image(val_outputs, epoch + 1, writer, index=0, tag="output")
     shutil.rmtree(tempdir)
-    print('train completed, best_metric: {:.4f} at epoch: {}'.format(best_metric, best_metric_epoch))
+    print("train completed, best_metric: {:.4f} at epoch: {}".format(best_metric, best_metric_epoch))
     writer.close()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

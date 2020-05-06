@@ -18,8 +18,14 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 import numpy as np
 
 from monai.transforms.compose import MapTransform, Randomizable
-from monai.transforms.intensity.array import NormalizeIntensity, ScaleIntensityRange, \
-    ThresholdIntensity, AdjustContrast, ShiftIntensity, ScaleIntensity
+from monai.transforms.intensity.array import (
+    NormalizeIntensity,
+    ScaleIntensityRange,
+    ThresholdIntensity,
+    AdjustContrast,
+    ShiftIntensity,
+    ScaleIntensity,
+)
 
 
 class RandGaussianNoised(Randomizable, MapTransform):
@@ -97,7 +103,7 @@ class RandShiftIntensityd(Randomizable, MapTransform):
         """
         super().__init__(keys)
         self.offsets = (-offsets, offsets) if not isinstance(offsets, (list, tuple)) else offsets
-        assert len(self.offsets) == 2, 'offsets should be a number or pair of numbers.'
+        assert len(self.offsets) == 2, "offsets should be a number or pair of numbers."
         self.prob = prob
         self._do_transform = False
 
@@ -161,7 +167,7 @@ class RandScaleIntensityd(Randomizable, MapTransform):
         """
         super().__init__(keys)
         self.factors = (-factors, factors) if not isinstance(factors, (list, tuple)) else factors
-        assert len(self.factors) == 2, 'factors should be a number or pair of numbers.'
+        assert len(self.factors) == 2, "factors should be a number or pair of numbers."
         self.prob = prob
         self.dtype = dtype
         self._do_transform = False
@@ -297,12 +303,11 @@ class RandAdjustContrastd(Randomizable, MapTransform):
         super().__init__(keys)
         self.prob = prob
         if not isinstance(gamma, (tuple, list)):
-            assert gamma > 0.5, \
-                'if gamma is single number, must greater than 0.5 and value is picked from (0.5, gamma)'
+            assert gamma > 0.5, "if gamma is single number, must greater than 0.5 and value is picked from (0.5, gamma)"
             self.gamma = (0.5, gamma)
         else:
             self.gamma = gamma
-        assert len(self.gamma) == 2, 'gamma should be a number or pair of numbers.'
+        assert len(self.gamma) == 2, "gamma should be a number or pair of numbers."
 
         self._do_transform = False
         self.gamma_value = None

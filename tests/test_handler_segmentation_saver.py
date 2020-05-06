@@ -19,9 +19,8 @@ from monai.handlers import SegmentationSaver
 
 
 class TestHandlerSegmentationSaver(unittest.TestCase):
-
     def test_saved_content(self):
-        default_dir = os.path.join('.', 'tempdir')
+        default_dir = os.path.join(".", "tempdir")
         shutil.rmtree(default_dir, ignore_errors=True)
 
         # set up engine
@@ -31,16 +30,16 @@ class TestHandlerSegmentationSaver(unittest.TestCase):
         engine = Engine(_train_func)
 
         # set up testing handler
-        saver = SegmentationSaver(output_dir=default_dir, output_postfix='seg', output_ext='.nii.gz')
+        saver = SegmentationSaver(output_dir=default_dir, output_postfix="seg", output_ext=".nii.gz")
         saver.attach(engine)
 
-        data = [{'filename_or_obj': ['testfile' + str(i) for i in range(8)]}]
+        data = [{"filename_or_obj": ["testfile" + str(i) for i in range(8)]}]
         engine.run(data, max_epochs=1)
         for i in range(8):
-            filepath = os.path.join('testfile' + str(i), 'testfile' + str(i) + '_seg.nii.gz')
+            filepath = os.path.join("testfile" + str(i), "testfile" + str(i) + "_seg.nii.gz")
             self.assertTrue(os.path.exists(os.path.join(default_dir, filepath)))
         shutil.rmtree(default_dir)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

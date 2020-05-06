@@ -35,7 +35,7 @@ def alias(*names):
                 GlobalAliases[n] = obj
 
         # set the member list __aliases__ to contain the alias names defined by the decorator for `obj`
-        obj.__aliases__ = getattr(obj, '__aliases__', ()) + tuple(names)
+        obj.__aliases__ = getattr(obj, "__aliases__", ()) + tuple(names)
 
         return obj
 
@@ -81,7 +81,10 @@ def resolve_name(name):
 
                 if len(foundmods) > 1:  # found multiple declarations with the same name
                     modnames = [m.__name__ for m in foundmods]
-                    msg = "Multiple modules (%r) with declaration name %r found, resolution is ambiguous" % (modnames, name)
+                    msg = "Multiple modules (%r) with declaration name %r found, resolution is ambiguous" % (
+                        modnames,
+                        name,
+                    )
                     raise ValueError(msg)
                 else:
                     mods = list(foundmods)

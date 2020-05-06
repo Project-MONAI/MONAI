@@ -21,9 +21,20 @@ from monai.utils.aliases import alias
 @export("monai.networks.nets")
 @alias("Unet")
 class UNet(nn.Module):
-
-    def __init__(self, dimensions, in_channels, out_channels, channels, strides, kernel_size=3, up_kernel_size=3,
-                 num_res_units=0, act=Act.PRELU, norm=Norm.INSTANCE, dropout=0):
+    def __init__(
+        self,
+        dimensions,
+        in_channels,
+        out_channels,
+        channels,
+        strides,
+        kernel_size=3,
+        up_kernel_size=3,
+        num_res_units=0,
+        act=Act.PRELU,
+        norm=Norm.INSTANCE,
+        dropout=0,
+    ):
         super().__init__()
         assert len(channels) == (len(strides) + 1)
         self.dimensions = dimensions
@@ -63,22 +74,52 @@ class UNet(nn.Module):
 
     def _get_down_layer(self, in_channels, out_channels, strides, is_top):
         if self.num_res_units > 0:
-            return ResidualUnit(self.dimensions, in_channels, out_channels, strides, self.kernel_size, self.num_res_units,
-                                self.act, self.norm, self.dropout)
+            return ResidualUnit(
+                self.dimensions,
+                in_channels,
+                out_channels,
+                strides,
+                self.kernel_size,
+                self.num_res_units,
+                self.act,
+                self.norm,
+                self.dropout,
+            )
         else:
-            return Convolution(self.dimensions, in_channels, out_channels, strides, self.kernel_size, self.act, self.norm,
-                               self.dropout)
+            return Convolution(
+                self.dimensions, in_channels, out_channels, strides, self.kernel_size, self.act, self.norm, self.dropout
+            )
 
     def _get_bottom_layer(self, in_channels, out_channels):
         return self._get_down_layer(in_channels, out_channels, 1, False)
 
     def _get_up_layer(self, in_channels, out_channels, strides, is_top):
-        conv = Convolution(self.dimensions, in_channels, out_channels, strides, self.up_kernel_size, self.act, self.norm,
-                           self.dropout, conv_only=is_top and self.num_res_units == 0, is_transposed=True)
+        conv = Convolution(
+            self.dimensions,
+            in_channels,
+            out_channels,
+            strides,
+            self.up_kernel_size,
+            self.act,
+            self.norm,
+            self.dropout,
+            conv_only=is_top and self.num_res_units == 0,
+            is_transposed=True,
+        )
 
         if self.num_res_units > 0:
-            ru = ResidualUnit(self.dimensions, out_channels, out_channels, 1, self.kernel_size, 1, self.act, self.norm,
-                              self.dropout, last_conv_only=is_top)
+            ru = ResidualUnit(
+                self.dimensions,
+                out_channels,
+                out_channels,
+                1,
+                self.kernel_size,
+                1,
+                self.act,
+                self.norm,
+                self.dropout,
+                last_conv_only=is_top,
+            )
             return nn.Sequential(conv, ru)
         else:
             return conv

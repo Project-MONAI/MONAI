@@ -18,26 +18,45 @@ from parameterized import parameterized
 from monai.transforms import Rand3DElastic
 
 TEST_CASES = [
-    [{'magnitude_range': (.3, 2.3), 'sigma_range': (1., 20.), 'prob': 0.0, 'as_tensor_output': False, 'device': None},
-     {'img': torch.ones((2, 3, 3, 3)), 'spatial_size': (2, 2, 2)},
-     np.ones((2, 2, 2, 2))],
     [
-        {'magnitude_range': (.3, .3), 'sigma_range': (1., 2.), 'prob': 0.9, 'as_tensor_output': False, 'device': None},
-        {'img': torch.arange(27).reshape((1, 3, 3, 3)), 'spatial_size': (2, 2, 2)},
+        {
+            "magnitude_range": (0.3, 2.3),
+            "sigma_range": (1.0, 20.0),
+            "prob": 0.0,
+            "as_tensor_output": False,
+            "device": None,
+        },
+        {"img": torch.ones((2, 3, 3, 3)), "spatial_size": (2, 2, 2)},
+        np.ones((2, 2, 2, 2)),
+    ],
+    [
+        {
+            "magnitude_range": (0.3, 0.3),
+            "sigma_range": (1.0, 2.0),
+            "prob": 0.9,
+            "as_tensor_output": False,
+            "device": None,
+        },
+        {"img": torch.arange(27).reshape((1, 3, 3, 3)), "spatial_size": (2, 2, 2)},
         np.array([[[[3.2385552, 4.753422], [7.779232, 9.286472]], [[16.769115, 18.287868], [21.300673, 22.808704]]]]),
     ],
     [
         {
-            'magnitude_range': (.3, .3), 'sigma_range': (1., 2.), 'prob': 0.9, 'rotate_range': [1, 1, 1],
-            'as_tensor_output': False, 'device': None, 'spatial_size': (2, 2, 2)
+            "magnitude_range": (0.3, 0.3),
+            "sigma_range": (1.0, 2.0),
+            "prob": 0.9,
+            "rotate_range": [1, 1, 1],
+            "as_tensor_output": False,
+            "device": None,
+            "spatial_size": (2, 2, 2),
         },
-        {'img': torch.arange(27).reshape((1, 3, 3, 3)), 'mode': 'bilinear'},
-        np.array([[[[1.6566806, 7.695548], [7.4342523, 13.580086]], [[11.776854, 18.669481], [18.396517, 21.551771]]]])],
+        {"img": torch.arange(27).reshape((1, 3, 3, 3)), "mode": "bilinear"},
+        np.array([[[[1.6566806, 7.695548], [7.4342523, 13.580086]], [[11.776854, 18.669481], [18.396517, 21.551771]]]]),
+    ],
 ]
 
 
 class TestRand3DElastic(unittest.TestCase):
-
     @parameterized.expand(TEST_CASES)
     def test_rand_3d_elastic(self, input_param, input_data, expected_val):
         g = Rand3DElastic(**input_param)
@@ -50,5 +69,5 @@ class TestRand3DElastic(unittest.TestCase):
             np.testing.assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

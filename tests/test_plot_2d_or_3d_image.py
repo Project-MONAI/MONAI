@@ -18,32 +18,21 @@ import torch
 from parameterized import parameterized
 from monai.visualize import plot_2d_or_3d_image
 
-TEST_CASE_1 = [
-    (1, 1, 10, 10)
-]
+TEST_CASE_1 = [(1, 1, 10, 10)]
 
-TEST_CASE_2 = [
-    (1, 3, 10, 10)
-]
+TEST_CASE_2 = [(1, 3, 10, 10)]
 
-TEST_CASE_3 = [
-    (1, 4, 10, 10)
-]
+TEST_CASE_3 = [(1, 4, 10, 10)]
 
-TEST_CASE_4 = [
-    (1, 1, 10, 10, 10)
-]
+TEST_CASE_4 = [(1, 1, 10, 10, 10)]
 
-TEST_CASE_5 = [
-    (1, 3, 10, 10, 10)
-]
+TEST_CASE_5 = [(1, 3, 10, 10, 10)]
 
 
 class TestPlot2dOr3dImage(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
     def test_tb_image_shape(self, shape):
-        default_dir = os.path.join('.', 'runs')
+        default_dir = os.path.join(".", "runs")
         shutil.rmtree(default_dir, ignore_errors=True)
 
         plot_2d_or_3d_image(torch.zeros(shape), 0, SummaryWriter())
@@ -53,5 +42,5 @@ class TestPlot2dOr3dImage(unittest.TestCase):
         shutil.rmtree(default_dir, ignore_errors=True)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
