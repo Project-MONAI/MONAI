@@ -16,25 +16,30 @@ from parameterized import parameterized
 
 from monai.data import sliding_window_inference
 
-TEST_CASE_1 = [(1, 3, 16, 15, 7), (4, 10, 7), 3]  # 3D small roi
+TEST_CASE_1 = [(1, 3, 16, 15, 7), (4, 10, 7), 3, 0.25, 'constant']  # 3D small roi
 
-TEST_CASE_2 = [(1, 3, 16, 15, 7), (20, 22, 23), 10]  # 3D large roi
+TEST_CASE_2 = [(1, 3, 16, 15, 7), (20, 22, 23), 10, 0.25, 'constant']  # 3D large roi
 
-TEST_CASE_3 = [(1, 3, 15, 7), (2, 6), 1000]  # 2D small roi, large batch
+TEST_CASE_3 = [(1, 3, 15, 7), (2, 6), 1000, 0.25, 'constant']  # 2D small roi, large batch
 
-TEST_CASE_4 = [(1, 3, 16, 7), (80, 50), 7]  # 2D large roi
+TEST_CASE_4 = [(1, 3, 16, 7), (80, 50), 7, 0.25, 'constant']  # 2D large roi
+
+TEST_CASE_5 = [(1, 3, 16, 15, 7), (20, 22, 23), 10, 0.5, 'constant']  # 3D large overlap
+
+TEST_CASE_6 = [(1, 3, 16, 7), (80, 50), 7, 0.5, 'gaussian']  # 2D large overlap, gaussian
 
 
 class TestSlidingWindowInference(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
-    def test_sliding_window_default(self, image_shape, roi_shape, sw_batch_size):
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
+    def test_sliding_window_default(self, image_shape, roi_shape, sw_batch_size, overlap, mode):
         inputs = torch.ones(*image_shape)
         device = torch.device("cpu:0")
 
         def compute(data):
             return data + 1
 
-        result = sliding_window_inference(inputs.to(device), roi_shape, sw_batch_size, compute)
+        result = sliding_window_inference(inputs.to(device), roi_shape, sw_batch_size,
+                                          compute, overlap, blend_mode=mode)
         expected_val = np.ones(image_shape, dtype=np.float32) + 1
         self.assertTrue(np.allclose(result.numpy(), expected_val))
 

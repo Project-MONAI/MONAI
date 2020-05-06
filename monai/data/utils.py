@@ -16,6 +16,7 @@ import nibabel as nib
 from itertools import starmap, product
 from torch.utils.data._utils.collate import default_collate
 import numpy as np
+from scipy.ndimage.filters import gaussian_filter
 from monai.utils import ensure_tuple_size
 
 
@@ -399,3 +400,38 @@ def create_file_basename(postfix, input_file_name, folder_path, data_root_dir=""
 
     # add the sub-folder plus the postfix name to become the file basename in the output path
     return os.path.join(subfolder_path, filename + "_" + postfix)
+
+
+def compute_importance_map(patch_size, mode='constant', sigma_scale=0.125):
+    """Get importance map for different weight modes.
+
+    Args:
+        patch_size (tuple): Size of the required importance map.
+        mode (str): Importance map type. Options are 'constant' (Each weight has value 1.0)
+            or 'gaussian' (Importance becomes lower away from center).
+        sigma_scale (float): Sigma_scale to calculate sigma for each dimension 
+            (sigma = sigma_scale * dim_size). Used for gaussian mode only.
+
+    Returns:
+        numpy array of size patch_size.
+    """
+    importance_map = None
+    if mode == 'constant':
+        importance_map = np.ones(patch_size, dtype=np.float32)
+    elif mode == 'gaussian':
+        importance_map = np.zeros(patch_size)
+        center_coords = [i // 2 for i in patch_size]
+        sigmas = [i * sigma_scale for i in patch_size]
+
+        importance_map[tuple(center_coords)] = 1
+        importance_map = gaussian_filter(importance_map, sigmas, 0, mode='constant', cval=0)
+        importance_map = importance_map / np.max(importance_map) * 1
+        importance_map = importance_map.astype(np.float32)
+
+        # importance_map cannot be 0, otherwise we may end up with nans!
+        importance_map[importance_map == 0] = np.min(
+            importance_map[importance_map != 0])
+    else:
+        raise ValueError('mode must be "constant" or "gaussian".')
+
+    return importance_map
