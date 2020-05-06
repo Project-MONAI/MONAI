@@ -26,6 +26,7 @@ from monai.transforms.utility.array import (
     CastToType,
     RepeatChannel,
     SqueezeDim,
+    DataStats,
     SimulateDelay,
 )
 
@@ -201,6 +202,44 @@ class SqueezeDimd(MapTransform):
         return d
 
 
+class DataStatsd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.DataStats`.
+    """
+
+    def __init__(
+        self,
+        keys,
+        prefix="Data",
+        data_shape=True,
+        intensity_range=True,
+        data_value=False,
+        additional_info=None,
+        logger_handler=None,
+    ):
+        """
+        Args:
+            keys (hashable items): keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            prefix (string): will be printed in format: "{prefix} statistics".
+            data_shape (bool): whether to show the shape of input data.
+            intensity_range (bool): whether to show the intensity value range of input data.
+            data_value (bool): whether to show the raw value of input data.
+                a typical example is to print some properties of Nifti image: affine, pixdim, etc.
+            additional_info (Callable): user can define callable function to extract additional info from input data.
+            logger_handler (logging.handler): add additional handler to output data: save to file, etc.
+                add existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html
+        """
+        super().__init__(keys)
+        self.printer = DataStats(prefix, data_shape, intensity_range, data_value, additional_info, logger_handler)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.printer(d[key])
+        return d
+
+
 class SimulateDelayd(MapTransform):
     """
     dictionary-based wrapper of :py:class:monai.transforms.utility.array.SimulateDelay.
@@ -238,4 +277,5 @@ CastToTypeD = CastToTypeDict = CastToTyped
 ToTensorD = ToTensorDict = ToTensord
 DeleteKeysD = DeleteKeysDict = DeleteKeysd
 SqueezeDimD = SqueezeDimDict = SqueezeDimd
+DataStatsD = DataStatsDict = DataStatsd
 SimulateDelayD = SimulateDelayDict = SimulateDelayd
