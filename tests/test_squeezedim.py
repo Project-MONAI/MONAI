@@ -14,53 +14,26 @@ import numpy as np
 from parameterized import parameterized
 from monai.transforms import SqueezeDim
 
-TEST_CASE_1 = [
-    {
-        'dim': None
-    },
-    np.random.rand(1, 2, 1, 3),
-    (2, 3)
-]
+TEST_CASE_1 = [{"dim": None}, np.random.rand(1, 2, 1, 3), (2, 3)]
 
-TEST_CASE_2 = [
-    {
-        'dim': 2
-    },
-    np.random.rand(1, 2, 1, 8, 16),
-    (1, 2, 8, 16)
-]
+TEST_CASE_2 = [{"dim": 2}, np.random.rand(1, 2, 1, 8, 16), (1, 2, 8, 16)]
 
-TEST_CASE_3 = [
-    {
-        'dim': -1
-    },
-    np.random.rand(1, 1, 16, 8, 1),
-    (1, 1, 16, 8)
-]
+TEST_CASE_3 = [{"dim": -1}, np.random.rand(1, 1, 16, 8, 1), (1, 1, 16, 8)]
 
-TEST_CASE_4 = [
-    {},
-    np.random.rand(1, 2, 1, 3),
-    (2, 3)
-]
+TEST_CASE_4 = [{}, np.random.rand(1, 2, 1, 3), (2, 3)]
 
 TEST_CASE_5 = [
-    {
-        'dim': -2
-    },
+    {"dim": -2},
     np.random.rand(1, 1, 16, 8, 1),
 ]
 
 TEST_CASE_6 = [
-    {
-        'dim': 0.5
-    },
+    {"dim": 0.5},
     np.random.rand(1, 1, 16, 8, 1),
 ]
 
 
 class TestSqueezeDim(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_shape(self, input_param, test_data, expected_shape):
         result = SqueezeDim(**input_param)(test_data)
@@ -72,5 +45,5 @@ class TestSqueezeDim(unittest.TestCase):
             result = SqueezeDim(**input_param)(test_data)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

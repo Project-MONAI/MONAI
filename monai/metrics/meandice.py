@@ -16,13 +16,9 @@ import torch
 from monai.networks.utils import one_hot
 
 
-def compute_meandice(y_pred,
-                     y,
-                     include_background=True,
-                     to_onehot_y=False,
-                     mutually_exclusive=False,
-                     add_sigmoid=False,
-                     logit_thresh=0.5):
+def compute_meandice(
+    y_pred, y, include_background=True, to_onehot_y=False, mutually_exclusive=False, add_sigmoid=False, logit_thresh=0.5
+):
     """Computes Dice score metric from full size Tensor and collects average.
 
     Args:
@@ -58,11 +54,11 @@ def compute_meandice(y_pred,
 
     if n_classes == 1:
         if mutually_exclusive:
-            warnings.warn('y_pred has only one class, mutually_exclusive=True ignored.')
+            warnings.warn("y_pred has only one class, mutually_exclusive=True ignored.")
         if to_onehot_y:
-            warnings.warn('y_pred has only one channel, to_onehot_y=True ignored.')
+            warnings.warn("y_pred has only one channel, to_onehot_y=True ignored.")
         if not include_background:
-            warnings.warn('y_pred has only one channel, include_background=False ignored.')
+            warnings.warn("y_pred has only one channel, include_background=False ignored.")
         # make both y and y_pred binary
         y_pred = (y_pred >= logit_thresh).float()
         y = (y > 0).float()
@@ -70,7 +66,7 @@ def compute_meandice(y_pred,
         # make both y and y_pred binary
         if mutually_exclusive:
             if add_sigmoid:
-                raise ValueError('add_sigmoid=True is incompatible with mutually_exclusive=True.')
+                raise ValueError("add_sigmoid=True is incompatible with mutually_exclusive=True.")
             y_pred = torch.argmax(y_pred, dim=1, keepdim=True)
             y_pred = one_hot(y_pred, n_classes)
         else:
@@ -82,8 +78,10 @@ def compute_meandice(y_pred,
         y = y[:, 1:] if y.shape[1] > 1 else y
         y_pred = y_pred[:, 1:] if y_pred.shape[1] > 1 else y_pred
 
-    assert y.shape == y_pred.shape, ("Ground truth one-hot has differing shape (%r) from source (%r)" %
-                                     (y.shape, y_pred.shape))
+    assert y.shape == y_pred.shape, "Ground truth one-hot has differing shape (%r) from source (%r)" % (
+        y.shape,
+        y_pred.shape,
+    )
 
     # reducing only spatial dimensions (not batch nor channels)
     reduce_axis = list(range(2, n_len))
@@ -93,5 +91,5 @@ def compute_meandice(y_pred,
     y_pred_o = torch.sum(y_pred, reduce_axis)
     denominator = y_o + y_pred_o
 
-    f = torch.where(y_o > 0, (2.0 * intersection) / denominator, torch.tensor(float('nan')).to(y_o.float()))
+    f = torch.where(y_o > 0, (2.0 * intersection) / denominator, torch.tensor(float("nan")).to(y_o.float()))
     return f  # returns array of Dice shape: [Batch, n_classes]

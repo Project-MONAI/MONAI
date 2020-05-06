@@ -15,59 +15,36 @@ from parameterized import parameterized
 from monai.transforms import RandSpatialCropd
 
 TEST_CASE_1 = [
-    {
-        'keys': 'img',
-        'roi_size': [3, 3, 3],
-        'random_center': True
-    },
-    {'img': np.random.randint(0, 2, size=[3, 3, 3, 3])},
-    (3, 3, 3, 3)
+    {"keys": "img", "roi_size": [3, 3, 3], "random_center": True},
+    {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
+    (3, 3, 3, 3),
 ]
 
 TEST_CASE_2 = [
-    {
-        'keys': 'img',
-        'roi_size': [3, 3, 3],
-        'random_center': False
-    },
-    {'img': np.random.randint(0, 2, size=[3, 3, 3, 3])},
-    (3, 3, 3, 3)
+    {"keys": "img", "roi_size": [3, 3, 3], "random_center": False},
+    {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
+    (3, 3, 3, 3),
 ]
 
 TEST_CASE_3 = [
-    {
-        'keys': 'img',
-        'roi_size': [3, 3],
-        'random_center': False
-    },
-    {
-        'img': np.array([
-            [
-                [0, 0, 0, 0, 0],
-                [0, 1, 2, 1, 0],
-                [0, 2, 3, 2, 0],
-                [0, 1, 2, 1, 0],
-                [0, 0, 0, 0, 0]
-            ]
-        ])
-    }
+    {"keys": "img", "roi_size": [3, 3], "random_center": False},
+    {"img": np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]])},
 ]
 
 
 class TestRandSpatialCropd(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_shape(self, input_param, input_data, expected_shape):
         result = RandSpatialCropd(**input_param)(input_data)
-        self.assertTupleEqual(result['img'].shape, expected_shape)
+        self.assertTupleEqual(result["img"].shape, expected_shape)
 
     @parameterized.expand([TEST_CASE_3])
     def test_value(self, input_param, input_data):
         cropper = RandSpatialCropd(**input_param)
         result = cropper(input_data)
         roi = [(2 - i // 2, 2 + i - i // 2) for i in cropper._size]
-        np.testing.assert_allclose(result['img'], input_data['img'][:, roi[0][0]:roi[0][1], roi[1][0]:roi[1][1]])
+        np.testing.assert_allclose(result["img"], input_data["img"][:, roi[0][0] : roi[0][1], roi[1][0] : roi[1][1]])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

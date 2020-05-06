@@ -28,7 +28,7 @@ def create_test_image_2d(width, height, num_objs=12, rad_max=30, noise_max=0.0, 
         x = np.random.randint(rad_max, width - rad_max)
         y = np.random.randint(rad_max, height - rad_max)
         rad = np.random.randint(5, rad_max)
-        spy, spx = np.ogrid[-x:width - x, -y:height - y]
+        spy, spx = np.ogrid[-x : width - x, -y : height - y]
         circle = (spx * spx + spy * spy) <= rad * rad
 
         if num_seg_classes > 1:
@@ -42,15 +42,18 @@ def create_test_image_2d(width, height, num_objs=12, rad_max=30, noise_max=0.0, 
     noisyimage = rescale_array(np.maximum(image, norm))
 
     if channel_dim is not None:
-        assert isinstance(channel_dim, int) and channel_dim in (-1, 0, 2), 'invalid channel dim.'
-        noisyimage, labels = noisyimage[None], labels[None] \
-            if channel_dim == 0 else (noisyimage[..., None], labels[..., None])
+        assert isinstance(channel_dim, int) and channel_dim in (-1, 0, 2), "invalid channel dim."
+        noisyimage, labels = (
+            noisyimage[None],
+            labels[None] if channel_dim == 0 else (noisyimage[..., None], labels[..., None]),
+        )
 
     return noisyimage, labels
 
 
-def create_test_image_3d(height, width, depth, num_objs=12, rad_max=30,
-                         noise_max=0.0, num_seg_classes=5, channel_dim=None):
+def create_test_image_3d(
+    height, width, depth, num_objs=12, rad_max=30, noise_max=0.0, num_seg_classes=5, channel_dim=None
+):
     """
     Return a noisy 3D image and segmentation.
 
@@ -64,7 +67,7 @@ def create_test_image_3d(height, width, depth, num_objs=12, rad_max=30,
         y = np.random.randint(rad_max, height - rad_max)
         z = np.random.randint(rad_max, depth - rad_max)
         rad = np.random.randint(5, rad_max)
-        spy, spx, spz = np.ogrid[-x:width - x, -y:height - y, -z:depth - z]
+        spy, spx, spz = np.ogrid[-x : width - x, -y : height - y, -z : depth - z]
         circle = (spx * spx + spy * spy + spz * spz) <= rad * rad
 
         if num_seg_classes > 1:
@@ -78,8 +81,9 @@ def create_test_image_3d(height, width, depth, num_objs=12, rad_max=30,
     noisyimage = rescale_array(np.maximum(image, norm))
 
     if channel_dim is not None:
-        assert isinstance(channel_dim, int) and channel_dim in (-1, 0, 3), 'invalid channel dim.'
-        noisyimage, labels = (noisyimage[None], labels[None]) \
-            if channel_dim == 0 else (noisyimage[..., None], labels[..., None])
+        assert isinstance(channel_dim, int) and channel_dim in (-1, 0, 3), "invalid channel dim."
+        noisyimage, labels = (
+            (noisyimage[None], labels[None]) if channel_dim == 0 else (noisyimage[..., None], labels[..., None])
+        )
 
     return noisyimage, labels

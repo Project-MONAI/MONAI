@@ -22,9 +22,8 @@ from monai.handlers import TensorBoardStatsHandler
 
 
 class TestHandlerTBStats(unittest.TestCase):
-
     def test_metrics_print(self):
-        default_dir = os.path.join('.', 'runs')
+        default_dir = os.path.join(".", "runs")
         shutil.rmtree(default_dir, ignore_errors=True)
 
         # set up engine
@@ -36,8 +35,8 @@ class TestHandlerTBStats(unittest.TestCase):
         # set up dummy metric
         @engine.on(Events.EPOCH_COMPLETED)
         def _update_metric(engine):
-            current_metric = engine.state.metrics.get('acc', 0.1)
-            engine.state.metrics['acc'] = current_metric + 0.1
+            current_metric = engine.state.metrics.get("acc", 0.1)
+            engine.state.metrics["acc"] = current_metric + 0.1
 
         # set up testing handler
         stats_handler = TensorBoardStatsHandler()
@@ -49,7 +48,7 @@ class TestHandlerTBStats(unittest.TestCase):
         shutil.rmtree(default_dir)
 
     def test_metrics_writer(self):
-        default_dir = os.path.join('.', 'runs')
+        default_dir = os.path.join(".", "runs")
         shutil.rmtree(default_dir, ignore_errors=True)
         with tempfile.TemporaryDirectory() as temp_dir:
 
@@ -62,14 +61,14 @@ class TestHandlerTBStats(unittest.TestCase):
             # set up dummy metric
             @engine.on(Events.EPOCH_COMPLETED)
             def _update_metric(engine):
-                current_metric = engine.state.metrics.get('acc', 0.1)
-                engine.state.metrics['acc'] = current_metric + 0.1
+                current_metric = engine.state.metrics.get("acc", 0.1)
+                engine.state.metrics["acc"] = current_metric + 0.1
 
             # set up testing handler
             writer = SummaryWriter(log_dir=temp_dir)
             stats_handler = TensorBoardStatsHandler(
-                writer, output_transform=lambda x: {'loss': x * 2.0},
-                global_epoch_transform=lambda x: x * 3.0)
+                writer, output_transform=lambda x: {"loss": x * 2.0}, global_epoch_transform=lambda x: x * 3.0
+            )
             stats_handler.attach(engine)
             engine.run(range(3), max_epochs=2)
             # check logging output
@@ -77,5 +76,5 @@ class TestHandlerTBStats(unittest.TestCase):
             self.assertTrue(not os.path.exists(default_dir))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

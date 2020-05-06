@@ -32,10 +32,9 @@ TEST_CASES = [
 
 
 class TestHandlerTBImage(unittest.TestCase):
-
     @parameterized.expand(TEST_CASES)
     def test_tb_image_shape(self, shape):
-        default_dir = os.path.join('.', 'runs')
+        default_dir = os.path.join(".", "runs")
         shutil.rmtree(default_dir, ignore_errors=True)
 
         # set up engine
@@ -56,5 +55,5 @@ class TestHandlerTBImage(unittest.TestCase):
         shutil.rmtree(default_dir)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -159,8 +159,9 @@ def one_hot(labels, num_classes):
     return onehot.reshape(tuple(labels.shape) + (num_classes,)).astype(labels.dtype)
 
 
-def generate_pos_neg_label_crop_centers(label, size, num_samples, pos_ratio, image=None,
-                                        image_threshold=0, rand_state=np.random):
+def generate_pos_neg_label_crop_centers(
+    label, size, num_samples, pos_ratio, image=None, image_threshold=0, rand_state=np.random
+):
     """Generate valid sample locations based on image with option for specifying foreground ratio
     Valid: samples sitting entirely within image, expected input shape: [C, H, W, D] or [C, H, W]
 
@@ -176,8 +177,8 @@ def generate_pos_neg_label_crop_centers(label, size, num_samples, pos_ratio, ima
         rand_state (random.RandomState): numpy randomState object to align with other modules.
     """
     max_size = label.shape[1:]
-    assert len(max_size) == len(size), 'expected size does not match label dim.'
-    assert (np.subtract(max_size, size) >= 0).all(), 'proposed roi is larger than image itself.'
+    assert len(max_size) == len(size), "expected size does not match label dim."
+    assert (np.subtract(max_size, size) >= 0).all(), "proposed roi is larger than image itself."
 
     # Select subregion to assure valid roi
     valid_start = np.floor_divide(size, 2)
@@ -199,9 +200,12 @@ def generate_pos_neg_label_crop_centers(label, size, num_samples, pos_ratio, ima
 
     if not len(fg_indices) or not len(bg_indices):
         if not len(fg_indices) and not len(bg_indices):
-            raise ValueError('no sampling location available.')
-        warnings.warn('N foreground {}, N  background {}, unable to generate class balanced samples.'.format(
-            len(fg_indices), len(bg_indices)))
+            raise ValueError("no sampling location available.")
+        warnings.warn(
+            "N foreground {}, N  background {}, unable to generate class balanced samples.".format(
+                len(fg_indices), len(bg_indices)
+            )
+        )
         pos_ratio = 0 if not len(fg_indices) else 1
 
     centers = []
@@ -251,8 +255,8 @@ def create_grid(spatial_size, spacing=None, homogeneous=True, dtype=float):
         dtype (type): output grid data type.
     """
     spacing = spacing or tuple(1.0 for _ in spatial_size)
-    ranges = [np.linspace(-(d - 1.) / 2. * s, (d - 1.) / 2. * s, int(d)) for d, s in zip(spatial_size, spacing)]
-    coords = np.asarray(np.meshgrid(*ranges, indexing='ij'), dtype=dtype)
+    ranges = [np.linspace(-(d - 1.0) / 2.0 * s, (d - 1.0) / 2.0 * s, int(d)) for d, s in zip(spatial_size, spacing)]
+    coords = np.asarray(np.meshgrid(*ranges, indexing="ij"), dtype=dtype)
     if not homogeneous:
         return coords
     return np.concatenate([coords, np.ones_like(coords[:1])])
@@ -266,9 +270,9 @@ def create_control_grid(spatial_shape, spacing, homogeneous=True, dtype=float):
     for d, s in zip(spatial_shape, spacing):
         d = int(d)
         if d % 2 == 0:
-            grid_shape.append(np.ceil((d - 1.) / (2. * s) + 0.5) * 2. + 2.)
+            grid_shape.append(np.ceil((d - 1.0) / (2.0 * s) + 0.5) * 2.0 + 2.0)
         else:
-            grid_shape.append(np.ceil((d - 1.) / (2. * s)) * 2. + 3.)
+            grid_shape.append(np.ceil((d - 1.0) / (2.0 * s)) * 2.0 + 3.0)
     return create_grid(grid_shape, spacing, homogeneous, dtype)
 
 
@@ -286,37 +290,28 @@ def create_rotate(spatial_dims, radians):
     if spatial_dims == 2:
         if len(radians) >= 1:
             sin_, cos_ = np.sin(radians[0]), np.cos(radians[0])
-            return np.array([[cos_, -sin_, 0.], [sin_, cos_, 0.], [0., 0., 1.]])
+            return np.array([[cos_, -sin_, 0.0], [sin_, cos_, 0.0], [0.0, 0.0, 1.0]])
 
     if spatial_dims == 3:
         affine = None
         if len(radians) >= 1:
             sin_, cos_ = np.sin(radians[0]), np.cos(radians[0])
-            affine = np.array([
-                [1., 0., 0., 0.],
-                [0., cos_, -sin_, 0.],
-                [0., sin_, cos_, 0.],
-                [0., 0., 0., 1.],
-            ])
+            affine = np.array(
+                [[1.0, 0.0, 0.0, 0.0], [0.0, cos_, -sin_, 0.0], [0.0, sin_, cos_, 0.0], [0.0, 0.0, 0.0, 1.0]]
+            )
         if len(radians) >= 2:
             sin_, cos_ = np.sin(radians[1]), np.cos(radians[1])
-            affine = affine @ np.array([
-                [cos_, 0.0, sin_, 0.],
-                [0., 1., 0., 0.],
-                [-sin_, 0., cos_, 0.],
-                [0., 0., 0., 1.],
-            ])
+            affine = affine @ np.array(
+                [[cos_, 0.0, sin_, 0.0], [0.0, 1.0, 0.0, 0.0], [-sin_, 0.0, cos_, 0.0], [0.0, 0.0, 0.0, 1.0]]
+            )
         if len(radians) >= 3:
             sin_, cos_ = np.sin(radians[2]), np.cos(radians[2])
-            affine = affine @ np.array([
-                [cos_, -sin_, 0., 0.],
-                [sin_, cos_, 0., 0.],
-                [0., 0., 1., 0.],
-                [0., 0., 0., 1.],
-            ])
+            affine = affine @ np.array(
+                [[cos_, -sin_, 0.0, 0.0], [sin_, cos_, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
+            )
         return affine
 
-    raise ValueError('create_rotate got spatial_dims={}, radians={}.'.format(spatial_dims, radians))
+    raise ValueError("create_rotate got spatial_dims={}, radians={}.".format(spatial_dims, radians))
 
 
 def create_shear(spatial_dims, coefs):
@@ -330,20 +325,18 @@ def create_shear(spatial_dims, coefs):
     if spatial_dims == 2:
         while len(coefs) < 2:
             coefs.append(0.0)
-        return np.array([
-            [1, coefs[0], 0.],
-            [coefs[1], 1., 0.],
-            [0., 0., 1.],
-        ])
+        return np.array([[1, coefs[0], 0.0], [coefs[1], 1.0, 0.0], [0.0, 0.0, 1.0]])
     if spatial_dims == 3:
         while len(coefs) < 6:
             coefs.append(0.0)
-        return np.array([
-            [1., coefs[0], coefs[1], 0.],
-            [coefs[2], 1., coefs[3], 0.],
-            [coefs[4], coefs[5], 1., 0.],
-            [0., 0., 0., 1.],
-        ])
+        return np.array(
+            [
+                [1.0, coefs[0], coefs[1], 0.0],
+                [coefs[2], 1.0, coefs[3], 0.0],
+                [coefs[4], coefs[5], 1.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ]
+        )
     raise NotImplementedError
 
 
@@ -356,8 +349,8 @@ def create_scale(spatial_dims, scaling_factor):
     """
     scaling_factor = list(ensure_tuple(scaling_factor))
     while len(scaling_factor) < spatial_dims:
-        scaling_factor.append(1.)
-    return np.diag(scaling_factor[:spatial_dims] + [1.])
+        scaling_factor.append(1.0)
+    return np.diag(scaling_factor[:spatial_dims] + [1.0])
 
 
 def create_translate(spatial_dims, shift):
@@ -387,7 +380,7 @@ def generate_spatial_bounding_box(img, select_fn=lambda x: x > 0, channel_indexe
             of image. if None, select foreground on the whole image.
         margin (int): add margin to all dims of the bounding box.
     """
-    assert isinstance(margin, int), 'margin must be int type.'
+    assert isinstance(margin, int), "margin must be int type."
     data = img[[*(ensure_tuple(channel_indexes))]] if channel_indexes is not None else img
     data = np.any(select_fn(data), axis=0)
     nonzero_idx = np.nonzero(data)
@@ -395,7 +388,7 @@ def generate_spatial_bounding_box(img, select_fn=lambda x: x > 0, channel_indexe
     box_start = list()
     box_end = list()
     for i in range(data.ndim):
-        assert len(nonzero_idx[i]) > 0, 'did not find nonzero index at spatial dim {}'.format(i)
+        assert len(nonzero_idx[i]) > 0, "did not find nonzero index at spatial dim {}".format(i)
         box_start.append(max(0, np.min(nonzero_idx[i]) - margin))
         box_end.append(min(data.shape[i], np.max(nonzero_idx[i]) + margin + 1))
     return box_start, box_end

@@ -15,7 +15,6 @@ from monai.transforms import Compose, Randomizable
 
 
 class TestCompose(unittest.TestCase):
-
     def test_empty_compose(self):
         c = Compose()
         i = 1
@@ -23,52 +22,51 @@ class TestCompose(unittest.TestCase):
 
     def test_non_dict_compose(self):
         def a(i):
-            return i + 'a'
+            return i + "a"
 
         def b(i):
-            return i + 'b'
+            return i + "b"
 
         c = Compose([a, b, a, b])
-        self.assertEqual(c(''), 'abab')
+        self.assertEqual(c(""), "abab")
 
     def test_dict_compose(self):
         def a(d):
             d = dict(d)
-            d['a'] += 1
+            d["a"] += 1
             return d
 
         def b(d):
             d = dict(d)
-            d['b'] += 1
+            d["b"] += 1
             return d
 
         c = Compose([a, b, a, b, a])
-        self.assertDictEqual(c({'a': 0, 'b': 0}), {'a': 3, 'b': 2})
+        self.assertDictEqual(c({"a": 0, "b": 0}), {"a": 3, "b": 2})
 
     def test_list_dict_compose(self):
         def a(d):  # transform to handle dict data
             d = dict(d)
-            d['a'] += 1
+            d["a"] += 1
             return d
 
         def b(d):  # transform to generate a batch list of data
             d = dict(d)
-            d['b'] += 1
+            d["b"] += 1
             d = [d] * 5
             return d
 
         def c(d):  # transform to handle dict data
             d = dict(d)
-            d['c'] += 1
+            d["c"] += 1
             return d
 
         transforms = Compose([a, a, b, c, c])
-        value = transforms({'a': 0, 'b': 0, 'c': 0})
+        value = transforms({"a": 0, "b": 0, "c": 0})
         for item in value:
-            self.assertDictEqual(item, {'a': 2, 'b': 1, 'c': 2})
+            self.assertDictEqual(item, {"a": 2, "b": 1, "c": 2})
 
     def test_random_compose(self):
-
         class _Acc(Randomizable):
             self.rand = 0.0
 
@@ -88,9 +86,7 @@ class TestCompose(unittest.TestCase):
         self.assertAlmostEqual(c(1), 2.57673391)
 
     def test_randomize_warn(self):
-
         class _RandomClass(Randomizable):
-
             def randomize(self, foo):
                 pass
 
@@ -99,5 +95,5 @@ class TestCompose(unittest.TestCase):
             c.randomize()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

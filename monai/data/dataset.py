@@ -165,7 +165,9 @@ class PersistentDataset(Dataset):
                 cache_dir_path: Path = Path(self.cache_dir)
                 if cache_dir_path.is_dir():
                     # TODO: Find way to hash transforms content as part of the cache
-                    data_item_md5 = hashlib.md5(json.dumps(item_transformed, sort_keys=True).encode('utf-8')).hexdigest()
+                    data_item_md5 = hashlib.md5(
+                        json.dumps(item_transformed, sort_keys=True).encode("utf-8")
+                    ).hexdigest()
                     hashfile: Path = Path(cache_dir_path) / f"{data_item_md5}.pt"
 
             if hashfile is not None and hashfile.is_file():

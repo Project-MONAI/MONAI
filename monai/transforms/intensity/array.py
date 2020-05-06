@@ -70,7 +70,7 @@ class RandShiftIntensity(Randomizable, Transform):
             prob (float): probability of shift.
         """
         self.offsets = (-offsets, offsets) if not isinstance(offsets, (list, tuple)) else offsets
-        assert len(self.offsets) == 2, 'offsets should be a number or pair of numbers.'
+        assert len(self.offsets) == 2, "offsets should be a number or pair of numbers."
         self.prob = prob
         self._do_transform = False
 
@@ -127,7 +127,7 @@ class RandScaleIntensity(Randomizable, Transform):
             dtype (np.dtype): expected output data type.
         """
         self.factors = (-factors, factors) if not isinstance(factors, (list, tuple)) else factors
-        assert len(self.factors) == 2, 'factors should be a number or pair of numbers.'
+        assert len(self.factors) == 2, "factors should be a number or pair of numbers."
         self.prob = prob
         self.dtype = dtype
         self._do_transform = False
@@ -161,8 +161,9 @@ class NormalizeIntensity(Transform):
 
     def __init__(self, subtrahend=None, divisor=None, nonzero=False, channel_wise=False):
         if subtrahend is not None or divisor is not None:
-            assert isinstance(subtrahend, np.ndarray) and isinstance(divisor, np.ndarray), \
-                'subtrahend and divisor must be set in pair and in numpy array.'
+            assert isinstance(subtrahend, np.ndarray) and isinstance(
+                divisor, np.ndarray
+            ), "subtrahend and divisor must be set in pair and in numpy array."
         self.subtrahend = subtrahend
         self.divisor = divisor
         self.nonzero = nonzero
@@ -198,7 +199,7 @@ class ThresholdIntensity(Transform):
     """
 
     def __init__(self, threshold, above=True, cval=0):
-        assert isinstance(threshold, (float, int)), 'must set the threshold to filter intensity.'
+        assert isinstance(threshold, (float, int)), "must set the threshold to filter intensity."
         self.threshold = threshold
         self.above = above
         self.cval = cval
@@ -244,7 +245,7 @@ class AdjustContrast(Transform):
     """
 
     def __init__(self, gamma):
-        assert isinstance(gamma, (float, int)), 'gamma must be a float or int number.'
+        assert isinstance(gamma, (float, int)), "gamma must be a float or int number."
         self.gamma = gamma
 
     def __call__(self, img):
@@ -267,12 +268,11 @@ class RandAdjustContrast(Randomizable, Transform):
     def __init__(self, prob=0.1, gamma=(0.5, 4.5)):
         self.prob = prob
         if not isinstance(gamma, (tuple, list)):
-            assert gamma > 0.5, \
-                'if gamma is single number, must greater than 0.5 and value is picked from (0.5, gamma)'
+            assert gamma > 0.5, "if gamma is single number, must greater than 0.5 and value is picked from (0.5, gamma)"
             self.gamma = (0.5, gamma)
         else:
             self.gamma = gamma
-        assert len(self.gamma) == 2, 'gamma should be a number or pair of numbers.'
+        assert len(self.gamma) == 2, "gamma should be a number or pair of numbers."
 
         self._do_transform = False
         self.gamma_value = None
