@@ -18,8 +18,17 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 import numpy as np
 
 from monai.transforms.compose import MapTransform
-from monai.transforms.utility.array import AddChannel, AsChannelFirst, ToTensor, \
-    AsChannelLast, CastToType, RepeatChannel, SqueezeDim, DataStats, SimulateDelay
+from monai.transforms.utility.array import (
+    AddChannel,
+    AsChannelFirst,
+    ToTensor,
+    AsChannelLast,
+    CastToType,
+    RepeatChannel,
+    SqueezeDim,
+    DataStats,
+    SimulateDelay,
+)
 
 
 class AsChannelFirstd(MapTransform):
@@ -201,12 +210,12 @@ class DataStatsd(MapTransform):
     def __init__(
         self,
         keys,
-        prefix='Data',
+        prefix="Data",
         data_shape=True,
         intensity_range=True,
         data_value=False,
         additional_info=None,
-        logger_handler=None
+        logger_handler=None,
     ):
         """
         Args:

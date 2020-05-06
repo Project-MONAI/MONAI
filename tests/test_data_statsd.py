@@ -19,77 +19,76 @@ from monai.transforms import DataStatsd
 
 TEST_CASE_1 = [
     {
-        'keys': 'img',
-        'prefix': 'test data',
-        'data_shape': False,
-        'intensity_range': False,
-        'data_value': False,
-        'additional_info': None
+        "keys": "img",
+        "prefix": "test data",
+        "data_shape": False,
+        "intensity_range": False,
+        "data_value": False,
+        "additional_info": None,
     },
-    {'img': np.array([[0, 1], [1, 2]])},
-    'test data statistics:'
+    {"img": np.array([[0, 1], [1, 2]])},
+    "test data statistics:",
 ]
 
 TEST_CASE_2 = [
     {
-        'keys': 'img',
-        'prefix': 'test data',
-        'data_shape': True,
-        'intensity_range': False,
-        'data_value': False,
-        'additional_info': None
+        "keys": "img",
+        "prefix": "test data",
+        "data_shape": True,
+        "intensity_range": False,
+        "data_value": False,
+        "additional_info": None,
     },
-    {'img': np.array([[0, 1], [1, 2]])},
-    'test data statistics:\nShape: (2, 2)'
+    {"img": np.array([[0, 1], [1, 2]])},
+    "test data statistics:\nShape: (2, 2)",
 ]
 
 TEST_CASE_3 = [
     {
-        'keys': 'img',
-        'prefix': 'test data',
-        'data_shape': True,
-        'intensity_range': True,
-        'data_value': False,
-        'additional_info': None
+        "keys": "img",
+        "prefix": "test data",
+        "data_shape": True,
+        "intensity_range": True,
+        "data_value": False,
+        "additional_info": None,
     },
-    {'img': np.array([[0, 1], [1, 2]])},
-    'test data statistics:\nShape: (2, 2)\nIntensity range: (0, 2)'
+    {"img": np.array([[0, 1], [1, 2]])},
+    "test data statistics:\nShape: (2, 2)\nIntensity range: (0, 2)",
 ]
 
 TEST_CASE_4 = [
     {
-        'keys': 'img',
-        'prefix': 'test data',
-        'data_shape': True,
-        'intensity_range': True,
-        'data_value': True,
-        'additional_info': None
+        "keys": "img",
+        "prefix": "test data",
+        "data_shape": True,
+        "intensity_range": True,
+        "data_value": True,
+        "additional_info": None,
     },
-    {'img': np.array([[0, 1], [1, 2]])},
-    'test data statistics:\nShape: (2, 2)\nIntensity range: (0, 2)\nValue: [[0 1]\n [1 2]]'
+    {"img": np.array([[0, 1], [1, 2]])},
+    "test data statistics:\nShape: (2, 2)\nIntensity range: (0, 2)\nValue: [[0 1]\n [1 2]]",
 ]
 
 TEST_CASE_5 = [
     {
-        'keys': 'img',
-        'prefix': 'test data',
-        'data_shape': True,
-        'intensity_range': True,
-        'data_value': True,
-        'additional_info': lambda x: np.mean(x)
+        "keys": "img",
+        "prefix": "test data",
+        "data_shape": True,
+        "intensity_range": True,
+        "data_value": True,
+        "additional_info": lambda x: np.mean(x),
     },
-    {'img': np.array([[0, 1], [1, 2]])},
-    'test data statistics:\nShape: (2, 2)\nIntensity range: (0, 2)\nValue: [[0 1]\n [1 2]]\nAdditional info: 1.0'
+    {"img": np.array([[0, 1], [1, 2]])},
+    "test data statistics:\nShape: (2, 2)\nIntensity range: (0, 2)\nValue: [[0 1]\n [1 2]]\nAdditional info: 1.0",
 ]
 
 TEST_CASE_6 = [
-    {'img': np.array([[0, 1], [1, 2]])},
-    'test data statistics:\nShape: (2, 2)\nIntensity range: (0, 2)\nValue: [[0 1]\n [1 2]]\nAdditional info: 1.0\n'
+    {"img": np.array([[0, 1], [1, 2]])},
+    "test data statistics:\nShape: (2, 2)\nIntensity range: (0, 2)\nValue: [[0 1]\n [1 2]]\nAdditional info: 1.0\n",
 ]
 
 
 class TestDataStatsd(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
     def test_value(self, input_param, input_data, expected_print):
         transform = DataStatsd(**input_param)
@@ -99,26 +98,26 @@ class TestDataStatsd(unittest.TestCase):
     @parameterized.expand([TEST_CASE_6])
     def test_file(self, input_data, expected_print):
         with tempfile.TemporaryDirectory() as tempdir:
-            filename = os.path.join(tempdir, 'test_stats.log')
-            handler = logging.FileHandler(filename, mode='w')
+            filename = os.path.join(tempdir, "test_stats.log")
+            handler = logging.FileHandler(filename, mode="w")
             input_param = {
-                'keys': 'img',
-                'prefix': 'test data',
-                'data_shape': True,
-                'intensity_range': True,
-                'data_value': True,
-                'additional_info': lambda x: np.mean(x),
-                'logger_handler': handler
+                "keys": "img",
+                "prefix": "test data",
+                "data_shape": True,
+                "intensity_range": True,
+                "data_value": True,
+                "additional_info": lambda x: np.mean(x),
+                "logger_handler": handler,
             }
             transform = DataStatsd(**input_param)
             _ = transform(input_data)
             handler.stream.close()
             transform.printer._logger.removeHandler(handler)
-            with open(filename, 'r') as f:
+            with open(filename, "r") as f:
                 content = f.read()
                 self.assertEqual(content, expected_print)
             os.remove(filename)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -173,14 +173,15 @@ class DataStats(Transform):
     Utility transform to show the statistics of data for debug or analysis.
     It can be inserted into any place of a transform chain and check results of previous transforms.
     """
+
     def __init__(
         self,
-        prefix='Data',
+        prefix="Data",
         data_shape=True,
         intensity_range=True,
         data_value=False,
         additional_info: Callable = None,
-        logger_handler=None
+        logger_handler=None,
     ):
         """
         Args:
@@ -193,33 +194,33 @@ class DataStats(Transform):
             logger_handler (logging.handler): add additional handler to output data: save to file, etc.
                 add existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html
         """
-        assert isinstance(prefix, str), 'prefix must be a string.'
+        assert isinstance(prefix, str), "prefix must be a string."
         self.prefix = prefix
         self.data_shape = data_shape
         self.intensity_range = intensity_range
         self.data_value = data_value
         if additional_info is not None:
-            assert isinstance(additional_info, Callable), 'additional_info must be a Callable function.'
+            assert isinstance(additional_info, Callable), "additional_info must be a Callable function."
         self.additional_info = additional_info
         self.output = None
         logging.basicConfig(level=logging.NOTSET)
-        self._logger = logging.getLogger('DataStats')
+        self._logger = logging.getLogger("DataStats")
         if logger_handler is not None:
             self._logger.addHandler(logger_handler)
 
     def __call__(self, img):
-        lines = [f'{self.prefix} statistics:']
+        lines = [f"{self.prefix} statistics:"]
 
         if self.data_shape:
-            lines.append(f'Shape: {img.shape}')
+            lines.append(f"Shape: {img.shape}")
         if self.intensity_range:
-            lines.append(f'Intensity range: ({np.min(img)}, {np.max(img)})')
+            lines.append(f"Intensity range: ({np.min(img)}, {np.max(img)})")
         if self.data_value:
-            lines.append(f'Value: {img}')
+            lines.append(f"Value: {img}")
         if self.additional_info:
-            lines.append(f'Additional info: {self.additional_info(img)}')
-        separator = '\n'
-        self.output = f'{separator.join(lines)}'
+            lines.append(f"Additional info: {self.additional_info(img)}")
+        separator = "\n"
+        self.output = f"{separator.join(lines)}"
         self._logger.debug(self.output)
 
         return img
