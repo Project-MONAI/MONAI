@@ -12,7 +12,6 @@
 import torch.nn.functional as F
 import torch.nn as nn
 import torch.optim as optim
-from torch.autograd import Variable
 import torch
 import unittest
 from monai.losses import FocalLoss
@@ -28,17 +27,19 @@ class TestFocalLoss(unittest.TestCase):
         batch_size = 128
         for _ in range(100):
             # Create a random tensor of shape (batch_size, class_num, 8, 4)
-            x = torch.rand(batch_size, class_num, 8, 4)
-            x = Variable(x.cuda())
+            x = torch.rand(batch_size, class_num, 8, 4, requires_grad=True)
             # Create a random batch of classes
             l = torch.randint(low=0, high=class_num, size=(batch_size, 8, 4))
             l = l.long()
-            l = Variable(l.cuda())
+            if torch.cuda.is_available():
+                x = x.cuda()
+                l = l.cuda()
             output0 = focal_loss.forward(x, l)
             output1 = ce.forward(x, l)
             a = float(output0.cpu().detach())
             b = float(output1.cpu().detach())
-            if abs(a - b) > max_error: max_error = abs(a - b)
+            if abs(a - b) > max_error:
+                max_error = abs(a - b)
         self.assertAlmostEqual(max_error, 0., places=3)
 
     def test_consistency_with_cross_entropy_classification(self):
@@ -50,26 +51,28 @@ class TestFocalLoss(unittest.TestCase):
         batch_size = 128
         for _ in range(100):
             # Create a random scores tensor of shape (batch_size, class_num)
-            x = torch.rand(batch_size, class_num)
-            x = Variable(x.cuda())
+            x = torch.rand(batch_size, class_num, requires_grad=True)
             # Create a random batch of classes
             l = torch.randint(low=0, high=class_num, size=(batch_size,))
             l = l.long()
-            l = Variable(l.cuda())
+            if torch.cuda.is_available():
+                x = x.cuda()
+                l = l.cuda()
             output0 = focal_loss.forward(x, l)
             output1 = ce.forward(x, l)
             a = float(output0.cpu().detach())
             b = float(output1.cpu().detach())
-            if abs(a - b) > max_error: max_error = abs(a - b)
+            if abs(a - b) > max_error:
+                max_error = abs(a - b)
         self.assertAlmostEqual(max_error, 0., places=3)
 
     def test_bin_seg_2d(self):
         # define 2d examples
         target = torch.tensor(
-            [[0,0,0,0],
-             [0,1,1,0],
-             [0,1,1,0],
-             [0,0,0,0]]
+            [[0, 0, 0, 0],
+             [0, 1, 1, 0],
+             [0, 1, 1, 0],
+             [0, 0, 0, 0]]
         )
         # add another dimension corresponding to the batch (batch size = 1 here)
         target = target.unsqueeze(0)  # shape (1, H, W)
@@ -92,10 +95,10 @@ class TestFocalLoss(unittest.TestCase):
         num_classes = 2
         # define 2d examples
         target = torch.tensor(
-            [[0,0,0,0],
-             [0,0,0,0],
-             [0,0,0,0],
-             [0,0,0,0]]
+            [[0, 0, 0, 0],
+             [0, 0, 0, 0],
+             [0, 0, 0, 0],
+             [0, 0, 0, 0]]
         )
         # add another dimension corresponding to the batch (batch size = 1 here)
         target = target.unsqueeze(0)  # shape (1, H, W)
@@ -113,10 +116,10 @@ class TestFocalLoss(unittest.TestCase):
         num_classes = 6  # labels 0 to 5
         # define 2d examples
         target = torch.tensor(
-            [[0,0,0,0],
-             [0,1,2,0],
-             [0,3,4,0],
-             [0,0,0,0]]
+            [[0, 0, 0, 0],
+             [0, 1, 2, 0],
+             [0, 3, 4, 0],
+             [0, 0, 0, 0]]
         )
         # add another dimension corresponding to the batch (batch size = 1 here)
         target = target.unsqueeze(0)  # shape (1, H, W)
@@ -132,25 +135,23 @@ class TestFocalLoss(unittest.TestCase):
 
     def test_bin_seg_3d(self):
         # define 2d examples
-        target = torch.tensor(
-            [
+        target = torch.tensor([
             # raw 0
             [[0, 0, 0, 0],
              [0, 1, 1, 0],
              [0, 1, 1, 0],
              [0, 0, 0, 0]],
             # raw 1
-             [[0, 0, 0, 0],
-              [0, 1, 1, 0],
-              [0, 1, 1, 0],
-              [0, 0, 0, 0]],
+            [[0, 0, 0, 0],
+             [0, 1, 1, 0],
+             [0, 1, 1, 0],
+             [0, 0, 0, 0]],
             # raw 2
-             [[0, 0, 0, 0],
-              [0, 1, 1, 0],
-              [0, 1, 1, 0],
-              [0, 0, 0, 0]]
-             ]
-        )
+            [[0, 0, 0, 0],
+             [0, 1, 1, 0],
+             [0, 1, 1, 0],
+             [0, 0, 0, 0]]
+        ])
         # add another dimension corresponding to the batch (batch size = 1 here)
         target = target.unsqueeze(0)  # shape (1, H, W, D)
         pred_very_good = 1000 * F.one_hot(
@@ -174,35 +175,35 @@ class TestFocalLoss(unittest.TestCase):
         max_iter = 20
 
         # define a simple 3d example
-        target_seg = torch.tensor(
-            [
+        target_seg = torch.tensor([
             # raw 0
+            [[0, 0, 0, 0], 
+             [0, 1, 1, 0], 
+             [0, 1, 1, 0], 
+             [0, 0, 0, 0]], 
+            # raw 1
             [[0, 0, 0, 0],
              [0, 1, 1, 0],
              [0, 1, 1, 0],
              [0, 0, 0, 0]],
-            # raw 1
-             [[0, 0, 0, 0],
-              [0, 1, 1, 0],
-              [0, 1, 1, 0],
-              [0, 0, 0, 0]],
             # raw 2
-             [[0, 0, 0, 0],
-              [0, 1, 1, 0],
-              [0, 1, 1, 0],
-              [0, 0, 0, 0]]
-             ]
-        )
+            [[0, 0, 0, 0],
+             [0, 1, 1, 0],
+             [0, 1, 1, 0],
+             [0, 0, 0, 0]]
+        ])
         target_seg = torch.unsqueeze(target_seg, dim=0)
         image = 12 * target_seg + 27
         image = image.float()
         num_classes = 2
         num_voxels = 3 * 4 * 4
+
         # define a one layer model
         class OnelayerNet(nn.Module):
             def __init__(self):
                 super(OnelayerNet, self).__init__()
                 self.layer = nn.Linear(num_voxels, num_voxels * num_classes)
+
             def forward(self, x):
                 x = x.view(-1, num_voxels)
                 x = self.layer(x)
@@ -238,7 +239,7 @@ class TestFocalLoss(unittest.TestCase):
         # count the number of SGD steps in which the loss decreases
         num_decreasing_steps = 0
         for i in range(len(loss_history) - 1):
-            if loss_history[i] > loss_history[i+1]:
+            if loss_history[i] > loss_history[i + 1]:
                 num_decreasing_steps += 1
         decreasing_steps_ratio = float(num_decreasing_steps) / (len(loss_history) - 1)
 
