@@ -111,6 +111,8 @@ class TestDataStats(unittest.TestCase):
             }
             transform = DataStats(**input_param)
             _ = transform(input_data)
+            handler.stream.close()
+            transform._logger.removeHandler(handler)
             with open(filename, 'r') as f:
                 content = f.read()
                 self.assertEqual(content, expected_print)

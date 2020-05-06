@@ -209,6 +209,7 @@ class DataStats(Transform):
 
     def __call__(self, img):
         lines = [f'{self.prefix} statistics:']
+
         if self.data_shape:
             lines.append(f'Shape: {img.shape}')
         if self.intensity_range:
