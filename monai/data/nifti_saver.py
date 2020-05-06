@@ -23,8 +23,17 @@ class NiftiSaver:
     use index from 0 as the filename prefix.
     """
 
-    def __init__(self, output_dir='./', output_postfix='seg', output_ext='.nii.gz',
-                 resample=True, interp_order=0, mode='constant', cval=0, dtype=None):
+    def __init__(
+        self,
+        output_dir="./",
+        output_postfix="seg",
+        output_ext=".nii.gz",
+        resample=True,
+        interp_order=0,
+        mode="constant",
+        cval=0,
+        dtype=None,
+    ):
         """
         Args:
             output_dir (str): output image directory.
@@ -111,21 +120,30 @@ class NiftiSaver:
         See Also
             :py:meth:`monai.data.nifti_writer.write_nifti`
         """
-        filename = meta_data['filename_or_obj'] if meta_data else str(self._data_index)
+        filename = meta_data["filename_or_obj"] if meta_data else str(self._data_index)
         self._data_index += 1
-        original_affine = meta_data.get('original_affine', None) if meta_data else None
-        affine = meta_data.get('affine', None) if meta_data else None
-        spatial_shape = meta_data.get('spatial_shape', None) if meta_data else None
+        original_affine = meta_data.get("original_affine", None) if meta_data else None
+        affine = meta_data.get("affine", None) if meta_data else None
+        spatial_shape = meta_data.get("spatial_shape", None) if meta_data else None
 
         if torch.is_tensor(data):
             data = data.detach().cpu().numpy()
         filename = self._create_file_basename(self.output_postfix, filename, self.output_dir)
-        filename = '{}{}'.format(filename, self.output_ext)
+        filename = "{}{}".format(filename, self.output_ext)
         # change data to "channel last" format and write to nifti format file
         data = np.moveaxis(data, 0, -1)
-        write_nifti(data, file_name=filename, affine=affine, target_affine=original_affine,
-                    resample=self.resample, output_shape=spatial_shape, interp_order=self.interp_order,
-                    mode=self.mode, cval=self.cval, dtype=self.dtype or data.dtype)
+        write_nifti(
+            data,
+            file_name=filename,
+            affine=affine,
+            target_affine=original_affine,
+            resample=self.resample,
+            output_shape=spatial_shape,
+            interp_order=self.interp_order,
+            mode=self.mode,
+            cval=self.cval,
+            dtype=self.dtype or data.dtype,
+        )
 
     def save_batch(self, batch_data, meta_data=None):
         """Save a batch of data into Nifti format files.

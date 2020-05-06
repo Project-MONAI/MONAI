@@ -17,7 +17,7 @@ from ignite.engine import Engine, Events
 from monai.visualize import plot_2d_or_3d_image
 from monai.utils.misc import is_scalar
 
-DEFAULT_TAG = 'Loss'
+DEFAULT_TAG = "Loss"
 
 
 class TensorBoardStatsHandler(object):
@@ -33,13 +33,15 @@ class TensorBoardStatsHandler(object):
           ``self.output_transform(engine.state.output)`` to TensorBoard.
     """
 
-    def __init__(self,
-                 summary_writer=None,
-                 epoch_event_writer=None,
-                 iteration_event_writer=None,
-                 output_transform=lambda x: x,
-                 global_epoch_transform=lambda x: x,
-                 tag_name=DEFAULT_TAG):
+    def __init__(
+        self,
+        summary_writer=None,
+        epoch_event_writer=None,
+        iteration_event_writer=None,
+        output_transform=lambda x: x,
+        global_epoch_transform=lambda x: x,
+        tag_name=DEFAULT_TAG,
+    ):
         """
         Args:
             summary_writer (SummaryWriter): user can specify TensorBoard SummaryWriter,
@@ -133,19 +135,23 @@ class TensorBoardStatsHandler(object):
             for name in sorted(loss):
                 value = loss[name]
                 if not is_scalar(value):
-                    warnings.warn('ignoring non-scalar output in TensorBoardStatsHandler,'
-                                  ' make sure `output_transform(engine.state.output)` returns'
-                                  ' a scalar or dictionary of key and scalar pairs to avoid this warning.'
-                                  ' {}:{}'.format(name, type(value)))
+                    warnings.warn(
+                        "ignoring non-scalar output in TensorBoardStatsHandler,"
+                        " make sure `output_transform(engine.state.output)` returns"
+                        " a scalar or dictionary of key and scalar pairs to avoid this warning."
+                        " {}:{}".format(name, type(value))
+                    )
                     continue  # not plot multi dimensional output
                 writer.add_scalar(name, value.item() if torch.is_tensor(value) else value, engine.state.iteration)
         elif is_scalar(loss):  # not printing multi dimensional output
             writer.add_scalar(self.tag_name, loss.item() if torch.is_tensor(loss) else loss, engine.state.iteration)
         else:
-            warnings.warn('ignoring non-scalar output in TensorBoardStatsHandler,'
-                          ' make sure `output_transform(engine.state.output)` returns'
-                          ' a scalar or a dictionary of key and scalar pairs to avoid this warning.'
-                          ' {}'.format(type(loss)))
+            warnings.warn(
+                "ignoring non-scalar output in TensorBoardStatsHandler,"
+                " make sure `output_transform(engine.state.output)` returns"
+                " a scalar or a dictionary of key and scalar pairs to avoid this warning."
+                " {}".format(type(loss))
+            )
         writer.flush()
 
 
@@ -170,14 +176,16 @@ class TensorBoardImageHandler(object):
 
      """
 
-    def __init__(self,
-                 summary_writer=None,
-                 batch_transform=lambda x: x,
-                 output_transform=lambda x: x,
-                 global_iter_transform=lambda x: x,
-                 index=0,
-                 max_channels=1,
-                 max_frames=64):
+    def __init__(
+        self,
+        summary_writer=None,
+        batch_transform=lambda x: x,
+        output_transform=lambda x: x,
+        global_iter_transform=lambda x: x,
+        index=0,
+        max_channels=1,
+        max_frames=64,
+    ):
         """
         Args:
             summary_writer (SummaryWriter): user can specify TensorBoard SummaryWriter,
@@ -208,26 +216,29 @@ class TensorBoardImageHandler(object):
             show_images = show_images.detach().cpu().numpy()
         if show_images is not None:
             if not isinstance(show_images, np.ndarray):
-                raise ValueError('output_transform(engine.state.output)[0] must be an ndarray or tensor.')
-            plot_2d_or_3d_image(show_images, step, self._writer, self.index,
-                                self.max_channels, self.max_frames, 'input_0')
+                raise ValueError("output_transform(engine.state.output)[0] must be an ndarray or tensor.")
+            plot_2d_or_3d_image(
+                show_images, step, self._writer, self.index, self.max_channels, self.max_frames, "input_0"
+            )
 
         show_labels = self.batch_transform(engine.state.batch)[1]
         if torch.is_tensor(show_labels):
             show_labels = show_labels.detach().cpu().numpy()
         if show_labels is not None:
             if not isinstance(show_labels, np.ndarray):
-                raise ValueError('batch_transform(engine.state.batch)[1] must be an ndarray or tensor.')
-            plot_2d_or_3d_image(show_labels, step, self._writer, self.index,
-                                self.max_channels, self.max_frames, 'input_1')
+                raise ValueError("batch_transform(engine.state.batch)[1] must be an ndarray or tensor.")
+            plot_2d_or_3d_image(
+                show_labels, step, self._writer, self.index, self.max_channels, self.max_frames, "input_1"
+            )
 
         show_outputs = self.output_transform(engine.state.output)
         if torch.is_tensor(show_outputs):
             show_outputs = show_outputs.detach().cpu().numpy()
         if show_outputs is not None:
             if not isinstance(show_outputs, np.ndarray):
-                raise ValueError('output_transform(engine.state.output) must be an ndarray or tensor.')
-            plot_2d_or_3d_image(show_outputs, step, self._writer, self.index,
-                                self.max_channels, self.max_frames, 'output')
+                raise ValueError("output_transform(engine.state.output) must be an ndarray or tensor.")
+            plot_2d_or_3d_image(
+                show_outputs, step, self._writer, self.index, self.max_channels, self.max_frames, "output"
+            )
 
         self._writer.flush()

@@ -20,9 +20,10 @@ import monai
 
 try:
     import ignite
+
     ignite_version = ignite.__version__
 except ImportError:
-    ignite_version = 'NOT INSTALLED'
+    ignite_version = "NOT INSTALLED"
 
 
 def get_config_values():

@@ -15,7 +15,7 @@ import sys
 from ._version import get_versions
 from .utils.module import load_submodules
 
-__version__ = get_versions()['version']
+__version__ = get_versions()["version"]
 del get_versions
 
 __copyright__ = "(c) 2020 MONAI Consortium"

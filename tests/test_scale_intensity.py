@@ -17,7 +17,6 @@ from tests.utils import NumpyImageTestCase2D
 
 
 class TestScaleIntensity(NumpyImageTestCase2D):
-
     def test_range_scale(self):
         scaler = ScaleIntensity(minv=1.0, maxv=2.0)
         result = scaler(self.imt)
@@ -34,5 +33,5 @@ class TestScaleIntensity(NumpyImageTestCase2D):
         np.testing.assert_allclose(result, expected)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

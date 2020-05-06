@@ -39,7 +39,7 @@ class AsChannelFirst(Transform):
     """
 
     def __init__(self, channel_dim=-1):
-        assert isinstance(channel_dim, int) and channel_dim >= -1, 'invalid channel dimension.'
+        assert isinstance(channel_dim, int) and channel_dim >= -1, "invalid channel dimension."
         self.channel_dim = channel_dim
 
     def __call__(self, img):
@@ -62,7 +62,7 @@ class AsChannelLast(Transform):
     """
 
     def __init__(self, channel_dim=0):
-        assert isinstance(channel_dim, int) and channel_dim >= -1, 'invalid channel dimension.'
+        assert isinstance(channel_dim, int) and channel_dim >= -1, "invalid channel dimension."
         self.channel_dim = channel_dim
 
     def __call__(self, img):
@@ -98,7 +98,7 @@ class RepeatChannel(Transform):
     """
 
     def __init__(self, repeats):
-        assert repeats > 0, 'repeats count must be greater than 0.'
+        assert repeats > 0, "repeats count must be greater than 0."
         self.repeats = repeats
 
     def __call__(self, img):
@@ -118,7 +118,7 @@ class CastToType(Transform):
         self.dtype = dtype
 
     def __call__(self, img):
-        assert isinstance(img, np.ndarray), 'image must be numpy array.'
+        assert isinstance(img, np.ndarray), "image must be numpy array."
         return img.astype(self.dtype)
 
 
@@ -157,7 +157,7 @@ class SqueezeDim(Transform):
                 Default: None (all dimensions of size 1 will be removed)
         """
         if dim is not None:
-            assert isinstance(dim, int) and dim >= -1, 'invalid channel dimension.'
+            assert isinstance(dim, int) and dim >= -1, "invalid channel dimension."
         self.dim = dim
 
     def __call__(self, img):

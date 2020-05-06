@@ -165,7 +165,9 @@ class PersistentDataset(Dataset):
                 cache_dir_path: Path = Path(self.cache_dir)
                 if cache_dir_path.is_dir():
                     # TODO: Find way to hash transforms content as part of the cache
-                    data_item_md5 = hashlib.md5(json.dumps(item_transformed, sort_keys=True).encode('utf-8')).hexdigest()
+                    data_item_md5 = hashlib.md5(
+                        json.dumps(item_transformed, sort_keys=True).encode("utf-8")
+                    ).hexdigest()
                     hashfile: Path = Path(cache_dir_path) / f"{data_item_md5}.pt"
 
             if hashfile is not None and hashfile.is_file():
@@ -241,7 +243,7 @@ class CacheDataset(Dataset):
         super().__init__(data, transform)
         self.cache_num = min(cache_num, int(len(self) * cache_rate), len(self))
         self._cache = [None] * self.cache_num
-        print('Load and cache transformed data...')
+        print("Load and cache transformed data...")
         if num_workers > 0:
             self._item_processed = 0
             self._thread_lock = threading.Lock()

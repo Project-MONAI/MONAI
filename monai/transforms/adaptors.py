@@ -99,21 +99,16 @@ Outputs:
 import monai
 
 
-@monai.utils.export('monai.transforms')
+@monai.utils.export("monai.transforms")
 def adaptor(function, outputs, inputs=None):
-
     def must_be_types_or_none(variable_name, variable, types):
         if variable is not None:
             if not isinstance(variable, types):
-                raise ValueError(
-                    "'{}' must be None or {} but is {}".format(
-                        variable_name, types, type(variable)))
+                raise ValueError("'{}' must be None or {} but is {}".format(variable_name, types, type(variable)))
 
     def must_be_types(variable_name, variable, types):
         if not isinstance(variable, types):
-            raise ValueError(
-                "'{}' must be one of {} but is {}".format(
-                    variable_name, types, type(variable)))
+            raise ValueError("'{}' must be one of {} but is {}".format(variable_name, types, type(variable)))
 
     def map_names(ditems, input_map):
         return {input_map(k, k): v for k, v in ditems.items()}
@@ -126,7 +121,7 @@ def adaptor(function, outputs, inputs=None):
         sig = FunctionSignature(function)
 
         if sig.found_kwargs:
-            must_be_types_or_none('inputs', inputs, (dict,))
+            must_be_types_or_none("inputs", inputs, (dict,))
             # we just forward all arguments unless we have been provided an input map
             if inputs is None:
                 dinputs = dict(ditems)
@@ -138,7 +133,7 @@ def adaptor(function, outputs, inputs=None):
             # no **kwargs
             # select only items from the method signature
             dinputs = dict((k, v) for k, v in ditems.items() if k in sig.non_var_parameters)
-            must_be_types_or_none('inputs', inputs, (str, list, tuple, dict))
+            must_be_types_or_none("inputs", inputs, (str, list, tuple, dict))
             if inputs is None:
                 pass
             elif isinstance(inputs, str):
@@ -156,14 +151,14 @@ def adaptor(function, outputs, inputs=None):
         # now the mapping back to the output dictionary depends on outputs and what was returned from the function
         op = outputs
         if isinstance(ret, dict):
-            must_be_types_or_none('outputs', op, (dict,))
+            must_be_types_or_none("outputs", op, (dict,))
             if op is not None:
                 ret = {v: ret[k] for k, v in op.items()}
         elif isinstance(ret, (list, tuple)):
             if len(ret) == 1:
-                must_be_types('outputs', op, (str, list, tuple))
+                must_be_types("outputs", op, (str, list, tuple))
             else:
-                must_be_types('outputs', op, (list, tuple))
+                must_be_types("outputs", op, (list, tuple))
 
             if isinstance(op, str):
                 op = [op]
@@ -173,7 +168,7 @@ def adaptor(function, outputs, inputs=None):
 
             ret = dict((k, v) for k, v in zip(op, ret))
         else:
-            must_be_types('outputs', op, (str, list, tuple))
+            must_be_types("outputs", op, (str, list, tuple))
             if isinstance(op, (list, tuple)):
                 if len(op) != 1:
                     raise ValueError("'outputs' must be of length one if it is a list or tuple")
@@ -189,9 +184,8 @@ def adaptor(function, outputs, inputs=None):
     return _inner
 
 
-@monai.utils.export('monai.transforms')
+@monai.utils.export("monai.transforms")
 def apply_alias(fn, name_map):
-
     def _inner(data):
 
         # map names
@@ -211,7 +205,7 @@ def apply_alias(fn, name_map):
     return _inner
 
 
-@monai.utils.export('monai.transforms')
+@monai.utils.export("monai.transforms")
 def to_kwargs(fn):
     def _inner(data):
         return fn(**data)
@@ -222,6 +216,7 @@ def to_kwargs(fn):
 class FunctionSignature:
     def __init__(self, function):
         import inspect
+
         sfn = inspect.signature(function)
         self.found_args = False
         self.found_kwargs = False

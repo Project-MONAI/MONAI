@@ -17,7 +17,6 @@ from tests.utils import NumpyImageTestCase2D
 
 
 class TestShiftIntensity(NumpyImageTestCase2D):
-
     def test_value(self):
         shifter = ShiftIntensity(offset=1.0)
         result = shifter(self.imt)
@@ -25,5 +24,5 @@ class TestShiftIntensity(NumpyImageTestCase2D):
         np.testing.assert_allclose(result, expected)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

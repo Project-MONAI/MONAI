@@ -61,6 +61,7 @@ class Randomizable(ABC):
     An interface for handling local numpy random state.
     this is mainly for randomized data augmentation transforms.
     """
+
     R = np.random.RandomState()
 
     def set_random_state(self, seed=None, state=None):
@@ -83,7 +84,7 @@ class Randomizable(ABC):
 
         if state is not None:
             if not isinstance(state, np.random.RandomState):
-                raise ValueError('`state` must be a `np.random.RandomState`, got {}'.format(type(state)))
+                raise ValueError("`state` must be a `np.random.RandomState`, got {}".format(type(state)))
             self.R = state
             return self
 
@@ -183,11 +184,8 @@ class Compose(Randomizable):
                 _transform.randomize()
             except TypeError as type_error:
                 warnings.warn(
-                    'Transform "{0}" in Compose not randomized\n{0}.{1}.'.format(
-                        type(_transform).__name__,
-                        type_error
-                    ),
-                    RuntimeWarning
+                    'Transform "{0}" in Compose not randomized\n{0}.{1}.'.format(type(_transform).__name__, type_error),
+                    RuntimeWarning,
                 )
 
     def __call__(self, input_):
@@ -220,10 +218,10 @@ class MapTransform(Transform):
     def __init__(self, keys):
         self.keys = ensure_tuple(keys)
         if not self.keys:
-            raise ValueError('keys unspecified')
+            raise ValueError("keys unspecified")
         for key in self.keys:
             if not isinstance(key, Hashable):
-                raise ValueError('keys should be a hashable or a sequence of hashables, got {}'.format(type(key)))
+                raise ValueError("keys should be a hashable or a sequence of hashables, got {}".format(type(key)))
 
     @abstractmethod
     def __call__(self, data):

@@ -37,7 +37,7 @@ class DiceLoss(_Loss):
         do_sigmoid=False,
         do_softmax=False,
         squared_pred=False,
-        jaccard=False
+        jaccard=False,
     ):
         """
         Args:
@@ -53,7 +53,7 @@ class DiceLoss(_Loss):
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         if do_sigmoid and do_softmax:
-            raise ValueError('do_sigmoid=True and do_softmax=True are not compatible.')
+            raise ValueError("do_sigmoid=True and do_softmax=True are not compatible.")
         self.do_sigmoid = do_sigmoid
         self.do_softmax = do_softmax
         self.squared_pred = squared_pred
@@ -71,11 +71,11 @@ class DiceLoss(_Loss):
         n_pred_ch = pred.shape[1]
         if n_pred_ch == 1:
             if self.do_softmax:
-                warnings.warn('single channel prediction, `do_softmax=True` ignored.')
+                warnings.warn("single channel prediction, `do_softmax=True` ignored.")
             if self.to_onehot_y:
-                warnings.warn('single channel prediction, `to_onehot_y=True` ignored.')
+                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
             if not self.include_background:
-                warnings.warn('single channel prediction, `include_background=False` ignored.')
+                warnings.warn("single channel prediction, `include_background=False` ignored.")
         else:
             if self.do_softmax:
                 pred = torch.softmax(pred, 1)
@@ -85,8 +85,10 @@ class DiceLoss(_Loss):
                 # if skipping background, removing first channel
                 ground = ground[:, 1:]
                 pred = pred[:, 1:]
-                assert ground.shape == pred.shape, ('ground truth one-hot has differing shape (%r) from pred (%r)' %
-                                                    (ground.shape, pred.shape))
+                assert ground.shape == pred.shape, "ground truth one-hot has differing shape (%r) from pred (%r)" % (
+                    ground.shape,
+                    pred.shape,
+                )
 
         # reducing only spatial dimensions (not batch nor channels)
         reduce_axis = list(range(2, len(pred.shape)))
@@ -119,14 +121,7 @@ class GeneralizedDiceLoss(_Loss):
         https://github.com/NifTK/NiftyNet/blob/v0.6.0/niftynet/layer/loss_segmentation.py#L279
     """
 
-    def __init__(
-        self,
-        include_background=True,
-        to_onehot_y=False,
-        do_sigmoid=False,
-        do_softmax=False,
-        w_type='square'
-    ):
+    def __init__(self, include_background=True, to_onehot_y=False, do_sigmoid=False, do_softmax=False, w_type="square"):
         """
         Args:
             include_background (bool): If False channel index 0 (background category) is excluded from the calculation.
@@ -140,16 +135,16 @@ class GeneralizedDiceLoss(_Loss):
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         if do_sigmoid and do_softmax:
-            raise ValueError('do_sigmoid=True and do_softmax=True are not compatible.')
+            raise ValueError("do_sigmoid=True and do_softmax=True are not compatible.")
         self.do_sigmoid = do_sigmoid
         self.do_softmax = do_softmax
         self.w_func = torch.ones_like
-        if w_type == 'simple':
+        if w_type == "simple":
             self.w_func = torch.reciprocal
-        elif w_type == 'square':
+        elif w_type == "square":
             self.w_func = lambda x: torch.reciprocal(x * x)
         else:
-            raise ValueError('unknown option for `w_type`: {}'.format(w_type))
+            raise ValueError("unknown option for `w_type`: {}".format(w_type))
 
     def forward(self, pred, ground, smooth=1e-5):
         """
@@ -163,11 +158,11 @@ class GeneralizedDiceLoss(_Loss):
         n_pred_ch = pred.shape[1]
         if n_pred_ch == 1:
             if self.do_softmax:
-                warnings.warn('single channel prediction, `do_softmax=True` ignored.')
+                warnings.warn("single channel prediction, `do_softmax=True` ignored.")
             if self.to_onehot_y:
-                warnings.warn('single channel prediction, `to_onehot_y=True` ignored.')
+                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
             if not self.include_background:
-                warnings.warn('single channel prediction, `include_background=False` ignored.')
+                warnings.warn("single channel prediction, `include_background=False` ignored.")
         else:
             if self.do_softmax:
                 pred = torch.softmax(pred, 1)
@@ -177,8 +172,10 @@ class GeneralizedDiceLoss(_Loss):
                 # if skipping background, removing first channel
                 ground = ground[:, 1:]
                 pred = pred[:, 1:]
-                assert ground.shape == pred.shape, ('ground truth one-hot has differing shape (%r) from pred (%r)' %
-                                                    (ground.shape, pred.shape))
+                assert ground.shape == pred.shape, "ground truth one-hot has differing shape (%r) from pred (%r)" % (
+                    ground.shape,
+                    pred.shape,
+                )
 
         # reducing only spatial dimensions (not batch nor channels)
         reduce_axis = list(range(2, len(pred.shape)))

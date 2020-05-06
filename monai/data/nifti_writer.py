@@ -16,16 +16,18 @@ import scipy.ndimage
 from monai.data.utils import compute_shape_offset, to_affine_nd
 
 
-def write_nifti(data,
-                file_name,
-                affine=None,
-                target_affine=None,
-                resample=True,
-                output_shape=None,
-                interp_order=3,
-                mode='constant',
-                cval=0,
-                dtype=None):
+def write_nifti(
+    data,
+    file_name,
+    affine=None,
+    target_affine=None,
+    resample=True,
+    output_shape=None,
+    interp_order=3,
+    mode="constant",
+    cval=0,
+    dtype=None,
+):
     """
     Write numpy data into NIfTI files to disk.  This function converts data
     into the coordinate system defined by `target_affine` when `target_affine`
@@ -76,7 +78,7 @@ def write_nifti(data,
             this option is used when `resample = True`.
         dtype (np.dtype, optional): convert the image to save to this data type.
     """
-    assert isinstance(data, np.ndarray), 'input data must be numpy array.'
+    assert isinstance(data, np.ndarray), "input data must be numpy array."
     sr = min(data.ndim, 3)
     if affine is None:
         affine = np.eye(4, dtype=np.float64)
@@ -115,22 +117,22 @@ def write_nifti(data,
         data_chns = []
         for chn in range(data_.shape[-1]):
             data_chns.append(
-                scipy.ndimage.affine_transform(data_[..., chn],
-                                               matrix=transform,
-                                               output_shape=output_shape[:3],
-                                               order=interp_order,
-                                               mode=mode,
-                                               cval=cval))
+                scipy.ndimage.affine_transform(
+                    data_[..., chn],
+                    matrix=transform,
+                    output_shape=output_shape[:3],
+                    order=interp_order,
+                    mode=mode,
+                    cval=cval,
+                )
+            )
         data_chns = np.stack(data_chns, axis=-1)
         data_ = data_chns.reshape(list(data_chns.shape[:3]) + list(channel_shape))
     else:
         data_ = data.astype(dtype)
-        data_ = scipy.ndimage.affine_transform(data_,
-                                               matrix=transform,
-                                               output_shape=output_shape[:data_.ndim],
-                                               order=interp_order,
-                                               mode=mode,
-                                               cval=cval)
+        data_ = scipy.ndimage.affine_transform(
+            data_, matrix=transform, output_shape=output_shape[: data_.ndim], order=interp_order, mode=mode, cval=cval
+        )
     results_img = nib.Nifti1Image(data_, to_affine_nd(3, target_affine))
     nib.save(results_img, file_name)
     return

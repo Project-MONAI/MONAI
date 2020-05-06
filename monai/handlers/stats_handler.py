@@ -15,8 +15,8 @@ import torch
 from ignite.engine import Engine, Events
 from monai.utils.misc import is_scalar
 
-DEFAULT_KEY_VAL_FORMAT = '{}: {:.4f} '
-DEFAULT_TAG = 'Loss'
+DEFAULT_KEY_VAL_FORMAT = "{}: {:.4f} "
+DEFAULT_TAG = "Loss"
 
 
 class StatsHandler(object):
@@ -31,14 +31,16 @@ class StatsHandler(object):
 
     """
 
-    def __init__(self,
-                 epoch_print_logger=None,
-                 iteration_print_logger=None,
-                 output_transform=lambda x: x,
-                 global_epoch_transform=lambda x: x,
-                 name=None,
-                 tag_name=DEFAULT_TAG,
-                 key_var_format=DEFAULT_KEY_VAL_FORMAT):
+    def __init__(
+        self,
+        epoch_print_logger=None,
+        iteration_print_logger=None,
+        output_transform=lambda x: x,
+        global_epoch_transform=lambda x: x,
+        name=None,
+        tag_name=DEFAULT_TAG,
+        key_var_format=DEFAULT_KEY_VAL_FORMAT,
+    ):
         """
 
         Args:
@@ -119,7 +121,7 @@ class StatsHandler(object):
             e (Exception): the exception caught in Ignite during engine.run().
 
         """
-        self.logger.exception('Exception: {}'.format(e))
+        self.logger.exception("Exception: {}".format(e))
         # import traceback
         # traceback.print_exc()
 
@@ -156,25 +158,29 @@ class StatsHandler(object):
         if loss is None:
             return  # no printing if the output is empty
 
-        out_str = ''
+        out_str = ""
         if isinstance(loss, dict):  # print dictionary items
             for name in sorted(loss):
                 value = loss[name]
                 if not is_scalar(value):
-                    warnings.warn('ignoring non-scalar output in StatsHandler,'
-                                  ' make sure `output_transform(engine.state.output)` returns'
-                                  ' a scalar or dictionary of key and scalar pairs to avoid this warning.'
-                                  ' {}:{}'.format(name, type(value)))
+                    warnings.warn(
+                        "ignoring non-scalar output in StatsHandler,"
+                        " make sure `output_transform(engine.state.output)` returns"
+                        " a scalar or dictionary of key and scalar pairs to avoid this warning."
+                        " {}:{}".format(name, type(value))
+                    )
                     continue  # not printing multi dimensional output
                 out_str += self.key_var_format.format(name, value.item() if torch.is_tensor(value) else value)
         else:
             if is_scalar(loss):  # not printing multi dimensional output
                 out_str += self.key_var_format.format(self.tag_name, loss.item() if torch.is_tensor(loss) else loss)
             else:
-                warnings.warn('ignoring non-scalar output in StatsHandler,'
-                              ' make sure `output_transform(engine.state.output)` returns'
-                              ' a scalar or a dictionary of key and scalar pairs to avoid this warning.'
-                              ' {}'.format(type(loss)))
+                warnings.warn(
+                    "ignoring non-scalar output in StatsHandler,"
+                    " make sure `output_transform(engine.state.output)` returns"
+                    " a scalar or a dictionary of key and scalar pairs to avoid this warning."
+                    " {}".format(type(loss))
+                )
 
         if not out_str:
             return  # no value to print
@@ -184,10 +190,6 @@ class StatsHandler(object):
         current_epoch = engine.state.epoch
         num_epochs = engine.state.max_epochs
 
-        base_str = "Epoch: {}/{}, Iter: {}/{} --".format(
-            current_epoch,
-            num_epochs,
-            current_iteration,
-            num_iterations)
+        base_str = "Epoch: {}/{}, Iter: {}/{} --".format(current_epoch, num_epochs, current_iteration, num_iterations)
 
-        self.logger.info(' '.join([base_str, out_str]))
+        self.logger.info(" ".join([base_str, out_str]))

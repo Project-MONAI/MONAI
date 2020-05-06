@@ -21,12 +21,11 @@ from monai.handlers import StatsHandler
 
 
 class TestHandlerStats(unittest.TestCase):
-
     def test_metrics_print(self):
         log_stream = StringIO()
         logging.basicConfig(stream=log_stream, level=logging.INFO)
-        key_to_handler = 'test_logging'
-        key_to_print = 'testing_metric'
+        key_to_handler = "test_logging"
+        key_to_print = "testing_metric"
 
         # set up engine
         def _train_func(engine, batch):
@@ -48,9 +47,9 @@ class TestHandlerStats(unittest.TestCase):
 
         # check logging output
         output_str = log_stream.getvalue()
-        grep = re.compile('.*{}.*'.format(key_to_handler))
-        has_key_word = re.compile('.*{}.*'.format(key_to_print))
-        for idx, line in enumerate(output_str.split('\n')):
+        grep = re.compile(".*{}.*".format(key_to_handler))
+        has_key_word = re.compile(".*{}.*".format(key_to_print))
+        for idx, line in enumerate(output_str.split("\n")):
             if grep.match(line):
                 if idx in [5, 10]:
                     self.assertTrue(has_key_word.match(line))
@@ -58,8 +57,8 @@ class TestHandlerStats(unittest.TestCase):
     def test_loss_print(self):
         log_stream = StringIO()
         logging.basicConfig(stream=log_stream, level=logging.INFO)
-        key_to_handler = 'test_logging'
-        key_to_print = 'myLoss'
+        key_to_handler = "test_logging"
+        key_to_print = "myLoss"
 
         # set up engine
         def _train_func(engine, batch):
@@ -75,9 +74,9 @@ class TestHandlerStats(unittest.TestCase):
 
         # check logging output
         output_str = log_stream.getvalue()
-        grep = re.compile('.*{}.*'.format(key_to_handler))
-        has_key_word = re.compile('.*{}.*'.format(key_to_print))
-        for idx, line in enumerate(output_str.split('\n')):
+        grep = re.compile(".*{}.*".format(key_to_handler))
+        has_key_word = re.compile(".*{}.*".format(key_to_print))
+        for idx, line in enumerate(output_str.split("\n")):
             if grep.match(line):
                 if idx in [1, 2, 3, 6, 7, 8]:
                     self.assertTrue(has_key_word.match(line))
@@ -85,8 +84,8 @@ class TestHandlerStats(unittest.TestCase):
     def test_loss_dict(self):
         log_stream = StringIO()
         logging.basicConfig(stream=log_stream, level=logging.INFO)
-        key_to_handler = 'test_logging'
-        key_to_print = 'myLoss1'
+        key_to_handler = "test_logging"
+        key_to_print = "myLoss1"
 
         # set up engine
         def _train_func(engine, batch):
@@ -95,21 +94,20 @@ class TestHandlerStats(unittest.TestCase):
         engine = Engine(_train_func)
 
         # set up testing handler
-        stats_handler = StatsHandler(name=key_to_handler,
-                                     output_transform=lambda x: {key_to_print: x})
+        stats_handler = StatsHandler(name=key_to_handler, output_transform=lambda x: {key_to_print: x})
         stats_handler.attach(engine)
 
         engine.run(range(3), max_epochs=2)
 
         # check logging output
         output_str = log_stream.getvalue()
-        grep = re.compile('.*{}.*'.format(key_to_handler))
-        has_key_word = re.compile('.*{}.*'.format(key_to_print))
-        for idx, line in enumerate(output_str.split('\n')):
+        grep = re.compile(".*{}.*".format(key_to_handler))
+        has_key_word = re.compile(".*{}.*".format(key_to_print))
+        for idx, line in enumerate(output_str.split("\n")):
             if grep.match(line):
                 if idx in [1, 2, 3, 6, 7, 8]:
                     self.assertTrue(has_key_word.match(line))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

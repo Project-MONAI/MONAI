@@ -29,9 +29,9 @@ class CheckpointLoader:
     """
 
     def __init__(self, load_path, load_dict):
-        assert load_path is not None, 'must provide clear path to load checkpoint.'
+        assert load_path is not None, "must provide clear path to load checkpoint."
         self.load_path = load_path
-        assert load_dict is not None and len(load_dict) > 0, 'must provide target objects to load.'
+        assert load_dict is not None and len(load_dict) > 0, "must provide target objects to load."
         self.load_dict = load_dict
 
     def attach(self, engine):
@@ -40,4 +40,4 @@ class CheckpointLoader:
     def __call__(self, engine):
         checkpoint = torch.load(self.load_path)
         Checkpoint.load_objects(to_load=self.load_dict, checkpoint=checkpoint)
-        print('Restored all variables from {}'.format(self.load_path))
+        print("Restored all variables from {}".format(self.load_path))

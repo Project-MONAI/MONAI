@@ -15,22 +15,18 @@ from parameterized import parameterized
 from monai.transforms import RepeatChanneld
 
 TEST_CASE_1 = [
-    {'keys': ['img'], 'repeats': 3},
-    {
-        'img': np.array([[[0, 1], [1, 2]]]),
-        'seg': np.array([[[0, 1], [1, 2]]])
-    },
+    {"keys": ["img"], "repeats": 3},
+    {"img": np.array([[[0, 1], [1, 2]]]), "seg": np.array([[[0, 1], [1, 2]]])},
     (3, 2, 2),
 ]
 
 
 class TestRepeatChanneld(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_1])
     def test_shape(self, input_param, input_data, expected_shape):
         result = RepeatChanneld(**input_param)(input_data)
-        self.assertEqual(result['img'].shape, expected_shape)
+        self.assertEqual(result["img"].shape, expected_shape)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

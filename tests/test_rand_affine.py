@@ -19,38 +19,45 @@ from monai.transforms import RandAffine
 
 TEST_CASES = [
     [
-        dict(as_tensor_output=False, device=None), {'img': torch.ones((3, 3, 3)), 'spatial_size': (2, 2)},
-        np.ones((3, 2, 2))
+        dict(as_tensor_output=False, device=None),
+        {"img": torch.ones((3, 3, 3)), "spatial_size": (2, 2)},
+        np.ones((3, 2, 2)),
     ],
     [
-        dict(as_tensor_output=True, device=None), {'img': torch.ones((1, 3, 3, 3)), 'spatial_size': (2, 2, 2)},
-        torch.ones((1, 2, 2, 2))
+        dict(as_tensor_output=True, device=None),
+        {"img": torch.ones((1, 3, 3, 3)), "spatial_size": (2, 2, 2)},
+        torch.ones((1, 2, 2, 2)),
     ],
     [
-        dict(prob=0.9,
-             rotate_range=(np.pi / 2,),
-             shear_range=[1, 2],
-             translate_range=[2, 1],
-             as_tensor_output=True,
-             spatial_size=(2, 2, 2),
-             device=None), {'img': torch.ones((1, 3, 3, 3)), 'mode': 'bilinear'},
-        torch.tensor([[[[0.0000, 0.6577], [0.9911, 1.0000]], [[0.7781, 1.0000], [1.0000, 0.4000]]]])
+        dict(
+            prob=0.9,
+            rotate_range=(np.pi / 2,),
+            shear_range=[1, 2],
+            translate_range=[2, 1],
+            as_tensor_output=True,
+            spatial_size=(2, 2, 2),
+            device=None,
+        ),
+        {"img": torch.ones((1, 3, 3, 3)), "mode": "bilinear"},
+        torch.tensor([[[[0.0000, 0.6577], [0.9911, 1.0000]], [[0.7781, 1.0000], [1.0000, 0.4000]]]]),
     ],
     [
-        dict(prob=0.9,
-             rotate_range=(np.pi / 2,),
-             shear_range=[1, 2],
-             translate_range=[2, 1],
-             scale_range=[.1, .2],
-             as_tensor_output=True,
-             device=None), {'img': torch.arange(64).reshape((1, 8, 8)), 'spatial_size': (3, 3)},
-        torch.tensor([[[16.9127, 13.3079, 9.7031], [26.8129, 23.2081, 19.6033], [36.7131, 33.1083, 29.5035]]])
+        dict(
+            prob=0.9,
+            rotate_range=(np.pi / 2,),
+            shear_range=[1, 2],
+            translate_range=[2, 1],
+            scale_range=[0.1, 0.2],
+            as_tensor_output=True,
+            device=None,
+        ),
+        {"img": torch.arange(64).reshape((1, 8, 8)), "spatial_size": (3, 3)},
+        torch.tensor([[[16.9127, 13.3079, 9.7031], [26.8129, 23.2081, 19.6033], [36.7131, 33.1083, 29.5035]]]),
     ],
 ]
 
 
 class TestRandAffine(unittest.TestCase):
-
     @parameterized.expand(TEST_CASES)
     def test_rand_affine(self, input_param, input_data, expected_val):
         g = RandAffine(**input_param)
@@ -63,5 +70,5 @@ class TestRandAffine(unittest.TestCase):
             np.testing.assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

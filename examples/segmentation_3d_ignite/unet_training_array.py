@@ -25,9 +25,15 @@ from torch.utils.data import DataLoader
 import monai
 from monai.data import NiftiDataset, create_test_image_3d
 from monai.transforms import Compose, AddChannel, ScaleIntensity, RandSpatialCrop, Resize, ToTensor
-from monai.handlers import \
-    StatsHandler, TensorBoardStatsHandler, TensorBoardImageHandler, MeanDice, stopping_fn_from_metric
+from monai.handlers import (
+    StatsHandler,
+    TensorBoardStatsHandler,
+    TensorBoardImageHandler,
+    MeanDice,
+    stopping_fn_from_metric,
+)
 from monai.networks.utils import predict_segmentation
+
 
 def main():
     monai.config.print_config()
@@ -35,42 +41,26 @@ def main():
 
     # create a temporary directory and 40 random image, mask paris
     tempdir = tempfile.mkdtemp()
-    print('generating synthetic data to {} (this may take a while)'.format(tempdir))
+    print("generating synthetic data to {} (this may take a while)".format(tempdir))
     for i in range(40):
         im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1)
 
         n = nib.Nifti1Image(im, np.eye(4))
-        nib.save(n, os.path.join(tempdir, 'im%i.nii.gz' % i))
+        nib.save(n, os.path.join(tempdir, "im%i.nii.gz" % i))
 
         n = nib.Nifti1Image(seg, np.eye(4))
-        nib.save(n, os.path.join(tempdir, 'seg%i.nii.gz' % i))
+        nib.save(n, os.path.join(tempdir, "seg%i.nii.gz" % i))
 
-    images = sorted(glob(os.path.join(tempdir, 'im*.nii.gz')))
-    segs = sorted(glob(os.path.join(tempdir, 'seg*.nii.gz')))
+    images = sorted(glob(os.path.join(tempdir, "im*.nii.gz")))
+    segs = sorted(glob(os.path.join(tempdir, "seg*.nii.gz")))
 
     # define transforms for image and segmentation
-    train_imtrans = Compose([
-        ScaleIntensity(),
-        AddChannel(),
-        RandSpatialCrop((96, 96, 96), random_size=False),
-        ToTensor()
-    ])
-    train_segtrans = Compose([
-        AddChannel(),
-        RandSpatialCrop((96, 96, 96), random_size=False),
-        ToTensor()
-    ])
-    val_imtrans = Compose([
-        ScaleIntensity(),
-        AddChannel(),
-        Resize((96, 96, 96)),
-        ToTensor()
-    ])
-    val_segtrans = Compose([
-        AddChannel(),
-        Resize((96, 96, 96)),
-        ToTensor()
-    ])
+    train_imtrans = Compose(
+        [ScaleIntensity(), AddChannel(), RandSpatialCrop((96, 96, 96), random_size=False), ToTensor()]
+    )
+    train_segtrans = Compose([AddChannel(), RandSpatialCrop((96, 96, 96), random_size=False), ToTensor()])
+    val_imtrans = Compose([ScaleIntensity(), AddChannel(), Resize((96, 96, 96)), ToTensor()])
+    val_segtrans = Compose([AddChannel(), Resize((96, 96, 96)), ToTensor()])
 
     # define nifti dataset, data loader
     check_ds = NiftiDataset(images, segs, transform=train_imtrans, seg_transform=train_segtrans)
@@ -97,22 +87,22 @@ def main():
     loss = monai.losses.DiceLoss(do_sigmoid=True)
     lr = 1e-3
     opt = torch.optim.Adam(net.parameters(), lr)
-    device = torch.device('cuda:0')
+    device = torch.device("cuda:0")
 
     # ignite trainer expects batch=(img, seg) and returns output=loss at every iteration,
     # user can add output_transform to return other values, like: y_pred, y, etc.
     trainer = create_supervised_trainer(net, opt, loss, device, False)
 
     # adding checkpoint handler to save models (network params and optimizer stats) during training
-    checkpoint_handler = ModelCheckpoint('./runs/', 'net', n_saved=10, require_empty=False)
-    trainer.add_event_handler(event_name=Events.EPOCH_COMPLETED,
-                              handler=checkpoint_handler,
-                              to_save={'net': net, 'opt': opt})
+    checkpoint_handler = ModelCheckpoint("./runs/", "net", n_saved=10, require_empty=False)
+    trainer.add_event_handler(
+        event_name=Events.EPOCH_COMPLETED, handler=checkpoint_handler, to_save={"net": net, "opt": opt}
+    )
 
     # StatsHandler prints loss at every iteration and print metrics at every epoch,
     # we don't set metrics for trainer here, so just print loss, user can also customize print functions
     # and can use output_transform to convert engine.state.output if it's not a loss value
-    train_stats_handler = StatsHandler(name='trainer')
+    train_stats_handler = StatsHandler(name="trainer")
     train_stats_handler.attach(trainer)
 
     # TensorBoardStatsHandler plots loss at every iteration and plots metrics at every epoch, same as StatsHandler
@@ -121,7 +111,7 @@ def main():
 
     validation_every_n_epochs = 1
     # Set parameters for validation
-    metric_name = 'Mean_Dice'
+    metric_name = "Mean_Dice"
     # add evaluation metric to the evaluator engine
     val_metrics = {metric_name: MeanDice(add_sigmoid=True, to_onehot_y=False)}
 
@@ -129,29 +119,27 @@ def main():
     # user can add output_transform to return other values
     evaluator = create_supervised_evaluator(net, val_metrics, device, True)
 
-
     @trainer.on(Events.EPOCH_COMPLETED(every=validation_every_n_epochs))
     def run_validation(engine):
         evaluator.run(val_loader)
 
-
     # add early stopping handler to evaluator
-    early_stopper = EarlyStopping(patience=4,
-                                  score_function=stopping_fn_from_metric(metric_name),
-                                  trainer=trainer)
+    early_stopper = EarlyStopping(patience=4, score_function=stopping_fn_from_metric(metric_name), trainer=trainer)
     evaluator.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=early_stopper)
 
     # add stats event handler to print validation stats via evaluator
     val_stats_handler = StatsHandler(
-        name='evaluator',
+        name="evaluator",
         output_transform=lambda x: None,  # no need to print loss value, so disable per iteration output
-        global_epoch_transform=lambda x: trainer.state.epoch)  # fetch global epoch number from trainer
+        global_epoch_transform=lambda x: trainer.state.epoch,
+    )  # fetch global epoch number from trainer
     val_stats_handler.attach(evaluator)
 
     # add handler to record metrics to TensorBoard at every validation epoch
     val_tensorboard_stats_handler = TensorBoardStatsHandler(
         output_transform=lambda x: None,  # no need to plot loss value, so disable per iteration output
-        global_epoch_transform=lambda x: trainer.state.epoch)  # fetch global epoch number from trainer
+        global_epoch_transform=lambda x: trainer.state.epoch,
+    )  # fetch global epoch number from trainer
     val_tensorboard_stats_handler.attach(evaluator)
 
     # add handler to draw the first image and the corresponding label and model output in the last batch
@@ -159,7 +147,7 @@ def main():
     val_tensorboard_image_handler = TensorBoardImageHandler(
         batch_transform=lambda batch: (batch[0], batch[1]),
         output_transform=lambda output: predict_segmentation(output[0]),
-        global_iter_transform=lambda x: trainer.state.epoch
+        global_iter_transform=lambda x: trainer.state.epoch,
     )
     evaluator.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=val_tensorboard_image_handler)
 
@@ -167,5 +155,6 @@ def main():
     state = trainer.run(train_loader, train_epochs)
     shutil.rmtree(tempdir)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
