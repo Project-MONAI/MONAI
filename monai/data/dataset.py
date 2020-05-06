@@ -16,6 +16,7 @@ import json
 from pathlib import Path
 
 import torch
+import numpy as np
 
 from multiprocessing.pool import ThreadPool
 import threading
@@ -281,4 +282,66 @@ class CacheDataset(Dataset):
         else:
             # no cache for this data, execute all the transforms directly
             data = super(CacheDataset, self).__getitem__(index)
+        return data
+
+
+class ArrayDataset(Dataset):
+    """
+    Dataset for segmentation and classification tasks based on array format input data and transforms.
+    It can apply same random operations for image transforms and segmentation label transforms.
+    The `transform` can be :py:class:`monai.transforms.Compose` or a list of transforms.
+    For example:
+    train based on Nifti format images and without metadata.
+    train based on Nifti format images and metadata.
+
+    """
+
+    def __init__(self, img_files, seg_files=None, labels=None, img_transform=None, seg_transform=None):
+        """
+        Initializes the dataset with the filename lists. The transform `img_transform` is applied
+        to the images and `seg_transform` to the segmentations.
+
+        Args:
+            img_files (list of str): list of image filenames
+            seg_files (list of str): if in segmentation task, list of segmentation label filenames
+            labels (list or array): if in classification task, list of classification labels
+            img_transform (Callable, optional): transform to apply to image arrays
+            seg_transform (Callable, optional): transform to apply to segmentation label arrays
+
+        """
+        if seg_files is not None and len(img_files) != len(seg_files):
+            raise ValueError('Must have same number of image and segmentation label files')
+
+        self.img_files = img_files
+        self.seg_files = seg_files
+        self.labels = labels
+        self.img_transform = img_transform
+        self.seg_transform = seg_transform
+
+    def __len__(self):
+        return len(self.image_files)
+
+    def __getitem__(self, index):
+        img = self.image_files[index]
+        seg = self.seg_files[index] if self.seg_files is not None else None
+        label = self.labels[index] if self.labels is not None else None
+
+        seed = np.random.randint(2147483647)
+
+        if self.img_transform is not None:
+            if isinstance(self.img_transform, Randomizable):
+                self.img_transform.set_random_state(seed=seed)
+            img = self.img_transform(img)
+        data = [img]
+
+        if self.seg_transform is not None:
+            if isinstance(self.seg_transform, Randomizable):
+                self.seg_transform.set_random_state(seed=seed)
+            seg = self.seg_transform(seg)
+        if seg is not None:
+            data.append(seg)
+
+        if label is not None:
+            data.append(label)
+
         return data

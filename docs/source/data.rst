@@ -16,15 +16,21 @@ Generic Interfaces
   :members:
   :special-members: __getitem__
 
+`PersistentDataset`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: PersistentDataset
+  :members:
+  :special-members: __getitem__
+
 `CacheDataset`
 ~~~~~~~~~~~~~~
 .. autoclass:: CacheDataset
   :members:
   :special-members: __getitem__
 
-`PersistentDataset`
-~~~~~~~~~~~~~~~~~~~
-.. autoclass:: PersistentDataset
+`ArrayDataset`
+~~~~~~~~~~~~~~
+.. autoclass:: ArrayDataset
   :members:
   :special-members: __getitem__
 
