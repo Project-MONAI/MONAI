@@ -13,13 +13,7 @@ import numpy as np
 from skimage import io, transform
 
 
-def write_png(data,
-              file_name,
-              output_shape=None,
-              interp_order=3,
-              mode='constant',
-              cval=0,
-              scale_factor=255):
+def write_png(data, file_name, output_shape=None, interp_order=3, mode="constant", cval=0, scale_factor=255):
     """
     Write numpy data into png files to disk.  
     Spatially It supports HW for 2D.(H,W) or (H,W,3) or (H,W,4)
@@ -37,7 +31,7 @@ def write_png(data,
         cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
             this option is used when `output_shape != None`.
     """
-    assert isinstance(data, np.ndarray), 'input data must be numpy array.'
+    assert isinstance(data, np.ndarray), "input data must be numpy array."
 
     if scale_factor > 0:
         max_val = np.max(data)
@@ -45,15 +39,16 @@ def write_png(data,
         data = (data - min_val) / (max_val - min_val)
 
     if output_shape is not None:
-        assert isinstance(output_shape, (list, tuple)) and len(output_shape) == 2, \
-            'output_shape must be a list of 2 values (H, W).'
+        assert (
+            isinstance(output_shape, (list, tuple)) and len(output_shape) == 2
+        ), "output_shape must be a list of 2 values (H, W)."
 
         if len(data.shape) == 3:
             output_shape += (data.shape[2],)
 
         data = transform.resize(data, output_shape, order=interp_order, mode=mode, cval=cval)
 
-    data = scale_factor * data 
+    data = scale_factor * data
     data = data.astype(np.uint8)
     io.imsave(file_name, data)
 

@@ -245,14 +245,14 @@ class CacheDataset(Dataset):
         self.cache_num = min(cache_num, int(len(self) * cache_rate), len(self))
         if self.cache_num > 0:
             self._cache = [None] * self.cache_num
-            print('Load and cache transformed data...')
+            print("Load and cache transformed data...")
             if num_workers > 0:
                 self._item_processed = 0
                 self._thread_lock = threading.Lock()
                 with ThreadPool(num_workers) as p:
                     p.map(
-                        self._load_cache_item_thread, 
-                        [(i, data[i], transform.transforms) for i in range(self.cache_num)]
+                        self._load_cache_item_thread,
+                        [(i, data[i], transform.transforms) for i in range(self.cache_num)],
                     )
             else:
                 for i in range(self.cache_num):
