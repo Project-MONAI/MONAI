@@ -32,12 +32,7 @@ def run_test(batch_size, img_name, seg_name, output_dir, device=torch.device("cu
     loader = DataLoader(ds, batch_size=1, pin_memory=torch.cuda.is_available())
 
     net = UNet(
-        dimensions=3,
-        in_channels=1,
-        out_channels=1,
-        channels=(4, 8, 16, 32),
-        strides=(2, 2, 2),
-        num_res_units=2,
+        dimensions=3, in_channels=1, out_channels=1, channels=(4, 8, 16, 32), strides=(2, 2, 2), num_res_units=2,
     ).to(device)
     roi_size = (16, 32, 48)
     sw_batch_size = batch_size
@@ -51,18 +46,18 @@ def run_test(batch_size, img_name, seg_name, output_dir, device=torch.device("cu
 
     infer_engine = Engine(_sliding_window_processor)
 
-    SegmentationSaver(output_dir=output_dir, output_ext='.nii.gz', output_postfix='seg',
-                      batch_transform=lambda x: x[2]).attach(infer_engine)
+    SegmentationSaver(
+        output_dir=output_dir, output_ext=".nii.gz", output_postfix="seg", batch_transform=lambda x: x[2]
+    ).attach(infer_engine)
 
     infer_engine.run(loader)
 
-    basename = os.path.basename(img_name)[:-len('.nii.gz')]
-    saved_name = os.path.join(output_dir, basename, '{}_seg.nii.gz'.format(basename))
+    basename = os.path.basename(img_name)[: -len(".nii.gz")]
+    saved_name = os.path.join(output_dir, basename, "{}_seg.nii.gz".format(basename))
     return saved_name
 
 
 class TestIntegrationSlidingWindow(unittest.TestCase):
-
     def setUp(self):
         np.random.seed(0)
         torch.manual_seed(0)
@@ -72,7 +67,7 @@ class TestIntegrationSlidingWindow(unittest.TestCase):
         im, seg = create_test_image_3d(25, 28, 63, rad_max=10, noise_max=1, num_objs=4, num_seg_classes=1)
         self.img_name = make_nifti_image(im)
         self.seg_name = make_nifti_image(seg)
-        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu:0')
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")
 
     def tearDown(self):
         if os.path.exists(self.img_name):
@@ -82,11 +77,9 @@ class TestIntegrationSlidingWindow(unittest.TestCase):
 
     def test_training(self):
         with tempfile.TemporaryDirectory() as temp_dir:
-            output_file = run_test(batch_size=2,
-                                   img_name=self.img_name,
-                                   seg_name=self.seg_name,
-                                   output_dir=temp_dir,
-                                   device=self.device)
+            output_file = run_test(
+                batch_size=2, img_name=self.img_name, seg_name=self.seg_name, output_dir=temp_dir, device=self.device
+            )
             output_image = nib.load(output_file).get_fdata()
             np.testing.assert_allclose(np.sum(output_image), 34070)
             np.testing.assert_allclose(output_image.shape, (28, 25, 63, 1))

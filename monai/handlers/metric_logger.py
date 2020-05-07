@@ -15,7 +15,6 @@ from ignite.engine import Events
 
 
 class MetricLogger:
-
     def __init__(self, loss_transform=lambda x: x, metric_transform=lambda x: x):
         self.loss_transform = loss_transform
         self.metric_transform = metric_transform

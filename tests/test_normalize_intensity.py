@@ -16,35 +16,18 @@ from parameterized import parameterized
 from monai.transforms import NormalizeIntensity
 from tests.utils import NumpyImageTestCase2D
 
-TEST_CASE_1 = [
-    {
-        'nonzero': True
-    },
-    np.array([0., 3., 0., 4.]),
-    np.array([0., -1., 0., 1.])
-]
+TEST_CASE_1 = [{"nonzero": True}, np.array([0.0, 3.0, 0.0, 4.0]), np.array([0.0, -1.0, 0.0, 1.0])]
 
 TEST_CASE_2 = [
-    {
-        'subtrahend': np.array([3.5, 3.5, 3.5, 3.5]),
-        'divisor': np.array([0.5, 0.5, 0.5, 0.5]),
-        'nonzero': True
-    },
-    np.array([0., 3., 0., 4.]),
-    np.array([0., -1., 0., 1.])
+    {"subtrahend": np.array([3.5, 3.5, 3.5, 3.5]), "divisor": np.array([0.5, 0.5, 0.5, 0.5]), "nonzero": True},
+    np.array([0.0, 3.0, 0.0, 4.0]),
+    np.array([0.0, -1.0, 0.0, 1.0]),
 ]
 
-TEST_CASE_3 = [
-    {
-        'nonzero': True
-    },
-    np.array([0., 0., 0., 0.]),
-    np.array([0., 0., 0., 0.])
-]
+TEST_CASE_3 = [{"nonzero": True}, np.array([0.0, 0.0, 0.0, 0.0]), np.array([0.0, 0.0, 0.0, 0.0])]
 
 
 class TestNormalizeIntensity(NumpyImageTestCase2D):
-
     def test_default(self):
         normalizer = NormalizeIntensity()
         normalized = normalizer(self.imt)
@@ -58,10 +41,10 @@ class TestNormalizeIntensity(NumpyImageTestCase2D):
 
     def test_channel_wise(self):
         normalizer = NormalizeIntensity(nonzero=True, channel_wise=True)
-        input_data = np.array([[0., 3., 0., 4.], [0., 4., 0., 5.]])
-        expected = np.array([[0., -1., 0., 1.], [0., -1., 0., 1.]])
+        input_data = np.array([[0.0, 3.0, 0.0, 4.0], [0.0, 4.0, 0.0, 5.0]])
+        expected = np.array([[0.0, -1.0, 0.0, 1.0], [0.0, -1.0, 0.0, 1.0]])
         np.testing.assert_allclose(expected, normalizer(input_data))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

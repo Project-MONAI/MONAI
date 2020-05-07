@@ -36,8 +36,7 @@ class Flatten(nn.Module):
 
 
 class GaussianFilter:
-
-    def __init__(self, spatial_dims, sigma, truncated=4., device=None):
+    def __init__(self, spatial_dims, sigma, truncated=4.0, device=None):
         """
         Args:
             spatial_dims (int): number of spatial dimensions of the input image.

@@ -18,9 +18,8 @@ from tests.utils import NumpyImageTestCase2D
 
 
 class IntensityScaleIntensityRanged(NumpyImageTestCase2D):
-
     def test_image_scale_intensity_ranged(self):
-        key = 'img'
+        key = "img"
         scaler = ScaleIntensityRanged(keys=key, a_min=20, a_max=108, b_min=50, b_max=80)
         scaled = scaler({key: self.imt})
         expected = (self.imt - 20) / 88
@@ -28,5 +27,5 @@ class IntensityScaleIntensityRanged(NumpyImageTestCase2D):
         self.assertTrue(np.allclose(scaled[key], expected))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

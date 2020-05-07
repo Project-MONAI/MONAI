@@ -34,16 +34,16 @@ class SpatialPad(Transform):
             for more details, please check: https://docs.scipy.org/doc/numpy/reference/generated/numpy.pad.html
     """
 
-    def __init__(self, spatial_size, method='symmetric', mode='constant'):
-        assert isinstance(spatial_size, (list, tuple)), 'spatial_out_size must be list or tuple.'
+    def __init__(self, spatial_size, method="symmetric", mode="constant"):
+        assert isinstance(spatial_size, (list, tuple)), "spatial_out_size must be list or tuple."
         self.spatial_size = spatial_size
-        assert method in ('symmetric', 'end'), 'unsupported padding type.'
+        assert method in ("symmetric", "end"), "unsupported padding type."
         self.method = method
-        assert isinstance(mode, str), 'mode must be str.'
+        assert isinstance(mode, str), "mode must be str."
         self.mode = mode
 
     def _determine_data_pad_width(self, data_shape):
-        if self.method == 'symmetric':
+        if self.method == "symmetric":
             pad_width = list()
             for i in range(len(self.spatial_size)):
                 width = max(self.spatial_size[i] - data_shape[i], 0)
@@ -82,19 +82,19 @@ class SpatialCrop(Transform):
             self.roi_start = np.subtract(roi_center, np.floor_divide(roi_size, 2))
             self.roi_end = np.add(self.roi_start, roi_size)
         else:
-            assert roi_start is not None and roi_end is not None, 'roi_start and roi_end must be provided.'
+            assert roi_start is not None and roi_end is not None, "roi_start and roi_end must be provided."
             self.roi_start = np.asarray(roi_start, dtype=np.uint16)
             self.roi_end = np.asarray(roi_end, dtype=np.uint16)
 
-        assert np.all(self.roi_start >= 0), 'all elements of roi_start must be greater than or equal to 0.'
-        assert np.all(self.roi_end > 0), 'all elements of roi_end must be positive.'
-        assert np.all(self.roi_end >= self.roi_start), 'invalid roi range.'
+        assert np.all(self.roi_start >= 0), "all elements of roi_start must be greater than or equal to 0."
+        assert np.all(self.roi_end > 0), "all elements of roi_end must be positive."
+        assert np.all(self.roi_end >= self.roi_start), "invalid roi range."
 
     def __call__(self, img):
         max_end = img.shape[1:]
         sd = min(len(self.roi_start), len(max_end))
-        assert np.all(max_end[:sd] >= self.roi_start[:sd]), 'roi start out of image space.'
-        assert np.all(max_end[:sd] >= self.roi_end[:sd]), 'roi end out of image space.'
+        assert np.all(max_end[:sd] >= self.roi_start[:sd]), "roi start out of image space."
+        assert np.all(max_end[:sd] >= self.roi_end[:sd]), "roi end out of image space."
 
         slices = [slice(None)] + [slice(s, e) for s, e in zip(self.roi_start[:sd], self.roi_end[:sd])]
         return img[tuple(slices)]

@@ -16,9 +16,9 @@ from parameterized import parameterized
 
 from monai.handlers import MeanDice
 
-TEST_CASE_1 = [{'to_onehot_y': True, 'mutually_exclusive': True}, 0.75]
-TEST_CASE_2 = [{'include_background': False, 'to_onehot_y': True, 'mutually_exclusive': False}, 0.66666]
-TEST_CASE_3 = [{'mutually_exclusive': True, 'add_sigmoid': True}]
+TEST_CASE_1 = [{"to_onehot_y": True, "mutually_exclusive": True}, 0.75]
+TEST_CASE_2 = [{"include_background": False, "to_onehot_y": True, "mutually_exclusive": False}, 0.66666]
+TEST_CASE_3 = [{"mutually_exclusive": True, "add_sigmoid": True}]
 
 
 class TestHandlerMeanDice(unittest.TestCase):
@@ -41,7 +41,7 @@ class TestHandlerMeanDice(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_3])
     def test_misconfig(self, input_params):
-        with self.assertRaisesRegex(ValueError, 'compatib'):
+        with self.assertRaisesRegex(ValueError, "compatib"):
             dice_metric = MeanDice(**input_params)
 
             y_pred = torch.Tensor([[0, 1], [1, 0]])
@@ -62,5 +62,5 @@ class TestHandlerMeanDice(unittest.TestCase):
             dice_metric.update([y_pred, y])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

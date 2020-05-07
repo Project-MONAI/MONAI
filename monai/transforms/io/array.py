@@ -63,17 +63,17 @@ class LoadNifti(Transform):
             img = nib.load(name)
             img = correct_nifti_header_if_necessary(img)
             header = dict(img.header)
-            header['filename_or_obj'] = name
-            header['affine'] = img.affine
-            header['original_affine'] = img.affine.copy()
-            header['as_closest_canonical'] = self.as_closest_canonical
-            ndim = img.header['dim'][0]
+            header["filename_or_obj"] = name
+            header["affine"] = img.affine
+            header["original_affine"] = img.affine.copy()
+            header["as_closest_canonical"] = self.as_closest_canonical
+            ndim = img.header["dim"][0]
             spatial_rank = min(ndim, 3)
-            header['spatial_shape'] = img.header['dim'][1:spatial_rank + 1]
+            header["spatial_shape"] = img.header["dim"][1 : spatial_rank + 1]
 
             if self.as_closest_canonical:
                 img = nib.as_closest_canonical(img)
-                header['affine'] = img.affine
+                header["affine"] = img.affine
 
             img_array.append(np.array(img.get_fdata(dtype=self.dtype)))
             img.uncache()
@@ -84,13 +84,16 @@ class LoadNifti(Transform):
             if not compatible_meta:
                 for meta_key in header:
                     meta_datum = header[meta_key]
-                    if type(meta_datum).__name__ == 'ndarray' \
-                            and np_str_obj_array_pattern.search(meta_datum.dtype.str) is not None:
+                    if (
+                        type(meta_datum).__name__ == "ndarray"
+                        and np_str_obj_array_pattern.search(meta_datum.dtype.str) is not None
+                    ):
                         continue
                     compatible_meta[meta_key] = meta_datum
             else:
-                assert np.allclose(header['affine'], compatible_meta['affine']), \
-                    'affine data of all images should be same.'
+                assert np.allclose(
+                    header["affine"], compatible_meta["affine"]
+                ), "affine data of all images should be same."
 
         img_array = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
         if self.image_only:
@@ -128,13 +131,13 @@ class LoadPNG(Transform):
                 data = data.astype(self.dtype)
             img_array.append(data)
             meta = dict()
-            meta['filename_or_obj'] = name
-            meta['spatial_shape'] = data.shape[:2]
-            meta['format'] = img.format
-            meta['mode'] = img.mode
-            meta['width'] = img.width
-            meta['height'] = img.height
-            meta['info'] = img.info
+            meta["filename_or_obj"] = name
+            meta["spatial_shape"] = data.shape[:2]
+            meta["format"] = img.format
+            meta["mode"] = img.mode
+            meta["width"] = img.width
+            meta["height"] = img.height
+            meta["info"] = img.info
 
             if self.image_only:
                 continue
@@ -142,8 +145,9 @@ class LoadPNG(Transform):
             if not compatible_meta:
                 compatible_meta = meta
             else:
-                assert np.allclose(meta['spatial_shape'], compatible_meta['spatial_shape']), \
-                    'all the images in the list should have same spatial shape.'
+                assert np.allclose(
+                    meta["spatial_shape"], compatible_meta["spatial_shape"]
+                ), "all the images in the list should have same spatial shape."
 
         img_array = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
         return img_array if self.image_only else (img_array, compatible_meta)

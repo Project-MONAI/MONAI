@@ -18,24 +18,28 @@ from parameterized import parameterized
 from monai.transforms import Rotate
 from tests.utils import NumpyImageTestCase2D
 
-TEST_CASES = [(90, (0, 1), True, 1, 'reflect', 0, True),
-              (-90, (1, 0), True, 3, 'constant', 0, True),
-              (180, (1, 0), False, 2, 'constant', 4, False)]
+TEST_CASES = [
+    (90, (0, 1), True, 1, "reflect", 0, True),
+    (-90, (1, 0), True, 3, "constant", 0, True),
+    (180, (1, 0), False, 2, "constant", 4, False),
+]
+
 
 class TestRotate(NumpyImageTestCase2D):
-
     @parameterized.expand(TEST_CASES)
-    def test_correct_results(self, angle, spatial_axes, reshape, 
-                             order, mode, cval, prefilter):
-        rotate_fn = Rotate(angle, spatial_axes, reshape, 
-                           order, mode, cval, prefilter)
+    def test_correct_results(self, angle, spatial_axes, reshape, order, mode, cval, prefilter):
+        rotate_fn = Rotate(angle, spatial_axes, reshape, order, mode, cval, prefilter)
         rotated = rotate_fn(self.imt[0])
         expected = list()
         for channel in self.imt[0]:
-            expected.append(scipy.ndimage.rotate(channel, angle, spatial_axes, reshape, order=order,
-                                                 mode=mode, cval=cval, prefilter=prefilter))
+            expected.append(
+                scipy.ndimage.rotate(
+                    channel, angle, spatial_axes, reshape, order=order, mode=mode, cval=cval, prefilter=prefilter
+                )
+            )
         expected = np.stack(expected).astype(np.float32)
         self.assertTrue(np.allclose(expected, rotated))
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

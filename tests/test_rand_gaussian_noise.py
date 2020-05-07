@@ -19,11 +19,7 @@ from tests.utils import NumpyImageTestCase2D
 
 
 class TestRandGaussianNoise(NumpyImageTestCase2D):
-
-    @parameterized.expand([
-        ("test_zero_mean", 0, 0.1),
-        ("test_non_zero_mean", 1, 0.5)
-    ])
+    @parameterized.expand([("test_zero_mean", 0, 0.1), ("test_non_zero_mean", 1, 0.5)])
     def test_correct_results(self, _, mean, std):
         seed = 0
         gaussian_fn = RandGaussianNoise(prob=1.0, mean=mean, std=std)
@@ -35,5 +31,5 @@ class TestRandGaussianNoise(NumpyImageTestCase2D):
         np.testing.assert_allclose(expected, noised)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

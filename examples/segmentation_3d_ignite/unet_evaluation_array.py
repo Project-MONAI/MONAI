@@ -28,30 +28,31 @@ from monai.transforms import Compose, AddChannel, ScaleIntensity, ToTensor
 from monai.networks.nets import UNet
 from monai.networks.utils import predict_segmentation
 
+
 def main():
     config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
     tempdir = tempfile.mkdtemp()
-    print('generating synthetic data to {} (this may take a while)'.format(tempdir))
+    print("generating synthetic data to {} (this may take a while)".format(tempdir))
     for i in range(5):
         im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1)
 
         n = nib.Nifti1Image(im, np.eye(4))
-        nib.save(n, os.path.join(tempdir, 'im%i.nii.gz' % i))
+        nib.save(n, os.path.join(tempdir, "im%i.nii.gz" % i))
 
         n = nib.Nifti1Image(seg, np.eye(4))
-        nib.save(n, os.path.join(tempdir, 'seg%i.nii.gz' % i))
+        nib.save(n, os.path.join(tempdir, "seg%i.nii.gz" % i))
 
-    images = sorted(glob(os.path.join(tempdir, 'im*.nii.gz')))
-    segs = sorted(glob(os.path.join(tempdir, 'seg*.nii.gz')))
+    images = sorted(glob(os.path.join(tempdir, "im*.nii.gz")))
+    segs = sorted(glob(os.path.join(tempdir, "seg*.nii.gz")))
 
     # define transforms for image and segmentation
     imtrans = Compose([ScaleIntensity(), AddChannel(), ToTensor()])
     segtrans = Compose([AddChannel(), ToTensor()])
     ds = NiftiDataset(images, segs, transform=imtrans, seg_transform=segtrans, image_only=False)
 
-    device = torch.device('cuda:0')
+    device = torch.device("cuda:0")
     net = UNet(
         dimensions=3,
         in_channels=1,
@@ -66,7 +67,6 @@ def main():
     roi_size = (96, 96, 96)
     sw_batch_size = 4
 
-
     def _sliding_window_processor(engine, batch):
         net.eval()
         with torch.no_grad():
@@ -74,28 +74,32 @@ def main():
             seg_probs = sliding_window_inference(val_images, roi_size, sw_batch_size, net)
             return seg_probs, val_labels
 
-
     evaluator = Engine(_sliding_window_processor)
 
     # add evaluation metric to the evaluator engine
-    MeanDice(add_sigmoid=True, to_onehot_y=False).attach(evaluator, 'Mean_Dice')
+    MeanDice(add_sigmoid=True, to_onehot_y=False).attach(evaluator, "Mean_Dice")
 
     # StatsHandler prints loss at every iteration and print metrics at every epoch,
     # we don't need to print loss for evaluator, so just print metrics, user can also customize print functions
     val_stats_handler = StatsHandler(
-        name='evaluator',
-        output_transform=lambda x: None  # no need to print loss value, so disable per iteration output
+        name="evaluator",
+        output_transform=lambda x: None,  # no need to print loss value, so disable per iteration output
     )
     val_stats_handler.attach(evaluator)
 
     # for the array data format, assume the 3rd item of batch data is the meta_data
     file_saver = SegmentationSaver(
-        output_dir='tempdir', output_ext='.nii.gz', output_postfix='seg', name='evaluator',
-        batch_transform=lambda x: x[2], output_transform=lambda output: predict_segmentation(output[0]))
+        output_dir="tempdir",
+        output_ext=".nii.gz",
+        output_postfix="seg",
+        name="evaluator",
+        batch_transform=lambda x: x[2],
+        output_transform=lambda output: predict_segmentation(output[0]),
+    )
     file_saver.attach(evaluator)
 
     # the model was trained by "unet_training_array" example
-    ckpt_saver = CheckpointLoader(load_path='./runs/net_checkpoint_50.pth', load_dict={'net': net})
+    ckpt_saver = CheckpointLoader(load_path="./runs/net_checkpoint_50.pth", load_dict={"net": net})
     ckpt_saver.attach(evaluator)
 
     # sliding window inference for one image at every iteration
@@ -103,5 +107,6 @@ def main():
     state = evaluator.run(loader)
     shutil.rmtree(tempdir)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

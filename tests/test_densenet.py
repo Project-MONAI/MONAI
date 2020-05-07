@@ -18,18 +18,13 @@ from monai.networks.nets import densenet121, densenet169, densenet201, densenet2
 
 
 TEST_CASE_1 = [  # 4-channel 3D, batch 16
-    {
-        'spatial_dims': 3,
-        'in_channels': 2,
-        'out_channels': 3
-    },
+    {"spatial_dims": 3, "in_channels": 2, "out_channels": 3},
     torch.randn(16, 2, 32, 64, 48),
-    (16, 3)
+    (16, 3),
 ]
 
 
 class TestDENSENET(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_1])
     def test_121_shape(self, input_param, input_data, expected_shape):
         net = densenet121(**input_param)

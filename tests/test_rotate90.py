@@ -18,7 +18,6 @@ from tests.utils import NumpyImageTestCase2D
 
 
 class TestRotate90(NumpyImageTestCase2D):
-
     def test_rotate90_default(self):
         rotate = Rotate90()
         rotated = rotate(self.imt[0])
@@ -56,5 +55,5 @@ class TestRotate90(NumpyImageTestCase2D):
         self.assertTrue(np.allclose(rotated, expected))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
