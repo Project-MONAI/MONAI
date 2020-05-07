@@ -202,7 +202,7 @@ class Flip(Transform):
         flipped = list()
         for channel in img:
             flipped.append(np.flip(channel, self.spatial_axis))
-        return np.stack(flipped)
+        return np.stack(flipped).astype(img.dtype)
 
 
 class Resize(Transform):
@@ -266,7 +266,7 @@ class Resize(Transform):
                     anti_aliasing_sigma=self.anti_aliasing_sigma,
                 )
             )
-        return np.stack(resized).astype(np.float32)
+        return np.stack(resized).astype(img.dtype)
 
 
 class Rotate(Transform):
@@ -316,7 +316,7 @@ class Rotate(Transform):
                     prefilter=self.prefilter,
                 )
             )
-        return np.stack(rotated).astype(np.float32)
+        return np.stack(rotated).astype(img.dtype)
 
 
 class Zoom(Transform):
@@ -383,7 +383,7 @@ class Zoom(Transform):
                         prefilter=self.prefilter,
                     )
                 )
-        zoomed = np.stack(zoomed).astype(np.float32)
+        zoomed = np.stack(zoomed).astype(img.dtype)
 
         if not self.keep_size or np.allclose(img.shape, zoomed.shape):
             return zoomed
@@ -424,7 +424,7 @@ class Rotate90(Transform):
         rotated = list()
         for channel in img:
             rotated.append(np.rot90(channel, self.k, self.spatial_axes))
-        return np.stack(rotated)
+        return np.stack(rotated).astype(img.dtype)
 
 
 class RandRotate90(Randomizable, Transform):
