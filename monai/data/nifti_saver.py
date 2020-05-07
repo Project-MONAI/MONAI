@@ -92,7 +92,7 @@ class NiftiSaver:
         if torch.is_tensor(data):
             data = data.detach().cpu().numpy()
         filename = create_file_basename(self.output_postfix, filename, self.output_dir)
-        filename = "{}{}".format(filename, self.output_ext)
+        filename = f"{filename}{self.output_ext}"
         # change data to "channel last" format and write to nifti format file
         data = np.moveaxis(data, 0, -1)
         write_nifti(

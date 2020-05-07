@@ -47,8 +47,8 @@ class TestHandlerStats(unittest.TestCase):
 
         # check logging output
         output_str = log_stream.getvalue()
-        grep = re.compile(".*{}.*".format(key_to_handler))
-        has_key_word = re.compile(".*{}.*".format(key_to_print))
+        grep = re.compile(f".*{key_to_handler}.*")
+        has_key_word = re.compile(f".*{key_to_print}.*")
         for idx, line in enumerate(output_str.split("\n")):
             if grep.match(line):
                 if idx in [5, 10]:
@@ -74,8 +74,8 @@ class TestHandlerStats(unittest.TestCase):
 
         # check logging output
         output_str = log_stream.getvalue()
-        grep = re.compile(".*{}.*".format(key_to_handler))
-        has_key_word = re.compile(".*{}.*".format(key_to_print))
+        grep = re.compile(f".*{key_to_handler}.*")
+        has_key_word = re.compile(f".*{key_to_print}.*")
         for idx, line in enumerate(output_str.split("\n")):
             if grep.match(line):
                 if idx in [1, 2, 3, 6, 7, 8]:
@@ -101,8 +101,8 @@ class TestHandlerStats(unittest.TestCase):
 
         # check logging output
         output_str = log_stream.getvalue()
-        grep = re.compile(".*{}.*".format(key_to_handler))
-        has_key_word = re.compile(".*{}.*".format(key_to_print))
+        grep = re.compile(f".*{key_to_handler}.*")
+        has_key_word = re.compile(f".*{key_to_print}.*")
         for idx, line in enumerate(output_str.split("\n")):
             if grep.match(line):
                 if idx in [1, 2, 3, 6, 7, 8]:

@@ -150,23 +150,23 @@ def plot_2d_or_3d_image(data, step, writer, index=0, max_channels=1, max_frames=
     if d.ndim == 2:
         d = rescale_array(d, 0, 1)
         dataformats = "HW"
-        writer.add_image("{}_{}".format(tag, dataformats), d, step, dataformats=dataformats)
+        writer.add_image(f"{tag}_{dataformats}", d, step, dataformats=dataformats)
         return
 
     if d.ndim == 3:
         if d.shape[0] == 3 and max_channels == 3:  # RGB
             dataformats = "CHW"
-            writer.add_image("{}_{}".format(tag, dataformats), d, step, dataformats=dataformats)
+            writer.add_image(f"{tag}_{dataformats}", d, step, dataformats=dataformats)
             return
         for j, d2 in enumerate(d[:max_channels]):
             d2 = rescale_array(d2, 0, 1)
             dataformats = "HW"
-            writer.add_image("{}_{}_{}".format(tag, dataformats, j), d2, step, dataformats=dataformats)
+            writer.add_image(f"{tag}_{dataformats}_{j}", d2, step, dataformats=dataformats)
             return
 
     if d.ndim >= 4:
         spatial = d.shape[-3:]
         for j, d3 in enumerate(d.reshape([-1] + list(spatial))[:max_channels]):
             d3 = rescale_array(d3, 0, 255)
-            add_animated_gif(writer, "{}_HWD_{}".format(tag, j), d3[None], max_frames, 1.0, step)
+            add_animated_gif(writer, f"{tag}_HWD_{j}", d3[None], max_frames, 1.0, step)
         return

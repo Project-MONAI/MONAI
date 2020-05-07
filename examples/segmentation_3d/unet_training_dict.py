@@ -42,15 +42,15 @@ def main():
 
     # create a temporary directory and 40 random image, mask paris
     tempdir = tempfile.mkdtemp()
-    print("generating synthetic data to {} (this may take a while)".format(tempdir))
+    print(f"generating synthetic data to {tempdir} (this may take a while)")
     for i in range(40):
         im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1, channel_dim=-1)
 
         n = nib.Nifti1Image(im, np.eye(4))
-        nib.save(n, os.path.join(tempdir, "img%i.nii.gz" % i))
+        nib.save(n, os.path.join(tempdir, f"img{i:d}.nii.gz"))
 
         n = nib.Nifti1Image(seg, np.eye(4))
-        nib.save(n, os.path.join(tempdir, "seg%i.nii.gz" % i))
+        nib.save(n, os.path.join(tempdir, f"seg{i:d}.nii.gz"))
 
     images = sorted(glob(os.path.join(tempdir, "img*.nii.gz")))
     segs = sorted(glob(os.path.join(tempdir, "seg*.nii.gz")))
@@ -127,7 +127,7 @@ def main():
     writer = SummaryWriter()
     for epoch in range(5):
         print("-" * 10)
-        print("epoch {}/{}".format(epoch + 1, 5))
+        print(f"epoch {epoch + 1}/{5}")
         model.train()
         epoch_loss = 0
         step = 0
@@ -141,11 +141,11 @@ def main():
             optimizer.step()
             epoch_loss += loss.item()
             epoch_len = len(train_ds) // train_loader.batch_size
-            print("{}/{}, train_loss: {:.4f}".format(step, epoch_len, loss.item()))
+            print(f"{step}/{epoch_len}, train_loss: {loss.item():.4f}")
             writer.add_scalar("train_loss", loss.item(), epoch_len * epoch + step)
         epoch_loss /= step
         epoch_loss_values.append(epoch_loss)
-        print("epoch {} average loss: {:.4f}".format(epoch + 1, epoch_loss))
+        print(f"epoch {epoch + 1} average loss: {epoch_loss:.4f}")
 
         if (epoch + 1) % val_interval == 0:
             model.eval()
@@ -183,7 +183,7 @@ def main():
                 plot_2d_or_3d_image(val_labels, epoch + 1, writer, index=0, tag="label")
                 plot_2d_or_3d_image(val_outputs, epoch + 1, writer, index=0, tag="output")
     shutil.rmtree(tempdir)
-    print("train completed, best_metric: {:.4f} at epoch: {}".format(best_metric, best_metric_epoch))
+    print(f"train completed, best_metric: {best_metric:.4f} at epoch: {best_metric_epoch}")
     writer.close()
 
 

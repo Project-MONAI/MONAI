@@ -53,7 +53,7 @@ def run_test(batch_size, img_name, seg_name, output_dir, device=torch.device("cu
     infer_engine.run(loader)
 
     basename = os.path.basename(img_name)[: -len(".nii.gz")]
-    saved_name = os.path.join(output_dir, basename, "{}_seg.nii.gz".format(basename))
+    saved_name = os.path.join(output_dir, basename, f"{basename}_seg.nii.gz")
     return saved_name
 
 

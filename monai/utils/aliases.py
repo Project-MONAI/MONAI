@@ -62,10 +62,10 @@ def resolve_name(name):
             mod = importlib.import_module(modname)
             obj = getattr(mod, declname, None)
         except ModuleNotFoundError:
-            raise ValueError("Module %r not found" % modname)
+            raise ValueError(f"Module {modname!r} not found")
 
         if obj is None:
-            raise ValueError("Module %r does not have member %r" % (modname, declname))
+            raise ValueError(f"Module {modname!r} does not have member {declname!r}")
 
     # attempt to resolve a simple name
     if obj is None:
@@ -92,6 +92,6 @@ def resolve_name(name):
             obj = getattr(mods[0], name)
 
         if obj is None:
-            raise ValueError("No module with member %r found" % name)
+            raise ValueError(f"No module with member {name!r} found")
 
     return obj

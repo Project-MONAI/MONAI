@@ -101,7 +101,7 @@ def main():
     writer = SummaryWriter()
     for epoch in range(5):
         print("-" * 10)
-        print("epoch {}/{}".format(epoch + 1, 5))
+        print(f"epoch {epoch + 1}/{5}")
         model.train()
         epoch_loss = 0
         step = 0
@@ -115,10 +115,10 @@ def main():
             optimizer.step()
             epoch_loss += loss.item()
             epoch_len = len(train_ds) // train_loader.batch_size
-            print("{}/{}, train_loss: {:.4f}".format(step, epoch_len, loss.item()))
+            print(f"{step}/{epoch_len}, train_loss: {loss.item():.4f}")
             writer.add_scalar("train_loss", loss.item(), epoch_len * epoch + step)
         epoch_loss /= step
-        print("epoch {} average loss: {:.4f}".format(epoch + 1, epoch_loss))
+        print(f"epoch {epoch + 1} average loss: {epoch_loss:.4f}")
 
         if (epoch + 1) % val_interval == 0:
             model.eval()
@@ -144,7 +144,7 @@ def main():
                     )
                 )
                 writer.add_scalar("val_accuracy", acc_metric, epoch + 1)
-    print("train completed, best_metric: {:.4f} at epoch: {}".format(best_metric, best_metric_epoch))
+    print(f"train completed, best_metric: {best_metric:.4f} at epoch: {best_metric_epoch}")
     writer.close()
 
 
