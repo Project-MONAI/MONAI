@@ -11,11 +11,19 @@
 
 import sys
 
+import hashlib
+import json
+from pathlib import Path
+
 import torch
 
-from monai.transforms.compose import Compose, Randomizable
+from multiprocessing.pool import ThreadPool
+import threading
+
+from monai.transforms import Compose, Randomizable
 from monai.transforms.utils import apply_transform
 from monai.utils import process_bar
+from monai.utils.misc import ensure_tuple
 
 
 class Dataset(torch.utils.data.Dataset):
@@ -37,7 +45,10 @@ class Dataset(torch.utils.data.Dataset):
             transform (Callable, optional): transforms to execute operations on input data.
         """
         self.data = data
-        self.transform = transform
+        if isinstance(transform, Compose):
+            self.transform = transform
+        else:
+            self.transform = Compose(ensure_tuple(transform))
 
     def __len__(self):
         return len(self.data)
@@ -48,6 +59,138 @@ class Dataset(torch.utils.data.Dataset):
             data = self.transform(data)
 
         return data
+
+
+class PersistentDataset(Dataset):
+    """
+    Persistent storage of pre-computed values to efficiently manage larger than memory dictionary format data,
+    it can operate transforms for specific fields.  Results from the non-random transform components are computed
+    when first used, and stored in the `cache_dir` for rapid retrieval on subsequent uses.
+
+    For example, typical input data can be a list of dictionaries::
+
+        [{                            {                            {
+             'img': 'image1.nii.gz',      'img': 'image2.nii.gz',      'img': 'image3.nii.gz',
+             'seg': 'label1.nii.gz',      'seg': 'label2.nii.gz',      'seg': 'label3.nii.gz',
+             'extra': 123                 'extra': 456                 'extra': 789
+         },                           },                           }]
+
+    For a composite transform like 
+
+    .. code-block:: python
+
+        [ LoadNiftid(keys=['image', 'label']),
+          Orientationd(keys=['image', 'label'], axcodes='RAS'),
+          ScaleIntensityRanged(keys=['image'], a_min=-57, a_max=164, b_min=0.0, b_max=1.0, clip=True),
+          RandCropByPosNegLabeld(keys=['image', 'label'], label_key='label', size=(96, 96, 96), 
+                                 pos=1, neg=1, num_samples=4, image_key='image', image_threshold=0),
+          ToTensord(keys=['image', 'label'])]
+
+     Upon first use a filename based dataset will be processed by the transform for the
+     [LoadNiftid, Orientationd, ScaleIntensityRanged] and the resulting tensor written to
+     the `cache_dir` before applying the remainging random dependant transforms
+     [RandCropByPosNegLabeld, ToTensord] elements for use in the analysis.
+
+     Subsequent uses of a dataset directly read pre-processed results from `cache_dir`
+     followed by applying the random dependant parts of transform processing.
+
+    """
+
+    def __init__(self, data, transform=None, cache_dir=None):
+        """
+        Args:
+            data (Iterable): input data to load and transform to generate dataset for model.
+            transform (Callable, optional): transforms to execute operations on input data.
+            cache_dir (Path or str or None): If specified, this is the location for persistent storage
+                of pre-computed transformed data tensors. The cache_dir is computed once, and
+                persists on disk until explicitly removed.  Different runs, programs, experiments
+                may share a common cache dir provided that the trasnsforms pre-processing is
+                consistent.
+        """
+        super().__init__(data=data, transform=transform)
+        self.cache_dir = Path(cache_dir) if cache_dir is not None else None
+
+    def _pre_first_random_transform(self, item_transformed):
+        """
+        Process the data from original state up to the first random element.
+
+        Args:
+            item_transformed: The data to be transformed
+        Returns:
+            the transformed element up to the first identified
+            random transform object
+        """
+        for _transform in self.transform.transforms:
+            # execute all the deterministic transforms before the first random transform
+            if isinstance(_transform, Randomizable):
+                break
+            item_transformed = apply_transform(_transform, item_transformed)
+        return item_transformed
+
+    def _first_random_and_beyond_transform(self, item_transformed):
+        """
+        Process the data from before the first random transform to the final state ready for evaluation.
+        Args:
+            item_transformed: The data to be transformed (already process upto the first random transform)
+        Returns:
+            the transformed element through the random transforms
+        """
+        start_post_randomize_run = False
+        for _transform in self.transform.transforms:
+            if start_post_randomize_run or isinstance(_transform, Randomizable):
+                start_post_randomize_run = True
+                item_transformed = apply_transform(_transform, item_transformed)
+        return item_transformed
+
+    def _pre_first_random_cachecheck(self, item_transformed):
+        """
+            A function to cache the expensive input data transform operations
+            so that huge data sets (larger than computer memory) can be processed
+            on the fly as needed, and intermediate results written to disk for
+            future use.
+        Args:
+            item_transformed: The current data element to be mutated into transformed representation
+
+        Returns:
+            The transformed data_element, either from cache, or explicitly computing it.
+
+        Warning:
+            The current implementation does not encode transform information as part of the
+            hashing mechanism used for generating cache names.  If the transforms applied are
+            changed in any way, the objects in the cache dir will be invalid.  The hash for the
+            cache is ONLY dependant on the input filename paths.
+        """
+        if item_transformed.get("cached", False) is False:
+            hashfile = None
+            if self.cache_dir is not None:
+                cache_dir_path: Path = Path(self.cache_dir)
+                if cache_dir_path.is_dir():
+                    # TODO: Find way to hash transforms content as part of the cache
+                    data_item_md5 = hashlib.md5(
+                        json.dumps(item_transformed, sort_keys=True).encode("utf-8")
+                    ).hexdigest()
+                    hashfile: Path = Path(cache_dir_path) / f"{data_item_md5}.pt"
+
+            if hashfile is not None and hashfile.is_file():
+                item_transformed = torch.load(hashfile)
+            else:
+                item_transformed = self._pre_first_random_transform(item_transformed)
+                if hashfile is not None:
+                    # add sentinal flag to indicate that the transforms have already been computed.
+                    item_transformed["cache"] = True
+                    # NOTE: Writing to ".temp_write_cache" and then using a nearly atomic rename operation
+                    #       to make the cache more robust to manual killing of parent process
+                    #       which may leave partially written cache files in an incomplete state
+                    temp_hash_file: Path = hashfile.with_suffix(".temp_write_cache")
+                    torch.save(item_transformed, temp_hash_file)
+                    temp_hash_file.rename(hashfile)
+
+        return item_transformed
+
+    def __getitem__(self, index):
+        pre_random_item = self._pre_first_random_cachecheck(self.data[index])
+        post_random_item = self._first_random_and_beyond_transform(pre_random_item)
+        return post_random_item
 
 
 class CacheDataset(Dataset):
@@ -84,7 +227,7 @@ class CacheDataset(Dataset):
     and the outcome not cached.
     """
 
-    def __init__(self, data, transform, cache_num=sys.maxsize, cache_rate=1.0):
+    def __init__(self, data, transform, cache_num=sys.maxsize, cache_rate=1.0, num_workers=0):
         """
         Args:
             data (Iterable): input data to load and transform to generate dataset for model.
@@ -93,22 +236,43 @@ class CacheDataset(Dataset):
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
             cache_rate (float): percentage of cached data in total, default is 1.0 (cache all).
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
+            num_workers (int): the number of worker threads to use.
+                If 0 a single thread will be used. Default is 0.
         """
         if not isinstance(transform, Compose):
             transform = Compose(transform)
         super().__init__(data, transform)
         self.cache_num = min(cache_num, int(len(self) * cache_rate), len(self))
-        self._cache = list()
-        print('Load and cache transformed data...')
-        for i in range(self.cache_num):
-            process_bar(i + 1, self.cache_num)
-            item = data[i]
-            for _transform in transform.transforms:
-                # execute all the deterministic transforms before the first random transform
-                if isinstance(_transform, Randomizable):
-                    break
-                item = apply_transform(_transform, item)
-            self._cache.append(item)
+        if self.cache_num > 0:
+            self._cache = [None] * self.cache_num
+            print("Load and cache transformed data...")
+            if num_workers > 0:
+                self._item_processed = 0
+                self._thread_lock = threading.Lock()
+                with ThreadPool(num_workers) as p:
+                    p.map(
+                        self._load_cache_item_thread,
+                        [(i, data[i], transform.transforms) for i in range(self.cache_num)],
+                    )
+            else:
+                for i in range(self.cache_num):
+                    self._cache[i] = self._load_cache_item(data[i], transform.transforms)
+                    process_bar(i + 1, self.cache_num)
+
+    def _load_cache_item(self, item, transforms):
+        for _transform in transforms:
+            # execute all the deterministic transforms before the first random transform
+            if isinstance(_transform, Randomizable):
+                break
+            item = apply_transform(_transform, item)
+        return item
+
+    def _load_cache_item_thread(self, args):
+        i, item, transforms = args
+        self._cache[i] = self._load_cache_item(item, transforms)
+        with self._thread_lock:
+            self._item_processed += 1
+            process_bar(self._item_processed, self.cache_num)
 
     def __getitem__(self, index):
         if index < self.cache_num:
@@ -124,5 +288,4 @@ class CacheDataset(Dataset):
         else:
             # no cache for this data, execute all the transforms directly
             data = super(CacheDataset, self).__getitem__(index)
-
         return data

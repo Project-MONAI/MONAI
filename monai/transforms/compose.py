@@ -37,7 +37,7 @@ class Transform(ABC):
 
     See Also
 
-        :py:class:`monai.transforms.compose.Compose`
+        :py:class:`monai.transforms.Compose`
     """
 
     @abstractmethod
@@ -61,6 +61,7 @@ class Randomizable(ABC):
     An interface for handling local numpy random state.
     this is mainly for randomized data augmentation transforms.
     """
+
     R = np.random.RandomState()
 
     def set_random_state(self, seed=None, state=None):
@@ -83,7 +84,7 @@ class Randomizable(ABC):
 
         if state is not None:
             if not isinstance(state, np.random.RandomState):
-                raise ValueError('`state` must be a `np.random.RandomState`, got {}'.format(type(state)))
+                raise ValueError(f"`state` must be a `np.random.RandomState`, got {type(state)}")
             self.R = state
             return self
 
@@ -182,12 +183,9 @@ class Compose(Randomizable):
             try:
                 _transform.randomize()
             except TypeError as type_error:
+                tfm_name: str = type(_transform).__name__
                 warnings.warn(
-                    'Transform "{0}" in Compose not randomized\n{0}.{1}.'.format(
-                        type(_transform).__name__,
-                        type_error
-                    ),
-                    RuntimeWarning
+                    f'Transform "{tfm_name}" in Compose not randomized\n{tfm_name}.{type_error}.', RuntimeWarning,
                 )
 
     def __call__(self, input_):
@@ -198,7 +196,7 @@ class Compose(Randomizable):
 
 class MapTransform(Transform):
     """
-    A subclass of :py:class:`monai.transforms.compose.Transform` with an assumption
+    A subclass of :py:class:`monai.transforms.Transform` with an assumption
     that the ``data`` input of ``self.__call__`` is a MutableMapping such as ``dict``.
 
     The ``keys`` parameter will be used to get and set the actual data
@@ -220,10 +218,10 @@ class MapTransform(Transform):
     def __init__(self, keys):
         self.keys = ensure_tuple(keys)
         if not self.keys:
-            raise ValueError('keys unspecified')
+            raise ValueError("keys unspecified")
         for key in self.keys:
             if not isinstance(key, Hashable):
-                raise ValueError('keys should be a hashable or a sequence of hashables, got {}'.format(type(key)))
+                raise ValueError(f"keys should be a hashable or a sequence of hashables, got {type(key)}")
 
     @abstractmethod
     def __call__(self, data):

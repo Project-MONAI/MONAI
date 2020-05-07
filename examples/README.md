@@ -19,7 +19,7 @@ The examples are PyTorch ignite programs and have both dictionary-based and arra
 #### [notebooks/3d_image_transforms](./notebooks/3d_image_transforms.ipynb)
 This notebook demonstrates the transformations on volumetric images.
 #### [notebooks/cache_dataset_speed](./notebooks/cache_dataset_speed.ipynb)
-This tutorial shows how to accelerate PyTorch medical DL program based on MONAI CacheDataset.
+This tutorial shows how to accelerate PyTorch medical DL program based on MONAI `CacheDataset`.
 #### [notebooks/mednist_tutorial](./notebooks/mednist_tutorial.ipynb)
 This notebook shows how to easily integrate MONAI features into existing PyTorch programs.
 It's based on the MedNIST dataset which is very suitable for beginners as a tutorial.
@@ -28,6 +28,10 @@ The content is also available as [a Colab tutorial](https://colab.research.googl
 This notebook is a quick demo for devices, run the Ignite trainer engine on CPU, GPU and multiple GPUs.
 #### [notebooks/nifti_read_example](./notebooks/nifti_read_example.ipynb)
 Illustrate reading NIfTI files and iterating over image patches of the volumes loaded from them.
+#### [notebooks/persistent_dataset_speed](./notebooks/persistent_dataset_speed.ipynb)
+This notebook shows `PersistentDataset` that processes original data sources through the non-random transforms on first use.  
+And stores these intermediate tensor values to an on-disk persistence representation.  
+The intermediate processed tensors are loaded from disk on each use for processing by the random-transforms for each analysis request.
 #### [notebooks/spleen_segmentation_3d](./notebooks/spleen_segmentation_3d.ipynb)
 This notebook is an end-to-end training and evaluation example of 3D segmentation based on [MSD Spleen dataset](http://medicaldecathlon.com):
 The example shows the flexibility of MONAI modules in a PyTorch-based program:

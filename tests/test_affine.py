@@ -19,36 +19,47 @@ from monai.transforms import Affine
 
 TEST_CASES = [
     [
-        dict(padding_mode='zeros', as_tensor_output=False, device=None),
-        {'img': np.arange(4).reshape((1, 2, 2)), 'spatial_size': (4, 4)},
-        np.array([[[0., 0., 0., 0.], [0., 0., 0.25, 0.], [0., 0.5, 0.75, 0.], [0., 0., 0., 0.]]])
+        dict(padding_mode="zeros", as_tensor_output=False, device=None),
+        {"img": np.arange(4).reshape((1, 2, 2)), "spatial_size": (4, 4)},
+        np.array([[[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.25, 0.0], [0.0, 0.5, 0.75, 0.0], [0.0, 0.0, 0.0, 0.0]]]),
     ],
     [
-        dict(rotate_params=[np.pi / 2], padding_mode='zeros', as_tensor_output=False, device=None),
-        {'img': np.arange(4).reshape((1, 2, 2)), 'spatial_size': (4, 4)},
-        np.array([[[0., 0., 0., 0.], [0., 0.5, 0., 0.], [0., 0.75, 0.25, 0.], [0., 0., 0., 0.]]])
+        dict(rotate_params=[np.pi / 2], padding_mode="zeros", as_tensor_output=False, device=None),
+        {"img": np.arange(4).reshape((1, 2, 2)), "spatial_size": (4, 4)},
+        np.array([[[0.0, 0.0, 0.0, 0.0], [0.0, 0.5, 0.0, 0.0], [0.0, 0.75, 0.25, 0.0], [0.0, 0.0, 0.0, 0.0]]]),
     ],
     [
-        dict(padding_mode='zeros', as_tensor_output=False, device=None),
-        {'img': np.arange(8).reshape((1, 2, 2, 2)), 'spatial_size': (4, 4, 4)},
-        np.array([[[[0., 0., 0., 0.], [0., 0., 0., 0.], [0., 0., 0., 0.], [0., 0., 0., 0.]],
-                   [[0., 0., 0., 0.], [0., 0., 0.125, 0.], [0., 0.25, 0.375, 0.], [0., 0., 0., 0.]],
-                   [[0., 0., 0., 0.], [0., 0.5, 0.625, 0.], [0., 0.75, 0.875, 0.], [0., 0., 0., 0.]],
-                   [[0., 0., 0., 0.], [0., 0., 0., 0.], [0., 0., 0., 0.], [0., 0., 0., 0.]]]])
+        dict(padding_mode="zeros", as_tensor_output=False, device=None),
+        {"img": np.arange(8).reshape((1, 2, 2, 2)), "spatial_size": (4, 4, 4)},
+        np.array(
+            [
+                [
+                    [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]],
+                    [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.125, 0.0], [0.0, 0.25, 0.375, 0.0], [0.0, 0.0, 0.0, 0.0]],
+                    [[0.0, 0.0, 0.0, 0.0], [0.0, 0.5, 0.625, 0.0], [0.0, 0.75, 0.875, 0.0], [0.0, 0.0, 0.0, 0.0]],
+                    [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]],
+                ]
+            ]
+        ),
     ],
     [
-        dict(rotate_params=[np.pi / 2], padding_mode='zeros', as_tensor_output=False, device=None),
-        {'img': np.arange(8).reshape((1, 2, 2, 2)), 'spatial_size': (4, 4, 4)},
-        np.array([[[[0., 0., 0., 0.], [0., 0., 0., 0.], [0., 0., 0., 0.], [0., 0., 0., 0.]],
-                   [[0., 0., 0., 0.], [0., 0.25, 0., 0.], [0., 0.375, 0.125, 0.], [0., 0., 0., 0.]],
-                   [[0., 0., 0., 0.], [0., 0.75, 0.5, 0.], [0., 0.875, 0.625, 0.], [0., 0., 0., 0.]],
-                   [[0., 0., 0., 0.], [0., 0., 0., 0.], [0., 0., 0., 0.], [0., 0., 0., 0.]]]])
+        dict(rotate_params=[np.pi / 2], padding_mode="zeros", as_tensor_output=False, device=None),
+        {"img": np.arange(8).reshape((1, 2, 2, 2)), "spatial_size": (4, 4, 4)},
+        np.array(
+            [
+                [
+                    [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]],
+                    [[0.0, 0.0, 0.0, 0.0], [0.0, 0.25, 0.0, 0.0], [0.0, 0.375, 0.125, 0.0], [0.0, 0.0, 0.0, 0.0]],
+                    [[0.0, 0.0, 0.0, 0.0], [0.0, 0.75, 0.5, 0.0], [0.0, 0.875, 0.625, 0.0], [0.0, 0.0, 0.0, 0.0]],
+                    [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]],
+                ]
+            ]
+        ),
     ],
 ]
 
 
 class TestAffine(unittest.TestCase):
-
     @parameterized.expand(TEST_CASES)
     def test_affine(self, input_param, input_data, expected_val):
         g = Affine(**input_param)
@@ -60,5 +71,5 @@ class TestAffine(unittest.TestCase):
             np.testing.assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

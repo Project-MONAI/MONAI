@@ -15,23 +15,19 @@ from parameterized import parameterized
 from monai.transforms import AddChanneld
 
 TEST_CASE_1 = [
-    {'keys': ['img', 'seg']},
-    {
-        'img': np.array([[0, 1], [1, 2]]),
-        'seg': np.array([[0, 1], [1, 2]])
-    },
+    {"keys": ["img", "seg"]},
+    {"img": np.array([[0, 1], [1, 2]]), "seg": np.array([[0, 1], [1, 2]])},
     (1, 2, 2),
 ]
 
 
 class TestAddChanneld(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_1])
     def test_shape(self, input_param, input_data, expected_shape):
         result = AddChanneld(**input_param)(input_data)
-        self.assertEqual(result['img'].shape, expected_shape)
-        self.assertEqual(result['seg'].shape, expected_shape)
+        self.assertEqual(result["img"].shape, expected_shape)
+        self.assertEqual(result["seg"].shape, expected_shape)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

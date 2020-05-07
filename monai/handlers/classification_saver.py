@@ -19,8 +19,15 @@ class ClassificationSaver:
     Event handler triggered on completing every iteration to save the classification predictions as CSV file.
     """
 
-    def __init__(self, output_dir='./', filename='predictions.csv', overwrite=True,
-                 batch_transform=lambda x: x, output_transform=lambda x: x, name=None):
+    def __init__(
+        self,
+        output_dir="./",
+        filename="predictions.csv",
+        overwrite=True,
+        batch_transform=lambda x: x,
+        output_transform=lambda x: x,
+        name=None,
+    ):
         """
         Args:
             output_dir (str): output CSV file directory.

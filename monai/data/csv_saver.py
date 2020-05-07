@@ -24,7 +24,7 @@ class CSVSaver:
     the cached data into CSV file. If no meta data provided, use index from 0 to save data.
     """
 
-    def __init__(self, output_dir='./', filename='predictions.csv', overwrite=True):
+    def __init__(self, output_dir="./", filename="predictions.csv", overwrite=True):
         """
         Args:
             output_dir (str): output CSV file directory.
@@ -35,7 +35,7 @@ class CSVSaver:
         """
         self.output_dir = output_dir
         self._cache_dict = OrderedDict()
-        assert isinstance(filename, str) and filename[-4:] == '.csv', 'filename must be a string with CSV format.'
+        assert isinstance(filename, str) and filename[-4:] == ".csv", "filename must be a string with CSV format."
         self._filepath = os.path.join(output_dir, filename)
         self.overwrite = overwrite
         self._data_index = 0
@@ -46,14 +46,14 @@ class CSVSaver:
 
         """
         if not self.overwrite and os.path.exists(self._filepath):
-            with open(self._filepath, 'r') as f:
+            with open(self._filepath, "r") as f:
                 reader = csv.reader(f)
                 for row in reader:
                     self._cache_dict[row[0]] = np.array(row[1:]).astype(np.float32)
 
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
-        with open(self._filepath, 'w') as f:
+        with open(self._filepath, "w") as f:
             for k, v in self._cache_dict.items():
                 f.write(k)
                 for result in v.flatten():
@@ -70,7 +70,7 @@ class CSVSaver:
             meta_data (dict): the meta data information corresponding to the data.
 
         """
-        save_key = meta_data['filename_or_obj'] if meta_data else str(self._data_index)
+        save_key = meta_data["filename_or_obj"] if meta_data else str(self._data_index)
         self._data_index += 1
         if torch.is_tensor(data):
             data = data.detach().cpu().numpy()

@@ -22,6 +22,12 @@ Generic Interfaces
   :members:
   :special-members: __getitem__
 
+`PersistentDataset`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: PersistentDataset
+  :members:
+  :special-members: __getitem__
+
 
 Patch-based dataset
 -------------------
@@ -41,7 +47,6 @@ Sliding window inference
   :members:
 
 
-
 Nifti format handling
 ---------------------
 
@@ -56,6 +61,18 @@ Writing
   :members:
 
 .. automodule:: monai.data.nifti_writer
+  :members:
+
+
+PNG format handling
+---------------------
+
+Writing
+~~~~~~~
+.. automodule:: monai.data.png_saver
+  :members:
+
+.. automodule:: monai.data.png_writer
   :members:
 
 

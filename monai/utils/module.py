@@ -27,7 +27,7 @@ def export(modname):
             setattr(mod, obj.__name__, obj)
 
             # add the aliases for `obj` to the target module
-            for alias in getattr(obj, '__aliases__', ()):
+            for alias in getattr(obj, "__aliases__", ()):
                 if not hasattr(mod, alias):
                     setattr(mod, alias, obj)
 

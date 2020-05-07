@@ -42,8 +42,8 @@ Generic Interfaces
 Vanilla Transforms
 ------------------
 
-.. automodule:: monai.transforms.transforms
-.. currentmodule:: monai.transforms.transforms
+.. automodule:: monai.transforms
+.. currentmodule:: monai.transforms
 
 `Spacing`
 ~~~~~~~~~
@@ -303,11 +303,23 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
-Dictionary-based Composables
+`DataStats`
+~~~~~~~~~~~
+.. autoclass:: DataStats
+    :members:
+    :special-members: __call__
+
+`SimulateDelay`
+~~~~~~~~~~~~~~~
+.. autoclass:: SimulateDelay
+    :members:
+    :special-members: __call__
+
+Dictionary-based Transforms
 ----------------------------
 
-.. automodule:: monai.transforms.composables
-.. currentmodule:: monai.transforms.composables
+.. automodule:: monai.transforms
+.. currentmodule:: monai.transforms
 
 `Spacingd`
 ~~~~~~~~~~
@@ -546,6 +558,18 @@ Dictionary-based Composables
 `SqueezeDimd`
 ~~~~~~~~~~~~~
 .. autoclass:: SqueezeDimd
+    :members:
+    :special-members: __call__
+
+`DataStatsd`
+~~~~~~~~~~~~
+.. autoclass:: DataStatsd
+    :members:
+    :special-members: __call__
+
+`SimulateDelayd`
+~~~~~~~~~~~~~~~~
+.. autoclass:: SimulateDelayd
     :members:
     :special-members: __call__
 

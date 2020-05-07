@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import warnings
 import math
 import nibabel as nib
@@ -83,12 +84,14 @@ def dense_patch_slices(image_size, patch_size, scan_interval):
     """
     num_spatial_dims = len(image_size)
     if num_spatial_dims not in (2, 3):
-        raise ValueError('image_size should has 2 or 3 elements')
+        raise ValueError("image_size should has 2 or 3 elements")
     patch_size = get_valid_patch_size(image_size, patch_size)
     scan_interval = ensure_tuple_size(scan_interval, num_spatial_dims)
 
-    scan_num = [int(math.ceil(float(image_size[i]) / scan_interval[i])) if scan_interval[i] != 0 else 1
-                for i in range(num_spatial_dims)]
+    scan_num = [
+        int(math.ceil(float(image_size[i]) / scan_interval[i])) if scan_interval[i] != 0 else 1
+        for i in range(num_spatial_dims)
+    ]
     slices = []
     if num_spatial_dims == 3:
         for i in range(scan_num[0]):
@@ -203,7 +206,7 @@ def correct_nifti_header_if_necessary(img_nii):
     Args:
         img (nifti image object)
     """
-    dim = img_nii.header['dim'][0]
+    dim = img_nii.header["dim"][0]
     if dim >= 5:
         return img_nii  # do nothing for high-dimensional array
     # check that affine matches zooms
@@ -211,7 +214,7 @@ def correct_nifti_header_if_necessary(img_nii):
     norm_affine = np.sqrt(np.sum(np.square(img_nii.affine[:dim, :dim]), 0))
     if np.allclose(pixdim, norm_affine):
         return img_nii
-    if hasattr(img_nii, 'get_sform'):
+    if hasattr(img_nii, "get_sform"):
         return rectify_header_sform_qform(img_nii)
     return img_nii
 
@@ -223,7 +226,7 @@ def rectify_header_sform_qform(img_nii):
 
     Adapted from https://github.com/NifTK/NiftyNet/blob/v0.6.0/niftynet/io/misc_io.py
     """
-    d = img_nii.header['dim'][0]
+    d = img_nii.header["dim"][0]
     pixdim = np.asarray(img_nii.header.get_zooms())[:d]
     sform, qform = img_nii.get_sform(), img_nii.get_qform()
     norm_sform = np.sqrt(np.sum(np.square(sform[:d, :d]), 0))
@@ -231,13 +234,13 @@ def rectify_header_sform_qform(img_nii):
     sform_mismatch = not np.allclose(norm_sform, pixdim)
     qform_mismatch = not np.allclose(norm_qform, pixdim)
 
-    if img_nii.header['sform_code'] != 0:
+    if img_nii.header["sform_code"] != 0:
         if not sform_mismatch:
             return img_nii
         if not qform_mismatch:
             img_nii.set_sform(img_nii.get_qform())
             return img_nii
-    if img_nii.header['qform_code'] != 0:
+    if img_nii.header["qform_code"] != 0:
         if not qform_mismatch:
             return img_nii
         if not sform_mismatch:
@@ -245,7 +248,7 @@ def rectify_header_sform_qform(img_nii):
             return img_nii
 
     norm = np.sqrt(np.sum(np.square(img_nii.affine[:d, :d]), 0))
-    warnings.warn('Modifying image pixdim from {} to {}'.format(pixdim, norm))
+    warnings.warn(f"Modifying image pixdim from {pixdim} to {norm}")
 
     img_nii.header.set_zooms(norm)
     return img_nii
@@ -272,18 +275,18 @@ def zoom_affine(affine, scale, diagonal=True):
     """
     affine = np.array(affine, dtype=float, copy=True)
     if len(affine) != len(affine[0]):
-        raise ValueError('affine should be a square matrix')
+        raise ValueError("affine should be a square matrix")
     scale = np.array(scale, dtype=float, copy=True)
     if np.any(scale <= 0):
-        raise ValueError('scale must be a sequence of positive numbers.')
+        raise ValueError("scale must be a sequence of positive numbers.")
     d = len(affine) - 1
     if len(scale) < d:  # defaults based on affine
         norm = np.sqrt(np.sum(np.square(affine), 0))[:-1]
-        scale = np.append(scale, norm[len(scale):])
+        scale = np.append(scale, norm[len(scale) :])
     scale = scale[:d]
-    scale[scale == 0] = 1.
+    scale[scale == 0] = 1.0
     if diagonal:
-        return np.diag(np.append(scale, [1.]))
+        return np.diag(np.append(scale, [1.0]))
     rzs = affine[:-1, :-1]  # rotation zoom scale
     zs = np.linalg.cholesky(rzs.T @ rzs).T
     rotation = rzs @ np.linalg.inv(zs)
@@ -305,15 +308,14 @@ def compute_shape_offset(spatial_shape, in_affine, out_affine):
     sr = len(shape)
     in_affine = to_affine_nd(sr, in_affine)
     out_affine = to_affine_nd(sr, out_affine)
-    in_coords = [(0., dim - 1.) for dim in shape]
-    corners = np.asarray(np.meshgrid(*in_coords, indexing='ij')).reshape((len(shape), -1))
+    in_coords = [(0.0, dim - 1.0) for dim in shape]
+    corners = np.asarray(np.meshgrid(*in_coords, indexing="ij")).reshape((len(shape), -1))
     corners = np.concatenate((corners, np.ones_like(corners[:1])))
     corners = in_affine @ corners
     corners_out = np.linalg.inv(out_affine) @ corners
     corners_out = corners_out[:-1] / corners_out[-1]
-    out_shape = np.round(np.max(corners_out, 1) - np.min(corners_out, 1) + 1.)
-    if np.allclose(nib.io_orientation(in_affine),
-                   nib.io_orientation(out_affine)):
+    out_shape = np.round(np.max(corners_out, 1) - np.min(corners_out, 1) + 1.0)
+    if np.allclose(nib.io_orientation(in_affine), nib.io_orientation(out_affine)):
         # same orientation, get translate from the origin
         offset = in_affine @ ([0] * sr + [1])
         offset = offset[:-1] / offset[-1]
@@ -348,15 +350,52 @@ def to_affine_nd(r, affine):
     """
     affine = np.array(affine, dtype=np.float64)
     if affine.ndim != 2:
-        raise ValueError('input affine must have two dimensions')
+        raise ValueError("input affine must have two dimensions")
     new_affine = np.array(r, dtype=np.float64, copy=True)
     if new_affine.ndim == 0:
         sr = new_affine.astype(int)
         if not np.isfinite(sr) or sr < 0:
-            raise ValueError('r must be positive.')
+            raise ValueError("r must be positive.")
         new_affine = np.eye(sr + 1, dtype=np.float64)
     d = max(min(len(new_affine) - 1, len(affine) - 1), 1)
     new_affine[:d, :d] = affine[:d, :d]
     if d > 1:
         new_affine[:d, -1] = affine[:d, -1]
     return new_affine
+
+
+def create_file_basename(postfix, input_file_name, folder_path, data_root_dir=""):
+    """
+    Utility function to create the path to the output file based on the input
+    filename (extension is added by lib level writer before writing the file)
+
+    Args:
+        postfix (str): output name's postfix
+        input_file_name (str): path to the input image file
+        folder_path (str): path for the output file
+        data_root_dir (str): if not empty, it specifies the beginning parts of the input file's
+            absolute path. This is used to compute `input_file_rel_path`, the relative path to the file from
+            `data_root_dir` to preserve folder structure when saving in case there are files in different
+            folders with the same file names.
+    """
+
+    # get the filename and directory
+    filedir, filename = os.path.split(input_file_name)
+
+    # jettison the extension to have just filename
+    filename, ext = os.path.splitext(filename)
+    while ext != "":
+        filename, ext = os.path.splitext(filename)
+
+    # use data_root_dir to find relative path to file
+    filedir_rel_path = ""
+    if data_root_dir:
+        filedir_rel_path = os.path.relpath(filedir, data_root_dir)
+
+    # sub-folder path will be original name without the extension
+    subfolder_path = os.path.join(folder_path, filedir_rel_path, filename)
+    if not os.path.exists(subfolder_path):
+        os.makedirs(subfolder_path)
+
+    # add the sub-folder plus the postfix name to become the file basename in the output path
+    return os.path.join(subfolder_path, filename + "_" + postfix)

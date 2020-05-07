@@ -20,37 +20,43 @@ from tests.utils import NumpyImageTestCase2D
 
 
 class TestResized(NumpyImageTestCase2D):
-
-    @parameterized.expand([
-        ("invalid_order", "order", AssertionError)
-    ])
+    @parameterized.expand([("invalid_order", "order", AssertionError)])
     def test_invalid_inputs(self, _, order, raises):
         with self.assertRaises(raises):
-            resize = Resized(keys='img', spatial_size=(128, 128, 3), order=order)
-            resize({'img': self.imt[0]})
+            resize = Resized(keys="img", spatial_size=(128, 128, 3), order=order)
+            resize({"img": self.imt[0]})
 
-    @parameterized.expand([
-        ((64, 64), 1, 'reflect', 0, True, True, True, None),
-        ((32, 32), 2, 'constant', 3, False, False, False, None),
-        ((256, 256), 3, 'constant', 3, False, False, False, None),
-    ])
-    def test_correct_results(self, spatial_size, order, mode, 
-                             cval, clip, preserve_range, 
-                             anti_aliasing, anti_aliasing_sigma):
-        resize = Resized('img', spatial_size, order, mode, cval, clip, 
-                         preserve_range, anti_aliasing, 
-                         anti_aliasing_sigma)
+    @parameterized.expand(
+        [
+            ((64, 64), 1, "reflect", 0, True, True, True, None),
+            ((32, 32), 2, "constant", 3, False, False, False, None),
+            ((256, 256), 3, "constant", 3, False, False, False, None),
+        ]
+    )
+    def test_correct_results(
+        self, spatial_size, order, mode, cval, clip, preserve_range, anti_aliasing, anti_aliasing_sigma
+    ):
+        resize = Resized(
+            "img", spatial_size, order, mode, cval, clip, preserve_range, anti_aliasing, anti_aliasing_sigma
+        )
         expected = list()
         for channel in self.imt[0]:
-            expected.append(skimage.transform.resize(channel, spatial_size, 
-                                                     order=order, mode=mode, 
-                                                     cval=cval, clip=clip, 
-                                                     preserve_range=preserve_range, 
-                                                     anti_aliasing=anti_aliasing, 
-                                                     anti_aliasing_sigma=anti_aliasing_sigma))
+            expected.append(
+                skimage.transform.resize(
+                    channel,
+                    spatial_size,
+                    order=order,
+                    mode=mode,
+                    cval=cval,
+                    clip=clip,
+                    preserve_range=preserve_range,
+                    anti_aliasing=anti_aliasing,
+                    anti_aliasing_sigma=anti_aliasing_sigma,
+                )
+            )
         expected = np.stack(expected).astype(np.float32)
-        self.assertTrue(np.allclose(resize({'img': self.imt[0]})['img'], expected))
+        self.assertTrue(np.allclose(resize({"img": self.imt[0]})["img"], expected))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

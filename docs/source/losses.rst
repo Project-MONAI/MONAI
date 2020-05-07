@@ -26,3 +26,11 @@ Segmentation Losses
 ~~~~~~~~~~~
 .. autoclass:: monai.losses.focal_loss.FocalLoss
     :members:
+
+.. automodule:: monai.losses.tversky
+.. currentmodule:: monai.losses.tversky
+
+`TverskyLoss`
+~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: TverskyLoss
+    :members:

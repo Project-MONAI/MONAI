@@ -14,22 +14,15 @@ import numpy as np
 from parameterized import parameterized
 from monai.transforms import CastToType
 
-TEST_CASE_1 = [
-    {
-        'dtype': np.float64
-    },
-    np.array([[0, 1], [1, 2]], dtype=np.float32),
-    np.float64
-]
+TEST_CASE_1 = [{"dtype": np.float64}, np.array([[0, 1], [1, 2]], dtype=np.float32), np.float64]
 
 
 class TestCastToType(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_1])
     def test_type(self, input_param, input_data, expected_type):
         result = CastToType(**input_param)(input_data)
         self.assertEqual(result.dtype, expected_type)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

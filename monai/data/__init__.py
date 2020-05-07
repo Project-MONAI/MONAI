@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from .csv_saver import CSVSaver
-from .dataset import Dataset, CacheDataset
+from .dataset import Dataset, PersistentDataset, CacheDataset
 from .grid_dataset import GridPatchDataset
 from .nifti_reader import load_nifti, NiftiDataset
 from .nifti_saver import NiftiSaver
@@ -18,3 +18,5 @@ from .nifti_writer import write_nifti
 from .sliding_window_inference import sliding_window_inference
 from .synthetic import *
 from .utils import *
+from .png_saver import PNGSaver
+from .png_writer import write_png
