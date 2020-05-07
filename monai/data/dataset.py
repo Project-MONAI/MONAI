@@ -235,24 +235,28 @@ class CacheDataset(Dataset):
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
             cache_rate (float): percentage of cached data in total, default is 1.0 (cache all).
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
-            num_workers (int): the number of worker processes to use.
+            num_workers (int): the number of worker threads to use.
                 If 0 a single thread will be used. Default is 0.
         """
         if not isinstance(transform, Compose):
             transform = Compose(transform)
         super().__init__(data, transform)
         self.cache_num = min(cache_num, int(len(self) * cache_rate), len(self))
-        self._cache = [None] * self.cache_num
-        print("Load and cache transformed data...")
-        if num_workers > 0:
-            self._item_processed = 0
-            self._thread_lock = threading.Lock()
-            with ThreadPool(num_workers) as p:
-                p.map(self._load_cache_item_thread, [(i, data[i], transform.transforms) for i in range(self.cache_num)])
-        else:
-            for i in range(self.cache_num):
-                self._cache[i] = self._load_cache_item(data[i], transform.transforms)
-                process_bar(i + 1, self.cache_num)
+        if self.cache_num > 0:
+            self._cache = [None] * self.cache_num
+            print('Load and cache transformed data...')
+            if num_workers > 0:
+                self._item_processed = 0
+                self._thread_lock = threading.Lock()
+                with ThreadPool(num_workers) as p:
+                    p.map(
+                        self._load_cache_item_thread, 
+                        [(i, data[i], transform.transforms) for i in range(self.cache_num)]
+                    )
+            else:
+                for i in range(self.cache_num):
+                    self._cache[i] = self._load_cache_item(data[i], transform.transforms)
+                    process_bar(i + 1, self.cache_num)
 
     def _load_cache_item(self, item, transforms):
         for _transform in transforms:
