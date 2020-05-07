@@ -17,11 +17,11 @@ from monai.data import write_png
 from skimage import io, transform
 import numpy as np
 
-class TestPngWrite(unittest.TestCase):
 
+class TestPngWrite(unittest.TestCase):
     def test_write_gray(self):
         with tempfile.TemporaryDirectory() as out_dir:
-            image_name = os.path.join(out_dir, 'test.png')
+            image_name = os.path.join(out_dir, "test.png")
             img = np.arange(6).reshape((2, 3, 1))
             img_save_val = 255 * ((img - np.min(img)) / (np.max(img) - np.min(img)))
             # saving with io.imsave (h,w,1) will only give us (h,w) while reading it back.
@@ -32,7 +32,7 @@ class TestPngWrite(unittest.TestCase):
 
     def test_write_rgb(self):
         with tempfile.TemporaryDirectory() as out_dir:
-            image_name = os.path.join(out_dir, 'test.png')
+            image_name = os.path.join(out_dir, "test.png")
             img = np.arange(12).reshape((2, 2, 3))
             img_save_val = 255 * ((img - np.min(img)) / (np.max(img) - np.min(img)))
             img_save_val = img_save_val.astype(np.uint8)
@@ -42,16 +42,16 @@ class TestPngWrite(unittest.TestCase):
 
     def test_write_output_shape(self):
         with tempfile.TemporaryDirectory() as out_dir:
-            image_name = os.path.join(out_dir, 'test.png')
+            image_name = os.path.join(out_dir, "test.png")
             img = np.arange(12).reshape((2, 2, 3))
             write_png(img, image_name, (4, 4))
             img_save_val = (img - np.min(img)) / (np.max(img) - np.min(img))
-            img_save_val = transform.resize(img_save_val, (4, 4), order=3, mode='constant', cval=0) 
+            img_save_val = transform.resize(img_save_val, (4, 4), order=3, mode="constant", cval=0)
             img_save_val = 255 * img_save_val
             img_save_val = img_save_val.astype(np.uint8)
             out = io.imread(image_name)
             np.testing.assert_allclose(out, img_save_val)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

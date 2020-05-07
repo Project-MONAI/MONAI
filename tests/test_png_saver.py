@@ -18,49 +18,50 @@ from monai.data import PngSaver
 
 
 class TestPngSaver(unittest.TestCase):
-
     def test_saved_content(self):
-        default_dir = os.path.join('.', 'tempdir')
+        default_dir = os.path.join(".", "tempdir")
         shutil.rmtree(default_dir, ignore_errors=True)
 
-        saver = PngSaver(output_dir=default_dir, output_postfix='seg', output_ext='.png')
+        saver = PngSaver(output_dir=default_dir, output_postfix="seg", output_ext=".png")
 
-        meta_data = {'filename_or_obj': ['testfile' + str(i) for i in range(8)]}
+        meta_data = {"filename_or_obj": ["testfile" + str(i) for i in range(8)]}
         saver.save_batch(torch.randint(1, 200, (8, 1, 2, 2)), meta_data)
         for i in range(8):
-            filepath = os.path.join('testfile' + str(i), 'testfile' + str(i) + '_seg.png')
+            filepath = os.path.join("testfile" + str(i), "testfile" + str(i) + "_seg.png")
             self.assertTrue(os.path.exists(os.path.join(default_dir, filepath)))
         shutil.rmtree(default_dir)
 
     def test_saved_content_three_channel(self):
-        default_dir = os.path.join('.', 'tempdir')
+        default_dir = os.path.join(".", "tempdir")
         shutil.rmtree(default_dir, ignore_errors=True)
 
-        saver = PngSaver(output_dir=default_dir, output_postfix='seg', output_ext='.png')
+        saver = PngSaver(output_dir=default_dir, output_postfix="seg", output_ext=".png")
 
-        meta_data = {'filename_or_obj': ['testfile' + str(i) for i in range(8)]}
+        meta_data = {"filename_or_obj": ["testfile" + str(i) for i in range(8)]}
         saver.save_batch(torch.randint(1, 200, (8, 3, 2, 2)), meta_data)
         for i in range(8):
-            filepath = os.path.join('testfile' + str(i), 'testfile' + str(i) + '_seg.png')
+            filepath = os.path.join("testfile" + str(i), "testfile" + str(i) + "_seg.png")
             self.assertTrue(os.path.exists(os.path.join(default_dir, filepath)))
         shutil.rmtree(default_dir)
 
     def test_saved_content_spatial_size(self):
 
-        default_dir = os.path.join('.', 'tempdir')
+        default_dir = os.path.join(".", "tempdir")
         shutil.rmtree(default_dir, ignore_errors=True)
 
-        saver = PngSaver(output_dir=default_dir, output_postfix='seg', output_ext='.png')
+        saver = PngSaver(output_dir=default_dir, output_postfix="seg", output_ext=".png")
 
-        meta_data = {'filename_or_obj': ['testfile' + str(i) for i in range(8)], 
-                     'spatial_shape' : [(4, 4) for i in range(8)]}
+        meta_data = {
+            "filename_or_obj": ["testfile" + str(i) for i in range(8)],
+            "spatial_shape": [(4, 4) for i in range(8)],
+        }
         saver.save_batch(torch.randint(1, 200, (8, 1, 2, 2)), meta_data)
         for i in range(8):
-            filepath = os.path.join('testfile' + str(i), 'testfile' + str(i) + '_seg.png')
+            filepath = os.path.join("testfile" + str(i), "testfile" + str(i) + "_seg.png")
             self.assertTrue(os.path.exists(os.path.join(default_dir, filepath)))
 
         shutil.rmtree(default_dir)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
