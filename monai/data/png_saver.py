@@ -86,7 +86,7 @@ class PNGSaver:
             data = data.detach().cpu().numpy()
 
         filename = create_file_basename(self.output_postfix, filename, self.output_dir)
-        filename = "{}{}".format(filename, self.output_ext)
+        filename = f"{filename}{self.output_ext}"
 
         if data.shape[0] == 1:
             data = data.squeeze(0)

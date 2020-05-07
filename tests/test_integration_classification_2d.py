@@ -92,7 +92,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device=torch.dev
     model_filename = os.path.join(root_dir, "best_metric_model.pth")
     for epoch in range(epoch_num):
         print("-" * 10)
-        print("Epoch {}/{}".format(epoch + 1, epoch_num))
+        print(f"Epoch {epoch + 1}/{epoch_num}")
         model.train()
         epoch_loss = 0
         step = 0
@@ -107,7 +107,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device=torch.dev
             epoch_loss += loss.item()
         epoch_loss /= step
         epoch_loss_values.append(epoch_loss)
-        print("epoch %d average loss:%0.4f" % (epoch + 1, epoch_loss))
+        print(f"epoch {epoch + 1} average loss:{epoch_loss:0.4f}")
 
         if (epoch + 1) % val_interval == 0:
             model.eval()
@@ -128,10 +128,10 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device=torch.dev
                     torch.save(model.state_dict(), model_filename)
                     print("saved new best metric model")
                 print(
-                    "current epoch %d current AUC: %0.4f current accuracy: %0.4f best AUC: %0.4f at epoch %d"
-                    % (epoch + 1, auc_metric, acc_metric, best_metric, best_metric_epoch)
+                    f"current epoch {epoch +1} current AUC: {auc_metric:0.4f} "
+                    f"current accuracy: {acc_metric:0.4f} best AUC: {best_metric:0.4f} at epoch {best_metric_epoch}"
                 )
-    print("train completed, best_metric: %0.4f  at epoch: %d" % (best_metric, best_metric_epoch))
+    print(f"train completed, best_metric: {best_metric:0.4f}  at epoch: {best_metric_epoch}")
     return epoch_loss_values, best_metric, best_metric_epoch
 
 

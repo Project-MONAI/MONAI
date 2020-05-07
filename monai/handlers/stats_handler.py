@@ -121,7 +121,7 @@ class StatsHandler(object):
             e (Exception): the exception caught in Ignite during engine.run().
 
         """
-        self.logger.exception("Exception: {}".format(e))
+        self.logger.exception(f"Exception: {e}")
         # import traceback
         # traceback.print_exc()
 
@@ -138,7 +138,7 @@ class StatsHandler(object):
             return
         current_epoch = self.global_epoch_transform(engine.state.epoch)
 
-        out_str = "Epoch[{}] Metrics -- ".format(current_epoch)
+        out_str = f"Epoch[{current_epoch}] Metrics -- "
         for name in sorted(prints_dict):
             value = prints_dict[name]
             out_str += self.key_var_format.format(name, value)
@@ -190,6 +190,6 @@ class StatsHandler(object):
         current_epoch = engine.state.epoch
         num_epochs = engine.state.max_epochs
 
-        base_str = "Epoch: {}/{}, Iter: {}/{} --".format(current_epoch, num_epochs, current_iteration, num_iterations)
+        base_str = f"Epoch: {current_epoch}/{num_epochs}, Iter: {current_iteration}/{num_iterations} --"
 
         self.logger.info(" ".join([base_str, out_str]))

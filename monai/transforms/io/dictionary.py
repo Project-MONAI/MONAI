@@ -60,7 +60,7 @@ class LoadNiftid(MapTransform):
             for k in sorted(data[1]):
                 key_to_add = self.meta_key_format.format(key, k)
                 if key_to_add in d and not self.overwriting_keys:
-                    raise KeyError("meta data key {} already exists.".format(key_to_add))
+                    raise KeyError(f"meta data key {key_to_add} already exists.")
                 d[key_to_add] = data[1][k]
         return d
 

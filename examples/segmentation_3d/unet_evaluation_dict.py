@@ -32,15 +32,15 @@ def main():
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
     tempdir = tempfile.mkdtemp()
-    print("generating synthetic data to {} (this may take a while)".format(tempdir))
+    print(f"generating synthetic data to {tempdir} (this may take a while)")
     for i in range(5):
         im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1, channel_dim=-1)
 
         n = nib.Nifti1Image(im, np.eye(4))
-        nib.save(n, os.path.join(tempdir, "im%i.nii.gz" % i))
+        nib.save(n, os.path.join(tempdir, f"im{i:d}.nii.gz"))
 
         n = nib.Nifti1Image(seg, np.eye(4))
-        nib.save(n, os.path.join(tempdir, "seg%i.nii.gz" % i))
+        nib.save(n, os.path.join(tempdir, f"seg{i:d}.nii.gz"))
 
     images = sorted(glob(os.path.join(tempdir, "im*.nii.gz")))
     segs = sorted(glob(os.path.join(tempdir, "seg*.nii.gz")))

@@ -46,8 +46,8 @@ def print_config(file=sys.stdout):
     Print the package versions to `file`.
     Defaults to `sys.stdout`.
     """
-    for kv in get_config_values().items():
-        print("%s: %s" % kv, file=file, flush=True)
+    for k, v in get_config_values().items():
+        print(f"{k}: {v}", file=file, flush=True)
 
 
 def set_visible_devices(*dev_inds):

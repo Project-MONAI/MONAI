@@ -76,7 +76,7 @@ class TestDeterminism(unittest.TestCase):
 
     def test_training(self):
         loss, step = run_test(device=self.device)
-        print("Deterministic loss {} at training step {}".format(loss, step))
+        print(f"Deterministic loss {loss} at training step {step}")
         np.testing.assert_allclose(step, 4)
         np.testing.assert_allclose(loss, 0.5346279, rtol=1e-6)
 

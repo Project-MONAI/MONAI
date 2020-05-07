@@ -144,7 +144,7 @@ class GeneralizedDiceLoss(_Loss):
         elif w_type == "square":
             self.w_func = lambda x: torch.reciprocal(x * x)
         else:
-            raise ValueError("unknown option for `w_type`: {}".format(w_type))
+            raise ValueError(f"unknown option for `w_type`: {w_type}")
 
     def forward(self, pred, ground, smooth=1e-5):
         """
