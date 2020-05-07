@@ -9,14 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import torch
-from monai.data.png_writer import write_png
-
 import numpy as np
+from monai.data.png_writer import write_png
+from .utils import create_file_basename
 
 
-class PngSaver:
+class PNGSaver:
     """
     Save the data as png file, it can support single data content or a batch of data.
     Typically, the data can be segmentation predictions, call `save` for single data
@@ -25,14 +24,21 @@ class PngSaver:
     """
 
     def __init__(
-        self, output_dir="./", output_postfix="seg", output_ext=".png", interp_order=3, mode="constant", cval=0
+        self,
+        output_dir="./",
+        output_postfix="seg",
+        output_ext=".png",
+        interp_order=3,
+        mode="constant",
+        cval=0,
+        scale=False,
     ):
         """
         Args:
             output_dir (str): output image directory.
             output_postfix (str): a string appended to all output file names.
             output_ext (str): output file extension name.
-            interp_order (int): the order of the spline interpolation, default is 0. 
+            interp_order (int): the order of the spline interpolation, default is 3. 
                 This option is used when spatial_shape is specified and different from the data shape.
                 The order has to be in the range 0 - 5.
             mode (`reflect|constant|nearest|mirror|wrap`):
@@ -40,6 +46,7 @@ class PngSaver:
                 This option is used when spatial_shape is specified and different from the data shape.
             cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
                 This option is used when spatial_shape is specified and different from the data shape.
+            scale (bool): whether to scale data with 255 and convert to uint8 for data in range [0, 1].
 
         """
         self.output_dir = output_dir
@@ -48,44 +55,8 @@ class PngSaver:
         self.interp_order = interp_order
         self.mode = mode
         self.cval = cval
+        self.scale = scale
         self._data_index = 0
-
-    @staticmethod
-    def _create_file_basename(postfix, input_file_name, folder_path, data_root_dir=""):
-        """
-        Utility function to create the path to the output file based on the input
-        filename (extension is added by lib level writer before writing the file)
-
-        Args:
-            postfix (str): output name's postfix
-            input_file_name (str): path to the input image file
-            folder_path (str): path for the output file
-            data_root_dir (str): if not empty, it specifies the beginning parts of the input file's
-                absolute path. This is used to compute `input_file_rel_path`, the relative path to the file from
-                `data_root_dir` to preserve folder structure when saving in case there are files in different
-                folders with the same file names.
-        """
-
-        # get the filename and directory
-        filedir, filename = os.path.split(input_file_name)
-
-        # jettison the extension to have just filename
-        filename, ext = os.path.splitext(filename)
-        while ext != "":
-            filename, ext = os.path.splitext(filename)
-
-        # use data_root_dir to find relative path to file
-        filedir_rel_path = ""
-        if data_root_dir:
-            filedir_rel_path = os.path.relpath(filedir, data_root_dir)
-
-        # sub-folder path will be original name without the extension
-        subfolder_path = os.path.join(folder_path, filedir_rel_path, filename)
-        if not os.path.exists(subfolder_path):
-            os.makedirs(subfolder_path)
-
-        # add the sub-folder plus the postfix name to become the file basename in the output path
-        return os.path.join(subfolder_path, filename + "_" + postfix)
 
     def save(self, data, meta_data=None):
         """
@@ -114,7 +85,7 @@ class PngSaver:
         if torch.is_tensor(data):
             data = data.detach().cpu().numpy()
 
-        filename = self._create_file_basename(self.output_postfix, filename, self.output_dir)
+        filename = create_file_basename(self.output_postfix, filename, self.output_dir)
         filename = "{}{}".format(filename, self.output_ext)
 
         if data.shape[0] == 1:
@@ -131,6 +102,7 @@ class PngSaver:
             interp_order=self.interp_order,
             mode=self.mode,
             cval=self.cval,
+            scale=self.scale,
         )
 
     def save_batch(self, batch_data, meta_data=None):

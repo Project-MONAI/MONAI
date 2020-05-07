@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import warnings
 import math
 import nibabel as nib
@@ -361,3 +362,40 @@ def to_affine_nd(r, affine):
     if d > 1:
         new_affine[:d, -1] = affine[:d, -1]
     return new_affine
+
+
+def create_file_basename(postfix, input_file_name, folder_path, data_root_dir=""):
+    """
+    Utility function to create the path to the output file based on the input
+    filename (extension is added by lib level writer before writing the file)
+
+    Args:
+        postfix (str): output name's postfix
+        input_file_name (str): path to the input image file
+        folder_path (str): path for the output file
+        data_root_dir (str): if not empty, it specifies the beginning parts of the input file's
+            absolute path. This is used to compute `input_file_rel_path`, the relative path to the file from
+            `data_root_dir` to preserve folder structure when saving in case there are files in different
+            folders with the same file names.
+    """
+
+    # get the filename and directory
+    filedir, filename = os.path.split(input_file_name)
+
+    # jettison the extension to have just filename
+    filename, ext = os.path.splitext(filename)
+    while ext != "":
+        filename, ext = os.path.splitext(filename)
+
+    # use data_root_dir to find relative path to file
+    filedir_rel_path = ""
+    if data_root_dir:
+        filedir_rel_path = os.path.relpath(filedir, data_root_dir)
+
+    # sub-folder path will be original name without the extension
+    subfolder_path = os.path.join(folder_path, filedir_rel_path, filename)
+    if not os.path.exists(subfolder_path):
+        os.makedirs(subfolder_path)
+
+    # add the sub-folder plus the postfix name to become the file basename in the output path
+    return os.path.join(subfolder_path, filename + "_" + postfix)

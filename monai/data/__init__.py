@@ -18,5 +18,5 @@ from .nifti_writer import write_nifti
 from .sliding_window_inference import sliding_window_inference
 from .synthetic import *
 from .utils import *
-from .png_saver import *
-from .png_writer import *
+from .png_saver import PNGSaver
+from .png_writer import write_png

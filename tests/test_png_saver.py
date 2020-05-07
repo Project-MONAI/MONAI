@@ -14,15 +14,15 @@ import shutil
 import unittest
 import torch
 
-from monai.data import PngSaver
+from monai.data import PNGSaver
 
 
-class TestPngSaver(unittest.TestCase):
+class TestPNGSaver(unittest.TestCase):
     def test_saved_content(self):
         default_dir = os.path.join(".", "tempdir")
         shutil.rmtree(default_dir, ignore_errors=True)
 
-        saver = PngSaver(output_dir=default_dir, output_postfix="seg", output_ext=".png")
+        saver = PNGSaver(output_dir=default_dir, output_postfix="seg", output_ext=".png")
 
         meta_data = {"filename_or_obj": ["testfile" + str(i) for i in range(8)]}
         saver.save_batch(torch.randint(1, 200, (8, 1, 2, 2)), meta_data)
@@ -35,7 +35,7 @@ class TestPngSaver(unittest.TestCase):
         default_dir = os.path.join(".", "tempdir")
         shutil.rmtree(default_dir, ignore_errors=True)
 
-        saver = PngSaver(output_dir=default_dir, output_postfix="seg", output_ext=".png")
+        saver = PNGSaver(output_dir=default_dir, output_postfix="seg", output_ext=".png")
 
         meta_data = {"filename_or_obj": ["testfile" + str(i) for i in range(8)]}
         saver.save_batch(torch.randint(1, 200, (8, 3, 2, 2)), meta_data)
@@ -49,7 +49,7 @@ class TestPngSaver(unittest.TestCase):
         default_dir = os.path.join(".", "tempdir")
         shutil.rmtree(default_dir, ignore_errors=True)
 
-        saver = PngSaver(output_dir=default_dir, output_postfix="seg", output_ext=".png")
+        saver = PNGSaver(output_dir=default_dir, output_postfix="seg", output_ext=".png")
 
         meta_data = {
             "filename_or_obj": ["testfile" + str(i) for i in range(8)],

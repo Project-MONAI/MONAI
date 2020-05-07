@@ -9,10 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import numpy as np
 import torch
 from monai.data.nifti_writer import write_nifti
+from .utils import create_file_basename
 
 
 class NiftiSaver:
@@ -29,7 +29,7 @@ class NiftiSaver:
         output_postfix="seg",
         output_ext=".nii.gz",
         resample=True,
-        interp_order=0,
+        interp_order=3,
         mode="constant",
         cval=0,
         dtype=None,
@@ -40,7 +40,7 @@ class NiftiSaver:
             output_postfix (str): a string appended to all output file names.
             output_ext (str): output file extension name.
             resample (bool): whether to resample before saving the data array.
-            interp_order (int): the order of the spline interpolation, default is 0.
+            interp_order (int): the order of the spline interpolation, default is 3.
                 The order has to be in the range 0 - 5.
                 https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.affine_transform.html
                 this option is used when `resample = True`.
@@ -62,43 +62,6 @@ class NiftiSaver:
         self.cval = cval
         self.dtype = dtype
         self._data_index = 0
-
-    @staticmethod
-    def _create_file_basename(postfix, input_file_name, folder_path, data_root_dir=""):
-        """
-        Utility function to create the path to the output file based on the input
-        filename (extension is added by lib level writer before writing the file)
-
-        Args:
-            postfix (str): output name's postfix
-            input_file_name (str): path to the input image file
-            folder_path (str): path for the output file
-            data_root_dir (str): if not empty, it specifies the beginning parts of the input file's
-                absolute path. This is used to compute `input_file_rel_path`, the relative path to the file from
-                `data_root_dir` to preserve folder structure when saving in case there are files in different
-                folders with the same file names.
-        """
-
-        # get the filename and directory
-        filedir, filename = os.path.split(input_file_name)
-
-        # jettison the extension to have just filename
-        filename, ext = os.path.splitext(filename)
-        while ext != "":
-            filename, ext = os.path.splitext(filename)
-
-        # use data_root_dir to find relative path to file
-        filedir_rel_path = ""
-        if data_root_dir:
-            filedir_rel_path = os.path.relpath(filedir, data_root_dir)
-
-        # sub-folder path will be original name without the extension
-        subfolder_path = os.path.join(folder_path, filedir_rel_path, filename)
-        if not os.path.exists(subfolder_path):
-            os.makedirs(subfolder_path)
-
-        # add the sub-folder plus the postfix name to become the file basename in the output path
-        return os.path.join(subfolder_path, filename + "_" + postfix)
 
     def save(self, data, meta_data=None):
         """
@@ -128,7 +91,7 @@ class NiftiSaver:
 
         if torch.is_tensor(data):
             data = data.detach().cpu().numpy()
-        filename = self._create_file_basename(self.output_postfix, filename, self.output_dir)
+        filename = create_file_basename(self.output_postfix, filename, self.output_dir)
         filename = "{}{}".format(filename, self.output_ext)
         # change data to "channel last" format and write to nifti format file
         data = np.moveaxis(data, 0, -1)
