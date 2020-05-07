@@ -22,7 +22,6 @@ class RandTest(Randomizable):
 
 
 class TestRandomizable(unittest.TestCase):
-
     def test_default(self):
         inst = RandTest()
         r1 = inst.R.rand()
@@ -45,5 +44,5 @@ class TestRandomizable(unittest.TestCase):
         self.assertAlmostEqual(inst.R.rand(), 0.69646918)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

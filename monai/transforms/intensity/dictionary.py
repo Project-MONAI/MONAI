@@ -15,11 +15,15 @@ defined in :py:class:`monai.transforms.intensity.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-import numpy as np
-
 from monai.transforms.compose import MapTransform, Randomizable
-from monai.transforms.intensity.array import NormalizeIntensity, ScaleIntensityRange, \
-    ThresholdIntensity, AdjustContrast, ShiftIntensity, ScaleIntensity
+from monai.transforms.intensity.array import (
+    NormalizeIntensity,
+    ScaleIntensityRange,
+    ThresholdIntensity,
+    AdjustContrast,
+    ShiftIntensity,
+    ScaleIntensity,
+)
 
 
 class RandGaussianNoised(Randomizable, MapTransform):
@@ -54,7 +58,7 @@ class RandGaussianNoised(Randomizable, MapTransform):
         if not self._do_transform:
             return d
         for key in self.keys:
-            d[key] = d[key] + self._noise
+            d[key] = d[key] + self._noise.astype(d[key].dtype)
         return d
 
 
@@ -97,7 +101,7 @@ class RandShiftIntensityd(Randomizable, MapTransform):
         """
         super().__init__(keys)
         self.offsets = (-offsets, offsets) if not isinstance(offsets, (list, tuple)) else offsets
-        assert len(self.offsets) == 2, 'offsets should be a number or pair of numbers.'
+        assert len(self.offsets) == 2, "offsets should be a number or pair of numbers."
         self.prob = prob
         self._do_transform = False
 
@@ -123,7 +127,7 @@ class ScaleIntensityd(MapTransform):
     If `minv` and `maxv` not provided, use `factor` to scale image by ``v = v * (1 + factor)``.
     """
 
-    def __init__(self, keys, minv=0.0, maxv=1.0, factor=None, dtype=np.float32):
+    def __init__(self, keys, minv=0.0, maxv=1.0, factor=None):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -131,10 +135,10 @@ class ScaleIntensityd(MapTransform):
             minv (int or float): minimum value of output data.
             maxv (int or float): maximum value of output data.
             factor (float): factor scale by ``v = v * (1 + factor)``.
-            dtype (np.dtype): expected output data type.
+
         """
         super().__init__(keys)
-        self.scaler = ScaleIntensity(minv, maxv, factor, dtype)
+        self.scaler = ScaleIntensity(minv, maxv, factor)
 
     def __call__(self, data):
         d = dict(data)
@@ -148,7 +152,7 @@ class RandScaleIntensityd(Randomizable, MapTransform):
     dictionary-based version :py:class:`monai.transforms.RandScaleIntensity`.
     """
 
-    def __init__(self, keys, factors, prob=0.1, dtype=np.float32):
+    def __init__(self, keys, factors, prob=0.1):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -157,13 +161,12 @@ class RandScaleIntensityd(Randomizable, MapTransform):
                 if single number, factor value is picked from (-factors, factors).
             prob (float): probability of rotating.
                 (Default 0.1, with 10% probability it returns a rotated array.)
-            dtype (np.dtype): expected output data type.
+
         """
         super().__init__(keys)
         self.factors = (-factors, factors) if not isinstance(factors, (list, tuple)) else factors
-        assert len(self.factors) == 2, 'factors should be a number or pair of numbers.'
+        assert len(self.factors) == 2, "factors should be a number or pair of numbers."
         self.prob = prob
-        self.dtype = dtype
         self._do_transform = False
 
     def randomize(self):
@@ -175,7 +178,7 @@ class RandScaleIntensityd(Randomizable, MapTransform):
         self.randomize()
         if not self._do_transform:
             return d
-        scaler = ScaleIntensity(minv=None, maxv=None, factor=self.factor, dtype=self.dtype)
+        scaler = ScaleIntensity(minv=None, maxv=None, factor=self.factor)
         for key in self.keys:
             d[key] = scaler(d[key])
         return d
@@ -297,12 +300,11 @@ class RandAdjustContrastd(Randomizable, MapTransform):
         super().__init__(keys)
         self.prob = prob
         if not isinstance(gamma, (tuple, list)):
-            assert gamma > 0.5, \
-                'if gamma is single number, must greater than 0.5 and value is picked from (0.5, gamma)'
+            assert gamma > 0.5, "if gamma is single number, must greater than 0.5 and value is picked from (0.5, gamma)"
             self.gamma = (0.5, gamma)
         else:
             self.gamma = gamma
-        assert len(self.gamma) == 2, 'gamma should be a number or pair of numbers.'
+        assert len(self.gamma) == 2, "gamma should be a number or pair of numbers."
 
         self._do_transform = False
         self.gamma_value = None

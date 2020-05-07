@@ -5,6 +5,6 @@ nibabel
 tensorboard
 pillow
 scipy
-scikit-image
+scikit-image>=0.14.2
 coverage
 parameterized

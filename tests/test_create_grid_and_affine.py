@@ -13,104 +13,136 @@ import unittest
 
 import numpy as np
 
-from monai.transforms import (create_control_grid, create_grid, create_rotate, create_scale, create_shear,
-                              create_translate)
+from monai.transforms import (
+    create_control_grid,
+    create_grid,
+    create_rotate,
+    create_scale,
+    create_shear,
+    create_translate,
+)
 
 
 class TestCreateGrid(unittest.TestCase):
-
     def test_create_grid(self):
-        with self.assertRaisesRegex(TypeError, ''):
+        with self.assertRaisesRegex(TypeError, ""):
             create_grid(None)
-        with self.assertRaisesRegex(TypeError, ''):
-            create_grid((1, 1), spacing=2.)
-        with self.assertRaisesRegex(TypeError, ''):
-            create_grid((1, 1), spacing=2.)
+        with self.assertRaisesRegex(TypeError, ""):
+            create_grid((1, 1), spacing=2.0)
+        with self.assertRaisesRegex(TypeError, ""):
+            create_grid((1, 1), spacing=2.0)
 
         g = create_grid((1, 1))
-        expected = np.array([[[0.]], [[0.]], [[1.]]])
+        expected = np.array([[[0.0]], [[0.0]], [[1.0]]])
         np.testing.assert_allclose(g, expected)
 
         g = create_grid((1, 1), homogeneous=False)
-        expected = np.array([[[0.]], [[0.]]])
+        expected = np.array([[[0.0]], [[0.0]]])
         np.testing.assert_allclose(g, expected)
 
         g = create_grid((1, 1), spacing=(1.2, 1.3))
-        expected = np.array([[[0.]], [[0.]], [[1.]]])
+        expected = np.array([[[0.0]], [[0.0]], [[1.0]]])
         np.testing.assert_allclose(g, expected)
 
         g = create_grid((1, 1, 1), spacing=(1.2, 1.3, 1.0))
-        expected = np.array([[[[0.]]], [[[0.]]], [[[0.]]], [[[1.]]]])
+        expected = np.array([[[[0.0]]], [[[0.0]]], [[[0.0]]], [[[1.0]]]])
         np.testing.assert_allclose(g, expected)
 
         g = create_grid((1, 1, 1), spacing=(1.2, 1.3, 1.0), homogeneous=False)
-        expected = np.array([[[[0.]]], [[[0.]]], [[[0.]]]])
+        expected = np.array([[[[0.0]]], [[[0.0]]], [[[0.0]]]])
         np.testing.assert_allclose(g, expected)
 
         g = create_grid((1, 1, 1), spacing=(1.2, 1.3, 1.0), dtype=np.int32)
         np.testing.assert_equal(g.dtype, np.int32)
 
         g = create_grid((2, 2, 2))
-        expected = np.array([[[[-0.5, -0.5], [-0.5, -0.5]], [[0.5, 0.5], [0.5, 0.5]]],
-                             [[[-0.5, -0.5], [0.5, 0.5]], [[-0.5, -0.5], [0.5, 0.5]]],
-                             [[[-0.5, 0.5], [-0.5, 0.5]], [[-0.5, 0.5], [-0.5, 0.5]]],
-                             [[[1., 1.], [1., 1.]], [[1., 1.], [1., 1.]]]])
+        expected = np.array(
+            [
+                [[[-0.5, -0.5], [-0.5, -0.5]], [[0.5, 0.5], [0.5, 0.5]]],
+                [[[-0.5, -0.5], [0.5, 0.5]], [[-0.5, -0.5], [0.5, 0.5]]],
+                [[[-0.5, 0.5], [-0.5, 0.5]], [[-0.5, 0.5], [-0.5, 0.5]]],
+                [[[1.0, 1.0], [1.0, 1.0]], [[1.0, 1.0], [1.0, 1.0]]],
+            ]
+        )
         np.testing.assert_allclose(g, expected)
 
         g = create_grid((2, 2, 2), spacing=(1.2, 1.3, 1.0))
-        expected = np.array([[[[-0.6, -0.6], [-0.6, -0.6]], [[0.6, 0.6], [0.6, 0.6]]],
-                             [[[-0.65, -0.65], [0.65, 0.65]], [[-0.65, -0.65], [0.65, 0.65]]],
-                             [[[-0.5, 0.5], [-0.5, 0.5]], [[-0.5, 0.5], [-0.5, 0.5]]],
-                             [[[1., 1.], [1., 1.]], [[1., 1.], [1., 1.]]]])
+        expected = np.array(
+            [
+                [[[-0.6, -0.6], [-0.6, -0.6]], [[0.6, 0.6], [0.6, 0.6]]],
+                [[[-0.65, -0.65], [0.65, 0.65]], [[-0.65, -0.65], [0.65, 0.65]]],
+                [[[-0.5, 0.5], [-0.5, 0.5]], [[-0.5, 0.5], [-0.5, 0.5]]],
+                [[[1.0, 1.0], [1.0, 1.0]], [[1.0, 1.0], [1.0, 1.0]]],
+            ]
+        )
         np.testing.assert_allclose(g, expected)
 
     def test_create_control_grid(self):
-        with self.assertRaisesRegex(TypeError, ''):
+        with self.assertRaisesRegex(TypeError, ""):
             create_control_grid(None, None)
-        with self.assertRaisesRegex(TypeError, ''):
-            create_control_grid((1, 1), 2.)
+        with self.assertRaisesRegex(TypeError, ""):
+            create_control_grid((1, 1), 2.0)
 
-        g = create_control_grid((1., 1.), (1., 1.))
-        expected = np.array([
-            [[-1., -1., -1.], [0., 0., 0.], [1., 1., 1.]],
-            [[-1., 0., 1.], [-1., 0., 1.], [-1., 0., 1.]],
-            [[1., 1., 1.], [1., 1., 1.], [1., 1., 1.]],
-        ])
+        g = create_control_grid((1.0, 1.0), (1.0, 1.0))
+        expected = np.array(
+            [
+                [[-1.0, -1.0, -1.0], [0.0, 0.0, 0.0], [1.0, 1.0, 1.0]],
+                [[-1.0, 0.0, 1.0], [-1.0, 0.0, 1.0], [-1.0, 0.0, 1.0]],
+                [[1.0, 1.0, 1.0], [1.0, 1.0, 1.0], [1.0, 1.0, 1.0]],
+            ]
+        )
         np.testing.assert_allclose(g, expected)
 
-        g = create_control_grid((1., 1.), (2., 2.))
-        expected = np.array([
-            [[-2., -2., -2.], [0., 0., 0.], [2., 2., 2.]],
-            [[-2., 0., 2.], [-2., 0., 2.], [-2., 0., 2.]],
-            [[1., 1., 1.], [1., 1., 1.], [1., 1., 1.]],
-        ])
+        g = create_control_grid((1.0, 1.0), (2.0, 2.0))
+        expected = np.array(
+            [
+                [[-2.0, -2.0, -2.0], [0.0, 0.0, 0.0], [2.0, 2.0, 2.0]],
+                [[-2.0, 0.0, 2.0], [-2.0, 0.0, 2.0], [-2.0, 0.0, 2.0]],
+                [[1.0, 1.0, 1.0], [1.0, 1.0, 1.0], [1.0, 1.0, 1.0]],
+            ]
+        )
         np.testing.assert_allclose(g, expected)
 
-        g = create_control_grid((2., 2.), (1., 1.))
-        expected = np.array([
-            [[-1.5, -1.5, -1.5, -1.5], [-0.5, -0.5, -0.5, -0.5], [0.5, 0.5, 0.5, 0.5], [1.5, 1.5, 1.5, 1.5]],
-            [[-1.5, -0.5, 0.5, 1.5], [-1.5, -0.5, 0.5, 1.5], [-1.5, -0.5, 0.5, 1.5], [-1.5, -0.5, 0.5, 1.5]],
-            [[1., 1., 1., 1.], [1., 1., 1., 1.], [1., 1., 1., 1.], [1., 1., 1., 1.]],
-        ])
+        g = create_control_grid((2.0, 2.0), (1.0, 1.0))
+        expected = np.array(
+            [
+                [[-1.5, -1.5, -1.5, -1.5], [-0.5, -0.5, -0.5, -0.5], [0.5, 0.5, 0.5, 0.5], [1.5, 1.5, 1.5, 1.5]],
+                [[-1.5, -0.5, 0.5, 1.5], [-1.5, -0.5, 0.5, 1.5], [-1.5, -0.5, 0.5, 1.5], [-1.5, -0.5, 0.5, 1.5]],
+                [[1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0]],
+            ]
+        )
         np.testing.assert_allclose(g, expected)
 
-        g = create_control_grid((2., 2.), (2., 2.))
-        expected = np.array([
-            [[-3., -3., -3., -3.], [-1., -1., -1., -1.], [1., 1., 1., 1.], [3., 3., 3., 3.]],
-            [[-3., -1., 1., 3.], [-3., -1., 1., 3.], [-3., -1., 1., 3.], [-3., -1., 1., 3.]],
-            [[1., 1., 1., 1.], [1., 1., 1., 1.], [1., 1., 1., 1.], [1., 1., 1., 1.]],
-        ])
+        g = create_control_grid((2.0, 2.0), (2.0, 2.0))
+        expected = np.array(
+            [
+                [[-3.0, -3.0, -3.0, -3.0], [-1.0, -1.0, -1.0, -1.0], [1.0, 1.0, 1.0, 1.0], [3.0, 3.0, 3.0, 3.0]],
+                [[-3.0, -1.0, 1.0, 3.0], [-3.0, -1.0, 1.0, 3.0], [-3.0, -1.0, 1.0, 3.0], [-3.0, -1.0, 1.0, 3.0]],
+                [[1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0]],
+            ]
+        )
         np.testing.assert_allclose(g, expected)
 
-        g = create_control_grid((1., 1., 1.), (2., 2., 2.), homogeneous=False)
-        expected = np.array([[[[-2., -2., -2.], [-2., -2., -2.], [-2., -2., -2.]],
-                              [[0., 0., 0.], [0., 0., 0.], [0., 0., 0.]], [[2., 2., 2.], [2., 2., 2.], [2., 2., 2.]]],
-                             [[[-2., -2., -2.], [0., 0., 0.], [2., 2., 2.]],
-                              [[-2., -2., -2.], [0., 0., 0.], [2., 2., 2.]],
-                              [[-2., -2., -2.], [0., 0., 0.], [2., 2., 2.]]],
-                             [[[-2., 0., 2.], [-2., 0., 2.], [-2., 0., 2.]],
-                              [[-2., 0., 2.], [-2., 0., 2.], [-2., 0., 2.]],
-                              [[-2., 0., 2.], [-2., 0., 2.], [-2., 0., 2.]]]])
+        g = create_control_grid((1.0, 1.0, 1.0), (2.0, 2.0, 2.0), homogeneous=False)
+        expected = np.array(
+            [
+                [
+                    [[-2.0, -2.0, -2.0], [-2.0, -2.0, -2.0], [-2.0, -2.0, -2.0]],
+                    [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
+                    [[2.0, 2.0, 2.0], [2.0, 2.0, 2.0], [2.0, 2.0, 2.0]],
+                ],
+                [
+                    [[-2.0, -2.0, -2.0], [0.0, 0.0, 0.0], [2.0, 2.0, 2.0]],
+                    [[-2.0, -2.0, -2.0], [0.0, 0.0, 0.0], [2.0, 2.0, 2.0]],
+                    [[-2.0, -2.0, -2.0], [0.0, 0.0, 0.0], [2.0, 2.0, 2.0]],
+                ],
+                [
+                    [[-2.0, 0.0, 2.0], [-2.0, 0.0, 2.0], [-2.0, 0.0, 2.0]],
+                    [[-2.0, 0.0, 2.0], [-2.0, 0.0, 2.0], [-2.0, 0.0, 2.0]],
+                    [[-2.0, 0.0, 2.0], [-2.0, 0.0, 2.0], [-2.0, 0.0, 2.0]],
+                ],
+            ]
+        )
         np.testing.assert_allclose(g, expected)
 
 
@@ -120,57 +152,107 @@ def test_assert(func, params, expected):
 
 
 class TestCreateAffine(unittest.TestCase):
-
     def test_create_rotate(self):
-        with self.assertRaisesRegex(TypeError, ''):
+        with self.assertRaisesRegex(TypeError, ""):
             create_rotate(2, None)
 
-        with self.assertRaisesRegex(ValueError, ''):
+        with self.assertRaisesRegex(ValueError, ""):
             create_rotate(5, 1)
 
-        test_assert(create_rotate, (2, 1.1),
-                    np.array([[0.45359612, -0.89120736, 0.], [0.89120736, 0.45359612, 0.], [0., 0., 1.]]))
         test_assert(
-            create_rotate, (3, 1.1),
-            np.array([[1., 0., 0., 0.], [0., 0.45359612, -0.89120736, 0.], [0., 0.89120736, 0.45359612, 0.],
-                      [0., 0., 0., 1.]]))
+            create_rotate,
+            (2, 1.1),
+            np.array([[0.45359612, -0.89120736, 0.0], [0.89120736, 0.45359612, 0.0], [0.0, 0.0, 1.0]]),
+        )
         test_assert(
-            create_rotate, (3, (1.1, 1)),
-            np.array([[0.54030231, 0., 0.84147098, 0.], [0.74992513, 0.45359612, -0.48152139, 0.],
-                      [-0.38168798, 0.89120736, 0.24507903, 0.], [0., 0., 0., 1.]]))
+            create_rotate,
+            (3, 1.1),
+            np.array(
+                [
+                    [1.0, 0.0, 0.0, 0.0],
+                    [0.0, 0.45359612, -0.89120736, 0.0],
+                    [0.0, 0.89120736, 0.45359612, 0.0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ]
+            ),
+        )
         test_assert(
-            create_rotate, (3, (1, 1, 1.1)),
-            np.array([[0.24507903, -0.48152139, 0.84147098, 0.], [0.80270075, -0.38596121, -0.45464871, 0.],
-                      [0.54369824, 0.78687425, 0.29192658, 0.], [0., 0., 0., 1.]]))
-        test_assert(create_rotate, (3, (0, 0, np.pi / 2)),
-                    np.array([[0., -1., 0., 0.], [1., 0., 0., 0.], [0., 0., 1., 0.], [0., 0., 0., 1.]]))
+            create_rotate,
+            (3, (1.1, 1)),
+            np.array(
+                [
+                    [0.54030231, 0.0, 0.84147098, 0.0],
+                    [0.74992513, 0.45359612, -0.48152139, 0.0],
+                    [-0.38168798, 0.89120736, 0.24507903, 0.0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ]
+            ),
+        )
+        test_assert(
+            create_rotate,
+            (3, (1, 1, 1.1)),
+            np.array(
+                [
+                    [0.24507903, -0.48152139, 0.84147098, 0.0],
+                    [0.80270075, -0.38596121, -0.45464871, 0.0],
+                    [0.54369824, 0.78687425, 0.29192658, 0.0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ]
+            ),
+        )
+        test_assert(
+            create_rotate,
+            (3, (0, 0, np.pi / 2)),
+            np.array([[0.0, -1.0, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]),
+        )
 
     def test_create_shear(self):
-        test_assert(create_shear, (2, 1.), np.array([[1., 1., 0.], [0., 1., 0.], [0., 0., 1.]]))
-        test_assert(create_shear, (2, (2., 3.)), np.array([[1., 2., 0.], [3., 1., 0.], [0., 0., 1.]]))
-        test_assert(create_shear, (3, 1.),
-                    np.array([[1., 1., 0., 0.], [0., 1., 0., 0.], [0., 0., 1., 0.], [0., 0., 0., 1.]]))
+        test_assert(create_shear, (2, 1.0), np.array([[1.0, 1.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]))
+        test_assert(create_shear, (2, (2.0, 3.0)), np.array([[1.0, 2.0, 0.0], [3.0, 1.0, 0.0], [0.0, 0.0, 1.0]]))
+        test_assert(
+            create_shear,
+            (3, 1.0),
+            np.array([[1.0, 1.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]),
+        )
 
     def test_create_scale(self):
-        test_assert(create_scale, (2, 2), np.array([[2., 0., 0.], [0., 1., 0.], [0., 0., 1.]]))
-        test_assert(create_scale, (2, [2, 2, 2]), np.array([[2., 0., 0.], [0., 2., 0.], [0., 0., 1.]]))
-        test_assert(create_scale, (3, [1.5, 2.4]),
-                    np.array([[1.5, 0., 0., 0.], [0., 2.4, 0., 0.], [0., 0., 1., 0.], [0., 0., 0., 1.]]))
-        test_assert(create_scale, (3, 1.5),
-                    np.array([[1.5, 0., 0., 0.], [0., 1., 0., 0.], [0., 0., 1., 0.], [0., 0., 0., 1.]]))
-        test_assert(create_scale, (3, [1, 2, 3, 4, 5]),
-                    np.array([[1., 0., 0., 0.], [0., 2., 0., 0.], [0., 0., 3., 0.], [0., 0., 0., 1.]]))
+        test_assert(create_scale, (2, 2), np.array([[2.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]))
+        test_assert(create_scale, (2, [2, 2, 2]), np.array([[2.0, 0.0, 0.0], [0.0, 2.0, 0.0], [0.0, 0.0, 1.0]]))
+        test_assert(
+            create_scale,
+            (3, [1.5, 2.4]),
+            np.array([[1.5, 0.0, 0.0, 0.0], [0.0, 2.4, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]),
+        )
+        test_assert(
+            create_scale,
+            (3, 1.5),
+            np.array([[1.5, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]),
+        )
+        test_assert(
+            create_scale,
+            (3, [1, 2, 3, 4, 5]),
+            np.array([[1.0, 0.0, 0.0, 0.0], [0.0, 2.0, 0.0, 0.0], [0.0, 0.0, 3.0, 0.0], [0.0, 0.0, 0.0, 1.0]]),
+        )
 
     def test_create_translate(self):
-        test_assert(create_translate, (2, 2), np.array([[1., 0., 2.], [0., 1., 0.], [0., 0., 1.]]))
-        test_assert(create_translate, (2, [2, 2, 2]), np.array([[1., 0., 2.], [0., 1., 2.], [0., 0., 1.]]))
-        test_assert(create_translate, (3, [1.5, 2.4]),
-                    np.array([[1., 0., 0., 1.5], [0., 1., 0., 2.4], [0., 0., 1., 0.], [0., 0., 0., 1.]]))
-        test_assert(create_translate, (3, 1.5),
-                    np.array([[1., 0., 0., 1.5], [0., 1., 0., 0.], [0., 0., 1., 0.], [0., 0., 0., 1.]]))
-        test_assert(create_translate, (3, [1, 2, 3, 4, 5]),
-                    np.array([[1., 0., 0., 1.], [0., 1., 0., 2.], [0., 0., 1., 3.], [0., 0., 0., 1.]]))
+        test_assert(create_translate, (2, 2), np.array([[1.0, 0.0, 2.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]))
+        test_assert(create_translate, (2, [2, 2, 2]), np.array([[1.0, 0.0, 2.0], [0.0, 1.0, 2.0], [0.0, 0.0, 1.0]]))
+        test_assert(
+            create_translate,
+            (3, [1.5, 2.4]),
+            np.array([[1.0, 0.0, 0.0, 1.5], [0.0, 1.0, 0.0, 2.4], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]),
+        )
+        test_assert(
+            create_translate,
+            (3, 1.5),
+            np.array([[1.0, 0.0, 0.0, 1.5], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]),
+        )
+        test_assert(
+            create_translate,
+            (3, [1, 2, 3, 4, 5]),
+            np.array([[1.0, 0.0, 0.0, 1.0], [0.0, 1.0, 0.0, 2.0], [0.0, 0.0, 1.0, 3.0], [0.0, 0.0, 0.0, 1.0]]),
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

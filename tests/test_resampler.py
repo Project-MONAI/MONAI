@@ -20,46 +20,57 @@ from monai.transforms.utils import create_grid
 
 TEST_CASES = [
     [
-        dict(padding_mode='zeros', as_tensor_output=False, device=None),
-        {'grid': create_grid((2, 2)), 'img': np.arange(4).reshape((1, 2, 2))},
-        np.array([[[0., 0.25], [0.5, 0.75]]])
+        dict(padding_mode="zeros", as_tensor_output=False, device=None),
+        {"grid": create_grid((2, 2)), "img": np.arange(4).reshape((1, 2, 2))},
+        np.array([[[0.0, 0.25], [0.5, 0.75]]]),
     ],
     [
-        dict(padding_mode='zeros', as_tensor_output=False, device=None),
-        {'grid': create_grid((4, 4)), 'img': np.arange(4).reshape((1, 2, 2))},
-        np.array([[[0., 0., 0., 0.], [0., 0., 0.25, 0.], [0., 0.5, 0.75, 0.], [0., 0., 0., 0.]]])
+        dict(padding_mode="zeros", as_tensor_output=False, device=None),
+        {"grid": create_grid((4, 4)), "img": np.arange(4).reshape((1, 2, 2))},
+        np.array([[[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.25, 0.0], [0.0, 0.5, 0.75, 0.0], [0.0, 0.0, 0.0, 0.0]]]),
     ],
     [
-        dict(padding_mode='border', as_tensor_output=False, device=None),
-        {'grid': create_grid((4, 4)), 'img': np.arange(4).reshape((1, 2, 2))},
-        np.array([[[0., 0., 1., 1.], [0., 0., 1., 1.], [2., 2., 3, 3.], [2., 2., 3., 3.]]])
+        dict(padding_mode="border", as_tensor_output=False, device=None),
+        {"grid": create_grid((4, 4)), "img": np.arange(4).reshape((1, 2, 2))},
+        np.array([[[0.0, 0.0, 1.0, 1.0], [0.0, 0.0, 1.0, 1.0], [2.0, 2.0, 3, 3.0], [2.0, 2.0, 3.0, 3.0]]]),
     ],
     [
-        dict(padding_mode='reflection', as_tensor_output=False, device=None),
-        {'grid': create_grid((4, 4)), 'img': np.arange(4).reshape((1, 2, 2)), 'mode': 'nearest'},
-        np.array([[[3., 2., 3., 2.], [1., 0., 1., 0.], [3., 2., 3., 2.], [1., 0., 1., 0.]]])
+        dict(padding_mode="reflection", as_tensor_output=False, device=None),
+        {"grid": create_grid((4, 4)), "img": np.arange(4).reshape((1, 2, 2)), "mode": "nearest"},
+        np.array([[[3.0, 2.0, 3.0, 2.0], [1.0, 0.0, 1.0, 0.0], [3.0, 2.0, 3.0, 2.0], [1.0, 0.0, 1.0, 0.0]]]),
     ],
     [
-        dict(padding_mode='zeros', as_tensor_output=False, device=None),
-        {'grid': create_grid((4, 4, 4)), 'img': np.arange(8).reshape((1, 2, 2, 2)), 'mode': 'bilinear'},
-        np.array([[[[0., 0., 0., 0.], [0., 0., 0., 0.], [0., 0., 0., 0.], [0., 0., 0., 0.]],
-                   [[0., 0., 0., 0.], [0., 0., 0.125, 0.], [0., 0.25, 0.375, 0.], [0., 0., 0., 0.]],
-                   [[0., 0., 0., 0.], [0., 0.5, 0.625, 0.], [0., 0.75, 0.875, 0.], [0., 0., 0., 0.]],
-                   [[0., 0., 0., 0.], [0., 0., 0., 0.], [0., 0., 0., 0.], [0., 0., 0., 0.]]]])
+        dict(padding_mode="zeros", as_tensor_output=False, device=None),
+        {"grid": create_grid((4, 4, 4)), "img": np.arange(8).reshape((1, 2, 2, 2)), "mode": "bilinear"},
+        np.array(
+            [
+                [
+                    [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]],
+                    [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.125, 0.0], [0.0, 0.25, 0.375, 0.0], [0.0, 0.0, 0.0, 0.0]],
+                    [[0.0, 0.0, 0.0, 0.0], [0.0, 0.5, 0.625, 0.0], [0.0, 0.75, 0.875, 0.0], [0.0, 0.0, 0.0, 0.0]],
+                    [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]],
+                ]
+            ]
+        ),
     ],
     [
-        dict(padding_mode='border', as_tensor_output=False, device=None),
-        {'grid': create_grid((4, 4, 4)), 'img': np.arange(8).reshape((1, 2, 2, 2)), 'mode': 'bilinear'},
-        np.array([[[[0., 0., 1., 1.], [0., 0., 1., 1.], [2., 2., 3., 3.], [2., 2., 3., 3.]],
-                   [[0., 0., 1., 1.], [0., 0., 1., 1.], [2., 2., 3., 3.], [2., 2., 3., 3.]],
-                   [[4., 4., 5., 5.], [4., 4., 5., 5.], [6., 6., 7., 7.], [6., 6., 7., 7.]],
-                   [[4., 4., 5., 5.], [4., 4., 5., 5.], [6., 6., 7., 7.], [6., 6., 7., 7.]]]])
+        dict(padding_mode="border", as_tensor_output=False, device=None),
+        {"grid": create_grid((4, 4, 4)), "img": np.arange(8).reshape((1, 2, 2, 2)), "mode": "bilinear"},
+        np.array(
+            [
+                [
+                    [[0.0, 0.0, 1.0, 1.0], [0.0, 0.0, 1.0, 1.0], [2.0, 2.0, 3.0, 3.0], [2.0, 2.0, 3.0, 3.0]],
+                    [[0.0, 0.0, 1.0, 1.0], [0.0, 0.0, 1.0, 1.0], [2.0, 2.0, 3.0, 3.0], [2.0, 2.0, 3.0, 3.0]],
+                    [[4.0, 4.0, 5.0, 5.0], [4.0, 4.0, 5.0, 5.0], [6.0, 6.0, 7.0, 7.0], [6.0, 6.0, 7.0, 7.0]],
+                    [[4.0, 4.0, 5.0, 5.0], [4.0, 4.0, 5.0, 5.0], [6.0, 6.0, 7.0, 7.0], [6.0, 6.0, 7.0, 7.0]],
+                ]
+            ]
+        ),
     ],
 ]
 
 
 class TestResample(unittest.TestCase):
-
     @parameterized.expand(TEST_CASES)
     def test_resample(self, input_param, input_data, expected_val):
         g = Resample(**input_param)
@@ -71,5 +82,5 @@ class TestResample(unittest.TestCase):
             np.testing.assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

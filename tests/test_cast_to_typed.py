@@ -15,23 +15,13 @@ from parameterized import parameterized
 from monai.transforms import CastToTyped
 
 TEST_CASE_1 = [
-    {
-        'keys': ['img'],
-        'dtype': np.float64
-    },
-    {
-        'img': np.array([[0, 1], [1, 2]], dtype=np.float32),
-        'seg': np.array([[0, 1], [1, 2]], dtype=np.int8)
-    },
-    {
-        'img': np.float64,
-        'seg': np.int8
-    }
+    {"keys": ["img"], "dtype": np.float64},
+    {"img": np.array([[0, 1], [1, 2]], dtype=np.float32), "seg": np.array([[0, 1], [1, 2]], dtype=np.int8)},
+    {"img": np.float64, "seg": np.int8},
 ]
 
 
 class TestCastToTyped(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_1])
     def test_type(self, input_param, input_data, expected_type):
         result = CastToTyped(**input_param)(input_data)
@@ -39,5 +29,5 @@ class TestCastToTyped(unittest.TestCase):
             self.assertEqual(v.dtype, expected_type[k])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

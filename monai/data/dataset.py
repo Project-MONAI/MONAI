@@ -77,14 +77,15 @@ class PersistentDataset(Dataset):
          },                           },                           }]
 
     For a composite transform like 
-     [
-        LoadNiftid(keys=['image', 'label']),
-        Orientationd(keys=['image', 'label'], axcodes='RAS'),
-        ScaleIntensityRanged(keys=['image'], a_min=-57, a_max=164, b_min=0.0, b_max=1.0, clip=True),
-        RandCropByPosNegLabeld(keys=['image', 'label'], label_key='label', size=(96, 96, 96), pos=1,
-                           neg=1, num_samples=4, image_key='image', image_threshold=0),
-        ToTensord(keys=['image', 'label'])
-     ]
+
+    .. code-block:: python
+
+        [ LoadNiftid(keys=['image', 'label']),
+          Orientationd(keys=['image', 'label'], axcodes='RAS'),
+          ScaleIntensityRanged(keys=['image'], a_min=-57, a_max=164, b_min=0.0, b_max=1.0, clip=True),
+          RandCropByPosNegLabeld(keys=['image', 'label'], label_key='label', size=(96, 96, 96), 
+                                 pos=1, neg=1, num_samples=4, image_key='image', image_threshold=0),
+          ToTensord(keys=['image', 'label'])]
 
      Upon first use a filename based dataset will be processed by the transform for the
      [LoadNiftid, Orientationd, ScaleIntensityRanged] and the resulting tensor written to
@@ -166,7 +167,9 @@ class PersistentDataset(Dataset):
                 cache_dir_path: Path = Path(self.cache_dir)
                 if cache_dir_path.is_dir():
                     # TODO: Find way to hash transforms content as part of the cache
-                    data_item_md5 = hashlib.md5(json.dumps(item_transformed, sort_keys=True).encode('utf-8')).hexdigest()
+                    data_item_md5 = hashlib.md5(
+                        json.dumps(item_transformed, sort_keys=True).encode("utf-8")
+                    ).hexdigest()
                     hashfile: Path = Path(cache_dir_path) / f"{data_item_md5}.pt"
 
             if hashfile is not None and hashfile.is_file():
@@ -234,24 +237,28 @@ class CacheDataset(Dataset):
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
             cache_rate (float): percentage of cached data in total, default is 1.0 (cache all).
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
-            num_workers (int): the number of worker processes to use.
+            num_workers (int): the number of worker threads to use.
                 If 0 a single thread will be used. Default is 0.
         """
         if not isinstance(transform, Compose):
             transform = Compose(transform)
         super().__init__(data, transform)
         self.cache_num = min(cache_num, int(len(self) * cache_rate), len(self))
-        self._cache = [None] * self.cache_num
-        print('Load and cache transformed data...')
-        if num_workers > 0:
-            self._item_processed = 0
-            self._thread_lock = threading.Lock()
-            with ThreadPool(num_workers) as p:
-                p.map(self._load_cache_item_thread, [(i, data[i], transform.transforms) for i in range(self.cache_num)])
-        else:
-            for i in range(self.cache_num):
-                self._cache[i] = self._load_cache_item(data[i], transform.transforms)
-                process_bar(i + 1, self.cache_num)
+        if self.cache_num > 0:
+            self._cache = [None] * self.cache_num
+            print("Load and cache transformed data...")
+            if num_workers > 0:
+                self._item_processed = 0
+                self._thread_lock = threading.Lock()
+                with ThreadPool(num_workers) as p:
+                    p.map(
+                        self._load_cache_item_thread,
+                        [(i, data[i], transform.transforms) for i in range(self.cache_num)],
+                    )
+            else:
+                for i in range(self.cache_num):
+                    self._cache[i] = self._load_cache_item(data[i], transform.transforms)
+                    process_bar(i + 1, self.cache_num)
 
     def _load_cache_item(self, item, transforms):
         for _transform in transforms:

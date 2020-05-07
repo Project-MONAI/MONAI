@@ -28,7 +28,7 @@ class SpatialPadd(MapTransform):
     Performs padding to the data, symmetric for all sides or all on one side for each dimension.
     """
 
-    def __init__(self, keys, spatial_size, method='symmetric', mode='constant'):
+    def __init__(self, keys, spatial_size, method="symmetric", mode="constant"):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -172,8 +172,9 @@ class CropForegroundd(MapTransform):
 
     def __call__(self, data):
         d = dict(data)
-        box_start, box_end = \
-            generate_spatial_bounding_box(data[self.source_key], self.select_fn, self.channel_indexes, self.margin)
+        box_start, box_end = generate_spatial_bounding_box(
+            data[self.source_key], self.select_fn, self.channel_indexes, self.margin
+        )
         cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
         for key in self.keys:
             d[key] = cropper(d[key])
@@ -203,14 +204,15 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
 
     def __init__(self, keys, label_key, size, pos=1, neg=1, num_samples=1, image_key=None, image_threshold=0):
         super().__init__(keys)
-        assert isinstance(label_key, str), 'label_key must be a string.'
-        assert isinstance(size, (list, tuple)), 'size must be list or tuple.'
-        assert all(isinstance(x, int) and x > 0 for x in size), 'all elements of size must be positive integers.'
+        assert isinstance(label_key, str), "label_key must be a string."
+        assert isinstance(size, (list, tuple)), "size must be list or tuple."
+        assert all(isinstance(x, int) and x > 0 for x in size), "all elements of size must be positive integers."
         assert float(pos) >= 0 and float(neg) >= 0, "pos and neg must be greater than or equal to 0."
         assert float(pos) + float(neg) > 0, "pos and neg cannot both be 0."
-        assert isinstance(num_samples, int), \
-            "invalid samples number: {}. num_samples must be an integer.".format(num_samples)
-        assert num_samples >= 0, 'num_samples must be greater than or equal to 0.'
+        assert isinstance(num_samples, int), "invalid samples number: {}. num_samples must be an integer.".format(
+            num_samples
+        )
+        assert num_samples >= 0, "num_samples must be greater than or equal to 0."
         self.label_key = label_key
         self.size = size
         self.pos_ratio = float(pos) / (float(pos) + float(neg))
@@ -220,8 +222,9 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         self.centers = None
 
     def randomize(self, label, image):
-        self.centers = generate_pos_neg_label_crop_centers(label, self.size, self.num_samples, self.pos_ratio,
-                                                           image, self.image_threshold, self.R)
+        self.centers = generate_pos_neg_label_crop_centers(
+            label, self.size, self.num_samples, self.pos_ratio, image, self.image_threshold, self.R
+        )
 
     def __call__(self, data):
         d = dict(data)

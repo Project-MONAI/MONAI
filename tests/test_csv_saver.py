@@ -21,28 +21,27 @@ from monai.data import CSVSaver
 
 
 class TestCSVSaver(unittest.TestCase):
-
     def test_saved_content(self):
-        default_dir = os.path.join('.', 'tempdir')
+        default_dir = os.path.join(".", "tempdir")
         shutil.rmtree(default_dir, ignore_errors=True)
 
-        saver = CSVSaver(output_dir=default_dir, filename='predictions.csv')
+        saver = CSVSaver(output_dir=default_dir, filename="predictions.csv")
 
-        meta_data = {'filename_or_obj': ['testfile' + str(i) for i in range(8)]}
+        meta_data = {"filename_or_obj": ["testfile" + str(i) for i in range(8)]}
         saver.save_batch(torch.zeros(8), meta_data)
         saver.finalize()
-        filepath = os.path.join(default_dir, 'predictions.csv')
+        filepath = os.path.join(default_dir, "predictions.csv")
         self.assertTrue(os.path.exists(filepath))
-        with open(filepath, 'r') as f:
+        with open(filepath, "r") as f:
             reader = csv.reader(f)
             i = 0
             for row in reader:
-                self.assertEqual(row[0], 'testfile' + str(i))
+                self.assertEqual(row[0], "testfile" + str(i))
                 self.assertEqual(np.array(row[1:]).astype(np.float32), 0.0)
                 i += 1
             self.assertEqual(i, 8)
         shutil.rmtree(default_dir)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

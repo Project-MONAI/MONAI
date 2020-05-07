@@ -19,21 +19,17 @@ from tests.utils import NumpyImageTestCase2D
 
 
 class TestRandGaussianNoised(NumpyImageTestCase2D):
-
-    @parameterized.expand([
-        ("test_zero_mean", ['img'], 0, 0.1),
-        ("test_non_zero_mean", ['img'], 1, 0.5)
-    ])
+    @parameterized.expand([("test_zero_mean", ["img"], 0, 0.1), ("test_non_zero_mean", ["img"], 1, 0.5)])
     def test_correct_results(self, _, keys, mean, std):
         seed = 0
         gaussian_fn = RandGaussianNoised(keys=keys, prob=1.0, mean=mean, std=std)
         gaussian_fn.set_random_state(seed)
-        noised = gaussian_fn({'img': self.imt})
+        noised = gaussian_fn({"img": self.imt})
         np.random.seed(seed)
         np.random.random()
         expected = self.imt + np.random.normal(mean, np.random.uniform(0, std), size=self.imt.shape)
-        np.testing.assert_allclose(expected, noised['img'])
+        np.testing.assert_allclose(expected, noised["img"])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

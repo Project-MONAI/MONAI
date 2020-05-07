@@ -14,14 +14,18 @@ import shutil
 import unittest
 import torch
 from ignite.engine import Engine
-
+from parameterized import parameterized
 from monai.handlers import SegmentationSaver
+
+TEST_CASE_1 = [".nii.gz"]
+
+TEST_CASE_1 = [".png"]
 
 
 class TestHandlerSegmentationSaver(unittest.TestCase):
-
-    def test_saved_content(self):
-        default_dir = os.path.join('.', 'tempdir')
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_1])
+    def test_saved_content(self, output_ext):
+        default_dir = os.path.join(".", "tempdir")
         shutil.rmtree(default_dir, ignore_errors=True)
 
         # set up engine
@@ -31,16 +35,16 @@ class TestHandlerSegmentationSaver(unittest.TestCase):
         engine = Engine(_train_func)
 
         # set up testing handler
-        saver = SegmentationSaver(output_dir=default_dir, output_postfix='seg', output_ext='.nii.gz')
+        saver = SegmentationSaver(output_dir=default_dir, output_postfix="seg", output_ext=output_ext)
         saver.attach(engine)
 
-        data = [{'filename_or_obj': ['testfile' + str(i) for i in range(8)]}]
+        data = [{"filename_or_obj": ["testfile" + str(i) for i in range(8)]}]
         engine.run(data, max_epochs=1)
         for i in range(8):
-            filepath = os.path.join('testfile' + str(i), 'testfile' + str(i) + '_seg.nii.gz')
+            filepath = os.path.join("testfile" + str(i), "testfile" + str(i) + "_seg" + output_ext)
             self.assertTrue(os.path.exists(os.path.join(default_dir, filepath)))
         shutil.rmtree(default_dir)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

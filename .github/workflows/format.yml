@@ -20,6 +20,7 @@ jobs:
                 "command": "black",
                 "permission": "none",
                 "issue_type": "pull-request",
+                "allow_edits": true,
                 "repository": "project-monai/monai-code-formatter"
               }
             ]

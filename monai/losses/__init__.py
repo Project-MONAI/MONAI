@@ -10,4 +10,5 @@
 # limitations under the License.
 
 from .dice import *
+from .focal_loss import *
 from .tversky import *

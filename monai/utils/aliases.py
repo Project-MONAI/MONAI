@@ -35,7 +35,7 @@ def alias(*names):
                 GlobalAliases[n] = obj
 
         # set the member list __aliases__ to contain the alias names defined by the decorator for `obj`
-        obj.__aliases__ = getattr(obj, '__aliases__', ()) + tuple(names)
+        obj.__aliases__ = getattr(obj, "__aliases__", ()) + tuple(names)
 
         return obj
 
@@ -62,10 +62,10 @@ def resolve_name(name):
             mod = importlib.import_module(modname)
             obj = getattr(mod, declname, None)
         except ModuleNotFoundError:
-            raise ValueError("Module %r not found" % modname)
+            raise ValueError(f"Module {modname!r} not found")
 
         if obj is None:
-            raise ValueError("Module %r does not have member %r" % (modname, declname))
+            raise ValueError(f"Module {modname!r} does not have member {declname!r}")
 
     # attempt to resolve a simple name
     if obj is None:
@@ -81,7 +81,10 @@ def resolve_name(name):
 
                 if len(foundmods) > 1:  # found multiple declarations with the same name
                     modnames = [m.__name__ for m in foundmods]
-                    msg = "Multiple modules (%r) with declaration name %r found, resolution is ambiguous" % (modnames, name)
+                    msg = "Multiple modules (%r) with declaration name %r found, resolution is ambiguous" % (
+                        modnames,
+                        name,
+                    )
                     raise ValueError(msg)
                 else:
                     mods = list(foundmods)
@@ -89,6 +92,6 @@ def resolve_name(name):
             obj = getattr(mods[0], name)
 
         if obj is None:
-            raise ValueError("No module with member %r found" % name)
+            raise ValueError(f"No module with member {name!r} found")
 
     return obj
