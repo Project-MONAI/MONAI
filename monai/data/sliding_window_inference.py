@@ -31,7 +31,7 @@ def sliding_window_inference(inputs, roi_size, sw_batch_size, predictor):
         execute on 1 image/per inference, run a batch of window slices of 1 input image.
     """
     num_spatial_dims = len(inputs.shape) - 2
-    assert len(roi_size) == num_spatial_dims, "roi_size {} does not match input dims.".format(roi_size)
+    assert len(roi_size) == num_spatial_dims, f"roi_size {roi_size} does not match input dims."
 
     # determine image spatial size and batch size
     # Note: all input images must have the same image size and batch size

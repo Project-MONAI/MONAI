@@ -122,7 +122,7 @@ class ResidualUnit(nn.Module):
                 conv_only,
             )
 
-            self.conv.add_module("unit%i" % su, unit)
+            self.conv.add_module(f"unit{su:d}", unit)
 
             # after first loop set channels and strides to what they should be for subsequent units
             schannels = out_channels

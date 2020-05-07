@@ -84,7 +84,7 @@ class HighResBlock(nn.Module):
         self.project, self.pad = None, None
         if in_channels != out_channels:
             if channel_matching not in ("pad", "project"):
-                raise ValueError("channel matching must be pad or project, got {}.".format(channel_matching))
+                raise ValueError(f"channel matching must be pad or project, got {channel_matching}.")
             if channel_matching == "project":
                 self.project = conv_type(in_channels, out_channels, kernel_size=1)
             if channel_matching == "pad":

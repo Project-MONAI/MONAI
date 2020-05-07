@@ -248,7 +248,7 @@ def rectify_header_sform_qform(img_nii):
             return img_nii
 
     norm = np.sqrt(np.sum(np.square(img_nii.affine[:d, :d]), 0))
-    warnings.warn("Modifying image pixdim from {} to {}".format(pixdim, norm))
+    warnings.warn(f"Modifying image pixdim from {pixdim} to {norm}")
 
     img_nii.header.set_zooms(norm)
     return img_nii

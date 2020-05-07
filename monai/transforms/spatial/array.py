@@ -89,7 +89,7 @@ class Spacing(Transform):
         if out_d.size < sr:
             out_d = np.append(out_d, [1.0] * (out_d.size - sr))
         if np.any(out_d <= 0):
-            raise ValueError("pixdim must be positive, got {}".format(out_d))
+            raise ValueError(f"pixdim must be positive, got {out_d}")
         # compute output affine, shape and offset
         new_affine = zoom_affine(affine_, out_d, diagonal=self.diagonal)
         output_shape, offset = compute_shape_offset(data_array.shape[1:], affine_, new_affine)
@@ -168,8 +168,8 @@ class Orientation(Transform):
             dst = nib.orientations.axcodes2ornt(self.axcodes[:sr], labels=self.labels)
             if len(dst) < sr:
                 raise ValueError(
-                    "`self.axcodes` should have at least {0} elements"
-                    ' given the data array is in spatial {0}D, got "{1}"'.format(sr, self.axcodes)
+                    f"`self.axcodes` should have at least {sr} elements"
+                    f' given the data array is in spatial {sr}D, got "{self.axcodes}"'
                 )
             spatial_ornt = nib.orientations.ornt_transform(src, dst)
         ornt = spatial_ornt.copy()

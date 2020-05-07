@@ -28,7 +28,7 @@ def get_devices_spec(devices=None):
         list of torch.device: list of devices.
     """
     if devices is None:
-        devices = [torch.device("cuda:%i" % d) for d in range(torch.cuda.device_count())]
+        devices = [torch.device(f"cuda:{d:d}") for d in range(torch.cuda.device_count())]
 
         if len(devices) == 0:
             raise ValueError("No GPU devices available")

@@ -311,7 +311,7 @@ def create_rotate(spatial_dims, radians):
             )
         return affine
 
-    raise ValueError("create_rotate got spatial_dims={}, radians={}.".format(spatial_dims, radians))
+    raise ValueError(f"create_rotate got spatial_dims={spatial_dims}, radians={radians}.")
 
 
 def create_shear(spatial_dims, coefs):
@@ -388,7 +388,7 @@ def generate_spatial_bounding_box(img, select_fn=lambda x: x > 0, channel_indexe
     box_start = list()
     box_end = list()
     for i in range(data.ndim):
-        assert len(nonzero_idx[i]) > 0, "did not find nonzero index at spatial dim {}".format(i)
+        assert len(nonzero_idx[i]) > 0, f"did not find nonzero index at spatial dim {i}"
         box_start.append(max(0, np.min(nonzero_idx[i]) - margin))
         box_end.append(min(data.shape[i], np.max(nonzero_idx[i]) + margin + 1))
     return box_start, box_end
