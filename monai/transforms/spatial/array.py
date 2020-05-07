@@ -21,7 +21,7 @@ import torch
 from skimage.transform import resize
 
 from monai.data.utils import zoom_affine, compute_shape_offset, to_affine_nd
-from monai.networks.layers.simplelayers import GaussianFilter
+from monai.networks.layers import AffineTransform, GaussianFilter
 from monai.transforms.compose import Transform, Randomizable
 from monai.transforms.utils import (
     create_control_grid,
@@ -39,40 +39,34 @@ class Spacing(Transform):
     Resample input image into the specified `pixdim`.
     """
 
-    def __init__(self, pixdim, diagonal=False, mode="constant", cval=0, dtype=None):
+    def __init__(self, pixdim, diagonal=False, padding_mode="border", dtype=None):
         """
         Args:
             pixdim (sequence of floats): output voxel spacing.
             diagonal (bool): whether to resample the input to have a diagonal affine matrix.
                 If True, the input data is resampled to the following affine::
-
                     np.diag((pixdim_0, pixdim_1, ..., pixdim_n, 1))
-
                 This effectively resets the volume to the world coordinate system (RAS+ in nibabel).
                 The original orientation, rotation, shearing are not preserved.
-
                 If False, this transform preserves the axes orientation, orthogonal rotation and
                 translation components from the original affine. This option will not flip/swap axes
                 of the original data.
-            mode (`reflect|constant|nearest|mirror|wrap`):
-                The mode parameter determines how the input array is extended beyond its boundaries.
-            cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
+            padding_mode (`zeros|border|reflection`): padding mode for outside grid values.
+                Defaults to `border`.
             dtype (None or np.dtype): output array data type, defaults to None to use input data's dtype.
         """
         self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
         self.diagonal = diagonal
-        self.mode = mode
-        self.cval = cval
+        self.padding_mode = padding_mode
         self.dtype = dtype
 
-    def __call__(self, data_array, affine=None, interp_order=3):
+    def __call__(self, data_array, affine=None, interp_order="bilinear"):
         """
         Args:
             data_array (ndarray): in shape (num_channels, H[, W, ...]).
             affine (matrix): (N+1)x(N+1) original affine matrix for spatially ND `data_array`. Defaults to identity.
-            interp_order (int): The order of the spline interpolation, default is 3.
-                The order has to be in the range 0-5.
-                https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.zoom.html
+            interp_order (`nearest|bilinear`): interpolation mode.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample.
         Returns:
             data_array (resampled into `self.pixdim`), original pixdim, current pixdim.
         """
@@ -100,17 +94,16 @@ class Spacing(Transform):
         # resample
         dtype = data_array.dtype if self.dtype is None else self.dtype
         output_data = []
-        for data in data_array:
-            data_ = scipy.ndimage.affine_transform(
-                data.astype(dtype),
-                matrix=transform_,
-                output_shape=output_shape,
-                order=interp_order,
-                mode=self.mode,
-                cval=self.cval,
-            )
-            output_data.append(data_)
-        output_data = np.stack(output_data)
+        affine_xform = AffineTransform(
+            theta=transform_,
+            spatial_size=list(output_shape),
+            normalized=False,
+            padding_mode=self.padding_mode,
+            mode=interp_order,
+            align_corners=False,
+            reverse_indexing=True,
+        )
+        output_data = affine_xform(data_array.astype(dtype)[None])[0]  # affine layer requires a batch dim.
         new_affine = to_affine_nd(affine, new_affine)
         return output_data, affine, new_affine
 

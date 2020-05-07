@@ -37,49 +37,50 @@ from monai.utils.misc import ensure_tuple
 
 class Spacingd(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.Spacing`.
-
+    Dictionary-based wrapper of :py:class:`monai.transforms.transforms.Spacing`.
     This transform assumes the ``data`` dictionary has a key for the input
     data's affine.  The key is formed by ``meta_key_format.format(key, 'affine')``.
-
     After resampling the input array, this transform will write the new affine
      to the key formed by ``meta_key_format.format(key, 'affine')``.
-
     see also:
-        :py:class:`monai.transforms.Spacing`
+        :py:class:`monai.transforms.transforms.Spacing`
     """
 
     def __init__(
-        self, keys, pixdim, diagonal=False, mode="constant", cval=0, interp_order=3, dtype=None, meta_key_format="{}.{}"
+        self,
+        keys,
+        pixdim,
+        diagonal=False,
+        padding_mode="border",
+        interp_order="bilinear",
+        dtype=None,
+        meta_key_format="{}.{}",
     ):
         """
         Args:
             pixdim (sequence of floats): output voxel spacing.
             diagonal (bool): whether to resample the input to have a diagonal affine matrix.
                 If True, the input data is resampled to the following affine::
-
                     np.diag((pixdim_0, pixdim_1, pixdim_2, 1))
-
                 This effectively resets the volume to the world coordinate system (RAS+ in nibabel).
                 The original orientation, rotation, shearing are not preserved.
-
                 If False, the axes orientation, orthogonal rotation and
                 translations components from the original affine will be
                 preserved in the target affine. This option will not flip/swap
                 axes against the original ones.
-            mode (`reflect|constant|nearest|mirror|wrap`):
+            padding_mode (`zeros|border|reflection`): padding mode for outside grid values.
                 The mode parameter determines how the input array is extended beyond its boundaries.
-                Default is 'constant'.
-            cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
-            interp_order (int or sequence of ints): int: the same interpolation order
-                for all data indexed by `self.keys`; sequence of ints, should
-                correspond to an interpolation order for each data item indexed
+                Default is 'border'.
+            interp_order (string or sequence of strings, `nearest|bilinear`):
+                string: the same interpolation order
+                for all data indexed by `self.keys`;
+                sequence of strings: should correspond to an interpolation order for each data item indexed
                 by `self.keys` respectively.
             dtype (None or np.dtype): output array data type, defaults to None to use input data's dtype.
             meta_key_format (str): key format to read/write affine matrices to the data dictionary.
         """
         super().__init__(keys)
-        self.spacing_transform = Spacing(pixdim, diagonal=diagonal, mode=mode, cval=cval, dtype=dtype)
+        self.spacing_transform = Spacing(pixdim, diagonal=diagonal, padding_mode=padding_mode, dtype=dtype)
         interp_order = ensure_tuple(interp_order)
         self.interp_order = interp_order if len(interp_order) == len(self.keys) else interp_order * len(self.keys)
         self.meta_key_format = meta_key_format
