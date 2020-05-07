@@ -63,7 +63,6 @@ class NiftiSaver:
         self.dtype = dtype
         self._data_index = 0
 
-
     def save(self, data, meta_data=None):
         """
         Save data into a Nifti file.
