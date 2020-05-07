@@ -41,7 +41,7 @@ class RandGaussianNoise(Randomizable, Transform):
 
     def __call__(self, img):
         self.randomize(img.shape)
-        return img + self._noise if self._do_transform else img
+        return img + self._noise.astype(img.dtype) if self._do_transform else img
 
 
 class ShiftIntensity(Transform):
@@ -55,7 +55,7 @@ class ShiftIntensity(Transform):
         self.offset = offset
 
     def __call__(self, img):
-        return img + self.offset
+        return (img + self.offset).astype(img.dtype)
 
 
 class RandShiftIntensity(Randomizable, Transform):
@@ -92,24 +92,22 @@ class ScaleIntensity(Transform):
     If `minv` and `maxv` not provided, use `factor` to scale image by ``v = v * (1 + factor)``.
     """
 
-    def __init__(self, minv=0.0, maxv=1.0, factor=None, dtype=np.float32):
+    def __init__(self, minv=0.0, maxv=1.0, factor=None):
         """
         Args:
             minv (int or float): minimum value of output data.
             maxv (int or float): maximum value of output data.
             factor (float): factor scale by ``v = v * (1 + factor)``.
-            dtype (np.dtype): expected output data type.
         """
         self.minv = minv
         self.maxv = maxv
         self.factor = factor
-        self.dtype = dtype
 
     def __call__(self, img):
         if self.minv is not None and self.maxv is not None:
-            return rescale_array(img, self.minv, self.maxv, self.dtype)
+            return rescale_array(img, self.minv, self.maxv, img.dtype)
         else:
-            return (img * (1 + self.factor)).astype(self.dtype)
+            return (img * (1 + self.factor)).astype(img.dtype)
 
 
 class RandScaleIntensity(Randomizable, Transform):
@@ -118,18 +116,17 @@ class RandScaleIntensity(Randomizable, Transform):
     is randomly picked from (factors[0], factors[0]).
     """
 
-    def __init__(self, factors, prob=0.1, dtype=np.float32):
+    def __init__(self, factors, prob=0.1):
         """
         Args:
             factors(float, tuple or list): factor range to randomly scale by ``v = v * (1 + factor)``.
                 if single number, factor value is picked from (-factors, factors).
             prob (float): probability of scale.
-            dtype (np.dtype): expected output data type.
+
         """
         self.factors = (-factors, factors) if not isinstance(factors, (list, tuple)) else factors
         assert len(self.factors) == 2, "factors should be a number or pair of numbers."
         self.prob = prob
-        self.dtype = dtype
         self._do_transform = False
 
     def randomize(self):
@@ -140,7 +137,7 @@ class RandScaleIntensity(Randomizable, Transform):
         self.randomize()
         if not self._do_transform:
             return img
-        scaler = ScaleIntensity(minv=None, maxv=None, factor=self.factor, dtype=self.dtype)
+        scaler = ScaleIntensity(minv=None, maxv=None, factor=self.factor)
         return scaler(img)
 
 
@@ -205,7 +202,7 @@ class ThresholdIntensity(Transform):
         self.cval = cval
 
     def __call__(self, img):
-        return np.where(img > self.threshold if self.above else img < self.threshold, img, self.cval)
+        return np.where(img > self.threshold if self.above else img < self.threshold, img, self.cval).astype(img.dtype)
 
 
 class ScaleIntensityRange(Transform):
