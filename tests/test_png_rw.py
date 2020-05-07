@@ -17,8 +17,8 @@ from monai.data import write_png
 from skimage import io, transform
 import numpy as np
 
-class TestPngWrite(unittest.TestCase):
 
+class TestPngWrite(unittest.TestCase):
     def test_write_gray(self):
         with tempfile.TemporaryDirectory() as out_dir:
             image_name = os.path.join(out_dir, 'test.png')
@@ -50,5 +50,5 @@ class TestPngWrite(unittest.TestCase):
             np.testing.assert_allclose(out, img_save_val)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

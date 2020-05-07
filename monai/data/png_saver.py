@@ -70,13 +70,12 @@ class PNGSaver:
         See Also
             :py:meth:`monai.data.png_writer.write_png`
         """
-        filename = meta_data['filename_or_obj'] if meta_data else str(self._data_index)
+        filename = meta_data["filename_or_obj"] if meta_data else str(self._data_index)
         self._data_index += 1
-        spatial_shape = meta_data.get('spatial_shape', None) if meta_data else None
+        spatial_shape = meta_data.get("spatial_shape", None) if meta_data else None
 
         if torch.is_tensor(data):
             data = data.detach().cpu().numpy()
-
 
         filename = create_file_basename(self.output_postfix, filename, self.output_dir)
         filename = '{}{}'.format(filename, self.output_ext)
