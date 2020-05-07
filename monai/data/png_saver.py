@@ -23,8 +23,16 @@ class PNGSaver:
     use index from 0 as the filename prefix.
     """
 
-    def __init__(self, output_dir='./', output_postfix='seg', output_ext='.png',
-                 interp_order=3, mode='constant', cval=0, scale=False):
+    def __init__(
+        self,
+        output_dir="./",
+        output_postfix="seg",
+        output_ext=".png",
+        interp_order=3,
+        mode="constant",
+        cval=0,
+        scale=False,
+    ):
         """
         Args:
             output_dir (str): output image directory.
@@ -78,17 +86,24 @@ class PNGSaver:
             data = data.detach().cpu().numpy()
 
         filename = create_file_basename(self.output_postfix, filename, self.output_dir)
-        filename = '{}{}'.format(filename, self.output_ext)
+        filename = "{}{}".format(filename, self.output_ext)
 
         if data.shape[0] == 1:
             data = data.squeeze(0)
         elif 2 < data.shape[0] < 5:
             data = np.moveaxis(data, 0, -1)
         else:
-            raise ValueError('PNG image should only have 1, 3 or 4 channels.') 
+            raise ValueError("PNG image should only have 1, 3 or 4 channels.")
 
-        write_png(data, file_name=filename, output_shape=spatial_shape, interp_order=self.interp_order,
-                  mode=self.mode, cval=self.cval, scale=self.scale)
+        write_png(
+            data,
+            file_name=filename,
+            output_shape=spatial_shape,
+            interp_order=self.interp_order,
+            mode=self.mode,
+            cval=self.cval,
+            scale=self.scale,
+        )
 
     def save_batch(self, batch_data, meta_data=None):
         """Save a batch of data into png format files.
