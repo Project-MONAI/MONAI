@@ -19,7 +19,8 @@ class FocalLoss(_WeightedLoss):
     PyTorch implementation of the Focal Loss.
     [1] "Focal Loss for Dense Object Detection", T. Lin et al., ICCV 2017
     """
-    def __init__(self, gamma=2., weight=None, reduction='mean'):
+
+    def __init__(self, gamma=2.0, weight=None, reduction="mean"):
         """
         Args:
             gamma: (float) value of the exponent gamma in the definition
@@ -85,12 +86,12 @@ class FocalLoss(_WeightedLoss):
             logpt = logpt * at
 
         # Compute the loss mini-batch.
-        weight = torch.pow(-pt + 1., self.gamma)
+        weight = torch.pow(-pt + 1.0, self.gamma)
         loss = torch.mean(-weight * logpt, dim=1)  # N
 
-        if self.reduction == 'sum':
+        if self.reduction == "sum":
             return loss.sum()
-        elif self.reduction == 'none':
+        elif self.reduction == "none":
             return loss
         # Default is mean reduction.
         else:

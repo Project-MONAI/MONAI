@@ -20,8 +20,8 @@ from monai.losses import FocalLoss
 class TestFocalLoss(unittest.TestCase):
     def test_consistency_with_cross_entropy_2d(self):
         # For gamma=0 the focal loss reduces to the cross entropy loss
-        focal_loss = FocalLoss(gamma=0., reduction='mean')
-        ce = nn.CrossEntropyLoss(reduction='mean')
+        focal_loss = FocalLoss(gamma=0.0, reduction="mean")
+        ce = nn.CrossEntropyLoss(reduction="mean")
         max_error = 0
         class_num = 10
         batch_size = 128
@@ -40,12 +40,12 @@ class TestFocalLoss(unittest.TestCase):
             b = float(output1.cpu().detach())
             if abs(a - b) > max_error:
                 max_error = abs(a - b)
-        self.assertAlmostEqual(max_error, 0., places=3)
+        self.assertAlmostEqual(max_error, 0.0, places=3)
 
     def test_consistency_with_cross_entropy_classification(self):
         # for gamma=0 the focal loss reduces to the cross entropy loss
-        focal_loss = FocalLoss(gamma=0., reduction='mean')
-        ce = nn.CrossEntropyLoss(reduction='mean')
+        focal_loss = FocalLoss(gamma=0.0, reduction="mean")
+        ce = nn.CrossEntropyLoss(reduction="mean")
         max_error = 0
         class_num = 10
         batch_size = 128
@@ -64,105 +64,79 @@ class TestFocalLoss(unittest.TestCase):
             b = float(output1.cpu().detach())
             if abs(a - b) > max_error:
                 max_error = abs(a - b)
-        self.assertAlmostEqual(max_error, 0., places=3)
+        self.assertAlmostEqual(max_error, 0.0, places=3)
 
     def test_bin_seg_2d(self):
         # define 2d examples
-        target = torch.tensor(
-            [[0, 0, 0, 0],
-             [0, 1, 1, 0],
-             [0, 1, 1, 0],
-             [0, 0, 0, 0]]
-        )
+        target = torch.tensor([[0, 0, 0, 0], [0, 1, 1, 0], [0, 1, 1, 0], [0, 0, 0, 0]])
         # add another dimension corresponding to the batch (batch size = 1 here)
         target = target.unsqueeze(0)  # shape (1, H, W)
-        pred_very_good = 1000 * F.one_hot(
-            target, num_classes=2).permute(0, 3, 1, 2).float()
+        pred_very_good = 1000 * F.one_hot(target, num_classes=2).permute(0, 3, 1, 2).float()
 
         # initialize the mean dice loss
         loss = FocalLoss()
 
         # focal loss for pred_very_good should be close to 0
         focal_loss_good = float(loss.forward(pred_very_good, target).cpu())
-        self.assertAlmostEqual(focal_loss_good, 0., places=3)
+        self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
 
         # Same test, but for target with a class dimension
         target = target.unsqueeze(1)  # shape (1, 1, H, W)
         focal_loss_good = float(loss.forward(pred_very_good, target).cpu())
-        self.assertAlmostEqual(focal_loss_good, 0., places=3)
+        self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
 
     def test_empty_class_2d(self):
         num_classes = 2
         # define 2d examples
-        target = torch.tensor(
-            [[0, 0, 0, 0],
-             [0, 0, 0, 0],
-             [0, 0, 0, 0],
-             [0, 0, 0, 0]]
-        )
+        target = torch.tensor([[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]])
         # add another dimension corresponding to the batch (batch size = 1 here)
         target = target.unsqueeze(0)  # shape (1, H, W)
-        pred_very_good = 1000 * F.one_hot(
-            target, num_classes=num_classes).permute(0, 3, 1, 2).float()
+        pred_very_good = 1000 * F.one_hot(target, num_classes=num_classes).permute(0, 3, 1, 2).float()
 
         # initialize the mean dice loss
         loss = FocalLoss()
 
         # focal loss for pred_very_good should be close to 0
         focal_loss_good = float(loss.forward(pred_very_good, target).cpu())
-        self.assertAlmostEqual(focal_loss_good, 0., places=3)
+        self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
 
     def test_multi_class_seg_2d(self):
         num_classes = 6  # labels 0 to 5
         # define 2d examples
-        target = torch.tensor(
-            [[0, 0, 0, 0],
-             [0, 1, 2, 0],
-             [0, 3, 4, 0],
-             [0, 0, 0, 0]]
-        )
+        target = torch.tensor([[0, 0, 0, 0], [0, 1, 2, 0], [0, 3, 4, 0], [0, 0, 0, 0]])
         # add another dimension corresponding to the batch (batch size = 1 here)
         target = target.unsqueeze(0)  # shape (1, H, W)
-        pred_very_good = 1000 * F.one_hot(
-            target, num_classes=num_classes).permute(0, 3, 1, 2).float()
+        pred_very_good = 1000 * F.one_hot(target, num_classes=num_classes).permute(0, 3, 1, 2).float()
 
         # initialize the mean dice loss
         loss = FocalLoss()
 
         # focal loss for pred_very_good should be close to 0
         focal_loss_good = float(loss.forward(pred_very_good, target).cpu())
-        self.assertAlmostEqual(focal_loss_good, 0., places=3)
+        self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
 
     def test_bin_seg_3d(self):
         # define 2d examples
-        target = torch.tensor([
-            # raw 0
-            [[0, 0, 0, 0],
-             [0, 1, 1, 0],
-             [0, 1, 1, 0],
-             [0, 0, 0, 0]],
-            # raw 1
-            [[0, 0, 0, 0],
-             [0, 1, 1, 0],
-             [0, 1, 1, 0],
-             [0, 0, 0, 0]],
-            # raw 2
-            [[0, 0, 0, 0],
-             [0, 1, 1, 0],
-             [0, 1, 1, 0],
-             [0, 0, 0, 0]]
-        ])
+        target = torch.tensor(
+            [
+                # raw 0
+                [[0, 0, 0, 0], [0, 1, 1, 0], [0, 1, 1, 0], [0, 0, 0, 0]],
+                # raw 1
+                [[0, 0, 0, 0], [0, 1, 1, 0], [0, 1, 1, 0], [0, 0, 0, 0]],
+                # raw 2
+                [[0, 0, 0, 0], [0, 1, 1, 0], [0, 1, 1, 0], [0, 0, 0, 0]],
+            ]
+        )
         # add another dimension corresponding to the batch (batch size = 1 here)
         target = target.unsqueeze(0)  # shape (1, H, W, D)
-        pred_very_good = 1000 * F.one_hot(
-            target, num_classes=2).permute(0, 4, 1, 2, 3).float()
+        pred_very_good = 1000 * F.one_hot(target, num_classes=2).permute(0, 4, 1, 2, 3).float()
 
         # initialize the mean dice loss
         loss = FocalLoss()
 
         # focal loss for pred_very_good should be close to 0
         focal_loss_good = float(loss.forward(pred_very_good, target).cpu())
-        self.assertAlmostEqual(focal_loss_good, 0., places=3)
+        self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
 
     def test_convergence(self):
         """
@@ -175,23 +149,16 @@ class TestFocalLoss(unittest.TestCase):
         max_iter = 20
 
         # define a simple 3d example
-        target_seg = torch.tensor([
-            # raw 0
-            [[0, 0, 0, 0], 
-             [0, 1, 1, 0], 
-             [0, 1, 1, 0], 
-             [0, 0, 0, 0]], 
-            # raw 1
-            [[0, 0, 0, 0],
-             [0, 1, 1, 0],
-             [0, 1, 1, 0],
-             [0, 0, 0, 0]],
-            # raw 2
-            [[0, 0, 0, 0],
-             [0, 1, 1, 0],
-             [0, 1, 1, 0],
-             [0, 0, 0, 0]]
-        ])
+        target_seg = torch.tensor(
+            [
+                # raw 0
+                [[0, 0, 0, 0], [0, 1, 1, 0], [0, 1, 1, 0], [0, 0, 0, 0]],
+                # raw 1
+                [[0, 0, 0, 0], [0, 1, 1, 0], [0, 1, 1, 0], [0, 0, 0, 0]],
+                # raw 2
+                [[0, 0, 0, 0], [0, 1, 1, 0], [0, 1, 1, 0], [0, 0, 0, 0]],
+            ]
+        )
         target_seg = torch.unsqueeze(target_seg, dim=0)
         image = 12 * target_seg + 27
         image = image.float()
@@ -247,5 +214,5 @@ class TestFocalLoss(unittest.TestCase):
         self.assertTrue(decreasing_steps_ratio > 0.9)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
