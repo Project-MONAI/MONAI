@@ -36,24 +36,25 @@ class Flatten(nn.Module):
         return x.view(x.size(0), -1)
 
 
-class GaussianFilter:
-    def __init__(self, spatial_dims, sigma, truncated=4.0, device=None):
+class GaussianFilter(nn.Module):
+    def __init__(self, spatial_dims, sigma, truncated=4.0):
         """
         Args:
             spatial_dims (int): number of spatial dimensions of the input image.
                 must have shape (Batch, channels, H[, W, ...]).
             sigma (float or sequence of floats): std.
             truncated (float): spreads how many stds.
-            device (torch.device): device on which the tensor will be allocated.
         """
-        self.spatial_dims = spatial_dims
-        _sigma = ensure_tuple_rep(sigma, spatial_dims)
-        self.device = device
+        super().__init__()
+        self.spatial_dims = int(spatial_dims)
+        _sigma = ensure_tuple_rep(sigma, self.spatial_dims)
         self.kernel = [
-            torch.nn.Parameter(torch.as_tensor(gaussian_1d(s, truncated), device=self.device), False) for s in _sigma
+            torch.nn.Parameter(torch.as_tensor(gaussian_1d(s, truncated), dtype=torch.float32), False) for s in _sigma
         ]
         self.padding = [same_padding(k.size()[0]) for k in self.kernel]
         self.conv_n = [F.conv1d, F.conv2d, F.conv3d][spatial_dims - 1]
+        for idx, param in enumerate(self.kernel):
+            self.register_parameter(f"kernel_{idx}", param)
 
     def __call__(self, x):
         """
@@ -62,14 +63,14 @@ class GaussianFilter:
         """
         chns = x.shape[1]
         sp_dim = self.spatial_dims
-        x = torch.as_tensor(x, device=self.device, dtype=torch.float32).contiguous()
+        x = torch.as_tensor(x).to(self.kernel[0]).contiguous()  # assign to the first kernel's device and dtype
 
         def _conv(input_, d):
             if d < 0:
                 return input_
             s = [1] * (sp_dim + 2)
             s[d + 2] = -1
-            kernel = self.kernel[d].reshape(s).float()
+            kernel = self.kernel[d].reshape(s)
             kernel = kernel.repeat([chns, 1] + [1] * sp_dim)
             padding = [0] * sp_dim
             padding[d] = self.padding[d]

@@ -20,7 +20,7 @@ from monai.networks.layers import GaussianFilter
 class GaussianFilterTestCase(unittest.TestCase):
     def test_1d(self):
         a = torch.ones(1, 8, 10)
-        g = GaussianFilter(1, 3, 3, torch.device("cpu:0"))
+        g = GaussianFilter(1, 3, 3).to(torch.device("cpu:0"))
         expected = np.array(
             [
                 [
@@ -44,7 +44,7 @@ class GaussianFilterTestCase(unittest.TestCase):
 
     def test_2d(self):
         a = torch.ones(1, 1, 3, 3)
-        g = GaussianFilter(2, 3, 3, torch.device("cpu:0"))
+        g = GaussianFilter(2, 3, 3).to(torch.device("cpu:0"))
         expected = np.array(
             [
                 [
@@ -58,10 +58,13 @@ class GaussianFilterTestCase(unittest.TestCase):
         )
 
         np.testing.assert_allclose(g(a).cpu().numpy(), expected, rtol=1e-5)
+        if torch.cuda.is_available():
+            g = GaussianFilter(2, 3, 3).to(torch.device("cuda:0"))
+            np.testing.assert_allclose(g(a).cpu().numpy(), expected, rtol=1e-2)
 
     def test_3d(self):
         a = torch.ones(1, 1, 4, 3, 4)
-        g = GaussianFilter(3, 3, 3, torch.device("cpu:0"))
+        g = GaussianFilter(3, 3, 3).to(torch.device("cpu:0"))
         expected = np.array(
             [
                 [
@@ -94,7 +97,7 @@ class GaussianFilterTestCase(unittest.TestCase):
 
     def test_3d_sigmas(self):
         a = torch.ones(1, 1, 4, 3, 2)
-        g = GaussianFilter(3, [3, 2, 1], 3, torch.device("cpu:0"))
+        g = GaussianFilter(3, [3, 2, 1], 3).to(torch.device("cpu:0"))
         expected = np.array(
             [
                 [
@@ -109,13 +112,13 @@ class GaussianFilterTestCase(unittest.TestCase):
         )
         np.testing.assert_allclose(g(a).cpu().numpy(), expected, rtol=1e-5)
         if torch.cuda.is_available():
-            g = GaussianFilter(3, [3, 2, 1], 3, torch.device("cuda:0"))
+            g = GaussianFilter(3, [3, 2, 1], 3).to(torch.device("cuda:0"))
             np.testing.assert_allclose(g(a).cpu().numpy(), expected, rtol=1e-2)
 
     def test_wrong_args(self):
         with self.assertRaisesRegex(ValueError, ""):
-            GaussianFilter(3, [3, 2], 3, torch.device("cpu:0"))
-        GaussianFilter(3, [3, 2, 1], 3, torch.device("cpu:0"))  # test init
+            GaussianFilter(3, [3, 2], 3).to(torch.device("cpu:0"))
+        GaussianFilter(3, [3, 2, 1], 3).to(torch.device("cpu:0"))  # test init
 
 
 if __name__ == "__main__":
