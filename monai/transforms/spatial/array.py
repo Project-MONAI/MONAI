@@ -39,7 +39,7 @@ class Spacing(Transform):
     Resample input image into the specified `pixdim`.
     """
 
-    def __init__(self, pixdim, diagonal=False, mode="constant", cval=0, dtype=None):
+    def __init__(self, pixdim, diagonal=False, mode="nearest", cval=0, dtype=None):
         """
         Args:
             pixdim (sequence of floats): output voxel spacing.
