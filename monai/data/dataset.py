@@ -295,14 +295,43 @@ class CacheDataset(Dataset):
 class ArrayDataset(Dataset):
     """
     Dataset for segmentation and classification tasks based on array format input data and transforms.
-    It can apply same random operations for image transforms and segmentation label transforms.
-    The `transform` can be :py:class:`monai.transforms.Compose` or a list of transforms.
+    It can apply same random operations for both image transforms and segmentation label transforms.
+    The `transform` can be :py:class:`monai.transforms.Compose` or any other callable object.
     For example:
-    train based on Nifti format images and without metadata.
-    train based on Nifti format images and metadata.
+    If train based on Nifti format images without metadata, all transforms can be composed::
+
+        img_transform = Compose(
+            [
+                LoadNifti(image_only=True),
+                AddChannel(),
+                RandAdjustContrast()
+            ]
+        )
+
+    If train based on Nifti format images and the metadata, the array transforms can not be composed
+    because several transforms receives multiple parameters or return multiple values. Then Users need
+    to define their own callable method to parse metadata from `LoadNifti` or set `affine` matrix
+    to `Spacing` transform::
+
+        class TestCompose(Compose):
+            def __call__(self, input_):
+                img, metadata = self.transforms[0](input_)
+                img = self.transforms[1](img)
+                img, _, _ = self.transforms[2](img, metadata["affine"])
+                return self.transforms[3](img), metadata
+
+        img_transform = TestCompose(
+            [
+                LoadNifti(image_only=False),
+                AddChannel(),
+                Spacing(pixdim=(1.5, 1.5, 3.0)),
+                RandAdjustContrast()
+            ]
+        )
+
+    Recommend to use dictionary Datasets for complicated data pre-processing.
 
     """
-
     def __init__(self, img_files, seg_files=None, labels=None, img_transform=None, seg_transform=None):
         """
         Initializes the dataset with the filename lists. The transform `img_transform` is applied
@@ -317,7 +346,7 @@ class ArrayDataset(Dataset):
 
         """
         if seg_files is not None and len(img_files) != len(seg_files):
-            raise ValueError('Must have same number of image and segmentation label files')
+            raise ValueError('Must have same number of image and segmentation label files.')
 
         self.img_files = img_files
         self.seg_files = seg_files
@@ -326,10 +355,10 @@ class ArrayDataset(Dataset):
         self.seg_transform = seg_transform
 
     def __len__(self):
-        return len(self.image_files)
+        return len(self.img_files)
 
     def __getitem__(self, index):
-        img = self.image_files[index]
+        img = self.img_files[index]
         seg = self.seg_files[index] if self.seg_files is not None else None
         label = self.labels[index] if self.labels is not None else None
 
@@ -339,16 +368,16 @@ class ArrayDataset(Dataset):
             if isinstance(self.img_transform, Randomizable):
                 self.img_transform.set_random_state(seed=seed)
             img = self.img_transform(img)
-        data = [img]
+        data = img
 
         if self.seg_transform is not None:
             if isinstance(self.seg_transform, Randomizable):
                 self.seg_transform.set_random_state(seed=seed)
             seg = self.seg_transform(seg)
         if seg is not None:
-            data.append(seg)
+            data = ensure_tuple(data) + ensure_tuple(seg)
 
         if label is not None:
-            data.append(label)
+            data = ensure_tuple(data) + ensure_tuple(label)
 
         return data
