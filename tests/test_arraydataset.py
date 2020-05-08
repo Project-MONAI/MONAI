@@ -19,22 +19,10 @@ from monai.data import ArrayDataset
 from monai.transforms import Compose, LoadNifti, AddChannel, RandAdjustContrast, Spacing
 
 TEST_CASE_1 = [
-    Compose(
-        [
-            LoadNifti(image_only=True),
-            AddChannel(),
-            RandAdjustContrast()
-        ]
-    ),
-    Compose(
-        [
-            LoadNifti(image_only=True),
-            AddChannel(),
-            RandAdjustContrast()
-        ]
-    ),
+    Compose([LoadNifti(image_only=True), AddChannel(), RandAdjustContrast()]),
+    Compose([LoadNifti(image_only=True), AddChannel(), RandAdjustContrast()]),
     (0, 1),
-    (1, 128, 128, 128)
+    (1, 128, 128, 128),
 ]
 
 
@@ -47,24 +35,10 @@ class TestCompose(Compose):
 
 
 TEST_CASE_2 = [
-    TestCompose(
-        [
-            LoadNifti(image_only=False),
-            AddChannel(),
-            Spacing(pixdim=(2, 2, 4)),
-            RandAdjustContrast()
-        ]
-    ),
-    TestCompose(
-        [
-            LoadNifti(image_only=False),
-            AddChannel(),
-            Spacing(pixdim=(2, 2, 4)),
-            RandAdjustContrast()
-        ]
-    ),
+    TestCompose([LoadNifti(image_only=False), AddChannel(), Spacing(pixdim=(2, 2, 4)), RandAdjustContrast()]),
+    TestCompose([LoadNifti(image_only=False), AddChannel(), Spacing(pixdim=(2, 2, 4)), RandAdjustContrast()]),
     (0, 2),
-    (1, 64, 64, 33)
+    (1, 64, 64, 33),
 ]
 
 

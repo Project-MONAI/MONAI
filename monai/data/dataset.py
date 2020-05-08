@@ -332,6 +332,7 @@ class ArrayDataset(Dataset):
     Recommend to use dictionary Datasets for complicated data pre-processing.
 
     """
+
     def __init__(self, img_files, seg_files=None, labels=None, img_transform=None, seg_transform=None):
         """
         Initializes the dataset with the filename lists. The transform `img_transform` is applied
@@ -346,7 +347,7 @@ class ArrayDataset(Dataset):
 
         """
         if seg_files is not None and len(img_files) != len(seg_files):
-            raise ValueError('Must have same number of image and segmentation label files.')
+            raise ValueError("Must have same number of image and segmentation label files.")
 
         self.img_files = img_files
         self.seg_files = seg_files

@@ -30,7 +30,7 @@ class NiftiDataset(Dataset):
         transform=None,
         seg_transform=None,
         image_only=True,
-        dtype=np.float32
+        dtype=np.float32,
     ):
         """
         Initializes the dataset with the image and segmentation filename lists. The transform `transform` is applied
@@ -65,9 +65,7 @@ class NiftiDataset(Dataset):
     def __getitem__(self, index):
         meta_data = None
         img_loader = LoadNifti(
-            as_closest_canonical=self.as_closest_canonical,
-            image_only=self.image_only,
-            dtype=self.dtype
+            as_closest_canonical=self.as_closest_canonical, image_only=self.image_only, dtype=self.dtype
         )
         if self.image_only:
             img = img_loader(self.image_files[index])
