@@ -173,7 +173,7 @@ class CropForegroundd(MapTransform):
     def __call__(self, data):
         d = dict(data)
         box_start, box_end = generate_spatial_bounding_box(
-            data[self.source_key], self.select_fn, self.channel_indexes, self.margin
+            d[self.source_key], self.select_fn, self.channel_indexes, self.margin
         )
         cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
         for key in self.keys:
