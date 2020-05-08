@@ -50,7 +50,7 @@ class GaussianFilter:
         _sigma = ensure_tuple_rep(sigma, spatial_dims)
         self.device = device
         self.kernel = [
-            torch.nn.Parameter(torch.from_numpy(gaussian_1d(s, truncated)).to(self.device), False) for s in _sigma
+            torch.nn.Parameter(torch.as_tensor(gaussian_1d(s, truncated), device=self.device), False) for s in _sigma
         ]
         self.padding = [same_padding(k.size()[0]) for k in self.kernel]
         self.conv_n = [F.conv1d, F.conv2d, F.conv3d][spatial_dims - 1]
@@ -60,11 +60,9 @@ class GaussianFilter:
         Args:
             x (tensor): in shape [Batch, chns, H, W, D].
         """
-        if not torch.is_tensor(x):
-            x = torch.as_tensor(x)
         chns = x.shape[1]
         sp_dim = self.spatial_dims
-        x = x.contiguous().to(device=self.device, dtype=torch.float)
+        x = torch.as_tensor(x, device=self.device, dtype=torch.float32).contiguous()
 
         def _conv(input_, d):
             if d < 0:
