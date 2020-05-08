@@ -27,7 +27,7 @@ TEST_CASES = [
     [
         {"pixdim": (1.0, 0.2, 1.5), "diagonal": False, "mode": "constant"},
         np.ones((1, 2, 1, 2)),  # data
-        {"affine": np.array([[2, 1, 0, 4], [-1, -3, 0, 5], [0, 0, 2.0, 5], [0, 0, 0, 1]],),},
+        {"affine": np.array([[2, 1, 0, 4], [-1, -3, 0, 5], [0, 0, 2.0, 5], [0, 0, 0, 1]])},
         np.zeros((1, 3, 1, 2)),
     ],
     [
