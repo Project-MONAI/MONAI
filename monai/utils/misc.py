@@ -58,8 +58,8 @@ def ensure_tuple_rep(tup, dim):
     Returns a copy of `tup` with `dim` values by either shortened or duplicated input.
     """
     tup = ensure_tuple(tup)
-    if len(tup) == dim:
-        return tup
+    if len(tup) >= dim:
+        return tup[:dim]
     if len(tup) == 1:
         return tup * dim
     raise ValueError(f"sequence must have length {dim}, got length {len(tup)}.")
