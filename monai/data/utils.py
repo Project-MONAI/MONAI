@@ -425,7 +425,7 @@ def compute_importance_map(patch_size, mode='constant', sigma_scale=0.125):
 
         importance_map[tuple(center_coords)] = 1
         importance_map = gaussian_filter(importance_map, sigmas, 0, mode='constant', cval=0)
-        importance_map = importance_map / np.max(importance_map) * 1
+        importance_map = importance_map / np.max(importance_map)
         importance_map = importance_map.astype(np.float32)
 
         # importance_map cannot be 0, otherwise we may end up with nans!

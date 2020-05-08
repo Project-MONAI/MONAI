@@ -52,7 +52,6 @@ def sliding_window_inference(inputs, roi_size, sw_batch_size, predictor, overlap
     pad_size = [i for k in range(len(inputs.shape) - 1, 1, -1) for i in (0, max(roi_size[k - 2] - inputs.shape[k], 0))]
     inputs = F.pad(inputs, pad=pad_size, mode="constant", value=0)
 
-    # TODO: interval from user's specification
     scan_interval = _get_scan_interval(image_size, roi_size, num_spatial_dims, overlap)
 
     # Store all slices in list
@@ -83,7 +82,7 @@ def sliding_window_inference(inputs, roi_size, sw_batch_size, predictor, overlap
 
     # Create importance map
     importance_map = compute_importance_map(roi_size, mode=blend_mode)
-    importance_map = torch.from_numpy(importance_map).to(device=inputs.device)
+    importance_map = torch.as_tensor(importance_map, device=inputs.device)
 
     # allocate memory to store the full output and the count for overlapping parts
     output_image = torch.zeros(output_shape, dtype=torch.float32, device=inputs.device)
