@@ -92,6 +92,31 @@ class GaussianFilterTestCase(unittest.TestCase):
         )
         np.testing.assert_allclose(g(a).cpu().numpy(), expected, rtol=1e-5)
 
+    def test_3d_sigmas(self):
+        a = torch.ones(1, 1, 4, 3, 2)
+        g = GaussianFilter(3, [3, 2, 1], 3, torch.device("cpu:0"))
+        expected = np.array(
+            [
+                [
+                    [
+                        [[0.1422854, 0.1422854], [0.15806103, 0.15806103], [0.1422854, 0.1422854]],
+                        [[0.15668818, 0.15668817], [0.17406069, 0.17406069], [0.15668818, 0.15668817]],
+                        [[0.15668818, 0.15668817], [0.17406069, 0.17406069], [0.15668818, 0.15668817]],
+                        [[0.1422854, 0.1422854], [0.15806103, 0.15806103], [0.1422854, 0.1422854]],
+                    ]
+                ]
+            ]
+        )
+        np.testing.assert_allclose(g(a).cpu().numpy(), expected, rtol=1e-5)
+        if torch.cuda.is_available():
+            g = GaussianFilter(3, [3, 2, 1], 3, torch.device("cuda:0"))
+            np.testing.assert_allclose(g(a).cpu().numpy(), expected, rtol=1e-2)
+
+    def test_wrong_args(self):
+        with self.assertRaisesRegex(ValueError, ""):
+            GaussianFilter(3, [3, 2], 3, torch.device("cpu:0"))
+        GaussianFilter(3, [3, 2, 1], 3, torch.device("cpu:0"))  # test init
+
 
 if __name__ == "__main__":
     unittest.main()
