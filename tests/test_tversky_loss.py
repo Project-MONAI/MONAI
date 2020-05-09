@@ -21,8 +21,8 @@ TEST_CASES = [
     [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
         {"include_background": True, "do_sigmoid": True},
         {
-            "pred": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
-            "ground": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
+            "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
+            "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
             "smooth": 1e-6,
         },
         0.307576,
@@ -30,8 +30,8 @@ TEST_CASES = [
     [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
         {"include_background": True, "do_sigmoid": True},
         {
-            "pred": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]], [[[1.0, -1.0], [-1.0, 1.0]]]]),
-            "ground": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]]], [[[1.0, 0.0], [1.0, 0.0]]]]),
+            "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]], [[[1.0, -1.0], [-1.0, 1.0]]]]),
+            "target": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]]], [[[1.0, 0.0], [1.0, 0.0]]]]),
             "smooth": 1e-4,
         },
         0.416657,
@@ -39,8 +39,8 @@ TEST_CASES = [
     [  # shape: (2, 2, 3), (2, 1, 3)
         {"include_background": False, "to_onehot_y": True},
         {
-            "pred": torch.tensor([[[1.0, 1.0, 0.0], [0.0, 0.0, 1.0]], [[1.0, 0.0, 1.0], [0.0, 1.0, 0.0]]]),
-            "ground": torch.tensor([[[0.0, 0.0, 1.0]], [[0.0, 1.0, 0.0]]]),
+            "input": torch.tensor([[[1.0, 1.0, 0.0], [0.0, 0.0, 1.0]], [[1.0, 0.0, 1.0], [0.0, 1.0, 0.0]]]),
+            "target": torch.tensor([[[0.0, 0.0, 1.0]], [[0.0, 1.0, 0.0]]]),
             "smooth": 0.0,
         },
         0.0,
@@ -48,8 +48,8 @@ TEST_CASES = [
     [  # shape: (2, 2, 3), (2, 1, 3)
         {"include_background": True, "to_onehot_y": True, "do_sigmoid": True},
         {
-            "pred": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
-            "ground": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
+            "input": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
+            "target": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
             "smooth": 1e-4,
         },
         0.435050,
@@ -57,8 +57,8 @@ TEST_CASES = [
     [  # shape: (2, 2, 3), (2, 1, 3)
         {"include_background": True, "to_onehot_y": True, "do_sigmoid": True, "reduction": "sum"},
         {
-            "pred": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
-            "ground": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
+            "input": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
+            "target": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
             "smooth": 1e-4,
         },
         1.74013,
@@ -66,8 +66,8 @@ TEST_CASES = [
     [  # shape: (2, 2, 3), (2, 1, 3)
         {"include_background": True, "to_onehot_y": True, "do_softmax": True},
         {
-            "pred": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
-            "ground": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
+            "input": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
+            "target": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
             "smooth": 1e-4,
         },
         0.383713,
@@ -75,8 +75,8 @@ TEST_CASES = [
     [  # shape: (2, 2, 3), (2, 1, 3)
         {"include_background": True, "to_onehot_y": True, "do_softmax": True, "reduction": "none"},
         {
-            "pred": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
-            "ground": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
+            "input": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
+            "target": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
             "smooth": 1e-4,
         },
         [[0.210961, 0.295339], [0.599952, 0.428547]],
@@ -84,8 +84,8 @@ TEST_CASES = [
     [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
         {"include_background": True, "do_sigmoid": True, "alpha": 0.3, "beta": 0.7},
         {
-            "pred": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
-            "ground": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
+            "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
+            "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
             "smooth": 1e-6,
         },
         0.3589,
@@ -93,8 +93,8 @@ TEST_CASES = [
     [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
         {"include_background": True, "do_sigmoid": True, "alpha": 0.7, "beta": 0.3},
         {
-            "pred": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
-            "ground": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
+            "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
+            "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
             "smooth": 1e-6,
         },
         0.247366,
@@ -107,6 +107,24 @@ class TestTverskyLoss(unittest.TestCase):
     def test_shape(self, input_param, input_data, expected_val):
         result = TverskyLoss(**input_param).forward(**input_data)
         np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, rtol=1e-4)
+
+    def test_ill_shape(self):
+        loss = TverskyLoss()
+        with self.assertRaisesRegex(AssertionError, ""):
+            loss.forward(torch.ones((2, 2, 3)), torch.ones((4, 5, 6)))
+
+    def test_input_warnings(self):
+        chn_input = torch.ones((1, 1, 3))
+        chn_target = torch.ones((1, 1, 3))
+        with self.assertWarns(Warning):
+            loss = TverskyLoss(include_background=False)
+            loss.forward(chn_input, chn_target)
+        with self.assertWarns(Warning):
+            loss = TverskyLoss(do_softmax=True)
+            loss.forward(chn_input, chn_target)
+        with self.assertWarns(Warning):
+            loss = TverskyLoss(to_onehot_y=True)
+            loss.forward(chn_input, chn_target)
 
 
 if __name__ == "__main__":

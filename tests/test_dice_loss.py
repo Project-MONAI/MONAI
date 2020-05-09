@@ -21,8 +21,8 @@ TEST_CASES = [
     [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
         {"include_background": True, "do_sigmoid": True},
         {
-            "pred": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
-            "ground": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
+            "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
+            "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
             "smooth": 1e-6,
         },
         0.307576,
@@ -30,8 +30,8 @@ TEST_CASES = [
     [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
         {"include_background": True, "do_sigmoid": True},
         {
-            "pred": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]], [[[1.0, -1.0], [-1.0, 1.0]]]]),
-            "ground": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]]], [[[1.0, 0.0], [1.0, 0.0]]]]),
+            "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]], [[[1.0, -1.0], [-1.0, 1.0]]]]),
+            "target": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]]], [[[1.0, 0.0], [1.0, 0.0]]]]),
             "smooth": 1e-4,
         },
         0.416657,
@@ -39,8 +39,8 @@ TEST_CASES = [
     [  # shape: (2, 2, 3), (2, 1, 3)
         {"include_background": False, "to_onehot_y": True},
         {
-            "pred": torch.tensor([[[1.0, 1.0, 0.0], [0.0, 0.0, 1.0]], [[1.0, 0.0, 1.0], [0.0, 1.0, 0.0]]]),
-            "ground": torch.tensor([[[0.0, 0.0, 1.0]], [[0.0, 1.0, 0.0]]]),
+            "input": torch.tensor([[[1.0, 1.0, 0.0], [0.0, 0.0, 1.0]], [[1.0, 0.0, 1.0], [0.0, 1.0, 0.0]]]),
+            "target": torch.tensor([[[0.0, 0.0, 1.0]], [[0.0, 1.0, 0.0]]]),
             "smooth": 0.0,
         },
         0.0,
@@ -48,8 +48,8 @@ TEST_CASES = [
     [  # shape: (2, 2, 3), (2, 1, 3)
         {"include_background": True, "to_onehot_y": True, "do_sigmoid": True},
         {
-            "pred": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
-            "ground": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
+            "input": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
+            "target": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
             "smooth": 1e-4,
         },
         0.435050,
@@ -57,8 +57,8 @@ TEST_CASES = [
     [  # shape: (2, 2, 3), (2, 1, 3)
         {"include_background": True, "to_onehot_y": True, "do_sigmoid": True, "reduction": "none"},
         {
-            "pred": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
-            "ground": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
+            "input": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
+            "target": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
             "smooth": 1e-4,
         },
         [[0.296529, 0.415136], [0.599976, 0.428559]],
@@ -66,8 +66,8 @@ TEST_CASES = [
     [  # shape: (2, 2, 3), (2, 1, 3)
         {"include_background": True, "to_onehot_y": True, "do_softmax": True},
         {
-            "pred": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
-            "ground": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
+            "input": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
+            "target": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
             "smooth": 1e-4,
         },
         0.383713,
@@ -75,8 +75,8 @@ TEST_CASES = [
     [  # shape: (2, 2, 3), (2, 1, 3)
         {"include_background": True, "to_onehot_y": True, "do_softmax": True, "reduction": "sum"},
         {
-            "pred": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
-            "ground": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
+            "input": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
+            "target": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
             "smooth": 1e-4,
         },
         1.534853,
@@ -84,8 +84,8 @@ TEST_CASES = [
     [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
         {"include_background": True, "do_sigmoid": True},
         {
-            "pred": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
-            "ground": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
+            "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
+            "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
             "smooth": 1e-6,
         },
         0.307576,
@@ -93,8 +93,8 @@ TEST_CASES = [
     [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
         {"include_background": True, "do_sigmoid": True, "squared_pred": True},
         {
-            "pred": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
-            "ground": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
+            "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
+            "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
             "smooth": 1e-5,
         },
         0.178337,
@@ -102,8 +102,8 @@ TEST_CASES = [
     [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
         {"include_background": True, "do_sigmoid": True, "jaccard": True},
         {
-            "pred": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
-            "ground": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
+            "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
+            "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
             "smooth": 1e-5,
         },
         -0.059094,
@@ -116,6 +116,28 @@ class TestDiceLoss(unittest.TestCase):
     def test_shape(self, input_param, input_data, expected_val):
         result = DiceLoss(**input_param).forward(**input_data)
         np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, rtol=1e-5)
+
+    def test_ill_shape(self):
+        loss = DiceLoss()
+        with self.assertRaisesRegex(AssertionError, ""):
+            loss.forward(torch.ones((1, 2, 3)), torch.ones((4, 5, 6)))
+
+    def test_ill_opts(self):
+        with self.assertRaisesRegex(ValueError, ""):
+            DiceLoss(do_sigmoid=True, do_softmax=True)
+
+    def test_input_warnings(self):
+        chn_input = torch.ones((1, 1, 3))
+        chn_target = torch.ones((1, 1, 3))
+        with self.assertWarns(Warning):
+            loss = DiceLoss(include_background=False)
+            loss.forward(chn_input, chn_target)
+        with self.assertWarns(Warning):
+            loss = DiceLoss(do_softmax=True)
+            loss.forward(chn_input, chn_target)
+        with self.assertWarns(Warning):
+            loss = DiceLoss(to_onehot_y=True)
+            loss.forward(chn_input, chn_target)
 
 
 if __name__ == "__main__":

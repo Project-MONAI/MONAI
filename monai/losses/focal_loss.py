@@ -23,20 +23,23 @@ class FocalLoss(_WeightedLoss):
     def __init__(self, gamma=2.0, weight=None, reduction="mean"):
         """
         Args:
-            gamma: (float) value of the exponent gamma in the definition
-            of the Focal loss.
-            weight: (tensor) weights to apply to the
-            voxels of each class. If None no weights are applied.
-            This corresponds to the weights \alpha in [1].
-            reduction: (string) reduction operation to apply on the loss batch.
-            It can be 'mean', 'sum' or 'none' as in the standard PyTorch API
-            for loss functions.
+            gamma (float): value of the exponent gamma in the definition of the Focal loss.
+            weight (tensor): weights to apply to the voxels of each class. If None no weights are applied.
+                This corresponds to the weights `\alpha` in [1].
+            reduction (`none|mean|sum`): Specifies the reduction to apply to the output:
+                ``'none'``: no reduction will be applied,
+                ``'mean'``: the sum of the output will be divided by the batch size in the output,
+                ``'sum'``: the output will be summed over the batch dim.
+                Default: ``'mean'``.
 
-        Exemple:
-            pred = torch.tensor([[1, 0], [0, 1], [1, 0]], dtype=torch.float32)
-            grnd = torch.tensor([0, 1 ,0], dtype=torch.int64)
-            fl = FocalLoss()
-            fl(pred, grnd)
+        Example:
+            .. code-block:: python
+
+                pred = torch.tensor([[1, 0], [0, 1], [1, 0]], dtype=torch.float32)
+                grnd = torch.tensor([0, 1 ,0], dtype=torch.int64)
+                fl = FocalLoss()
+                fl(pred, grnd)
+
         """
         super(FocalLoss, self).__init__(weight=weight, reduction=reduction)
         self.gamma = gamma
@@ -91,8 +94,7 @@ class FocalLoss(_WeightedLoss):
 
         if self.reduction == "sum":
             return loss.sum()
-        elif self.reduction == "none":
+        if self.reduction == "none":
             return loss
         # Default is mean reduction.
-        else:
-            return loss.mean()
+        return loss.mean()

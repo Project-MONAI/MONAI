@@ -68,16 +68,16 @@ class TverskyLoss(_Loss):
         self.alpha = alpha
         self.beta = beta
 
-    def forward(self, pred, ground, smooth=1e-5):
+    def forward(self, input, target, smooth=1e-5):
         """
         Args:
-            pred (tensor): the shape should be BNH[WD].
-            ground (tensor): the shape should be BNH[WD].
+            input (tensor): the shape should be BNH[WD].
+            target (tensor): the shape should be BNH[WD].
             smooth (float): a small constant to avoid nan.
         """
         if self.do_sigmoid:
-            pred = torch.sigmoid(pred)
-        n_pred_ch = pred.shape[1]
+            input = torch.sigmoid(input)
+        n_pred_ch = input.shape[1]
         if n_pred_ch == 1:
             if self.do_softmax:
                 warnings.warn("single channel prediction, `do_softmax=True` ignored.")
@@ -87,25 +87,24 @@ class TverskyLoss(_Loss):
                 warnings.warn("single channel prediction, `include_background=False` ignored.")
         else:
             if self.do_softmax:
-                pred = torch.softmax(pred, 1)
+                input = torch.softmax(input, 1)
             if self.to_onehot_y:
-                ground = one_hot(ground, n_pred_ch)
+                target = one_hot(target, n_pred_ch)
             if not self.include_background:
                 # if skipping background, removing first channel
-                ground = ground[:, 1:]
-                pred = pred[:, 1:]
-                assert ground.shape == pred.shape, "ground truth one-hot has differing shape (%r) from pred (%r)" % (
-                    ground.shape,
-                    pred.shape,
-                )
+                target = target[:, 1:]
+                input = input[:, 1:]
+        assert (
+            target.shape == input.shape
+        ), f"ground truth has differing shape ({target.shape}) from input ({input.shape})"
 
-        p0 = pred
+        p0 = input
         p1 = 1 - p0
-        g0 = ground
+        g0 = target
         g1 = 1 - g0
 
         # reducing only spatial dimensions (not batch nor channels)
-        reduce_axis = list(range(2, len(pred.shape)))
+        reduce_axis = list(range(2, len(input.shape)))
 
         tp = torch.sum(p0 * g0, reduce_axis)
         fp = self.alpha * torch.sum(p0 * g1, reduce_axis)
