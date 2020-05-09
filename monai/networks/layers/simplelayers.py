@@ -56,7 +56,7 @@ class GaussianFilter(nn.Module):
         for idx, param in enumerate(self.kernel):
             self.register_parameter(f"kernel_{idx}", param)
 
-    def __call__(self, x):
+    def forward(self, x):
         """
         Args:
             x (tensor): in shape [Batch, chns, H, W, D].
