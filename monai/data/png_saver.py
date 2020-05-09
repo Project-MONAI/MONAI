@@ -28,6 +28,7 @@ class PNGSaver:
         output_dir="./",
         output_postfix="seg",
         output_ext=".png",
+        resample=True,
         interp_order=3,
         mode="constant",
         cval=0,
@@ -38,6 +39,7 @@ class PNGSaver:
             output_dir (str): output image directory.
             output_postfix (str): a string appended to all output file names.
             output_ext (str): output file extension name.
+            resample (bool): whether to resample and resize if providing spatial_shape in the metadata.
             interp_order (int): the order of the spline interpolation, default is 3. 
                 This option is used when spatial_shape is specified and different from the data shape.
                 The order has to be in the range 0 - 5.
@@ -52,6 +54,7 @@ class PNGSaver:
         self.output_dir = output_dir
         self.output_postfix = output_postfix
         self.output_ext = output_ext
+        self.resample = resample
         self.interp_order = interp_order
         self.mode = mode
         self.cval = cval
@@ -80,7 +83,7 @@ class PNGSaver:
         """
         filename = meta_data["filename_or_obj"] if meta_data else str(self._data_index)
         self._data_index += 1
-        spatial_shape = meta_data.get("spatial_shape", None) if meta_data else None
+        spatial_shape = meta_data.get("spatial_shape", None) if meta_data and self.resample else None
 
         if torch.is_tensor(data):
             data = data.detach().cpu().numpy()
