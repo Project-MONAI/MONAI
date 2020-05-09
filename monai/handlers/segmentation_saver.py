@@ -40,17 +40,19 @@ class SegmentationSaver:
             output_postfix (str): a string appended to all output file names.
             output_ext (str): output file extension name.
             resample (bool): whether to resample before saving the data array.
-                it's used for NIfTI format only.
             interp_order (int): the order of the spline interpolation, default is 0.
                 The order has to be in the range 0 - 5.
                 https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.affine_transform.html
+                this option is used when `resample = True`.
             mode (`reflect|constant|nearest|mirror|wrap`):
                 The mode parameter determines how the input array is extended beyond its boundaries.
+                this option is used when `resample = True`.
             cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
+                this option is used when `resample = True`.
             scale (bool): whether to scale data with 255 and convert to uint8 for data in range [0, 1].
                 it's used for PNG format only.
             dtype (np.dtype, optional): convert the image data to save to this data type.
-                If None, keep the original type of data.
+                If None, keep the original type of data. it's used for Nifti format only.
             batch_transform (Callable): a callable that is used to transform the
                 ignite.engine.batch into expected format to extract the meta_data dictionary.
             output_transform (Callable): a callable that is used to transform the
@@ -63,7 +65,7 @@ class SegmentationSaver:
         if output_ext in (".nii.gz", ".nii"):
             self.saver = NiftiSaver(output_dir, output_postfix, output_ext, resample, interp_order, mode, cval, dtype)
         elif output_ext == ".png":
-            self.saver = PNGSaver(output_dir, output_postfix, output_ext, interp_order, mode, cval, scale)
+            self.saver = PNGSaver(output_dir, output_postfix, output_ext, resample, interp_order, mode, cval, scale)
         self.batch_transform = batch_transform
         self.output_transform = output_transform
 
