@@ -38,6 +38,7 @@ class DiceLoss(_Loss):
         do_softmax=False,
         squared_pred=False,
         jaccard=False,
+        reduction="mean",
     ):
         """
         Args:
@@ -47,9 +48,13 @@ class DiceLoss(_Loss):
             do_softmax (bool): If True, apply a softmax function to the prediction.
             squared_pred (bool): use squared versions of targets and predictions in the denominator or not.
             jaccard (bool): compute Jaccard Index (soft IoU) instead of dice or not.
-
+            reduction (`none|mean|sum`): Specifies the reduction to apply to the output:
+                ``'none'``: no reduction will be applied,
+                ``'mean'``: the sum of the output will be divided by the number of elements in the output,
+                ``'sum'``: the output will be summed.
+                Default: ``'mean'``.
         """
-        super().__init__()
+        super().__init__(reduction=reduction)
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         if do_sigmoid and do_softmax:
@@ -106,8 +111,12 @@ class DiceLoss(_Loss):
         if self.jaccard:
             denominator -= intersection
 
-        f = (2.0 * intersection + smooth) / (denominator + smooth)
-        return 1.0 - f.mean()  # final reduce_mean across batches and channels
+        f = 1.0 - (2.0 * intersection + smooth) / (denominator + smooth)
+        if self.reduction == "sum":
+            return f.sum()  # sum over the batch and channel dims
+        if self.reduction == "none":
+            return f  # returns [N, n_classes] losses
+        return f.mean()  # defaults to the batch and channel average
 
 
 class GeneralizedDiceLoss(_Loss):
@@ -121,7 +130,15 @@ class GeneralizedDiceLoss(_Loss):
         https://github.com/NifTK/NiftyNet/blob/v0.6.0/niftynet/layer/loss_segmentation.py#L279
     """
 
-    def __init__(self, include_background=True, to_onehot_y=False, do_sigmoid=False, do_softmax=False, w_type="square"):
+    def __init__(
+        self,
+        include_background=True,
+        to_onehot_y=False,
+        do_sigmoid=False,
+        do_softmax=False,
+        w_type="square",
+        reduction="mean",
+    ):
         """
         Args:
             include_background (bool): If False channel index 0 (background category) is excluded from the calculation.
@@ -129,9 +146,13 @@ class GeneralizedDiceLoss(_Loss):
             do_sigmoid (bool): If True, apply a sigmoid function to the prediction.
             do_softmax (bool): If True, apply a softmax function to the prediction.
             w_type ('square'|'simple'|'uniform'): type of function to transform ground truth volume to a weight factor.
-
+            reduction (`none|mean|sum`): Specifies the reduction to apply to the output:
+                ``'none'``: no reduction will be applied,
+                ``'mean'``: the sum of the output will be divided by the batch size in the output,
+                ``'sum'``: the output will be summed over the batch dim.
+                Default: ``'mean'``.
         """
-        super().__init__()
+        super().__init__(reduction=reduction)
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         if do_sigmoid and do_softmax:
@@ -192,8 +213,12 @@ class GeneralizedDiceLoss(_Loss):
             b[infs] = 0.0
             b[infs] = torch.max(b)
 
-        f = (2.0 * intersection * w + smooth) / (denominator * w + smooth)
-        return 1.0 - f.mean()  # final reduce_mean across batches and channels
+        f = 1.0 - (2.0 * (intersection * w).sum(1) + smooth) / ((denominator * w).sum(1) + smooth)
+        if self.reduction == "sum":
+            return f.sum()  # sum over the batch dim
+        if self.reduction == "none":
+            return f  # returns [N] losses
+        return f.mean()  # defaults to the batch average
 
 
 dice = Dice = DiceLoss

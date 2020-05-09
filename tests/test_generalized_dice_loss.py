@@ -11,87 +11,102 @@
 
 import unittest
 
+import numpy as np
 import torch
 from parameterized import parameterized
 
 from monai.losses import GeneralizedDiceLoss
 
-TEST_CASE_0 = [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
-    {"include_background": True, "do_sigmoid": True},
-    {
-        "pred": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
-        "ground": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
-        "smooth": 1e-6,
-    },
-    0.307576,
-]
-
-TEST_CASE_1 = [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
-    {"include_background": True, "do_sigmoid": True},
-    {
-        "pred": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]], [[[1.0, -1.0], [-1.0, 1.0]]]]),
-        "ground": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]]], [[[1.0, 0.0], [1.0, 0.0]]]]),
-        "smooth": 1e-4,
-    },
-    0.416597,
-]
-
-TEST_CASE_2 = [  # shape: (2, 2, 3), (2, 1, 3)
-    {"include_background": False, "to_onehot_y": True},
-    {
-        "pred": torch.tensor([[[1.0, 1.0, 0.0], [0.0, 0.0, 1.0]], [[1.0, 0.0, 1.0], [0.0, 1.0, 0.0]]]),
-        "ground": torch.tensor([[[0.0, 0.0, 1.0]], [[0.0, 1.0, 0.0]]]),
-        "smooth": 0.0,
-    },
-    0.0,
-]
-
-TEST_CASE_3 = [  # shape: (2, 2, 3), (2, 1, 3)
-    {"include_background": True, "to_onehot_y": True, "do_sigmoid": True},
-    {
-        "pred": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
-        "ground": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
-        "smooth": 1e-4,
-    },
-    0.435034,
-]
-
-TEST_CASE_4 = [  # shape: (2, 2, 3), (2, 1, 3)
-    {"include_background": True, "to_onehot_y": True, "do_softmax": True},
-    {
-        "pred": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
-        "ground": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
-        "smooth": 1e-4,
-    },
-    0.383699,
-]
-
-TEST_CASE_5 = [  # shape: (2, 2, 3), (2, 1, 3)
-    {"include_background": False, "to_onehot_y": True},
-    {
-        "pred": torch.tensor([[[1.0, 1.0, 0.0], [0.0, 0.0, 1.0]], [[1.0, 0.0, 1.0], [0.0, 1.0, 0.0]]]),
-        "ground": torch.tensor([[[0.0, 0.0, 0.0]], [[0.0, 0.0, 0.0]]]),
-        "smooth": 1e-8,
-    },
-    0.0,
-]
-
-TEST_CASE_6 = [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
-    {"include_background": True, "do_sigmoid": True},
-    {
-        "pred": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
-        "ground": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
-        "smooth": 1e-6,
-    },
-    0.307576,
+TEST_CASES = [
+    [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
+        {"include_background": True, "do_sigmoid": True},
+        {
+            "pred": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
+            "ground": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
+            "smooth": 1e-6,
+        },
+        0.307576,
+    ],
+    [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
+        {"include_background": True, "do_sigmoid": True},
+        {
+            "pred": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]], [[[1.0, -1.0], [-1.0, 1.0]]]]),
+            "ground": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]]], [[[1.0, 0.0], [1.0, 0.0]]]]),
+            "smooth": 1e-4,
+        },
+        0.416597,
+    ],
+    [  # shape: (2, 2, 3), (2, 1, 3)
+        {"include_background": False, "to_onehot_y": True},
+        {
+            "pred": torch.tensor([[[1.0, 1.0, 0.0], [0.0, 0.0, 1.0]], [[1.0, 0.0, 1.0], [0.0, 1.0, 0.0]]]),
+            "ground": torch.tensor([[[0.0, 0.0, 1.0]], [[0.0, 1.0, 0.0]]]),
+            "smooth": 0.0,
+        },
+        0.0,
+    ],
+    [  # shape: (2, 2, 3), (2, 1, 3)
+        {"include_background": True, "to_onehot_y": True, "do_sigmoid": True},
+        {
+            "pred": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
+            "ground": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
+            "smooth": 1e-4,
+        },
+        0.469964,
+    ],
+    [  # shape: (2, 2, 3), (2, 1, 3)
+        {"include_background": True, "to_onehot_y": True, "do_softmax": True},
+        {
+            "pred": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
+            "ground": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
+            "smooth": 1e-4,
+        },
+        0.414507,
+    ],
+    [  # shape: (2, 2, 3), (2, 1, 3)
+        {"include_background": True, "to_onehot_y": True, "do_softmax": True, "reduction": "sum"},
+        {
+            "pred": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
+            "ground": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
+            "smooth": 1e-4,
+        },
+        0.829015,
+    ],
+    [  # shape: (2, 2, 3), (2, 1, 3)
+        {"include_background": True, "to_onehot_y": True, "do_softmax": True, "reduction": "none"},
+        {
+            "pred": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
+            "ground": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
+            "smooth": 1e-4,
+        },
+        [0.273476, 0.555539],
+    ],
+    [  # shape: (2, 2, 3), (2, 1, 3)
+        {"include_background": False, "to_onehot_y": True},
+        {
+            "pred": torch.tensor([[[1.0, 1.0, 0.0], [0.0, 0.0, 1.0]], [[1.0, 0.0, 1.0], [0.0, 1.0, 0.0]]]),
+            "ground": torch.tensor([[[0.0, 0.0, 0.0]], [[0.0, 0.0, 0.0]]]),
+            "smooth": 1e-8,
+        },
+        0.0,
+    ],
+    [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
+        {"include_background": True, "do_sigmoid": True},
+        {
+            "pred": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
+            "ground": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
+            "smooth": 1e-6,
+        },
+        0.307576,
+    ],
 ]
 
 
 class TestGeneralizedDiceLoss(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
+    @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_data, expected_val):
         result = GeneralizedDiceLoss(**input_param).forward(**input_data)
-        self.assertAlmostEqual(result.item(), expected_val, places=5)
+        np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, rtol=1e-5)
 
 
 if __name__ == "__main__":

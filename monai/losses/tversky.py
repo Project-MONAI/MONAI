@@ -20,7 +20,7 @@ from monai.networks.utils import one_hot
 class TverskyLoss(_Loss):
 
     """
-    Compute the Tversky loss defined in:        
+    Compute the Tversky loss defined in:
 
         Sadegh et al. (2017) Tversky loss function for image segmentation
         using 3D fully convolutional deep networks. (https://arxiv.org/abs/1706.05721)
@@ -31,7 +31,14 @@ class TverskyLoss(_Loss):
     """
 
     def __init__(
-        self, include_background=True, to_onehot_y=False, do_sigmoid=False, do_softmax=False, alpha=0.5, beta=0.5
+        self,
+        include_background=True,
+        to_onehot_y=False,
+        do_sigmoid=False,
+        do_softmax=False,
+        alpha=0.5,
+        beta=0.5,
+        reduction="mean",
     ):
 
         """
@@ -42,9 +49,15 @@ class TverskyLoss(_Loss):
             do_softmax (bool): If True, apply a softmax function to the prediction.
             alpha (float): weight of false positives
             beta  (float): weight of false negatives
+            reduction (`none|mean|sum`): Specifies the reduction to apply to the output:
+                ``'none'``: no reduction will be applied,
+                ``'mean'``: the sum of the output will be divided by the number of elements in the output,
+                ``'sum'``: the output will be summed.
+                Default: ``'mean'``.
+
         """
 
-        super().__init__()
+        super().__init__(reduction=reduction)
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
 
@@ -101,6 +114,10 @@ class TverskyLoss(_Loss):
         numerator = tp + smooth
         denominator = tp + fp + fn + smooth
 
-        score = numerator / denominator
+        score = 1.0 - numerator / denominator
 
-        return 1.0 - score.mean()
+        if self.reduction == "sum":
+            return score.sum()  # sum over the batch and channel dims
+        if self.reduction == "none":
+            return score  # returns [N, n_classes] losses
+        return score.mean()  # defaults to the batch and channel ave.
