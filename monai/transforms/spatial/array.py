@@ -790,7 +790,7 @@ class RandDeformGrid(Randomizable, Transform):
 
 
 class Resample(Transform):
-    def __init__(self, padding_mode="zeros", as_tensor_output=False, device=None):
+    def __init__(self, padding_mode="zeros", mode="bilinear", as_tensor_output=False, device=None):
         """
         computes output image using values from `img`, locations from `grid` using pytorch.
         supports spatially 2D or 3D (num_channels, H, W[, D]).
@@ -798,13 +798,15 @@ class Resample(Transform):
         Args:
             padding_mode ('zeros'|'border'|'reflection'): mode of handling out of range indices. Defaults to 'zeros'.
             as_tensor_output(bool): whether to return a torch tensor. Defaults to False.
+            mode ('nearest'|'bilinear'): interpolation order. Defaults to 'bilinear'.
             device (torch.device): device on which the tensor will be allocated.
         """
         self.padding_mode = padding_mode
+        self.mode = mode
         self.as_tensor_output = as_tensor_output
         self.device = device
 
-    def __call__(self, img, grid, mode="bilinear"):
+    def __call__(self, img, grid, padding_mode=None, mode=None):
         """
         Args:
             img (ndarray or tensor): shape must be (num_channels, H, W[, D]).
@@ -824,7 +826,11 @@ class Resample(Transform):
         grid = grid[range(img.ndim - 2, -1, -1)]
         grid = grid.permute(list(range(grid.ndim))[1:] + [0])
         out = torch.nn.functional.grid_sample(
-            img[None].float(), grid[None].float(), mode=mode, padding_mode=self.padding_mode, align_corners=False
+            img[None].float(),
+            grid[None].float(),
+            mode=mode or self.mode,
+            padding_mode=padding_mode or self.padding_mode,
+            align_corners=False,
         )[0]
         if self.as_tensor_output:
             return out
