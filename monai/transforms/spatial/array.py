@@ -226,15 +226,7 @@ class Resize(Transform):
     """
 
     def __init__(
-        self,
-        spatial_size,
-        order=1,
-        mode="reflect",
-        cval=0,
-        clip=True,
-        preserve_range=True,
-        anti_aliasing=True,
-        anti_aliasing_sigma=None,
+        self, spatial_size, order=1, mode="reflect", cval=0, clip=True, preserve_range=True, anti_aliasing=True,
     ):
         self.spatial_size = spatial_size
         self.order = order
@@ -329,6 +321,7 @@ class Zoom(Transform):
         order (int): order of interpolation. Default=3.
         mode (str): Determines how input is extended beyond boundaries. Default is 'constant'.
         cval (scalar, optional): Value to fill past edges. Default is 0.
+        prefilter (bool): Apply spline_filter before interpolation. Default: True.
         use_gpu (bool): Should use cpu or gpu. Uses cupyx which doesn't support order > 1 and modes
             'wrap' and 'reflect'. Defaults to cpu for these cases or if cupyx not found.
         keep_size (bool): Should keep original size (pad if needed).
@@ -469,9 +462,9 @@ class RandRotate(Randomizable, Transform):
     """Randomly rotates the input arrays.
 
     Args:
-        prob (float): Probability of rotation.
         degrees (tuple of float or float): Range of rotation in degrees. If single number,
             angle is picked from (-degrees, degrees).
+        prob (float): Probability of rotation.
         spatial_axes (tuple of 2 ints): Spatial axes of rotation. Default: (0, 1).
             This is the first two axis in spatial dimensions.
         reshape (bool): If reshape is true, the output shape is adapted so that the
@@ -487,14 +480,14 @@ class RandRotate(Randomizable, Transform):
     def __init__(
         self, degrees, prob=0.1, spatial_axes=(0, 1), reshape=True, order=1, mode="constant", cval=0, prefilter=True
     ):
-        self.prob = prob
         self.degrees = degrees
+        self.prob = prob
+        self.spatial_axes = spatial_axes
         self.reshape = reshape
         self.order = order
         self.mode = mode
         self.cval = cval
         self.prefilter = prefilter
-        self.spatial_axes = spatial_axes
 
         if not hasattr(self.degrees, "__iter__"):
             self.degrees = (-self.degrees, self.degrees)
@@ -563,6 +556,7 @@ class RandZoom(Randomizable, Transform):
         mode ('reflect', 'constant', 'nearest', 'mirror', 'wrap'): Determines how input is
             extended beyond boundaries. Default: 'constant'.
         cval (scalar, optional): Value to fill past edges. Default is 0.
+        prefilter (bool): Apply spline_filter before interpolation. Default: True.
         use_gpu (bool): Should use cpu or gpu. Uses cupyx which doesn't support order > 1 and modes
             'wrap' and 'reflect'. Defaults to cpu for these cases or if cupyx not found.
         keep_size (bool): Should keep original size (pad if needed).
@@ -900,7 +894,9 @@ class Affine(Transform):
             mode ('nearest'|'bilinear'): interpolation order. Defaults to 'bilinear'.
         """
         grid = self.affine_grid(spatial_size=spatial_size or self.spatial_size)
-        return self.resampler(img=img, grid=grid, padding_mode=padding_mode or self.padding_mode, mode=mode or self.mode)
+        return self.resampler(
+            img=img, grid=grid, padding_mode=padding_mode or self.padding_mode, mode=mode or self.mode
+        )
 
 
 class RandAffine(Randomizable, Transform):
@@ -947,9 +943,10 @@ class RandAffine(Randomizable, Transform):
             as_tensor_output=True,
             device=device,
         )
-        self.resampler = Resample(padding_mode=padding_mode, as_tensor_output=as_tensor_output, device=device)
+        self.resampler = Resample(as_tensor_output=as_tensor_output, device=device)
 
         self.spatial_size = spatial_size
+        self.padding_mode = padding_mode
         self.mode = mode
 
         self.do_transform = False
@@ -964,23 +961,25 @@ class RandAffine(Randomizable, Transform):
         self.do_transform = self.R.rand() < self.prob
         self.rand_affine_grid.randomize()
 
-    def __call__(self, img, spatial_size=None, mode=None):
+    def __call__(self, img, spatial_size=None, padding_mode=None, mode=None):
         """
         Args:
             img (ndarray or tensor): shape must be (num_channels, H, W[, D]),
             spatial_size (list or tuple of int): output image spatial size.
                 if `img` has two spatial dimensions, `spatial_size` should have 2 elements [h, w].
                 if `img` has three spatial dimensions, `spatial_size` should have 3 elements [h, w, d].
+            padding_mode ('zeros'|'border'|'reflection'): mode of handling out of range indices. Defaults to 'zeros'.
             mode ('nearest'|'bilinear'): interpolation order. Defaults to 'bilinear'.
         """
         self.randomize()
-        spatial_size = spatial_size or self.spatial_size
-        mode = mode or self.mode
+        _spatial_size = spatial_size or self.spatial_size
         if self.do_transform:
-            grid = self.rand_affine_grid(spatial_size=spatial_size)
+            grid = self.rand_affine_grid(spatial_size=_spatial_size)
         else:
-            grid = create_grid(spatial_size)
-        return self.resampler(img=img, grid=grid, mode=mode)
+            grid = create_grid(_spatial_size)
+        return self.resampler(
+            img=img, grid=grid, padding_mode=padding_mode or self.padding_mode, mode=mode or self.mode
+        )
 
 
 class Rand2DElastic(Randomizable, Transform):
@@ -1034,9 +1033,10 @@ class Rand2DElastic(Randomizable, Transform):
             as_tensor_output=True,
             device=device,
         )
-        self.resampler = Resample(padding_mode=padding_mode, as_tensor_output=as_tensor_output, device=device)
+        self.resampler = Resample(as_tensor_output=as_tensor_output, device=device)
 
         self.spatial_size = spatial_size
+        self.padding_mode = padding_mode
         self.mode = mode
         self.prob = prob
         self.do_transform = False
@@ -1052,23 +1052,24 @@ class Rand2DElastic(Randomizable, Transform):
         self.deform_grid.randomize(spatial_size)
         self.rand_affine_grid.randomize()
 
-    def __call__(self, img, spatial_size=None, mode=None):
+    def __call__(self, img, spatial_size=None, padding_mode=None, mode=None):
         """
         Args:
             img (ndarray or tensor): shape must be (num_channels, H, W),
             spatial_size (2 ints): specifying output image spatial size [h, w].
+            padding_mode ('zeros'|'border'|'reflection'): mode of handling out of range indices.
+                Defaults to ``'zeros'``.
             mode ('nearest'|'bilinear'): interpolation order. Defaults to ``self.mode``.
         """
         spatial_size = spatial_size or self.spatial_size
         self.randomize(spatial_size)
-        mode = mode or self.mode
         if self.do_transform:
             grid = self.deform_grid(spatial_size=spatial_size)
             grid = self.rand_affine_grid(grid=grid)
             grid = torch.nn.functional.interpolate(grid[None], spatial_size, mode="bicubic", align_corners=False)[0]
         else:
             grid = create_grid(spatial_size)
-        return self.resampler(img, grid, mode)
+        return self.resampler(img, grid, padding_mode=padding_mode or self.padding_mode, mode=mode or self.mode)
 
 
 class Rand3DElastic(Randomizable, Transform):
@@ -1113,11 +1114,12 @@ class Rand3DElastic(Randomizable, Transform):
             - :py:class:`Affine` for the affine transformation parameters configurations.
         """
         self.rand_affine_grid = RandAffineGrid(rotate_range, shear_range, translate_range, scale_range, True, device)
-        self.resampler = Resample(padding_mode=padding_mode, as_tensor_output=as_tensor_output, device=device)
+        self.resampler = Resample(as_tensor_output=as_tensor_output, device=device)
 
         self.sigma_range = sigma_range
         self.magnitude_range = magnitude_range
         self.spatial_size = spatial_size
+        self.padding_mode = padding_mode
         self.mode = mode
         self.device = device
 
@@ -1140,15 +1142,16 @@ class Rand3DElastic(Randomizable, Transform):
         self.sigma = self.R.uniform(self.sigma_range[0], self.sigma_range[1])
         self.rand_affine_grid.randomize()
 
-    def __call__(self, img, spatial_size=None, mode=None):
+    def __call__(self, img, spatial_size=None, padding_mode=None, mode=None):
         """
         Args:
             img (ndarray or tensor): shape must be (num_channels, H, W, D),
             spatial_size (3 ints): specifying spatial 3D output image spatial size [h, w, d].
+            padding_mode ('zeros'|'border'|'reflection'): mode of handling out of range indices.
+                Defaults to ``'zeros'``.
             mode ('nearest'|'bilinear'): interpolation order. Defaults to 'self.mode'.
         """
         spatial_size = spatial_size or self.spatial_size
-        mode = mode or self.mode
         self.randomize(spatial_size)
         grid = create_grid(spatial_size)
         if self.do_transform:
@@ -1156,4 +1159,4 @@ class Rand3DElastic(Randomizable, Transform):
             gaussian = GaussianFilter(3, self.sigma, 3.0).to(device=self.device)
             grid[:3] += gaussian(self.rand_offset[None])[0] * self.magnitude
             grid = self.rand_affine_grid(grid=grid)
-        return self.resampler(img, grid, mode)
+        return self.resampler(img, grid, padding_mode=self.padding_mode, mode=mode or self.mode)

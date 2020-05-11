@@ -42,7 +42,7 @@ class SpatialPadd(MapTransform):
         """
         super().__init__(keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.padder = SpatialPad(spatial_size, method, self.mode[0])
+        self.padder = SpatialPad(spatial_size, method)
 
     def __call__(self, data):
         d = dict(data)

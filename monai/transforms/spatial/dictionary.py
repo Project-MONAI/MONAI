@@ -71,11 +71,12 @@ class Spacingd(MapTransform):
                 for all data indexed by `self.keys`; sequence of ints, should
                 correspond to an interpolation order for each data item indexed
                 by `self.keys` respectively.
-            mode (`reflect|constant|nearest|mirror|wrap`):
+            mode (str or sequence of str):
+                Available options are `reflect|constant|nearest|mirror|wrap`.
                 The mode parameter determines how the input array is extended beyond its boundaries.
                 Default is 'nearest'.
-            cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
-            dtype (None or np.dtype): output array data type, defaults to None to use input data's dtype.
+            cval (scalar or sequence of scalars): Value to fill past edges of input if mode is "constant". Default is 0.0.
+            dtype (None or np.dtype or sequence of np.dtype): output array data type, defaults to None to use input data's dtype.
             meta_key_format (str): key format to read/write affine matrices to the data dictionary.
         """
         super().__init__(keys)
@@ -229,7 +230,8 @@ class Resized(MapTransform):
         preserve_range (bool or sequence of bool): Whether to keep original range of values. Default is True.
             If False, input is converted according to conventions of img_as_float. See
             https://scikit-image.org/docs/dev/user_guide/data_types.html.
-        anti_aliasing (bool or sequence of bool): Whether to apply a gaussian filter to image before down-scaling. Default is True.
+        anti_aliasing (bool or sequence of bool): Whether to apply a gaussian filter to image before down-scaling.
+            Default is True.
     """
 
     def __init__(
@@ -287,11 +289,12 @@ class RandAffined(Randomizable, MapTransform):
                 if ``data`` component has three spatial dimensions, ``spatial_size`` should have 3 elements [h, w, d].
             prob (float): probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid.
-            mode ('nearest'|'bilinear'): interpolation order. Defaults to ``'bilinear'``.
+            mode (str or sequence of str): interpolation order.
+                Available options are 'nearest', 'bilinear'. Defaults to ``'bilinear'``.
                 if mode is a tuple of interpolation mode strings, each string corresponds to a key in ``keys``.
                 this is useful to set different modes for different data items.
-            padding_mode ('zeros'|'border'|'reflection'): mode of handling out of range indices.
-                Defaults to ``'zeros'``.
+            padding_mode (str or sequence of str): mode of handling out of range indices.
+                Available options are 'zeros', 'border', 'reflection'.  Defaults to ``'zeros'``.
             as_tensor_output (bool): the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
             device (torch.device): device on which the tensor will be allocated.
@@ -301,7 +304,6 @@ class RandAffined(Randomizable, MapTransform):
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
         """
         super().__init__(keys)
-        default_mode = "bilinear" if isinstance(mode, (tuple, list)) else mode
         self.rand_affine = RandAffine(
             prob=prob,
             rotate_range=rotate_range,
@@ -309,12 +311,11 @@ class RandAffined(Randomizable, MapTransform):
             translate_range=translate_range,
             scale_range=scale_range,
             spatial_size=spatial_size,
-            mode=default_mode,
-            padding_mode=padding_mode,
             as_tensor_output=as_tensor_output,
             device=device,
         )
-        self.mode = mode
+        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
 
     def set_random_state(self, seed=None, state=None):
         self.rand_affine.set_random_state(seed, state)
@@ -332,15 +333,10 @@ class RandAffined(Randomizable, MapTransform):
         if self.rand_affine.do_transform:
             grid = self.rand_affine.rand_affine_grid(spatial_size=spatial_size)
         else:
-            grid = create_grid(spatial_size)
+            grid = create_grid(spatial_size=spatial_size)
 
-        if isinstance(self.mode, (tuple, list)):
-            for key, m in zip(self.keys, self.mode):
-                d[key] = self.rand_affine.resampler(d[key], grid, mode=m)
-            return d
-
-        for key in self.keys:  # same interpolation mode
-            d[key] = self.rand_affine.resampler(d[key], grid, self.rand_affine.mode)
+        for idx, key in enumerate(self.keys):
+            d[key] = self.rand_affine.resampler(d[key], grid, padding_mode=self.padding_mode[idx], mode=self.mode[idx])
         return d
 
 
@@ -375,11 +371,12 @@ class Rand2DElasticd(Randomizable, MapTransform):
             prob (float): probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
-            mode ('nearest'|'bilinear'): interpolation order. Defaults to ``'bilinear'``.
+            mode (str or sequence of str): interpolation order.
+                Available options are 'nearest', 'bilinear'. Defaults to ``'bilinear'``.
                 if mode is a tuple of interpolation mode strings, each string corresponds to a key in ``keys``.
                 this is useful to set different modes for different data items.
-            padding_mode ('zeros'|'border'|'reflection'): mode of handling out of range indices.
-                Defaults to ``'zeros'``.
+            padding_mode (str or sequence of str): mode of handling out of range indices.
+                Available options are 'zeros', 'border', 'reflection'.  Defaults to ``'zeros'``.
             as_tensor_output (bool): the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
             device (torch.device): device on which the tensor will be allocated.
@@ -388,7 +385,6 @@ class Rand2DElasticd(Randomizable, MapTransform):
             - :py:class:`Affine` for the affine transformation parameters configurations.
         """
         super().__init__(keys)
-        default_mode = "bilinear" if isinstance(mode, (tuple, list)) else mode
         self.rand_2d_elastic = Rand2DElastic(
             spacing=spacing,
             magnitude_range=magnitude_range,
@@ -398,12 +394,11 @@ class Rand2DElasticd(Randomizable, MapTransform):
             translate_range=translate_range,
             scale_range=scale_range,
             spatial_size=spatial_size,
-            mode=default_mode,
-            padding_mode=padding_mode,
             as_tensor_output=as_tensor_output,
             device=device,
         )
-        self.mode = mode
+        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
 
     def set_random_state(self, seed=None, state=None):
         self.rand_2d_elastic.set_random_state(seed, state)
@@ -425,13 +420,10 @@ class Rand2DElasticd(Randomizable, MapTransform):
         else:
             grid = create_grid(spatial_size)
 
-        if isinstance(self.mode, (tuple, list)):
-            for key, m in zip(self.keys, self.mode):
-                d[key] = self.rand_2d_elastic.resampler(d[key], grid, mode=m)
-            return d
-
-        for key in self.keys:  # same interpolation mode
-            d[key] = self.rand_2d_elastic.resampler(d[key], grid, mode=self.rand_2d_elastic.mode)
+        for idx, key in enumerate(self.keys):
+            d[key] = self.rand_2d_elastic.resampler(
+                d[key], grid, padding_mode=self.padding_mode[idx], mode=self.mode[idx]
+            )
         return d
 
 
@@ -467,11 +459,12 @@ class Rand3DElasticd(Randomizable, MapTransform):
             prob (float): probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
-            mode ('nearest'|'bilinear'): interpolation order. Defaults to ``'bilinear'``.
+            mode (str or sequence of str): interpolation order.
+                Available options are 'nearest', 'bilinear'. Defaults to ``'bilinear'``.
                 if mode is a tuple of interpolation mode strings, each string corresponds to a key in ``keys``.
                 this is useful to set different modes for different data items.
-            padding_mode ('zeros'|'border'|'reflection'): mode of handling out of range indices.
-                Defaults to ``'zeros'``.
+            padding_mode (str or sequence of str): mode of handling out of range indices.
+                Available options are 'zeros', 'border', 'reflection'.  Defaults to ``'zeros'``.
             as_tensor_output (bool): the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
             device (torch.device): device on which the tensor will be allocated.
@@ -480,7 +473,6 @@ class Rand3DElasticd(Randomizable, MapTransform):
             - :py:class:`Affine` for the affine transformation parameters configurations.
         """
         super().__init__(keys)
-        default_mode = "bilinear" if isinstance(mode, (tuple, list)) else mode
         self.rand_3d_elastic = Rand3DElastic(
             sigma_range=sigma_range,
             magnitude_range=magnitude_range,
@@ -490,12 +482,11 @@ class Rand3DElasticd(Randomizable, MapTransform):
             translate_range=translate_range,
             scale_range=scale_range,
             spatial_size=spatial_size,
-            mode=default_mode,
-            padding_mode=padding_mode,
             as_tensor_output=as_tensor_output,
             device=device,
         )
-        self.mode = mode
+        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
 
     def set_random_state(self, seed=None, state=None):
         self.rand_3d_elastic.set_random_state(seed, state)
@@ -517,13 +508,10 @@ class Rand3DElasticd(Randomizable, MapTransform):
             grid[:3] += gaussian(self.rand_3d_elastic.rand_offset[None])[0] * self.rand_3d_elastic.magnitude
             grid = self.rand_3d_elastic.rand_affine_grid(grid=grid)
 
-        if isinstance(self.mode, (tuple, list)):
-            for key, m in zip(self.keys, self.mode):
-                d[key] = self.rand_3d_elastic.resampler(d[key], grid, mode=m)
-            return d
-
-        for key in self.keys:  # same interpolation mode
-            d[key] = self.rand_3d_elastic.resampler(d[key], grid, mode=self.rand_3d_elastic.mode)
+        for idx, key in enumerate(self.keys):
+            d[key] = self.rand_3d_elastic.resampler(
+                d[key], grid, padding_mode=self.padding_mode[idx], mode=self.mode[idx]
+            )
         return d
 
 
@@ -693,9 +681,10 @@ class Zoomd(MapTransform):
         zoom (float or sequence): The zoom factor along the spatial axes.
             If a float, zoom is the same for each spatial axis.
             If a sequence, zoom should contain one value for each spatial axis.
-        order (int): order of interpolation. Default=3.
-        mode (str): Determines how input is extended beyond boundaries. Default is 'constant'.
-        cval (scalar, optional): Value to fill past edges. Default is 0.
+        order (int or sequence of int): order of interpolation. Default=3.
+        mode (str or sequence of str): Determines how input is extended beyond boundaries. Default is 'constant'.
+        cval (scalar or sequence of scalar): Value to fill past edges. Default is 0.
+        prefilter (bool or sequence of bool): Apply spline_filter before interpolation. Default: True.
         use_gpu (bool): Should use cpu or gpu. Uses cupyx which doesn't support order > 1 and modes
             'wrap' and 'reflect'. Defaults to cpu for these cases or if cupyx not found.
         keep_size (bool): Should keep original size (pad if needed).
@@ -735,6 +724,7 @@ class RandZoomd(Randomizable, MapTransform):
         mode (str or sequence of str): Available options are 'reflect', 'constant', 'nearest', 'mirror', 'wrap'.
             Determines how input is extended beyond boundaries. Default: 'constant'.
         cval (scalar or sequence of scalar): Value to fill past edges. Default is 0.
+        prefilter (bool or sequence of bool): Apply spline_filter before interpolation. Default: True.
         use_gpu (bool): Should use cpu or gpu. Uses cupyx which doesn't support order > 1 and modes
             'wrap' and 'reflect'. Defaults to cpu for these cases or if cupyx not found.
         keep_size (bool): Should keep original size (pad if needed).
