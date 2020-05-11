@@ -795,7 +795,7 @@ class Resample(Transform):
         """
         if not torch.is_tensor(img):
             img = torch.as_tensor(np.ascontiguousarray(img))
-        grid = torch.as_tensor(np.ascontiguousarray(grid)) if not torch.is_tensor(grid) else grid.detach().clone()
+        grid = torch.tensor(np.ascontiguousarray(grid)) if not torch.is_tensor(grid) else grid.detach().clone()
         if self.device:
             img = img.to(self.device)
             grid = grid.to(self.device)
