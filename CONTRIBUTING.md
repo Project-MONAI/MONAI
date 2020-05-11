@@ -44,7 +44,8 @@ Ideally, the new branch should be based on the latest `master` branch.
 1. Wait for the pull request to be merged.
 
 ### Coding style
-Coding style is checked by flake8, using [a flake8 configuration](./setup.cfg) similar to [PyTorch's](https://github.com/pytorch/pytorch/blob/master/.flake8).
+Coding style is checked by flake8, using [a flake8 configuration](./setup.cfg) similar to [PyTorch's](https://github.com/pytorch/pytorch/blob/master/.flake8).  
+For string defination, [f string](https://www.python.org/dev/peps/pep-0498/) is recommended to use over `%-print` and `format-print` from python 3.6. So please try to use `f string` if you need to define any string object.  
 Python code file formatting could be done locally before submitting a pull request (e.g. using [`psf/Black`](https://github.com/psf/black)), or during the pull request review using MONAI's automatic code formatting workflow.
 
 License information: all source code files should start with this paragraph:
