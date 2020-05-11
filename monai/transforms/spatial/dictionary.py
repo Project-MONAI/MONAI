@@ -631,12 +631,12 @@ class RandRotated(Randomizable, MapTransform):
             This is the first two axis in spatial dimensions.
         reshape (bool): If reshape is true, the output shape is adapted so that the
             input array is contained completely in the output. Default is True.
-        order (int): Order of spline interpolation. Range 0-5. Default: 1. This is
+        order (int or sequence of int): Order of spline interpolation. Range 0-5. Default: 1. This is
             different from scipy where default interpolation is 3.
-        mode (str): Points outside boundary filled according to this mode. Options are
+        mode (str or sequence of str): Points outside boundary filled according to this mode. Options are
             'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
-        cval (scalar): Value to fill outside boundary. Default: 0.
-        prefilter (bool): Apply spline_filter before interpolation. Default: True.
+        cval (scalar or sequence of scalar): Value to fill outside boundary. Default: 0.
+        prefilter (bool or sequence of bool): Apply spline_filter before interpolation. Default: True.
     """
 
     def __init__(
@@ -655,11 +655,12 @@ class RandRotated(Randomizable, MapTransform):
         self.prob = prob
         self.degrees = degrees
         self.reshape = reshape
-        self.order = order
-        self.mode = mode
-        self.cval = cval
-        self.prefilter = prefilter
         self.spatial_axes = spatial_axes
+
+        self.order = ensure_tuple_rep(order, len(self.keys))
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.cval = ensure_tuple_rep(cval, len(self.keys))
+        self.prefilter = ensure_tuple_rep(prefilter, len(self.keys))
 
         if not hasattr(self.degrees, "__iter__"):
             self.degrees = (-self.degrees, self.degrees)
@@ -677,9 +678,11 @@ class RandRotated(Randomizable, MapTransform):
         d = dict(data)
         if not self._do_transform:
             return d
-        rotator = Rotate(self.angle, self.spatial_axes, self.reshape, self.order, self.mode, self.cval, self.prefilter)
-        for key in self.keys:
-            d[key] = rotator(d[key])
+        rotator = Rotate(angle=self.angle, spatial_axes=self.spatial_axes, reshape=self.reshape)
+        for idx, key in enumerate(self.keys):
+            d[key] = rotator(
+                d[key], order=self.order[idx], mode=self.mode[idx], cval=self.cval[idx], prefilter=self.prefilter[idx]
+            )
         return d
 
 

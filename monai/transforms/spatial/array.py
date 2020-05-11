@@ -507,11 +507,19 @@ class RandRotate(Randomizable, Transform):
         self._do_transform = self.R.random_sample() < self.prob
         self.angle = self.R.uniform(low=self.degrees[0], high=self.degrees[1])
 
-    def __call__(self, img):
+    def __call__(self, img, order=None, mode=None, cval=None, prefilter=None):
         self.randomize()
         if not self._do_transform:
             return img
-        rotator = Rotate(self.angle, self.spatial_axes, self.reshape, self.order, self.mode, self.cval, self.prefilter)
+        rotator = Rotate(
+            angle=self.angle,
+            spatial_axes=self.spatial_axes,
+            reshape=self.reshape,
+            order=self.order if order is None else order,
+            mode=self.mode if mode is None else mode,
+            cval=self.cval if cval is None else cval,
+            prefilter=self.prefilter if prefilter is None else prefilter,
+        )
         return rotator(img)
 
 
