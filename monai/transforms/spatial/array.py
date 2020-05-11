@@ -289,14 +289,14 @@ class Rotate(Transform):
 
     def __init__(self, angle, spatial_axes=(0, 1), reshape=True, order=1, mode="constant", cval=0, prefilter=True):
         self.angle = angle
+        self.spatial_axes = spatial_axes
         self.reshape = reshape
         self.order = order
         self.mode = mode
         self.cval = cval
         self.prefilter = prefilter
-        self.spatial_axes = spatial_axes
 
-    def __call__(self, img):
+    def __call__(self, img, order=None, mode=None, cval=None, prefilter=None):
         """
         Args:
             img (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
@@ -305,14 +305,14 @@ class Rotate(Transform):
         for channel in img:
             rotated.append(
                 scipy.ndimage.rotate(
-                    channel,
-                    self.angle,
-                    self.spatial_axes,
+                    input=channel,
+                    angle=self.angle,
+                    axes=self.spatial_axes,
                     reshape=self.reshape,
-                    order=self.order,
-                    mode=self.mode,
-                    cval=self.cval,
-                    prefilter=self.prefilter,
+                    order=self.order if order is None else order,
+                    mode=mode or self.mode,
+                    cval=self.cval if cval is None else cval,
+                    prefilter=self.prefilter if prefilter is None else prefilter,
                 )
             )
         return np.stack(rotated).astype(img.dtype)

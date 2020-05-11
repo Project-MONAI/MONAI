@@ -591,32 +591,32 @@ class Rotated(MapTransform):
             This is the first two axis in spatial dimensions.
         reshape (bool): If reshape is true, the output shape is adapted so that the
             input array is contained completely in the output. Default is True.
-        order (int): Order of spline interpolation. Range 0-5. Default: 1. This is
+        order (int or sequence of int): Order of spline interpolation. Range 0-5. Default: 1. This is
             different from scipy where default interpolation is 3.
-        mode (str): Points outside boundary filled according to this mode. Options are
+        mode (str or sequence of str): Points outside boundary filled according to this mode. Options are
             'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
-        cval (scalar): Values to fill outside boundary. Default: 0.
-        prefilter (bool): Apply spline_filter before interpolation. Default: True.
+        cval (scalar or sequence of scalar): Values to fill outside boundary. Default: 0.
+        prefilter (bool or sequence of bool): Apply spline_filter before interpolation. Default: True.
     """
 
     def __init__(
         self, keys, angle, spatial_axes=(0, 1), reshape=True, order=1, mode="constant", cval=0, prefilter=True
     ):
         super().__init__(keys)
-        self.rotator = Rotate(
-            angle=angle,
-            spatial_axes=spatial_axes,
-            reshape=reshape,
-            order=order,
-            mode=mode,
-            cval=cval,
-            prefilter=prefilter,
-        )
+        self.rotator = Rotate(angle=angle, spatial_axes=spatial_axes, reshape=reshape)
+
+        self.order = ensure_tuple_rep(order, len(self.keys))
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.cval = ensure_tuple_rep(cval, len(self.keys))
+        self.prefilter = ensure_tuple_rep(prefilter, len(self.keys))
+
 
     def __call__(self, data):
         d = dict(data)
-        for key in self.keys:
-            d[key] = self.rotator(d[key])
+        for idx, key in enumerate(self.keys):
+            d[key] = self.rotator(
+                d[key], order=self.order[idx], mode=self.mode[idx], cval=self.cval[idx], prefilter=self.prefilter[idx]
+            )
         return d
 
 
