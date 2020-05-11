@@ -10,10 +10,10 @@
 # limitations under the License.
 
 import os
-import unittest
 import tempfile
-import nibabel as nib
+import unittest
 
+import nibabel as nib
 import numpy as np
 import torch
 

@@ -23,20 +23,26 @@ class FocalLoss(_WeightedLoss):
     def __init__(self, gamma=2.0, weight=None, reduction="mean"):
         """
         Args:
-            gamma: (float) value of the exponent gamma in the definition
-            of the Focal loss.
-            weight: (tensor) weights to apply to the
-            voxels of each class. If None no weights are applied.
-            This corresponds to the weights \alpha in [1].
-            reduction: (string) reduction operation to apply on the loss batch.
-            It can be 'mean', 'sum' or 'none' as in the standard PyTorch API
-            for loss functions.
+            gamma (float): value of the exponent gamma in the definition of the Focal loss.
+            weight (tensor): weights to apply to the voxels of each class. If None no weights are applied.
+                This corresponds to the weights `\alpha` in [1].
+            reduction (`none|mean|sum`): Specifies the reduction to apply to the output:
+                ``'none'``: no reduction will be applied,
+                ``'mean'``: the sum of the output will be divided by the batch size in the output,
+                ``'sum'``: the output will be summed over the batch dim.
+                Default: ``'mean'``.
 
-        Exemple:
-            pred = torch.tensor([[1, 0], [0, 1], [1, 0]], dtype=torch.float32)
-            grnd = torch.tensor([0, 1 ,0], dtype=torch.int64)
-            fl = FocalLoss()
-            fl(pred, grnd)
+        Example:
+            .. code-block:: python
+
+                import torch
+                from monai.losses import FocalLoss
+
+                pred = torch.tensor([[1, 0], [0, 1], [1, 0]], dtype=torch.float32)
+                grnd = torch.tensor([[0], [1], [0]], dtype=torch.int64)
+                fl = FocalLoss()
+                fl(pred, grnd)
+
         """
         super(FocalLoss, self).__init__(weight=weight, reduction=reduction)
         self.gamma = gamma
@@ -44,16 +50,23 @@ class FocalLoss(_WeightedLoss):
     def forward(self, input, target):
         """
         Args:
-            input: (tensor): the shape should be BNH[WD].
-            target: (tensor): the shape should be BNH[WD].
+            input: (tensor): the shape should be BCH[WD].
+                where C is the number of classes.
+            target: (tensor): the shape should be B1H[WD].
+                The target that this loss expects should be a class index in the range
+                [0, C-1] where C is the number of classes.
         """
         i = input
         t = target
 
-        if t.dim() < i.dim():
-            # Add a class dimension to the ground-truth segmentation.
-            t = t.unsqueeze(1)  # N,H,W => N,1,H,W
+        if i.ndim != t.ndim:
+            raise ValueError(f"input and target must have the same number of dimensions, got {i.ndim} and {t.ndim}")
 
+        if target.shape[1] != 1:
+            raise ValueError(
+                f"target must have one channel, and should be a class index in the range [0, C-1] "
+                + f"where C is the number of classes inferred from 'input': C={i.shape[1]}."
+            )
         # Change the shape of input and target to
         # num_batch x num_class x num_voxels.
         if input.dim() > 2:
@@ -66,21 +79,20 @@ class FocalLoss(_WeightedLoss):
         # Compute the log proba (more stable numerically than softmax).
         logpt = F.log_softmax(i, dim=1)  # N,C,H*W
         # Keep only log proba values of the ground truth class for each voxel.
-        logpt = logpt.gather(1, t)  # N,C,H*W => N,1,H*W
+        logpt = logpt.gather(1, t.long())  # N,C,H*W => N,1,H*W
         logpt = torch.squeeze(logpt, dim=1)  # N,1,H*W => N,H*W
 
         # Get the proba
         pt = torch.exp(logpt)  # N,H*W
 
         if self.weight is not None:
-            if self.weight.type() != i.data.type():
-                self.weight = self.weight.type_as(i.data)
+            self.weight = self.weight.to(i)
             # Convert the weight to a map in which each voxel
             # has the weight associated with the ground-truth label
             # associated with this voxel in target.
             at = self.weight[None, :, None]  # C => 1,C,1
             at = at.expand((t.size(0), -1, t.size(2)))  # 1,C,1 => N,C,H*W
-            at = at.gather(1, t.data)  # selection of the weights  => N,1,H*W
+            at = at.gather(1, t.long())  # selection of the weights  => N,1,H*W
             at = torch.squeeze(at, dim=1)  # N,1,H*W => N,H*W
             # Multiply the log proba by their weights.
             logpt = logpt * at
@@ -91,8 +103,8 @@ class FocalLoss(_WeightedLoss):
 
         if self.reduction == "sum":
             return loss.sum()
-        elif self.reduction == "none":
+        if self.reduction == "none":
             return loss
-        # Default is mean reduction.
-        else:
+        if self.reduction == "mean":
             return loss.mean()
+        raise ValueError(f"reduction={self.reduction} is invalid.")
