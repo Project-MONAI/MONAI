@@ -884,23 +884,23 @@ class Affine(Transform):
             as_tensor_output=True,
             device=device,
         )
-        self.resampler = Resample(padding_mode=padding_mode, as_tensor_output=as_tensor_output, device=device)
+        self.resampler = Resample(as_tensor_output=as_tensor_output, device=device)
         self.spatial_size = spatial_size
+        self.padding_mode = padding_mode
         self.mode = mode
 
-    def __call__(self, img, spatial_size=None, mode=None):
+    def __call__(self, img, spatial_size=None, padding_mode=None, mode=None):
         """
         Args:
             img (ndarray or tensor): shape must be (num_channels, H, W[, D]),
             spatial_size (list or tuple of int): output image spatial size.
                 if `img` has two spatial dimensions, `spatial_size` should have 2 elements [h, w].
                 if `img` has three spatial dimensions, `spatial_size` should have 3 elements [h, w, d].
+            padding_mode ('zeros'|'border'|'reflection'): mode of handling out of range indices. Defaults to 'zeros'.
             mode ('nearest'|'bilinear'): interpolation order. Defaults to 'bilinear'.
         """
-        spatial_size = spatial_size or self.spatial_size
-        mode = mode or self.mode
-        grid = self.affine_grid(spatial_size=spatial_size)
-        return self.resampler(img=img, grid=grid, mode=mode)
+        grid = self.affine_grid(spatial_size=spatial_size or self.spatial_size)
+        return self.resampler(img=img, grid=grid, padding_mode=padding_mode or self.padding_mode, mode=mode or self.mode)
 
 
 class RandAffine(Randomizable, Transform):
