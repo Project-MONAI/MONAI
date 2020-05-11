@@ -585,12 +585,13 @@ class RandZoom(Randomizable, Transform):
         self.min_zoom = min_zoom
         self.max_zoom = max_zoom
         self.prob = prob
+        self.use_gpu = use_gpu
+        self.keep_size = keep_size
+
         self.order = order
         self.mode = mode
         self.cval = cval
         self.prefilter = prefilter
-        self.use_gpu = use_gpu
-        self.keep_size = keep_size
 
         self._do_transform = False
         self._zoom = None
@@ -602,12 +603,18 @@ class RandZoom(Randomizable, Transform):
         else:
             self._zoom = self.R.uniform(self.min_zoom, self.max_zoom)
 
-    def __call__(self, img):
+    def __call__(self, img, order=None, mode=None, cval=None, prefilter=None):
         self.randomize()
         if not self._do_transform:
             return img
-        zoomer = Zoom(self._zoom, self.order, self.mode, self.cval, self.prefilter, self.use_gpu, self.keep_size)
-        return zoomer(img)
+        zoomer = Zoom(self._zoom, use_gpu=self.use_gpu, keep_size=self.keep_size)
+        return zoomer(
+            img,
+            order=self.order if order is None else order,
+            mode=self.mode if mode is None else mode,
+            cval=self.cval if cval is None else cval,
+            prefilter=self.prefilter if prefilter is None else prefilter,
+        )
 
 
 class AffineGrid(Transform):

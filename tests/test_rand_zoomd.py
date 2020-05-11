@@ -83,7 +83,7 @@ class TestRandZoomd(NumpyImageTestCase2D):
         zoomed = random_zoom({key: self.imt[0]})
         self.assertTrue(np.array_equal(zoomed[key].shape, self.imt.shape[1:]))
 
-    @parameterized.expand([("no_min_zoom", None, 1.1, 1, TypeError), ("invalid_order", 0.9, 1.1, "s", AssertionError)])
+    @parameterized.expand([("no_min_zoom", None, 1.1, 1, TypeError), ("invalid_order", 0.9, 1.1, "s", TypeError)])
     def test_invalid_inputs(self, _, min_zoom, max_zoom, order, raises):
         key = "img"
         with self.assertRaises(raises):

@@ -731,10 +731,10 @@ class RandZoomd(Randomizable, MapTransform):
         max_zoom (float or sequence): Max zoom factor. Can be float or sequence same size as image.
             If a float, max_zoom is the same for each spatial axis.
             If a sequence, max_zoom should contain one value for each spatial axis.
-        order (int): order of interpolation. Default=3.
-        mode ('reflect', 'constant', 'nearest', 'mirror', 'wrap'): Determines how input is
-            extended beyond boundaries. Default: 'constant'.
-        cval (scalar, optional): Value to fill past edges. Default is 0.
+        order (int or sequence of int): order of interpolation. Default=3.
+        mode (str or sequence of str): Available options are 'reflect', 'constant', 'nearest', 'mirror', 'wrap'.
+            Determines how input is extended beyond boundaries. Default: 'constant'.
+        cval (scalar or sequence of scalar): Value to fill past edges. Default is 0.
         use_gpu (bool): Should use cpu or gpu. Uses cupyx which doesn't support order > 1 and modes
             'wrap' and 'reflect'. Defaults to cpu for these cases or if cupyx not found.
         keep_size (bool): Should keep original size (pad if needed).
@@ -759,12 +759,13 @@ class RandZoomd(Randomizable, MapTransform):
         self.min_zoom = min_zoom
         self.max_zoom = max_zoom
         self.prob = prob
-        self.order = order
-        self.mode = mode
-        self.cval = cval
-        self.prefilter = prefilter
         self.use_gpu = use_gpu
         self.keep_size = keep_size
+
+        self.order = ensure_tuple_rep(order, len(self.keys))
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.cval = ensure_tuple_rep(cval, len(self.keys))
+        self.prefilter = ensure_tuple_rep(prefilter, len(self.keys))
 
         self._do_transform = False
         self._zoom = None
@@ -781,9 +782,11 @@ class RandZoomd(Randomizable, MapTransform):
         d = dict(data)
         if not self._do_transform:
             return d
-        zoomer = Zoom(self._zoom, self.order, self.mode, self.cval, self.prefilter, self.use_gpu, self.keep_size)
-        for key in self.keys:
-            d[key] = zoomer(d[key])
+        zoomer = Zoom(self._zoom, use_gpu=self.use_gpu, keep_size=self.keep_size)
+        for idx, key in enumerate(self.keys):
+            d[key] = zoomer(
+                d[key], order=self.order[idx], mode=self.mode[idx], cval=self.cval[idx], prefilter=self.prefilter[idx],
+            )
         return d
 
 
