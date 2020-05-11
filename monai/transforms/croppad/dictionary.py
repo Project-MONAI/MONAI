@@ -19,7 +19,7 @@ from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.croppad.array import SpatialCrop, CenterSpatialCrop, SpatialPad
 from monai.transforms.utils import generate_pos_neg_label_crop_centers, generate_spatial_bounding_box
-from monai.utils.misc import ensure_tuple
+from monai.utils.misc import ensure_tuple, ensure_tuple_rep
 
 
 class SpatialPadd(MapTransform):
@@ -35,18 +35,19 @@ class SpatialPadd(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             spatial_size (list): the spatial size of output data after padding.
             method (str): pad image symmetric on every side or only pad at the end sides. default is 'symmetric'.
-            mode (str): one of the following string values or a user supplied function: {'constant', 'edge',
-                'linear_ramp', 'maximum', 'mean', 'median', 'minimum', 'reflect', 'symmetric',
+            mode (str or sequence of str): one of the following string values or a user supplied function:
+                {'constant', 'edge', 'linear_ramp', 'maximum', 'mean', 'median', 'minimum', 'reflect', 'symmetric',
                 'wrap', 'empty', <function>}
                 for more details, please check: https://docs.scipy.org/doc/numpy/reference/generated/numpy.pad.html
         """
         super().__init__(keys)
-        self.padder = SpatialPad(spatial_size, method, mode)
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.padder = SpatialPad(spatial_size, method, self.mode[0])
 
     def __call__(self, data):
         d = dict(data)
-        for key in self.keys:
-            d[key] = self.padder(d[key])
+        for key, m in zip(self.keys, self.mode):
+            d[key] = self.padder(d[key], mode=m)
         return d
 
 
