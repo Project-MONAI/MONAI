@@ -39,7 +39,7 @@ class Spacing(Transform):
     Resample input image into the specified `pixdim`.
     """
 
-    def __init__(self, pixdim, diagonal=False, mode="nearest", cval=0, dtype=None):
+    def __init__(self, pixdim, diagonal=False, interp_order=3, mode="nearest", cval=0, dtype=None):
         """
         Args:
             pixdim (sequence of floats): output voxel spacing.
@@ -54,6 +54,9 @@ class Spacing(Transform):
                 If False, this transform preserves the axes orientation, orthogonal rotation and
                 translation components from the original affine. This option will not flip/swap axes
                 of the original data.
+            interp_order (int): The order of the spline interpolation, default is 3.
+                The order has to be in the range 0-5.
+                https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.zoom.html
             mode (`reflect|constant|nearest|mirror|wrap`):
                 The mode parameter determines how the input array is extended beyond its boundaries.
             cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
@@ -61,18 +64,16 @@ class Spacing(Transform):
         """
         self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
         self.diagonal = diagonal
+        self.interp_order = interp_order
         self.mode = mode
         self.cval = cval
         self.dtype = dtype
 
-    def __call__(self, data_array, affine=None, interp_order=3):
+    def __call__(self, data_array, affine=None, interp_order=None, mode=None, cval=None, dtype=None):
         """
         Args:
             data_array (ndarray): in shape (num_channels, H[, W, ...]).
             affine (matrix): (N+1)x(N+1) original affine matrix for spatially ND `data_array`. Defaults to identity.
-            interp_order (int): The order of the spline interpolation, default is 3.
-                The order has to be in the range 0-5.
-                https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.zoom.html
         Returns:
             data_array (resampled into `self.pixdim`), original pixdim, current pixdim.
         """
@@ -98,16 +99,16 @@ class Spacing(Transform):
         # adapt to the actual rank
         transform_ = to_affine_nd(sr, transform)
         # resample
-        dtype = data_array.dtype if self.dtype is None else self.dtype
+        _dtype = dtype or self.dtype or data_array.dtype
         output_data = []
         for data in data_array:
             data_ = scipy.ndimage.affine_transform(
-                data.astype(dtype),
+                data.astype(_dtype),
                 matrix=transform_,
                 output_shape=output_shape,
-                order=interp_order,
-                mode=self.mode,
-                cval=self.cval,
+                order=self.interp_order if interp_order is None else interp_order,
+                mode=mode or self.mode,
+                cval=self.cval if cval is None else cval,
             )
             output_data.append(data_)
         output_data = np.stack(output_data)

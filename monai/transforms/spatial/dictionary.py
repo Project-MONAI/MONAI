@@ -32,7 +32,7 @@ from monai.transforms.spatial.array import (
     Zoom,
 )
 from monai.transforms.utils import create_grid
-from monai.utils.misc import ensure_tuple
+from monai.utils.misc import ensure_tuple_rep
 
 
 class Spacingd(MapTransform):
@@ -50,7 +50,7 @@ class Spacingd(MapTransform):
     """
 
     def __init__(
-        self, keys, pixdim, diagonal=False, mode="nearest", cval=0, interp_order=3, dtype=None, meta_key_format="{}.{}"
+        self, keys, pixdim, diagonal=False, interp_order=3, mode="nearest", cval=0, dtype=None, meta_key_format="{}.{}"
     ):
         """
         Args:
@@ -67,30 +67,39 @@ class Spacingd(MapTransform):
                 translations components from the original affine will be
                 preserved in the target affine. This option will not flip/swap
                 axes against the original ones.
-            mode (`reflect|constant|nearest|mirror|wrap`):
-                The mode parameter determines how the input array is extended beyond its boundaries.
-                Default is 'nearest'.
-            cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
             interp_order (int or sequence of ints): int: the same interpolation order
                 for all data indexed by `self.keys`; sequence of ints, should
                 correspond to an interpolation order for each data item indexed
                 by `self.keys` respectively.
+            mode (`reflect|constant|nearest|mirror|wrap`):
+                The mode parameter determines how the input array is extended beyond its boundaries.
+                Default is 'nearest'.
+            cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
             dtype (None or np.dtype): output array data type, defaults to None to use input data's dtype.
             meta_key_format (str): key format to read/write affine matrices to the data dictionary.
         """
         super().__init__(keys)
-        self.spacing_transform = Spacing(pixdim, diagonal=diagonal, mode=mode, cval=cval, dtype=dtype)
-        interp_order = ensure_tuple(interp_order)
-        self.interp_order = interp_order if len(interp_order) == len(self.keys) else interp_order * len(self.keys)
+        self.spacing_transform = Spacing(pixdim, diagonal=diagonal)
+        self.interp_order = ensure_tuple_rep(interp_order, len(self.keys))
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.cval = ensure_tuple_rep(cval, len(self.keys))
+        self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.meta_key_format = meta_key_format
 
     def __call__(self, data):
         d = dict(data)
-        for key, interp in zip(self.keys, self.interp_order):
+        for idx, key in enumerate(self.keys):
             affine_key = self.meta_key_format.format(key, "affine")
             # resample array of each corresponding key
             # using affine fetched from d[affine_key]
-            d[key], _, new_affine = self.spacing_transform(data_array=d[key], affine=d[affine_key], interp_order=interp)
+            d[key], _, new_affine = self.spacing_transform(
+                data_array=d[key],
+                affine=d[affine_key],
+                interp_order=self.interp_order[idx],
+                mode=self.mode[idx],
+                cval=self.cval[idx],
+                dtype=self.dtype[idx],
+            )
             # set the 'affine' key
             d[affine_key] = new_affine
         return d
