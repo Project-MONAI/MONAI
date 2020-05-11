@@ -44,7 +44,8 @@ Ideally, the new branch should be based on the latest `master` branch.
 1. Wait for the pull request to be merged.
 
 ### Coding style
-Coding style is checked by flake8, using [a flake8 configuration](./setup.cfg) similar to [PyTorch's](https://github.com/pytorch/pytorch/blob/master/.flake8).
+Coding style is checked by flake8, using [a flake8 configuration](./setup.cfg) similar to [PyTorch's](https://github.com/pytorch/pytorch/blob/master/.flake8).  
+For string definition, [f-string](https://www.python.org/dev/peps/pep-0498/) is recommended to use over `%-print` and `format-print` from python 3.6. So please try to use `f-string` if you need to define any string object.  
 Python code file formatting could be done locally before submitting a pull request (e.g. using [`psf/Black`](https://github.com/psf/black)), or during the pull request review using MONAI's automatic code formatting workflow.
 
 License information: all source code files should start with this paragraph:
@@ -72,7 +73,7 @@ Steps for the formatting process:
 - After submitting a pull request or push to an existing pull request,
 make a comment to the pull request to trigger the formatting action.
 The first line of the comment must be `/black` so that it will be interpreted by [the comment parser](https://github.com/marketplace/actions/slash-command-dispatch#how-are-comments-parsed-for-slash-commands).
-- [Auto] The GitHub action tries to format all Python files (using [`psf/Black`](https://github.com/psf/black)) in the branch and makes a commit under the name "MONAI bot" if there's code change (The actual formatting action is deployed at [project-monai/monai-code-formatter](https://github.com/Project-MONAI/monai-code-formatter).
+- [Auto] The GitHub action tries to format all Python files (using [`psf/Black`](https://github.com/psf/black)) in the branch and makes a commit under the name "MONAI bot" if there's code change. The actual formatting action is deployed at [project-monai/monai-code-formatter](https://github.com/Project-MONAI/monai-code-formatter).
 - [Auto] After the formatting commit, the GitHub action adds an emoji to the comment that triggered the process.
 - Repeat the above steps if necessary.
 
