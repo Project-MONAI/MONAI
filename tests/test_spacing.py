@@ -17,33 +17,33 @@ from parameterized import parameterized
 from monai.transforms import Spacing
 
 TEST_CASES = [
-    [{"pixdim": (2.0,)}, np.ones((1, 2)), {"affine": np.eye(4)}, np.array([[1.0, 0.0]])],  # data
+    [{"pixdim": (2.0,), "mode": "constant"}, np.ones((1, 2)), {"affine": np.eye(4)}, np.array([[1.0, 0.0]])],  # data
     [
-        {"pixdim": (1.0, 0.2, 1.5)},
+        {"pixdim": (1.0, 0.2, 1.5), "mode": "constant"},
         np.ones((1, 2, 1, 2)),  # data
         {"affine": np.eye(4)},
         np.array([[[[1.0, 0.0]], [[1.0, 0.0]]]]),
     ],
     [
-        {"pixdim": (1.0, 0.2, 1.5), "diagonal": False},
+        {"pixdim": (1.0, 0.2, 1.5), "diagonal": False, "mode": "constant"},
         np.ones((1, 2, 1, 2)),  # data
         {"affine": np.array([[2, 1, 0, 4], [-1, -3, 0, 5], [0, 0, 2.0, 5], [0, 0, 0, 1]])},
         np.zeros((1, 3, 1, 2)),
     ],
     [
-        {"pixdim": (3.0, 1.0)},
+        {"pixdim": (3.0, 1.0), "mode": "constant"},
         np.arange(24).reshape((2, 3, 4)),  # data
         {"affine": np.diag([-3.0, 0.2, 1.5, 1])},
         np.array([[[0, 0], [4, 0], [8, 0]], [[12, 0], [16, 0], [20, 0]]]),
     ],
     [
-        {"pixdim": (3.0, 1.0)},
+        {"pixdim": (3.0, 1.0), "mode": "constant"},
         np.arange(24).reshape((2, 3, 4)),  # data
         {},
         np.array([[[0, 1, 2, 3], [0, 0, 0, 0]], [[12, 13, 14, 15], [0, 0, 0, 0]]]),
     ],
     [
-        {"pixdim": (1.0, 1.0)},
+        {"pixdim": (1.0, 1.0), "mode": "constant"},
         np.arange(24).reshape((2, 3, 4)),  # data
         {},
         np.array(
@@ -51,13 +51,13 @@ TEST_CASES = [
         ),
     ],
     [
-        {"pixdim": (4.0, 5.0, 6.0)},
+        {"pixdim": (4.0, 5.0, 6.0), "mode": "constant"},
         np.arange(24).reshape((1, 2, 3, 4)),  # data
         {"affine": np.array([[-4, 0, 0, 4], [0, 5, 0, -5], [0, 0, 6, -6], [0, 0, 0, 1]])},
         np.arange(24).reshape((1, 2, 3, 4)),  # data
     ],
     [
-        {"pixdim": (4.0, 5.0, 6.0), "diagonal": True},
+        {"pixdim": (4.0, 5.0, 6.0), "diagonal": True, "mode": "constant"},
         np.arange(24).reshape((1, 2, 3, 4)),  # data
         {"affine": np.array([[-4, 0, 0, 4], [0, 5, 0, 0], [0, 0, 6, 0], [0, 0, 0, 1]])},
         np.array(
