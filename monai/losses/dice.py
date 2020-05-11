@@ -20,9 +20,9 @@ from monai.networks.utils import one_hot
 class DiceLoss(_Loss):
     """
     Compute average Dice loss between two tensors. It can support both multi-classes and multi-labels tasks.
-    Input logits `pred` (BNHW[D] where N is number of classes) is compared with ground truth `ground` (BNHW[D]).
-    Axis N of `pred` is expected to have logit predictions for each class rather than being image channels,
-    while the same axis of `ground` can be 1 or N(one-hot format). The `smooth` parameter is a value added to the
+    Input logits `input` (BNHW[D] where N is number of classes) is compared with ground truth `target` (BNHW[D]).
+    Axis N of `input` is expected to have logit predictions for each class rather than being image channels,
+    while the same axis of `target` can be 1 or N (one-hot format). The `smooth` parameter is a value added to the
     intersection and union components of the inter-over-union calculation to smooth results and prevent divide by 0,
     this value should be small. The `include_background` class attribute can be set to False for an instance of
     DiceLoss to exclude the first category (channel index 0) which is by convention assumed to be background.
@@ -38,6 +38,7 @@ class DiceLoss(_Loss):
         do_softmax=False,
         squared_pred=False,
         jaccard=False,
+        reduction="mean",
     ):
         """
         Args:
@@ -47,9 +48,13 @@ class DiceLoss(_Loss):
             do_softmax (bool): If True, apply a softmax function to the prediction.
             squared_pred (bool): use squared versions of targets and predictions in the denominator or not.
             jaccard (bool): compute Jaccard Index (soft IoU) instead of dice or not.
-
+            reduction (`none|mean|sum`): Specifies the reduction to apply to the output:
+                ``'none'``: no reduction will be applied,
+                ``'mean'``: the sum of the output will be divided by the number of elements in the output,
+                ``'sum'``: the output will be summed.
+                Default: ``'mean'``.
         """
-        super().__init__()
+        super().__init__(reduction=reduction)
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         if do_sigmoid and do_softmax:
@@ -59,16 +64,16 @@ class DiceLoss(_Loss):
         self.squared_pred = squared_pred
         self.jaccard = jaccard
 
-    def forward(self, pred, ground, smooth=1e-5):
+    def forward(self, input, target, smooth=1e-5):
         """
         Args:
-            pred (tensor): the shape should be BNH[WD].
-            ground (tensor): the shape should be BNH[WD].
+            input (tensor): the shape should be BNH[WD].
+            target (tensor): the shape should be BNH[WD].
             smooth (float): a small constant to avoid nan.
         """
         if self.do_sigmoid:
-            pred = torch.sigmoid(pred)
-        n_pred_ch = pred.shape[1]
+            input = torch.sigmoid(input)
+        n_pred_ch = input.shape[1]
         if n_pred_ch == 1:
             if self.do_softmax:
                 warnings.warn("single channel prediction, `do_softmax=True` ignored.")
@@ -78,36 +83,41 @@ class DiceLoss(_Loss):
                 warnings.warn("single channel prediction, `include_background=False` ignored.")
         else:
             if self.do_softmax:
-                pred = torch.softmax(pred, 1)
+                input = torch.softmax(input, 1)
             if self.to_onehot_y:
-                ground = one_hot(ground, n_pred_ch)
+                target = one_hot(target, n_pred_ch)
             if not self.include_background:
                 # if skipping background, removing first channel
-                ground = ground[:, 1:]
-                pred = pred[:, 1:]
-                assert ground.shape == pred.shape, "ground truth one-hot has differing shape (%r) from pred (%r)" % (
-                    ground.shape,
-                    pred.shape,
-                )
+                target = target[:, 1:]
+                input = input[:, 1:]
+        assert (
+            target.shape == input.shape
+        ), f"ground truth has differing shape ({target.shape}) from input ({input.shape})"
 
         # reducing only spatial dimensions (not batch nor channels)
-        reduce_axis = list(range(2, len(pred.shape)))
-        intersection = torch.sum(ground * pred, reduce_axis)
+        reduce_axis = list(range(2, len(input.shape)))
+        intersection = torch.sum(target * input, reduce_axis)
 
         if self.squared_pred:
-            ground = torch.pow(ground, 2)
-            pred = torch.pow(pred, 2)
+            target = torch.pow(target, 2)
+            input = torch.pow(input, 2)
 
-        ground_o = torch.sum(ground, reduce_axis)
-        pred_o = torch.sum(pred, reduce_axis)
+        ground_o = torch.sum(target, reduce_axis)
+        pred_o = torch.sum(input, reduce_axis)
 
         denominator = ground_o + pred_o
 
         if self.jaccard:
             denominator -= intersection
 
-        f = (2.0 * intersection + smooth) / (denominator + smooth)
-        return 1.0 - f.mean()  # final reduce_mean across batches and channels
+        f = 1.0 - (2.0 * intersection + smooth) / (denominator + smooth)
+        if self.reduction == "sum":
+            return f.sum()  # sum over the batch and channel dims
+        if self.reduction == "none":
+            return f  # returns [N, n_classes] losses
+        if self.reduction == "mean":
+            return f.mean()  # the batch and channel average
+        raise ValueError(f"reduction={self.reduction} is invalid.")
 
 
 class GeneralizedDiceLoss(_Loss):
@@ -121,7 +131,15 @@ class GeneralizedDiceLoss(_Loss):
         https://github.com/NifTK/NiftyNet/blob/v0.6.0/niftynet/layer/loss_segmentation.py#L279
     """
 
-    def __init__(self, include_background=True, to_onehot_y=False, do_sigmoid=False, do_softmax=False, w_type="square"):
+    def __init__(
+        self,
+        include_background=True,
+        to_onehot_y=False,
+        do_sigmoid=False,
+        do_softmax=False,
+        w_type="square",
+        reduction="mean",
+    ):
         """
         Args:
             include_background (bool): If False channel index 0 (background category) is excluded from the calculation.
@@ -129,9 +147,14 @@ class GeneralizedDiceLoss(_Loss):
             do_sigmoid (bool): If True, apply a sigmoid function to the prediction.
             do_softmax (bool): If True, apply a softmax function to the prediction.
             w_type ('square'|'simple'|'uniform'): type of function to transform ground truth volume to a weight factor.
-
+                Default: `'square'`
+            reduction (`none|mean|sum`): Specifies the reduction to apply to the output:
+                ``'none'``: no reduction will be applied,
+                ``'mean'``: the sum of the output will be divided by the batch size in the output,
+                ``'sum'``: the output will be summed over the batch dim.
+                Default: ``'mean'``.
         """
-        super().__init__()
+        super().__init__(reduction=reduction)
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         if do_sigmoid and do_softmax:
@@ -143,19 +166,17 @@ class GeneralizedDiceLoss(_Loss):
             self.w_func = torch.reciprocal
         elif w_type == "square":
             self.w_func = lambda x: torch.reciprocal(x * x)
-        else:
-            raise ValueError(f"unknown option for `w_type`: {w_type}")
 
-    def forward(self, pred, ground, smooth=1e-5):
+    def forward(self, input, target, smooth=1e-5):
         """
         Args:
-            pred (tensor): the shape should be BNH[WD].
-            ground (tensor): the shape should be BNH[WD].
+            input (tensor): the shape should be BNH[WD].
+            target (tensor): the shape should be BNH[WD].
             smooth (float): a small constant to avoid nan.
         """
         if self.do_sigmoid:
-            pred = torch.sigmoid(pred)
-        n_pred_ch = pred.shape[1]
+            input = torch.sigmoid(input)
+        n_pred_ch = input.shape[1]
         if n_pred_ch == 1:
             if self.do_softmax:
                 warnings.warn("single channel prediction, `do_softmax=True` ignored.")
@@ -165,24 +186,23 @@ class GeneralizedDiceLoss(_Loss):
                 warnings.warn("single channel prediction, `include_background=False` ignored.")
         else:
             if self.do_softmax:
-                pred = torch.softmax(pred, 1)
+                input = torch.softmax(input, 1)
             if self.to_onehot_y:
-                ground = one_hot(ground, n_pred_ch)
+                target = one_hot(target, n_pred_ch)
             if not self.include_background:
                 # if skipping background, removing first channel
-                ground = ground[:, 1:]
-                pred = pred[:, 1:]
-                assert ground.shape == pred.shape, "ground truth one-hot has differing shape (%r) from pred (%r)" % (
-                    ground.shape,
-                    pred.shape,
-                )
+                target = target[:, 1:]
+                input = input[:, 1:]
+        assert (
+            target.shape == input.shape
+        ), f"ground truth has differing shape ({target.shape}) from input ({input.shape})"
 
         # reducing only spatial dimensions (not batch nor channels)
-        reduce_axis = list(range(2, len(pred.shape)))
-        intersection = torch.sum(ground * pred, reduce_axis)
+        reduce_axis = list(range(2, len(input.shape)))
+        intersection = torch.sum(target * input, reduce_axis)
 
-        ground_o = torch.sum(ground, reduce_axis)
-        pred_o = torch.sum(pred, reduce_axis)
+        ground_o = torch.sum(target, reduce_axis)
+        pred_o = torch.sum(input, reduce_axis)
 
         denominator = ground_o + pred_o
 
@@ -192,8 +212,14 @@ class GeneralizedDiceLoss(_Loss):
             b[infs] = 0.0
             b[infs] = torch.max(b)
 
-        f = (2.0 * intersection * w + smooth) / (denominator * w + smooth)
-        return 1.0 - f.mean()  # final reduce_mean across batches and channels
+        f = 1.0 - (2.0 * (intersection * w).sum(1) + smooth) / ((denominator * w).sum(1) + smooth)
+        if self.reduction == "sum":
+            return f.sum()  # sum over the batch dim
+        if self.reduction == "none":
+            return f  # returns [N] losses
+        if self.reduction == "mean":
+            return f.mean()  # the batch and channel average
+        raise ValueError(f"reduction={self.reduction} is invalid.")
 
 
 dice = Dice = DiceLoss

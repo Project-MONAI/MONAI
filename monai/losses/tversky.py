@@ -20,7 +20,7 @@ from monai.networks.utils import one_hot
 class TverskyLoss(_Loss):
 
     """
-    Compute the Tversky loss defined in:        
+    Compute the Tversky loss defined in:
 
         Sadegh et al. (2017) Tversky loss function for image segmentation
         using 3D fully convolutional deep networks. (https://arxiv.org/abs/1706.05721)
@@ -31,7 +31,14 @@ class TverskyLoss(_Loss):
     """
 
     def __init__(
-        self, include_background=True, to_onehot_y=False, do_sigmoid=False, do_softmax=False, alpha=0.5, beta=0.5
+        self,
+        include_background=True,
+        to_onehot_y=False,
+        do_sigmoid=False,
+        do_softmax=False,
+        alpha=0.5,
+        beta=0.5,
+        reduction="mean",
     ):
 
         """
@@ -42,9 +49,15 @@ class TverskyLoss(_Loss):
             do_softmax (bool): If True, apply a softmax function to the prediction.
             alpha (float): weight of false positives
             beta  (float): weight of false negatives
+            reduction (`none|mean|sum`): Specifies the reduction to apply to the output:
+                ``'none'``: no reduction will be applied,
+                ``'mean'``: the sum of the output will be divided by the number of elements in the output,
+                ``'sum'``: the output will be summed.
+                Default: ``'mean'``.
+
         """
 
-        super().__init__()
+        super().__init__(reduction=reduction)
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
 
@@ -55,16 +68,16 @@ class TverskyLoss(_Loss):
         self.alpha = alpha
         self.beta = beta
 
-    def forward(self, pred, ground, smooth=1e-5):
+    def forward(self, input, target, smooth=1e-5):
         """
         Args:
-            pred (tensor): the shape should be BNH[WD].
-            ground (tensor): the shape should be BNH[WD].
+            input (tensor): the shape should be BNH[WD].
+            target (tensor): the shape should be BNH[WD].
             smooth (float): a small constant to avoid nan.
         """
         if self.do_sigmoid:
-            pred = torch.sigmoid(pred)
-        n_pred_ch = pred.shape[1]
+            input = torch.sigmoid(input)
+        n_pred_ch = input.shape[1]
         if n_pred_ch == 1:
             if self.do_softmax:
                 warnings.warn("single channel prediction, `do_softmax=True` ignored.")
@@ -74,25 +87,24 @@ class TverskyLoss(_Loss):
                 warnings.warn("single channel prediction, `include_background=False` ignored.")
         else:
             if self.do_softmax:
-                pred = torch.softmax(pred, 1)
+                input = torch.softmax(input, 1)
             if self.to_onehot_y:
-                ground = one_hot(ground, n_pred_ch)
+                target = one_hot(target, n_pred_ch)
             if not self.include_background:
                 # if skipping background, removing first channel
-                ground = ground[:, 1:]
-                pred = pred[:, 1:]
-                assert ground.shape == pred.shape, "ground truth one-hot has differing shape (%r) from pred (%r)" % (
-                    ground.shape,
-                    pred.shape,
-                )
+                target = target[:, 1:]
+                input = input[:, 1:]
+        assert (
+            target.shape == input.shape
+        ), f"ground truth has differing shape ({target.shape}) from input ({input.shape})"
 
-        p0 = pred
+        p0 = input
         p1 = 1 - p0
-        g0 = ground
+        g0 = target
         g1 = 1 - g0
 
         # reducing only spatial dimensions (not batch nor channels)
-        reduce_axis = list(range(2, len(pred.shape)))
+        reduce_axis = list(range(2, len(input.shape)))
 
         tp = torch.sum(p0 * g0, reduce_axis)
         fp = self.alpha * torch.sum(p0 * g1, reduce_axis)
@@ -101,6 +113,12 @@ class TverskyLoss(_Loss):
         numerator = tp + smooth
         denominator = tp + fp + fn + smooth
 
-        score = numerator / denominator
+        score = 1.0 - numerator / denominator
 
-        return 1.0 - score.mean()
+        if self.reduction == "sum":
+            return score.sum()  # sum over the batch and channel dims
+        if self.reduction == "none":
+            return score  # returns [N, n_classes] losses
+        if self.reduction == "mean":
+            return score.mean()
+        raise ValueError(f"reduction={self.reduction} is invalid.")
