@@ -13,6 +13,7 @@ import numpy as np
 from torch.utils.data import Dataset
 from monai.transforms import LoadNifti
 from monai.transforms import Randomizable
+from monai.utils.misc import ensure_tuple
 
 
 class NiftiDataset(Dataset):
@@ -71,12 +72,13 @@ class NiftiDataset(Dataset):
             img = img_loader(self.image_files[index])
         else:
             img, meta_data = img_loader(self.image_files[index])
-        target = None
+        seg = None
         if self.seg_files is not None:
             seg_loader = LoadNifti(image_only=True)
-            target = seg_loader(self.seg_files[index])
-        elif self.labels is not None:
-            target = self.labels[index]
+            seg = seg_loader(self.seg_files[index])
+        label = None
+        if self.labels is not None:
+            label = self.labels[index]
 
         seed = np.random.randint(2147483647)
 
@@ -85,12 +87,18 @@ class NiftiDataset(Dataset):
                 self.transform.set_random_state(seed=seed)
             img = self.transform(img)
 
+        data = img
+
         if self.seg_transform is not None:
             if isinstance(self.seg_transform, Randomizable):
                 self.seg_transform.set_random_state(seed=seed)
-            target = self.seg_transform(target)
+            seg = self.seg_transform(seg)
 
-        if self.image_only or meta_data is None:
-            return img, target
+        if seg is not None:
+            data = ensure_tuple(data) + ensure_tuple(seg)
+        if label is not None:
+            data = ensure_tuple(data) + ensure_tuple(label)
+        if not self.image_only and meta_data is not None:
+            data = ensure_tuple(data) + ensure_tuple(meta_data)
 
-        return img, target, meta_data
+        return data
