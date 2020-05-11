@@ -35,8 +35,11 @@ class FocalLoss(_WeightedLoss):
         Example:
             .. code-block:: python
 
+                import torch
+                from monai.losses import FocalLoss
+
                 pred = torch.tensor([[1, 0], [0, 1], [1, 0]], dtype=torch.float32)
-                grnd = torch.tensor([0, 1 ,0], dtype=torch.int64)
+                grnd = torch.tensor([[0], [1], [0]], dtype=torch.int64)
                 fl = FocalLoss()
                 fl(pred, grnd)
 
