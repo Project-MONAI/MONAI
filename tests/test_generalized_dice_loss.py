@@ -125,6 +125,12 @@ class TestGeneralizedDiceLoss(unittest.TestCase):
     def test_ill_opts(self):
         with self.assertRaisesRegex(ValueError, ""):
             GeneralizedDiceLoss(do_sigmoid=True, do_softmax=True)
+        chn_input = torch.ones((1, 1, 3))
+        chn_target = torch.ones((1, 1, 3))
+        with self.assertRaisesRegex(ValueError, ""):
+            GeneralizedDiceLoss(reduction="unknown")(chn_input, chn_target)
+        with self.assertRaisesRegex(ValueError, ""):
+            GeneralizedDiceLoss(reduction=None)(chn_input, chn_target)
 
     def test_input_warnings(self):
         chn_input = torch.ones((1, 1, 3))

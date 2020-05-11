@@ -119,4 +119,6 @@ class TverskyLoss(_Loss):
             return score.sum()  # sum over the batch and channel dims
         if self.reduction == "none":
             return score  # returns [N, n_classes] losses
-        return score.mean()  # defaults to the batch and channel ave.
+        if self.reduction == "mean":
+            return score.mean()
+        raise ValueError(f"reduction={self.reduction} is invalid.")

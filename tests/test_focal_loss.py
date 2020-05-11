@@ -30,13 +30,12 @@ class TestFocalLoss(unittest.TestCase):
             # Create a random tensor of shape (batch_size, class_num, 8, 4)
             x = torch.rand(batch_size, class_num, 8, 4, requires_grad=True)
             # Create a random batch of classes
-            l = torch.randint(low=0, high=class_num, size=(batch_size, 8, 4))
-            l = l.long()
+            l = torch.randint(low=0, high=class_num, size=(batch_size, 1, 8, 4))
             if torch.cuda.is_available():
                 x = x.cuda()
                 l = l.cuda()
             output0 = focal_loss.forward(x, l)
-            output1 = ce.forward(x, l)
+            output1 = ce.forward(x, l[:, 0])
             a = float(output0.cpu().detach())
             b = float(output1.cpu().detach())
             if abs(a - b) > max_error:
@@ -54,13 +53,13 @@ class TestFocalLoss(unittest.TestCase):
             # Create a random scores tensor of shape (batch_size, class_num)
             x = torch.rand(batch_size, class_num, requires_grad=True)
             # Create a random batch of classes
-            l = torch.randint(low=0, high=class_num, size=(batch_size,))
+            l = torch.randint(low=0, high=class_num, size=(batch_size, 1))
             l = l.long()
             if torch.cuda.is_available():
                 x = x.cuda()
                 l = l.cuda()
             output0 = focal_loss.forward(x, l)
-            output1 = ce.forward(x, l)
+            output1 = ce.forward(x, l[:, 0])
             a = float(output0.cpu().detach())
             b = float(output1.cpu().detach())
             if abs(a - b) > max_error:
@@ -78,10 +77,6 @@ class TestFocalLoss(unittest.TestCase):
         loss = FocalLoss()
 
         # focal loss for pred_very_good should be close to 0
-        focal_loss_good = float(loss.forward(pred_very_good, target).cpu())
-        self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
-
-        # Same test, but for target with a class dimension
         target = target.unsqueeze(1)  # shape (1, 1, H, W)
         focal_loss_good = float(loss.forward(pred_very_good, target).cpu())
         self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
@@ -98,6 +93,7 @@ class TestFocalLoss(unittest.TestCase):
         loss = FocalLoss()
 
         # focal loss for pred_very_good should be close to 0
+        target = target.unsqueeze(1)  # shape (1, 1, H, W)
         focal_loss_good = float(loss.forward(pred_very_good, target).cpu())
         self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
 
@@ -113,6 +109,7 @@ class TestFocalLoss(unittest.TestCase):
         loss = FocalLoss()
 
         # focal loss for pred_very_good should be close to 0
+        target = target.unsqueeze(1)  # shape (1, 1, H, W)
         focal_loss_good = float(loss.forward(pred_very_good, target).cpu())
         self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
 
@@ -136,8 +133,26 @@ class TestFocalLoss(unittest.TestCase):
         loss = FocalLoss()
 
         # focal loss for pred_very_good should be close to 0
+        target = target.unsqueeze(1)  # shape (1, 1, H, W)
         focal_loss_good = float(loss.forward(pred_very_good, target).cpu())
         self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
+
+    def test_ill_opts(self):
+        chn_input = torch.ones((1, 2, 3))
+        chn_target = torch.ones((1, 1, 3))
+        with self.assertRaisesRegex(ValueError, ""):
+            FocalLoss(reduction="unknown")(chn_input, chn_target)
+        with self.assertRaisesRegex(ValueError, ""):
+            FocalLoss(reduction=None)(chn_input, chn_target)
+
+    def test_ill_shape(self):
+        chn_input = torch.ones((1, 2, 3))
+        chn_target = torch.ones((1, 3))
+        with self.assertRaisesRegex(ValueError, ""):
+            FocalLoss(reduction="mean")(chn_input, chn_target)
+        chn_target = torch.ones((1, 2, 3))
+        with self.assertRaisesRegex(ValueError, ""):
+            FocalLoss(reduction="mean")(chn_input, chn_target)
 
 
 if __name__ == "__main__":

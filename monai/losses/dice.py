@@ -115,7 +115,9 @@ class DiceLoss(_Loss):
             return f.sum()  # sum over the batch and channel dims
         if self.reduction == "none":
             return f  # returns [N, n_classes] losses
-        return f.mean()  # defaults to the batch and channel average
+        if self.reduction == "mean":
+            return f.mean()  # the batch and channel average
+        raise ValueError(f"reduction={self.reduction} is invalid.")
 
 
 class GeneralizedDiceLoss(_Loss):
@@ -215,7 +217,9 @@ class GeneralizedDiceLoss(_Loss):
             return f.sum()  # sum over the batch dim
         if self.reduction == "none":
             return f  # returns [N] losses
-        return f.mean()  # defaults to the batch average
+        if self.reduction == "mean":
+            return f.mean()  # the batch and channel average
+        raise ValueError(f"reduction={self.reduction} is invalid.")
 
 
 dice = Dice = DiceLoss

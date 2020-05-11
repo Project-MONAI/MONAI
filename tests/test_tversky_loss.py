@@ -112,6 +112,12 @@ class TestTverskyLoss(unittest.TestCase):
         loss = TverskyLoss()
         with self.assertRaisesRegex(AssertionError, ""):
             loss.forward(torch.ones((2, 2, 3)), torch.ones((4, 5, 6)))
+        chn_input = torch.ones((1, 1, 3))
+        chn_target = torch.ones((1, 1, 3))
+        with self.assertRaisesRegex(ValueError, ""):
+            TverskyLoss(reduction="unknown")(chn_input, chn_target)
+        with self.assertRaisesRegex(ValueError, ""):
+            TverskyLoss(reduction=None)(chn_input, chn_target)
 
     def test_input_warnings(self):
         chn_input = torch.ones((1, 1, 3))
