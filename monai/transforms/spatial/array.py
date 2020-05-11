@@ -1129,7 +1129,7 @@ class Rand3DElastic(Randomizable, Transform):
         grid = create_grid(spatial_size)
         if self.do_transform:
             grid = torch.as_tensor(np.ascontiguousarray(grid), device=self.device)
-            gaussian = GaussianFilter(3, self.sigma, 3.0, device=self.device)
+            gaussian = GaussianFilter(3, self.sigma, 3.0).to(device=self.device)
             grid[:3] += gaussian(self.rand_offset[None])[0] * self.magnitude
             grid = self.rand_affine_grid(grid=grid)
         return self.resampler(img, grid, mode)
