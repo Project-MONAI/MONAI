@@ -610,7 +610,6 @@ class Rotated(MapTransform):
         self.cval = ensure_tuple_rep(cval, len(self.keys))
         self.prefilter = ensure_tuple_rep(prefilter, len(self.keys))
 
-
     def __call__(self, data):
         d = dict(data)
         for idx, key in enumerate(self.keys):
@@ -701,14 +700,19 @@ class Zoomd(MapTransform):
 
     def __init__(self, keys, zoom, order=3, mode="constant", cval=0, prefilter=True, use_gpu=False, keep_size=False):
         super().__init__(keys)
-        self.zoomer = Zoom(
-            zoom=zoom, order=order, mode=mode, cval=cval, prefilter=prefilter, use_gpu=use_gpu, keep_size=keep_size
-        )
+        self.zoomer = Zoom(zoom=zoom, use_gpu=use_gpu, keep_size=keep_size)
+
+        self.order = ensure_tuple_rep(order, len(self.keys))
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.cval = ensure_tuple_rep(cval, len(self.keys))
+        self.prefilter = ensure_tuple_rep(prefilter, len(self.keys))
 
     def __call__(self, data):
         d = dict(data)
-        for key in self.keys:
-            d[key] = self.zoomer(d[key])
+        for idx, key in enumerate(self.keys):
+            d[key] = self.zoomer(
+                d[key], order=self.order[idx], mode=self.mode[idx], cval=self.cval[idx], prefilter=self.prefilter[idx]
+            )
         return d
 
 

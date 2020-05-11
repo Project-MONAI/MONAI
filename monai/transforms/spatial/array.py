@@ -335,7 +335,6 @@ class Zoom(Transform):
     """
 
     def __init__(self, zoom, order=3, mode="constant", cval=0, prefilter=True, use_gpu=False, keep_size=False):
-        assert isinstance(order, int), "Order must be integer."
         self.zoom = zoom
         self.order = order
         self.mode = mode
@@ -356,7 +355,7 @@ class Zoom(Transform):
         else:
             self._zoom = scipy.ndimage.zoom
 
-    def __call__(self, img):
+    def __call__(self, img, order=None, mode=None, cval=None, prefilter=None):
         """
         Args:
             img (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
@@ -367,7 +366,12 @@ class Zoom(Transform):
 
             for channel in cupy.array(img):
                 zoom_channel = self._zoom(
-                    channel, zoom=self.zoom, order=self.order, mode=self.mode, cval=self.cval, prefilter=self.prefilter
+                    channel,
+                    zoom=self.zoom,
+                    order=self.order if order is None else order,
+                    mode=self.mode if mode is None else mode,
+                    cval=self.cval if cval is None else cval,
+                    prefilter=self.prefilter if prefilter is None else prefilter,
                 )
                 zoomed.append(cupy.asnumpy(zoom_channel))
         else:
@@ -376,10 +380,10 @@ class Zoom(Transform):
                     self._zoom(
                         channel,
                         zoom=self.zoom,
-                        order=self.order,
-                        mode=self.mode,
-                        cval=self.cval,
-                        prefilter=self.prefilter,
+                        order=self.order if order is None else order,
+                        mode=self.mode if mode is None else mode,
+                        cval=self.cval if cval is None else cval,
+                        prefilter=self.prefilter if prefilter is None else prefilter,
                     )
                 )
         zoomed = np.stack(zoomed).astype(img.dtype)
@@ -396,7 +400,7 @@ class Zoom(Transform):
                 pad_vec[idx] = [half, diff - half]
             elif diff < 0:  # need slicing
                 slice_vec[idx] = slice(half, half + od)
-        zoomed = np.pad(zoomed, pad_vec, mode="constant")
+        zoomed = np.pad(zoomed, pad_vec, mode="edge")
         return zoomed[tuple(slice_vec)]
 
 
