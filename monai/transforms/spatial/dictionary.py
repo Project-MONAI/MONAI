@@ -221,37 +221,42 @@ class Resized(MapTransform):
         keys (hashable items): keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
         spatial_size (tuple or list): expected shape of spatial dimensions after resize operation.
-        order (int): Order of spline interpolation. Default=1.
-        mode (str): Points outside boundaries are filled according to given mode.
+        order (int or sequence of int): Order of spline interpolation. Default=1.
+        mode (str or sequence of str): Points outside boundaries are filled according to given mode.
             Options are 'constant', 'edge', 'symmetric', 'reflect', 'wrap'.
-        cval (float): Used with mode 'constant', the value outside image boundaries.
-        clip (bool): Whether to clip range of output values after interpolation. Default: True.
-        preserve_range (bool): Whether to keep original range of values. Default is True.
+        cval (float or sequence of float): Used with mode 'constant', the value outside image boundaries.
+        clip (bool or sequence of bool): Whether to clip range of output values after interpolation. Default: True.
+        preserve_range (bool or sequence of bool): Whether to keep original range of values. Default is True.
             If False, input is converted according to conventions of img_as_float. See
             https://scikit-image.org/docs/dev/user_guide/data_types.html.
-        anti_aliasing (bool): Whether to apply a gaussian filter to image before down-scaling. Default is True.
-        anti_aliasing_sigma (float, tuple of floats): Standard deviation for gaussian filtering.
+        anti_aliasing (bool or sequence of bool): Whether to apply a gaussian filter to image before down-scaling. Default is True.
     """
 
     def __init__(
-        self,
-        keys,
-        spatial_size,
-        order=1,
-        mode="reflect",
-        cval=0,
-        clip=True,
-        preserve_range=True,
-        anti_aliasing=True,
-        anti_aliasing_sigma=None,
+        self, keys, spatial_size, order=1, mode="reflect", cval=0, clip=True, preserve_range=True, anti_aliasing=True,
     ):
         super().__init__(keys)
-        self.resizer = Resize(spatial_size, order, mode, cval, clip, preserve_range, anti_aliasing, anti_aliasing_sigma)
+        self.order = ensure_tuple_rep(order, len(self.keys))
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.cval = ensure_tuple_rep(cval, len(self.keys))
+        self.clip = ensure_tuple_rep(clip, len(self.keys))
+        self.preserve_range = ensure_tuple_rep(preserve_range, len(self.keys))
+        self.anti_aliasing = ensure_tuple_rep(anti_aliasing, len(self.keys))
+
+        self.resizer = Resize(spatial_size=spatial_size)
 
     def __call__(self, data):
         d = dict(data)
-        for key in self.keys:
-            d[key] = self.resizer(d[key])
+        for idx, key in enumerate(self.keys):
+            d[key] = self.resizer(
+                d[key],
+                order=self.order[idx],
+                mode=self.mode[idx],
+                cval=self.cval[idx],
+                clip=self.clip[idx],
+                preserve_range=self.preserve_range[idx],
+                anti_aliasing=self.anti_aliasing[idx],
+            )
         return d
 
 

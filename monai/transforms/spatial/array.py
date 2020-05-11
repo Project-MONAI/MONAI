@@ -223,7 +223,6 @@ class Resize(Transform):
             https://scikit-image.org/docs/dev/user_guide/data_types.html.
         anti_aliasing (bool): Whether to apply a gaussian filter to image before down-scaling.
             Default is True.
-        anti_aliasing_sigma (float, tuple of floats): Standard deviation for gaussian filtering.
     """
 
     def __init__(
@@ -237,7 +236,6 @@ class Resize(Transform):
         anti_aliasing=True,
         anti_aliasing_sigma=None,
     ):
-        assert isinstance(order, int), "order must be integer."
         self.spatial_size = spatial_size
         self.order = order
         self.mode = mode
@@ -245,9 +243,10 @@ class Resize(Transform):
         self.clip = clip
         self.preserve_range = preserve_range
         self.anti_aliasing = anti_aliasing
-        self.anti_aliasing_sigma = anti_aliasing_sigma
 
-    def __call__(self, img):
+    def __call__(
+        self, img, order=None, mode=None, cval=None, clip=None, preserve_range=None, anti_aliasing=None,
+    ):
         """
         Args:
             img (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
@@ -256,15 +255,14 @@ class Resize(Transform):
         for channel in img:
             resized.append(
                 resize(
-                    channel,
-                    self.spatial_size,
-                    order=self.order,
-                    mode=self.mode,
-                    cval=self.cval,
-                    clip=self.clip,
-                    preserve_range=self.preserve_range,
-                    anti_aliasing=self.anti_aliasing,
-                    anti_aliasing_sigma=self.anti_aliasing_sigma,
+                    image=channel,
+                    output_shape=self.spatial_size,
+                    order=self.order if order is None else order,
+                    mode=mode or self.mode,
+                    cval=self.cval if cval is None else cval,
+                    clip=self.clip if clip is None else clip,
+                    preserve_range=self.preserve_range if preserve_range is None else preserve_range,
+                    anti_aliasing=self.anti_aliasing if anti_aliasing is None else anti_aliasing,
                 )
             )
         return np.stack(resized).astype(img.dtype)
