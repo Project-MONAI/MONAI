@@ -2,10 +2,14 @@
 - [The contribution process](#the-contribution-process)
   * [Submitting pull requests](#submitting-pull-requests)
   * [Coding style](#coding-style)
+  * [Automatic code formatting](#automatic-code-formatting)
   * [Utility functions](#utility-functions)
+  * [Building the documentation](#building-the-documentation)
 - [Unit testing](#unit-testing)
 - [The code reviewing process (for the maintainers)](#the-code-reviewing-process)
+  * [Reviewing pull requests](#reviewing-pull-requests)
 - [Admin tasks](#admin-tasks)
+  * [Releasing a new version](#release-a-new-version)
 
 ## Introduction
 
@@ -39,14 +43,14 @@ Ideally, the new branch should be based on the latest `master` branch.
 1. [Create a new pull request](https://help.github.com/en/desktop/contributing-to-projects/creating-a-pull-request) from the task branch to the master branch, with detailed descriptions of the purpose of this pull request.
 1. Check [the CI/CD status of the pull request][github ci], make sure all CI/CD tests passed.
 1. Wait for reviews; if there are reviews, make point-to-point responses, make further code changes if needed.
-1. If there're conflicts between the pull request branch and the master branch, pull the changes from the master and resolve the conflicts locally .
+1. If there're conflicts between the pull request branch and the master branch, pull the changes from the master and resolve the conflicts locally.
 1. Reviewer and contributor may have discussions back and forth until all comments addressed.
 1. Wait for the pull request to be merged.
 
 ### Coding style
 Coding style is checked by flake8, using [a flake8 configuration](./setup.cfg) similar to [PyTorch's](https://github.com/pytorch/pytorch/blob/master/.flake8).  
 For string definition, [f-string](https://www.python.org/dev/peps/pep-0498/) is recommended to use over `%-print` and `format-print` from python 3.6. So please try to use `f-string` if you need to define any string object.  
-Python code file formatting could be done locally before submitting a pull request (e.g. using [`psf/Black`](https://github.com/psf/black)), or during the pull request review using MONAI's automatic code formatting workflow.
+Python code file formatting could be done locally before submitting a pull request (e.g. using [`psf/Black`](https://github.com/psf/black)), or during the pull request review using MONAI's automatic [code formatting workflow](#automatic-code-formatting).
 
 License information: all source code files should start with this paragraph:
 ```
@@ -66,7 +70,7 @@ License information: all source code files should start with this paragraph:
 ### Automatic code formatting
 MONAI provides support of automatic Python code formatting via [a customised GitHub action](https://github.com/Project-MONAI/monai-code-formatter).
 This makes the project's Python coding style consistent and reduces maintenance burdens.
-Commenting a pull request with `/black` triggers the formatting action based on [`psf/Black`](https://github.com/psf/black) (this is implemented with [`slach command dispatch`](https://github.com/marketplace/actions/slash-command-dispatch)).
+Commenting a pull request with `/black` triggers the formatting action based on [`psf/Black`](https://github.com/psf/black) (this is implemented with [`slash command dispatch`](https://github.com/marketplace/actions/slash-command-dispatch)).
 
 
 Steps for the formatting process:
