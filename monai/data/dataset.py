@@ -375,10 +375,14 @@ class ArrayDataset(Dataset):
             if isinstance(self.seg_transform, Randomizable):
                 self.seg_transform.set_random_state(seed=seed)
             seg = self.seg_transform(seg)
+
+        def to_tuple(data):
+            return tuple(data) if isinstance(data, (tuple, list)) else (data,)
+
         if seg is not None:
-            data = ensure_tuple(data) + ensure_tuple(seg)
+            data = to_tuple(data) + to_tuple(seg)
 
         if label is not None:
-            data = ensure_tuple(data) + ensure_tuple(label)
+            data = to_tuple(data) + to_tuple(label)
 
         return data

@@ -13,7 +13,6 @@ import numpy as np
 from torch.utils.data import Dataset
 from monai.transforms import LoadNifti
 from monai.transforms import Randomizable
-from monai.utils.misc import ensure_tuple
 
 
 class NiftiDataset(Dataset):
@@ -95,10 +94,10 @@ class NiftiDataset(Dataset):
             seg = self.seg_transform(seg)
 
         if seg is not None:
-            data = ensure_tuple(data) + ensure_tuple(seg)
+            data = (data, seg)
         if label is not None:
-            data = ensure_tuple(data) + ensure_tuple(label)
+            data = (data if isinstance(data, tuple) else (data,)) + (label,)
         if not self.image_only and meta_data is not None:
-            data = ensure_tuple(data) + ensure_tuple(meta_data)
+            data = (data if isinstance(data, tuple) else (data,)) + (meta_data,)
 
         return data
