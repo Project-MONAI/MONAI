@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import itertools
+from collections.abc import Iterable
 
 import numpy as np
 import torch
@@ -39,7 +40,8 @@ def first(iterable, default=None):
 
 
 def ensure_tuple(vals):
-    if not isinstance(vals, (list, tuple)):
+    """Returns a tuple of `vals`"""
+    if not isinstance(vals, Iterable) or isinstance(vals, str):
         vals = (vals,)
 
     return tuple(vals)
@@ -49,6 +51,18 @@ def ensure_tuple_size(tup, dim):
     """Returns a copy of `tup` with `dim` values by either shortened or padded with zeros as necessary."""
     tup = tuple(tup) + (0,) * dim
     return tup[:dim]
+
+
+def ensure_tuple_rep(tup, dim):
+    """
+    Returns a copy of `tup` with `dim` values by either shortened or duplicated input.
+    """
+    tup = ensure_tuple(tup)
+    if len(tup) >= dim:
+        return tup[:dim]
+    if len(tup) == 1:
+        return tup * dim
+    raise ValueError(f"sequence must have length {dim}, got length {len(tup)}.")
 
 
 def is_scalar_tensor(val):

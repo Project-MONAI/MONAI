@@ -52,7 +52,6 @@ Layers
 ~~~~~~~~~~~~~~~~
 .. autoclass:: GaussianFilter
     :members:
-    :special-members: __call__
 
 `Utilities`
 ~~~~~~~~~~~
