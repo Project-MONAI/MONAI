@@ -18,14 +18,14 @@ from torch import Tensor
 from tensorboard.compat.proto import summary_pb2
 from monai.transforms.utils import rescale_array
 
-from typing import Sequence
+from typing import Sequence, Union
 
 
-def _image3_animated_gif(tag: str, image: Tensor, scale_factor: float = 1):
+def _image3_animated_gif(tag: str, image: Union[np.array, Tensor], scale_factor: float = 1):
     """Function to actually create the animated gif.
     Args:
         tag (str): Data identifier
-        image (Tensor): 3D image tensors expected to be in `HWD` format
+        image (np.array or Tensor): 3D image tensors expected to be in `HWD` format
         scale_factor (float): amount to multiply values by. if the image data is between 0 and 1, using 255 for this value will
         scale it to displayable range
     """
@@ -48,7 +48,7 @@ def _image3_animated_gif(tag: str, image: Tensor, scale_factor: float = 1):
 
 def make_animated_gif_summary(
     tag: str,
-    tensor: Tensor,
+    image: Union[np.array, Tensor],
     max_out: int = 3,
     animation_axes: Sequence[int] = (3,),
     image_axes: Sequence[int] = (1, 2),
@@ -59,7 +59,7 @@ def make_animated_gif_summary(
 
     Args:
         tag (str): Data identifier
-        tensor (Tensor): tensor for the image, expected to be in CHWD format
+        image (np.array or Tensor): The image, expected to be in CHWD format
         max_out (int): maximum number of slices to animate through
         animation_axes (Sequence[int]): axis to animate on (not currently used)
         image_axes (Sequence[int]): axes of image (not currently used)
@@ -77,28 +77,36 @@ def make_animated_gif_summary(
     axis_order = [0] + animation_axes + image_axes
 
     slicing = []
-    for i in range(len(tensor.shape)):
+    for i in range(len(image.shape)):
         if i in axis_order:
             slicing.append(slice(None))
         else:
             other_ind = other_indices.get(i, 0)
             slicing.append(slice(other_ind, other_ind + 1))
-    tensor = tensor[tuple(slicing)]
+    image: Union[Tensor, np.array] = image[tuple(slicing)]
 
-    for it_i in range(min(max_out, list(tensor.shape)[0])):
-        summary_op = _image3_animated_gif(tag + suffix.format(it_i), tensor[it_i, :, :, :].squeeze(dim=0), scale_factor)
+    for it_i in range(min(max_out, list(image.shape)[0])):
+        one_channel_img: Union[Tensor, np.array] = image[it_i, :, :, :].squeeze(dim=0) if torch.is_tensor(
+            image
+        ) else image[it_i, :, :, :]
+        summary_op = _image3_animated_gif(tag + suffix.format(it_i), one_channel_img, scale_factor)
     return summary_op
 
 
 def add_animated_gif(
-    writer: SummaryWriter, tag: str, image_tensor: Tensor, max_out: int, scale_factor: float, global_step: int = None,
+    writer: SummaryWriter,
+    tag: str,
+    image_tensor: Union[np.array, Tensor],
+    max_out: int,
+    scale_factor: float,
+    global_step: int = None,
 ):
     """Creates an animated gif out of an image tensor in 'CHWD' format and writes it with SummaryWriter.
 
     Args:
         writer (SummaryWriter): Tensorboard SummaryWriter to write to
         tag (str): Data identifier
-        image_tensor (Tensor): tensor for the image to add, expected to be in CHWD format
+        image_tensor (np.array or Tensor): tensor for the image to add, expected to be in CHWD format
         max_out (int): maximum number of slices to animate through
         scale_factor (float): amount to multiply values by. If the image data is between 0 and 1, using 255 for this value will
             scale it to displayable range
@@ -113,28 +121,29 @@ def add_animated_gif(
 
 
 def add_animated_gif_no_channels(
-    writer: SummaryWriter, tag: str, image_tensor: Tensor, max_out: int, scale_factor: float, global_step: int = None,
+    writer: SummaryWriter,
+    tag: str,
+    image_tensor: Union[np.array, Tensor],
+    max_out: int,
+    scale_factor: float,
+    global_step: int = None,
 ):
-    """Creates an animated gif out of an image tensor in 'HWD' format that does not have a channel dimension and writes it with SummaryWriter.
-    This is similar to the "add_animated_gif" after inserting a channel dimension of 1.
+    """Creates an animated gif out of an image tensor in 'HWD' format that does not have
+    a channel dimension and writes it with SummaryWriter. This is similar to the "add_animated_gif" 
+    after inserting a channel dimension of 1.
 
     Args:
         writer (SummaryWriter): Tensorboard SummaryWriter to write to
         tag (str): Data identifier
-        image_tensor (Tensor): tensor for the image to add, expected to be in CDHW format
+        image_tensor (np.array or Tensor): tensor for the image to add, expected to be in CHWD format
         max_out (int): maximum number of slices to animate through
-        scale_factor (float): amount to multiply values by. If the image data is between 0 and 1, using 255 for this value will
-            scale it to displayable range
+        scale_factor (float): amount to multiply values by. If the image data is between 0 and 1,
+                              using 255 for this value will scale it to displayable range
         global_step (int): Global step value to record
     """
     writer._get_file_writer().add_summary(
         make_animated_gif_summary(
-            tag,
-            image_tensor.unsqueeze(0),
-            max_out=max_out,
-            animation_axes=[1],
-            image_axes=[2, 3],
-            scale_factor=scale_factor,
+            tag, image_tensor, max_out=max_out, animation_axes=[1], image_axes=[1, 2], scale_factor=scale_factor,
         ),
         global_step,
     )
@@ -147,7 +156,7 @@ def plot_2d_or_3d_image(data, step, writer, index=0, max_channels=1, max_frames=
         Plot 3D or 2D image(with more than 3 channels) as separate images.
 
     Args:
-        data (Tensor or ndarray): target data to be plotted as image on the TensorBoard.
+        data (Tensor or np.array): target data to be plotted as image on the TensorBoard.
             The data is expected to have 'NCHW[D]' dimensions, and only plot the first in the batch.
         step (int): current step to plot in a chart.
         writer (SummaryWriter): specify TensorBoard SummaryWriter to plot the image.
