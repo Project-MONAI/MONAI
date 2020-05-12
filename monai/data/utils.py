@@ -14,10 +14,11 @@ import warnings
 import math
 import nibabel as nib
 from itertools import starmap, product
+import torch
 from torch.utils.data._utils.collate import default_collate
 import numpy as np
-from scipy.ndimage.filters import gaussian_filter
 from monai.utils import ensure_tuple_size
+from monai.networks.layers.simplelayers import GaussianFilter
 
 
 def get_random_patch(dims, patch_size, rand_state=None):
@@ -402,11 +403,11 @@ def create_file_basename(postfix, input_file_name, folder_path, data_root_dir=""
     return os.path.join(subfolder_path, filename + "_" + postfix)
 
 
-def compute_importance_map(patch_size, mode='constant', sigma_scale=0.125):
+def compute_importance_map(patch_size, mode='constant', sigma_scale=0.125, device=None):
     """Get importance map for different weight modes.
 
     Args:
-        patch_size (tuple): Size of the required importance map.
+        patch_size (tuple): Size of the required importance map. This should be either H, W [,D].
         mode (str): Importance map type. Options are 'constant' (Each weight has value 1.0)
             or 'gaussian' (Importance becomes lower away from center).
         sigma_scale (float): Sigma_scale to calculate sigma for each dimension 
@@ -417,19 +418,21 @@ def compute_importance_map(patch_size, mode='constant', sigma_scale=0.125):
     """
     importance_map = None
     if mode == 'constant':
-        importance_map = np.ones(patch_size, dtype=np.float32)
+        importance_map = torch.ones(patch_size, device=device).float()
     elif mode == 'gaussian':
-        importance_map = np.zeros(patch_size)
         center_coords = [i // 2 for i in patch_size]
         sigmas = [i * sigma_scale for i in patch_size]
 
+        importance_map = torch.zeros(patch_size, device=device)
         importance_map[tuple(center_coords)] = 1
-        importance_map = gaussian_filter(importance_map, sigmas, 0, mode='constant', cval=0)
-        importance_map = importance_map / np.max(importance_map)
-        importance_map = importance_map.astype(np.float32)
+        pt_gaussian = GaussianFilter(len(patch_size), sigmas)
+        importance_map = pt_gaussian(importance_map.unsqueeze(0).unsqueeze(0))
+        importance_map = importance_map.squeeze()
+        importance_map = importance_map / torch.max(importance_map)
+        importance_map = importance_map.float()
 
         # importance_map cannot be 0, otherwise we may end up with nans!
-        importance_map[importance_map == 0] = np.min(
+        importance_map[importance_map == 0] = torch.min(
             importance_map[importance_map != 0])
     else:
         raise ValueError('mode must be "constant" or "gaussian".')

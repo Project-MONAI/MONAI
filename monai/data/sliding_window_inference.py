@@ -81,8 +81,7 @@ def sliding_window_inference(inputs, roi_size, sw_batch_size, predictor, overlap
     output_shape = [batch_size, output_classes] + list(image_size)
 
     # Create importance map
-    importance_map = compute_importance_map(roi_size, mode=blend_mode)
-    importance_map = torch.as_tensor(importance_map, device=inputs.device)
+    importance_map = compute_importance_map(roi_size, mode=blend_mode, device=inputs.device)
 
     # allocate memory to store the full output and the count for overlapping parts
     output_image = torch.zeros(output_shape, dtype=torch.float32, device=inputs.device)
