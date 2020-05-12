@@ -115,11 +115,11 @@ def _get_scan_interval(image_size, roi_size, num_spatial_dims, overlap):
     assert len(image_size) == num_spatial_dims, "image coord different from spatial dims."
     assert len(roi_size) == num_spatial_dims, "roi coord different from spatial dims."
 
-    scan_interval = [1 for _ in range(num_spatial_dims)]
+    scan_interval = []
     for i in range(num_spatial_dims):
         if roi_size[i] == image_size[i]:
-            scan_interval[i] = int(roi_size[i])
+            scan_interval.append(int(roi_size[i]))
         else:
             # scan interval is (1-overlap)*roi_size
-            scan_interval[i] = int(roi_size[i] * (1 - overlap))
+            scan_interval.append(int(roi_size[i] * (1 - overlap)))
     return tuple(scan_interval)
