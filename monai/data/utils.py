@@ -403,7 +403,7 @@ def create_file_basename(postfix, input_file_name, folder_path, data_root_dir=""
     return os.path.join(subfolder_path, filename + "_" + postfix)
 
 
-def compute_importance_map(patch_size, mode='constant', sigma_scale=0.125, device=None):
+def compute_importance_map(patch_size, mode="constant", sigma_scale=0.125, device=None):
     """Get importance map for different weight modes.
 
     Args:
@@ -418,9 +418,9 @@ def compute_importance_map(patch_size, mode='constant', sigma_scale=0.125, devic
         Tensor of size patch_size.
     """
     importance_map = None
-    if mode == 'constant':
+    if mode == "constant":
         importance_map = torch.ones(patch_size, device=device).float()
-    elif mode == 'gaussian':
+    elif mode == "gaussian":
         center_coords = [i // 2 for i in patch_size]
         sigmas = [i * sigma_scale for i in patch_size]
 
@@ -433,8 +433,7 @@ def compute_importance_map(patch_size, mode='constant', sigma_scale=0.125, devic
         importance_map = importance_map.float()
 
         # importance_map cannot be 0, otherwise we may end up with nans!
-        importance_map[importance_map == 0] = torch.min(
-            importance_map[importance_map != 0])
+        importance_map[importance_map == 0] = torch.min(importance_map[importance_map != 0])
     else:
         raise ValueError('mode must be "constant" or "gaussian".')
 

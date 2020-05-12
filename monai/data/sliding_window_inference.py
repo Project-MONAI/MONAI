@@ -14,7 +14,7 @@ import torch.nn.functional as F
 from monai.data.utils import dense_patch_slices, compute_importance_map
 
 
-def sliding_window_inference(inputs, roi_size, sw_batch_size, predictor, overlap=0.25, blend_mode='constant'):
+def sliding_window_inference(inputs, roi_size, sw_batch_size, predictor, overlap=0.25, blend_mode="constant"):
     """Use SlidingWindow method to execute inference.
 
     Args:
@@ -94,13 +94,15 @@ def sliding_window_inference(inputs, roi_size, sw_batch_size, predictor, overlap
         for curr_index in slice_index_range:
             if num_spatial_dims == 3:
                 slice_i, slice_j, slice_k = slices[curr_index]
-                output_image[0, :, slice_i, slice_j, slice_k] += \
+                output_image[0, :, slice_i, slice_j, slice_k] += (
                     importance_map * output_rois[window_id][curr_index - slice_index, :]
+                )
                 count_map[0, :, slice_i, slice_j, slice_k] += importance_map
             else:
                 slice_i, slice_j = slices[curr_index]
-                output_image[0, :, slice_i, slice_j] += \
+                output_image[0, :, slice_i, slice_j] += (
                     importance_map * output_rois[window_id][curr_index - slice_index, :]
+                )
                 count_map[0, :, slice_i, slice_j] += importance_map
 
     # account for any overlapping sections
