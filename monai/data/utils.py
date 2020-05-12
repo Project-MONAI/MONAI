@@ -348,8 +348,8 @@ def to_affine_nd(r, affine):
     Returns:
         a (r+1) x (r+1) matrix
     """
-    affine = np.array(affine, dtype=np.float64)
-    if affine.ndim != 2:
+    affine_ = np.array(affine, dtype=np.float64)
+    if affine_.ndim != 2:
         raise ValueError("input affine must have two dimensions")
     new_affine = np.array(r, dtype=np.float64, copy=True)
     if new_affine.ndim == 0:
@@ -357,10 +357,10 @@ def to_affine_nd(r, affine):
         if not np.isfinite(sr) or sr < 0:
             raise ValueError("r must be positive.")
         new_affine = np.eye(sr + 1, dtype=np.float64)
-    d = max(min(len(new_affine) - 1, len(affine) - 1), 1)
-    new_affine[:d, :d] = affine[:d, :d]
+    d = max(min(len(new_affine) - 1, len(affine_) - 1), 1)
+    new_affine[:d, :d] = affine_[:d, :d]
     if d > 1:
-        new_affine[:d, -1] = affine[:d, -1]
+        new_affine[:d, -1] = affine_[:d, -1]
     return new_affine
 
 

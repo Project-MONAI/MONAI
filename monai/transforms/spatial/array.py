@@ -645,7 +645,7 @@ class AffineGrid(Transform):
             affine = affine @ create_scale(spatial_dims, self.scale_params)
         affine = torch.as_tensor(np.ascontiguousarray(affine), device=self.device)
 
-        grid = torch.as_tensor(np.ascontiguousarray(grid)) if not torch.is_tensor(grid) else grid.detach().clone()
+        grid = torch.tensor(grid) if not torch.is_tensor(grid) else grid.detach().clone()
         if self.device:
             grid = grid.to(self.device)
         grid = (affine.float() @ grid.reshape((grid.shape[0], -1)).float()).reshape([-1] + list(grid.shape[1:]))
@@ -795,7 +795,7 @@ class Resample(Transform):
         """
         if not torch.is_tensor(img):
             img = torch.as_tensor(np.ascontiguousarray(img))
-        grid = torch.tensor(np.ascontiguousarray(grid)) if not torch.is_tensor(grid) else grid.detach().clone()
+        grid = torch.tensor(grid) if not torch.is_tensor(grid) else grid.detach().clone()
         if self.device:
             img = img.to(self.device)
             grid = grid.to(self.device)
