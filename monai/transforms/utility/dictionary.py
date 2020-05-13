@@ -18,6 +18,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 import numpy as np
 
 from monai.transforms.compose import MapTransform
+from monai.utils.misc import ensure_tuple_rep
 from monai.transforms.utility.array import (
     AddChannel,
     AsChannelFirst,
@@ -255,17 +256,13 @@ class SimulateDelayd(MapTransform):
                 to the keys representing the delay for each key element.
         """
         super().__init__(keys)
-
-        if not isinstance(delay_time, (tuple, list)):
-            delay_time = [delay_time] * len(keys)
-        self.converter_dictionary = dict()
-        for key, keyed_default_delay in zip(self.keys, delay_time):
-            self.converter_dictionary[key] = SimulateDelay(delay_time=keyed_default_delay)
+        self.delay_time = ensure_tuple_rep(delay_time, len(self.keys))
+        self.delayer = SimulateDelay()
 
     def __call__(self, data):
         d = dict(data)
-        for key in self.keys:
-            d[key] = self.converter_dictionary[key](d[key])
+        for idx, key in enumerate(self.keys):
+            d[key] = self.delayer(d[key], delay_time=self.delay_time[idx])
         return d
 
 
