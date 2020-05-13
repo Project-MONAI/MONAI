@@ -247,6 +247,6 @@ class SimulateDelay(Transform):
         super().__init__()
         self.delay_time: float = delay_time
 
-    def __call__(self, img):
-        time.sleep(self.delay_time)
+    def __call__(self, img, delay_time=None):
+        time.sleep(self.delay_time if delay_time is None else delay_time)
         return img
