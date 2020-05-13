@@ -374,7 +374,7 @@ class Zoom(Transform):
                         channel,
                         zoom=self.zoom,
                         order=self.order if order is None else order,
-                        mode=self.mode if mode is None else mode,
+                        mode=mode or self.mode,
                         cval=self.cval if cval is None else cval,
                         prefilter=self.prefilter if prefilter is None else prefilter,
                     )
@@ -509,7 +509,7 @@ class RandRotate(Randomizable, Transform):
             spatial_axes=self.spatial_axes,
             reshape=self.reshape,
             order=self.order if order is None else order,
-            mode=self.mode if mode is None else mode,
+            mode=mode or self.mode,
             cval=self.cval if cval is None else cval,
             prefilter=self.prefilter if prefilter is None else prefilter,
         )
@@ -605,7 +605,7 @@ class RandZoom(Randomizable, Transform):
         return zoomer(
             img,
             order=self.order if order is None else order,
-            mode=self.mode if mode is None else mode,
+            mode=mode or self.mode,
             cval=self.cval if cval is None else cval,
             prefilter=self.prefilter if prefilter is None else prefilter,
         )
