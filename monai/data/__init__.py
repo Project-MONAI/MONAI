@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from .csv_saver import CSVSaver
-from .dataset import Dataset, PersistentDataset, CacheDataset
+from .dataset import Dataset, PersistentDataset, CacheDataset, ZipDataset, ArrayDataset
 from .grid_dataset import GridPatchDataset
 from .nifti_reader import load_nifti, NiftiDataset
 from .nifti_saver import NiftiSaver
