@@ -317,6 +317,7 @@ class ZipDataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
         def to_tuple(x):
             return tuple(x) if isinstance(x, (tuple, list)) else (x,)
+
         data = tuple()
         for dataset in self.datasets:
             data = to_tuple(data) + to_tuple(dataset[index])
@@ -359,13 +360,7 @@ class ArrayDataset(ZipDataset):
     """
 
     def __init__(
-        self,
-        img_files,
-        img_transform=None,
-        seg_files=None,
-        seg_transform=None,
-        labels=None,
-        label_transform=None
+        self, img_files, img_transform=None, seg_files=None, seg_transform=None, labels=None, label_transform=None
     ):
         """
         Initializes the dataset with the filename lists. The transform `img_transform` is applied
@@ -379,6 +374,7 @@ class ArrayDataset(ZipDataset):
             label_transform (Callable, optional): transform to apply to label arrays
 
         """
+
         class _dataset(Dataset):
             def set_random_state(self, seed):
                 if self.transform is not None and isinstance(self.transform, Randomizable):
