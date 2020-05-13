@@ -375,13 +375,13 @@ class ArrayDataset(ZipDataset):
 
         """
 
-        class _dataset(Dataset):
+        class Dataset_(Dataset):
             def set_random_state(self, seed):
                 if self.transform is not None and isinstance(self.transform, Randomizable):
                     self.transform.set_random_state(seed=seed)
 
         super().__init__(
-            [_dataset(img_files, img_transform), _dataset(seg_files, seg_transform), _dataset(labels, label_transform)]
+            [Dataset_(img_files, img_transform), Dataset_(seg_files, seg_transform), Dataset_(labels, label_transform)]
         )
 
     def __getitem__(self, index):
