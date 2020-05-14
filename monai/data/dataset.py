@@ -298,6 +298,7 @@ class ZipDataset(torch.utils.data.Dataset):
         Expect all the datasets have same length.
 
     """
+
     def __init__(self, datasets, transform=None):
         """
         Args:

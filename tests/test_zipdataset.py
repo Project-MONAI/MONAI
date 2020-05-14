@@ -30,32 +30,17 @@ class Dataset_(torch.utils.data.Dataset):
             return 1, 2, index
 
 
-TEST_CASE_1 = [
-    [Dataset_(5), Dataset_(5), Dataset_(5)],
-    None,
-    [0, 0, 0],
-    5
-]
+TEST_CASE_1 = [[Dataset_(5), Dataset_(5), Dataset_(5)], None, [0, 0, 0], 5]
 
-TEST_CASE_2 = [
-    [Dataset_(3), Dataset_(4), Dataset_(5)],
-    None,
-    [0, 0, 0],
-    3
-]
+TEST_CASE_2 = [[Dataset_(3), Dataset_(4), Dataset_(5)], None, [0, 0, 0], 3]
 
-TEST_CASE_3 = [
-    [Dataset_(3), Dataset_(4, index_only=False), Dataset_(5)],
-    None,
-    [0, 1, 2, 0, 0],
-    3
-]
+TEST_CASE_3 = [[Dataset_(3), Dataset_(4, index_only=False), Dataset_(5)], None, [0, 1, 2, 0, 0], 3]
 
 TEST_CASE_4 = [
     [Dataset_(3), Dataset_(4, index_only=False), Dataset_(5)],
     lambda x: [i + 1 for i in x],
     [1, 2, 3, 1, 1],
-    3
+    3,
 ]
 
 
@@ -64,7 +49,8 @@ class TestZipDataset(unittest.TestCase):
     def test_value(self, datasets, transform, expected_output, expected_length):
         test_dataset = ZipDataset(datasets=datasets, transform=transform)
         self.assertEqual(test_dataset[0], expected_output)
-        self.assertEqual(len(test_dataset), expected_length)     
+        self.assertEqual(len(test_dataset), expected_length)
+
 
 if __name__ == "__main__":
     unittest.main()
