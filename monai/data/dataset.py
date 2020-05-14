@@ -23,12 +23,12 @@ import threading
 from monai.transforms import Compose, Randomizable
 from monai.transforms.utils import apply_transform
 from monai.utils import process_bar
-from monai.utils.misc import ensure_tuple
 
 
 class Dataset(torch.utils.data.Dataset):
     """
-    Generic dataset to handle dictionary format data, it can operate transforms for specific fields.
+    A generic dataset with a length property and an optional callable data transform
+    when fetching a data sample.
     For example, typical input data can be a list of dictionaries::
 
         [{                            {                            {
@@ -42,13 +42,10 @@ class Dataset(torch.utils.data.Dataset):
         """
         Args:
             data (Iterable): input data to load and transform to generate dataset for model.
-            transform (Callable, optional): transforms to execute operations on input data.
+            transform (Callable, optional): a callable data transform on input data.
         """
         self.data = data
-        if isinstance(transform, Compose):
-            self.transform = transform
-        else:
-            self.transform = Compose(ensure_tuple(transform))
+        self.transform = transform
 
     def __len__(self):
         return len(self.data)
@@ -107,6 +104,8 @@ class PersistentDataset(Dataset):
                 may share a common cache dir provided that the trasnsforms pre-processing is
                 consistent.
         """
+        if not isinstance(transform, Compose):
+            transform = Compose(transform)
         super().__init__(data=data, transform=transform)
         self.cache_dir = Path(cache_dir) if cache_dir is not None else None
 
@@ -289,3 +288,105 @@ class CacheDataset(Dataset):
             # no cache for this data, execute all the transforms directly
             data = super(CacheDataset, self).__getitem__(index)
         return data
+
+
+class ZipDataset(torch.utils.data.Dataset):
+    """
+    Zip several PyTorch datasets and output data(with the same index) together in a tuple.
+    If the output of single dataset is alreay a tuple, flatten it and extend to the result.
+    For example: if datasetA returns (img, imgmeta), datsetB returns (seg, segmeta),
+    finally return (img, imgmeta, seg, segmeta).
+
+    Note:
+        Expect all the datasets have same length.
+
+    """
+
+    def __init__(self, datasets, transform=None):
+        """
+        Args:
+            datasets (list or tuple): list of datasets to zip together.
+        """
+        self.datasets = list(datasets)
+        self.len = min([len(dataset) for dataset in self.datasets])
+        self.transform = transform
+
+    def __len__(self):
+        return self.len
+
+    def __getitem__(self, index):
+        def to_list(x):
+            return list(x) if isinstance(x, (tuple, list)) else [x]
+
+        data = list()
+        for dataset in self.datasets:
+            data.extend(to_list(dataset[index]))
+        if self.transform is not None:
+            data = self.transform(data)
+        return data
+
+
+class ArrayDataset(ZipDataset, Randomizable):
+    """
+    Dataset for segmentation and classification tasks based on array format input data and transforms.
+    It can apply same random operations for both image transforms and segmentation label transforms.
+    The `transform` can be :py:class:`monai.transforms.Compose` or any other callable object.
+    For example:
+    If train based on Nifti format images without metadata, all transforms can be composed::
+        img_transform = Compose(
+            [
+                LoadNifti(image_only=True),
+                AddChannel(),
+                RandAdjustContrast()
+            ]
+        )
+    If train based on Nifti format images and the metadata, the array transforms can not be composed
+    because several transforms receives multiple parameters or return multiple values. Then Users need
+    to define their own callable method to parse metadata from `LoadNifti` or set `affine` matrix
+    to `Spacing` transform::
+        class TestCompose(Compose):
+            def __call__(self, input_):
+                img, metadata = self.transforms[0](input_)
+                img = self.transforms[1](img)
+                img, _, _ = self.transforms[2](img, metadata["affine"])
+                return self.transforms[3](img), metadata
+        img_transform = TestCompose(
+            [
+                LoadNifti(image_only=False),
+                AddChannel(),
+                Spacing(pixdim=(1.5, 1.5, 3.0)),
+                RandAdjustContrast()
+            ]
+        )
+    Recommend to use dictionary Datasets for complicated data pre-processing.
+    """
+
+    def __init__(
+        self, img_files, img_transform=None, seg_files=None, seg_transform=None, labels=None, label_transform=None
+    ):
+        """
+        Initializes the dataset with the filename lists. The transform `img_transform` is applied
+        to the images and `seg_transform` to the segmentations.
+        Args:
+            img_files (iterable, list of str): list of image filenames
+            img_transform (Callable, optional): transform to apply to image arrays
+            seg_files (iterable, list of str): if in segmentation task, list of segmentation filenames
+            seg_transform (Callable, optional): transform to apply to segmentation arrays
+            labels (iterable, list or array): if in classification task, list of classification labels
+            label_transform (Callable, optional): transform to apply to label arrays
+
+        """
+
+        super().__init__(
+            [Dataset(img_files, img_transform), Dataset(seg_files, seg_transform), Dataset(labels, label_transform)]
+        )
+
+    def randomize(self):
+        self.seed = self.R.randint(2147483647)
+
+    def __getitem__(self, index):
+        self.randomize()
+        for dataset in self.datasets:
+            if isinstance(dataset.transform, Randomizable):
+                dataset.transform.set_random_state(seed=self.seed)
+        return super().__getitem__(index)
