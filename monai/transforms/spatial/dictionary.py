@@ -32,7 +32,7 @@ from monai.transforms.spatial.array import (
     Zoom,
 )
 from monai.transforms.utils import create_grid
-from monai.utils.misc import ensure_tuple
+from monai.utils.misc import ensure_tuple_rep
 
 
 class Spacingd(MapTransform):
@@ -50,7 +50,7 @@ class Spacingd(MapTransform):
     """
 
     def __init__(
-        self, keys, pixdim, diagonal=False, mode="nearest", cval=0, interp_order=3, dtype=None, meta_key_format="{}.{}"
+        self, keys, pixdim, diagonal=False, interp_order=3, mode="nearest", cval=0, dtype=None, meta_key_format="{}.{}"
     ):
         """
         Args:
@@ -67,30 +67,40 @@ class Spacingd(MapTransform):
                 translations components from the original affine will be
                 preserved in the target affine. This option will not flip/swap
                 axes against the original ones.
-            mode (`reflect|constant|nearest|mirror|wrap`):
-                The mode parameter determines how the input array is extended beyond its boundaries.
-                Default is 'nearest'.
-            cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
             interp_order (int or sequence of ints): int: the same interpolation order
                 for all data indexed by `self.keys`; sequence of ints, should
                 correspond to an interpolation order for each data item indexed
                 by `self.keys` respectively.
-            dtype (None or np.dtype): output array data type, defaults to None to use input data's dtype.
+            mode (str or sequence of str):
+                Available options are `reflect|constant|nearest|mirror|wrap`.
+                The mode parameter determines how the input array is extended beyond its boundaries.
+                Default is 'nearest'.
+            cval (scalar or sequence of scalars): Value to fill past edges of input if mode is "constant". Default is 0.0.
+            dtype (None or np.dtype or sequence of np.dtype): output array data type, defaults to None to use input data's dtype.
             meta_key_format (str): key format to read/write affine matrices to the data dictionary.
         """
         super().__init__(keys)
-        self.spacing_transform = Spacing(pixdim, diagonal=diagonal, mode=mode, cval=cval, dtype=dtype)
-        interp_order = ensure_tuple(interp_order)
-        self.interp_order = interp_order if len(interp_order) == len(self.keys) else interp_order * len(self.keys)
+        self.spacing_transform = Spacing(pixdim, diagonal=diagonal)
+        self.interp_order = ensure_tuple_rep(interp_order, len(self.keys))
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.cval = ensure_tuple_rep(cval, len(self.keys))
+        self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.meta_key_format = meta_key_format
 
     def __call__(self, data):
         d = dict(data)
-        for key, interp in zip(self.keys, self.interp_order):
+        for idx, key in enumerate(self.keys):
             affine_key = self.meta_key_format.format(key, "affine")
             # resample array of each corresponding key
             # using affine fetched from d[affine_key]
-            d[key], _, new_affine = self.spacing_transform(data_array=d[key], affine=d[affine_key], interp_order=interp)
+            d[key], _, new_affine = self.spacing_transform(
+                data_array=d[key],
+                affine=d[affine_key],
+                interp_order=self.interp_order[idx],
+                mode=self.mode[idx],
+                cval=self.cval[idx],
+                dtype=self.dtype[idx],
+            )
             # set the 'affine' key
             d[affine_key] = new_affine
         return d
@@ -212,37 +222,43 @@ class Resized(MapTransform):
         keys (hashable items): keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
         spatial_size (tuple or list): expected shape of spatial dimensions after resize operation.
-        order (int): Order of spline interpolation. Default=1.
-        mode (str): Points outside boundaries are filled according to given mode.
+        order (int or sequence of int): Order of spline interpolation. Default=1.
+        mode (str or sequence of str): Points outside boundaries are filled according to given mode.
             Options are 'constant', 'edge', 'symmetric', 'reflect', 'wrap'.
-        cval (float): Used with mode 'constant', the value outside image boundaries.
-        clip (bool): Whether to clip range of output values after interpolation. Default: True.
-        preserve_range (bool): Whether to keep original range of values. Default is True.
+        cval (float or sequence of float): Used with mode 'constant', the value outside image boundaries.
+        clip (bool or sequence of bool): Whether to clip range of output values after interpolation. Default: True.
+        preserve_range (bool or sequence of bool): Whether to keep original range of values. Default is True.
             If False, input is converted according to conventions of img_as_float. See
             https://scikit-image.org/docs/dev/user_guide/data_types.html.
-        anti_aliasing (bool): Whether to apply a gaussian filter to image before down-scaling. Default is True.
-        anti_aliasing_sigma (float, tuple of floats): Standard deviation for gaussian filtering.
+        anti_aliasing (bool or sequence of bool): Whether to apply a gaussian filter to image before down-scaling.
+            Default is True.
     """
 
     def __init__(
-        self,
-        keys,
-        spatial_size,
-        order=1,
-        mode="reflect",
-        cval=0,
-        clip=True,
-        preserve_range=True,
-        anti_aliasing=True,
-        anti_aliasing_sigma=None,
+        self, keys, spatial_size, order=1, mode="reflect", cval=0, clip=True, preserve_range=True, anti_aliasing=True,
     ):
         super().__init__(keys)
-        self.resizer = Resize(spatial_size, order, mode, cval, clip, preserve_range, anti_aliasing, anti_aliasing_sigma)
+        self.order = ensure_tuple_rep(order, len(self.keys))
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.cval = ensure_tuple_rep(cval, len(self.keys))
+        self.clip = ensure_tuple_rep(clip, len(self.keys))
+        self.preserve_range = ensure_tuple_rep(preserve_range, len(self.keys))
+        self.anti_aliasing = ensure_tuple_rep(anti_aliasing, len(self.keys))
+
+        self.resizer = Resize(spatial_size=spatial_size)
 
     def __call__(self, data):
         d = dict(data)
-        for key in self.keys:
-            d[key] = self.resizer(d[key])
+        for idx, key in enumerate(self.keys):
+            d[key] = self.resizer(
+                d[key],
+                order=self.order[idx],
+                mode=self.mode[idx],
+                cval=self.cval[idx],
+                clip=self.clip[idx],
+                preserve_range=self.preserve_range[idx],
+                anti_aliasing=self.anti_aliasing[idx],
+            )
         return d
 
 
@@ -273,11 +289,12 @@ class RandAffined(Randomizable, MapTransform):
                 if ``data`` component has three spatial dimensions, ``spatial_size`` should have 3 elements [h, w, d].
             prob (float): probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid.
-            mode ('nearest'|'bilinear'): interpolation order. Defaults to ``'bilinear'``.
+            mode (str or sequence of str): interpolation order.
+                Available options are 'nearest', 'bilinear'. Defaults to ``'bilinear'``.
                 if mode is a tuple of interpolation mode strings, each string corresponds to a key in ``keys``.
                 this is useful to set different modes for different data items.
-            padding_mode ('zeros'|'border'|'reflection'): mode of handling out of range indices.
-                Defaults to ``'zeros'``.
+            padding_mode (str or sequence of str): mode of handling out of range indices.
+                Available options are 'zeros', 'border', 'reflection'.  Defaults to ``'zeros'``.
             as_tensor_output (bool): the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
             device (torch.device): device on which the tensor will be allocated.
@@ -287,7 +304,6 @@ class RandAffined(Randomizable, MapTransform):
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
         """
         super().__init__(keys)
-        default_mode = "bilinear" if isinstance(mode, (tuple, list)) else mode
         self.rand_affine = RandAffine(
             prob=prob,
             rotate_range=rotate_range,
@@ -295,12 +311,11 @@ class RandAffined(Randomizable, MapTransform):
             translate_range=translate_range,
             scale_range=scale_range,
             spatial_size=spatial_size,
-            mode=default_mode,
-            padding_mode=padding_mode,
             as_tensor_output=as_tensor_output,
             device=device,
         )
-        self.mode = mode
+        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
 
     def set_random_state(self, seed=None, state=None):
         self.rand_affine.set_random_state(seed, state)
@@ -318,15 +333,10 @@ class RandAffined(Randomizable, MapTransform):
         if self.rand_affine.do_transform:
             grid = self.rand_affine.rand_affine_grid(spatial_size=spatial_size)
         else:
-            grid = create_grid(spatial_size)
+            grid = create_grid(spatial_size=spatial_size)
 
-        if isinstance(self.mode, (tuple, list)):
-            for key, m in zip(self.keys, self.mode):
-                d[key] = self.rand_affine.resampler(d[key], grid, mode=m)
-            return d
-
-        for key in self.keys:  # same interpolation mode
-            d[key] = self.rand_affine.resampler(d[key], grid, self.rand_affine.mode)
+        for idx, key in enumerate(self.keys):
+            d[key] = self.rand_affine.resampler(d[key], grid, padding_mode=self.padding_mode[idx], mode=self.mode[idx])
         return d
 
 
@@ -361,11 +371,12 @@ class Rand2DElasticd(Randomizable, MapTransform):
             prob (float): probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
-            mode ('nearest'|'bilinear'): interpolation order. Defaults to ``'bilinear'``.
+            mode (str or sequence of str): interpolation order.
+                Available options are 'nearest', 'bilinear'. Defaults to ``'bilinear'``.
                 if mode is a tuple of interpolation mode strings, each string corresponds to a key in ``keys``.
                 this is useful to set different modes for different data items.
-            padding_mode ('zeros'|'border'|'reflection'): mode of handling out of range indices.
-                Defaults to ``'zeros'``.
+            padding_mode (str or sequence of str): mode of handling out of range indices.
+                Available options are 'zeros', 'border', 'reflection'.  Defaults to ``'zeros'``.
             as_tensor_output (bool): the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
             device (torch.device): device on which the tensor will be allocated.
@@ -374,7 +385,6 @@ class Rand2DElasticd(Randomizable, MapTransform):
             - :py:class:`Affine` for the affine transformation parameters configurations.
         """
         super().__init__(keys)
-        default_mode = "bilinear" if isinstance(mode, (tuple, list)) else mode
         self.rand_2d_elastic = Rand2DElastic(
             spacing=spacing,
             magnitude_range=magnitude_range,
@@ -384,12 +394,11 @@ class Rand2DElasticd(Randomizable, MapTransform):
             translate_range=translate_range,
             scale_range=scale_range,
             spatial_size=spatial_size,
-            mode=default_mode,
-            padding_mode=padding_mode,
             as_tensor_output=as_tensor_output,
             device=device,
         )
-        self.mode = mode
+        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
 
     def set_random_state(self, seed=None, state=None):
         self.rand_2d_elastic.set_random_state(seed, state)
@@ -411,13 +420,10 @@ class Rand2DElasticd(Randomizable, MapTransform):
         else:
             grid = create_grid(spatial_size)
 
-        if isinstance(self.mode, (tuple, list)):
-            for key, m in zip(self.keys, self.mode):
-                d[key] = self.rand_2d_elastic.resampler(d[key], grid, mode=m)
-            return d
-
-        for key in self.keys:  # same interpolation mode
-            d[key] = self.rand_2d_elastic.resampler(d[key], grid, mode=self.rand_2d_elastic.mode)
+        for idx, key in enumerate(self.keys):
+            d[key] = self.rand_2d_elastic.resampler(
+                d[key], grid, padding_mode=self.padding_mode[idx], mode=self.mode[idx]
+            )
         return d
 
 
@@ -453,11 +459,12 @@ class Rand3DElasticd(Randomizable, MapTransform):
             prob (float): probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
-            mode ('nearest'|'bilinear'): interpolation order. Defaults to ``'bilinear'``.
+            mode (str or sequence of str): interpolation order.
+                Available options are 'nearest', 'bilinear'. Defaults to ``'bilinear'``.
                 if mode is a tuple of interpolation mode strings, each string corresponds to a key in ``keys``.
                 this is useful to set different modes for different data items.
-            padding_mode ('zeros'|'border'|'reflection'): mode of handling out of range indices.
-                Defaults to ``'zeros'``.
+            padding_mode (str or sequence of str): mode of handling out of range indices.
+                Available options are 'zeros', 'border', 'reflection'.  Defaults to ``'zeros'``.
             as_tensor_output (bool): the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
             device (torch.device): device on which the tensor will be allocated.
@@ -466,7 +473,6 @@ class Rand3DElasticd(Randomizable, MapTransform):
             - :py:class:`Affine` for the affine transformation parameters configurations.
         """
         super().__init__(keys)
-        default_mode = "bilinear" if isinstance(mode, (tuple, list)) else mode
         self.rand_3d_elastic = Rand3DElastic(
             sigma_range=sigma_range,
             magnitude_range=magnitude_range,
@@ -476,12 +482,11 @@ class Rand3DElasticd(Randomizable, MapTransform):
             translate_range=translate_range,
             scale_range=scale_range,
             spatial_size=spatial_size,
-            mode=default_mode,
-            padding_mode=padding_mode,
             as_tensor_output=as_tensor_output,
             device=device,
         )
-        self.mode = mode
+        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
 
     def set_random_state(self, seed=None, state=None):
         self.rand_3d_elastic.set_random_state(seed, state)
@@ -503,13 +508,10 @@ class Rand3DElasticd(Randomizable, MapTransform):
             grid[:3] += gaussian(self.rand_3d_elastic.rand_offset[None])[0] * self.rand_3d_elastic.magnitude
             grid = self.rand_3d_elastic.rand_affine_grid(grid=grid)
 
-        if isinstance(self.mode, (tuple, list)):
-            for key, m in zip(self.keys, self.mode):
-                d[key] = self.rand_3d_elastic.resampler(d[key], grid, mode=m)
-            return d
-
-        for key in self.keys:  # same interpolation mode
-            d[key] = self.rand_3d_elastic.resampler(d[key], grid, mode=self.rand_3d_elastic.mode)
+        for idx, key in enumerate(self.keys):
+            d[key] = self.rand_3d_elastic.resampler(
+                d[key], grid, padding_mode=self.padding_mode[idx], mode=self.mode[idx]
+            )
         return d
 
 
@@ -577,32 +579,31 @@ class Rotated(MapTransform):
             This is the first two axis in spatial dimensions.
         reshape (bool): If reshape is true, the output shape is adapted so that the
             input array is contained completely in the output. Default is True.
-        order (int): Order of spline interpolation. Range 0-5. Default: 1. This is
+        order (int or sequence of int): Order of spline interpolation. Range 0-5. Default: 1. This is
             different from scipy where default interpolation is 3.
-        mode (str): Points outside boundary filled according to this mode. Options are
+        mode (str or sequence of str): Points outside boundary filled according to this mode. Options are
             'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
-        cval (scalar): Values to fill outside boundary. Default: 0.
-        prefilter (bool): Apply spline_filter before interpolation. Default: True.
+        cval (scalar or sequence of scalar): Values to fill outside boundary. Default: 0.
+        prefilter (bool or sequence of bool): Apply spline_filter before interpolation. Default: True.
     """
 
     def __init__(
         self, keys, angle, spatial_axes=(0, 1), reshape=True, order=1, mode="constant", cval=0, prefilter=True
     ):
         super().__init__(keys)
-        self.rotator = Rotate(
-            angle=angle,
-            spatial_axes=spatial_axes,
-            reshape=reshape,
-            order=order,
-            mode=mode,
-            cval=cval,
-            prefilter=prefilter,
-        )
+        self.rotator = Rotate(angle=angle, spatial_axes=spatial_axes, reshape=reshape)
+
+        self.order = ensure_tuple_rep(order, len(self.keys))
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.cval = ensure_tuple_rep(cval, len(self.keys))
+        self.prefilter = ensure_tuple_rep(prefilter, len(self.keys))
 
     def __call__(self, data):
         d = dict(data)
-        for key in self.keys:
-            d[key] = self.rotator(d[key])
+        for idx, key in enumerate(self.keys):
+            d[key] = self.rotator(
+                d[key], order=self.order[idx], mode=self.mode[idx], cval=self.cval[idx], prefilter=self.prefilter[idx]
+            )
         return d
 
 
@@ -618,12 +619,12 @@ class RandRotated(Randomizable, MapTransform):
             This is the first two axis in spatial dimensions.
         reshape (bool): If reshape is true, the output shape is adapted so that the
             input array is contained completely in the output. Default is True.
-        order (int): Order of spline interpolation. Range 0-5. Default: 1. This is
+        order (int or sequence of int): Order of spline interpolation. Range 0-5. Default: 1. This is
             different from scipy where default interpolation is 3.
-        mode (str): Points outside boundary filled according to this mode. Options are
+        mode (str or sequence of str): Points outside boundary filled according to this mode. Options are
             'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
-        cval (scalar): Value to fill outside boundary. Default: 0.
-        prefilter (bool): Apply spline_filter before interpolation. Default: True.
+        cval (scalar or sequence of scalar): Value to fill outside boundary. Default: 0.
+        prefilter (bool or sequence of bool): Apply spline_filter before interpolation. Default: True.
     """
 
     def __init__(
@@ -642,11 +643,12 @@ class RandRotated(Randomizable, MapTransform):
         self.prob = prob
         self.degrees = degrees
         self.reshape = reshape
-        self.order = order
-        self.mode = mode
-        self.cval = cval
-        self.prefilter = prefilter
         self.spatial_axes = spatial_axes
+
+        self.order = ensure_tuple_rep(order, len(self.keys))
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.cval = ensure_tuple_rep(cval, len(self.keys))
+        self.prefilter = ensure_tuple_rep(prefilter, len(self.keys))
 
         if not hasattr(self.degrees, "__iter__"):
             self.degrees = (-self.degrees, self.degrees)
@@ -664,9 +666,11 @@ class RandRotated(Randomizable, MapTransform):
         d = dict(data)
         if not self._do_transform:
             return d
-        rotator = Rotate(self.angle, self.spatial_axes, self.reshape, self.order, self.mode, self.cval, self.prefilter)
-        for key in self.keys:
-            d[key] = rotator(d[key])
+        rotator = Rotate(angle=self.angle, spatial_axes=self.spatial_axes, reshape=self.reshape)
+        for idx, key in enumerate(self.keys):
+            d[key] = rotator(
+                d[key], order=self.order[idx], mode=self.mode[idx], cval=self.cval[idx], prefilter=self.prefilter[idx]
+            )
         return d
 
 
@@ -677,9 +681,10 @@ class Zoomd(MapTransform):
         zoom (float or sequence): The zoom factor along the spatial axes.
             If a float, zoom is the same for each spatial axis.
             If a sequence, zoom should contain one value for each spatial axis.
-        order (int): order of interpolation. Default=3.
-        mode (str): Determines how input is extended beyond boundaries. Default is 'constant'.
-        cval (scalar, optional): Value to fill past edges. Default is 0.
+        order (int or sequence of int): order of interpolation. Default=3.
+        mode (str or sequence of str): Determines how input is extended beyond boundaries. Default is 'constant'.
+        cval (scalar or sequence of scalar): Value to fill past edges. Default is 0.
+        prefilter (bool or sequence of bool): Apply spline_filter before interpolation. Default: True.
         use_gpu (bool): Should use cpu or gpu. Uses cupyx which doesn't support order > 1 and modes
             'wrap' and 'reflect'. Defaults to cpu for these cases or if cupyx not found.
         keep_size (bool): Should keep original size (pad if needed).
@@ -687,14 +692,19 @@ class Zoomd(MapTransform):
 
     def __init__(self, keys, zoom, order=3, mode="constant", cval=0, prefilter=True, use_gpu=False, keep_size=False):
         super().__init__(keys)
-        self.zoomer = Zoom(
-            zoom=zoom, order=order, mode=mode, cval=cval, prefilter=prefilter, use_gpu=use_gpu, keep_size=keep_size
-        )
+        self.zoomer = Zoom(zoom=zoom, use_gpu=use_gpu, keep_size=keep_size)
+
+        self.order = ensure_tuple_rep(order, len(self.keys))
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.cval = ensure_tuple_rep(cval, len(self.keys))
+        self.prefilter = ensure_tuple_rep(prefilter, len(self.keys))
 
     def __call__(self, data):
         d = dict(data)
-        for key in self.keys:
-            d[key] = self.zoomer(d[key])
+        for idx, key in enumerate(self.keys):
+            d[key] = self.zoomer(
+                d[key], order=self.order[idx], mode=self.mode[idx], cval=self.cval[idx], prefilter=self.prefilter[idx]
+            )
         return d
 
 
@@ -710,10 +720,11 @@ class RandZoomd(Randomizable, MapTransform):
         max_zoom (float or sequence): Max zoom factor. Can be float or sequence same size as image.
             If a float, max_zoom is the same for each spatial axis.
             If a sequence, max_zoom should contain one value for each spatial axis.
-        order (int): order of interpolation. Default=3.
-        mode ('reflect', 'constant', 'nearest', 'mirror', 'wrap'): Determines how input is
-            extended beyond boundaries. Default: 'constant'.
-        cval (scalar, optional): Value to fill past edges. Default is 0.
+        order (int or sequence of int): order of interpolation. Default=3.
+        mode (str or sequence of str): Available options are 'reflect', 'constant', 'nearest', 'mirror', 'wrap'.
+            Determines how input is extended beyond boundaries. Default: 'constant'.
+        cval (scalar or sequence of scalar): Value to fill past edges. Default is 0.
+        prefilter (bool or sequence of bool): Apply spline_filter before interpolation. Default: True.
         use_gpu (bool): Should use cpu or gpu. Uses cupyx which doesn't support order > 1 and modes
             'wrap' and 'reflect'. Defaults to cpu for these cases or if cupyx not found.
         keep_size (bool): Should keep original size (pad if needed).
@@ -738,12 +749,13 @@ class RandZoomd(Randomizable, MapTransform):
         self.min_zoom = min_zoom
         self.max_zoom = max_zoom
         self.prob = prob
-        self.order = order
-        self.mode = mode
-        self.cval = cval
-        self.prefilter = prefilter
         self.use_gpu = use_gpu
         self.keep_size = keep_size
+
+        self.order = ensure_tuple_rep(order, len(self.keys))
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.cval = ensure_tuple_rep(cval, len(self.keys))
+        self.prefilter = ensure_tuple_rep(prefilter, len(self.keys))
 
         self._do_transform = False
         self._zoom = None
@@ -760,9 +772,11 @@ class RandZoomd(Randomizable, MapTransform):
         d = dict(data)
         if not self._do_transform:
             return d
-        zoomer = Zoom(self._zoom, self.order, self.mode, self.cval, self.prefilter, self.use_gpu, self.keep_size)
-        for key in self.keys:
-            d[key] = zoomer(d[key])
+        zoomer = Zoom(self._zoom, use_gpu=self.use_gpu, keep_size=self.keep_size)
+        for idx, key in enumerate(self.keys):
+            d[key] = zoomer(
+                d[key], order=self.order[idx], mode=self.mode[idx], cval=self.cval[idx], prefilter=self.prefilter[idx],
+            )
         return d
 
 

@@ -20,25 +20,20 @@ from tests.utils import NumpyImageTestCase2D
 
 
 class TestResized(NumpyImageTestCase2D):
-    @parameterized.expand([("invalid_order", "order", AssertionError)])
-    def test_invalid_inputs(self, _, order, raises):
-        with self.assertRaises(raises):
-            resize = Resized(keys="img", spatial_size=(128, 128, 3), order=order)
+    def test_invalid_inputs(self):
+        with self.assertRaises(TypeError):
+            resize = Resized(keys="img", spatial_size=(128, 128, 3), order="order")
             resize({"img": self.imt[0]})
 
     @parameterized.expand(
         [
-            ((64, 64), 1, "reflect", 0, True, True, True, None),
-            ((32, 32), 2, "constant", 3, False, False, False, None),
-            ((256, 256), 3, "constant", 3, False, False, False, None),
+            ((64, 64), 1, "reflect", 0, True, True, True),
+            ((32, 32), 2, "constant", 3, False, False, False),
+            ((256, 256), 3, "constant", 3, False, False, False),
         ]
     )
-    def test_correct_results(
-        self, spatial_size, order, mode, cval, clip, preserve_range, anti_aliasing, anti_aliasing_sigma
-    ):
-        resize = Resized(
-            "img", spatial_size, order, mode, cval, clip, preserve_range, anti_aliasing, anti_aliasing_sigma
-        )
+    def test_correct_results(self, spatial_size, order, mode, cval, clip, preserve_range, anti_aliasing):
+        resize = Resized("img", spatial_size, order, mode, cval, clip, preserve_range, anti_aliasing)
         expected = list()
         for channel in self.imt[0]:
             expected.append(
@@ -51,7 +46,6 @@ class TestResized(NumpyImageTestCase2D):
                     clip=clip,
                     preserve_range=preserve_range,
                     anti_aliasing=anti_aliasing,
-                    anti_aliasing_sigma=anti_aliasing_sigma,
                 )
             )
         expected = np.stack(expected).astype(np.float32)

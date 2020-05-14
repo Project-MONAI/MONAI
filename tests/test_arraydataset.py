@@ -58,7 +58,7 @@ class TestArrayDataset(unittest.TestCase):
         test_images = [test_image1, test_image2]
         test_segs = [test_seg1, test_seg2]
         test_labels = [1, 1]
-        dataset = ArrayDataset(test_images, test_segs, test_labels, img_transform, label_transform)
+        dataset = ArrayDataset(test_images, img_transform, test_segs, label_transform, test_labels, None)
         data1 = dataset[0]
         data2 = dataset[1]
 
