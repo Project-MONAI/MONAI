@@ -89,12 +89,9 @@ TEST_CASE_6 = [
         "data_shape": True,
         "intensity_range": (True, False),
         "data_value": (False, True),
-        "additional_info": (lambda x: np.mean(x), None)
+        "additional_info": (lambda x: np.mean(x), None),
     },
-    {
-        "img": np.array([[0, 1], [1, 2]]),
-        "affine": np.eye(2, 2)
-    },
+    {"img": np.array([[0, 1], [1, 2]]), "affine": np.eye(2, 2)},
     "affine statistics:\nShape: (2, 2)\nValue: [[1. 0.]\n [0. 1.]]",
 ]
 

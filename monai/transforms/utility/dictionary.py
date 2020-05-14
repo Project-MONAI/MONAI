@@ -244,8 +244,14 @@ class DataStatsd(MapTransform):
     def __call__(self, data):
         d = dict(data)
         for idx, key in enumerate(self.keys):
-            d[key] = self.printer(d[key], self.prefix[idx], self.data_shape[idx],
-                                  self.intensity_range[idx], self.data_value[idx], self.additional_info[idx])
+            d[key] = self.printer(
+                d[key],
+                self.prefix[idx],
+                self.data_shape[idx],
+                self.intensity_range[idx],
+                self.data_value[idx],
+                self.additional_info[idx],
+            )
         return d
 
 
