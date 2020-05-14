@@ -18,6 +18,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 import numpy as np
 
 from monai.transforms.compose import MapTransform
+from monai.utils.misc import ensure_tuple_rep
 from monai.transforms.utility.array import (
     AddChannel,
     AsChannelFirst,
@@ -221,22 +222,36 @@ class DataStatsd(MapTransform):
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            prefix (string): will be printed in format: "{prefix} statistics".
-            data_shape (bool): whether to show the shape of input data.
-            intensity_range (bool): whether to show the intensity value range of input data.
-            data_value (bool): whether to show the raw value of input data.
+            prefix (string or list of string): will be printed in format: "{prefix} statistics".
+            data_shape (bool or list of bool): whether to show the shape of input data.
+            intensity_range (bool or list of bool): whether to show the intensity value range of input data.
+            data_value (bool or list of bool): whether to show the raw value of input data.
                 a typical example is to print some properties of Nifti image: affine, pixdim, etc.
-            additional_info (Callable): user can define callable function to extract additional info from input data.
+            additional_info (Callable or list of Callable): user can define callable function to extract
+                additional info from input data.
             logger_handler (logging.handler): add additional handler to output data: save to file, etc.
                 add existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html
         """
         super().__init__(keys)
-        self.printer = DataStats(prefix, data_shape, intensity_range, data_value, additional_info, logger_handler)
+        self.prefix = ensure_tuple_rep(prefix, len(self.keys))
+        self.data_shape = ensure_tuple_rep(data_shape, len(self.keys))
+        self.intensity_range = ensure_tuple_rep(intensity_range, len(self.keys))
+        self.data_value = ensure_tuple_rep(data_value, len(self.keys))
+        self.additional_info = ensure_tuple_rep(additional_info, len(self.keys))
+        self.logger_handler = logger_handler
+        self.printer = DataStats(logger_handler=logger_handler)
 
     def __call__(self, data):
         d = dict(data)
-        for key in self.keys:
-            d[key] = self.printer(d[key])
+        for idx, key in enumerate(self.keys):
+            d[key] = self.printer(
+                d[key],
+                self.prefix[idx],
+                self.data_shape[idx],
+                self.intensity_range[idx],
+                self.data_value[idx],
+                self.additional_info[idx],
+            )
         return d
 
 
@@ -255,17 +270,13 @@ class SimulateDelayd(MapTransform):
                 to the keys representing the delay for each key element.
         """
         super().__init__(keys)
-
-        if not isinstance(delay_time, (tuple, list)):
-            delay_time = [delay_time] * len(keys)
-        self.converter_dictionary = dict()
-        for key, keyed_default_delay in zip(self.keys, delay_time):
-            self.converter_dictionary[key] = SimulateDelay(delay_time=keyed_default_delay)
+        self.delay_time = ensure_tuple_rep(delay_time, len(self.keys))
+        self.delayer = SimulateDelay()
 
     def __call__(self, data):
         d = dict(data)
-        for key in self.keys:
-            d[key] = self.converter_dictionary[key](d[key])
+        for idx, key in enumerate(self.keys):
+            d[key] = self.delayer(d[key], delay_time=self.delay_time[idx])
         return d
 
 
