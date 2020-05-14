@@ -28,6 +28,12 @@ Generic Interfaces
   :members:
   :special-members: __getitem__
 
+`ZipDataset`
+~~~~~~~~~~~~~~
+.. autoclass:: ZipDataset
+  :members:
+  :special-members: __getitem__
+
 `ArrayDataset`
 ~~~~~~~~~~~~~~
 .. autoclass:: ArrayDataset
