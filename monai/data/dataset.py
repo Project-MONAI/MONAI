@@ -296,6 +296,18 @@ class ZipDataset(torch.utils.data.Dataset):
     If the output of single dataset is alreay a tuple, flatten it and extend to the result.
     For example: if datasetA returns (img, imgmeta), datsetB returns (seg, segmeta),
     finally return (img, imgmeta, seg, segmeta).
+    And if the datasets don't have same length, use the minimum length of them as the length
+    of ZipDataset. Example code::
+
+        zip_data = ZipDataset([[1, 2, 3], [4, 5]])
+        print(len(zip_data))
+        output:
+        2
+        for item in zip_data:
+            print(item)
+        output:
+        [1, 4]
+        [2, 5]
 
     """
     def __init__(self, datasets, transform=None):
@@ -329,6 +341,7 @@ class ArrayDataset(ZipDataset, Randomizable):
     The `transform` can be :py:class:`monai.transforms.Compose` or any other callable object.
     For example:
     If train based on Nifti format images without metadata, all transforms can be composed::
+
         img_transform = Compose(
             [
                 LoadNifti(image_only=True),
@@ -336,10 +349,12 @@ class ArrayDataset(ZipDataset, Randomizable):
                 RandAdjustContrast()
             ]
         )
+
     If train based on Nifti format images and the metadata, the array transforms can not be composed
     because several transforms receives multiple parameters or return multiple values. Then Users need
     to define their own callable method to parse metadata from `LoadNifti` or set `affine` matrix
     to `Spacing` transform::
+
         class TestCompose(Compose):
             def __call__(self, input_):
                 img, metadata = self.transforms[0](input_)
@@ -354,6 +369,7 @@ class ArrayDataset(ZipDataset, Randomizable):
                 RandAdjustContrast()
             ]
         )
+
     Recommend to use dictionary Datasets for complicated data pre-processing.
     """
 
