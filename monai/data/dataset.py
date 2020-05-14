@@ -27,7 +27,8 @@ from monai.utils import process_bar
 
 class Dataset(torch.utils.data.Dataset):
     """
-    Generic dataset to handle dictionary format data, it can operate transforms for specific fields.
+    A generic dataset with a length property and an optional callable data transform
+    when fetching a data sample.
     For example, typical input data can be a list of dictionaries::
 
         [{                            {                            {
@@ -41,7 +42,7 @@ class Dataset(torch.utils.data.Dataset):
         """
         Args:
             data (Iterable): input data to load and transform to generate dataset for model.
-            transform (Callable, optional): transforms to execute operations on input data.
+            transform (Callable, optional): a callable data transform on input data.
         """
         self.data = data
         self.transform = transform
@@ -103,6 +104,8 @@ class PersistentDataset(Dataset):
                 may share a common cache dir provided that the trasnsforms pre-processing is
                 consistent.
         """
+        if not isinstance(transform, Compose):
+            transform = Compose(transform)
         super().__init__(data=data, transform=transform)
         self.cache_dir = Path(cache_dir) if cache_dir is not None else None
 
