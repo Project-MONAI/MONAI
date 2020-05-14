@@ -83,19 +83,32 @@ TEST_CASE_5 = [
 ]
 
 TEST_CASE_6 = [
+    {
+        "keys": ("img", "affine"),
+        "prefix": ("image", "affine"),
+        "data_shape": True,
+        "intensity_range": (True, False),
+        "data_value": (False, True),
+        "additional_info": (lambda x: np.mean(x), None),
+    },
+    {"img": np.array([[0, 1], [1, 2]]), "affine": np.eye(2, 2)},
+    "affine statistics:\nShape: (2, 2)\nValue: [[1. 0.]\n [0. 1.]]",
+]
+
+TEST_CASE_7 = [
     {"img": np.array([[0, 1], [1, 2]])},
     "test data statistics:\nShape: (2, 2)\nIntensity range: (0, 2)\nValue: [[0 1]\n [1 2]]\nAdditional info: 1.0\n",
 ]
 
 
 class TestDataStatsd(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
     def test_value(self, input_param, input_data, expected_print):
         transform = DataStatsd(**input_param)
         _ = transform(input_data)
         self.assertEqual(transform.printer.output, expected_print)
 
-    @parameterized.expand([TEST_CASE_6])
+    @parameterized.expand([TEST_CASE_7])
     def test_file(self, input_data, expected_print):
         with tempfile.TemporaryDirectory() as tempdir:
             filename = os.path.join(tempdir, "test_stats.log")

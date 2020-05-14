@@ -208,17 +208,18 @@ class DataStats(Transform):
         if logger_handler is not None:
             self._logger.addHandler(logger_handler)
 
-    def __call__(self, img):
-        lines = [f"{self.prefix} statistics:"]
+    def __call__(self, img, prefix=None, data_shape=None, intensity_range=None, data_value=None, additional_info=None):
+        lines = [f"{prefix or self.prefix} statistics:"]
 
-        if self.data_shape:
+        if self.data_shape if data_shape is None else data_shape:
             lines.append(f"Shape: {img.shape}")
-        if self.intensity_range:
+        if self.intensity_range if intensity_range is None else intensity_range:
             lines.append(f"Intensity range: ({np.min(img)}, {np.max(img)})")
-        if self.data_value:
+        if self.data_value if data_value is None else data_value:
             lines.append(f"Value: {img}")
-        if self.additional_info:
-            lines.append(f"Additional info: {self.additional_info(img)}")
+        additional_info = self.additional_info if additional_info is None else additional_info
+        if additional_info is not None:
+            lines.append(f"Additional info: {additional_info(img)}")
         separator = "\n"
         self.output = f"{separator.join(lines)}"
         self._logger.debug(self.output)
