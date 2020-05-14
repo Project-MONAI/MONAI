@@ -16,7 +16,6 @@ import json
 from pathlib import Path
 
 import torch
-import numpy as np
 
 from multiprocessing.pool import ThreadPool
 import threading
@@ -299,32 +298,31 @@ class ZipDataset(torch.utils.data.Dataset):
         Expect all the datasets have same length.
 
     """
-
-    def __init__(self, datasets):
+    def __init__(self, datasets, transform=None):
         """
         Args:
             datasets (list or tuple): list of datasets to zip together.
         """
-        assert isinstance(datasets, (list, tuple)), "must provide datasets in a list or tuple."
-        lens = {len(dataset) for dataset in datasets}
-        assert len(lens) == 1, "all the datasets should have the same length."
-        self.datasets = datasets
-        self.len = lens.pop()
+        self.datasets = list(datasets)
+        self.len = min([len(dataset) for dataset in self.datasets])
+        self.transform = transform
 
     def __len__(self):
         return self.len
 
     def __getitem__(self, index):
-        def to_tuple(x):
-            return tuple(x) if isinstance(x, (tuple, list)) else (x,)
+        def to_list(x):
+            return list(x) if isinstance(x, (tuple, list)) else [x]
 
-        data = tuple()
+        data = list()
         for dataset in self.datasets:
-            data = to_tuple(data) + to_tuple(dataset[index])
+            data.extend(to_list(dataset[index]))
+        if self.transform is not None:
+            data = self.transform(data)
         return data
 
 
-class ArrayDataset(ZipDataset):
+class ArrayDataset(ZipDataset, Randomizable):
     """
     Dataset for segmentation and classification tasks based on array format input data and transforms.
     It can apply same random operations for both image transforms and segmentation label transforms.
@@ -366,26 +364,25 @@ class ArrayDataset(ZipDataset):
         Initializes the dataset with the filename lists. The transform `img_transform` is applied
         to the images and `seg_transform` to the segmentations.
         Args:
-            img_files (list of str): list of image filenames
+            img_files (iterable, list of str): list of image filenames
             img_transform (Callable, optional): transform to apply to image arrays
-            seg_files (list of str): if in segmentation task, list of segmentation filenames
+            seg_files (iterable, list of str): if in segmentation task, list of segmentation filenames
             seg_transform (Callable, optional): transform to apply to segmentation arrays
-            labels (list or array): if in classification task, list of classification labels
+            labels (iterable, list or array): if in classification task, list of classification labels
             label_transform (Callable, optional): transform to apply to label arrays
 
         """
 
-        class Dataset_(Dataset):
-            def set_random_state(self, seed):
-                if self.transform is not None and isinstance(self.transform, Randomizable):
-                    self.transform.set_random_state(seed=seed)
-
         super().__init__(
-            [Dataset_(img_files, img_transform), Dataset_(seg_files, seg_transform), Dataset_(labels, label_transform)]
+            [Dataset(img_files, img_transform), Dataset(seg_files, seg_transform), Dataset(labels, label_transform)]
         )
 
+    def randomize(self):
+        self.seed = self.R.randint(2147483647)
+
     def __getitem__(self, index):
-        seed = np.random.randint(2147483647)
+        self.randomize()
         for dataset in self.datasets:
-            dataset.set_random_state(seed=seed)
+            if isinstance(dataset.transform, Randomizable):
+                dataset.transform.set_random_state(seed=self.seed)
         return super().__getitem__(index)
