@@ -28,7 +28,7 @@ VALID_CASES = [
 
 GPU_CASES = [("gpu_zoom", 0.6, 1, "constant", 0, True)]
 
-INVALID_CASES = [("no_zoom", None, 1, TypeError), ("invalid_order", 0.9, "s", AssertionError)]
+INVALID_CASES = [("no_zoom", None, 1, TypeError), ("invalid_order", 0.9, "s", TypeError)]
 
 
 class TestZoom(NumpyImageTestCase2D):

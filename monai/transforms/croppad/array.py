@@ -35,8 +35,7 @@ class SpatialPad(Transform):
     """
 
     def __init__(self, spatial_size, method="symmetric", mode="constant"):
-        assert isinstance(spatial_size, (list, tuple)), "spatial_out_size must be list or tuple."
-        self.spatial_size = spatial_size
+        self.spatial_size = ensure_tuple(spatial_size)
         assert method in ("symmetric", "end"), "unsupported padding type."
         self.method = method
         assert isinstance(mode, str), "mode must be str."
@@ -52,10 +51,10 @@ class SpatialPad(Transform):
         else:
             return [(0, max(self.spatial_size[i] - data_shape[i], 0)) for i in range(len(self.spatial_size))]
 
-    def __call__(self, img):
+    def __call__(self, img, mode=None):
         data_pad_width = self._determine_data_pad_width(img.shape[1:])
         all_pad_width = [(0, 0)] + data_pad_width
-        img = np.pad(img, all_pad_width, self.mode)
+        img = np.pad(img, all_pad_width, mode=mode or self.mode)
         return img
 
 

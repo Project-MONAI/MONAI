@@ -33,6 +33,8 @@ class TestSpatialPad(unittest.TestCase):
         padder = SpatialPad(**input_param)
         result = padder(input_data)
         self.assertAlmostEqual(result.shape, expected_val.shape)
+        result = padder(input_data, mode=input_param["mode"])
+        self.assertAlmostEqual(result.shape, expected_val.shape)
 
 
 if __name__ == "__main__":
