@@ -177,7 +177,7 @@ def generate_pos_neg_label_crop_centers(
         rand_state (random.RandomState): numpy randomState object to align with other modules.
     """
     max_size = label.shape[1:]
-    assert len(max_size) == len(size), "expected size does not match label dim."
+    assert len(max_size) == len(size), f"expected size ({len(max_size)}) does not match label dim ({len(size)})."
     assert (np.subtract(max_size, size) >= 0).all(), "proposed roi is larger than image itself."
 
     # Select subregion to assure valid roi
