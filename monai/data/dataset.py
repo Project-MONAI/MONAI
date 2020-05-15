@@ -16,6 +16,7 @@ import json
 from pathlib import Path
 
 import torch
+import numpy as np
 
 from multiprocessing.pool import ThreadPool
 import threading
@@ -389,16 +390,11 @@ class ArrayDataset(ZipDataset, Randomizable):
             label_transform (Callable, optional): transform to apply to label arrays
 
         """
-        super().__init__(
-            [
-                Dataset(x[0], x[1])
-                for x in [(img_files, img_transform), (seg_files, seg_transform), (labels, label_transform)]
-                if x[0] is not None
-            ]
-        )
+        items = [(img_files, img_transform), (seg_files, seg_transform), (labels, label_transform)]
+        super().__init__([Dataset(x[0], x[1]) for x in items if x[0] is not None])
 
     def randomize(self):
-        self.seed = self.R.randint(2147483647)
+        self.seed = self.R.randint(np.iinfo(np.int32).max)
 
     def __getitem__(self, index):
         self.randomize()
