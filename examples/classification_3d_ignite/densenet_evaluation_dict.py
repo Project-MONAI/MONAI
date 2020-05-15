@@ -85,7 +85,7 @@ def main():
     prediction_saver.attach(evaluator)
 
     # the model was trained by "densenet_training_dict" example
-    CheckpointLoader(load_path="./runs/net_checkpoint_40.pth", load_dict={"net": net}).attach(evaluator)
+    CheckpointLoader(load_path="./runs/net_checkpoint_20.pth", load_dict={"net": net}).attach(evaluator)
 
     # create a validation data loader
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)

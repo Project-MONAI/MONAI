@@ -78,7 +78,7 @@ def main():
     prediction_saver.attach(evaluator)
 
     # the model was trained by "densenet_training_array" example
-    CheckpointLoader(load_path="./runs/net_checkpoint_40.pth", load_dict={"net": net}).attach(evaluator)
+    CheckpointLoader(load_path="./runs/net_checkpoint_20.pth", load_dict={"net": net}).attach(evaluator)
 
     # create a validation data loader
     val_loader = DataLoader(val_ds, batch_size=2, num_workers=4, pin_memory=torch.cuda.is_available())

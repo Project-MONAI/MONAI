@@ -12,7 +12,7 @@
 from .csv_saver import CSVSaver
 from .dataset import Dataset, PersistentDataset, CacheDataset, ZipDataset, ArrayDataset
 from .grid_dataset import GridPatchDataset
-from .nifti_reader import load_nifti, NiftiDataset
+from .nifti_reader import NiftiDataset
 from .nifti_saver import NiftiSaver
 from .nifti_writer import write_nifti
 from .sliding_window_inference import sliding_window_inference

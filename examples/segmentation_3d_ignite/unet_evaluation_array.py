@@ -99,7 +99,7 @@ def main():
     file_saver.attach(evaluator)
 
     # the model was trained by "unet_training_array" example
-    ckpt_saver = CheckpointLoader(load_path="./runs/net_checkpoint_50.pth", load_dict={"net": net})
+    ckpt_saver = CheckpointLoader(load_path="./runs/net_checkpoint_100.pth", load_dict={"net": net})
     ckpt_saver.attach(evaluator)
 
     # sliding window inference for one image at every iteration
