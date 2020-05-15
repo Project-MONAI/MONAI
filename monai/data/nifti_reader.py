@@ -15,7 +15,7 @@ from monai.transforms import LoadNifti
 from monai.transforms import Randomizable
 
 
-class NiftiDataset(Dataset):
+class NiftiDataset(Dataset, Randomizable):
     """
     Loads image/segmentation pairs of Nifti files from the given filename lists. Transformations can be specified
     for the image and segmentation arrays separately.
@@ -62,7 +62,11 @@ class NiftiDataset(Dataset):
     def __len__(self):
         return len(self.image_files)
 
+    def randomize(self):
+        self.seed = self.R.randint(2147483647)
+
     def __getitem__(self, index):
+        self.randomize()
         meta_data = None
         img_loader = LoadNifti(
             as_closest_canonical=self.as_closest_canonical, image_only=self.image_only, dtype=self.dtype
@@ -79,25 +83,23 @@ class NiftiDataset(Dataset):
         if self.labels is not None:
             label = self.labels[index]
 
-        seed = np.random.randint(2147483647)
-
         if self.transform is not None:
             if isinstance(self.transform, Randomizable):
-                self.transform.set_random_state(seed=seed)
+                self.transform.set_random_state(seed=self.seed)
             img = self.transform(img)
 
-        data = img
+        data = [img]
 
         if self.seg_transform is not None:
             if isinstance(self.seg_transform, Randomizable):
-                self.seg_transform.set_random_state(seed=seed)
+                self.seg_transform.set_random_state(seed=self.seed)
             seg = self.seg_transform(seg)
 
         if seg is not None:
-            data = (data, seg)
+            data.append(seg)
         if label is not None:
-            data = (data if isinstance(data, tuple) else (data,)) + (label,)
+            data.append(label)
         if not self.image_only and meta_data is not None:
-            data = (data if isinstance(data, tuple) else (data,)) + (meta_data,)
+            data.append(meta_data)
 
         return data
