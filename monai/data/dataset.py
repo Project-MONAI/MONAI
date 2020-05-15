@@ -310,6 +310,7 @@ class ZipDataset(torch.utils.data.Dataset):
         [2, 5]
 
     """
+
     def __init__(self, datasets, transform=None):
         """
         Args:
@@ -388,7 +389,13 @@ class ArrayDataset(ZipDataset, Randomizable):
             label_transform (Callable, optional): transform to apply to label arrays
 
         """
-        super().__init__([Dataset(x[0], x[1]) for x in [(img_files, img_transform), (seg_files, seg_transform), (labels, label_transform)] if x[0] is not None])
+        super().__init__(
+            [
+                Dataset(x[0], x[1])
+                for x in [(img_files, img_transform), (seg_files, seg_transform), (labels, label_transform)]
+                if x[0] is not None
+            ]
+        )
 
     def randomize(self):
         self.seed = self.R.randint(2147483647)
