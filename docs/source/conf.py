@@ -45,7 +45,7 @@ exclude_patterns = [
     "losses",
     "visualize",
     "utils",
-    "inferers"
+    "inferers",
 ]
 
 

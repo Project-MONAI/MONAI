@@ -21,6 +21,7 @@ class Trainer(Workflow):
     Base class for all kinds of trainers, extends from Workflow.
 
     """
+
     def train(self):
         """
         Execute training based on Ignite Engine.
@@ -29,15 +30,11 @@ class Trainer(Workflow):
         self._run()
 
     def get_train_stats(self):
-        return {
-            'total_epochs': self.engine.state.max_epochs,
-            'total_iterations': self.engine.state.epoch_length
-        }
+        return {"total_epochs": self.engine.state.max_epochs, "total_iterations": self.engine.state.epoch_length}
 
     @abstractmethod
     def _iteration(self, engine, batchdata):
-        raise NotImplementedError(
-            'Subclass {} must implement the compute method'.format(self.__class__.__name__))
+        raise NotImplementedError("Subclass {} must implement the compute method".format(self.__class__.__name__))
 
 
 class SupervisedTrainer(Trainer):
@@ -65,6 +62,7 @@ class SupervisedTrainer(Trainer):
         validator (Evaluator): run the validator when trigger validation, suppose to be Evaluator.
 
     """
+
     def __init__(
         self,
         device,
@@ -83,11 +81,19 @@ class SupervisedTrainer(Trainer):
         key_train_metric=None,
         additional_metrics=None,
         val_interval=0,
-        validator=None
+        validator=None,
     ):
         # set up Ignite engine and environments
-        super().__init__(device, max_epochs, amp, train_data_loader, prepare_batch,
-                         key_train_metric, additional_metrics, train_handlers)
+        super().__init__(
+            device,
+            max_epochs,
+            amp,
+            train_data_loader,
+            prepare_batch,
+            key_train_metric,
+            additional_metrics,
+            train_handlers,
+        )
 
         self.network = network
         self.optimizer = optimizer
@@ -102,7 +108,7 @@ class SupervisedTrainer(Trainer):
             batchdata (dict or array of tensor): input data for this iteration.
 
         """
-        assert batchdata is not None, 'must provide batch data for current iteraion.'
+        assert batchdata is not None, "must provide batch data for current iteraion."
         inputs, targets = self.prepare_batch(batchdata)
         inputs, targets = inputs.to(engine.state.device), targets.to(engine.state.device)
 
@@ -114,7 +120,7 @@ class SupervisedTrainer(Trainer):
         # compute loss
         loss = self.loss_function(predictions, targets).mean()
         loss.backward()
-        results['train_loss'] = loss.item()
+        results["train_loss"] = loss.item()
         self.optimizer.step()
 
         return {CK.Y_PRED: predictions, CK.Y: targets, CK.INFO: results}

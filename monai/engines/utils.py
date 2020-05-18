@@ -15,9 +15,9 @@ import torch
 class CommonKeys:
     IMAGE = "image"
     LABEL = "label"
-    Y_PRED = 'y_pred'
-    Y = 'y'
-    INFO = 'info'
+    Y_PRED = "y_pred"
+    Y = "y"
+    INFO = "info"
 
 
 def get_devices_spec(devices=None):
@@ -45,6 +45,9 @@ def get_devices_spec(devices=None):
 
 
 def default_prepare_batch(batchdata):
-    assert isinstance(batchdata, dict), 'default prepare_batch expects dictionary input data.'
-    return (batchdata[CommonKeys.IMAGE], batchdata[CommonKeys.LABEL]) \
-        if CommonKeys.LABEL in batchdata else (batchdata[CommonKeys.IMAGE], None)
+    assert isinstance(batchdata, dict), "default prepare_batch expects dictionary input data."
+    return (
+        (batchdata[CommonKeys.IMAGE], batchdata[CommonKeys.LABEL])
+        if CommonKeys.LABEL in batchdata
+        else (batchdata[CommonKeys.IMAGE], None)
+    )

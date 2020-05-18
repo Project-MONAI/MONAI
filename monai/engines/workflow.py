@@ -36,14 +36,24 @@ class Workflow(ABC):
             CheckpointHandler, StatsHandler, TimerHandler, etc.
 
     """
-    def __init__(self, device, max_epochs, amp, data_loader, prepare_batch=default_prepare_batch,
-                 key_metric=None, additional_metrics=None, handlers=None):
+
+    def __init__(
+        self,
+        device,
+        max_epochs,
+        amp,
+        data_loader,
+        prepare_batch=default_prepare_batch,
+        key_metric=None,
+        additional_metrics=None,
+        handlers=None,
+    ):
         # FIXME:
         if amp:
-            print('Will add AMP support when PyTorch v1.6 released.')
-        assert isinstance(device, torch.device), 'must provide PyTorch device information.'
-        assert isinstance(max_epochs, int), 'must set max epoch number.'
-        assert isinstance(data_loader, torch.utils.data.DataLoader), 'data_loader must be PyTorch DataLoader.'
+            print("Will add AMP support when PyTorch v1.6 released.")
+        assert isinstance(device, torch.device), "must provide PyTorch device information."
+        assert isinstance(max_epochs, int), "must set max epoch number."
+        assert isinstance(data_loader, torch.utils.data.DataLoader), "data_loader must be PyTorch DataLoader."
 
         self.engine = Engine(self._iteration)
         # set all sharable data for the workflow based on Ignite engine.state
@@ -61,18 +71,18 @@ class Workflow(ABC):
             amp=amp,
             key_metric_name=None,  # we can set many metrics, only use key_metric to compare and save the best model
             best_metric=-1,
-            best_metric_epoch=-1
+            best_metric_epoch=-1,
         )
         self.data_loader = data_loader
         self.prepare_batch = prepare_batch
 
         metrics = None
         if key_metric is not None:
-            assert isinstance(key_metric, dict), 'key_metric must be a dict object.'
+            assert isinstance(key_metric, dict), "key_metric must be a dict object."
             self.engine.state.key_metric_name = list(key_metric.keys())[0]
             metrics = key_metric
             if additional_metrics is not None and len(additional_metrics) > 0:
-                assert isinstance(additional_metrics, dict), 'additional_metrics must be a dict object.'
+                assert isinstance(additional_metrics, dict), "additional_metrics must be a dict object."
                 metrics.update(additional_metrics)
             for name, metric in metrics.items():
                 metric.attach(self.engine, name)
@@ -82,12 +92,12 @@ class Workflow(ABC):
                 if engine.state.key_metric_name is not None:
                     current_val_metric = engine.state.metrics[engine.state.key_metric_name]
                     if current_val_metric > engine.state.best_metric:
-                        print('Got new best metric of {}: {}'.format(engine.state.key_metric_name, current_val_metric))
+                        print("Got new best metric of {}: {}".format(engine.state.key_metric_name, current_val_metric))
                         engine.state.best_metric = current_val_metric
                         engine.state.best_metric_epoch = engine.state.epoch
 
         if handlers is not None and len(handlers) > 0:
-            assert isinstance(handlers, (list, tuple)), 'handlers must be a chain.'
+            assert isinstance(handlers, (list, tuple)), "handlers must be a chain."
             for handler in handlers:
                 handler.attach(self.engine)
 
@@ -108,5 +118,4 @@ class Workflow(ABC):
             batchdata (TransformContext, ndarray): input data for this iteration.
 
         """
-        raise NotImplementedError(
-            'Subclass {} must implement the compute method'.format(self.__class__.__name__))
+        raise NotImplementedError("Subclass {} must implement the compute method".format(self.__class__.__name__))

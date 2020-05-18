@@ -32,10 +32,17 @@ class Evaluator(Workflow):
             CheckpointHandler, StatsHandler, TimerHandler, etc.
 
     """
-    def __init__(self, device, val_data_loader, prepare_batch=default_prepare_batch,
-                 key_metric=None, additional_metrics=None, handlers=None):
-        super().__init__(device, 1, False, val_data_loader, prepare_batch,
-                         key_metric, additional_metrics, handlers)
+
+    def __init__(
+        self,
+        device,
+        val_data_loader,
+        prepare_batch=default_prepare_batch,
+        key_metric=None,
+        additional_metrics=None,
+        handlers=None,
+    ):
+        super().__init__(device, 1, False, val_data_loader, prepare_batch, key_metric, additional_metrics, handlers)
 
     def evaluate(self, global_epoch=1):
         """Execute validation/evaluation based on Ignite Engine.
@@ -48,14 +55,13 @@ class Evaluator(Workflow):
 
     def get_validation_stats(self):
         return {
-            'best_validation_metric': self.engine.state.best_metric,
-            'best_validation_epoch': self.engine.state.best_metric_epoch
+            "best_validation_metric": self.engine.state.best_metric,
+            "best_validation_epoch": self.engine.state.best_metric_epoch,
         }
 
     @abstractmethod
     def _iteration(self, engine, batchdata):
-        raise NotImplementedError(
-            'Subclass {} must implement the compute method'.format(self.__class__.__name__))
+        raise NotImplementedError("Subclass {} must implement the compute method".format(self.__class__.__name__))
 
 
 class SupervisedEvaluator(Evaluator):
@@ -81,6 +87,7 @@ class SupervisedEvaluator(Evaluator):
         the "batch_size" here is to run a batch of window slices of 1 input image, not batch size of input images.
 
     """
+
     def __init__(
         self,
         device,
@@ -92,7 +99,7 @@ class SupervisedEvaluator(Evaluator):
         output_writers=None,
         amp=True,
         key_val_metric=None,
-        additional_metrics=None
+        additional_metrics=None,
     ):
         super().__init__(device, amp, val_data_loader, prepare_batch, key_val_metric, additional_metrics, val_handlers)
 
@@ -107,7 +114,7 @@ class SupervisedEvaluator(Evaluator):
             batchdata (TransformContext, ndarray): input data for this iteration.
 
         """
-        assert batchdata is not None, 'must provide batch data for current iteraion.'
+        assert batchdata is not None, "must provide batch data for current iteraion."
         inputs, targets = self.prepare_batch(batchdata)
         inputs = inputs.to(engine.state.device)
         if targets is not None:
