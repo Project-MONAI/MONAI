@@ -13,7 +13,7 @@ from abc import abstractmethod
 from monai.inferers.inferer import RegularInferer
 from .workflow import Workflow
 from .utils import default_prepare_batch
-from .utils import CommonKeys as CK
+from .utils import CommonKeys as Keys
 
 
 class Trainer(Workflow):
@@ -123,4 +123,4 @@ class SupervisedTrainer(Trainer):
         results["train_loss"] = loss.item()
         self.optimizer.step()
 
-        return {CK.Y_PRED: predictions, CK.Y: targets, CK.INFO: results}
+        return {Keys.Y_PRED: predictions, Keys.Y: targets, Keys.INFO: results}
