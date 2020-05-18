@@ -22,7 +22,8 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 import monai
-from monai.data import NiftiDataset, create_test_image_3d, sliding_window_inference
+from monai.data import NiftiDataset, create_test_image_3d
+from monai.inferers import sliding_window_inference
 from monai.transforms import Compose, AddChannel, ScaleIntensity, RandSpatialCrop, RandRotate90, ToTensor
 from monai.metrics import compute_meandice
 from monai.visualize.img2tensorboard import plot_2d_or_3d_image

@@ -53,6 +53,7 @@ Technical documentation is available via `Read the Docs <https://monai.readthedo
    metrics
    data
    engines
+   inferers
    handlers
    visualize
    utils

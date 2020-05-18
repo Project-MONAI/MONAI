@@ -9,34 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import torch
-
 from ignite.engine import create_supervised_trainer, create_supervised_evaluator, _prepare_batch
-
-
-def get_devices_spec(devices=None):
-    """
-    Get a valid specification for one or more devices. If `devices` is None get devices for all CUDA devices available.
-    If `devices` is and zero-length structure a single CPU compute device is returned. In any other cases `devices` is
-    returned unchanged.
-
-    Args:
-        devices (list, optional): list of devices to request, None for all GPU devices, [] for CPU.
-
-    Returns:
-        list of torch.device: list of devices.
-    """
-    if devices is None:
-        devices = [torch.device(f"cuda:{d:d}") for d in range(torch.cuda.device_count())]
-
-        if len(devices) == 0:
-            raise ValueError("No GPU devices available")
-
-    elif len(devices) == 0:
-        devices = [torch.device("cpu")]
-
-    return devices
+from .utils import get_devices_spec
 
 
 def _default_transform(x, y, y_pred, loss):

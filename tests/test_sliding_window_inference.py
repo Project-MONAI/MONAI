@@ -14,7 +14,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.data import sliding_window_inference
+from monai.inferers import sliding_window_inference
 
 TEST_CASE_1 = [(1, 3, 16, 15, 7), (4, 10, 7), 3, 0.25, "constant"]  # 3D small roi
 

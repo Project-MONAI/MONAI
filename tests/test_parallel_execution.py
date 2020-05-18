@@ -14,7 +14,7 @@ import warnings
 
 import torch
 
-from monai.engine import create_multigpu_supervised_trainer
+from monai.engines import create_multigpu_supervised_trainer
 from tests.utils import expect_failure_if_no_gpu
 
 
