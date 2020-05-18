@@ -1,6 +1,6 @@
 torch>=1.4
 pytorch-ignite==0.3.0
-numpy
+numpy>=1.17
 nibabel
 tensorboard
 pillow

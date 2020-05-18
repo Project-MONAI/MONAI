@@ -19,8 +19,7 @@ COPY . .
 ENV PYTHONPATH=$PYTHONPATH:/opt/monai
 ENV PATH=/opt/tools:$PATH
 
-RUN python -m pip install --no-cache-dir -U pip \
-  && python -m pip uninstall -y torch torchvision \
+RUN python -m pip install --no-cache-dir -U pip wheel \
   && python -m pip install --no-cache-dir -r requirements.txt
 
 # NGC Client

@@ -17,14 +17,18 @@ jobs:
     - name: Install the dependencies
       run: |
         which python
-        python -m pip install --upgrade pip --no-cache-dir
-        python -m pip install -q -r requirements.txt --no-cache-dir
+        python -m pip install --upgrade pip wheel
+        python -m pip uninstall -y torch torchvision
+        python -m pip install torch==1.4
+        python -m pip install -r requirements.txt
         python -m pip list
     - name: Run unit tests report coverage
       run: |
         nvidia-smi
         export CUDA_DEVICE_ORDER=PCI_BUS_ID
         export CUDA_VISIBLE_DEVICES=0,1
+        python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
+        python -c "import torch; print('{} of GPUs available'.format(torch.cuda.device_count()))"
         ./runtests.sh --coverage
         coverage xml
     - name: Upload coverage
@@ -48,10 +52,12 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install the dependencies
       run: |
-        python -m pip install --upgrade pip
-        python -m pip install -q -r requirements.txt
+        python -m pip install --upgrade pip wheel
+        python -m pip install torch==1.4
+        python -m pip install -r requirements.txt
     - name: Run quick tests CPU ubuntu
       run: |
+        python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
         ./runtests.sh --quick
         coverage xml
     - name: Upload coverage
