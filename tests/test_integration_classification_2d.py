@@ -237,7 +237,7 @@ class IntegrationClassification2D(unittest.TestCase):
             infer_metric = run_inference_test(self.data_dir, self.test_x, self.test_y, device=self.device)
 
             # check inference properties
-            np.testing.assert_allclose(np.asarray(infer_metric), [1036, 895, 982, 1033, 958, 1047])
+            np.testing.assert_allclose(np.asarray(infer_metric), [1036, 895, 982, 1033, 958, 1047], atol=1)
             repeated[i].extend(infer_metric)
 
         np.testing.assert_allclose(repeated[0], repeated[1])
