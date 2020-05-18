@@ -14,7 +14,7 @@ import torch
 from monai.inferers.inferer import RegularInferer
 from .workflow import Workflow
 from .utils import default_prepare_batch
-from .utils import CommonKeys as CK
+from .utils import CommonKeys as Keys
 
 
 class Evaluator(Workflow):
@@ -125,4 +125,4 @@ class SupervisedEvaluator(Evaluator):
         with torch.no_grad():
             predictions = self.inferer(inputs, self.network)
 
-        return {CK.Y_PRED: predictions, CK.Y: targets, CK.INFO: None}
+        return {Keys.Y_PRED: predictions, Keys.Y: targets, Keys.INFO: None}
