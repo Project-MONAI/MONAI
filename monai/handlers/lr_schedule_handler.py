@@ -31,4 +31,4 @@ class LrScheduleHander:
 
     def __call__(self, engine):
         self.lr_scheduler.step()
-        print(f'Update learning rate to: {self.lr_scheduler.get_last_lr()[0]}')
+        print(f"Update learning rate to: {self.lr_scheduler.get_last_lr()[0]}")
