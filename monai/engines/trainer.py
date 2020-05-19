@@ -51,12 +51,11 @@ class SupervisedTrainer(Trainer):
         lr_scheduler (LR Scheduler): the lr scheduler associated to the optimizer.
         inferer (Inferer): inference method that execute model forward on input data, like: SlidingWindow, etc.
         train_handlers (list): every handler is a set of Ignite Event-Handlers, like:
-                             CheckpointHandler, StatslogHandler, TimerHandler, etc.
-        output_writers (list): if not None, write 1 batch of output to files when iteration completed.
+            CheckpointHandler, StatslogHandler, TimerHandler, etc.
         amp (Bool): whether to enable auto-mixed-precision training.
-        key_train_metric (ignite.metric): compute metric when every iteration completed,
-                                    and save average value to engine.state.metrics when epoch completed.
-                                    also use key_metric to select and save checkpoint into files.
+        key_train_metric (ignite.metric): compute metric when every iteration completed, and save average
+            value to engine.state.metrics when epoch completed. also use key_metric to select and save
+            checkpoint into files.
         additional_metrics (list): more ignite metrics that also attach to Ignite Engine.
         val_interval (Int): do validation every N epochs during training, disable validation if N = 0.
         validator (Evaluator): run the validator when trigger validation, suppose to be Evaluator.
@@ -75,13 +74,9 @@ class SupervisedTrainer(Trainer):
         lr_scheduler=None,
         inferer=RegularInferer(),
         train_handlers=None,
-        output_writers=None,
-        multi_gpu=False,
         amp=True,
         key_train_metric=None,
-        additional_metrics=None,
-        val_interval=0,
-        validator=None,
+        additional_metrics=None
     ):
         # set up Ignite engine and environments
         super().__init__(

@@ -75,9 +75,6 @@ class SupervisedEvaluator(Evaluator):
         inferer (Inferer): inference method that execute model forward on input data, like: SlidingWindow, etc.
         val_handlers (list): every handler is a set of Ignite Event-Handlers, like:
                              CheckpointHandler, StatslogHandler, TimerHandler, etc.
-        output_writers (list): if not None, write 1 batch of output to files when iteration completed.
-        amp (Bool): whether to enable auto-mixed-precision validation evaluation.
-                    (suppose to use TensorRT for FP16/INT8 inference).
         key_val_metric (ignite.metric): compute metric when every iteration completed,
                                     and save average value to engine.state.metrics when epoch completed.
                                     also use key_metric to select and save checkpoint into files.
@@ -96,12 +93,10 @@ class SupervisedEvaluator(Evaluator):
         prepare_batch=default_prepare_batch,
         inferer=RegularInferer(),
         val_handlers=None,
-        output_writers=None,
-        amp=True,
         key_val_metric=None,
         additional_metrics=None,
     ):
-        super().__init__(device, amp, val_data_loader, prepare_batch, key_val_metric, additional_metrics, val_handlers)
+        super().__init__(device, val_data_loader, prepare_batch, key_val_metric, additional_metrics, val_handlers)
 
         self.network = network
         self.inferer = inferer

@@ -16,5 +16,6 @@ from .roc_auc import ROCAUC
 from .metric_logger import *
 from .segmentation_saver import SegmentationSaver
 from .stats_handler import StatsHandler
+from .validation_handler import ValidationHander
 from .tensorboard_handlers import TensorBoardImageHandler, TensorBoardStatsHandler
 from .utils import *
