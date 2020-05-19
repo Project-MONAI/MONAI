@@ -30,11 +30,7 @@ from monai.transforms import (
     RandRotate90d,
     ToTensord,
 )
-from monai.handlers import (
-    StatsHandler,
-    ValidationHander,
-    MeanDice
-)
+from monai.handlers import StatsHandler, ValidationHander, MeanDice
 from monai.data import create_test_image_3d, list_data_collate
 from monai.engines import SupervisedTrainer, SupervisedEvaluator
 from monai.inferers import RegularInferer, SlidingWindowInferer
@@ -103,9 +99,7 @@ def main():
     loss = monai.losses.DiceLoss(do_sigmoid=True)
     opt = torch.optim.Adam(net.parameters(), 1e-3)
 
-    val_handlers = [
-        StatsHandler(output_transform=lambda x: None)
-    ]
+    val_handlers = [StatsHandler(output_transform=lambda x: None)]
 
     evaluator = SupervisedEvaluator(
         device=device,
@@ -113,14 +107,17 @@ def main():
         network=net,
         inferer=SlidingWindowInferer(roi_size=(96, 96, 96), sw_batch_size=4, overlap=0.5),
         val_handlers=val_handlers,
-        key_val_metric={"val_mean_dice": MeanDice(include_background=True, add_sigmoid=True, 
-                                                  output_transform=lambda x: (x[Keys.Y_PRED], x[Keys.Y]))},
-        additional_metrics=None
+        key_val_metric={
+            "val_mean_dice": MeanDice(
+                include_background=True, add_sigmoid=True, output_transform=lambda x: (x[Keys.Y_PRED], x[Keys.Y])
+            )
+        },
+        additional_metrics=None,
     )
 
     train_handlers = [
         ValidationHander(validator=evaluator, interval=2, epoch_level=True),
-        StatsHandler(tag_name="train_loss", output_transform=lambda x: x[Keys.INFO]["train_loss"])
+        StatsHandler(tag_name="train_loss", output_transform=lambda x: x[Keys.INFO]["train_loss"]),
     ]
 
     trainer = SupervisedTrainer(
@@ -133,7 +130,7 @@ def main():
         inferer=RegularInferer(),
         train_handlers=train_handlers,
         amp=False,
-        key_train_metric=None
+        key_train_metric=None,
     )
     trainer.train()
     shutil.rmtree(tempdir)

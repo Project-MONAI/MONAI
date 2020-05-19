@@ -43,6 +43,5 @@ class TestValidationHandler(unittest.TestCase):
         self.assertEqual(evaluator.engine.state.epoch_length, 8)
 
 
-
 if __name__ == "__main__":
     unittest.main()

@@ -76,7 +76,7 @@ class SupervisedTrainer(Trainer):
         train_handlers=None,
         amp=True,
         key_train_metric=None,
-        additional_metrics=None
+        additional_metrics=None,
     ):
         # set up Ignite engine and environments
         super().__init__(

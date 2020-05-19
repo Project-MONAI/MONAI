@@ -17,6 +17,7 @@ class ValidationHander:
     Attach validator to the trainer engine in Ignite.
     It can support to execute validation every N epochs or every N iterations.
     """
+
     def __init__(self, validator, interval, epoch_level=True):
         """
         Args:
