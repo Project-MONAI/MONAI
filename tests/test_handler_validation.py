@@ -22,7 +22,7 @@ class TestEvaluator(Evaluator):
         pass
 
 
-class TestValidationHandler(unittest.TestCase):
+class TestHandlerValidation(unittest.TestCase):
     def test_content(self):
         data = [0] * 8
 
