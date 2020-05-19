@@ -61,7 +61,7 @@ class Evaluator(Workflow):
 
     @abstractmethod
     def _iteration(self, engine, batchdata):
-        raise NotImplementedError("Subclass {} must implement the compute method".format(self.__class__.__name__))
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement the compute method")
 
 
 class SupervisedEvaluator(Evaluator):

@@ -92,7 +92,7 @@ class Workflow(ABC):
                 if engine.state.key_metric_name is not None:
                     current_val_metric = engine.state.metrics[engine.state.key_metric_name]
                     if current_val_metric > engine.state.best_metric:
-                        print("Got new best metric of {}: {}".format(engine.state.key_metric_name, current_val_metric))
+                        print(f"Got new best metric of {engine.state.key_metric_name}: {current_val_metric}")
                         engine.state.best_metric = current_val_metric
                         engine.state.best_metric_epoch = engine.state.epoch
 
@@ -118,4 +118,4 @@ class Workflow(ABC):
             batchdata (TransformContext, ndarray): input data for this iteration.
 
         """
-        raise NotImplementedError("Subclass {} must implement the compute method".format(self.__class__.__name__))
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement the compute method")
