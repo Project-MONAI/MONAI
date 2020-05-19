@@ -74,7 +74,7 @@ def make_animated_gif_summary(
         suffix = "/image/{}"
     if other_indices is None:
         other_indices = {}
-    axis_order = [0] + animation_axes + image_axes
+    axis_order = [0] + list(animation_axes) + list(image_axes)
 
     slicing = []
     for i in range(len(image.shape)):
