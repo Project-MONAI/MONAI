@@ -17,4 +17,5 @@ from .metric_logger import *
 from .segmentation_saver import SegmentationSaver
 from .stats_handler import StatsHandler
 from .tensorboard_handlers import TensorBoardImageHandler, TensorBoardStatsHandler
+from .lr_schedule_handler import LrScheduleHandler
 from .utils import *
