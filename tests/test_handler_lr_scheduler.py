@@ -12,20 +12,28 @@
 import torch
 import unittest
 import numpy as np
-from ignite.engine import Engine
+from ignite.engine import Engine, Events
 from monai.networks.nets import UNet
-from monai.handlers import LrScheduleHander
-
+from monai.handlers import LrScheduleHandler
+import logging
+import sys
 
 class TestHandlerLrSchedule(unittest.TestCase):
     def test_content(self):
+        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
         data = [0] * 8
 
         # set up engine
         def _train_func(engine, batch):
             pass
 
-        engine = Engine(_train_func)
+        val_engine = Engine(_train_func)
+        train_engine = Engine(_train_func)
+
+        @train_engine.on(Events.EPOCH_COMPLETED)
+        def run_validation(engine):
+            val_engine.run(data)
+            val_engine.state.metrics['val_loss'] = 1
 
         # set up testing handler
         net = UNet(
@@ -36,13 +44,13 @@ class TestHandlerLrSchedule(unittest.TestCase):
             strides=(2, 2, 2, 2),
             num_res_units=2,
         )
-        optimizer = torch.optim.Adam(net.parameters(), 0.1)
-        lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.1)
-        handler = LrScheduleHander(lr_scheduler)
-        handler.attach(engine)
+        optimizer = torch.optim.SGD(net.parameters(), 0.1)
+        lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=1)
+        handler = LrScheduleHandler(lr_scheduler, step_transform=lambda x: val_engine.state.metrics["val_loss"])
+        handler.attach(train_engine)
 
-        engine.run(data, max_epochs=5)
-        np.testing.assert_allclose(lr_scheduler.get_last_lr()[0], 1e-06, rtol=1e-06)
+        train_engine.run(data, max_epochs=5)
+        np.testing.assert_allclose(lr_scheduler._last_lr[0], 0.001)
 
 
 if __name__ == "__main__":
