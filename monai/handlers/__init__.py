@@ -18,4 +18,5 @@ from .segmentation_saver import SegmentationSaver
 from .stats_handler import StatsHandler
 from .validation_handler import ValidationHander
 from .tensorboard_handlers import TensorBoardImageHandler, TensorBoardStatsHandler
+from .lr_schedule_handler import LrScheduleHandler
 from .utils import *
