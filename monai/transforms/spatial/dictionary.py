@@ -81,10 +81,10 @@ class Spacingd(MapTransform):
         """
         super().__init__(keys)
         self.spacing_transform = Spacing(pixdim, diagonal=diagonal)
-        self.interp_order = ensure_tuple_rep(interp_order, len(self.keys), require_matched_size=True)
-        self.mode = ensure_tuple_rep(mode, len(self.keys), require_matched_size=True)
-        self.cval = ensure_tuple_rep(cval, len(self.keys), require_matched_size=True)
-        self.dtype = ensure_tuple_rep(dtype, len(self.keys), require_matched_size=True)
+        self.interp_order = ensure_tuple_rep(interp_order, len(self.keys))
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.cval = ensure_tuple_rep(cval, len(self.keys))
+        self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.meta_key_format = meta_key_format
 
     def __call__(self, data):
@@ -238,12 +238,12 @@ class Resized(MapTransform):
         self, keys, spatial_size, order=1, mode="reflect", cval=0, clip=True, preserve_range=True, anti_aliasing=True,
     ):
         super().__init__(keys)
-        self.order = ensure_tuple_rep(order, len(self.keys), require_matched_size=True)
-        self.mode = ensure_tuple_rep(mode, len(self.keys), require_matched_size=True)
-        self.cval = ensure_tuple_rep(cval, len(self.keys), require_matched_size=True)
-        self.clip = ensure_tuple_rep(clip, len(self.keys), require_matched_size=True)
-        self.preserve_range = ensure_tuple_rep(preserve_range, len(self.keys), require_matched_size=True)
-        self.anti_aliasing = ensure_tuple_rep(anti_aliasing, len(self.keys), require_matched_size=True)
+        self.order = ensure_tuple_rep(order, len(self.keys))
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.cval = ensure_tuple_rep(cval, len(self.keys))
+        self.clip = ensure_tuple_rep(clip, len(self.keys))
+        self.preserve_range = ensure_tuple_rep(preserve_range, len(self.keys))
+        self.anti_aliasing = ensure_tuple_rep(anti_aliasing, len(self.keys))
 
         self.resizer = Resize(spatial_size=spatial_size)
 
@@ -314,8 +314,8 @@ class RandAffined(Randomizable, MapTransform):
             as_tensor_output=as_tensor_output,
             device=device,
         )
-        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys), require_matched_size=True)
-        self.mode = ensure_tuple_rep(mode, len(self.keys), require_matched_size=True)
+        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
 
     def set_random_state(self, seed=None, state=None):
         self.rand_affine.set_random_state(seed, state)
@@ -397,8 +397,8 @@ class Rand2DElasticd(Randomizable, MapTransform):
             as_tensor_output=as_tensor_output,
             device=device,
         )
-        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys), require_matched_size=True)
-        self.mode = ensure_tuple_rep(mode, len(self.keys), require_matched_size=True)
+        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
 
     def set_random_state(self, seed=None, state=None):
         self.rand_2d_elastic.set_random_state(seed, state)
@@ -485,8 +485,8 @@ class Rand3DElasticd(Randomizable, MapTransform):
             as_tensor_output=as_tensor_output,
             device=device,
         )
-        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys), require_matched_size=True)
-        self.mode = ensure_tuple_rep(mode, len(self.keys), require_matched_size=True)
+        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
 
     def set_random_state(self, seed=None, state=None):
         self.rand_3d_elastic.set_random_state(seed, state)
@@ -593,10 +593,10 @@ class Rotated(MapTransform):
         super().__init__(keys)
         self.rotator = Rotate(angle=angle, spatial_axes=spatial_axes, reshape=reshape)
 
-        self.order = ensure_tuple_rep(order, len(self.keys), require_matched_size=True)
-        self.mode = ensure_tuple_rep(mode, len(self.keys), require_matched_size=True)
-        self.cval = ensure_tuple_rep(cval, len(self.keys), require_matched_size=True)
-        self.prefilter = ensure_tuple_rep(prefilter, len(self.keys), require_matched_size=True)
+        self.order = ensure_tuple_rep(order, len(self.keys))
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.cval = ensure_tuple_rep(cval, len(self.keys))
+        self.prefilter = ensure_tuple_rep(prefilter, len(self.keys))
 
     def __call__(self, data):
         d = dict(data)
@@ -645,10 +645,10 @@ class RandRotated(Randomizable, MapTransform):
         self.reshape = reshape
         self.spatial_axes = spatial_axes
 
-        self.order = ensure_tuple_rep(order, len(self.keys), require_matched_size=True)
-        self.mode = ensure_tuple_rep(mode, len(self.keys), require_matched_size=True)
-        self.cval = ensure_tuple_rep(cval, len(self.keys), require_matched_size=True)
-        self.prefilter = ensure_tuple_rep(prefilter, len(self.keys), require_matched_size=True)
+        self.order = ensure_tuple_rep(order, len(self.keys))
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.cval = ensure_tuple_rep(cval, len(self.keys))
+        self.prefilter = ensure_tuple_rep(prefilter, len(self.keys))
 
         if not hasattr(self.degrees, "__iter__"):
             self.degrees = (-self.degrees, self.degrees)
@@ -752,10 +752,10 @@ class RandZoomd(Randomizable, MapTransform):
         self.use_gpu = use_gpu
         self.keep_size = keep_size
 
-        self.order = ensure_tuple_rep(order, len(self.keys), require_matched_size=True)
-        self.mode = ensure_tuple_rep(mode, len(self.keys), require_matched_size=True)
-        self.cval = ensure_tuple_rep(cval, len(self.keys), require_matched_size=True)
-        self.prefilter = ensure_tuple_rep(prefilter, len(self.keys), require_matched_size=True)
+        self.order = ensure_tuple_rep(order, len(self.keys))
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.cval = ensure_tuple_rep(cval, len(self.keys))
+        self.prefilter = ensure_tuple_rep(prefilter, len(self.keys))
 
         self._do_transform = False
         self._zoom = None

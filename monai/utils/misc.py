@@ -60,15 +60,14 @@ def ensure_tuple_size(tup, dim):
     return tup[:dim]
 
 
-def ensure_tuple_rep(tup, dim, require_matched_size=False):
+def ensure_tuple_rep(tup, dim):
     """
     Returns a copy of `tup` with `dim` values by either shortened or duplicated input.
-    if require_matched_size is True, then the input tup must be non-iterable and have length equal to dim
     """
     if not issequenceiterable(tup):
         return (tup,) * dim
-    elif not require_matched_size or len(tup) >= dim:
-        return tuple(tup)[:dim]
+    elif len(tup) == dim:
+        return tuple(tup)
 
     raise ValueError(f"sequence must have length {dim}, got length {len(tup)}.")
 
