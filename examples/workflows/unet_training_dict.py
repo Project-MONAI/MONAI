@@ -109,7 +109,7 @@ def main():
         val_handlers=val_handlers,
         key_val_metric={
             "val_mean_dice": MeanDice(
-                include_background=True, add_sigmoid=True, output_transform=lambda x: (x[Keys.Y_PRED], x[Keys.Y])
+                include_background=True, add_sigmoid=True, output_transform=lambda x: (x[Keys.PRED], x[Keys.LABEL])
             )
         },
         additional_metrics=None,
@@ -117,7 +117,7 @@ def main():
 
     train_handlers = [
         ValidationHander(validator=evaluator, interval=2, epoch_level=True),
-        StatsHandler(tag_name="train_loss", output_transform=lambda x: x[Keys.INFO]["train_loss"]),
+        StatsHandler(tag_name="train_loss", output_transform=lambda x: x[Keys.INFO][Keys.LOSS]),
     ]
 
     trainer = SupervisedTrainer(

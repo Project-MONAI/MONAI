@@ -15,8 +15,8 @@ from ignite.engine import Engine, State, Events
 from .utils import default_prepare_batch
 
 
-class Workflow(ABC):
-    """Workflow defines the core work process totally based on Ignite engine.
+class Workflow(ABC, Engine):
+    """Workflow defines the core work process inheritting from Ignite engine.
     All trainer, validator and evaluator share this same workflow as base class,
     because they all can be treated as same Ignite engine loops.
     And it initializes all the sharable data in Ignite engine.state.
@@ -34,9 +34,10 @@ class Workflow(ABC):
         additional_metrics (list): more ignite metrics that also attach to Ignite Engine.
         handlers (list): every handler is a set of Ignite Event-Handlers, like:
             CheckpointHandler, StatsHandler, TimerHandler, etc.
+        iteration_update (Callable): the callable function for every iteration, expect to accept `engine`
+            and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
 
     """
-
     def __init__(
         self,
         device,
@@ -47,17 +48,19 @@ class Workflow(ABC):
         key_metric=None,
         additional_metrics=None,
         handlers=None,
+        iteration_update=None
     ):
+        super().__init__(iteration_update if iteration_update is not None else self._iteration)
         # FIXME:
         if amp:
-            print("Will add AMP support when PyTorch v1.6 released.")
-        assert isinstance(device, torch.device), "must provide PyTorch device information."
+            self.logger.info("Will add AMP support when PyTorch v1.6 released.")
+        if not isinstance(device, torch.device):
+            raise ValueError("device must be PyTorch device object.")
         assert isinstance(max_epochs, int), "must set max epoch number."
         assert isinstance(data_loader, torch.utils.data.DataLoader), "data_loader must be PyTorch DataLoader."
 
-        self.engine = Engine(self._iteration)
         # set all sharable data for the workflow based on Ignite engine.state
-        self.engine.state = State(
+        self.state = State(
             seed=0,
             iteration=0,
             epoch=0,
@@ -79,34 +82,33 @@ class Workflow(ABC):
         metrics = None
         if key_metric is not None:
             assert isinstance(key_metric, dict), "key_metric must be a dict object."
-            self.engine.state.key_metric_name = list(key_metric.keys())[0]
+            self.state.key_metric_name = list(key_metric.keys())[0]
             metrics = key_metric
             if additional_metrics is not None and len(additional_metrics) > 0:
                 assert isinstance(additional_metrics, dict), "additional_metrics must be a dict object."
                 metrics.update(additional_metrics)
             for name, metric in metrics.items():
-                metric.attach(self.engine, name)
+                metric.attach(self, name)
 
-            @self.engine.on(Events.EPOCH_COMPLETED)
-            def post_epoch_process(engine):
+            @self.on(Events.EPOCH_COMPLETED)
+            def _compare_metrics(engine):
                 if engine.state.key_metric_name is not None:
                     current_val_metric = engine.state.metrics[engine.state.key_metric_name]
                     if current_val_metric > engine.state.best_metric:
-                        print(f"Got new best metric of {engine.state.key_metric_name}: {current_val_metric}")
+                        self.logger.info(f"Got new best metric of {engine.state.key_metric_name}: {current_val_metric}")
                         engine.state.best_metric = current_val_metric
                         engine.state.best_metric_epoch = engine.state.epoch
 
         if handlers is not None and len(handlers) > 0:
-            assert isinstance(handlers, (list, tuple)), "handlers must be a chain."
             for handler in handlers:
-                handler.attach(self.engine)
+                handler.attach(self)
 
     def _run(self):
         """Execute training, validation or evaluation based on Ignite Engine.
 
         """
-        self.engine.state.iteration = 0
-        self.engine.run(data=self.data_loader, epoch_length=len(self.data_loader))
+        self.state.iteration = 0
+        super().run(data=self.data_loader, epoch_length=len(self.data_loader))
 
     @abstractmethod
     def _iteration(self, engine, batchdata):

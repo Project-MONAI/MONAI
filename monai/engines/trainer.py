@@ -30,7 +30,7 @@ class Trainer(Workflow):
         self._run()
 
     def get_train_stats(self):
-        return {"total_epochs": self.engine.state.max_epochs, "total_iterations": self.engine.state.epoch_length}
+        return {"total_epochs": self.state.max_epochs, "total_iterations": self.state.epoch_length}
 
     @abstractmethod
     def _iteration(self, engine, batchdata):
@@ -48,6 +48,8 @@ class SupervisedTrainer(Trainer):
         optimizer (Optimizer): the optimizer associated to the network.
         loss_function (Loss): the loss function associated to the optimizer.
         prepare_batch (Callable): function to parse image and label for current iteration.
+        iteration_update (Callable): the callable function for every iteration, expect to accept `engine`
+            and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
         lr_scheduler (LR Scheduler): the lr scheduler associated to the optimizer.
         inferer (Inferer): inference method that execute model forward on input data, like: SlidingWindow, etc.
         train_handlers (list): every handler is a set of Ignite Event-Handlers, like:
@@ -71,12 +73,13 @@ class SupervisedTrainer(Trainer):
         optimizer,
         loss_function,
         prepare_batch=default_prepare_batch,
+        iteration_update=None,
         lr_scheduler=None,
         inferer=RegularInferer(),
         train_handlers=None,
         amp=True,
         key_train_metric=None,
-        additional_metrics=None,
+        additional_metrics=None
     ):
         # set up Ignite engine and environments
         super().__init__(
@@ -88,6 +91,7 @@ class SupervisedTrainer(Trainer):
             key_train_metric,
             additional_metrics,
             train_handlers,
+            iteration_update
         )
 
         self.network = network
@@ -115,7 +119,7 @@ class SupervisedTrainer(Trainer):
         # compute loss
         loss = self.loss_function(predictions, targets).mean()
         loss.backward()
-        results["train_loss"] = loss.item()
+        results[Keys.LOSS] = loss.item()
         self.optimizer.step()
 
-        return {Keys.Y_PRED: predictions, Keys.Y: targets, Keys.INFO: results}
+        return {Keys.PRED: predictions, Keys.LABEL: targets, Keys.INFO: results}

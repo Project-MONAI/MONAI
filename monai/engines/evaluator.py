@@ -30,9 +30,10 @@ class Evaluator(Workflow):
         additional_metrics (list): more ignite metrics that also attach to Ignite Engine.
         handlers (list): every handler is a set of Ignite Event-Handlers, like:
             CheckpointHandler, StatsHandler, TimerHandler, etc.
+        iteration_update (Callable): the callable function for every iteration, expect to accept `engine`
+            and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
 
     """
-
     def __init__(
         self,
         device,
@@ -41,22 +42,24 @@ class Evaluator(Workflow):
         key_metric=None,
         additional_metrics=None,
         handlers=None,
+        iteration_update=None
     ):
-        super().__init__(device, 1, False, val_data_loader, prepare_batch, key_metric, additional_metrics, handlers)
+        super().__init__(device, 1, False, val_data_loader, prepare_batch, key_metric,
+                         additional_metrics, handlers, iteration_update)
 
     def evaluate(self, global_epoch=1):
         """Execute validation/evaluation based on Ignite Engine.
 
         """
         # init env value for current validation process
-        self.engine.state.max_epochs = global_epoch
-        self.engine.state.epoch = global_epoch - 1
+        self.state.max_epochs = global_epoch
+        self.state.epoch = global_epoch - 1
         self._run()
 
     def get_validation_stats(self):
         return {
-            "best_validation_metric": self.engine.state.best_metric,
-            "best_validation_epoch": self.engine.state.best_metric_epoch,
+            "best_validation_metric": self.state.best_metric,
+            "best_validation_epoch": self.state.best_metric_epoch,
         }
 
     @abstractmethod
@@ -79,9 +82,8 @@ class SupervisedEvaluator(Evaluator):
                                     and save average value to engine.state.metrics when epoch completed.
                                     also use key_metric to select and save checkpoint into files.
         additional_metrics (list): more ignite metrics that also attach to Ignite Engine.
-
-    Note:
-        the "batch_size" here is to run a batch of window slices of 1 input image, not batch size of input images.
+        iteration_update (Callable): the callable function for every iteration, expect to accept `engine`
+            and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
 
     """
 
@@ -92,11 +94,13 @@ class SupervisedEvaluator(Evaluator):
         network,
         prepare_batch=default_prepare_batch,
         inferer=RegularInferer(),
-        val_handlers=None,
         key_val_metric=None,
         additional_metrics=None,
+        val_handlers=None,
+        iteration_update=None
     ):
-        super().__init__(device, val_data_loader, prepare_batch, key_val_metric, additional_metrics, val_handlers)
+        super().__init__(device, val_data_loader, prepare_batch, key_val_metric,
+                         additional_metrics, val_handlers, iteration_update)
 
         self.network = network
         self.inferer = inferer
@@ -120,4 +124,4 @@ class SupervisedEvaluator(Evaluator):
         with torch.no_grad():
             predictions = self.inferer(inputs, self.network)
 
-        return {Keys.Y_PRED: predictions, Keys.Y: targets, Keys.INFO: None}
+        return {Keys.PRED: predictions, Keys.LABEL: targets, Keys.INFO: None}

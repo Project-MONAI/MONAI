@@ -13,11 +13,20 @@ import torch
 
 
 class CommonKeys:
+    """
+    A set of common keys for dictionary based supervised training process.
+    `IMAGE` is the input image data.
+    `LABEL` is the training or evaluation label of segmentation or classification task.
+    `PRED` is the model output data.
+    `LOSS` is the loss value of current iteration.
+    `INFO` is some useful information during training or evaluation, like loss value, etc.
+
+    """
     IMAGE = "image"
     LABEL = "label"
-    Y_PRED = "y_pred"
-    Y = "y"
-    INFO = "info"
+    PRED = "prediction"
+    LOSS = "loss"
+    INFO = "information"
 
 
 def get_devices_spec(devices=None):
