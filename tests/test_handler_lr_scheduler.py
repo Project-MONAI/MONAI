@@ -37,19 +37,26 @@ class TestHandlerLrSchedule(unittest.TestCase):
 
         # set up testing handler
         net = torch.nn.PReLU()
-        optimizer1 = torch.optim.SGD(net.parameters(), 0.1)
-        lr_scheduler1 = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer1, patience=1)
-        handler1 = LrScheduleHandler(lr_scheduler1, step_transform=lambda x: val_engine.state.metrics["val_loss"])
-        handler1.attach(train_engine)
 
-        optimizer2 = torch.optim.SGD(net.parameters(), 0.1)
-        lr_scheduler2 = torch.optim.lr_scheduler.StepLR(optimizer2, step_size=2, gamma=0.1)
-        handler2 = LrScheduleHandler(lr_scheduler2)
-        handler2.attach(train_engine)
+        def _reduce_lr_on_plateau():
+            optimizer = torch.optim.SGD(net.parameters(), 0.1)
+            lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=1)
+            handler = LrScheduleHandler(lr_scheduler, step_transform=lambda x: val_engine.state.metrics["val_loss"])
+            handler.attach(train_engine)
+            return lr_scheduler
+
+        def _reduce_on_step():
+            optimizer = torch.optim.SGD(net.parameters(), 0.1)
+            lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=2, gamma=0.1)
+            handler = LrScheduleHandler(lr_scheduler)
+            handler.attach(train_engine)
+            return lr_scheduler
+
+        schedulers = _reduce_lr_on_plateau(), _reduce_on_step()
 
         train_engine.run(data, max_epochs=5)
-        np.testing.assert_allclose(lr_scheduler1._last_lr[0], 0.001)
-        np.testing.assert_allclose(lr_scheduler2._last_lr[0], 0.001)
+        for scheduler in schedulers:
+            np.testing.assert_allclose(scheduler._last_lr[0], 0.001)
 
 
 if __name__ == "__main__":
