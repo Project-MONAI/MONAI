@@ -30,7 +30,7 @@ class TestRandZoom(NumpyImageTestCase2D):
             prob=1.0,
             min_zoom=min_zoom,
             max_zoom=max_zoom,
-            order=order,
+            interp_order=order,
             mode=mode,
             cval=cval,
             prefilter=prefilter,
@@ -54,7 +54,7 @@ class TestRandZoom(NumpyImageTestCase2D):
                 prob=1.0,
                 min_zoom=min_zoom,
                 max_zoom=max_zoom,
-                order=order,
+                interp_order=order,
                 mode=mode,
                 cval=cval,
                 prefilter=prefilter,
@@ -81,7 +81,7 @@ class TestRandZoom(NumpyImageTestCase2D):
     @parameterized.expand([("no_min_zoom", None, 1.1, 1, TypeError), ("invalid_order", 0.9, 1.1, "s", TypeError)])
     def test_invalid_inputs(self, _, min_zoom, max_zoom, order, raises):
         with self.assertRaises(raises):
-            random_zoom = RandZoom(prob=1.0, min_zoom=min_zoom, max_zoom=max_zoom, order=order)
+            random_zoom = RandZoom(prob=1.0, min_zoom=min_zoom, max_zoom=max_zoom, interp_order=order)
             zoomed = random_zoom(self.imt[0])
 
 

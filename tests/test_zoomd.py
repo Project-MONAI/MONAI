@@ -36,7 +36,14 @@ class TestZoomd(NumpyImageTestCase2D):
     def test_correct_results(self, zoom, order, mode, cval, prefilter, use_gpu, keep_size):
         key = "img"
         zoom_fn = Zoomd(
-            key, zoom=zoom, order=order, mode=mode, cval=cval, prefilter=prefilter, use_gpu=use_gpu, keep_size=keep_size
+            key,
+            zoom=zoom,
+            interp_order=order,
+            mode=mode,
+            cval=cval,
+            prefilter=prefilter,
+            use_gpu=use_gpu,
+            keep_size=keep_size,
         )
         zoomed = zoom_fn({key: self.imt[0]})
         expected = list()
@@ -50,7 +57,14 @@ class TestZoomd(NumpyImageTestCase2D):
         key = "img"
         if importlib.util.find_spec("cupy"):
             zoom_fn = Zoomd(
-                key, zoom=zoom, order=order, mode=mode, cval=cval, prefilter=prefilter, use_gpu=True, keep_size=False
+                key,
+                zoom=zoom,
+                interp_order=order,
+                mode=mode,
+                cval=cval,
+                prefilter=prefilter,
+                use_gpu=True,
+                keep_size=False,
             )
             zoomed = zoom_fn({key: self.imt[0]})
             expected = list()
@@ -73,7 +87,7 @@ class TestZoomd(NumpyImageTestCase2D):
     def test_invalid_inputs(self, _, zoom, order, raises):
         key = "img"
         with self.assertRaises(raises):
-            zoom_fn = Zoomd(key, zoom=zoom, order=order)
+            zoom_fn = Zoomd(key, zoom=zoom, interp_order=order)
             zoomed = zoom_fn({key: self.imt[0]})
 
 
