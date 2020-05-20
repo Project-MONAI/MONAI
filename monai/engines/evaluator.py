@@ -34,6 +34,7 @@ class Evaluator(Workflow):
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
 
     """
+
     def __init__(
         self,
         device,
@@ -42,10 +43,11 @@ class Evaluator(Workflow):
         key_metric=None,
         additional_metrics=None,
         handlers=None,
-        iteration_update=None
+        iteration_update=None,
     ):
-        super().__init__(device, 1, False, val_data_loader, prepare_batch, key_metric,
-                         additional_metrics, handlers, iteration_update)
+        super().__init__(
+            device, 1, False, val_data_loader, prepare_batch, key_metric, additional_metrics, handlers, iteration_update
+        )
 
     def evaluate(self, global_epoch=1):
         """Execute validation/evaluation based on Ignite Engine.
@@ -97,10 +99,11 @@ class SupervisedEvaluator(Evaluator):
         key_val_metric=None,
         additional_metrics=None,
         val_handlers=None,
-        iteration_update=None
+        iteration_update=None,
     ):
-        super().__init__(device, val_data_loader, prepare_batch, key_val_metric,
-                         additional_metrics, val_handlers, iteration_update)
+        super().__init__(
+            device, val_data_loader, prepare_batch, key_val_metric, additional_metrics, val_handlers, iteration_update
+        )
 
         self.network = network
         self.inferer = inferer

@@ -38,6 +38,7 @@ class Workflow(ABC, Engine):
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
 
     """
+
     def __init__(
         self,
         device,
@@ -48,7 +49,7 @@ class Workflow(ABC, Engine):
         key_metric=None,
         additional_metrics=None,
         handlers=None,
-        iteration_update=None
+        iteration_update=None,
     ):
         super().__init__(iteration_update if iteration_update is not None else self._iteration)
         # FIXME:

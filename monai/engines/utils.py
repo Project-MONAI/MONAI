@@ -22,6 +22,7 @@ class CommonKeys:
     `INFO` is some useful information during training or evaluation, like loss value, etc.
 
     """
+
     IMAGE = "image"
     LABEL = "label"
     PRED = "prediction"

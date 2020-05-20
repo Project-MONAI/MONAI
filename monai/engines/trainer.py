@@ -79,7 +79,7 @@ class SupervisedTrainer(Trainer):
         train_handlers=None,
         amp=True,
         key_train_metric=None,
-        additional_metrics=None
+        additional_metrics=None,
     ):
         # set up Ignite engine and environments
         super().__init__(
@@ -91,7 +91,7 @@ class SupervisedTrainer(Trainer):
             key_train_metric,
             additional_metrics,
             train_handlers,
-            iteration_update
+            iteration_update,
         )
 
         self.network = network
