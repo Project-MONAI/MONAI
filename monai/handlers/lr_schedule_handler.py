@@ -20,7 +20,7 @@ class LrScheduleHandler:
     ignite handler to update the Learning Rate based on PyTorch LR scheduler.
     """
 
-    def __init__(self, lr_scheduler, print_lr=True, name=None, epoch_level=True, step_transform=lambda x: None):
+    def __init__(self, lr_scheduler, print_lr=True, name=None, epoch_level=True, step_transform=lambda engine: ()):
         """
         Args:
             lr_scheduler (torch.optim.lr_scheduler): typically, lr_scheduler should be PyTorch
@@ -37,7 +37,8 @@ class LrScheduleHandler:
         self.print_lr = print_lr
         self.logger = None if name is None else logging.getLogger(name)
         self.epoch_level = epoch_level
-        assert isinstance(step_transform, Callable), "step_transform must be a callable function."
+        if not isinstance(step_transform, Callable):
+            raise ValueError("argument `step_transform` must be a callable.")
         self.step_transform = step_transform
 
     def attach(self, engine):

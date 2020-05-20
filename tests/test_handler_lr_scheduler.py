@@ -13,7 +13,6 @@ import torch
 import unittest
 import numpy as np
 from ignite.engine import Engine, Events
-from monai.networks.nets import UNet
 from monai.handlers import LrScheduleHandler
 import logging
 import sys
@@ -37,21 +36,20 @@ class TestHandlerLrSchedule(unittest.TestCase):
             val_engine.state.metrics["val_loss"] = 1
 
         # set up testing handler
-        net = UNet(
-            dimensions=3,
-            in_channels=1,
-            out_channels=1,
-            channels=(16, 32, 64, 128, 256),
-            strides=(2, 2, 2, 2),
-            num_res_units=2,
-        )
-        optimizer = torch.optim.SGD(net.parameters(), 0.1)
-        lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=1)
-        handler = LrScheduleHandler(lr_scheduler, step_transform=lambda x: val_engine.state.metrics["val_loss"])
-        handler.attach(train_engine)
+        net = torch.nn.PReLU()
+        optimizer1 = torch.optim.SGD(net.parameters(), 0.1)
+        lr_scheduler1 = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer1, patience=1)
+        handler1 = LrScheduleHandler(lr_scheduler1, step_transform=lambda x: val_engine.state.metrics["val_loss"])
+        handler1.attach(train_engine)
+
+        optimizer2 = torch.optim.SGD(net.parameters(), 0.1)
+        lr_scheduler2 = torch.optim.lr_scheduler.StepLR(optimizer2, step_size=2, gamma=0.1)
+        handler2 = LrScheduleHandler(lr_scheduler2)
+        handler2.attach(train_engine)
 
         train_engine.run(data, max_epochs=5)
-        np.testing.assert_allclose(lr_scheduler._last_lr[0], 0.001)
+        np.testing.assert_allclose(lr_scheduler1._last_lr[0], 0.001)
+        np.testing.assert_allclose(lr_scheduler2._last_lr[0], 0.001)
 
 
 if __name__ == "__main__":
