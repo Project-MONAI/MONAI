@@ -41,7 +41,7 @@ class SpatialPadd(MapTransform):
                 for more details, please check: https://docs.scipy.org/doc/numpy/reference/generated/numpy.pad.html
         """
         super().__init__(keys)
-        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.mode = ensure_tuple_rep(mode, len(self.keys), require_matched_size=True)
         self.padder = SpatialPad(spatial_size, method)
 
     def __call__(self, data):

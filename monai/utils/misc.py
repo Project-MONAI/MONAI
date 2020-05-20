@@ -39,9 +39,16 @@ def first(iterable, default=None):
     return default
 
 
+def issequenceiterable(obj):
+    """
+    Determine if the object is an iterable sequence and is not a string
+    """
+    return isinstance(obj, Iterable) and not isinstance(obj, str)
+
+
 def ensure_tuple(vals):
     """Returns a tuple of `vals`"""
-    if not isinstance(vals, Iterable) or isinstance(vals, str):
+    if not issequenceiterable(vals):
         vals = (vals,)
 
     return tuple(vals)
@@ -53,15 +60,16 @@ def ensure_tuple_size(tup, dim):
     return tup[:dim]
 
 
-def ensure_tuple_rep(tup, dim):
+def ensure_tuple_rep(tup, dim, require_matched_size=False):
     """
     Returns a copy of `tup` with `dim` values by either shortened or duplicated input.
+    if require_matched_size is True, then the input tup must be non-iterable and have length equal to dim
     """
-    tup = ensure_tuple(tup)
-    if len(tup) >= dim:
-        return tup[:dim]
-    if len(tup) == 1:
-        return tup * dim
+    if not issequenceiterable(tup):
+        return (tup,) * dim
+    elif not require_matched_size or len(tup) >= dim:
+        return tuple(tup)[:dim]
+
     raise ValueError(f"sequence must have length {dim}, got length {len(tup)}.")
 
 

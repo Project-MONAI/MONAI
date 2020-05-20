@@ -233,11 +233,11 @@ class DataStatsd(MapTransform):
                 add existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html
         """
         super().__init__(keys)
-        self.prefix = ensure_tuple_rep(prefix, len(self.keys))
-        self.data_shape = ensure_tuple_rep(data_shape, len(self.keys))
-        self.intensity_range = ensure_tuple_rep(intensity_range, len(self.keys))
-        self.data_value = ensure_tuple_rep(data_value, len(self.keys))
-        self.additional_info = ensure_tuple_rep(additional_info, len(self.keys))
+        self.prefix = ensure_tuple_rep(prefix, len(self.keys), require_matched_size=True)
+        self.data_shape = ensure_tuple_rep(data_shape, len(self.keys), require_matched_size=True)
+        self.intensity_range = ensure_tuple_rep(intensity_range, len(self.keys), require_matched_size=True)
+        self.data_value = ensure_tuple_rep(data_value, len(self.keys), require_matched_size=True)
+        self.additional_info = ensure_tuple_rep(additional_info, len(self.keys), require_matched_size=True)
         self.logger_handler = logger_handler
         self.printer = DataStats(logger_handler=logger_handler)
 
@@ -270,7 +270,7 @@ class SimulateDelayd(MapTransform):
                 to the keys representing the delay for each key element.
         """
         super().__init__(keys)
-        self.delay_time = ensure_tuple_rep(delay_time, len(self.keys))
+        self.delay_time = ensure_tuple_rep(delay_time, len(self.keys), require_matched_size=True)
         self.delayer = SimulateDelay()
 
     def __call__(self, data):

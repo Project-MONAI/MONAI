@@ -47,7 +47,7 @@ class GaussianFilter(nn.Module):
         """
         super().__init__()
         self.spatial_dims = int(spatial_dims)
-        _sigma = ensure_tuple_rep(sigma, self.spatial_dims)
+        _sigma = ensure_tuple_rep(sigma, self.spatial_dims, require_matched_size=True)
         self.kernel = [
             torch.nn.Parameter(torch.as_tensor(gaussian_1d(s, truncated), dtype=torch.float32), False) for s in _sigma
         ]
