@@ -18,6 +18,7 @@ from monai.handlers import LrScheduleHandler
 import logging
 import sys
 
+
 class TestHandlerLrSchedule(unittest.TestCase):
     def test_content(self):
         logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -33,7 +34,7 @@ class TestHandlerLrSchedule(unittest.TestCase):
         @train_engine.on(Events.EPOCH_COMPLETED)
         def run_validation(engine):
             val_engine.run(data)
-            val_engine.state.metrics['val_loss'] = 1
+            val_engine.state.metrics["val_loss"] = 1
 
         # set up testing handler
         net = UNet(
