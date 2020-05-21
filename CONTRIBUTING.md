@@ -127,6 +127,7 @@ python -m tests.test_dice_loss
 Before submitting a pull request, we recommend that all linting and unit tests
 should pass, by running the following commands locally:
 ```
+pip install flake8==3.7.9 flake8-mypy flake8-bugbear flake8-comprehensions flake8-executable flake8-pyi mccabe pycodestyle pyflakes
 flake8 . --count --statistics
 ./runtests.sh --coverage
 ```
