@@ -38,7 +38,8 @@ class SplitChanneld(MapTransform):
         num_classes (int or list of int): the class number used to convert to One-Hot format if `to_onehot` is True.
         """
         super().__init__(keys)
-        assert isinstance(output_postfixes, (list, tuple)), 'must specify key postfixes to store splitted data.'
+        if not isinstance(output_postfixes, (list, tuple)):
+            raise ValueError('must specify key postfixes to store splitted data.')
         self.output_postfixes = output_postfixes
         self.to_onehot = ensure_tuple_rep(to_onehot, len(self.keys))
         self.num_classes = ensure_tuple_rep(num_classes, len(self.keys))
