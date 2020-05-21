@@ -22,7 +22,7 @@ from tests.utils import NumpyImageTestCase2D
 class TestResized(NumpyImageTestCase2D):
     def test_invalid_inputs(self):
         with self.assertRaises(TypeError):
-            resize = Resized(keys="img", spatial_size=(128, 128, 3), order="order")
+            resize = Resized(keys="img", spatial_size=(128, 128, 3), interp_order="order")
             resize({"img": self.imt[0]})
 
     @parameterized.expand(

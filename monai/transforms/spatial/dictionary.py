@@ -16,6 +16,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
 import torch
+from monai.data.utils import InterpolationCode
 
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.compose import MapTransform, Randomizable
@@ -222,7 +223,7 @@ class Resized(MapTransform):
         keys (hashable items): keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
         spatial_size (tuple or list): expected shape of spatial dimensions after resize operation.
-        order (int or sequence of int): Order of spline interpolation. Default=1.
+        interp_order (int or sequence of int): Order of spline interpolation. Default=InterpolationCode.LINEAR.
         mode (str or sequence of str): Points outside boundaries are filled according to given mode.
             Options are 'constant', 'edge', 'symmetric', 'reflect', 'wrap'.
         cval (float or sequence of float): Used with mode 'constant', the value outside image boundaries.
@@ -235,10 +236,18 @@ class Resized(MapTransform):
     """
 
     def __init__(
-        self, keys, spatial_size, order=1, mode="reflect", cval=0, clip=True, preserve_range=True, anti_aliasing=True,
+        self,
+        keys,
+        spatial_size,
+        interp_order=1,
+        mode="reflect",
+        cval=0,
+        clip=True,
+        preserve_range=True,
+        anti_aliasing=True,
     ):
         super().__init__(keys)
-        self.order = ensure_tuple_rep(order, len(self.keys))
+        self.interp_order = ensure_tuple_rep(interp_order, len(self.keys))
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.cval = ensure_tuple_rep(cval, len(self.keys))
         self.clip = ensure_tuple_rep(clip, len(self.keys))
@@ -252,7 +261,7 @@ class Resized(MapTransform):
         for idx, key in enumerate(self.keys):
             d[key] = self.resizer(
                 d[key],
-                order=self.order[idx],
+                order=self.interp_order[idx],
                 mode=self.mode[idx],
                 cval=self.cval[idx],
                 clip=self.clip[idx],
@@ -579,8 +588,9 @@ class Rotated(MapTransform):
             This is the first two axis in spatial dimensions.
         reshape (bool): If reshape is true, the output shape is adapted so that the
             input array is contained completely in the output. Default is True.
-        order (int or sequence of int): Order of spline interpolation. Range 0-5. Default: 1. This is
-            different from scipy where default interpolation is 3.
+        interp_order (int or sequence of int): Order of spline interpolation. Range 0-5.
+            Default: InterpolationCode.LINEAR. This is different from scipy where default interpolation
+            is InterpolationCode.SPLINE3.
         mode (str or sequence of str): Points outside boundary filled according to this mode. Options are
             'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
         cval (scalar or sequence of scalar): Values to fill outside boundary. Default: 0.
@@ -588,12 +598,20 @@ class Rotated(MapTransform):
     """
 
     def __init__(
-        self, keys, angle, spatial_axes=(0, 1), reshape=True, order=1, mode="constant", cval=0, prefilter=True
+        self,
+        keys,
+        angle,
+        spatial_axes=(0, 1),
+        reshape=True,
+        interp_order=InterpolationCode.LINEAR,
+        mode="constant",
+        cval=0,
+        prefilter=True,
     ):
         super().__init__(keys)
         self.rotator = Rotate(angle=angle, spatial_axes=spatial_axes, reshape=reshape)
 
-        self.order = ensure_tuple_rep(order, len(self.keys))
+        self.interp_order = ensure_tuple_rep(interp_order, len(self.keys))
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.cval = ensure_tuple_rep(cval, len(self.keys))
         self.prefilter = ensure_tuple_rep(prefilter, len(self.keys))
@@ -602,7 +620,11 @@ class Rotated(MapTransform):
         d = dict(data)
         for idx, key in enumerate(self.keys):
             d[key] = self.rotator(
-                d[key], order=self.order[idx], mode=self.mode[idx], cval=self.cval[idx], prefilter=self.prefilter[idx]
+                d[key],
+                order=self.interp_order[idx],
+                mode=self.mode[idx],
+                cval=self.cval[idx],
+                prefilter=self.prefilter[idx],
             )
         return d
 
@@ -619,8 +641,9 @@ class RandRotated(Randomizable, MapTransform):
             This is the first two axis in spatial dimensions.
         reshape (bool): If reshape is true, the output shape is adapted so that the
             input array is contained completely in the output. Default is True.
-        order (int or sequence of int): Order of spline interpolation. Range 0-5. Default: 1. This is
-            different from scipy where default interpolation is 3.
+        interp_order (int or sequence of int): Order of spline interpolation. Range 0-5.
+            Default: InterpolationCode.LINEAR. This is different from scipy where default
+            interpolation is InterpolationCode.SPLINE3.
         mode (str or sequence of str): Points outside boundary filled according to this mode. Options are
             'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
         cval (scalar or sequence of scalar): Value to fill outside boundary. Default: 0.
@@ -634,7 +657,7 @@ class RandRotated(Randomizable, MapTransform):
         prob=0.1,
         spatial_axes=(0, 1),
         reshape=True,
-        order=1,
+        interp_order=InterpolationCode.LINEAR,
         mode="constant",
         cval=0,
         prefilter=True,
@@ -645,7 +668,7 @@ class RandRotated(Randomizable, MapTransform):
         self.reshape = reshape
         self.spatial_axes = spatial_axes
 
-        self.order = ensure_tuple_rep(order, len(self.keys))
+        self.interp_order = ensure_tuple_rep(interp_order, len(self.keys))
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.cval = ensure_tuple_rep(cval, len(self.keys))
         self.prefilter = ensure_tuple_rep(prefilter, len(self.keys))
@@ -669,7 +692,11 @@ class RandRotated(Randomizable, MapTransform):
         rotator = Rotate(angle=self.angle, spatial_axes=self.spatial_axes, reshape=self.reshape)
         for idx, key in enumerate(self.keys):
             d[key] = rotator(
-                d[key], order=self.order[idx], mode=self.mode[idx], cval=self.cval[idx], prefilter=self.prefilter[idx]
+                d[key],
+                order=self.interp_order[idx],
+                mode=self.mode[idx],
+                cval=self.cval[idx],
+                prefilter=self.prefilter[idx],
             )
         return d
 
@@ -681,7 +708,7 @@ class Zoomd(MapTransform):
         zoom (float or sequence): The zoom factor along the spatial axes.
             If a float, zoom is the same for each spatial axis.
             If a sequence, zoom should contain one value for each spatial axis.
-        order (int or sequence of int): order of interpolation. Default=3.
+        interp_order (int or sequence of int): order of interpolation. Default=InterpolationCode.SPLINE3.
         mode (str or sequence of str): Determines how input is extended beyond boundaries. Default is 'constant'.
         cval (scalar or sequence of scalar): Value to fill past edges. Default is 0.
         prefilter (bool or sequence of bool): Apply spline_filter before interpolation. Default: True.
@@ -690,11 +717,21 @@ class Zoomd(MapTransform):
         keep_size (bool): Should keep original size (pad if needed).
     """
 
-    def __init__(self, keys, zoom, order=3, mode="constant", cval=0, prefilter=True, use_gpu=False, keep_size=False):
+    def __init__(
+        self,
+        keys,
+        zoom,
+        interp_order=InterpolationCode.SPLINE3,
+        mode="constant",
+        cval=0,
+        prefilter=True,
+        use_gpu=False,
+        keep_size=False,
+    ):
         super().__init__(keys)
         self.zoomer = Zoom(zoom=zoom, use_gpu=use_gpu, keep_size=keep_size)
 
-        self.order = ensure_tuple_rep(order, len(self.keys))
+        self.interp_order = ensure_tuple_rep(interp_order, len(self.keys))
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.cval = ensure_tuple_rep(cval, len(self.keys))
         self.prefilter = ensure_tuple_rep(prefilter, len(self.keys))
@@ -703,7 +740,11 @@ class Zoomd(MapTransform):
         d = dict(data)
         for idx, key in enumerate(self.keys):
             d[key] = self.zoomer(
-                d[key], order=self.order[idx], mode=self.mode[idx], cval=self.cval[idx], prefilter=self.prefilter[idx]
+                d[key],
+                order=self.interp_order[idx],
+                mode=self.mode[idx],
+                cval=self.cval[idx],
+                prefilter=self.prefilter[idx],
             )
         return d
 
@@ -720,7 +761,7 @@ class RandZoomd(Randomizable, MapTransform):
         max_zoom (float or sequence): Max zoom factor. Can be float or sequence same size as image.
             If a float, max_zoom is the same for each spatial axis.
             If a sequence, max_zoom should contain one value for each spatial axis.
-        order (int or sequence of int): order of interpolation. Default=3.
+        interp_order (int or sequence of int): order of interpolation. Default=InterpolationCode.SPLINE3.
         mode (str or sequence of str): Available options are 'reflect', 'constant', 'nearest', 'mirror', 'wrap'.
             Determines how input is extended beyond boundaries. Default: 'constant'.
         cval (scalar or sequence of scalar): Value to fill past edges. Default is 0.
@@ -736,7 +777,7 @@ class RandZoomd(Randomizable, MapTransform):
         prob=0.1,
         min_zoom=0.9,
         max_zoom=1.1,
-        order=3,
+        interp_order=InterpolationCode.SPLINE3,
         mode="constant",
         cval=0,
         prefilter=True,
@@ -752,7 +793,7 @@ class RandZoomd(Randomizable, MapTransform):
         self.use_gpu = use_gpu
         self.keep_size = keep_size
 
-        self.order = ensure_tuple_rep(order, len(self.keys))
+        self.interp_order = ensure_tuple_rep(interp_order, len(self.keys))
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.cval = ensure_tuple_rep(cval, len(self.keys))
         self.prefilter = ensure_tuple_rep(prefilter, len(self.keys))
@@ -775,7 +816,11 @@ class RandZoomd(Randomizable, MapTransform):
         zoomer = Zoom(self._zoom, use_gpu=self.use_gpu, keep_size=self.keep_size)
         for idx, key in enumerate(self.keys):
             d[key] = zoomer(
-                d[key], order=self.order[idx], mode=self.mode[idx], cval=self.cval[idx], prefilter=self.prefilter[idx],
+                d[key],
+                order=self.interp_order[idx],
+                mode=self.mode[idx],
+                cval=self.cval[idx],
+                prefilter=self.prefilter[idx],
             )
         return d
 
