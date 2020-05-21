@@ -98,12 +98,17 @@ Users often need to train the model with many (potentially thousands of) epochs
 over the data to achieve the desired model quality. A native PyTorch
 implementation may repeatedly load data and run the same preprocessing steps
 for every epoch during training, which can be time-consuming and unnecessary,
-  especially when the medical image volumes are large.
+especially when the medical image volumes are large.
 MONAI provides a caching mechanism to accelerate these transformation steps
 during training by storing the intermediate outcomes before the first
 randomized transform in the transform chain. Enabling this feature could
 potentially give 10x training speedups.
 ![image](../images/cache_dataset.png)
+
+A PersistentDataset is similar to the CacheIO, where the intermediate cache
+values are persisted to disk storage for rapid retrieval between experimental
+runs (as is the case when tuning hyper parameters), or when the entire data set
+size exceeds available memory.
 
 ## Losses
 There are domain-specific loss functions in the medical imaging research which

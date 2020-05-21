@@ -27,7 +27,7 @@ TEST_CASE_2 = [
 ]
 
 TEST_CASE_3 = [
-    {"keys": ["img"], "spatial_size": [15, 8, 8], "method": "end", "mode": {"constant", "symmetric"}},
+    {"keys": ["img"], "spatial_size": [15, 8, 8], "method": "end", "mode": {"constant"}},
     {"img": np.zeros((3, 8, 8, 4))},
     np.zeros((3, 15, 8, 8)),
 ]
