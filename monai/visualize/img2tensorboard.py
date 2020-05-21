@@ -185,7 +185,7 @@ def plot_2d_or_3d_image(data, step, writer, index=0, max_channels=1, max_frames=
             d2 = rescale_array(d2, 0, 1)
             dataformats = "HW"
             writer.add_image(f"{tag}_{dataformats}_{j}", d2, step, dataformats=dataformats)
-            return
+        return
 
     if d.ndim >= 4:
         spatial = d.shape[-3:]
