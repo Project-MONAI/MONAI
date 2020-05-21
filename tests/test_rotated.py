@@ -27,15 +27,15 @@ TEST_CASES = [
 
 class TestRotated(NumpyImageTestCase2D):
     @parameterized.expand(TEST_CASES)
-    def test_correct_results(self, angle, spatial_axes, reshape, order, mode, cval, prefilter):
+    def test_correct_results(self, angle, spatial_axes, reshape, interp_order, mode, cval, prefilter):
         key = "img"
-        rotate_fn = Rotated(key, angle, spatial_axes, reshape, order, mode, cval, prefilter)
+        rotate_fn = Rotated(key, angle, spatial_axes, reshape, interp_order, mode, cval, prefilter)
         rotated = rotate_fn({key: self.imt[0]})
         expected = list()
         for channel in self.imt[0]:
             expected.append(
                 scipy.ndimage.rotate(
-                    channel, angle, spatial_axes, reshape, order=order, mode=mode, cval=cval, prefilter=prefilter
+                    channel, angle, spatial_axes, reshape, order=interp_order, mode=mode, cval=cval, prefilter=prefilter
                 )
             )
         expected = np.stack(expected).astype(np.float32)
