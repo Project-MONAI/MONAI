@@ -13,6 +13,7 @@ import random
 import warnings
 
 import numpy as np
+from skimage import measure
 
 from monai.utils.misc import ensure_tuple
 
@@ -392,3 +393,20 @@ def generate_spatial_bounding_box(img, select_fn=lambda x: x > 0, channel_indexe
         box_start.append(max(0, np.min(nonzero_idx[i]) - margin))
         box_end.append(min(data.shape[i], np.max(nonzero_idx[i]) + margin + 1))
     return box_start, box_end
+
+
+def get_largest_connected_component_mask(img):
+    """
+    Gets the largest connected component mask of an image.
+
+    Args:
+        img (ndarrary): Image to get largest connected component from.
+    """
+    labels = measure.label(img > 0)
+    if labels.max() != 0:
+        largest_cc = labels == np.argmax(np.bincount(labels.flat)[1:]) + 1
+        largest_cc = largest_cc.astype(img.dtype)
+    else:
+        largest_cc = np.zeros(shape=img.shape, dtype=img.dtype)
+
+    return largest_cc

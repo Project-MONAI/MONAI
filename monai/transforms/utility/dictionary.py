@@ -29,6 +29,7 @@ from monai.transforms.utility.array import (
     SqueezeDim,
     DataStats,
     SimulateDelay,
+    KeepLargestConnectedComponent,
 )
 
 
@@ -280,6 +281,32 @@ class SimulateDelayd(MapTransform):
         return d
 
 
+class KeepLargestConnectedComponentd(MapTransform):
+    """
+    dictionary-based wrapper of :py:class:monai.transforms.utility.array.KeepLargestConnectedComponent.
+    """
+    def __init__(self, keys, applied_labels, is_independent=True):
+        """
+        Args:
+            keys (hashable items): keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            applied_labels (list or tuple of int): label number list for applying the connected component on.
+                This same list will be apply to every key.
+            is_independent (bool): consider several labels as a whole or independent, default is `True`.
+                Example use case would be segment label 1 is liver and label 2 is liver tumor, in that case
+                you want this "is_independent" to be specified as False.
+        """
+        super().__init__(keys)
+        self.converter = KeepLargestConnectedComponent(is_independent)
+        self.applied_labels = applied_labels
+
+    def __call__(self, data):
+        d = dict(data)
+        for idx, key in enumerate(self.keys):
+            d[key] = self.converter(d[key], applied_labels=self.applied_labels)
+        return d
+
+
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
 AddChannelD = AddChannelDict = AddChanneld
@@ -290,3 +317,4 @@ DeleteKeysD = DeleteKeysDict = DeleteKeysd
 SqueezeDimD = SqueezeDimDict = SqueezeDimd
 DataStatsD = DataStatsDict = DataStatsd
 SimulateDelayD = SimulateDelayDict = SimulateDelayd
+KeepLargestConnectedComponentD = KeepLargestConnectedComponentDict = KeepLargestConnectedComponentd
