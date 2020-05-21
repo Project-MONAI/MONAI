@@ -30,7 +30,7 @@ from monai.transforms import (
     RandRotate90d,
     ToTensord,
 )
-from monai.handlers import StatsHandler, ValidationHander, MeanDice
+from monai.handlers import StatsHandler, ValidationHandler, MeanDice
 from monai.data import create_test_image_3d, list_data_collate
 from monai.engines import SupervisedTrainer, SupervisedEvaluator
 from monai.inferers import RegularInferer, SlidingWindowInferer
@@ -116,7 +116,7 @@ def main():
     )
 
     train_handlers = [
-        ValidationHander(validator=evaluator, interval=2, epoch_level=True),
+        ValidationHandler(validator=evaluator, interval=2, epoch_level=True),
         StatsHandler(tag_name="train_loss", output_transform=lambda x: x[Keys.INFO][Keys.LOSS]),
     ]
 

@@ -13,7 +13,7 @@ import unittest
 import torch
 from ignite.engine import Engine
 from monai.data import Dataset
-from monai.handlers import ValidationHander
+from monai.handlers import ValidationHandler
 from monai.engines import Evaluator
 
 
@@ -35,7 +35,7 @@ class TestHandlerValidation(unittest.TestCase):
         # set up testing handler
         val_data_loader = torch.utils.data.DataLoader(Dataset(data))
         evaluator = TestEvaluator(torch.device("cpu:0"), val_data_loader)
-        saver = ValidationHander(evaluator, interval=2)
+        saver = ValidationHandler(evaluator, interval=2)
         saver.attach(engine)
 
         engine.run(data, max_epochs=5)

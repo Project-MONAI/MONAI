@@ -12,7 +12,7 @@
 from ignite.engine import Events
 
 
-class ValidationHander:
+class ValidationHandler:
     """
     Attach validator to the trainer engine in Ignite.
     It can support to execute validation every N epochs or every N iterations.
