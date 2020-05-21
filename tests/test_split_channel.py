@@ -14,20 +14,9 @@ import torch
 from parameterized import parameterized
 from monai.transforms import SplitChannel
 
-TEST_CASE_1 = [
-    {"to_onehot": False},
-    torch.randint(0, 2, size=(4, 3, 3, 4)),
-    (4, 1, 3, 4)
-]
+TEST_CASE_1 = [{"to_onehot": False}, torch.randint(0, 2, size=(4, 3, 3, 4)), (4, 1, 3, 4)]
 
-TEST_CASE_2 = [
-    {
-        "to_onehot": True,
-        "num_classes": 3
-    },
-    torch.randint(0, 3, size=(4, 1, 3, 4)),
-    (4, 1, 3, 4)
-]
+TEST_CASE_2 = [{"to_onehot": True, "num_classes": 3}, torch.randint(0, 3, size=(4, 1, 3, 4)), (4, 1, 3, 4)]
 
 
 class TestSplitChannel(unittest.TestCase):

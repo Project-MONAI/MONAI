@@ -26,6 +26,7 @@ class SplitChanneld(MapTransform):
     All the input specified by `keys` should be splitted into same count of data.
 
     """
+
     def __init__(self, keys, output_postfixes, to_onehot=False, num_classes=None):
         """
         Args:
@@ -39,7 +40,7 @@ class SplitChanneld(MapTransform):
         """
         super().__init__(keys)
         if not isinstance(output_postfixes, (list, tuple)):
-            raise ValueError('must specify key postfixes to store splitted data.')
+            raise ValueError("must specify key postfixes to store splitted data.")
         self.output_postfixes = output_postfixes
         self.to_onehot = ensure_tuple_rep(to_onehot, len(self.keys))
         self.num_classes = ensure_tuple_rep(num_classes, len(self.keys))

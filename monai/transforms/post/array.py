@@ -29,6 +29,7 @@ class SplitChannel(Transform):
         num_classes (int): the class number used to convert to One-Hot format if `to_onehot` is True.
 
     """
+
     def __init__(self, to_onehot=False, num_classes=None):
         self.to_onehot = to_onehot
         self.num_classes = num_classes
@@ -37,11 +38,11 @@ class SplitChannel(Transform):
         if self.to_onehot if to_onehot is None else to_onehot:
             if num_classes is None:
                 num_classes = self.num_classes
-            assert isinstance(num_classes, int), 'must specify class number for One-Hot.'
+            assert isinstance(num_classes, int), "must specify class number for One-Hot."
             img = one_hot(img, num_classes)
         n_classes = img.shape[1]
         outputs = list()
         for i in range(n_classes):
-            outputs.append(img[:, i:i + 1])
+            outputs.append(img[:, i : i + 1])
 
         return outputs
