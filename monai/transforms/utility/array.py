@@ -260,6 +260,7 @@ class KeepLargestConnectedComponent(Transform):
 
     Value 0 will be treated as background.
     """
+
     def __init__(self, is_independent=True):
         """
         Args:

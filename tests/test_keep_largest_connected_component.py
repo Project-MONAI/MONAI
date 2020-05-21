@@ -75,8 +75,7 @@ TEST_CASE_7 = [
     np.array([[[0, 0, 0, 0, 1], [0, 0, 1, 1, 1], [0, 0, 1, 1, 2], [0, 0, 1, 2, 2], [0, 0, 0, 0, 1]]]),
 ]
 
-VALID_CASES = [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4,
-               TEST_CASE_5, TEST_CASE_6, TEST_CASE_7]
+VALID_CASES = [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7]
 
 
 class TestKeepLargestConnectedComponent(unittest.TestCase):

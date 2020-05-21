@@ -285,6 +285,7 @@ class KeepLargestConnectedComponentd(MapTransform):
     """
     dictionary-based wrapper of :py:class:monai.transforms.utility.array.KeepLargestConnectedComponent.
     """
+
     def __init__(self, keys, applied_labels, is_independent=True):
         """
         Args:
