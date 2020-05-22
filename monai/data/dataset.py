@@ -73,25 +73,24 @@ class PersistentDataset(Dataset):
              'extra': 123                 'extra': 456                 'extra': 789
          },                           },                           }]
 
-    For a composite transform like 
+    For a composite transform like
 
     .. code-block:: python
 
         [ LoadNiftid(keys=['image', 'label']),
           Orientationd(keys=['image', 'label'], axcodes='RAS'),
           ScaleIntensityRanged(keys=['image'], a_min=-57, a_max=164, b_min=0.0, b_max=1.0, clip=True),
-          RandCropByPosNegLabeld(keys=['image', 'label'], label_key='label', size=(96, 96, 96), 
+          RandCropByPosNegLabeld(keys=['image', 'label'], label_key='label', size=(96, 96, 96),
                                  pos=1, neg=1, num_samples=4, image_key='image', image_threshold=0),
           ToTensord(keys=['image', 'label'])]
 
-     Upon first use a filename based dataset will be processed by the transform for the
-     [LoadNiftid, Orientationd, ScaleIntensityRanged] and the resulting tensor written to
-     the `cache_dir` before applying the remainging random dependant transforms
-     [RandCropByPosNegLabeld, ToTensord] elements for use in the analysis.
+    Upon first use a filename based dataset will be processed by the transform for the
+    [LoadNiftid, Orientationd, ScaleIntensityRanged] and the resulting tensor written to
+    the `cache_dir` before applying the remainging random dependant transforms
+    [RandCropByPosNegLabeld, ToTensord] elements for use in the analysis.
 
-     Subsequent uses of a dataset directly read pre-processed results from `cache_dir`
-     followed by applying the random dependant parts of transform processing.
-
+    Subsequent uses of a dataset directly read pre-processed results from `cache_dir`
+    followed by applying the random dependant parts of transform processing.
     """
 
     def __init__(self, data, transform=None, cache_dir=None):
