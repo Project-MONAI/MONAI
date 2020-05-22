@@ -20,6 +20,24 @@ import numpy as np
 from monai.utils import ensure_tuple_size
 from monai.networks.layers.simplelayers import GaussianFilter
 
+import enum
+
+
+class InterpolationCode(enum.IntEnum):
+    """
+    A convenience enumeration to make code uses more expressive
+    """
+
+    SPLINE0 = 0
+    NEARESTNEIGHBOR = 0
+    SPLINE1 = 1
+    LINEAR = 1
+    SPLINE2 = 2
+    CUBIC = 2
+    SPLINE3 = 3
+    SPLINE4 = 4
+    SPLINE5 = 5
+
 
 def get_random_patch(dims, patch_size, rand_state=None):
     """

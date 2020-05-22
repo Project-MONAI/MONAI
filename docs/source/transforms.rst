@@ -318,9 +318,6 @@ Vanilla Transforms
 Dictionary-based Transforms
 ----------------------------
 
-.. automodule:: monai.transforms
-.. currentmodule:: monai.transforms
-
 `Spacingd`
 ~~~~~~~~~~
 .. autoclass:: Spacingd

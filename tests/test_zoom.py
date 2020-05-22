@@ -35,7 +35,13 @@ class TestZoom(NumpyImageTestCase2D):
     @parameterized.expand(VALID_CASES)
     def test_correct_results(self, zoom, order, mode, cval, prefilter, use_gpu, keep_size):
         zoom_fn = Zoom(
-            zoom=zoom, order=order, mode=mode, cval=cval, prefilter=prefilter, use_gpu=use_gpu, keep_size=keep_size
+            zoom=zoom,
+            interp_order=order,
+            mode=mode,
+            cval=cval,
+            prefilter=prefilter,
+            use_gpu=use_gpu,
+            keep_size=keep_size,
         )
         zoomed = zoom_fn(self.imt[0])
         expected = list()
@@ -48,7 +54,7 @@ class TestZoom(NumpyImageTestCase2D):
     def test_gpu_zoom(self, _, zoom, order, mode, cval, prefilter):
         if importlib.util.find_spec("cupy"):
             zoom_fn = Zoom(
-                zoom=zoom, order=order, mode=mode, cval=cval, prefilter=prefilter, use_gpu=True, keep_size=False
+                zoom=zoom, interp_order=order, mode=mode, cval=cval, prefilter=prefilter, use_gpu=True, keep_size=False
             )
             zoomed = zoom_fn(self.imt[0])
             expected = list()
@@ -69,7 +75,7 @@ class TestZoom(NumpyImageTestCase2D):
     @parameterized.expand(INVALID_CASES)
     def test_invalid_inputs(self, _, zoom, order, raises):
         with self.assertRaises(raises):
-            zoom_fn = Zoom(zoom=zoom, order=order)
+            zoom_fn = Zoom(zoom=zoom, interp_order=order)
             zoomed = zoom_fn(self.imt[0])
 
 
