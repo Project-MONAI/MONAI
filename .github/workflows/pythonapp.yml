@@ -77,13 +77,11 @@ jobs:
     - name: Run quick tests (GPU)
       run: |
         python -m pip list
-        pwd
-        ls -a
         nvidia-smi
-        export CUDA_DEVICE_ORDER=PCI_BUS_ID
-        export CUDA_VISIBLE_DEVICES=0,1
-        python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
-        python -c "import torch; print('{} of GPUs available'.format(torch.cuda.device_count()))"
+        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
+        echo $CUDA_VISIBLE_DEVICES
+        python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
+        python -c 'import torch; print(torch.rand(5,3, device=torch.device("cuda:0")))'
         ./runtests.sh --quick
         pip list
         coverage xml
