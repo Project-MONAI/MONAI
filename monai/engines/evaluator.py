@@ -27,7 +27,7 @@ class Evaluator(Workflow):
         iteration_update (Callable): the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
         key_val_metric (ignite.metric): compute metric when every iteration completed, and save average value to
-            engine.state.metrics when epoch completed. key_val_metric is the main metric to comapre and save the
+            engine.state.metrics when epoch completed. key_val_metric is the main metric to compare and save the
             checkpoint into files.
         additional_metrics (dict): more Ignite metrics that also attach to Ignite Engine.
         val_handlers (list): every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
@@ -46,18 +46,18 @@ class Evaluator(Workflow):
         val_handlers=None,
     ):
         super().__init__(
-            device,
-            1,
-            False,
-            val_data_loader,
-            prepare_batch,
-            iteration_update,
-            key_val_metric,
-            additional_metrics,
-            val_handlers,
+            device=device,
+            max_epochs=1,
+            amp=False,
+            data_loader=val_data_loader,
+            prepare_batch=prepare_batch,
+            iteration_update=iteration_update,
+            key_metric=key_val_metric,
+            additional_metrics=additional_metrics,
+            handlers=val_handlers,
         )
 
-    def evaluate(self, global_epoch=1):
+    def run(self, global_epoch=1):
         """
         Execute validation/evaluation based on Ignite Engine.
 
@@ -68,7 +68,8 @@ class Evaluator(Workflow):
         # init env value for current validation process
         self.state.max_epochs = global_epoch
         self.state.epoch = global_epoch - 1
-        self.run()
+        self.state.iteration = 0
+        super().run()
 
     def get_validation_stats(self):
         return {
@@ -90,7 +91,7 @@ class SupervisedEvaluator(Evaluator):
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
         inferer (Inferer): inference method that execute model forward on input data, like: SlidingWindow, etc.
         key_val_metric (ignite.metric): compute metric when every iteration completed, and save average value to
-            engine.state.metrics when epoch completed. key_val_metric is the main metric to comapre and save the
+            engine.state.metrics when epoch completed. key_val_metric is the main metric to compare and save the
             checkpoint into files.
         additional_metrics (dict): more Ignite metrics that also attach to Ignite Engine.
         val_handlers (list): every handler is a set of Ignite Event-Handlers, must have `attach` function, like:

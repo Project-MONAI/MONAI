@@ -21,12 +21,15 @@ class Trainer(Workflow):
 
     """
 
-    def train(self):
+    def run(self):
         """
         Execute training based on Ignite Engine.
+        If call this function multiple times, it will continuously run from the previous state.
 
         """
-        self.run()
+        if self._is_done(self.state):
+            self.state.iteration = 0  # to avoid creating new State instance in ignite Engine.run
+        super().run()
 
     def get_train_stats(self):
         return {"total_epochs": self.state.max_epochs, "total_iterations": self.state.epoch_length}
@@ -50,7 +53,7 @@ class SupervisedTrainer(Trainer):
         inferer (Inferer): inference method that execute model forward on input data, like: SlidingWindow, etc.
         amp (bool): whether to enable auto-mixed-precision training.
         key_train_metric (ignite.metric): compute metric when every iteration completed, and save average value to
-            engine.state.metrics when epoch completed. key_train_metric is the main metric to comapre and save the
+            engine.state.metrics when epoch completed. key_train_metric is the main metric to compare and save the
             checkpoint into files.
         additional_metrics (dict): more Ignite metrics that also attach to Ignite Engine.
         train_handlers (list): every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
@@ -77,15 +80,15 @@ class SupervisedTrainer(Trainer):
     ):
         # set up Ignite engine and environments
         super().__init__(
-            device,
-            max_epochs,
-            amp,
-            train_data_loader,
-            prepare_batch,
-            iteration_update,
-            key_train_metric,
-            additional_metrics,
-            train_handlers,
+            device=device,
+            max_epochs=max_epochs,
+            amp=amp,
+            data_loader=train_data_loader,
+            prepare_batch=prepare_batch,
+            iteration_update=iteration_update,
+            key_metric=key_train_metric,
+            additional_metrics=additional_metrics,
+            handlers=train_handlers,
         )
 
         self.network = network

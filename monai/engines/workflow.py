@@ -17,11 +17,13 @@ from .utils import default_prepare_batch
 
 class Workflow(ABC, Engine):
     """
-    Workflow defines the core work process inheritting from Ignite engine.
+    Workflow defines the core work process inheriting from Ignite engine.
     All trainer, validator and evaluator share this same workflow as base class,
     because they all can be treated as same Ignite engine loops.
     It initializes all the sharable data in Ignite engine.state.
     And attach additional processing logics to Ignite engine based on Event-Handler mechanism.
+
+    Users should consider to inherit from `trainer` or `evaluator` to develop more trainers or evaluators.
 
     Args:
         device (torch.device): an object representing the device on which to run.
@@ -32,7 +34,7 @@ class Workflow(ABC, Engine):
         iteration_update (Callable): the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
         key_metric (ignite.metric): compute metric when every iteration completed, and save average value to
-            engine.state.metrics when epoch completed. key_metric is the main metric to comapre and save the
+            engine.state.metrics when epoch completed. key_metric is the main metric to compare and save the
             checkpoint into files.
         additional_metrics (dict): more Ignite metrics that also attach to Ignite Engine.
         handlers (list): every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
@@ -113,7 +115,6 @@ class Workflow(ABC, Engine):
         Execute training, validation or evaluation based on Ignite Engine.
 
         """
-        self.state.iteration = 0
         super().run(data=self.data_loader, epoch_length=len(self.data_loader))
 
     @abstractmethod

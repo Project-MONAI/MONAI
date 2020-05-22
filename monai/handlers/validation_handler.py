@@ -42,4 +42,4 @@ class ValidationHandler:
             engine.add_event_handler(Events.ITERATION_COMPLETED(every=self.interval), self)
 
     def __call__(self, engine):
-        self.validator.evaluate(engine.state.epoch)
+        self.validator.run(engine.state.epoch)

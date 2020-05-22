@@ -132,7 +132,8 @@ def main():
         amp=False,
         key_train_metric=None,
     )
-    trainer.train()
+    trainer.run()
+
     shutil.rmtree(tempdir)
 
 
