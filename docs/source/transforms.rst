@@ -315,6 +315,12 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
+`SplitChannel`
+~~~~~~~~~~~~~~
+.. autoclass:: SplitChannel
+    :members:
+    :special-members: __call__
+
 Dictionary-based Transforms
 ----------------------------
 
@@ -567,6 +573,12 @@ Dictionary-based Transforms
 `SimulateDelayd`
 ~~~~~~~~~~~~~~~~
 .. autoclass:: SimulateDelayd
+    :members:
+    :special-members: __call__
+
+`SplitChanneld`
+~~~~~~~~~~~~~~~
+.. autoclass:: SplitChanneld
     :members:
     :special-members: __call__
 
