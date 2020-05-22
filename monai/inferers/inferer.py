@@ -19,6 +19,7 @@ class Inferer(ABC):
     It can support complicated operations during inference, like SlidingWindow.
 
     """
+
     @abstractmethod
     def __call__(self, inputs, network):
         """
@@ -37,6 +38,7 @@ class SimpleInferer(Inferer):
     SimpleInferer is the normal inference method that run model forward() directly.
 
     """
+
     def __init__(self):
         Inferer.__init__(self)
 
@@ -67,6 +69,7 @@ class SlidingWindowInferer(Inferer):
         not batch size of input images.
 
     """
+
     def __init__(self, roi_size, sw_batch_size=1, overlap=0.25, blend_mode="constant"):
         Inferer.__init__(self)
         if not isinstance(roi_size, (list, tuple)):

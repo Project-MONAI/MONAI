@@ -57,6 +57,7 @@ class SupervisedTrainer(Trainer):
             CheckpointHandler, StatsHandler, SegmentationSaver, etc.
 
     """
+
     def __init__(
         self,
         device,
@@ -75,8 +76,17 @@ class SupervisedTrainer(Trainer):
         train_handlers=None,
     ):
         # set up Ignite engine and environments
-        super().__init__(device, max_epochs, amp, train_data_loader, prepare_batch, iteration_update,
-                         key_train_metric, additional_metrics, train_handlers)
+        super().__init__(
+            device,
+            max_epochs,
+            amp,
+            train_data_loader,
+            prepare_batch,
+            iteration_update,
+            key_train_metric,
+            additional_metrics,
+            train_handlers,
+        )
 
         self.network = network
         self.optimizer = optimizer

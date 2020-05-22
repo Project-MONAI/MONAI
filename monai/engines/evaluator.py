@@ -34,6 +34,7 @@ class Evaluator(Workflow):
             CheckpointHandler, StatsHandler, SegmentationSaver, etc.
 
     """
+
     def __init__(
         self,
         device,
@@ -44,8 +45,17 @@ class Evaluator(Workflow):
         additional_metrics=None,
         val_handlers=None,
     ):
-        super().__init__(device, 1, False, val_data_loader, prepare_batch, iteration_update,
-                         key_val_metric, additional_metrics, val_handlers)
+        super().__init__(
+            device,
+            1,
+            False,
+            val_data_loader,
+            prepare_batch,
+            iteration_update,
+            key_val_metric,
+            additional_metrics,
+            val_handlers,
+        )
 
     def evaluate(self, global_epoch=1):
         """
@@ -87,6 +97,7 @@ class SupervisedEvaluator(Evaluator):
             CheckpointHandler, StatsHandler, SegmentationSaver, etc.
 
     """
+
     def __init__(
         self,
         device,
@@ -99,8 +110,9 @@ class SupervisedEvaluator(Evaluator):
         additional_metrics=None,
         val_handlers=None,
     ):
-        super().__init__(device, val_data_loader, prepare_batch, iteration_update,
-                         key_val_metric, additional_metrics, val_handlers)
+        super().__init__(
+            device, val_data_loader, prepare_batch, iteration_update, key_val_metric, additional_metrics, val_handlers
+        )
 
         self.network = network
         self.inferer = inferer

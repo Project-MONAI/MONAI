@@ -39,6 +39,7 @@ class Workflow(ABC, Engine):
             CheckpointHandler, StatsHandler, SegmentationSaver, etc.
 
     """
+
     def __init__(
         self,
         device,
