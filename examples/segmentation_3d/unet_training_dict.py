@@ -31,7 +31,8 @@ from monai.transforms import (
     RandRotate90d,
     ToTensord,
 )
-from monai.data import create_test_image_3d, list_data_collate, sliding_window_inference
+from monai.data import create_test_image_3d, list_data_collate
+from monai.inferers import sliding_window_inference
 from monai.metrics import compute_meandice
 from monai.visualize import plot_2d_or_3d_image
 

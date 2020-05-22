@@ -52,13 +52,6 @@ Patch-based dataset
   :members:
 
 
-Sliding window inference
-------------------------
-
-.. automodule:: monai.data.sliding_window_inference
-  :members:
-
-
 Nifti format handling
 ---------------------
 

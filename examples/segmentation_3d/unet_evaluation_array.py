@@ -23,7 +23,8 @@ from torch.utils.data import DataLoader
 from monai import config
 from monai.transforms import Compose, AddChannel, ScaleIntensity, ToTensor
 from monai.networks.nets import UNet
-from monai.data import create_test_image_3d, sliding_window_inference, NiftiSaver, NiftiDataset
+from monai.data import create_test_image_3d, NiftiSaver, NiftiDataset
+from monai.inferers import sliding_window_inference
 from monai.metrics import compute_meandice
 
 

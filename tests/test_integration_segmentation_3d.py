@@ -22,7 +22,8 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 import monai
-from monai.data import create_test_image_3d, sliding_window_inference, NiftiSaver, list_data_collate
+from monai.data import create_test_image_3d, NiftiSaver, list_data_collate
+from monai.inferers import sliding_window_inference
 from monai.metrics import compute_meandice
 from monai.networks.nets import UNet
 from monai.transforms import (

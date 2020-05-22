@@ -37,7 +37,7 @@ exclude_patterns = [
     "transforms",
     "networks",
     "metrics",
-    "engine",
+    "engines",
     "data",
     "application",
     "config",
@@ -45,6 +45,7 @@ exclude_patterns = [
     "losses",
     "visualize",
     "utils",
+    "inferers",
 ]
 
 
