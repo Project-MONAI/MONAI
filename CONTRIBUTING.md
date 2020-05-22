@@ -48,8 +48,8 @@ Ideally, the new branch should be based on the latest `master` branch.
 1. Wait for the pull request to be merged.
 
 ### Coding style
-Coding style is checked by flake8, using [a flake8 configuration](./setup.cfg) similar to [PyTorch's](https://github.com/pytorch/pytorch/blob/master/.flake8).  
-For string definition, [f-string](https://www.python.org/dev/peps/pep-0498/) is recommended to use over `%-print` and `format-print` from python 3.6. So please try to use `f-string` if you need to define any string object.  
+Coding style is checked by flake8, using [a flake8 configuration](./setup.cfg) similar to [PyTorch's](https://github.com/pytorch/pytorch/blob/master/.flake8).
+For string definition, [f-string](https://www.python.org/dev/peps/pep-0498/) is recommended to use over `%-print` and `format-print` from python 3.6. So please try to use `f-string` if you need to define any string object.
 Python code file formatting could be done locally before submitting a pull request (e.g. using [`psf/Black`](https://github.com/psf/black)), or during the pull request review using MONAI's automatic [code formatting workflow](#automatic-code-formatting).
 
 License information: all source code files should start with this paragraph:
@@ -102,8 +102,10 @@ pip install -r docs/requirements.txt
 cd docs/
 make html
 ```
-The above commands build html documentation. Type `make help` for all supported formats,
-type `make clean` to remove the current build files.
+The above commands build html documentation. Type `make help` for all supported
+formats, type `make clean` to remove the current build files.  If there are any
+auto-generated files, please run `make clean` command to clean up, before
+submitting a pull request.
 
 When new classes or methods are added, it is recommended to:
 - build html documentation locally,
