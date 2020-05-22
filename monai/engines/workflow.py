@@ -16,29 +16,29 @@ from .utils import default_prepare_batch
 
 
 class Workflow(ABC, Engine):
-    """Workflow defines the core work process inheritting from Ignite engine.
+    """
+    Workflow defines the core work process inheritting from Ignite engine.
     All trainer, validator and evaluator share this same workflow as base class,
     because they all can be treated as same Ignite engine loops.
-    And it initializes all the sharable data in Ignite engine.state.
-    Attach additional processing logics to Ignite engine based on Event-Handler mechanism.
+    It initializes all the sharable data in Ignite engine.state.
+    And attach additional processing logics to Ignite engine based on Event-Handler mechanism.
 
     Args:
         device (torch.device): an object representing the device on which to run.
         max_epochs (int): the total epoch number for engine to run, validator and evaluator have only 1 epoch.
-        amp (bool): whether to enable auto-mixed-precision training.
+        amp (bool): whether to enable auto-mixed-precision training, reserved.
         data_loader (torch.DataLoader): Ignite engine use data_loader to run, must be torch.DataLoader.
-        prepare_batch (Callable): function to parse image and label for current iteration.
-        key_metric (ignite.metric): compute metric when every iteration completed, and save average
-            value to engine.state.metrics when epoch completed. also use key_metric to select and
-            save checkpoint into files.
-        additional_metrics (list): more ignite metrics that also attach to Ignite Engine.
-        handlers (list): every handler is a set of Ignite Event-Handlers, like:
-            CheckpointHandler, StatsHandler, TimerHandler, etc.
+        prepare_batch (Callable): function to parse image and label for every iteration.
         iteration_update (Callable): the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
+        key_metric (ignite.metric): compute metric when every iteration completed, and save average value to
+            engine.state.metrics when epoch completed. key_metric is the main metric to comapre and save the
+            checkpoint into files.
+        additional_metrics (dict): more Ignite metrics that also attach to Ignite Engine.
+        handlers (list): every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
+            CheckpointHandler, StatsHandler, SegmentationSaver, etc.
 
     """
-
     def __init__(
         self,
         device,
@@ -46,10 +46,10 @@ class Workflow(ABC, Engine):
         amp,
         data_loader,
         prepare_batch=default_prepare_batch,
+        iteration_update=None,
         key_metric=None,
         additional_metrics=None,
         handlers=None,
-        iteration_update=None,
     ):
         super().__init__(iteration_update if iteration_update is not None else self._iteration)
         # FIXME:
@@ -57,8 +57,8 @@ class Workflow(ABC, Engine):
             self.logger.info("Will add AMP support when PyTorch v1.6 released.")
         if not isinstance(device, torch.device):
             raise ValueError("device must be PyTorch device object.")
-        assert isinstance(max_epochs, int), "must set max epoch number."
-        assert isinstance(data_loader, torch.utils.data.DataLoader), "data_loader must be PyTorch DataLoader."
+        if not isinstance(data_loader, torch.utils.data.DataLoader):
+            raise ValueError("data_loader must be PyTorch DataLoader.")
 
         # set all sharable data for the workflow based on Ignite engine.state
         self.state = State(
@@ -82,11 +82,14 @@ class Workflow(ABC, Engine):
 
         metrics = None
         if key_metric is not None:
-            assert isinstance(key_metric, dict), "key_metric must be a dict object."
+
+            if not isinstance(key_metric, dict):
+                raise ValueError("key_metric must be a dict object.")
             self.state.key_metric_name = list(key_metric.keys())[0]
             metrics = key_metric
             if additional_metrics is not None and len(additional_metrics) > 0:
-                assert isinstance(additional_metrics, dict), "additional_metrics must be a dict object."
+                if not isinstance(additional_metrics, dict):
+                    raise ValueError("additional_metrics must be a dict object.")
                 metrics.update(additional_metrics)
             for name, metric in metrics.items():
                 metric.attach(self, name)
@@ -104,8 +107,9 @@ class Workflow(ABC, Engine):
             for handler in handlers:
                 handler.attach(self)
 
-    def _run(self):
-        """Execute training, validation or evaluation based on Ignite Engine.
+    def run(self):
+        """
+        Execute training, validation or evaluation based on Ignite Engine.
 
         """
         self.state.iteration = 0
@@ -113,8 +117,9 @@ class Workflow(ABC, Engine):
 
     @abstractmethod
     def _iteration(self, engine, batchdata):
-        """Abstract callback function for the processing logic of 1 iteration in Ignite Engine.
-        Need subclass to implement different logics, like SupervisedTraner/Evaluator, GANTrainer, etc.
+        """
+        Abstract callback function for the processing logic of 1 iteration in Ignite Engine.
+        Need subclass to implement different logics, like SupervisedTrainer/Evaluator, GANTrainer, etc.
 
         Args:
             engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.

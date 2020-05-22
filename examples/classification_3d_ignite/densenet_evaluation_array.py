@@ -58,7 +58,7 @@ def main():
     def prepare_batch(batch, device=None, non_blocking=False):
         return _prepare_batch((batch[0], batch[1]), device, non_blocking)
 
-    # ignite evaluator expects batch=(img, label) and returns output=(y_pred, y) at every iteration,
+    # Ignite evaluator expects batch=(img, label) and returns output=(y_pred, y) at every iteration,
     # user can add output_transform to return other values
     evaluator = create_supervised_evaluator(net, val_metrics, device, True, prepare_batch=prepare_batch)
 

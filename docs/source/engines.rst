@@ -44,7 +44,7 @@ Workflows
 .. autoclass:: Evaluator
     :members:
 
-`SupervisedTrainer`
-~~~~~~~~~~~~~~~~~~~
+`SupervisedEvaluator`
+~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: SupervisedEvaluator
     :members:

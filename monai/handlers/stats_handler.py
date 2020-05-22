@@ -88,7 +88,7 @@ class StatsHandler(object):
 
     def epoch_completed(self, engine: Engine):
         """handler for train or validation/evaluation epoch completed Event.
-        Print epoch level log, default values are from ignite state.metrics dict.
+        Print epoch level log, default values are from Ignite state.metrics dict.
 
         Args:
             engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.
@@ -101,7 +101,7 @@ class StatsHandler(object):
 
     def iteration_completed(self, engine: Engine):
         """handler for train or validation/evaluation iteration completed Event.
-        Print iteration level log, default values are from ignite state.logs dict.
+        Print iteration level log, default values are from Ignite state.logs dict.
 
         Args:
             engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.
@@ -127,7 +127,7 @@ class StatsHandler(object):
 
     def _default_epoch_print(self, engine: Engine):
         """Execute epoch level log operation based on Ignite engine.state data.
-        print the values from ignite state.metrics dict.
+        print the values from Ignite state.metrics dict.
 
         Args:
             engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.
@@ -147,7 +147,7 @@ class StatsHandler(object):
 
     def _default_iteration_print(self, engine: Engine):
         """Execute iteration log operation based on Ignite engine.state data.
-        Print the values from ignite state.logs dict.
+        Print the values from Ignite state.logs dict.
         Default behavior is to print loss from output[1], skip if output[1] is not loss.
 
         Args:

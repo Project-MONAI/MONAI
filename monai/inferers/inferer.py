@@ -14,14 +14,15 @@ from .utils import sliding_window_inference
 
 
 class Inferer(ABC):
-    """Inferer is the base class of all kinds of inferers, which execute inference on model.
+    """
+    Inferer is the base class of all kinds of inferers, which execute inference on model.
     It can support complicated operations during inference, like SlidingWindow.
 
     """
-
     @abstractmethod
     def __call__(self, inputs, network):
-        """Unified callable function API of Inferers.
+        """
+        Unified callable function API of Inferers.
 
         Args:
             inputs (torch.tensor): model input data for inference.
@@ -31,11 +32,11 @@ class Inferer(ABC):
         raise NotImplementedError("subclass will implement the operations.")
 
 
-class RegularInferer(Inferer):
-    """SimpleInferer is the normal inference method that run model forward() directly.
+class SimpleInferer(Inferer):
+    """
+    SimpleInferer is the normal inference method that run model forward() directly.
 
     """
-
     def __init__(self):
         Inferer.__init__(self)
 
@@ -51,7 +52,8 @@ class RegularInferer(Inferer):
 
 
 class SlidingWindowInferer(Inferer):
-    """Use SlidingWindow method to execute inference, run windows on model based on sw_batch_size.
+    """
+    Use SlidingWindow method to execute inference, run windows on model based on sw_batch_size.
 
     Args:
         roi_size (list, tuple): the window size to execute SlidingWindow evaluation.
@@ -65,17 +67,18 @@ class SlidingWindowInferer(Inferer):
         not batch size of input images.
 
     """
-
     def __init__(self, roi_size, sw_batch_size=1, overlap=0.25, blend_mode="constant"):
         Inferer.__init__(self)
-        assert isinstance(roi_size, (list, tuple)), "must specify the roi size for SlidingWindow."
+        if not isinstance(roi_size, (list, tuple)):
+            raise ValueError("must specify the roi size in a list or tuple for SlidingWindow.")
         self.roi_size = roi_size
         self.sw_batch_size = sw_batch_size
         self.overlap = overlap
         self.blend_mode = blend_mode
 
     def __call__(self, inputs, network):
-        """Unified callable function API of Inferers.
+        """
+        Unified callable function API of Inferers.
 
         Args:
             inputs (torch.tensor): model input data for inference.

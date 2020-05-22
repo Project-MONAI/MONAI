@@ -10,14 +10,15 @@
 # limitations under the License.
 
 from ignite.engine import Events
+from monai.engines import Evaluator
 
 
 class ValidationHandler:
     """
     Attach validator to the trainer engine in Ignite.
     It can support to execute validation every N epochs or every N iterations.
-    """
 
+    """
     def __init__(self, validator, interval, epoch_level=True):
         """
         Args:
@@ -27,6 +28,8 @@ class ValidationHandler:
                 `True` is epoch level, `False` is iteration level.
 
         """
+        if not isinstance(validator, Evaluator):
+            raise ValueError("validator must be Evaluator ignite engine.")
         self.validator = validator
         self.interval = interval
         self.epoch_level = epoch_level

@@ -16,9 +16,9 @@ from ignite.handlers import Checkpoint
 
 class CheckpointLoader:
     """
-    CheckpointLoader acts as an ignite handler to load checkpoint data from file.
+    CheckpointLoader acts as an Ignite handler to load checkpoint data from file.
     It can load variables for network, optimizer, lr_scheduler.
-    And also can restore training if load the state_dict of ignite engine.
+    And also can restore training if load the state_dict of Ignite engine.
 
     Args:
         load_path (string): the file path of checkpoint, it should be a PyTorch pth file.

@@ -33,7 +33,7 @@ from monai.transforms import (
 from monai.handlers import StatsHandler, ValidationHandler, MeanDice
 from monai.data import create_test_image_3d, list_data_collate
 from monai.engines import SupervisedTrainer, SupervisedEvaluator
-from monai.inferers import RegularInferer, SlidingWindowInferer
+from monai.inferers import SimpleInferer, SlidingWindowInferer
 from monai.engines.utils import CommonKeys as Keys
 
 
@@ -127,7 +127,7 @@ def main():
         network=net,
         optimizer=opt,
         loss_function=loss,
-        inferer=RegularInferer(),
+        inferer=SimpleInferer(),
         train_handlers=train_handlers,
         amp=False,
         key_train_metric=None,

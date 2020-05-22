@@ -18,9 +18,9 @@ Inferers
 .. currentmodule:: monai.inferers.inferer
 
 
-`RegularInferer`
-~~~~~~~~~~~~~~~~
-.. autoclass:: RegularInferer
+`SimpleInferer`
+~~~~~~~~~~~~~~~
+.. autoclass:: SimpleInferer
     :members:
 
 `SlidingWindowInferer`

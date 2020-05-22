@@ -9,8 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from abc import abstractmethod
-from monai.inferers.inferer import RegularInferer
+from monai.inferers.inferer import SimpleInferer
 from .workflow import Workflow
 from .utils import default_prepare_batch
 from .utils import CommonKeys as Keys
@@ -18,7 +17,7 @@ from .utils import CommonKeys as Keys
 
 class Trainer(Workflow):
     """
-    Base class for all kinds of trainers, extends from Workflow.
+    Base class for all kinds of trainers, inherits from Workflow.
 
     """
 
@@ -27,22 +26,19 @@ class Trainer(Workflow):
         Execute training based on Ignite Engine.
 
         """
-        self._run()
+        self.run()
 
     def get_train_stats(self):
         return {"total_epochs": self.state.max_epochs, "total_iterations": self.state.epoch_length}
 
-    @abstractmethod
-    def _iteration(self, engine, batchdata):
-        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement the compute method")
-
 
 class SupervisedTrainer(Trainer):
-    """Standard supervised training method with image and label, extends from trainer and Workflow.
+    """
+    Standard supervised training method with image and label, inherits from trainer and Workflow.
 
     Args:
         device (torch.device): an object representing the device on which to run.
-        max_epochs (Int): the total epoch number for engine to run, validator and evaluator have only 1 epoch.
+        max_epochs (int): the total epoch number for engine to run, validator and evaluator have only 1 epoch.
         train_data_loader (torch.DataLoader): Ignite engine use data_loader to run, must be torch.DataLoader.
         network (Network): to train with this network.
         optimizer (Optimizer): the optimizer associated to the network.
@@ -52,18 +48,15 @@ class SupervisedTrainer(Trainer):
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
         lr_scheduler (LR Scheduler): the lr scheduler associated to the optimizer.
         inferer (Inferer): inference method that execute model forward on input data, like: SlidingWindow, etc.
-        train_handlers (list): every handler is a set of Ignite Event-Handlers, like:
-            CheckpointHandler, StatslogHandler, TimerHandler, etc.
-        amp (Bool): whether to enable auto-mixed-precision training.
-        key_train_metric (ignite.metric): compute metric when every iteration completed, and save average
-            value to engine.state.metrics when epoch completed. also use key_metric to select and save
+        amp (bool): whether to enable auto-mixed-precision training.
+        key_train_metric (ignite.metric): compute metric when every iteration completed, and save average value to
+            engine.state.metrics when epoch completed. key_train_metric is the main metric to comapre and save the
             checkpoint into files.
-        additional_metrics (list): more ignite metrics that also attach to Ignite Engine.
-        val_interval (Int): do validation every N epochs during training, disable validation if N = 0.
-        validator (Evaluator): run the validator when trigger validation, suppose to be Evaluator.
+        additional_metrics (dict): more Ignite metrics that also attach to Ignite Engine.
+        train_handlers (list): every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
+            CheckpointHandler, StatsHandler, SegmentationSaver, etc.
 
     """
-
     def __init__(
         self,
         device,
@@ -75,24 +68,15 @@ class SupervisedTrainer(Trainer):
         prepare_batch=default_prepare_batch,
         iteration_update=None,
         lr_scheduler=None,
-        inferer=RegularInferer(),
-        train_handlers=None,
+        inferer=SimpleInferer(),
         amp=True,
         key_train_metric=None,
         additional_metrics=None,
+        train_handlers=None,
     ):
         # set up Ignite engine and environments
-        super().__init__(
-            device,
-            max_epochs,
-            amp,
-            train_data_loader,
-            prepare_batch,
-            key_train_metric,
-            additional_metrics,
-            train_handlers,
-            iteration_update,
-        )
+        super().__init__(device, max_epochs, amp, train_data_loader, prepare_batch, iteration_update,
+                         key_train_metric, additional_metrics, train_handlers)
 
         self.network = network
         self.optimizer = optimizer
@@ -100,14 +84,16 @@ class SupervisedTrainer(Trainer):
         self.inferer = inferer
 
     def _iteration(self, engine, batchdata):
-        """callback function for the Supervised Training processing logic of 1 iteration in Ignite Engine.
+        """
+        Callback function for the Supervised Training processing logic of 1 iteration in Ignite Engine.
 
         Args:
             engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.
             batchdata (dict or array of tensor): input data for this iteration.
 
         """
-        assert batchdata is not None, "must provide batch data for current iteraion."
+        if batchdata is None:
+            raise ValueError("must provide batch data for current iteration.")
         inputs, targets = self.prepare_batch(batchdata)
         inputs, targets = inputs.to(engine.state.device), targets.to(engine.state.device)
 

@@ -24,7 +24,7 @@ class TensorBoardStatsHandler(object):
     """TensorBoardStatsHandler defines a set of Ignite Event-handlers for all the TensorBoard logics.
     It's can be used for any Ignite Engine(trainer, validator and evaluator).
     And it can support both epoch level and iteration level with pre-defined TensorBoard event writer.
-    The expected data source is ignite ``engine.state.output`` and ``engine.state.metrics``.
+    The expected data source is Ignite ``engine.state.output`` and ``engine.state.metrics``.
 
     Default behaviors:
         - When EPOCH_COMPLETED, write each dictionary item in
@@ -80,7 +80,7 @@ class TensorBoardStatsHandler(object):
 
     def epoch_completed(self, engine: Engine):
         """handler for train or validation/evaluation epoch completed Event.
-        Write epoch level events, default values are from ignite state.metrics dict.
+        Write epoch level events, default values are from Ignite state.metrics dict.
 
         Args:
             engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.
@@ -93,7 +93,7 @@ class TensorBoardStatsHandler(object):
 
     def iteration_completed(self, engine: Engine):
         """handler for train or validation/evaluation iteration completed Event.
-        Write iteration level events, default values are from ignite state.logs dict.
+        Write iteration level events, default values are from Ignite state.logs dict.
 
         Args:
             engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.
@@ -106,7 +106,7 @@ class TensorBoardStatsHandler(object):
 
     def _default_epoch_writer(self, engine: Engine, writer: SummaryWriter):
         """Execute epoch level event write operation based on Ignite engine.state data.
-        Default is to write the values from ignite state.metrics dict.
+        Default is to write the values from Ignite state.metrics dict.
 
         Args:
             engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.
@@ -156,7 +156,7 @@ class TensorBoardStatsHandler(object):
 
 
 class TensorBoardImageHandler(object):
-    """TensorBoardImageHandler is an ignite Event handler that can visualise images, labels and outputs as 2D/3D images.
+    """TensorBoardImageHandler is an Ignite Event handler that can visualise images, labels and outputs as 2D/3D images.
     2D output (shape in Batch, channel, H, W) will be shown as simple image using the first element in the batch,
     for 3D to ND output (shape in Batch, channel, H, W, D) input, each of ``self.max_channels`` number of images'
     last three dimensions will be shown as animated GIF along the last axis (typically Depth).
