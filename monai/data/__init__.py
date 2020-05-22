@@ -15,7 +15,6 @@ from .grid_dataset import GridPatchDataset
 from .nifti_reader import NiftiDataset
 from .nifti_saver import NiftiSaver
 from .nifti_writer import write_nifti
-from .sliding_window_inference import sliding_window_inference
 from .synthetic import *
 from .utils import *
 from .png_saver import PNGSaver

@@ -89,7 +89,7 @@ def main():
     opt = torch.optim.Adam(net.parameters(), lr)
     device = torch.device("cuda:0")
 
-    # ignite trainer expects batch=(img, seg) and returns output=loss at every iteration,
+    # Ignite trainer expects batch=(img, seg) and returns output=loss at every iteration,
     # user can add output_transform to return other values, like: y_pred, y, etc.
     trainer = create_supervised_trainer(net, opt, loss, device, False)
 
@@ -115,7 +115,7 @@ def main():
     # add evaluation metric to the evaluator engine
     val_metrics = {metric_name: MeanDice(add_sigmoid=True, to_onehot_y=False)}
 
-    # ignite evaluator expects batch=(img, seg) and returns output=(y_pred, y) at every iteration,
+    # Ignite evaluator expects batch=(img, seg) and returns output=(y_pred, y) at every iteration,
     # user can add output_transform to return other values
     evaluator = create_supervised_evaluator(net, val_metrics, device, True)
 

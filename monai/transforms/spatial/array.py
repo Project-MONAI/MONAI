@@ -20,7 +20,7 @@ import nibabel as nib
 import torch
 from skimage.transform import resize
 
-from monai.data.utils import zoom_affine, compute_shape_offset, to_affine_nd
+from monai.data.utils import zoom_affine, compute_shape_offset, to_affine_nd, InterpolationCode
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.compose import Transform, Randomizable
 from monai.transforms.utils import (
@@ -54,7 +54,7 @@ class Spacing(Transform):
                 If False, this transform preserves the axes orientation, orthogonal rotation and
                 translation components from the original affine. This option will not flip/swap axes
                 of the original data.
-            interp_order (int): The order of the spline interpolation, default is 3.
+            interp_order (int): The order of the spline interpolation, default is InterpolationCode.SPLINE3.
                 The order has to be in the range 0-5.
                 https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.zoom.html
             mode (`reflect|constant|nearest|mirror|wrap`):
@@ -213,7 +213,7 @@ class Resize(Transform):
 
     Args:
         spatial_size (tuple or list): expected shape of spatial dimensions after resize operation.
-        order (int): Order of spline interpolation. Default=1.
+        interp_order (int): Order of spline interpolation. Default=InterpolationCode.LINEAR.
         mode (str): Points outside boundaries are filled according to given mode.
             Options are 'constant', 'edge', 'symmetric', 'reflect', 'wrap'.
         cval (float): Used with mode 'constant', the value outside image boundaries.
@@ -226,10 +226,17 @@ class Resize(Transform):
     """
 
     def __init__(
-        self, spatial_size, order=1, mode="reflect", cval=0, clip=True, preserve_range=True, anti_aliasing=True,
+        self,
+        spatial_size,
+        interp_order=InterpolationCode.LINEAR,
+        mode="reflect",
+        cval=0,
+        clip=True,
+        preserve_range=True,
+        anti_aliasing=True,
     ):
         self.spatial_size = spatial_size
-        self.order = order
+        self.interp_order = interp_order
         self.mode = mode
         self.cval = cval
         self.clip = clip
@@ -249,7 +256,7 @@ class Resize(Transform):
                 resize(
                     image=channel,
                     output_shape=self.spatial_size,
-                    order=self.order if order is None else order,
+                    order=self.interp_order if order is None else order,
                     mode=mode or self.mode,
                     cval=self.cval if cval is None else cval,
                     clip=self.clip if clip is None else clip,
@@ -271,19 +278,21 @@ class Rotate(Transform):
             This is the first two axis in spatial dimensions.
         reshape (bool): If reshape is true, the output shape is adapted so that the
             input array is contained completely in the output. Default is True.
-        order (int): Order of spline interpolation. Range 0-5. Default: 1. This is
-            different from scipy where default interpolation is 3.
+        interp_order (int): Order of spline interpolation. Range 0-5. Default: InterpolationCode.LINEAR. This is
+            different from scipy where default interpolation is InterpolationCode.SPLINE3.
         mode (str): Points outside boundary filled according to this mode. Options are
             'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
         cval (scalar): Values to fill outside boundary. Default: 0.
         prefilter (bool): Apply spline_filter before interpolation. Default: True.
     """
 
-    def __init__(self, angle, spatial_axes=(0, 1), reshape=True, order=1, mode="constant", cval=0, prefilter=True):
+    def __init__(
+        self, angle, spatial_axes=(0, 1), reshape=True, interp_order=1, mode="constant", cval=0, prefilter=True
+    ):
         self.angle = angle
         self.spatial_axes = spatial_axes
         self.reshape = reshape
-        self.order = order
+        self.interp_order = interp_order
         self.mode = mode
         self.cval = cval
         self.prefilter = prefilter
@@ -301,7 +310,7 @@ class Rotate(Transform):
                     angle=self.angle,
                     axes=self.spatial_axes,
                     reshape=self.reshape,
-                    order=self.order if order is None else order,
+                    order=self.interp_order if order is None else order,
                     mode=mode or self.mode,
                     cval=self.cval if cval is None else cval,
                     prefilter=self.prefilter if prefilter is None else prefilter,
@@ -318,7 +327,7 @@ class Zoom(Transform):
         zoom (float or sequence): The zoom factor along the spatial axes.
             If a float, zoom is the same for each spatial axis.
             If a sequence, zoom should contain one value for each spatial axis.
-        order (int): order of interpolation. Default=3.
+        interp_order (int): order of interpolation. Default=InterpolationCode.SPLINE3.
         mode (str): Determines how input is extended beyond boundaries. Default is 'constant'.
         cval (scalar, optional): Value to fill past edges. Default is 0.
         prefilter (bool): Apply spline_filter before interpolation. Default: True.
@@ -327,9 +336,18 @@ class Zoom(Transform):
         keep_size (bool): Should keep original size (pad if needed).
     """
 
-    def __init__(self, zoom, order=3, mode="constant", cval=0, prefilter=True, use_gpu=False, keep_size=False):
+    def __init__(
+        self,
+        zoom,
+        interp_order=InterpolationCode.SPLINE3,
+        mode="constant",
+        cval=0,
+        prefilter=True,
+        use_gpu=False,
+        keep_size=False,
+    ):
         self.zoom = zoom
-        self.order = order
+        self.interp_order = interp_order
         self.mode = mode
         self.cval = cval
         self.prefilter = prefilter
@@ -361,7 +379,7 @@ class Zoom(Transform):
                 zoom_channel = self._zoom(
                     channel,
                     zoom=self.zoom,
-                    order=self.order if order is None else order,
+                    order=self.interp_order if order is None else order,
                     mode=self.mode if mode is None else mode,
                     cval=self.cval if cval is None else cval,
                     prefilter=self.prefilter if prefilter is None else prefilter,
@@ -373,7 +391,7 @@ class Zoom(Transform):
                     self._zoom(
                         channel,
                         zoom=self.zoom,
-                        order=self.order if order is None else order,
+                        order=self.interp_order if order is None else order,
                         mode=mode or self.mode,
                         cval=self.cval if cval is None else cval,
                         prefilter=self.prefilter if prefilter is None else prefilter,
@@ -469,8 +487,8 @@ class RandRotate(Randomizable, Transform):
             This is the first two axis in spatial dimensions.
         reshape (bool): If reshape is true, the output shape is adapted so that the
             input array is contained completely in the output. Default is True.
-        order (int): Order of spline interpolation. Range 0-5. Default: 1. This is
-            different from scipy where default interpolation is 3.
+        interp_order (int): Order of spline interpolation. Range 0-5. Default: InterpolationCode.LINEAR. This is
+            different from scipy where default interpolation is InterpolationCode.SPLINE3.
         mode (str): Points outside boundary filled according to this mode. Options are
             'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
         cval (scalar): Value to fill outside boundary. Default: 0.
@@ -478,13 +496,21 @@ class RandRotate(Randomizable, Transform):
     """
 
     def __init__(
-        self, degrees, prob=0.1, spatial_axes=(0, 1), reshape=True, order=1, mode="constant", cval=0, prefilter=True
+        self,
+        degrees,
+        prob=0.1,
+        spatial_axes=(0, 1),
+        reshape=True,
+        interp_order=InterpolationCode.LINEAR,
+        mode="constant",
+        cval=0,
+        prefilter=True,
     ):
         self.degrees = degrees
         self.prob = prob
         self.spatial_axes = spatial_axes
         self.reshape = reshape
-        self.order = order
+        self.interp_order = interp_order
         self.mode = mode
         self.cval = cval
         self.prefilter = prefilter
@@ -508,7 +534,7 @@ class RandRotate(Randomizable, Transform):
             angle=self.angle,
             spatial_axes=self.spatial_axes,
             reshape=self.reshape,
-            order=self.order if order is None else order,
+            interp_order=self.interp_order if order is None else order,
             mode=mode or self.mode,
             cval=self.cval if cval is None else cval,
             prefilter=self.prefilter if prefilter is None else prefilter,
@@ -552,7 +578,7 @@ class RandZoom(Randomizable, Transform):
         max_zoom (float or sequence): Max zoom factor. Can be float or sequence same size as image.
             If a float, max_zoom is the same for each spatial axis.
             If a sequence, max_zoom should contain one value for each spatial axis.
-        order (int): order of interpolation. Default=3.
+        interp_order (int): order of interpolation. Default=InterpolationCode.SPLINE3.
         mode ('reflect', 'constant', 'nearest', 'mirror', 'wrap'): Determines how input is
             extended beyond boundaries. Default: 'constant'.
         cval (scalar, optional): Value to fill past edges. Default is 0.
@@ -567,7 +593,7 @@ class RandZoom(Randomizable, Transform):
         prob=0.1,
         min_zoom=0.9,
         max_zoom=1.1,
-        order=3,
+        interp_order=InterpolationCode.SPLINE3,
         mode="constant",
         cval=0,
         prefilter=True,
@@ -582,7 +608,7 @@ class RandZoom(Randomizable, Transform):
         self.use_gpu = use_gpu
         self.keep_size = keep_size
 
-        self.order = order
+        self.interp_order = interp_order
         self.mode = mode
         self.cval = cval
         self.prefilter = prefilter
@@ -604,7 +630,7 @@ class RandZoom(Randomizable, Transform):
         zoomer = Zoom(self._zoom, use_gpu=self.use_gpu, keep_size=self.keep_size)
         return zoomer(
             img,
-            order=self.order if order is None else order,
+            order=self.interp_order if order is None else order,
             mode=mode or self.mode,
             cval=self.cval if cval is None else cval,
             prefilter=self.prefilter if prefilter is None else prefilter,

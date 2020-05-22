@@ -19,7 +19,8 @@ import torch
 from ignite.engine import Engine
 from torch.utils.data import DataLoader
 
-from monai.data import NiftiDataset, create_test_image_3d, sliding_window_inference
+from monai.data import NiftiDataset, create_test_image_3d
+from monai.inferers import sliding_window_inference
 from monai.handlers import SegmentationSaver
 from monai.networks.nets import UNet
 from monai.networks.utils import predict_segmentation

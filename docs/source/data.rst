@@ -52,13 +52,6 @@ Patch-based dataset
   :members:
 
 
-Sliding window inference
-------------------------
-
-.. automodule:: monai.data.sliding_window_inference
-  :members:
-
-
 Nifti format handling
 ---------------------
 
@@ -67,8 +60,8 @@ Reading
 .. automodule:: monai.data.nifti_reader
   :members:
 
-Writing
-~~~~~~~
+Writing Nifti
+~~~~~~~~~~~~~
 .. automodule:: monai.data.nifti_saver
   :members:
 
@@ -79,8 +72,8 @@ Writing
 PNG format handling
 ---------------------
 
-Writing
-~~~~~~~
+Writing PNG
+~~~~~~~~~~~
 .. automodule:: monai.data.png_saver
   :members:
 

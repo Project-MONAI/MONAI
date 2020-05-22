@@ -32,7 +32,7 @@ class TestRandZoomd(NumpyImageTestCase2D):
             prob=1.0,
             min_zoom=min_zoom,
             max_zoom=max_zoom,
-            order=order,
+            interp_order=order,
             mode=mode,
             cval=cval,
             prefilter=prefilter,
@@ -59,7 +59,7 @@ class TestRandZoomd(NumpyImageTestCase2D):
                 prob=1.0,
                 min_zoom=min_zoom,
                 max_zoom=max_zoom,
-                order=order,
+                interp_order=order,
                 mode=mode,
                 cval=cval,
                 prefilter=prefilter,
@@ -87,7 +87,7 @@ class TestRandZoomd(NumpyImageTestCase2D):
     def test_invalid_inputs(self, _, min_zoom, max_zoom, order, raises):
         key = "img"
         with self.assertRaises(raises):
-            random_zoom = RandZoomd(key, prob=1.0, min_zoom=min_zoom, max_zoom=max_zoom, order=order)
+            random_zoom = RandZoomd(key, prob=1.0, min_zoom=min_zoom, max_zoom=max_zoom, interp_order=order)
             zoomed = random_zoom({key: self.imt[0]})
 
 

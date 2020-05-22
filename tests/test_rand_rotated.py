@@ -34,7 +34,7 @@ class TestRandRotated(NumpyImageTestCase2D):
             prob=1.0,
             spatial_axes=spatial_axes,
             reshape=reshape,
-            order=order,
+            interp_order=order,
             mode=mode,
             cval=cval,
             prefilter=prefilter,

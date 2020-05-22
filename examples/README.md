@@ -15,7 +15,7 @@ Training and evaluation examples of 3D classification based on DenseNet3D and [I
 The examples are standard PyTorch programs and have both dictionary-based and array-based transformation versions.
 #### [classification_3d_ignite](./classification_3d_ignite)
 Training and evaluation examples of 3D classification based on DenseNet3D and [IXI dataset](https://brain-development.org/ixi-dataset):
-The examples are PyTorch ignite programs and have both dictionary-based and array-based transformation versions.
+The examples are PyTorch Ignite programs and have both dictionary-based and array-based transformation versions.
 #### [notebooks/3d_image_transforms](./notebooks/3d_image_transforms.ipynb)
 This notebook demonstrates the transformations on volumetric images.
 #### [notebooks/cache_dataset_speed](./notebooks/cache_dataset_speed.ipynb)
