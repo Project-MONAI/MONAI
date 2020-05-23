@@ -11,79 +11,101 @@
 
 import unittest
 
-import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import KeepLargestConnectedComponent
 
-grid_1 = np.array([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [1, 2, 1, 0, 0], [1, 2, 0, 1, 0], [2, 2, 0, 0, 2]]])
-grid_2 = np.array([[[0, 0, 0, 0, 1], [0, 0, 1, 1, 1], [1, 0, 1, 1, 2], [1, 0, 1, 2, 2], [0, 0, 0, 0, 1]]])
+grid_1 = torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [1, 2, 1, 0, 0], [1, 2, 0, 1, 0], [2, 2, 0, 0, 2]]])
+grid_2 = torch.tensor([[[0, 0, 0, 0, 1], [0, 0, 1, 1, 1], [1, 0, 1, 1, 2], [1, 0, 1, 2, 2], [0, 0, 0, 0, 1]]])
 
 TEST_CASE_1 = [
-    "independent_label_1",
-    {"is_independent": True},
+    "value_1",
+    {"independent": False, "applied_values": [1]},
     grid_1,
-    [1],
-    np.array([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [0, 2, 1, 0, 0], [0, 2, 0, 1, 0], [2, 2, 0, 0, 2]]]),
+    torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [0, 2, 1, 0, 0], [0, 2, 0, 1, 0], [2, 2, 0, 0, 2]]]),
 ]
 
 TEST_CASE_2 = [
-    "independent_label_2",
-    {"is_independent": True},
+    "value_2",
+    {"independent": False, "applied_values": [2]},
     grid_1,
-    [2],
-    np.array([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [1, 2, 1, 0, 0], [1, 2, 0, 1, 0], [2, 2, 0, 0, 0]]]),
+    torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [1, 2, 1, 0, 0], [1, 2, 0, 1, 0], [2, 2, 0, 0, 0]]]),
 ]
 
 TEST_CASE_3 = [
-    "independent_label_1_2",
-    {"is_independent": True},
+    "independent_value_1_2",
+    {"independent": True, "applied_values": [1, 2]},
     grid_1,
-    [1, 2],
-    np.array([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [0, 2, 1, 0, 0], [0, 2, 0, 1, 0], [2, 2, 0, 0, 0]]]),
+    torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [0, 2, 1, 0, 0], [0, 2, 0, 1, 0], [2, 2, 0, 0, 0]]]),
 ]
 
 TEST_CASE_4 = [
-    "non_independent_label_1_2",
-    {"is_independent": False},
+    "dependent_value_1_2",
+    {"independent": False, "applied_values": [1, 2]},
     grid_1,
-    [1, 2],
-    np.array([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [1, 2, 1, 0, 0], [1, 2, 0, 1, 0], [2, 2, 0, 0, 2]]]),
+    torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [1, 2, 1, 0, 0], [1, 2, 0, 1, 0], [2, 2, 0, 0, 2]]]),
 ]
 
 TEST_CASE_5 = [
-    "independent_label_1",
-    {"is_independent": True},
+    "value_1",
+    {"independent": True, "applied_values": [1]},
     grid_2,
-    [1],
-    np.array([[[0, 0, 0, 0, 1], [0, 0, 1, 1, 1], [0, 0, 1, 1, 2], [0, 0, 1, 2, 2], [0, 0, 0, 0, 0]]]),
+    torch.tensor([[[0, 0, 0, 0, 1], [0, 0, 1, 1, 1], [0, 0, 1, 1, 2], [0, 0, 1, 2, 2], [0, 0, 0, 0, 0]]]),
 ]
 
 TEST_CASE_6 = [
-    "independent_label_1_2",
-    {"is_independent": True},
+    "independent_value_1_2",
+    {"independent": True, "applied_values": [1, 2]},
     grid_2,
-    [1, 2],
-    np.array([[[0, 0, 0, 0, 1], [0, 0, 1, 1, 1], [0, 0, 1, 1, 2], [0, 0, 1, 2, 2], [0, 0, 0, 0, 0]]]),
+    torch.tensor([[[0, 0, 0, 0, 1], [0, 0, 1, 1, 1], [0, 0, 1, 1, 2], [0, 0, 1, 2, 2], [0, 0, 0, 0, 0]]]),
 ]
 
 TEST_CASE_7 = [
-    "non_independent_label_1_2",
-    {"is_independent": False},
+    "dependent_value_1_2",
+    {"independent": False, "applied_values": [1, 2]},
     grid_2,
-    [1, 2],
-    np.array([[[0, 0, 0, 0, 1], [0, 0, 1, 1, 1], [0, 0, 1, 1, 2], [0, 0, 1, 2, 2], [0, 0, 0, 0, 1]]]),
+    torch.tensor([[[0, 0, 0, 0, 1], [0, 0, 1, 1, 1], [0, 0, 1, 1, 2], [0, 0, 1, 2, 2], [0, 0, 0, 0, 1]]]),
 ]
 
-VALID_CASES = [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7]
+TEST_CASE_8 = [
+    "value_1_connect_1",
+    {"independent": False, "applied_values": [1], "connectivity": 1},
+    grid_1,
+    torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [0, 2, 1, 0, 0], [0, 2, 0, 0, 0], [2, 2, 0, 0, 2]]]),
+]
+
+TEST_CASE_9 = [
+    "independent_value_1_2_connect_1",
+    {"independent": True, "applied_values": [1, 2], "connectivity": 1},
+    grid_1,
+    torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [0, 2, 1, 0, 0], [0, 2, 0, 0, 0], [2, 2, 0, 0, 0]]]),
+]
+
+TEST_CASE_10 = [
+    "dependent_value_1_2_connect_1",
+    {"independent": False, "applied_values": [1, 2], "connectivity": 1},
+    grid_1,
+    torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [1, 2, 1, 0, 0], [1, 2, 0, 0, 0], [2, 2, 0, 0, 0]]]),
+]
+
+TEST_CASE_11 = [
+    "value_0_background_3",
+    {"independent": False, "applied_values": [0], "background": 3},
+    grid_1,
+    torch.tensor([[[3, 3, 1, 3, 3], [3, 2, 1, 1, 1], [1, 2, 1, 0, 0], [1, 2, 0, 1, 0], [2, 2, 0, 0, 2]]]),
+]
+
+VALID_CASES = [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6,
+               TEST_CASE_7, TEST_CASE_8, TEST_CASE_9, TEST_CASE_10, TEST_CASE_11]
 
 
 class TestKeepLargestConnectedComponent(unittest.TestCase):
     @parameterized.expand(VALID_CASES)
-    def test_correct_results(self, _, args, array, applied_labels, expected):
+    def test_correct_results(self, _, args, tensor, expected):
         converter = KeepLargestConnectedComponent(**args)
-        result = converter(array, applied_labels)
-        np.testing.assert_allclose(result, expected)
+        result = converter(tensor.clone())
+        assert torch.allclose(result, expected)
 
 
 if __name__ == "__main__":

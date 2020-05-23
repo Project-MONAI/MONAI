@@ -12,6 +12,7 @@
 import random
 import warnings
 
+import torch
 import numpy as np
 from skimage import measure
 
@@ -395,18 +396,22 @@ def generate_spatial_bounding_box(img, select_fn=lambda x: x > 0, channel_indexe
     return box_start, box_end
 
 
-def get_largest_connected_component_mask(img):
+def get_largest_connected_component_mask(img, connectivity=None):
     """
     Gets the largest connected component mask of an image.
 
     Args:
-        img (ndarrary): Image to get largest connected component from.
+        img: Image to get largest connected component from.
+        connectivity (int): Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
+            Accepted values are ranging from  1 to input.ndim. If ``None``, a full
+            connectivity of ``input.ndim`` is used.
     """
-    labels = measure.label(img > 0)
+    img_arr = img.detach().cpu().numpy()
+    labels_arr = measure.label(img_arr, connectivity=connectivity)
+    labels = torch.tensor(labels_arr)
     if labels.max() != 0:
-        largest_cc = labels == np.argmax(np.bincount(labels.flat)[1:]) + 1
-        largest_cc = largest_cc.astype(img.dtype)
+        largest_cc = labels == torch.argmax(torch.bincount(labels.reshape(-1))[1:]) + 1
     else:
-        largest_cc = np.zeros(shape=img.shape, dtype=img.dtype)
+        largest_cc = torch.zeros_like(img)
 
     return largest_cc

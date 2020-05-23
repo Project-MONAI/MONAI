@@ -20,7 +20,6 @@ import numpy as np
 import torch
 
 from monai.transforms.compose import Transform
-from monai.transforms.utils import get_largest_connected_component_mask
 
 
 class AsChannelFirst(Transform):
@@ -252,45 +251,3 @@ class SimulateDelay(Transform):
     def __call__(self, img, delay_time=None):
         time.sleep(self.delay_time if delay_time is None else delay_time)
         return img
-
-
-class KeepLargestConnectedComponent(Transform):
-    """
-    Keeps only the largest connected component.
-
-    Value 0 will be treated as background.
-    """
-
-    def __init__(self, is_independent=True):
-        """
-        Args:
-            is_independent (bool): consider several labels as a whole or independent, default is `True`.
-                Example use case would be segment label 1 is liver and label 2 is liver tumor, in that case
-                you want this "is_independent" to be specified as False.
-        """
-        super().__init__()
-        self.is_independent = is_independent
-
-    def __call__(self, img, applied_labels):
-        """
-        Args:
-            img (ndarray): shape must be (num_channels, H, W[, D]).
-            applied_labels (list or tuple of int): label number list for applying the connected component on.
-                The label that is not in this list will remain unchanged.
-        """
-        output = np.array(img)
-
-        if self.is_independent:
-            for i in applied_labels:
-                foreground = (img == i).astype(np.uint8)
-                mask = get_largest_connected_component_mask(foreground)
-                output[img == i] = 0
-                output += mask * i
-        else:
-            foreground = np.zeros(shape=img.shape, dtype=img.dtype)
-            for i in applied_labels:
-                foreground += (img == i).astype(np.uint8)
-            mask = get_largest_connected_component_mask(foreground)
-            output = mask * img
-
-        return output
