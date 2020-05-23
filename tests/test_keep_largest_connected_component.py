@@ -96,8 +96,19 @@ TEST_CASE_11 = [
     torch.tensor([[[3, 3, 1, 3, 3], [3, 2, 1, 1, 1], [1, 2, 1, 0, 0], [1, 2, 0, 1, 0], [2, 2, 0, 0, 2]]]),
 ]
 
-VALID_CASES = [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6,
-               TEST_CASE_7, TEST_CASE_8, TEST_CASE_9, TEST_CASE_10, TEST_CASE_11]
+VALID_CASES = [
+    TEST_CASE_1,
+    TEST_CASE_2,
+    TEST_CASE_3,
+    TEST_CASE_4,
+    TEST_CASE_5,
+    TEST_CASE_6,
+    TEST_CASE_7,
+    TEST_CASE_8,
+    TEST_CASE_9,
+    TEST_CASE_10,
+    TEST_CASE_11,
+]
 
 
 class TestKeepLargestConnectedComponent(unittest.TestCase):

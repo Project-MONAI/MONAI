@@ -17,10 +17,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 from monai.utils.misc import ensure_tuple_rep
 from monai.transforms.compose import MapTransform
-from monai.transforms.post.array import (
-    SplitChannel,
-    KeepLargestConnectedComponent
-)
+from monai.transforms.post.array import SplitChannel, KeepLargestConnectedComponent
 
 
 class SplitChanneld(MapTransform):
