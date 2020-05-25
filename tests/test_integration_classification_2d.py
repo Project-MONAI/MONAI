@@ -34,6 +34,7 @@ from monai.transforms import (
     ScaleIntensity,
     ToTensor,
 )
+from monai.utils import set_determinism
 from tests.utils import skip_if_quick
 
 TEST_DATA_URL = "https://www.dropbox.com/s/5wwskxctvcxiuea/MedNIST.tar.gz"
@@ -161,9 +162,7 @@ def run_inference_test(root_dir, test_x, test_y, device=torch.device("cuda:0")):
 
 class IntegrationClassification2D(unittest.TestCase):
     def setUp(self):
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
-        np.random.seed(0)
+        set_determinism(seed=0)
         self.data_dir = tempfile.mkdtemp()
 
         # download
@@ -205,10 +204,10 @@ class IntegrationClassification2D(unittest.TestCase):
                 self.train_x.append(image_file_list[i])
                 self.train_y.append(image_classes[i])
 
-        np.random.seed(seed=None)
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")
 
     def tearDown(self):
+        set_determinism(seed=None)
         shutil.rmtree(self.data_dir)
 
     @skip_if_quick
