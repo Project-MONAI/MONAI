@@ -139,6 +139,8 @@ def set_determinism(seed=np.iinfo(np.int32).max, additional_settings=None):
         for func in additional_settings:
             func(seed)
 
-    enable = seed is None
-    torch.backends.cudnn.deterministic = enable
-    torch.backends.cudnn.benchmark = not enable
+    if seed is not None:
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+    else:
+        torch.backends.cudnn.deterministic = False

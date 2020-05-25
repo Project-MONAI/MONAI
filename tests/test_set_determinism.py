@@ -17,6 +17,20 @@ from monai.utils import set_determinism, get_seed
 
 class TestSetDeterminism(unittest.TestCase):
     def test_values(self):
+        # check system default flags
+        self.assertTrue(not torch.backends.cudnn.deterministic)
+        self.assertTrue(get_seed() is None)
+        # set default seed
+        set_determinism()
+        self.assertTrue(get_seed() is not None)
+        self.assertTrue(torch.backends.cudnn.deterministic)
+        self.assertTrue(not torch.backends.cudnn.benchmark)
+        # resume default
+        set_determinism(None)
+        self.assertTrue(not torch.backends.cudnn.deterministic)
+        self.assertTrue(not torch.backends.cudnn.benchmark)
+        self.assertTrue(get_seed() is None)
+        # test seeds
         seed = 255
         set_determinism(seed=seed)
         self.assertEqual(seed, get_seed())
@@ -27,6 +41,8 @@ class TestSetDeterminism(unittest.TestCase):
         d = torch.randint(seed, (1,))
         self.assertEqual(a, c)
         self.assertEqual(b, d)
+        self.assertTrue(torch.backends.cudnn.deterministic)
+        self.assertTrue(not torch.backends.cudnn.benchmark)
 
 
 if __name__ == "__main__":
