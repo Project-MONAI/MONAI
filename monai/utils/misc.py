@@ -105,21 +105,21 @@ def process_bar(index, count, bar_len=30, newline=False):
 
 
 def manual_seed(seed):
-    _seed = int(seed) if seed is not None else None
+    _seed = seed
 
 
 def get_seed():
     return _seed
 
 
-def set_determinism(enable=True, seed=65535, additional_settings=None):
+def set_determinism(enable=True, seed=2147483647, additional_settings=None):
     """
     Set random seed for modules to enable determinism training.
 
     Args:
         enable (bool): whether to enable determinisim training, if True, will set seed
             to expected modules, if False, set seed=None to the modules.
-        seed (int): the random seed to use, default is 65535. It is recommended
+        seed (int): the random seed to use, default is 2147483647. It is recommended
             to set a large seed, i.e. a number that has a good balance of 0 and 1 bits.
             Avoid having many 0 bits in the seed.
         additional_settings (Callable, list or tuple of Callables): additional settings
@@ -127,8 +127,10 @@ def set_determinism(enable=True, seed=65535, additional_settings=None):
 
     """
     if not enable:
+        seed_ = torch.default_generator.seed() % 2147483648  # cast to 32 bit seed for CUDA
+        if not torch.cuda._is_in_bad_fork():
+            torch.cuda.manual_seed_all(seed_)
         seed = None
-        torch.seed()
     else:
         if seed is None:
             raise ValueError("to enable determinisim, random seed should not be None.")
