@@ -69,11 +69,11 @@ def run_test(batch_size=64, train_steps=200, device=torch.device("cuda:0")):
 
 class TestDeterminism(unittest.TestCase):
     def setUp(self):
-        set_determinism(enable=True, seed=0)
+        set_determinism(seed=0)
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")
 
     def tearDown(self):
-        set_determinism(enable=False)
+        set_determinism(seed=None)
 
     def test_training(self):
         loss, step = run_test(device=self.device)

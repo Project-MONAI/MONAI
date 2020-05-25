@@ -91,7 +91,7 @@ train_transforms.set_random_state(seed=0)
 ```
 Users can also enable/disable deterministic training directly:
 ```py
-monai.utils.set_determinism(enable=True, seed=2147483647, additional_settings=None)
+monai.utils.set_determinism(seed=0, additional_settings=None)
 ```
 
 ### 6. Cache IO and transforms data to accelerate training

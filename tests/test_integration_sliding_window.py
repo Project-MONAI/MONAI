@@ -61,7 +61,7 @@ def run_test(batch_size, img_name, seg_name, output_dir, device=torch.device("cu
 
 class TestIntegrationSlidingWindow(unittest.TestCase):
     def setUp(self):
-        set_determinism(enable=True, seed=0)
+        set_determinism(seed=0)
 
         im, seg = create_test_image_3d(25, 28, 63, rad_max=10, noise_max=1, num_objs=4, num_seg_classes=1)
         self.img_name = make_nifti_image(im)
@@ -69,7 +69,7 @@ class TestIntegrationSlidingWindow(unittest.TestCase):
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")
 
     def tearDown(self):
-        set_determinism(enable=False)
+        set_determinism(seed=None)
         if os.path.exists(self.img_name):
             os.remove(self.img_name)
         if os.path.exists(self.seg_name):

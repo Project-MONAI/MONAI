@@ -225,7 +225,7 @@ def run_inference_test(root_dir, device=torch.device("cuda:0")):
 
 class IntegrationSegmentation3D(unittest.TestCase):
     def setUp(self):
-        set_determinism(enable=True, seed=0)
+        set_determinism(seed=0)
 
         self.data_dir = tempfile.mkdtemp()
         for i in range(40):
@@ -238,7 +238,7 @@ class IntegrationSegmentation3D(unittest.TestCase):
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")
 
     def tearDown(self):
-        set_determinism(enable=False)
+        set_determinism(seed=None)
         shutil.rmtree(self.data_dir)
 
     @skip_if_quick
