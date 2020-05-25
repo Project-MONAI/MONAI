@@ -25,7 +25,7 @@ jobs:
         pip install flake8==3.7.9 flake8-mypy flake8-bugbear flake8-comprehensions flake8-executable flake8-pyi mccabe pep8-naming
         flake8 --version
         python -c 'import monai; monai.config.print_config()'
-        flake8 . --count --statistics
+        MYPYPATH=$(pwd)/monai flake8 $(pwd) --count --statistics
 
   quick-py3:
     runs-on: ${{ matrix.os }}
