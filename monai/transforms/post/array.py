@@ -13,6 +13,7 @@ A collection of "vanilla" transforms for the model output tensors
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
+import torch
 from monai.transforms.compose import Transform
 from monai.networks.utils import one_hot
 
@@ -46,3 +47,67 @@ class SplitChannel(Transform):
             outputs.append(img[:, i : i + 1])
 
         return outputs
+
+
+class ConvertForMetrics(Transform):
+    """Execute after model forward to transform model output and labels for Ignite metrics.
+    It can complete below operations:
+        #. add `sigmoid` or `softmax` to y_pred
+        #. do `argmax` for y_pred
+        #. round y_pred value to 0.0 or 1.0
+        #. convert y_pred or y to One-Hot format
+
+    Args:
+        add_sigmoid (bool): whether to add sigmoid function to y_pred before transform.
+        add_softmax (bool): whether to add softmax function to y_pred before transform.
+        add_argmax (bool): whether to add argmax function to y_pred before transform.
+        to_onehot_y_pred (bool): whether to convert `y_pred` into the one-hot format. Defaults to False.
+        to_onehot_y (bool): whether to convert `y` into the one-hot format. Defaults to False.
+        n_classes (bool): the number of classes to convert to One-Hot format, if None, use `y_pred.shape[1]`
+        round_values (bool): whether round the value to 0 and 1, default is False.
+        logit_thresh (float): the threshold value to round value to 0.0 and 1.0, default is 0.5.
+
+    """
+    def __init__(
+        self,
+        add_sigmoid=False,
+        add_softmax=False,
+        add_argmax=False,
+        to_onehot_y_pred=False,
+        to_onehot_y=False,
+        n_classes=None,
+        round_values=False,
+        logit_thresh=0.5
+    ):
+        self.add_sigmoid = add_sigmoid
+        self.add_softmax = add_softmax
+        self.add_argmax = add_argmax
+        self.to_onehot_y_pred = to_onehot_y_pred
+        self.to_onehot_y = to_onehot_y
+        self.n_classes = n_classes
+        self.round_values = round_values
+        self.logit_thresh = logit_thresh
+
+    def __call__(self, y_pred, y=None):
+        """
+        Args:
+            y_pred (Tensor): model output data, expected shape: [B, C, spatial_dims(0 - N)].
+            y (Tensor): label data, can be None if do inference.
+
+        """
+        if self.add_sigmoid is True:
+            y_pred = torch.sigmoid(y_pred)
+        if self.add_softmax is True:
+            y_pred = torch.softmax(y_pred, dim=1)
+        if self.add_argmax is True:
+            y_pred = torch.argmax(y_pred, dim=1, keepdim=True)
+
+        n_classes = y_pred.shape[1] if self.n_classes is None else self.n_classes
+        if self.to_onehot_y_pred:
+            y_pred = one_hot(y_pred, n_classes)
+        if self.to_onehot_y and y is not None:
+            y = one_hot(y, n_classes)
+        if self.round_values:
+            y_pred = (y_pred >= self.logit_thresh)
+
+        return y_pred.float(), y.float() if y is not None else None
