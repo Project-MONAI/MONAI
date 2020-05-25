@@ -18,6 +18,7 @@ import random
 
 _seed = None
 
+
 def zip_with(op, *vals, mapfunc=map):
     """
     Map `op`, using `mapfunc`, to each tuple derived from zipping the iterables in `vals`.

@@ -61,6 +61,7 @@ class Randomizable(ABC):
     An interface for handling local numpy random state.
     this is mainly for randomized data augmentation transforms.
     """
+
     R = np.random.RandomState(get_seed())
 
     def set_random_state(self, seed=None, state=None):
