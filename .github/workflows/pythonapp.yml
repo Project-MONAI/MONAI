@@ -22,8 +22,6 @@ jobs:
         pip install -r requirements-dev.txt
     - name: Lint with flake8
       run: |
-        python -m pip install --upgrade pip wheel
-        pip install -r requirements-dev.txt
         flake8 --version
         python -c 'import monai; monai.config.print_config()'
         MYPYPATH=$(pwd)/monai flake8 $(pwd) --count --statistics
