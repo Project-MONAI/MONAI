@@ -20,7 +20,7 @@ jobs:
         python -m pip install --upgrade pip wheel
         python -m pip uninstall -y torch torchvision
         python -m pip install torch==1.4
-        python -m pip install -r requirements.txt
+        python -m pip install -r requirements-dev.txt
         python -m pip list
     - name: Run unit tests report coverage
       run: |

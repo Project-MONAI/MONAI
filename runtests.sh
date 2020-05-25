@@ -56,21 +56,8 @@ done
 if [ "$doCodeFormat" = 'true' ]
 then
      # Ensure that the necessary packages for code format testing are installed
-     if [[ ! -f "$(which flake8)" ]]; then
-       pip install \
-                 "flake8>=3.8.1" \
-                 flake8-mypy \
-                 flake8-bugbear \
-                 flake8-comprehensions \
-                 flake8-executable \
-                 flake8-pyi \
-                 mccabe \
-                 pycodestyle \
-                 pyflakes
-     fi
-     if [[ ! -f "$(which black)" ]]; then
-       pip install \
-                 black
+     if [[ ! -f "$(which flake8)" ]] || [[ ! -f "$(which black)" ]]; then
+       pip install -r requirements-dev.txt
      fi
 
      set +e  # Disable exit on failure so that diagnostics can be given on failure

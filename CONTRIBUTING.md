@@ -126,6 +126,13 @@ To run a particular test, for example `tests/test_dice_loss.py`:
 python -m tests.test_dice_loss
 ```
 
+## Linting and code style testing
+
+```bash
+# Install the various static analysis tools for development
+pip install -r requirements-dev.txt
+```
+
 Before submitting a pull request, we recommend that all linting and unit tests
 should pass, by running the following command locally:
 ```
