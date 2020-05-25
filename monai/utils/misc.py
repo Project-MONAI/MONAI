@@ -14,7 +14,9 @@ from collections.abc import Iterable
 
 import numpy as np
 import torch
+import random
 
+_seed = None
 
 def zip_with(op, *vals, mapfunc=map):
     """
@@ -99,3 +101,46 @@ def process_bar(index, count, bar_len=30, newline=False):
     print(f"{index}/{count} {bar:s}  ", end=end)
     if index == count:
         print("")
+
+
+def manual_seed(seed):
+    _seed = int(seed) if seed is not None else None
+
+
+def get_seed():
+    return _seed
+
+
+def set_determinism(enable=True, seed=65535, additional_settings=None):
+    """
+    Set random seed for modules to enable determinism training.
+
+    Args:
+        enable (bool): whether to enable determinisim training, if True, will set seed
+            to expected modules, if False, set seed=None to the modules.
+        seed (int): the random seed to use, default is 65535. It is recommended
+            to set a large seed, i.e. a number that has a good balance of 0 and 1 bits.
+            Avoid having many 0 bits in the seed.
+        additional_settings (Callable, list or tuple of Callables): additional settings
+            that need to set random seed.
+
+    """
+    if not enable:
+        seed = None
+        torch.seed()
+    else:
+        if seed is None:
+            raise ValueError("to enable determinisim, random seed should not be None.")
+        torch.manual_seed(seed)
+
+    manual_seed(seed)
+    random.seed(seed)
+    np.random.seed(seed)
+
+    if additional_settings is not None:
+        additional_settings = ensure_tuple(additional_settings)
+        for func in additional_settings:
+            func(seed)
+
+    torch.backends.cudnn.deterministic = enable
+    torch.backends.cudnn.benchmark = not enable

@@ -17,7 +17,7 @@ from typing import Hashable
 from abc import ABC, abstractmethod
 import numpy as np
 
-from monai.utils.misc import ensure_tuple
+from monai.utils.misc import ensure_tuple, get_seed
 from .utils import apply_transform
 
 
@@ -61,8 +61,7 @@ class Randomizable(ABC):
     An interface for handling local numpy random state.
     this is mainly for randomized data augmentation transforms.
     """
-
-    R = np.random.RandomState()
+    R = np.random.RandomState(get_seed())
 
     def set_random_state(self, seed=None, state=None):
         """
