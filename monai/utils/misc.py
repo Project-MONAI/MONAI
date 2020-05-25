@@ -14,6 +14,9 @@ from collections.abc import Iterable
 
 import numpy as np
 import torch
+import random
+
+_seed = None
 
 
 def zip_with(op, *vals, mapfunc=map):
@@ -99,3 +102,43 @@ def process_bar(index, count, bar_len=30, newline=False):
     print(f"{index}/{count} {bar:s}  ", end=end)
     if index == count:
         print("")
+
+
+def get_seed():
+    return _seed
+
+
+def set_determinism(seed=np.iinfo(np.int32).max, additional_settings=None):
+    """
+    Set random seed for modules to enable or disable deterministic training.
+
+    Args:
+        seed (None, int): the random seed to use, default is np.iinfo(np.int32).max.
+            It is recommended to set a large seed, i.e. a number that has a good balance
+            of 0 and 1 bits. Avoid having many 0 bits in the seed.
+            if set to None, will disable deterministic training.
+        additional_settings (Callable, list or tuple of Callables): additional settings
+            that need to set random seed.
+
+    """
+    if seed is None:
+        # cast to 32 bit seed for CUDA
+        seed_ = torch.default_generator.seed() % (np.iinfo(np.int32).max + 1)
+        if not torch.cuda._is_in_bad_fork():
+            torch.cuda.manual_seed_all(seed_)
+    else:
+        torch.manual_seed(seed)
+
+    global _seed
+    _seed = seed
+    random.seed(seed)
+    np.random.seed(seed)
+
+    if additional_settings is not None:
+        additional_settings = ensure_tuple(additional_settings)
+        for func in additional_settings:
+            func(seed)
+
+    enable = seed is None
+    torch.backends.cudnn.deterministic = enable
+    torch.backends.cudnn.benchmark = not enable

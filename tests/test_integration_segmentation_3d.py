@@ -36,7 +36,7 @@ from monai.transforms import (
     ToTensord,
 )
 from monai.visualize import plot_2d_or_3d_image
-
+from monai.utils import set_determinism
 from tests.utils import skip_if_quick
 
 
@@ -225,10 +225,7 @@ def run_inference_test(root_dir, device=torch.device("cuda:0")):
 
 class IntegrationSegmentation3D(unittest.TestCase):
     def setUp(self):
-        torch.manual_seed(0)
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
-        np.random.seed(0)
+        set_determinism(seed=0)
 
         self.data_dir = tempfile.mkdtemp()
         for i in range(40):
@@ -238,10 +235,10 @@ class IntegrationSegmentation3D(unittest.TestCase):
             n = nib.Nifti1Image(seg, np.eye(4))
             nib.save(n, os.path.join(self.data_dir, f"seg{i:d}.nii.gz"))
 
-        np.random.seed(seed=None)
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")
 
     def tearDown(self):
+        set_determinism(seed=None)
         shutil.rmtree(self.data_dir)
 
     @skip_if_quick
