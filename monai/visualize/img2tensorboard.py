@@ -52,7 +52,7 @@ def make_animated_gif_summary(
     max_out: int = 3,
     animation_axes: Sequence[int] = (3,),
     image_axes: Sequence[int] = (1, 2),
-    other_indices: any = None,
+    other_indices: dict = None,
     scale_factor: float = 1,
 ):
     """Creates an animated gif out of an image tensor in 'CHWD' format and returns Summary.
@@ -63,7 +63,7 @@ def make_animated_gif_summary(
         max_out (int): maximum number of slices to animate through
         animation_axes (Sequence[int]): axis to animate on (not currently used)
         image_axes (Sequence[int]): axes of image (not currently used)
-        other_indices (any): (not currently used)
+        other_indices (dict): (not currently used)
         scale_factor (float): amount to multiply values by.
             if the image data is between 0 and 1, using 255 for this value will scale it to displayable range
     """
@@ -83,7 +83,7 @@ def make_animated_gif_summary(
         else:
             other_ind = other_indices.get(i, 0)
             slicing.append(slice(other_ind, other_ind + 1))
-    image: Union[Tensor, np.array] = image[tuple(slicing)]
+    image = image[tuple(slicing)]
 
     for it_i in range(min(max_out, list(image.shape)[0])):
         one_channel_img: Union[Tensor, np.array] = image[it_i, :, :, :].squeeze(dim=0) if torch.is_tensor(
@@ -129,7 +129,7 @@ def add_animated_gif_no_channels(
     global_step: int = None,
 ):
     """Creates an animated gif out of an image tensor in 'HWD' format that does not have
-    a channel dimension and writes it with SummaryWriter. This is similar to the "add_animated_gif" 
+    a channel dimension and writes it with SummaryWriter. This is similar to the "add_animated_gif"
     after inserting a channel dimension of 1.
 
     Args:
