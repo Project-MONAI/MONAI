@@ -23,13 +23,13 @@ TEST_CASE_1 = [
         "to_onehot_y": False,
         "n_classes": None,
         "round_values": False,
-        "logit_thresh": 0.5
+        "logit_thresh": 0.5,
     },
-    torch.tensor([[[[0., 1.], [2., 3.]]]]),
+    torch.tensor([[[[0.0, 1.0], [2.0, 3.0]]]]),
     torch.tensor([[[[0, 1], [1, 1]]]]),
     torch.tensor([[[[0.5000, 0.7311], [0.8808, 0.9526]]]]),
-    torch.tensor([[[[0., 1.], [1., 1.]]]]),
-    (1, 1, 2, 2)
+    torch.tensor([[[[0.0, 1.0], [1.0, 1.0]]]]),
+    (1, 1, 2, 2),
 ]
 
 TEST_CASE_2 = [
@@ -41,13 +41,13 @@ TEST_CASE_2 = [
         "to_onehot_y": False,
         "n_classes": None,
         "round_values": False,
-        "logit_thresh": 0.5
+        "logit_thresh": 0.5,
     },
-    torch.tensor([[[[0., 1.]], [[2., 3.]]]]),
+    torch.tensor([[[[0.0, 1.0]], [[2.0, 3.0]]]]),
     torch.tensor([[[[0, 1]], [[1, 0]]]]),
     torch.tensor([[[[0.1192, 0.1192]], [[0.8808, 0.8808]]]]),
-    torch.tensor([[[[0., 1.]], [[1., 0.]]]]),
-    (1, 2, 1, 2)
+    torch.tensor([[[[0.0, 1.0]], [[1.0, 0.0]]]]),
+    (1, 2, 1, 2),
 ]
 
 TEST_CASE_3 = [
@@ -59,13 +59,13 @@ TEST_CASE_3 = [
         "to_onehot_y": False,
         "n_classes": None,
         "round_values": False,
-        "logit_thresh": 0.5
+        "logit_thresh": 0.5,
     },
-    torch.tensor([[[[0., 1.]], [[2., 3.]]]]),
+    torch.tensor([[[[0.0, 1.0]], [[2.0, 3.0]]]]),
     torch.tensor([[[[0, 1]]]]),
-    torch.tensor([[[[1., 1.]]]]),
-    torch.tensor([[[[0., 1.]]]]),
-    (1, 1, 1, 2)
+    torch.tensor([[[[1.0, 1.0]]]]),
+    torch.tensor([[[[0.0, 1.0]]]]),
+    (1, 1, 1, 2),
 ]
 
 TEST_CASE_4 = [
@@ -77,13 +77,13 @@ TEST_CASE_4 = [
         "to_onehot_y": True,
         "n_classes": None,
         "round_values": False,
-        "logit_thresh": 0.5
+        "logit_thresh": 0.5,
     },
-    torch.tensor([[[[0., 1.]], [[2., 3.]]]]),
+    torch.tensor([[[[0.0, 1.0]], [[2.0, 3.0]]]]),
     torch.tensor([[[[0, 1]]]]),
-    torch.tensor([[[[0., 0.]], [[1., 1.]]]]),
-    torch.tensor([[[[1., 0.]], [[0., 1.]]]]),
-    (1, 2, 1, 2)
+    torch.tensor([[[[0.0, 0.0]], [[1.0, 1.0]]]]),
+    torch.tensor([[[[1.0, 0.0]], [[0.0, 1.0]]]]),
+    (1, 2, 1, 2),
 ]
 
 TEST_CASE_5 = [
@@ -95,13 +95,13 @@ TEST_CASE_5 = [
         "to_onehot_y": True,
         "n_classes": 2,
         "round_values": False,
-        "logit_thresh": 0.5
+        "logit_thresh": 0.5,
     },
-    torch.tensor([[[[0., 1.]], [[2., 3.]]]]),
+    torch.tensor([[[[0.0, 1.0]], [[2.0, 3.0]]]]),
     torch.tensor([[[[0, 1]]]]),
-    torch.tensor([[[[0., 0.]], [[1., 1.]]]]),
-    torch.tensor([[[[1., 0.]], [[0., 1.]]]]),
-    (1, 2, 1, 2)
+    torch.tensor([[[[0.0, 0.0]], [[1.0, 1.0]]]]),
+    torch.tensor([[[[1.0, 0.0]], [[0.0, 1.0]]]]),
+    (1, 2, 1, 2),
 ]
 
 TEST_CASE_6 = [
@@ -113,13 +113,13 @@ TEST_CASE_6 = [
         "to_onehot_y": False,
         "n_classes": None,
         "round_values": True,
-        "logit_thresh": 0.6
+        "logit_thresh": 0.6,
     },
-    torch.tensor([[[[0., 1.], [2., 3.]]]]),
+    torch.tensor([[[[0.0, 1.0], [2.0, 3.0]]]]),
     torch.tensor([[[[0, 1], [1, 1]]]]),
-    torch.tensor([[[[0., 1.], [1., 1.]]]]),
-    torch.tensor([[[[0., 1.], [1., 1.]]]]),
-    (1, 1, 2, 2)
+    torch.tensor([[[[0.0, 1.0], [1.0, 1.0]]]]),
+    torch.tensor([[[[0.0, 1.0], [1.0, 1.0]]]]),
+    (1, 1, 2, 2),
 ]
 
 TEST_CASE_7 = [
@@ -131,19 +131,18 @@ TEST_CASE_7 = [
         "to_onehot_y": True,
         "n_classes": None,
         "round_values": False,
-        "logit_thresh": 0.5
+        "logit_thresh": 0.5,
     },
-    torch.tensor([[[[0., 1.]], [[2., 3.]]]]),
+    torch.tensor([[[[0.0, 1.0]], [[2.0, 3.0]]]]),
     None,
-    torch.tensor([[[[0., 0.]], [[1., 1.]]]]),
+    torch.tensor([[[[0.0, 0.0]], [[1.0, 1.0]]]]),
     None,
-    (1, 2, 1, 2)
+    (1, 2, 1, 2),
 ]
 
 
 class TestConvertForMetrics(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4,
-                           TEST_CASE_5, TEST_CASE_6, TEST_CASE_7])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7])
     def test_shape(self, input_param, test_y_pred, test_y, y_pred_out, y_out, expected_shape):
         result = ConvertForMetrics(**input_param)(test_y_pred, test_y)
         torch.testing.assert_allclose(result[0], y_pred_out)

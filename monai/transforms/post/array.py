@@ -68,6 +68,7 @@ class ConvertForMetrics(Transform):
         logit_thresh (float): the threshold value to round value to 0.0 and 1.0, default is 0.5.
 
     """
+
     def __init__(
         self,
         add_sigmoid=False,
@@ -77,7 +78,7 @@ class ConvertForMetrics(Transform):
         to_onehot_y=False,
         n_classes=None,
         round_values=False,
-        logit_thresh=0.5
+        logit_thresh=0.5,
     ):
         self.add_sigmoid = add_sigmoid
         self.add_softmax = add_softmax
@@ -108,6 +109,6 @@ class ConvertForMetrics(Transform):
         if self.to_onehot_y and y is not None:
             y = one_hot(y, n_classes)
         if self.round_values:
-            y_pred = (y_pred >= self.logit_thresh)
+            y_pred = y_pred >= self.logit_thresh
 
         return y_pred.float(), y.float() if y is not None else None

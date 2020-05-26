@@ -63,6 +63,7 @@ class ConvertForMetricsd(MapTransform):
     The input specified by `keys` should contains only 2 items(model output, label) or 1 item(model output).
 
     """
+
     def __init__(
         self,
         keys,
@@ -74,7 +75,7 @@ class ConvertForMetricsd(MapTransform):
         to_onehot_y=False,
         n_classes=None,
         round_values=False,
-        logit_thresh=0.5
+        logit_thresh=0.5,
     ):
         """
         Args:
@@ -97,8 +98,9 @@ class ConvertForMetricsd(MapTransform):
         if not isinstance(output_postfix, str):
             raise ValueError("output_postfix must be a string.")
         self.output_postfix = output_postfix
-        self.converter = ConvertForMetrics(add_sigmoid, add_softmax, add_argmax, to_onehot_y_pred,
-                                           to_onehot_y, n_classes, round_values, logit_thresh)
+        self.converter = ConvertForMetrics(
+            add_sigmoid, add_softmax, add_argmax, to_onehot_y_pred, to_onehot_y, n_classes, round_values, logit_thresh
+        )
 
     def __call__(self, data):
         d = dict(data)

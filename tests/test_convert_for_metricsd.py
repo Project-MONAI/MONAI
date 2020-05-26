@@ -25,17 +25,14 @@ TEST_CASE_1 = [
         "to_onehot_y": True,
         "n_classes": 2,
         "round_values": False,
-        "logit_thresh": 0.5
+        "logit_thresh": 0.5,
     },
+    {"pred": torch.tensor([[[[0.0, 1.0]], [[2.0, 3.0]]]]), "label": torch.tensor([[[[0, 1]]]])},
     {
-        "pred": torch.tensor([[[[0., 1.]], [[2., 3.]]]]),
-        "label": torch.tensor([[[[0, 1]]]])
+        "pred_metrics": torch.tensor([[[[0.0, 0.0]], [[1.0, 1.0]]]]),
+        "label_metrics": torch.tensor([[[[1.0, 0.0]], [[0.0, 1.0]]]]),
     },
-    {
-        "pred_metrics": torch.tensor([[[[0., 0.]], [[1., 1.]]]]),
-        "label_metrics": torch.tensor([[[[1., 0.]], [[0., 1.]]]])
-    },
-    (1, 2, 1, 2)
+    (1, 2, 1, 2),
 ]
 
 TEST_CASE_2 = [
@@ -49,17 +46,14 @@ TEST_CASE_2 = [
         "to_onehot_y": False,
         "n_classes": None,
         "round_values": True,
-        "logit_thresh": 0.6
+        "logit_thresh": 0.6,
     },
+    {"pred": torch.tensor([[[[0.0, 1.0], [2.0, 3.0]]]]), "label": torch.tensor([[[[0, 1], [1, 1]]]])},
     {
-        "pred": torch.tensor([[[[0., 1.], [2., 3.]]]]),
-        "label": torch.tensor([[[[0, 1], [1, 1]]]])
+        "pred_metrics": torch.tensor([[[[0.0, 1.0], [1.0, 1.0]]]]),
+        "label_metrics": torch.tensor([[[[0.0, 1.0], [1.0, 1.0]]]]),
     },
-    {
-        "pred_metrics": torch.tensor([[[[0., 1.], [1., 1.]]]]),
-        "label_metrics": torch.tensor([[[[0., 1.], [1., 1.]]]])
-    },
-    (1, 1, 2, 2)
+    (1, 1, 2, 2),
 ]
 
 TEST_CASE_3 = [
@@ -73,11 +67,11 @@ TEST_CASE_3 = [
         "to_onehot_y": True,
         "n_classes": None,
         "round_values": False,
-        "logit_thresh": 0.5
+        "logit_thresh": 0.5,
     },
-    {"pred": torch.tensor([[[[0., 1.]], [[2., 3.]]]])},
-    {"pred_metrics": torch.tensor([[[[0., 0.]], [[1., 1.]]]])},
-    (1, 2, 1, 2)
+    {"pred": torch.tensor([[[[0.0, 1.0]], [[2.0, 3.0]]]])},
+    {"pred_metrics": torch.tensor([[[[0.0, 0.0]], [[1.0, 1.0]]]])},
+    (1, 2, 1, 2),
 ]
 
 
