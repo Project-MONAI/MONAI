@@ -106,6 +106,7 @@ def main():
     # sliding window inference for one image at every iteration
     loader = DataLoader(ds, batch_size=1, num_workers=1, pin_memory=torch.cuda.is_available())
     state = evaluator.run(loader)
+    print(state)
     shutil.rmtree(tempdir)
 
 
