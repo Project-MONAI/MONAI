@@ -38,34 +38,34 @@ class NiftiSaver:
     ):
         """
         Args:
-            output_dir (str): output image directory.
-            output_postfix (str): a string appended to all output file names.
-            output_ext (str): output file extension name.
-            resample (bool): whether to resample before saving the data array.
-            interp_order (int): the order of the spline interpolation, default is InterpolationCode.SPLINE3.
+            output_dir: output image directory.
+            output_postfix: a string appended to all output file names.
+            output_ext: output file extension name.
+            resample: whether to resample before saving the data array.
+            interp_order: the order of the spline interpolation, default is InterpolationCode.SPLINE3.
                 The order has to be in the range 0 - 5.
                 https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.affine_transform.html
                 this option is used when `resample = True`.
             mode (`reflect|constant|nearest|mirror|wrap`):
                 The mode parameter determines how the input array is extended beyond its boundaries.
                 this option is used when `resample = True`.
-            cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
+            cval: Value to fill past edges of input if mode is "constant". Default is 0.0.
                 this option is used when `resample = True`.
-            dtype (np.dtype, optional): convert the image data to save to this data type.
+            dtype: convert the image data to save to this data type.
                 If None, keep the original type of data.
 
         """
-        self.output_dir = output_dir
-        self.output_postfix = output_postfix
-        self.output_ext = output_ext
-        self.resample = resample
-        self.interp_order = interp_order
-        self.mode = mode
-        self.cval = cval
-        self.dtype = dtype
-        self._data_index = 0
+        self.output_dir: str = output_dir
+        self.output_postfix: str = output_postfix
+        self.output_ext: str = output_ext
+        self.resample: bool = resample
+        self.interp_order: int = interp_order
+        self.mode: str = mode
+        self.cval: float = cval
+        self.dtype: Optional[np.dtype] = dtype
+        self._data_index: int = 0
 
-    def save(self, data: Union[torch.Tensor, np.ndarray], meta_data=None):
+    def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: Optional[dict] = None):
         """
         Save data into a Nifti file.
         The metadata could optionally have the following keys:
@@ -78,14 +78,14 @@ class NiftiSaver:
         If meta_data is None, use the default index from 0 to save data instead.
 
         args:
-            data (Tensor or ndarray): target data content that to be saved as a NIfTI format file.
+            data: target data content that to be saved as a NIfTI format file.
                 Assuming the data shape starts with a channel dimension and followed by spatial dimensions.
-            meta_data (dict): the meta data information corresponding to the data.
+            meta_data: the meta data information corresponding to the data.
 
         See Also
             :py:meth:`monai.data.nifti_writer.write_nifti`
         """
-        filename = meta_data["filename_or_obj"] if meta_data else str(self._data_index)
+        filename: str = meta_data["filename_or_obj"] if meta_data else str(self._data_index)
         self._data_index += 1
         original_affine = meta_data.get("original_affine", None) if meta_data else None
         affine = meta_data.get("affine", None) if meta_data else None
@@ -110,12 +110,12 @@ class NiftiSaver:
             dtype=self.dtype or data.dtype,
         )
 
-    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data=None):
+    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[dict] = None):
         """Save a batch of data into Nifti format files.
 
         args:
-            batch_data (Tensor or ndarray): target batch data content that save into NIfTI format.
-            meta_data (dict): every key-value in the meta_data is corresponding to a batch of data.
+            batch_data: target batch data content that save into NIfTI format.
+            meta_data: every key-value in the meta_data is corresponding to a batch of data.
         """
         for i, data in enumerate(batch_data):  # save a batch of files
             self.save(data, {k: meta_data[k][i] for k in meta_data} if meta_data else None)

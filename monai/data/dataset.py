@@ -9,11 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Callable
 import sys
 import hashlib
 import json
 from pathlib import Path
+from typing import Iterable, Sequence, Optional, Callable, Union, List
 
 import torch
 import numpy as np
@@ -41,14 +41,14 @@ class Dataset(_TorchDataset):
          },                           },                           }]
     """
 
-    def __init__(self, data, transform: Optional[Callable] = None):
+    def __init__(self, data: Sequence, transform: Optional[Callable] = None):
         """
         Args:
-            data (Iterable): input data to load and transform to generate dataset for model.
-            transform (Callable, optional): a callable data transform on input data.
+            data: input data to load and transform to generate dataset for model.
+            transform: a callable data transform on input data.
         """
-        self.data = data
-        self.transform = transform
+        self.data: Sequence = data
+        self.transform: Optional[Callable] = transform
 
     def __len__(self):
         return len(self.data)
@@ -95,12 +95,14 @@ class PersistentDataset(Dataset):
     followed by applying the random dependant parts of transform processing.
     """
 
-    def __init__(self, data, transform: Optional[Callable] = None, cache_dir=None):
+    def __init__(
+        self, data: Sequence, transform: Optional[Callable] = None, cache_dir: Optional[Union[Path, str]] = None
+    ):
         """
         Args:
-            data (Iterable): input data to load and transform to generate dataset for model.
-            transform (Callable, optional): transforms to execute operations on input data.
-            cache_dir (Path or str or None): If specified, this is the location for persistent storage
+            data: input data to load and transform to generate dataset for model.
+            transform: transforms to execute operations on input data.
+            cache_dir: If specified, this is the location for persistent storage
                 of pre-computed transformed data tensors. The cache_dir is computed once, and
                 persists on disk until explicitly removed.  Different runs, programs, experiments
                 may share a common cache dir provided that the transforms pre-processing is
@@ -109,7 +111,7 @@ class PersistentDataset(Dataset):
         if not isinstance(transform, Compose):
             transform = Compose(transform)
         super().__init__(data=data, transform=transform)
-        self.cache_dir = Path(cache_dir) if cache_dir is not None else None
+        self.cache_dir: Optional[Union[Path, str]] = Path(cache_dir) if cache_dir is not None else None
 
     def _pre_first_random_transform(self, item_transformed):
         """
@@ -229,29 +231,34 @@ class CacheDataset(Dataset):
     """
 
     def __init__(
-        self, data, transform: Callable, cache_num: int = sys.maxsize, cache_rate: float = 1.0, num_workers: int = 0
+        self,
+        data: List,
+        transform: Callable,
+        cache_num: int = sys.maxsize,
+        cache_rate: float = 1.0,
+        num_workers: int = 0,
     ):
         """
         Args:
-            data (Iterable): input data to load and transform to generate dataset for model.
-            transform (Callable): transforms to execute operations on input data.
-            cache_num (int): number of items to be cached. Default is `sys.maxsize`.
+            data: input data to load and transform to generate dataset for model.
+            transform: transforms to execute operations on input data.
+            cache_num: number of items to be cached. Default is `sys.maxsize`.
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
-            cache_rate (float): percentage of cached data in total, default is 1.0 (cache all).
+            cache_rate: percentage of cached data in total, default is 1.0 (cache all).
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
-            num_workers (int): the number of worker threads to use.
+            num_workers: the number of worker threads to use.
                 If 0 a single thread will be used. Default is 0.
         """
         if not isinstance(transform, Compose):
             transform = Compose(transform)
         super().__init__(data, transform)
-        self.cache_num = min(cache_num, int(len(self) * cache_rate), len(self))
+        self.cache_num: int = min(cache_num, int(len(self) * cache_rate), len(self))
         if self.cache_num > 0:
-            self._cache = [None] * self.cache_num
+            self._cache: list = [None] * self.cache_num
             print("Load and cache transformed data...")
             if num_workers > 0:
-                self._item_processed = 0
-                self._thread_lock = threading.Lock()
+                self._item_processed: int = 0
+                self._thread_lock: threading.Lock = threading.Lock()
                 with ThreadPool(num_workers) as p:
                     p.map(
                         self._load_cache_item_thread,
@@ -315,13 +322,13 @@ class ZipDataset(_TorchDataset):
 
     """
 
-    def __init__(self, datasets, transform=None):
+    def __init__(self, datasets: Union[list, tuple], transform=None):
         """
         Args:
-            datasets (list or tuple): list of datasets to zip together.
+            datasets: list of datasets to zip together.
         """
-        self.datasets = list(datasets)
-        self.len = min([len(dataset) for dataset in self.datasets])
+        self.datasets: list = list(datasets)
+        self.len: int = min([len(dataset) for dataset in self.datasets])
         self.transform = transform
 
     def __len__(self):
@@ -331,7 +338,7 @@ class ZipDataset(_TorchDataset):
         def to_list(x):
             return list(x) if isinstance(x, (tuple, list)) else [x]
 
-        data = list()
+        data: list = list()
         for dataset in self.datasets:
             data.extend(to_list(dataset[index]))
         if self.transform is not None:
@@ -380,26 +387,26 @@ class ArrayDataset(ZipDataset, Randomizable):
 
     def __init__(
         self,
-        img_files,
+        img_files: Iterable[List[str]],
         img_transform: Optional[Callable] = None,
-        seg_files=None,
+        seg_files: Optional[Iterable[List[str]]] = None,
         seg_transform: Optional[Callable] = None,
-        labels=None,
+        labels: Iterable[Union[list, np.ndarray]] = None,
         label_transform: Optional[Callable] = None,
     ):
         """
         Initializes the dataset with the filename lists. The transform `img_transform` is applied
         to the images and `seg_transform` to the segmentations.
         Args:
-            img_files (iterable, list of str): list of image filenames
-            img_transform (Callable, optional): transform to apply to image arrays
-            seg_files (iterable, list of str): if in segmentation task, list of segmentation filenames
-            seg_transform (Callable, optional): transform to apply to segmentation arrays
-            labels (iterable, list or array): if in classification task, list of classification labels
-            label_transform (Callable, optional): transform to apply to label arrays
+            img_files: list of image filenames
+            img_transform: transform to apply to image arrays
+            seg_files: if in segmentation task, list of segmentation filenames
+            seg_transform: transform to apply to segmentation arrays
+            labels: if in classification task, list of classification labels
+            label_transform: transform to apply to label arrays
 
         """
-        items = [(img_files, img_transform), (seg_files, seg_transform), (labels, label_transform)]
+        items: list = [(img_files, img_transform), (seg_files, seg_transform), (labels, label_transform)]
         self.set_random_state(seed=get_seed())
         super().__init__([Dataset(x[0], x[1]) for x in items if x[0] is not None])
 

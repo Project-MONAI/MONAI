@@ -22,9 +22,9 @@ import nibabel as nib
 import torch
 from skimage.transform import resize
 
-from monai.data.utils import zoom_affine, compute_shape_offset, to_affine_nd, InterpolationCode
+from monai.data.utils import zoom_affine, compute_shape_offset, to_affine_nd, InterpolationCode, InterpolationCodeType
 from monai.networks.layers.simplelayers import GaussianFilter
-from monai.transforms.compose import Transform, Randomizable
+from monai.transforms.compose import Transform, Randomizable, TransformDataType
 from monai.transforms.utils import (
     create_control_grid,
     create_grid,
@@ -34,6 +34,7 @@ from monai.transforms.utils import (
     create_translate,
 )
 from monai.utils.misc import ensure_tuple
+from typing import Sequence, Tuple
 
 
 class Spacing(Transform):
@@ -43,17 +44,17 @@ class Spacing(Transform):
 
     def __init__(
         self,
-        pixdim,
+        pixdim: Sequence[float],
         diagonal: bool = False,
-        interp_order=3,
+        interp_order: InterpolationCodeType = 3,
         mode: str = "nearest",
         cval: Union[int, float] = 0,
         dtype: Optional[np.dtype] = None,
     ):
         """
         Args:
-            pixdim (sequence of floats): output voxel spacing.
-            diagonal (bool): whether to resample the input to have a diagonal affine matrix.
+            pixdim: output voxel spacing.
+            diagonal: whether to resample the input to have a diagonal affine matrix.
                 If True, the input data is resampled to the following affine::
 
                     np.diag((pixdim_0, pixdim_1, ..., pixdim_n, 1))
@@ -64,34 +65,36 @@ class Spacing(Transform):
                 If False, this transform preserves the axes orientation, orthogonal rotation and
                 translation components from the original affine. This option will not flip/swap axes
                 of the original data.
-            interp_order (int): The order of the spline interpolation, default is InterpolationCode.SPLINE3.
+            interp_order: The order of the spline interpolation, default is InterpolationCode.SPLINE3.
                 The order has to be in the range 0-5.
                 https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.zoom.html
-            mode (`reflect|constant|nearest|mirror|wrap`):
+            mode:
                 The mode parameter determines how the input array is extended beyond its boundaries.
-            cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
-            dtype (None or np.dtype): output array data type, defaults to None to use input data's dtype.
+                Only (`reflect|constant|nearest|mirror|wrap`) are valid
+            cval: Scalar value to fill past edges of input if mode is "constant". Default is 0.0.
+            dtype: output array data type, defaults to None to use input data's dtype.
         """
-        self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
-        self.diagonal = diagonal
-        self.interp_order = interp_order
-        self.mode = mode
-        self.cval = cval
-        self.dtype = dtype
+        assert mode in ["reflect", "constant", "nearest", "mirror", "wrap"], f"Error: invalid mode {mode}"
+        self.pixdim: np.array = np.array(ensure_tuple(pixdim), dtype=np.float64)
+        self.diagonal: bool = diagonal
+        self.interp_order: InterpolationCodeType = interp_order
+        self.mode: str = mode
+        self.cval: float = cval
+        self.dtype: np.dtype = dtype
 
     def __call__(
         self,
         data_array: np.ndarray,
-        affine=None,
-        interp_order=None,
+        affine: Optional[np.matrix] = None,
+        interp_order: Optional[InterpolationCodeType] = None,
         mode: Optional[str] = None,
         cval: Union[int, float] = None,
         dtype: Optional[np.dtype] = None,
     ):
         """
         Args:
-            data_array (ndarray): in shape (num_channels, H[, W, ...]).
-            affine (matrix): (N+1)x(N+1) original affine matrix for spatially ND `data_array`. Defaults to identity.
+            data_array: in shape (num_channels, H[, W, ...]).
+            affine: (N+1)x(N+1) original affine matrix for spatially ND `data_array`. Defaults to identity.
         Returns:
             data_array (resampled into `self.pixdim`), original pixdim, current pixdim.
         """
@@ -139,15 +142,20 @@ class Orientation(Transform):
     Change the input image's orientation into the specified based on `axcodes`.
     """
 
-    def __init__(self, axcodes=None, as_closest_canonical: bool = False, labels=tuple(zip("LPI", "RAS"))):
+    def __init__(
+        self,
+        axcodes: Optional[Sequence[str]] = None,
+        as_closest_canonical: bool = False,
+        labels: Tuple[Tuple[str, str], ...] = tuple(zip("LPI", "RAS")),
+    ):
         """
         Args:
-            axcodes (N elements sequence): for spatial ND input's orientation.
+            axcodes: for spatial ND input's orientation.
                 e.g. axcodes='RAS' represents 3D orientation:
                 (Left, Right), (Posterior, Anterior), (Inferior, Superior).
                 default orientation labels options are: 'L' and 'R' for the first dimension,
                 'P' and 'A' for the second, 'I' and 'S' for the third.
-            as_closest_canonical (boo): if True, load the image as closest to canonical axis format.
+            as_closest_canonical: if True, load the image as closest to canonical axis format.
             labels : optional, None or sequence of (2,) sequences
                 (2,) sequences are labels for (beginning, end) of output axis.
                 Defaults to ``(('L', 'R'), ('P', 'A'), ('I', 'S'))``.
@@ -162,13 +170,13 @@ class Orientation(Transform):
         self.as_closest_canonical = as_closest_canonical
         self.labels = labels
 
-    def __call__(self, data_array: np.ndarray, affine=None):
+    def __call__(self, data_array: TransformDataType, affine: Optional[np.matrix] = None) -> TransformDataType:
         """
         original orientation of `data_array` is defined by `affine`.
 
         Args:
-            data_array (ndarray): in shape (num_channels, H[, W, ...]).
-            affine (matrix): (N+1)x(N+1) original affine matrix for spatially ND `data_array`. Defaults to identity.
+            data_array: in shape (num_channels, H[, W, ...]).
+            affine: (N+1)x(N+1) original affine matrix for spatially ND `data_array`. Defaults to identity.
         Returns:
             data_array (reoriented in `self.axcodes`), original axcodes, current axcodes.
         """
@@ -184,7 +192,14 @@ class Orientation(Transform):
         if self.as_closest_canonical:
             spatial_ornt = src
         else:
-            dst = nib.orientations.axcodes2ornt(self.axcodes[:sr], labels=self.labels)
+            if self.axcodes:
+                code: Sequence[str] = self.axcodes[:sr]
+                dst = nib.orientations.axcodes2ornt(code, labels=self.labels)
+            else:
+                assert (
+                    self.as_closest_canonical or self.axcodes
+                ), "ERROR, must set either as_closest_canonical or axcodes"
+
             if len(dst) < sr:
                 raise ValueError(
                     f"`self.axcodes` should have at least {sr} elements"
@@ -207,16 +222,16 @@ class Flip(Transform):
     https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
 
     Args:
-        spatial_axis (None, int or tuple of ints): spatial axes along which to flip over. Default is None.
+        spatial_axis: spatial axes along which to flip over. Default is None.
     """
 
-    def __init__(self, spatial_axis=None):
+    def __init__(self, spatial_axis: Optional[Union[int, Tuple[int, int], Tuple[int, int, int]]] = None):
         self.spatial_axis = spatial_axis
 
-    def __call__(self, img):
+    def __call__(self, img: TransformDataType, *args, **kwargs) -> TransformDataType:
         """
         Args:
-            img (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
+            img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
         flipped = list()
         for channel in img:
@@ -1113,7 +1128,7 @@ class Rand2DElastic(Randomizable, Transform):
             spacing (2 ints): distance in between the control points.
             magnitude_range (2 ints): the random offsets will be generated from
                 ``uniform[magnitude[0], magnitude[1])``.
-            prob (float): probability of returning a randomized affine grid.
+            prob: probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
             spatial_size (2 ints): specifying output image spatial size [h, w].
@@ -1144,8 +1159,8 @@ class Rand2DElastic(Randomizable, Transform):
         self.spatial_size = spatial_size
         self.padding_mode = padding_mode
         self.mode = mode
-        self.prob = prob
-        self.do_transform = False
+        self.prob: float = prob
+        self.do_transform: bool = False
 
     def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
         self.deform_grid.set_random_state(seed, state)

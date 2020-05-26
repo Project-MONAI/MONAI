@@ -13,12 +13,15 @@ A collection of generic interfaces for MONAI transforms.
 """
 
 import warnings
-from typing import Hashable, Optional
+from typing import Hashable, Union, Optional
 from abc import ABC, abstractmethod
 import numpy as np
 
 from monai.utils.misc import ensure_tuple, get_seed
 from .utils import apply_transform
+from torch import Tensor
+
+TransformDataType = Union[np.ndarray, Tensor]
 
 
 class Transform(ABC):
@@ -41,7 +44,7 @@ class Transform(ABC):
     """
 
     @abstractmethod
-    def __call__(self, data, *args, **kwargs):
+    def __call__(self, data: TransformDataType, *args, **kwargs) -> TransformDataType:
         """
         ``data`` is an element which often comes from an iteration over an
         iterable, such as :py:class:`torch.utils.data.Dataset`. This method should
