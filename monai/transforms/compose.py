@@ -17,7 +17,7 @@ from typing import Hashable
 from abc import ABC, abstractmethod
 import numpy as np
 
-from monai.utils.misc import ensure_tuple
+from monai.utils.misc import ensure_tuple, get_seed
 from .utils import apply_transform
 
 
@@ -139,6 +139,9 @@ class Compose(Randomizable):
     #. transformC then randomly rotates or flips 'img' and 'seg' fields of
        every dictionary item in the list.
 
+    The composed transforms will be set the same global random seed if user called
+    `set_determinism()`.
+
     When using the pass-through dictionary operation, you can make use of
     :class:`monai.transforms.adaptors.adaptor` to wrap transforms that don't conform
     to the requirements. This approach allows you to use transforms from
@@ -169,6 +172,7 @@ class Compose(Randomizable):
         if not isinstance(transforms, (list, tuple)):
             raise ValueError("Parameters 'transforms' must be a list or tuple")
         self.transforms = transforms
+        self.set_random_state(seed=get_seed())
 
     def set_random_state(self, seed=None, state=None):
         for _transform in self.transforms:

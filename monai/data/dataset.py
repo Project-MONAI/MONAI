@@ -23,7 +23,7 @@ import threading
 
 from monai.transforms import Compose, Randomizable
 from monai.transforms.utils import apply_transform
-from monai.utils import process_bar
+from monai.utils import process_bar, get_seed
 
 
 class Dataset(torch.utils.data.Dataset):
@@ -390,6 +390,7 @@ class ArrayDataset(ZipDataset, Randomizable):
 
         """
         items = [(img_files, img_transform), (seg_files, seg_transform), (labels, label_transform)]
+        self.set_random_state(seed=get_seed())
         super().__init__([Dataset(x[0], x[1]) for x in items if x[0] is not None])
 
     def randomize(self):
