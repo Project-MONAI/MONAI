@@ -239,9 +239,12 @@ def apply_transform(transform, data):
         transform (callable): a callable to be used to transform `data`
         data (object): an object to be transformed.
     """
-    if isinstance(data, (list, tuple)):
-        return [transform(item) for item in data]
-    return transform(data)
+    try:
+        if isinstance(data, (list, tuple)):
+            return [transform(item) for item in data]
+        return transform(data)
+    except Exception as e:
+        raise Exception(f"applying transform {transform}.").with_traceback(e.__traceback__)
 
 
 def create_grid(spatial_size, spacing=None, homogeneous=True, dtype=float):
