@@ -25,6 +25,7 @@ from monai.handlers import SegmentationSaver
 from monai.networks.nets import UNet
 from monai.networks.utils import predict_segmentation
 from monai.transforms import AddChannel
+from monai.utils import set_determinism
 from tests.utils import make_nifti_image
 
 
@@ -60,10 +61,7 @@ def run_test(batch_size, img_name, seg_name, output_dir, device=torch.device("cu
 
 class TestIntegrationSlidingWindow(unittest.TestCase):
     def setUp(self):
-        np.random.seed(0)
-        torch.manual_seed(0)
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
+        set_determinism(seed=0)
 
         im, seg = create_test_image_3d(25, 28, 63, rad_max=10, noise_max=1, num_objs=4, num_seg_classes=1)
         self.img_name = make_nifti_image(im)
@@ -71,6 +69,7 @@ class TestIntegrationSlidingWindow(unittest.TestCase):
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")
 
     def tearDown(self):
+        set_determinism(seed=None)
         if os.path.exists(self.img_name):
             os.remove(self.img_name)
         if os.path.exists(self.seg_name):
