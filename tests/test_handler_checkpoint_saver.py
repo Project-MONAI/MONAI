@@ -20,21 +20,23 @@ from parameterized import parameterized
 import logging
 import sys
 
-TEST_CASE_1 = [
-    True, False, None, 1, 0, None, 0, None, ["test_net_final_iteration=40.pth"]
-]
+TEST_CASE_1 = [True, False, None, 1, 0, None, 0, None, ["test_net_final_iteration=40.pth"]]
 
 TEST_CASE_2 = [
-    False, True, "val_loss", 2, 0, None, 0, None, ["test_net_key_metric=32.pth", "test_net_key_metric=40.pth"]
+    False,
+    True,
+    "val_loss",
+    2,
+    0,
+    None,
+    0,
+    None,
+    ["test_net_key_metric=32.pth", "test_net_key_metric=40.pth"],
 ]
 
-TEST_CASE_3 = [
-    False, False, None, 1, 2, 2, 0, None, ["test_net_epoch=2.pth", "test_net_epoch=4.pth"]
-]
+TEST_CASE_3 = [False, False, None, 1, 2, 2, 0, None, ["test_net_epoch=2.pth", "test_net_epoch=4.pth"]]
 
-TEST_CASE_4 = [
-    False, False, None, 1, 0, None, 10, 2, ["test_net_iteration=30.pth", "test_net_iteration=40.pth"]
-]
+TEST_CASE_4 = [False, False, None, 1, 0, None, 10, 2, ["test_net_iteration=30.pth", "test_net_iteration=40.pth"]]
 
 
 class TestHandlerCheckpointSaver(unittest.TestCase):
@@ -49,7 +51,7 @@ class TestHandlerCheckpointSaver(unittest.TestCase):
         epoch_n_saved,
         iteration_save_interval,
         iteration_n_saved,
-        filenames
+        filenames,
     ):
         logging.basicConfig(stream=sys.stdout, level=logging.INFO)
         data = [0] * 8
@@ -64,9 +66,20 @@ class TestHandlerCheckpointSaver(unittest.TestCase):
         net = torch.nn.PReLU()
         with tempfile.TemporaryDirectory() as tempdir:
             save_dir = os.path.join(tempdir, "checkpoint")
-            handler = CheckpointSaver(save_dir, {"net": net}, "CheckpointSaver", "test", save_final, save_key_metric,
-                                      key_metric_name, key_metric_n_saved, epoch_save_interval, epoch_n_saved,
-                                      iteration_save_interval, iteration_n_saved)
+            handler = CheckpointSaver(
+                save_dir,
+                {"net": net},
+                "CheckpointSaver",
+                "test",
+                save_final,
+                save_key_metric,
+                key_metric_name,
+                key_metric_n_saved,
+                epoch_save_interval,
+                epoch_n_saved,
+                iteration_save_interval,
+                iteration_n_saved,
+            )
             handler.attach(engine)
             engine.run(data, max_epochs=5)
             for filename in filenames:

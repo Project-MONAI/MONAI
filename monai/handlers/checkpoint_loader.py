@@ -40,7 +40,7 @@ class CheckpointLoader:
         self.logger = None if name is None else logging.getLogger(name)
         if convert_to_multi_gpu:
             for k, v in load_dict.items():
-                if hasattr(v, 'module'):
+                if hasattr(v, "module"):
                     load_dict[k] = v.module
         self.load_dict = load_dict
 

@@ -50,12 +50,13 @@ class CheckpointSaver:
             checkpoint_key_metric=0.9387.pth
 
     """
+
     def __init__(
         self,
         save_dir,
         save_dict,
         name=None,
-        file_prefix='',
+        file_prefix="",
         save_final=False,
         save_key_metric=False,
         key_metric_name=None,
@@ -64,14 +65,14 @@ class CheckpointSaver:
         epoch_n_saved=None,
         iteration_save_interval=0,
         iteration_n_saved=None,
-        convert_to_single_gpu=False
+        convert_to_single_gpu=False,
     ):
         assert save_dir is not None, "must provide directory to save the checkpoints."
         self.save_dir = save_dir
         assert save_dict is not None and len(save_dict) > 0, "must provide source objects to save."
         if convert_to_single_gpu:
             for k, v in save_dict.items():
-                if hasattr(v, 'module'):
+                if hasattr(v, "module"):
                     save_dict[k] = v.module
         self.save_dict = save_dict
         self.logger = None if name is None else logging.getLogger(name)
@@ -85,12 +86,19 @@ class CheckpointSaver:
         self.iteration_n_saved = iteration_n_saved
 
         if self.save_final is True:
+
             def _final_func(engine):
                 return engine.state.iteration
+
             self.final_checkpoint = ModelCheckpoint(
-                self.save_dir, file_prefix, score_function=_final_func, score_name='final_iteration',
-                require_empty=False)
+                self.save_dir,
+                file_prefix,
+                score_function=_final_func,
+                score_name="final_iteration",
+                require_empty=False,
+            )
         if self.save_key_metric is True:
+
             def _score_func(engine):
                 if isinstance(self.key_metric_name, str):
                     metric_name = self.key_metric_name
@@ -99,21 +107,41 @@ class CheckpointSaver:
                 else:
                     raise ValueError("must provde key_metric_name to save best validation model.")
                 return round(engine.state.metrics[metric_name], 4)
+
             self.key_metric_checkpoint = ModelCheckpoint(
-                self.save_dir, file_prefix, score_function=_score_func, score_name='key_metric',
-                n_saved=self.key_metric_n_saved, require_empty=False)
+                self.save_dir,
+                file_prefix,
+                score_function=_score_func,
+                score_name="key_metric",
+                n_saved=self.key_metric_n_saved,
+                require_empty=False,
+            )
         if self.epoch_save_interval > 0:
+
             def _epoch_func(engine):
                 return engine.state.epoch
+
             self.epoch_checkpoint = ModelCheckpoint(
-                self.save_dir, file_prefix, score_function=_epoch_func, score_name='epoch',
-                n_saved=self.epoch_n_saved, require_empty=False)
+                self.save_dir,
+                file_prefix,
+                score_function=_epoch_func,
+                score_name="epoch",
+                n_saved=self.epoch_n_saved,
+                require_empty=False,
+            )
         if self.iteration_save_interval > 0:
+
             def _iteration_func(engine):
                 return engine.state.iteration
+
             self.iteration_checkpoint = ModelCheckpoint(
-                self.save_dir, file_prefix, score_function=_iteration_func, score_name='iteration',
-                n_saved=self.iteration_n_saved, require_empty=False)
+                self.save_dir,
+                file_prefix,
+                score_function=_iteration_func,
+                score_name="iteration",
+                n_saved=self.iteration_n_saved,
+                require_empty=False,
+            )
 
     def attach(self, engine):
         if self.logger is None:
@@ -134,7 +162,7 @@ class CheckpointSaver:
         """
         if self.save_final is True:
             self.final_checkpoint(engine, self.save_dict)
-            self.logger.info(f'Train completed, saved final checkpoint: {self.final_checkpoint.last_checkpoint}')
+            self.logger.info(f"Train completed, saved final checkpoint: {self.final_checkpoint.last_checkpoint}")
 
     def epoch_completed(self, engine):
         """Callback for train or validation/evaluation epoch completed Event.
@@ -143,7 +171,7 @@ class CheckpointSaver:
         """
         if self.epoch_save_interval > 0 and engine.state.epoch % self.epoch_save_interval == 0:
             self.epoch_checkpoint(engine, self.save_dict)
-            self.logger.info(f'Saved checkpoint at epoch: {engine.state.epoch}')
+            self.logger.info(f"Saved checkpoint at epoch: {engine.state.epoch}")
         if self.save_key_metric is True:
             self.key_metric_checkpoint(engine, self.save_dict)
 
@@ -154,7 +182,7 @@ class CheckpointSaver:
         """
         if self.iteration_save_interval > 0 and engine.state.iteration % self.iteration_save_interval == 0:
             self.iteration_checkpoint(engine, self.save_dict)
-            self.logger.info(f'Saved checkpoint at iteration: {engine.state.iteration}')
+            self.logger.info(f"Saved checkpoint at iteration: {engine.state.iteration}")
 
     def exception_raised(self, engine, e):
         """Callback for train or validation/evaluation exception raised Event.
@@ -163,4 +191,4 @@ class CheckpointSaver:
         """
         if self.save_final is True:
             self.final_checkpoint(engine, self.save_dict)
-            self.logger.info(f'Exception_raised, saved exception checkpoint: {self.final_checkpoint.last_checkpoint}')
+            self.logger.info(f"Exception_raised, saved exception checkpoint: {self.final_checkpoint.last_checkpoint}")
