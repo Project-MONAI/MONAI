@@ -218,11 +218,6 @@ def list_data_collate(batch):
     return default_collate(data)
 
 
-def worker_init_fn(worker_id):
-    worker_info = torch.utils.data.get_worker_info()
-    worker_info.dataset.transform.set_random_state(worker_info.seed % (2 ** 32))
-
-
 def correct_nifti_header_if_necessary(img_nii):
     """
     check nifti object header's format, update the header if needed.
