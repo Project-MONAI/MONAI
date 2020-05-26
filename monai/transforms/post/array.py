@@ -95,6 +95,7 @@ class ConvertForMetrics(Transform):
             y (Tensor): label data, can be None if do inference.
 
         """
+        n_classes = y_pred.shape[1] if self.n_classes is None else self.n_classes
         if self.add_sigmoid is True:
             y_pred = torch.sigmoid(y_pred)
         if self.add_softmax is True:
@@ -102,7 +103,6 @@ class ConvertForMetrics(Transform):
         if self.add_argmax is True:
             y_pred = torch.argmax(y_pred, dim=1, keepdim=True)
 
-        n_classes = y_pred.shape[1] if self.n_classes is None else self.n_classes
         if self.to_onehot_y_pred:
             y_pred = one_hot(y_pred, n_classes)
         if self.to_onehot_y and y is not None:

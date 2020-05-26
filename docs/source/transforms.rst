@@ -321,6 +321,12 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
+`ConvertForMetrics`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: ConvertForMetrics
+    :members:
+    :special-members: __call__
+
 Dictionary-based Transforms
 ----------------------------
 
@@ -579,6 +585,12 @@ Dictionary-based Transforms
 `SplitChanneld`
 ~~~~~~~~~~~~~~~
 .. autoclass:: SplitChanneld
+    :members:
+    :special-members: __call__
+
+`ConvertForMetricsd`
+~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: ConvertForMetricsd
     :members:
     :special-members: __call__
 

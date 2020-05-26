@@ -66,7 +66,7 @@ class ConvertForMetricsd(MapTransform):
     def __init__(
         self,
         keys,
-        output_postfixes,
+        output_postfix="metrics",
         add_sigmoid=False,
         add_softmax=False,
         add_argmax=False,
@@ -80,9 +80,9 @@ class ConvertForMetricsd(MapTransform):
         Args:
             keys (hashable items): keys of the corresponding items to model output and label.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            output_postfixes (list, tuple): the postfixes to construct keys to store converted data.
-                for example: if the keys of input data is `pred` and `label`, the output data keys will be:
-                pred_(output_postfixes[0]), label_(output_postfixes[1])
+            output_postfix (str): the postfix string to construct keys to store converted data.
+                for example: if the keys of input data is `pred` and `label`, output_postfix is `metrics`,
+                the output data keys will be: `pred_metrics`, `label_metrics`.
             add_sigmoid (bool): whether to add sigmoid function to y_pred before transform.
             add_softmax (bool): whether to add softmax function to y_pred before transform.
             add_argmax (bool): whether to add argmax function to y_pred before transform.
@@ -94,11 +94,9 @@ class ConvertForMetricsd(MapTransform):
 
         """
         super().__init__(keys)
-        if not isinstance(output_postfixes, (list, tuple)):
-            raise ValueError("must specify key postfixes to store converted data.")
-        if len(keys) != len(output_postfixes):
-            raise ValueError("expected output items should match input data.")
-        self.output_postfixes = output_postfixes
+        if not isinstance(output_postfix, str):
+            raise ValueError("output_postfix must be a string.")
+        self.output_postfix = output_postfix
         self.converter = ConvertForMetrics(add_sigmoid, add_softmax, add_argmax, to_onehot_y_pred,
                                            to_onehot_y, n_classes, round_values, logit_thresh)
 
@@ -107,9 +105,9 @@ class ConvertForMetricsd(MapTransform):
         y_pred_key, y_key = self.keys[0], self.keys[1] if len(self.keys) > 1 else None
         y_pred, y = d[y_pred_key], d[y_key] if y_key is not None else None
         y_pred, y = self.converter(y_pred, y)
-        d[f"{y_pred_key}_{self.output_postfixes[0]}"] = y_pred
+        d[f"{y_pred_key}_{self.output_postfix}"] = y_pred
         if y_key is not None:
-            d[f"{y_key}_{self.output_postfixes[1]}"] = y
+            d[f"{y_key}_{self.output_postfix}"] = y
         return d
 
 
