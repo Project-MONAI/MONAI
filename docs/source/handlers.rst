@@ -10,6 +10,11 @@ Checkpoint loader
 .. automodule:: monai.handlers.checkpoint_loader
   :members:
 
+Checkpoint saver
+----------------
+.. automodule:: monai.handlers.checkpoint_saver
+  :members:
+
 CSV saver
 ---------
 .. automodule:: monai.handlers.classification_saver
