@@ -14,14 +14,13 @@ import numpy as np
 import PIL
 from PIL.GifImagePlugin import Image as GifImage
 from torch.utils.tensorboard import SummaryWriter
-from torch import Tensor
 from tensorboard.compat.proto import summary_pb2
 from monai.transforms.utils import rescale_array
 
 from typing import Sequence, Union
 
 
-def _image3_animated_gif(tag: str, image: Union[np.array, Tensor], scale_factor: float = 1):
+def _image3_animated_gif(tag: str, image: Union[np.array, torch.Tensor], scale_factor: float = 1):
     """Function to actually create the animated gif.
     Args:
         tag (str): Data identifier
@@ -48,7 +47,7 @@ def _image3_animated_gif(tag: str, image: Union[np.array, Tensor], scale_factor:
 
 def make_animated_gif_summary(
     tag: str,
-    image: Union[np.array, Tensor],
+    image: Union[np.array, torch.Tensor],
     max_out: int = 3,
     animation_axes: Sequence[int] = (3,),
     image_axes: Sequence[int] = (1, 2),
@@ -86,7 +85,7 @@ def make_animated_gif_summary(
     image = image[tuple(slicing)]
 
     for it_i in range(min(max_out, list(image.shape)[0])):
-        one_channel_img: Union[Tensor, np.array] = image[it_i, :, :, :].squeeze(dim=0) if torch.is_tensor(
+        one_channel_img: Union[torch.Tensor, np.array] = image[it_i, :, :, :].squeeze(dim=0) if torch.is_tensor(
             image
         ) else image[it_i, :, :, :]
         summary_op = _image3_animated_gif(tag + suffix.format(it_i), one_channel_img, scale_factor)
@@ -96,7 +95,7 @@ def make_animated_gif_summary(
 def add_animated_gif(
     writer: SummaryWriter,
     tag: str,
-    image_tensor: Union[np.array, Tensor],
+    image_tensor: Union[np.array, torch.Tensor],
     max_out: int,
     scale_factor: float,
     global_step: int = None,
@@ -123,7 +122,7 @@ def add_animated_gif(
 def add_animated_gif_no_channels(
     writer: SummaryWriter,
     tag: str,
-    image_tensor: Union[np.array, Tensor],
+    image_tensor: Union[np.array, torch.Tensor],
     max_out: int,
     scale_factor: float,
     global_step: int = None,
