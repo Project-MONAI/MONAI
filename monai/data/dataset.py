@@ -175,7 +175,7 @@ class PersistentDataset(Dataset):
             else:
                 item_transformed = self._pre_first_random_transform(item_transformed)
                 if hashfile is not None:
-                    # add sentinal flag to indicate that the transforms have already been computed.
+                    # add sentinel flag to indicate that the transforms have already been computed.
                     item_transformed["cache"] = True
                     # NOTE: Writing to ".temp_write_cache" and then using a nearly atomic rename operation
                     #       to make the cache more robust to manual killing of parent process
@@ -293,7 +293,7 @@ class CacheDataset(Dataset):
 class ZipDataset(torch.utils.data.Dataset):
     """
     Zip several PyTorch datasets and output data(with the same index) together in a tuple.
-    If the output of single dataset is alreay a tuple, flatten it and extend to the result.
+    If the output of single dataset is already a tuple, flatten it and extend to the result.
     For example: if datasetA returns (img, imgmeta), datsetB returns (seg, segmeta),
     finally return (img, imgmeta, seg, segmeta).
     And if the datasets don't have same length, use the minimum length of them as the length
