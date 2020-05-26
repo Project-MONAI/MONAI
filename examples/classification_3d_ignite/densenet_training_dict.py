@@ -156,6 +156,7 @@ def main():
 
     train_epochs = 30
     state = trainer.run(train_loader, train_epochs)
+    print(state)
 
 
 if __name__ == "__main__":
