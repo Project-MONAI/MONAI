@@ -64,7 +64,7 @@ class CheckpointSaver:
         key_metric_n_saved=1,
         epoch_level=True,
         save_interval=0,
-        n_saved=None
+        n_saved=None,
     ):
         assert save_dir is not None, "must provide directory to save the checkpoints."
         self.save_dir = save_dir

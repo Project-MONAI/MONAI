@@ -52,7 +52,7 @@ class TestHandlerCheckpointSaver(unittest.TestCase):
         save_interval,
         n_saved,
         filenames,
-        multi_devices=False
+        multi_devices=False,
     ):
         logging.basicConfig(stream=sys.stdout, level=logging.INFO)
         data = [0] * 8
@@ -80,7 +80,7 @@ class TestHandlerCheckpointSaver(unittest.TestCase):
                 key_metric_n_saved,
                 epoch_level,
                 save_interval,
-                n_saved
+                n_saved,
             )
             handler.attach(engine)
             engine.run(data, max_epochs=5)

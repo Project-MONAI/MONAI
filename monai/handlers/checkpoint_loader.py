@@ -30,6 +30,7 @@ class CheckpointLoader:
         name (str): identifier of logging.logger to use, if None, defaulting to ``engine.logger``.
 
     """
+
     def __init__(self, load_path, load_dict, name=None):
         assert load_path is not None, "must provide clear path to load checkpoint."
         self.load_path = load_path
