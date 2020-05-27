@@ -414,5 +414,5 @@ def get_largest_connected_component_mask(img, connectivity=None):
     for i, item in enumerate(img_arr):
         item = measure.label(item, connectivity=connectivity)
         if item.max() != 0:
-            largest_cc[i, ...] = (item == (np.argmax(np.bincount(item.flat)[1:]) + 1))
+            largest_cc[i, ...] = item == (np.argmax(np.bincount(item.flat)[1:]) + 1)
     return torch.as_tensor(largest_cc, device=img.device)
