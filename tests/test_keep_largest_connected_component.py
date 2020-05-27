@@ -104,13 +104,13 @@ TEST_CASE_12 = [
             [[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]],
             [[[1, 1, 1, 1, 1], [0, 0, 0, 0, 0], [0, 0, 1, 1, 1], [0, 0, 1, 0, 0], [0, 0, 0, 0, 0]]],
         ]
-    ).cuda(),
+    ),
     torch.tensor(
         [
             [[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]],
             [[[1, 1, 1, 1, 1], [0, 0, 0, 0, 0], [0, 0, 3, 3, 3], [0, 0, 3, 0, 0], [0, 0, 0, 0, 0]]],
         ]
-    ).cuda(),
+    ),
 ]
 
 VALID_CASES = [
@@ -133,8 +133,12 @@ class TestKeepLargestConnectedComponent(unittest.TestCase):
     @parameterized.expand(VALID_CASES)
     def test_correct_results(self, _, args, tensor, expected):
         converter = KeepLargestConnectedComponent(**args)
-        result = converter(tensor.clone())
-        assert torch.allclose(result, expected)
+        if torch.cuda.is_available():
+            result = converter(tensor.clone().cuda())
+            assert torch.allclose(result, expected.cuda())
+        else:
+            result = converter(tensor.clone())
+            assert torch.allclose(result, expected)
 
 
 if __name__ == "__main__":

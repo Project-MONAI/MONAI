@@ -101,7 +101,7 @@ TEST_CASE_11 = [
 ]
 
 TEST_CASE_12 = [
-    "all_0_batch_2_cuda",
+    "all_0_batch_2",
     {"keys": ["img"], "independent": False, "applied_values": [1], "background": 3},
     {
         "img": torch.tensor(
@@ -109,14 +109,14 @@ TEST_CASE_12 = [
                 [[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]],
                 [[[1, 1, 1, 1, 1], [0, 0, 0, 0, 0], [0, 0, 1, 1, 1], [0, 0, 1, 0, 0], [0, 0, 0, 0, 0]]],
             ]
-        ).cuda()
+        )
     },
     torch.tensor(
         [
             [[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]],
             [[[1, 1, 1, 1, 1], [0, 0, 0, 0, 0], [0, 0, 3, 3, 3], [0, 0, 3, 0, 0], [0, 0, 0, 0, 0]]],
         ]
-    ).cuda(),
+    ),
 ]
 
 VALID_CASES = [
@@ -139,8 +139,13 @@ class TestKeepLargestConnectedComponentd(unittest.TestCase):
     @parameterized.expand(VALID_CASES)
     def test_correct_results(self, _, args, input_dict, expected):
         converter = KeepLargestConnectedComponentd(**args)
-        result = converter(input_dict)
-        torch.allclose(result["img_largestcc"], expected)
+        if torch.cuda.is_available():
+            input_dict["img"] = input_dict["img"].cuda()
+            result = converter(input_dict)
+            torch.allclose(result["img_largestcc"], expected.cuda())
+        else:
+            result = converter(input_dict)
+            torch.allclose(result["img_largestcc"], expected)
 
 
 if __name__ == "__main__":
