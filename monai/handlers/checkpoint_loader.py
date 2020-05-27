@@ -39,5 +39,9 @@ class CheckpointLoader:
 
     def __call__(self, engine):
         checkpoint = torch.load(self.load_path)
-        Checkpoint.load_objects(to_load=self.load_dict, checkpoint=checkpoint)
+        if len(self.load_dict) == 1 and not list(self.load_dict.keys())[0] in checkpoint:
+            to_load = list(self.load_dict.values())[0]
+        else:
+            to_load = self.load_dict
+        Checkpoint.load_objects(to_load=to_load, checkpoint=checkpoint)
         print(f"Restored all variables from {self.load_path}")
