@@ -15,12 +15,13 @@ import shutil
 import torch
 import unittest
 from ignite.engine import Engine
-from monai.handlers import CheckpointSaver
+from monai.handlers import CheckpointSaver, CheckpointLoader
+import torch.optim as optim
 from parameterized import parameterized
 import logging
 import sys
 
-TEST_CASE_1 = [True, False, None, 1, True, 0, None, ["test_net_final_iteration=40.pth"]]
+TEST_CASE_1 = [True, False, None, 1, True, 0, None, ["test_checkpoint_final_iteration=40.pth"]]
 
 TEST_CASE_2 = [
     False,
@@ -30,14 +31,23 @@ TEST_CASE_2 = [
     True,
     0,
     None,
-    ["test_net_key_metric=32.pth", "test_net_key_metric=40.pth"],
+    ["test_checkpoint_key_metric=32.pth", "test_checkpoint_key_metric=40.pth"],
 ]
 
-TEST_CASE_3 = [False, False, None, 1, True, 2, 2, ["test_net_epoch=2.pth", "test_net_epoch=4.pth"]]
+TEST_CASE_3 = [False, False, None, 1, True, 2, 2, ["test_checkpoint_epoch=2.pth", "test_checkpoint_epoch=4.pth"]]
 
-TEST_CASE_4 = [False, False, None, 1, False, 10, 2, ["test_net_iteration=30.pth", "test_net_iteration=40.pth"]]
+TEST_CASE_4 = [
+    False,
+    False,
+    None,
+    1,
+    False,
+    10,
+    2,
+    ["test_checkpoint_iteration=30.pth", "test_checkpoint_iteration=40.pth"],
+]
 
-TEST_CASE_5 = [True, False, None, 1, True, 0, None, ["test_net_final_iteration=40.pth"], True]
+TEST_CASE_5 = [True, False, None, 1, True, 0, None, ["test_checkpoint_final_iteration=40.pth"], True]
 
 
 class TestHandlerCheckpointSaver(unittest.TestCase):
@@ -67,11 +77,12 @@ class TestHandlerCheckpointSaver(unittest.TestCase):
         net = torch.nn.PReLU()
         if multi_devices:
             net = torch.nn.DataParallel(net)
+        optimizer = optim.SGD(net.parameters(), lr=0.02)
         with tempfile.TemporaryDirectory() as tempdir:
             save_dir = os.path.join(tempdir, "checkpoint")
             handler = CheckpointSaver(
                 save_dir,
-                {"net": net},
+                {"net": net, "opt": optimizer},
                 "CheckpointSaver",
                 "test",
                 save_final,
@@ -86,6 +97,9 @@ class TestHandlerCheckpointSaver(unittest.TestCase):
             engine.run(data, max_epochs=5)
             for filename in filenames:
                 self.assertTrue(os.path.exists(os.path.join(save_dir, filename)))
+            loader = CheckpointLoader(load_path=os.path.join(save_dir, filename), load_dict={"net": net})
+            loader.attach(engine)
+            engine.run(data, max_epochs=1)
             shutil.rmtree(save_dir)
 
 

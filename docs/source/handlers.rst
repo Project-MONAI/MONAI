@@ -5,12 +5,12 @@
 Event handlers
 ==============
 
-Model Checkpoint loader
+Model checkpoint loader
 -----------------------
 .. automodule:: monai.handlers.checkpoint_loader
   :members:
 
-Model Checkpoint saver
+Model checkpoint saver
 ----------------------
 .. automodule:: monai.handlers.checkpoint_saver
   :members:
