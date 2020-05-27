@@ -113,6 +113,7 @@ class RandSpatialCropd(Randomizable, MapTransform):
             if `random_size` is False, specify the expected ROI size to crop. e.g. [224, 224, 128]
         random_center (bool): crop at random position as center or the image center.
         random_size (bool): crop with random size or specific size ROI.
+            The actual size is sampled from `randint(roi_size, img_size)`.
     """
 
     def __init__(self, keys, roi_size, random_center=True, random_size=True):
@@ -122,7 +123,7 @@ class RandSpatialCropd(Randomizable, MapTransform):
         self.random_size = random_size
 
     def randomize(self, img_size):
-        self._size = [self.roi_size] * len(img_size) if not isinstance(self.roi_size, (list, tuple)) else self.roi_size
+        self._size = ensure_tuple_rep(self.roi_size, len(img_size))
         if self.random_size:
             self._size = [self.R.randint(low=self._size[i], high=img_size[i] + 1) for i in range(len(img_size))]
         if self.random_center:
@@ -161,7 +162,7 @@ class CropForegroundd(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             source_key (str): data source to generate the bounding box of foreground, can be image or label, etc.
             select_fn (Callable): function to select expected foreground, default is to select values > 0.
-            channel_indexes (int, tuple or list): if defined, select foregound only on the specified channels
+            channel_indexes (int, tuple or list): if defined, select foreground only on the specified channels
                 of image. if None, select foreground on the whole image.
             margin (int): add margin to all dims of the bounding box.
         """

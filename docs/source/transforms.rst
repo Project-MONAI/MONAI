@@ -5,13 +5,11 @@
 Transforms
 ==========
 
-
 Generic Interfaces
 ------------------
 
 .. automodule:: monai.transforms.compose
 .. currentmodule:: monai.transforms.compose
-
 
 `Transform`
 ~~~~~~~~~~~
@@ -19,13 +17,11 @@ Generic Interfaces
     :members:
     :special-members: __call__
 
-
 `MapTransform`
 ~~~~~~~~~~~~~~
 .. autoclass:: MapTransform
     :members:
     :special-members: __call__
-
 
 `Randomizable`
 ~~~~~~~~~~~~~~
@@ -88,7 +84,7 @@ Vanilla Transforms
     :special-members: __call__
 
 `RepeatChannel`
-~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
 .. autoclass:: RepeatChannel
     :members:
     :special-members: __call__
@@ -321,8 +317,9 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
+
 Dictionary-based Transforms
-----------------------------
+---------------------------
 
 `Spacingd`
 ~~~~~~~~~~
@@ -581,6 +578,7 @@ Dictionary-based Transforms
 .. autoclass:: SplitChanneld
     :members:
     :special-members: __call__
+
 
 Transform Adaptors
 ------------------

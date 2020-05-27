@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 import torch
 from ignite.engine import Events
 from ignite.handlers import Checkpoint
@@ -21,27 +22,39 @@ class CheckpointLoader:
     And also can restore training if load the state_dict of Ignite engine.
 
     Args:
-        load_path (string): the file path of checkpoint, it should be a PyTorch pth file.
+        load_path (str): the file path of checkpoint, it should be a PyTorch pth file.
         load_dict (dict): target objects that load checkpoint to. examples::
 
             {'network': net, 'optimizer': optimizer, 'engine', engine}
 
+        name (str): identifier of logging.logger to use, if None, defaulting to ``engine.logger``.
+
     """
 
-    def __init__(self, load_path, load_dict):
+    def __init__(self, load_path, load_dict, name=None):
         assert load_path is not None, "must provide clear path to load checkpoint."
         self.load_path = load_path
         assert load_dict is not None and len(load_dict) > 0, "must provide target objects to load."
+        self.logger = None if name is None else logging.getLogger(name)
+        self._remove_module(load_dict)
         self.load_dict = load_dict
 
+    def _remove_module(data):
+        for k, v in data.items():
+            if hasattr(v, "module"):
+                data[k] = v.module
+
     def attach(self, engine):
+        if self.logger is None:
+            self.logger = engine.logger
         return engine.add_event_handler(Events.STARTED, self)
 
     def __call__(self, engine):
         checkpoint = torch.load(self.load_path)
+        self._remove_module(checkpoint)
         if len(self.load_dict) == 1 and not list(self.load_dict.keys())[0] in checkpoint:
             to_load = list(self.load_dict.values())[0]
         else:
             to_load = self.load_dict
         Checkpoint.load_objects(to_load=to_load, checkpoint=checkpoint)
-        print(f"Restored all variables from {self.load_path}")
+        self.logger.info(f"Restored all variables from {self.load_path}")
