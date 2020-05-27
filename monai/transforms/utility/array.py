@@ -12,6 +12,7 @@
 A collection of "vanilla" transforms for utility functions
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
+
 import time
 
 from typing import Callable
