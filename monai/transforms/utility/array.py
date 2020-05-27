@@ -201,7 +201,8 @@ class DataStats(Transform):
         self.intensity_range = intensity_range
         self.data_value = data_value
         if additional_info is not None:
-            assert callable(additional_info), "additional_info must be a Callable function."
+            if not isinstance(additional_info, Callable):
+                raise ValueError("additional_info must be a Callable function.")
         self.additional_info = additional_info
         self.output = None
         logging.basicConfig(level=logging.NOTSET)

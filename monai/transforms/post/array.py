@@ -13,6 +13,7 @@ A collection of "vanilla" transforms for the model output tensors
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
+from typing import Callable
 import torch
 from monai.transforms.compose import Transform
 from monai.networks.utils import one_hot
@@ -26,7 +27,7 @@ class SplitChannel(Transform):
     (batch_size, num_channels, spatial_dim_1[, spatial_dim_2, ...])
 
     Args:
-        to_onehot (bool): whether to convert the data to One-Hot format, default is False.
+        to_onehot (bool): whether to convert the data to One-Hot format first, default is False.
         num_classes (int): the class number used to convert to One-Hot format if `to_onehot` is True.
 
     """
@@ -49,66 +50,76 @@ class SplitChannel(Transform):
         return outputs
 
 
-class ConvertForMetrics(Transform):
-    """Execute after model forward to transform model output and labels for Ignite metrics.
-    It can complete below operations:
-        #. add `sigmoid` or `softmax` to y_pred
-        #. do `argmax` for y_pred
-        #. round y_pred value to 0.0 or 1.0
-        #. convert y_pred or y to One-Hot format
+class AddActivations(Transform):
+    """
+    Add activation operations to the model output, typically `Sigmoid` or `Softmax`.
 
     Args:
-        add_sigmoid (bool): whether to add sigmoid function to y_pred before transform.
-        add_softmax (bool): whether to add softmax function to y_pred before transform.
-        add_argmax (bool): whether to add argmax function to y_pred before transform.
-        to_onehot_y_pred (bool): whether to convert `y_pred` into the one-hot format. Defaults to False.
-        to_onehot_y (bool): whether to convert `y` into the one-hot format. Defaults to False.
-        n_classes (bool): the number of classes to convert to One-Hot format, if None, use `y_pred.shape[1]`
-        round_values (bool): whether round the value to 0 and 1, default is False.
-        logit_thresh (float): the threshold value to round value to 0.0 and 1.0, default is 0.5.
+        add_sigmoid (bool): whether to add sigmoid function to model output before transform.
+        add_softmax (bool): whether to add softmax function to model output before transform.
+        other (Callable): callable function to execute other activation layers, for example:
+            `other = lambda x: torch.tanh(x)`
 
     """
-
-    def __init__(
-        self,
-        add_sigmoid=False,
-        add_softmax=False,
-        add_argmax=False,
-        to_onehot_y_pred=False,
-        to_onehot_y=False,
-        n_classes=None,
-        round_values=False,
-        logit_thresh=0.5,
-    ):
+    def __init__(self, add_sigmoid=False, add_softmax=False, other=None):
         self.add_sigmoid = add_sigmoid
         self.add_softmax = add_softmax
+        self.other = other
+
+    def __call__(self, img, add_sigmoid=None, add_softmax=None, other=None):
+        if add_sigmoid is True and add_softmax is True:
+            raise ValueError("add_sigmoid=True and add_softmax=True are not compatible.")
+        if self.add_sigmoid if add_sigmoid is None else add_sigmoid:
+            img = torch.sigmoid(img)
+        if self.add_softmax if add_softmax is None else add_softmax:
+            img = torch.softmax(img, dim=1)
+        act_func = self.other if other is None else other
+        if act_func is not None:
+            if not isinstance(act_func, Callable):
+                raise ValueError("act_func must be a Callable function.")
+            img = act_func(img)
+
+        return img
+
+
+class AsDiscrete(Transform):
+    """Execute after model forward to transform model output to discrete values.
+    It can complete below operations:
+        #. do `argmax` for input logits values.
+        #. threshold input value to 0.0 or 1.0.
+        #. convert input value to One-Hot format
+
+    Args:
+        add_argmax (bool): whether to add argmax function to input data before transform.
+        to_onehot (bool): whether to convert input data into the one-hot format. Defaults to False.
+        n_classes (bool): the number of classes to convert to One-Hot format.
+        threshold_values (bool): whether threshold the float value to int number 0 or 1, default is False.
+        logit_thresh (float): the threshold value for thresholding operation, default is 0.5.
+
+    """
+    def __init__(
+        self,
+        add_argmax=False,
+        to_onehot=False,
+        n_classes=None,
+        threshold_values=False,
+        logit_thresh=0.5
+    ):
         self.add_argmax = add_argmax
-        self.to_onehot_y_pred = to_onehot_y_pred
-        self.to_onehot_y = to_onehot_y
+        self.to_onehot = to_onehot
         self.n_classes = n_classes
-        self.round_values = round_values
+        self.threshold_values = threshold_values
         self.logit_thresh = logit_thresh
 
-    def __call__(self, y_pred, y=None):
-        """
-        Args:
-            y_pred (Tensor): model output data, expected shape: [B, C, spatial_dims(0 - N)].
-            y (Tensor): label data, can be None if do inference.
+    def __call__(self, img, add_argmax=None, to_onehot=None, n_classes=None,
+                 threshold_values=None, logit_thresh=None):
+        if self.add_argmax if add_argmax is None else add_argmax:
+            img = torch.argmax(img, dim=1, keepdim=True)
 
-        """
-        n_classes = y_pred.shape[1] if self.n_classes is None else self.n_classes
-        if self.add_sigmoid is True:
-            y_pred = torch.sigmoid(y_pred)
-        if self.add_softmax is True:
-            y_pred = torch.softmax(y_pred, dim=1)
-        if self.add_argmax is True:
-            y_pred = torch.argmax(y_pred, dim=1, keepdim=True)
+        if self.to_onehot if to_onehot is None else to_onehot:
+            img = one_hot(img, self.n_classes if n_classes is None else n_classes)
 
-        if self.to_onehot_y_pred:
-            y_pred = one_hot(y_pred, n_classes)
-        if self.to_onehot_y and y is not None:
-            y = one_hot(y, n_classes)
-        if self.round_values:
-            y_pred = y_pred >= self.logit_thresh
+        if self.threshold_values if threshold_values is None else threshold_values:
+            img = img >= (self.logit_thresh if logit_thresh is None else logit_thresh)
 
-        return y_pred.float(), y.float() if y is not None else None
+        return img.float()

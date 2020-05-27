@@ -17,7 +17,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 from monai.utils.misc import ensure_tuple_rep
 from monai.transforms.compose import MapTransform
-from monai.transforms.post.array import SplitChannel, ConvertForMetrics
+from monai.transforms.post.array import SplitChannel, AddActivations, AsDiscrete
 
 
 class SplitChanneld(MapTransform):
@@ -57,61 +57,102 @@ class SplitChanneld(MapTransform):
         return d
 
 
-class ConvertForMetricsd(MapTransform):
+class AddActivationsd(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.ConvertForMetrics`.
-    The input specified by `keys` should contains only 2 items(model output, label) or 1 item(model output).
+    Dictionary-based wrapper of :py:class:`monai.transforms.AddActivations`.
+    Add activation layers to the input data specified by `keys`.
 
     """
 
     def __init__(
         self,
         keys,
-        output_postfix="metrics",
+        output_postfix="act",
         add_sigmoid=False,
         add_softmax=False,
-        add_argmax=False,
-        to_onehot_y_pred=False,
-        to_onehot_y=False,
-        n_classes=None,
-        round_values=False,
-        logit_thresh=0.5,
+        other=None
     ):
         """
         Args:
             keys (hashable items): keys of the corresponding items to model output and label.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             output_postfix (str): the postfix string to construct keys to store converted data.
-                for example: if the keys of input data is `pred` and `label`, output_postfix is `metrics`,
-                the output data keys will be: `pred_metrics`, `label_metrics`.
-            add_sigmoid (bool): whether to add sigmoid function to y_pred before transform.
-            add_softmax (bool): whether to add softmax function to y_pred before transform.
-            add_argmax (bool): whether to add argmax function to y_pred before transform.
-            to_onehot_y_pred (bool): whether to convert `y_pred` into the one-hot format. Defaults to False.
-            to_onehot_y (bool): whether to convert `y` into the one-hot format. Defaults to False.
-            n_classes (bool): the number of classes to convert to One-Hot format, if None, use `y_pred.shape[1]`
-            round_values (bool): whether round the value to 0 and 1, default is False.
-            logit_thresh (float): the threshold value to round value to 0.0 and 1.0, default is 0.5.
+                for example: if the keys of input data is `pred` and `label`, output_postfix is `act`,
+                the output data keys will be: `pred_act`, `label_act`.
+            add_sigmoid (bool, tuple or list of bool): whether to add sigmoid function to model
+                output before transform.
+            add_softmax (bool, tuple or list of bool): whether to add softmax function to model
+                output before transform.
+            other (Callable, tuple or list of Callables): callable function to execute other activation layers,
+                for example: `other = lambda x: torch.tanh(x)`
 
         """
         super().__init__(keys)
         if not isinstance(output_postfix, str):
             raise ValueError("output_postfix must be a string.")
         self.output_postfix = output_postfix
-        self.converter = ConvertForMetrics(
-            add_sigmoid, add_softmax, add_argmax, to_onehot_y_pred, to_onehot_y, n_classes, round_values, logit_thresh
-        )
+        self.add_sigmoid = ensure_tuple_rep(add_sigmoid, len(self.keys))
+        self.add_softmax = ensure_tuple_rep(add_softmax, len(self.keys))
+        self.other = ensure_tuple_rep(other, len(self.keys))
+        self.converter = AddActivations()
 
     def __call__(self, data):
         d = dict(data)
-        y_pred_key, y_key = self.keys[0], self.keys[1] if len(self.keys) > 1 else None
-        y_pred, y = d[y_pred_key], d[y_key] if y_key is not None else None
-        y_pred, y = self.converter(y_pred, y)
-        d[f"{y_pred_key}_{self.output_postfix}"] = y_pred
-        if y_key is not None:
-            d[f"{y_key}_{self.output_postfix}"] = y
+        for idx, key in enumerate(self.keys):
+            ret = self.converter(d[key], self.add_sigmoid[idx], self.add_softmax[idx], self.other[idx])
+            d[f"{key}_{self.output_postfix}"] = ret
         return d
 
 
-ConvertForMetricsD = ConvertForMetricsDict = ConvertForMetricsd
+class AsDiscreted(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.AsDiscrete`.
+
+    """
+    def __init__(
+        self,
+        keys,
+        output_postfix="discreted",
+        add_argmax=False,
+        to_onehot=False,
+        n_classes=None,
+        threshold_values=False,
+        logit_thresh=0.5
+    ):
+        """
+        Args:
+            keys (hashable items): keys of the corresponding items to model output and label.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            output_postfix (str): the postfix string to construct keys to store converted data.
+                for example: if the keys of input data is `pred` and `label`, output_postfix is `discreted`,
+                the output data keys will be: `pred_discreted`, `label_discreted`.
+            add_argmax (bool): whether to add argmax function to input data before transform.
+            to_onehot (bool): whether to convert input data into the one-hot format. Defaults to False.
+            n_classes (bool): the number of classes to convert to One-Hot format.
+            threshold_values (bool): whether threshold the float value to int number 0 or 1, default is False.
+            logit_thresh (float): the threshold value for thresholding operation, default is 0.5.
+
+        """
+        super().__init__(keys)
+        if not isinstance(output_postfix, str):
+            raise ValueError("output_postfix must be a string.")
+        self.output_postfix = output_postfix
+        self.add_argmax = ensure_tuple_rep(add_argmax, len(self.keys))
+        self.to_onehot = ensure_tuple_rep(to_onehot, len(self.keys))
+        self.n_classes = ensure_tuple_rep(n_classes, len(self.keys))
+        self.threshold_values = ensure_tuple_rep(threshold_values, len(self.keys))
+        self.logit_thresh = ensure_tuple_rep(logit_thresh, len(self.keys))
+        self.converter = AsDiscrete()
+
+    def __call__(self, data):
+        d = dict(data)
+        for idx, key in enumerate(self.keys):
+            d[f"{key}_{self.output_postfix}"] = self.converter(d[key], self.add_argmax[idx], self.to_onehot[idx],
+                                                               self.n_classes[idx], self.threshold_values[idx],
+                                                               self.logit_thresh[idx])
+        return d
+
+
+AddActivationsD = AddActivationsDict = AddActivationsd
+AsDiscreteD = AsDiscreteDict = AsDiscreted
 SplitChannelD = SplitChannelDict = SplitChanneld

@@ -321,9 +321,15 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
-`ConvertForMetrics`
-~~~~~~~~~~~~~~~~~~~
-.. autoclass:: ConvertForMetrics
+`AddActivations`
+~~~~~~~~~~~~~~~~
+.. autoclass:: AddActivations
+    :members:
+    :special-members: __call__
+
+`AsDiscrete`
+~~~~~~~~~~~~
+.. autoclass:: AsDiscrete
     :members:
     :special-members: __call__
 
@@ -588,9 +594,15 @@ Dictionary-based Transforms
     :members:
     :special-members: __call__
 
-`ConvertForMetricsd`
-~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: ConvertForMetricsd
+`AddActivationsd`
+~~~~~~~~~~~~~~~~~
+.. autoclass:: AddActivationsd
+    :members:
+    :special-members: __call__
+
+`AsDiscreted`
+~~~~~~~~~~~~~
+.. autoclass:: AsDiscreted
     :members:
     :special-members: __call__
 
