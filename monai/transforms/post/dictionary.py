@@ -78,8 +78,8 @@ class KeepLargestConnectedComponentd(MapTransform):
                 Accepted values are ranging from  1 to input.ndim. If ``None``, a full
                 connectivity of ``input.ndim`` is used.
             output_postfix (str): the postfix string to construct keys to store converted data.
-                for example: if the keys of input data is `pred` and `label`, output_postfix is `metrics`,
-                the output data keys will be: `pred_metrics`, `label_metrics`.
+                for example: if the keys of input data is `label`, output_postfix is `largestcc`,
+                the output data keys will be: `label_largestcc`.
         """
         super().__init__(keys)
         if not isinstance(output_postfix, str):

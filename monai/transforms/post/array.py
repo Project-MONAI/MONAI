@@ -111,7 +111,7 @@ class KeepLargestConnectedComponent(Transform):
         self.background = background
         self.connectivity = connectivity
         if background in applied_values:
-            raise ValueError("Background pixel can't be in applied_values")
+            raise ValueError("Background pixel can't be in applied_values.")
 
     def __call__(self, img):
         """
@@ -122,7 +122,7 @@ class KeepLargestConnectedComponent(Transform):
             A PyTorch Tensor with shape (batch_size, 1, spatial_dim1[, spatial_dim2, ...]).
         """
         channel_dim = 1
-        if img.size()[channel_dim] == 1:
+        if img.shape[channel_dim] == 1:
             img = torch.squeeze(img, dim=channel_dim)
         else:
             raise ValueError("Input data have more than 1 channel.")

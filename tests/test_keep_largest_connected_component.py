@@ -97,7 +97,7 @@ TEST_CASE_11 = [
 ]
 
 TEST_CASE_12 = [
-    "all_0_batch_2_cuda",
+    "all_0_batch_2",
     {"independent": False, "applied_values": [1], "background": 3},
     torch.tensor(
         [
