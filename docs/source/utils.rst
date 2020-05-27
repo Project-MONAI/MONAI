@@ -23,6 +23,6 @@ Aliases
   :members:
 
 Misc
--------
+----
 .. automodule:: monai.utils.misc
   :members:
