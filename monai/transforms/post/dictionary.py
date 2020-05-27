@@ -61,7 +61,15 @@ class KeepLargestConnectedComponentd(MapTransform):
     dictionary-based wrapper of :py:class:monai.transforms.utility.array.KeepLargestConnectedComponent.
     """
 
-    def __init__(self, keys, applied_values, independent=True, background=0, connectivity=None):
+    def __init__(
+        self,
+        keys,
+        applied_values,
+        independent=True,
+        background=0,
+        connectivity=None,
+        output_postfix="largestcc",
+    ):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -75,14 +83,20 @@ class KeepLargestConnectedComponentd(MapTransform):
             connectivity (int): Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
                 Accepted values are ranging from  1 to input.ndim. If ``None``, a full
                 connectivity of ``input.ndim`` is used.
+            output_postfix (str): the postfix string to construct keys to store converted data.
+                for example: if the keys of input data is `pred` and `label`, output_postfix is `metrics`,
+                the output data keys will be: `pred_metrics`, `label_metrics`.
         """
         super().__init__(keys)
+        if not isinstance(output_postfix, str):
+            raise ValueError("output_postfix must be a string.")
+        self.output_postfix = output_postfix
         self.converter = KeepLargestConnectedComponent(applied_values, independent, background, connectivity)
 
     def __call__(self, data):
         d = dict(data)
         for idx, key in enumerate(self.keys):
-            d[key] = self.converter(d[key])
+            d[f"{key}_{self.output_postfix}"] = self.converter(d[key])
         return d
 
 

@@ -322,7 +322,7 @@ Vanilla Transforms
     :special-members: __call__
 
 `KeepLargestConnectedComponent`
-~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: KeepLargestConnectedComponent
     :members:
     :special-members: __call__
@@ -589,7 +589,7 @@ Dictionary-based Transforms
     :special-members: __call__
 
 `KeepLargestConnectedComponentd`
-~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: KeepLargestConnectedComponentd
     :members:
     :special-members: __call__

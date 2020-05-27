@@ -55,9 +55,9 @@ class KeepLargestConnectedComponent(Transform):
     """
     Keeps only the largest connected component in the image.
     This transform can be used as a post-processing step to clean up over-segment areas in model output.
-    The input is assumed to be a PyTorch Tensor with shape (num_channels, spatial_dim1[, spatial_dim2, ...])
+    The input is assumed to be a PyTorch Tensor with shape (batch_size, 1, spatial_dim1[, spatial_dim2, ...])
 
-    If more than one channel, then argmax will be applied to each channel to get the predicted label on that pixel.
+    Expected input data should have only 1 channel and the values correspond to expected labels.
 
     For example:
     Use KeepLargestConnectedComponent with applied_values=[1], connectivity=1
@@ -116,15 +116,16 @@ class KeepLargestConnectedComponent(Transform):
     def __call__(self, img):
         """
         Args:
-            img: shape must be (num_channels, spatial_dim1[, spatial_dim2, ...]).
+            img: shape must be (batch_size, 1, spatial_dim1[, spatial_dim2, ...]).
 
         Returns:
-            A PyTorch Tensor with shape (1, spatial_dim1[, spatial_dim2, ...]).
+            A PyTorch Tensor with shape (batch_size, 1, spatial_dim1[, spatial_dim2, ...]).
         """
-        if img.size()[0] == 1:
-            img = torch.squeeze(img, dim=0)
+        channel_dim = 1
+        if img.size()[channel_dim] == 1:
+            img = torch.squeeze(img, dim=channel_dim)
         else:
-            img = torch.argmax(img, dim=0)
+            raise ValueError("Input data have more than 1 channel.")
 
         if self.independent:
             for i in self.applied_values:
@@ -138,4 +139,4 @@ class KeepLargestConnectedComponent(Transform):
             mask = get_largest_connected_component_mask(foreground, self.connectivity)
             img[foreground != mask] = self.background
 
-        return torch.unsqueeze(img, dim=0)
+        return torch.unsqueeze(img, dim=channel_dim)
