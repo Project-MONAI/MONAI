@@ -193,6 +193,7 @@ def main():
 
     train_epochs = 5
     state = trainer.run(train_loader, train_epochs)
+    print(state)
     shutil.rmtree(tempdir)
 
 

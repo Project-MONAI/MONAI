@@ -86,7 +86,7 @@ class PersistentDataset(Dataset):
 
     Upon first use a filename based dataset will be processed by the transform for the
     [LoadNiftid, Orientationd, ScaleIntensityRanged] and the resulting tensor written to
-    the `cache_dir` before applying the remainging random dependant transforms
+    the `cache_dir` before applying the remaining random dependant transforms
     [RandCropByPosNegLabeld, ToTensord] elements for use in the analysis.
 
     Subsequent uses of a dataset directly read pre-processed results from `cache_dir`
@@ -101,7 +101,7 @@ class PersistentDataset(Dataset):
             cache_dir (Path or str or None): If specified, this is the location for persistent storage
                 of pre-computed transformed data tensors. The cache_dir is computed once, and
                 persists on disk until explicitly removed.  Different runs, programs, experiments
-                may share a common cache dir provided that the trasnsforms pre-processing is
+                may share a common cache dir provided that the transforms pre-processing is
                 consistent.
         """
         if not isinstance(transform, Compose):
@@ -175,7 +175,7 @@ class PersistentDataset(Dataset):
             else:
                 item_transformed = self._pre_first_random_transform(item_transformed)
                 if hashfile is not None:
-                    # add sentinal flag to indicate that the transforms have already been computed.
+                    # add sentinel flag to indicate that the transforms have already been computed.
                     item_transformed["cache"] = True
                     # NOTE: Writing to ".temp_write_cache" and then using a nearly atomic rename operation
                     #       to make the cache more robust to manual killing of parent process
@@ -293,8 +293,8 @@ class CacheDataset(Dataset):
 class ZipDataset(torch.utils.data.Dataset):
     """
     Zip several PyTorch datasets and output data(with the same index) together in a tuple.
-    If the output of single dataset is alreay a tuple, flatten it and extend to the result.
-    For example: if datasetA returns (img, imgmeta), datsetB returns (seg, segmeta),
+    If the output of single dataset is already a tuple, flatten it and extend to the result.
+    For example: if datasetA returns (img, imgmeta), datasetB returns (seg, segmeta),
     finally return (img, imgmeta, seg, segmeta).
     And if the datasets don't have same length, use the minimum length of them as the length
     of ZipDataset. Example code::

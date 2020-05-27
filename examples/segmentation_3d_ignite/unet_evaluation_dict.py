@@ -112,6 +112,7 @@ def main():
         val_ds, batch_size=1, num_workers=4, collate_fn=list_data_collate, pin_memory=torch.cuda.is_available()
     )
     state = evaluator.run(val_loader)
+    print(state)
     shutil.rmtree(tempdir)
 
 
