@@ -11,12 +11,12 @@ Multi-GPU data parallel
 .. automodule:: monai.engines.multi_gpu_supervised_trainer
   :members:
 
+
 Workflows
 ---------
 
 .. automodule:: monai.engines.workflow
 .. currentmodule:: monai.engines.workflow
-
 
 `Workflow`
 ~~~~~~~~~~
