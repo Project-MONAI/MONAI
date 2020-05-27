@@ -5,12 +5,10 @@
 Network architectures
 =====================
 
-
 Blocks
 ------
 .. automodule:: monai.networks.blocks.convolutions
 .. currentmodule:: monai.networks.blocks.convolutions
-
 
 `Convolution`
 ~~~~~~~~~~~~~
@@ -44,7 +42,7 @@ Layers
     :members:
 
 `Flatten`
-~~~~~~~~~~
+~~~~~~~~~
 .. autoclass:: Flatten
     :members:
 
@@ -64,7 +62,6 @@ Nets
 
 .. automodule:: monai.networks.nets
 .. currentmodule:: monai.networks.nets
-
 
 `Densenet3D`
 ~~~~~~~~~~~~

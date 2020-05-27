@@ -70,7 +70,7 @@ Writing Nifti
 
 
 PNG format handling
----------------------
+-------------------
 
 Writing PNG
 ~~~~~~~~~~~
