@@ -39,7 +39,7 @@ class CheckpointLoader:
         self._remove_module(load_dict)
         self.load_dict = load_dict
 
-    def _remove_module(data):
+    def _remove_module(self, data):
         for k, v in data.items():
             if hasattr(v, "module"):
                 data[k] = v.module
