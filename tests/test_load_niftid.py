@@ -26,7 +26,6 @@ class TestLoadNiftid(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1])
     def test_shape(self, input_param, expected_shape):
         test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]), np.eye(4))
-        tempdir = tempfile.mkdtemp()
         test_data = dict()
         with tempfile.TemporaryDirectory() as tempdir:
             for key in KEYS:

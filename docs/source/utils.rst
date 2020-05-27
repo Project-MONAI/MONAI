@@ -10,10 +10,12 @@ Configurations
 .. automodule:: monai.config.deviceconfig
   :members:
 
+
 Module utils
 ------------
 .. automodule:: monai.utils.module
   :members:
+
 
 Aliases
 -------
@@ -21,6 +23,6 @@ Aliases
   :members:
 
 Misc
--------
+----
 .. automodule:: monai.utils.misc
   :members:
