@@ -107,6 +107,7 @@ class TestSpatialTransformerCore(unittest.TestCase):
         """
         check that the quality AffineTransform backpropagation
         """
+        atol = 1e-5
         set_determinism(seed=0)
         out_ref, loss_ref, init_loss_ref = compare_2d(True, self.device)
         print(out_ref.shape, loss_ref, init_loss_ref)
@@ -114,16 +115,16 @@ class TestSpatialTransformerCore(unittest.TestCase):
         set_determinism(seed=0)
         out, loss, init_loss = compare_2d(False, self.device)
         print(out.shape, loss, init_loss)
-        np.testing.assert_allclose(out_ref, out)
-        np.testing.assert_allclose(init_loss_ref, init_loss)
-        np.testing.assert_allclose(loss_ref, loss)
+        np.testing.assert_allclose(out_ref, out, atol=atol)
+        np.testing.assert_allclose(init_loss_ref, init_loss, atol=atol)
+        np.testing.assert_allclose(loss_ref, loss, atol=atol)
 
         set_determinism(seed=0)
         out, loss, init_loss = compare_2d(False, self.device, True)
         print(out.shape, loss, init_loss)
-        np.testing.assert_allclose(out_ref, out)
-        np.testing.assert_allclose(init_loss_ref, init_loss)
-        np.testing.assert_allclose(loss_ref, loss)
+        np.testing.assert_allclose(out_ref, out, atol=atol)
+        np.testing.assert_allclose(init_loss_ref, init_loss, atol=atol)
+        np.testing.assert_allclose(loss_ref, loss, atol=atol)
 
 
 if __name__ == "__main__":
