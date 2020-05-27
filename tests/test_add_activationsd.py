@@ -20,16 +20,12 @@ TEST_CASE_1 = [
         "output_postfix": "act",
         "add_sigmoid": False,
         "add_softmax": [True, False],
-        "other": None
-
+        "other": None,
     },
-    {
-        "pred": torch.tensor([[[[0.0, 1.0]], [[2.0, 3.0]]]]),
-        "label": torch.tensor([[[[0.0, 1.0]], [[2.0, 3.0]]]])
-    },
+    {"pred": torch.tensor([[[[0.0, 1.0]], [[2.0, 3.0]]]]), "label": torch.tensor([[[[0.0, 1.0]], [[2.0, 3.0]]]])},
     {
         "pred_act": torch.tensor([[[[0.1192, 0.1192]], [[0.8808, 0.8808]]]]),
-        "label_act": torch.tensor([[[[0.0, 1.0]], [[2.0, 3.0]]]])
+        "label_act": torch.tensor([[[[0.0, 1.0]], [[2.0, 3.0]]]]),
     },
     (1, 2, 1, 2),
 ]
@@ -40,17 +36,14 @@ TEST_CASE_2 = [
         "output_postfix": "act",
         "add_sigmoid": False,
         "add_softmax": False,
-        "other": [lambda x: torch.tanh(x), None]
+        "other": [lambda x: torch.tanh(x), None],
     },
-    {
-        "pred": torch.tensor([[[[0.0, 1.0], [2.0, 3.0]]]]),
-        "label": torch.tensor([[[[0.0, 1.0], [2.0, 3.0]]]])
-    },
+    {"pred": torch.tensor([[[[0.0, 1.0], [2.0, 3.0]]]]), "label": torch.tensor([[[[0.0, 1.0], [2.0, 3.0]]]])},
     {
         "pred_act": torch.tensor([[[[0.0000, 0.7616], [0.9640, 0.9951]]]]),
-        "label_act": torch.tensor([[[[0.0, 1.0], [2.0, 3.0]]]])
+        "label_act": torch.tensor([[[[0.0, 1.0], [2.0, 3.0]]]]),
     },
-    (1, 1, 2, 2)
+    (1, 1, 2, 2),
 ]
 
 

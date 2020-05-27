@@ -15,34 +15,21 @@ from parameterized import parameterized
 from monai.transforms import AddActivations
 
 TEST_CASE_1 = [
-    {
-        "add_sigmoid": True,
-        "add_softmax": False,
-        "other": None
-    },
+    {"add_sigmoid": True, "add_softmax": False, "other": None},
     torch.tensor([[[[0.0, 1.0], [2.0, 3.0]]]]),
     torch.tensor([[[[0.5000, 0.7311], [0.8808, 0.9526]]]]),
     (1, 1, 2, 2),
 ]
 
 TEST_CASE_2 = [
-    {
-        "add_sigmoid": False,
-        "add_softmax": True,
-        "other": None
-
-    },
+    {"add_sigmoid": False, "add_softmax": True, "other": None},
     torch.tensor([[[[0.0, 1.0]], [[2.0, 3.0]]]]),
     torch.tensor([[[[0.1192, 0.1192]], [[0.8808, 0.8808]]]]),
     (1, 2, 1, 2),
 ]
 
 TEST_CASE_3 = [
-    {
-        "add_sigmoid": False,
-        "add_softmax": False,
-        "other": lambda x: torch.tanh(x)
-    },
+    {"add_sigmoid": False, "add_softmax": False, "other": lambda x: torch.tanh(x)},
     torch.tensor([[[[0.0, 1.0], [2.0, 3.0]]]]),
     torch.tensor([[[[0.0000, 0.7616], [0.9640, 0.9951]]]]),
     (1, 1, 2, 2),

@@ -64,14 +64,7 @@ class AddActivationsd(MapTransform):
 
     """
 
-    def __init__(
-        self,
-        keys,
-        output_postfix="act",
-        add_sigmoid=False,
-        add_softmax=False,
-        other=None
-    ):
+    def __init__(self, keys, output_postfix="act", add_sigmoid=False, add_softmax=False, other=None):
         """
         Args:
             keys (hashable items): keys of the corresponding items to model output and label.
@@ -109,6 +102,7 @@ class AsDiscreted(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.AsDiscrete`.
 
     """
+
     def __init__(
         self,
         keys,
@@ -117,7 +111,7 @@ class AsDiscreted(MapTransform):
         to_onehot=False,
         n_classes=None,
         threshold_values=False,
-        logit_thresh=0.5
+        logit_thresh=0.5,
     ):
         """
         Args:
@@ -147,9 +141,14 @@ class AsDiscreted(MapTransform):
     def __call__(self, data):
         d = dict(data)
         for idx, key in enumerate(self.keys):
-            d[f"{key}_{self.output_postfix}"] = self.converter(d[key], self.add_argmax[idx], self.to_onehot[idx],
-                                                               self.n_classes[idx], self.threshold_values[idx],
-                                                               self.logit_thresh[idx])
+            d[f"{key}_{self.output_postfix}"] = self.converter(
+                d[key],
+                self.add_argmax[idx],
+                self.to_onehot[idx],
+                self.n_classes[idx],
+                self.threshold_values[idx],
+                self.logit_thresh[idx],
+            )
         return d
 
 

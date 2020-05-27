@@ -61,6 +61,7 @@ class AddActivations(Transform):
             `other = lambda x: torch.tanh(x)`
 
     """
+
     def __init__(self, add_sigmoid=False, add_softmax=False, other=None):
         self.add_sigmoid = add_sigmoid
         self.add_softmax = add_softmax
@@ -97,22 +98,15 @@ class AsDiscrete(Transform):
         logit_thresh (float): the threshold value for thresholding operation, default is 0.5.
 
     """
-    def __init__(
-        self,
-        add_argmax=False,
-        to_onehot=False,
-        n_classes=None,
-        threshold_values=False,
-        logit_thresh=0.5
-    ):
+
+    def __init__(self, add_argmax=False, to_onehot=False, n_classes=None, threshold_values=False, logit_thresh=0.5):
         self.add_argmax = add_argmax
         self.to_onehot = to_onehot
         self.n_classes = n_classes
         self.threshold_values = threshold_values
         self.logit_thresh = logit_thresh
 
-    def __call__(self, img, add_argmax=None, to_onehot=None, n_classes=None,
-                 threshold_values=None, logit_thresh=None):
+    def __call__(self, img, add_argmax=None, to_onehot=None, n_classes=None, threshold_values=None, logit_thresh=None):
         if self.add_argmax if add_argmax is None else add_argmax:
             img = torch.argmax(img, dim=1, keepdim=True)
 
