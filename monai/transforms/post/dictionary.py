@@ -17,7 +17,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 from monai.utils.misc import ensure_tuple_rep
 from monai.transforms.compose import MapTransform
-from monai.transforms.post.array import SplitChannel
+from monai.transforms.post.array import SplitChannel, KeepLargestConnectedComponent
 
 
 class SplitChanneld(MapTransform):
@@ -56,4 +56,43 @@ class SplitChanneld(MapTransform):
         return d
 
 
+class KeepLargestConnectedComponentd(MapTransform):
+    """
+    dictionary-based wrapper of :py:class:monai.transforms.utility.array.KeepLargestConnectedComponent.
+    """
+
+    def __init__(
+        self, keys, applied_values, independent=True, background=0, connectivity=None, output_postfix="largestcc",
+    ):
+        """
+        Args:
+            keys (hashable items): keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            applied_values (list or tuple of int): number list for applying the connected component on.
+                The pixel whose value is not in this list will remain unchanged.
+            independent (bool): consider several labels as a whole or independent, default is `True`.
+                Example use case would be segment label 1 is liver and label 2 is liver tumor, in that case
+                you want this "independent" to be specified as False.
+            background (int): Background pixel value. The over-segmented pixels will be set as this value.
+            connectivity (int): Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
+                Accepted values are ranging from  1 to input.ndim. If ``None``, a full
+                connectivity of ``input.ndim`` is used.
+            output_postfix (str): the postfix string to construct keys to store converted data.
+                for example: if the keys of input data is `label`, output_postfix is `largestcc`,
+                the output data keys will be: `label_largestcc`.
+        """
+        super().__init__(keys)
+        if not isinstance(output_postfix, str):
+            raise ValueError("output_postfix must be a string.")
+        self.output_postfix = output_postfix
+        self.converter = KeepLargestConnectedComponent(applied_values, independent, background, connectivity)
+
+    def __call__(self, data):
+        d = dict(data)
+        for idx, key in enumerate(self.keys):
+            d[f"{key}_{self.output_postfix}"] = self.converter(d[key])
+        return d
+
+
 SplitChannelD = SplitChannelDict = SplitChanneld
+KeepLargestConnectedComponentD = KeepLargestConnectedComponentDict = KeepLargestConnectedComponentd
