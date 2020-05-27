@@ -30,7 +30,7 @@ ROC AUC metrics handler
 
 
 Metric logger
----------------
+-------------
 .. automodule:: monai.handlers.metric_logger
     :members:
 
@@ -48,18 +48,18 @@ Training stats handler
 
 
 Tensorboard handler
---------------------
+-------------------
 .. automodule:: monai.handlers.tensorboard_handlers
     :members:
 
 
 LR Schedule handler
---------------------
+-------------------
 .. automodule:: monai.handlers.lr_schedule_handler
     :members:
 
 
 Validation handler
---------------------
+------------------
 .. automodule:: monai.handlers.validation_handler
     :members:
