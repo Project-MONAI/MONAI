@@ -28,20 +28,16 @@ class CheckpointLoader:
             {'network': net, 'optimizer': optimizer, 'engine', engine}
 
         name (str): identifier of logging.logger to use, if None, defaulting to ``engine.logger``.
-        convert_to_multi_gpu (bool): if the checkpoint was trained by single GPU and
-            want to load to multi GPU model, need to load to `object.module` instead.
 
     """
-
-    def __init__(self, load_path, load_dict, name=None, convert_to_multi_gpu=False):
+    def __init__(self, load_path, load_dict, name=None):
         assert load_path is not None, "must provide clear path to load checkpoint."
         self.load_path = load_path
         assert load_dict is not None and len(load_dict) > 0, "must provide target objects to load."
         self.logger = None if name is None else logging.getLogger(name)
-        if convert_to_multi_gpu:
-            for k, v in load_dict.items():
-                if hasattr(v, "module"):
-                    load_dict[k] = v.module
+        for k, v in load_dict.items():
+            if hasattr(v, "module"):
+                load_dict[k] = v.module
         self.load_dict = load_dict
 
     def attach(self, engine):
