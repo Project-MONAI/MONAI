@@ -7,8 +7,7 @@ Data
 
 Generic Interfaces
 ------------------
-.. automodule:: monai.data.dataset
-.. currentmodule:: monai.data.dataset
+.. currentmodule:: monai.data
 
 `Dataset`
 ~~~~~~~~~
@@ -46,8 +45,6 @@ Patch-based dataset
 
 `GridPatchDataset`
 ~~~~~~~~~~~~~~~~~~
-.. automodule:: monai.data.grid_dataset
-.. currentmodule:: monai.data.grid_dataset
 .. autoclass:: GridPatchDataset
   :members:
 
@@ -57,15 +54,15 @@ Nifti format handling
 
 Reading
 ~~~~~~~
-.. automodule:: monai.data.nifti_reader
+.. automodule:: monai.data.NiftiDataset
   :members:
 
 Writing Nifti
 ~~~~~~~~~~~~~
-.. automodule:: monai.data.nifti_saver
+.. automodule:: monai.data.NiftiSaver
   :members:
 
-.. automodule:: monai.data.nifti_writer
+.. automodule:: monai.data.write_nifti
   :members:
 
 
@@ -74,10 +71,10 @@ PNG format handling
 
 Writing PNG
 ~~~~~~~~~~~
-.. automodule:: monai.data.png_saver
+.. automodule:: monai.data.PNGSaver
   :members:
 
-.. automodule:: monai.data.png_writer
+.. automodule:: monai.data.write_png
   :members:
 
 

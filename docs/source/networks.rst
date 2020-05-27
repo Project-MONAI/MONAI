@@ -7,8 +7,8 @@ Network architectures
 
 Blocks
 ------
-.. automodule:: monai.networks.blocks.convolutions
-.. currentmodule:: monai.networks.blocks.convolutions
+.. automodule:: monai.networks.blocks
+.. currentmodule:: monai.networks.blocks
 
 `Convolution`
 ~~~~~~~~~~~~~
@@ -27,14 +27,11 @@ Layers
 `Factories`
 ~~~~~~~~~~~
 .. automodule:: monai.networks.layers.factories
-.. currentmodule:: monai.networks.layers.factories
+.. currentmodule:: monai.networks.layers
 
 `LayerFactory`
 ##############
 .. autoclass:: LayerFactory
-
-.. automodule:: monai.networks.layers.simplelayers
-.. currentmodule:: monai.networks.layers.simplelayers
 
 `SkipConnection`
 ~~~~~~~~~~~~~~~~
@@ -59,29 +56,30 @@ Layers
 
 Nets
 ----
-
-.. automodule:: monai.networks.nets
 .. currentmodule:: monai.networks.nets
 
 `Densenet3D`
 ~~~~~~~~~~~~
-.. automodule:: monai.networks.nets.densenet
+.. autoclass:: DenseNet
   :members:
-.. autofunction:: monai.networks.nets.densenet.densenet121
-.. autofunction:: monai.networks.nets.densenet.densenet169
-.. autofunction:: monai.networks.nets.densenet.densenet201
-.. autofunction:: monai.networks.nets.densenet.densenet264
+.. autofunction:: densenet121
+.. autofunction:: densenet169
+.. autofunction:: densenet201
+.. autofunction:: densenet264
 
 `Highresnet`
 ~~~~~~~~~~~~
-.. automodule:: monai.networks.nets.highresnet
+.. autoclass:: HighResNet
+  :members:
+.. autoclass:: HighResBlock
   :members:
 
 `Unet`
 ~~~~~~
-.. automodule:: monai.networks.nets.unet
+.. autoclass:: UNet
   :members:
-
+.. autoclass:: Unet
+.. autoclass:: unet
 
 Utilities
 ---------

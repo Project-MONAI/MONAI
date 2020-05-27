@@ -8,8 +8,8 @@ Loss functions
 Segmentation Losses
 -------------------
 
-.. automodule:: monai.losses.dice
-.. currentmodule:: monai.losses.dice
+.. automodule:: monai.losses
+.. currentmodule:: monai.losses
 
 `DiceLoss`
 ~~~~~~~~~~
@@ -23,11 +23,8 @@ Segmentation Losses
 
 `FocalLoss`
 ~~~~~~~~~~~
-.. autoclass:: monai.losses.focal_loss.FocalLoss
+.. autoclass:: FocalLoss
     :members:
-
-.. automodule:: monai.losses.tversky
-.. currentmodule:: monai.losses.tversky
 
 `TverskyLoss`
 ~~~~~~~~~~~~~
