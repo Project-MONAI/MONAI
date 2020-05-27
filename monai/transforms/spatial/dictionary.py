@@ -114,7 +114,7 @@ class Orientationd(MapTransform):
     This transform assumes the ``data`` dictionary has a key for the input
     data's affine.  The key is formed by ``meta_key_format.format(key, 'affine')``.
 
-    After reorientate the input array, this transform will write the new affine
+    After reorienting the input array, this transform will write the new affine
      to the key formed by ``meta_key_format.format(key, 'affine')``.
     """
 

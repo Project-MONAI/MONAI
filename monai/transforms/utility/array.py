@@ -12,6 +12,7 @@
 A collection of "vanilla" transforms for utility functions
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
+
 import time
 
 from typing import Callable
@@ -200,7 +201,7 @@ class DataStats(Transform):
         self.intensity_range = intensity_range
         self.data_value = data_value
         if additional_info is not None:
-            assert isinstance(additional_info, Callable), "additional_info must be a Callable function."
+            assert callable(additional_info), "additional_info must be a Callable function."
         self.additional_info = additional_info
         self.output = None
         logging.basicConfig(level=logging.NOTSET)

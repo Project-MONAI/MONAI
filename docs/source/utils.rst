@@ -21,3 +21,8 @@ Aliases
 -------
 .. automodule:: monai.utils.aliases
   :members:
+
+Misc
+-------
+.. automodule:: monai.utils.misc
+  :members:
