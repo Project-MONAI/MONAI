@@ -38,7 +38,6 @@ class TestLoadNifti(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_shape(self, input_param, filenames, expected_shape):
         test_image = np.random.randint(0, 2, size=[128, 128, 128])
-        tempdir = tempfile.mkdtemp()
         with tempfile.TemporaryDirectory() as tempdir:
             for i, name in enumerate(filenames):
                 filenames[i] = os.path.join(tempdir, name)

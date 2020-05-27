@@ -11,12 +11,12 @@ Sliding Window Inference
 .. automodule:: monai.inferers.sliding_window_inference
   :members:
 
+
 Inferers
 --------
 
 .. automodule:: monai.inferers.inferer
 .. currentmodule:: monai.inferers.inferer
-
 
 `SimpleInferer`
 ~~~~~~~~~~~~~~~
