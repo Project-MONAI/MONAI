@@ -63,9 +63,12 @@ class GaussianFilter(nn.Module):
         Args:
             x (tensor): in shape [Batch, chns, H, W, D].
         """
+        if not torch.is_tensor(x):
+            raise TypeError(f"x must be a Tensor, got {type(x).__name__}.")
         chns = x.shape[1]
         sp_dim = self.spatial_dims
-        x = torch.as_tensor(x).to(self.kernel[0]).contiguous()  # assign to the first kernel's device and dtype
+        # no inplace change of x
+        x = x.clone().to(self.kernel[0]).contiguous()  # assign to the first kernel's device and dtype
 
         def _conv(input_, d):
             if d < 0:

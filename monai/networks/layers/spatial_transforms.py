@@ -92,7 +92,7 @@ class AffineTransform(nn.Module):
             raise ValueError("affine must be Nxdxd or dxd.")
         if theta.ndim == 2:
             theta = theta[None]  # adds a batch dim.
-        theta = theta.float()
+        theta = theta.clone().float()  # no in-place change of theta
         theta_shape = tuple(theta.shape[1:])
         if theta_shape in ((2, 3), (3, 4)):  # needs padding to dxd
             pad_affine = torch.tensor([0, 0, 1] if theta_shape[0] == 2 else [0, 0, 0, 1])

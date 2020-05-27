@@ -48,8 +48,8 @@ Layers
 .. autoclass:: GaussianFilter
     :members:
 
-`Spatial Transforms`
-~~~~~~~~~~~~~~~~~~~~
+`Affine Transform`
+~~~~~~~~~~~~~~~~~~
 .. autoclass:: monai.networks.layers.AffineTransform
     :members:
 

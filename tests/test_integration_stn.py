@@ -29,7 +29,7 @@ class STNBenchmark(nn.Module):
     adapted from https://pytorch.org/tutorials/intermediate/spatial_transformer_tutorial.html
     """
 
-    def __init__(self, is_ref=True):
+    def __init__(self, is_ref=True, reverse_indexing=False):
         super().__init__()
         self.is_ref = is_ref
         self.localization = nn.Sequential(
@@ -46,7 +46,7 @@ class STNBenchmark(nn.Module):
         self.fc_loc[2].weight.data.zero_()
         self.fc_loc[2].bias.data.copy_(torch.tensor([1, 0, 0, 0, 1, 0], dtype=torch.float))
         if not self.is_ref:
-            self.xform = AffineTransform(normalized=True, reverse_indexing=False)
+            self.xform = AffineTransform(normalized=True, reverse_indexing=reverse_indexing)
 
     # Spatial transformer network forward function
     def stn_ref(self, x):
@@ -55,8 +55,8 @@ class STNBenchmark(nn.Module):
         theta = self.fc_loc(xs)
         theta = theta.view(-1, 2, 3)
 
-        grid = F.affine_grid(theta, x.size())
-        x = F.grid_sample(x, grid)
+        grid = F.affine_grid(theta, x.size(), align_corners=False)
+        x = F.grid_sample(x, grid, align_corners=False)
         return x
 
     def stn(self, x):
@@ -73,24 +73,27 @@ class STNBenchmark(nn.Module):
         return self.stn(x)
 
 
-def compare_2d(is_ref=True, device=None):
+def compare_2d(is_ref=True, device=None, reverse_indexing=False):
     batch_size = 32
     img_a = [create_test_image_2d(28, 28, 5, rad_max=6, noise_max=1)[0][None] for _ in range(batch_size)]
     img_b = [create_test_image_2d(28, 28, 5, rad_max=6, noise_max=1)[0][None] for _ in range(batch_size)]
     img_a = np.stack(img_a, axis=0)
     img_b = np.stack(img_b, axis=0)
-    img_a = torch.as_tensor(img_a)
-    img_b = torch.as_tensor(img_b)
-    model = STNBenchmark(is_ref=is_ref).to(device)
+    img_a = torch.as_tensor(img_a, device=device)
+    img_b = torch.as_tensor(img_b, device=device)
+    model = STNBenchmark(is_ref=is_ref, reverse_indexing=reverse_indexing).to(device)
     optimizer = optim.SGD(model.parameters(), lr=0.001)
     model.train()
+    init_loss = None
     for _ in range(20):
         optimizer.zero_grad()
         output_a = model(img_a)
         loss = torch.mean((output_a - img_b) ** 2)
+        if init_loss is None:
+            init_loss = loss.item()
         loss.backward()
         optimizer.step()
-    return model(img_a).detach().cpu().numpy(), loss.item()
+    return model(img_a).detach().cpu().numpy(), loss.item(), init_loss
 
 
 class TestSpatialTransformerCore(unittest.TestCase):
@@ -101,13 +104,25 @@ class TestSpatialTransformerCore(unittest.TestCase):
         set_determinism(seed=None)
 
     def test_training(self):
+        """
+        check that the quality AffineTransform backpropagation
+        """
         set_determinism(seed=0)
-        out_ref, loss_ref = compare_2d(True, self.device)
-        print(out_ref.shape, loss_ref)
+        out_ref, loss_ref, init_loss_ref = compare_2d(True, self.device)
+        print(out_ref.shape, loss_ref, init_loss_ref)
+
         set_determinism(seed=0)
-        out, loss = compare_2d(False, self.device)
-        print(out.shape, loss)
+        out, loss, init_loss = compare_2d(False, self.device)
+        print(out.shape, loss, init_loss)
         np.testing.assert_allclose(out_ref, out)
+        np.testing.assert_allclose(init_loss_ref, init_loss)
+        np.testing.assert_allclose(loss_ref, loss)
+
+        set_determinism(seed=0)
+        out, loss, init_loss = compare_2d(False, self.device, True)
+        print(out.shape, loss, init_loss)
+        np.testing.assert_allclose(out_ref, out)
+        np.testing.assert_allclose(init_loss_ref, init_loss)
         np.testing.assert_allclose(loss_ref, loss)
 
 
