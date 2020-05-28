@@ -19,7 +19,9 @@ class CheckpointLoader:
     """
     CheckpointLoader acts as an Ignite handler to load checkpoint data from file.
     It can load variables for network, optimizer, lr_scheduler.
-    And also can restore training if load the state_dict of Ignite engine.
+    If saving checkpoint after `torch.nn.DataParallel`, need to save `model.module` instead
+    as PyTorch recommended and then use this loader to load the model.
+    And also can restore training session if load the state_dict of Ignite engine.
 
     Args:
         load_path (str): the file path of checkpoint, it should be a PyTorch pth file.
@@ -36,13 +38,10 @@ class CheckpointLoader:
         self.load_path = load_path
         assert load_dict is not None and len(load_dict) > 0, "must provide target objects to load."
         self.logger = None if name is None else logging.getLogger(name)
-        self._remove_module(load_dict)
-        self.load_dict = load_dict
-
-    def _remove_module(self, data):
-        for k, v in data.items():
+        for k, v in load_dict.items():
             if hasattr(v, "module"):
-                data[k] = v.module
+                load_dict[k] = v.module
+        self.load_dict = load_dict
 
     def attach(self, engine):
         if self.logger is None:
@@ -51,10 +50,10 @@ class CheckpointLoader:
 
     def __call__(self, engine):
         checkpoint = torch.load(self.load_path)
-        self._remove_module(checkpoint)
-        if len(self.load_dict) == 1 and not list(self.load_dict.keys())[0] in checkpoint:
-            to_load = list(self.load_dict.values())[0]
-        else:
-            to_load = self.load_dict
-        Checkpoint.load_objects(to_load=to_load, checkpoint=checkpoint)
+        if len(self.load_dict) == 1:
+            key = list(self.load_dict.keys())[0]
+            if not (key in checkpoint):
+                checkpoint = {key: checkpoint}
+
+        Checkpoint.load_objects(to_load=self.load_dict, checkpoint=checkpoint)
         self.logger.info(f"Restored all variables from {self.load_path}")
