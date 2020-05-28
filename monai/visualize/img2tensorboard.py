@@ -14,14 +14,13 @@ import numpy as np
 import PIL
 from PIL.GifImagePlugin import Image as GifImage
 from torch.utils.tensorboard import SummaryWriter
-from torch import Tensor
 from tensorboard.compat.proto import summary_pb2
 from monai.transforms.utils import rescale_array
 
 from typing import Sequence, Union
 
 
-def _image3_animated_gif(tag: str, image: Union[np.array, Tensor], scale_factor: float = 1):
+def _image3_animated_gif(tag: str, image: Union[np.array, torch.Tensor], scale_factor: float = 1):
     """Function to actually create the animated gif.
     Args:
         tag (str): Data identifier
@@ -48,11 +47,11 @@ def _image3_animated_gif(tag: str, image: Union[np.array, Tensor], scale_factor:
 
 def make_animated_gif_summary(
     tag: str,
-    image: Union[np.array, Tensor],
+    image: Union[np.array, torch.Tensor],
     max_out: int = 3,
     animation_axes: Sequence[int] = (3,),
     image_axes: Sequence[int] = (1, 2),
-    other_indices: any = None,
+    other_indices: dict = None,
     scale_factor: float = 1,
 ):
     """Creates an animated gif out of an image tensor in 'CHWD' format and returns Summary.
@@ -63,7 +62,7 @@ def make_animated_gif_summary(
         max_out (int): maximum number of slices to animate through
         animation_axes (Sequence[int]): axis to animate on (not currently used)
         image_axes (Sequence[int]): axes of image (not currently used)
-        other_indices (any): (not currently used)
+        other_indices (dict): (not currently used)
         scale_factor (float): amount to multiply values by.
             if the image data is between 0 and 1, using 255 for this value will scale it to displayable range
     """
@@ -83,10 +82,10 @@ def make_animated_gif_summary(
         else:
             other_ind = other_indices.get(i, 0)
             slicing.append(slice(other_ind, other_ind + 1))
-    image: Union[Tensor, np.array] = image[tuple(slicing)]
+    image = image[tuple(slicing)]
 
     for it_i in range(min(max_out, list(image.shape)[0])):
-        one_channel_img: Union[Tensor, np.array] = image[it_i, :, :, :].squeeze(dim=0) if torch.is_tensor(
+        one_channel_img: Union[torch.Tensor, np.array] = image[it_i, :, :, :].squeeze(dim=0) if torch.is_tensor(
             image
         ) else image[it_i, :, :, :]
         summary_op = _image3_animated_gif(tag + suffix.format(it_i), one_channel_img, scale_factor)
@@ -96,7 +95,7 @@ def make_animated_gif_summary(
 def add_animated_gif(
     writer: SummaryWriter,
     tag: str,
-    image_tensor: Union[np.array, Tensor],
+    image_tensor: Union[np.array, torch.Tensor],
     max_out: int,
     scale_factor: float,
     global_step: int = None,
@@ -123,13 +122,13 @@ def add_animated_gif(
 def add_animated_gif_no_channels(
     writer: SummaryWriter,
     tag: str,
-    image_tensor: Union[np.array, Tensor],
+    image_tensor: Union[np.array, torch.Tensor],
     max_out: int,
     scale_factor: float,
     global_step: int = None,
 ):
     """Creates an animated gif out of an image tensor in 'HWD' format that does not have
-    a channel dimension and writes it with SummaryWriter. This is similar to the "add_animated_gif" 
+    a channel dimension and writes it with SummaryWriter. This is similar to the "add_animated_gif"
     after inserting a channel dimension of 1.
 
     Args:
