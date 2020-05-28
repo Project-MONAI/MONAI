@@ -15,7 +15,7 @@ import sys
 import threading
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Iterable, Sequence, Optional, Callable, Union, List
 
 import numpy as np
 import torch
@@ -39,14 +39,14 @@ class Dataset(_TorchDataset):
          },                           },                           }]
     """
 
-    def __init__(self, data, transform: Optional[Callable] = None):
+    def __init__(self, data: Sequence, transform: Optional[Callable] = None):
         """
         Args:
-            data (Iterable): input data to load and transform to generate dataset for model.
-            transform (Callable, optional): a callable data transform on input data.
+            data: input data to load and transform to generate dataset for model.
+            transform: a callable data transform on input data.
         """
-        self.data = data
-        self.transform = transform
+        self.data: Sequence = data
+        self.transform: Optional[Callable] = transform
 
     def __len__(self):
         return len(self.data)
@@ -93,12 +93,14 @@ class PersistentDataset(Dataset):
     followed by applying the random dependant parts of transform processing.
     """
 
-    def __init__(self, data, transform: Optional[Callable] = None, cache_dir=None):
+    def __init__(
+        self, data: Sequence, transform: Optional[Callable] = None, cache_dir: Optional[Union[Path, str]] = None
+    ):
         """
         Args:
-            data (Iterable): input data to load and transform to generate dataset for model.
-            transform (Callable, optional): transforms to execute operations on input data.
-            cache_dir (Path or str or None): If specified, this is the location for persistent storage
+            data: input data to load and transform to generate dataset for model.
+            transform: transforms to execute operations on input data.
+            cache_dir: If specified, this is the location for persistent storage
                 of pre-computed transformed data tensors. The cache_dir is computed once, and
                 persists on disk until explicitly removed.  Different runs, programs, experiments
                 may share a common cache dir provided that the transforms pre-processing is
@@ -107,7 +109,7 @@ class PersistentDataset(Dataset):
         if not isinstance(transform, Compose):
             transform = Compose(transform)
         super().__init__(data=data, transform=transform)
-        self.cache_dir = Path(cache_dir) if cache_dir is not None else None
+        self.cache_dir: Optional[Union[Path, str]] = Path(cache_dir) if cache_dir is not None else None
 
     def _pre_first_random_transform(self, item_transformed):
         """
@@ -227,29 +229,34 @@ class CacheDataset(Dataset):
     """
 
     def __init__(
-        self, data, transform: Callable, cache_num: int = sys.maxsize, cache_rate: float = 1.0, num_workers: int = 0
+        self,
+        data: List,
+        transform: Callable,
+        cache_num: int = sys.maxsize,
+        cache_rate: float = 1.0,
+        num_workers: int = 0,
     ):
         """
         Args:
-            data (Iterable): input data to load and transform to generate dataset for model.
-            transform (Callable): transforms to execute operations on input data.
-            cache_num (int): number of items to be cached. Default is `sys.maxsize`.
+            data: input data to load and transform to generate dataset for model.
+            transform: transforms to execute operations on input data.
+            cache_num: number of items to be cached. Default is `sys.maxsize`.
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
-            cache_rate (float): percentage of cached data in total, default is 1.0 (cache all).
+            cache_rate: percentage of cached data in total, default is 1.0 (cache all).
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
-            num_workers (int): the number of worker threads to use.
+            num_workers: the number of worker threads to use.
                 If 0 a single thread will be used. Default is 0.
         """
         if not isinstance(transform, Compose):
             transform = Compose(transform)
         super().__init__(data, transform)
-        self.cache_num = min(cache_num, int(len(self) * cache_rate), len(self))
+        self.cache_num: int = min(cache_num, int(len(self) * cache_rate), len(self))
         if self.cache_num > 0:
-            self._cache = [None] * self.cache_num
+            self._cache: list = [None] * self.cache_num
             print("Load and cache transformed data...")
             if num_workers > 0:
-                self._item_processed = 0
-                self._thread_lock = threading.Lock()
+                self._item_processed: int = 0
+                self._thread_lock: threading.Lock = threading.Lock()
                 with ThreadPool(num_workers) as p:
                     p.map(
                         self._load_cache_item_thread,
@@ -313,11 +320,11 @@ class ZipDataset(Dataset):
 
     """
 
-    def __init__(self, datasets, transform=None):
+    def __init__(self, datasets: Union[list, tuple], transform: Optional[Callable] = None):
         """
         Args:
-            datasets (list or tuple): list of datasets to zip together.
-            transform (Callable): a callable data transform operates on the zipped item from `datasets`.
+            datasets: list of datasets to zip together.
+            transform: a callable data transform operates on the zipped item from `datasets`.
         """
         super().__init__(list(datasets), transform=transform)
 
@@ -328,7 +335,7 @@ class ZipDataset(Dataset):
         def to_list(x):
             return list(x) if isinstance(x, (tuple, list)) else [x]
 
-        data = list()
+        data: list = list()
         for dataset in self.data:
             data.extend(to_list(dataset[index]))
         if self.transform is not None:
@@ -388,11 +395,11 @@ class ArrayDataset(Randomizable):
 
     def __init__(
         self,
-        img,
+        img_files: Iterable[Sequence[str]],
         img_transform: Optional[Callable] = None,
-        seg=None,
+        seg_files: Optional[Iterable[Sequence[str]]] = None,
         seg_transform: Optional[Callable] = None,
-        labels=None,
+        labels: Iterable[Union[Sequence, np.ndarray]] = None,
         label_transform: Optional[Callable] = None,
     ):
         """
@@ -400,17 +407,17 @@ class ArrayDataset(Randomizable):
         to the images and `seg_transform` to the segmentations.
 
         Args:
-            img (Sequence): sequence of images.
-            img_transform (Callable, optional): transform to apply to each element in `img`.
-            seg (Sequence, optional): sequence of segmentations.
-            seg_transform (Callable, optional): transform to apply to each element in `seg`.
-            labels (Sequence, optional): sequence of labels.
-            label_transform (Callable, optional): transform to apply to each element in `labels`.
+            img_files: sequence of images.
+            img_transform: transform to apply to each element in `img_files`.
+            seg_files: sequence of segmentations.
+            seg_transform: transform to apply to each element in `seg_files`.
+            labels: sequence of labels.
+            label_transform: transform to apply to each element in `labels`.
 
         """
-        items = [(img, img_transform), (seg, seg_transform), (labels, label_transform)]
+        items: list = [(img_files, img_transform), (seg_files, seg_transform), (labels, label_transform)]
         self.set_random_state(seed=get_seed())
-        datasets = [Dataset(x[0], x[1]) for x in items if x[0] is not None]
+        datasets: list = [Dataset(x[0], x[1]) for x in items if x[0] is not None]
         self.dataset = datasets[0] if len(datasets) == 1 else ZipDataset(datasets)
 
         self._seed = 0  # transform synchronization seed

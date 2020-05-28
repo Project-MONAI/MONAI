@@ -9,13 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from collections import OrderedDict
-from typing import Union
 
 import os
 import csv
 import numpy as np
 import torch
+from collections import OrderedDict
+from typing import Union, Optional
 
 
 class CSVSaver:
@@ -29,18 +29,18 @@ class CSVSaver:
     def __init__(self, output_dir: str = "./", filename: str = "predictions.csv", overwrite: bool = True):
         """
         Args:
-            output_dir (str): output CSV file directory.
-            filename (str): name of the saved CSV file name.
-            overwrite (bool): whether to overwriting existing CSV file content. If we are not overwriting,
+            output_dir: output CSV file directory.
+            filename: name of the saved CSV file name.
+            overwrite: whether to overwriting existing CSV file content. If we are not overwriting,
                 then we check if the results have been previously saved, and load them to the prediction_dict.
 
         """
-        self.output_dir = output_dir
+        self.output_dir: str = output_dir
         self._cache_dict: OrderedDict = OrderedDict()
         assert isinstance(filename, str) and filename[-4:] == ".csv", "filename must be a string with CSV format."
-        self._filepath = os.path.join(output_dir, filename)
-        self.overwrite = overwrite
-        self._data_index = 0
+        self._filepath: str = os.path.join(output_dir, filename)
+        self.overwrite: bool = overwrite
+        self._data_index: int = 0
 
     def finalize(self):
         """
@@ -62,28 +62,27 @@ class CSVSaver:
                     f.write("," + str(result))
                 f.write("\n")
 
-    def save(self, data: np.ndarray, meta_data=None):
+    def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: Optional[dict] = None):
         """Save data into the cache dictionary. The metadata should have the following key:
             - ``'filename_or_obj'`` -- save the data corresponding to file name or object.
         If meta_data is None, use the default index from 0 to save data instead.
 
         args:
-            data (Tensor or ndarray): target data content that save into cache.
-            meta_data (dict): the meta data information corresponding to the data.
+            data: target data content that save into cache.
+            meta_data: the meta data information corresponding to the data.
 
         """
         save_key = meta_data["filename_or_obj"] if meta_data else str(self._data_index)
         self._data_index += 1
-        if torch.is_tensor(data):
-            data = data.detach().cpu().numpy()
-        self._cache_dict[save_key] = data.astype(np.float32)
+        out_data: np.ndarray = data.detach().cpu().numpy() if torch.is_tensor(data) else data
+        self._cache_dict[save_key] = out_data.astype(np.float32)
 
-    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data=None):
+    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[dict] = None):
         """Save a batch of data into the cache dictionary.
 
         args:
-            batch_data (Tensor or ndarray): target batch data content that save into cache.
-            meta_data (dict): every key-value in the meta_data is corresponding to 1 batch of data.
+            batch_data: target batch data content that save into cache.
+            meta_data: every key-value in the meta_data is corresponding to 1 batch of data.
 
         """
         for i, data in enumerate(batch_data):  # save a batch of files
