@@ -28,11 +28,10 @@ class TestLoadPNGd(unittest.TestCase):
         test_image = np.random.randint(0, 256, size=[128, 128, 3])
         tempdir = tempfile.mkdtemp()
         test_data = dict()
-        with tempfile.TemporaryDirectory() as tempdir:
-            for key in KEYS:
-                Image.fromarray(test_image.astype("uint8")).save(os.path.join(tempdir, key + ".png"))
-                test_data.update({key: os.path.join(tempdir, key + ".png")})
-            result = LoadPNGd(**input_param)(test_data)
+        for key in KEYS:
+            Image.fromarray(test_image.astype("uint8")).save(os.path.join(tempdir, key + ".png"))
+            test_data.update({key: os.path.join(tempdir, key + ".png")})
+        result = LoadPNGd(**input_param)(test_data)
         for key in KEYS:
             self.assertTupleEqual(result[key].shape, expected_shape)
 
