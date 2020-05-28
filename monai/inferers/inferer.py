@@ -15,20 +15,18 @@ from .utils import sliding_window_inference
 
 class Inferer(ABC):
     """
-    Inferer is the base class of all kinds of inferers, which execute inference on model.
-    It can support complicated operations during inference, like SlidingWindow.
-
+    A base class for model inference.
+    Extend this class to support operations during inference, e.g. a sliding window method.
     """
 
     @abstractmethod
     def __call__(self, inputs, network):
         """
-        Unified callable function API of Inferers.
+        Run inference on `inputs` with the `network` model.
 
         Args:
-            inputs (torch.tensor): model input data for inference.
-            network (Network): target model to execute inference.
-
+            inputs (torch.tensor): input of the model inference.
+            network (Network): model for inference.
         """
         raise NotImplementedError("subclass will implement the operations.")
 
@@ -55,7 +53,8 @@ class SimpleInferer(Inferer):
 
 class SlidingWindowInferer(Inferer):
     """
-    Use SlidingWindow method to execute inference, run windows on model based on sw_batch_size.
+    Sliding window method for model inference,
+    with `sw_batch_size` windows for every model.forward().
 
     Args:
         roi_size (list, tuple): the window size to execute SlidingWindow evaluation.

@@ -15,6 +15,7 @@ doQuickTests=false
 doNetTests=false
 doDryRun=false
 doZooTests=false
+doCodeFormat=false
 
 # testing command to run
 cmd="python3"
@@ -40,12 +41,60 @@ do
         --zoo)
             doZooTests=true
         ;;
+        --codeformat)
+            doCodeFormat=true
+
+        ;;
         *)
-            echo "runtests.sh [--coverage] [--quick] [--net] [--dryrun] [--zoo]"
+            echo "runtests.sh [--codeformat] [--coverage] [--quick] [--net] [--dryrun] [--zoo]"
             exit 1
         ;;
     esac
 done
+
+# report on code format
+if [ "$doCodeFormat" = 'true' ]
+then
+     # Ensure that the necessary packages for code format testing are installed
+     if [[ ! -f "$(which flake8)" ]] || [[ ! -f "$(which black)" ]]; then
+       pip install -r requirements-dev.txt
+     fi
+
+     set +e  # Disable exit on failure so that diagnostics can be given on failure
+     echo "----------------------------------"
+     echo "Verifying black formatting checks."
+     black --check "$(pwd)"
+     black_status=$?
+     echo "----------------------------------"
+     if [ ${black_status} -ne 0 ];
+     then
+       echo "----------------------------------"
+       echo "black code formatting test failed!"
+       echo "::: Run"
+       echo ":::        black \"$(pwd)\""
+       echo "::: to auto fixing formatting errors"
+       echo "----------------------------------"
+       exit ${black_status}
+     else
+       echo "*** black code format tests passed. ***"
+     fi
+
+     echo "-----------------------------------"
+     echo "Verifying flake8 formatting checks."
+     MYPYPATH="$(pwd)/monai" flake8 "$(pwd)" --count --statistics
+     flake8_status=$?
+     echo "-----------------------------------"
+     if [ ${flake8_status} -ne 0 ];
+     then
+       echo "----------------------------------"
+       echo "Formatting test failed!"
+       echo "Manually review and fix listed formatting errors"
+       exit ${flake8_status}
+     else
+       echo "*** flake8 code format tests passed. ***"
+     fi
+     set -e # Re-enable exit on failure
+fi
 
 # When running --quick, require doCoverage as well and set QUICKTEST environmental
 # variable to disable slow unit tests from running.
