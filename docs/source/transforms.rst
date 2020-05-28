@@ -317,9 +317,9 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
-`AddActivations`
-~~~~~~~~~~~~~~~~
-.. autoclass:: AddActivations
+`Activations`
+~~~~~~~~~~~~~
+.. autoclass:: Activations
     :members:
     :special-members: __call__
 
@@ -597,9 +597,9 @@ Dictionary-based Transforms
     :members:
     :special-members: __call__
 
-`AddActivationsd`
-~~~~~~~~~~~~~~~~~
-.. autoclass:: AddActivationsd
+`Activationsd`
+~~~~~~~~~~~~~~
+.. autoclass:: Activationsd
     :members:
     :special-members: __call__
 

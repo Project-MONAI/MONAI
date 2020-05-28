@@ -67,7 +67,7 @@ TEST_CASE_3 = [
 
 
 class TestAsDiscreted(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_2])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_shape(self, input_param, test_input, output, expected_shape):
         result = AsDiscreted(**input_param)(test_input)
         torch.testing.assert_allclose(result["pred_discrete"], output["pred_discrete"])
