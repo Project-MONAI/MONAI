@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import math
+from typing import Optional, Tuple, Iterable
 
 import torch
 from torch.utils.data import IterableDataset
@@ -22,7 +23,14 @@ class GridPatchDataset(IterableDataset):
     Yields patches from arrays read from an input dataset. The patches are chosen in a contiguous grid sampling scheme.
     """
 
-    def __init__(self, dataset, patch_size, start_pos=(), pad_mode: str = "wrap", **pad_opts):
+    def __init__(
+        self,
+        dataset,
+        patch_size: Optional[Iterable[int]],
+        start_pos: Iterable[int] = (),
+        pad_mode: Optional[str] = "wrap",
+        **pad_opts: Optional[dict],
+    ):
         """
         Initializes this dataset in terms of the input dataset and patch size. The `patch_size` is the size of the 
         patch to sample from the input arrays. Tt is assumed the arrays first dimension is the channel dimension which
@@ -32,17 +40,17 @@ class GridPatchDataset(IterableDataset):
 
         Args:
             dataset (Dataset): the dataset to read array data from
-            patch_size (tuple of int or None): size of patches to generate slices for, 0/None selects whole dimension
-            start_pos (tuple of it, optional): starting position in the array, default is 0 for each dimension
-            pad_mode (str, optional): padding mode, see numpy.pad
-            pad_opts (dict, optional): padding options, see numpy.pad
+            patch_size: size of patches to generate slices for, 0/None selects whole dimension
+            start_pos: starting position in the array, default is 0 for each dimension
+            pad_mode: padding mode, see numpy.pad
+            pad_opts: padding options, see numpy.pad
         """
 
         self.dataset = dataset
-        self.patch_size = (None,) + tuple(patch_size)
-        self.start_pos = start_pos
-        self.pad_mode = pad_mode
-        self.pad_opts = pad_opts
+        self.patch_size: Tuple[None, ...] = (None,) + tuple(patch_size) if patch_size else (None,)
+        self.start_pos: Iterable[int] = start_pos
+        self.pad_mode: Optional[str] = pad_mode
+        self.pad_opts: Optional[dict] = pad_opts
 
     def __iter__(self):
         worker_info = torch.utils.data.get_worker_info()

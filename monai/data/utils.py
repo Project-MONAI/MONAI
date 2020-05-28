@@ -23,6 +23,7 @@ from monai.utils import ensure_tuple_size
 from monai.networks.layers.simplelayers import GaussianFilter
 
 import enum
+from typing import Union
 
 
 class InterpolationCode(enum.IntEnum):
@@ -39,6 +40,9 @@ class InterpolationCode(enum.IntEnum):
     SPLINE3 = 3
     SPLINE4 = 4
     SPLINE5 = 5
+
+
+InterpolationCodeType = Union[int, InterpolationCode]
 
 
 def get_random_patch(dims, patch_size, rand_state: Optional[np.random.RandomState] = None):

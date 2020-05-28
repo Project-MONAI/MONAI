@@ -51,7 +51,7 @@ def make_animated_gif_summary(
     max_out: int = 3,
     animation_axes: Sequence[int] = (3,),
     image_axes: Sequence[int] = (1, 2),
-    other_indices=None,
+    other_indices: Optional[dict] = None,
     scale_factor: float = 1,
 ):
     """Creates an animated gif out of an image tensor in 'CHWD' format and returns Summary.

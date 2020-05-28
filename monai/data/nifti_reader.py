@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Callable
+from typing import List, Callable, Optional, Union
 
 import numpy as np
 from torch.utils.data import Dataset
@@ -25,9 +25,9 @@ class NiftiDataset(Dataset, Randomizable):
 
     def __init__(
         self,
-        image_files,
-        seg_files=None,
-        labels=None,
+        image_files: List[str],
+        seg_files: Optional[List[str]] = None,
+        labels: Optional[Union[List, np.ndarray]] = None,
         as_closest_canonical: bool = False,
         transform: Optional[Callable] = None,
         seg_transform: Optional[Callable] = None,
@@ -39,27 +39,27 @@ class NiftiDataset(Dataset, Randomizable):
         to the images and `seg_transform` to the segmentations.
 
         Args:
-            image_files (list of str): list of image filenames
-            seg_files (list of str): if in segmentation task, list of segmentation filenames
-            labels (list or array): if in classification task, list of classification labels
-            as_closest_canonical (bool): if True, load the image as closest to canonical orientation
-            transform (Callable, optional): transform to apply to image arrays
-            seg_transform (Callable, optional): transform to apply to segmentation arrays
-            image_only (bool): if True return only the image volume, other return image volume and header dict
-            dtype (np.dtype, optional): if not None convert the loaded image to this data type
+            image_files: list of image filenames
+            seg_files: if in segmentation task, list of segmentation filenames
+            labels: if in classification task, list of classification labels
+            as_closest_canonical: if True, load the image as closest to canonical orientation
+            transform: transform to apply to image arrays
+            seg_transform: transform to apply to segmentation arrays
+            image_only: if True return only the image volume, other return image volume and header dict
+            dtype: if not None convert the loaded image to this data type
         """
 
         if seg_files is not None and len(image_files) != len(seg_files):
             raise ValueError("Must have same number of image and segmentation files")
 
-        self.image_files = image_files
-        self.seg_files = seg_files
-        self.labels = labels
-        self.as_closest_canonical = as_closest_canonical
-        self.transform = transform
-        self.seg_transform = seg_transform
-        self.image_only = image_only
-        self.dtype = dtype
+        self.image_files: List[str] = image_files
+        self.seg_files: Optional[List[str]] = seg_files
+        self.labels: Optional[Union[List, np.array]] = labels
+        self.as_closest_canonical: bool = as_closest_canonical
+        self.transform: Optional[Callable] = transform
+        self.seg_transform: Optional[Callable] = seg_transform
+        self.image_only: bool = image_only
+        self.dtype: Optional[np.dtype] = dtype
         self.set_random_state(seed=get_seed())
 
         self._seed = 0  # transform synchronization seed
