@@ -25,8 +25,9 @@ from monai.transforms import Compose, Randomizable
 from monai.transforms.utils import apply_transform
 from monai.utils import process_bar, get_seed
 
+from torch.utils.data import Dataset as _TorchDataset
 
-class Dataset(torch.utils.data.Dataset):
+class Dataset(_TorchDataset):
     """
     A generic dataset with a length property and an optional callable data transform
     when fetching a data sample.
@@ -290,7 +291,7 @@ class CacheDataset(Dataset):
         return data
 
 
-class ZipDataset(torch.utils.data.Dataset):
+class ZipDataset(_TorchDataset):
     """
     Zip several PyTorch datasets and output data(with the same index) together in a tuple.
     If the output of single dataset is already a tuple, flatten it and extend to the result.
