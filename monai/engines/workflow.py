@@ -54,7 +54,11 @@ class Workflow(ABC, Engine):
         additional_metrics=None,
         handlers=None,
     ):
+        # pytype: disable=invalid-directive
+        # pytype: disable=wrong-arg-count
         super().__init__(iteration_update if iteration_update is not None else self._iteration)
+        # pytype: enable=invalid-directive
+        # pytype: enable=wrong-arg-count
         # FIXME:
         if amp:
             self.logger.info("Will add AMP support when PyTorch v1.6 released.")
