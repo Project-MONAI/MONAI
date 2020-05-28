@@ -18,7 +18,7 @@ TEST_CASE_1 = [
     {
         "keys": ["pred", "label"],
         "output_postfix": "discrete",
-        "add_argmax": [True, False],
+        "argmax": [True, False],
         "to_onehot": True,
         "n_classes": 2,
         "threshold_values": False,
@@ -36,7 +36,7 @@ TEST_CASE_2 = [
     {
         "keys": ["pred", "label"],
         "output_postfix": "discrete",
-        "add_argmax": False,
+        "argmax": False,
         "to_onehot": False,
         "n_classes": None,
         "threshold_values": [True, False],
@@ -54,7 +54,7 @@ TEST_CASE_3 = [
     {
         "keys": ["pred"],
         "output_postfix": "discrete",
-        "add_argmax": True,
+        "argmax": True,
         "to_onehot": True,
         "n_classes": 2,
         "threshold_values": False,

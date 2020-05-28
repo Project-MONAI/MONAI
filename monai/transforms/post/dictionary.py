@@ -17,7 +17,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 from monai.utils.misc import ensure_tuple_rep
 from monai.transforms.compose import MapTransform
-from monai.transforms.post.array import SplitChannel, AddActivations, AsDiscrete
+from monai.transforms.post.array import SplitChannel, Activations, AsDiscrete
 
 
 class SplitChanneld(MapTransform):
@@ -57,14 +57,14 @@ class SplitChanneld(MapTransform):
         return d
 
 
-class AddActivationsd(MapTransform):
+class Activationsd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.AddActivations`.
     Add activation layers to the input data specified by `keys`.
 
     """
 
-    def __init__(self, keys, output_postfix="act", add_sigmoid=False, add_softmax=False, other=None):
+    def __init__(self, keys, output_postfix="act", sigmoid=False, softmax=False, other=None):
         """
         Args:
             keys (hashable items): keys of the corresponding items to model output and label.
@@ -72,9 +72,9 @@ class AddActivationsd(MapTransform):
             output_postfix (str): the postfix string to construct keys to store converted data.
                 for example: if the keys of input data is `pred` and `label`, output_postfix is `act`,
                 the output data keys will be: `pred_act`, `label_act`.
-            add_sigmoid (bool, tuple or list of bool): whether to add sigmoid function to model
+            sigmoid (bool, tuple or list of bool): whether to execute sigmoid function on model
                 output before transform.
-            add_softmax (bool, tuple or list of bool): whether to add softmax function to model
+            softmax (bool, tuple or list of bool): whether to execute softmax function on model
                 output before transform.
             other (Callable, tuple or list of Callables): callable function to execute other activation layers,
                 for example: `other = lambda x: torch.tanh(x)`
@@ -84,15 +84,15 @@ class AddActivationsd(MapTransform):
         if not isinstance(output_postfix, str):
             raise ValueError("output_postfix must be a string.")
         self.output_postfix = output_postfix
-        self.add_sigmoid = ensure_tuple_rep(add_sigmoid, len(self.keys))
-        self.add_softmax = ensure_tuple_rep(add_softmax, len(self.keys))
+        self.sigmoid = ensure_tuple_rep(sigmoid, len(self.keys))
+        self.softmax = ensure_tuple_rep(softmax, len(self.keys))
         self.other = ensure_tuple_rep(other, len(self.keys))
-        self.converter = AddActivations()
+        self.converter = Activations()
 
     def __call__(self, data):
         d = dict(data)
         for idx, key in enumerate(self.keys):
-            ret = self.converter(d[key], self.add_sigmoid[idx], self.add_softmax[idx], self.other[idx])
+            ret = self.converter(d[key], self.sigmoid[idx], self.softmax[idx], self.other[idx])
             d[f"{key}_{self.output_postfix}"] = ret
         return d
 
@@ -107,7 +107,7 @@ class AsDiscreted(MapTransform):
         self,
         keys,
         output_postfix="discreted",
-        add_argmax=False,
+        argmax=False,
         to_onehot=False,
         n_classes=None,
         threshold_values=False,
@@ -120,7 +120,7 @@ class AsDiscreted(MapTransform):
             output_postfix (str): the postfix string to construct keys to store converted data.
                 for example: if the keys of input data is `pred` and `label`, output_postfix is `discreted`,
                 the output data keys will be: `pred_discreted`, `label_discreted`.
-            add_argmax (bool): whether to add argmax function to input data before transform.
+            argmax (bool): whether to execute argmax function on input data before transform.
             to_onehot (bool): whether to convert input data into the one-hot format. Defaults to False.
             n_classes (bool): the number of classes to convert to One-Hot format.
             threshold_values (bool): whether threshold the float value to int number 0 or 1, default is False.
@@ -131,7 +131,7 @@ class AsDiscreted(MapTransform):
         if not isinstance(output_postfix, str):
             raise ValueError("output_postfix must be a string.")
         self.output_postfix = output_postfix
-        self.add_argmax = ensure_tuple_rep(add_argmax, len(self.keys))
+        self.argmax = ensure_tuple_rep(argmax, len(self.keys))
         self.to_onehot = ensure_tuple_rep(to_onehot, len(self.keys))
         self.n_classes = ensure_tuple_rep(n_classes, len(self.keys))
         self.threshold_values = ensure_tuple_rep(threshold_values, len(self.keys))
@@ -143,7 +143,7 @@ class AsDiscreted(MapTransform):
         for idx, key in enumerate(self.keys):
             d[f"{key}_{self.output_postfix}"] = self.converter(
                 d[key],
-                self.add_argmax[idx],
+                self.argmax[idx],
                 self.to_onehot[idx],
                 self.n_classes[idx],
                 self.threshold_values[idx],
@@ -152,6 +152,6 @@ class AsDiscreted(MapTransform):
         return d
 
 
-AddActivationsD = AddActivationsDict = AddActivationsd
+ActivationsD = ActivationsDict = Activationsd
 AsDiscreteD = AsDiscreteDict = AsDiscreted
 SplitChannelD = SplitChannelDict = SplitChanneld

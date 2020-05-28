@@ -13,7 +13,6 @@ A collection of "vanilla" transforms for the model output tensors
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Callable
 import torch
 from monai.transforms.compose import Transform
 from monai.networks.utils import one_hot
@@ -37,7 +36,7 @@ class SplitChannel(Transform):
         self.num_classes = num_classes
 
     def __call__(self, img, to_onehot=None, num_classes=None):
-        if self.to_onehot if to_onehot is None else to_onehot:
+        if to_onehot or self.to_onehot:
             if num_classes is None:
                 num_classes = self.num_classes
             assert isinstance(num_classes, int), "must specify class number for One-Hot."
@@ -50,33 +49,33 @@ class SplitChannel(Transform):
         return outputs
 
 
-class AddActivations(Transform):
+class Activations(Transform):
     """
     Add activation operations to the model output, typically `Sigmoid` or `Softmax`.
 
     Args:
-        add_sigmoid (bool): whether to add sigmoid function to model output before transform.
-        add_softmax (bool): whether to add softmax function to model output before transform.
+        sigmoid (bool): whether to execute sigmoid function on model output before transform.
+        softmax (bool): whether to execute softmax function on model output before transform.
         other (Callable): callable function to execute other activation layers, for example:
             `other = lambda x: torch.tanh(x)`
 
     """
 
-    def __init__(self, add_sigmoid=False, add_softmax=False, other=None):
-        self.add_sigmoid = add_sigmoid
-        self.add_softmax = add_softmax
+    def __init__(self, sigmoid=False, softmax=False, other=None):
+        self.sigmoid = sigmoid
+        self.softmax = softmax
         self.other = other
 
-    def __call__(self, img, add_sigmoid=None, add_softmax=None, other=None):
-        if add_sigmoid is True and add_softmax is True:
-            raise ValueError("add_sigmoid=True and add_softmax=True are not compatible.")
-        if self.add_sigmoid if add_sigmoid is None else add_sigmoid:
+    def __call__(self, img, sigmoid=None, softmax=None, other=None):
+        if sigmoid is True and softmax is True:
+            raise ValueError("sigmoid=True and softmax=True are not compatible.")
+        if sigmoid or self.sigmoid:
             img = torch.sigmoid(img)
-        if self.add_softmax if add_softmax is None else add_softmax:
+        if softmax or self.softmax:
             img = torch.softmax(img, dim=1)
         act_func = self.other if other is None else other
         if act_func is not None:
-            if not isinstance(act_func, Callable):
+            if not callable(act_func):
                 raise ValueError("act_func must be a Callable function.")
             img = act_func(img)
 
@@ -86,12 +85,12 @@ class AddActivations(Transform):
 class AsDiscrete(Transform):
     """Execute after model forward to transform model output to discrete values.
     It can complete below operations:
-        #. do `argmax` for input logits values.
+        #. execute `argmax` for input logits values.
         #. threshold input value to 0.0 or 1.0.
         #. convert input value to One-Hot format
 
     Args:
-        add_argmax (bool): whether to add argmax function to input data before transform.
+        argmax (bool): whether to execute argmax function on input data before transform.
         to_onehot (bool): whether to convert input data into the one-hot format. Defaults to False.
         n_classes (bool): the number of classes to convert to One-Hot format.
         threshold_values (bool): whether threshold the float value to int number 0 or 1, default is False.
@@ -99,21 +98,21 @@ class AsDiscrete(Transform):
 
     """
 
-    def __init__(self, add_argmax=False, to_onehot=False, n_classes=None, threshold_values=False, logit_thresh=0.5):
-        self.add_argmax = add_argmax
+    def __init__(self, argmax=False, to_onehot=False, n_classes=None, threshold_values=False, logit_thresh=0.5):
+        self.argmax = argmax
         self.to_onehot = to_onehot
         self.n_classes = n_classes
         self.threshold_values = threshold_values
         self.logit_thresh = logit_thresh
 
-    def __call__(self, img, add_argmax=None, to_onehot=None, n_classes=None, threshold_values=None, logit_thresh=None):
-        if self.add_argmax if add_argmax is None else add_argmax:
+    def __call__(self, img, argmax=None, to_onehot=None, n_classes=None, threshold_values=None, logit_thresh=None):
+        if argmax or self.argmax:
             img = torch.argmax(img, dim=1, keepdim=True)
 
-        if self.to_onehot if to_onehot is None else to_onehot:
+        if to_onehot or self.to_onehot:
             img = one_hot(img, self.n_classes if n_classes is None else n_classes)
 
-        if self.threshold_values if threshold_values is None else threshold_values:
+        if threshold_values or self.threshold_values:
             img = img >= (self.logit_thresh if logit_thresh is None else logit_thresh)
 
         return img.float()

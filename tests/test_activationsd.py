@@ -12,14 +12,14 @@
 import unittest
 import torch
 from parameterized import parameterized
-from monai.transforms import AddActivationsd
+from monai.transforms import Activationsd
 
 TEST_CASE_1 = [
     {
         "keys": ["pred", "label"],
         "output_postfix": "act",
-        "add_sigmoid": False,
-        "add_softmax": [True, False],
+        "sigmoid": False,
+        "softmax": [True, False],
         "other": None,
     },
     {"pred": torch.tensor([[[[0.0, 1.0]], [[2.0, 3.0]]]]), "label": torch.tensor([[[[0.0, 1.0]], [[2.0, 3.0]]]])},
@@ -34,8 +34,8 @@ TEST_CASE_2 = [
     {
         "keys": ["pred", "label"],
         "output_postfix": "act",
-        "add_sigmoid": False,
-        "add_softmax": False,
+        "sigmoid": False,
+        "softmax": False,
         "other": [lambda x: torch.tanh(x), None],
     },
     {"pred": torch.tensor([[[[0.0, 1.0], [2.0, 3.0]]]]), "label": torch.tensor([[[[0.0, 1.0], [2.0, 3.0]]]])},
@@ -47,10 +47,10 @@ TEST_CASE_2 = [
 ]
 
 
-class TestAddActivationsd(unittest.TestCase):
+class TestActivationsd(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_shape(self, input_param, test_input, output, expected_shape):
-        result = AddActivationsd(**input_param)(test_input)
+        result = Activationsd(**input_param)(test_input)
         torch.testing.assert_allclose(result["pred_act"], output["pred_act"])
         self.assertTupleEqual(result["pred_act"].shape, expected_shape)
         if "label_act" in result:
