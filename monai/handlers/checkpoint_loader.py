@@ -19,7 +19,9 @@ class CheckpointLoader:
     """
     CheckpointLoader acts as an Ignite handler to load checkpoint data from file.
     It can load variables for network, optimizer, lr_scheduler.
-    And also can restore training if load the state_dict of Ignite engine.
+    If saving checkpoint after `torch.nn.DataParallel`, need to save `model.module` instead
+    as PyTorch recommended and then use this loader to load the model.
+    And also can restore training session if load the state_dict of Ignite engine.
 
     Args:
         load_path (str): the file path of checkpoint, it should be a PyTorch pth file.
@@ -48,5 +50,10 @@ class CheckpointLoader:
 
     def __call__(self, engine):
         checkpoint = torch.load(self.load_path)
+        if len(self.load_dict) == 1:
+            key = list(self.load_dict.keys())[0]
+            if not (key in checkpoint):
+                checkpoint = {key: checkpoint}
+
         Checkpoint.load_objects(to_load=self.load_dict, checkpoint=checkpoint)
         self.logger.info(f"Restored all variables from {self.load_path}")
