@@ -62,12 +62,11 @@ def sliding_window_inference(inputs, roi_size, sw_batch_size, predictor, overlap
         slice_index_range = range(slice_index, min(slice_index + sw_batch_size, len(slices)))
         input_slices = []
         for curr_index in slice_index_range:
-            if num_spatial_dims == 3:
-                slice_i, slice_j, slice_k = slices[curr_index]
-                input_slices.append(inputs[0, :, slice_i, slice_j, slice_k])
+            curr_slice = slices[curr_index]
+            if len(curr_slice) == 3:
+                input_slices.append(inputs[0, :, curr_slice[0], curr_slice[1], curr_slice[2]])
             else:
-                slice_i, slice_j = slices[curr_index]
-                input_slices.append(inputs[0, :, slice_i, slice_j])
+                input_slices.append(inputs[0, :, curr_slice[0], curr_slice[1]])
         slice_batches.append(torch.stack(input_slices))
 
     # Perform predictions
@@ -92,18 +91,17 @@ def sliding_window_inference(inputs, roi_size, sw_batch_size, predictor, overlap
 
         # store the result in the proper location of the full output. Apply weights from importance map.
         for curr_index in slice_index_range:
-            if num_spatial_dims == 3:
-                slice_i, slice_j, slice_k = slices[curr_index]
-                output_image[0, :, slice_i, slice_j, slice_k] += (
+            curr_slice = slices[curr_index]
+            if len(curr_slice) == 3:
+                output_image[0, :, curr_slice[0], curr_slice[1], curr_slice[2]] += (
                     importance_map * output_rois[window_id][curr_index - slice_index, :]
                 )
-                count_map[0, :, slice_i, slice_j, slice_k] += importance_map
+                count_map[0, :, curr_slice[0], curr_slice[1], curr_slice[2]] += importance_map
             else:
-                slice_i, slice_j = slices[curr_index]
-                output_image[0, :, slice_i, slice_j] += (
+                output_image[0, :, curr_slice[0], curr_slice[1]] += (
                     importance_map * output_rois[window_id][curr_index - slice_index, :]
                 )
-                count_map[0, :, slice_i, slice_j] += importance_map
+                count_map[0, :, curr_slice[0], curr_slice[1]] += importance_map
 
     # account for any overlapping sections
     output_image /= count_map
