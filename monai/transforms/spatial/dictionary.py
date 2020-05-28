@@ -714,7 +714,7 @@ class Zoomd(MapTransform):
         prefilter (bool or sequence of bool): Apply spline_filter before interpolation. Default: True.
         use_gpu (bool): Should use cpu or gpu. Uses cupyx which doesn't support order > 1 and modes
             'wrap' and 'reflect'. Defaults to cpu for these cases or if cupyx not found.
-        keep_size (bool): Should keep original size (pad if needed).
+        keep_size (bool): Should keep original size (pad if needed), default is True.
     """
 
     def __init__(
@@ -726,7 +726,7 @@ class Zoomd(MapTransform):
         cval=0,
         prefilter=True,
         use_gpu=False,
-        keep_size=False,
+        keep_size=True,
     ):
         super().__init__(keys)
         self.zoomer = Zoom(zoom=zoom, use_gpu=use_gpu, keep_size=keep_size)
@@ -768,7 +768,7 @@ class RandZoomd(Randomizable, MapTransform):
         prefilter (bool or sequence of bool): Apply spline_filter before interpolation. Default: True.
         use_gpu (bool): Should use cpu or gpu. Uses cupyx which doesn't support order > 1 and modes
             'wrap' and 'reflect'. Defaults to cpu for these cases or if cupyx not found.
-        keep_size (bool): Should keep original size (pad if needed).
+        keep_size (bool): Should keep original size (pad if needed), default is True.
     """
 
     def __init__(
@@ -782,7 +782,7 @@ class RandZoomd(Randomizable, MapTransform):
         cval=0,
         prefilter=True,
         use_gpu=False,
-        keep_size=False,
+        keep_size=True,
     ):
         super().__init__(keys)
         if hasattr(min_zoom, "__iter__") and hasattr(max_zoom, "__iter__"):
