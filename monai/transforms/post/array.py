@@ -86,9 +86,10 @@ class Activations(Transform):
 class AsDiscrete(Transform):
     """Execute after model forward to transform model output to discrete values.
     It can complete below operations:
-        #. execute `argmax` for input logits values.
-        #. threshold input value to 0.0 or 1.0.
-        #. convert input value to One-Hot format
+
+        -  execute `argmax` for input logits values.
+        -  threshold input value to 0.0 or 1.0.
+        -  convert input value to One-Hot format
 
     Args:
         argmax (bool): whether to execute argmax function on input data before transform.

@@ -44,11 +44,12 @@ class CheckpointSaver:
     Note:
         CheckpointHandler can be used during training, validation or evaluation.
         example of saved files:
-            checkpoint_iteration=400.pth
-            checkpoint_iteration=800.pth
-            checkpoint_epoch=1.pth
-            checkpoint_final_iteration=1000.pth
-            checkpoint_key_metric=0.9387.pth
+
+            - checkpoint_iteration=400.pth
+            - checkpoint_iteration=800.pth
+            - checkpoint_epoch=1.pth
+            - checkpoint_final_iteration=1000.pth
+            - checkpoint_key_metric=0.9387.pth
 
     """
 
