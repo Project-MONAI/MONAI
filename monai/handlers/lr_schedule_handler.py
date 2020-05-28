@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import logging
-from typing import Callable
 from ignite.engine import Events
 from monai.utils import ensure_tuple
 
@@ -37,7 +36,7 @@ class LrScheduleHandler:
         self.print_lr = print_lr
         self.logger = None if name is None else logging.getLogger(name)
         self.epoch_level = epoch_level
-        if not isinstance(step_transform, Callable):
+        if not callable(step_transform):
             raise ValueError("argument `step_transform` must be a callable.")
         self.step_transform = step_transform
 

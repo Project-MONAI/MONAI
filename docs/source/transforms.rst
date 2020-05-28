@@ -317,11 +317,24 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
+`Activations`
+~~~~~~~~~~~~~
+.. autoclass:: Activations
+    :members:
+    :special-members: __call__
+
+`AsDiscrete`
+~~~~~~~~~~~~
+.. autoclass:: AsDiscrete
+    :members:
+    :special-members: __call__
+
 `KeepLargestConnectedComponent`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: KeepLargestConnectedComponent
     :members:
     :special-members: __call__
+
 
 Dictionary-based Transforms
 ---------------------------
@@ -584,11 +597,24 @@ Dictionary-based Transforms
     :members:
     :special-members: __call__
 
+`Activationsd`
+~~~~~~~~~~~~~~
+.. autoclass:: Activationsd
+    :members:
+    :special-members: __call__
+
+`AsDiscreted`
+~~~~~~~~~~~~~
+.. autoclass:: AsDiscreted
+    :members:
+    :special-members: __call__
+
 `KeepLargestConnectedComponentd`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: KeepLargestConnectedComponentd
     :members:
     :special-members: __call__
+
 
 Transform Adaptors
 ------------------
