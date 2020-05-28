@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import logging
-from typing import Callable
 from ignite.engine import Events
 from monai.utils import ensure_tuple
 
