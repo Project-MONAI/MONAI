@@ -51,7 +51,7 @@ class GaussianFilter(nn.Module):
         self.spatial_dims = int(spatial_dims)
         _sigma = ensure_tuple_rep(sigma, self.spatial_dims)
         self.kernel = [
-            torch.nn.Parameter(torch.as_tensor(gaussian_1d(s, truncated), dtype=torch.float32), False) for s in _sigma
+            torch.nn.Parameter(torch.as_tensor(gaussian_1d(s, truncated), dtype=torch.float), False) for s in _sigma
         ]
         self.padding = [same_padding(k.size()[0]) for k in self.kernel]
         self.conv_n = [F.conv1d, F.conv2d, F.conv3d][spatial_dims - 1]
@@ -67,8 +67,7 @@ class GaussianFilter(nn.Module):
             raise TypeError(f"x must be a Tensor, got {type(x).__name__}.")
         chns = x.shape[1]
         sp_dim = self.spatial_dims
-        # no inplace change of x
-        x = x.clone().to(self.kernel[0]).contiguous()  # assign to the first kernel's device and dtype
+        x = x.clone()  # no inplace change of x
 
         def _conv(input_, d):
             if d < 0:

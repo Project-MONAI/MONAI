@@ -428,7 +428,7 @@ def compute_importance_map(patch_size, mode="constant", sigma_scale=0.125, devic
         patch_size (tuple): Size of the required importance map. This should be either H, W [,D].
         mode (str): Importance map type. Options are 'constant' (Each weight has value 1.0)
             or 'gaussian' (Importance becomes lower away from center).
-        sigma_scale (float): Sigma_scale to calculate sigma for each dimension 
+        sigma_scale (float): Sigma_scale to calculate sigma for each dimension
             (sigma = sigma_scale * dim_size). Used for gaussian mode only.
         device (str of pytorch device): Device to put importance map on.
 
@@ -444,7 +444,7 @@ def compute_importance_map(patch_size, mode="constant", sigma_scale=0.125, devic
 
         importance_map = torch.zeros(patch_size, device=device)
         importance_map[tuple(center_coords)] = 1
-        pt_gaussian = GaussianFilter(len(patch_size), sigmas).to(device)
+        pt_gaussian = GaussianFilter(len(patch_size), sigmas).to(device=device, dtype=torch.float)
         importance_map = pt_gaussian(importance_map.unsqueeze(0).unsqueeze(0))
         importance_map = importance_map.squeeze(0).squeeze(0)
         importance_map = importance_map / torch.max(importance_map)

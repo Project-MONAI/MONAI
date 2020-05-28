@@ -75,7 +75,7 @@ class AffineTransform(nn.Module):
         where `N` is the batch size. `theta` will be converted into float Tensor for the computation.
 
         Args:
-            src (array_like): image in spatial 2D (N, C, H, W) or spatial 3D (N, C, D, H, W),
+            src (array_like): image in spatial 2D or 3D (N, C, spatial_dims),
                 where N is the batch dim, C is the number of channels.
             theta (array_like): Nx3x3, Nx2x3, 3x3, 2x3 for spatial 2D inputs,
                 Nx4x4, Nx3x4, 3x4, 4x4 for spatial 3D inputs. When the batch dimension is omitted,
