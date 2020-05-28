@@ -23,8 +23,7 @@ Workflows
 .. autoclass:: Workflow
     :members:
 
-.. automodule:: monai.engines.trainer
-.. currentmodule:: monai.engines.trainer
+.. currentmodule:: monai.engines
 
 `Trainer`
 ~~~~~~~~~
@@ -35,9 +34,6 @@ Workflows
 ~~~~~~~~~~~~~~~~~~~
 .. autoclass:: SupervisedTrainer
     :members:
-
-.. automodule:: monai.engines.evaluator
-.. currentmodule:: monai.engines.evaluator
 
 `Evaluator`
 ~~~~~~~~~~~

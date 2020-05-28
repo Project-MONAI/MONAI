@@ -8,15 +8,15 @@ Inference methods
 Sliding Window Inference
 ------------------------
 
-.. automodule:: monai.inferers.sliding_window_inference
-  :members:
+.. autofunction:: monai.inferers.sliding_window_inference
 
 
 Inferers
 --------
 
-.. automodule:: monai.inferers.inferer
-.. currentmodule:: monai.inferers.inferer
+.. currentmodule:: monai.inferers
+.. autoclass:: Inferer
+    :members:
 
 `SimpleInferer`
 ~~~~~~~~~~~~~~~

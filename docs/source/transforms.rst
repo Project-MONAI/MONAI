@@ -7,9 +7,8 @@ Transforms
 
 Generic Interfaces
 ------------------
-
-.. automodule:: monai.transforms.compose
-.. currentmodule:: monai.transforms.compose
+.. automodule:: monai.transforms
+.. currentmodule:: monai.transforms
 
 `Transform`
 ~~~~~~~~~~~
@@ -37,9 +36,6 @@ Generic Interfaces
 
 Vanilla Transforms
 ------------------
-
-.. automodule:: monai.transforms
-.. currentmodule:: monai.transforms
 
 `Spacing`
 ~~~~~~~~~
@@ -618,7 +614,6 @@ Dictionary-based Transforms
 
 Transform Adaptors
 ------------------
-
 .. automodule:: monai.transforms.adaptors
 
 `adaptor`

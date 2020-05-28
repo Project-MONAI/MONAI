@@ -4,66 +4,67 @@
 
 Event handlers
 ==============
+.. currentmodule:: monai.handlers
 
 Model checkpoint loader
 -----------------------
-.. automodule:: monai.handlers.checkpoint_loader
+.. autoclass:: CheckpointLoader
   :members:
 
 Model checkpoint saver
 ----------------------
-.. automodule:: monai.handlers.checkpoint_saver
+.. autoclass:: CheckpointSaver
   :members:
 
 CSV saver
 ---------
-.. automodule:: monai.handlers.classification_saver
+.. autoclass:: ClassificationSaver
     :members:
 
 
 Mean Dice metrics handler
 -------------------------
-.. automodule:: monai.handlers.mean_dice
+.. autoclass:: MeanDice
     :members:
 
 
 ROC AUC metrics handler
 -----------------------
-.. automodule:: monai.handlers.roc_auc
+.. autoclass:: ROCAUC
     :members:
 
 
 Metric logger
 -------------
-.. automodule:: monai.handlers.metric_logger
+.. autoclass:: MetricLogger
     :members:
 
 
 Segmentation saver
 ------------------
-.. automodule:: monai.handlers.segmentation_saver
+.. autoclass:: SegmentationSaver
     :members:
 
 
 Training stats handler
 ----------------------
-.. automodule:: monai.handlers.stats_handler
+.. autoclass:: StatsHandler
     :members:
 
 
 Tensorboard handler
 -------------------
-.. automodule:: monai.handlers.tensorboard_handlers
+.. autoclass:: TensorBoardStatsHandler
     :members:
 
 
 LR Schedule handler
 -------------------
-.. automodule:: monai.handlers.lr_schedule_handler
+.. autoclass:: LrScheduleHandler
     :members:
 
 
 Validation handler
 ------------------
-.. automodule:: monai.handlers.validation_handler
+.. autoclass:: ValidationHandler
     :members:
