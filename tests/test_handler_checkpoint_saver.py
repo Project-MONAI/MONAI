@@ -78,26 +78,25 @@ class TestHandlerCheckpointSaver(unittest.TestCase):
         if multi_devices:
             net = torch.nn.DataParallel(net)
         optimizer = optim.SGD(net.parameters(), lr=0.02)
-        with tempfile.TemporaryDirectory() as tempdir:
-            save_dir = os.path.join(tempdir, "checkpoint")
-            handler = CheckpointSaver(
-                save_dir,
-                {"net": net, "opt": optimizer},
-                "CheckpointSaver",
-                "test",
-                save_final,
-                save_key_metric,
-                key_metric_name,
-                key_metric_n_saved,
-                epoch_level,
-                save_interval,
-                n_saved,
-            )
-            handler.attach(engine)
-            engine.run(data, max_epochs=5)
-            for filename in filenames:
-                self.assertTrue(os.path.exists(os.path.join(save_dir, filename)))
-            shutil.rmtree(save_dir)
+        tempdir = tempfile.mkdtemp()
+        handler = CheckpointSaver(
+            tempdir,
+            {"net": net, "opt": optimizer},
+            "CheckpointSaver",
+            "test",
+            save_final,
+            save_key_metric,
+            key_metric_name,
+            key_metric_n_saved,
+            epoch_level,
+            save_interval,
+            n_saved,
+        )
+        handler.attach(engine)
+        engine.run(data, max_epochs=5)
+        for filename in filenames:
+            self.assertTrue(os.path.exists(os.path.join(tempdir, filename)))
+        shutil.rmtree(tempdir)
 
 
 if __name__ == "__main__":
