@@ -15,7 +15,7 @@ import shutil
 import torch
 import unittest
 from ignite.engine import Engine
-from monai.handlers import CheckpointSaver, CheckpointLoader
+from monai.handlers import CheckpointSaver
 import torch.optim as optim
 from parameterized import parameterized
 import logging
@@ -97,9 +97,6 @@ class TestHandlerCheckpointSaver(unittest.TestCase):
             engine.run(data, max_epochs=5)
             for filename in filenames:
                 self.assertTrue(os.path.exists(os.path.join(save_dir, filename)))
-            loader = CheckpointLoader(load_path=os.path.join(save_dir, filename), load_dict={"net": net})
-            loader.attach(engine)
-            engine.run(data, max_epochs=1)
             shutil.rmtree(save_dir)
 
 
