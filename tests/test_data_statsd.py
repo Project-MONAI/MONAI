@@ -11,6 +11,7 @@
 
 import unittest
 import os
+import shutil
 import logging
 import tempfile
 import numpy as np
@@ -129,7 +130,7 @@ class TestDataStatsd(unittest.TestCase):
         with open(filename, "r") as f:
             content = f.read()
             self.assertEqual(content, expected_print)
-        os.remove(filename)
+        shutil.rmtree(tempdir)
 
 
 if __name__ == "__main__":

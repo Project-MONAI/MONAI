@@ -11,6 +11,7 @@
 
 import unittest
 import os
+import shutil
 import numpy as np
 import tempfile
 from PIL import Image
@@ -35,6 +36,7 @@ class TestLoadPNG(unittest.TestCase):
         result = LoadPNG()(filenames)
         self.assertTupleEqual(result[1]["spatial_shape"], meta_shape)
         self.assertTupleEqual(result[0].shape, expected_shape)
+        shutil.rmtree(tempdir)
 
 
 if __name__ == "__main__":

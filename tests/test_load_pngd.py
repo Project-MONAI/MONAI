@@ -11,6 +11,7 @@
 
 import unittest
 import os
+import shutil
 import numpy as np
 import tempfile
 from PIL import Image
@@ -34,6 +35,7 @@ class TestLoadPNGd(unittest.TestCase):
         result = LoadPNGd(**input_param)(test_data)
         for key in KEYS:
             self.assertTupleEqual(result[key].shape, expected_shape)
+        shutil.rmtree(tempdir)
 
 
 if __name__ == "__main__":

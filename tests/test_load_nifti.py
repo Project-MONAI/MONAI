@@ -11,6 +11,7 @@
 
 import unittest
 import os
+import shutil
 import numpy as np
 import tempfile
 import nibabel as nib
@@ -51,6 +52,7 @@ class TestLoadNifti(unittest.TestCase):
             if input_param["as_closest_canonical"]:
                 np.testing.asesrt_allclose(header["original_affine"], np.eye(4))
         self.assertTupleEqual(result.shape, expected_shape)
+        shutil.rmtree(tempdir)
 
 
 if __name__ == "__main__":
