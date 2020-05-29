@@ -96,7 +96,6 @@ Outputs:
 
 """
 
-import monai
 from monai.utils import export as _monai_export
 
 
