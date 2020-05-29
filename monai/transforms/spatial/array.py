@@ -333,7 +333,7 @@ class Zoom(Transform):
         prefilter (bool): Apply spline_filter before interpolation. Default: True.
         use_gpu (bool): Should use cpu or gpu. Uses cupyx which doesn't support order > 1 and modes
             'wrap' and 'reflect'. Defaults to cpu for these cases or if cupyx not found.
-        keep_size (bool): Should keep original size (pad if needed).
+        keep_size (bool): Should keep original size (pad if needed), default is True.
     """
 
     def __init__(
@@ -344,7 +344,7 @@ class Zoom(Transform):
         cval=0,
         prefilter=True,
         use_gpu=False,
-        keep_size=False,
+        keep_size=True,
     ):
         self.zoom = zoom
         self.interp_order = interp_order
@@ -585,7 +585,7 @@ class RandZoom(Randomizable, Transform):
         prefilter (bool): Apply spline_filter before interpolation. Default: True.
         use_gpu (bool): Should use cpu or gpu. Uses cupyx which doesn't support order > 1 and modes
             'wrap' and 'reflect'. Defaults to cpu for these cases or if cupyx not found.
-        keep_size (bool): Should keep original size (pad if needed).
+        keep_size (bool): Should keep original size (pad if needed), default is True.
     """
 
     def __init__(
@@ -598,7 +598,7 @@ class RandZoom(Randomizable, Transform):
         cval=0,
         prefilter=True,
         use_gpu=False,
-        keep_size=False,
+        keep_size=True,
     ):
         if hasattr(min_zoom, "__iter__") and hasattr(max_zoom, "__iter__"):
             assert len(min_zoom) == len(max_zoom), "min_zoom and max_zoom must have same length."

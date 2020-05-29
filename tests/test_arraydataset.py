@@ -11,6 +11,7 @@
 
 import unittest
 import os
+import shutil
 import numpy as np
 import tempfile
 import nibabel as nib
@@ -68,6 +69,7 @@ class TestArrayDataset(unittest.TestCase):
         self.assertTupleEqual(data2[indexes[0]].shape, expected_shape)
         self.assertTupleEqual(data2[indexes[1]].shape, expected_shape)
         np.testing.assert_allclose(data2[indexes[0]], data2[indexes[0]])
+        shutil.rmtree(tempdir)
 
 
 if __name__ == "__main__":

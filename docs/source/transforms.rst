@@ -5,13 +5,10 @@
 Transforms
 ==========
 
-
 Generic Interfaces
 ------------------
-
-.. automodule:: monai.transforms.compose
-.. currentmodule:: monai.transforms.compose
-
+.. automodule:: monai.transforms
+.. currentmodule:: monai.transforms
 
 `Transform`
 ~~~~~~~~~~~
@@ -19,13 +16,11 @@ Generic Interfaces
     :members:
     :special-members: __call__
 
-
 `MapTransform`
 ~~~~~~~~~~~~~~
 .. autoclass:: MapTransform
     :members:
     :special-members: __call__
-
 
 `Randomizable`
 ~~~~~~~~~~~~~~
@@ -41,9 +36,6 @@ Generic Interfaces
 
 Vanilla Transforms
 ------------------
-
-.. automodule:: monai.transforms
-.. currentmodule:: monai.transforms
 
 `Spacing`
 ~~~~~~~~~
@@ -88,7 +80,7 @@ Vanilla Transforms
     :special-members: __call__
 
 `RepeatChannel`
-~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
 .. autoclass:: RepeatChannel
     :members:
     :special-members: __call__
@@ -321,8 +313,27 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
+`Activations`
+~~~~~~~~~~~~~
+.. autoclass:: Activations
+    :members:
+    :special-members: __call__
+
+`AsDiscrete`
+~~~~~~~~~~~~
+.. autoclass:: AsDiscrete
+    :members:
+    :special-members: __call__
+
+`KeepLargestConnectedComponent`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: KeepLargestConnectedComponent
+    :members:
+    :special-members: __call__
+
+
 Dictionary-based Transforms
-----------------------------
+---------------------------
 
 `Spacingd`
 ~~~~~~~~~~
@@ -582,9 +593,27 @@ Dictionary-based Transforms
     :members:
     :special-members: __call__
 
+`Activationsd`
+~~~~~~~~~~~~~~
+.. autoclass:: Activationsd
+    :members:
+    :special-members: __call__
+
+`AsDiscreted`
+~~~~~~~~~~~~~
+.. autoclass:: AsDiscreted
+    :members:
+    :special-members: __call__
+
+`KeepLargestConnectedComponentd`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: KeepLargestConnectedComponentd
+    :members:
+    :special-members: __call__
+
+
 Transform Adaptors
 ------------------
-
 .. automodule:: monai.transforms.adaptors
 
 `adaptor`

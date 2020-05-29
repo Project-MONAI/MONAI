@@ -86,7 +86,6 @@ def compute_roc_auc(y_pred, y, to_onehot_y=False, add_softmax=False, average="ma
         y_pred_ndim = 1
     if y_ndim == 2 and y.shape[1] == 1:
         y = y.squeeze(dim=-1)
-        y_ndim = 1
 
     if y_pred_ndim == 1:
         if to_onehot_y:

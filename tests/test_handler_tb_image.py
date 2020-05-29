@@ -13,7 +13,7 @@ import glob
 import os
 import shutil
 import unittest
-
+import tempfile
 import numpy as np
 import torch
 from ignite.engine import Engine, Events
@@ -34,8 +34,8 @@ TEST_CASES = [
 class TestHandlerTBImage(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_tb_image_shape(self, shape):
-        default_dir = os.path.join(".", "runs")
-        shutil.rmtree(default_dir, ignore_errors=True)
+        tempdir = tempfile.mkdtemp()
+        shutil.rmtree(tempdir, ignore_errors=True)
 
         # set up engine
         def _train_func(engine, batch):
@@ -44,15 +44,15 @@ class TestHandlerTBImage(unittest.TestCase):
         engine = Engine(_train_func)
 
         # set up testing handler
-        stats_handler = TensorBoardImageHandler()
+        stats_handler = TensorBoardImageHandler(log_dir=tempdir)
         engine.add_event_handler(Events.ITERATION_COMPLETED, stats_handler)
 
         data = zip(np.random.normal(size=(10, 4, *shape)), np.random.normal(size=(10, 4, *shape)))
         engine.run(data, epoch_length=10, max_epochs=1)
 
-        self.assertTrue(os.path.exists(default_dir))
-        self.assertTrue(len(glob.glob(default_dir)) > 0)
-        shutil.rmtree(default_dir)
+        self.assertTrue(os.path.exists(tempdir))
+        self.assertTrue(len(glob.glob(tempdir)) > 0)
+        shutil.rmtree(tempdir)
 
 
 if __name__ == "__main__":

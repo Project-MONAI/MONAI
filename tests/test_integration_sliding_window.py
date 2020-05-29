@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import os
+import shutil
 import tempfile
 import unittest
 
@@ -25,6 +26,7 @@ from monai.handlers import SegmentationSaver
 from monai.networks.nets import UNet
 from monai.networks.utils import predict_segmentation
 from monai.transforms import AddChannel
+from monai.utils import set_determinism
 from tests.utils import make_nifti_image
 
 
@@ -60,10 +62,7 @@ def run_test(batch_size, img_name, seg_name, output_dir, device=torch.device("cu
 
 class TestIntegrationSlidingWindow(unittest.TestCase):
     def setUp(self):
-        np.random.seed(0)
-        torch.manual_seed(0)
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
+        set_determinism(seed=0)
 
         im, seg = create_test_image_3d(25, 28, 63, rad_max=10, noise_max=1, num_objs=4, num_seg_classes=1)
         self.img_name = make_nifti_image(im)
@@ -71,19 +70,21 @@ class TestIntegrationSlidingWindow(unittest.TestCase):
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")
 
     def tearDown(self):
+        set_determinism(seed=None)
         if os.path.exists(self.img_name):
             os.remove(self.img_name)
         if os.path.exists(self.seg_name):
             os.remove(self.seg_name)
 
     def test_training(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            output_file = run_test(
-                batch_size=2, img_name=self.img_name, seg_name=self.seg_name, output_dir=temp_dir, device=self.device
-            )
-            output_image = nib.load(output_file).get_fdata()
-            np.testing.assert_allclose(np.sum(output_image), 34070)
-            np.testing.assert_allclose(output_image.shape, (28, 25, 63, 1))
+        tempdir = tempfile.mkdtemp()
+        output_file = run_test(
+            batch_size=2, img_name=self.img_name, seg_name=self.seg_name, output_dir=tempdir, device=self.device
+        )
+        output_image = nib.load(output_file).get_fdata()
+        np.testing.assert_allclose(np.sum(output_image), 34070)
+        np.testing.assert_allclose(output_image.shape, (28, 25, 63, 1))
+        shutil.rmtree(tempdir)
 
 
 if __name__ == "__main__":

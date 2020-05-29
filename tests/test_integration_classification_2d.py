@@ -30,10 +30,10 @@ from monai.transforms import (
     RandFlip,
     RandRotate,
     RandZoom,
-    Resize,
     ScaleIntensity,
     ToTensor,
 )
+from monai.utils import set_determinism
 from tests.utils import skip_if_quick
 
 TEST_DATA_URL = "https://www.dropbox.com/s/5wwskxctvcxiuea/MedNIST.tar.gz"
@@ -61,10 +61,9 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device=torch.dev
             LoadPNG(image_only=True),
             AddChannel(),
             ScaleIntensity(),
-            RandRotate(degrees=15, prob=0.5),
+            RandRotate(degrees=15, prob=0.5, reshape=False),
             RandFlip(spatial_axis=0, prob=0.5),
             RandZoom(min_zoom=0.9, max_zoom=1.1, prob=0.5),
-            Resize(spatial_size=(64, 64), mode="constant"),
             ToTensor(),
         ]
     )
@@ -161,9 +160,7 @@ def run_inference_test(root_dir, test_x, test_y, device=torch.device("cuda:0")):
 
 class IntegrationClassification2D(unittest.TestCase):
     def setUp(self):
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
-        np.random.seed(0)
+        set_determinism(seed=0)
         self.data_dir = tempfile.mkdtemp()
 
         # download
@@ -205,10 +202,10 @@ class IntegrationClassification2D(unittest.TestCase):
                 self.train_x.append(image_file_list[i])
                 self.train_y.append(image_classes[i])
 
-        np.random.seed(seed=None)
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")
 
     def tearDown(self):
+        set_determinism(seed=None)
         shutil.rmtree(self.data_dir)
 
     @skip_if_quick
@@ -224,11 +221,11 @@ class IntegrationClassification2D(unittest.TestCase):
 
             # check training properties
             np.testing.assert_allclose(
-                losses, [0.8501208358129878, 0.18469145818121113, 0.08108749352158255, 0.04965383692342005], rtol=1e-3
+                losses, [0.8009556981788319, 0.16794362251356149, 0.07708252014912617, 0.04769148252856959], rtol=1e-3
             )
             repeated[i].extend(losses)
             print("best metric", best_metric)
-            np.testing.assert_allclose(best_metric, 0.9999480167572079, rtol=1e-4)
+            np.testing.assert_allclose(best_metric, 0.9999460507942981, rtol=1e-4)
             repeated[i].append(best_metric)
             np.testing.assert_allclose(best_metric_epoch, 4)
             model_file = os.path.join(self.data_dir, "best_metric_model.pth")
@@ -237,7 +234,7 @@ class IntegrationClassification2D(unittest.TestCase):
             infer_metric = run_inference_test(self.data_dir, self.test_x, self.test_y, device=self.device)
 
             # check inference properties
-            np.testing.assert_allclose(np.asarray(infer_metric), [1036, 895, 982, 1033, 958, 1047], atol=1)
+            np.testing.assert_allclose(np.asarray(infer_metric), [1034, 895, 982, 1033, 961, 1047], atol=1)
             repeated[i].extend(infer_metric)
 
         np.testing.assert_allclose(repeated[0], repeated[1])

@@ -12,7 +12,9 @@
 import random
 import warnings
 
+import torch
 import numpy as np
+from skimage import measure
 
 from monai.utils.misc import ensure_tuple
 
@@ -239,9 +241,12 @@ def apply_transform(transform, data):
         transform (callable): a callable to be used to transform `data`
         data (object): an object to be transformed.
     """
-    if isinstance(data, (list, tuple)):
-        return [transform(item) for item in data]
-    return transform(data)
+    try:
+        if isinstance(data, (list, tuple)):
+            return [transform(item) for item in data]
+        return transform(data)
+    except Exception as e:
+        raise Exception(f"applying transform {transform}.").with_traceback(e.__traceback__)
 
 
 def create_grid(spatial_size, spacing=None, homogeneous=True, dtype=float):
@@ -376,7 +381,7 @@ def generate_spatial_bounding_box(img, select_fn=lambda x: x > 0, channel_indexe
     Args:
         img (ndarrary): source image to generate bounding box from.
         select_fn (Callable): function to select expected foreground, default is to select values > 0.
-        channel_indexes (int, tuple or list): if defined, select foregound only on the specified channels
+        channel_indexes (int, tuple or list): if defined, select foreground only on the specified channels
             of image. if None, select foreground on the whole image.
         margin (int): add margin to all dims of the bounding box.
     """
@@ -392,3 +397,22 @@ def generate_spatial_bounding_box(img, select_fn=lambda x: x > 0, channel_indexe
         box_start.append(max(0, np.min(nonzero_idx[i]) - margin))
         box_end.append(min(data.shape[i], np.max(nonzero_idx[i]) + margin + 1))
     return box_start, box_end
+
+
+def get_largest_connected_component_mask(img, connectivity=None):
+    """
+    Gets the largest connected component mask of an image.
+
+    Args:
+        img: Image to get largest connected component from. Shape is (batch_size, spatial_dim1 [, spatial_dim2, ...])
+        connectivity (int): Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
+            Accepted values are ranging from  1 to input.ndim. If ``None``, a full
+            connectivity of ``input.ndim`` is used.
+    """
+    img_arr = img.detach().cpu().numpy()
+    largest_cc = np.zeros(shape=img_arr.shape, dtype=img_arr.dtype)
+    for i, item in enumerate(img_arr):
+        item = measure.label(item, connectivity=connectivity)
+        if item.max() != 0:
+            largest_cc[i, ...] = item == (np.argmax(np.bincount(item.flat)[1:]) + 1)
+    return torch.as_tensor(largest_cc, device=img.device)

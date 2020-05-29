@@ -126,12 +126,17 @@ To run a particular test, for example `tests/test_dice_loss.py`:
 python -m tests.test_dice_loss
 ```
 
-Before submitting a pull request, we recommend that all linting and unit tests
-should pass, by running the following commands locally:
+## Linting and code style testing
+
+```bash
+# Install the various static analysis tools for development
+pip install -r requirements-dev.txt
 ```
-pip install flake8==3.7.9 flake8-mypy flake8-bugbear flake8-comprehensions flake8-executable flake8-pyi mccabe pycodestyle pyflakes
-flake8 . --count --statistics
-./runtests.sh --coverage
+
+Before submitting a pull request, we recommend that all linting and unit tests
+should pass, by running the following command locally:
+```
+./runtests.sh --codeformat --coverage
 ```
 
 _If it's not tested, it's broken_
