@@ -12,7 +12,7 @@
 from typing import Optional
 
 import logging
-from ignite.engine import Events
+from ignite.engine import Events, Engine
 from ignite.handlers import ModelCheckpoint
 
 
@@ -126,7 +126,7 @@ class CheckpointSaver:
                 require_empty=False,
             )
 
-    def attach(self, engine):
+    def attach(self, engine: Engine):
         if self.logger is None:
             self.logger = engine.logger
         if self._final_checkpoint is not None:

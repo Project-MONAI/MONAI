@@ -117,7 +117,7 @@ class StatsHandler(object):
         else:
             self._default_iteration_print(engine)
 
-    def exception_raised(self, engine, e):
+    def exception_raised(self, engine: Engine, e):
         """handler for train or validation/evaluation exception raised Event.
         Print the exception information and traceback.
 
@@ -130,7 +130,7 @@ class StatsHandler(object):
         # import traceback
         # traceback.print_exc()
 
-    def _default_epoch_print(self, engine):
+    def _default_epoch_print(self, engine: Engine):
         """Execute epoch level log operation based on Ignite engine.state data.
         print the values from Ignite state.metrics dict.
 

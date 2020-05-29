@@ -14,7 +14,9 @@ import torch.nn.functional as F
 from monai.data.utils import dense_patch_slices, compute_importance_map
 
 
-def sliding_window_inference(inputs, roi_size, sw_batch_size, predictor, overlap=0.25, blend_mode="constant"):
+def sliding_window_inference(
+    inputs, roi_size, sw_batch_size, predictor, overlap=0.25, blend_mode="constant",
+):
     """Use SlidingWindow method to execute inference.
 
     Args:
@@ -111,7 +113,7 @@ def sliding_window_inference(inputs, roi_size, sw_batch_size, predictor, overlap
     return output_image[..., : original_image_size[0], : original_image_size[1]]  # 2D
 
 
-def _get_scan_interval(image_size, roi_size, num_spatial_dims, overlap: float):
+def _get_scan_interval(image_size, roi_size, num_spatial_dims: int, overlap: float):
     assert len(image_size) == num_spatial_dims, "image coord different from spatial dims."
     assert len(roi_size) == num_spatial_dims, "roi coord different from spatial dims."
 

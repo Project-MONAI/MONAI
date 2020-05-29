@@ -13,7 +13,7 @@ A collection of "vanilla" transforms for the model output tensors
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Optional
+from typing import Optional, Callable
 
 import torch
 from monai.transforms.compose import Transform
@@ -64,12 +64,14 @@ class Activations(Transform):
 
     """
 
-    def __init__(self, sigmoid: bool = False, softmax: bool = False, other=None):
+    def __init__(self, sigmoid: bool = False, softmax: bool = False, other: Optional[Callable] = None):
         self.sigmoid = sigmoid
         self.softmax = softmax
         self.other = other
 
-    def __call__(self, img, sigmoid: Optional[bool] = None, softmax: Optional[bool] = None, other=None):
+    def __call__(
+        self, img, sigmoid: Optional[bool] = None, softmax: Optional[bool] = None, other: Optional[Callable] = None
+    ):
         if sigmoid is True and softmax is True:
             raise ValueError("sigmoid=True and softmax=True are not compatible.")
         if sigmoid or self.sigmoid:
@@ -178,7 +180,9 @@ class KeepLargestConnectedComponent(Transform):
 
     """
 
-    def __init__(self, applied_values, independent=True, background=0, connectivity=None):
+    def __init__(
+        self, applied_values, independent: bool = True, background: int = 0, connectivity: Optional[int] = None
+    ):
         """
         Args:
             applied_values (list or tuple of int): number list for applying the connected component on.

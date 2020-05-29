@@ -13,7 +13,7 @@ from typing import Optional
 
 import logging
 import torch
-from ignite.engine import Events
+from ignite.engine import Events, Engine
 from ignite.handlers import Checkpoint
 
 
@@ -45,7 +45,7 @@ class CheckpointLoader:
                 load_dict[k] = v.module
         self.load_dict = load_dict
 
-    def attach(self, engine):
+    def attach(self, engine: Engine):
         if self.logger is None:
             self.logger = engine.logger
         return engine.add_event_handler(Events.STARTED, self)

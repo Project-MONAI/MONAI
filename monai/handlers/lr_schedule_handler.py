@@ -9,10 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional
+from typing import Optional, Callable
 
 import logging
-from ignite.engine import Events
+from ignite.engine import Events, Engine
 from monai.utils import ensure_tuple
 
 
@@ -27,7 +27,7 @@ class LrScheduleHandler:
         print_lr: bool = True,
         name: Optional[str] = None,
         epoch_level: bool = True,
-        step_transform=lambda engine: (),
+        step_transform: Callable = lambda engine: (),
     ):
         """
         Args:
@@ -49,7 +49,7 @@ class LrScheduleHandler:
             raise ValueError("argument `step_transform` must be a callable.")
         self.step_transform = step_transform
 
-    def attach(self, engine):
+    def attach(self, engine: Engine):
         if self.logger is None:
             self.logger = engine.logger
         if self.epoch_level:

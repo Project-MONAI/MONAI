@@ -9,8 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional, Callable
 import sys
-
 import hashlib
 import json
 from pathlib import Path
@@ -41,7 +41,7 @@ class Dataset(_TorchDataset):
          },                           },                           }]
     """
 
-    def __init__(self, data, transform=None):
+    def __init__(self, data, transform: Optional[Callable] = None):
         """
         Args:
             data (Iterable): input data to load and transform to generate dataset for model.
@@ -95,7 +95,7 @@ class PersistentDataset(Dataset):
     followed by applying the random dependant parts of transform processing.
     """
 
-    def __init__(self, data, transform=None, cache_dir=None):
+    def __init__(self, data, transform: Optional[Callable] = None, cache_dir=None):
         """
         Args:
             data (Iterable): input data to load and transform to generate dataset for model.
@@ -228,7 +228,9 @@ class CacheDataset(Dataset):
     and the outcome not cached.
     """
 
-    def __init__(self, data, transform, cache_num: int = sys.maxsize, cache_rate: float = 1.0, num_workers: int = 0):
+    def __init__(
+        self, data, transform: Callable, cache_num: int = sys.maxsize, cache_rate: float = 1.0, num_workers: int = 0
+    ):
         """
         Args:
             data (Iterable): input data to load and transform to generate dataset for model.
@@ -275,7 +277,7 @@ class CacheDataset(Dataset):
             self._item_processed += 1
             process_bar(self._item_processed, self.cache_num)
 
-    def __getitem__(self, index: int):
+    def __getitem__(self, index):
         if index < self.cache_num:
             # load data from cache and execute from the first random transform
             start_run = False
@@ -377,7 +379,13 @@ class ArrayDataset(ZipDataset, Randomizable):
     """
 
     def __init__(
-        self, img_files, img_transform=None, seg_files=None, seg_transform=None, labels=None, label_transform=None
+        self,
+        img_files,
+        img_transform: Optional[Callable] = None,
+        seg_files=None,
+        seg_transform: Optional[Callable] = None,
+        labels=None,
+        label_transform: Optional[Callable] = None,
     ):
         """
         Initializes the dataset with the filename lists. The transform `img_transform` is applied

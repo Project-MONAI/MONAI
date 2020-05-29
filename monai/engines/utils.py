@@ -9,8 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional
-
 import torch
 
 
@@ -32,7 +30,7 @@ class CommonKeys:
     INFO = "info"
 
 
-def get_devices_spec(devices: Optional[list] = None):
+def get_devices_spec(devices=None):
     """
     Get a valid specification for one or more devices. If `devices` is None get devices for all CUDA devices available.
     If `devices` is and zero-length structure a single CPU compute device is returned. In any other cases `devices` is

@@ -118,7 +118,7 @@ class CastToType(Transform):
         """
         self.dtype = dtype
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray):
         assert isinstance(img, np.ndarray), "image must be numpy array."
         return img.astype(self.dtype)
 
@@ -161,7 +161,7 @@ class SqueezeDim(Transform):
             assert isinstance(dim, int) and dim >= -1, "invalid channel dimension."
         self.dim = dim
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray):
         """
         Args:
             img (ndarray): numpy arrays with required dimension `dim` removed
@@ -182,7 +182,7 @@ class DataStats(Transform):
         intensity_range: bool = True,
         data_value: bool = False,
         additional_info: Optional[Callable] = None,
-        logger_handler=None,
+        logger_handler: Optional[logging.Handler] = None,
     ):
         """
         Args:
@@ -203,13 +203,21 @@ class DataStats(Transform):
         if additional_info is not None and not callable(additional_info):
             raise ValueError("argument `additional_info` must be a callable.")
         self.additional_info = additional_info
-        self.output = None
+        self.output: Optional[str] = None
         logging.basicConfig(level=logging.NOTSET)
         self._logger = logging.getLogger("DataStats")
         if logger_handler is not None:
             self._logger.addHandler(logger_handler)
 
-    def __call__(self, img, prefix=None, data_shape=None, intensity_range=None, data_value=None, additional_info=None):
+    def __call__(
+        self,
+        img,
+        prefix: Optional[str] = None,
+        data_shape: Optional[bool] = None,
+        intensity_range: Optional[bool] = None,
+        data_value: Optional[bool] = None,
+        additional_info=None,
+    ):
         lines = [f"{prefix or self.prefix} statistics:"]
 
         if self.data_shape if data_shape is None else data_shape:

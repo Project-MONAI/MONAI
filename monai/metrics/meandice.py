@@ -17,8 +17,8 @@ from monai.networks.utils import one_hot
 
 
 def compute_meandice(
-    y_pred,
-    y,
+    y_pred: torch.Tensor,
+    y: torch.Tensor,
     include_background: bool = True,
     to_onehot_y: bool = False,
     mutually_exclusive: bool = False,

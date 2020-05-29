@@ -31,7 +31,7 @@ class MeanDice(Metric):
         add_sigmoid: bool = False,
         logit_thresh: float = 0.5,
         output_transform: Callable = lambda x: x,
-        device: Optional[Union[str, torch.device]] = None,
+        device: Optional[torch.device] = None,
     ):
         """
 

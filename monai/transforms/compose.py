@@ -219,7 +219,7 @@ class MapTransform(Transform):
 
     """
 
-    def __init__(self, keys):
+    def __init__(self, keys: Hashable):
         self.keys = ensure_tuple(keys)
         if not self.keys:
             raise ValueError("keys unspecified")

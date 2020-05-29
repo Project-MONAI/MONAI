@@ -9,11 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from collections import OrderedDict
+from typing import Union
+
 import os
 import csv
 import numpy as np
 import torch
-from collections import OrderedDict
 
 
 class CSVSaver:
@@ -60,7 +62,7 @@ class CSVSaver:
                     f.write("," + str(result))
                 f.write("\n")
 
-    def save(self, data, meta_data=None):
+    def save(self, data: np.ndarray, meta_data=None):
         """Save data into the cache dictionary. The metadata should have the following key:
             - ``'filename_or_obj'`` -- save the data corresponding to file name or object.
         If meta_data is None, use the default index from 0 to save data instead.
@@ -76,7 +78,7 @@ class CSVSaver:
             data = data.detach().cpu().numpy()
         self._cache_dict[save_key] = data.astype(np.float32)
 
-    def save_batch(self, batch_data, meta_data=None):
+    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data=None):
         """Save a batch of data into the cache dictionary.
 
         args:

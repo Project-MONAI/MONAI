@@ -68,7 +68,7 @@ class TverskyLoss(_Loss):
         self.alpha = alpha
         self.beta = beta
 
-    def forward(self, input, target, smooth: float = 1e-5):
+    def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5):
         """
         Args:
             input (tensor): the shape should be BNH[WD].

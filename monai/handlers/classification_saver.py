@@ -9,9 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional
+from typing import Optional, Callable
 
-from ignite.engine import Events
+from ignite.engine import Events, Engine
 import logging
 from monai.data import CSVSaver
 
@@ -26,8 +26,8 @@ class ClassificationSaver:
         output_dir: str = "./",
         filename: str = "predictions.csv",
         overwrite: bool = True,
-        batch_transform=lambda x: x,
-        output_transform=lambda x: x,
+        batch_transform: Callable = lambda x: x,
+        output_transform: Callable = lambda x: x,
         name: Optional[str] = None,
     ):
         """
@@ -51,7 +51,7 @@ class ClassificationSaver:
 
         self.logger = None if name is None else logging.getLogger(name)
 
-    def attach(self, engine):
+    def attach(self, engine: Engine):
         if self.logger is None:
             self.logger = engine.logger
         if not engine.has_event_handler(self, Events.ITERATION_COMPLETED):
@@ -59,7 +59,7 @@ class ClassificationSaver:
         if not engine.has_event_handler(self.saver.finalize, Events.COMPLETED):
             engine.add_event_handler(Events.COMPLETED, lambda engine: self.saver.finalize())
 
-    def __call__(self, engine):
+    def __call__(self, engine: Engine):
         """
         This method assumes self.batch_transform will extract metadata from the input batch.
 

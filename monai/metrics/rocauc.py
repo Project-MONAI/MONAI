@@ -50,7 +50,13 @@ def _calculate(y, y_pred):
     return auc / (nneg * (n - nneg))
 
 
-def compute_roc_auc(y_pred, y, to_onehot_y: bool = False, add_softmax: bool = False, average: Optional[str] = "macro"):
+def compute_roc_auc(
+    y_pred: torch.Tensor,
+    y: torch.Tensor,
+    to_onehot_y: bool = False,
+    add_softmax: bool = False,
+    average: Optional[str] = "macro",
+):
     """Computes Area Under the Receiver Operating Characteristic Curve (ROC AUC). Referring to:
     `sklearn.metrics.roc_auc_score <https://scikit-learn.org/stable/modules/generated/
     sklearn.metrics.roc_auc_score.html#sklearn.metrics.roc_auc_score>`_.

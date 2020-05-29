@@ -122,7 +122,7 @@ class Workflow(ABC, Engine):
         super().run(data=self.data_loader, epoch_length=len(self.data_loader))
 
     @abstractmethod
-    def _iteration(self, engine, batchdata):
+    def _iteration(self, engine: Engine, batchdata):
         """
         Abstract callback function for the processing logic of 1 iteration in Ignite Engine.
         Need subclass to implement different logics, like SupervisedTrainer/Evaluator, GANTrainer, etc.

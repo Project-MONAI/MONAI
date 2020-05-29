@@ -15,6 +15,9 @@ defined in :py:class:`monai.transforms.spatial.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
+from typing import Hashable, Optional
+
+import numpy as np
 import torch
 from monai.data.utils import InterpolationCode
 
@@ -52,13 +55,13 @@ class Spacingd(MapTransform):
 
     def __init__(
         self,
-        keys,
+        keys: Hashable,
         pixdim,
         diagonal: bool = False,
         interp_order=3,
         mode="nearest",
         cval=0,
-        dtype=None,
+        dtype: Optional[np.dtype] = None,
         meta_key_format: str = "{}.{}",
     ):
         """
@@ -128,7 +131,7 @@ class Orientationd(MapTransform):
 
     def __init__(
         self,
-        keys,
+        keys: Hashable,
         axcodes=None,
         as_closest_canonical: bool = False,
         labels=tuple(zip("LPI", "RAS")),
@@ -168,7 +171,7 @@ class Rotate90d(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.Rotate90`.
     """
 
-    def __init__(self, keys, k: int = 1, spatial_axes=(0, 1)):
+    def __init__(self, keys: Hashable, k: int = 1, spatial_axes=(0, 1)):
         """
         Args:
             k (int): number of times to rotate by 90 degrees.
@@ -191,7 +194,7 @@ class RandRotate90d(Randomizable, MapTransform):
     in the plane specified by `spatial_axes`.
     """
 
-    def __init__(self, keys, prob: float = 0.1, max_k: int = 3, spatial_axes=(0, 1)):
+    def __init__(self, keys: Hashable, prob: float = 0.1, max_k: int = 3, spatial_axes=(0, 1)):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -250,7 +253,7 @@ class Resized(MapTransform):
 
     def __init__(
         self,
-        keys,
+        keys: Hashable,
         spatial_size,
         interp_order=1,
         mode="reflect",
@@ -291,7 +294,7 @@ class RandAffined(Randomizable, MapTransform):
 
     def __init__(
         self,
-        keys,
+        keys: Hashable,
         spatial_size,
         prob: float = 0.1,
         rotate_range=None,
@@ -301,7 +304,7 @@ class RandAffined(Randomizable, MapTransform):
         mode="bilinear",
         padding_mode="zeros",
         as_tensor_output: bool = True,
-        device=None,
+        device: Optional[torch.device] = None,
     ):
         """
         Args:
@@ -369,7 +372,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
 
     def __init__(
         self,
-        keys,
+        keys: Hashable,
         spatial_size,
         spacing,
         magnitude_range,
@@ -381,7 +384,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
         mode="bilinear",
         padding_mode="zeros",
         as_tensor_output: bool = False,
-        device=None,
+        device: Optional[torch.device] = None,
     ):
         """
         Args:
@@ -422,7 +425,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.mode = ensure_tuple_rep(mode, len(self.keys))
 
-    def set_random_state(self, seed=None, state=None):
+    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
         self.rand_2d_elastic.set_random_state(seed, state)
         super().set_random_state(seed, state)
         return self
@@ -456,7 +459,7 @@ class Rand3DElasticd(Randomizable, MapTransform):
 
     def __init__(
         self,
-        keys,
+        keys: Hashable,
         spatial_size,
         sigma_range,
         magnitude_range,
@@ -468,7 +471,7 @@ class Rand3DElasticd(Randomizable, MapTransform):
         mode="bilinear",
         padding_mode="zeros",
         as_tensor_output: bool = False,
-        device=None,
+        device: Optional[torch.device] = None,
     ):
         """
         Args:
@@ -510,7 +513,7 @@ class Rand3DElasticd(Randomizable, MapTransform):
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.mode = ensure_tuple_rep(mode, len(self.keys))
 
-    def set_random_state(self, seed=None, state=None):
+    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
         self.rand_3d_elastic.set_random_state(seed, state)
         super().set_random_state(seed, state)
         return self
@@ -548,7 +551,7 @@ class Flipd(MapTransform):
         spatial_axis (None, int or tuple of ints): Spatial axes along which to flip over. Default is None.
     """
 
-    def __init__(self, keys, spatial_axis=None):
+    def __init__(self, keys: Hashable, spatial_axis=None):
         super().__init__(keys)
         self.flipper = Flip(spatial_axis=spatial_axis)
 
@@ -570,7 +573,7 @@ class RandFlipd(Randomizable, MapTransform):
         spatial_axis (None, int or tuple of ints): Spatial axes along which to flip over. Default is None.
     """
 
-    def __init__(self, keys, prob=0.1, spatial_axis=None):
+    def __init__(self, keys: Hashable, prob: float = 0.1, spatial_axis=None):
         super().__init__(keys)
         self.spatial_axis = spatial_axis
         self.prob = prob
@@ -612,7 +615,7 @@ class Rotated(MapTransform):
 
     def __init__(
         self,
-        keys,
+        keys: Hashable,
         angle: float,
         spatial_axes=(0, 1),
         reshape: bool = True,
@@ -665,7 +668,7 @@ class RandRotated(Randomizable, MapTransform):
 
     def __init__(
         self,
-        keys,
+        keys: Hashable,
         degrees,
         prob: float = 0.1,
         spatial_axes=(0, 1),
@@ -732,7 +735,7 @@ class Zoomd(MapTransform):
 
     def __init__(
         self,
-        keys,
+        keys: Hashable,
         zoom,
         interp_order=InterpolationCode.SPLINE3,
         mode="constant",
@@ -786,7 +789,7 @@ class RandZoomd(Randomizable, MapTransform):
 
     def __init__(
         self,
-        keys,
+        keys: Hashable,
         prob: float = 0.1,
         min_zoom=0.9,
         max_zoom=1.1,

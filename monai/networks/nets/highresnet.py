@@ -37,7 +37,14 @@ DEFAULT_LAYER_PARAMS_3D = (
 
 class ConvNormActi(nn.Module):
     def __init__(
-        self, spatial_dims, in_channels, out_channels, kernel_size, norm_type=None, acti_type=None, dropout_prob=None
+        self,
+        spatial_dims: int,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int,
+        norm_type: Optional[str] = None,
+        acti_type: Optional[str] = None,
+        dropout_prob: Optional[float] = None,
     ):
 
         super(ConvNormActi, self).__init__()
@@ -65,14 +72,14 @@ class ConvNormActi(nn.Module):
 class HighResBlock(nn.Module):
     def __init__(
         self,
-        spatial_dims,
-        in_channels,
-        out_channels,
+        spatial_dims: int,
+        in_channels: int,
+        out_channels: int,
         kernels=(3, 3),
         dilation=1,
-        norm_type="instance",
-        acti_type="relu",
-        channel_matching="pad",
+        norm_type: str = "instance",
+        acti_type: str = "relu",
+        channel_matching: str = "pad",
     ):
         """
         Args:

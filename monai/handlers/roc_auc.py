@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Union
+from typing import Optional, Sequence, Union, Callable
 
 import torch
 from ignite.metrics import Metric
@@ -51,7 +51,7 @@ class ROCAUC(Metric):
         to_onehot_y: bool = False,
         add_softmax: bool = False,
         average: str = "macro",
-        output_transform=lambda x: x,
+        output_transform: Callable = lambda x: x,
         device: Optional[Union[str, torch.device]] = None,
     ):
         super().__init__(output_transform, device=device)

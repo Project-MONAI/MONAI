@@ -9,9 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional
+from typing import Optional, Union, Callable
 
-from ignite.engine import Events
+import numpy as np
+from ignite.engine import Events, Engine
 import logging
 from monai.data import NiftiSaver, PNGSaver
 
@@ -29,11 +30,11 @@ class SegmentationSaver:
         resample: bool = True,
         interp_order: int = 0,
         mode: str = "constant",
-        cval=0,
+        cval: Union[int, float] = 0,
         scale: bool = False,
-        dtype=None,
-        batch_transform=lambda x: x,
-        output_transform=lambda x: x,
+        dtype: Optional[np.dtype] = None,
+        batch_transform: Callable = lambda x: x,
+        output_transform: Callable = lambda x: x,
         name: Optional[str] = None,
     ):
         """
@@ -73,7 +74,7 @@ class SegmentationSaver:
 
         self.logger = None if name is None else logging.getLogger(name)
 
-    def attach(self, engine):
+    def attach(self, engine: Engine):
         if self.logger is None:
             self.logger = engine.logger
         if not engine.has_event_handler(self, Events.ITERATION_COMPLETED):
