@@ -17,7 +17,7 @@ from torch.utils.tensorboard import SummaryWriter
 from tensorboard.compat.proto import summary_pb2
 from monai.transforms.utils import rescale_array
 
-from typing import Sequence, Union
+from typing import Sequence, Union, Optional
 
 
 def _image3_animated_gif(tag: str, image: Union[np.ndarray, torch.Tensor], scale_factor: float = 1):
@@ -51,7 +51,7 @@ def make_animated_gif_summary(
     max_out: int = 3,
     animation_axes: Sequence[int] = (3,),
     image_axes: Sequence[int] = (1, 2),
-    other_indices: dict = None,
+    other_indices=None,
     scale_factor: float = 1,
 ):
     """Creates an animated gif out of an image tensor in 'CHWD' format and returns Summary.
@@ -98,7 +98,7 @@ def add_animated_gif(
     image_tensor: Union[np.ndarray, torch.Tensor],
     max_out: int,
     scale_factor: float,
-    global_step: int = None,
+    global_step: Optional[int] = None,
 ):
     """Creates an animated gif out of an image tensor in 'CHWD' format and writes it with SummaryWriter.
 
@@ -125,7 +125,7 @@ def add_animated_gif_no_channels(
     image_tensor: Union[np.ndarray, torch.Tensor],
     max_out: int,
     scale_factor: float,
-    global_step: int = None,
+    global_step: Optional[int] = None,
 ):
     """Creates an animated gif out of an image tensor in 'HWD' format that does not have
     a channel dimension and writes it with SummaryWriter. This is similar to the "add_animated_gif"
@@ -148,7 +148,15 @@ def add_animated_gif_no_channels(
     )
 
 
-def plot_2d_or_3d_image(data, step, writer, index=0, max_channels=1, max_frames=64, tag="output"):
+def plot_2d_or_3d_image(
+    data: Union[torch.Tensor, np.ndarray],
+    step: int,
+    writer: SummaryWriter,
+    index: int = 0,
+    max_channels: int = 1,
+    max_frames: int = 64,
+    tag: str = "output",
+):
     """Plot 2D or 3D image on the TensorBoard, 3D image will be converted to GIF image.
 
     Note:

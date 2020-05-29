@@ -20,7 +20,7 @@ class ValidationHandler:
 
     """
 
-    def __init__(self, validator, interval, epoch_level=True):
+    def __init__(self, validator, interval: int, epoch_level: bool = True):
         """
         Args:
             validator (Evaluator): run the validator when trigger validation, suppose to be Evaluator.

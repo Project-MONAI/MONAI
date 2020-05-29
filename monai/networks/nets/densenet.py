@@ -10,12 +10,12 @@
 # limitations under the License.
 
 from collections import OrderedDict
+from typing import Callable
 
 import torch
 import torch.nn as nn
 
 from monai.networks.layers.factories import Conv, Dropout, Pool, Norm
-from typing import Callable
 
 
 def densenet121(**kwargs):

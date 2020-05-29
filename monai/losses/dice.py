@@ -32,13 +32,13 @@ class DiceLoss(_Loss):
 
     def __init__(
         self,
-        include_background=True,
-        to_onehot_y=False,
-        do_sigmoid=False,
-        do_softmax=False,
-        squared_pred=False,
-        jaccard=False,
-        reduction="mean",
+        include_background: bool = True,
+        to_onehot_y: bool = False,
+        do_sigmoid: bool = False,
+        do_softmax: bool = False,
+        squared_pred: bool = False,
+        jaccard: bool = False,
+        reduction: str = "mean",
     ):
         """
         Args:
@@ -64,7 +64,7 @@ class DiceLoss(_Loss):
         self.squared_pred = squared_pred
         self.jaccard = jaccard
 
-    def forward(self, input, target, smooth=1e-5):
+    def forward(self, input, target, smooth: float = 1e-5):
         """
         Args:
             input (tensor): the shape should be BNH[WD].
@@ -167,7 +167,7 @@ class GeneralizedDiceLoss(_Loss):
         elif w_type == "square":
             self.w_func = lambda x: torch.reciprocal(x * x)
 
-    def forward(self, input, target, smooth=1e-5):
+    def forward(self, input, target, smooth: float = 1e-5):
         """
         Args:
             input (tensor): the shape should be BNH[WD].

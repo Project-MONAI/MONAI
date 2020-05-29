@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional
+
 from ignite.engine import Events
 import logging
 from monai.data import NiftiSaver, PNGSaver
@@ -21,18 +23,18 @@ class SegmentationSaver:
 
     def __init__(
         self,
-        output_dir="./",
-        output_postfix="seg",
-        output_ext=".nii.gz",
-        resample=True,
-        interp_order=0,
-        mode="constant",
+        output_dir: str = "./",
+        output_postfix: str = "seg",
+        output_ext: str = ".nii.gz",
+        resample: bool = True,
+        interp_order: int = 0,
+        mode: str = "constant",
         cval=0,
-        scale=False,
+        scale: bool = False,
         dtype=None,
         batch_transform=lambda x: x,
         output_transform=lambda x: x,
-        name=None,
+        name: Optional[str] = None,
     ):
         """
         Args:

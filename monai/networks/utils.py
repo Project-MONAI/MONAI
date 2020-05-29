@@ -46,7 +46,7 @@ def slice_channels(tensor, *slicevals):
     return tensor[slices]
 
 
-def predict_segmentation(logits, mutually_exclusive=False, threshold=0):
+def predict_segmentation(logits, mutually_exclusive: bool = False, threshold: float = 0):
     """
     Given the logits from a network, computing the segmentation by thresholding all values above 0
     if multi-labels task, computing the `argmax` along the channel axis if multi-classes task,

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional
+
 import torch
 from monai.inferers.inferer import SimpleInferer
 from .workflow import Workflow
@@ -43,7 +45,7 @@ class Evaluator(Workflow):
         iteration_update=None,
         key_val_metric=None,
         additional_metrics=None,
-        val_handlers=None,
+        val_handlers: Optional[list] = None,
     ):
         super().__init__(
             device=device,
@@ -57,7 +59,7 @@ class Evaluator(Workflow):
             handlers=val_handlers,
         )
 
-    def run(self, global_epoch=1):
+    def run(self, global_epoch: int = 1):
         """
         Execute validation/evaluation based on Ignite Engine.
 

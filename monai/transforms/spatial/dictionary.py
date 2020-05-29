@@ -51,7 +51,15 @@ class Spacingd(MapTransform):
     """
 
     def __init__(
-        self, keys, pixdim, diagonal=False, interp_order=3, mode="nearest", cval=0, dtype=None, meta_key_format="{}.{}"
+        self,
+        keys,
+        pixdim,
+        diagonal: bool = False,
+        interp_order=3,
+        mode="nearest",
+        cval=0,
+        dtype=None,
+        meta_key_format: str = "{}.{}",
     ):
         """
         Args:
@@ -119,7 +127,12 @@ class Orientationd(MapTransform):
     """
 
     def __init__(
-        self, keys, axcodes=None, as_closest_canonical=False, labels=tuple(zip("LPI", "RAS")), meta_key_format="{}.{}"
+        self,
+        keys,
+        axcodes=None,
+        as_closest_canonical: bool = False,
+        labels=tuple(zip("LPI", "RAS")),
+        meta_key_format: str = "{}.{}",
     ):
         """
         Args:
@@ -155,7 +168,7 @@ class Rotate90d(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.Rotate90`.
     """
 
-    def __init__(self, keys, k=1, spatial_axes=(0, 1)):
+    def __init__(self, keys, k: int = 1, spatial_axes=(0, 1)):
         """
         Args:
             k (int): number of times to rotate by 90 degrees.
@@ -178,7 +191,7 @@ class RandRotate90d(Randomizable, MapTransform):
     in the plane specified by `spatial_axes`.
     """
 
-    def __init__(self, keys, prob=0.1, max_k=3, spatial_axes=(0, 1)):
+    def __init__(self, keys, prob: float = 0.1, max_k: int = 3, spatial_axes=(0, 1)):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -280,14 +293,14 @@ class RandAffined(Randomizable, MapTransform):
         self,
         keys,
         spatial_size,
-        prob=0.1,
+        prob: float = 0.1,
         rotate_range=None,
         shear_range=None,
         translate_range=None,
         scale_range=None,
         mode="bilinear",
         padding_mode="zeros",
-        as_tensor_output=True,
+        as_tensor_output: bool = True,
         device=None,
     ):
         """
@@ -360,14 +373,14 @@ class Rand2DElasticd(Randomizable, MapTransform):
         spatial_size,
         spacing,
         magnitude_range,
-        prob=0.1,
+        prob: float = 0.1,
         rotate_range=None,
         shear_range=None,
         translate_range=None,
         scale_range=None,
         mode="bilinear",
         padding_mode="zeros",
-        as_tensor_output=False,
+        as_tensor_output: bool = False,
         device=None,
     ):
         """
@@ -447,14 +460,14 @@ class Rand3DElasticd(Randomizable, MapTransform):
         spatial_size,
         sigma_range,
         magnitude_range,
-        prob=0.1,
+        prob: float = 0.1,
         rotate_range=None,
         shear_range=None,
         translate_range=None,
         scale_range=None,
         mode="bilinear",
         padding_mode="zeros",
-        as_tensor_output=False,
+        as_tensor_output: bool = False,
         device=None,
     ):
         """
@@ -600,9 +613,9 @@ class Rotated(MapTransform):
     def __init__(
         self,
         keys,
-        angle,
+        angle: float,
         spatial_axes=(0, 1),
-        reshape=True,
+        reshape: bool = True,
         interp_order=InterpolationCode.LINEAR,
         mode="constant",
         cval=0,
@@ -654,9 +667,9 @@ class RandRotated(Randomizable, MapTransform):
         self,
         keys,
         degrees,
-        prob=0.1,
+        prob: float = 0.1,
         spatial_axes=(0, 1),
-        reshape=True,
+        reshape: bool = True,
         interp_order=InterpolationCode.LINEAR,
         mode="constant",
         cval=0,
@@ -725,7 +738,7 @@ class Zoomd(MapTransform):
         mode="constant",
         cval=0,
         prefilter=True,
-        use_gpu=False,
+        use_gpu: bool = False,
         keep_size=True,
     ):
         super().__init__(keys)
@@ -774,15 +787,15 @@ class RandZoomd(Randomizable, MapTransform):
     def __init__(
         self,
         keys,
-        prob=0.1,
+        prob: float = 0.1,
         min_zoom=0.9,
         max_zoom=1.1,
         interp_order=InterpolationCode.SPLINE3,
         mode="constant",
         cval=0,
         prefilter=True,
-        use_gpu=False,
-        keep_size=True,
+        use_gpu: bool = False,
+        keep_size: bool = True,
     ):
         super().__init__(keys)
         if hasattr(min_zoom, "__iter__") and hasattr(max_zoom, "__iter__"):

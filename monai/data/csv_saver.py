@@ -24,7 +24,7 @@ class CSVSaver:
     the cached data into CSV file. If no meta data provided, use index from 0 to save data.
     """
 
-    def __init__(self, output_dir="./", filename="predictions.csv", overwrite=True):
+    def __init__(self, output_dir: str = "./", filename: str = "predictions.csv", overwrite: bool = True):
         """
         Args:
             output_dir (str): output CSV file directory.
@@ -34,7 +34,7 @@ class CSVSaver:
 
         """
         self.output_dir = output_dir
-        self._cache_dict = OrderedDict()
+        self._cache_dict: OrderedDict = OrderedDict()
         assert isinstance(filename, str) and filename[-4:] == ".csv", "filename must be a string with CSV format."
         self._filepath = os.path.join(output_dir, filename)
         self.overwrite = overwrite

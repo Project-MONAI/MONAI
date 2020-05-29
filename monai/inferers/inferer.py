@@ -69,7 +69,7 @@ class SlidingWindowInferer(Inferer):
 
     """
 
-    def __init__(self, roi_size, sw_batch_size=1, overlap=0.25, blend_mode="constant"):
+    def __init__(self, roi_size, sw_batch_size: int = 1, overlap: float = 0.25, blend_mode: str = "constant"):
         Inferer.__init__(self)
         if not isinstance(roi_size, (list, tuple)):
             raise ValueError("must specify the roi size in a list or tuple for SlidingWindow.")

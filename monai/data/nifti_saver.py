@@ -25,12 +25,12 @@ class NiftiSaver:
 
     def __init__(
         self,
-        output_dir="./",
-        output_postfix="seg",
-        output_ext=".nii.gz",
-        resample=True,
-        interp_order=3,
-        mode="constant",
+        output_dir: str = "./",
+        output_postfix: str = "seg",
+        output_ext: str = ".nii.gz",
+        resample: bool = True,
+        interp_order: int = 3,
+        mode: str = "constant",
         cval=0,
         dtype=None,
     ):

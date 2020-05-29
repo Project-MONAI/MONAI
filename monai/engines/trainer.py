@@ -64,7 +64,7 @@ class SupervisedTrainer(Trainer):
     def __init__(
         self,
         device,
-        max_epochs,
+        max_epochs: int,
         train_data_loader,
         network,
         optimizer,
@@ -73,7 +73,7 @@ class SupervisedTrainer(Trainer):
         iteration_update=None,
         lr_scheduler=None,
         inferer=SimpleInferer(),
-        amp=True,
+        amp: bool = True,
         key_train_metric=None,
         additional_metrics=None,
         train_handlers=None,

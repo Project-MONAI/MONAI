@@ -53,7 +53,7 @@ class Dataset(_TorchDataset):
     def __len__(self):
         return len(self.data)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int):
         data = self.data[index]
         if self.transform is not None:
             data = self.transform(data)
@@ -228,7 +228,7 @@ class CacheDataset(Dataset):
     and the outcome not cached.
     """
 
-    def __init__(self, data, transform, cache_num=sys.maxsize, cache_rate=1.0, num_workers=0):
+    def __init__(self, data, transform, cache_num: int = sys.maxsize, cache_rate: float = 1.0, num_workers: int = 0):
         """
         Args:
             data (Iterable): input data to load and transform to generate dataset for model.
@@ -275,7 +275,7 @@ class CacheDataset(Dataset):
             self._item_processed += 1
             process_bar(self._item_processed, self.cache_num)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int):
         if index < self.cache_num:
             # load data from cache and execute from the first random transform
             start_run = False
@@ -325,7 +325,7 @@ class ZipDataset(_TorchDataset):
     def __len__(self):
         return self.len
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int):
         def to_list(x):
             return list(x) if isinstance(x, (tuple, list)) else [x]
 
@@ -398,7 +398,7 @@ class ArrayDataset(ZipDataset, Randomizable):
     def randomize(self):
         self.seed = self.R.randint(np.iinfo(np.int32).max)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int):
         self.randomize()
         for dataset in self.datasets:
             if isinstance(dataset.transform, Randomizable):

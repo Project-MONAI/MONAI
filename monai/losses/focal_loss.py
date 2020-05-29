@@ -20,7 +20,7 @@ class FocalLoss(_WeightedLoss):
     [1] "Focal Loss for Dense Object Detection", T. Lin et al., ICCV 2017
     """
 
-    def __init__(self, gamma=2.0, weight=None, reduction="mean"):
+    def __init__(self, gamma: float = 2.0, weight=None, reduction: str = "mean"):
         """
         Args:
             gamma (float): value of the exponent gamma in the definition of the Focal loss.

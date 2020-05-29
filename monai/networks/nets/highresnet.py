@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional
+
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -140,12 +142,12 @@ class HighResNet(nn.Module):
 
     def __init__(
         self,
-        spatial_dims=3,
-        in_channels=1,
-        out_channels=1,
-        norm_type="batch",
-        acti_type="relu",
-        dropout_prob=None,
+        spatial_dims: int = 3,
+        in_channels: int = 1,
+        out_channels: int = 1,
+        norm_type: str = "batch",
+        acti_type: str = "relu",
+        dropout_prob: Optional[float] = None,
         layer_params=DEFAULT_LAYER_PARAMS_3D,
     ):
 

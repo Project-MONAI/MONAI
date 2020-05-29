@@ -15,7 +15,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 import time
 
-from typing import Callable
+from typing import Callable, Optional
 import logging
 import numpy as np
 import torch
@@ -39,7 +39,7 @@ class AsChannelFirst(Transform):
         channel_dim (int): which dimension of input image is the channel, default is the last dimension.
     """
 
-    def __init__(self, channel_dim=-1):
+    def __init__(self, channel_dim: int = -1):
         assert isinstance(channel_dim, int) and channel_dim >= -1, "invalid channel dimension."
         self.channel_dim = channel_dim
 
@@ -62,7 +62,7 @@ class AsChannelLast(Transform):
         channel_dim (int): which dimension of input image is the channel, default is the first dimension.
     """
 
-    def __init__(self, channel_dim=0):
+    def __init__(self, channel_dim: int = 0):
         assert isinstance(channel_dim, int) and channel_dim >= -1, "invalid channel dimension."
         self.channel_dim = channel_dim
 
@@ -98,7 +98,7 @@ class RepeatChannel(Transform):
         repeats (int): the number of repetitions for each element.
     """
 
-    def __init__(self, repeats):
+    def __init__(self, repeats: int):
         assert repeats > 0, "repeats count must be greater than 0."
         self.repeats = repeats
 
@@ -151,7 +151,7 @@ class SqueezeDim(Transform):
     Squeeze undesired unitary dimensions
     """
 
-    def __init__(self, dim=None):
+    def __init__(self, dim: Optional[int] = None):
         """
         Args:
             dim (int): dimension to be squeezed.
@@ -177,11 +177,11 @@ class DataStats(Transform):
 
     def __init__(
         self,
-        prefix="Data",
-        data_shape=True,
-        intensity_range=True,
-        data_value=False,
-        additional_info: Callable = None,
+        prefix: str = "Data",
+        data_shape: bool = True,
+        intensity_range: bool = True,
+        data_value: bool = False,
+        additional_info: Optional[Callable] = None,
         logger_handler=None,
     ):
         """
@@ -240,7 +240,7 @@ class SimulateDelay(Transform):
     to sub-optimal design choices.
     """
 
-    def __init__(self, delay_time=0.0):
+    def __init__(self, delay_time: float = 0.0):
         """
         Args:
             delay_time(float): The minimum amount of time, in fractions of seconds,

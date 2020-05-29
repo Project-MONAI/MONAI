@@ -111,7 +111,7 @@ def sliding_window_inference(inputs, roi_size, sw_batch_size, predictor, overlap
     return output_image[..., : original_image_size[0], : original_image_size[1]]  # 2D
 
 
-def _get_scan_interval(image_size, roi_size, num_spatial_dims, overlap):
+def _get_scan_interval(image_size, roi_size, num_spatial_dims, overlap: float):
     assert len(image_size) == num_spatial_dims, "image coord different from spatial dims."
     assert len(roi_size) == num_spatial_dims, "roi coord different from spatial dims."
 

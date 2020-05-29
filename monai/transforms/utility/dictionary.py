@@ -15,6 +15,8 @@ defined in :py:class:`monai.transforms.utility.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
+from typing import Optional
+
 import numpy as np
 
 from monai.transforms.compose import MapTransform
@@ -37,7 +39,7 @@ class AsChannelFirstd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.AsChannelFirst`.
     """
 
-    def __init__(self, keys, channel_dim=-1):
+    def __init__(self, keys, channel_dim: int = -1):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -59,7 +61,7 @@ class AsChannelLastd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.AsChannelLast`.
     """
 
-    def __init__(self, keys, channel_dim=0):
+    def __init__(self, keys, channel_dim: int = 0):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -102,7 +104,7 @@ class RepeatChanneld(MapTransform):
     dictionary-based wrapper of :py:class:`monai.transforms.RepeatChannel`.
     """
 
-    def __init__(self, keys, repeats):
+    def __init__(self, keys, repeats: int):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -185,7 +187,7 @@ class SqueezeDimd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.SqueezeDim`.
     """
 
-    def __init__(self, keys, dim=None):
+    def __init__(self, keys, dim: Optional[int] = None):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.

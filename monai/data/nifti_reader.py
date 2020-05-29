@@ -27,10 +27,10 @@ class NiftiDataset(Dataset, Randomizable):
         image_files,
         seg_files=None,
         labels=None,
-        as_closest_canonical=False,
+        as_closest_canonical: bool = False,
         transform=None,
         seg_transform=None,
-        image_only=True,
+        image_only: bool = True,
         dtype=np.float32,
     ):
         """
@@ -67,7 +67,7 @@ class NiftiDataset(Dataset, Randomizable):
     def randomize(self):
         self.seed = self.R.randint(np.iinfo(np.int32).max)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int):
         self.randomize()
         meta_data = None
         img_loader = LoadNifti(

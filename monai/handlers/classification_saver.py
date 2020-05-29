@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional
+
 from ignite.engine import Events
 import logging
 from monai.data import CSVSaver
@@ -21,12 +23,12 @@ class ClassificationSaver:
 
     def __init__(
         self,
-        output_dir="./",
-        filename="predictions.csv",
-        overwrite=True,
+        output_dir: str = "./",
+        filename: str = "predictions.csv",
+        overwrite: bool = True,
         batch_transform=lambda x: x,
         output_transform=lambda x: x,
-        name=None,
+        name: Optional[str] = None,
     ):
         """
         Args:

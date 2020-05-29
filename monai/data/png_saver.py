@@ -25,14 +25,14 @@ class PNGSaver:
 
     def __init__(
         self,
-        output_dir="./",
-        output_postfix="seg",
-        output_ext=".png",
-        resample=True,
-        interp_order=3,
-        mode="constant",
+        output_dir: str = "./",
+        output_postfix: str = "seg",
+        output_ext: str = ".png",
+        resample: bool = True,
+        interp_order: int = 3,
+        mode: str = "constant",
         cval=0,
-        scale=False,
+        scale: bool = False,
     ):
         """
         Args:
