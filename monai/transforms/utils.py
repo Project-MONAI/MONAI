@@ -68,18 +68,18 @@ def rescale_array(arr, minv=0.0, maxv=1.0, dtype=np.float32):
     return (norm * (maxv - minv)) + minv  # rescale by minv and maxv, which is the normalized array by default
 
 
-def rescale_instance_array(arr, minv=0.0, maxv=1.0, dtype=np.float32):
+def rescale_instance_array(arr: np.ndarray, minv: float = 0.0, maxv: float = 1.0, dtype: np.dtype = np.float32):
     """Rescale each array slice along the first dimension of `arr` independently."""
-    out = np.zeros(arr.shape, dtype)
+    out: np.ndarray = np.zeros(arr.shape, dtype)
     for i in range(arr.shape[0]):
         out[i] = rescale_array(arr[i], minv, maxv, dtype)
 
     return out
 
 
-def rescale_array_int_max(arr, dtype=np.uint16):
+def rescale_array_int_max(arr: np.ndarray, dtype: np.dtype = np.uint16):
     """Rescale the array `arr` to be between the minimum and maximum values of the type `dtype`."""
-    info = np.iinfo(dtype)
+    info: np.iinfo = np.iinfo(dtype)
     return rescale_array(arr, info.min, info.max).astype(dtype)
 
 

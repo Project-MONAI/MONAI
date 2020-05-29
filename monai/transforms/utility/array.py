@@ -111,7 +111,7 @@ class CastToType(Transform):
     Cast the image data to specified numpy data type.
     """
 
-    def __init__(self, dtype=np.float32):
+    def __init__(self, dtype: np.dtype = np.float32):
         """
         Args:
             dtype (np.dtype): convert image to this data type, default is `np.float32`.

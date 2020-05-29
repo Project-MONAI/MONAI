@@ -31,7 +31,7 @@ class NiftiDataset(Dataset, Randomizable):
         transform=None,
         seg_transform=None,
         image_only: bool = True,
-        dtype=np.float32,
+        dtype: np.dtype = np.float32,
     ):
         """
         Initializes the dataset with the image and segmentation filename lists. The transform `transform` is applied

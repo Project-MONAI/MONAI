@@ -126,7 +126,7 @@ class CastToTyped(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.CastToType`.
     """
 
-    def __init__(self, keys, dtype=np.float32):
+    def __init__(self, keys, dtype: np.dtype = np.float32):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
