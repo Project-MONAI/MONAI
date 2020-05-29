@@ -138,7 +138,7 @@ class LayerFactory:
         if key in self.factories:
             return key
 
-        return super().__getattr__(key)
+        return super().__getattribute__(key)
 
 
 def split_args(args):

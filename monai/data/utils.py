@@ -224,7 +224,7 @@ def correct_nifti_header_if_necessary(img_nii):
     in the updated image pixdim matches the affine.
 
     Args:
-        img (nifti image object)
+        img_nii (nifti image object)
     """
     dim = img_nii.header["dim"][0]
     if dim >= 5:

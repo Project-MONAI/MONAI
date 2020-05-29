@@ -19,6 +19,7 @@ from monai.data import create_test_image_2d
 from monai.losses import DiceLoss
 from monai.networks.nets import UNet
 from monai.transforms import Compose, AddChannel, RandRotate90, RandSpatialCrop, ScaleIntensity, ToTensor
+from monai.utils import set_determinism
 
 
 def run_test(batch_size=64, train_steps=200, device=torch.device("cuda:0")):
@@ -48,7 +49,7 @@ def run_test(batch_size=64, train_steps=200, device=torch.device("cuda:0")):
         [AddChannel(), ScaleIntensity(), RandSpatialCrop((96, 96), random_size=False), RandRotate90(), ToTensor()]
     )
 
-    src = DataLoader(_TestBatch(train_transforms), batch_size=batch_size)
+    src = DataLoader(_TestBatch(train_transforms), batch_size=batch_size, shuffle=True)
 
     net.train()
     epoch_loss = 0
@@ -68,11 +69,11 @@ def run_test(batch_size=64, train_steps=200, device=torch.device("cuda:0")):
 
 class TestDeterminism(unittest.TestCase):
     def setUp(self):
-        np.random.seed(0)
-        torch.manual_seed(0)
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
+        set_determinism(seed=0)
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")
+
+    def tearDown(self):
+        set_determinism(seed=None)
 
     def test_training(self):
         loss, step = run_test(device=self.device)

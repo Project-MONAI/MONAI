@@ -3,14 +3,13 @@
 .. _metrics:
 
 Metrics
-========
+=======
+.. currentmodule:: monai.metrics
 
 `Mean Dice`
 -----------
-.. automodule:: monai.metrics.meandice
-  :members:
+.. autofunction:: compute_meandice
 
 `Area under the ROC curve`
 --------------------------
-.. automodule:: monai.metrics.rocauc
-  :members:
+.. autofunction:: compute_roc_auc

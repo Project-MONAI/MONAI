@@ -11,6 +11,7 @@
 
 import unittest
 import os
+import shutil
 import logging
 import tempfile
 import numpy as np
@@ -110,26 +111,26 @@ class TestDataStatsd(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_7])
     def test_file(self, input_data, expected_print):
-        with tempfile.TemporaryDirectory() as tempdir:
-            filename = os.path.join(tempdir, "test_stats.log")
-            handler = logging.FileHandler(filename, mode="w")
-            input_param = {
-                "keys": "img",
-                "prefix": "test data",
-                "data_shape": True,
-                "intensity_range": True,
-                "data_value": True,
-                "additional_info": lambda x: np.mean(x),
-                "logger_handler": handler,
-            }
-            transform = DataStatsd(**input_param)
-            _ = transform(input_data)
-            handler.stream.close()
-            transform.printer._logger.removeHandler(handler)
-            with open(filename, "r") as f:
-                content = f.read()
-                self.assertEqual(content, expected_print)
-            os.remove(filename)
+        tempdir = tempfile.mkdtemp()
+        filename = os.path.join(tempdir, "test_stats.log")
+        handler = logging.FileHandler(filename, mode="w")
+        input_param = {
+            "keys": "img",
+            "prefix": "test data",
+            "data_shape": True,
+            "intensity_range": True,
+            "data_value": True,
+            "additional_info": lambda x: np.mean(x),
+            "logger_handler": handler,
+        }
+        transform = DataStatsd(**input_param)
+        _ = transform(input_data)
+        handler.stream.close()
+        transform.printer._logger.removeHandler(handler)
+        with open(filename, "r") as f:
+            content = f.read()
+            self.assertEqual(content, expected_print)
+        shutil.rmtree(tempdir)
 
 
 if __name__ == "__main__":

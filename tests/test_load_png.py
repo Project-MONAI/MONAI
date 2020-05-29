@@ -11,6 +11,7 @@
 
 import unittest
 import os
+import shutil
 import numpy as np
 import tempfile
 from PIL import Image
@@ -29,13 +30,13 @@ class TestLoadPNG(unittest.TestCase):
     def test_shape(self, data_shape, filenames, expected_shape, meta_shape):
         test_image = np.random.randint(0, 256, size=data_shape)
         tempdir = tempfile.mkdtemp()
-        with tempfile.TemporaryDirectory() as tempdir:
-            for i, name in enumerate(filenames):
-                filenames[i] = os.path.join(tempdir, name)
-                Image.fromarray(test_image.astype("uint8")).save(filenames[i])
-            result = LoadPNG()(filenames)
+        for i, name in enumerate(filenames):
+            filenames[i] = os.path.join(tempdir, name)
+            Image.fromarray(test_image.astype("uint8")).save(filenames[i])
+        result = LoadPNG()(filenames)
         self.assertTupleEqual(result[1]["spatial_shape"], meta_shape)
         self.assertTupleEqual(result[0].shape, expected_shape)
+        shutil.rmtree(tempdir)
 
 
 if __name__ == "__main__":
