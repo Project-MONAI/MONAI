@@ -23,8 +23,8 @@ from monai.handlers import TensorBoardStatsHandler
 
 class TestHandlerTBStats(unittest.TestCase):
     def test_metrics_print(self):
-        default_dir = os.path.join(".", "runs")
-        shutil.rmtree(default_dir, ignore_errors=True)
+        tempdir = tempfile.mkdtemp()
+        shutil.rmtree(tempdir, ignore_errors=True)
 
         # set up engine
         def _train_func(engine, batch):
@@ -39,17 +39,17 @@ class TestHandlerTBStats(unittest.TestCase):
             engine.state.metrics["acc"] = current_metric + 0.1
 
         # set up testing handler
-        stats_handler = TensorBoardStatsHandler()
+        stats_handler = TensorBoardStatsHandler(log_dir=tempdir)
         stats_handler.attach(engine)
         engine.run(range(3), max_epochs=2)
         # check logging output
 
-        self.assertTrue(os.path.exists(default_dir))
-        shutil.rmtree(default_dir)
+        self.assertTrue(os.path.exists(tempdir))
+        shutil.rmtree(tempdir)
 
     def test_metrics_writer(self):
-        default_dir = os.path.join(".", "runs")
-        shutil.rmtree(default_dir, ignore_errors=True)
+        tempdir = tempfile.mkdtemp()
+        shutil.rmtree(tempdir, ignore_errors=True)
         with tempfile.TemporaryDirectory() as temp_dir:
 
             # set up engine
@@ -65,7 +65,7 @@ class TestHandlerTBStats(unittest.TestCase):
                 engine.state.metrics["acc"] = current_metric + 0.1
 
             # set up testing handler
-            writer = SummaryWriter(log_dir=temp_dir)
+            writer = SummaryWriter(log_dir=tempdir)
             stats_handler = TensorBoardStatsHandler(
                 writer, output_transform=lambda x: {"loss": x * 2.0}, global_epoch_transform=lambda x: x * 3.0
             )
@@ -73,7 +73,7 @@ class TestHandlerTBStats(unittest.TestCase):
             engine.run(range(3), max_epochs=2)
             # check logging output
             self.assertTrue(len(glob.glob(temp_dir)) > 0)
-            self.assertTrue(not os.path.exists(default_dir))
+            self.assertTrue(not os.path.exists(tempdir))
 
 
 if __name__ == "__main__":

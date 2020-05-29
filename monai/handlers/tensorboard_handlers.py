@@ -36,6 +36,7 @@ class TensorBoardStatsHandler(object):
     def __init__(
         self,
         summary_writer=None,
+        log_dir="./runs",
         epoch_event_writer=None,
         iteration_event_writer=None,
         output_transform=lambda x: x,
@@ -46,6 +47,7 @@ class TensorBoardStatsHandler(object):
         Args:
             summary_writer (SummaryWriter): user can specify TensorBoard SummaryWriter,
                 default to create a new writer.
+            log_dir (str): if using default SummaryWriter, write logs to this directory, default is `./runs`.
             epoch_event_writer (Callable): customized callable TensorBoard writer for epoch level.
                 must accept parameter "engine" and "summary_writer", use default event writer if None.
             iteration_event_writer (Callable): customized callable TensorBoard writer for iteration level.
@@ -59,7 +61,7 @@ class TensorBoardStatsHandler(object):
                 when plotting epoch vs metric curves.
             tag_name (string): when iteration output is a scalar, tag_name is used to plot, defaults to ``'Loss'``.
         """
-        self._writer = SummaryWriter() if summary_writer is None else summary_writer
+        self._writer = SummaryWriter(log_dir=log_dir) if summary_writer is None else summary_writer
         self.epoch_event_writer = epoch_event_writer
         self.iteration_event_writer = iteration_event_writer
         self.output_transform = output_transform
@@ -179,6 +181,7 @@ class TensorBoardImageHandler(object):
     def __init__(
         self,
         summary_writer=None,
+        log_dir="./runs",
         batch_transform=lambda x: x,
         output_transform=lambda x: x,
         global_iter_transform=lambda x: x,
@@ -190,6 +193,7 @@ class TensorBoardImageHandler(object):
         Args:
             summary_writer (SummaryWriter): user can specify TensorBoard SummaryWriter,
                 default to create a new writer.
+            log_dir (str): if using default SummaryWriter, write logs to this directory, default is `./runs`.
             batch_transform (Callable): a callable that is used to transform the
                 ``ignite.engine.batch`` into expected format to extract several label data.
             output_transform (Callable): a callable that is used to transform the
@@ -200,7 +204,7 @@ class TensorBoardImageHandler(object):
             max_channels (int): number of channels to plot.
             max_frames (int): number of frames for 2D-t plot.
         """
-        self._writer = SummaryWriter() if summary_writer is None else summary_writer
+        self._writer = SummaryWriter(log_dir=log_dir) if summary_writer is None else summary_writer
         self.batch_transform = batch_transform
         self.output_transform = output_transform
         self.global_iter_transform = global_iter_transform
