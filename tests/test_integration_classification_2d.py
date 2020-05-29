@@ -65,7 +65,6 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device=torch.dev
             RandRotate(degrees=15, prob=0.5),
             RandFlip(spatial_axis=0, prob=0.5),
             RandZoom(min_zoom=0.9, max_zoom=1.1, prob=0.5),
-            Resize(spatial_size=(64, 64), mode="constant"),
             ToTensor(),
         ]
     )
