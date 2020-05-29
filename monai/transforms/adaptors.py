@@ -99,6 +99,7 @@ Outputs:
 import monai
 from monai.utils import export as _monai_export
 
+
 @_monai_export("monai.transforms")
 def adaptor(function, outputs, inputs=None):
     def must_be_types_or_none(variable_name, variable, types):

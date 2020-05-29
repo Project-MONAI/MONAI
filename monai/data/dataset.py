@@ -27,6 +27,7 @@ from monai.utils import process_bar, get_seed
 
 from torch.utils.data import Dataset as _TorchDataset
 
+
 class Dataset(_TorchDataset):
     """
     A generic dataset with a length property and an optional callable data transform
