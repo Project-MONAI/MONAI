@@ -12,6 +12,7 @@
 from ignite.engine import Events
 import logging
 from monai.data import NiftiSaver, PNGSaver
+from .utils import copy_metadata_from_key
 
 
 class SegmentationSaver:
@@ -30,6 +31,7 @@ class SegmentationSaver:
         cval=0,
         scale=False,
         dtype=None,
+        copy_meta_from=None,
         batch_transform=lambda x: x,
         output_transform=lambda x: x,
         name=None,
@@ -53,6 +55,9 @@ class SegmentationSaver:
                 it's used for PNG format only.
             dtype (np.dtype, optional): convert the image data to save to this data type.
                 If None, keep the original type of data. it's used for Nifti format only.
+            copy_meta_from (str): if input data is dictionary based, it can copy all the metadata from
+                specified key field to model output, typically, copy from input image.
+                it works on the result of `batch_transform`.
             batch_transform (Callable): a callable that is used to transform the
                 ignite.engine.batch into expected format to extract the meta_data dictionary.
             output_transform (Callable): a callable that is used to transform the
@@ -66,6 +71,7 @@ class SegmentationSaver:
             self.saver = NiftiSaver(output_dir, output_postfix, output_ext, resample, interp_order, mode, cval, dtype)
         elif output_ext == ".png":
             self.saver = PNGSaver(output_dir, output_postfix, output_ext, resample, interp_order, mode, cval, scale)
+        self.copy_meta_from = copy_meta_from
         self.batch_transform = batch_transform
         self.output_transform = output_transform
 
@@ -84,6 +90,8 @@ class SegmentationSaver:
 
         """
         meta_data = self.batch_transform(engine.state.batch)
+        if meta_data is not None and self.copy_meta_from is not None:
+            meta_data = copy_metadata_from_key(self.copy_meta_from, meta_data)
         engine_output = self.output_transform(engine.state.output)
         self.saver.save_batch(engine_output, meta_data)
         self.logger.info("saved all the model outputs into files.")

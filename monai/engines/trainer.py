@@ -110,7 +110,6 @@ class SupervisedTrainer(Trainer):
         inputs, targets = self.prepare_batch(batchdata)
         inputs, targets = inputs.to(engine.state.device), targets.to(engine.state.device)
 
-        results = dict()
         self.network.train()
         self.optimizer.zero_grad()
         # execute forward computation
@@ -118,7 +117,6 @@ class SupervisedTrainer(Trainer):
         # compute loss
         loss = self.loss_function(predictions, targets).mean()
         loss.backward()
-        results[Keys.LOSS] = loss.item()
         self.optimizer.step()
 
-        return {Keys.PRED: predictions, Keys.LABEL: targets, Keys.INFO: results}
+        return {Keys.PRED: predictions, Keys.LABEL: targets, Keys.LOSS: loss.item()}

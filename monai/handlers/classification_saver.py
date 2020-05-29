@@ -12,6 +12,7 @@
 from ignite.engine import Events
 import logging
 from monai.data import CSVSaver
+from .utils import copy_metadata_from_key
 
 
 class ClassificationSaver:
@@ -24,6 +25,7 @@ class ClassificationSaver:
         output_dir="./",
         filename="predictions.csv",
         overwrite=True,
+        copy_meta_from=None,
         batch_transform=lambda x: x,
         output_transform=lambda x: x,
         name=None,
@@ -34,6 +36,9 @@ class ClassificationSaver:
             filename (str): name of the saved CSV file name.
             overwrite (bool): whether to overwriting existing CSV file content. If we are not overwriting,
                 then we check if the results have been previously saved, and load them to the prediction_dict.
+            copy_meta_from (str): if input data is dictionary based, it can copy all the metadata from
+                specified key field to model output, typically, copy from input image.
+                it works on the result of `batch_transform`.
             batch_transform (Callable): a callable that is used to transform the
                 ignite.engine.batch into expected format to extract the meta_data dictionary.
             output_transform (Callable): a callable that is used to transform the
@@ -44,6 +49,7 @@ class ClassificationSaver:
 
         """
         self.saver = CSVSaver(output_dir, filename, overwrite)
+        self.copy_meta_from = copy_meta_from
         self.batch_transform = batch_transform
         self.output_transform = output_transform
 
@@ -63,5 +69,7 @@ class ClassificationSaver:
 
         """
         meta_data = self.batch_transform(engine.state.batch)
+        if meta_data is not None and self.copy_meta_from is not None:
+            meta_data = copy_metadata_from_key(self.copy_meta_from, meta_data)
         engine_output = self.output_transform(engine.state.output)
         self.saver.save_batch(engine_output, meta_data)

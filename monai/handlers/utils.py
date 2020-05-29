@@ -26,3 +26,15 @@ def stopping_fn_from_loss():
         return -engine.state.output
 
     return stopping_fn
+
+
+def copy_metadata_from_key(key, data):
+    if not isinstance(data, dict):
+        raise TypeError("input data must be a dictionary.")
+    if key is not None:
+        meta_data = dict()
+        for k, v in data.items():
+            splits = k.split(".")
+            if len(splits) == 2 and splits[0] == key:
+                meta_data[splits[1]] = v
+        return meta_data

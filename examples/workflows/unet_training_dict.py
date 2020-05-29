@@ -117,7 +117,7 @@ def main():
 
     train_handlers = [
         ValidationHandler(validator=evaluator, interval=2, epoch_level=True),
-        StatsHandler(tag_name="train_loss", output_transform=lambda x: x[Keys.INFO][Keys.LOSS]),
+        StatsHandler(tag_name="train_loss", output_transform=lambda x: x[Keys.LOSS]),
     ]
 
     trainer = SupervisedTrainer(
