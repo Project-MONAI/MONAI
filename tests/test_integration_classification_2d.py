@@ -30,6 +30,7 @@ from monai.transforms import (
     RandFlip,
     RandRotate,
     RandZoom,
+    Resize,
     ScaleIntensity,
     ToTensor,
 )
