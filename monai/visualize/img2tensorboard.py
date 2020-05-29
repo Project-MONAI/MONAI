@@ -20,12 +20,12 @@ from monai.transforms.utils import rescale_array
 from typing import Sequence, Union
 
 
-def _image3_animated_gif(tag: str, image: Union[np.array, torch.Tensor], scale_factor: float = 1):
+def _image3_animated_gif(tag: str, image: Union[np.ndarray, torch.Tensor], scale_factor: float = 1):
     """Function to actually create the animated gif.
     Args:
-        tag (str): Data identifier
-        image (np.array or Tensor): 3D image tensors expected to be in `HWD` format
-        scale_factor (float): amount to multiply values by. if the image data is between 0 and 1, using 255 for this value will
+        tag: Data identifier
+        image: 3D image tensors expected to be in `HWD` format
+        scale_factor: amount to multiply values by. if the image data is between 0 and 1, using 255 for this value will
         scale it to displayable range
     """
     assert len(image.shape) == 3, "3D image tensors expected to be in `HWD` format, len(image.shape) != 3"
@@ -47,7 +47,7 @@ def _image3_animated_gif(tag: str, image: Union[np.array, torch.Tensor], scale_f
 
 def make_animated_gif_summary(
     tag: str,
-    image: Union[np.array, torch.Tensor],
+    image: Union[np.ndarray, torch.Tensor],
     max_out: int = 3,
     animation_axes: Sequence[int] = (3,),
     image_axes: Sequence[int] = (1, 2),
@@ -57,13 +57,13 @@ def make_animated_gif_summary(
     """Creates an animated gif out of an image tensor in 'CHWD' format and returns Summary.
 
     Args:
-        tag (str): Data identifier
-        image (np.array or Tensor): The image, expected to be in CHWD format
-        max_out (int): maximum number of slices to animate through
-        animation_axes (Sequence[int]): axis to animate on (not currently used)
-        image_axes (Sequence[int]): axes of image (not currently used)
-        other_indices (dict): (not currently used)
-        scale_factor (float): amount to multiply values by.
+        tag: Data identifier
+        image: The image, expected to be in CHWD format
+        max_out: maximum number of slices to animate through
+        animation_axes: axis to animate on (not currently used)
+        image_axes: axes of image (not currently used)
+        other_indices: (not currently used)
+        scale_factor: amount to multiply values by.
             if the image data is between 0 and 1, using 255 for this value will scale it to displayable range
     """
 
@@ -85,7 +85,7 @@ def make_animated_gif_summary(
     image = image[tuple(slicing)]
 
     for it_i in range(min(max_out, list(image.shape)[0])):
-        one_channel_img: Union[torch.Tensor, np.array] = image[it_i, :, :, :].squeeze(dim=0) if torch.is_tensor(
+        one_channel_img: Union[torch.Tensor, np.ndarray] = image[it_i, :, :, :].squeeze(dim=0) if torch.is_tensor(
             image
         ) else image[it_i, :, :, :]
         summary_op = _image3_animated_gif(tag + suffix.format(it_i), one_channel_img, scale_factor)
@@ -95,7 +95,7 @@ def make_animated_gif_summary(
 def add_animated_gif(
     writer: SummaryWriter,
     tag: str,
-    image_tensor: Union[np.array, torch.Tensor],
+    image_tensor: Union[np.ndarray, torch.Tensor],
     max_out: int,
     scale_factor: float,
     global_step: int = None,
@@ -103,13 +103,13 @@ def add_animated_gif(
     """Creates an animated gif out of an image tensor in 'CHWD' format and writes it with SummaryWriter.
 
     Args:
-        writer (SummaryWriter): Tensorboard SummaryWriter to write to
-        tag (str): Data identifier
-        image_tensor (np.array or Tensor): tensor for the image to add, expected to be in CHWD format
-        max_out (int): maximum number of slices to animate through
-        scale_factor (float): amount to multiply values by. If the image data is between 0 and 1, using 255 for this value will
+        writer: Tensorboard SummaryWriter to write to
+        tag: Data identifier
+        image_tensor: tensor for the image to add, expected to be in CHWD format
+        max_out: maximum number of slices to animate through
+        scale_factor: amount to multiply values by. If the image data is between 0 and 1, using 255 for this value will
             scale it to displayable range
-        global_step (int): Global step value to record
+        global_step: Global step value to record
     """
     writer._get_file_writer().add_summary(
         make_animated_gif_summary(
@@ -122,7 +122,7 @@ def add_animated_gif(
 def add_animated_gif_no_channels(
     writer: SummaryWriter,
     tag: str,
-    image_tensor: Union[np.array, torch.Tensor],
+    image_tensor: Union[np.ndarray, torch.Tensor],
     max_out: int,
     scale_factor: float,
     global_step: int = None,
@@ -132,13 +132,13 @@ def add_animated_gif_no_channels(
     after inserting a channel dimension of 1.
 
     Args:
-        writer (SummaryWriter): Tensorboard SummaryWriter to write to
-        tag (str): Data identifier
-        image_tensor (np.array or Tensor): tensor for the image to add, expected to be in CHWD format
-        max_out (int): maximum number of slices to animate through
-        scale_factor (float): amount to multiply values by. If the image data is between 0 and 1,
+        writer: Tensorboard SummaryWriter to write to
+        tag: Data identifier
+        image_tensor: tensor for the image to add, expected to be in CHWD format
+        max_out: maximum number of slices to animate through
+        scale_factor: amount to multiply values by. If the image data is between 0 and 1,
                               using 255 for this value will scale it to displayable range
-        global_step (int): Global step value to record
+        global_step: Global step value to record
     """
     writer._get_file_writer().add_summary(
         make_animated_gif_summary(
