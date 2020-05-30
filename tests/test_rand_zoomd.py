@@ -75,7 +75,7 @@ class TestRandZoomd(NumpyImageTestCase2D):
                     zoom_scipy(channel, zoom=random_zoom._zoom, mode=mode, order=order, cval=cval, prefilter=prefilter)
                 )
             expected = np.stack(expected).astype(np.float32)
-            self.assertTrue(np.allclose(expected, zoomed))
+            self.assertTrue(np.allclose(expected, zoomed[key]))
 
     def test_keep_size(self):
         key = "img"
