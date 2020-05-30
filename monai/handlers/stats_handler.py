@@ -13,7 +13,7 @@ import warnings
 import logging
 import torch
 from ignite.engine import Engine, Events
-from monai.utils.misc import is_scalar
+from monai.utils import is_scalar
 
 DEFAULT_KEY_VAL_FORMAT = "{}: {:.4f} "
 DEFAULT_TAG = "Loss"
@@ -40,6 +40,7 @@ class StatsHandler(object):
         name=None,
         tag_name=DEFAULT_TAG,
         key_var_format=DEFAULT_KEY_VAL_FORMAT,
+        logger_handler=None,
     ):
         """
 
@@ -59,6 +60,8 @@ class StatsHandler(object):
             tag_name (string): when iteration output is a scalar, tag_name is used to print
                 tag_name: scalar_value to logger. Defaults to ``'Loss'``.
             key_var_format (string): a formatting string to control the output string format of key: value.
+            logger_handler (logging.handler): add additional handler to handle the stats data: save to file, etc.
+                add existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html
         """
 
         self.epoch_print_logger = epoch_print_logger
@@ -69,6 +72,8 @@ class StatsHandler(object):
 
         self.tag_name = tag_name
         self.key_var_format = key_var_format
+        if logger_handler is not None:
+            self.logger.addHandler(logger_handler)
 
     def attach(self, engine: Engine):
         """Register a set of Ignite Event-Handlers to a specified Ignite engine.
@@ -142,7 +147,12 @@ class StatsHandler(object):
         for name in sorted(prints_dict):
             value = prints_dict[name]
             out_str += self.key_var_format.format(name, value)
+        self.logger.info(out_str)
 
+        if hasattr(engine.state, "key_metric_name"):
+            if hasattr(engine.state, "best_metric") and hasattr(engine.state, "best_metric_epoch"):
+                out_str = f"Key metric: {engine.state.key_metric_name} "
+                out_str += f"best value: {engine.state.best_metric} at epoch: {engine.state.best_metric_epoch}"
         self.logger.info(out_str)
 
     def _default_iteration_print(self, engine: Engine):
