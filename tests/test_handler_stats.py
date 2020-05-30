@@ -132,7 +132,7 @@ class TestHandlerStats(unittest.TestCase):
 
         engine.run(range(3), max_epochs=2)
         handler.stream.close()
-        stats_handler.slogger.removeHandler(handler)
+        stats_handler.logger.removeHandler(handler)
         with open(filename, "r") as f:
             output_str = f.read()
             grep = re.compile(f".*{key_to_handler}.*")
