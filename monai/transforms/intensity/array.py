@@ -94,7 +94,12 @@ class ScaleIntensity(Transform):
     If `minv` and `maxv` not provided, use `factor` to scale image by ``v = v * (1 + factor)``.
     """
 
-    def __init__(self, minv: Union[int, float] = 0.0, maxv: Union[int, float] = 1.0, factor: Optional[float] = None):
+    def __init__(
+        self,
+        minv: Optional[Union[int, float]] = 0.0,
+        maxv: Optional[Union[int, float]] = 1.0,
+        factor: Optional[float] = None,
+    ):
         """
         Args:
             minv (int or float): minimum value of output data.

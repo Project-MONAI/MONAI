@@ -121,7 +121,7 @@ class PersistentDataset(Dataset):
             the transformed element up to the first identified
             random transform object
         """
-        for _transform in self.transform.transforms:
+        for _transform in self.transform.transforms:  # pytype: disable=attribute-error
             # execute all the deterministic transforms before the first random transform
             if isinstance(_transform, Randomizable):
                 break
@@ -137,7 +137,7 @@ class PersistentDataset(Dataset):
             the transformed element through the random transforms
         """
         start_post_randomize_run = False
-        for _transform in self.transform.transforms:
+        for _transform in self.transform.transforms:  # pytype: disable=attribute-error
             if start_post_randomize_run or isinstance(_transform, Randomizable):
                 start_post_randomize_run = True
                 item_transformed = apply_transform(_transform, item_transformed)
@@ -282,7 +282,7 @@ class CacheDataset(Dataset):
             # load data from cache and execute from the first random transform
             start_run = False
             data = self._cache[index]
-            for _transform in self.transform.transforms:
+            for _transform in self.transform.transforms:  # pytype: disable=attribute-error
                 if not start_run and not isinstance(_transform, Randomizable):
                     continue
                 else:
