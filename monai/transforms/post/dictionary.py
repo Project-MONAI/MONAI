@@ -71,6 +71,7 @@ class Activationsd(MapTransform):
             output_postfix (str): the postfix string to construct keys to store converted data.
                 for example: if the keys of input data is `pred` and `label`, output_postfix is `act`,
                 the output data keys will be: `pred_act`, `label_act`.
+                if set to None, will replace the original data with the same key.
             sigmoid (bool, tuple or list of bool): whether to execute sigmoid function on model
                 output before transform.
             softmax (bool, tuple or list of bool): whether to execute softmax function on model
@@ -118,6 +119,7 @@ class AsDiscreted(MapTransform):
             output_postfix (str): the postfix string to construct keys to store converted data.
                 for example: if the keys of input data is `pred` and `label`, output_postfix is `discreted`,
                 the output data keys will be: `pred_discreted`, `label_discreted`.
+                if set to None, will replace the original data with the same key.
             argmax (bool): whether to execute argmax function on input data before transform.
             to_onehot (bool): whether to convert input data into the one-hot format. Defaults to False.
             n_classes (bool): the number of classes to convert to One-Hot format.
@@ -174,6 +176,7 @@ class KeepLargestConnectedComponentd(MapTransform):
             output_postfix (str): the postfix string to construct keys to store converted data.
                 for example: if the keys of input data is `label`, output_postfix is `largestcc`,
                 the output data keys will be: `label_largestcc`.
+                if set to None, will replace the original data with the same key.
         """
         super().__init__(keys)
         if output_postfix is not None and not isinstance(output_postfix, str):
