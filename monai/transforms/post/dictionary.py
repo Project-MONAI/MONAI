@@ -79,7 +79,7 @@ class Activationsd(MapTransform):
                 for example: `other = lambda x: torch.tanh(x)`
         """
         super().__init__(keys)
-        if not isinstance(output_postfix, str):
+        if output_postfix is not None and not isinstance(output_postfix, str):
             raise ValueError("output_postfix must be a string.")
         self.output_postfix = output_postfix
         self.sigmoid = ensure_tuple_rep(sigmoid, len(self.keys))
@@ -91,7 +91,8 @@ class Activationsd(MapTransform):
         d = dict(data)
         for idx, key in enumerate(self.keys):
             ret = self.converter(d[key], self.sigmoid[idx], self.softmax[idx], self.other[idx])
-            d[f"{key}_{self.output_postfix}"] = ret
+            output_key = key if self.output_postfix is None else f"{key}_{self.output_postfix}"
+            d[output_key] = ret
         return d
 
 
@@ -124,7 +125,7 @@ class AsDiscreted(MapTransform):
             logit_thresh (float): the threshold value for thresholding operation, default is 0.5.
         """
         super().__init__(keys)
-        if not isinstance(output_postfix, str):
+        if output_postfix is not None and not isinstance(output_postfix, str):
             raise ValueError("output_postfix must be a string.")
         self.output_postfix = output_postfix
         self.argmax = ensure_tuple_rep(argmax, len(self.keys))
@@ -137,7 +138,8 @@ class AsDiscreted(MapTransform):
     def __call__(self, data):
         d = dict(data)
         for idx, key in enumerate(self.keys):
-            d[f"{key}_{self.output_postfix}"] = self.converter(
+            output_key = key if self.output_postfix is None else f"{key}_{self.output_postfix}"
+            d[output_key] = self.converter(
                 d[key],
                 self.argmax[idx],
                 self.to_onehot[idx],
@@ -174,7 +176,7 @@ class KeepLargestConnectedComponentd(MapTransform):
                 the output data keys will be: `label_largestcc`.
         """
         super().__init__(keys)
-        if not isinstance(output_postfix, str):
+        if output_postfix is not None and not isinstance(output_postfix, str):
             raise ValueError("output_postfix must be a string.")
         self.output_postfix = output_postfix
         self.converter = KeepLargestConnectedComponent(applied_values, independent, background, connectivity)
@@ -182,7 +184,8 @@ class KeepLargestConnectedComponentd(MapTransform):
     def __call__(self, data):
         d = dict(data)
         for idx, key in enumerate(self.keys):
-            d[f"{key}_{self.output_postfix}"] = self.converter(d[key])
+            output_key = key if self.output_postfix is None else f"{key}_{self.output_postfix}"
+            d[output_key] = self.converter(d[key])
         return d
 
 
