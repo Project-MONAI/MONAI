@@ -99,7 +99,7 @@ class TestDataStats(unittest.TestCase):
     @parameterized.expand([TEST_CASE_6])
     def test_file(self, input_data, expected_print):
         tempdir = tempfile.mkdtemp()
-        filename = os.path.join(tempdir, "test_stats.log")
+        filename = os.path.join(tempdir, "test_data_stats.log")
         handler = logging.FileHandler(filename, mode="w")
         input_param = {
             "prefix": "test data",

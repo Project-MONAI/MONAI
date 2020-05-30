@@ -117,7 +117,7 @@ class TestHandlerStats(unittest.TestCase):
         key_to_print = "myLoss"
 
         tempdir = tempfile.mkdtemp()
-        filename = os.path.join(tempdir, "test_stats.log")
+        filename = os.path.join(tempdir, "test_loss_stats.log")
         handler = logging.FileHandler(filename, mode="w")
 
         # set up engine
@@ -131,6 +131,8 @@ class TestHandlerStats(unittest.TestCase):
         stats_handler.attach(engine)
 
         engine.run(range(3), max_epochs=2)
+        handler.stream.close()
+        stats_handler.slogger.removeHandler(handler)
         with open(filename, "r") as f:
             output_str = f.read()
             grep = re.compile(f".*{key_to_handler}.*")
