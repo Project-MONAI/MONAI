@@ -196,8 +196,8 @@ class TensorBoardImageHandler(object):
             summary_writer (SummaryWriter): user can specify TensorBoard SummaryWriter,
                 default to create a new writer.
             log_dir (str): if using default SummaryWriter, write logs to this directory, default is `./runs`.
-            interval (int): plot image every N epochs or every N iterations, default is 1.
-            epoch_level (bool): plot image every N epochs or N iterations. `True` is epoch level,
+            interval (int): plot content from engine.state every N epochs or every N iterations, default is 1.
+            epoch_level (bool): plot content from engine.state every N epochs or N iterations. `True` is epoch level,
                 `False` is iteration level.
             batch_transform (Callable): a callable that is used to transform the
                 ``ignite.engine.batch`` into expected format to extract several label data.
