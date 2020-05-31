@@ -50,7 +50,7 @@ class MeanDice(Metric):
         See also:
             :py:meth:`monai.metrics.meandice.compute_meandice`
         """
-        super(MeanDice, self).__init__(output_transform, device=device)
+        super().__init__(output_transform, device=device)
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         self.mutually_exclusive = mutually_exclusive
@@ -67,7 +67,8 @@ class MeanDice(Metric):
 
     @reinit__is_reduced
     def update(self, output: Sequence[Union[torch.Tensor, dict]]):
-        assert len(output) == 2, "MeanDice metric can only support y_pred and y."
+        if not len(output) == 2:
+            raise ValueError("MeanDice metric can only support y_pred and y.")
         y_pred, y = output
         scores = compute_meandice(
             y_pred,

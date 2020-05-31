@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence
+from typing import Optional, Sequence, Union
 
 import torch
 from ignite.metrics import Metric
@@ -39,14 +39,22 @@ class ROCAUC(Metric):
             :class:`~ignite.engine.Engine` `process_function` output into the
             form expected by the metric. This can be useful if, for example, you have a multi-output model and
             you want to compute the metric with respect to one of the outputs.
+        device (torch.device): device specification in case of distributed computation usage.
 
     Note:
         ROCAUC expects y to be comprised of 0's and 1's.  y_pred must either be probability estimates or confidence values.
 
     """
 
-    def __init__(self, to_onehot_y=False, add_softmax=False, average="macro", output_transform=lambda x: x):
-        super().__init__(output_transform=output_transform)
+    def __init__(
+        self,
+        to_onehot_y=False,
+        add_softmax=False,
+        average="macro",
+        output_transform=lambda x: x,
+        device: Optional[Union[str, torch.device]] = None,
+    ):
+        super().__init__(output_transform, device=device)
         self.to_onehot_y = to_onehot_y
         self.add_softmax = add_softmax
         self.average = average
