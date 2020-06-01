@@ -48,7 +48,7 @@ class TestSpacingDCase(unittest.TestCase):
             "image": np.arange(20).reshape((2, 10)),
             "seg": np.ones((2, 10)),
             "image_meta": {"affine": np.eye(4)},
-            "seg_meta": {"affine": np.eye(4)}
+            "seg_meta": {"affine": np.eye(4)},
         }
         spacing = Spacingd(keys=("image", "seg"), interp_order=0, pixdim=(0.2,))
         res = spacing(data)
@@ -61,7 +61,7 @@ class TestSpacingDCase(unittest.TestCase):
             "image": np.ones((2, 10)),
             "seg": np.ones((2, 10)),
             "image_meta": {"affine": np.eye(4)},
-            "seg_meta": {"affine": np.eye(4)}
+            "seg_meta": {"affine": np.eye(4)},
         }
         spacing = Spacingd(keys=("image", "seg"), interp_order=(2, 0), pixdim=(0.2,))
         res = spacing(data)

@@ -31,9 +31,7 @@ class LoadNiftid(MapTransform):
     be created as ``key_{meta_key_postfix}``.
     """
 
-    def __init__(
-        self, keys, as_closest_canonical=False, dtype=np.float32, meta_key_postfix="meta", overwriting=False
-    ):
+    def __init__(self, keys, as_closest_canonical=False, dtype=np.float32, meta_key_postfix="meta", overwriting=False):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.

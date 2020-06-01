@@ -47,7 +47,7 @@ class TestOrientationdCase(unittest.TestCase):
             "seg": np.ones((2, 1, 3)),
             "img": np.ones((2, 1, 3)),
             "seg_meta": {"affine": np.eye(4)},
-            "img_meta": {"affine": np.eye(4)}
+            "img_meta": {"affine": np.eye(4)},
         }
         ornt = Orientationd(keys=("img", "seg"), axcodes="PLI")
         res = ornt(data)
@@ -62,7 +62,7 @@ class TestOrientationdCase(unittest.TestCase):
             "seg": np.ones((2, 3)),
             "img": np.ones((2, 3)),
             "seg_meta": {"affine": np.eye(4)},
-            "img_meta": {"affine": np.eye(4)}
+            "img_meta": {"affine": np.eye(4)},
         }
         ornt = Orientationd(keys=("img", "seg"), axcodes="L")
         res = ornt(data)
