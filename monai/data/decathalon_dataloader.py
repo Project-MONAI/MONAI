@@ -37,7 +37,12 @@ def _append_paths(base_dir, is_segmentation, items):
     return items
 
 
-def load_decathalon_datalist(is_segmentation, data_list_key, data_list_file_path, base_dir=None):
+def load_decathalon_datalist(
+    data_list_file_path,
+    is_segmentation=True,
+    data_list_key='training',
+    base_dir=None
+):
     """Load image/label paths of decathalon challenge from JSON file
 
     Json file is similar to what you get from http://medicaldecathlon.com/
@@ -49,7 +54,12 @@ def load_decathalon_datalist(is_segmentation, data_list_key, data_list_file_path
         data_list_file_path (str): the path to the json file of datalist
         base_dir (str): the base directory of the dataset, if None, use the datalist directory
 
-    Returns a list of data items, each of which is a dict keyed by element names
+    Returns a list of data items, each of which is a dict keyed by element names, for example:
+
+        [
+            {'image': '/workspace/data/chest_19.nii.gz',  'label': 0}, 
+            {'image': '/workspace/data/chest_31.nii.gz',  'label': 1}
+        ]
 
     """
     if not os.path.isfile(data_list_file_path):
