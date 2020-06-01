@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional, Callable
+
 import numpy as np
 from torch.utils.data import Dataset
 from monai.transforms import LoadNifti
@@ -27,11 +29,11 @@ class NiftiDataset(Dataset, Randomizable):
         image_files,
         seg_files=None,
         labels=None,
-        as_closest_canonical=False,
-        transform=None,
-        seg_transform=None,
-        image_only=True,
-        dtype=np.float32,
+        as_closest_canonical: bool = False,
+        transform: Optional[Callable] = None,
+        seg_transform: Optional[Callable] = None,
+        image_only: bool = True,
+        dtype: Optional[np.dtype] = np.float32,
     ):
         """
         Initializes the dataset with the image and segmentation filename lists. The transform `transform` is applied
@@ -67,7 +69,7 @@ class NiftiDataset(Dataset, Randomizable):
     def randomize(self):
         self.seed = self.R.randint(np.iinfo(np.int32).max)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int):
         self.randomize()
         meta_data = None
         img_loader = LoadNifti(

@@ -9,6 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Callable, Optional
+
+import torch
+from ignite.metrics import Metric
+from ignite.engine import Engine
 from monai.inferers.inferer import SimpleInferer
 from .workflow import Workflow
 from .utils import default_prepare_batch
@@ -63,18 +68,18 @@ class SupervisedTrainer(Trainer):
 
     def __init__(
         self,
-        device,
-        max_epochs,
+        device: torch.device,
+        max_epochs: int,
         train_data_loader,
         network,
         optimizer,
         loss_function,
-        prepare_batch=default_prepare_batch,
-        iteration_update=None,
+        prepare_batch: Callable = default_prepare_batch,
+        iteration_update: Optional[Callable] = None,
         lr_scheduler=None,
         inferer=SimpleInferer(),
-        amp=True,
-        key_train_metric=None,
+        amp: bool = True,
+        key_train_metric: Optional[Metric] = None,
         additional_metrics=None,
         train_handlers=None,
     ):
@@ -96,7 +101,7 @@ class SupervisedTrainer(Trainer):
         self.loss_function = loss_function
         self.inferer = inferer
 
-    def _iteration(self, engine, batchdata):
+    def _iteration(self, engine: Engine, batchdata):
         """
         Callback function for the Supervised Training processing logic of 1 iteration in Ignite Engine.
 

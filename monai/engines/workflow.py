@@ -54,7 +54,11 @@ class Workflow(ABC, Engine):
         additional_metrics=None,
         handlers=None,
     ):
+        # pytype: disable=invalid-directive
+        # pytype: disable=wrong-arg-count
         super().__init__(iteration_update if iteration_update is not None else self._iteration)
+        # pytype: enable=invalid-directive
+        # pytype: enable=wrong-arg-count
         # FIXME:
         if amp:
             self.logger.info("Will add AMP support when PyTorch v1.6 released.")
@@ -118,7 +122,7 @@ class Workflow(ABC, Engine):
         super().run(data=self.data_loader, epoch_length=len(self.data_loader))
 
     @abstractmethod
-    def _iteration(self, engine, batchdata):
+    def _iteration(self, engine: Engine, batchdata):
         """
         Abstract callback function for the processing logic of 1 iteration in Ignite Engine.
         Need subclass to implement different logics, like SupervisedTrainer/Evaluator, GANTrainer, etc.

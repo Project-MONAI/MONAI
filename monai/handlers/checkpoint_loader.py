@@ -9,9 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional
+
 import logging
 import torch
-from ignite.engine import Events
+from ignite.engine import Events, Engine
 from ignite.handlers import Checkpoint
 
 
@@ -33,7 +35,7 @@ class CheckpointLoader:
 
     """
 
-    def __init__(self, load_path, load_dict, name=None):
+    def __init__(self, load_path: str, load_dict, name: Optional[str] = None):
         assert load_path is not None, "must provide clear path to load checkpoint."
         self.load_path = load_path
         assert load_dict is not None and len(load_dict) > 0, "must provide target objects to load."
@@ -43,7 +45,7 @@ class CheckpointLoader:
                 load_dict[k] = v.module
         self.load_dict = load_dict
 
-    def attach(self, engine):
+    def attach(self, engine: Engine):
         if self.logger is None:
             self.logger = engine.logger
         return engine.add_event_handler(Events.STARTED, self)

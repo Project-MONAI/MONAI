@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Callable
+
 import torch
 from ignite.engine import create_supervised_trainer, create_supervised_evaluator, _prepare_batch
 from .utils import get_devices_spec
@@ -23,13 +25,13 @@ def _default_eval_transform(x, y, y_pred):
 
 
 def create_multigpu_supervised_trainer(
-    net,
+    net: torch.nn.Module,
     optimizer,
     loss_fn,
     devices=None,
-    non_blocking=False,
-    prepare_batch=_prepare_batch,
-    output_transform=_default_transform,
+    non_blocking: bool = False,
+    prepare_batch: Callable = _prepare_batch,
+    output_transform: Callable = _default_transform,
 ):
     """
     Derived from `create_supervised_trainer` in Ignite.
@@ -66,12 +68,12 @@ def create_multigpu_supervised_trainer(
 
 
 def create_multigpu_supervised_evaluator(
-    net,
+    net: torch.nn.Module,
     metrics=None,
     devices=None,
-    non_blocking=False,
-    prepare_batch=_prepare_batch,
-    output_transform=_default_eval_transform,
+    non_blocking: bool = False,
+    prepare_batch: Callable = _prepare_batch,
+    output_transform: Callable = _default_eval_transform,
 ):
     """
     Derived from `create_supervised_evaluator` in Ignite.

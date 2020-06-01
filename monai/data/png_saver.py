@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Union
+
 import torch
 import numpy as np
 from monai.data.png_writer import write_png
@@ -25,14 +27,14 @@ class PNGSaver:
 
     def __init__(
         self,
-        output_dir="./",
-        output_postfix="seg",
-        output_ext=".png",
-        resample=True,
-        interp_order=3,
-        mode="constant",
-        cval=0,
-        scale=False,
+        output_dir: str = "./",
+        output_postfix: str = "seg",
+        output_ext: str = ".png",
+        resample: bool = True,
+        interp_order: int = 3,
+        mode: str = "constant",
+        cval: Union[int, float] = 0,
+        scale: bool = False,
     ):
         """
         Args:
@@ -61,7 +63,7 @@ class PNGSaver:
         self.scale = scale
         self._data_index = 0
 
-    def save(self, data, meta_data=None):
+    def save(self, data: Union[torch.Tensor, np.ndarray], meta_data=None):
         """
         Save data into a png file.
         The metadata could optionally have the following keys:
@@ -108,7 +110,7 @@ class PNGSaver:
             scale=self.scale,
         )
 
-    def save_batch(self, batch_data, meta_data=None):
+    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data=None):
         """Save a batch of data into png format files.
 
         args:
