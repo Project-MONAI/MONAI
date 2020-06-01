@@ -37,12 +37,7 @@ def _append_paths(base_dir, is_segmentation, items):
     return items
 
 
-def load_decathalon_datalist(
-    data_list_file_path,
-    is_segmentation=True,
-    data_list_key='training',
-    base_dir=None
-):
+def load_decathalon_datalist(data_list_file_path, is_segmentation=True, data_list_key="training", base_dir=None):
     """Load image/label paths of decathalon challenge from JSON file
 
     Json file is similar to what you get from http://medicaldecathlon.com/
