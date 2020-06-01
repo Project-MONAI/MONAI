@@ -26,17 +26,17 @@ class TestLoadDecathalonDatalist(unittest.TestCase):
             "labels": {"0": "background", "1": "spleen"},
             "training": [
                 {
-                    "image": "./imagesTr/spleen_19.nii.gz",
-                    "label": "./labelsTr/spleen_19.nii.gz"
+                    "image": "spleen_19.nii.gz",
+                    "label": "spleen_19.nii.gz"
                 },
                 {
-                    "image": "./imagesTr/spleen_31.nii.gz",
-                    "label": "./labelsTr/spleen_31.nii.gz"
+                    "image": "spleen_31.nii.gz",
+                    "label": "spleen_31.nii.gz"
                 }
             ],
             "test": [
-                "./imagesTs/spleen_15.nii.gz",
-                "./imagesTs/spleen_23.nii.gz"
+                "spleen_15.nii.gz",
+                "spleen_23.nii.gz"
             ]
         }
         json_str = json.dumps(test_data)
@@ -44,8 +44,8 @@ class TestLoadDecathalonDatalist(unittest.TestCase):
         with open(file_path, 'w') as json_file:
             json_file.write(json_str)
         result = load_decathalon_datalist(True, "training", file_path, tempdir)
-        self.assertEqual(result[0]["image"], os.path.join(tempdir, "imagesTr/spleen_19.nii.gz"))
-        self.assertEqual(result[0]["label"], os.path.join(tempdir, "labelsTr/spleen_19.nii.gz"))
+        self.assertEqual(result[0]["image"], os.path.join(tempdir, "spleen_19.nii.gz"))
+        self.assertEqual(result[0]["label"], os.path.join(tempdir, "spleen_19.nii.gz"))
         shutil.rmtree(tempdir)
 
     def test_cls_values(self):
@@ -56,17 +56,17 @@ class TestLoadDecathalonDatalist(unittest.TestCase):
             "labels": {"0": "background", "1": "chest"},
             "training": [
                 {
-                    "image": "./imagesTr/chest_19.nii.gz",
+                    "image": "chest_19.nii.gz",
                     "label": 0
                 },
                 {
-                    "image": "./imagesTr/chest_31.nii.gz",
+                    "image": "chest_31.nii.gz",
                     "label": 1
                 }
             ],
             "test": [
-                "./imagesTs/chest_15.nii.gz",
-                "./imagesTs/chest_23.nii.gz"
+                "chest_15.nii.gz",
+                "chest_23.nii.gz"
             ]
         }
         json_str = json.dumps(test_data)
@@ -74,7 +74,7 @@ class TestLoadDecathalonDatalist(unittest.TestCase):
         with open(file_path, 'w') as json_file:
             json_file.write(json_str)
         result = load_decathalon_datalist(False, "training", file_path, tempdir)
-        self.assertEqual(result[0]["image"], os.path.join(tempdir, "imagesTr/chest_19.nii.gz"))
+        self.assertEqual(result[0]["image"], os.path.join(tempdir, "chest_19.nii.gz"))
         self.assertEqual(result[0]["label"], 0)
         shutil.rmtree(tempdir)
 
@@ -86,17 +86,17 @@ class TestLoadDecathalonDatalist(unittest.TestCase):
             "labels": {"0": "background", "1": "spleen"},
             "training": [
                 {
-                    "image": os.path.join(tempdir, "imagesTr/spleen_19.nii.gz"),
-                    "label": os.path.join(tempdir, "labelsTr/spleen_19.nii.gz")
+                    "image": os.path.join(tempdir, "spleen_19.nii.gz"),
+                    "label": os.path.join(tempdir, "spleen_19.nii.gz")
                 },
                 {
-                    "image": os.path.join(tempdir, "imagesTr/spleen_31.nii.gz"),
-                    "label": os.path.join(tempdir, "labelsTr/spleen_31.nii.gz")
+                    "image": os.path.join(tempdir, "spleen_31.nii.gz"),
+                    "label": os.path.join(tempdir, "spleen_31.nii.gz")
                 }
             ],
             "test": [
-                os.path.join(tempdir, "imagesTs/spleen_15.nii.gz"),
-                os.path.join(tempdir, "imagesTs/spleen_23.nii.gz")
+                os.path.join(tempdir, "spleen_15.nii.gz"),
+                os.path.join(tempdir, "spleen_23.nii.gz")
             ]
         }
         json_str = json.dumps(test_data)
@@ -104,8 +104,8 @@ class TestLoadDecathalonDatalist(unittest.TestCase):
         with open(file_path, 'w') as json_file:
             json_file.write(json_str)
         result = load_decathalon_datalist(True, "training", file_path, None)
-        self.assertEqual(result[0]["image"], os.path.join(tempdir, "imagesTr/spleen_19.nii.gz"))
-        self.assertEqual(result[0]["label"], os.path.join(tempdir, "labelsTr/spleen_19.nii.gz"))
+        self.assertEqual(result[0]["image"], os.path.join(tempdir, "spleen_19.nii.gz"))
+        self.assertEqual(result[0]["label"], os.path.join(tempdir, "spleen_19.nii.gz"))
 
     def test_seg_no_labels(self):
         tempdir = tempfile.mkdtemp()
@@ -114,8 +114,8 @@ class TestLoadDecathalonDatalist(unittest.TestCase):
             "description": "Spleen Segmentation",
             "labels": {"0": "background", "1": "spleen"},
             "test": [
-                "./imagesTs/spleen_15.nii.gz",
-                "./imagesTs/spleen_23.nii.gz"
+                "spleen_15.nii.gz",
+                "spleen_23.nii.gz"
             ]
         }
         json_str = json.dumps(test_data)
@@ -123,7 +123,7 @@ class TestLoadDecathalonDatalist(unittest.TestCase):
         with open(file_path, 'w') as json_file:
             json_file.write(json_str)
         result = load_decathalon_datalist(True, "test", file_path, tempdir)
-        self.assertEqual(result[0]["image"], os.path.join(tempdir, "imagesTs/spleen_15.nii.gz"))
+        self.assertEqual(result[0]["image"], os.path.join(tempdir, "spleen_15.nii.gz"))
         shutil.rmtree(tempdir)
 
 
