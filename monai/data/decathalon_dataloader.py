@@ -51,6 +51,8 @@ def load_decathalon_datalist(data_list_file_path, is_segmentation=True, data_lis
 
     Returns a list of data items, each of which is a dict keyed by element names, for example:
 
+    .. code-block::
+
         [
             {'image': '/workspace/data/chest_19.nii.gz',  'label': 0}, 
             {'image': '/workspace/data/chest_31.nii.gz',  'label': 1}
