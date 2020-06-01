@@ -71,6 +71,7 @@ class Activationsd(MapTransform):
             output_postfix (str): the postfix string to construct keys to store converted data.
                 for example: if the keys of input data is `pred` and `label`, output_postfix is `act`,
                 the output data keys will be: `pred_act`, `label_act`.
+                if set to None, will replace the original data with the same key.
             sigmoid (bool, tuple or list of bool): whether to execute sigmoid function on model
                 output before transform.
             softmax (bool, tuple or list of bool): whether to execute softmax function on model
@@ -79,7 +80,7 @@ class Activationsd(MapTransform):
                 for example: `other = lambda x: torch.tanh(x)`
         """
         super().__init__(keys)
-        if not isinstance(output_postfix, str):
+        if output_postfix is not None and not isinstance(output_postfix, str):
             raise ValueError("output_postfix must be a string.")
         self.output_postfix = output_postfix
         self.sigmoid = ensure_tuple_rep(sigmoid, len(self.keys))
@@ -91,7 +92,8 @@ class Activationsd(MapTransform):
         d = dict(data)
         for idx, key in enumerate(self.keys):
             ret = self.converter(d[key], self.sigmoid[idx], self.softmax[idx], self.other[idx])
-            d[f"{key}_{self.output_postfix}"] = ret
+            output_key = key if self.output_postfix is None else f"{key}_{self.output_postfix}"
+            d[output_key] = ret
         return d
 
 
@@ -117,6 +119,7 @@ class AsDiscreted(MapTransform):
             output_postfix (str): the postfix string to construct keys to store converted data.
                 for example: if the keys of input data is `pred` and `label`, output_postfix is `discreted`,
                 the output data keys will be: `pred_discreted`, `label_discreted`.
+                if set to None, will replace the original data with the same key.
             argmax (bool): whether to execute argmax function on input data before transform.
             to_onehot (bool): whether to convert input data into the one-hot format. Defaults to False.
             n_classes (bool): the number of classes to convert to One-Hot format.
@@ -124,7 +127,7 @@ class AsDiscreted(MapTransform):
             logit_thresh (float): the threshold value for thresholding operation, default is 0.5.
         """
         super().__init__(keys)
-        if not isinstance(output_postfix, str):
+        if output_postfix is not None and not isinstance(output_postfix, str):
             raise ValueError("output_postfix must be a string.")
         self.output_postfix = output_postfix
         self.argmax = ensure_tuple_rep(argmax, len(self.keys))
@@ -137,7 +140,8 @@ class AsDiscreted(MapTransform):
     def __call__(self, data):
         d = dict(data)
         for idx, key in enumerate(self.keys):
-            d[f"{key}_{self.output_postfix}"] = self.converter(
+            output_key = key if self.output_postfix is None else f"{key}_{self.output_postfix}"
+            d[output_key] = self.converter(
                 d[key],
                 self.argmax[idx],
                 self.to_onehot[idx],
@@ -172,9 +176,10 @@ class KeepLargestConnectedComponentd(MapTransform):
             output_postfix (str): the postfix string to construct keys to store converted data.
                 for example: if the keys of input data is `label`, output_postfix is `largestcc`,
                 the output data keys will be: `label_largestcc`.
+                if set to None, will replace the original data with the same key.
         """
         super().__init__(keys)
-        if not isinstance(output_postfix, str):
+        if output_postfix is not None and not isinstance(output_postfix, str):
             raise ValueError("output_postfix must be a string.")
         self.output_postfix = output_postfix
         self.converter = KeepLargestConnectedComponent(applied_values, independent, background, connectivity)
@@ -182,7 +187,8 @@ class KeepLargestConnectedComponentd(MapTransform):
     def __call__(self, data):
         d = dict(data)
         for idx, key in enumerate(self.keys):
-            d[f"{key}_{self.output_postfix}"] = self.converter(d[key])
+            output_key = key if self.output_postfix is None else f"{key}_{self.output_postfix}"
+            d[output_key] = self.converter(d[key])
         return d
 
 

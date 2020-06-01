@@ -182,6 +182,8 @@ class TensorBoardImageHandler(object):
         self,
         summary_writer=None,
         log_dir="./runs",
+        interval=1,
+        epoch_level=True,
         batch_transform=lambda x: x,
         output_transform=lambda x: x,
         global_iter_transform=lambda x: x,
@@ -194,6 +196,9 @@ class TensorBoardImageHandler(object):
             summary_writer (SummaryWriter): user can specify TensorBoard SummaryWriter,
                 default to create a new writer.
             log_dir (str): if using default SummaryWriter, write logs to this directory, default is `./runs`.
+            interval (int): plot content from engine.state every N epochs or every N iterations, default is 1.
+            epoch_level (bool): plot content from engine.state every N epochs or N iterations. `True` is epoch level,
+                `False` is iteration level.
             batch_transform (Callable): a callable that is used to transform the
                 ``ignite.engine.batch`` into expected format to extract several label data.
             output_transform (Callable): a callable that is used to transform the
@@ -205,6 +210,8 @@ class TensorBoardImageHandler(object):
             max_frames (int): number of frames for 2D-t plot.
         """
         self._writer = SummaryWriter(log_dir=log_dir) if summary_writer is None else summary_writer
+        self.interval = interval
+        self.epoch_level = epoch_level
         self.batch_transform = batch_transform
         self.output_transform = output_transform
         self.global_iter_transform = global_iter_transform
@@ -212,8 +219,14 @@ class TensorBoardImageHandler(object):
         self.max_frames = max_frames
         self.max_channels = max_channels
 
+    def attach(self, engine):
+        if self.epoch_level:
+            engine.add_event_handler(Events.EPOCH_COMPLETED(every=self.interval), self)
+        else:
+            engine.add_event_handler(Events.ITERATION_COMPLETED(every=self.interval), self)
+
     def __call__(self, engine):
-        step = self.global_iter_transform(engine.state.iteration)
+        step = self.global_iter_transform(engine.state.epoch if self.epoch_level else engine.state.iteration)
 
         show_images = self.batch_transform(engine.state.batch)[0]
         if torch.is_tensor(show_images):
