@@ -41,17 +41,17 @@ class Spacingd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.Spacing`.
 
     This transform assumes the ``data`` dictionary has a key for the input
-    data's affine.  The key is formed by ``meta_key_format.format(key, 'affine')``.
+    data's metadata and contains `affine` field.  The key is formed by ``key_{meta_key_postfix}``.
 
     After resampling the input array, this transform will write the new affine
-     to the key formed by ``meta_key_format.format(key, 'affine')``.
+    to the `affine` field of metadata which is formed by ``key_{meta_key_postfix}``.
 
     see also:
         :py:class:`monai.transforms.Spacing`
     """
 
     def __init__(
-        self, keys, pixdim, diagonal=False, interp_order=3, mode="nearest", cval=0, dtype=None, meta_key_format="{}.{}"
+        self, keys, pixdim, diagonal=False, interp_order=3, mode="nearest", cval=0, dtype=None, meta_key_postfix="meta"
     ):
         """
         Args:
@@ -76,9 +76,14 @@ class Spacingd(MapTransform):
                 Available options are `reflect|constant|nearest|mirror|wrap`.
                 The mode parameter determines how the input array is extended beyond its boundaries.
                 Default is 'nearest'.
-            cval (scalar or sequence of scalars): Value to fill past edges of input if mode is "constant". Default is 0.0.
-            dtype (None or np.dtype or sequence of np.dtype): output array data type, defaults to None to use input data's dtype.
-            meta_key_format (str): key format to read/write affine matrices to the data dictionary.
+            cval (scalar or sequence of scalars): Value to fill past edges of input if mode is "constant".
+                Default is 0.0.
+            dtype (None or np.dtype or sequence of np.dtype): output array data type, defaults to None to
+                use input data's dtype.
+            meta_key_postfix (str): use `key_{postfix}` to to fetch meta data of the key data, default is `meta`.
+                for example, to handle key `image`,  read/write affine matrices from the
+                metadata `image_meta` dictionary's `affine`.
+
         """
         super().__init__(keys)
         self.spacing_transform = Spacing(pixdim, diagonal=diagonal)
@@ -86,24 +91,26 @@ class Spacingd(MapTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.cval = ensure_tuple_rep(cval, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
-        self.meta_key_format = meta_key_format
+        if not isinstance(meta_key_postfix, str):
+            raise ValueError("meta_key_postfix must be a string.")
+        self.meta_key_postfix = meta_key_postfix
 
     def __call__(self, data):
         d = dict(data)
         for idx, key in enumerate(self.keys):
-            affine_key = self.meta_key_format.format(key, "affine")
+            meta_data = d[f"{key}_{self.meta_key_postfix}"]
             # resample array of each corresponding key
             # using affine fetched from d[affine_key]
             d[key], _, new_affine = self.spacing_transform(
                 data_array=d[key],
-                affine=d[affine_key],
+                affine=meta_data["affine"],
                 interp_order=self.interp_order[idx],
                 mode=self.mode[idx],
                 cval=self.cval[idx],
                 dtype=self.dtype[idx],
             )
             # set the 'affine' key
-            d[affine_key] = new_affine
+            meta_data["affine"] = new_affine
         return d
 
 
@@ -112,14 +119,14 @@ class Orientationd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.Orientation`.
 
     This transform assumes the ``data`` dictionary has a key for the input
-    data's affine.  The key is formed by ``meta_key_format.format(key, 'affine')``.
+    data's metadata and contains `affine` field.  The key is formed by ``key_{meta_key_postfix}``.
 
     After reorienting the input array, this transform will write the new affine
-     to the key formed by ``meta_key_format.format(key, 'affine')``.
+    to the `affine` field of metadata which is formed by ``key_{meta_key_postfix}``.
     """
 
     def __init__(
-        self, keys, axcodes=None, as_closest_canonical=False, labels=tuple(zip("LPI", "RAS")), meta_key_format="{}.{}"
+        self, keys, axcodes=None, as_closest_canonical=False, labels=tuple(zip("LPI", "RAS")), meta_key_postfix="meta"
     ):
         """
         Args:
@@ -132,21 +139,25 @@ class Orientationd(MapTransform):
             labels : optional, None or sequence of (2,) sequences
                 (2,) sequences are labels for (beginning, end) of output axis.
                 Defaults to ``(('L', 'R'), ('P', 'A'), ('I', 'S'))``.
-            meta_key_format (str): key format to read/write affine matrices to the data dictionary.
+            meta_key_postfix (str): use `key_{postfix}` to to fetch meta data of the key data, default is `meta`.
+                for example, to handle key `image`,  read/write affine matrices from the
+                metadata `image_meta` dictionary's `affine`.
 
         See Also:
             `nibabel.orientations.ornt2axcodes`.
         """
         super().__init__(keys)
         self.ornt_transform = Orientation(axcodes=axcodes, as_closest_canonical=as_closest_canonical, labels=labels)
-        self.meta_key_format = meta_key_format
+        if not isinstance(meta_key_postfix, str):
+            raise ValueError("meta_key_postfix must be a string.")
+        self.meta_key_postfix = meta_key_postfix
 
     def __call__(self, data):
         d = dict(data)
         for key in self.keys:
-            affine_key = self.meta_key_format.format(key, "affine")
-            d[key], _, new_affine = self.ornt_transform(d[key], affine=d[affine_key])
-            d[affine_key] = new_affine
+            meta_data = d[f"{key}_{self.meta_key_postfix}"]
+            d[key], _, new_affine = self.ornt_transform(d[key], affine=meta_data["affine"])
+            meta_data["affine"] = new_affine
         return d
 
 
