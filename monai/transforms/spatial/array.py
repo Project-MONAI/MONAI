@@ -13,6 +13,8 @@ A collection of "vanilla" transforms for spatial operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
+from typing import Optional, Union, List
+
 import warnings
 import numpy as np
 import scipy.ndimage
@@ -39,7 +41,15 @@ class Spacing(Transform):
     Resample input image into the specified `pixdim`.
     """
 
-    def __init__(self, pixdim, diagonal=False, interp_order=3, mode="nearest", cval=0, dtype=None):
+    def __init__(
+        self,
+        pixdim,
+        diagonal: bool = False,
+        interp_order=3,
+        mode: str = "nearest",
+        cval: Union[int, float] = 0,
+        dtype: Optional[np.dtype] = None,
+    ):
         """
         Args:
             pixdim (sequence of floats): output voxel spacing.
@@ -69,7 +79,15 @@ class Spacing(Transform):
         self.cval = cval
         self.dtype = dtype
 
-    def __call__(self, data_array, affine=None, interp_order=None, mode=None, cval=None, dtype=None):
+    def __call__(
+        self,
+        data_array: np.ndarray,
+        affine=None,
+        interp_order=None,
+        mode: Optional[str] = None,
+        cval: Union[int, float] = None,
+        dtype: Optional[np.dtype] = None,
+    ):
         """
         Args:
             data_array (ndarray): in shape (num_channels, H[, W, ...]).
@@ -121,7 +139,7 @@ class Orientation(Transform):
     Change the input image's orientation into the specified based on `axcodes`.
     """
 
-    def __init__(self, axcodes=None, as_closest_canonical=False, labels=tuple(zip("LPI", "RAS"))):
+    def __init__(self, axcodes=None, as_closest_canonical: bool = False, labels=tuple(zip("LPI", "RAS"))):
         """
         Args:
             axcodes (N elements sequence): for spatial ND input's orientation.
@@ -144,7 +162,7 @@ class Orientation(Transform):
         self.as_closest_canonical = as_closest_canonical
         self.labels = labels
 
-    def __call__(self, data_array, affine=None):
+    def __call__(self, data_array: np.ndarray, affine=None):
         """
         original orientation of `data_array` is defined by `affine`.
 
@@ -229,11 +247,11 @@ class Resize(Transform):
         self,
         spatial_size,
         interp_order=InterpolationCode.LINEAR,
-        mode="reflect",
-        cval=0,
-        clip=True,
-        preserve_range=True,
-        anti_aliasing=True,
+        mode: str = "reflect",
+        cval: Union[int, float] = 0,
+        clip: bool = True,
+        preserve_range: bool = True,
+        anti_aliasing: bool = True,
     ):
         self.spatial_size = spatial_size
         self.interp_order = interp_order
@@ -244,7 +262,14 @@ class Resize(Transform):
         self.anti_aliasing = anti_aliasing
 
     def __call__(
-        self, img, order=None, mode=None, cval=None, clip=None, preserve_range=None, anti_aliasing=None,
+        self,
+        img,
+        order=None,
+        mode: Optional[str] = None,
+        cval: Optional[Union[int, float]] = None,
+        clip: Optional[bool] = None,
+        preserve_range: Optional[bool] = None,
+        anti_aliasing: Optional[bool] = None,
     ):
         """
         Args:
@@ -287,7 +312,14 @@ class Rotate(Transform):
     """
 
     def __init__(
-        self, angle, spatial_axes=(0, 1), reshape=True, interp_order=1, mode="constant", cval=0, prefilter=True
+        self,
+        angle,
+        spatial_axes=(0, 1),
+        reshape: bool = True,
+        interp_order=1,
+        mode: str = "constant",
+        cval: Union[int, float] = 0,
+        prefilter: bool = True,
     ):
         self.angle = angle
         self.spatial_axes = spatial_axes
@@ -297,7 +329,14 @@ class Rotate(Transform):
         self.cval = cval
         self.prefilter = prefilter
 
-    def __call__(self, img, order=None, mode=None, cval=None, prefilter=None):
+    def __call__(
+        self,
+        img,
+        order=None,
+        mode: Optional[str] = None,
+        cval: Optional[Union[int, float]] = None,
+        prefilter: Optional[bool] = None,
+    ):
         """
         Args:
             img (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
@@ -340,11 +379,11 @@ class Zoom(Transform):
         self,
         zoom,
         interp_order=InterpolationCode.SPLINE3,
-        mode="constant",
-        cval=0,
-        prefilter=True,
-        use_gpu=False,
-        keep_size=True,
+        mode: str = "constant",
+        cval: Union[int, float] = 0,
+        prefilter: bool = True,
+        use_gpu: bool = False,
+        keep_size: bool = True,
     ):
         self.zoom = zoom
         self.interp_order = interp_order
@@ -366,7 +405,9 @@ class Zoom(Transform):
         else:
             self._zoom = scipy.ndimage.zoom
 
-    def __call__(self, img, order=None, mode=None, cval=None, prefilter=None):
+    def __call__(
+        self, img, order=None, mode=None, cval=None, prefilter=None,
+    ):
         """
         Args:
             img (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
@@ -420,7 +461,7 @@ class Rotate90(Transform):
     Rotate an array by 90 degrees in the plane specified by `axes`.
     """
 
-    def __init__(self, k=1, spatial_axes=(0, 1)):
+    def __init__(self, k: int = 1, spatial_axes=(0, 1)):
         """
         Args:
             k (int): number of times to rotate by 90 degrees.
@@ -430,7 +471,7 @@ class Rotate90(Transform):
         self.k = k
         self.spatial_axes = spatial_axes
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray):
         """
         Args:
             img (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
@@ -447,7 +488,7 @@ class RandRotate90(Randomizable, Transform):
     in the plane specified by `spatial_axes`.
     """
 
-    def __init__(self, prob=0.1, max_k=3, spatial_axes=(0, 1)):
+    def __init__(self, prob: float = 0.1, max_k: int = 3, spatial_axes=(0, 1)):
         """
         Args:
             prob (float): probability of rotating.
@@ -498,13 +539,13 @@ class RandRotate(Randomizable, Transform):
     def __init__(
         self,
         degrees,
-        prob=0.1,
+        prob: float = 0.1,
         spatial_axes=(0, 1),
-        reshape=True,
+        reshape: bool = True,
         interp_order=InterpolationCode.LINEAR,
-        mode="constant",
-        cval=0,
-        prefilter=True,
+        mode: str = "constant",
+        cval: Union[int, float] = 0,
+        prefilter: bool = True,
     ):
         self.degrees = degrees
         self.prob = prob
@@ -526,7 +567,14 @@ class RandRotate(Randomizable, Transform):
         self._do_transform = self.R.random_sample() < self.prob
         self.angle = self.R.uniform(low=self.degrees[0], high=self.degrees[1])
 
-    def __call__(self, img, order=None, mode=None, cval=None, prefilter=None):
+    def __call__(
+        self,
+        img,
+        order=None,
+        mode: Optional[str] = None,
+        cval: Optional[Union[int, float]] = None,
+        prefilter: Optional[bool] = None,
+    ):
         self.randomize()
         if not self._do_transform:
             return img
@@ -552,7 +600,7 @@ class RandFlip(Randomizable, Transform):
         spatial_axis (None, int or tuple of ints): Spatial axes along which to flip over. Default is None.
     """
 
-    def __init__(self, prob=0.1, spatial_axis=None):
+    def __init__(self, prob: float = 0.1, spatial_axis=None):
         self.prob = prob
         self.flipper = Flip(spatial_axis=spatial_axis)
         self._do_transform = False
@@ -590,15 +638,15 @@ class RandZoom(Randomizable, Transform):
 
     def __init__(
         self,
-        prob=0.1,
+        prob: float = 0.1,
         min_zoom=0.9,
         max_zoom=1.1,
         interp_order=InterpolationCode.SPLINE3,
-        mode="constant",
-        cval=0,
-        prefilter=True,
-        use_gpu=False,
-        keep_size=True,
+        mode: str = "constant",
+        cval: Union[int, float] = 0,
+        prefilter: bool = True,
+        use_gpu: bool = False,
+        keep_size: bool = True,
     ):
         if hasattr(min_zoom, "__iter__") and hasattr(max_zoom, "__iter__"):
             assert len(min_zoom) == len(max_zoom), "min_zoom and max_zoom must have same length."
@@ -623,7 +671,14 @@ class RandZoom(Randomizable, Transform):
         else:
             self._zoom = self.R.uniform(self.min_zoom, self.max_zoom)
 
-    def __call__(self, img, order=None, mode=None, cval=None, prefilter=None):
+    def __call__(
+        self,
+        img,
+        order=None,
+        mode: Optional[str] = None,
+        cval: Union[int, float] = None,
+        prefilter: Optional[bool] = None,
+    ):
         self.randomize()
         if not self._do_transform:
             return img
@@ -648,8 +703,8 @@ class AffineGrid(Transform):
         shear_params=None,
         translate_params=None,
         scale_params=None,
-        as_tensor_output=True,
-        device=None,
+        as_tensor_output: bool = True,
+        device: Optional[torch.device] = None,
     ):
         self.rotate_params = rotate_params
         self.shear_params = shear_params
@@ -703,8 +758,8 @@ class RandAffineGrid(Randomizable, Transform):
         shear_range=None,
         translate_range=None,
         scale_range=None,
-        as_tensor_output=True,
-        device=None,
+        as_tensor_output: bool = True,
+        device: Optional[torch.device] = None,
     ):
         """
         Args:
@@ -775,7 +830,7 @@ class RandDeformGrid(Randomizable, Transform):
     generate random deformation grid
     """
 
-    def __init__(self, spacing, magnitude_range, as_tensor_output=True, device=None):
+    def __init__(self, spacing, magnitude_range, as_tensor_output: bool = True, device: Optional[torch.device] = None):
         """
         Args:
             spacing (2 or 3 ints): spacing of the grid in 2D or 3D.
@@ -810,7 +865,13 @@ class RandDeformGrid(Randomizable, Transform):
 
 
 class Resample(Transform):
-    def __init__(self, padding_mode="zeros", mode="bilinear", as_tensor_output=False, device=None):
+    def __init__(
+        self,
+        padding_mode: str = "zeros",
+        mode: str = "bilinear",
+        as_tensor_output: bool = False,
+        device: Optional[torch.device] = None,
+    ):
         """
         computes output image using values from `img`, locations from `grid` using pytorch.
         supports spatially 2D or 3D (num_channels, H, W[, D]).
@@ -826,7 +887,13 @@ class Resample(Transform):
         self.as_tensor_output = as_tensor_output
         self.device = device
 
-    def __call__(self, img, grid, padding_mode=None, mode=None):
+    def __call__(
+        self,
+        img: Union[np.ndarray, torch.Tensor],
+        grid: Union[np.ndarray, torch.Tensor],
+        padding_mode: Optional[str] = None,
+        mode: Optional[str] = None,
+    ):
         """
         Args:
             img (ndarray or tensor): shape must be (num_channels, H, W[, D]).
@@ -843,7 +910,8 @@ class Resample(Transform):
         for i, dim in enumerate(img.shape[1:]):
             grid[i] = 2.0 * grid[i] / (dim - 1.0)
         grid = grid[:-1] / grid[-1:]
-        grid = grid[range(img.ndim - 2, -1, -1)]
+        index_ordering: List[int] = [x for x in range(img.ndim - 2, -1, -1)]
+        grid = grid[index_ordering]
         grid = grid.permute(list(range(grid.ndim))[1:] + [0])
         out = torch.nn.functional.grid_sample(
             img[None].float(),
@@ -869,10 +937,10 @@ class Affine(Transform):
         translate_params=None,
         scale_params=None,
         spatial_size=None,
-        mode="bilinear",
-        padding_mode="zeros",
-        as_tensor_output=False,
-        device=None,
+        mode: str = "bilinear",
+        padding_mode: str = "zeros",
+        as_tensor_output: bool = False,
+        device: Optional[torch.device] = None,
     ):
         """
         The affine transformations are applied in rotate, shear, translate, scale order.
@@ -909,7 +977,13 @@ class Affine(Transform):
         self.padding_mode = padding_mode
         self.mode = mode
 
-    def __call__(self, img, spatial_size=None, padding_mode=None, mode=None):
+    def __call__(
+        self,
+        img: Union[np.ndarray, torch.Tensor],
+        spatial_size=None,
+        padding_mode: Optional[str] = None,
+        mode: Optional[str] = None,
+    ):
         """
         Args:
             img (ndarray or tensor): shape must be (num_channels, H, W[, D]),
@@ -932,16 +1006,16 @@ class RandAffine(Randomizable, Transform):
 
     def __init__(
         self,
-        prob=0.1,
+        prob: float = 0.1,
         rotate_range=None,
         shear_range=None,
         translate_range=None,
         scale_range=None,
         spatial_size=None,
-        mode="bilinear",
-        padding_mode="zeros",
-        as_tensor_output=True,
-        device=None,
+        mode: str = "bilinear",
+        padding_mode: str = "zeros",
+        as_tensor_output: bool = True,
+        device: Optional[torch.device] = None,
     ):
         """
         Args:
@@ -978,7 +1052,7 @@ class RandAffine(Randomizable, Transform):
         self.do_transform = False
         self.prob = prob
 
-    def set_random_state(self, seed=None, state=None):
+    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
         self.rand_affine_grid.set_random_state(seed, state)
         super().set_random_state(seed, state)
         return self
@@ -987,7 +1061,13 @@ class RandAffine(Randomizable, Transform):
         self.do_transform = self.R.rand() < self.prob
         self.rand_affine_grid.randomize()
 
-    def __call__(self, img, spatial_size=None, padding_mode=None, mode=None):
+    def __call__(
+        self,
+        img: Union[np.ndarray, torch.Tensor],
+        spatial_size=None,
+        padding_mode: Optional[str] = None,
+        mode: Optional[str] = None,
+    ):
         """
         Args:
             img (ndarray or tensor): shape must be (num_channels, H, W[, D]),
@@ -1017,16 +1097,16 @@ class Rand2DElastic(Randomizable, Transform):
         self,
         spacing,
         magnitude_range,
-        prob=0.1,
+        prob: float = 0.1,
         rotate_range=None,
         shear_range=None,
         translate_range=None,
         scale_range=None,
         spatial_size=None,
-        mode="bilinear",
-        padding_mode="zeros",
-        as_tensor_output=False,
-        device=None,
+        mode: str = "bilinear",
+        padding_mode: str = "zeros",
+        as_tensor_output: bool = False,
+        device: Optional[torch.device] = None,
     ):
         """
         Args:
@@ -1067,7 +1147,7 @@ class Rand2DElastic(Randomizable, Transform):
         self.prob = prob
         self.do_transform = False
 
-    def set_random_state(self, seed=None, state=None):
+    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
         self.deform_grid.set_random_state(seed, state)
         self.rand_affine_grid.set_random_state(seed, state)
         super().set_random_state(seed, state)
@@ -1078,7 +1158,13 @@ class Rand2DElastic(Randomizable, Transform):
         self.deform_grid.randomize(spatial_size)
         self.rand_affine_grid.randomize()
 
-    def __call__(self, img, spatial_size=None, padding_mode=None, mode=None):
+    def __call__(
+        self,
+        img: Union[np.ndarray, torch.Tensor],
+        spatial_size=None,
+        padding_mode: Optional[str] = None,
+        mode: Optional[str] = None,
+    ):
         """
         Args:
             img (ndarray or tensor): shape must be (num_channels, H, W),
@@ -1107,16 +1193,16 @@ class Rand3DElastic(Randomizable, Transform):
         self,
         sigma_range,
         magnitude_range,
-        prob=0.1,
+        prob: float = 0.1,
         rotate_range=None,
         shear_range=None,
         translate_range=None,
         scale_range=None,
         spatial_size=None,
-        mode="bilinear",
-        padding_mode="zeros",
-        as_tensor_output=False,
-        device=None,
+        mode: str = "bilinear",
+        padding_mode: str = "zeros",
+        as_tensor_output: bool = False,
+        device: Optional[torch.device] = None,
     ):
         """
         Args:
@@ -1155,7 +1241,7 @@ class Rand3DElastic(Randomizable, Transform):
         self.magnitude = 1.0
         self.sigma = 1.0
 
-    def set_random_state(self, seed=None, state=None):
+    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
         self.rand_affine_grid.set_random_state(seed, state)
         super().set_random_state(seed, state)
         return self
@@ -1168,7 +1254,9 @@ class Rand3DElastic(Randomizable, Transform):
         self.sigma = self.R.uniform(self.sigma_range[0], self.sigma_range[1])
         self.rand_affine_grid.randomize()
 
-    def __call__(self, img, spatial_size=None, padding_mode=None, mode=None):
+    def __call__(
+        self, img, spatial_size=None, padding_mode=None, mode=None,
+    ):
         """
         Args:
             img (ndarray or tensor): shape must be (num_channels, H, W, D),

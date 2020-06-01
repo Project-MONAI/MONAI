@@ -15,6 +15,9 @@ defined in :py:class:`monai.transforms.intensity.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
+from typing import Hashable, Union, Optional
+
+import numpy as np
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.intensity.array import (
     NormalizeIntensity,
@@ -38,7 +41,7 @@ class RandGaussianNoised(Randomizable, MapTransform):
         std (float): Standard deviation (spread) of distribution.
     """
 
-    def __init__(self, keys, prob=0.1, mean=0.0, std=0.1):
+    def __init__(self, keys: Hashable, prob: float = 0.1, mean=0.0, std: float = 0.1):
         super().__init__(keys)
         self.prob = prob
         self.mean = mean
@@ -67,7 +70,7 @@ class ShiftIntensityd(MapTransform):
     dictionary-based wrapper of :py:class:`monai.transforms.ShiftIntensity`.
     """
 
-    def __init__(self, keys, offset):
+    def __init__(self, keys: Hashable, offset: Union[int, float]):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -89,7 +92,7 @@ class RandShiftIntensityd(Randomizable, MapTransform):
     dictionary-based version :py:class:`monai.transforms.RandShiftIntensity`.
     """
 
-    def __init__(self, keys, offsets, prob=0.1):
+    def __init__(self, keys: Hashable, offsets, prob: float = 0.1):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -127,7 +130,13 @@ class ScaleIntensityd(MapTransform):
     If `minv` and `maxv` not provided, use `factor` to scale image by ``v = v * (1 + factor)``.
     """
 
-    def __init__(self, keys, minv=0.0, maxv=1.0, factor=None):
+    def __init__(
+        self,
+        keys: Hashable,
+        minv: Union[int, float] = 0.0,
+        maxv: Union[int, float] = 1.0,
+        factor: Optional[float] = None,
+    ):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -152,7 +161,7 @@ class RandScaleIntensityd(Randomizable, MapTransform):
     dictionary-based version :py:class:`monai.transforms.RandScaleIntensity`.
     """
 
-    def __init__(self, keys, factors, prob=0.1):
+    def __init__(self, keys: Hashable, factors, prob: float = 0.1):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -200,7 +209,14 @@ class NormalizeIntensityd(MapTransform):
             or calculate on the entire image directly.
     """
 
-    def __init__(self, keys, subtrahend=None, divisor=None, nonzero=False, channel_wise=False):
+    def __init__(
+        self,
+        keys: Hashable,
+        subtrahend: Optional[np.ndarray] = None,
+        divisor: Optional[np.ndarray] = None,
+        nonzero: bool = False,
+        channel_wise: bool = False,
+    ):
         super().__init__(keys)
         self.normalizer = NormalizeIntensity(subtrahend, divisor, nonzero, channel_wise)
 
@@ -223,7 +239,7 @@ class ThresholdIntensityd(MapTransform):
         cval (float or int): value to fill the remaining parts of the image, default is 0.
     """
 
-    def __init__(self, keys, threshold, above=True, cval=0):
+    def __init__(self, keys: Hashable, threshold: Union[int, float], above: bool = True, cval: Union[int, float] = 0):
         super().__init__(keys)
         self.filter = ThresholdIntensity(threshold, above, cval)
 
@@ -248,7 +264,15 @@ class ScaleIntensityRanged(MapTransform):
         clip (bool): whether to perform clip after scaling.
     """
 
-    def __init__(self, keys, a_min, a_max, b_min, b_max, clip=False):
+    def __init__(
+        self,
+        keys: Hashable,
+        a_min: Union[int, float],
+        a_max: Union[int, float],
+        b_min: Union[int, float],
+        b_max: Union[int, float],
+        clip: bool = False,
+    ):
         super().__init__(keys)
         self.scaler = ScaleIntensityRange(a_min, a_max, b_min, b_max, clip)
 
@@ -270,7 +294,7 @@ class AdjustContrastd(MapTransform):
         gamma (float): gamma value to adjust the contrast as function.
     """
 
-    def __init__(self, keys, gamma):
+    def __init__(self, keys: Hashable, gamma: Union[int, float]):
         super().__init__(keys)
         self.adjuster = AdjustContrast(gamma)
 
