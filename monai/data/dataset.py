@@ -9,8 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional, Callable
 import sys
-
 import hashlib
 import json
 from pathlib import Path
@@ -25,8 +25,10 @@ from monai.transforms import Compose, Randomizable
 from monai.transforms.utils import apply_transform
 from monai.utils import process_bar, get_seed
 
+from torch.utils.data import Dataset as _TorchDataset
 
-class Dataset(torch.utils.data.Dataset):
+
+class Dataset(_TorchDataset):
     """
     A generic dataset with a length property and an optional callable data transform
     when fetching a data sample.
@@ -39,7 +41,7 @@ class Dataset(torch.utils.data.Dataset):
          },                           },                           }]
     """
 
-    def __init__(self, data, transform=None):
+    def __init__(self, data, transform: Optional[Callable] = None):
         """
         Args:
             data (Iterable): input data to load and transform to generate dataset for model.
@@ -51,7 +53,7 @@ class Dataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.data)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int):
         data = self.data[index]
         if self.transform is not None:
             data = self.transform(data)
@@ -93,7 +95,7 @@ class PersistentDataset(Dataset):
     followed by applying the random dependant parts of transform processing.
     """
 
-    def __init__(self, data, transform=None, cache_dir=None):
+    def __init__(self, data, transform: Optional[Callable] = None, cache_dir=None):
         """
         Args:
             data (Iterable): input data to load and transform to generate dataset for model.
@@ -119,7 +121,7 @@ class PersistentDataset(Dataset):
             the transformed element up to the first identified
             random transform object
         """
-        for _transform in self.transform.transforms:
+        for _transform in self.transform.transforms:  # pytype: disable=attribute-error
             # execute all the deterministic transforms before the first random transform
             if isinstance(_transform, Randomizable):
                 break
@@ -135,7 +137,7 @@ class PersistentDataset(Dataset):
             the transformed element through the random transforms
         """
         start_post_randomize_run = False
-        for _transform in self.transform.transforms:
+        for _transform in self.transform.transforms:  # pytype: disable=attribute-error
             if start_post_randomize_run or isinstance(_transform, Randomizable):
                 start_post_randomize_run = True
                 item_transformed = apply_transform(_transform, item_transformed)
@@ -226,7 +228,9 @@ class CacheDataset(Dataset):
     and the outcome not cached.
     """
 
-    def __init__(self, data, transform, cache_num=sys.maxsize, cache_rate=1.0, num_workers=0):
+    def __init__(
+        self, data, transform: Callable, cache_num: int = sys.maxsize, cache_rate: float = 1.0, num_workers: int = 0
+    ):
         """
         Args:
             data (Iterable): input data to load and transform to generate dataset for model.
@@ -278,7 +282,7 @@ class CacheDataset(Dataset):
             # load data from cache and execute from the first random transform
             start_run = False
             data = self._cache[index]
-            for _transform in self.transform.transforms:
+            for _transform in self.transform.transforms:  # pytype: disable=attribute-error
                 if not start_run and not isinstance(_transform, Randomizable):
                     continue
                 else:
@@ -290,7 +294,7 @@ class CacheDataset(Dataset):
         return data
 
 
-class ZipDataset(torch.utils.data.Dataset):
+class ZipDataset(_TorchDataset):
     """
     Zip several PyTorch datasets and output data(with the same index) together in a tuple.
     If the output of single dataset is already a tuple, flatten it and extend to the result.
@@ -323,7 +327,7 @@ class ZipDataset(torch.utils.data.Dataset):
     def __len__(self):
         return self.len
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int):
         def to_list(x):
             return list(x) if isinstance(x, (tuple, list)) else [x]
 
@@ -375,7 +379,13 @@ class ArrayDataset(ZipDataset, Randomizable):
     """
 
     def __init__(
-        self, img_files, img_transform=None, seg_files=None, seg_transform=None, labels=None, label_transform=None
+        self,
+        img_files,
+        img_transform: Optional[Callable] = None,
+        seg_files=None,
+        seg_transform: Optional[Callable] = None,
+        labels=None,
+        label_transform: Optional[Callable] = None,
     ):
         """
         Initializes the dataset with the filename lists. The transform `img_transform` is applied
@@ -396,7 +406,7 @@ class ArrayDataset(ZipDataset, Randomizable):
     def randomize(self):
         self.seed = self.R.randint(np.iinfo(np.int32).max)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int):
         self.randomize()
         for dataset in self.datasets:
             if isinstance(dataset.transform, Randomizable):

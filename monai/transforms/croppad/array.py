@@ -13,6 +13,8 @@ A collection of "vanilla" transforms for crop and pad operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
+from typing import Optional, Callable
+
 import numpy as np
 
 from monai.data.utils import get_random_patch, get_valid_patch_size
@@ -34,7 +36,7 @@ class SpatialPad(Transform):
             for more details, please check: https://docs.scipy.org/doc/numpy/reference/generated/numpy.pad.html
     """
 
-    def __init__(self, spatial_size, method="symmetric", mode="constant"):
+    def __init__(self, spatial_size, method: str = "symmetric", mode: str = "constant"):
         self.spatial_size = ensure_tuple(spatial_size)
         assert method in ("symmetric", "end"), "unsupported padding type."
         self.method = method
@@ -51,7 +53,7 @@ class SpatialPad(Transform):
         else:
             return [(0, max(self.spatial_size[i] - data_shape[i], 0)) for i in range(len(self.spatial_size))]
 
-    def __call__(self, img, mode=None):
+    def __call__(self, img, mode: Optional[str] = None):
         data_pad_width = self._determine_data_pad_width(img.shape[1:])
         all_pad_width = [(0, 0)] + data_pad_width
         img = np.pad(img, all_pad_width, mode=mode or self.mode)
@@ -130,7 +132,7 @@ class RandSpatialCrop(Randomizable, Transform):
             The actual size is sampled from `randint(roi_size, img_size)`.
     """
 
-    def __init__(self, roi_size, random_center=True, random_size=True):
+    def __init__(self, roi_size, random_center: bool = True, random_size: bool = True):
         self.roi_size = roi_size
         self.random_center = random_center
         self.random_size = random_size
@@ -177,7 +179,7 @@ class CropForeground(Transform):
 
     """
 
-    def __init__(self, select_fn=lambda x: x > 0, channel_indexes=None, margin=0):
+    def __init__(self, select_fn: Callable = lambda x: x > 0, channel_indexes=None, margin: int = 0):
         """
         Args:
             select_fn (Callable): function to select expected foreground, default is to select values > 0.

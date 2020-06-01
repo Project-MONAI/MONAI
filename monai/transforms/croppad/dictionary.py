@@ -15,6 +15,8 @@ defined in :py:class:`monai.transforms.croppad.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
+from typing import Union, Hashable, Optional, Callable
+
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.croppad.array import SpatialCrop, CenterSpatialCrop, SpatialPad
@@ -28,7 +30,7 @@ class SpatialPadd(MapTransform):
     Performs padding to the data, symmetric for all sides or all on one side for each dimension.
     """
 
-    def __init__(self, keys, spatial_size, method="symmetric", mode="constant"):
+    def __init__(self, keys: Hashable, spatial_size, method: str = "symmetric", mode="constant"):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -58,7 +60,7 @@ class SpatialCropd(MapTransform):
     are not provided, the start and end coordinates of the ROI must be provided.
     """
 
-    def __init__(self, keys, roi_center=None, roi_size=None, roi_start=None, roi_end=None):
+    def __init__(self, keys: Hashable, roi_center=None, roi_size=None, roi_start=None, roi_end=None):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -88,7 +90,7 @@ class CenterSpatialCropd(MapTransform):
         roi_size (list, tuple): the size of the crop region e.g. [224,224,128]
     """
 
-    def __init__(self, keys, roi_size):
+    def __init__(self, keys: Hashable, roi_size):
         super().__init__(keys)
         self.cropper = CenterSpatialCrop(roi_size)
 
@@ -116,7 +118,7 @@ class RandSpatialCropd(Randomizable, MapTransform):
             The actual size is sampled from `randint(roi_size, img_size)`.
     """
 
-    def __init__(self, keys, roi_size, random_center=True, random_size=True):
+    def __init__(self, keys: Hashable, roi_size, random_center: bool = True, random_size: bool = True):
         super().__init__(keys)
         self.roi_size = roi_size
         self.random_center = random_center
@@ -155,7 +157,14 @@ class CropForegroundd(MapTransform):
     channels. And it can also add margin to every dim of the bounding box of foreground object.
     """
 
-    def __init__(self, keys, source_key, select_fn=lambda x: x > 0, channel_indexes=None, margin=0):
+    def __init__(
+        self,
+        keys: Hashable,
+        source_key: str,
+        select_fn: Callable = lambda x: x > 0,
+        channel_indexes: Callable = None,
+        margin=0,
+    ):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -204,7 +213,17 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
             the valid image content area.
     """
 
-    def __init__(self, keys, label_key, size, pos=1, neg=1, num_samples=1, image_key=None, image_threshold=0):
+    def __init__(
+        self,
+        keys: Hashable,
+        label_key: str,
+        size,
+        pos: Union[int, float] = 1,
+        neg: Union[int, float] = 1,
+        num_samples: int = 1,
+        image_key: Optional[str] = None,
+        image_threshold: Union[int, float] = 0,
+    ):
         super().__init__(keys)
         assert isinstance(label_key, str), "label_key must be a string."
         assert isinstance(size, (list, tuple)), "size must be list or tuple."
