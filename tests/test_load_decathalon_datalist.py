@@ -34,7 +34,7 @@ class TestLoadDecathalonDatalist(unittest.TestCase):
         file_path = os.path.join(tempdir, "test_data.json")
         with open(file_path, "w") as json_file:
             json_file.write(json_str)
-        result = load_decathalon_datalist(True, "training", file_path, tempdir)
+        result = load_decathalon_datalist(file_path, True, "training", tempdir)
         self.assertEqual(result[0]["image"], os.path.join(tempdir, "spleen_19.nii.gz"))
         self.assertEqual(result[0]["label"], os.path.join(tempdir, "spleen_19.nii.gz"))
         shutil.rmtree(tempdir)
@@ -52,7 +52,7 @@ class TestLoadDecathalonDatalist(unittest.TestCase):
         file_path = os.path.join(tempdir, "test_data.json")
         with open(file_path, "w") as json_file:
             json_file.write(json_str)
-        result = load_decathalon_datalist(False, "training", file_path, tempdir)
+        result = load_decathalon_datalist(file_path, False, "training", tempdir)
         self.assertEqual(result[0]["image"], os.path.join(tempdir, "chest_19.nii.gz"))
         self.assertEqual(result[0]["label"], 0)
         shutil.rmtree(tempdir)
@@ -79,7 +79,7 @@ class TestLoadDecathalonDatalist(unittest.TestCase):
         file_path = os.path.join(tempdir, "test_data.json")
         with open(file_path, "w") as json_file:
             json_file.write(json_str)
-        result = load_decathalon_datalist(True, "training", file_path, None)
+        result = load_decathalon_datalist(file_path, True, "training", None)
         self.assertEqual(result[0]["image"], os.path.join(tempdir, "spleen_19.nii.gz"))
         self.assertEqual(result[0]["label"], os.path.join(tempdir, "spleen_19.nii.gz"))
 
@@ -95,7 +95,7 @@ class TestLoadDecathalonDatalist(unittest.TestCase):
         file_path = os.path.join(tempdir, "test_data.json")
         with open(file_path, "w") as json_file:
             json_file.write(json_str)
-        result = load_decathalon_datalist(True, "test", file_path, tempdir)
+        result = load_decathalon_datalist(file_path, True, "test", tempdir)
         self.assertEqual(result[0]["image"], os.path.join(tempdir, "spleen_15.nii.gz"))
         shutil.rmtree(tempdir)
 
