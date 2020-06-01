@@ -28,7 +28,7 @@ def _compute_path(base_dir, element):
 def _append_paths(base_dir, is_segmentation, items):
     for item in items:
         if not isinstance(item, dict):
-            raise ValueError('data item must be dict.')
+            raise ValueError("data item must be dict.")
         for k, v in item.items():
             if k == "image":
                 item[k] = _compute_path(base_dir, v)

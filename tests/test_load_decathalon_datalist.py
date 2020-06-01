@@ -25,23 +25,14 @@ class TestLoadDecathalonDatalist(unittest.TestCase):
             "description": "Spleen Segmentation",
             "labels": {"0": "background", "1": "spleen"},
             "training": [
-                {
-                    "image": "spleen_19.nii.gz",
-                    "label": "spleen_19.nii.gz"
-                },
-                {
-                    "image": "spleen_31.nii.gz",
-                    "label": "spleen_31.nii.gz"
-                }
+                {"image": "spleen_19.nii.gz", "label": "spleen_19.nii.gz"},
+                {"image": "spleen_31.nii.gz", "label": "spleen_31.nii.gz"},
             ],
-            "test": [
-                "spleen_15.nii.gz",
-                "spleen_23.nii.gz"
-            ]
+            "test": ["spleen_15.nii.gz", "spleen_23.nii.gz"],
         }
         json_str = json.dumps(test_data)
         file_path = os.path.join(tempdir, "test_data.json")
-        with open(file_path, 'w') as json_file:
+        with open(file_path, "w") as json_file:
             json_file.write(json_str)
         result = load_decathalon_datalist(True, "training", file_path, tempdir)
         self.assertEqual(result[0]["image"], os.path.join(tempdir, "spleen_19.nii.gz"))
@@ -54,24 +45,12 @@ class TestLoadDecathalonDatalist(unittest.TestCase):
             "name": "ChestXRay",
             "description": "Chest X-ray classification",
             "labels": {"0": "background", "1": "chest"},
-            "training": [
-                {
-                    "image": "chest_19.nii.gz",
-                    "label": 0
-                },
-                {
-                    "image": "chest_31.nii.gz",
-                    "label": 1
-                }
-            ],
-            "test": [
-                "chest_15.nii.gz",
-                "chest_23.nii.gz"
-            ]
+            "training": [{"image": "chest_19.nii.gz", "label": 0}, {"image": "chest_31.nii.gz", "label": 1}],
+            "test": ["chest_15.nii.gz", "chest_23.nii.gz"],
         }
         json_str = json.dumps(test_data)
         file_path = os.path.join(tempdir, "test_data.json")
-        with open(file_path, 'w') as json_file:
+        with open(file_path, "w") as json_file:
             json_file.write(json_str)
         result = load_decathalon_datalist(False, "training", file_path, tempdir)
         self.assertEqual(result[0]["image"], os.path.join(tempdir, "chest_19.nii.gz"))
@@ -87,21 +66,18 @@ class TestLoadDecathalonDatalist(unittest.TestCase):
             "training": [
                 {
                     "image": os.path.join(tempdir, "spleen_19.nii.gz"),
-                    "label": os.path.join(tempdir, "spleen_19.nii.gz")
+                    "label": os.path.join(tempdir, "spleen_19.nii.gz"),
                 },
                 {
                     "image": os.path.join(tempdir, "spleen_31.nii.gz"),
-                    "label": os.path.join(tempdir, "spleen_31.nii.gz")
-                }
+                    "label": os.path.join(tempdir, "spleen_31.nii.gz"),
+                },
             ],
-            "test": [
-                os.path.join(tempdir, "spleen_15.nii.gz"),
-                os.path.join(tempdir, "spleen_23.nii.gz")
-            ]
+            "test": [os.path.join(tempdir, "spleen_15.nii.gz"), os.path.join(tempdir, "spleen_23.nii.gz")],
         }
         json_str = json.dumps(test_data)
         file_path = os.path.join(tempdir, "test_data.json")
-        with open(file_path, 'w') as json_file:
+        with open(file_path, "w") as json_file:
             json_file.write(json_str)
         result = load_decathalon_datalist(True, "training", file_path, None)
         self.assertEqual(result[0]["image"], os.path.join(tempdir, "spleen_19.nii.gz"))
@@ -113,14 +89,11 @@ class TestLoadDecathalonDatalist(unittest.TestCase):
             "name": "Spleen",
             "description": "Spleen Segmentation",
             "labels": {"0": "background", "1": "spleen"},
-            "test": [
-                "spleen_15.nii.gz",
-                "spleen_23.nii.gz"
-            ]
+            "test": ["spleen_15.nii.gz", "spleen_23.nii.gz"],
         }
         json_str = json.dumps(test_data)
         file_path = os.path.join(tempdir, "test_data.json")
-        with open(file_path, 'w') as json_file:
+        with open(file_path, "w") as json_file:
             json_file.write(json_str)
         result = load_decathalon_datalist(True, "test", file_path, tempdir)
         self.assertEqual(result[0]["image"], os.path.join(tempdir, "spleen_15.nii.gz"))
