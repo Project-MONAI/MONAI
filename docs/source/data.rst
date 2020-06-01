@@ -87,3 +87,7 @@ Utilities
 .. automodule:: monai.data.utils
   :members:
 
+
+Decathalon DataLoader
+~~~~~~~~~~~~~~~~~~~~~
+.. autofunction:: monai.data.load_decathalon_datalist
