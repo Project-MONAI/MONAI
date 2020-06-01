@@ -48,6 +48,11 @@ Layers
 .. autoclass:: GaussianFilter
     :members:
 
+`Affine Transform`
+~~~~~~~~~~~~~~~~~~
+.. autoclass:: monai.networks.layers.AffineTransform
+    :members:
+
 `Utilities`
 ~~~~~~~~~~~
 .. automodule:: monai.networks.layers.convutils

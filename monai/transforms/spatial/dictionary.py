@@ -514,7 +514,8 @@ class Rand3DElasticd(Randomizable, MapTransform):
             device = self.rand_3d_elastic.device
             grid = torch.tensor(grid).to(device)
             gaussian = GaussianFilter(spatial_dims=3, sigma=self.rand_3d_elastic.sigma, truncated=3.0).to(device)
-            grid[:3] += gaussian(self.rand_3d_elastic.rand_offset[None])[0] * self.rand_3d_elastic.magnitude
+            offset = torch.tensor(self.rand_3d_elastic.rand_offset[None], device=device)
+            grid[:3] += gaussian(offset)[0] * self.rand_3d_elastic.magnitude
             grid = self.rand_3d_elastic.rand_affine_grid(grid=grid)
 
         for idx, key in enumerate(self.keys):

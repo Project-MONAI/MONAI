@@ -60,7 +60,7 @@ class GaussianFilterTestCase(unittest.TestCase):
         np.testing.assert_allclose(g(a).cpu().numpy(), expected, rtol=1e-5)
         if torch.cuda.is_available():
             g = GaussianFilter(2, 3, 3).to(torch.device("cuda:0"))
-            np.testing.assert_allclose(g(a).cpu().numpy(), expected, rtol=1e-2)
+            np.testing.assert_allclose(g(a.cuda()).cpu().numpy(), expected, rtol=1e-2)
 
     def test_3d(self):
         a = torch.ones(1, 1, 4, 3, 4)
@@ -113,7 +113,7 @@ class GaussianFilterTestCase(unittest.TestCase):
         np.testing.assert_allclose(g(a).cpu().numpy(), expected, rtol=1e-5)
         if torch.cuda.is_available():
             g = GaussianFilter(3, [3, 2, 1], 3).to(torch.device("cuda:0"))
-            np.testing.assert_allclose(g(a).cpu().numpy(), expected, rtol=1e-2)
+            np.testing.assert_allclose(g(a.cuda()).cpu().numpy(), expected, rtol=1e-2)
 
     def test_wrong_args(self):
         with self.assertRaisesRegex(ValueError, ""):

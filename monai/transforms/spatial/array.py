@@ -797,7 +797,7 @@ class RandDeformGrid(Randomizable, Transform):
         self.device = device
 
     def randomize(self, grid_size):
-        self.random_offset = self.R.normal(size=([len(grid_size)] + list(grid_size)))
+        self.random_offset = self.R.normal(size=([len(grid_size)] + list(grid_size))).astype(np.float32)
         self.rand_mag = self.R.uniform(self.magnitude[0], self.magnitude[1])
 
     def __call__(self, spatial_size):
@@ -1163,7 +1163,7 @@ class Rand3DElastic(Randomizable, Transform):
     def randomize(self, grid_size):
         self.do_transform = self.R.rand() < self.prob
         if self.do_transform:
-            self.rand_offset = self.R.uniform(-1.0, 1.0, [3] + list(grid_size))
+            self.rand_offset = self.R.uniform(-1.0, 1.0, [3] + list(grid_size)).astype(np.float32)
         self.magnitude = self.R.uniform(self.magnitude_range[0], self.magnitude_range[1])
         self.sigma = self.R.uniform(self.sigma_range[0], self.sigma_range[1])
         self.rand_affine_grid.randomize()
@@ -1183,6 +1183,7 @@ class Rand3DElastic(Randomizable, Transform):
         if self.do_transform:
             grid = torch.as_tensor(np.ascontiguousarray(grid), device=self.device)
             gaussian = GaussianFilter(3, self.sigma, 3.0).to(device=self.device)
-            grid[:3] += gaussian(self.rand_offset[None])[0] * self.magnitude
+            offset = torch.as_tensor(self.rand_offset[None], device=self.device)
+            grid[:3] += gaussian(offset)[0] * self.magnitude
             grid = self.rand_affine_grid(grid=grid)
         return self.resampler(img, grid, padding_mode=self.padding_mode, mode=mode or self.mode)

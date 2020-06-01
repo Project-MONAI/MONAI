@@ -54,16 +54,15 @@ Nifti format handling
 
 Reading
 ~~~~~~~
-.. automodule:: monai.data.NiftiDataset
+.. autoclass:: monai.data.NiftiDataset
   :members:
 
 Writing Nifti
 ~~~~~~~~~~~~~
-.. automodule:: monai.data.NiftiSaver
+.. autoclass:: monai.data.NiftiSaver
   :members:
 
-.. automodule:: monai.data.write_nifti
-  :members:
+.. autofunction:: monai.data.write_nifti
 
 
 PNG format handling
@@ -71,11 +70,10 @@ PNG format handling
 
 Writing PNG
 ~~~~~~~~~~~
-.. automodule:: monai.data.PNGSaver
+.. autoclass:: monai.data.PNGSaver
   :members:
 
-.. automodule:: monai.data.write_png
-  :members:
+.. autofunction:: monai.data.write_png
 
 
 Synthetic
