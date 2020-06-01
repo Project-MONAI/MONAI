@@ -54,11 +54,15 @@ def load_decathalon_datalist(is_segmentation, data_list_key, data_list_file_path
     """
     if not os.path.isfile(data_list_file_path):
         raise ValueError(f"data list file {data_list_file_path} does not exist.")
-    json_data = json.load(open(data_list_file_path))
+    with open(data_list_file_path) as json_file:
+        json_data = json.load(json_file)
     if data_list_key not in json_data:
         raise ValueError(f"data list {data_list_key} not specified in '{data_list_file_path}'.")
+    expected_data = json_data[data_list_key]
+    if data_list_key == "test":
+        expected_data = [{"image": i} for i in expected_data]
 
     if base_dir is None:
         base_dir = os.path.dirname(data_list_file_path)
 
-    return _append_paths(base_dir, is_segmentation, json_data[data_list_key])
+    return _append_paths(base_dir, is_segmentation, expected_data)

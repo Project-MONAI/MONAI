@@ -11,15 +11,15 @@
 
 import unittest
 import os
+import json
 import shutil
-import numpy as np
 import tempfile
-from PIL import Image
 from monai.data import load_decathalon_datalist
 
 
 class TestLoadDecathalonDatalist(unittest.TestCase):
-    def test_values(self):
+    def test_seg_values(self):
+        tempdir = tempfile.mkdtemp()
         test_data = {
             "name": "Spleen",
             "description": "Spleen Segmentation",
@@ -39,14 +39,91 @@ class TestLoadDecathalonDatalist(unittest.TestCase):
                 "./imagesTs/spleen_23.nii.gz"
             ]
         }
-        test_image = np.random.randint(0, 256, size=data_shape)
+        json_str = json.dumps(test_data)
+        file_path = os.path.join(tempdir, "test_data.json")
+        with open(file_path, 'w') as json_file:
+            json_file.write(json_str)
+        result = load_decathalon_datalist(True, "training", file_path, tempdir)
+        self.assertEqual(result[0]["image"], os.path.join(tempdir, "imagesTr/spleen_19.nii.gz"))
+        self.assertEqual(result[0]["label"], os.path.join(tempdir, "labelsTr/spleen_19.nii.gz"))
+        shutil.rmtree(tempdir)
+
+    def test_cls_values(self):
         tempdir = tempfile.mkdtemp()
-        for i, name in enumerate(filenames):
-            filenames[i] = os.path.join(tempdir, name)
-            Image.fromarray(test_image.astype("uint8")).save(filenames[i])
-        result = LoadPNG()(filenames)
-        self.assertTupleEqual(result[1]["spatial_shape"], meta_shape)
-        self.assertTupleEqual(result[0].shape, expected_shape)
+        test_data = {
+            "name": "ChestXRay",
+            "description": "Chest X-ray classification",
+            "labels": {"0": "background", "1": "chest"},
+            "training": [
+                {
+                    "image": "./imagesTr/chest_19.nii.gz",
+                    "label": 0
+                },
+                {
+                    "image": "./imagesTr/chest_31.nii.gz",
+                    "label": 1
+                }
+            ],
+            "test": [
+                "./imagesTs/chest_15.nii.gz",
+                "./imagesTs/chest_23.nii.gz"
+            ]
+        }
+        json_str = json.dumps(test_data)
+        file_path = os.path.join(tempdir, "test_data.json")
+        with open(file_path, 'w') as json_file:
+            json_file.write(json_str)
+        result = load_decathalon_datalist(False, "training", file_path, tempdir)
+        self.assertEqual(result[0]["image"], os.path.join(tempdir, "imagesTr/chest_19.nii.gz"))
+        self.assertEqual(result[0]["label"], 0)
+        shutil.rmtree(tempdir)
+
+    def test_seg_no_basedir(self):
+        tempdir = tempfile.mkdtemp()
+        test_data = {
+            "name": "Spleen",
+            "description": "Spleen Segmentation",
+            "labels": {"0": "background", "1": "spleen"},
+            "training": [
+                {
+                    "image": os.path.join(tempdir, "imagesTr/spleen_19.nii.gz"),
+                    "label": os.path.join(tempdir, "labelsTr/spleen_19.nii.gz")
+                },
+                {
+                    "image": os.path.join(tempdir, "imagesTr/spleen_31.nii.gz"),
+                    "label": os.path.join(tempdir, "labelsTr/spleen_31.nii.gz")
+                }
+            ],
+            "test": [
+                os.path.join(tempdir, "imagesTs/spleen_15.nii.gz"),
+                os.path.join(tempdir, "imagesTs/spleen_23.nii.gz")
+            ]
+        }
+        json_str = json.dumps(test_data)
+        file_path = os.path.join(tempdir, "test_data.json")
+        with open(file_path, 'w') as json_file:
+            json_file.write(json_str)
+        result = load_decathalon_datalist(True, "training", file_path, None)
+        self.assertEqual(result[0]["image"], os.path.join(tempdir, "imagesTr/spleen_19.nii.gz"))
+        self.assertEqual(result[0]["label"], os.path.join(tempdir, "labelsTr/spleen_19.nii.gz"))
+
+    def test_seg_no_labels(self):
+        tempdir = tempfile.mkdtemp()
+        test_data = {
+            "name": "Spleen",
+            "description": "Spleen Segmentation",
+            "labels": {"0": "background", "1": "spleen"},
+            "test": [
+                "./imagesTs/spleen_15.nii.gz",
+                "./imagesTs/spleen_23.nii.gz"
+            ]
+        }
+        json_str = json.dumps(test_data)
+        file_path = os.path.join(tempdir, "test_data.json")
+        with open(file_path, 'w') as json_file:
+            json_file.write(json_str)
+        result = load_decathalon_datalist(True, "test", file_path, tempdir)
+        self.assertEqual(result[0]["image"], os.path.join(tempdir, "imagesTs/spleen_15.nii.gz"))
         shutil.rmtree(tempdir)
 
 
