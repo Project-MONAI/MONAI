@@ -33,7 +33,7 @@ def write_nifti(
     into the coordinate system defined by `target_affine` when `target_affine`
     is specified.
 
-    if the coordinate transform between `affine` and `target_affine` could be
+    If the coordinate transform between `affine` and `target_affine` could be
     achieved by simply transposing and flipping `data`, no resampling will
     happen.  otherwise this function will resample `data` using the coordinate
     transform computed from `affine` and `target_affine`.  Note that the shape
@@ -45,11 +45,11 @@ def write_nifti(
     13.333x13.333 pixels. In this case `output_shape` could be specified so
     that this function writes image data to a designated shape.
 
-    when `affine` and `target_affine` are None, the data will be saved with an
+    When `affine` and `target_affine` are None, the data will be saved with an
     identity matrix as the image affine.
 
     This function assumes the NIfTI dimension notations.
-    Spatially It supports up to three dimensions, that is, H, HW, HWD for
+    Spatially it supports up to three dimensions, that is, H, HW, HWD for
     1D, 2D, 3D respectively.
     When saving multiple time steps or multiple channels `data`, time and/or
     modality axes should be appended after the first three dimensions.  For

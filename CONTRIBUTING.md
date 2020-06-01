@@ -6,6 +6,7 @@
   * [Utility functions](#utility-functions)
   * [Building the documentation](#building-the-documentation)
 - [Unit testing](#unit-testing)
+- [Linting and code style testing](#linting-and-code-style-testing)
 - [The code reviewing process (for the maintainers)](#the-code-reviewing-process)
   * [Reviewing pull requests](#reviewing-pull-requests)
 - [Admin tasks](#admin-tasks)
@@ -116,7 +117,7 @@ When new classes or methods are added, it is recommended to:
 MONAI tests are located under `tests/`.
 
 - The unit test's file name follows `test_[module_name].py`.
-- The integration test's file name follows `integration_[workflow_name].py`.
+- The integration test's file name follows `test_integration_[workflow_name].py`.
 
 A bash script (`runtests.sh`) is provided to run all tests locally
 Please run ``./runtests.sh -h`` to see all options.
