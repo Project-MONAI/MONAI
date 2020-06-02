@@ -32,13 +32,13 @@ class TverskyLoss(_Loss):
 
     def __init__(
         self,
-        include_background=True,
-        to_onehot_y=False,
-        do_sigmoid=False,
-        do_softmax=False,
-        alpha=0.5,
-        beta=0.5,
-        reduction="mean",
+        include_background: bool = True,
+        to_onehot_y: bool = False,
+        do_sigmoid: bool = False,
+        do_softmax: bool = False,
+        alpha: float = 0.5,
+        beta: float = 0.5,
+        reduction: str = "mean",
     ):
 
         """
@@ -68,7 +68,7 @@ class TverskyLoss(_Loss):
         self.alpha = alpha
         self.beta = beta
 
-    def forward(self, input, target, smooth=1e-5):
+    def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5):
         """
         Args:
             input (tensor): the shape should be BNH[WD].

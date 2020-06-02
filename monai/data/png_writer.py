@@ -14,7 +14,15 @@ from skimage import io, transform
 
 
 def write_png(
-    data, file_name, output_shape=None, interp_order=3, mode="constant", cval=0, scale=False, plugin=None, **plugin_args
+    data,
+    file_name,
+    output_shape=None,
+    interp_order=3,
+    mode="constant",
+    cval=0,
+    scale=False,
+    plugin=None,
+    **plugin_args,
 ):
     """
     Write numpy data into png files to disk.  

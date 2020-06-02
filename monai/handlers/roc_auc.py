@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Union
+from typing import Optional, Sequence, Union, Callable
 
 import torch
 from ignite.metrics import Metric
@@ -22,8 +22,8 @@ class ROCAUC(Metric):
     accumulating predictions and the ground-truth during an epoch and applying `compute_roc_auc`.
 
     Args:
-        to_onehot_y (bool): whether to convert `y` into the one-hot format. Defaults to False.
-        add_softmax (bool): whether to add softmax function to `y_pred` before computation. Defaults to False.
+        to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
+        add_softmax: whether to add softmax function to `y_pred` before computation. Defaults to False.
         average (`macro|weighted|micro|None`): type of averaging performed if not binary classification.
             Default is 'macro'.
 
@@ -39,7 +39,7 @@ class ROCAUC(Metric):
             :class:`~ignite.engine.Engine` `process_function` output into the
             form expected by the metric. This can be useful if, for example, you have a multi-output model and
             you want to compute the metric with respect to one of the outputs.
-        device (torch.device): device specification in case of distributed computation usage.
+        device: device specification in case of distributed computation usage.
 
     Note:
         ROCAUC expects y to be comprised of 0's and 1's.  y_pred must either be probability estimates or confidence values.
@@ -48,10 +48,10 @@ class ROCAUC(Metric):
 
     def __init__(
         self,
-        to_onehot_y=False,
-        add_softmax=False,
-        average="macro",
-        output_transform=lambda x: x,
+        to_onehot_y: bool = False,
+        add_softmax: bool = False,
+        average: str = "macro",
+        output_transform: Callable = lambda x: x,
         device: Optional[Union[str, torch.device]] = None,
     ):
         super().__init__(output_transform, device=device)

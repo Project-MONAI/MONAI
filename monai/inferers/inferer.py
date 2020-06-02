@@ -11,6 +11,7 @@
 
 from abc import ABC, abstractmethod
 from .utils import sliding_window_inference
+import torch
 
 
 class Inferer(ABC):
@@ -20,7 +21,7 @@ class Inferer(ABC):
     """
 
     @abstractmethod
-    def __call__(self, inputs, network):
+    def __call__(self, inputs: torch.Tensor, network):
         """
         Run inference on `inputs` with the `network` model.
 
@@ -40,7 +41,7 @@ class SimpleInferer(Inferer):
     def __init__(self):
         Inferer.__init__(self)
 
-    def __call__(self, inputs, network):
+    def __call__(self, inputs: torch.Tensor, network):
         """Unified callable function API of Inferers.
 
         Args:
@@ -69,7 +70,7 @@ class SlidingWindowInferer(Inferer):
 
     """
 
-    def __init__(self, roi_size, sw_batch_size=1, overlap=0.25, blend_mode="constant"):
+    def __init__(self, roi_size, sw_batch_size: int = 1, overlap: float = 0.25, blend_mode: str = "constant"):
         Inferer.__init__(self)
         if not isinstance(roi_size, (list, tuple)):
             raise ValueError("must specify the roi size in a list or tuple for SlidingWindow.")
@@ -78,7 +79,7 @@ class SlidingWindowInferer(Inferer):
         self.overlap = overlap
         self.blend_mode = blend_mode
 
-    def __call__(self, inputs, network):
+    def __call__(self, inputs: torch.Tensor, network):
         """
         Unified callable function API of Inferers.
 
