@@ -51,7 +51,7 @@ class Evaluator(Workflow):
         key_val_metric: Optional[Metric] = None,
         additional_metrics=None,
         val_handlers=None,
-    ):
+    ) -> None:
         super().__init__(
             device=device,
             max_epochs=1,
@@ -65,7 +65,7 @@ class Evaluator(Workflow):
             handlers=val_handlers,
         )
 
-    def run(self, global_epoch: int = 1):
+    def run(self, global_epoch: int = 1) -> None:
         """
         Execute validation/evaluation based on Ignite Engine.
 

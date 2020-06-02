@@ -18,7 +18,7 @@ from monai.transforms import Orientationd
 
 
 class TestOrientationdCase(unittest.TestCase):
-    def test_orntd(self):
+    def test_orntd(self) -> None:
         data = {"seg": np.ones((2, 1, 2, 3)), "seg.affine": np.eye(4)}
         ornt = Orientationd(keys="seg", axcodes="RAS")
         res = ornt(data)
@@ -26,7 +26,7 @@ class TestOrientationdCase(unittest.TestCase):
         code = nib.aff2axcodes(res["seg.affine"], ornt.ornt_transform.labels)
         self.assertEqual(code, ("R", "A", "S"))
 
-    def test_orntd_3d(self):
+    def test_orntd_3d(self) -> None:
         data = {
             "seg": np.ones((2, 1, 2, 3)),
             "img": np.ones((2, 1, 2, 3)),
@@ -42,7 +42,7 @@ class TestOrientationdCase(unittest.TestCase):
         code = nib.aff2axcodes(res["img.affine"], ornt.ornt_transform.labels)
         self.assertEqual(code, ("P", "L", "I"))
 
-    def test_orntd_2d(self):
+    def test_orntd_2d(self) -> None:
         data = {"seg": np.ones((2, 1, 3)), "img": np.ones((2, 1, 3)), "seg.affine": np.eye(4), "img.affine": np.eye(4)}
         ornt = Orientationd(keys=("img", "seg"), axcodes="PLI")
         res = ornt(data)
@@ -52,7 +52,7 @@ class TestOrientationdCase(unittest.TestCase):
         code = nib.aff2axcodes(res["img.affine"], ornt.ornt_transform.labels)
         self.assertEqual(code, ("P", "L", "S"))
 
-    def test_orntd_1d(self):
+    def test_orntd_1d(self) -> None:
         data = {"seg": np.ones((2, 3)), "img": np.ones((2, 3)), "seg.affine": np.eye(4), "img.affine": np.eye(4)}
         ornt = Orientationd(keys=("img", "seg"), axcodes="L")
         res = ornt(data)
@@ -62,7 +62,7 @@ class TestOrientationdCase(unittest.TestCase):
         code = nib.aff2axcodes(res["img.affine"], ornt.ornt_transform.labels)
         self.assertEqual(code, ("L", "A", "S"))
 
-    def test_orntd_canonical(self):
+    def test_orntd_canonical(self) -> None:
         data = {
             "seg": np.ones((2, 1, 2, 3)),
             "img": np.ones((2, 1, 2, 3)),

@@ -117,7 +117,7 @@ CASES = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_C
 
 class TestUNET(unittest.TestCase):
     @parameterized.expand(CASES)
-    def test_shape(self, input_param, input_data, expected_shape):
+    def test_shape(self, input_param, input_data, expected_shape) -> None:
         net = UNet(**input_param)
         net.eval()
         with torch.no_grad():

@@ -27,7 +27,7 @@ TEST_CASES = [
 
 class TestRotate(NumpyImageTestCase2D):
     @parameterized.expand(TEST_CASES)
-    def test_correct_results(self, angle, spatial_axes, reshape, order, mode, cval, prefilter):
+    def test_correct_results(self, angle, spatial_axes, reshape, order, mode, cval, prefilter) -> None:
         rotate_fn = Rotate(angle, spatial_axes, reshape, order, mode, cval, prefilter)
         rotated = rotate_fn(self.imt[0])
         expected = list()

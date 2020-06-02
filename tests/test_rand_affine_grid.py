@@ -183,7 +183,7 @@ TEST_CASES = [
 
 class TestRandAffineGrid(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
-    def test_rand_affine_grid(self, input_param, input_data, expected_val):
+    def test_rand_affine_grid(self, input_param, input_data, expected_val) -> None:
         g = RandAffineGrid(**input_param)
         g.set_random_state(123)
         result = g(**input_data)

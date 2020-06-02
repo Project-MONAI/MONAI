@@ -40,7 +40,7 @@ class LoadNiftid(MapTransform):
         dtype: Optional[np.dtype] = np.float32,
         meta_key_format: str = "{}.{}",
         overwriting_keys: bool = False,
-    ):
+    ) -> None:
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -77,7 +77,7 @@ class LoadPNGd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.LoadPNG`.
     """
 
-    def __init__(self, keys: Hashable, dtype: Optional[np.dtype] = np.float32, meta_key_format: str = "{}.{}"):
+    def __init__(self, keys: Hashable, dtype: Optional[np.dtype] = np.float32, meta_key_format: str = "{}.{}") -> None:
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.

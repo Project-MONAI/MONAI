@@ -35,7 +35,7 @@ class NiftiSaver:
         mode: str = "constant",
         cval: Union[int, float] = 0,
         dtype: Optional[np.dtype] = None,
-    ):
+    ) -> None:
         """
         Args:
             output_dir: output image directory.
@@ -65,7 +65,7 @@ class NiftiSaver:
         self.dtype: Optional[np.dtype] = dtype
         self._data_index: int = 0
 
-    def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: Optional[dict] = None):
+    def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: Optional[dict] = None) -> None:
         """
         Save data into a Nifti file.
         The metadata could optionally have the following keys:
@@ -110,7 +110,7 @@ class NiftiSaver:
             dtype=self.dtype or data.dtype,
         )
 
-    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[dict] = None):
+    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[dict] = None) -> None:
         """Save a batch of data into Nifti format files.
 
         args:

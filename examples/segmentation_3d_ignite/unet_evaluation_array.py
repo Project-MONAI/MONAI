@@ -30,7 +30,7 @@ from monai.networks.nets import UNet
 from monai.networks.utils import predict_segmentation
 
 
-def main():
+def main() -> None:
     config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 

@@ -17,7 +17,7 @@ from tests.utils import NumpyImageTestCase2D
 
 
 class TestShiftIntensity(NumpyImageTestCase2D):
-    def test_value(self):
+    def test_value(self) -> None:
         shifter = ShiftIntensity(offset=1.0)
         result = shifter(self.imt)
         expected = self.imt + 1.0

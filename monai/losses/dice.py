@@ -43,7 +43,7 @@ class DiceLoss(_Loss):
         squared_pred: bool = False,
         jaccard: bool = False,
         reduction: str = "mean",
-    ):
+    ) -> None:
         """
         Args:
             include_background (bool): If False channel index 0 (background category) is excluded from the calculation.
@@ -189,7 +189,7 @@ class GeneralizedDiceLoss(_Loss):
         softmax: bool = False,
         w_type: str = "square",
         reduction: str = "mean",
-    ):
+    ) -> None:
         """
         Args:
             include_background (bool): If False channel index 0 (background category) is excluded from the calculation.

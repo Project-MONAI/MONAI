@@ -28,7 +28,7 @@ from monai.inferers import sliding_window_inference
 from monai.metrics import compute_meandice
 
 
-def main():
+def main() -> None:
     config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 

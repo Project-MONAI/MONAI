@@ -67,7 +67,7 @@ DIAGONAL_CASES = [
 
 class TestZoomAffine(unittest.TestCase):
     @parameterized.expand(VALID_CASES)
-    def test_correct(self, affine, scale, expected):
+    def test_correct(self, affine, scale, expected) -> None:
         output = zoom_affine(affine, scale, diagonal=False)
         ornt_affine = nib.orientations.ornt2axcodes(nib.orientations.io_orientation(output))
         ornt_output = nib.orientations.ornt2axcodes(nib.orientations.io_orientation(affine))
@@ -75,7 +75,7 @@ class TestZoomAffine(unittest.TestCase):
         np.testing.assert_allclose(output, expected, rtol=1e-6, atol=1e-6)
 
     @parameterized.expand(DIAGONAL_CASES)
-    def test_diagonal(self, affine, scale, expected):
+    def test_diagonal(self, affine, scale, expected) -> None:
         output = zoom_affine(affine, scale, diagonal=True)
         np.testing.assert_allclose(output, expected, rtol=1e-6, atol=1e-6)
 

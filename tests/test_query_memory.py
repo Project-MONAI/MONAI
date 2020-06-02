@@ -15,7 +15,7 @@ from tests.utils import query_memory
 
 
 class TestQueryMemory(unittest.TestCase):
-    def test_output_str(self):
+    def test_output_str(self) -> None:
         self.assertTrue(isinstance(query_memory(2), str))
         all_device = query_memory(-1)
         self.assertTrue(isinstance(all_device, str))

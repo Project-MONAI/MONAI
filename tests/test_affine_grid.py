@@ -90,7 +90,7 @@ TEST_CASES = [
 
 class TestAffineGrid(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
-    def test_affine_grid(self, input_param, input_data, expected_val):
+    def test_affine_grid(self, input_param, input_data, expected_val) -> None:
         g = AffineGrid(**input_param)
         result = g(**input_data)
         self.assertEqual(torch.is_tensor(result), torch.is_tensor(expected_val))

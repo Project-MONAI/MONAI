@@ -35,17 +35,18 @@ from monai.transforms import (
 )
 from monai.utils import set_determinism
 from tests.utils import skip_if_quick
+from typing import Optional, Union
 
 TEST_DATA_URL = "https://www.dropbox.com/s/5wwskxctvcxiuea/MedNIST.tar.gz"
 
 
 class MedNISTDataset(torch.utils.data.Dataset):
-    def __init__(self, image_files, labels, transforms):
+    def __init__(self, image_files, labels, transforms) -> None:
         self.image_files = image_files
         self.labels = labels
         self.transforms = transforms
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.image_files)
 
     def __getitem__(self, index):
@@ -159,7 +160,7 @@ def run_inference_test(root_dir, test_x, test_y, device=torch.device("cuda:0")):
 
 
 class IntegrationClassification2D(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         set_determinism(seed=0)
         self.data_dir = tempfile.mkdtemp()
 
@@ -204,12 +205,12 @@ class IntegrationClassification2D(unittest.TestCase):
 
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         set_determinism(seed=None)
         shutil.rmtree(self.data_dir)
 
     @skip_if_quick
-    def test_training(self):
+    def test_training(self) -> None:
         repeated = []
         for i in range(2):
             torch.manual_seed(0)

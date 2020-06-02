@@ -19,7 +19,7 @@ from monai.losses import FocalLoss
 
 
 class TestFocalLoss(unittest.TestCase):
-    def test_consistency_with_cross_entropy_2d(self):
+    def test_consistency_with_cross_entropy_2d(self) -> None:
         # For gamma=0 the focal loss reduces to the cross entropy loss
         focal_loss = FocalLoss(gamma=0.0, reduction="mean")
         ce = nn.CrossEntropyLoss(reduction="mean")
@@ -42,7 +42,7 @@ class TestFocalLoss(unittest.TestCase):
                 max_error = abs(a - b)
         self.assertAlmostEqual(max_error, 0.0, places=3)
 
-    def test_consistency_with_cross_entropy_classification(self):
+    def test_consistency_with_cross_entropy_classification(self) -> None:
         # for gamma=0 the focal loss reduces to the cross entropy loss
         focal_loss = FocalLoss(gamma=0.0, reduction="mean")
         ce = nn.CrossEntropyLoss(reduction="mean")
@@ -66,7 +66,7 @@ class TestFocalLoss(unittest.TestCase):
                 max_error = abs(a - b)
         self.assertAlmostEqual(max_error, 0.0, places=3)
 
-    def test_bin_seg_2d(self):
+    def test_bin_seg_2d(self) -> None:
         # define 2d examples
         target = torch.tensor([[0, 0, 0, 0], [0, 1, 1, 0], [0, 1, 1, 0], [0, 0, 0, 0]])
         # add another dimension corresponding to the batch (batch size = 1 here)
@@ -81,7 +81,7 @@ class TestFocalLoss(unittest.TestCase):
         focal_loss_good = float(loss.forward(pred_very_good, target).cpu())
         self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
 
-    def test_empty_class_2d(self):
+    def test_empty_class_2d(self) -> None:
         num_classes = 2
         # define 2d examples
         target = torch.tensor([[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]])
@@ -97,7 +97,7 @@ class TestFocalLoss(unittest.TestCase):
         focal_loss_good = float(loss.forward(pred_very_good, target).cpu())
         self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
 
-    def test_multi_class_seg_2d(self):
+    def test_multi_class_seg_2d(self) -> None:
         num_classes = 6  # labels 0 to 5
         # define 2d examples
         target = torch.tensor([[0, 0, 0, 0], [0, 1, 2, 0], [0, 3, 4, 0], [0, 0, 0, 0]])
@@ -113,7 +113,7 @@ class TestFocalLoss(unittest.TestCase):
         focal_loss_good = float(loss.forward(pred_very_good, target).cpu())
         self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
 
-    def test_bin_seg_3d(self):
+    def test_bin_seg_3d(self) -> None:
         # define 2d examples
         target = torch.tensor(
             [
@@ -137,7 +137,7 @@ class TestFocalLoss(unittest.TestCase):
         focal_loss_good = float(loss.forward(pred_very_good, target).cpu())
         self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
 
-    def test_ill_opts(self):
+    def test_ill_opts(self) -> None:
         chn_input = torch.ones((1, 2, 3))
         chn_target = torch.ones((1, 1, 3))
         with self.assertRaisesRegex(ValueError, ""):
@@ -145,7 +145,7 @@ class TestFocalLoss(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, ""):
             FocalLoss(reduction=None)(chn_input, chn_target)
 
-    def test_ill_shape(self):
+    def test_ill_shape(self) -> None:
         chn_input = torch.ones((1, 2, 3))
         chn_target = torch.ones((1, 3))
         with self.assertRaisesRegex(ValueError, ""):

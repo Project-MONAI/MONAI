@@ -22,7 +22,7 @@ __all__ = ["SkipConnection", "Flatten", "GaussianFilter"]
 class SkipConnection(nn.Module):
     """Concats the forward pass input with the result from the given submodule."""
 
-    def __init__(self, submodule, cat_dim=1):
+    def __init__(self, submodule, cat_dim: int = 1) -> None:
         super().__init__()
         self.submodule = submodule
         self.cat_dim = cat_dim
@@ -39,7 +39,7 @@ class Flatten(nn.Module):
 
 
 class GaussianFilter(nn.Module):
-    def __init__(self, spatial_dims, sigma, truncated: float = 4.0):
+    def __init__(self, spatial_dims, sigma, truncated: float = 4.0) -> None:
         """
         Args:
             spatial_dims (int): number of spatial dimensions of the input image.

@@ -49,7 +49,7 @@ class RandGaussianNoised(Randomizable, MapTransform):
         self._do_transform = False
         self._noise = None
 
-    def randomize(self, im_shape):
+    def randomize(self, im_shape) -> None:
         self._do_transform = self.R.random() < self.prob
         self._noise = self.R.normal(self.mean, self.R.uniform(0, self.std), size=im_shape)
 
@@ -70,7 +70,7 @@ class ShiftIntensityd(MapTransform):
     dictionary-based wrapper of :py:class:`monai.transforms.ShiftIntensity`.
     """
 
-    def __init__(self, keys: Hashable, offset: Union[int, float]):
+    def __init__(self, keys: Hashable, offset: Union[int, float]) -> None:
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -92,7 +92,7 @@ class RandShiftIntensityd(Randomizable, MapTransform):
     dictionary-based version :py:class:`monai.transforms.RandShiftIntensity`.
     """
 
-    def __init__(self, keys: Hashable, offsets, prob: float = 0.1):
+    def __init__(self, keys: Hashable, offsets, prob: float = 0.1) -> None:
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -108,7 +108,7 @@ class RandShiftIntensityd(Randomizable, MapTransform):
         self.prob = prob
         self._do_transform = False
 
-    def randomize(self):
+    def randomize(self) -> None:
         self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
         self._do_transform = self.R.random() < self.prob
 
@@ -136,7 +136,7 @@ class ScaleIntensityd(MapTransform):
         minv: Union[int, float] = 0.0,
         maxv: Union[int, float] = 1.0,
         factor: Optional[float] = None,
-    ):
+    ) -> None:
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -161,7 +161,7 @@ class RandScaleIntensityd(Randomizable, MapTransform):
     dictionary-based version :py:class:`monai.transforms.RandScaleIntensity`.
     """
 
-    def __init__(self, keys: Hashable, factors, prob: float = 0.1):
+    def __init__(self, keys: Hashable, factors, prob: float = 0.1) -> None:
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -178,7 +178,7 @@ class RandScaleIntensityd(Randomizable, MapTransform):
         self.prob = prob
         self._do_transform = False
 
-    def randomize(self):
+    def randomize(self) -> None:
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
         self._do_transform = self.R.random() < self.prob
 
@@ -216,7 +216,7 @@ class NormalizeIntensityd(MapTransform):
         divisor: Optional[np.ndarray] = None,
         nonzero: bool = False,
         channel_wise: bool = False,
-    ):
+    ) -> None:
         super().__init__(keys)
         self.normalizer = NormalizeIntensity(subtrahend, divisor, nonzero, channel_wise)
 
@@ -239,7 +239,9 @@ class ThresholdIntensityd(MapTransform):
         cval (float or int): value to fill the remaining parts of the image, default is 0.
     """
 
-    def __init__(self, keys: Hashable, threshold: Union[int, float], above: bool = True, cval: Union[int, float] = 0):
+    def __init__(
+        self, keys: Hashable, threshold: Union[int, float], above: bool = True, cval: Union[int, float] = 0
+    ) -> None:
         super().__init__(keys)
         self.filter = ThresholdIntensity(threshold, above, cval)
 
@@ -272,7 +274,7 @@ class ScaleIntensityRanged(MapTransform):
         b_min: Union[int, float],
         b_max: Union[int, float],
         clip: bool = False,
-    ):
+    ) -> None:
         super().__init__(keys)
         self.scaler = ScaleIntensityRange(a_min, a_max, b_min, b_max, clip)
 
@@ -294,7 +296,7 @@ class AdjustContrastd(MapTransform):
         gamma (float): gamma value to adjust the contrast as function.
     """
 
-    def __init__(self, keys: Hashable, gamma: Union[int, float]):
+    def __init__(self, keys: Hashable, gamma: Union[int, float]) -> None:
         super().__init__(keys)
         self.adjuster = AdjustContrast(gamma)
 
@@ -333,7 +335,7 @@ class RandAdjustContrastd(Randomizable, MapTransform):
         self._do_transform = False
         self.gamma_value = None
 
-    def randomize(self):
+    def randomize(self) -> None:
         self._do_transform = self.R.random_sample() < self.prob
         self.gamma_value = self.R.uniform(low=self.gamma[0], high=self.gamma[1])
 

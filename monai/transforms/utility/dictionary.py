@@ -40,7 +40,7 @@ class AsChannelFirstd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.AsChannelFirst`.
     """
 
-    def __init__(self, keys: Hashable, channel_dim: int = -1):
+    def __init__(self, keys: Hashable, channel_dim: int = -1) -> None:
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -62,7 +62,7 @@ class AsChannelLastd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.AsChannelLast`.
     """
 
-    def __init__(self, keys: Hashable, channel_dim: int = 0):
+    def __init__(self, keys: Hashable, channel_dim: int = 0) -> None:
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -84,7 +84,7 @@ class AddChanneld(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.AddChannel`.
     """
 
-    def __init__(self, keys: Hashable):
+    def __init__(self, keys: Hashable) -> None:
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -105,7 +105,7 @@ class RepeatChanneld(MapTransform):
     dictionary-based wrapper of :py:class:`monai.transforms.RepeatChannel`.
     """
 
-    def __init__(self, keys: Hashable, repeats: int):
+    def __init__(self, keys: Hashable, repeats: int) -> None:
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -127,7 +127,7 @@ class CastToTyped(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.CastToType`.
     """
 
-    def __init__(self, keys: Hashable, dtype: np.dtype = np.float32):
+    def __init__(self, keys: Hashable, dtype: np.dtype = np.float32) -> None:
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -149,7 +149,7 @@ class ToTensord(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.ToTensor`.
     """
 
-    def __init__(self, keys: Hashable):
+    def __init__(self, keys: Hashable) -> None:
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -171,7 +171,7 @@ class DeleteKeysd(MapTransform):
     It will remove the key-values and copy the others to construct a new dictionary.
     """
 
-    def __init__(self, keys: Hashable):
+    def __init__(self, keys: Hashable) -> None:
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -188,7 +188,7 @@ class SqueezeDimd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.SqueezeDim`.
     """
 
-    def __init__(self, keys: Hashable, dim: Optional[int] = None):
+    def __init__(self, keys: Hashable, dim: Optional[int] = None) -> None:
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -263,7 +263,7 @@ class SimulateDelayd(MapTransform):
     dictionary-based wrapper of :py:class:monai.transforms.utility.array.SimulateDelay.
     """
 
-    def __init__(self, keys: Hashable, delay_time=0.0):
+    def __init__(self, keys: Hashable, delay_time: float = 0.0) -> None:
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.

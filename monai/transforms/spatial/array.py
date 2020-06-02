@@ -50,7 +50,7 @@ class Spacing(Transform):
         mode: str = "nearest",
         cval: Union[int, float] = 0,
         dtype: Optional[np.dtype] = None,
-    ):
+    ) -> None:
         """
         Args:
             pixdim: output voxel spacing.
@@ -147,7 +147,7 @@ class Orientation(Transform):
         axcodes: Optional[Sequence[str]] = None,
         as_closest_canonical: bool = False,
         labels: Tuple[Tuple[str, str], ...] = tuple(zip("LPI", "RAS")),
-    ):
+    ) -> None:
         """
         Args:
             axcodes: for spatial ND input's orientation.
@@ -227,7 +227,7 @@ class Flip(Transform):
         spatial_axis: spatial axes along which to flip over. Default is None.
     """
 
-    def __init__(self, spatial_axis: Optional[Union[int, Tuple[int, int], Tuple[int, int, int]]] = None):
+    def __init__(self, spatial_axis: Optional[Union[int, Tuple[int, int], Tuple[int, int, int]]] = None) -> None:
         self.spatial_axis = spatial_axis
 
     def __call__(self, img: TransformDataType, *args, **kwargs) -> TransformDataType:
@@ -522,7 +522,7 @@ class RandRotate90(Randomizable, Transform):
         self._do_transform = False
         self._rand_k = 0
 
-    def randomize(self):
+    def randomize(self) -> None:
         self._rand_k = self.R.randint(self.max_k) + 1
         self._do_transform = self.R.random() < self.prob
 
@@ -580,7 +580,7 @@ class RandRotate(Randomizable, Transform):
         self._do_transform = False
         self.angle = None
 
-    def randomize(self):
+    def randomize(self) -> None:
         self._do_transform = self.R.random_sample() < self.prob
         self.angle = self.R.uniform(low=self.degrees[0], high=self.degrees[1])
 
@@ -617,12 +617,12 @@ class RandFlip(Randomizable, Transform):
         spatial_axis (None, int or tuple of ints): Spatial axes along which to flip over. Default is None.
     """
 
-    def __init__(self, prob: float = 0.1, spatial_axis=None):
+    def __init__(self, prob: float = 0.1, spatial_axis=None) -> None:
         self.prob = prob
         self.flipper = Flip(spatial_axis=spatial_axis)
         self._do_transform = False
 
-    def randomize(self):
+    def randomize(self) -> None:
         self._do_transform = self.R.random_sample() < self.prob
 
     def __call__(self, img):
@@ -681,7 +681,7 @@ class RandZoom(Randomizable, Transform):
         self._do_transform = False
         self._zoom = None
 
-    def randomize(self):
+    def randomize(self) -> None:
         self._do_transform = self.R.random_sample() < self.prob
         if hasattr(self.min_zoom, "__iter__"):
             self._zoom = (self.R.uniform(l, h) for l, h in zip(self.min_zoom, self.max_zoom))
@@ -722,7 +722,7 @@ class AffineGrid(Transform):
         scale_params=None,
         as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
-    ):
+    ) -> None:
         self.rotate_params = rotate_params
         self.shear_params = shear_params
         self.translate_params = translate_params
@@ -777,7 +777,7 @@ class RandAffineGrid(Randomizable, Transform):
         scale_range=None,
         as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
-    ):
+    ) -> None:
         """
         Args:
             rotate_range (a sequence of positive floats): rotate_range[0] with be used to generate the 1st rotation
@@ -815,7 +815,7 @@ class RandAffineGrid(Randomizable, Transform):
         self.as_tensor_output = as_tensor_output
         self.device = device
 
-    def randomize(self):
+    def randomize(self) -> None:
         if self.rotate_range:
             self.rotate_params = [self.R.uniform(-f, f) for f in self.rotate_range if f is not None]
         if self.shear_range:
@@ -847,7 +847,9 @@ class RandDeformGrid(Randomizable, Transform):
     generate random deformation grid
     """
 
-    def __init__(self, spacing, magnitude_range, as_tensor_output: bool = True, device: Optional[torch.device] = None):
+    def __init__(
+        self, spacing, magnitude_range, as_tensor_output: bool = True, device: Optional[torch.device] = None
+    ) -> None:
         """
         Args:
             spacing (2 or 3 ints): spacing of the grid in 2D or 3D.
@@ -868,7 +870,7 @@ class RandDeformGrid(Randomizable, Transform):
         self.random_offset = 0.0
         self.device = device
 
-    def randomize(self, grid_size):
+    def randomize(self, grid_size) -> None:
         self.random_offset = self.R.normal(size=([len(grid_size)] + list(grid_size))).astype(np.float32)
         self.rand_mag = self.R.uniform(self.magnitude[0], self.magnitude[1])
 
@@ -888,7 +890,7 @@ class Resample(Transform):
         mode: str = "bilinear",
         as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
-    ):
+    ) -> None:
         """
         computes output image using values from `img`, locations from `grid` using pytorch.
         supports spatially 2D or 3D (num_channels, H, W[, D]).
@@ -958,7 +960,7 @@ class Affine(Transform):
         padding_mode: str = "zeros",
         as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
-    ):
+    ) -> None:
         """
         The affine transformations are applied in rotate, shear, translate, scale order.
 
@@ -1033,7 +1035,7 @@ class RandAffine(Randomizable, Transform):
         padding_mode: str = "zeros",
         as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
-    ):
+    ) -> None:
         """
         Args:
             prob (float): probability of returning a randomized affine grid.
@@ -1074,7 +1076,7 @@ class RandAffine(Randomizable, Transform):
         super().set_random_state(seed, state)
         return self
 
-    def randomize(self):
+    def randomize(self) -> None:
         self.do_transform = self.R.rand() < self.prob
         self.rand_affine_grid.randomize()
 
@@ -1124,7 +1126,7 @@ class Rand2DElastic(Randomizable, Transform):
         padding_mode: str = "zeros",
         as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
-    ):
+    ) -> None:
         """
         Args:
             spacing (2 ints): distance in between the control points.
@@ -1170,7 +1172,7 @@ class Rand2DElastic(Randomizable, Transform):
         super().set_random_state(seed, state)
         return self
 
-    def randomize(self, spatial_size):
+    def randomize(self, spatial_size) -> None:
         self.do_transform = self.R.rand() < self.prob
         self.deform_grid.randomize(spatial_size)
         self.rand_affine_grid.randomize()
@@ -1220,7 +1222,7 @@ class Rand3DElastic(Randomizable, Transform):
         padding_mode: str = "zeros",
         as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
-    ):
+    ) -> None:
         """
         Args:
             sigma_range (2 ints): a Gaussian kernel with standard deviation sampled
@@ -1263,7 +1265,7 @@ class Rand3DElastic(Randomizable, Transform):
         super().set_random_state(seed, state)
         return self
 
-    def randomize(self, grid_size):
+    def randomize(self, grid_size) -> None:
         self.do_transform = self.R.rand() < self.prob
         if self.do_transform:
             self.rand_offset = self.R.uniform(-1.0, 1.0, [3] + list(grid_size)).astype(np.float32)

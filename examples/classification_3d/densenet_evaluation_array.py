@@ -20,7 +20,7 @@ from monai.data import NiftiDataset, CSVSaver
 from monai.transforms import Compose, AddChannel, ScaleIntensity, Resize, ToTensor
 
 
-def main():
+def main() -> None:
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 

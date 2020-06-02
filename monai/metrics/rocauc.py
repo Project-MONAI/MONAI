@@ -17,7 +17,7 @@ import numpy as np
 from monai.networks.utils import one_hot
 
 
-def _calculate(y, y_pred):
+def _calculate(y, y_pred) -> float:
     assert y.ndimension() == y_pred.ndimension() == 1 and len(y) == len(
         y_pred
     ), "y and y_pred must be 1 dimension data with same length."

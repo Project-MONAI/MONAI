@@ -405,7 +405,7 @@ def to_affine_nd(r, affine):
     return new_affine
 
 
-def create_file_basename(postfix: str, input_file_name: str, folder_path: str, data_root_dir: str = ""):
+def create_file_basename(postfix: str, input_file_name: str, folder_path: str, data_root_dir: str = "") -> str:
     """
     Utility function to create the path to the output file based on the input
     filename (extension is added by lib level writer before writing the file)

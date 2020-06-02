@@ -24,7 +24,7 @@ def compute_meandice(
     mutually_exclusive: bool = False,
     sigmoid: bool = False,
     logit_thresh: float = 0.5,
-):
+) -> torch.Tensor:
     """Computes Dice score metric from full size Tensor and collects average.
 
     Args:

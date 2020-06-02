@@ -30,7 +30,7 @@ class GridPatchDataset(IterableDataset):
         start_pos: Iterable[int] = (),
         pad_mode: Optional[str] = "wrap",
         **pad_opts: Optional[dict],
-    ):
+    ) -> None:
         """
         Initializes this dataset in terms of the input dataset and patch size. The `patch_size` is the size of the 
         patch to sample from the input arrays. Tt is assumed the arrays first dimension is the channel dimension which

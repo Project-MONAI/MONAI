@@ -24,13 +24,13 @@ VALID_CASES = [("no_axis", None), ("one_axis", 1), ("many_axis", [0, 1])]
 
 class TestFlipd(NumpyImageTestCase2D):
     @parameterized.expand(INVALID_CASES)
-    def test_invalid_cases(self, _, spatial_axis, raises):
+    def test_invalid_cases(self, _, spatial_axis, raises) -> None:
         with self.assertRaises(raises):
             flip = Flipd(keys="img", spatial_axis=spatial_axis)
             flip({"img": self.imt[0]})
 
     @parameterized.expand(VALID_CASES)
-    def test_correct_results(self, _, spatial_axis):
+    def test_correct_results(self, _, spatial_axis) -> None:
         flip = Flipd(keys="img", spatial_axis=spatial_axis)
         expected = list()
         for channel in self.imt[0]:

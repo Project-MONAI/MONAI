@@ -37,7 +37,7 @@ class RestartGenerator:
     used to create an iterator which can start iteration over the given generator multiple times.
     """
 
-    def __init__(self, create_gen):
+    def __init__(self, create_gen) -> None:
         self.create_gen = create_gen
 
     def __iter__(self):
@@ -51,14 +51,14 @@ class MethodReplacer(object):
 
     replace_list_name = "__replacemethods__"
 
-    def __init__(self, meth):
+    def __init__(self, meth) -> None:
         self.meth = meth
 
     def replace_method(self, meth):
         """Return a new method to replace `meth` in the instantiated object, or `meth` to do nothing."""
         return meth
 
-    def __set_name__(self, owner, name):
+    def __set_name__(self, owner, name) -> None:
         """
         Add the (name,self.replace_method) pair to the list named by replace_list_name in `owner`, creating the list and
         replacing the constructor of `owner` if necessary. The replaced constructor will call the old one then do the

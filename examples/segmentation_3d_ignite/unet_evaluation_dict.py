@@ -30,7 +30,7 @@ from monai.transforms import Compose, LoadNiftid, AsChannelFirstd, ScaleIntensit
 from monai.handlers import SegmentationSaver, CheckpointLoader, StatsHandler, MeanDice
 
 
-def main():
+def main() -> None:
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 

@@ -33,7 +33,7 @@ TEST_CASES = [
 
 class TestHandlerTBImage(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
-    def test_tb_image_shape(self, shape):
+    def test_tb_image_shape(self, shape) -> None:
         tempdir = tempfile.mkdtemp()
         shutil.rmtree(tempdir, ignore_errors=True)
 

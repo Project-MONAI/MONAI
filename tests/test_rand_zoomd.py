@@ -25,7 +25,7 @@ VALID_CASES = [(0.9, 1.1, 3, "constant", 0, True, False, False)]
 
 class TestRandZoomd(NumpyImageTestCase2D):
     @parameterized.expand(VALID_CASES)
-    def test_correct_results(self, min_zoom, max_zoom, order, mode, cval, prefilter, use_gpu, keep_size):
+    def test_correct_results(self, min_zoom, max_zoom, order, mode, cval, prefilter, use_gpu, keep_size) -> None:
         key = "img"
         random_zoom = RandZoomd(
             key,
@@ -51,7 +51,7 @@ class TestRandZoomd(NumpyImageTestCase2D):
         self.assertTrue(np.allclose(expected, zoomed[key]))
 
     @parameterized.expand([(0.8, 1.2, 1, "constant", 0, True)])
-    def test_gpu_zoom(self, min_zoom, max_zoom, order, mode, cval, prefilter):
+    def test_gpu_zoom(self, min_zoom, max_zoom, order, mode, cval, prefilter) -> None:
         key = "img"
         if importlib.util.find_spec("cupy"):
             random_zoom = RandZoomd(
@@ -77,14 +77,14 @@ class TestRandZoomd(NumpyImageTestCase2D):
             expected = np.stack(expected).astype(np.float32)
             self.assertTrue(np.allclose(expected, zoomed[key]))
 
-    def test_keep_size(self):
+    def test_keep_size(self) -> None:
         key = "img"
         random_zoom = RandZoomd(key, prob=1.0, min_zoom=0.6, max_zoom=0.7, keep_size=True)
         zoomed = random_zoom({key: self.imt[0]})
         self.assertTrue(np.array_equal(zoomed[key].shape, self.imt.shape[1:]))
 
     @parameterized.expand([("no_min_zoom", None, 1.1, 1, TypeError), ("invalid_order", 0.9, 1.1, "s", TypeError)])
-    def test_invalid_inputs(self, _, min_zoom, max_zoom, order, raises):
+    def test_invalid_inputs(self, _, min_zoom, max_zoom, order, raises) -> None:
         key = "img"
         with self.assertRaises(raises):
             random_zoom = RandZoomd(key, prob=1.0, min_zoom=min_zoom, max_zoom=max_zoom, interp_order=order)

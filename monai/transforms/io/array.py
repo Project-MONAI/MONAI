@@ -35,7 +35,7 @@ class LoadNifti(Transform):
 
     def __init__(
         self, as_closest_canonical: bool = False, image_only: bool = False, dtype: Optional[np.dtype] = np.float32
-    ):
+    ) -> None:
         """
         Args:
             as_closest_canonical (bool): if True, load the image as closest to canonical axis format.
@@ -114,7 +114,7 @@ class LoadPNG(Transform):
     https://pillow.readthedocs.io/en/stable/reference/Image.html
     """
 
-    def __init__(self, image_only: bool = False, dtype: Optional[np.dtype] = np.float32):
+    def __init__(self, image_only: bool = False, dtype: Optional[np.dtype] = np.float32) -> None:
         """Args:
             image_only (bool): if True return only the image volume, otherwise return image data array and metadata.
             dtype (np.dtype, optional): if not None convert the loaded image to this data type.

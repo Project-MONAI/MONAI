@@ -18,7 +18,7 @@ from tests.utils import NumpyImageTestCase2D
 
 
 class TestRandRotate90(NumpyImageTestCase2D):
-    def test_default(self):
+    def test_default(self) -> None:
         rotate = RandRotate90()
         rotate.set_random_state(123)
         rotated = rotate(self.imt[0])
@@ -28,7 +28,7 @@ class TestRandRotate90(NumpyImageTestCase2D):
         expected = np.stack(expected)
         self.assertTrue(np.allclose(rotated, expected))
 
-    def test_k(self):
+    def test_k(self) -> None:
         rotate = RandRotate90(max_k=2)
         rotate.set_random_state(234)
         rotated = rotate(self.imt[0])
@@ -38,7 +38,7 @@ class TestRandRotate90(NumpyImageTestCase2D):
         expected = np.stack(expected)
         self.assertTrue(np.allclose(rotated, expected))
 
-    def test_spatial_axes(self):
+    def test_spatial_axes(self) -> None:
         rotate = RandRotate90(spatial_axes=(0, 1))
         rotate.set_random_state(234)
         rotated = rotate(self.imt[0])
@@ -48,7 +48,7 @@ class TestRandRotate90(NumpyImageTestCase2D):
         expected = np.stack(expected)
         self.assertTrue(np.allclose(rotated, expected))
 
-    def test_prob_k_spatial_axes(self):
+    def test_prob_k_spatial_axes(self) -> None:
         rotate = RandRotate90(prob=1.0, max_k=2, spatial_axes=(0, 1))
         rotate.set_random_state(234)
         rotated = rotate(self.imt[0])

@@ -73,7 +73,7 @@ TEST_CASES = [
 
 class TestRand2DElastic(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
-    def test_rand_2d_elastic(self, input_param, input_data, expected_val):
+    def test_rand_2d_elastic(self, input_param, input_data, expected_val) -> None:
         g = Rand2DElastic(**input_param)
         g.set_random_state(123)
         result = g(**input_data)

@@ -34,7 +34,7 @@ class CheckpointLoader:
 
     """
 
-    def __init__(self, load_path: str, load_dict, name: Optional[str] = None):
+    def __init__(self, load_path: str, load_dict, name: Optional[str] = None) -> None:
         assert load_path is not None, "must provide clear path to load checkpoint."
         self.load_path = load_path
         assert load_dict is not None and len(load_dict) > 0, "must provide target objects to load."
@@ -49,7 +49,7 @@ class CheckpointLoader:
             self.logger = engine.logger
         return engine.add_event_handler(Events.STARTED, self)
 
-    def __call__(self, engine):
+    def __call__(self, engine) -> None:
         checkpoint = torch.load(self.load_path)
         if len(self.load_dict) == 1:
             key = list(self.load_dict.keys())[0]

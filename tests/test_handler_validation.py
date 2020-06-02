@@ -18,12 +18,12 @@ from monai.engines import Evaluator
 
 
 class TestEvaluator(Evaluator):
-    def _iteration(self, engine, batchdata):
+    def _iteration(self, engine, batchdata) -> None:
         pass
 
 
 class TestHandlerValidation(unittest.TestCase):
-    def test_content(self):
+    def test_content(self) -> None:
         data = [0] * 8
 
         # set up engine

@@ -15,7 +15,7 @@ defined in :py:class:`monai.transforms.spatial.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Hashable, Optional
+from typing import Hashable, Optional, Tuple
 
 import numpy as np
 import torch
@@ -194,7 +194,9 @@ class RandRotate90d(Randomizable, MapTransform):
     in the plane specified by `spatial_axes`.
     """
 
-    def __init__(self, keys: Hashable, prob: float = 0.1, max_k: int = 3, spatial_axes=(0, 1)):
+    def __init__(
+        self, keys: Hashable, prob: float = 0.1, max_k: int = 3, spatial_axes: Tuple[int, int] = (0, 1)
+    ) -> None:
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -215,7 +217,7 @@ class RandRotate90d(Randomizable, MapTransform):
         self._do_transform = False
         self._rand_k = 0
 
-    def randomize(self):
+    def randomize(self) -> None:
         self._rand_k = self.R.randint(self.max_k) + 1
         self._do_transform = self.R.random() < self.prob
 
@@ -347,7 +349,7 @@ class RandAffined(Randomizable, MapTransform):
         super().set_random_state(seed, state)
         return self
 
-    def randomize(self):
+    def randomize(self) -> None:
         self.rand_affine.randomize()
 
     def __call__(self, data):
@@ -430,7 +432,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
         super().set_random_state(seed, state)
         return self
 
-    def randomize(self, spatial_size):
+    def randomize(self, spatial_size) -> None:
         self.rand_2d_elastic.randomize(spatial_size)
 
     def __call__(self, data):
@@ -518,7 +520,7 @@ class Rand3DElasticd(Randomizable, MapTransform):
         super().set_random_state(seed, state)
         return self
 
-    def randomize(self, grid_size):
+    def randomize(self, grid_size) -> None:
         self.rand_3d_elastic.randomize(grid_size)
 
     def __call__(self, data):
@@ -552,7 +554,7 @@ class Flipd(MapTransform):
         spatial_axis (None, int or tuple of ints): Spatial axes along which to flip over. Default is None.
     """
 
-    def __init__(self, keys: Hashable, spatial_axis=None):
+    def __init__(self, keys: Hashable, spatial_axis=None) -> None:
         super().__init__(keys)
         self.flipper = Flip(spatial_axis=spatial_axis)
 
@@ -574,7 +576,7 @@ class RandFlipd(Randomizable, MapTransform):
         spatial_axis (None, int or tuple of ints): Spatial axes along which to flip over. Default is None.
     """
 
-    def __init__(self, keys: Hashable, prob: float = 0.1, spatial_axis=None):
+    def __init__(self, keys: Hashable, prob: float = 0.1, spatial_axis=None) -> None:
         super().__init__(keys)
         self.spatial_axis = spatial_axis
         self.prob = prob
@@ -582,7 +584,7 @@ class RandFlipd(Randomizable, MapTransform):
         self._do_transform = False
         self.flipper = Flip(spatial_axis=spatial_axis)
 
-    def randomize(self):
+    def randomize(self) -> None:
         self._do_transform = self.R.random_sample() < self.prob
 
     def __call__(self, data):
@@ -697,7 +699,7 @@ class RandRotated(Randomizable, MapTransform):
         self._do_transform = False
         self.angle = None
 
-    def randomize(self):
+    def randomize(self) -> None:
         self._do_transform = self.R.random_sample() < self.prob
         self.angle = self.R.uniform(low=self.degrees[0], high=self.degrees[1])
 
@@ -818,7 +820,7 @@ class RandZoomd(Randomizable, MapTransform):
         self._do_transform = False
         self._zoom = None
 
-    def randomize(self):
+    def randomize(self) -> None:
         self._do_transform = self.R.random_sample() < self.prob
         if hasattr(self.min_zoom, "__iter__"):
             self._zoom = (self.R.uniform(l, h) for l, h in zip(self.min_zoom, self.max_zoom))

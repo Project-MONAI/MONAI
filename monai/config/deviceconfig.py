@@ -50,5 +50,5 @@ def print_config(file=sys.stdout):
         print(f"{k}: {v}", file=file, flush=True)
 
 
-def set_visible_devices(*dev_inds):
+def set_visible_devices(*dev_inds) -> None:
     os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, dev_inds))

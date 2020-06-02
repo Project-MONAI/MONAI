@@ -39,7 +39,7 @@ class AsChannelFirst(Transform):
         channel_dim (int): which dimension of input image is the channel, default is the last dimension.
     """
 
-    def __init__(self, channel_dim: int = -1):
+    def __init__(self, channel_dim: int = -1) -> None:
         assert isinstance(channel_dim, int) and channel_dim >= -1, "invalid channel dimension."
         self.channel_dim = channel_dim
 
@@ -62,7 +62,7 @@ class AsChannelLast(Transform):
         channel_dim (int): which dimension of input image is the channel, default is the first dimension.
     """
 
-    def __init__(self, channel_dim: int = 0):
+    def __init__(self, channel_dim: int = 0) -> None:
         assert isinstance(channel_dim, int) and channel_dim >= -1, "invalid channel dimension."
         self.channel_dim = channel_dim
 
@@ -98,7 +98,7 @@ class RepeatChannel(Transform):
         repeats (int): the number of repetitions for each element.
     """
 
-    def __init__(self, repeats: int):
+    def __init__(self, repeats: int) -> None:
         assert repeats > 0, "repeats count must be greater than 0."
         self.repeats = repeats
 
@@ -111,7 +111,7 @@ class CastToType(Transform):
     Cast the image data to specified numpy data type.
     """
 
-    def __init__(self, dtype: np.dtype = np.float32):
+    def __init__(self, dtype: np.dtype = np.float32) -> None:
         """
         Args:
             dtype (np.dtype): convert image to this data type, default is `np.float32`.
@@ -139,7 +139,7 @@ class Transpose(Transform):
     Transposes the input image based on the given `indices` dimension ordering.
     """
 
-    def __init__(self, indices):
+    def __init__(self, indices) -> None:
         self.indices = indices
 
     def __call__(self, img):
@@ -151,7 +151,7 @@ class SqueezeDim(Transform):
     Squeeze undesired unitary dimensions
     """
 
-    def __init__(self, dim: Optional[int] = None):
+    def __init__(self, dim: Optional[int] = None) -> None:
         """
         Args:
             dim (int): dimension to be squeezed.
@@ -183,7 +183,7 @@ class DataStats(Transform):
         data_value: bool = False,
         additional_info: Optional[Callable] = None,
         logger_handler: Optional[logging.Handler] = None,
-    ):
+    ) -> None:
         """
         Args:
             prefix (string): will be printed in format: "{prefix} statistics".
@@ -248,7 +248,7 @@ class SimulateDelay(Transform):
     to sub-optimal design choices.
     """
 
-    def __init__(self, delay_time: float = 0.0):
+    def __init__(self, delay_time: float = 0.0) -> None:
         """
         Args:
             delay_time(float): The minimum amount of time, in fractions of seconds,

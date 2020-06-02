@@ -29,7 +29,7 @@ def skip_if_quick(obj):
     return unittest.skipIf(is_quick, "Skipping slow tests")(obj)
 
 
-def make_nifti_image(array, affine=None):
+def make_nifti_image(array, affine=None) -> str:
     """
     Create a temporary nifti image on the disk and return the image name.
     User is responsible for deleting the temporary file when done with it.
@@ -50,7 +50,7 @@ class NumpyImageTestCase2D(unittest.TestCase):
     output_channels = 4
     num_classes = 3
 
-    def setUp(self):
+    def setUp(self) -> None:
         im, msk = create_test_image_2d(self.im_shape[0], self.im_shape[1], 4, 20, 0, self.num_classes)
 
         self.imt = im[None, None]
@@ -59,7 +59,7 @@ class NumpyImageTestCase2D(unittest.TestCase):
 
 
 class TorchImageTestCase2D(NumpyImageTestCase2D):
-    def setUp(self):
+    def setUp(self) -> None:
         NumpyImageTestCase2D.setUp(self)
         self.imt = torch.tensor(self.imt)
         self.seg1 = torch.tensor(self.seg1)
@@ -73,7 +73,7 @@ def expect_failure_if_no_gpu(test):
         return test
 
 
-def query_memory(n=2):
+def query_memory(n: int = 2) -> str:
     """
     Find best n idle devices and return a string of device ids.
     """

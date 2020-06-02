@@ -18,7 +18,7 @@ from tests.utils import NumpyImageTestCase2D
 
 
 class TestRotate90d(NumpyImageTestCase2D):
-    def test_rotate90_default(self):
+    def test_rotate90_default(self) -> None:
         key = "test"
         rotate = Rotate90d(keys=key)
         rotated = rotate({key: self.imt[0]})
@@ -28,7 +28,7 @@ class TestRotate90d(NumpyImageTestCase2D):
         expected = np.stack(expected)
         self.assertTrue(np.allclose(rotated[key], expected))
 
-    def test_k(self):
+    def test_k(self) -> None:
         key = None
         rotate = Rotate90d(keys=key, k=2)
         rotated = rotate({key: self.imt[0]})
@@ -38,7 +38,7 @@ class TestRotate90d(NumpyImageTestCase2D):
         expected = np.stack(expected)
         self.assertTrue(np.allclose(rotated[key], expected))
 
-    def test_spatial_axes(self):
+    def test_spatial_axes(self) -> None:
         key = "test"
         rotate = Rotate90d(keys=key, spatial_axes=(0, 1))
         rotated = rotate({key: self.imt[0]})
@@ -48,7 +48,7 @@ class TestRotate90d(NumpyImageTestCase2D):
         expected = np.stack(expected)
         self.assertTrue(np.allclose(rotated[key], expected))
 
-    def test_prob_k_spatial_axes(self):
+    def test_prob_k_spatial_axes(self) -> None:
         key = "test"
         rotate = Rotate90d(keys=key, k=2, spatial_axes=(0, 1))
         rotated = rotate({key: self.imt[0]})
@@ -58,7 +58,7 @@ class TestRotate90d(NumpyImageTestCase2D):
         expected = np.stack(expected)
         self.assertTrue(np.allclose(rotated[key], expected))
 
-    def test_no_key(self):
+    def test_no_key(self) -> None:
         key = "unknown"
         rotate = Rotate90d(keys=key)
         with self.assertRaisesRegex(KeyError, ""):

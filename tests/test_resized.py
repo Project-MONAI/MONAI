@@ -20,7 +20,7 @@ from tests.utils import NumpyImageTestCase2D
 
 
 class TestResized(NumpyImageTestCase2D):
-    def test_invalid_inputs(self):
+    def test_invalid_inputs(self) -> None:
         with self.assertRaises(TypeError):
             resize = Resized(keys="img", spatial_size=(128, 128, 3), interp_order="order")
             resize({"img": self.imt[0]})
@@ -32,7 +32,7 @@ class TestResized(NumpyImageTestCase2D):
             ((256, 256), 3, "constant", 3, False, False, False),
         ]
     )
-    def test_correct_results(self, spatial_size, order, mode, cval, clip, preserve_range, anti_aliasing):
+    def test_correct_results(self, spatial_size, order, mode, cval, clip, preserve_range, anti_aliasing) -> None:
         resize = Resized("img", spatial_size, order, mode, cval, clip, preserve_range, anti_aliasing)
         expected = list()
         for channel in self.imt[0]:

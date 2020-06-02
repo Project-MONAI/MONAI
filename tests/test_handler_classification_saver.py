@@ -21,7 +21,7 @@ from monai.handlers import ClassificationSaver
 
 
 class TestHandlerClassificationSaver(unittest.TestCase):
-    def test_saved_content(self):
+    def test_saved_content(self) -> None:
         default_dir = os.path.join(".", "tempdir")
         shutil.rmtree(default_dir, ignore_errors=True)
 

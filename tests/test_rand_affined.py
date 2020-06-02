@@ -82,7 +82,7 @@ TEST_CASES = [
 
 class TestRandAffined(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
-    def test_rand_affined(self, input_param, input_data, expected_val):
+    def test_rand_affined(self, input_param, input_data, expected_val) -> None:
         g = RandAffined(**input_param).set_random_state(123)
         res = g(input_data)
         for key in res:

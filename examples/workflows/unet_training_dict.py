@@ -47,7 +47,7 @@ from monai.engines import SupervisedTrainer, SupervisedEvaluator
 from monai.inferers import SimpleInferer, SlidingWindowInferer
 
 
-def main():
+def main() -> None:
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 

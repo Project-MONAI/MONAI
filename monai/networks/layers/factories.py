@@ -84,7 +84,7 @@ class LayerFactory:
 
         return tuple(self.factories)
 
-    def add_factory_callable(self, name, func):
+    def add_factory_callable(self, name, func) -> None:
         """
         Add the factory function to this object under the given name.
         """

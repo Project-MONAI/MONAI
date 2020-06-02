@@ -214,7 +214,7 @@ def to_kwargs(fn):
 
 
 class FunctionSignature:
-    def __init__(self, function):
+    def __init__(self, function) -> None:
         import inspect
 
         sfn = inspect.signature(function)
@@ -231,7 +231,7 @@ class FunctionSignature:
                 self.non_var_parameters.add(p.name)
                 self.defaults[p.name] = p.default is not p.empty
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         s = "<class 'FunctionSignature': found_args={}, found_kwargs={}, defaults={}"
         return s.format(self.found_args, self.found_kwargs, self.defaults)
 

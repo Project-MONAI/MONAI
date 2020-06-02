@@ -104,11 +104,11 @@ TEST_CASES = [
 
 class TestTverskyLoss(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
-    def test_shape(self, input_param, input_data, expected_val):
+    def test_shape(self, input_param, input_data, expected_val) -> None:
         result = TverskyLoss(**input_param).forward(**input_data)
         np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, rtol=1e-4)
 
-    def test_ill_shape(self):
+    def test_ill_shape(self) -> None:
         loss = TverskyLoss()
         with self.assertRaisesRegex(AssertionError, ""):
             loss.forward(torch.ones((2, 2, 3)), torch.ones((4, 5, 6)))
@@ -119,7 +119,7 @@ class TestTverskyLoss(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, ""):
             TverskyLoss(reduction=None)(chn_input, chn_target)
 
-    def test_input_warnings(self):
+    def test_input_warnings(self) -> None:
         chn_input = torch.ones((1, 1, 3))
         chn_target = torch.ones((1, 1, 3))
         with self.assertWarns(Warning):

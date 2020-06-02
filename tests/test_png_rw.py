@@ -19,7 +19,7 @@ import numpy as np
 
 
 class TestPngWrite(unittest.TestCase):
-    def test_write_gray(self):
+    def test_write_gray(self) -> None:
         with tempfile.TemporaryDirectory() as out_dir:
             image_name = os.path.join(out_dir, "test.png")
             img = np.random.rand(2, 3, 1)
@@ -30,7 +30,7 @@ class TestPngWrite(unittest.TestCase):
             out = io.imread(image_name)
             np.testing.assert_allclose(out, img_save_val)
 
-    def test_write_rgb(self):
+    def test_write_rgb(self) -> None:
         with tempfile.TemporaryDirectory() as out_dir:
             image_name = os.path.join(out_dir, "test.png")
             img = np.random.rand(2, 3, 3)
@@ -39,7 +39,7 @@ class TestPngWrite(unittest.TestCase):
             out = io.imread(image_name)
             np.testing.assert_allclose(out, img_save_val)
 
-    def test_write_output_shape(self):
+    def test_write_output_shape(self) -> None:
         with tempfile.TemporaryDirectory() as out_dir:
             image_name = os.path.join(out_dir, "test.png")
             img = np.random.rand(2, 2, 3)

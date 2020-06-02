@@ -59,7 +59,7 @@ TEST_CASES = [
 
 class TestRandAffine(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
-    def test_rand_affine(self, input_param, input_data, expected_val):
+    def test_rand_affine(self, input_param, input_data, expected_val) -> None:
         g = RandAffine(**input_param)
         g.set_random_state(123)
         result = g(**input_data)
