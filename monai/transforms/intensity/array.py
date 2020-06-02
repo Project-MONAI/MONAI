@@ -53,7 +53,7 @@ class ShiftIntensity(Transform):
         offset: offset value to shift the intensity of image.
     """
 
-    def __init__(self, offset: float):
+    def __init__(self, offset: float) -> None:
         self.offset = offset
 
     def __call__(self, img):
@@ -94,7 +94,9 @@ class ScaleIntensity(Transform):
     If `minv` and `maxv` not provided, use `factor` to scale image by ``v = v * (1 + factor)``.
     """
 
-    def __init__(self, minv: Optional[float] = 0.0, maxv: Optional[float] = 1.0, factor: Optional[float] = None):
+    def __init__(
+        self, minv: Optional[float] = 0.0, maxv: Optional[float] = 1.0, factor: Optional[float] = None
+    ) -> None:
         """
         Args:
             minv: minimum value of output data.
@@ -203,7 +205,7 @@ class ThresholdIntensity(Transform):
         cval: value to fill the remaining parts of the image, default is 0.
     """
 
-    def __init__(self, threshold: float, above: bool = True, cval: float = 0.0):
+    def __init__(self, threshold: float, above: bool = True, cval: float = 0.0) -> None:
         threshold = float(threshold)
         assert isinstance(threshold, float), "must set the threshold to filter intensity."
         self.threshold: float = threshold
@@ -226,7 +228,7 @@ class ScaleIntensityRange(Transform):
         clip: whether to perform clip after scaling.
     """
 
-    def __init__(self, a_min: float, a_max: float, b_min: float, b_max: float, clip: bool = False):
+    def __init__(self, a_min: float, a_max: float, b_min: float, b_max: float, clip: bool = False) -> None:
         self.a_min = a_min
         self.a_max = a_max
         self.b_min = b_min
@@ -250,7 +252,7 @@ class AdjustContrast(Transform):
         gamma: gamma value to adjust the contrast as function.
     """
 
-    def __init__(self, gamma: float):
+    def __init__(self, gamma: float) -> None:
         assert isinstance(gamma, float), "gamma must be a float number."
         self.gamma = gamma
 
