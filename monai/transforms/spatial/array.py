@@ -815,10 +815,10 @@ class RandAffineGrid(Randomizable, Transform):
         self.translate_range = ensure_tuple(translate_range)
         self.scale_range = ensure_tuple(scale_range)
 
-        self.rotate_params = None
-        self.shear_params = None
-        self.translate_params = None
-        self.scale_params = None
+        self.rotate_params: Optional[List[float]] = None
+        self.shear_params: Optional[List[float]] = None
+        self.translate_params: Optional[List[float]] = None
+        self.scale_params: Optional[List[float]] = None
 
         self.as_tensor_output = as_tensor_output
         self.device = device
