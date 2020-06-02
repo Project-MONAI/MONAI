@@ -28,7 +28,10 @@ def _calculate(y, y_pred) -> float:
     indexes = y_pred.argsort()
     y = y[indexes].cpu().numpy()
     y_pred = y_pred[indexes].cpu().numpy()
-    nneg = auc = tmp_pos = tmp_neg = 0
+    nneg: int = 0
+    auc: float = 0.0
+    tmp_pos: int = 0
+    tmp_neg: int = 0
 
     for i in range(n):
         y_i = y[i]
@@ -40,7 +43,7 @@ def _calculate(y, y_pred) -> float:
             tmp_pos += y_i
             tmp_neg += 1 - y_i
             nneg += tmp_neg
-            auc += tmp_pos * (nneg - tmp_neg / 2)
+            auc += tmp_pos * (nneg - tmp_neg / 2.0)
             tmp_pos = tmp_neg = 0
             continue
         if y_i == 1:
