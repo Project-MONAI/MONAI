@@ -58,7 +58,7 @@ def write_png(
         ), "output_shape must be a list of 2 values (H, W)."
 
         if len(data.shape) == 3:
-            output_shape += (data.shape[2],)
+            output_shape = tuple(output_shape) + (data.shape[2],)
 
         data = transform.resize(data, output_shape, order=interp_order, mode=mode, cval=cval, preserve_range=True)
 
