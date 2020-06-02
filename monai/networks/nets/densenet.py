@@ -149,9 +149,9 @@ class DenseNet(nn.Module):
         # Avoid Built-in function isinstance was called with the wrong arguments warning
         # pytype: disable=wrong-arg-types
         for m in self.modules():
-            if isinstance(m, conv_type):
+            if isinstance(m, conv_type):  # type: ignore
                 nn.init.kaiming_normal_(m.weight)
-            elif isinstance(m, norm_type):
+            elif isinstance(m, norm_type):  # type: ignore
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
             elif isinstance(m, nn.Linear):
