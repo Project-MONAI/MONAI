@@ -14,7 +14,7 @@ from typing import List, Callable, Optional, Union
 import numpy as np
 from torch.utils.data import Dataset
 from monai.transforms import LoadNifti, Randomizable, apply_transform
-from monai.utils.misc import get_seed
+from monai.utils.misc import get_seed, MONAINumpyDataType
 
 
 class NiftiDataset(Dataset, Randomizable):
@@ -32,7 +32,8 @@ class NiftiDataset(Dataset, Randomizable):
         transform: Optional[Callable] = None,
         seg_transform: Optional[Callable] = None,
         image_only: bool = True,
-        dtype: Optional[np.dtype] = np.float32,
+        dtype: Optional[MONAINumpyDataType] = np.float32,
+        # T484 Incompatible default for argument "dtype" (default has type "Type[float32]", argument has type "Optional[dtype]")
     ) -> None:
         """
         Initializes the dataset with the image and segmentation filename lists. The transform `transform` is applied
@@ -54,12 +55,12 @@ class NiftiDataset(Dataset, Randomizable):
 
         self.image_files: List[str] = image_files
         self.seg_files: Optional[List[str]] = seg_files
-        self.labels: Optional[Union[List, np.array]] = labels
+        self.labels: Optional[Union[List, np.ndarray]] = labels
         self.as_closest_canonical: bool = as_closest_canonical
         self.transform: Optional[Callable] = transform
         self.seg_transform: Optional[Callable] = seg_transform
         self.image_only: bool = image_only
-        self.dtype: Optional[np.dtype] = dtype
+        self.dtype: Optional[MONAINumpyDataType] = dtype
         self.set_random_state(seed=get_seed())
 
         self._seed = 0  # transform synchronization seed

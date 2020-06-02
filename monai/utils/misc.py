@@ -11,11 +11,15 @@
 
 import itertools
 from collections.abc import Iterable
-from typing import Optional
+from typing import Optional, TypeVar
 
 import numpy as np
 import torch
 import random
+
+MONAINumpyDataType = TypeVar(
+    "MONAINumpyDataType", np.uint8, np.uint16, np.uint32, np.uint64, np.float16, np.float32, np.float64
+)
 
 _seed: Optional[int] = None
 

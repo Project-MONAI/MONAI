@@ -322,7 +322,7 @@ def zoom_affine(affine, scale, diagonal: bool = True):
         raise ValueError("scale must be a sequence of positive numbers.")
     d = len(affine) - 1
     if len(scale) < d:  # defaults based on affine
-        norm = np.sqrt(np.sum(np.square(affine), 0))[:-1]
+        norm = np.sqrt(np.sum(np.square(affine), 0))[:-1]  # type: ignore
         scale = np.append(scale, norm[len(scale) :])
     scale = scale[:d]
     scale[scale == 0] = 1.0

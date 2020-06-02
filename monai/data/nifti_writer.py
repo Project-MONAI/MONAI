@@ -16,6 +16,7 @@ import numpy as np
 import scipy.ndimage
 
 from monai.data.utils import compute_shape_offset, to_affine_nd, InterpolationCode, InterpolationCodeType
+from monai.utils.misc import MONAINumpyDataType
 
 
 def write_nifti(
@@ -28,7 +29,7 @@ def write_nifti(
     interp_order: InterpolationCodeType = InterpolationCode.SPLINE3,
     mode: str = "constant",
     cval: float = 0,
-    dtype: Optional[np.dtype] = None,
+    dtype: Optional[MONAINumpyDataType] = None,
 ) -> None:
     """
     Write numpy data into NIfTI files to disk.  This function converts data

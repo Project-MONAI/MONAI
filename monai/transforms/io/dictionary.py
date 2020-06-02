@@ -21,6 +21,7 @@ import numpy as np
 
 from monai.transforms.compose import MapTransform
 from monai.transforms.io.array import LoadNifti, LoadPNG
+from monai.utils.misc import MONAINumpyDataType
 
 
 class LoadNiftid(MapTransform):
@@ -37,7 +38,7 @@ class LoadNiftid(MapTransform):
         self,
         keys: Hashable,
         as_closest_canonical: bool = False,
-        dtype: Optional[np.dtype] = np.float32,
+        dtype: Optional[MONAINumpyDataType] = np.float32,
         meta_key_format: str = "{}.{}",
         overwriting_keys: bool = False,
     ) -> None:
@@ -77,7 +78,9 @@ class LoadPNGd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.LoadPNG`.
     """
 
-    def __init__(self, keys: Hashable, dtype: Optional[np.dtype] = np.float32, meta_key_format: str = "{}.{}") -> None:
+    def __init__(
+        self, keys: Hashable, dtype: Optional[MONAINumpyDataType] = np.float32, meta_key_format: str = "{}.{}"
+    ) -> None:
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.

@@ -36,7 +36,7 @@ from monai.transforms.spatial.array import (
     Zoom,
 )
 from monai.transforms.utils import create_grid
-from monai.utils.misc import ensure_tuple_rep
+from monai.utils.misc import ensure_tuple_rep, MONAINumpyDataType
 
 
 class Spacingd(MapTransform):
@@ -61,7 +61,7 @@ class Spacingd(MapTransform):
         interp_order=InterpolationCode.SPLINE3,
         mode="nearest",
         cval=0,
-        dtype: Optional[np.dtype] = None,
+        dtype: Optional[MONAINumpyDataType] = None,
         meta_key_format: str = "{}.{}",
     ):
         """

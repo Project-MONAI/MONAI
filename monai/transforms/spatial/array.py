@@ -33,7 +33,7 @@ from monai.transforms.utils import (
     create_shear,
     create_translate,
 )
-from monai.utils.misc import ensure_tuple
+from monai.utils.misc import ensure_tuple, MONAINumpyDataType
 from typing import Sequence, Tuple
 
 
@@ -49,7 +49,7 @@ class Spacing(Transform):
         interp_order: InterpolationCodeType = InterpolationCode.SPLINE3,
         mode: str = "nearest",
         cval: float = 0,
-        dtype: Optional[np.dtype] = None,
+        dtype: Optional[MONAINumpyDataType] = None,
     ) -> None:
         """
         Args:
@@ -75,12 +75,12 @@ class Spacing(Transform):
             dtype: output array data type, defaults to None to use input data's dtype.
         """
         assert mode in ["reflect", "constant", "nearest", "mirror", "wrap"], f"Error: invalid mode {mode}"
-        self.pixdim: np.array = np.array(ensure_tuple(pixdim), dtype=np.float64)
+        self.pixdim: np.ndarray = np.array(ensure_tuple(pixdim), dtype=np.float64)
         self.diagonal: bool = diagonal
         self.interp_order: InterpolationCodeType = interp_order
         self.mode: str = mode
         self.cval: float = cval
-        self.dtype: np.dtype = dtype
+        self.dtype: MONAINumpyDataType = dtype
 
     def __call__(  # type: ignore # see issue #495
         self,
@@ -89,7 +89,7 @@ class Spacing(Transform):
         interp_order: Optional[InterpolationCodeType] = None,
         mode: Optional[str] = None,
         cval: Optional[float] = None,
-        dtype: Optional[np.dtype] = None,
+        dtype: Optional[MONAINumpyDataType] = None,
     ):
         """
         Args:

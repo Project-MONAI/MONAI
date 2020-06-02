@@ -17,7 +17,7 @@ import torch
 import numpy as np
 from skimage import measure
 
-from monai.utils.misc import ensure_tuple
+from monai.utils.misc import ensure_tuple, MONAINumpyDataType
 
 
 def rand_choice(prob=0.5):
@@ -53,7 +53,7 @@ def zero_margins(img, margin):
     return True
 
 
-def rescale_array(arr, minv=0.0, maxv=1.0, dtype: Optional[np.dtype] = np.float32):
+def rescale_array(arr, minv=0.0, maxv=1.0, dtype: Optional[MONAINumpyDataType] = np.float32):
     """Rescale the values of numpy array `arr` to be from `minv` to `maxv`."""
     if dtype is not None:
         arr = arr.astype(dtype)
@@ -68,7 +68,9 @@ def rescale_array(arr, minv=0.0, maxv=1.0, dtype: Optional[np.dtype] = np.float3
     return (norm * (maxv - minv)) + minv  # rescale by minv and maxv, which is the normalized array by default
 
 
-def rescale_instance_array(arr: np.ndarray, minv: float = 0.0, maxv: float = 1.0, dtype: np.dtype = np.float32):
+def rescale_instance_array(
+    arr: np.ndarray, minv: float = 0.0, maxv: float = 1.0, dtype: MONAINumpyDataType = np.float32
+):
     """Rescale each array slice along the first dimension of `arr` independently."""
     out: np.ndarray = np.zeros(arr.shape, dtype)
     for i in range(arr.shape[0]):
@@ -77,7 +79,7 @@ def rescale_instance_array(arr: np.ndarray, minv: float = 0.0, maxv: float = 1.0
     return out
 
 
-def rescale_array_int_max(arr: np.ndarray, dtype: np.dtype = np.uint16):
+def rescale_array_int_max(arr: np.ndarray, dtype: MONAINumpyDataType = np.uint16):
     """Rescale the array `arr` to be between the minimum and maximum values of the type `dtype`."""
     info: np.iinfo = np.iinfo(dtype)
     return rescale_array(arr, info.min, info.max).astype(dtype)
@@ -259,7 +261,7 @@ def apply_transform(transform: Callable, data, map_items: bool = True):
         raise type(e)(f"applying transform {transform}.").with_traceback(e.__traceback__)
 
 
-def create_grid(spatial_size, spacing=None, homogeneous: bool = True, dtype: np.dtype = float):
+def create_grid(spatial_size, spacing=None, homogeneous: bool = True, dtype: MONAINumpyDataType = float):
     """
     compute a `spatial_size` mesh.
 
@@ -277,7 +279,7 @@ def create_grid(spatial_size, spacing=None, homogeneous: bool = True, dtype: np.
     return np.concatenate([coords, np.ones_like(coords[:1])])
 
 
-def create_control_grid(spatial_shape, spacing, homogeneous: bool = True, dtype: Optional[np.dtype] = float):
+def create_control_grid(spatial_shape, spacing, homogeneous: bool = True, dtype: Optional[MONAINumpyDataType] = float):
     """
     control grid with two additional point in each direction
     """

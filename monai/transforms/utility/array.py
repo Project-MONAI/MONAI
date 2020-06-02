@@ -21,6 +21,7 @@ import numpy as np
 import torch
 
 from monai.transforms.compose import Transform
+from monai.utils.misc import MONAINumpyDataType
 
 
 class AsChannelFirst(Transform):
@@ -111,7 +112,7 @@ class CastToType(Transform):
     Cast the image data to specified numpy data type.
     """
 
-    def __init__(self, dtype: np.dtype = np.float32) -> None:
+    def __init__(self, dtype: MONAINumpyDataType = np.float32) -> None:
         """
         Args:
             dtype (np.dtype): convert image to this data type, default is `np.float32`.

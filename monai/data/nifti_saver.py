@@ -16,6 +16,7 @@ import torch
 from monai.data.nifti_writer import write_nifti
 from .utils import create_file_basename
 from monai.data.utils import InterpolationCode, InterpolationCodeType
+from monai.utils.misc import MONAINumpyDataType
 
 
 class NiftiSaver:
@@ -35,7 +36,7 @@ class NiftiSaver:
         interp_order: InterpolationCodeType = InterpolationCode.SPLINE3,
         mode: str = "constant",
         cval: float = 0,
-        dtype: Optional[np.dtype] = None,
+        dtype: Optional[MONAINumpyDataType] = None,
     ) -> None:
         """
         Args:
@@ -63,7 +64,7 @@ class NiftiSaver:
         self.interp_order: int = interp_order
         self.mode: str = mode
         self.cval: float = cval
-        self.dtype: Optional[np.dtype] = dtype
+        self.dtype: Optional[MONAINumpyDataType] = dtype
         self._data_index: int = 0
 
     def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: Optional[dict] = None) -> None:

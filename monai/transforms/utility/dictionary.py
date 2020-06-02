@@ -33,6 +33,7 @@ from monai.transforms.utility.array import (
     DataStats,
     SimulateDelay,
 )
+from monai.utils.misc import MONAINumpyDataType
 
 
 class AsChannelFirstd(MapTransform):
@@ -127,12 +128,12 @@ class CastToTyped(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.CastToType`.
     """
 
-    def __init__(self, keys: Hashable, dtype: np.dtype = np.float32) -> None:
+    def __init__(self, keys: Hashable, dtype: MONAINumpyDataType = np.float32) -> None:
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            dtype (np.dtype): convert image to this data type, default is `np.float32`.
+            dtype: convert image to this data type, default is `np.float32`.
         """
         MapTransform.__init__(self, keys)
         self.converter = CastToType(dtype)

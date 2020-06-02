@@ -11,11 +11,11 @@
 
 from typing import Optional, Union, Callable
 
-import numpy as np
 from ignite.engine import Events, Engine
 import logging
 from monai.data import NiftiSaver, PNGSaver
 from monai.data.utils import InterpolationCode, InterpolationCodeType
+from monai.utils.misc import MONAINumpyDataType
 
 
 class SegmentationSaver:
@@ -33,7 +33,7 @@ class SegmentationSaver:
         mode: str = "constant",
         cval: float = 0,
         scale: bool = False,
-        dtype: Optional[np.dtype] = None,
+        dtype: Optional[MONAINumpyDataType] = None,
         batch_transform: Callable = lambda x: x,
         output_transform: Callable = lambda x: x,
         name: Optional[str] = None,
