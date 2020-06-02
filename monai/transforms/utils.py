@@ -178,7 +178,7 @@ def generate_pos_neg_label_crop_centers(
         label (numpy.ndarray): use the label data to get the foreground/background information.
         size (list or tuple): size of the ROIs to be sampled.
         num_samples (int): total sample centers to be generated.
-        pos_ratio (float): ratio of total locations generated that have center being foreground.
+        pos_ratio: ratio of total locations generated that have center being foreground.
         image (numpy.ndarray): if image is not None, use ``label = 0 & image > image_threshold``
             to select background. so the crop center will only exist on valid image area.
         image_threshold (int or float): if enabled image_key, use ``image > image_threshold`` to

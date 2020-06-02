@@ -38,8 +38,8 @@ def compute_meandice(
         to_onehot_y (bool): whether to convert `y` into the one-hot format. Defaults to False.
         mutually_exclusive (bool): if True, `y_pred` will be converted into a binary matrix using
             a combination of argmax and to_onehot.  Defaults to False.
-        sigmoid (bool): whether to add sigmoid function to y_pred before computation. Defaults to False.
-        logit_thresh (Float): the threshold value used to convert (after sigmoid if `sigmoid=True`)
+        sigmoid: whether to add sigmoid function to y_pred before computation. Defaults to False.
+        logit_thresh: the threshold value used to convert (after sigmoid if `sigmoid=True`)
             `y_pred` into a binary matrix. Defaults to 0.5.
 
     Returns:

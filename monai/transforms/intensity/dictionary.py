@@ -36,9 +36,9 @@ class RandGaussianNoised(Randomizable, MapTransform):
     Args:
         keys (hashable items): keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
-        prob (float): Probability to add Gaussian noise.
+        prob: Probability to add Gaussian noise.
         mean (float or array of floats): Mean or “centre” of the distribution.
-        std (float): Standard deviation (spread) of distribution.
+        std: Standard deviation (spread) of distribution.
     """
 
     def __init__(self, keys: Hashable, prob: float = 0.1, mean=0.0, std: float = 0.1):
@@ -99,7 +99,7 @@ class RandShiftIntensityd(Randomizable, MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             offsets(int, float, tuple or list): offset range to randomly shift.
                 if single number, offset value is picked from (-offsets, offsets).
-            prob (float): probability of rotating.
+            prob: probability of rotating.
                 (Default 0.1, with 10% probability it returns a rotated array.)
         """
         super().__init__(keys)
@@ -143,7 +143,7 @@ class ScaleIntensityd(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             minv (int or float): minimum value of output data.
             maxv (int or float): maximum value of output data.
-            factor (float): factor scale by ``v = v * (1 + factor)``.
+            factor: factor scale by ``v = v * (1 + factor)``.
 
         """
         super().__init__(keys)
@@ -168,7 +168,7 @@ class RandScaleIntensityd(Randomizable, MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             factors(float, tuple or list): factor range to randomly scale by ``v = v * (1 + factor)``.
                 if single number, factor value is picked from (-factors, factors).
-            prob (float): probability of rotating.
+            prob: probability of rotating.
                 (Default 0.1, with 10% probability it returns a rotated array.)
 
         """
@@ -293,7 +293,7 @@ class AdjustContrastd(MapTransform):
         `x = ((x - min) / intensity_range) ^ gamma * intensity_range + min`
 
     Args:
-        gamma (float): gamma value to adjust the contrast as function.
+        gamma: gamma value to adjust the contrast as function.
     """
 
     def __init__(self, keys: Hashable, gamma: Union[int, float]) -> None:
@@ -317,12 +317,12 @@ class RandAdjustContrastd(Randomizable, MapTransform):
     Args:
         keys (hashable items): keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
-        prob (float): Probability of adjustment.
+        prob: Probability of adjustment.
         gamma (tuple of float or float): Range of gamma values.
             If single number, value is picked from (0.5, gamma), default is (0.5, 4.5).
     """
 
-    def __init__(self, keys, prob=0.1, gamma=(0.5, 4.5)):
+    def __init__(self, keys, prob: float = 0.1, gamma=(0.5, 4.5)):
         super().__init__(keys)
         self.prob = prob
         if not isinstance(gamma, (tuple, list)):
