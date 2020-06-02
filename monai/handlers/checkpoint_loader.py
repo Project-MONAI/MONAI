@@ -57,4 +57,5 @@ class CheckpointLoader:
                 checkpoint = {key: checkpoint}
 
         Checkpoint.load_objects(to_load=self.load_dict, checkpoint=checkpoint)
+        assert self.logger is not None
         self.logger.info(f"Restored all variables from {self.load_path}")

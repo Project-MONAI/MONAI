@@ -63,7 +63,7 @@ class PNGSaver:
         self.scale = scale
         self._data_index = 0
 
-    def save(self, data: Union[torch.Tensor, np.ndarray], meta_data=None):
+    def save(self, data: Union[torch.Tensor, np.ndarray], meta_data=None) -> None:
         """
         Save data into a png file.
         The metadata could optionally have the following keys:
@@ -74,7 +74,7 @@ class PNGSaver:
         If meta_data is None, use the default index from 0 to save data instead.
 
         args:
-            data (Tensor or ndarray): target data content that to be saved as a png format file.
+            data: target data content that to be saved as a png format file.
                 Assuming the data shape are spatial dimensions.
                 Shape of the spatial dimensions (C,H,W).
                 C should be 1, 3 or 4

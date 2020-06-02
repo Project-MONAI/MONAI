@@ -90,6 +90,8 @@ def write_nifti(
         target_affine = affine
     target_affine = to_affine_nd(sr, target_affine)
 
+    assert affine is not None
+    assert target_affine is not None
     if np.allclose(affine, target_affine):
         # no affine changes, save (data, affine)
         results_img = nib.Nifti1Image(data.astype(dtype), to_affine_nd(3, target_affine))
