@@ -91,6 +91,7 @@ class Workflow(ABC, Engine):
         self.prepare_batch = prepare_batch
 
         if post_transform is not None:
+
             @self.on(Events.ITERATION_COMPLETED)
             def run_post_transform(engine):
                 engine.state.output = post_transform(engine.state.output)
