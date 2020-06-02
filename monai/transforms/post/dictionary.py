@@ -158,7 +158,7 @@ class KeepLargestConnectedComponentd(MapTransform):
     """
 
     def __init__(
-        self, keys, applied_values, independent=True, background=0, connectivity=None, output_postfix="largestcc",
+        self, keys, applied_values, independent=True, background=0, connectivity=None, output_postfix="largestcc"
     ):
         """
         Args:
