@@ -667,7 +667,9 @@ class RandZoom(Randomizable, Transform):
     def randomize(self):
         self._do_transform = self.R.random_sample() < self.prob
         if hasattr(self.min_zoom, "__iter__"):
-            self._zoom = (self.R.uniform(l, h) for l, h in zip(self.min_zoom, self.max_zoom))
+            # TODO: Review the types here
+            # T484 Incompatible types in assignment (expression has type "Generator[Any, None, None]", variable has type "None")
+            self._zoom = (self.R.uniform(l, h) for l, h in zip(self.min_zoom, self.max_zoom))  # type: ignore
         else:
             self._zoom = self.R.uniform(self.min_zoom, self.max_zoom)
 
