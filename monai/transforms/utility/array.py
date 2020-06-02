@@ -251,7 +251,7 @@ class SimulateDelay(Transform):
     def __init__(self, delay_time: float = 0.0) -> None:
         """
         Args:
-            delay_time(float): The minimum amount of time, in fractions of seconds,
+            delay_time: The minimum amount of time, in fractions of seconds,
                 to accomplish this delay task.
         """
         super().__init__()

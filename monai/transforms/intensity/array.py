@@ -106,7 +106,7 @@ class ScaleIntensity(Transform):
         Args:
             minv (int or float): minimum value of output data.
             maxv (int or float): maximum value of output data.
-            factor (float): factor scale by ``v = v * (1 + factor)``.
+            factor: factor scale by ``v = v * (1 + factor)``.
         """
         self.minv = minv
         self.maxv = maxv
@@ -130,7 +130,7 @@ class RandScaleIntensity(Randomizable, Transform):
         Args:
             factors(float, tuple or list): factor range to randomly scale by ``v = v * (1 + factor)``.
                 if single number, factor value is picked from (-factors, factors).
-            prob (float): probability of scale.
+            prob: probability of scale.
 
         """
         self.factors = (-factors, factors) if not isinstance(factors, (list, tuple)) else factors
@@ -260,7 +260,7 @@ class AdjustContrast(Transform):
         `x = ((x - min) / intensity_range) ^ gamma * intensity_range + min`
 
     Args:
-        gamma (float): gamma value to adjust the contrast as function.
+        gamma: gamma value to adjust the contrast as function.
     """
 
     def __init__(self, gamma: Union[int, float]) -> None:
@@ -279,12 +279,12 @@ class RandAdjustContrast(Randomizable, Transform):
         `x = ((x - min) / intensity_range) ^ gamma * intensity_range + min`
 
     Args:
-        prob (float): Probability of adjustment.
+        prob: Probability of adjustment.
         gamma (tuple of float or float): Range of gamma values.
             If single number, value is picked from (0.5, gamma), default is (0.5, 4.5).
     """
 
-    def __init__(self, prob=0.1, gamma=(0.5, 4.5)):
+    def __init__(self, prob: float = 0.1, gamma=(0.5, 4.5)):
         self.prob = prob
         if not isinstance(gamma, (tuple, list)):
             assert gamma > 0.5, "if gamma is single number, must greater than 0.5 and value is picked from (0.5, gamma)"

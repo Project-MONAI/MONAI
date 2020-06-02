@@ -57,7 +57,7 @@ def predict_segmentation(logits: torch.Tensor, mutually_exclusive: bool = False,
         logits (Tensor): raw data of model output.
         mutually_exclusive (bool): if True, `logits` will be converted into a binary matrix using
             a combination of argmax, which is suitable for multi-classes task. Defaults to False.
-        threshold (float): thresholding the prediction values if multi-labels task.
+        threshold: thresholding the prediction values if multi-labels task.
     """
     if not mutually_exclusive:
         return (logits >= threshold).int()

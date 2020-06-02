@@ -70,7 +70,7 @@ class DiceLoss(_Loss):
         Args:
             input (tensor): the shape should be BNH[WD].
             target (tensor): the shape should be BNH[WD].
-            smooth (float): a small constant to avoid nan.
+            smooth: a small constant to avoid nan.
         """
         if self.do_sigmoid:
             input = torch.sigmoid(input)
@@ -173,7 +173,7 @@ class GeneralizedDiceLoss(_Loss):
         Args:
             input (tensor): the shape should be BNH[WD].
             target (tensor): the shape should be BNH[WD].
-            smooth (float): a small constant to avoid nan.
+            smooth: a small constant to avoid nan.
         """
         if self.do_sigmoid:
             input = torch.sigmoid(input)
