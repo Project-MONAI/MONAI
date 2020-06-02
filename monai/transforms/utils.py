@@ -11,6 +11,7 @@
 
 import random
 import warnings
+from typing import Optional, Union, Callable
 
 import torch
 import numpy as np
@@ -52,7 +53,7 @@ def zero_margins(img, margin):
     return True
 
 
-def rescale_array(arr, minv=0.0, maxv=1.0, dtype=np.float32):
+def rescale_array(arr, minv=0.0, maxv=1.0, dtype: Optional[np.dtype] = np.float32):
     """Rescale the values of numpy array `arr` to be from `minv` to `maxv`."""
     if dtype is not None:
         arr = arr.astype(dtype)
@@ -67,18 +68,18 @@ def rescale_array(arr, minv=0.0, maxv=1.0, dtype=np.float32):
     return (norm * (maxv - minv)) + minv  # rescale by minv and maxv, which is the normalized array by default
 
 
-def rescale_instance_array(arr, minv=0.0, maxv=1.0, dtype=np.float32):
+def rescale_instance_array(arr: np.ndarray, minv: float = 0.0, maxv: float = 1.0, dtype: np.dtype = np.float32):
     """Rescale each array slice along the first dimension of `arr` independently."""
-    out = np.zeros(arr.shape, dtype)
+    out: np.ndarray = np.zeros(arr.shape, dtype)
     for i in range(arr.shape[0]):
         out[i] = rescale_array(arr[i], minv, maxv, dtype)
 
     return out
 
 
-def rescale_array_int_max(arr, dtype=np.uint16):
+def rescale_array_int_max(arr: np.ndarray, dtype: np.dtype = np.uint16):
     """Rescale the array `arr` to be between the minimum and maximum values of the type `dtype`."""
-    info = np.iinfo(dtype)
+    info: np.iinfo = np.iinfo(dtype)
     return rescale_array(arr, info.min, info.max).astype(dtype)
 
 
@@ -162,7 +163,13 @@ def one_hot(labels, num_classes):
 
 
 def generate_pos_neg_label_crop_centers(
-    label, size, num_samples, pos_ratio, image=None, image_threshold=0, rand_state=np.random
+    label: np.ndarray,
+    size,
+    num_samples: int,
+    pos_ratio: float,
+    image: Optional[np.ndarray] = None,
+    image_threshold: Union[int, float] = 0,
+    rand_state: np.random.RandomState = np.random,
 ):
     """Generate valid sample locations based on image with option for specifying foreground ratio
     Valid: samples sitting entirely within image, expected input shape: [C, H, W, D] or [C, H, W]
@@ -230,7 +237,7 @@ def generate_pos_neg_label_crop_centers(
     return centers
 
 
-def apply_transform(transform, data):
+def apply_transform(transform: Callable, data):
     """
     Transform `data` with `transform`.
     If `data` is a list or tuple, each item of `data` will be transformed
@@ -249,7 +256,7 @@ def apply_transform(transform, data):
         raise Exception(f"applying transform {transform}.").with_traceback(e.__traceback__)
 
 
-def create_grid(spatial_size, spacing=None, homogeneous=True, dtype=float):
+def create_grid(spatial_size, spacing=None, homogeneous: bool = True, dtype: np.dtype = float):
     """
     compute a `spatial_size` mesh.
 
@@ -267,7 +274,7 @@ def create_grid(spatial_size, spacing=None, homogeneous=True, dtype=float):
     return np.concatenate([coords, np.ones_like(coords[:1])])
 
 
-def create_control_grid(spatial_shape, spacing, homogeneous=True, dtype=float):
+def create_control_grid(spatial_shape, spacing, homogeneous: bool = True, dtype: Optional[np.dtype] = float):
     """
     control grid with two additional point in each direction
     """
@@ -281,7 +288,7 @@ def create_control_grid(spatial_shape, spacing, homogeneous=True, dtype=float):
     return create_grid(grid_shape, spacing, homogeneous, dtype)
 
 
-def create_rotate(spatial_dims, radians):
+def create_rotate(spatial_dims: int, radians):
     """
     create a 2D or 3D rotation matrix
 
@@ -319,7 +326,7 @@ def create_rotate(spatial_dims, radians):
     raise ValueError(f"create_rotate got spatial_dims={spatial_dims}, radians={radians}.")
 
 
-def create_shear(spatial_dims, coefs):
+def create_shear(spatial_dims: int, coefs):
     """
     create a shearing matrix
     Args:
@@ -345,7 +352,7 @@ def create_shear(spatial_dims, coefs):
     raise NotImplementedError
 
 
-def create_scale(spatial_dims, scaling_factor):
+def create_scale(spatial_dims: int, scaling_factor):
     """
     create a scaling matrix
     Args:
@@ -358,7 +365,7 @@ def create_scale(spatial_dims, scaling_factor):
     return np.diag(scaling_factor[:spatial_dims] + [1.0])
 
 
-def create_translate(spatial_dims, shift):
+def create_translate(spatial_dims: int, shift):
     """
     create a translation matrix
     Args:
@@ -372,7 +379,9 @@ def create_translate(spatial_dims, shift):
     return affine
 
 
-def generate_spatial_bounding_box(img, select_fn=lambda x: x > 0, channel_indexes=None, margin=0):
+def generate_spatial_bounding_box(
+    img: np.ndarray, select_fn: Callable = lambda x: x > 0, channel_indexes=None, margin: int = 0
+):
     """
     generate the spatial bounding box of foreground in the image with start-end positions.
     Users can define arbitrary function to select expected foreground from the whole image or specified channels.
@@ -399,7 +408,7 @@ def generate_spatial_bounding_box(img, select_fn=lambda x: x > 0, channel_indexe
     return box_start, box_end
 
 
-def get_largest_connected_component_mask(img, connectivity=None):
+def get_largest_connected_component_mask(img, connectivity: Optional[int] = None):
     """
     Gets the largest connected component mask of an image.
 

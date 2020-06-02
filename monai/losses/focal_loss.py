@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional
+
 import torch
 import torch.nn.functional as F
 from torch.nn.modules.loss import _WeightedLoss
@@ -20,7 +22,7 @@ class FocalLoss(_WeightedLoss):
     [1] "Focal Loss for Dense Object Detection", T. Lin et al., ICCV 2017
     """
 
-    def __init__(self, gamma=2.0, weight=None, reduction="mean"):
+    def __init__(self, gamma: float = 2.0, weight: Optional[torch.Tensor] = None, reduction: str = "mean"):
         """
         Args:
             gamma (float): value of the exponent gamma in the definition of the Focal loss.

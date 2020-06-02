@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ignite.engine import Events
+from ignite.engine import Events, Engine
 from monai.engines import Evaluator
 
 
@@ -20,7 +20,7 @@ class ValidationHandler:
 
     """
 
-    def __init__(self, validator, interval, epoch_level=True):
+    def __init__(self, validator: Evaluator, interval: int, epoch_level: bool = True):
         """
         Args:
             validator (Evaluator): run the validator when trigger validation, suppose to be Evaluator.
@@ -35,11 +35,11 @@ class ValidationHandler:
         self.interval = interval
         self.epoch_level = epoch_level
 
-    def attach(self, engine):
+    def attach(self, engine: Engine):
         if self.epoch_level:
             engine.add_event_handler(Events.EPOCH_COMPLETED(every=self.interval), self)
         else:
             engine.add_event_handler(Events.ITERATION_COMPLETED(every=self.interval), self)
 
-    def __call__(self, engine):
+    def __call__(self, engine: Engine):
         self.validator.run(engine.state.epoch)

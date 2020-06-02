@@ -9,8 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional, Callable
+
 import torch
 from monai.inferers.inferer import SimpleInferer
+from ignite.metrics import Metric
+from ignite.engine import Engine
 from .workflow import Workflow
 from .utils import default_prepare_batch
 from .utils import CommonKeys as Keys
@@ -39,12 +43,12 @@ class Evaluator(Workflow):
 
     def __init__(
         self,
-        device,
+        device: torch.device,
         val_data_loader,
-        prepare_batch=default_prepare_batch,
-        iteration_update=None,
+        prepare_batch: Callable = default_prepare_batch,
+        iteration_update: Optional[Callable] = None,
         post_transform=None,
-        key_val_metric=None,
+        key_val_metric: Optional[Metric] = None,
         additional_metrics=None,
         val_handlers=None,
     ):
@@ -61,7 +65,7 @@ class Evaluator(Workflow):
             handlers=val_handlers,
         )
 
-    def run(self, global_epoch=1):
+    def run(self, global_epoch: int = 1):
         """
         Execute validation/evaluation based on Ignite Engine.
 
@@ -107,11 +111,11 @@ class SupervisedEvaluator(Evaluator):
 
     def __init__(
         self,
-        device,
+        device: torch.device,
         val_data_loader,
         network,
-        prepare_batch=default_prepare_batch,
-        iteration_update=None,
+        prepare_batch: Callable = default_prepare_batch,
+        iteration_update: Optional[Callable] = None,
         inferer=SimpleInferer(),
         post_transform=None,
         key_val_metric=None,
@@ -132,7 +136,7 @@ class SupervisedEvaluator(Evaluator):
         self.network = network
         self.inferer = inferer
 
-    def _iteration(self, engine, batchdata):
+    def _iteration(self, engine: Engine, batchdata):
         """
         callback function for the Supervised Evaluation processing logic of 1 iteration in Ignite Engine.
 
