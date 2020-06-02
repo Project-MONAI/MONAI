@@ -19,6 +19,7 @@ import nibabel as nib
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
+from ignite.metrics import Accuracy
 
 import monai
 from monai.transforms import (
@@ -29,6 +30,9 @@ from monai.transforms import (
     RandCropByPosNegLabeld,
     RandRotate90d,
     ToTensord,
+    Activationsd,
+    AsDiscreted,
+    KeepLargestConnectedComponentd,
 )
 from monai.handlers import StatsHandler, ValidationHandler, MeanDice
 from monai.data import create_test_image_3d, list_data_collate
@@ -99,6 +103,13 @@ def main():
     loss = monai.losses.DiceLoss(do_sigmoid=True)
     opt = torch.optim.Adam(net.parameters(), 1e-3)
 
+    val_post_transforms = Compose(
+        [
+            Activationsd(keys=Keys.PRED, output_postfix="act", sigmoid=True),
+            AsDiscreted(keys="pred_act", output_postfix="dis", threshold_values=True),
+            KeepLargestConnectedComponentd(keys="pred_act_dis", applied_values=[1], output_postfix=None),
+        ]
+    )
     val_handlers = [StatsHandler(output_transform=lambda x: None)]
 
     evaluator = SupervisedEvaluator(
@@ -106,15 +117,23 @@ def main():
         val_data_loader=val_loader,
         network=net,
         inferer=SlidingWindowInferer(roi_size=(96, 96, 96), sw_batch_size=4, overlap=0.5),
-        val_handlers=val_handlers,
+        post_transform=val_post_transforms,
         key_val_metric={
             "val_mean_dice": MeanDice(
-                include_background=True, add_sigmoid=True, output_transform=lambda x: (x[Keys.PRED], x[Keys.LABEL])
+                include_background=True, output_transform=lambda x: (x["pred_act_dis"], x[Keys.LABEL])
             )
         },
-        additional_metrics=None,
+        additional_metrics={"val_acc": Accuracy(output_transform=lambda x: (x["pred_act_dis"], x[Keys.LABEL]))},
+        val_handlers=val_handlers,
     )
 
+    train_post_transforms = Compose(
+        [
+            Activationsd(keys=Keys.PRED, output_postfix="act", sigmoid=True),
+            AsDiscreted(keys="pred_act", output_postfix="dis", threshold_values=True),
+            KeepLargestConnectedComponentd(keys="pred_act_dis", applied_values=[1], output_postfix=None),
+        ]
+    )
     train_handlers = [
         ValidationHandler(validator=evaluator, interval=2, epoch_level=True),
         StatsHandler(tag_name="train_loss", output_transform=lambda x: x[Keys.INFO][Keys.LOSS]),
@@ -128,9 +147,10 @@ def main():
         optimizer=opt,
         loss_function=loss,
         inferer=SimpleInferer(),
-        train_handlers=train_handlers,
         amp=False,
-        key_train_metric=None,
+        post_transform=train_post_transforms,
+        key_train_metric={"train_acc": Accuracy(output_transform=lambda x: (x["pred_act_dis"], x[Keys.LABEL]))},
+        train_handlers=train_handlers,
     )
     trainer.run()
 
