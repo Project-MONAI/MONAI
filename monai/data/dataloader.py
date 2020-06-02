@@ -22,7 +22,8 @@ class ImageDataLoader(torch.utils.data.DataLoader):
     Args:
         datalist (list of dict): data source for Dataset, expect to be a list of dict object, for example:
             `[{'image': 'chest_19.nii.gz',  'label': 0}, {'image': 'chest_31.nii.gz',  'label': 1}]`.
-        transforms (monai.Compose): a list of transforms to be applied to the data.
+        transform (Transform): transform to be applied to the data.
+            typically, a list of transforms composed by `Compose`.
         batch_size (int): batch size of the DataLoader output.
         num_workers (int): number of worker processes for data transformation.
         shuffle (bool): whether to shuffle the data or not.
@@ -37,7 +38,7 @@ class ImageDataLoader(torch.utils.data.DataLoader):
     def __init__(
         self,
         datalist,
-        transforms,
+        transform,
         batch_size=1,
         num_workers=0,
         shuffle=False,
@@ -55,9 +56,10 @@ class ImageDataLoader(torch.utils.data.DataLoader):
             worker_info = torch.utils.data.get_worker_info()
             worker_info.dataset.transform.set_random_state(worker_info.seed % (2 ** 32))
         if isinstance(cache_dir, str):
-            dataset = PersistentDataset(data=datalist, transform=transforms, cache_dir=cache_dir)
+            dataset = PersistentDataset(data=datalist, transform=transform, cache_dir=cache_dir)
         else:
-            dataset = CacheDataset(data=datalist, transform=transforms, cache_num=cache_num, cache_rate=cache_rate)
+            dataset = CacheDataset(data=datalist, transform=transform, cache_num=cache_num, cache_rate=cache_rate)
+
         super().__init__(
             dataset=dataset,
             collate_fn=list_data_collate,
