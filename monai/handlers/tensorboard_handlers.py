@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional, Callable
+
 import numpy as np
 import warnings
 import torch
@@ -35,13 +37,13 @@ class TensorBoardStatsHandler(object):
 
     def __init__(
         self,
-        summary_writer=None,
-        log_dir="./runs",
-        epoch_event_writer=None,
-        iteration_event_writer=None,
-        output_transform=lambda x: x,
-        global_epoch_transform=lambda x: x,
-        tag_name=DEFAULT_TAG,
+        summary_writer: Optional[SummaryWriter] = None,
+        log_dir: str = "./runs",
+        epoch_event_writer: Optional[Callable] = None,
+        iteration_event_writer: Optional[Callable] = None,
+        output_transform: Callable = lambda x: x,
+        global_epoch_transform: Callable = lambda x: x,
+        tag_name: str = DEFAULT_TAG,
     ):
         """
         Args:
@@ -180,16 +182,16 @@ class TensorBoardImageHandler(object):
 
     def __init__(
         self,
-        summary_writer=None,
-        log_dir="./runs",
+        summary_writer: Optional[SummaryWriter] = None,
+        log_dir: str = "./runs",
         interval=1,
         epoch_level=True,
-        batch_transform=lambda x: x,
-        output_transform=lambda x: x,
-        global_iter_transform=lambda x: x,
-        index=0,
-        max_channels=1,
-        max_frames=64,
+        batch_transform: Callable = lambda x: x,
+        output_transform: Callable = lambda x: x,
+        global_iter_transform: Callable = lambda x: x,
+        index: int = 0,
+        max_channels: int = 1,
+        max_frames: int = 64,
     ):
         """
         Args:
@@ -225,9 +227,8 @@ class TensorBoardImageHandler(object):
         else:
             engine.add_event_handler(Events.ITERATION_COMPLETED(every=self.interval), self)
 
-    def __call__(self, engine):
+    def __call__(self, engine: Engine):
         step = self.global_iter_transform(engine.state.epoch if self.epoch_level else engine.state.iteration)
-
         show_images = self.batch_transform(engine.state.batch)[0]
         if torch.is_tensor(show_images):
             show_images = show_images.detach().cpu().numpy()

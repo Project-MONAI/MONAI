@@ -25,13 +25,13 @@ class MeanDice(Metric):
 
     def __init__(
         self,
-        include_background=True,
-        to_onehot_y=False,
-        mutually_exclusive=False,
-        add_sigmoid=False,
-        logit_thresh=0.5,
+        include_background: bool = True,
+        to_onehot_y: bool = False,
+        mutually_exclusive: bool = False,
+        add_sigmoid: bool = False,
+        logit_thresh: float = 0.5,
         output_transform: Callable = lambda x: x,
-        device: Optional[Union[str, torch.device]] = None,
+        device: Optional[torch.device] = None,
     ):
         """
 

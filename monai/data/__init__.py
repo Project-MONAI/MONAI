@@ -19,3 +19,4 @@ from .synthetic import *
 from .utils import *
 from .png_saver import PNGSaver
 from .png_writer import write_png
+from .decathalon_dataloader import load_decathalon_datalist

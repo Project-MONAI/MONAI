@@ -9,8 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional
+
 import logging
-from ignite.engine import Events
+from ignite.engine import Events, Engine
 from ignite.handlers import ModelCheckpoint
 
 
@@ -55,17 +57,17 @@ class CheckpointSaver:
 
     def __init__(
         self,
-        save_dir,
+        save_dir: str,
         save_dict,
-        name=None,
-        file_prefix="",
-        save_final=False,
-        save_key_metric=False,
-        key_metric_name=None,
-        key_metric_n_saved=1,
-        epoch_level=True,
-        save_interval=0,
-        n_saved=None,
+        name: Optional[str] = None,
+        file_prefix: str = "",
+        save_final: bool = False,
+        save_key_metric: bool = False,
+        key_metric_name: Optional[str] = None,
+        key_metric_n_saved: int = 1,
+        epoch_level: bool = True,
+        save_interval: int = 0,
+        n_saved: Optional[int] = None,
     ):
         assert save_dir is not None, "must provide directory to save the checkpoints."
         self.save_dir = save_dir
@@ -124,7 +126,7 @@ class CheckpointSaver:
                 require_empty=False,
             )
 
-    def attach(self, engine):
+    def attach(self, engine: Engine):
         if self.logger is None:
             self.logger = engine.logger
         if self._final_checkpoint is not None:
