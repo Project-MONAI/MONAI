@@ -266,7 +266,7 @@ def create_grid(spatial_size, spacing=None, homogeneous: bool = True, dtype: np.
     Args:
         spatial_size (sequence of ints): spatial size of the grid.
         spacing (sequence of ints): same len as ``spatial_size``, defaults to 1.0 (dense grid).
-        homogeneous (bool): whether to make homogeneous coordinates.
+        homogeneous: whether to make homogeneous coordinates.
         dtype (type): output grid data type.
     """
     spacing = spacing or tuple(1.0 for _ in spatial_size)

@@ -40,7 +40,10 @@ def _append_paths(base_dir, is_segmentation, items):
 
 
 def load_decathalon_datalist(
-    data_list_file_path: str, is_segmentation=True, data_list_key: str = "training", base_dir: Optional[str] = None
+    data_list_file_path: str,
+    is_segmentation: bool = True,
+    data_list_key: str = "training",
+    base_dir: Optional[str] = None,
 ):
     """Load image/label paths of decathalon challenge from JSON file
 
@@ -49,7 +52,7 @@ def load_decathalon_datalist(
 
     Args:
         data_list_file_path: the path to the json file of datalist.
-        is_segmentation (bool): whether the datalist is for segmentation task, default is True.
+        is_segmentation: whether the datalist is for segmentation task, default is True.
         data_list_key: the key to get a list of dictionary to be used, default is "training".
         base_dir: the base directory of the dataset, if None, use the datalist directory.
 

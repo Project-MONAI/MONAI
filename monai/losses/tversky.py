@@ -43,12 +43,12 @@ class TverskyLoss(_Loss):
 
         """
         Args:
-            include_background (bool): If False channel index 0 (background category) is excluded from the calculation.
-            to_onehot_y (bool): whether to convert `y` into the one-hot format. Defaults to False.
-            sigmoid (bool): If True, apply a sigmoid function to the prediction.
-            softmax (bool): If True, apply a softmax function to the prediction.
-            alpha (float): weight of false positives
-            beta  (float): weight of false negatives
+            include_background: If False channel index 0 (background category) is excluded from the calculation.
+            to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
+            sigmoid: If True, apply a sigmoid function to the prediction.
+            softmax: If True, apply a softmax function to the prediction.
+            alpha: weight of false positives
+            beta: weight of false negatives
             reduction (`none|mean|sum`): Specifies the reduction to apply to the output:
                 ``'none'``: no reduction will be applied,
                 ``'mean'``: the sum of the output will be divided by the number of elements in the output,
