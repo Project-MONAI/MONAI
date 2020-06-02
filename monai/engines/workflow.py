@@ -13,6 +13,7 @@ from abc import ABC, abstractmethod
 import torch
 from ignite.engine import Engine, State, Events
 from .utils import default_prepare_batch
+from monai.transforms import apply_transform
 
 
 class Workflow(ABC, Engine):
@@ -33,6 +34,8 @@ class Workflow(ABC, Engine):
         prepare_batch (Callable): function to parse image and label for every iteration.
         iteration_update (Callable): the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
+        post_transform (Transform): execute additional transformation for the model output data.
+            Typically, several Tensor based transforms composed by `Compose`.
         key_metric (ignite.metric): compute metric when every iteration completed, and save average value to
             engine.state.metrics when epoch completed. key_metric is the main metric to compare and save the
             checkpoint into files.
@@ -50,6 +53,7 @@ class Workflow(ABC, Engine):
         data_loader,
         prepare_batch=default_prepare_batch,
         iteration_update=None,
+        post_transform=None,
         key_metric=None,
         additional_metrics=None,
         handlers=None,
@@ -86,6 +90,12 @@ class Workflow(ABC, Engine):
         )
         self.data_loader = data_loader
         self.prepare_batch = prepare_batch
+
+        if post_transform is not None:
+
+            @self.on(Events.ITERATION_COMPLETED)
+            def run_post_transform(engine):
+                engine.state.output = apply_transform(post_transform, engine.state.output)
 
         metrics = None
         if key_metric is not None:
