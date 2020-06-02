@@ -424,7 +424,7 @@ class Zoom(Transform):
 
     def __call__(
         self,
-        img,
+        img: np.ndarray,
         interp_order: Optional[InterpolationCodeType] = None,
         mode=None,
         cval: Optional[float] = None,
@@ -460,22 +460,22 @@ class Zoom(Transform):
                         prefilter=self.prefilter if prefilter is None else prefilter,
                     )
                 )
-        zoomed = np.stack(zoomed).astype(img.dtype)
+        zoomed_: np.ndarray = np.stack(zoomed).astype(img.dtype)
 
-        if not self.keep_size or np.allclose(img.shape, zoomed.shape):
-            return zoomed
+        if not self.keep_size or np.allclose(img.shape, zoomed_.shape):
+            return zoomed_
 
         pad_vec = [[0, 0]] * len(img.shape)
         slice_vec = [slice(None)] * len(img.shape)
-        for idx, (od, zd) in enumerate(zip(img.shape, zoomed.shape)):
+        for idx, (od, zd) in enumerate(zip(img.shape, zoomed_.shape)):
             diff = od - zd
             half = abs(diff) // 2
             if diff > 0:  # need padding
                 pad_vec[idx] = [half, diff - half]
             elif diff < 0:  # need slicing
                 slice_vec[idx] = slice(half, half + od)
-        zoomed = np.pad(zoomed, pad_vec, mode="edge")
-        return zoomed[tuple(slice_vec)]
+        zoomed_ = np.pad(zoomed_, pad_vec, mode="edge")
+        return zoomed_[tuple(slice_vec)]
 
 
 class Rotate90(Transform):
