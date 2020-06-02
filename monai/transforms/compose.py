@@ -183,7 +183,9 @@ class Compose(Randomizable):
                 continue
             _transform.set_random_state(seed, state)
 
-    def randomize(self) -> None:
+    def randomize(self, *args, **kwargs) -> None:
+        assert len(args) == 0, f"Extra aguments not allowed {args}."
+        assert len(kwargs) == 0, f"Extra arguments not allowed {kwargs}."
         for _transform in self.transforms:
             if not isinstance(_transform, Randomizable):
                 continue
