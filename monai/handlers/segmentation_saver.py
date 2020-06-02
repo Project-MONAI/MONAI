@@ -30,7 +30,7 @@ class SegmentationSaver:
         resample: bool = True,
         interp_order: int = 0,
         mode: str = "constant",
-        cval: Union[int, float] = 0,
+        cval: float = 0,
         scale: bool = False,
         dtype: Optional[np.dtype] = None,
         batch_transform: Callable = lambda x: x,
@@ -50,7 +50,7 @@ class SegmentationSaver:
             mode (`reflect|constant|nearest|mirror|wrap`):
                 The mode parameter determines how the input array is extended beyond its boundaries.
                 this option is used when `resample = True`.
-            cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
+            cval: Value to fill past edges of input if mode is "constant". Default is 0.0.
                 this option is used when `resample = True`.
             scale: whether to scale data with 255 and convert to uint8 for data in range [0, 1].
                 it's used for PNG format only.

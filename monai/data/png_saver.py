@@ -33,7 +33,7 @@ class PNGSaver:
         resample: bool = True,
         interp_order: int = 3,
         mode: str = "constant",
-        cval: Union[int, float] = 0,
+        cval: float = 0,
         scale: bool = False,
     ) -> None:
         """
@@ -48,7 +48,7 @@ class PNGSaver:
             mode (`reflect|constant|nearest|mirror|wrap`):
                 The mode parameter determines how the input array is extended beyond its boundaries.
                 This option is used when spatial_shape is specified and different from the data shape.
-            cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
+            cval: Value to fill past edges of input if mode is "constant". Default is 0.0.
                 This option is used when spatial_shape is specified and different from the data shape.
             scale: whether to scale data with 255 and convert to uint8 for data in range [0, 1].
 
