@@ -64,14 +64,14 @@ class RandShiftIntensity(Randomizable, Transform):
     """Randomly shift intensity with randomly picked offset.
     """
 
-    def __init__(self, offsets: Union[int, float, Tuple, List], prob: float = 0.1) -> None:
+    def __init__(self, offsets: Union[float, Tuple[float, float], List[float], List[int]], prob: float = 0.1) -> None:
         """
         Args:
             offsets: offset range to randomly shift.
                 if single number, offset value is picked from (-offsets, offsets).
             prob: probability of shift.
         """
-        self.offsets: Union[int, float, Tuple, List] = (-offsets, offsets) if not isinstance(
+        self.offsets: Union[Tuple[float, float], List[float], List[int]] = (-offsets, offsets) if not isinstance(
             offsets, (list, tuple)
         ) else offsets
         assert len(self.offsets) == 2, "offsets should be a number or pair of numbers."
