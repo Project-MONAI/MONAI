@@ -284,8 +284,13 @@ class RandAdjustContrast(Randomizable, Transform):
             If single number, value is picked from (0.5, gamma), default is (0.5, 4.5).
     """
 
-    def __init__(self, prob: float = 0.1, gamma=(0.5, 4.5)):
+    def __init__(
+        self, prob: float = 0.1, gamma: Union[float, Tuple[float, float], List[float], List[int]] = (0.5, 4.5)
+    ):
         self.prob = prob
+
+        self.gamma: Union[Tuple[float, float], List[float], List[int]]
+
         if not isinstance(gamma, (tuple, list)):
             assert gamma > 0.5, "if gamma is single number, must greater than 0.5 and value is picked from (0.5, gamma)"
             self.gamma = (0.5, gamma)

@@ -15,7 +15,7 @@ defined in :py:class:`monai.transforms.intensity.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Hashable, Union, Optional
+from typing import Hashable, Union, Optional, Tuple, List
 
 import numpy as np
 from monai.transforms.compose import MapTransform, Randomizable
@@ -322,9 +322,17 @@ class RandAdjustContrastd(Randomizable, MapTransform):
             If single number, value is picked from (0.5, gamma), default is (0.5, 4.5).
     """
 
-    def __init__(self, keys, prob: float = 0.1, gamma=(0.5, 4.5)):
+    def __init__(
+        self,
+        keys: Hashable,
+        prob: float = 0.1,
+        gamma: Union[float, Tuple[float, float], List[float], List[int]] = (0.5, 4.5),
+    ):
         super().__init__(keys)
         self.prob = prob
+
+        self.gamma: Union[Tuple[float, float], List[float], List[int]]
+
         if not isinstance(gamma, (tuple, list)):
             assert gamma > 0.5, "if gamma is single number, must greater than 0.5 and value is picked from (0.5, gamma)"
             self.gamma = (0.5, gamma)
