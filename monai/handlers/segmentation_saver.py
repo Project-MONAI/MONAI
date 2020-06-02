@@ -43,7 +43,7 @@ class SegmentationSaver:
             output_postfix: a string appended to all output file names.
             output_ext: output file extension name.
             resample (bool): whether to resample before saving the data array.
-            interp_order (int): the order of the spline interpolation, default is 0.
+            interp_order: the order of the spline interpolation, default is 0.
                 The order has to be in the range 0 - 5.
                 https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.affine_transform.html
                 this option is used when `resample = True`.
