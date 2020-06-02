@@ -48,7 +48,7 @@ class Spacing(Transform):
         diagonal: bool = False,
         interp_order: InterpolationCodeType = 3,
         mode: str = "nearest",
-        cval: Union[int, float] = 0,
+        cval: float = 0,
         dtype: Optional[np.dtype] = None,
     ) -> None:
         """
@@ -88,7 +88,7 @@ class Spacing(Transform):
         affine: Optional[np.matrix] = None,
         interp_order: Optional[InterpolationCodeType] = None,
         mode: Optional[str] = None,
-        cval: Union[int, float] = None,
+        cval: Optional[float] = None,
         dtype: Optional[np.dtype] = None,
     ):
         """
@@ -263,7 +263,7 @@ class Resize(Transform):
         spatial_size,
         interp_order=InterpolationCode.LINEAR,
         mode: str = "reflect",
-        cval: Union[int, float] = 0,
+        cval: float = 0,
         clip: bool = True,
         preserve_range: bool = True,
         anti_aliasing: bool = True,
@@ -281,7 +281,7 @@ class Resize(Transform):
         img,
         order=None,
         mode: Optional[str] = None,
-        cval: Optional[Union[int, float]] = None,
+        cval: Optional[float] = None,
         clip: Optional[bool] = None,
         preserve_range: Optional[bool] = None,
         anti_aliasing: Optional[bool] = None,
@@ -322,7 +322,7 @@ class Rotate(Transform):
             different from scipy where default interpolation is InterpolationCode.SPLINE3.
         mode: Points outside boundary filled according to this mode. Options are
             'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
-        cval (scalar): Values to fill outside boundary. Default: 0.
+        cval: Values to fill outside boundary. Default: 0.
         prefilter: Apply spline_filter before interpolation. Default: True.
     """
 
@@ -333,7 +333,7 @@ class Rotate(Transform):
         reshape: bool = True,
         interp_order=1,
         mode: str = "constant",
-        cval: Union[int, float] = 0,
+        cval: float = 0,
         prefilter: bool = True,
     ):
         self.angle = angle
@@ -349,7 +349,7 @@ class Rotate(Transform):
         img,
         order=None,
         mode: Optional[str] = None,
-        cval: Optional[Union[int, float]] = None,
+        cval: Optional[float] = None,
         prefilter: Optional[bool] = None,
     ):
         """
@@ -383,7 +383,7 @@ class Zoom(Transform):
             If a sequence, zoom should contain one value for each spatial axis.
         interp_order: order of interpolation. Default=InterpolationCode.SPLINE3.
         mode: Determines how input is extended beyond boundaries. Default is 'constant'.
-        cval (scalar, optional): Value to fill past edges. Default is 0.
+        cval: Value to fill past edges. Default is 0.
         prefilter: Apply spline_filter before interpolation. Default: True.
         use_gpu: Should use cpu or gpu. Uses cupyx which doesn't support order > 1 and modes
             'wrap' and 'reflect'. Defaults to cpu for these cases or if cupyx not found.
@@ -395,7 +395,7 @@ class Zoom(Transform):
         zoom,
         interp_order=InterpolationCode.SPLINE3,
         mode: str = "constant",
-        cval: Union[int, float] = 0,
+        cval: float = 0,
         prefilter: bool = True,
         use_gpu: bool = False,
         keep_size: bool = True,
@@ -421,7 +421,7 @@ class Zoom(Transform):
             self._zoom = scipy.ndimage.zoom
 
     def __call__(
-        self, img, order=None, mode=None, cval=None, prefilter=None,
+        self, img, order=None, mode=None, cval: Optional[float] = None, prefilter=None,
     ):
         """
         Args:
@@ -547,7 +547,7 @@ class RandRotate(Randomizable, Transform):
             different from scipy where default interpolation is InterpolationCode.SPLINE3.
         mode: Points outside boundary filled according to this mode. Options are
             'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
-        cval (scalar): Value to fill outside boundary. Default: 0.
+        cval: Value to fill outside boundary. Default: 0.
         prefilter: Apply spline_filter before interpolation. Default: True.
     """
 
@@ -559,7 +559,7 @@ class RandRotate(Randomizable, Transform):
         reshape: bool = True,
         interp_order=InterpolationCode.LINEAR,
         mode: str = "constant",
-        cval: Union[int, float] = 0,
+        cval: float = 0,
         prefilter: bool = True,
     ):
         self.degrees = degrees
@@ -587,7 +587,7 @@ class RandRotate(Randomizable, Transform):
         img,
         order=None,
         mode: Optional[str] = None,
-        cval: Optional[Union[int, float]] = None,
+        cval: Optional[float] = None,
         prefilter: Optional[bool] = None,
     ):
         self.randomize()
@@ -644,7 +644,7 @@ class RandZoom(Randomizable, Transform):
         interp_order: order of interpolation. Default=InterpolationCode.SPLINE3.
         mode ('reflect', 'constant', 'nearest', 'mirror', 'wrap'): Determines how input is
             extended beyond boundaries. Default: 'constant'.
-        cval (scalar, optional): Value to fill past edges. Default is 0.
+        cval: Value to fill past edges. Default is 0.
         prefilter: Apply spline_filter before interpolation. Default: True.
         use_gpu: Should use cpu or gpu. Uses cupyx which doesn't support order > 1 and modes
             'wrap' and 'reflect'. Defaults to cpu for these cases or if cupyx not found.
@@ -658,7 +658,7 @@ class RandZoom(Randomizable, Transform):
         max_zoom=1.1,
         interp_order=InterpolationCode.SPLINE3,
         mode: str = "constant",
-        cval: Union[int, float] = 0,
+        cval: float = 0,
         prefilter: bool = True,
         use_gpu: bool = False,
         keep_size: bool = True,
@@ -691,7 +691,7 @@ class RandZoom(Randomizable, Transform):
         img,
         order=None,
         mode: Optional[str] = None,
-        cval: Union[int, float] = None,
+        cval: Optional[float] = None,
         prefilter: Optional[bool] = None,
     ):
         self.randomize()

@@ -21,7 +21,7 @@ def write_png(
     output_shape=None,
     interp_order: int = 3,
     mode="constant",
-    cval=0,
+    cval: float = 0,
     scale: bool = False,
     plugin: Optional[str] = None,
     **plugin_args,
@@ -41,7 +41,7 @@ def write_png(
         mode (`reflect|constant|nearest|mirror|wrap`):
             The mode parameter determines how the input array is extended beyond its boundaries.
             this option is used when `output_shape != None`.
-        cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
+        cval: Value to fill past edges of input if mode is "constant". Default is 0.0.
             this option is used when `output_shape != None`.
         scale: whether to scale data with 255 and convert to uint8 for data in range [0, 1].
         plugin: name of plugin to use in `imsave`. By default, the different plugins

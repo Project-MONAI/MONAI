@@ -50,10 +50,10 @@ class ShiftIntensity(Transform):
     """Shift intensity uniformly for the entire image with specified `offset`.
 
     Args:
-        offset (int or float): offset value to shift the intensity of image.
+        offset: offset value to shift the intensity of image.
     """
 
-    def __init__(self, offset: Union[int, float]) -> None:
+    def __init__(self, offset: float) -> None:
         self.offset = offset
 
     def __call__(self, img):
@@ -97,15 +97,12 @@ class ScaleIntensity(Transform):
     """
 
     def __init__(
-        self,
-        minv: Optional[Union[int, float]] = 0.0,
-        maxv: Optional[Union[int, float]] = 1.0,
-        factor: Optional[float] = None,
+        self, minv: Optional[float] = 0.0, maxv: Optional[float] = 1.0, factor: Optional[float] = None,
     ) -> None:
         """
         Args:
-            minv (int or float): minimum value of output data.
-            maxv (int or float): maximum value of output data.
+            minv: minimum value of output data.
+            maxv: maximum value of output data.
             factor: factor scale by ``v = v * (1 + factor)``.
         """
         self.minv = minv
@@ -205,12 +202,12 @@ class ThresholdIntensity(Transform):
     And fill the remaining parts of the image to the `cval` value.
 
     Args:
-        threshold (float or int): the threshold to filter intensity values.
+        threshold: the threshold to filter intensity values.
         above: filter values above the threshold or below the threshold, default is True.
-        cval (float or int): value to fill the remaining parts of the image, default is 0.
+        cval: value to fill the remaining parts of the image, default is 0.
     """
 
-    def __init__(self, threshold: Union[int, float], above: bool = True, cval: Union[int, float] = 0) -> None:
+    def __init__(self, threshold: float, above: bool = True, cval: float = 0) -> None:
         assert isinstance(threshold, (float, int)), "must set the threshold to filter intensity."
         self.threshold = threshold
         self.above = above
@@ -225,21 +222,14 @@ class ScaleIntensityRange(Transform):
     Scaling from [a_min, a_max] to [b_min, b_max] with clip option.
 
     Args:
-        a_min (int or float): intensity original range min.
-        a_max (int or float): intensity original range max.
-        b_min (int or float): intensity target range min.
-        b_max (int or float): intensity target range max.
+        a_min: intensity original range min.
+        a_max: intensity original range max.
+        b_min: intensity target range min.
+        b_max: intensity target range max.
         clip: whether to perform clip after scaling.
     """
 
-    def __init__(
-        self,
-        a_min: Union[int, float],
-        a_max: Union[int, float],
-        b_min: Union[int, float],
-        b_max: Union[int, float],
-        clip: bool = False,
-    ) -> None:
+    def __init__(self, a_min: float, a_max: float, b_min: float, b_max: float, clip: bool = False,) -> None:
         self.a_min = a_min
         self.a_max = a_max
         self.b_min = b_min
@@ -263,7 +253,7 @@ class AdjustContrast(Transform):
         gamma: gamma value to adjust the contrast as function.
     """
 
-    def __init__(self, gamma: Union[int, float]) -> None:
+    def __init__(self, gamma: float) -> None:
         assert isinstance(gamma, (float, int)), "gamma must be a float or int number."
         self.gamma = gamma
 
