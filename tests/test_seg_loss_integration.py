@@ -35,18 +35,18 @@ TEST_CASES = [
 
 
 class TestSegLossIntegration(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
         torch.manual_seed(0)
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         torch.backends.cudnn.deterministic = False
         torch.backends.cudnn.benchmark = True
 
     @parameterized.expand(TEST_CASES)
-    def test_convergence(self, loss_type, loss_args, forward_args):
+    def test_convergence(self, loss_type, loss_args, forward_args) -> None:
         """
         The goal of this test is to assess if the gradient of the loss function
         is correct by testing if we can train a one layer neural network

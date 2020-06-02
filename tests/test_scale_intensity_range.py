@@ -18,7 +18,7 @@ from tests.utils import NumpyImageTestCase2D
 
 
 class IntensityScaleIntensityRange(NumpyImageTestCase2D):
-    def test_image_scale_intensity_range(self):
+    def test_image_scale_intensity_range(self) -> None:
         scaler = ScaleIntensityRange(a_min=20, a_max=108, b_min=50, b_max=80)
         scaled = scaler(self.imt)
         expected = (self.imt - 20) / 88

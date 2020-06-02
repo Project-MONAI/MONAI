@@ -113,16 +113,16 @@ TEST_CASES = [
 
 class TestGeneralizedDiceLoss(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
-    def test_shape(self, input_param, input_data, expected_val):
+    def test_shape(self, input_param, input_data, expected_val) -> None:
         result = GeneralizedDiceLoss(**input_param).forward(**input_data)
         np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, rtol=1e-5)
 
-    def test_ill_shape(self):
+    def test_ill_shape(self) -> None:
         loss = GeneralizedDiceLoss()
         with self.assertRaisesRegex(AssertionError, ""):
             loss.forward(torch.ones((1, 2, 3)), torch.ones((4, 5, 6)))
 
-    def test_ill_opts(self):
+    def test_ill_opts(self) -> None:
         with self.assertRaisesRegex(ValueError, ""):
             GeneralizedDiceLoss(do_sigmoid=True, do_softmax=True)
         chn_input = torch.ones((1, 1, 3))
@@ -132,7 +132,7 @@ class TestGeneralizedDiceLoss(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, ""):
             GeneralizedDiceLoss(reduction=None)(chn_input, chn_target)
 
-    def test_input_warnings(self):
+    def test_input_warnings(self) -> None:
         chn_input = torch.ones((1, 1, 3))
         chn_target = torch.ones((1, 1, 3))
         with self.assertWarns(Warning):

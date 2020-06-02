@@ -28,7 +28,7 @@ from monai.networks.nets import UNet
 from monai.transforms import Compose, LoadNiftid, AsChannelFirstd, ScaleIntensityd, ToTensord
 
 
-def main():
+def main() -> None:
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 

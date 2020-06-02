@@ -18,7 +18,7 @@ from monai.networks.layers import GaussianFilter
 
 
 class GaussianFilterTestCase(unittest.TestCase):
-    def test_1d(self):
+    def test_1d(self) -> None:
         a = torch.ones(1, 8, 10)
         g = GaussianFilter(1, 3, 3).to(torch.device("cpu:0"))
         expected = np.array(
@@ -42,7 +42,7 @@ class GaussianFilterTestCase(unittest.TestCase):
         expected = np.tile(expected, (1, 8, 1))
         np.testing.assert_allclose(g(a).cpu().numpy(), expected, rtol=1e-5)
 
-    def test_2d(self):
+    def test_2d(self) -> None:
         a = torch.ones(1, 1, 3, 3)
         g = GaussianFilter(2, 3, 3).to(torch.device("cpu:0"))
         expected = np.array(
@@ -62,7 +62,7 @@ class GaussianFilterTestCase(unittest.TestCase):
             g = GaussianFilter(2, 3, 3).to(torch.device("cuda:0"))
             np.testing.assert_allclose(g(a.cuda()).cpu().numpy(), expected, rtol=1e-2)
 
-    def test_3d(self):
+    def test_3d(self) -> None:
         a = torch.ones(1, 1, 4, 3, 4)
         g = GaussianFilter(3, 3, 3).to(torch.device("cpu:0"))
         expected = np.array(
@@ -95,7 +95,7 @@ class GaussianFilterTestCase(unittest.TestCase):
         )
         np.testing.assert_allclose(g(a).cpu().numpy(), expected, rtol=1e-5)
 
-    def test_3d_sigmas(self):
+    def test_3d_sigmas(self) -> None:
         a = torch.ones(1, 1, 4, 3, 2)
         g = GaussianFilter(3, [3, 2, 1], 3).to(torch.device("cpu:0"))
         expected = np.array(
@@ -115,7 +115,7 @@ class GaussianFilterTestCase(unittest.TestCase):
             g = GaussianFilter(3, [3, 2, 1], 3).to(torch.device("cuda:0"))
             np.testing.assert_allclose(g(a.cuda()).cpu().numpy(), expected, rtol=1e-2)
 
-    def test_wrong_args(self):
+    def test_wrong_args(self) -> None:
         with self.assertRaisesRegex(ValueError, ""):
             GaussianFilter(3, [3, 2], 3).to(torch.device("cpu:0"))
         GaussianFilter(3, [3, 2, 1], 3).to(torch.device("cpu:0"))  # test init

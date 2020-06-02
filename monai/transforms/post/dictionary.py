@@ -65,7 +65,9 @@ class Activationsd(MapTransform):
     Add activation layers to the input data specified by `keys`.
     """
 
-    def __init__(self, keys: Hashable, output_postfix: str = "act", sigmoid=False, softmax=False, other=None):
+    def __init__(
+        self, keys: Hashable, output_postfix: str = "act", sigmoid: bool = False, softmax: bool = False, other=None
+    ) -> None:
         """
         Args:
             keys (hashable items): keys of the corresponding items to model output and label.
@@ -167,7 +169,7 @@ class KeepLargestConnectedComponentd(MapTransform):
         background: int = 0,
         connectivity: Optional[int] = None,
         output_postfix: str = "largestcc",
-    ):
+    ) -> None:
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.

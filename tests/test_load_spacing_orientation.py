@@ -27,7 +27,7 @@ FILES = tuple(
 
 class TestLoadSpacingOrientation(unittest.TestCase):
     @parameterized.expand(FILES)
-    def test_load_spacingd(self, filename):
+    def test_load_spacingd(self, filename) -> None:
         data = {"image": filename}
         data_dict = LoadNiftid(keys="image")(data)
         data_dict = AddChanneld(keys="image")(data_dict)
@@ -40,7 +40,7 @@ class TestLoadSpacingOrientation(unittest.TestCase):
         np.testing.assert_allclose(ref.get_fdata(), res_dict["image"][0])
 
     @parameterized.expand(FILES)
-    def test_load_spacingd_rotate(self, filename):
+    def test_load_spacingd_rotate(self, filename) -> None:
         data = {"image": filename}
         data_dict = LoadNiftid(keys="image")(data)
         data_dict = AddChanneld(keys="image")(data_dict)
@@ -61,7 +61,7 @@ class TestLoadSpacingOrientation(unittest.TestCase):
             # instead of ceil)
             np.testing.assert_allclose(ref.get_fdata()[..., :-1], res_dict["image"][0])
 
-    def test_load_spacingd_non_diag(self):
+    def test_load_spacingd_non_diag(self) -> None:
         data = {"image": FILES[1]}
         data_dict = LoadNiftid(keys="image")(data)
         data_dict = AddChanneld(keys="image")(data_dict)
@@ -83,7 +83,7 @@ class TestLoadSpacingOrientation(unittest.TestCase):
             ),
         )
 
-    def test_load_spacingd_rotate_non_diag(self):
+    def test_load_spacingd_rotate_non_diag(self) -> None:
         data = {"image": FILES[0]}
         data_dict = LoadNiftid(keys="image")(data)
         data_dict = AddChanneld(keys="image")(data_dict)
@@ -94,7 +94,7 @@ class TestLoadSpacingOrientation(unittest.TestCase):
             np.array([[-1.0, 0.0, 0.0, 32.0], [0.0, 2.0, 0.0, -40.0], [0.0, 0.0, 3.0, -16.0], [0.0, 0.0, 0.0, 1.0]]),
         )
 
-    def test_load_spacingd_rotate_non_diag_ornt(self):
+    def test_load_spacingd_rotate_non_diag_ornt(self) -> None:
         data = {"image": FILES[0]}
         data_dict = LoadNiftid(keys="image")(data)
         data_dict = AddChanneld(keys="image")(data_dict)
@@ -106,7 +106,7 @@ class TestLoadSpacingOrientation(unittest.TestCase):
             np.array([[-1.0, 0.0, 0.0, 32.0], [0.0, -2.0, 0.0, 40.0], [0.0, 0.0, -3.0, 32.0], [0.0, 0.0, 0.0, 1.0]]),
         )
 
-    def test_load_spacingd_non_diag_ornt(self):
+    def test_load_spacingd_non_diag_ornt(self) -> None:
         data = {"image": FILES[1]}
         data_dict = LoadNiftid(keys="image")(data)
         data_dict = AddChanneld(keys="image")(data_dict)

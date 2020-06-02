@@ -29,7 +29,7 @@ def write_nifti(
     mode: str = "constant",
     cval: float = 0,
     dtype: Optional[np.dtype] = None,
-):
+) -> None:
     """
     Write numpy data into NIfTI files to disk.  This function converts data
     into the coordinate system defined by `target_affine` when `target_affine`

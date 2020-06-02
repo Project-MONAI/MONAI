@@ -22,7 +22,7 @@ from monai.handlers import TensorBoardStatsHandler
 
 
 class TestHandlerTBStats(unittest.TestCase):
-    def test_metrics_print(self):
+    def test_metrics_print(self) -> None:
         tempdir = tempfile.mkdtemp()
         shutil.rmtree(tempdir, ignore_errors=True)
 
@@ -47,7 +47,7 @@ class TestHandlerTBStats(unittest.TestCase):
         self.assertTrue(os.path.exists(tempdir))
         shutil.rmtree(tempdir)
 
-    def test_metrics_writer(self):
+    def test_metrics_writer(self) -> None:
         tempdir = tempfile.mkdtemp()
         shutil.rmtree(tempdir, ignore_errors=True)
 

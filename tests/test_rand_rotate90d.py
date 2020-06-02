@@ -18,7 +18,7 @@ from tests.utils import NumpyImageTestCase2D
 
 
 class TestRandRotate90d(NumpyImageTestCase2D):
-    def test_default(self):
+    def test_default(self) -> None:
         key = None
         rotate = RandRotate90d(keys=key)
         rotate.set_random_state(123)
@@ -29,7 +29,7 @@ class TestRandRotate90d(NumpyImageTestCase2D):
         expected = np.stack(expected)
         self.assertTrue(np.allclose(rotated[key], expected))
 
-    def test_k(self):
+    def test_k(self) -> None:
         key = "test"
         rotate = RandRotate90d(keys=key, max_k=2)
         rotate.set_random_state(234)
@@ -40,7 +40,7 @@ class TestRandRotate90d(NumpyImageTestCase2D):
         expected = np.stack(expected)
         self.assertTrue(np.allclose(rotated[key], expected))
 
-    def test_spatial_axes(self):
+    def test_spatial_axes(self) -> None:
         key = "test"
         rotate = RandRotate90d(keys=key, spatial_axes=(0, 1))
         rotate.set_random_state(234)
@@ -51,7 +51,7 @@ class TestRandRotate90d(NumpyImageTestCase2D):
         expected = np.stack(expected)
         self.assertTrue(np.allclose(rotated[key], expected))
 
-    def test_prob_k_spatial_axes(self):
+    def test_prob_k_spatial_axes(self) -> None:
         key = "test"
         rotate = RandRotate90d(keys=key, prob=1.0, max_k=2, spatial_axes=(0, 1))
         rotate.set_random_state(234)
@@ -62,7 +62,7 @@ class TestRandRotate90d(NumpyImageTestCase2D):
         expected = np.stack(expected)
         self.assertTrue(np.allclose(rotated[key], expected))
 
-    def test_no_key(self):
+    def test_no_key(self) -> None:
         key = "unknown"
         rotate = RandRotate90d(keys=key, prob=1.0, max_k=2, spatial_axes=(0, 1))
         with self.assertRaisesRegex(KeyError, ""):

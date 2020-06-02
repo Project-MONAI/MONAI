@@ -24,7 +24,7 @@ from monai.transforms import Compose, AddChannel, ScaleIntensity, Resize, RandRo
 from monai.handlers import StatsHandler, TensorBoardStatsHandler, stopping_fn_from_metric
 
 
-def main():
+def main() -> None:
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 

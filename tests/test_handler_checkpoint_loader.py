@@ -21,7 +21,7 @@ import sys
 
 
 class TestHandlerCheckpointLoader(unittest.TestCase):
-    def test_one_save_one_load(self):
+    def test_one_save_one_load(self) -> None:
         logging.basicConfig(stream=sys.stdout, level=logging.INFO)
         net1 = torch.nn.PReLU()
         data1 = net1.state_dict()
@@ -41,7 +41,7 @@ class TestHandlerCheckpointLoader(unittest.TestCase):
         torch.testing.assert_allclose(net2.state_dict()["weight"], 0.1)
         shutil.rmtree(tempdir)
 
-    def test_two_save_one_load(self):
+    def test_two_save_one_load(self) -> None:
         logging.basicConfig(stream=sys.stdout, level=logging.INFO)
         net1 = torch.nn.PReLU()
         optimizer = optim.SGD(net1.parameters(), lr=0.02)
@@ -63,7 +63,7 @@ class TestHandlerCheckpointLoader(unittest.TestCase):
         torch.testing.assert_allclose(net2.state_dict()["weight"], 0.1)
         shutil.rmtree(tempdir)
 
-    def test_save_single_device_load_multi_devices(self):
+    def test_save_single_device_load_multi_devices(self) -> None:
         logging.basicConfig(stream=sys.stdout, level=logging.INFO)
         net1 = torch.nn.PReLU()
         data1 = net1.state_dict()

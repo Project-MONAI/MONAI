@@ -17,13 +17,13 @@ from monai.transforms.adaptors import adaptor, apply_alias, to_kwargs, FunctionS
 
 
 class TestAdaptors(unittest.TestCase):
-    def test_function_signature(self):
+    def test_function_signature(self) -> None:
         def foo(image, label=None, *a, **kw):
             pass
 
         f = FunctionSignature(foo)
 
-    def test_single_in_single_out(self):
+    def test_single_in_single_out(self) -> None:
         def foo(image):
             return image * 2
 
@@ -53,7 +53,7 @@ class TestAdaptors(unittest.TestCase):
         dres = adaptor(foo, ["img"], {"img": "image"})(d)
         self.assertEqual(dres["img"], 4)
 
-    def test_multi_in_single_out(self):
+    def test_multi_in_single_out(self) -> None:
         def foo(image, label):
             return image * label
 
@@ -84,7 +84,7 @@ class TestAdaptors(unittest.TestCase):
             self.assertEqual(dres["img"], 6)
             self.assertEqual(dres["lbl"], 3)
 
-    def test_default_arg_single_out(self):
+    def test_default_arg_single_out(self) -> None:
         def foo(a, b=2):
             return a * b
 
@@ -96,7 +96,7 @@ class TestAdaptors(unittest.TestCase):
         with self.assertRaises(TypeError):
             dres = adaptor(foo, "c")(d)
 
-    def test_multi_out(self):
+    def test_multi_out(self) -> None:
         def foo(a, b):
             return a * b, a / b
 
@@ -105,7 +105,7 @@ class TestAdaptors(unittest.TestCase):
         self.assertEqual(dres["c"], 12)
         self.assertEqual(dres["d"], 3 / 4)
 
-    def test_dict_out(self):
+    def test_dict_out(self) -> None:
         def foo(a):
             return {"a": a * 2}
 
@@ -119,7 +119,7 @@ class TestAdaptors(unittest.TestCase):
 
 
 class TestApplyAlias(unittest.TestCase):
-    def test_apply_alias(self):
+    def test_apply_alias(self) -> None:
         def foo(d):
             d["x"] *= 2
             return d
@@ -130,7 +130,7 @@ class TestApplyAlias(unittest.TestCase):
 
 
 class TestToKwargs(unittest.TestCase):
-    def test_to_kwargs(self):
+    def test_to_kwargs(self) -> None:
         def foo(**kwargs):
             results = {k: v * 2 for k, v in kwargs.items()}
             return results

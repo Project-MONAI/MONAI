@@ -47,7 +47,7 @@ TEST_CASES = [
 
 class TestNiftiLoadRead(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
-    def test_orientation(self, array, affine, reader_param, expected):
+    def test_orientation(self, array, affine, reader_param, expected) -> None:
         test_image = make_nifti_image(array, affine)
 
         # read test cases
@@ -78,7 +78,7 @@ class TestNiftiLoadRead(unittest.TestCase):
             np.testing.assert_allclose(saved_affine, affine)
         np.testing.assert_allclose(saved_data, expected)
 
-    def test_consistency(self):
+    def test_consistency(self) -> None:
         np.set_printoptions(suppress=True, precision=3)
         test_image = make_nifti_image(np.arange(64).reshape(1, 8, 8), np.diag([1.5, 1.5, 1.5, 1]))
         data, header = LoadNifti(as_closest_canonical=False)(test_image)
@@ -101,7 +101,7 @@ class TestNiftiLoadRead(unittest.TestCase):
         if os.path.exists(test_image):
             os.remove(test_image)
 
-    def test_write_1d(self):
+    def test_write_1d(self) -> None:
         with tempfile.TemporaryDirectory() as out_dir:
             image_name = os.path.join(out_dir, "test.nii.gz")
             img = np.arange(5).reshape(-1)
@@ -124,7 +124,7 @@ class TestNiftiLoadRead(unittest.TestCase):
             np.testing.assert_allclose(out.get_fdata(), np.arange(5).reshape(-1))
             np.testing.assert_allclose(out.affine, np.diag([1.5, 1, 1, 1]))
 
-    def test_write_2d(self):
+    def test_write_2d(self) -> None:
         with tempfile.TemporaryDirectory() as out_dir:
             image_name = os.path.join(out_dir, "test.nii.gz")
             img = np.arange(6).reshape((2, 3))
@@ -140,7 +140,7 @@ class TestNiftiLoadRead(unittest.TestCase):
             np.testing.assert_allclose(out.get_fdata(), [[0, 2, 4]])
             np.testing.assert_allclose(out.affine, np.diag([1.4, 2, 1, 1]))
 
-    def test_write_3d(self):
+    def test_write_3d(self) -> None:
         with tempfile.TemporaryDirectory() as out_dir:
             image_name = os.path.join(out_dir, "test.nii.gz")
             img = np.arange(6).reshape((1, 2, 3))
@@ -156,7 +156,7 @@ class TestNiftiLoadRead(unittest.TestCase):
             np.testing.assert_allclose(out.get_fdata(), [[[0, 2, 4]]])
             np.testing.assert_allclose(out.affine, np.diag([1.4, 2, 2, 1]))
 
-    def test_write_4d(self):
+    def test_write_4d(self) -> None:
         with tempfile.TemporaryDirectory() as out_dir:
             image_name = os.path.join(out_dir, "test.nii.gz")
             img = np.arange(6).reshape((1, 1, 3, 2))
@@ -172,7 +172,7 @@ class TestNiftiLoadRead(unittest.TestCase):
             np.testing.assert_allclose(out.get_fdata(), [[[[0], [2], [4]]]])
             np.testing.assert_allclose(out.affine, np.diag([1.4, 2, 2, 1]))
 
-    def test_write_5d(self):
+    def test_write_5d(self) -> None:
         with tempfile.TemporaryDirectory() as out_dir:
             image_name = os.path.join(out_dir, "test.nii.gz")
             img = np.arange(12).reshape((1, 1, 3, 2, 2))

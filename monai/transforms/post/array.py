@@ -34,7 +34,7 @@ class SplitChannel(Transform):
 
     """
 
-    def __init__(self, to_onehot: bool = False, num_classes: Optional[int] = None):
+    def __init__(self, to_onehot: bool = False, num_classes: Optional[int] = None) -> None:
         self.to_onehot = to_onehot
         self.num_classes = num_classes
 
@@ -64,7 +64,7 @@ class Activations(Transform):
 
     """
 
-    def __init__(self, sigmoid: bool = False, softmax: bool = False, other: Optional[Callable] = None):
+    def __init__(self, sigmoid: bool = False, softmax: bool = False, other: Optional[Callable] = None) -> None:
         self.sigmoid = sigmoid
         self.softmax = softmax
         self.other = other
@@ -111,7 +111,7 @@ class AsDiscrete(Transform):
         n_classes: Optional[int] = None,
         threshold_values: bool = False,
         logit_thresh: float = 0.5,
-    ):
+    ) -> None:
         self.argmax = argmax
         self.to_onehot = to_onehot
         self.n_classes = n_classes
@@ -182,7 +182,7 @@ class KeepLargestConnectedComponent(Transform):
 
     def __init__(
         self, applied_values, independent: bool = True, background: int = 0, connectivity: Optional[int] = None
-    ):
+    ) -> None:
         """
         Args:
             applied_values (list or tuple of int): number list for applying the connected component on.

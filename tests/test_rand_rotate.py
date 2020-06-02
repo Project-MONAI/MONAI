@@ -27,7 +27,7 @@ class TestRandRotate(NumpyImageTestCase2D):
             (180, (1, 0), False, 2, "constant", 4, False),
         ]
     )
-    def test_correct_results(self, degrees, spatial_axes, reshape, order, mode, cval, prefilter):
+    def test_correct_results(self, degrees, spatial_axes, reshape, order, mode, cval, prefilter) -> None:
         rotate_fn = RandRotate(
             degrees,
             prob=1.0,

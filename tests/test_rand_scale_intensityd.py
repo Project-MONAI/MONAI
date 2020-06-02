@@ -17,7 +17,7 @@ from tests.utils import NumpyImageTestCase2D
 
 
 class TestRandScaleIntensityd(NumpyImageTestCase2D):
-    def test_value(self):
+    def test_value(self) -> None:
         key = "img"
         scaler = RandScaleIntensityd(keys=[key], factors=0.5, prob=1.0)
         scaler.set_random_state(seed=0)

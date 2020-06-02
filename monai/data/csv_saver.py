@@ -42,7 +42,7 @@ class CSVSaver:
         self.overwrite: bool = overwrite
         self._data_index: int = 0
 
-    def finalize(self):
+    def finalize(self) -> None:
         """
         Writes the cached dict to a csv
 
@@ -62,7 +62,7 @@ class CSVSaver:
                     f.write("," + str(result))
                 f.write("\n")
 
-    def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: Optional[dict] = None):
+    def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: Optional[dict] = None) -> None:
         """Save data into the cache dictionary. The metadata should have the following key:
             - ``'filename_or_obj'`` -- save the data corresponding to file name or object.
         If meta_data is None, use the default index from 0 to save data instead.
@@ -77,7 +77,7 @@ class CSVSaver:
         out_data: np.ndarray = data.detach().cpu().numpy() if torch.is_tensor(data) else data
         self._cache_dict[save_key] = out_data.astype(np.float32)
 
-    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[dict] = None):
+    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[dict] = None) -> None:
         """Save a batch of data into the cache dictionary.
 
         args:

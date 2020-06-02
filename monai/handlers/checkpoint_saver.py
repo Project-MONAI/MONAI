@@ -68,7 +68,7 @@ class CheckpointSaver:
         epoch_level: bool = True,
         save_interval: int = 0,
         n_saved: Optional[int] = None,
-    ):
+    ) -> None:
         assert save_dir is not None, "must provide directory to save the checkpoints."
         self.save_dir = save_dir
         assert save_dict is not None and len(save_dict) > 0, "must provide source objects to save."
@@ -126,7 +126,7 @@ class CheckpointSaver:
                 require_empty=False,
             )
 
-    def attach(self, engine: Engine):
+    def attach(self, engine: Engine) -> None:
         if self.logger is None:
             self.logger = engine.logger
         if self._final_checkpoint is not None:
@@ -140,7 +140,7 @@ class CheckpointSaver:
             else:
                 engine.add_event_handler(Events.ITERATION_COMPLETED(every=self.save_interval), self.interval_completed)
 
-    def completed(self, engine):
+    def completed(self, engine) -> None:
         """Callback for train or validation/evaluation completed Event.
         Save final checkpoint if configure save_final is True.
 
@@ -150,7 +150,7 @@ class CheckpointSaver:
         assert self.logger is not None
         self.logger.info(f"Train completed, saved final checkpoint: {self._final_checkpoint.last_checkpoint}")
 
-    def exception_raised(self, engine, e):
+    def exception_raised(self, engine, e) -> None:
         """Callback for train or validation/evaluation exception raised Event.
         Save current data as final checkpoint if configure save_final is True.
 
@@ -160,14 +160,14 @@ class CheckpointSaver:
         assert self.logger is not None
         self.logger.info(f"Exception_raised, saved exception checkpoint: {self._final_checkpoint.last_checkpoint}")
 
-    def metrics_completed(self, engine):
+    def metrics_completed(self, engine) -> None:
         """Callback to compare metrics and save models in train or validation when epoch completed.
 
         """
         assert callable(self._key_metric_checkpoint)
         self._key_metric_checkpoint(engine, self.save_dict)
 
-    def interval_completed(self, engine):
+    def interval_completed(self, engine) -> None:
         """Callback for train epoch/iteration completed Event.
         Save checkpoint if configure save_interval = N
 

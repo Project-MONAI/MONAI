@@ -20,7 +20,7 @@ from tests.utils import NumpyImageTestCase2D
 
 class TestRandGaussianNoise(NumpyImageTestCase2D):
     @parameterized.expand([("test_zero_mean", 0, 0.1), ("test_non_zero_mean", 1, 0.5)])
-    def test_correct_results(self, _, mean, std):
+    def test_correct_results(self, _, mean, std) -> None:
         seed = 0
         gaussian_fn = RandGaussianNoise(prob=1.0, mean=mean, std=std)
         gaussian_fn.set_random_state(seed)

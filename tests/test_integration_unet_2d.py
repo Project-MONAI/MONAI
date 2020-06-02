@@ -46,7 +46,7 @@ def run_test(batch_size=64, train_steps=100, device=torch.device("cuda:0")):
 
 
 class TestIntegrationUnet2D(unittest.TestCase):
-    def test_unet_training(self):
+    def test_unet_training(self) -> None:
         loss = run_test(device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0"))
         print(loss)
         self.assertGreaterEqual(0.85, loss)

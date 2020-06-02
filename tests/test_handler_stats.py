@@ -24,7 +24,7 @@ from monai.handlers import StatsHandler
 
 
 class TestHandlerStats(unittest.TestCase):
-    def test_metrics_print(self):
+    def test_metrics_print(self) -> None:
         log_stream = StringIO()
         logging.basicConfig(stream=log_stream, level=logging.INFO)
         key_to_handler = "test_logging"
@@ -57,7 +57,7 @@ class TestHandlerStats(unittest.TestCase):
                 if idx in [5, 10]:
                     self.assertTrue(has_key_word.match(line))
 
-    def test_loss_print(self):
+    def test_loss_print(self) -> None:
         log_stream = StringIO()
         logging.basicConfig(stream=log_stream, level=logging.INFO)
         key_to_handler = "test_logging"
@@ -84,7 +84,7 @@ class TestHandlerStats(unittest.TestCase):
                 if idx in [1, 2, 3, 6, 7, 8]:
                     self.assertTrue(has_key_word.match(line))
 
-    def test_loss_dict(self):
+    def test_loss_dict(self) -> None:
         log_stream = StringIO()
         logging.basicConfig(stream=log_stream, level=logging.INFO)
         key_to_handler = "test_logging"
@@ -111,7 +111,7 @@ class TestHandlerStats(unittest.TestCase):
                 if idx in [1, 2, 3, 6, 7, 8]:
                     self.assertTrue(has_key_word.match(line))
 
-    def test_loss_file(self):
+    def test_loss_file(self) -> None:
         logging.basicConfig(level=logging.INFO)
         key_to_handler = "test_logging"
         key_to_print = "myLoss"

@@ -43,7 +43,7 @@ from monai.data import create_test_image_3d, list_data_collate
 from monai.networks.utils import predict_segmentation
 
 
-def main():
+def main() -> None:
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 

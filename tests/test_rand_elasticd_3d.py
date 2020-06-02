@@ -84,7 +84,7 @@ TEST_CASES = [
 
 class TestRand3DElasticd(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
-    def test_rand_3d_elasticd(self, input_param, input_data, expected_val):
+    def test_rand_3d_elasticd(self, input_param, input_data, expected_val) -> None:
         g = Rand3DElasticd(**input_param)
         g.set_random_state(123)
         res = g(input_data)

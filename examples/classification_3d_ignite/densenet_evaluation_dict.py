@@ -22,7 +22,7 @@ from monai.handlers import StatsHandler, CheckpointLoader, ClassificationSaver
 from monai.transforms import Compose, LoadNiftid, AddChanneld, ScaleIntensityd, Resized, ToTensord
 
 
-def main():
+def main() -> None:
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 

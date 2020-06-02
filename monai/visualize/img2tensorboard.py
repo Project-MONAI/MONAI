@@ -99,7 +99,7 @@ def add_animated_gif(
     max_out: int,
     scale_factor: float,
     global_step: Optional[int] = None,
-):
+) -> None:
     """Creates an animated gif out of an image tensor in 'CHWD' format and writes it with SummaryWriter.
 
     Args:
@@ -126,7 +126,7 @@ def add_animated_gif_no_channels(
     max_out: int,
     scale_factor: float,
     global_step: Optional[int] = None,
-):
+) -> None:
     """Creates an animated gif out of an image tensor in 'HWD' format that does not have
     a channel dimension and writes it with SummaryWriter. This is similar to the "add_animated_gif"
     after inserting a channel dimension of 1.
@@ -156,7 +156,7 @@ def plot_2d_or_3d_image(
     max_channels: int = 1,
     max_frames: int = 64,
     tag: str = "output",
-):
+) -> None:
     """Plot 2D or 3D image on the TensorBoard, 3D image will be converted to GIF image.
 
     Note:

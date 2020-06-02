@@ -16,7 +16,7 @@ from monai.utils import set_determinism, get_seed
 
 
 class TestSetDeterminism(unittest.TestCase):
-    def test_values(self):
+    def test_values(self) -> None:
         # check system default flags
         self.assertTrue(not torch.backends.cudnn.deterministic)
         self.assertTrue(get_seed() is None)

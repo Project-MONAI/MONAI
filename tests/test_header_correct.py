@@ -18,7 +18,7 @@ from monai.data import correct_nifti_header_if_necessary
 
 
 class TestCorrection(unittest.TestCase):
-    def test_correct(self):
+    def test_correct(self) -> None:
         test_img = nib.Nifti1Image(np.zeros((1, 2, 3)), np.eye(4))
         test_img.header.set_zooms((100, 100, 100))
         test_img = correct_nifti_header_if_necessary(test_img)
@@ -27,7 +27,7 @@ class TestCorrection(unittest.TestCase):
             np.array([[100.0, 0.0, 0.0, 0.0], [0.0, 100.0, 0.0, 0.0], [0.0, 0.0, 100.0, 0.0], [0.0, 0.0, 0.0, 1.0]]),
         )
 
-    def test_affine(self):
+    def test_affine(self) -> None:
         test_img = nib.Nifti1Image(np.zeros((1, 2, 3)), np.eye(4) * 20.0)
         test_img = correct_nifti_header_if_necessary(test_img)
         np.testing.assert_allclose(

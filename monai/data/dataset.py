@@ -39,7 +39,7 @@ class Dataset(_TorchDataset):
          },                           },                           }]
     """
 
-    def __init__(self, data: Sequence, transform: Optional[Callable] = None):
+    def __init__(self, data: Sequence, transform: Optional[Callable] = None) -> None:
         """
         Args:
             data: input data to load and transform to generate dataset for model.
@@ -48,7 +48,7 @@ class Dataset(_TorchDataset):
         self.data: Sequence = data
         self.transform: Optional[Callable] = transform
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.data)
 
     def __getitem__(self, index: int):
@@ -95,7 +95,7 @@ class PersistentDataset(Dataset):
 
     def __init__(
         self, data: Sequence, transform: Optional[Callable] = None, cache_dir: Optional[Union[Path, str]] = None
-    ):
+    ) -> None:
         """
         Args:
             data: input data to load and transform to generate dataset for model.
@@ -235,7 +235,7 @@ class CacheDataset(Dataset):
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
         num_workers: int = 0,
-    ):
+    ) -> None:
         """
         Args:
             data: input data to load and transform to generate dataset for model.
@@ -275,7 +275,7 @@ class CacheDataset(Dataset):
             item = apply_transform(_transform, item)
         return item
 
-    def _load_cache_item_thread(self, args):
+    def _load_cache_item_thread(self, args) -> None:
         i, item, transforms = args
         self._cache[i] = self._load_cache_item(item, transforms)
         with self._thread_lock:
@@ -320,7 +320,7 @@ class ZipDataset(Dataset):
 
     """
 
-    def __init__(self, datasets: Union[list, tuple], transform: Optional[Callable] = None):
+    def __init__(self, datasets: Union[list, tuple], transform: Optional[Callable] = None) -> None:
         """
         Args:
             datasets: list of datasets to zip together.
@@ -401,7 +401,7 @@ class ArrayDataset(Randomizable):
         seg_transform: Optional[Callable] = None,
         labels: Iterable[Union[Sequence, np.ndarray]] = None,
         label_transform: Optional[Callable] = None,
-    ):
+    ) -> None:
         """
         Initializes the dataset with the filename lists. The transform `img_transform` is applied
         to the images and `seg_transform` to the segmentations.
@@ -422,7 +422,7 @@ class ArrayDataset(Randomizable):
 
         self._seed = 0  # transform synchronization seed
 
-    def randomize(self):
+    def randomize(self) -> None:
         self._seed = self.R.randint(np.iinfo(np.int32).max)
 
     def __getitem__(self, index: int):

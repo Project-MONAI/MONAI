@@ -24,7 +24,7 @@ from monai.transforms import (
 
 
 class TestCreateGrid(unittest.TestCase):
-    def test_create_grid(self):
+    def test_create_grid(self) -> None:
         with self.assertRaisesRegex(TypeError, ""):
             create_grid(None)
         with self.assertRaisesRegex(TypeError, ""):
@@ -77,7 +77,7 @@ class TestCreateGrid(unittest.TestCase):
         )
         np.testing.assert_allclose(g, expected)
 
-    def test_create_control_grid(self):
+    def test_create_control_grid(self) -> None:
         with self.assertRaisesRegex(TypeError, ""):
             create_control_grid(None, None)
         with self.assertRaisesRegex(TypeError, ""):
@@ -146,13 +146,13 @@ class TestCreateGrid(unittest.TestCase):
         np.testing.assert_allclose(g, expected)
 
 
-def test_assert(func, params, expected):
+def test_assert(func, params, expected) -> None:
     m = func(*params)
     np.testing.assert_allclose(m, expected, atol=1e-7)
 
 
 class TestCreateAffine(unittest.TestCase):
-    def test_create_rotate(self):
+    def test_create_rotate(self) -> None:
         with self.assertRaisesRegex(TypeError, ""):
             create_rotate(2, None)
 
@@ -206,7 +206,7 @@ class TestCreateAffine(unittest.TestCase):
             np.array([[0.0, -1.0, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]),
         )
 
-    def test_create_shear(self):
+    def test_create_shear(self) -> None:
         test_assert(create_shear, (2, 1.0), np.array([[1.0, 1.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]))
         test_assert(create_shear, (2, (2.0, 3.0)), np.array([[1.0, 2.0, 0.0], [3.0, 1.0, 0.0], [0.0, 0.0, 1.0]]))
         test_assert(
@@ -215,7 +215,7 @@ class TestCreateAffine(unittest.TestCase):
             np.array([[1.0, 1.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]),
         )
 
-    def test_create_scale(self):
+    def test_create_scale(self) -> None:
         test_assert(create_scale, (2, 2), np.array([[2.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]))
         test_assert(create_scale, (2, [2, 2, 2]), np.array([[2.0, 0.0, 0.0], [0.0, 2.0, 0.0], [0.0, 0.0, 1.0]]))
         test_assert(
@@ -234,7 +234,7 @@ class TestCreateAffine(unittest.TestCase):
             np.array([[1.0, 0.0, 0.0, 0.0], [0.0, 2.0, 0.0, 0.0], [0.0, 0.0, 3.0, 0.0], [0.0, 0.0, 0.0, 1.0]]),
         )
 
-    def test_create_translate(self):
+    def test_create_translate(self) -> None:
         test_assert(create_translate, (2, 2), np.array([[1.0, 0.0, 2.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]))
         test_assert(create_translate, (2, [2, 2, 2]), np.array([[1.0, 0.0, 2.0], [0.0, 1.0, 2.0], [0.0, 0.0, 1.0]]))
         test_assert(

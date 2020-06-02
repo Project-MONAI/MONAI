@@ -169,7 +169,7 @@ class Compose(Randomizable):
         them are called on the labels.
     """
 
-    def __init__(self, transforms=None):
+    def __init__(self, transforms=None) -> None:
         if transforms is None:
             transforms = []
         if not isinstance(transforms, (list, tuple)):
@@ -177,13 +177,13 @@ class Compose(Randomizable):
         self.transforms = transforms
         self.set_random_state(seed=get_seed())
 
-    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
+    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None) -> None:
         for _transform in self.transforms:
             if not isinstance(_transform, Randomizable):
                 continue
             _transform.set_random_state(seed, state)
 
-    def randomize(self):
+    def randomize(self) -> None:
         for _transform in self.transforms:
             if not isinstance(_transform, Randomizable):
                 continue
@@ -222,7 +222,7 @@ class MapTransform(Transform):
 
     """
 
-    def __init__(self, keys: Hashable):
+    def __init__(self, keys: Hashable) -> None:
         self.keys = ensure_tuple(keys)
         if not self.keys:
             raise ValueError("keys unspecified")

@@ -17,7 +17,7 @@ from tests.utils import NumpyImageTestCase2D
 
 
 class TestScaleIntensity(NumpyImageTestCase2D):
-    def test_range_scale(self):
+    def test_range_scale(self) -> None:
         scaler = ScaleIntensity(minv=1.0, maxv=2.0)
         result = scaler(self.imt)
         mina = np.min(self.imt)
@@ -26,7 +26,7 @@ class TestScaleIntensity(NumpyImageTestCase2D):
         expected = (norm * (2.0 - 1.0)) + 1.0
         np.testing.assert_allclose(result, expected)
 
-    def test_factor_scale(self):
+    def test_factor_scale(self) -> None:
         scaler = ScaleIntensity(minv=None, maxv=None, factor=0.1)
         result = scaler(self.imt)
         expected = (self.imt * (1 + 0.1)).astype(np.float32)

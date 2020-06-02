@@ -23,7 +23,7 @@ from monai.transforms import Compose, LoadNiftid, AddChanneld, ScaleIntensityd, 
 from monai.handlers import StatsHandler, TensorBoardStatsHandler, stopping_fn_from_metric, ROCAUC
 
 
-def main():
+def main() -> None:
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 

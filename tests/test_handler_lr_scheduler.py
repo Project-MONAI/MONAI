@@ -19,7 +19,7 @@ import sys
 
 
 class TestHandlerLrSchedule(unittest.TestCase):
-    def test_content(self):
+    def test_content(self) -> None:
         logging.basicConfig(stream=sys.stdout, level=logging.INFO)
         data = [0] * 8
 

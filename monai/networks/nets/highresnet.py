@@ -45,7 +45,7 @@ class ConvNormActi(nn.Module):
         norm_type: Optional[str] = None,
         acti_type: Optional[str] = None,
         dropout_prob: Optional[float] = None,
-    ):
+    ) -> None:
 
         super(ConvNormActi, self).__init__()
 

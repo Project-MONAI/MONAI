@@ -19,7 +19,7 @@ from tests.utils import NumpyImageTestCase2D
 
 class TestSimulateDelay(NumpyImageTestCase2D):
     @parameterized.expand([(0.45,), (1,)])
-    def test_value(self, delay_test_time: float):
+    def test_value(self, delay_test_time: float) -> None:
         resize = SimulateDelay(delay_time=delay_test_time)
         start: float = time.time()
         result = resize(self.imt[0])

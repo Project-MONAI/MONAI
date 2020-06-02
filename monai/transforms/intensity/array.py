@@ -30,14 +30,14 @@ class RandGaussianNoise(Randomizable, Transform):
         std: Standard deviation (spread) of distribution.
     """
 
-    def __init__(self, prob: float = 0.1, mean: Union[float, List[float]] = 0.0, std: float = 0.1):
+    def __init__(self, prob: float = 0.1, mean: Union[float, List[float]] = 0.0, std: float = 0.1) -> None:
         self.prob: float = prob
         self.mean: Union[float, List[float]] = mean
         self.std: float = std
         self._do_transform: bool = False
         self._noise = None
 
-    def randomize(self, im_shape):
+    def randomize(self, im_shape) -> None:
         self._do_transform = self.R.random() < self.prob
         self._noise = self.R.normal(self.mean, self.R.uniform(0, self.std), size=im_shape)
 
@@ -53,7 +53,7 @@ class ShiftIntensity(Transform):
         offset (int or float): offset value to shift the intensity of image.
     """
 
-    def __init__(self, offset: Union[int, float]):
+    def __init__(self, offset: Union[int, float]) -> None:
         self.offset = offset
 
     def __call__(self, img):
@@ -64,7 +64,7 @@ class RandShiftIntensity(Randomizable, Transform):
     """Randomly shift intensity with randomly picked offset.
     """
 
-    def __init__(self, offsets: Union[int, float, Tuple, List], prob: float = 0.1):
+    def __init__(self, offsets: Union[int, float, Tuple, List], prob: float = 0.1) -> None:
         """
         Args:
             offsets: offset range to randomly shift.
@@ -78,7 +78,7 @@ class RandShiftIntensity(Randomizable, Transform):
         self.prob: float = prob
         self._do_transform: bool = False
 
-    def randomize(self):
+    def randomize(self) -> None:
         self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
         self._do_transform = self.R.random() < self.prob
 
@@ -101,7 +101,7 @@ class ScaleIntensity(Transform):
         minv: Optional[Union[int, float]] = 0.0,
         maxv: Optional[Union[int, float]] = 1.0,
         factor: Optional[float] = None,
-    ):
+    ) -> None:
         """
         Args:
             minv (int or float): minimum value of output data.
@@ -125,7 +125,7 @@ class RandScaleIntensity(Randomizable, Transform):
     is randomly picked from (factors[0], factors[0]).
     """
 
-    def __init__(self, factors, prob: float = 0.1):
+    def __init__(self, factors, prob: float = 0.1) -> None:
         """
         Args:
             factors(float, tuple or list): factor range to randomly scale by ``v = v * (1 + factor)``.
@@ -138,7 +138,7 @@ class RandScaleIntensity(Randomizable, Transform):
         self.prob = prob
         self._do_transform = False
 
-    def randomize(self):
+    def randomize(self) -> None:
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
         self._do_transform = self.R.random() < self.prob
 
@@ -171,7 +171,7 @@ class NormalizeIntensity(Transform):
         divisor: Optional[np.ndarray] = None,
         nonzero: bool = False,
         channel_wise: bool = False,
-    ):
+    ) -> None:
         if subtrahend is not None or divisor is not None:
             assert isinstance(subtrahend, np.ndarray) and isinstance(
                 divisor, np.ndarray
@@ -210,7 +210,7 @@ class ThresholdIntensity(Transform):
         cval (float or int): value to fill the remaining parts of the image, default is 0.
     """
 
-    def __init__(self, threshold: Union[int, float], above: bool = True, cval: Union[int, float] = 0):
+    def __init__(self, threshold: Union[int, float], above: bool = True, cval: Union[int, float] = 0) -> None:
         assert isinstance(threshold, (float, int)), "must set the threshold to filter intensity."
         self.threshold = threshold
         self.above = above
@@ -239,7 +239,7 @@ class ScaleIntensityRange(Transform):
         b_min: Union[int, float],
         b_max: Union[int, float],
         clip: bool = False,
-    ):
+    ) -> None:
         self.a_min = a_min
         self.a_max = a_max
         self.b_min = b_min
@@ -263,7 +263,7 @@ class AdjustContrast(Transform):
         gamma (float): gamma value to adjust the contrast as function.
     """
 
-    def __init__(self, gamma: Union[int, float]):
+    def __init__(self, gamma: Union[int, float]) -> None:
         assert isinstance(gamma, (float, int)), "gamma must be a float or int number."
         self.gamma = gamma
 
@@ -296,7 +296,7 @@ class RandAdjustContrast(Randomizable, Transform):
         self._do_transform = False
         self.gamma_value = None
 
-    def randomize(self):
+    def randomize(self) -> None:
         self._do_transform = self.R.random_sample() < self.prob
         self.gamma_value = self.R.uniform(low=self.gamma[0], high=self.gamma[1])
 

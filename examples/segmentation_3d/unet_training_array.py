@@ -29,7 +29,7 @@ from monai.metrics import compute_meandice
 from monai.visualize.img2tensorboard import plot_2d_or_3d_image
 
 
-def main():
+def main() -> None:
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 

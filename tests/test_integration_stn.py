@@ -29,7 +29,7 @@ class STNBenchmark(nn.Module):
     adapted from https://pytorch.org/tutorials/intermediate/spatial_transformer_tutorial.html
     """
 
-    def __init__(self, is_ref=True, reverse_indexing=False):
+    def __init__(self, is_ref: bool = True, reverse_indexing: bool = False) -> None:
         super().__init__()
         self.is_ref = is_ref
         self.localization = nn.Sequential(
@@ -97,13 +97,13 @@ def compare_2d(is_ref=True, device=None, reverse_indexing=False):
 
 
 class TestSpatialTransformerCore(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         set_determinism(seed=None)
 
-    def test_training(self):
+    def test_training(self) -> None:
         """
         check that the quality AffineTransform backpropagation
         """

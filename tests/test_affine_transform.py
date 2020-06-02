@@ -69,7 +69,7 @@ TEST_ILL_TO_NORM_AFFINE_CASES = [
 
 class TestNormTransform(unittest.TestCase):
     @parameterized.expand(TEST_NORM_CASES)
-    def test_norm_xform(self, input_shape, align_corners, expected):
+    def test_norm_xform(self, input_shape, align_corners, expected) -> None:
         norm = normalize_transform(
             input_shape, device=torch.device("cpu:0"), dtype=torch.float32, align_corners=align_corners
         )
@@ -85,7 +85,7 @@ class TestNormTransform(unittest.TestCase):
 
 class TestToNormAffine(unittest.TestCase):
     @parameterized.expand(TEST_TO_NORM_AFFINE_CASES)
-    def test_to_norm_affine(self, affine, src_size, dst_size, align_corners, expected):
+    def test_to_norm_affine(self, affine, src_size, dst_size, align_corners, expected) -> None:
         affine = torch.as_tensor(affine, device=torch.device("cpu:0"), dtype=torch.float32)
         new_affine = to_norm_affine(affine, src_size, dst_size, align_corners)
         new_affine = new_affine.detach().cpu().numpy()
@@ -98,7 +98,7 @@ class TestToNormAffine(unittest.TestCase):
             np.testing.assert_allclose(new_affine, expected, atol=1e-4)
 
     @parameterized.expand(TEST_ILL_TO_NORM_AFFINE_CASES)
-    def test_to_norm_affine_ill(self, affine, src_size, dst_size, align_corners):
+    def test_to_norm_affine_ill(self, affine, src_size, dst_size, align_corners) -> None:
         with self.assertRaises(ValueError):
             to_norm_affine(affine, src_size, dst_size, align_corners)
         with self.assertRaises(ValueError):
@@ -107,7 +107,7 @@ class TestToNormAffine(unittest.TestCase):
 
 
 class TestAffineTransform(unittest.TestCase):
-    def test_affine_shift(self):
+    def test_affine_shift(self) -> None:
         affine = torch.as_tensor([[1, 0, 0], [0, 1, -1]])
         image = torch.as_tensor([[[[4, 1, 3, 2], [7, 6, 8, 5], [3, 5, 3, 6]]]])
         out = AffineTransform()(image, affine)
@@ -115,7 +115,7 @@ class TestAffineTransform(unittest.TestCase):
         expected = [[[[0, 4, 1, 3], [0, 7, 6, 8], [0, 3, 5, 3]]]]
         np.testing.assert_allclose(out, expected, atol=1e-5)
 
-    def test_affine_shift_1(self):
+    def test_affine_shift_1(self) -> None:
         affine = torch.as_tensor([[1, 0, -1], [0, 1, -1]])
         image = torch.as_tensor([[[[4, 1, 3, 2], [7, 6, 8, 5], [3, 5, 3, 6]]]])
         out = AffineTransform()(image, affine)
@@ -123,7 +123,7 @@ class TestAffineTransform(unittest.TestCase):
         expected = [[[[0, 0, 0, 0], [0, 4, 1, 3], [0, 7, 6, 8]]]]
         np.testing.assert_allclose(out, expected, atol=1e-5)
 
-    def test_affine_shift_2(self):
+    def test_affine_shift_2(self) -> None:
         affine = torch.as_tensor([[1, 0, -1], [0, 1, 0]])
         image = torch.as_tensor([[[[4, 1, 3, 2], [7, 6, 8, 5], [3, 5, 3, 6]]]])
         out = AffineTransform()(image, affine)
@@ -131,28 +131,28 @@ class TestAffineTransform(unittest.TestCase):
         expected = [[[[0, 0, 0, 0], [4, 1, 3, 2], [7, 6, 8, 5]]]]
         np.testing.assert_allclose(out, expected, atol=1e-5)
 
-    def test_zoom(self):
+    def test_zoom(self) -> None:
         affine = torch.as_tensor([[1, 0, 0], [0, 2, 0]])
         image = torch.arange(1, 13).view(1, 1, 3, 4).to(device=torch.device("cpu:0"))
         out = AffineTransform((3, 2))(image, affine)
         expected = [[[[1, 3], [5, 7], [9, 11]]]]
         np.testing.assert_allclose(out, expected, atol=1e-5)
 
-    def test_zoom_1(self):
+    def test_zoom_1(self) -> None:
         affine = torch.as_tensor([[2, 0, 0], [0, 1, 0]])
         image = torch.arange(1, 13).view(1, 1, 3, 4).to(device=torch.device("cpu:0"))
         out = AffineTransform()(image, affine, (1, 4))
         expected = [[[[1, 2, 3, 4]]]]
         np.testing.assert_allclose(out, expected, atol=1e-5)
 
-    def test_zoom_2(self):
+    def test_zoom_2(self) -> None:
         affine = torch.as_tensor([[2, 0, 0], [0, 2, 0]])
         image = torch.arange(1, 13).view(1, 1, 3, 4).to(device=torch.device("cpu:0"))
         out = AffineTransform((1, 2))(image, affine)
         expected = [[[[1, 3]]]]
         np.testing.assert_allclose(out, expected, atol=1e-5)
 
-    def test_affine_transform_minimum(self):
+    def test_affine_transform_minimum(self) -> None:
         t = np.pi / 3
         affine = [[np.cos(t), -np.sin(t), 0], [np.sin(t), np.cos(t), 0], [0, 0, 1]]
         affine = torch.as_tensor(affine, device=torch.device("cpu:0"), dtype=torch.float32)
@@ -171,7 +171,7 @@ class TestAffineTransform(unittest.TestCase):
         ]
         np.testing.assert_allclose(out, expected, atol=1e-5)
 
-    def test_affine_transform_2d(self):
+    def test_affine_transform_2d(self) -> None:
         t = np.pi / 3
         affine = [[np.cos(t), -np.sin(t), 0], [np.sin(t), np.cos(t), 0], [0, 0, 1]]
         affine = torch.as_tensor(affine, device=torch.device("cpu:0"), dtype=torch.float32)
@@ -207,7 +207,7 @@ class TestAffineTransform(unittest.TestCase):
             ]
             np.testing.assert_allclose(out, expected, atol=1e-4)
 
-    def test_affine_transform_3d(self):
+    def test_affine_transform_3d(self) -> None:
         t = np.pi / 3
         affine = [[1, 0, 0, 0], [0.0, np.cos(t), -np.sin(t), 0], [0, np.sin(t), np.cos(t), 0], [0, 0, 0, 1]]
         affine = torch.as_tensor(affine, device=torch.device("cpu:0"), dtype=torch.float32)
@@ -257,7 +257,7 @@ class TestAffineTransform(unittest.TestCase):
             ]
             np.testing.assert_allclose(out, expected, atol=1e-4)
 
-    def test_ill_affine_transform(self):
+    def test_ill_affine_transform(self) -> None:
         with self.assertRaises(ValueError):  # image too small
             t = np.pi / 3
             affine = [[1, 0, 0, 0], [0.0, np.cos(t), -np.sin(t), 0], [0, np.sin(t), np.cos(t), 0], [0, 0, 0, 1]]
@@ -298,7 +298,7 @@ class TestAffineTransform(unittest.TestCase):
             xform = AffineTransform((2, 3, 4), padding_mode="border", align_corners=False, mode="bilinear")
             xform(image, affine)
 
-    def test_forward_2d(self):
+    def test_forward_2d(self) -> None:
         x = torch.rand(2, 1, 4, 4)
         theta = torch.Tensor([[[0, -1, 0], [1, 0, 0]]]).repeat(2, 1, 1)
         grid = torch.nn.functional.affine_grid(theta, x.size(), align_corners=False)
@@ -322,7 +322,7 @@ class TestAffineTransform(unittest.TestCase):
         np.testing.assert_allclose(actual, expected)
         np.testing.assert_allclose(list(theta.shape), [1, 2, 3])
 
-    def test_forward_3d(self):
+    def test_forward_3d(self) -> None:
         x = torch.rand(2, 1, 4, 4, 4)
         theta = torch.Tensor([[[0, 0, -1, 0], [1, 0, 0, 0], [0, 0, 1, 0]]]).repeat(2, 1, 1)
         grid = torch.nn.functional.affine_grid(theta, x.size(), align_corners=False)

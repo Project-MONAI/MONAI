@@ -35,7 +35,7 @@ class PNGSaver:
         mode: str = "constant",
         cval: Union[int, float] = 0,
         scale: bool = False,
-    ):
+    ) -> None:
         """
         Args:
             output_dir (str): output image directory.
@@ -110,7 +110,7 @@ class PNGSaver:
             scale=self.scale,
         )
 
-    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data=None):
+    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data=None) -> None:
         """Save a batch of data into png format files.
 
         args:

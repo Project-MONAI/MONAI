@@ -18,7 +18,7 @@ from monai.data import PNGSaver
 
 
 class TestPNGSaver(unittest.TestCase):
-    def test_saved_content(self):
+    def test_saved_content(self) -> None:
         default_dir = os.path.join(".", "tempdir")
         shutil.rmtree(default_dir, ignore_errors=True)
 
@@ -31,7 +31,7 @@ class TestPNGSaver(unittest.TestCase):
             self.assertTrue(os.path.exists(os.path.join(default_dir, filepath)))
         shutil.rmtree(default_dir)
 
-    def test_saved_content_three_channel(self):
+    def test_saved_content_three_channel(self) -> None:
         default_dir = os.path.join(".", "tempdir")
         shutil.rmtree(default_dir, ignore_errors=True)
 
@@ -44,7 +44,7 @@ class TestPNGSaver(unittest.TestCase):
             self.assertTrue(os.path.exists(os.path.join(default_dir, filepath)))
         shutil.rmtree(default_dir)
 
-    def test_saved_content_spatial_size(self):
+    def test_saved_content_spatial_size(self) -> None:
 
         default_dir = os.path.join(".", "tempdir")
         shutil.rmtree(default_dir, ignore_errors=True)

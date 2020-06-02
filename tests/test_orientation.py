@@ -111,7 +111,7 @@ ILL_CASES = [
 
 class TestOrientationCase(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
-    def test_ornt(self, init_param, img, data_param, expected_data, expected_code):
+    def test_ornt(self, init_param, img, data_param, expected_data, expected_code) -> None:
         ornt = Orientation(**init_param)
         res = ornt(img, **data_param)
         np.testing.assert_allclose(res[0], expected_data)
@@ -121,7 +121,7 @@ class TestOrientationCase(unittest.TestCase):
         self.assertEqual("".join(new_code), expected_code)
 
     @parameterized.expand(ILL_CASES)
-    def test_bad_params(self, init_param, img, data_param):
+    def test_bad_params(self, init_param, img, data_param) -> None:
         with self.assertRaises(ValueError):
             Orientation(**init_param)(img, **data_param)
 

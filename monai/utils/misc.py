@@ -42,7 +42,7 @@ def first(iterable, default=None):
     return default
 
 
-def issequenceiterable(obj):
+def issequenceiterable(obj) -> bool:
     """
     Determine if the object is an iterable sequence and is not a string
     """
@@ -75,7 +75,7 @@ def ensure_tuple_rep(tup, dim):
     raise ValueError(f"sequence must have length {dim}, got length {len(tup)}.")
 
 
-def is_scalar_tensor(val):
+def is_scalar_tensor(val) -> bool:
     if torch.is_tensor(val) and val.ndim == 0:
         return True
     return False
@@ -87,7 +87,7 @@ def is_scalar(val):
     return np.isscalar(val)
 
 
-def process_bar(index: int, count: int, bar_len: int = 30, newline: bool = False):
+def process_bar(index: int, count: int, bar_len: int = 30, newline: bool = False) -> None:
     """print a process bar to track some time consuming task.
 
     Args:
@@ -104,11 +104,11 @@ def process_bar(index: int, count: int, bar_len: int = 30, newline: bool = False
         print("")
 
 
-def get_seed():
+def get_seed() -> None:
     return _seed
 
 
-def set_determinism(seed=np.iinfo(np.int32).max, additional_settings=None):
+def set_determinism(seed=np.iinfo(np.int32).max, additional_settings=None) -> None:
     """
     Set random seed for modules to enable or disable deterministic training.
 

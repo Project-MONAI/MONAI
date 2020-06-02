@@ -17,7 +17,7 @@ from monai.handlers import ROCAUC
 
 
 class TestHandlerROCAUC(unittest.TestCase):
-    def test_compute(self):
+    def test_compute(self) -> None:
         auc_metric = ROCAUC(to_onehot_y=True, add_softmax=True)
 
         y_pred = torch.Tensor([[0.1, 0.9], [0.3, 1.4]])

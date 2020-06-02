@@ -24,13 +24,13 @@ VALID_CASES = [("no_axis", None), ("one_axis", 1), ("many_axis", [0, 1])]
 
 class TestRandFlip(NumpyImageTestCase2D):
     @parameterized.expand(INVALID_CASES)
-    def test_invalid_inputs(self, _, spatial_axis, raises):
+    def test_invalid_inputs(self, _, spatial_axis, raises) -> None:
         with self.assertRaises(raises):
             flip = RandFlip(prob=1.0, spatial_axis=spatial_axis)
             flip(self.imt[0])
 
     @parameterized.expand(VALID_CASES)
-    def test_correct_results(self, _, spatial_axis):
+    def test_correct_results(self, _, spatial_axis) -> None:
         flip = RandFlip(prob=1.0, spatial_axis=spatial_axis)
         expected = list()
         for channel in self.imt[0]:

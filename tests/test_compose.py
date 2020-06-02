@@ -15,12 +15,12 @@ from monai.transforms import Compose, Randomizable, AddChannel
 
 
 class TestCompose(unittest.TestCase):
-    def test_empty_compose(self):
+    def test_empty_compose(self) -> None:
         c = Compose()
         i = 1
         self.assertEqual(c(i), 1)
 
-    def test_non_dict_compose(self):
+    def test_non_dict_compose(self) -> None:
         def a(i):
             return i + "a"
 
@@ -30,7 +30,7 @@ class TestCompose(unittest.TestCase):
         c = Compose([a, b, a, b])
         self.assertEqual(c(""), "abab")
 
-    def test_dict_compose(self):
+    def test_dict_compose(self) -> None:
         def a(d):
             d = dict(d)
             d["a"] += 1
@@ -44,7 +44,7 @@ class TestCompose(unittest.TestCase):
         c = Compose([a, b, a, b, a])
         self.assertDictEqual(c({"a": 0, "b": 0}), {"a": 3, "b": 2})
 
-    def test_list_dict_compose(self):
+    def test_list_dict_compose(self) -> None:
         def a(d):  # transform to handle dict data
             d = dict(d)
             d["a"] += 1
@@ -66,7 +66,7 @@ class TestCompose(unittest.TestCase):
         for item in value:
             self.assertDictEqual(item, {"a": 2, "b": 1, "c": 2})
 
-    def test_random_compose(self):
+    def test_random_compose(self) -> None:
         class _Acc(Randomizable):
             self.rand = 0.0
 
@@ -85,7 +85,7 @@ class TestCompose(unittest.TestCase):
         c.randomize()
         self.assertAlmostEqual(c(1), 2.57673391)
 
-    def test_randomize_warn(self):
+    def test_randomize_warn(self) -> None:
         class _RandomClass(Randomizable):
             def randomize(self, foo):
                 pass
@@ -94,7 +94,7 @@ class TestCompose(unittest.TestCase):
         with self.assertWarns(Warning):
             c.randomize()
 
-    def test_err_msg(self):
+    def test_err_msg(self) -> None:
         transforms = Compose([abs, AddChannel(), round])
         with self.assertRaisesRegexp(Exception, "AddChannel"):
             transforms(42.1)

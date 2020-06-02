@@ -131,7 +131,7 @@ TEST_CASES = [
 
 class TestSpacingCase(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
-    def test_spacing(self, init_param, img, data_param, expected_output):
+    def test_spacing(self, init_param, img, data_param, expected_output) -> None:
         res = Spacing(**init_param)(img, **data_param)
         np.testing.assert_allclose(res[0], expected_output, atol=1e-6)
         if "original_affine" in data_param:
