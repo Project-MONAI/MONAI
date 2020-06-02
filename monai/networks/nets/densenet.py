@@ -73,26 +73,26 @@ class DenseNet(nn.Module):
     https://github.com/pytorch/vision/blob/master/torchvision/models/densenet.py
 
     Args:
-        spatial_dims (Int): number of spatial dimensions of the input image.
-        in_channels (Int): number of the input channel.
-        out_channels (Int): number of the output classes.
-        init_features (Int) number of filters in the first convolution layer.
-        growth_rate (Int): how many filters to add each layer (k in paper).
+        spatial_dims: number of spatial dimensions of the input image.
+        in_channels: number of the input channel.
+        out_channels: number of the output classes.
+        init_features: number of filters in the first convolution layer.
+        growth_rate: how many filters to add each layer (k in paper).
         block_config (tuple): how many layers in each pooling block.
-        bn_size (Int) multiplicative factor for number of bottle neck layers.
+        bn_size: multiplicative factor for number of bottle neck layers.
                       (i.e. bn_size * k features in the bottleneck layer)
         dropout_prob: dropout rate after each dense layer.
     """
 
     def __init__(
         self,
-        spatial_dims,
-        in_channels,
-        out_channels,
-        init_features=64,
-        growth_rate=32,
+        spatial_dims: int,
+        in_channels: int,
+        out_channels: int,
+        init_features: int = 64,
+        growth_rate: int = 32,
         block_config=(6, 12, 24, 16),
-        bn_size=4,
+        bn_size: int = 4,
         dropout_prob: float = 0,
     ):
 

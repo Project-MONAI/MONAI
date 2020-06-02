@@ -19,7 +19,7 @@ def write_png(
     data,
     file_name: str,
     output_shape=None,
-    interp_order=3,
+    interp_order: int=3,
     mode="constant",
     cval=0,
     scale=False,
@@ -35,7 +35,7 @@ def write_png(
         data (numpy.ndarray): input data to write to file.
         file_name: expected file name that saved on disk.
         output_shape (None or tuple of ints): output image shape.
-        interp_order (int): the order of the spline interpolation, default is InterpolationCode.SPLINE3.
+        interp_order: the order of the spline interpolation, default is InterpolationCode.SPLINE3.
             The order has to be in the range 0 - 5.
             this option is used when `output_shape != None`.
         mode (`reflect|constant|nearest|mirror|wrap`):

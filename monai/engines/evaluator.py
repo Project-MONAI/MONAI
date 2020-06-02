@@ -70,7 +70,7 @@ class Evaluator(Workflow):
         Execute validation/evaluation based on Ignite Engine.
 
         Args:
-            global_epoch (int): the overall epoch if during a training. evaluator engine can get it from trainer.
+            global_epoch: the overall epoch if during a training. evaluator engine can get it from trainer.
 
         """
         # init env value for current validation process

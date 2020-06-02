@@ -46,7 +46,7 @@ class SupervisedTrainer(Trainer):
 
     Args:
         device (torch.device): an object representing the device on which to run.
-        max_epochs (int): the total epoch number for engine to run, validator and evaluator have only 1 epoch.
+        max_epochs: the total epoch number for engine to run, validator and evaluator have only 1 epoch.
         train_data_loader (torch.DataLoader): Ignite engine use data_loader to run, must be torch.DataLoader.
         network (Network): to train with this network.
         optimizer (Optimizer): the optimizer associated to the network.
