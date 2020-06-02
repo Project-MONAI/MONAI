@@ -88,6 +88,11 @@ Utilities
   :members:
 
 
-Decathalon DataLoader
-~~~~~~~~~~~~~~~~~~~~~
+Decathalon Loader
+~~~~~~~~~~~~~~~~~
 .. autofunction:: monai.data.load_decathalon_datalist
+
+
+Image DataLoader
+~~~~~~~~~~~~~~~~~
+.. autofunction:: monai.data.ImageDataLoader

@@ -44,10 +44,10 @@ def load_decathalon_datalist(data_list_file_path, is_segmentation=True, data_lis
     Those dataset.json files
 
     Args:
-        data_list_file_path (str): the path to the json file of datalist
-        is_segmentation (bool): whether the datalist is for segmentation task, default is True
-        data_list_key (str): the key to get a list of dictionary to be used, default is "training"
-        base_dir (str): the base directory of the dataset, if None, use the datalist directory
+        data_list_file_path (str): the path to the json file of datalist.
+        is_segmentation (bool): whether the datalist is for segmentation task, default is True.
+        data_list_key (str): the key to get a list of dictionary to be used, default is "training".
+        base_dir (str): the base directory of the dataset, if None, use the datalist directory.
 
     Returns a list of data items, each of which is a dict keyed by element names, for example:
 
