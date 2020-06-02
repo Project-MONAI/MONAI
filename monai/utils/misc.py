@@ -11,12 +11,13 @@
 
 import itertools
 from collections.abc import Iterable
+from typing import Optional
 
 import numpy as np
 import torch
 import random
 
-_seed = None
+_seed: Optional[int] = None
 
 
 def zip_with(op, *vals, mapfunc=map):
@@ -104,11 +105,11 @@ def process_bar(index: int, count: int, bar_len: int = 30, newline: bool = False
         print("")
 
 
-def get_seed() -> None:
+def get_seed() -> Optional[int]:
     return _seed
 
 
-def set_determinism(seed=np.iinfo(np.int32).max, additional_settings=None) -> None:
+def set_determinism(seed: Optional[int] = np.iinfo(np.int32).max, additional_settings=None) -> None:
     """
     Set random seed for modules to enable or disable deterministic training.
 
