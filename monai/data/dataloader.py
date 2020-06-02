@@ -35,26 +35,20 @@ class ImageDataLoader(torch.utils.data.DataLoader):
             `cache_num` and `cache_rate` will be disabled in this case.
 
     """
+
     def __init__(
-        self,
-        datalist,
-        transform,
-        batch_size=1,
-        num_workers=0,
-        shuffle=False,
-        cache_num=0,
-        cache_rate=0,
-        cache_dir=None
+        self, datalist, transform, batch_size=1, num_workers=0, shuffle=False, cache_num=0, cache_rate=0, cache_dir=None
     ):
         if not isinstance(datalist, (list, tuple)):
-            raise ValueError('datalist must be a list of dictionary objects.')
+            raise ValueError("datalist must be a list of dictionary objects.")
         for i in datalist:
             if not isinstance(i, dict):
-                raise ValueError('items of datalist must be dictionary objects.')
+                raise ValueError("items of datalist must be dictionary objects.")
 
         def worker_init_fn(worker_id):
             worker_info = torch.utils.data.get_worker_info()
             worker_info.dataset.transform.set_random_state(worker_info.seed % (2 ** 32))
+
         if isinstance(cache_dir, str):
             dataset = PersistentDataset(data=datalist, transform=transform, cache_dir=cache_dir)
         else:
@@ -66,5 +60,5 @@ class ImageDataLoader(torch.utils.data.DataLoader):
             batch_size=batch_size,
             shuffle=shuffle,
             num_workers=num_workers,
-            worker_init_fn=worker_init_fn
+            worker_init_fn=worker_init_fn,
         )

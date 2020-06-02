@@ -32,19 +32,21 @@ class TestImageDataLoader(unittest.TestCase):
             cache_dir = os.path.join(tempdir, cache_dir)
         datalist = [
             {"image": "spleen_19.nii.gz", "label": "spleen_label_19.nii.gz"},
-            {"image": "spleen_31.nii.gz", "label": "spleen_label_31.nii.gz"}
+            {"image": "spleen_31.nii.gz", "label": "spleen_label_31.nii.gz"},
         ]
-        transform = Compose([
-            DataStatsd(keys=["image", "label"], data_shape=False, intensity_range=False, data_value=True),
-            SimulateDelayd(keys=["image", "label"], delay_time=0.1)
-        ])
+        transform = Compose(
+            [
+                DataStatsd(keys=["image", "label"], data_shape=False, intensity_range=False, data_value=True),
+                SimulateDelayd(keys=["image", "label"], delay_time=0.1),
+            ]
+        )
         dataloader = ImageDataLoader(
             datalist=datalist,
             transform=transform,
             batch_size=2,
             cache_rate=cache_rate,
             cache_num=cache_num,
-            cache_dir=cache_dir
+            cache_dir=cache_dir,
         )
         for d in dataloader:
             self.assertEqual(d["image"][0], "spleen_19.nii.gz")
