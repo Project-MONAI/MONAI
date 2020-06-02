@@ -53,7 +53,7 @@ class ShiftIntensity(Transform):
         offset: offset value to shift the intensity of image.
     """
 
-    def __init__(self, offset: float) -> None:
+    def __init__(self, offset: Union[int, float]) -> None:
         self.offset = offset
 
     def __call__(self, img):
@@ -97,7 +97,10 @@ class ScaleIntensity(Transform):
     """
 
     def __init__(
-        self, minv: Optional[float] = 0.0, maxv: Optional[float] = 1.0, factor: Optional[float] = None,
+        self,
+        minv: Optional[Union[int, float]] = 0.0,
+        maxv: Optional[Union[int, float]] = 1.0,
+        factor: Optional[float] = None,
     ) -> None:
         """
         Args:
@@ -207,7 +210,7 @@ class ThresholdIntensity(Transform):
         cval: value to fill the remaining parts of the image, default is 0.
     """
 
-    def __init__(self, threshold: float, above: bool = True, cval: float = 0) -> None:
+    def __init__(self, threshold: Union[int, float], above: bool = True, cval: Union[int, float] = 0) -> None:
         assert isinstance(threshold, (float, int)), "must set the threshold to filter intensity."
         self.threshold = threshold
         self.above = above
@@ -229,7 +232,14 @@ class ScaleIntensityRange(Transform):
         clip: whether to perform clip after scaling.
     """
 
-    def __init__(self, a_min: float, a_max: float, b_min: float, b_max: float, clip: bool = False,) -> None:
+    def __init__(
+        self,
+        a_min: Union[int, float],
+        a_max: Union[int, float],
+        b_min: Union[int, float],
+        b_max: Union[int, float],
+        clip: bool = False,
+    ) -> None:
         self.a_min = a_min
         self.a_max = a_max
         self.b_min = b_min
@@ -253,7 +263,7 @@ class AdjustContrast(Transform):
         gamma: gamma value to adjust the contrast as function.
     """
 
-    def __init__(self, gamma: float) -> None:
+    def __init__(self, gamma: Union[int, float]) -> None:
         assert isinstance(gamma, (float, int)), "gamma must be a float or int number."
         self.gamma = gamma
 

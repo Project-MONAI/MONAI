@@ -70,7 +70,7 @@ class ShiftIntensityd(MapTransform):
     dictionary-based wrapper of :py:class:`monai.transforms.ShiftIntensity`.
     """
 
-    def __init__(self, keys: Hashable, offset: float) -> None:
+    def __init__(self, keys: Hashable, offset: Union[int, float]) -> None:
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -130,7 +130,13 @@ class ScaleIntensityd(MapTransform):
     If `minv` and `maxv` not provided, use `factor` to scale image by ``v = v * (1 + factor)``.
     """
 
-    def __init__(self, keys: Hashable, minv: float = 0.0, maxv: float = 1.0, factor: Optional[float] = None,) -> None:
+    def __init__(
+        self,
+        keys: Hashable,
+        minv: Union[int, float] = 0.0,
+        maxv: Union[int, float] = 1.0,
+        factor: Optional[float] = None,
+    ) -> None:
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
@@ -233,7 +239,9 @@ class ThresholdIntensityd(MapTransform):
         cval: value to fill the remaining parts of the image, default is 0.
     """
 
-    def __init__(self, keys: Hashable, threshold: float, above: bool = True, cval: float = 0) -> None:
+    def __init__(
+        self, keys: Hashable, threshold: Union[int, float], above: bool = True, cval: Union[int, float] = 0
+    ) -> None:
         super().__init__(keys)
         self.filter = ThresholdIntensity(threshold, above, cval)
 
@@ -259,7 +267,13 @@ class ScaleIntensityRanged(MapTransform):
     """
 
     def __init__(
-        self, keys: Hashable, a_min: float, a_max: float, b_min: float, b_max: float, clip: bool = False,
+        self,
+        keys: Hashable,
+        a_min: Union[int, float],
+        a_max: Union[int, float],
+        b_min: Union[int, float],
+        b_max: Union[int, float],
+        clip: bool = False,
     ) -> None:
         super().__init__(keys)
         self.scaler = ScaleIntensityRange(a_min, a_max, b_min, b_max, clip)
@@ -282,7 +296,7 @@ class AdjustContrastd(MapTransform):
         gamma: gamma value to adjust the contrast as function.
     """
 
-    def __init__(self, keys: Hashable, gamma: float) -> None:
+    def __init__(self, keys: Hashable, gamma: Union[int, float]) -> None:
         super().__init__(keys)
         self.adjuster = AdjustContrast(gamma)
 
