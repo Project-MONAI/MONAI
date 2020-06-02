@@ -191,6 +191,7 @@ def generate_pos_neg_label_crop_centers(
 
     # Select subregion to assure valid roi
     valid_start = np.floor_divide(size, 2)
+    assert isinstance(valid_start, np.ndarray), "valid_start must be an indexible np.ndarray at this point."
     valid_end = np.subtract(max_size + np.array(1), size / np.array(2)).astype(np.uint16)  # add 1 for random
     # int generation to have full range on upper side, but subtract unfloored size/2 to prevent rounded range
     # from being too high
