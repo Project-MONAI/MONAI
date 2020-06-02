@@ -10,26 +10,12 @@
 # limitations under the License.
 
 import unittest
-import os
-import shutil
-import tempfile
-from parameterized import parameterized
-from monai.data import ImageDataLoader
+from monai.data import CacheDataset, DataLoader
 from monai.transforms import DataStatsd, SimulateDelayd, Compose
 
-TEST_CASE_1 = [0, 0, None]
 
-TEST_CASE_2 = [0.5, 1, None]
-
-TEST_CASE_3 = [0, 0, "cache_data"]
-
-
-class TestImageDataLoader(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
-    def test_values(self, cache_rate, cache_num, cache_dir):
-        tempdir = tempfile.mkdtemp()
-        if cache_dir is not None:
-            cache_dir = os.path.join(tempdir, cache_dir)
+class TestDataLoader(unittest.TestCase):
+    def test_values(self):
         datalist = [
             {"image": "spleen_19.nii.gz", "label": "spleen_label_19.nii.gz"},
             {"image": "spleen_31.nii.gz", "label": "spleen_label_31.nii.gz"},
@@ -40,20 +26,17 @@ class TestImageDataLoader(unittest.TestCase):
                 SimulateDelayd(keys=["image", "label"], delay_time=0.1),
             ]
         )
-        dataloader = ImageDataLoader(
-            datalist=datalist,
-            transform=transform,
+        dataset = CacheDataset(data=datalist, transform=transform, cache_rate=0.5, cache_num=1)
+        dataloader = DataLoader(
+            dataset=dataset,
             batch_size=2,
-            cache_rate=cache_rate,
-            cache_num=cache_num,
-            cache_dir=cache_dir,
+            num_workers=2
         )
         for d in dataloader:
             self.assertEqual(d["image"][0], "spleen_19.nii.gz")
             self.assertEqual(d["image"][1], "spleen_31.nii.gz")
             self.assertEqual(d["label"][0], "spleen_label_19.nii.gz")
             self.assertEqual(d["label"][1], "spleen_label_31.nii.gz")
-        shutil.rmtree(tempdir)
 
 
 if __name__ == "__main__":

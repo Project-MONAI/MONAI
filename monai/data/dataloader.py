@@ -10,55 +10,40 @@
 # limitations under the License.
 
 import torch
-from monai.data import CacheDataset, PersistentDataset, list_data_collate
+from monai.data import list_data_collate, worker_init_fn
 
 
-class ImageDataLoader(torch.utils.data.DataLoader):
-    """Generates images/labels for train/validation/testing according to the datalist.
-    Expects the images/labels and transforms are for dictionary format data.
+class DataLoader(torch.utils.data.DataLoader):
+    """Generates images/labels for train/validation/testing from dataset.
     It inherits from PyTorch DataLoader and adds callbacks for `collate` and `worker_fn`.
-    Also supports CacheDataset and PersistDataset, so common users can use this DataLoader directly.
 
     Args:
-        datalist (list of dict): data source for Dataset, expect to be a list of dict object, for example:
-            `[{'image': 'chest_19.nii.gz',  'label': 0}, {'image': 'chest_31.nii.gz',  'label': 1}]`.
-        transform (Transform): transform to be applied to the data.
-            typically, a list of transforms composed by `Compose`.
-        batch_size (int): batch size of the DataLoader output.
-        num_workers (int): number of worker processes for data transformation.
-        shuffle (bool): whether to shuffle the data or not.
-        cache_num (int): number of items to be cached in memory. default is 0, disabled cache.
-            will take the minimum of (cache_num, data_length x cache_rate, data_length).
-        cache_rate (float): percentage of cached data in total in memory, default is 0, disabled cache.
-            will take the minimum of (cache_num, data_length x cache_rate, data_length).
-        cache_dir (str): if set the directory, it will cache all the data into file and load for every epoch.
-            `cache_num` and `cache_rate` will be disabled in this case.
+        dataset (Dataset): dataset from which to load the data.
+        batch_size (int, optional): how many samples per batch to load
+            (default: ``1``).
+        shuffle (bool, optional): set to ``True`` to have the data reshuffled
+            at every epoch (default: ``False``).
+        sampler (Sampler, optional): defines the strategy to draw samples from
+            the dataset. If specified, :attr:`shuffle` must be ``False``.
+        batch_sampler (Sampler, optional): like :attr:`sampler`, but returns a batch of
+            indices at a time. Mutually exclusive with :attr:`batch_size`,
+            :attr:`shuffle`, :attr:`sampler`, and :attr:`drop_last`.
+        num_workers (int, optional): how many subprocesses to use for data
+            loading. ``0`` means that the data will be loaded in the main process.
+            (default: ``0``)
+        pin_memory (bool, optional): If ``True``, the data loader will copy Tensors
+            into CUDA pinned memory before returning them.  If your data elements
+            are a custom type, or your :attr:`collate_fn` returns a batch that is a custom type,
+            see the example below.
+        drop_last (bool, optional): set to ``True`` to drop the last incomplete batch,
+            if the dataset size is not divisible by the batch size. If ``False`` and
+            the size of dataset is not divisible by the batch size, then the last batch
+            will be smaller. (default: ``False``)
+        timeout (numeric, optional): if positive, the timeout value for collecting a batch
+            from workers. Should always be non-negative. (default: ``0``)
+        multiprocessing_context (callable, optional): specify a valid start method for multi-processing.
 
     """
 
-    def __init__(
-        self, datalist, transform, batch_size=1, num_workers=0, shuffle=False, cache_num=0, cache_rate=0, cache_dir=None
-    ):
-        if not isinstance(datalist, (list, tuple)):
-            raise ValueError("datalist must be a list of dictionary objects.")
-        for i in datalist:
-            if not isinstance(i, dict):
-                raise ValueError("items of datalist must be dictionary objects.")
-
-        def worker_init_fn(worker_id):
-            worker_info = torch.utils.data.get_worker_info()
-            worker_info.dataset.transform.set_random_state(worker_info.seed % (2 ** 32))
-
-        if isinstance(cache_dir, str):
-            dataset = PersistentDataset(data=datalist, transform=transform, cache_dir=cache_dir)
-        else:
-            dataset = CacheDataset(data=datalist, transform=transform, cache_num=cache_num, cache_rate=cache_rate)
-
-        super().__init__(
-            dataset=dataset,
-            collate_fn=list_data_collate,
-            batch_size=batch_size,
-            shuffle=shuffle,
-            num_workers=num_workers,
-            worker_init_fn=worker_init_fn,
-        )
+    def __init__(self, dataset, batch_size=1, shuffle=False, sampler=None, batch_sampler=None, num_workers=0, pin_memory=False, drop_last=False, timeout=0, multiprocessing_context=None):
+        super().__init__(dataset=dataset, batch_size=batch_size, shuffle=shuffle, sampler=sampler, batch_sampler=batch_sampler, num_workers=num_workers, collate_fn=list_data_collate, pin_memory=pin_memory, drop_last=drop_last, timeout=timeout, worker_init_fn=worker_init_fn, multiprocessing_context=multiprocessing_context)

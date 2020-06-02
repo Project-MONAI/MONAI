@@ -93,6 +93,6 @@ Decathalon Datalist
 .. autofunction:: monai.data.load_decathalon_datalist
 
 
-Image DataLoader
-~~~~~~~~~~~~~~~~
-.. autofunction:: monai.data.ImageDataLoader
+DataLoader
+~~~~~~~~~~
+.. autofunction:: monai.data.DataLoader

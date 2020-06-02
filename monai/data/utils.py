@@ -214,12 +214,25 @@ def list_data_collate(batch):
     Enhancement for PyTorch DataLoader default collate.
     If dataset already returns a list of batch data that generated in transforms, need to merge all data to 1 list.
     Then it's same as the default collate behavior.
+
     Note:
         Need to use this collate if apply some transforms that can generate batch data.
+
     """
     elem = batch[0]
     data = [i for k in batch for i in k] if isinstance(elem, list) else batch
     return default_collate(data)
+
+
+def worker_init_fn(worker_id):
+    """
+    Callback function for PyTorch DataLoader `worker_init_fn`.
+    It can set different random seed for the transforms in different workers.
+
+    """
+    worker_info = torch.utils.data.get_worker_info()
+    if hasattr(worker_info.dataset, "transform") and hasattr(worker_info.dataset.transform, "set_random_state"):
+        worker_info.dataset.transform.set_random_state(worker_info.seed % (2 ** 32))
 
 
 def correct_nifti_header_if_necessary(img_nii):
