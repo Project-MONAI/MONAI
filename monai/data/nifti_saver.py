@@ -15,6 +15,7 @@ import numpy as np
 import torch
 from monai.data.nifti_writer import write_nifti
 from .utils import create_file_basename
+from monai.data.utils import InterpolationCode, InterpolationCodeType
 
 
 class NiftiSaver:
@@ -31,7 +32,7 @@ class NiftiSaver:
         output_postfix: str = "seg",
         output_ext: str = ".nii.gz",
         resample: bool = True,
-        interp_order: int = 3,
+        interp_order: InterpolationCodeType = InterpolationCode.SPLINE3,
         mode: str = "constant",
         cval: float = 0,
         dtype: Optional[np.dtype] = None,

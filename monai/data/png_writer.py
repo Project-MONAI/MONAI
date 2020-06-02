@@ -13,13 +13,14 @@ from typing import Optional
 
 import numpy as np
 from skimage import io, transform
+from monai.data.utils import InterpolationCode, InterpolationCodeType
 
 
 def write_png(
     data,
     file_name: str,
     output_shape=None,
-    interp_order: int = 3,
+    interp_order: InterpolationCodeType = InterpolationCode.SPLINE3,
     mode="constant",
     cval: float = 0,
     scale: bool = False,

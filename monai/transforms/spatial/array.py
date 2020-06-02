@@ -46,7 +46,7 @@ class Spacing(Transform):
         self,
         pixdim: Sequence[float],
         diagonal: bool = False,
-        interp_order: InterpolationCodeType = 3,
+        interp_order: InterpolationCodeType = InterpolationCode.SPLINE3,
         mode: str = "nearest",
         cval: float = 0,
         dtype: Optional[np.dtype] = None,
@@ -263,7 +263,7 @@ class Resize(Transform):
     def __init__(
         self,
         spatial_size,
-        interp_order=InterpolationCode.LINEAR,
+        interp_order: InterpolationCodeType = InterpolationCode.LINEAR,
         mode: str = "reflect",
         cval: float = 0,
         clip: bool = True,
@@ -281,7 +281,7 @@ class Resize(Transform):
     def __call__(  # type: ignore # see issue #495
         self,
         img,
-        order=None,
+        interp_order: Optional[InterpolationCodeType] = None,
         mode: Optional[str] = None,
         cval: Optional[float] = None,
         clip: Optional[bool] = None,
@@ -298,7 +298,7 @@ class Resize(Transform):
                 resize(
                     image=channel,
                     output_shape=self.spatial_size,
-                    order=self.interp_order if order is None else order,
+                    order=self.interp_order if interp_order is None else interp_order,
                     mode=mode or self.mode,
                     cval=self.cval if cval is None else cval,
                     clip=self.clip if clip is None else clip,
@@ -333,7 +333,7 @@ class Rotate(Transform):
         angle: float,
         spatial_axes=(0, 1),
         reshape: bool = True,
-        interp_order=1,
+        interp_order: InterpolationCodeType = InterpolationCode.LINEAR,
         mode: str = "constant",
         cval: float = 0,
         prefilter: bool = True,
@@ -349,7 +349,7 @@ class Rotate(Transform):
     def __call__(  # type: ignore # see issue #495
         self,
         img,
-        order=None,
+        interp_order: Optional[InterpolationCodeType] = None,
         mode: Optional[str] = None,
         cval: Optional[float] = None,
         prefilter: Optional[bool] = None,
@@ -366,7 +366,7 @@ class Rotate(Transform):
                     angle=self.angle,
                     axes=self.spatial_axes,
                     reshape=self.reshape,
-                    order=self.interp_order if order is None else order,
+                    order=self.interp_order if interp_order is None else interp_order,
                     mode=mode or self.mode,
                     cval=self.cval if cval is None else cval,
                     prefilter=self.prefilter if prefilter is None else prefilter,
@@ -395,7 +395,7 @@ class Zoom(Transform):
     def __init__(
         self,
         zoom,
-        interp_order=InterpolationCode.SPLINE3,
+        interp_order: InterpolationCodeType = InterpolationCode.SPLINE3,
         mode: str = "constant",
         cval: float = 0,
         prefilter: bool = True,
@@ -423,7 +423,12 @@ class Zoom(Transform):
             self._zoom = scipy.ndimage.zoom
 
     def __call__(
-        self, img, order=None, mode=None, cval: Optional[float] = None, prefilter=None,
+        self,
+        img,
+        interp_order: Optional[InterpolationCodeType] = None,
+        mode=None,
+        cval: Optional[float] = None,
+        prefilter=None,
     ):
         """
         Args:
@@ -437,7 +442,7 @@ class Zoom(Transform):
                 zoom_channel = self._zoom(
                     channel,
                     zoom=self.zoom,
-                    order=self.interp_order if order is None else order,
+                    order=self.interp_order if interp_order is None else interp_order,
                     mode=self.mode if mode is None else mode,
                     cval=self.cval if cval is None else cval,
                     prefilter=self.prefilter if prefilter is None else prefilter,
@@ -449,7 +454,7 @@ class Zoom(Transform):
                     self._zoom(
                         channel,
                         zoom=self.zoom,
-                        order=self.interp_order if order is None else order,
+                        order=self.interp_order if interp_order is None else interp_order,
                         mode=mode or self.mode,
                         cval=self.cval if cval is None else cval,
                         prefilter=self.prefilter if prefilter is None else prefilter,
@@ -559,7 +564,7 @@ class RandRotate(Randomizable, Transform):
         prob: float = 0.1,
         spatial_axes=(0, 1),
         reshape: bool = True,
-        interp_order=InterpolationCode.LINEAR,
+        interp_order: InterpolationCodeType = InterpolationCode.LINEAR,
         mode: str = "constant",
         cval: float = 0,
         prefilter: bool = True,
@@ -587,7 +592,7 @@ class RandRotate(Randomizable, Transform):
     def __call__(  # type: ignore # see issue #495
         self,
         img,
-        order=None,
+        interp_order: Optional[InterpolationCodeType] = None,
         mode: Optional[str] = None,
         cval: Optional[float] = None,
         prefilter: Optional[bool] = None,
@@ -599,7 +604,7 @@ class RandRotate(Randomizable, Transform):
             angle=self.angle,
             spatial_axes=self.spatial_axes,
             reshape=self.reshape,
-            interp_order=self.interp_order if order is None else order,
+            interp_order=self.interp_order if interp_order is None else interp_order,
             mode=mode or self.mode,
             cval=self.cval if cval is None else cval,
             prefilter=self.prefilter if prefilter is None else prefilter,
@@ -658,7 +663,7 @@ class RandZoom(Randomizable, Transform):
         prob: float = 0.1,
         min_zoom=0.9,
         max_zoom=1.1,
-        interp_order=InterpolationCode.SPLINE3,
+        interp_order: InterpolationCodeType = InterpolationCode.SPLINE3,
         mode: str = "constant",
         cval: float = 0,
         prefilter: bool = True,
@@ -693,7 +698,7 @@ class RandZoom(Randomizable, Transform):
     def __call__(  # type: ignore # see issue #495
         self,
         img,
-        order=None,
+        interp_order: Optional[InterpolationCodeType] = None,
         mode: Optional[str] = None,
         cval: Optional[float] = None,
         prefilter: Optional[bool] = None,
@@ -704,7 +709,7 @@ class RandZoom(Randomizable, Transform):
         zoomer = Zoom(self._zoom, use_gpu=self.use_gpu, keep_size=self.keep_size)
         return zoomer(
             img,
-            order=self.interp_order if order is None else order,
+            interp_order=self.interp_order if interp_order is None else interp_order,
             mode=mode or self.mode,
             cval=self.cval if cval is None else cval,
             prefilter=self.prefilter if prefilter is None else prefilter,

@@ -22,11 +22,11 @@ import numpy as np
 from monai.utils import ensure_tuple_size
 from monai.networks.layers.simplelayers import GaussianFilter
 
-import enum
+from enum import IntEnum
 from typing import Union
 
 
-class InterpolationCode(enum.IntEnum):
+class InterpolationCode(IntEnum):
     """
     A convenience enumeration to make code uses more expressive
     """

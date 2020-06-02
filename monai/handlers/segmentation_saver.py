@@ -15,6 +15,7 @@ import numpy as np
 from ignite.engine import Events, Engine
 import logging
 from monai.data import NiftiSaver, PNGSaver
+from monai.data.utils import InterpolationCode, InterpolationCodeType
 
 
 class SegmentationSaver:
@@ -28,7 +29,7 @@ class SegmentationSaver:
         output_postfix: str = "seg",
         output_ext: str = ".nii.gz",
         resample: bool = True,
-        interp_order: int = 0,
+        interp_order: InterpolationCodeType = InterpolationCode.SPLINE0,
         mode: str = "constant",
         cval: float = 0,
         scale: bool = False,
