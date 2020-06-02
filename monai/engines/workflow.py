@@ -13,6 +13,7 @@ from abc import ABC, abstractmethod
 import torch
 from ignite.engine import Engine, State, Events
 from .utils import default_prepare_batch
+from monai.transforms import apply_transform
 
 
 class Workflow(ABC, Engine):
@@ -94,7 +95,7 @@ class Workflow(ABC, Engine):
 
             @self.on(Events.ITERATION_COMPLETED)
             def run_post_transform(engine):
-                engine.state.output = post_transform(engine.state.output)
+                engine.state.output = apply_transform(post_transform, engine.state.output)
 
         metrics = None
         if key_metric is not None:

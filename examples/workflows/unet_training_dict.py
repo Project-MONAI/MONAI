@@ -107,7 +107,7 @@ def main():
         [
             Activationsd(keys=Keys.PRED, output_postfix="act", sigmoid=True),
             AsDiscreted(keys="pred_act", output_postfix="dis", threshold_values=True),
-            KeepLargestConnectedComponentd(keys="pred_act_dis", applied_values=[1], output_postfix="lar"),
+            KeepLargestConnectedComponentd(keys="pred_act_dis", applied_values=[1], output_postfix=None),
         ]
     )
     val_handlers = [StatsHandler(output_transform=lambda x: None)]
@@ -120,10 +120,10 @@ def main():
         post_transform=val_post_transforms,
         key_val_metric={
             "val_mean_dice": MeanDice(
-                include_background=True, output_transform=lambda x: (x["pred_act_dis_lar"], x[Keys.LABEL])
+                include_background=True, output_transform=lambda x: (x["pred_act_dis"], x[Keys.LABEL])
             )
         },
-        additional_metrics={"val_acc": Accuracy(output_transform=lambda x: (x["pred_act_dis_lar"], x[Keys.LABEL]))},
+        additional_metrics={"val_acc": Accuracy(output_transform=lambda x: (x["pred_act_dis"], x[Keys.LABEL]))},
         val_handlers=val_handlers,
     )
 
@@ -131,7 +131,7 @@ def main():
         [
             Activationsd(keys=Keys.PRED, output_postfix="act", sigmoid=True),
             AsDiscreted(keys="pred_act", output_postfix="dis", threshold_values=True),
-            KeepLargestConnectedComponentd(keys="pred_act_dis", applied_values=[1], output_postfix="lar"),
+            KeepLargestConnectedComponentd(keys="pred_act_dis", applied_values=[1], output_postfix=None),
         ]
     )
     train_handlers = [
@@ -149,7 +149,7 @@ def main():
         inferer=SimpleInferer(),
         amp=False,
         post_transform=train_post_transforms,
-        key_train_metric={"train_acc": Accuracy(output_transform=lambda x: (x["pred_act_dis_lar"], x[Keys.LABEL]))},
+        key_train_metric={"train_acc": Accuracy(output_transform=lambda x: (x["pred_act_dis"], x[Keys.LABEL]))},
         train_handlers=train_handlers,
     )
     trainer.run()
