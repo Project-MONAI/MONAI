@@ -113,8 +113,8 @@ class RandSpatialCropd(Randomizable, MapTransform):
             See also: monai.transforms.MapTransform
         roi_size (list, tuple): if `random_size` is True, the spatial size of the minimum crop region.
             if `random_size` is False, specify the expected ROI size to crop. e.g. [224, 224, 128]
-        random_center (bool): crop at random position as center or the image center.
-        random_size (bool): crop with random size or specific size ROI.
+        random_center: crop at random position as center or the image center.
+        random_size: crop with random size or specific size ROI.
             The actual size is sampled from `randint(roi_size, img_size)`.
     """
 

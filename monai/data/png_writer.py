@@ -19,10 +19,10 @@ def write_png(
     data,
     file_name: str,
     output_shape=None,
-    interp_order: int=3,
+    interp_order: int = 3,
     mode="constant",
     cval=0,
-    scale=False,
+    scale: bool = False,
     plugin: Optional[str] = None,
     **plugin_args,
 ):
@@ -43,7 +43,7 @@ def write_png(
             this option is used when `output_shape != None`.
         cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
             this option is used when `output_shape != None`.
-        scale (bool): whether to scale data with 255 and convert to uint8 for data in range [0, 1].
+        scale: whether to scale data with 255 and convert to uint8 for data in range [0, 1].
         plugin: name of plugin to use in `imsave`. By default, the different plugins
             are tried(starting with imageio) until a suitable candidate is found.
         plugin_args (keywords): arguments passed to the given plugin.

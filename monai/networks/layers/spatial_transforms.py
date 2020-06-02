@@ -22,11 +22,11 @@ class AffineTransform(nn.Module):
     def __init__(
         self,
         spatial_size=None,
-        normalized=False,
+        normalized: bool = False,
         mode="bilinear",
         padding_mode="zeros",
-        align_corners=False,
-        reverse_indexing=True,
+        align_corners: bool = False,
+        reverse_indexing: bool = True,
     ):
         """
         Apply affine transformations with a batch of affine matrices.
@@ -47,15 +47,15 @@ class AffineTransform(nn.Module):
         Args:
             spatial_size (list or tuple of int): output spatial shape, the full output shape will be
                 `[N, C, *spatial_size]` where N and C are inferred from the `src` input of `self.forward`.
-            normalized (bool): indicating whether the provided affine matrix `theta` is defined
+            normalized: indicating whether the provided affine matrix `theta` is defined
                 for the normalized coordinates. If `normalized=False`, `theta` will be converted
                 to operate on normalized coordinates as pytorch affine_grid works with the normalized
                 coordinates.
             mode (`nearest|bilinear`): interpolation mode.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample.
             padding_mode (`zeros|border|reflection`): padding mode for outside grid values.
-            align_corners (bool): see also https://pytorch.org/docs/stable/nn.functional.html#grid-sample.
-            reverse_indexing (bool): whether to reverse the spatial indexing of image and coordinates.
+            align_corners: see also https://pytorch.org/docs/stable/nn.functional.html#grid-sample.
+            reverse_indexing: whether to reverse the spatial indexing of image and coordinates.
                 set to `False` if `theta` follows pytorch's default "D, H, W" convention.
                 set to `True` if `theta` follows `scipy.ndimage` default "i, j, k" convention.
         """

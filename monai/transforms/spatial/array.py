@@ -250,11 +250,11 @@ class Resize(Transform):
         mode: Points outside boundaries are filled according to given mode.
             Options are 'constant', 'edge', 'symmetric', 'reflect', 'wrap'.
         cval: Used with mode 'constant', the value outside image boundaries.
-        clip (bool): Whether to clip range of output values after interpolation. Default: True.
-        preserve_range (bool): Whether to keep original range of values. Default is True.
+        clip: Whether to clip range of output values after interpolation. Default: True.
+        preserve_range: Whether to keep original range of values. Default is True.
             If False, input is converted according to conventions of img_as_float. See
             https://scikit-image.org/docs/dev/user_guide/data_types.html.
-        anti_aliasing (bool): Whether to apply a gaussian filter to image before down-scaling.
+        anti_aliasing: Whether to apply a gaussian filter to image before down-scaling.
             Default is True.
     """
 
@@ -316,14 +316,14 @@ class Rotate(Transform):
         angle: Rotation angle in degrees.
         spatial_axes (tuple of 2 ints): Spatial axes of rotation. Default: (0, 1).
             This is the first two axis in spatial dimensions.
-        reshape (bool): If reshape is true, the output shape is adapted so that the
+        reshape: If reshape is true, the output shape is adapted so that the
             input array is contained completely in the output. Default is True.
         interp_order: Order of spline interpolation. Range 0-5. Default: InterpolationCode.LINEAR. This is
             different from scipy where default interpolation is InterpolationCode.SPLINE3.
         mode: Points outside boundary filled according to this mode. Options are
             'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
         cval (scalar): Values to fill outside boundary. Default: 0.
-        prefilter (bool): Apply spline_filter before interpolation. Default: True.
+        prefilter: Apply spline_filter before interpolation. Default: True.
     """
 
     def __init__(
@@ -384,10 +384,10 @@ class Zoom(Transform):
         interp_order: order of interpolation. Default=InterpolationCode.SPLINE3.
         mode: Determines how input is extended beyond boundaries. Default is 'constant'.
         cval (scalar, optional): Value to fill past edges. Default is 0.
-        prefilter (bool): Apply spline_filter before interpolation. Default: True.
-        use_gpu (bool): Should use cpu or gpu. Uses cupyx which doesn't support order > 1 and modes
+        prefilter: Apply spline_filter before interpolation. Default: True.
+        use_gpu: Should use cpu or gpu. Uses cupyx which doesn't support order > 1 and modes
             'wrap' and 'reflect'. Defaults to cpu for these cases or if cupyx not found.
-        keep_size (bool): Should keep original size (pad if needed), default is True.
+        keep_size: Should keep original size (pad if needed), default is True.
     """
 
     def __init__(
@@ -541,14 +541,14 @@ class RandRotate(Randomizable, Transform):
         prob: Probability of rotation.
         spatial_axes (tuple of 2 ints): Spatial axes of rotation. Default: (0, 1).
             This is the first two axis in spatial dimensions.
-        reshape (bool): If reshape is true, the output shape is adapted so that the
+        reshape: If reshape is true, the output shape is adapted so that the
             input array is contained completely in the output. Default is True.
         interp_order: Order of spline interpolation. Range 0-5. Default: InterpolationCode.LINEAR. This is
             different from scipy where default interpolation is InterpolationCode.SPLINE3.
         mode: Points outside boundary filled according to this mode. Options are
             'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
         cval (scalar): Value to fill outside boundary. Default: 0.
-        prefilter (bool): Apply spline_filter before interpolation. Default: True.
+        prefilter: Apply spline_filter before interpolation. Default: True.
     """
 
     def __init__(
@@ -645,10 +645,10 @@ class RandZoom(Randomizable, Transform):
         mode ('reflect', 'constant', 'nearest', 'mirror', 'wrap'): Determines how input is
             extended beyond boundaries. Default: 'constant'.
         cval (scalar, optional): Value to fill past edges. Default is 0.
-        prefilter (bool): Apply spline_filter before interpolation. Default: True.
-        use_gpu (bool): Should use cpu or gpu. Uses cupyx which doesn't support order > 1 and modes
+        prefilter: Apply spline_filter before interpolation. Default: True.
+        use_gpu: Should use cpu or gpu. Uses cupyx which doesn't support order > 1 and modes
             'wrap' and 'reflect'. Defaults to cpu for these cases or if cupyx not found.
-        keep_size (bool): Should keep original size (pad if needed), default is True.
+        keep_size: Should keep original size (pad if needed), default is True.
     """
 
     def __init__(
@@ -856,7 +856,7 @@ class RandDeformGrid(Randomizable, Transform):
                 spacing=(2, 2) indicates deformation field defined on every other pixel in 2D.
             magnitude_range (2 ints): the random offsets will be generated from
                 `uniform[magnitude[0], magnitude[1])`.
-            as_tensor_output (bool): whether to output tensor instead of numpy array.
+            as_tensor_output: whether to output tensor instead of numpy array.
                 defaults to True.
             device (torch device): device to store the output grid data.
         """
@@ -895,7 +895,7 @@ class Resample(Transform):
 
         Args:
             padding_mode ('zeros'|'border'|'reflection'): mode of handling out of range indices. Defaults to 'zeros'.
-            as_tensor_output(bool): whether to return a torch tensor. Defaults to False.
+            as_tensor_output: whether to return a torch tensor. Defaults to False.
             mode ('nearest'|'bilinear'): interpolation order. Defaults to 'bilinear'.
             device (torch.device): device on which the tensor will be allocated.
         """
@@ -977,7 +977,7 @@ class Affine(Transform):
                 if `img` has three spatial dimensions, `spatial_size` should have 3 elements [h, w, d].
             mode ('nearest'|'bilinear'): interpolation order. Defaults to 'bilinear'.
             padding_mode ('zeros'|'border'|'reflection'): mode of handling out of range indices. Defaults to 'zeros'.
-            as_tensor_output (bool): the computation is implemented using pytorch tensors, this option specifies
+            as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
             device (torch.device): device on which the tensor will be allocated.
         """
@@ -1043,7 +1043,7 @@ class RandAffine(Randomizable, Transform):
                 if `img` has three spatial dimensions, `spatial_size` should have 3 elements [h, w, d].
             mode ('nearest'|'bilinear'): interpolation order. Defaults to 'bilinear'.
             padding_mode ('zeros'|'border'|'reflection'): mode of handling out of range indices. Defaults to 'zeros'.
-            as_tensor_output (bool): the computation is implemented using pytorch tensors, this option specifies
+            as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
             device (torch.device): device on which the tensor will be allocated.
 
@@ -1137,7 +1137,7 @@ class Rand2DElastic(Randomizable, Transform):
             mode ('nearest'|'bilinear'): interpolation order. Defaults to ``'bilinear'``.
             padding_mode ('zeros'|'border'|'reflection'): mode of handling out of range indices.
                 Defaults to ``'zeros'``.
-            as_tensor_output (bool): the computation is implemented using pytorch tensors, this option specifies
+            as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
             device (torch.device): device on which the tensor will be allocated.
 
@@ -1234,7 +1234,7 @@ class Rand3DElastic(Randomizable, Transform):
             mode ('nearest'|'bilinear'): interpolation order. Defaults to ``'bilinear'``.
             padding_mode ('zeros'|'border'|'reflection'): mode of handling out of range indices.
                 Defaults to ``'zeros'``.
-            as_tensor_output (bool): the computation is implemented using pytorch tensors, this option specifies
+            as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
             device (torch.device): device on which the tensor will be allocated.
 

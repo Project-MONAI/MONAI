@@ -33,12 +33,12 @@ def compute_meandice(
         y (torch.Tensor): ground truth to compute mean dice metric, the first dim is batch.
             example shape: [16, 1, 32, 32] will be converted into [16, 3, 32, 32].
             alternative shape: [16, 3, 32, 32] and set `to_onehot_y=False` to use 3-class labels directly.
-        include_background (Bool): whether to skip Dice computation on the first channel of
+        include_background: whether to skip Dice computation on the first channel of
             the predicted output. Defaults to True.
-        to_onehot_y (Bool): whether to convert `y` into the one-hot format. Defaults to False.
-        mutually_exclusive (Bool): if True, `y_pred` will be converted into a binary matrix using
+        to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
+        mutually_exclusive: if True, `y_pred` will be converted into a binary matrix using
             a combination of argmax and to_onehot.  Defaults to False.
-        add_sigmoid (Bool): whether to add sigmoid function to y_pred before computation. Defaults to False.
+        add_sigmoid: whether to add sigmoid function to y_pred before computation. Defaults to False.
         logit_thresh: the threshold value used to convert (after sigmoid if `add_sigmoid=True`)
             `y_pred` into a binary matrix. Defaults to 0.5.
 
