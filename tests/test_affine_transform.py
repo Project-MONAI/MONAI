@@ -258,34 +258,29 @@ class TestAffineTransform(unittest.TestCase):
             np.testing.assert_allclose(out, expected, atol=1e-4)
 
     def test_ill_affine_transform(self) -> None:
+        t = np.pi / 3
+        affinel = [[1, 0, 0, 0], [0.0, np.cos(t), -np.sin(t), 0], [0, np.sin(t), np.cos(t), 0], [0, 0, 0, 1]]
+        affine: torch.Tensor
         with self.assertRaises(ValueError):  # image too small
-            t = np.pi / 3
-            affine = [[1, 0, 0, 0], [0.0, np.cos(t), -np.sin(t), 0], [0, np.sin(t), np.cos(t), 0], [0, 0, 0, 1]]
-            affine = torch.as_tensor(affine, device=torch.device("cpu:0"), dtype=torch.float32)
+            affine = torch.as_tensor(affinel, device=torch.device("cpu:0"), dtype=torch.float32)
             xform = AffineTransform((3, 4, 2), padding_mode="border", align_corners=False, mode="bilinear")
             xform(torch.as_tensor([1, 2, 3]), affine)
 
         with self.assertRaises(ValueError):  # output shape too small
-            t = np.pi / 3
-            affine = [[1, 0, 0, 0], [0.0, np.cos(t), -np.sin(t), 0], [0, np.sin(t), np.cos(t), 0], [0, 0, 0, 1]]
-            affine = torch.as_tensor(affine, device=torch.device("cpu:0"), dtype=torch.float32)
+            affine = torch.as_tensor(affinel, device=torch.device("cpu:0"), dtype=torch.float32)
             image = torch.arange(48).view(2, 1, 4, 2, 3).to(device=torch.device("cpu:0"))
             xform = AffineTransform((3, 4), padding_mode="border", align_corners=False, mode="bilinear")
             xform(image, affine)
 
         with self.assertRaises(ValueError):  # incorrect affine
-            t = np.pi / 3
-            affine = [[1, 0, 0, 0], [0.0, np.cos(t), -np.sin(t), 0], [0, np.sin(t), np.cos(t), 0], [0, 0, 0, 1]]
-            affine = torch.as_tensor(affine, device=torch.device("cpu:0"), dtype=torch.float32)
+            affine = torch.as_tensor(affinel, device=torch.device("cpu:0"), dtype=torch.float32)
             affine = affine.unsqueeze(0).unsqueeze(0)
             image = torch.arange(48).view(2, 1, 4, 2, 3).to(device=torch.device("cpu:0"))
             xform = AffineTransform((2, 3, 4), padding_mode="border", align_corners=False, mode="bilinear")
             xform(image, affine)
 
         with self.assertRaises(ValueError):  # batch doesn't match
-            t = np.pi / 3
-            affine = [[1, 0, 0, 0], [0.0, np.cos(t), -np.sin(t), 0], [0, np.sin(t), np.cos(t), 0], [0, 0, 0, 1]]
-            affine = torch.as_tensor(affine, device=torch.device("cpu:0"), dtype=torch.float32)
+            affine = torch.as_tensor(affinel, device=torch.device("cpu:0"), dtype=torch.float32)
             affine = affine.unsqueeze(0)
             affine = affine.repeat(3, 1, 1)
             image = torch.arange(48).view(2, 1, 4, 2, 3).to(device=torch.device("cpu:0"))

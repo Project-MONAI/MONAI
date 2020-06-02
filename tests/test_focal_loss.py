@@ -23,7 +23,7 @@ class TestFocalLoss(unittest.TestCase):
         # For gamma=0 the focal loss reduces to the cross entropy loss
         focal_loss = FocalLoss(gamma=0.0, reduction="mean")
         ce = nn.CrossEntropyLoss(reduction="mean")
-        max_error = 0
+        max_error: float = 0
         class_num = 10
         batch_size = 128
         for _ in range(100):
@@ -46,7 +46,7 @@ class TestFocalLoss(unittest.TestCase):
         # for gamma=0 the focal loss reduces to the cross entropy loss
         focal_loss = FocalLoss(gamma=0.0, reduction="mean")
         ce = nn.CrossEntropyLoss(reduction="mean")
-        max_error = 0
+        max_error: float = 0
         class_num = 10
         batch_size = 128
         for _ in range(100):

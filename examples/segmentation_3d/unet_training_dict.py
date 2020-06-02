@@ -35,6 +35,7 @@ from monai.data import create_test_image_3d, list_data_collate
 from monai.inferers import sliding_window_inference
 from monai.metrics import compute_meandice
 from monai.visualize import plot_2d_or_3d_image
+from typing import List
 
 
 def main() -> None:
@@ -121,16 +122,16 @@ def main() -> None:
 
     # start a typical PyTorch training
     val_interval = 2
-    best_metric = -1
+    best_metric: float = -1.0
     best_metric_epoch = -1
-    epoch_loss_values = list()
-    metric_values = list()
+    epoch_loss_values: List[float] = list()
+    metric_values: List[float] = list()
     writer = SummaryWriter()
     for epoch in range(5):
         print("-" * 10)
         print(f"epoch {epoch + 1}/{5}")
         model.train()
-        epoch_loss = 0
+        epoch_loss: float = 0.0
         step = 0
         for batch_data in train_loader:
             step += 1

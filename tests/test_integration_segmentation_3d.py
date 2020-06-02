@@ -38,6 +38,7 @@ from monai.transforms import (
 from monai.visualize import plot_2d_or_3d_image
 from monai.utils import set_determinism
 from tests.utils import skip_if_quick
+from typing import List
 
 
 def run_training_test(root_dir, device=torch.device("cuda:0"), cachedataset=False):
@@ -243,7 +244,7 @@ class IntegrationSegmentation3D(unittest.TestCase):
 
     @skip_if_quick
     def test_training(self) -> None:
-        repeated = []
+        repeated: List[List[float]] = []
         for i in range(3):
             torch.manual_seed(0)
 

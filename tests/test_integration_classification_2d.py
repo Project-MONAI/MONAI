@@ -35,7 +35,7 @@ from monai.transforms import (
 )
 from monai.utils import set_determinism
 from tests.utils import skip_if_quick
-from typing import Optional, Union
+from typing import List
 
 TEST_DATA_URL = "https://www.dropbox.com/s/5wwskxctvcxiuea/MedNIST.tar.gz"
 
@@ -211,7 +211,7 @@ class IntegrationClassification2D(unittest.TestCase):
 
     @skip_if_quick
     def test_training(self) -> None:
-        repeated = []
+        repeated: List[List[float]] = []
         for i in range(2):
             torch.manual_seed(0)
 

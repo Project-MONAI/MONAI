@@ -137,7 +137,10 @@ class TestSpacingCase(unittest.TestCase):
         if "original_affine" in data_param:
             np.testing.assert_allclose(res[1], data_param["original_affine"])
         np.testing.assert_allclose(
-            init_param["pixdim"], np.sqrt(np.sum(np.square(res[2]), axis=0))[: len(init_param["pixdim"])]
+            init_param["pixdim"],
+            # TODO: investigate mypy warning
+            # T484 Value of type "Union[ndarray, generic]" is not indexable
+            np.sqrt(np.sum(np.square(res[2]), axis=0))[: len(init_param["pixdim"])],  # type: ignore
         )
 
 

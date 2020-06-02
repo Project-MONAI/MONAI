@@ -53,7 +53,9 @@ class TestRandZoomd(NumpyImageTestCase2D):
     @parameterized.expand([(0.8, 1.2, 1, "constant", 0, True)])
     def test_gpu_zoom(self, min_zoom, max_zoom, order, mode, cval, prefilter) -> None:
         key = "img"
-        if importlib.util.find_spec("cupy"):
+        # TODO review mypy failure
+        # T484 Module has no attribute "util"
+        if importlib.util.find_spec("cupy"):  # type: ignore
             random_zoom = RandZoomd(
                 key,
                 prob=1.0,

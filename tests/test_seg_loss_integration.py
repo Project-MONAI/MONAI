@@ -102,8 +102,8 @@ class TestSegLossIntegration(unittest.TestCase):
         optimizer = optim.Adam(net.parameters(), lr=learning_rate)
 
         loss_history = []
-        init_output = None
 
+        first_iter: bool = True
         # train the network
         for iter_i in range(max_iter):
             # set the gradient to zero
@@ -111,9 +111,9 @@ class TestSegLossIntegration(unittest.TestCase):
 
             # forward pass
             output = net(image)
-            if init_output is None:
+            if first_iter:
+                first_iter = False
                 init_output = torch.argmax(output, 1).detach().cpu().numpy()
-
             loss_val = loss(output, target_seg, **forward_args)
 
             if iter_i % 10 == 0:

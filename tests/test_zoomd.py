@@ -55,7 +55,9 @@ class TestZoomd(NumpyImageTestCase2D):
     @parameterized.expand(GPU_CASES)
     def test_gpu_zoom(self, _, zoom, order, mode, cval, prefilter) -> None:
         key = "img"
-        if importlib.util.find_spec("cupy"):
+        # TODO: determine why mypy failes
+        #  T484 Module has no attribute "util"
+        if importlib.util.find_spec("cupy"):  # type: ignore
             zoom_fn = Zoomd(
                 key,
                 zoom=zoom,
