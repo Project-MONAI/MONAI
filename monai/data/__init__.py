@@ -19,5 +19,5 @@ from .synthetic import *
 from .utils import *
 from .png_saver import PNGSaver
 from .png_writer import write_png
-from .decathalon_loader import load_decathalon_datalist
+from .decathalon_datalist import load_decathalon_datalist
 from .dataloader import *
