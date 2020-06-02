@@ -11,7 +11,7 @@
 
 import random
 import warnings
-from typing import Optional, Union, Callable
+from typing import Optional, Callable
 
 import torch
 import numpy as np
