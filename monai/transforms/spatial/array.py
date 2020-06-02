@@ -247,7 +247,7 @@ class Resize(Transform):
     Args:
         spatial_size (tuple or list): expected shape of spatial dimensions after resize operation.
         interp_order (int): Order of spline interpolation. Default=InterpolationCode.LINEAR.
-        mode (str): Points outside boundaries are filled according to given mode.
+        mode: Points outside boundaries are filled according to given mode.
             Options are 'constant', 'edge', 'symmetric', 'reflect', 'wrap'.
         cval: Used with mode 'constant', the value outside image boundaries.
         clip (bool): Whether to clip range of output values after interpolation. Default: True.
@@ -320,7 +320,7 @@ class Rotate(Transform):
             input array is contained completely in the output. Default is True.
         interp_order (int): Order of spline interpolation. Range 0-5. Default: InterpolationCode.LINEAR. This is
             different from scipy where default interpolation is InterpolationCode.SPLINE3.
-        mode (str): Points outside boundary filled according to this mode. Options are
+        mode: Points outside boundary filled according to this mode. Options are
             'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
         cval (scalar): Values to fill outside boundary. Default: 0.
         prefilter (bool): Apply spline_filter before interpolation. Default: True.
@@ -382,7 +382,7 @@ class Zoom(Transform):
             If a float, zoom is the same for each spatial axis.
             If a sequence, zoom should contain one value for each spatial axis.
         interp_order (int): order of interpolation. Default=InterpolationCode.SPLINE3.
-        mode (str): Determines how input is extended beyond boundaries. Default is 'constant'.
+        mode: Determines how input is extended beyond boundaries. Default is 'constant'.
         cval (scalar, optional): Value to fill past edges. Default is 0.
         prefilter (bool): Apply spline_filter before interpolation. Default: True.
         use_gpu (bool): Should use cpu or gpu. Uses cupyx which doesn't support order > 1 and modes
@@ -545,7 +545,7 @@ class RandRotate(Randomizable, Transform):
             input array is contained completely in the output. Default is True.
         interp_order (int): Order of spline interpolation. Range 0-5. Default: InterpolationCode.LINEAR. This is
             different from scipy where default interpolation is InterpolationCode.SPLINE3.
-        mode (str): Points outside boundary filled according to this mode. Options are
+        mode: Points outside boundary filled according to this mode. Options are
             'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
         cval (scalar): Value to fill outside boundary. Default: 0.
         prefilter (bool): Apply spline_filter before interpolation. Default: True.

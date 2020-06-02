@@ -49,7 +49,7 @@ class TensorBoardStatsHandler(object):
         Args:
             summary_writer (SummaryWriter): user can specify TensorBoard SummaryWriter,
                 default to create a new writer.
-            log_dir (str): if using default SummaryWriter, write logs to this directory, default is `./runs`.
+            log_dir: if using default SummaryWriter, write logs to this directory, default is `./runs`.
             epoch_event_writer (Callable): customized callable TensorBoard writer for epoch level.
                 must accept parameter "engine" and "summary_writer", use default event writer if None.
             iteration_event_writer (Callable): customized callable TensorBoard writer for iteration level.
@@ -61,7 +61,7 @@ class TensorBoardStatsHandler(object):
             global_epoch_transform (Callable): a callable that is used to customize global epoch number.
                 For example, in evaluation, the evaluator engine might want to use trainer engines epoch number
                 when plotting epoch vs metric curves.
-            tag_name (string): when iteration output is a scalar, tag_name is used to plot, defaults to ``'Loss'``.
+            tag_name: when iteration output is a scalar, tag_name is used to plot, defaults to ``'Loss'``.
         """
         self._writer = SummaryWriter(log_dir=log_dir) if summary_writer is None else summary_writer
         self.epoch_event_writer = epoch_event_writer
@@ -197,7 +197,7 @@ class TensorBoardImageHandler(object):
         Args:
             summary_writer (SummaryWriter): user can specify TensorBoard SummaryWriter,
                 default to create a new writer.
-            log_dir (str): if using default SummaryWriter, write logs to this directory, default is `./runs`.
+            log_dir: if using default SummaryWriter, write logs to this directory, default is `./runs`.
             interval (int): plot content from engine.state every N epochs or every N iterations, default is 1.
             epoch_level (bool): plot content from engine.state every N epochs or N iterations. `True` is epoch level,
                 `False` is iteration level.

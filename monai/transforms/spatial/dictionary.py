@@ -89,7 +89,7 @@ class Spacingd(MapTransform):
                 Default is 'nearest'.
             cval (scalar or sequence of scalars): Value to fill past edges of input if mode is "constant". Default is 0.0.
             dtype (None or np.dtype or sequence of np.dtype): output array data type, defaults to None to use input data's dtype.
-            meta_key_format (str): key format to read/write affine matrices to the data dictionary.
+            meta_key_format: key format to read/write affine matrices to the data dictionary.
         """
         super().__init__(keys)
         self.spacing_transform = Spacing(pixdim, diagonal=diagonal)
@@ -148,7 +148,7 @@ class Orientationd(MapTransform):
             labels : optional, None or sequence of (2,) sequences
                 (2,) sequences are labels for (beginning, end) of output axis.
                 Defaults to ``(('L', 'R'), ('P', 'A'), ('I', 'S'))``.
-            meta_key_format (str): key format to read/write affine matrices to the data dictionary.
+            meta_key_format: key format to read/write affine matrices to the data dictionary.
 
         See Also:
             `nibabel.orientations.ornt2axcodes`.

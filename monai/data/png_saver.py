@@ -38,9 +38,9 @@ class PNGSaver:
     ) -> None:
         """
         Args:
-            output_dir (str): output image directory.
-            output_postfix (str): a string appended to all output file names.
-            output_ext (str): output file extension name.
+            output_dir: output image directory.
+            output_postfix: a string appended to all output file names.
+            output_ext: output file extension name.
             resample (bool): whether to resample and resize if providing spatial_shape in the metadata.
             interp_order (int): the order of the spline interpolation, default is InterpolationCode.SPLINE3.
                 This option is used when spatial_shape is specified and different from the data shape.

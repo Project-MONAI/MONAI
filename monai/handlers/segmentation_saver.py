@@ -39,9 +39,9 @@ class SegmentationSaver:
     ):
         """
         Args:
-            output_dir (str): output image directory.
-            output_postfix (str): a string appended to all output file names.
-            output_ext (str): output file extension name.
+            output_dir: output image directory.
+            output_postfix: a string appended to all output file names.
+            output_ext: output file extension name.
             resample (bool): whether to resample before saving the data array.
             interp_order (int): the order of the spline interpolation, default is 0.
                 The order has to be in the range 0 - 5.
@@ -62,7 +62,7 @@ class SegmentationSaver:
                 ignite.engine.output into the form expected image data.
                 The first dimension of this transform's output will be treated as the
                 batch dimension. Each item in the batch will be saved individually.
-            name (str): identifier of logging.logger to use, defaulting to `engine.logger`.
+            name: identifier of logging.logger to use, defaulting to `engine.logger`.
 
         """
         if output_ext in (".nii.gz", ".nii"):

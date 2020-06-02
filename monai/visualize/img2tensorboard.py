@@ -170,7 +170,7 @@ def plot_2d_or_3d_image(
         index (int): plot which element in the input data batch, default is the first element.
         max_channels (int): number of channels to plot.
         max_frames (int): number of frames for 2D-t plot.
-        tag (str): tag of the plotted image on TensorBoard.
+        tag: tag of the plotted image on TensorBoard.
     """
     assert isinstance(writer, SummaryWriter) is True, "must provide a TensorBoard SummaryWriter."
     d = data[index]
