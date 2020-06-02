@@ -9,19 +9,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional
+
 import numpy as np
 from skimage import io, transform
 
 
 def write_png(
     data,
-    file_name,
+    file_name: str,
     output_shape=None,
     interp_order=3,
     mode="constant",
     cval=0,
     scale=False,
-    plugin=None,
+    plugin: Optional[str] = None,
     **plugin_args,
 ):
     """
@@ -31,7 +33,7 @@ def write_png(
 
     Args:
         data (numpy.ndarray): input data to write to file.
-        file_name (string): expected file name that saved on disk.
+        file_name: expected file name that saved on disk.
         output_shape (None or tuple of ints): output image shape.
         interp_order (int): the order of the spline interpolation, default is InterpolationCode.SPLINE3.
             The order has to be in the range 0 - 5.
@@ -42,7 +44,7 @@ def write_png(
         cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
             this option is used when `output_shape != None`.
         scale (bool): whether to scale data with 255 and convert to uint8 for data in range [0, 1].
-        plugin (string): name of plugin to use in `imsave`. By default, the different plugins
+        plugin: name of plugin to use in `imsave`. By default, the different plugins
             are tried(starting with imageio) until a suitable candidate is found.
         plugin_args (keywords): arguments passed to the given plugin.
 

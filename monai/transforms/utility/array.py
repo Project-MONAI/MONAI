@@ -186,7 +186,7 @@ class DataStats(Transform):
     ) -> None:
         """
         Args:
-            prefix (string): will be printed in format: "{prefix} statistics".
+            prefix: will be printed in format: "{prefix} statistics".
             data_shape (bool): whether to show the shape of input data.
             intensity_range (bool): whether to show the intensity value range of input data.
             data_value (bool): whether to show the raw value of input data.

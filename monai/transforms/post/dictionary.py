@@ -72,7 +72,7 @@ class Activationsd(MapTransform):
         Args:
             keys (hashable items): keys of the corresponding items to model output and label.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            output_postfix (str): the postfix string to construct keys to store converted data.
+            output_postfix: the postfix string to construct keys to store converted data.
                 for example: if the keys of input data is `pred` and `label`, output_postfix is `act`,
                 the output data keys will be: `pred_act`, `label_act`.
                 if set to None, will replace the original data with the same key.
@@ -120,7 +120,7 @@ class AsDiscreted(MapTransform):
         Args:
             keys (hashable items): keys of the corresponding items to model output and label.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            output_postfix (str): the postfix string to construct keys to store converted data.
+            output_postfix: the postfix string to construct keys to store converted data.
                 for example: if the keys of input data is `pred` and `label`, output_postfix is `discreted`,
                 the output data keys will be: `pred_discreted`, `label_discreted`.
                 if set to None, will replace the original data with the same key.
@@ -183,7 +183,7 @@ class KeepLargestConnectedComponentd(MapTransform):
             connectivity (int): Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
                 Accepted values are ranging from  1 to input.ndim. If ``None``, a full
                 connectivity of ``input.ndim`` is used.
-            output_postfix (str): the postfix string to construct keys to store converted data.
+            output_postfix: the postfix string to construct keys to store converted data.
                 for example: if the keys of input data is `label`, output_postfix is `largestcc`,
                 the output data keys will be: `label_largestcc`.
                 if set to None, will replace the original data with the same key.

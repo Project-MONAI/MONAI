@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional
+
 import warnings
 import logging
 import torch
@@ -37,9 +39,9 @@ class StatsHandler(object):
         iteration_print_logger=None,
         output_transform=lambda x: x,
         global_epoch_transform=lambda x: x,
-        name=None,
-        tag_name=DEFAULT_TAG,
-        key_var_format=DEFAULT_KEY_VAL_FORMAT,
+        name: Optional[str] = None,
+        tag_name: str = DEFAULT_TAG,
+        key_var_format: str = DEFAULT_KEY_VAL_FORMAT,
         logger_handler=None,
     ):
         """
@@ -56,10 +58,10 @@ class StatsHandler(object):
             global_epoch_transform (Callable): a callable that is used to customize global epoch number.
                 For example, in evaluation, the evaluator engine might want to print synced epoch number
                 with the trainer engine.
-            name (str): identifier of logging.logger to use, defaulting to ``engine.logger``.
-            tag_name (string): when iteration output is a scalar, tag_name is used to print
+            name: identifier of logging.logger to use, defaulting to ``engine.logger``.
+            tag_name: when iteration output is a scalar, tag_name is used to print
                 tag_name: scalar_value to logger. Defaults to ``'Loss'``.
-            key_var_format (string): a formatting string to control the output string format of key: value.
+            key_var_format: a formatting string to control the output string format of key: value.
             logger_handler (logging.handler): add additional handler to handle the stats data: save to file, etc.
                 add existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html
         """
