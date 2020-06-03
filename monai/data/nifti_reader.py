@@ -13,8 +13,7 @@ from typing import Optional, Callable
 
 import numpy as np
 from torch.utils.data import Dataset
-from monai.transforms import LoadNifti
-from monai.transforms import Randomizable
+from monai.transforms import LoadNifti, Randomizable, apply_transform
 from monai.utils.misc import get_seed
 
 
@@ -63,11 +62,13 @@ class NiftiDataset(Dataset, Randomizable):
         self.dtype = dtype
         self.set_random_state(seed=get_seed())
 
+        self._seed = 0  # transform synchronization seed
+
     def __len__(self):
         return len(self.image_files)
 
     def randomize(self):
-        self.seed = self.R.randint(np.iinfo(np.int32).max)
+        self._seed = self.R.randint(np.iinfo(np.int32).max)
 
     def __getitem__(self, index: int):
         self.randomize()
@@ -89,15 +90,15 @@ class NiftiDataset(Dataset, Randomizable):
 
         if self.transform is not None:
             if isinstance(self.transform, Randomizable):
-                self.transform.set_random_state(seed=self.seed)
-            img = self.transform(img)
+                self.transform.set_random_state(seed=self._seed)
+            img = apply_transform(self.transform, img)
 
         data = [img]
 
         if self.seg_transform is not None:
             if isinstance(self.seg_transform, Randomizable):
-                self.seg_transform.set_random_state(seed=self.seed)
-            seg = self.seg_transform(seg)
+                self.seg_transform.set_random_state(seed=self._seed)
+            seg = apply_transform(self.seg_transform, seg)
 
         if seg is not None:
             data.append(seg)
@@ -105,5 +106,6 @@ class NiftiDataset(Dataset, Randomizable):
             data.append(label)
         if not self.image_only and meta_data is not None:
             data.append(meta_data)
-
+        if len(data) == 1:
+            return data[0]
         return data
