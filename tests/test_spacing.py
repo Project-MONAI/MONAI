@@ -40,7 +40,7 @@ TEST_CASES = [
         {"pixdim": (1.0, 0.2, 1.5), "diagonal": False, "mode": "zeros"},
         np.ones((1, 2, 1, 2)),  # data
         {"affine": np.array([[2, 1, 0, 4], [-1, -3, 0, 5], [0, 0, 2.0, 5], [0, 0, 0, 1]])},
-        np.ones((1, 3, 1, 2)),
+        np.array([[[[0.95527864, 0.95527864]], [[1.0, 1.0]], [[1.0, 1.0]]]]),
     ],
     [
         {"pixdim": (3.0, 1.0), "mode": "zeros"},
@@ -93,19 +93,19 @@ TEST_CASES = [
         ),
     ],
     [
-        {"pixdim": (2.0, 5.0, 6.0), "mode": "zeros", "diagonal": True},
+        {"pixdim": (1.9, 4.0, 5.0), "mode": "zeros", "diagonal": True},
         np.arange(24).reshape((1, 4, 6)),  # data
         {"affine": np.array([[-4, 0, 0, -4], [0, 5, 0, 0], [0, 0, 6, 0], [0, 0, 0, 1]]), "interp_order": "nearest"},
         np.array(
             [
                 [
-                    [18, 19, 20, 21, 22, 23],
-                    [12, 13, 14, 15, 16, 17],
-                    [12, 13, 14, 15, 16, 17],
-                    [12, 13, 14, 15, 16, 17],
-                    [6, 7, 8, 9, 10, 11],
-                    [6, 7, 8, 9, 10, 11],
-                    [0, 1, 2, 3, 4, 5],
+                    [18.0, 19.0, 20.0, 20.0, 21.0, 22.0, 23.0],
+                    [18.0, 19.0, 20.0, 20.0, 21.0, 22.0, 23.0],
+                    [12.0, 13.0, 14.0, 14.0, 15.0, 16.0, 17.0],
+                    [12.0, 13.0, 14.0, 14.0, 15.0, 16.0, 17.0],
+                    [6.0, 7.0, 8.0, 8.0, 9.0, 10.0, 11.0],
+                    [6.0, 7.0, 8.0, 8.0, 9.0, 10.0, 11.0],
+                    [0.0, 1.0, 2.0, 2.0, 3.0, 4.0, 5.0],
                 ]
             ]
         ),
@@ -165,12 +165,16 @@ class TestSpacingCase(unittest.TestCase):
     def test_spacing(self, init_param, img, data_param, expected_output):
         res = Spacing(**init_param)(img, **data_param)
         np.testing.assert_allclose(res[0], expected_output, atol=1e-6)
+        sr = len(res[0].shape) - 1
+        if isinstance(init_param["pixdim"], float):
+            init_param["pixdim"] = [init_param["pixdim"]] * sr
         init_pixdim = ensure_tuple(init_param["pixdim"])
-        np.testing.assert_allclose(init_pixdim, np.sqrt(np.sum(np.square(res[2]), axis=0))[: len(init_pixdim)])
+        init_pixdim = init_param["pixdim"][:sr]
+        np.testing.assert_allclose(init_pixdim[:sr], np.sqrt(np.sum(np.square(res[2]), axis=0))[:sr])
 
     def test_ill_pixdim(self):
         with self.assertRaises(ValueError):
-            res = Spacing(pixdim=(-1, 2.0))(np.zeros((1, 1)))
+            Spacing(pixdim=(-1, 2.0))(np.zeros((1, 1)))
 
 
 if __name__ == "__main__":

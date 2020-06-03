@@ -119,12 +119,12 @@ class Spacing(Transform):
             normalized=False,
             mode=interp_order or self.interp_order,
             padding_mode=mode or self.mode,
-            align_corners=False,
+            align_corners=True,
             reverse_indexing=True,
         )
         output_data = affine_xform(
-            torch.from_numpy((data_array.astype(_dtype))[None]),  # AffineTransform requires a batch dim
-            torch.from_numpy(transform_.astype(_dtype)),
+            torch.from_numpy((data_array.astype(np.float64))[None]),  # AffineTransform requires a batch dim
+            torch.from_numpy(transform_.astype(np.float64)),
             spatial_size=output_shape,
         )
         output_data = output_data.squeeze(0).detach().cpu().numpy().astype(_dtype)
