@@ -110,3 +110,14 @@ temp/
 .idea/
 
 *~
+
+# Remove .pyre temporary config files
+.pyre
+.pyre_configuration
+
+# temporary editor files that should not be in git
+.orig
+.bak
+.swp
+*~
+.DS_Store
