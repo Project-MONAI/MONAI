@@ -12,6 +12,8 @@
 import torch
 from monai.data import list_data_collate, worker_init_fn
 
+__all__ = ["DataLoader"]
+
 
 class DataLoader(torch.utils.data.DataLoader):
     """Generates images/labels for train/validation/testing from dataset.
