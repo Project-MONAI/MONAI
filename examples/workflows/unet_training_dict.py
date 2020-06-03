@@ -40,7 +40,7 @@ from monai.handlers import (
     ValidationHandler,
     LrScheduleHandler,
     CheckpointSaver,
-    MeanDice
+    MeanDice,
 )
 from monai.data import create_test_image_3d
 from monai.engines import SupervisedTrainer, SupervisedEvaluator
@@ -123,9 +123,9 @@ def main():
         TensorBoardImageHandler(
             log_dir="./runs/",
             batch_transform=lambda x: (x["image"], x["label"]),
-            output_transform=lambda x: x["pred_act_dis"]
+            output_transform=lambda x: x["pred_act_dis"],
         ),
-        CheckpointSaver(save_dir="./runs/", save_dict={"net": net}, save_key_metric=True)
+        CheckpointSaver(save_dir="./runs/", save_dict={"net": net}, save_key_metric=True),
     ]
 
     evaluator = SupervisedEvaluator(
@@ -155,7 +155,7 @@ def main():
         ValidationHandler(validator=evaluator, interval=2, epoch_level=True),
         StatsHandler(tag_name="train_loss", output_transform=lambda x: x["loss"]),
         TensorBoardStatsHandler(log_dir="./runs/", tag_name="train_loss", output_transform=lambda x: x["loss"]),
-        CheckpointSaver(save_dir="./runs/", save_dict={"net": net, "opt": opt}, save_interval=2, epoch_level=True)
+        CheckpointSaver(save_dir="./runs/", save_dict={"net": net, "opt": opt}, save_interval=2, epoch_level=True),
     ]
 
     trainer = SupervisedTrainer(

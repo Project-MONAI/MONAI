@@ -43,7 +43,7 @@ from monai.handlers import (
     CheckpointSaver,
     CheckpointLoader,
     SegmentationSaver,
-    MeanDice
+    MeanDice,
 )
 from monai.data import create_test_image_3d
 from monai.engines import SupervisedTrainer, SupervisedEvaluator
@@ -114,9 +114,9 @@ def run_training_test(root_dir, device=torch.device("cuda:0")):
         TensorBoardImageHandler(
             log_dir=root_dir,
             batch_transform=lambda x: (x["image"], x["label"]),
-            output_transform=lambda x: x["pred_act_dis"]
+            output_transform=lambda x: x["pred_act_dis"],
         ),
-        CheckpointSaver(save_dir=root_dir, save_dict={"net": net}, save_key_metric=True)
+        CheckpointSaver(save_dir=root_dir, save_dict={"net": net}, save_key_metric=True),
     ]
 
     evaluator = SupervisedEvaluator(
@@ -146,7 +146,7 @@ def run_training_test(root_dir, device=torch.device("cuda:0")):
         ValidationHandler(validator=evaluator, interval=2, epoch_level=True),
         StatsHandler(tag_name="train_loss", output_transform=lambda x: x["loss"]),
         TensorBoardStatsHandler(log_dir=root_dir, tag_name="train_loss", output_transform=lambda x: x["loss"]),
-        CheckpointSaver(save_dir=root_dir, save_dict={"net": net, "opt": opt}, save_interval=2, epoch_level=True)
+        CheckpointSaver(save_dir=root_dir, save_dict={"net": net, "opt": opt}, save_interval=2, epoch_level=True),
     ]
 
     trainer = SupervisedTrainer(
@@ -212,10 +212,10 @@ def run_inference_test(root_dir, device=torch.device("cuda:0")):
                 "filename_or_obj": x["image.filename_or_obj"],
                 "affine": x["image.affine"],
                 "original_affine": x["image.original_affine"],
-                "spatial_shape": x["image.spatial_shape"]
+                "spatial_shape": x["image.spatial_shape"],
             },
-            output_transform=lambda x: x["pred_act_dis"]
-        )
+            output_transform=lambda x: x["pred_act_dis"],
+        ),
     ]
 
     evaluator = SupervisedEvaluator(
@@ -317,7 +317,7 @@ class IntegrationWorkflows(unittest.TestCase):
                 0.21686124801635742,
                 0.1773381233215332,
                 0.1864323616027832,
-                0.035613059997558594
+                0.035613059997558594,
             ]
             for (output, s) in zip(output_files, sums):
                 ave = np.mean(nib.load(output).get_fdata())

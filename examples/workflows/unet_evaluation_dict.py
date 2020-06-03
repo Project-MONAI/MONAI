@@ -96,10 +96,10 @@ def main():
                 "filename_or_obj": x["image.filename_or_obj"],
                 "affine": x["image.affine"],
                 "original_affine": x["image.original_affine"],
-                "spatial_shape": x["image.spatial_shape"]
+                "spatial_shape": x["image.spatial_shape"],
             },
-            output_transform=lambda x: x["pred_act_dis"]
-        )
+            output_transform=lambda x: x["pred_act_dis"],
+        ),
     ]
 
     evaluator = SupervisedEvaluator(
