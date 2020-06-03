@@ -279,7 +279,7 @@ class Resized(MapTransform):
         for idx, key in enumerate(self.keys):
             d[key] = self.resizer(
                 d[key],
-                order=self.interp_order[idx],
+                interp_order=self.interp_order[idx],
                 mode=self.mode[idx],
                 cval=self.cval[idx],
                 clip=self.clip[idx],
@@ -640,7 +640,7 @@ class Rotated(MapTransform):
         for idx, key in enumerate(self.keys):
             d[key] = self.rotator(
                 d[key],
-                order=self.interp_order[idx],
+                interp_order=self.interp_order[idx],
                 mode=self.mode[idx],
                 cval=self.cval[idx],
                 prefilter=self.prefilter[idx],
@@ -712,7 +712,7 @@ class RandRotated(Randomizable, MapTransform):
         for idx, key in enumerate(self.keys):
             d[key] = rotator(
                 d[key],
-                order=self.interp_order[idx],
+                interp_order=self.interp_order[idx],
                 mode=self.mode[idx],
                 cval=self.cval[idx],
                 prefilter=self.prefilter[idx],
@@ -760,7 +760,7 @@ class Zoomd(MapTransform):
         for idx, key in enumerate(self.keys):
             d[key] = self.zoomer(
                 d[key],
-                order=self.interp_order[idx],
+                interp_order=self.interp_order[idx],
                 mode=self.mode[idx],
                 cval=self.cval[idx],
                 prefilter=self.prefilter[idx],
@@ -838,7 +838,7 @@ class RandZoomd(Randomizable, MapTransform):
         for idx, key in enumerate(self.keys):
             d[key] = zoomer(
                 d[key],
-                order=self.interp_order[idx],
+                interp_order=self.interp_order[idx],
                 mode=self.mode[idx],
                 cval=self.cval[idx],
                 prefilter=self.prefilter[idx],
