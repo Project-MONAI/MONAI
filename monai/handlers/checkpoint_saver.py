@@ -26,7 +26,7 @@ class CheckpointSaver:
         save_dir (str): the target directory to save the checkpoints.
         save_dict (dict): source objects that save to the checkpoint. examples::
 
-            {'network': net, 'optimizer': optimizer, 'engine', engine}
+            {'network': net, 'optimizer': optimizer, 'lr_scheduler': lr_scheduler}
 
         name (str): identifier of logging.logger to use, if None, defaulting to ``engine.logger``.
         file_prefix (str): prefix for the filenames to which objects will be saved.
@@ -40,7 +40,7 @@ class CheckpointSaver:
             metric in descending order.
         epoch_level (bool): save checkpoint during training for every N epochs or every N iterations.
             `True` is epoch level, `False` is iteration level.
-        save_interval (int): save checkpoint every N epochs, default is 0 to save no model.
+        save_interval (int): save checkpoint every N epochs, default is 0 to save no checkpoint.
         n_saved (int): save latest N checkpoints of epoch level or iteration level, 'None' is to save all.
 
     Note:
