@@ -26,25 +26,15 @@ from monai.transforms import (
     LoadNiftid,
     AsChannelFirstd,
     ScaleIntensityd,
-    RandCropByPosNegLabeld,
-    RandRotate90d,
     ToTensord,
     Activationsd,
     AsDiscreted,
     KeepLargestConnectedComponentd,
 )
-from monai.handlers import (
-    StatsHandler,
-    TensorBoardStatsHandler,
-    TensorBoardImageHandler,
-    ValidationHandler,
-    LrScheduleHandler,
-    CheckpointSaver,
-    MeanDice,
-)
+from monai.handlers import StatsHandler, CheckpointLoader, SegmentationSaver, MeanDice
 from monai.data import create_test_image_3d
-from monai.engines import SupervisedTrainer, SupervisedEvaluator
-from monai.inferers import SimpleInferer, SlidingWindowInferer
+from monai.engines import SupervisedEvaluator
+from monai.inferers import SlidingWindowInferer
 
 
 def main():
@@ -54,31 +44,18 @@ def main():
     # create a temporary directory and 40 random image, mask paris
     tempdir = tempfile.mkdtemp()
     print(f"generating synthetic data to {tempdir} (this may take a while)")
-    for i in range(40):
+    for i in range(5):
         im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1, channel_dim=-1)
         n = nib.Nifti1Image(im, np.eye(4))
-        nib.save(n, os.path.join(tempdir, f"img{i:d}.nii.gz"))
+        nib.save(n, os.path.join(tempdir, f"im{i:d}.nii.gz"))
         n = nib.Nifti1Image(seg, np.eye(4))
         nib.save(n, os.path.join(tempdir, f"seg{i:d}.nii.gz"))
 
-    images = sorted(glob(os.path.join(tempdir, "img*.nii.gz")))
+    images = sorted(glob(os.path.join(tempdir, "im*.nii.gz")))
     segs = sorted(glob(os.path.join(tempdir, "seg*.nii.gz")))
-    train_files = [{"image": img, "label": seg} for img, seg in zip(images[:20], segs[:20])]
-    val_files = [{"image": img, "label": seg} for img, seg in zip(images[-20:], segs[-20:])]
+    val_files = [{"image": img, "label": seg} for img, seg in zip(images, segs)]
 
     # define transforms for image and segmentation
-    train_transforms = Compose(
-        [
-            LoadNiftid(keys=["image", "label"]),
-            AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
-            ScaleIntensityd(keys=["image", "label"]),
-            RandCropByPosNegLabeld(
-                keys=["image", "label"], label_key="label", size=[96, 96, 96], pos=1, neg=1, num_samples=4
-            ),
-            RandRotate90d(keys=["image", "label"], prob=0.5, spatial_axes=[0, 2]),
-            ToTensord(keys=["image", "label"]),
-        ]
-    )
     val_transforms = Compose(
         [
             LoadNiftid(keys=["image", "label"]),
@@ -88,12 +65,8 @@ def main():
         ]
     )
 
-    # create a training data loader
-    train_ds = monai.data.CacheDataset(data=train_files, transform=train_transforms, cache_rate=0.5)
-    # use batch_size=2 to load images and use RandCropByPosNegLabeld to generate 2 x 4 images for network training
-    train_loader = monai.data.DataLoader(train_ds, batch_size=2, shuffle=True, num_workers=4)
     # create a validation data loader
-    val_ds = monai.data.CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0)
+    val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
     val_loader = monai.data.DataLoader(val_ds, batch_size=1, num_workers=4)
 
     # create UNet, DiceLoss and Adam optimizer
@@ -106,9 +79,6 @@ def main():
         strides=(2, 2, 2, 2),
         num_res_units=2,
     ).to(device)
-    loss = monai.losses.DiceLoss(do_sigmoid=True)
-    opt = torch.optim.Adam(net.parameters(), 1e-3)
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(opt, step_size=2, gamma=0.1)
 
     val_post_transforms = Compose(
         [
@@ -119,13 +89,17 @@ def main():
     )
     val_handlers = [
         StatsHandler(output_transform=lambda x: None),
-        TensorBoardStatsHandler(log_dir="./runs/", output_transform=lambda x: None),
-        TensorBoardImageHandler(
-            log_dir="./runs/",
-            batch_transform=lambda x: (x["image"], x["label"]),
+        CheckpointLoader(load_path="./runs/net_key_metric=0.9101.pth", load_dict={"net": net}),
+        SegmentationSaver(
+            output_dir="./runs/",
+            batch_transform=lambda x: {
+                "filename_or_obj": x["image.filename_or_obj"],
+                "affine": x["image.affine"],
+                "original_affine": x["image.original_affine"],
+                "spatial_shape": x["image.spatial_shape"],
+            },
             output_transform=lambda x: x["pred_act_dis"],
         ),
-        CheckpointSaver(save_dir="./runs/", save_dict={"net": net}, save_key_metric=True),
     ]
 
     evaluator = SupervisedEvaluator(
@@ -142,37 +116,7 @@ def main():
         additional_metrics={"val_acc": Accuracy(output_transform=lambda x: (x["pred_act_dis"], x["label"]))},
         val_handlers=val_handlers,
     )
-
-    train_post_transforms = Compose(
-        [
-            Activationsd(keys="pred", output_postfix="act", sigmoid=True),
-            AsDiscreted(keys="pred_act", output_postfix="dis", threshold_values=True),
-            KeepLargestConnectedComponentd(keys="pred_act_dis", applied_values=[1], output_postfix=None),
-        ]
-    )
-    train_handlers = [
-        LrScheduleHandler(lr_scheduler=lr_scheduler, print_lr=True),
-        ValidationHandler(validator=evaluator, interval=2, epoch_level=True),
-        StatsHandler(tag_name="train_loss", output_transform=lambda x: x["loss"]),
-        TensorBoardStatsHandler(log_dir="./runs/", tag_name="train_loss", output_transform=lambda x: x["loss"]),
-        CheckpointSaver(save_dir="./runs/", save_dict={"net": net, "opt": opt}, save_interval=2, epoch_level=True),
-    ]
-
-    trainer = SupervisedTrainer(
-        device=device,
-        max_epochs=5,
-        train_data_loader=train_loader,
-        network=net,
-        optimizer=opt,
-        loss_function=loss,
-        inferer=SimpleInferer(),
-        amp=False,
-        post_transform=train_post_transforms,
-        key_train_metric={"train_acc": Accuracy(output_transform=lambda x: (x["pred_act_dis"], x["label"]))},
-        train_handlers=train_handlers,
-    )
-    trainer.run()
-
+    evaluator.run()
     shutil.rmtree(tempdir)
 
 
