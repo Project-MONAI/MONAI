@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - enable-pytype
   pull_request:
 
 jobs:
@@ -25,6 +26,9 @@ jobs:
         flake8 --version
         python -c 'import monai; monai.config.print_config()'
         MYPYPATH=$(pwd)/monai flake8 $(pwd) --count --statistics
+    - name: Type check with Pytype
+      run: |
+        pytype
 
   quick-py3:
     runs-on: ${{ matrix.os }}
