@@ -157,4 +157,4 @@ class SupervisedEvaluator(Evaluator):
         with torch.no_grad():
             predictions = self.inferer(inputs, self.network)
 
-        return {Keys.PRED: predictions, Keys.LABEL: targets, Keys.INFO: None}
+        return {Keys.PRED: predictions, Keys.LABEL: targets}
