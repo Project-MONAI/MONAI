@@ -18,26 +18,6 @@ import torch.nn as nn
 from monai.networks.layers.factories import Conv, Dropout, Pool, Norm
 
 
-def densenet121(**kwargs):
-    model = DenseNet(init_features=64, growth_rate=32, block_config=(6, 12, 24, 16), **kwargs)
-    return model
-
-
-def densenet169(**kwargs):
-    model = DenseNet(init_features=64, growth_rate=32, block_config=(6, 12, 32, 32), **kwargs)
-    return model
-
-
-def densenet201(**kwargs):
-    model = DenseNet(init_features=64, growth_rate=32, block_config=(6, 12, 48, 32), **kwargs)
-    return model
-
-
-def densenet264(**kwargs):
-    model = DenseNet(init_features=64, growth_rate=32, block_config=(6, 12, 64, 48), **kwargs)
-    return model
-
-
 class _DenseLayer(nn.Sequential):
     def __init__(self, spatial_dims, in_channels, growth_rate, bn_size, dropout_prob):
         super(_DenseLayer, self).__init__()
@@ -182,3 +162,23 @@ class DenseNet(nn.Module):
         x = self.features(x)
         x = self.class_layers(x)
         return x
+
+
+def densenet121(**kwargs) -> DenseNet:
+    model = DenseNet(init_features=64, growth_rate=32, block_config=(6, 12, 24, 16), **kwargs)
+    return model
+
+
+def densenet169(**kwargs) -> DenseNet:
+    model = DenseNet(init_features=64, growth_rate=32, block_config=(6, 12, 32, 32), **kwargs)
+    return model
+
+
+def densenet201(**kwargs) -> DenseNet:
+    model = DenseNet(init_features=64, growth_rate=32, block_config=(6, 12, 48, 32), **kwargs)
+    return model
+
+
+def densenet264(**kwargs) -> DenseNet:
+    model = DenseNet(init_features=64, growth_rate=32, block_config=(6, 12, 64, 48), **kwargs)
+    return model
