@@ -317,6 +317,7 @@ class ZipDataset(Dataset):
         """
         Args:
             datasets (list or tuple): list of datasets to zip together.
+            transform (Callable): a callable data transform operates on the zipped item from `datasets`.
         """
         super().__init__(list(datasets), transform=transform)
 
