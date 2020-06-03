@@ -54,7 +54,7 @@ class Dataset(_TorchDataset):
     def __getitem__(self, index: int):
         data = self.data[index]
         if self.transform is not None:
-            data = self.transform(data)
+            data = apply_transform(self.transform, data)
 
         return data
 
@@ -292,22 +292,22 @@ class CacheDataset(Dataset):
         return data
 
 
-class ZipDataset(_TorchDataset):
+class ZipDataset(Dataset):
     """
     Zip several PyTorch datasets and output data(with the same index) together in a tuple.
     If the output of single dataset is already a tuple, flatten it and extend to the result.
     For example: if datasetA returns (img, imgmeta), datasetB returns (seg, segmeta),
     finally return (img, imgmeta, seg, segmeta).
     And if the datasets don't have same length, use the minimum length of them as the length
-    of ZipDataset. Example code::
+    of ZipDataset.
 
-        zip_data = ZipDataset([[1, 2, 3], [4, 5]])
-        print(len(zip_data))
-        output:
+    Examples::
+
+        >>> zip_data = ZipDataset([[1, 2, 3], [4, 5]])
+        >>> print(len(zip_data))
         2
-        for item in zip_data:
-            print(item)
-        output:
+        >>> for item in zip_data:
+        >>>    print(item)
         [1, 4]
         [2, 5]
 
@@ -318,28 +318,27 @@ class ZipDataset(_TorchDataset):
         Args:
             datasets (list or tuple): list of datasets to zip together.
         """
-        self.datasets = list(datasets)
-        self.transform = transform
+        super().__init__(list(datasets), transform=transform)
 
     def __len__(self):
-        return min([len(dataset) for dataset in self.datasets])
+        return min([len(dataset) for dataset in self.data])
 
     def __getitem__(self, index: int):
         def to_list(x):
             return list(x) if isinstance(x, (tuple, list)) else [x]
 
         data = list()
-        for dataset in self.datasets:
+        for dataset in self.data:
             data.extend(to_list(dataset[index]))
         if self.transform is not None:
-            data = self.transform(data)
+            data = apply_transform(self.transform, data, map_items=False)  # transform the list data
         return data
 
 
 class ArrayDataset(Randomizable):
     """
     Dataset for segmentation and classification tasks based on array format input data and transforms.
-    It ensures the same random seeds in the randomised transforms defined for image, segmentation and label.
+    It ensures the same random seeds in the randomized transforms defined for image, segmentation and label.
     The `transform` can be :py:class:`monai.transforms.Compose` or any other callable object.
     For example:
     If train based on Nifti format images without metadata, all transforms can be composed::
@@ -421,9 +420,12 @@ class ArrayDataset(Randomizable):
     def __getitem__(self, index: int):
         self.randomize()
         if isinstance(self.dataset, ZipDataset):
-            for dataset in self.dataset.datasets:
-                if isinstance(getattr(dataset, "transform", None), Randomizable):
-                    dataset.transform.set_random_state(seed=self._seed)
-        if isinstance(getattr(self.dataset, "transform", None), Randomizable):
-            self.dataset.transform.set_random_state(seed=self._seed)  # noqa: T484
+            # set transforms of each zip component
+            for dataset in self.dataset.data:
+                transform = getattr(dataset, "transform", None)
+                if isinstance(transform, Randomizable):
+                    transform.set_random_state(seed=self._seed)
+        transform = getattr(self.dataset, "transform", None)
+        if isinstance(transform, Randomizable):
+            transform.set_random_state(seed=self._seed)
         return self.dataset[index]
