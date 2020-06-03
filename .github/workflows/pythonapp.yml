@@ -28,6 +28,7 @@ jobs:
         MYPYPATH=$(pwd)/monai flake8 $(pwd) --count --statistics
     - name: Type check with Pytype
       run: |
+        pytype --version
         pytype
 
   quick-py3:
