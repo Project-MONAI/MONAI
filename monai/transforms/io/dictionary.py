@@ -63,6 +63,8 @@ class LoadNiftid(MapTransform):
             data = self.loader(d[key])
             assert isinstance(data, (tuple, list)), "loader must return a tuple or list."
             d[key] = data[0]
+            if key == "image":
+                print("NIFIT image:", data[0])
             assert isinstance(data[1], dict), "metadata must be a dict."
             for k in sorted(data[1]):
                 key_to_add = self.meta_key_format.format(key, k)

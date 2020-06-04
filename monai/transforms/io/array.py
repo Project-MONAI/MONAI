@@ -102,7 +102,6 @@ class LoadNifti(Transform):
                 ), "affine data of all images should be same."
 
         img_array = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
-        print("NIFIT image:", img_array)
         if self.image_only:
             return img_array
         return img_array, compatible_meta
