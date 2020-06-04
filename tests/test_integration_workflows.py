@@ -316,7 +316,7 @@ class IntegrationWorkflows(unittest.TestCase):
                 0.21686124801635742,
                 0.1773381233215332,
                 0.1864323616027832,
-                0.035613059997558594
+                0.035613059997558594,
             ]
             for (output, s) in zip(output_files, sums):
                 ave = np.mean(nib.load(output).get_fdata())
