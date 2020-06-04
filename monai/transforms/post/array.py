@@ -134,7 +134,7 @@ class AsDiscrete(Transform):
             img = one_hot(img, self.n_classes if n_classes is None else n_classes)
 
         if threshold_values or self.threshold_values:
-            img = torch.trunc((img - (self.logit_thresh if logit_thresh is None else logit_thresh)) * 10000) > 0
+            img = img >= (self.logit_thresh if logit_thresh is None else logit_thresh)
 
         return img.float()
 

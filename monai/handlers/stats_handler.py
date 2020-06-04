@@ -15,7 +15,7 @@ import torch
 from ignite.engine import Engine, Events
 from monai.utils import is_scalar
 
-DEFAULT_KEY_VAL_FORMAT = "{}: {:.8f} "
+DEFAULT_KEY_VAL_FORMAT = "{}: {:.4f} "
 DEFAULT_TAG = "Loss"
 
 
