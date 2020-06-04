@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - master
-      - fix-CI-workflow-integration-test
 
 jobs:
   coverage-py3:
