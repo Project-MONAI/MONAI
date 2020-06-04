@@ -320,7 +320,7 @@ class IntegrationWorkflows(unittest.TestCase):
             ]
             for (output, s) in zip(output_files, sums):
                 ave = np.mean(nib.load(output).get_fdata())
-                print(ave + ",")
+                print(ave, ",")
             for (output, s) in zip(output_files, sums):
                 ave = np.mean(nib.load(output).get_fdata())
                 np.testing.assert_allclose(ave, s, rtol=1e-3)
