@@ -93,6 +93,21 @@ then
      else
        echo "*** flake8 code format tests passed. ***"
      fi
+
+     echo "-----------------------------------"
+     echo "Verifying pytype typehint checks."
+     pytype
+     pytype_status=$?
+     echo "-----------------------------------"
+     if [ ${pytype_status} -ne 0 ];
+     then
+       echo "----------------------------------"
+       echo "Typehinting test failed!"
+       echo "Manually review and fix listed typehint errors"
+       exit ${pytype_status}
+     else
+       echo "*** pytype code typehint consistency tests passed. ***"
+     fi
      set -e # Re-enable exit on failure
 fi
 
