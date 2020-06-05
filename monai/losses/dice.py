@@ -141,7 +141,9 @@ class MaskedDiceLoss(DiceLoss):
     Same as DiceLoss, but accepts a binary mask ([0,1]) indicating a region over which to compute the dice.
     """
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor, mask: torch.Tensor = None, smooth: float = 1e-5):
+    def forward(  # type: ignore # see issue #495
+        self, input: torch.Tensor, target: torch.Tensor, mask: torch.Tensor = None, smooth: float = 1e-5
+    ):
         """
         Args:
             input (tensor): the shape should be BNH[WD].
