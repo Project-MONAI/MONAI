@@ -230,7 +230,7 @@ def worker_init_fn(worker_id):
     It can set different random seed for the transforms in different workers.
 
     """
-    worker_info = torch.utils.data.get_worker_info()
+    worker_info = torch.utils.data.get_worker_info()  # type: ignore
     if hasattr(worker_info.dataset, "transform") and hasattr(worker_info.dataset.transform, "set_random_state"):
         worker_info.dataset.transform.set_random_state(worker_info.seed % (2 ** 32))
 

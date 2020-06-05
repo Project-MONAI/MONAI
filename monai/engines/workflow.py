@@ -68,7 +68,7 @@ class Workflow(ABC, Engine):
             self.logger.info("Will add AMP support when PyTorch v1.6 released.")
         if not isinstance(device, torch.device):
             raise ValueError("device must be PyTorch device object.")
-        if not isinstance(data_loader, torch.utils.data.DataLoader):
+        if not isinstance(data_loader, torch.utils.data.DataLoader):  # type: ignore
             raise ValueError("data_loader must be PyTorch DataLoader.")
 
         # set all sharable data for the workflow based on Ignite engine.state
