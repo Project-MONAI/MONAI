@@ -97,7 +97,7 @@ def run_training_test(root_dir, device=torch.device("cuda:0")):
         strides=(2, 2, 2, 2),
         num_res_units=2,
     ).to(device)
-    loss = monai.losses.DiceLoss(do_sigmoid=True)
+    loss = monai.losses.DiceLoss(sigmoid=True)
     opt = torch.optim.Adam(net.parameters(), 1e-3)
     lr_scheduler = torch.optim.lr_scheduler.StepLR(opt, step_size=2, gamma=0.1)
 

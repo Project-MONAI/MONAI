@@ -23,7 +23,7 @@ class ROCAUC(Metric):
 
     Args:
         to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
-        add_softmax: whether to add softmax function to `y_pred` before computation. Defaults to False.
+        softmax: whether to add softmax function to `y_pred` before computation. Defaults to False.
         average (`macro|weighted|micro|None`): type of averaging performed if not binary classification.
             Default is 'macro'.
 
@@ -49,14 +49,14 @@ class ROCAUC(Metric):
     def __init__(
         self,
         to_onehot_y: bool = False,
-        add_softmax: bool = False,
+        softmax: bool = False,
         average: str = "macro",
         output_transform: Callable = lambda x: x,
         device: Optional[Union[str, torch.device]] = None,
     ):
         super().__init__(output_transform, device=device)
         self.to_onehot_y = to_onehot_y
-        self.add_softmax = add_softmax
+        self.softmax = softmax
         self.average = average
 
     def reset(self):
@@ -76,4 +76,4 @@ class ROCAUC(Metric):
     def compute(self):
         _prediction_tensor = torch.cat(self._predictions, dim=0)
         _target_tensor = torch.cat(self._targets, dim=0)
-        return compute_roc_auc(_prediction_tensor, _target_tensor, self.to_onehot_y, self.add_softmax, self.average)
+        return compute_roc_auc(_prediction_tensor, _target_tensor, self.to_onehot_y, self.softmax, self.average)
