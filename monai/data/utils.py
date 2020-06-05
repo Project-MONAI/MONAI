@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional
+
 import os
 import warnings
 import math
@@ -39,7 +41,7 @@ class InterpolationCode(enum.IntEnum):
     SPLINE5 = 5
 
 
-def get_random_patch(dims, patch_size, rand_state=None):
+def get_random_patch(dims, patch_size, rand_state: Optional[np.random.RandomState] = None):
     """
     Returns a tuple of slices to define a random patch in an array of shape `dims` with size `patch_size` or the as
     close to it as possible within the given dimension. It is expected that `patch_size` is a valid patch for a source
@@ -143,7 +145,9 @@ def dense_patch_slices(image_size, patch_size, scan_interval):
     return slices
 
 
-def iter_patch(arr, patch_size, start_pos=(), copy_back=True, pad_mode="wrap", **pad_opts):
+def iter_patch(
+    arr: np.ndarray, patch_size, start_pos=(), copy_back: bool = True, pad_mode: Optional[str] = "wrap", **pad_opts
+):
     """
     Yield successive patches from `arr` of size `patch_size`. The iteration can start from position `start_pos` in `arr`
     but drawing from a padded array extended by the `patch_size` in each dimension (so these coordinates can be negative
@@ -210,12 +214,25 @@ def list_data_collate(batch):
     Enhancement for PyTorch DataLoader default collate.
     If dataset already returns a list of batch data that generated in transforms, need to merge all data to 1 list.
     Then it's same as the default collate behavior.
+
     Note:
         Need to use this collate if apply some transforms that can generate batch data.
+
     """
     elem = batch[0]
     data = [i for k in batch for i in k] if isinstance(elem, list) else batch
     return default_collate(data)
+
+
+def worker_init_fn(worker_id):
+    """
+    Callback function for PyTorch DataLoader `worker_init_fn`.
+    It can set different random seed for the transforms in different workers.
+
+    """
+    worker_info = torch.utils.data.get_worker_info()
+    if hasattr(worker_info.dataset, "transform") and hasattr(worker_info.dataset.transform, "set_random_state"):
+        worker_info.dataset.transform.set_random_state(worker_info.seed % (2 ** 32))
 
 
 def correct_nifti_header_if_necessary(img_nii):
@@ -274,7 +291,7 @@ def rectify_header_sform_qform(img_nii):
     return img_nii
 
 
-def zoom_affine(affine, scale, diagonal=True):
+def zoom_affine(affine, scale, diagonal: bool = True):
     """
     To make column norm of `affine` the same as `scale`.  if diagonal is False,
     returns an affine that combines orthogonal rotation and the new scale.
@@ -384,7 +401,7 @@ def to_affine_nd(r, affine):
     return new_affine
 
 
-def create_file_basename(postfix, input_file_name, folder_path, data_root_dir=""):
+def create_file_basename(postfix: str, input_file_name: str, folder_path: str, data_root_dir: str = ""):
     """
     Utility function to create the path to the output file based on the input
     filename (extension is added by lib level writer before writing the file)

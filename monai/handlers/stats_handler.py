@@ -73,7 +73,7 @@ class StatsHandler(object):
         self.tag_name = tag_name
         self.key_var_format = key_var_format
         if logger_handler is not None:
-            self.logger.addHandler(logger_handler)
+            self.logger.addHandler(logger_handler)  # pytype: disable=attribute-error
 
     def attach(self, engine: Engine):
         """Register a set of Ignite Event-Handlers to a specified Ignite engine.
