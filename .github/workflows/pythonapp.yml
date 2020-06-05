@@ -29,7 +29,7 @@ jobs:
     - name: Type check with Pytype
       run: |
         pytype --version
-        pytype
+        pytype --python-version=$(python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
 
   quick-py3:
     runs-on: ${{ matrix.os }}
