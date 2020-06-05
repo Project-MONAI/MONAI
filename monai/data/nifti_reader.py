@@ -91,14 +91,20 @@ class NiftiDataset(Dataset, Randomizable):
 
         if self.transform is not None:
             if isinstance(self.transform, Randomizable):
-                self.transform.set_random_state(seed=self._seed)
+                # TODO: Review this suppression
+                #  "monai/data/nifti_reader.py", line 95, in __getitem__:
+                #              No attribute 'set_random_state' on Callable [attribute-error]
+                self.transform.set_random_state(seed=self._seed)  # pytype: disable=attribute-error
             img = apply_transform(self.transform, img)
 
         data = [img]
 
         if self.seg_transform is not None:
             if isinstance(self.seg_transform, Randomizable):
-                self.seg_transform.set_random_state(seed=self._seed)
+                # TODO: Review this suppression
+                #  "monai/data/nifti_reader.py", line 104, in __getitem__:
+                #              No attribute 'set_random_state' on Callable [attribute-error]
+                self.seg_transform.set_random_state(seed=self._seed)  # pytype: disable=attribute-error
             seg = apply_transform(self.seg_transform, seg)
 
         if seg is not None:
