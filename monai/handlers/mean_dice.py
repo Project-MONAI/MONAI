@@ -28,7 +28,7 @@ class MeanDice(Metric):
         include_background: bool = True,
         to_onehot_y: bool = False,
         mutually_exclusive: bool = False,
-        add_sigmoid: bool = False,
+        sigmoid: bool = False,
         logit_thresh: float = 0.5,
         output_transform: Callable = lambda x: x,
         device: Optional[torch.device] = None,
@@ -41,7 +41,7 @@ class MeanDice(Metric):
             to_onehot_y (Bool): whether to convert the output prediction into the one-hot format. Defaults to False.
             mutually_exclusive (Bool): if True, the output prediction will be converted into a binary matrix using
                 a combination of argmax and to_onehot. Defaults to False.
-            add_sigmoid (Bool): whether to add sigmoid function to the output prediction before computing Dice.
+            sigmoid (Bool): whether to add sigmoid function to the output prediction before computing Dice.
                 Defaults to False.
             logit_thresh (Float): the threshold value to round value to 0.0 and 1.0. Defaults to None (no thresholding).
             output_transform (Callable): transform the ignite.engine.state.output into [y_pred, y] pair.
@@ -54,7 +54,7 @@ class MeanDice(Metric):
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         self.mutually_exclusive = mutually_exclusive
-        self.add_sigmoid = add_sigmoid
+        self.sigmoid = sigmoid
         self.logit_thresh = logit_thresh
 
         self._sum = 0
@@ -76,7 +76,7 @@ class MeanDice(Metric):
             self.include_background,
             self.to_onehot_y,
             self.mutually_exclusive,
-            self.add_sigmoid,
+            self.sigmoid,
             self.logit_thresh,
         )
 

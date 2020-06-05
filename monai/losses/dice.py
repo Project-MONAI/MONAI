@@ -35,8 +35,8 @@ class DiceLoss(_Loss):
         self,
         include_background: bool = True,
         to_onehot_y: bool = False,
-        do_sigmoid: bool = False,
-        do_softmax: bool = False,
+        sigmoid: bool = False,
+        softmax: bool = False,
         squared_pred: bool = False,
         jaccard: bool = False,
         reduction: str = "mean",
@@ -45,8 +45,8 @@ class DiceLoss(_Loss):
         Args:
             include_background (bool): If False channel index 0 (background category) is excluded from the calculation.
             to_onehot_y (bool): whether to convert `y` into the one-hot format. Defaults to False.
-            do_sigmoid (bool): If True, apply a sigmoid function to the prediction.
-            do_softmax (bool): If True, apply a softmax function to the prediction.
+            sigmoid (bool): If True, apply a sigmoid function to the prediction.
+            softmax (bool): If True, apply a softmax function to the prediction.
             squared_pred (bool): use squared versions of targets and predictions in the denominator or not.
             jaccard (bool): compute Jaccard Index (soft IoU) instead of dice or not.
             reduction (`none|mean|sum`): Specifies the reduction to apply to the output:
@@ -58,10 +58,10 @@ class DiceLoss(_Loss):
         super().__init__(reduction=reduction)
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
-        if do_sigmoid and do_softmax:
-            raise ValueError("do_sigmoid=True and do_softmax=True are not compatible.")
-        self.do_sigmoid = do_sigmoid
-        self.do_softmax = do_softmax
+        if sigmoid and softmax:
+            raise ValueError("sigmoid=True and softmax=True are not compatible.")
+        self.sigmoid = sigmoid
+        self.softmax = softmax
         self.squared_pred = squared_pred
         self.jaccard = jaccard
 
@@ -72,18 +72,18 @@ class DiceLoss(_Loss):
             target (tensor): the shape should be BNH[WD].
             smooth (float): a small constant to avoid nan.
         """
-        if self.do_sigmoid:
+        if self.sigmoid:
             input = torch.sigmoid(input)
         n_pred_ch = input.shape[1]
         if n_pred_ch == 1:
-            if self.do_softmax:
-                warnings.warn("single channel prediction, `do_softmax=True` ignored.")
+            if self.softmax:
+                warnings.warn("single channel prediction, `softmax=True` ignored.")
             if self.to_onehot_y:
                 warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
             if not self.include_background:
                 warnings.warn("single channel prediction, `include_background=False` ignored.")
         else:
-            if self.do_softmax:
+            if self.softmax:
                 input = torch.softmax(input, 1)
             if self.to_onehot_y:
                 target = one_hot(target, n_pred_ch)
@@ -136,8 +136,8 @@ class GeneralizedDiceLoss(_Loss):
         self,
         include_background: bool = True,
         to_onehot_y: bool = False,
-        do_sigmoid: bool = False,
-        do_softmax: bool = False,
+        sigmoid: bool = False,
+        softmax: bool = False,
         w_type: str = "square",
         reduction: str = "mean",
     ):
@@ -145,8 +145,8 @@ class GeneralizedDiceLoss(_Loss):
         Args:
             include_background (bool): If False channel index 0 (background category) is excluded from the calculation.
             to_onehot_y (bool): whether to convert `y` into the one-hot format. Defaults to False.
-            do_sigmoid (bool): If True, apply a sigmoid function to the prediction.
-            do_softmax (bool): If True, apply a softmax function to the prediction.
+            sigmoid (bool): If True, apply a sigmoid function to the prediction.
+            softmax (bool): If True, apply a softmax function to the prediction.
             w_type ('square'|'simple'|'uniform'): type of function to transform ground truth volume to a weight factor.
                 Default: `'square'`
             reduction (`none|mean|sum`): Specifies the reduction to apply to the output:
@@ -158,10 +158,10 @@ class GeneralizedDiceLoss(_Loss):
         super().__init__(reduction=reduction)
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
-        if do_sigmoid and do_softmax:
-            raise ValueError("do_sigmoid=True and do_softmax=True are not compatible.")
-        self.do_sigmoid = do_sigmoid
-        self.do_softmax = do_softmax
+        if sigmoid and softmax:
+            raise ValueError("sigmoid=True and softmax=True are not compatible.")
+        self.sigmoid = sigmoid
+        self.softmax = softmax
         self.w_func: Callable = torch.ones_like
         if w_type == "simple":
             self.w_func = torch.reciprocal
@@ -175,18 +175,18 @@ class GeneralizedDiceLoss(_Loss):
             target (tensor): the shape should be BNH[WD].
             smooth (float): a small constant to avoid nan.
         """
-        if self.do_sigmoid:
+        if self.sigmoid:
             input = torch.sigmoid(input)
         n_pred_ch = input.shape[1]
         if n_pred_ch == 1:
-            if self.do_softmax:
-                warnings.warn("single channel prediction, `do_softmax=True` ignored.")
+            if self.softmax:
+                warnings.warn("single channel prediction, `softmax=True` ignored.")
             if self.to_onehot_y:
                 warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
             if not self.include_background:
                 warnings.warn("single channel prediction, `include_background=False` ignored.")
         else:
-            if self.do_softmax:
+            if self.softmax:
                 input = torch.softmax(input, 1)
             if self.to_onehot_y:
                 target = one_hot(target, n_pred_ch)
