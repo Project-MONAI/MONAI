@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - enable-pytype
   pull_request:
 
 jobs:
@@ -25,6 +26,11 @@ jobs:
         flake8 --version
         python -c 'import monai; monai.config.print_config()'
         MYPYPATH=$(pwd)/monai flake8 $(pwd) --count --statistics
+    - name: Type check with Pytype
+      run: |
+        pytype --version
+        # Git hub actions have 2 cores, so parallize pytype
+        pytype -j 2 --python-version=$(python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
 
   quick-py3:
     runs-on: ${{ matrix.os }}

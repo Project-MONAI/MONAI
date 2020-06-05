@@ -395,7 +395,7 @@ class Zoom(Transform):
 
         if self.use_gpu:
             try:
-                from cupyx.scipy.ndimage import zoom as zoom_gpu
+                from cupyx.scipy.ndimage import zoom as zoom_gpu  # type: ignore
 
                 self._zoom = zoom_gpu
             except ImportError:
@@ -414,7 +414,7 @@ class Zoom(Transform):
         """
         zoomed = list()
         if self.use_gpu:
-            import cupy
+            import cupy  # type: ignore
 
             for channel in cupy.array(img):
                 zoom_channel = self._zoom(

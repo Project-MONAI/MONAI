@@ -20,7 +20,7 @@ class ValidationHandler:
 
     """
 
-    def __init__(self, validator: Evaluator, interval: int, epoch_level: bool = True):
+    def __init__(self, validator: Evaluator, interval: int, epoch_level: bool = True) -> None:  # type: ignore
         """
         Args:
             validator (Evaluator): run the validator when trigger validation, suppose to be Evaluator.
@@ -29,7 +29,7 @@ class ValidationHandler:
                 `True` is epoch level, `False` is iteration level.
 
         """
-        if not isinstance(validator, Evaluator):
+        if not isinstance(validator, Evaluator):  # type: ignore
             raise ValueError("validator must be Evaluator ignite engine.")
         self.validator = validator
         self.interval = interval
