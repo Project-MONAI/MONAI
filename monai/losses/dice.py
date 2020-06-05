@@ -224,4 +224,4 @@ class GeneralizedDiceLoss(_Loss):
 
 
 dice = Dice = DiceLoss
-generalized_dice = generalised_dice = GeneralizedDiceLoss
+generalized_dice = GeneralizedDiceLoss

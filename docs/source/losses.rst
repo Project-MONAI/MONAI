@@ -16,9 +16,18 @@ Segmentation Losses
 .. autoclass:: DiceLoss
     :members:
 
+.. autoclass:: Dice
+    :members:
+
+.. autoclass:: dice
+    :members:
+
 `GeneralizedDiceLoss`
 ~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: GeneralizedDiceLoss
+    :members:
+
+.. autoclass:: generalized_dice
     :members:
 
 `FocalLoss`
