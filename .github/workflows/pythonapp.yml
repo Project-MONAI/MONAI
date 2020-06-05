@@ -5,7 +5,8 @@ on:
   push:
     branches:
       - master
-      - enable-pytype
+      # TODO: Remove ci trigger branch used for testing
+      - add-convenience-options-runtests
   pull_request:
 
 jobs:
