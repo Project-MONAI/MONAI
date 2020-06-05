@@ -132,7 +132,7 @@ def main():
 
                 acc_value = torch.eq(y_pred.argmax(dim=1), y)
                 acc_metric = acc_value.sum().item() / len(acc_value)
-                auc_metric = compute_roc_auc(y_pred, y, to_onehot_y=True, add_softmax=True)
+                auc_metric = compute_roc_auc(y_pred, y, to_onehot_y=True, softmax=True)
                 if acc_metric > best_metric:
                     best_metric = acc_metric
                     best_metric_epoch = epoch + 1
