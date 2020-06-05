@@ -29,6 +29,9 @@ class DiceLoss(_Loss):
     DiceLoss to exclude the first category (channel index 0) which is by convention assumed to be background.
     If the non-background segmentations are small compared to the total image size they can get overwhelmed by
     the signal from the background so excluding it in such cases helps convergence.
+
+    Milletari, F. et. al. (2016) V-Net: Fully Convolutional Neural Networks forVolumetric Medical Image Segmentation, 3DV, 2016.
+
     """
 
     def __init__(
@@ -56,10 +59,15 @@ class DiceLoss(_Loss):
                 Default: ``'mean'``.
         """
         super().__init__(reduction=reduction)
+
+        if reduction not in ["none", "mean", "sum"]:
+            raise ValueError(f"reduction={reduction} is invalid. Valid options are: none, mean or sum.")
+
+        if sigmoid and softmax:
+            raise ValueError("do_sigmoid=True and do_softmax=True are not compatible.")
+
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
-        if sigmoid and softmax:
-            raise ValueError("sigmoid=True and softmax=True are not compatible.")
         self.sigmoid = sigmoid
         self.softmax = softmax
         self.squared_pred = squared_pred
@@ -74,6 +82,7 @@ class DiceLoss(_Loss):
         """
         if self.sigmoid:
             input = torch.sigmoid(input)
+
         n_pred_ch = input.shape[1]
         if n_pred_ch == 1:
             if self.softmax:
@@ -85,26 +94,28 @@ class DiceLoss(_Loss):
         else:
             if self.softmax:
                 input = torch.softmax(input, 1)
+
             if self.to_onehot_y:
-                target = one_hot(target, n_pred_ch)
+                target = one_hot(target, num_classes=n_pred_ch)
             if not self.include_background:
                 # if skipping background, removing first channel
                 target = target[:, 1:]
                 input = input[:, 1:]
+
         assert (
             target.shape == input.shape
         ), f"ground truth has differing shape ({target.shape}) from input ({input.shape})"
 
         # reducing only spatial dimensions (not batch nor channels)
         reduce_axis = list(range(2, len(input.shape)))
-        intersection = torch.sum(target * input, reduce_axis)
+        intersection = torch.sum(target * input, dim=reduce_axis)
 
         if self.squared_pred:
             target = torch.pow(target, 2)
             input = torch.pow(input, 2)
 
-        ground_o = torch.sum(target, reduce_axis)
-        pred_o = torch.sum(input, reduce_axis)
+        ground_o = torch.sum(target, dim=reduce_axis)
+        pred_o = torch.sum(input, dim=reduce_axis)
 
         denominator = ground_o + pred_o
 
@@ -112,13 +123,49 @@ class DiceLoss(_Loss):
             denominator -= intersection
 
         f = 1.0 - (2.0 * intersection + smooth) / (denominator + smooth)
-        if self.reduction == "sum":
-            return f.sum()  # sum over the batch and channel dims
-        if self.reduction == "none":
-            return f  # returns [N, n_classes] losses
+
         if self.reduction == "mean":
-            return f.mean()  # the batch and channel average
-        raise ValueError(f"reduction={self.reduction} is invalid.")
+            f = torch.mean(f)  # the batch and channel average
+        elif self.reduction == "sum":
+            f = torch.sum(f)  # sum over the batch and channel dims
+        elif self.reduction == "none":
+            pass  # returns [N, n_classes] losses
+        else:
+            raise ValueError(f"reduction={self.reduction} is invalid.")
+
+        return f
+
+
+class MaskedDiceLoss(DiceLoss):
+    """
+    Same as DiceLoss, but accepts a binary mask ([0,1]) indicating a region over which to compute the dice.
+    """
+
+    def forward(self, input: torch.Tensor, target: torch.Tensor, mask: torch.Tensor = None, smooth: float = 1e-5):
+        """
+        Args:
+            input (tensor): the shape should be BNH[WD].
+            target (tensor): the shape should be BNH[WD].
+            mask (tensor): (optional) the shape should B1H[WD] or 11H[WD]
+            smooth (float): a small constant to avoid nan.
+        """
+        if mask is not None:
+            # checking if mask is of proper shape
+            assert input.dim() == mask.dim(), f"dim of input ({input.shape}) is different from mask ({mask.shape})"
+            assert (
+                input.shape[0] == mask.shape[0] or mask.shape[0] == 1
+            ), f" batch size of mask ({mask.shape}) must be 1 or equal to input ({input.shape})"
+
+            if target.dim() > 1:
+                assert mask.shape[1] == 1, f"mask ({mask.shape}) must have only 1 channel"
+                assert (
+                    input.shape[2:] == mask.shape[2:]
+                ), f"spatial size of input ({input.shape}) is different from mask ({mask.shape})"
+
+            input = input * mask
+            target = target * mask
+
+        return super().forward(input=input, target=target, smooth=smooth)
 
 
 class GeneralizedDiceLoss(_Loss):
@@ -156,12 +203,17 @@ class GeneralizedDiceLoss(_Loss):
                 Default: ``'mean'``.
         """
         super().__init__(reduction=reduction)
+
+        if reduction not in ["none", "mean", "sum"]:
+            raise ValueError(f"reduction={reduction} is invalid. Valid options are: none, mean or sum.")
+
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         if sigmoid and softmax:
             raise ValueError("sigmoid=True and softmax=True are not compatible.")
         self.sigmoid = sigmoid
         self.softmax = softmax
+
         self.w_func: Callable = torch.ones_like
         if w_type == "simple":
             self.w_func = torch.reciprocal
@@ -214,13 +266,17 @@ class GeneralizedDiceLoss(_Loss):
             b[infs] = torch.max(b)
 
         f = 1.0 - (2.0 * (intersection * w).sum(1) + smooth) / ((denominator * w).sum(1) + smooth)
-        if self.reduction == "sum":
-            return f.sum()  # sum over the batch dim
-        if self.reduction == "none":
-            return f  # returns [N] losses
+
         if self.reduction == "mean":
-            return f.mean()  # the batch and channel average
-        raise ValueError(f"reduction={self.reduction} is invalid.")
+            f = torch.mean(f)  # the batch and channel average
+        elif self.reduction == "sum":
+            f = torch.sum(f)  # sum over the batch and channel dims
+        elif self.reduction == "none":
+            pass  # returns [N, n_classes] losses
+        else:
+            raise ValueError(f"reduction={self.reduction} is invalid.")
+
+        return f
 
 
 dice = Dice = DiceLoss
