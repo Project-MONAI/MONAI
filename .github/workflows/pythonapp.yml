@@ -29,7 +29,8 @@ jobs:
     - name: Type check with Pytype
       run: |
         pytype --version
-        pytype --python-version=$(python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+        # Git hub actions have 2 cores, so parallize pytype
+        pytype -j 2 --python-version=$(python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
 
   quick-py3:
     runs-on: ${{ matrix.os }}
