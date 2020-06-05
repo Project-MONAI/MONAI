@@ -118,7 +118,7 @@ def main():
 
     metric_name = "Accuracy"
     # add evaluation metric to the evaluator engine
-    val_metrics = {metric_name: Accuracy(), "AUC": ROCAUC(to_onehot_y=True, add_softmax=True)}
+    val_metrics = {metric_name: Accuracy(), "AUC": ROCAUC(to_onehot_y=True, softmax=True)}
     # Ignite evaluator expects batch=(img, label) and returns output=(y_pred, y) at every iteration,
     # user can add output_transform to return other values
     evaluator = create_supervised_evaluator(net, val_metrics, device, True, prepare_batch=prepare_batch)

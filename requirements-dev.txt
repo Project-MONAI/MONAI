@@ -13,3 +13,4 @@ pyflakes
 coverage
 parameterized
 black
+pytype>=2020.6.1
