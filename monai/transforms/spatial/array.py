@@ -112,9 +112,15 @@ class Spacing(Transform):
         transform = np.linalg.inv(affine_) @ new_affine
         # adapt to the actual rank
         transform_ = to_affine_nd(sr, transform)
-        # resample
         _dtype = dtype or self.dtype or np.float32
 
+        # no resampling if it's identity transform
+        if np.allclose(transform_, np.diag(np.ones(len(transform_))), atol=1e-3):
+            output_data = data_array.copy().astype(_dtype)
+            new_affine = to_affine_nd(affine, new_affine)
+            return output_data, affine, new_affine
+
+        # resample
         affine_xform = AffineTransform(
             normalized=False,
             mode=interp_order or self.interp_order,
