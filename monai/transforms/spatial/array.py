@@ -63,7 +63,7 @@ class Spacing(Transform):
                 If False, this transform preserves the axes orientation, orthogonal rotation and
                 translation components from the original affine. This option will not flip/swap axes
                 of the original data.
-            interp_order (`nearest|bilinear`): The order of the spline interpolation, default is `bilinear`.
+            interp_order (`nearest|bilinear`): The interpolation mode, default is `bilinear`.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample.
             mode (`zeros|border|reflection`):
                 The mode parameter determines how the input array is extended beyond its boundaries.
