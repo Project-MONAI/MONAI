@@ -31,9 +31,8 @@ class NiftiSaver:
         output_postfix: str = "seg",
         output_ext: str = ".nii.gz",
         resample: bool = True,
-        interp_order: int = 3,
-        mode: str = "constant",
-        cval: Union[int, float] = 0,
+        interp_order: str = "bilinear",
+        mode: str = "border",
         dtype: Optional[np.dtype] = None,
     ):
         """
@@ -41,16 +40,13 @@ class NiftiSaver:
             output_dir (str): output image directory.
             output_postfix (str): a string appended to all output file names.
             output_ext (str): output file extension name.
-            resample: whether to resample before saving the data array.
-            interp_order: the order of the spline interpolation, default is InterpolationCode.SPLINE3.
-                The order has to be in the range 0 - 5.
-                https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.affine_transform.html
-                this option is used when `resample = True`.
-            mode (`reflect|constant|nearest|mirror|wrap`):
+            resample (bool): whether to resample before saving the data array.
+            interp_order (`nearest|bilinear`): the interpolation mode, default is "bilinear".
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                This option is used when `resample = True`.
+            mode (`zeros|border|reflection`):
                 The mode parameter determines how the input array is extended beyond its boundaries.
-                this option is used when `resample = True`.
-            cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
-                this option is used when `resample = True`.
+                This option is used when `resample = True`.
             dtype (np.dtype, optional): convert the image data to save to this data type.
                 If None, keep the original type of data.
 
@@ -61,7 +57,6 @@ class NiftiSaver:
         self.resample = resample
         self.interp_order = interp_order
         self.mode = mode
-        self.cval = cval
         self.dtype = dtype
         self._data_index = 0
 
@@ -106,7 +101,6 @@ class NiftiSaver:
             output_shape=spatial_shape,
             interp_order=self.interp_order,
             mode=self.mode,
-            cval=self.cval,
             dtype=self.dtype or data.dtype,
         )
 

@@ -66,13 +66,13 @@ def write_nifti(
         resample: whether to run resampling when the target affine
             could not be achieved by swapping/flipping data axes.
         output_shape (None or tuple of ints): output image shape.
-            this option is used when resample = True.
+            This option is used when resample = True.
         interp_order (`nearest|bilinear`): the interpolation mode, default is "bilinear".
             See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-            this option is used when `resample = True`.
+            This option is used when `resample = True`.
         mode (`zeros|border|reflection`):
             The mode parameter determines how the input array is extended beyond its boundaries.
-            this option is used when `resample = True`.
+            This option is used when `resample = True`.
         dtype (np.dtype, optional): convert the image to save to this data type.
     """
     assert isinstance(data, np.ndarray), "input data must be numpy array."
