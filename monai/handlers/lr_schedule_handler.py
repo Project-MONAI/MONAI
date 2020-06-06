@@ -9,8 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional, Callable
+
 import logging
-from ignite.engine import Events
+from ignite.engine import Events, Engine
 from monai.utils import ensure_tuple
 
 
@@ -19,7 +21,14 @@ class LrScheduleHandler:
     Ignite handler to update the Learning Rate based on PyTorch LR scheduler.
     """
 
-    def __init__(self, lr_scheduler, print_lr=True, name=None, epoch_level=True, step_transform=lambda engine: ()):
+    def __init__(
+        self,
+        lr_scheduler,
+        print_lr: bool = True,
+        name: Optional[str] = None,
+        epoch_level: bool = True,
+        step_transform: Callable = lambda engine: (),
+    ):
         """
         Args:
             lr_scheduler (torch.optim.lr_scheduler): typically, lr_scheduler should be PyTorch
@@ -40,7 +49,7 @@ class LrScheduleHandler:
             raise ValueError("argument `step_transform` must be a callable.")
         self.step_transform = step_transform
 
-    def attach(self, engine):
+    def attach(self, engine: Engine):
         if self.logger is None:
             self.logger = engine.logger
         if self.epoch_level:

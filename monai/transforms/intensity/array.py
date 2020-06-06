@@ -13,6 +13,8 @@ A collection of "vanilla" transforms for intensity adjustment
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
+from typing import Union, Optional
+
 import numpy as np
 
 from monai.transforms.compose import Transform, Randomizable
@@ -28,7 +30,7 @@ class RandGaussianNoise(Randomizable, Transform):
         std (float): Standard deviation (spread) of distribution.
     """
 
-    def __init__(self, prob=0.1, mean=0.0, std=0.1):
+    def __init__(self, prob: float = 0.1, mean: float = 0.0, std: float = 0.1):
         self.prob = prob
         self.mean = mean
         self.std = std
@@ -51,7 +53,7 @@ class ShiftIntensity(Transform):
         offset (int or float): offset value to shift the intensity of image.
     """
 
-    def __init__(self, offset):
+    def __init__(self, offset: Union[int, float]):
         self.offset = offset
 
     def __call__(self, img):
@@ -62,7 +64,7 @@ class RandShiftIntensity(Randomizable, Transform):
     """Randomly shift intensity with randomly picked offset.
     """
 
-    def __init__(self, offsets, prob=0.1):
+    def __init__(self, offsets, prob: float = 0.1):
         """
         Args:
             offsets(int, float, tuple or list): offset range to randomly shift.
@@ -92,7 +94,12 @@ class ScaleIntensity(Transform):
     If `minv` and `maxv` not provided, use `factor` to scale image by ``v = v * (1 + factor)``.
     """
 
-    def __init__(self, minv=0.0, maxv=1.0, factor=None):
+    def __init__(
+        self,
+        minv: Optional[Union[int, float]] = 0.0,
+        maxv: Optional[Union[int, float]] = 1.0,
+        factor: Optional[float] = None,
+    ):
         """
         Args:
             minv (int or float): minimum value of output data.
@@ -116,7 +123,7 @@ class RandScaleIntensity(Randomizable, Transform):
     is randomly picked from (factors[0], factors[0]).
     """
 
-    def __init__(self, factors, prob=0.1):
+    def __init__(self, factors, prob: float = 0.1):
         """
         Args:
             factors(float, tuple or list): factor range to randomly scale by ``v = v * (1 + factor)``.
@@ -156,7 +163,13 @@ class NormalizeIntensity(Transform):
             or calculate on the entire image directly.
     """
 
-    def __init__(self, subtrahend=None, divisor=None, nonzero=False, channel_wise=False):
+    def __init__(
+        self,
+        subtrahend: Optional[np.ndarray] = None,
+        divisor: Optional[np.ndarray] = None,
+        nonzero: bool = False,
+        channel_wise: bool = False,
+    ):
         if subtrahend is not None or divisor is not None:
             assert isinstance(subtrahend, np.ndarray) and isinstance(
                 divisor, np.ndarray
@@ -195,7 +208,7 @@ class ThresholdIntensity(Transform):
         cval (float or int): value to fill the remaining parts of the image, default is 0.
     """
 
-    def __init__(self, threshold, above=True, cval=0):
+    def __init__(self, threshold: Union[int, float], above: bool = True, cval: Union[int, float] = 0):
         assert isinstance(threshold, (float, int)), "must set the threshold to filter intensity."
         self.threshold = threshold
         self.above = above
@@ -217,7 +230,14 @@ class ScaleIntensityRange(Transform):
         clip (bool): whether to perform clip after scaling.
     """
 
-    def __init__(self, a_min, a_max, b_min, b_max, clip=False):
+    def __init__(
+        self,
+        a_min: Union[int, float],
+        a_max: Union[int, float],
+        b_min: Union[int, float],
+        b_max: Union[int, float],
+        clip: bool = False,
+    ):
         self.a_min = a_min
         self.a_max = a_max
         self.b_min = b_min
@@ -241,7 +261,7 @@ class AdjustContrast(Transform):
         gamma (float): gamma value to adjust the contrast as function.
     """
 
-    def __init__(self, gamma):
+    def __init__(self, gamma: Union[int, float]):
         assert isinstance(gamma, (float, int)), "gamma must be a float or int number."
         self.gamma = gamma
 
