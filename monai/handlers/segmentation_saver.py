@@ -82,8 +82,8 @@ class SegmentationSaver:
             )
         elif output_ext == ".png":
             # handling the function's default
-            interp_order = 1 if interp_order == "bilinear" else interp_order
-            mode = "edge" if mode == "border" else mode
+            interp_order = 0 if interp_order == "nearest" else interp_order
+            mode = "nearest" if mode == "border" else mode
             self.saver = PNGSaver(
                 output_dir=output_dir,
                 output_postfix=output_postfix,
