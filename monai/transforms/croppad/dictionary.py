@@ -131,7 +131,7 @@ class RandSpatialCropd(Randomizable, MapTransform):
             self._size = [self.R.randint(low=self._size[i], high=img_size[i] + 1) for i in range(len(img_size))]
         if self.random_center:
             valid_size = get_valid_patch_size(img_size, self._size)
-            self._slices = ensure_tuple(slice(None)) + get_random_patch(img_size, valid_size, self.R)
+            self._slices = (slice(None),) + get_random_patch(img_size, valid_size, self.R)
 
     def __call__(self, data):
         d = dict(data)
