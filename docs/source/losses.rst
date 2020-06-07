@@ -22,6 +22,11 @@ Segmentation Losses
 .. autoclass:: dice
     :members:
 
+`MaskedDiceLoss`
+~~~~~~~~~~~~~~~~
+.. autoclass:: MaskedDiceLoss
+    :members:
+
 `GeneralizedDiceLoss`
 ~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: GeneralizedDiceLoss
