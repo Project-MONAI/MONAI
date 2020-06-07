@@ -64,21 +64,47 @@ used to chain transform calls.
 .. code-block:: python
 
     class MyTransform1:
-        ...
-        def __call__(image):
-            return '''do stuff to image'''
+        def __call__(self, image):
+            # do stuff to image
+            return image + 1
+
 
     class MyTransform2:
-        ...
-        def __call__(img):
-            return '''do stuff to image'''
+        def __call__(self, img_dict):
+            # do stuff to image
+            img_dict["image"] += 1
+            return img_dict
 
-    d = {'image': i}
 
-    Compose([
-        adaptor(MyTransform1(), 'image'),
-        adaptor(MyTransform2(), 'image', {'img':'image'})
-    ])
+    xform = Compose([adaptor(MyTransform1(), "image"), MyTransform2()])
+    d = {"image": 1}
+    print(xform(d))
+
+    >>> {'image': 3}
+
+.. code-block:: python
+
+    class MyTransform3:
+        def __call__(self, img_dict):
+            # do stuff to image
+            img_dict["image"] -= 1
+            img_dict["segment"] = img_dict["image"]
+            return img_dict
+
+
+    class MyTransform4:
+        def __call__(self, img, seg):
+            # do stuff to image
+            img -= 1
+            seg -= 1
+            return img, seg
+
+
+    xform = Compose([MyTransform3(), adaptor(MyTransform4(), ["img", "seg"], {"image": "img", "segment": "seg"})])
+    d = {"image": 1}
+    print(xform(d))
+
+    >>> {'image': 0, 'segment': 0, 'img': -1, 'seg': -1}
 
 Inputs:
 
