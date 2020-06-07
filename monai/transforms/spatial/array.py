@@ -13,18 +13,18 @@ A collection of "vanilla" transforms for spatial operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Optional, Union, List
-
 import warnings
+from typing import List, Optional, Union
+
+import nibabel as nib
 import numpy as np
 import scipy.ndimage
-import nibabel as nib
 import torch
 from skimage.transform import resize
 
-from monai.data.utils import zoom_affine, compute_shape_offset, to_affine_nd, InterpolationCode
-from monai.networks.layers.simplelayers import GaussianFilter
-from monai.transforms.compose import Transform, Randomizable
+from monai.data.utils import InterpolationCode, compute_shape_offset, to_affine_nd, zoom_affine
+from monai.networks.layers import AffineTransform, GaussianFilter
+from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.utils import (
     create_control_grid,
     create_grid,
@@ -45,9 +45,8 @@ class Spacing(Transform):
         self,
         pixdim,
         diagonal: bool = False,
-        interp_order=3,
-        mode: str = "nearest",
-        cval: Union[int, float] = 0,
+        interp_order: str = "bilinear",
+        mode: str = "border",
         dtype: Optional[np.dtype] = None,
     ):
         """
@@ -64,28 +63,25 @@ class Spacing(Transform):
                 If False, this transform preserves the axes orientation, orthogonal rotation and
                 translation components from the original affine. This option will not flip/swap axes
                 of the original data.
-            interp_order (int): The order of the spline interpolation, default is InterpolationCode.SPLINE3.
-                The order has to be in the range 0-5.
-                https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.zoom.html
-            mode (`reflect|constant|nearest|mirror|wrap`):
+            interp_order (`nearest|bilinear`): The interpolation mode, default is `bilinear`.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample.
+            mode (`zeros|border|reflection`):
                 The mode parameter determines how the input array is extended beyond its boundaries.
-            cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
-            dtype (None or np.dtype): output array data type, defaults to None to use input data's dtype.
+                Defaults to `border`.
+            dtype (None or np.dtype): output array data type, defaults to np.float32.
         """
         self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
         self.diagonal = diagonal
         self.interp_order = interp_order
         self.mode = mode
-        self.cval = cval
         self.dtype = dtype
 
     def __call__(  # type: ignore # see issue #495
         self,
         data_array: np.ndarray,
         affine=None,
-        interp_order=None,
+        interp_order: Optional[str] = None,
         mode: Optional[str] = None,
-        cval: Union[int, float] = None,
         dtype: Optional[np.dtype] = None,
     ):
         """
@@ -116,20 +112,28 @@ class Spacing(Transform):
         transform = np.linalg.inv(affine_) @ new_affine
         # adapt to the actual rank
         transform_ = to_affine_nd(sr, transform)
+        _dtype = dtype or self.dtype or np.float32
+
+        # no resampling if it's identity transform
+        if np.allclose(transform_, np.diag(np.ones(len(transform_))), atol=1e-3):
+            output_data = data_array.copy().astype(_dtype)
+            new_affine = to_affine_nd(affine, new_affine)
+            return output_data, affine, new_affine
+
         # resample
-        _dtype = dtype or self.dtype or data_array.dtype
-        output_data = []
-        for data in data_array:
-            data_ = scipy.ndimage.affine_transform(
-                data.astype(_dtype),
-                matrix=transform_,
-                output_shape=output_shape,
-                order=self.interp_order if interp_order is None else interp_order,
-                mode=mode or self.mode,
-                cval=self.cval if cval is None else cval,
-            )
-            output_data.append(data_)
-        output_data = np.stack(output_data)
+        affine_xform = AffineTransform(
+            normalized=False,
+            mode=interp_order or self.interp_order,
+            padding_mode=mode or self.mode,
+            align_corners=True,
+            reverse_indexing=True,
+        )
+        output_data = affine_xform(
+            torch.from_numpy((data_array.astype(np.float64))[None]),  # AffineTransform requires a batch dim
+            torch.from_numpy(transform_.astype(np.float64)),
+            spatial_size=output_shape,
+        )
+        output_data = output_data.squeeze(0).detach().cpu().numpy().astype(_dtype)
         new_affine = to_affine_nd(affine, new_affine)
         return output_data, affine, new_affine
 
