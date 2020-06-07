@@ -79,7 +79,7 @@ class Spacing(Transform):
         self.cval = cval
         self.dtype = dtype
 
-    def __call__(
+    def __call__(  # type: ignore # see issue #495
         self,
         data_array: np.ndarray,
         affine=None,
@@ -162,7 +162,7 @@ class Orientation(Transform):
         self.as_closest_canonical = as_closest_canonical
         self.labels = labels
 
-    def __call__(self, data_array: np.ndarray, affine=None):
+    def __call__(self, data_array: np.ndarray, affine=None):  # type: ignore # see issue #495
         """
         original orientation of `data_array` is defined by `affine`.
 
@@ -261,7 +261,7 @@ class Resize(Transform):
         self.preserve_range = preserve_range
         self.anti_aliasing = anti_aliasing
 
-    def __call__(
+    def __call__(  # type: ignore # see issue #495
         self,
         img,
         order=None,
@@ -329,7 +329,7 @@ class Rotate(Transform):
         self.cval = cval
         self.prefilter = prefilter
 
-    def __call__(
+    def __call__(  # type: ignore # see issue #495
         self,
         img,
         order=None,
@@ -471,7 +471,7 @@ class Rotate90(Transform):
         self.k = k
         self.spatial_axes = spatial_axes
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: np.ndarray):  # type: ignore # see issue #495
         """
         Args:
             img (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
@@ -567,7 +567,7 @@ class RandRotate(Randomizable, Transform):
         self._do_transform = self.R.random_sample() < self.prob
         self.angle = self.R.uniform(low=self.degrees[0], high=self.degrees[1])
 
-    def __call__(
+    def __call__(  # type: ignore # see issue #495
         self,
         img,
         order=None,
@@ -671,7 +671,7 @@ class RandZoom(Randomizable, Transform):
         else:
             self._zoom = self.R.uniform(self.min_zoom, self.max_zoom)
 
-    def __call__(
+    def __call__(  # type: ignore # see issue #495
         self,
         img,
         order=None,
@@ -887,7 +887,7 @@ class Resample(Transform):
         self.as_tensor_output = as_tensor_output
         self.device = device
 
-    def __call__(
+    def __call__(  # type: ignore # see issue #495
         self,
         img: Union[np.ndarray, torch.Tensor],
         grid: Union[np.ndarray, torch.Tensor],
@@ -977,7 +977,7 @@ class Affine(Transform):
         self.padding_mode = padding_mode
         self.mode = mode
 
-    def __call__(
+    def __call__(  # type: ignore # see issue #495
         self,
         img: Union[np.ndarray, torch.Tensor],
         spatial_size=None,
@@ -1061,7 +1061,7 @@ class RandAffine(Randomizable, Transform):
         self.do_transform = self.R.rand() < self.prob
         self.rand_affine_grid.randomize()
 
-    def __call__(
+    def __call__(  # type: ignore # see issue #495
         self,
         img: Union[np.ndarray, torch.Tensor],
         spatial_size=None,
@@ -1158,7 +1158,7 @@ class Rand2DElastic(Randomizable, Transform):
         self.deform_grid.randomize(spatial_size)
         self.rand_affine_grid.randomize()
 
-    def __call__(
+    def __call__(  # type: ignore # see issue #495
         self,
         img: Union[np.ndarray, torch.Tensor],
         spatial_size=None,
