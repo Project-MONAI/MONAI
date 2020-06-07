@@ -136,8 +136,11 @@ class PersistentDataset(Dataset):
         """
         start_post_randomize_run = False
         for _transform in self.transform.transforms:  # pytype: disable=attribute-error
-            if start_post_randomize_run or isinstance(_transform, Randomizable) or \
-                    not isinstance(_transform, MapTransform):
+            if (
+                start_post_randomize_run
+                or isinstance(_transform, Randomizable)
+                or not isinstance(_transform, MapTransform)
+            ):
                 start_post_randomize_run = True
                 item_transformed = apply_transform(_transform, item_transformed)
         return item_transformed
