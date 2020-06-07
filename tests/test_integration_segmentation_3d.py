@@ -328,7 +328,7 @@ class IntegrationSegmentation3D(unittest.TestCase):
             ]
             for (output, s) in zip(output_files, sums):
                 ave = np.mean(nib.load(output).get_fdata())
-                np.testing.assert_allclose(ave, s, rtol=1e-3)
+                np.testing.assert_allclose(ave, s, rtol=5e-3)
                 repeated[i].append(ave)
         np.testing.assert_allclose(repeated[0], repeated[1])
         np.testing.assert_allclose(repeated[0], repeated[2])
