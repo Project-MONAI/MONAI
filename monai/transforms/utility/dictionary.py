@@ -188,7 +188,7 @@ class SqueezeDimd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.SqueezeDim`.
     """
 
-    def __init__(self, keys: Hashable, dim: Optional[int] = None):
+    def __init__(self, keys: Hashable, dim: Optional[int] = 0):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.

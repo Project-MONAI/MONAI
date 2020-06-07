@@ -38,7 +38,7 @@ TEST_CASE_3 = [
 TEST_CASE_4 = [
     {"keys": ["img", "seg"]},
     {"img": np.random.rand(1, 2, 1, 3), "seg": np.random.randint(0, 2, size=[1, 2, 1, 3])},
-    (2, 3),
+    (2, 1, 3),
 ]
 
 TEST_CASE_4_PT = [
