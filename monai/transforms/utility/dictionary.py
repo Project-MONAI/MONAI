@@ -193,8 +193,7 @@ class SqueezeDimd(MapTransform):
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            dim (int): dimension to be squeezed.
-                Default: None (all dimensions of size 1 will be removed)
+            dim (int): dimension to be squeezed. Default: 0 (the first dimension)
         """
         super().__init__(keys)
         self.converter = SqueezeDim(dim=dim)
