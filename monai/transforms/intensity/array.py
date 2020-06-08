@@ -21,6 +21,18 @@ from monai.transforms.compose import Transform, Randomizable
 from monai.transforms.utils import rescale_array
 
 
+class IdentityIntensity(Transform):
+    """
+    Identity transform output is same as the input.
+    """
+
+    def __init__(self):
+        pass
+
+    def __call__(self, img):
+        return img
+
+
 class RandGaussianNoise(Randomizable, Transform):
     """Add Gaussian noise to image.
 
