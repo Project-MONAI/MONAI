@@ -9,11 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Union, Optional
+from typing import Optional, Union
 
 import numpy as np
 import torch
+
 from monai.data.nifti_writer import write_nifti
+
 from .utils import create_file_basename
 
 
@@ -89,6 +91,9 @@ class NiftiSaver:
             data = data.detach().cpu().numpy()
         filename = create_file_basename(self.output_postfix, filename, self.output_dir)
         filename = f"{filename}{self.output_ext}"
+        # change data shape to be (channel, h, w, d)
+        while len(data.shape) < 4:
+            data = np.expand_dims(data, -1)
         # change data to "channel last" format and write to nifti format file
         data = np.moveaxis(data, 0, -1)
         write_nifti(
@@ -104,16 +109,17 @@ class NiftiSaver:
         )
 
     def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data=None):
-        """Save a batch of data into Nifti format files.
-           This function assumes the NIfTI dimension notations.
-           Spatially it supports up to three dimensions, that is, H, HW, HWD for
-           1D, 2D, 3D respectively (resampling only supports 2D and 3D).
+        """
+        Save a batch of data into Nifti format files.
 
-           When saving multiple time steps or multiple channels `batch_data`,
-           time and/or modality axes should be appended after the batch dimensions.
-           For example, the shape of a batch of 2D eight-class
-           segmentation probabilities to be saved could be `(batch, 8, 64, 64, 1)`,
-           or `(batch, 8, 64, 64)`.
+        Spatially it supports up to three dimensions, that is, H, HW, HWD for
+        1D, 2D, 3D respectively (with resampling supports for 2D and 3D only).
+
+        When saving multiple time steps or multiple channels `batch_data`,
+        time and/or modality axes should be appended after the batch dimensions.
+        For example, the shape of a batch of 2D eight-class
+        segmentation probabilities to be saved could be `(batch, 8, 64, 64, 1)`.
+        or `(batch, 8, 64, 64)`
 
         args:
             batch_data (Tensor or ndarray): target batch data content that save into NIfTI format.

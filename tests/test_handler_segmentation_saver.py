@@ -12,10 +12,12 @@
 import os
 import shutil
 import unittest
+
+import numpy as np
 import torch
 from ignite.engine import Engine
 from parameterized import parameterized
-import numpy as np
+
 from monai.handlers import SegmentationSaver
 
 TEST_CASE_0 = [".nii.gz"]
