@@ -104,7 +104,7 @@ class Spacingd(MapTransform):
             # resample array of each corresponding key
             # using affine fetched from d[affine_key]
             d[key], _, new_affine = self.spacing_transform(
-                data_array=d[key],
+                data=d[key],
                 affine=d[affine_key],
                 interp_order=self.interp_order[idx],
                 mode=self.mode[idx],

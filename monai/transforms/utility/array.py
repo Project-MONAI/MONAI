@@ -14,13 +14,15 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 import time
+from collections import OrderedDict
 
-from typing import Callable, Optional
+from typing import Callable, Optional, Iterable, Dict, Any
 import logging
 import numpy as np
 import torch
 
 from monai.transforms.compose import Transform
+from monai.utils import validate_kwargs
 
 
 class AsChannelFirst(Transform):
@@ -118,9 +120,15 @@ class CastToType(Transform):
         """
         self.dtype = dtype
 
-    def __call__(self, img: np.ndarray):  # type: ignore # see issue #495
-        assert isinstance(img, np.ndarray), "image must be numpy array."
-        return img.astype(self.dtype)
+    def __call__(self, data: Iterable, *args, **kwargs):
+        """
+        Args:
+            data (numpy.ndarray)
+        """
+        assert len(args) == 0, f"Invalid arguments provided {args}"
+        assert len(kwargs) == 0, f"Invalid arguments provided {kwargs}"
+        assert isinstance(data, np.ndarray), "image must be numpy array."
+        return data.astype(self.dtype)
 
 
 class ToTensor(Transform):
@@ -161,12 +169,15 @@ class SqueezeDim(Transform):
             raise ValueError(f"Invalid channel dimension {dim}")
         self.dim = dim
 
-    def __call__(self, img):  # type: ignore # see issue #495
+    def __call__(self, data: Iterable, *args, **kwargs):
         """
         Args:
-            img (ndarray): numpy arrays with required dimension `dim` removed
+            data (numpy.ndarray): numpy arrays with required dimension `dim` removed
         """
-        return img.squeeze(self.dim)
+        assert len(args) == 0, f"Invalid arguments provided {args}"
+        assert len(kwargs) == 0, f"Invalid arguments provided {kwargs}"
+        assert isinstance(data, (np.ndarray, torch.Tensor))
+        return data.squeeze(self.dim)  # pytype: disable=attribute-error
 
 
 class DataStats(Transform):
@@ -209,31 +220,46 @@ class DataStats(Transform):
         if logger_handler is not None:
             self._logger.addHandler(logger_handler)
 
-    def __call__(  # type: ignore # see issue #495
-        self,
-        img,
-        prefix: Optional[str] = None,
-        data_shape: Optional[bool] = None,
-        intensity_range: Optional[bool] = None,
-        data_value: Optional[bool] = None,
-        additional_info=None,
-    ):
+    def __call__(self, data: Iterable, *args, **kwargs):
+        """
+        Args:
+            data
+            prefix (Optional[str]): will be printed in format: "{prefix} statistics". Default is ``self.prefix``.
+            data_shape (Optional[bool]): whether to show the shape of input data. Default is ``self.data_shape``.
+            intensity_range (Optional[bool]): whether to show the intensity value range of input data.
+                Default is ``self.intensity_range``.
+            data_value (Optional[bool]): whether to show the raw value of input data. Default is ``self.data_value``.
+                A typical example is to print some properties of Nifti image: affine, pixdim, etc. Default is ``self.data_value``.
+            additional_info (Optional[Callable]): user can define callable function to extract additional info from input data.
+                Default is ``self.additional_info``.
+        """
+        reference_args: OrderedDict = OrderedDict(
+            {"prefix": None, "data_shape": None, "intensity_range": None, "data_value": None, "additional_info": None}
+        )
+        produced_args: Dict[str, Any] = validate_kwargs(args, kwargs, reference_args)
+
+        prefix: Optional[str] = produced_args["prefix"]
+        data_shape: Optional[bool] = produced_args["data_shape"]
+        intensity_range: Optional[bool] = produced_args["intensity_range"]
+        data_value: Optional[bool] = produced_args["data_value"]
+        additional_info: Optional[Callable] = produced_args["additional_info"]
+
         lines = [f"{prefix or self.prefix} statistics:"]
 
         if self.data_shape if data_shape is None else data_shape:
-            lines.append(f"Shape: {img.shape}")
+            lines.append(f"Shape: {data.shape}")  # type: ignore
         if self.intensity_range if intensity_range is None else intensity_range:
-            lines.append(f"Intensity range: ({np.min(img)}, {np.max(img)})")
+            lines.append(f"Intensity range: ({np.min(data)}, {np.max(data)})")
         if self.data_value if data_value is None else data_value:
-            lines.append(f"Value: {img}")
+            lines.append(f"Value: {data}")
         additional_info = self.additional_info if additional_info is None else additional_info
         if additional_info is not None:
-            lines.append(f"Additional info: {additional_info(img)}")
+            lines.append(f"Additional info: {additional_info(data)}")
         separator = "\n"
         self.output = f"{separator.join(lines)}"
         self._logger.debug(self.output)
 
-        return img
+        return data
 
 
 class SimulateDelay(Transform):

@@ -18,43 +18,43 @@ from parameterized import parameterized
 from monai.transforms import SqueezeDimd
 
 TEST_CASE_1 = [
-    {"keys": ["img", "seg"], "dim": None},
-    {"img": np.random.rand(1, 2, 1, 3), "seg": np.random.randint(0, 2, size=[1, 2, 1, 3])},
+    {"keys": ["data", "seg"], "dim": None},
+    {"data": np.random.rand(1, 2, 1, 3), "seg": np.random.randint(0, 2, size=[1, 2, 1, 3])},
     (2, 3),
 ]
 
 TEST_CASE_2 = [
-    {"keys": ["img", "seg"], "dim": 2},
-    {"img": np.random.rand(1, 2, 1, 8, 16), "seg": np.random.randint(0, 2, size=[1, 2, 1, 8, 16])},
+    {"keys": ["data", "seg"], "dim": 2},
+    {"data": np.random.rand(1, 2, 1, 8, 16), "seg": np.random.randint(0, 2, size=[1, 2, 1, 8, 16])},
     (1, 2, 8, 16),
 ]
 
 TEST_CASE_3 = [
-    {"keys": ["img", "seg"], "dim": -1},
-    {"img": np.random.rand(1, 1, 16, 8, 1), "seg": np.random.randint(0, 2, size=[1, 1, 16, 8, 1])},
+    {"keys": ["data", "seg"], "dim": -1},
+    {"data": np.random.rand(1, 1, 16, 8, 1), "seg": np.random.randint(0, 2, size=[1, 1, 16, 8, 1])},
     (1, 1, 16, 8),
 ]
 
 TEST_CASE_4 = [
-    {"keys": ["img", "seg"]},
-    {"img": np.random.rand(1, 2, 1, 3), "seg": np.random.randint(0, 2, size=[1, 2, 1, 3])},
+    {"keys": ["data", "seg"]},
+    {"data": np.random.rand(1, 2, 1, 3), "seg": np.random.randint(0, 2, size=[1, 2, 1, 3])},
     (2, 1, 3),
 ]
 
 TEST_CASE_4_PT = [
-    {"keys": ["img", "seg"], "dim": 0},
-    {"img": torch.rand(1, 2, 1, 3), "seg": torch.randint(0, 2, size=[1, 2, 1, 3])},
+    {"keys": ["data", "seg"], "dim": 0},
+    {"data": torch.rand(1, 2, 1, 3), "seg": torch.randint(0, 2, size=[1, 2, 1, 3])},
     (2, 1, 3),
 ]
 
 TEST_CASE_5 = [
-    {"keys": ["img", "seg"], "dim": -2},
-    {"img": np.random.rand(1, 1, 16, 8, 1), "seg": np.random.randint(0, 2, size=[1, 1, 16, 8, 1])},
+    {"keys": ["data", "seg"], "dim": -2},
+    {"data": np.random.rand(1, 1, 16, 8, 1), "seg": np.random.randint(0, 2, size=[1, 1, 16, 8, 1])},
 ]
 
 TEST_CASE_6 = [
-    {"keys": ["img", "seg"], "dim": 0.5},
-    {"img": np.random.rand(1, 1, 16, 8, 1), "seg": np.random.randint(0, 2, size=[1, 1, 16, 8, 1])},
+    {"keys": ["data", "seg"], "dim": 0.5},
+    {"data": np.random.rand(1, 1, 16, 8, 1), "seg": np.random.randint(0, 2, size=[1, 1, 16, 8, 1])},
 ]
 
 
@@ -62,7 +62,7 @@ class TestSqueezeDim(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_4_PT])
     def test_shape(self, input_param, test_data, expected_shape):
         result = SqueezeDimd(**input_param)(test_data)
-        self.assertTupleEqual(result["img"].shape, expected_shape)
+        self.assertTupleEqual(result["data"].shape, expected_shape)
         self.assertTupleEqual(result["seg"].shape, expected_shape)
 
     @parameterized.expand([TEST_CASE_5, TEST_CASE_6])

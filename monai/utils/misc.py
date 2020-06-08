@@ -11,6 +11,9 @@
 
 import itertools
 from collections.abc import Iterable
+from collections import OrderedDict
+import copy
+from typing import Optional, Dict, Any, List
 
 import numpy as np
 import torch
@@ -144,3 +147,32 @@ def set_determinism(seed=np.iinfo(np.int32).max, additional_settings=None):
         torch.backends.cudnn.benchmark = False
     else:
         torch.backends.cudnn.deterministic = False
+
+
+def validate_kwargs(args: Iterable, input_kwargs: Dict[str, Any], reference_args: OrderedDict) -> Dict[str, Any]:
+    """
+    A function to validate dictionary arguments for a function.  Used to provide a common
+    base class with subclasses accepting different arguments.
+    Args:
+        input_kwargs:  **kwargs like dictionary with string based keys
+        reference_args: Ordered dictionary of valid arguments and default values to be used,
+                        the string value of "__from_input__" is used to indicate that the
+                        value must be provided from the input.
+    Returns:
+        Validated and default value supplied dictionary.
+    """
+    assert isinstance(reference_args, OrderedDict), f"reference_args must be an OrderedDict, is {type(reference_args)}"
+    output_args = copy.deepcopy(reference_args)
+    unnamed_args_dictionary: OrderedDict = OrderedDict(zip(reference_args.keys(), args))
+    input_kwargs.update(unnamed_args_dictionary)
+    input_dictionary_keys: set = set(input_kwargs.keys())
+
+    set_diff_valid_keys = input_dictionary_keys - set(output_args.keys())
+    if set_diff_valid_keys:
+        raise KeyError(f"Invalid arguments provided: {set_diff_valid_keys}")
+    required_keys: List[str] = [k for (k, v) in output_args.items() if v == "__from_input__"]
+    set_diff_required_keys = set(required_keys) - input_dictionary_keys
+    if set_diff_required_keys:
+        raise KeyError(f"Missing mandatory keys: {set_diff_required_keys}")
+    output_args.update(input_kwargs)
+    return output_args

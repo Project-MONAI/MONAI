@@ -13,7 +13,8 @@ A collection of "vanilla" transforms for crop and pad operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Optional, Callable
+from collections import OrderedDict
+from typing import Optional, Callable, Iterable, Dict, Any
 
 import numpy as np
 
@@ -21,6 +22,7 @@ from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.compose import Transform, Randomizable
 from monai.transforms.utils import generate_spatial_bounding_box
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep
+from monai.utils.misc import validate_kwargs
 
 
 class SpatialPad(Transform):
@@ -53,11 +55,25 @@ class SpatialPad(Transform):
         else:
             return [(0, max(self.spatial_size[i] - data_shape[i], 0)) for i in range(len(self.spatial_size))]
 
-    def __call__(self, img, mode: Optional[str] = None):  # type: ignore # see issue #495
-        data_pad_width = self._determine_data_pad_width(img.shape[1:])
+    def __call__(self, data: Iterable, *args, **kwargs):
+        """
+        Args:
+            data (numpy.ndarray)
+            mode (Optional[str]): one of the following string values or a user supplied function: {'constant', 'edge',
+            'linear_ramp', 'maximum', 'mean', 'median', 'minimum', 'reflect', 'symmetric', 'wrap', 'empty', <function>}
+            for more details, please check: https://docs.scipy.org/doc/numpy/reference/generated/numpy.pad.html
+        """
+        reference_args: OrderedDict = OrderedDict({"mode": None})
+        produced_args: Dict[str, Any] = validate_kwargs(args, kwargs, reference_args)
+
+        mode: Optional[str] = produced_args["mode"]
+
+        assert isinstance(data, np.ndarray), "data must be a numpy.ndarray."
+
+        data_pad_width = self._determine_data_pad_width(data.shape[1:])
         all_pad_width = [(0, 0)] + data_pad_width
-        img = np.pad(img, all_pad_width, mode=mode or self.mode)
-        return img
+        data = np.pad(data, all_pad_width, mode=mode or self.mode)
+        return data
 
 
 class SpatialCrop(Transform):

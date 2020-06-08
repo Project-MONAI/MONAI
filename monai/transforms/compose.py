@@ -13,7 +13,7 @@ A collection of generic interfaces for MONAI transforms.
 """
 
 import warnings
-from typing import Hashable, Optional
+from typing import Hashable, Optional, Iterable
 from abc import ABC, abstractmethod
 import numpy as np
 
@@ -41,7 +41,7 @@ class Transform(ABC):
     """
 
     @abstractmethod
-    def __call__(self, data, *args, **kwargs):
+    def __call__(self, data: Iterable, *args, **kwargs):
         """
         ``data`` is an element which often comes from an iteration over an
         iterable, such as :py:class:`torch.utils.data.Dataset`. This method should
@@ -228,5 +228,5 @@ class MapTransform(Transform):
                 raise ValueError(f"keys should be a hashable or a sequence of hashables, got {type(key)}")
 
     @abstractmethod
-    def __call__(self, data):
+    def __call__(self, data: Iterable, *args, **kwargs):
         raise NotImplementedError

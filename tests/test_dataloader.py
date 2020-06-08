@@ -17,20 +17,20 @@ from monai.transforms import DataStatsd, SimulateDelayd, Compose
 class TestDataLoader(unittest.TestCase):
     def test_values(self):
         datalist = [
-            {"image": "spleen_19.nii.gz", "label": "spleen_label_19.nii.gz"},
-            {"image": "spleen_31.nii.gz", "label": "spleen_label_31.nii.gz"},
+            {"data": "spleen_19.nii.gz", "label": "spleen_label_19.nii.gz"},
+            {"data": "spleen_31.nii.gz", "label": "spleen_label_31.nii.gz"},
         ]
         transform = Compose(
             [
-                DataStatsd(keys=["image", "label"], data_shape=False, intensity_range=False, data_value=True),
-                SimulateDelayd(keys=["image", "label"], delay_time=0.1),
+                DataStatsd(keys=["data", "label"], data_shape=False, intensity_range=False, data_value=True),
+                SimulateDelayd(keys=["data", "label"], delay_time=0.1),
             ]
         )
         dataset = CacheDataset(data=datalist, transform=transform, cache_rate=0.5, cache_num=1)
         dataloader = DataLoader(dataset=dataset, batch_size=2, num_workers=2)
         for d in dataloader:
-            self.assertEqual(d["image"][0], "spleen_19.nii.gz")
-            self.assertEqual(d["image"][1], "spleen_31.nii.gz")
+            self.assertEqual(d["data"][0], "spleen_19.nii.gz")
+            self.assertEqual(d["data"][1], "spleen_31.nii.gz")
             self.assertEqual(d["label"][0], "spleen_label_19.nii.gz")
             self.assertEqual(d["label"][1], "spleen_label_31.nii.gz")
 

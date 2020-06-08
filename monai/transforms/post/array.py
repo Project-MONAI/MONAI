@@ -13,12 +13,15 @@ A collection of "vanilla" transforms for the model output tensors
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Optional, Callable
+from collections import OrderedDict
+from typing import Optional, Iterable, Dict, Any, Callable
 
 import torch
+
 from monai.transforms.compose import Transform
 from monai.networks.utils import one_hot
 from monai.transforms.utils import get_largest_connected_component_mask
+from monai.utils.misc import validate_kwargs
 
 
 class SplitChannel(Transform):
@@ -38,16 +41,31 @@ class SplitChannel(Transform):
         self.to_onehot = to_onehot
         self.num_classes = num_classes
 
-    def __call__(self, img, to_onehot: Optional[bool] = None, num_classes: Optional[int] = None):  # type: ignore # see issue #495
+    def __call__(self, data: Iterable, *args, **kwargs):
+        """
+        Args:
+            data (torch.Tensor)
+            to_onehot (Optional[bool]): whether to convert the data to One-Hot format first. Default is ``self.to_onehot``.
+            num_classes (Optional[int]): the class number used to convert to One-Hot format if `to_onehot` is True.
+                Default is ``self.num_classes``.
+        """
+        reference_args: OrderedDict = OrderedDict({"to_onehot": None, "num_classes": None})
+        produced_args: Dict[str, Any] = validate_kwargs(args, kwargs, reference_args)
+
+        to_onehot: Optional[bool] = produced_args["to_onehot"]
+        num_classes: Optional[int] = produced_args["num_classes"]
+
+        assert isinstance(data, torch.Tensor), "data must be a torch.Tensor."
+
         if to_onehot or self.to_onehot:
             if num_classes is None:
                 num_classes = self.num_classes
             assert isinstance(num_classes, int), "must specify class number for One-Hot."
-            img = one_hot(img, num_classes)
-        n_classes = img.shape[1]
+            data = one_hot(data, num_classes)
+        n_classes = data.shape[1]  # pytype: disable=attribute-error
         outputs = list()
         for i in range(n_classes):
-            outputs.append(img[:, i : i + 1])
+            outputs.append(data[:, i : i + 1])
 
         return outputs
 
@@ -69,22 +87,39 @@ class Activations(Transform):
         self.softmax = softmax
         self.other = other
 
-    def __call__(  # type: ignore # see issue #495
-        self, img, sigmoid: Optional[bool] = None, softmax: Optional[bool] = None, other: Optional[Callable] = None
-    ):
+    def __call__(self, data: Iterable, *args, **kwargs):
+        """
+        Args:
+            data (torch.Tensor)
+            sigmoid (Optional[bool]): whether to execute sigmoid function on model output before transform.
+                Default is ``self.sigmoid``.
+            softmax (Optional[bool]): whether to execute softmax function on model output before transform.
+                Default is ``self.softmax``.
+            other (Optional[Callable]): callable function to execute other activation layers, for example:
+                `other = lambda x: torch.tanh(x)`. Default is ``self.other``.
+        """
+        reference_args: OrderedDict = OrderedDict({"sigmoid": None, "softmax": None, "other": None})
+        produced_args: Dict[str, Any] = validate_kwargs(args, kwargs, reference_args)
+
+        sigmoid: Optional[bool] = produced_args["sigmoid"]
+        softmax: Optional[bool] = produced_args["softmax"]
+        other: Optional[Callable] = produced_args["other"]
+
+        assert isinstance(data, torch.Tensor), "data must be a torch.Tensor."
+
         if sigmoid is True and softmax is True:
             raise ValueError("sigmoid=True and softmax=True are not compatible.")
         if sigmoid or self.sigmoid:
-            img = torch.sigmoid(img)
+            data = torch.sigmoid(data)
         if softmax or self.softmax:
-            img = torch.softmax(img, dim=1)
+            data = torch.softmax(data, dim=1)
         act_func = self.other if other is None else other
         if act_func is not None:
             if not callable(act_func):
                 raise ValueError("act_func must be a Callable function.")
-            img = act_func(img)
+            data = act_func(data)
 
-        return img
+        return data
 
 
 class AsDiscrete(Transform):
@@ -118,27 +153,44 @@ class AsDiscrete(Transform):
         self.threshold_values = threshold_values
         self.logit_thresh = logit_thresh
 
-    def __call__(  # type: ignore # see issue #495
-        self,
-        img,
-        argmax: Optional[bool] = None,
-        to_onehot: Optional[bool] = None,
-        n_classes: Optional[int] = None,
-        threshold_values: Optional[bool] = None,
-        logit_thresh: Optional[float] = None,
-    ):
+    def __call__(self, data: Iterable, *args, **kwargs):
+        """
+        Args:
+            data (torch.Tensor)
+            argmax (Optional[bool]): whether to execute argmax function on input data before transform.
+                Default is ``self.argmax``.
+            to_onehot (Optional[bool]): whether to convert input data into the one-hot format. Default is ``self.to_onehot``.
+            n_classes (Optional[int]): the number of classes to convert to One-Hot format.
+                Default is ``self.n_classes``.
+            threshold_values (Optional[bool]): whether threshold the float value to int number 0 or 1.
+                Default is ``self.threshold_values``.
+            logit_thresh (Optional[float]): the threshold value for thresholding operation. Default is ``self.logit_thresh``.
+        """
+        reference_args: OrderedDict = OrderedDict(
+            {"argmax": None, "to_onehot": None, "n_classes": None, "threshold_values": None, "logit_thresh": None}
+        )
+        produced_args: Dict[str, Any] = validate_kwargs(args, kwargs, reference_args)
+
+        argmax: Optional[bool] = produced_args["argmax"]
+        to_onehot: Optional[bool] = produced_args["to_onehot"]
+        n_classes: Optional[int] = produced_args["n_classes"]
+        threshold_values: Optional[bool] = produced_args["threshold_values"]
+        logit_thresh: Optional[float] = produced_args["logit_thresh"]
+
+        assert isinstance(data, torch.Tensor), "data must be a torch.Tensor."
+
         if argmax or self.argmax:
-            img = torch.argmax(img, dim=1, keepdim=True)
+            data = torch.argmax(data, dim=1, keepdim=True)
 
         if to_onehot or self.to_onehot:
             _nclasses = self.n_classes if n_classes is None else n_classes
             assert isinstance(_nclasses, int), "One of self.n_classes or n_classes must be an integer"
-            img = one_hot(img, _nclasses)
+            data = one_hot(data, _nclasses)
 
         if threshold_values or self.threshold_values:
-            img = img >= (self.logit_thresh if logit_thresh is None else logit_thresh)
+            data = data >= (self.logit_thresh if logit_thresh is None else logit_thresh)
 
-        return img.float()
+        return data.float()  # pytype: disable=attribute-error
 
 
 class KeepLargestConnectedComponent(Transform):
