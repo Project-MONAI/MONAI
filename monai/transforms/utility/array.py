@@ -148,25 +148,25 @@ class Transpose(Transform):
 
 class SqueezeDim(Transform):
     """
-    Squeeze undesired unitary dimensions
+    Squeeze a unitary dimension.
     """
 
-    def __init__(self, dim: Optional[int] = None):
+    def __init__(self, dim: Optional[int] = 0):
         """
         Args:
-            dim (int): dimension to be squeezed.
-                Default: None (all dimensions of size 1 will be removed)
+            dim (int or None): dimension to be squeezed. Default = 0
+                "None" works when the input is numpy array.
         """
-        if dim is not None:
-            assert isinstance(dim, int) and dim >= -1, "invalid channel dimension."
+        if dim is not None and not isinstance(dim, int):
+            raise ValueError(f"Invalid channel dimension {dim}")
         self.dim = dim
 
-    def __call__(self, img: np.ndarray):  # type: ignore # see issue #495
+    def __call__(self, img):  # type: ignore # see issue #495
         """
         Args:
             img (ndarray): numpy arrays with required dimension `dim` removed
         """
-        return np.squeeze(img, self.dim)
+        return img.squeeze(self.dim)
 
 
 class DataStats(Transform):

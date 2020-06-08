@@ -13,7 +13,6 @@ Utilities and types for defining networks, these depend on PyTorch.
 """
 
 import warnings
-
 import torch
 import torch.nn.functional as f
 
@@ -87,18 +86,18 @@ def normalize_transform(shape, device=None, dtype=None, align_corners=False):
             corner pixels rather than the image corners.
             See also: https://pytorch.org/docs/stable/nn.functional.html#torch.nn.functional.grid_sample
     """
-    shape_ = list(shape)[::-1]
+    norm = torch.tensor(shape, dtype=torch.float64, device=device)  # no in-place change
     if align_corners:
-        norm = torch.as_tensor(shape_ + [1.0], dtype=dtype, device=device)
-        norm[:-1] = 2.0 / (norm[:-1] - 1.0)
-        norm = torch.diag(norm)
+        norm[norm <= 1.0] = 2.0
+        norm = 2.0 / (norm - 1.0)
+        norm = torch.diag(torch.cat((norm, torch.ones((1,), dtype=torch.float64, device=device))))
         norm[:-1, -1] = -1.0
     else:
-        norm = torch.as_tensor(shape_ + [1.0], dtype=dtype, device=device)
-        norm[:-1] = 2.0 / norm[:-1]
-        norm = torch.diag(norm)
-        norm[:-1, -1] = 1.0 / torch.as_tensor(shape_, dtype=dtype, device=device) - 1.0
-    norm = norm.unsqueeze(0)  # adds a batch dim.
+        norm[norm <= 0.0] = 2.0
+        norm = 2.0 / norm
+        norm = torch.diag(torch.cat((norm, torch.ones((1,), dtype=torch.float64, device=device))))
+        norm[:-1, -1] = 1.0 / torch.tensor(shape, dtype=torch.float32, device=device) - 1.0
+    norm = norm.unsqueeze(0).to(dtype=dtype)
     norm.requires_grad = False
     return norm
 

@@ -58,9 +58,8 @@ class Spacingd(MapTransform):
         keys: Hashable,
         pixdim,
         diagonal: bool = False,
-        interp_order=3,
-        mode="nearest",
-        cval=0,
+        interp_order: str = "bilinear",
+        mode: str = "border",
         dtype: Optional[np.dtype] = None,
         meta_key_format: str = "{}.{}",
     ):
@@ -79,23 +78,22 @@ class Spacingd(MapTransform):
                 translations components from the original affine will be
                 preserved in the target affine. This option will not flip/swap
                 axes against the original ones.
-            interp_order (int or sequence of ints): int: the same interpolation order
-                for all data indexed by `self.keys`; sequence of ints, should
+            interp_order (`nearest|bilinear` or a squence of str): str: the same interpolation order
+                for all data indexed by `self.keys`; sequence of str, should
                 correspond to an interpolation order for each data item indexed
-                by `self.keys` respectively.
+                by `self.keys` respectively. Defaults to `bilinear`.
             mode (str or sequence of str):
-                Available options are `reflect|constant|nearest|mirror|wrap`.
+                Available options are `zeros|border|reflection`.
                 The mode parameter determines how the input array is extended beyond its boundaries.
-                Default is 'nearest'.
-            cval (scalar or sequence of scalars): Value to fill past edges of input if mode is "constant". Default is 0.0.
-            dtype (None or np.dtype or sequence of np.dtype): output array data type, defaults to None to use input data's dtype.
+                Default is 'border'.
+            dtype (None or np.dtype or sequence of np.dtype): output array data type.
+                Defaults to None to use input data's dtype.
             meta_key_format (str): key format to read/write affine matrices to the data dictionary.
         """
         super().__init__(keys)
         self.spacing_transform = Spacing(pixdim, diagonal=diagonal)
         self.interp_order = ensure_tuple_rep(interp_order, len(self.keys))
         self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.cval = ensure_tuple_rep(cval, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.meta_key_format = meta_key_format
 
@@ -110,7 +108,6 @@ class Spacingd(MapTransform):
                 affine=d[affine_key],
                 interp_order=self.interp_order[idx],
                 mode=self.mode[idx],
-                cval=self.cval[idx],
                 dtype=self.dtype[idx],
             )
             # set the 'affine' key
