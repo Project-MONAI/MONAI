@@ -105,6 +105,15 @@ class NiftiSaver:
 
     def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data=None):
         """Save a batch of data into Nifti format files.
+           This function assumes the NIfTI dimension notations.
+           Spatially it supports up to three dimensions, that is, H, HW, HWD for
+           1D, 2D, 3D respectively (resampling only supports 2D and 3D).
+
+           When saving multiple time steps or multiple channels `batch_data`,
+           time and/or modality axes should be appended after the batch dimensions.
+           For example, the shape of a batch of 2D eight-class
+           segmentation probabilities to be saved could be `(batch, 8, 64, 64, 1)`,
+           or `(batch, 8, 64, 64)`.
 
         args:
             batch_data (Tensor or ndarray): target batch data content that save into NIfTI format.
