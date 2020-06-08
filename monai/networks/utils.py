@@ -14,7 +14,6 @@ Utilities and types for defining networks, these depend on PyTorch.
 
 import warnings
 import torch
-import torch.nn.functional as f
 
 
 def one_hot(labels, num_classes: int, dtype: torch.dtype = torch.float):
