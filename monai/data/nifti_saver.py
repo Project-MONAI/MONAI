@@ -46,10 +46,9 @@ class NiftiSaver:
                 This option is used when `resample = True`.
             mode (`zeros|border|reflection`):
                 The mode parameter determines how the input array is extended beyond its boundaries.
-                This option is used when `resample = True`.
+                Defaults to "border". This option is used when `resample = True`.
             dtype (np.dtype, optional): convert the image data to save to this data type.
                 If None, keep the original type of data.
-
         """
         self.output_dir = output_dir
         self.output_postfix = output_postfix

@@ -72,7 +72,7 @@ def write_nifti(
             This option is used when `resample = True`.
         mode (`zeros|border|reflection`):
             The mode parameter determines how the input array is extended beyond its boundaries.
-            This option is used when `resample = True`.
+            Defaults to "border". This option is used when `resample = True`.
         dtype (np.dtype, optional): convert the image to save to this data type.
     """
     assert isinstance(data, np.ndarray), "input data must be numpy array."
