@@ -82,6 +82,18 @@ class AsChannelLastd(MapTransform):
 class AddChanneld(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.AddChannel`.
+
+    For example:
+
+    .. code-block:: python
+
+        image = {"img": np.array([[0, 1], [1, 2]]),
+                 "seg": np.array([[0, 1], [1, 2]])}
+        adder = AddChanneld(keys=["img", "seg"])
+        print(adder(image))
+        {'img': array([[[0, 1], [1, 2]]]),
+         'seg': array([[[0, 1], [1, 2]]])}
+
     """
 
     def __init__(self, keys: Hashable):

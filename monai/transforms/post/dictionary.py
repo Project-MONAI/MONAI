@@ -63,6 +63,28 @@ class Activationsd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.AddActivations`.
     Add activation layers to the input data specified by `keys`.
+
+    For example:
+
+    .. code-block:: python
+
+        input = {"pred": torch.tensor([[[[0.0, 1.0]], [[2.0, 3.0]]]]),
+                 "label": torch.tensor([[[[0.0, 1.0]], [[2.0, 3.0]]]])}
+        activator = Activationsd(keys=["pred", "label"],
+                                 output_postfix="act",
+                                 sigmoid=False,
+                                 softmax=[True, False],
+                                 other=None)
+        print(activator(input))
+        {'pred': tensor([[[[0., 1.]],
+                          [[2., 3.]]]]),
+         'label': tensor([[[[0., 1.]],
+                           [[2., 3.]]]]),
+         'pred_act': tensor([[[[0.1192, 0.1192]],
+                              [[0.8808, 0.8808]]]]),
+         'label_act': tensor([[[[0., 1.]],
+                               [[2., 3.]]]])}
+
     """
 
     def __init__(self, keys: Hashable, output_postfix: str = "act", sigmoid=False, softmax=False, other=None):

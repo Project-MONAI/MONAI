@@ -62,6 +62,18 @@ class Activations(Transform):
         other (Callable): callable function to execute other activation layers, for example:
             `other = lambda x: torch.tanh(x)`
 
+    For example:
+
+    .. code-block:: python
+
+        image = torch.tensor(
+            [[[[0.0, 1.0],
+               [2.0, 3.0]]]])  # 1x2x2, single channel 2x2 image
+        activator = Activations(sigmoid=True, softmax=False, other=None)
+        print(activator(image))
+        tensor([[[[0.5000, 0.7311],
+                  [0.8808, 0.9526]]]])
+
     """
 
     def __init__(self, sigmoid: bool = False, softmax: bool = False, other: Optional[Callable] = None):
