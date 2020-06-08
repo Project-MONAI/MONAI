@@ -20,7 +20,7 @@ import nibabel as nib
 import numpy as np
 import scipy.ndimage
 import torch
-from skimage.transform import resize
+import torch.nn.functional as F
 
 from monai.data.utils import InterpolationCode, compute_shape_offset, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter
@@ -33,7 +33,7 @@ from monai.transforms.utils import (
     create_shear,
     create_translate,
 )
-from monai.utils.misc import ensure_tuple
+from monai.utils.misc import ensure_tuple, ensure_tuple_size, ensure_tuple_rep
 
 
 class Spacing(Transform):
@@ -230,70 +230,50 @@ class Flip(Transform):
 
 class Resize(Transform):
     """
-    Resize the input image to given resolution. Uses skimage.transform.resize underneath.
-    For additional details, see https://scikit-image.org/docs/dev/api/skimage.transform.html#skimage.transform.resize.
+    Resize the input image to given spatial size.
+    Implemented using :py:class:`torch.nn.functional.interpolate`.
 
     Args:
         spatial_size (tuple or list): expected shape of spatial dimensions after resize operation.
-        interp_order: Order of spline interpolation. Default=InterpolationCode.LINEAR.
-        mode (str): Points outside boundaries are filled according to given mode.
-            Options are 'constant', 'edge', 'symmetric', 'reflect', 'wrap'.
-        cval (float): Used with mode 'constant', the value outside image boundaries.
-        clip: Whether to clip range of output values after interpolation. Default: True.
-        preserve_range: Whether to keep original range of values. Default is True.
-            If False, input is converted according to conventions of img_as_float. See
-            https://scikit-image.org/docs/dev/user_guide/data_types.html.
-        anti_aliasing: Whether to apply a gaussian filter to image before down-scaling.
-            Default is True.
+        interp_order (`nearest|linear|bilinear|bicubic|trilinear|area`):
+            the interpolation mode. Default="area".
+            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+        align_corners (optional bool): This only has an effect when mode is
+            'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
+            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
     """
 
-    def __init__(
-        self,
-        spatial_size,
-        interp_order=InterpolationCode.LINEAR,
-        mode: str = "reflect",
-        cval: Union[int, float] = 0,
-        clip: bool = True,
-        preserve_range: bool = True,
-        anti_aliasing: bool = True,
-    ):
-        self.spatial_size = spatial_size
+    def __init__(self, spatial_size, interp_order: str = "area", align_corners: Optional[bool] = None):
+        self.spatial_size = ensure_tuple(spatial_size)
         self.interp_order = interp_order
-        self.mode = mode
-        self.cval = cval
-        self.clip = clip
-        self.preserve_range = preserve_range
-        self.anti_aliasing = anti_aliasing
+        self.align_corners = align_corners
 
     def __call__(  # type: ignore # see issue #495
-        self,
-        img,
-        order=None,
-        mode: Optional[str] = None,
-        cval: Optional[Union[int, float]] = None,
-        clip: Optional[bool] = None,
-        preserve_range: Optional[bool] = None,
-        anti_aliasing: Optional[bool] = None,
+        self, img, interp_order: Optional[str] = None
     ):
         """
         Args:
             img (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
-        resized = list()
-        for channel in img:
-            resized.append(
-                resize(
-                    image=channel,
-                    output_shape=self.spatial_size,
-                    order=self.interp_order if order is None else order,
-                    mode=mode or self.mode,
-                    cval=self.cval if cval is None else cval,
-                    clip=self.clip if clip is None else clip,
-                    preserve_range=self.preserve_range if preserve_range is None else preserve_range,
-                    anti_aliasing=self.anti_aliasing if anti_aliasing is None else anti_aliasing,
-                )
+        input_ndim = img.ndim - 1  # spatial ndim
+        output_ndim = len(self.spatial_size)
+        if output_ndim > input_ndim:
+            input_shape = ensure_tuple_size(img.shape, output_ndim + 1, 1)
+            img = img.reshape(input_shape)
+        elif output_ndim < input_ndim:
+            raise ValueError(
+                "len(spatial_size) cannot be smaller than the image spatial dimensions, "
+                f"got {output_ndim} and {input_ndim}."
             )
-        return np.stack(resized).astype(img.dtype)
+        resized = F.interpolate(
+            input=torch.as_tensor(img[None], dtype=torch.float),
+            size=self.spatial_size,
+            mode=interp_order or self.interp_order,
+            align_corners=self.align_corners,
+            recompute_scale_factor=True,
+        )
+        resized = resized.squeeze(0).detach().cpu().numpy()
+        return resized
 
 
 class Rotate(Transform):
@@ -363,87 +343,47 @@ class Rotate(Transform):
 
 
 class Zoom(Transform):
-    """ Zooms a nd image. Uses scipy.ndimage.zoom or cupyx.scipy.ndimage.zoom in case of gpu.
-    For details, please see https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.zoom.html.
+    """
+    Zooms an ND image using :py:class:`torch.nn.functional.interpolate`.
+    For details, please see https://pytorch.org/docs/stable/nn.functional.html#interpolate.
 
     Args:
         zoom (float or sequence): The zoom factor along the spatial axes.
             If a float, zoom is the same for each spatial axis.
             If a sequence, zoom should contain one value for each spatial axis.
-        interp_order: order of interpolation. Default=InterpolationCode.SPLINE3.
-        mode (str): Determines how input is extended beyond boundaries. Default is 'constant'.
-        cval (scalar, optional): Value to fill past edges. Default is 0.
-        prefilter: Apply spline_filter before interpolation. Default: True.
-        use_gpu: Should use cpu or gpu. Uses cupyx which doesn't support order > 1 and modes
-            'wrap' and 'reflect'. Defaults to cpu for these cases or if cupyx not found.
-        keep_size: Should keep original size (pad if needed), default is True.
+        interp_order (`nearest|linear|bilinear|bicubic|trilinear|area`):
+            the interpolation mode. Default="area".
+            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+        align_corners (optional bool): This only has an effect when mode is
+            'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
+            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+        keep_size (bool): Should keep original size (pad if needed), default is True.
     """
 
     def __init__(
-        self,
-        zoom,
-        interp_order=InterpolationCode.SPLINE3,
-        mode: str = "constant",
-        cval: Union[int, float] = 0,
-        prefilter: bool = True,
-        use_gpu: bool = False,
-        keep_size: bool = True,
+        self, zoom, interp_order: str = "area", align_corners: Optional[bool] = None, keep_size: bool = True,
     ):
         self.zoom = zoom
         self.interp_order = interp_order
-        self.mode = mode
-        self.cval = cval
-        self.prefilter = prefilter
-        self.use_gpu = use_gpu
+        self.align_corners = align_corners
         self.keep_size = keep_size
 
-        if self.use_gpu:
-            try:
-                from cupyx.scipy.ndimage import zoom as zoom_gpu  # type: ignore
-
-                self._zoom = zoom_gpu
-            except ImportError:
-                print("For GPU zoom, please install cupy. Defaulting to cpu.")
-                self._zoom = scipy.ndimage.zoom
-                self.use_gpu = False
-        else:
-            self._zoom = scipy.ndimage.zoom
-
-    def __call__(
-        self, img, order=None, mode=None, cval=None, prefilter=None,
+    def __call__(  # type: ignore # see issue #495
+        self, img, interp_order: Optional[str] = None
     ):
         """
         Args:
             img (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
-        zoomed = list()
-        if self.use_gpu:
-            import cupy  # type: ignore
-
-            for channel in cupy.array(img):
-                zoom_channel = self._zoom(
-                    channel,
-                    zoom=self.zoom,
-                    order=self.interp_order if order is None else order,
-                    mode=self.mode if mode is None else mode,
-                    cval=self.cval if cval is None else cval,
-                    prefilter=self.prefilter if prefilter is None else prefilter,
-                )
-                zoomed.append(cupy.asnumpy(zoom_channel))
-        else:
-            for channel in img:
-                zoomed.append(
-                    self._zoom(
-                        channel,
-                        zoom=self.zoom,
-                        order=self.interp_order if order is None else order,
-                        mode=mode or self.mode,
-                        cval=self.cval if cval is None else cval,
-                        prefilter=self.prefilter if prefilter is None else prefilter,
-                    )
-                )
-        zoomed = np.stack(zoomed).astype(img.dtype)
-
+        self.zoom = ensure_tuple_rep(self.zoom, img.ndim - 1)  # match the spatial image dim
+        zoomed = F.interpolate(
+            input=torch.as_tensor(img[None], dtype=torch.float),
+            scale_factor=list(self.zoom),
+            mode=interp_order or self.interp_order,
+            align_corners=self.align_corners,
+            recompute_scale_factor=False,
+        )
+        zoomed = zoomed.squeeze(0).detach().cpu().numpy()
         if not self.keep_size or np.allclose(img.shape, zoomed.shape):
             return zoomed
 
@@ -630,14 +570,13 @@ class RandZoom(Randomizable, Transform):
         max_zoom (float or sequence): Max zoom factor. Can be float or sequence same size as image.
             If a float, max_zoom is the same for each spatial axis.
             If a sequence, max_zoom should contain one value for each spatial axis.
-        interp_order: order of interpolation. Default=InterpolationCode.SPLINE3.
-        mode ('reflect', 'constant', 'nearest', 'mirror', 'wrap'): Determines how input is
-            extended beyond boundaries. Default: 'constant'.
-        cval (scalar, optional): Value to fill past edges. Default is 0.
-        prefilter: Apply spline_filter before interpolation. Default: True.
-        use_gpu: Should use cpu or gpu. Uses cupyx which doesn't support order > 1 and modes
-            'wrap' and 'reflect'. Defaults to cpu for these cases or if cupyx not found.
-        keep_size: Should keep original size (pad if needed), default is True.
+        interp_order (`nearest|linear|bilinear|bicubic|trilinear|area`):
+            the interpolation mode. Default="area".
+            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+        align_corners (optional bool): This only has an effect when mode is
+            'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
+            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+        keep_size (bool): Should keep original size (pad if needed), default is True.
     """
 
     def __init__(
@@ -645,11 +584,8 @@ class RandZoom(Randomizable, Transform):
         prob: float = 0.1,
         min_zoom=0.9,
         max_zoom=1.1,
-        interp_order=InterpolationCode.SPLINE3,
-        mode: str = "constant",
-        cval: Union[int, float] = 0,
-        prefilter: bool = True,
-        use_gpu: bool = False,
+        interp_order: str = "area",
+        align_corners: Optional[bool] = None,
         keep_size: bool = True,
     ):
         if hasattr(min_zoom, "__iter__") and hasattr(max_zoom, "__iter__"):
@@ -657,13 +593,9 @@ class RandZoom(Randomizable, Transform):
         self.min_zoom = min_zoom
         self.max_zoom = max_zoom
         self.prob = prob
-        self.use_gpu = use_gpu
-        self.keep_size = keep_size
-
         self.interp_order = interp_order
-        self.mode = mode
-        self.cval = cval
-        self.prefilter = prefilter
+        self.align_corners = align_corners
+        self.keep_size = keep_size
 
         self._do_transform = False
         self._zoom = None
@@ -676,24 +608,14 @@ class RandZoom(Randomizable, Transform):
             self._zoom = self.R.uniform(self.min_zoom, self.max_zoom)
 
     def __call__(  # type: ignore # see issue #495
-        self,
-        img,
-        order=None,
-        mode: Optional[str] = None,
-        cval: Union[int, float] = None,
-        prefilter: Optional[bool] = None,
+        self, img, interp_order=None
     ):
         self.randomize()
+        _dtype = np.float32
         if not self._do_transform:
-            return img
-        zoomer = Zoom(self._zoom, use_gpu=self.use_gpu, keep_size=self.keep_size)
-        return zoomer(
-            img,
-            order=self.interp_order if order is None else order,
-            mode=mode or self.mode,
-            cval=self.cval if cval is None else cval,
-            prefilter=self.prefilter if prefilter is None else prefilter,
-        )
+            return img.astype(_dtype)
+        zoomer = Zoom(self._zoom, align_corners=self.align_corners, keep_size=self.keep_size)
+        return zoomer(img, interp_order=interp_order or self.interp_order).astype(_dtype)
 
 
 class AffineGrid(Transform):

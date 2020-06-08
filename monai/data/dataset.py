@@ -75,7 +75,7 @@ class PersistentDataset(Dataset):
 
     For a composite transform like
 
-        .. code-block:: python
+    .. code-block:: python
 
         [ LoadNiftid(keys=['image', 'label']),
           Orientationd(keys=['image', 'label'], axcodes='RAS'),
