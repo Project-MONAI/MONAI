@@ -20,6 +20,9 @@ The examples are PyTorch Ignite programs and have both dictionary-based and arra
 This notebook demonstrates the transformations on volumetric images.
 #### [notebooks/cache_dataset_speed](./notebooks/cache_dataset_speed.ipynb)
 This tutorial shows how to accelerate PyTorch medical DL program based on MONAI `CacheDataset`.
+#### [notebooks/integrate_3rd_party_transforms](./notebooks/integrate_3rd_party_transforms.ipynb)
+This tutorial shows how to integrate 3rd party transforms into MONAI program.  
+Mainly shows transforms from BatchGenerator, TorchIO and Rising.
 #### [notebooks/mednist_tutorial](./notebooks/mednist_tutorial.ipynb)
 This notebook shows how to easily integrate MONAI features into existing PyTorch programs.
 It's based on the MedNIST dataset which is very suitable for beginners as a tutorial.
