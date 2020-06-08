@@ -237,8 +237,8 @@ def worker_init_fn(worker_id):
 
 def correct_nifti_header_if_necessary(img_nii):
     """
-    check nifti object header's format, update the header if needed.
-    in the updated image pixdim matches the affine.
+    Check nifti object header's format, update the header if needed.
+    In the updated image pixdim matches the affine.
 
     Args:
         img_nii (nifti image object)
@@ -293,11 +293,11 @@ def rectify_header_sform_qform(img_nii):
 
 def zoom_affine(affine, scale, diagonal: bool = True):
     """
-    To make column norm of `affine` the same as `scale`.  if diagonal is False,
+    To make column norm of `affine` the same as `scale`.  If diagonal is False,
     returns an affine that combines orthogonal rotation and the new scale.
-    This is done by first decomposing`affine`, then setting the zoom factors to
+    This is done by first decomposing `affine`, then setting the zoom factors to
     `scale`, and composing a new affine; the shearing factors are removed.  If
-    diagonal is True, returns an diagonal matrix, the scaling factors are set
+    diagonal is True, returns a diagonal matrix, the scaling factors are set
     to the diagonal elements.  This function always return an affine with zero
     translations.
 
@@ -383,7 +383,7 @@ def to_affine_nd(r, affine):
         r (int or matrix): number of spatial dimensions or an output affine to be filled.
         affine (matrix): 2D affine matrix
     Returns:
-        a (r+1) x (r+1) matrix
+        an (r+1) x (r+1) matrix
     """
     affine_ = np.array(affine, dtype=np.float64)
     if affine_.ndim != 2:
