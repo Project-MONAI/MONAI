@@ -21,7 +21,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset as _TorchDataset
 
-from monai.transforms import Compose, Randomizable, MapTransform
+from monai.transforms import Compose, Randomizable, Transform
 from monai.transforms.utils import apply_transform
 from monai.utils import get_seed, process_bar
 
@@ -121,7 +121,7 @@ class PersistentDataset(Dataset):
         """
         for _transform in self.transform.transforms:  # pytype: disable=attribute-error
             # execute all the deterministic transforms
-            if isinstance(_transform, Randomizable) or not isinstance(_transform, MapTransform):
+            if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
                 break
             item_transformed = apply_transform(_transform, item_transformed)
         return item_transformed
@@ -139,7 +139,7 @@ class PersistentDataset(Dataset):
             if (
                 start_post_randomize_run
                 or isinstance(_transform, Randomizable)
-                or not isinstance(_transform, MapTransform)
+                or not isinstance(_transform, Transform)
             ):
                 start_post_randomize_run = True
                 item_transformed = apply_transform(_transform, item_transformed)
@@ -267,7 +267,7 @@ class CacheDataset(Dataset):
     def _load_cache_item(self, item, transforms):
         for _transform in transforms:
             # execute all the deterministic transforms
-            if isinstance(_transform, Randomizable) or not isinstance(_transform, MapTransform):
+            if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
                 break
             item = apply_transform(_transform, item)
         return item
@@ -285,7 +285,7 @@ class CacheDataset(Dataset):
             start_run = False
             data = self._cache[index]
             for _transform in self.transform.transforms:  # pytype: disable=attribute-error
-                if not start_run and not isinstance(_transform, Randomizable) and isinstance(_transform, MapTransform):
+                if not start_run and not isinstance(_transform, Randomizable) and isinstance(_transform, Transform):
                     continue
                 else:
                     start_run = True
