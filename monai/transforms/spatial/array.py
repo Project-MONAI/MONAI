@@ -270,7 +270,6 @@ class Resize(Transform):
             size=self.spatial_size,
             mode=interp_order or self.interp_order,
             align_corners=self.align_corners,
-            recompute_scale_factor=True,
         )
         resized = resized.squeeze(0).detach().cpu().numpy()
         return resized
@@ -381,7 +380,6 @@ class Zoom(Transform):
             scale_factor=list(self.zoom),
             mode=interp_order or self.interp_order,
             align_corners=self.align_corners,
-            recompute_scale_factor=False,
         )
         zoomed = zoomed.squeeze(0).detach().cpu().numpy()
         if not self.keep_size or np.allclose(img.shape, zoomed.shape):
