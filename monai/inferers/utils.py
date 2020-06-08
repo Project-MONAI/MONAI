@@ -17,7 +17,8 @@ from monai.data.utils import dense_patch_slices, compute_importance_map
 def sliding_window_inference(
     inputs, roi_size, sw_batch_size, predictor, overlap=0.25, blend_mode="constant",
 ):
-    """Use SlidingWindow method to execute inference.
+    """
+    Use SlidingWindow method to execute inference.
 
     Args:
         inputs (torch Tensor): input image to be processed (assuming NCHW[D])
@@ -27,7 +28,7 @@ def sliding_window_inference(
             should return a prediction with the same spatial shape and batch_size, i.e. NMHW[D];
             where HW[D] represents the patch spatial size, M is the number of output channels, N is `sw_batch_size`.
         overlap (float): Amount of overlap between scans.
-        blend_mode (str): How to blend output of overlapping windows. Options are 'constant', 'guassian'. 'constant'
+        blend_mode (str): How to blend output of overlapping windows. Options are 'constant', 'gaussian'. 'constant'
             gives equal weight to all predictions while gaussian gives less weight to predictions on edges of windows.
 
     Note:

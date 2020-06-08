@@ -18,7 +18,8 @@ from monai.metrics import compute_roc_auc
 
 
 class ROCAUC(Metric):
-    """Computes Area Under the Receiver Operating Characteristic Curve (ROC AUC).
+    """
+    Computes Area Under the Receiver Operating Characteristic Curve (ROC AUC).
     accumulating predictions and the ground-truth during an epoch and applying `compute_roc_auc`.
 
     Args:
@@ -28,7 +29,7 @@ class ROCAUC(Metric):
             Default is 'macro'.
 
             - 'macro': calculate metrics for each label, and find their unweighted mean.
-              this does not take label imbalance into account.
+              This does not take label imbalance into account.
             - 'weighted': calculate metrics for each label, and find their average,
               weighted by support (the number of true instances for each label).
             - 'micro': calculate metrics globally by considering each element of the label

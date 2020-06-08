@@ -26,7 +26,7 @@ def write_png(
 ):
     """
     Write numpy data into png files to disk.  
-    Spatially It supports HW for 2D.(H,W) or (H,W,3) or (H,W,4)
+    Spatially it supports HW for 2D.(H,W) or (H,W,3) or (H,W,4)
     It's based on skimage library: https://scikit-image.org/docs/dev/api/skimage
 
     Args:
