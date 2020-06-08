@@ -10,8 +10,11 @@
 # limitations under the License.
 
 import unittest
+
 import numpy as np
+import torch
 from parameterized import parameterized
+
 from monai.transforms import SqueezeDim
 
 TEST_CASE_1 = [{"dim": None}, np.random.rand(1, 2, 1, 3), (2, 3)]
@@ -20,7 +23,9 @@ TEST_CASE_2 = [{"dim": 2}, np.random.rand(1, 2, 1, 8, 16), (1, 2, 8, 16)]
 
 TEST_CASE_3 = [{"dim": -1}, np.random.rand(1, 1, 16, 8, 1), (1, 1, 16, 8)]
 
-TEST_CASE_4 = [{}, np.random.rand(1, 2, 1, 3), (2, 3)]
+TEST_CASE_4 = [{}, np.random.rand(1, 2, 1, 3), (2, 1, 3)]
+
+TEST_CASE_4_PT = [{}, torch.rand(1, 2, 1, 3), (2, 1, 3)]
 
 TEST_CASE_5 = [
     {"dim": -2},
@@ -34,15 +39,15 @@ TEST_CASE_6 = [
 
 
 class TestSqueezeDim(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_4_PT])
     def test_shape(self, input_param, test_data, expected_shape):
         result = SqueezeDim(**input_param)(test_data)
         self.assertTupleEqual(result.shape, expected_shape)
 
     @parameterized.expand([TEST_CASE_5, TEST_CASE_6])
     def test_invalid_inputs(self, input_param, test_data):
-        with self.assertRaises(AssertionError):
-            result = SqueezeDim(**input_param)(test_data)
+        with self.assertRaises(ValueError):
+            SqueezeDim(**input_param)(test_data)
 
 
 if __name__ == "__main__":
