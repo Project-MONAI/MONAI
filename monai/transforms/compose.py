@@ -71,7 +71,7 @@ class Randomizable(ABC):
         factors.
 
         Args:
-            seed (int): set the random state with an integer seed.
+            seed: set the random state with an integer seed.
             state (np.random.RandomState): set the random state with a `np.random.RandomState` object.
 
         Returns:

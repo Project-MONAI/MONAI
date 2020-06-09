@@ -15,7 +15,7 @@ from monai.data.utils import dense_patch_slices, compute_importance_map
 
 
 def sliding_window_inference(
-    inputs, roi_size, sw_batch_size, predictor, overlap=0.25, blend_mode="constant",
+    inputs, roi_size, sw_batch_size: int, predictor, overlap=0.25, blend_mode="constant",
 ):
     """
     Use SlidingWindow method to execute inference.
@@ -23,7 +23,7 @@ def sliding_window_inference(
     Args:
         inputs (torch Tensor): input image to be processed (assuming NCHW[D])
         roi_size (list, tuple): the window size to execute SlidingWindow inference.
-        sw_batch_size (int): the batch size to run window slices.
+        sw_batch_size: the batch size to run window slices.
         predictor (Callable): given input tensor `patch_data` in shape NCHW[D], `predictor(patch_data)`
             should return a prediction with the same spatial shape and batch_size, i.e. NMHW[D];
             where HW[D] represents the patch spatial size, M is the number of output channels, N is `sw_batch_size`.
@@ -42,16 +42,16 @@ def sliding_window_inference(
 
     # determine image spatial size and batch size
     # Note: all input images must have the same image size and batch size
-    image_size = list(inputs.shape[2:])
+    image_size_ = list(inputs.shape[2:])
     batch_size = inputs.shape[0]
 
     # TODO: Enable batch sizes > 1 in future
     if batch_size > 1:
         raise NotImplementedError
 
-    original_image_size = [image_size[i] for i in range(num_spatial_dims)]
+    original_image_size = [image_size_[i] for i in range(num_spatial_dims)]
     # in case that image size is smaller than roi size
-    image_size = tuple(max(image_size[i], roi_size[i]) for i in range(num_spatial_dims))
+    image_size = tuple(max(image_size_[i], roi_size[i]) for i in range(num_spatial_dims))
     pad_size = [i for k in range(len(inputs.shape) - 1, 1, -1) for i in (0, max(roi_size[k - 2] - inputs.shape[k], 0))]
     inputs = F.pad(inputs, pad=pad_size, mode="constant", value=0)
 

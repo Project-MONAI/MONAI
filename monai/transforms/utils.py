@@ -177,7 +177,7 @@ def generate_pos_neg_label_crop_centers(
     Args:
         label (numpy.ndarray): use the label data to get the foreground/background information.
         size (list or tuple): size of the ROIs to be sampled.
-        num_samples (int): total sample centers to be generated.
+        num_samples: total sample centers to be generated.
         pos_ratio (float): ratio of total locations generated that have center being foreground.
         image (numpy.ndarray): if image is not None, use ``label = 0 & image > image_threshold``
             to select background. so the crop center will only exist on valid image area.
@@ -332,7 +332,7 @@ def create_shear(spatial_dims: int, coefs):
     """
     create a shearing matrix
     Args:
-        spatial_dims (int): spatial rank
+        spatial_dims: spatial rank
         coefs (floats): shearing factors, defaults to 0.
     """
     coefs = list(ensure_tuple(coefs))
@@ -358,7 +358,7 @@ def create_scale(spatial_dims: int, scaling_factor):
     """
     create a scaling matrix
     Args:
-        spatial_dims (int): spatial rank
+        spatial_dims: spatial rank
         scaling_factor (floats): scaling factors, defaults to 1.
     """
     scaling_factor = list(ensure_tuple(scaling_factor))
@@ -371,7 +371,7 @@ def create_translate(spatial_dims: int, shift):
     """
     create a translation matrix
     Args:
-        spatial_dims (int): spatial rank
+        spatial_dims: spatial rank
         shift (floats): translate factors, defaults to 0.
     """
     shift = ensure_tuple(shift)
@@ -394,7 +394,7 @@ def generate_spatial_bounding_box(
         select_fn (Callable): function to select expected foreground, default is to select values > 0.
         channel_indexes (int, tuple or list): if defined, select foreground only on the specified channels
             of image. if None, select foreground on the whole image.
-        margin (int): add margin to all dims of the bounding box.
+        margin: add margin to all dims of the bounding box.
     """
     assert isinstance(margin, int), "margin must be int type."
     data = img[[*(ensure_tuple(channel_indexes))]] if channel_indexes is not None else img
@@ -416,7 +416,7 @@ def get_largest_connected_component_mask(img, connectivity: Optional[int] = None
 
     Args:
         img: Image to get largest connected component from. Shape is (batch_size, spatial_dim1 [, spatial_dim2, ...])
-        connectivity (int): Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
+        connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
             Accepted values are ranging from  1 to input.ndim. If ``None``, a full
             connectivity of ``input.ndim`` is used.
     """

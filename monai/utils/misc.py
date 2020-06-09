@@ -91,9 +91,9 @@ def process_bar(index: int, count: int, bar_len: int = 30, newline: bool = False
     """print a process bar to track some time consuming task.
 
     Args:
-        index (int): current satus in process.
-        count (int): total steps of the process.
-        bar_len(int): the total length of the bar on screen, default is 30 char.
+        index: current satus in process.
+        count: total steps of the process.
+        bar_len: the total length of the bar on screen, default is 30 char.
         newline (bool): whether to print in a new line for every index.
     """
     end = "\r" if newline is False else "\r\n"
