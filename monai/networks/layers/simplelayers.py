@@ -45,7 +45,7 @@ class GaussianFilter(nn.Module):
             spatial_dims: number of spatial dimensions of the input image.
                 must have shape (Batch, channels, H[, W, ...]).
             sigma (float or sequence of floats): std.
-            truncated (float): spreads how many stds.
+            truncated: spreads how many stds.
         """
         super().__init__()
         self.spatial_dims = int(spatial_dims)

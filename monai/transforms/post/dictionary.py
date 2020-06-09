@@ -113,7 +113,7 @@ class AsDiscreted(MapTransform):
         to_onehot: bool = False,
         n_classes: Optional[int] = None,
         threshold_values: bool = False,
-        logit_thresh=0.5,
+        logit_thresh: float = 0.5,
     ):
         """
         Args:
@@ -127,7 +127,7 @@ class AsDiscreted(MapTransform):
             to_onehot: whether to convert input data into the one-hot format. Defaults to False.
             n_classes: the number of classes to convert to One-Hot format.
             threshold_values: whether threshold the float value to int number 0 or 1, default is False.
-            logit_thresh (float): the threshold value for thresholding operation, default is 0.5.
+            logit_thresh: the threshold value for thresholding operation, default is 0.5.
         """
         super().__init__(keys)
         if output_postfix is not None and not isinstance(output_postfix, str):
