@@ -184,8 +184,12 @@ class KeepLargestConnectedComponent(Transform):
     """
 
     def __init__(
-        self, applied_values=None, independent: bool = True, background: int = 0, connectivity: Optional[int] = None,
-        applied_channel_indices=None
+        self,
+        applied_values=None,
+        independent: bool = True,
+        background: int = 0,
+        connectivity: Optional[int] = None,
+        applied_channel_indices=None,
     ):
         """
         Args:
@@ -259,7 +263,9 @@ class KeepLargestConnectedComponent(Transform):
                 foreground = torch.any(applied_img, dim=channel_dim)
                 mask = get_largest_connected_component_mask(foreground, self.connectivity)
                 background_mask = torch.unsqueeze(foreground != mask, dim=channel_dim)
-                background_mask = torch.repeat_interleave(background_mask, len(self.applied_channel_indices), dim=channel_dim)
+                background_mask = torch.repeat_interleave(
+                    background_mask, len(self.applied_channel_indices), dim=channel_dim
+                )
                 applied_img[background_mask] = 0
                 img[:, self.applied_channel_indices, ...] = applied_img.type(img.type())
             output = img
