@@ -101,9 +101,11 @@ do
             echo "      --dryrun          : display the commands to the screen without running"
             echo "      --zoo             : not yet implmented"
             echo "       -j               : number of parallel jobs to run"
+            echo "       --clean          : Clean temporary files from tests"
             exit 1
         ;;
     esac
+    # shellcheck disable=SC2068
     echo $@
     shift
 done
@@ -123,9 +125,11 @@ fi
 python -c 'import monai; monai.config.print_config()'
 
 #Cleaning the files when ussing --clean in args, if theres no files exit just exit 
-if [ "$clean_cache_file" = true]
-then 
+if [ "$clean_cache_file" = true ]
+then
   rm !(".mypy_cache" | ".pytype")
+  echo "All temporary files where erased!"
+  exit
 fi
 
 
