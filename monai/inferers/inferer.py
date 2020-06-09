@@ -59,7 +59,7 @@ class SlidingWindowInferer(Inferer):
 
     Args:
         roi_size (list, tuple): the window size to execute SlidingWindow evaluation.
-        sw_batch_size (int): the batch size to run window slices.
+        sw_batch_size: the batch size to run window slices.
         overlap (float): Amount of overlap between scans.
         blend_mode (str): How to blend output of overlapping windows. Options are 'constant', 'gaussian'. 'constant'
             gives equal weight to all predictions while gaussian gives less weight to predictions on edges of windows.

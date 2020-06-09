@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional
+
 import torch
 from monai.data import list_data_collate, worker_init_fn
 
@@ -21,7 +23,7 @@ class DataLoader(torch.utils.data.DataLoader):
 
     Args:
         dataset (Dataset): dataset from which to load the data.
-        batch_size (int, optional): how many samples per batch to load
+        batch_size: how many samples per batch to load
             (default: ``1``).
         shuffle (bool, optional): set to ``True`` to have the data reshuffled
             at every epoch (default: ``False``).
@@ -30,7 +32,7 @@ class DataLoader(torch.utils.data.DataLoader):
         batch_sampler (Sampler, optional): like :attr:`sampler`, but returns a batch of
             indices at a time. Mutually exclusive with :attr:`batch_size`,
             :attr:`shuffle`, :attr:`sampler`, and :attr:`drop_last`.
-        num_workers (int, optional): how many subprocesses to use for data
+        num_workers: how many subprocesses to use for data
             loading. ``0`` means that the data will be loaded in the main process.
             (default: ``0``)
         pin_memory (bool, optional): If ``True``, the data loader will copy Tensors
@@ -50,11 +52,11 @@ class DataLoader(torch.utils.data.DataLoader):
     def __init__(
         self,
         dataset,
-        batch_size=1,
+        batch_size: Optional[int] = 1,
         shuffle=False,
         sampler=None,
         batch_sampler=None,
-        num_workers=0,
+        num_workers: Optional[int] = 0,
         pin_memory=False,
         drop_last=False,
         timeout=0,

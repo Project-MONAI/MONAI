@@ -36,7 +36,7 @@ class AsChannelFirst(Transform):
     so that the multidimensional image array can be correctly interpreted by the other transforms.
 
     Args:
-        channel_dim (int): which dimension of input image is the channel, default is the last dimension.
+        channel_dim: which dimension of input image is the channel, default is the last dimension.
     """
 
     def __init__(self, channel_dim: int = -1):
@@ -59,7 +59,7 @@ class AsChannelLast(Transform):
     so that MONAI transforms can construct a chain with other 3rd party transforms together.
 
     Args:
-        channel_dim (int): which dimension of input image is the channel, default is the first dimension.
+        channel_dim: which dimension of input image is the channel, default is the first dimension.
     """
 
     def __init__(self, channel_dim: int = 0):
@@ -95,7 +95,7 @@ class RepeatChannel(Transform):
     ``RepeatChannel(repeats=2)([[1, 2], [3, 4]])`` generates: ``[[1, 2], [1, 2], [3, 4], [3, 4]]``
 
     Args:
-        repeats (int): the number of repetitions for each element.
+        repeats: the number of repetitions for each element.
     """
 
     def __init__(self, repeats: int):
@@ -154,7 +154,7 @@ class SqueezeDim(Transform):
     def __init__(self, dim: Optional[int] = 0):
         """
         Args:
-            dim (int or None): dimension to be squeezed. Default = 0
+            dim: dimension to be squeezed. Default = 0
                 "None" works when the input is numpy array.
         """
         if dim is not None and not isinstance(dim, int):

@@ -171,7 +171,7 @@ class Rotate90d(MapTransform):
     def __init__(self, keys: Hashable, k: int = 1, spatial_axes=(0, 1)):
         """
         Args:
-            k (int): number of times to rotate by 90 degrees.
+            k: number of times to rotate by 90 degrees.
             spatial_axes (2 ints): defines the plane to rotate with 2 spatial axes.
                 Default: (0, 1), this is the first two axis in spatial dimensions.
         """
@@ -198,7 +198,7 @@ class RandRotate90d(Randomizable, MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             prob (float): probability of rotating.
                 (Default 0.1, with 10% probability it returns a rotated array.)
-            max_k (int): number of rotations will be sampled from `np.random.randint(max_k) + 1`.
+            max_k: number of rotations will be sampled from `np.random.randint(max_k) + 1`.
                 (Default 3)
             spatial_axes (2 ints): defines the plane to rotate with 2 spatial axes.
                 Default: (0, 1), this is the first two axis in spatial dimensions.

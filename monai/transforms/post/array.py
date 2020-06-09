@@ -30,7 +30,7 @@ class SplitChannel(Transform):
 
     Args:
         to_onehot (bool): whether to convert the data to One-Hot format first, default is False.
-        num_classes (int): the class number used to convert to One-Hot format if `to_onehot` is True.
+        num_classes: the class number used to convert to One-Hot format if `to_onehot` is True.
 
     """
 
@@ -192,8 +192,8 @@ class KeepLargestConnectedComponent(Transform):
             independent (bool): consider several labels as a whole or independent, default is `True`.
                 Example use case would be segment label 1 is liver and label 2 is liver tumor, in that case
                 you want this "independent" to be specified as False.
-            background (int): Background pixel value. The over-segmented pixels will be set as this value.
-            connectivity (int): Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
+            background: Background pixel value. The over-segmented pixels will be set as this value.
+            connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
                 Accepted values are ranging from  1 to input.ndim. If ``None``, a full
                 connectivity of ``input.ndim`` is used.
         """

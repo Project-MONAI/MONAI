@@ -23,7 +23,7 @@ def write_nifti(
     target_affine=None,
     resample=True,
     output_shape=None,
-    interp_order=InterpolationCode.SPLINE3,
+    interp_order: int = InterpolationCode.SPLINE3,
     mode="constant",
     cval=0,
     dtype=None,
@@ -67,7 +67,7 @@ def write_nifti(
             could not be achieved by swapping/flipping data axes.
         output_shape (None or tuple of ints): output image shape.
             this option is used when resample = True.
-        interp_order (int): the order of the spline interpolation, default is InterpolationCode.SPLINE3.
+        interp_order: the order of the spline interpolation, default is InterpolationCode.SPLINE3.
             The order has to be in the range 0 - 5.
             https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.affine_transform.html
             this option is used when `resample = True`.
