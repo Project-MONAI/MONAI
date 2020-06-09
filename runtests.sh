@@ -127,7 +127,7 @@ python -c 'import monai; monai.config.print_config()'
 #Cleaning the files when ussing --clean in args, if theres no files exit just exit 
 if [ "$clean_cache_file" = true ]
 then
-  rm !(".mypy_cache" | ".pytype")
+  rm !( ".mypy_cache" | ".pytype" )
   echo "All temporary files where erased!"
   exit
 fi
