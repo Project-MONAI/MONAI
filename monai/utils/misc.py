@@ -87,7 +87,7 @@ def is_scalar(val):
     return np.isscalar(val)
 
 
-def process_bar(index, count, bar_len=30, newline=False):
+def process_bar(index: int, count: int, bar_len: int = 30, newline: bool = False):
     """print a process bar to track some time consuming task.
 
     Args:
