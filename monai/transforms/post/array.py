@@ -145,9 +145,10 @@ class KeepLargestConnectedComponent(Transform):
     """
     Keeps only the largest connected component in the image.
     This transform can be used as a post-processing step to clean up over-segment areas in model output.
-    The input is assumed to be a PyTorch Tensor with shape (batch_size, 1, spatial_dim1[, spatial_dim2, ...])
 
-    Expected input data should have only 1 channel and the values correspond to expected labels.
+    The input is assumed to be a PyTorch Tensor:
+      1) With shape (batch_size, 1, spatial_dim1[, spatial_dim2, ...]) and the values correspond to expected labels.
+      2) With shape (batch_size, C, spatial_dim1[, spatial_dim2, ...]) and the values should be 0, 1 on each labels.
 
     For example:
     Use KeepLargestConnectedComponent with applied_values=[1], connectivity=1
@@ -183,12 +184,14 @@ class KeepLargestConnectedComponent(Transform):
     """
 
     def __init__(
-        self, applied_values, independent: bool = True, background: int = 0, connectivity: Optional[int] = None
+        self, applied_values=None, independent: bool = True, background: int = 0, connectivity: Optional[int] = None,
+        applied_channel_indices=None
     ):
         """
         Args:
             applied_values (list or tuple of int): number list for applying the connected component on.
-                The pixel whose value is not in this list will remain unchanged.
+                The pixel whose value is not in this list will remain unchanged. This will be used only
+                if the data has one channel.
             independent (bool): consider several labels as a whole or independent, default is `True`.
                 Example use case would be segment label 1 is liver and label 2 is liver tumor, in that case
                 you want this "independent" to be specified as False.
@@ -196,39 +199,69 @@ class KeepLargestConnectedComponent(Transform):
             connectivity (int): Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
                 Accepted values are ranging from  1 to input.ndim. If ``None``, a full
                 connectivity of ``input.ndim`` is used.
+            applied_channel_indices (list): If the data is in one-hot format, this is used to determine what channels
+                to apply.
         """
         super().__init__()
         self.applied_values = applied_values
         self.independent = independent
         self.background = background
         self.connectivity = connectivity
-        if background in applied_values:
-            raise ValueError("Background pixel can't be in applied_values.")
+        self.applied_channel_indices = applied_channel_indices
+
+        if applied_values is None and applied_channel_indices is None:
+            raise ValueError("Please provide either applied_values or applied_channel_indices.")
+
+        if applied_channel_indices is None:
+            if background in applied_values:
+                raise ValueError("Background pixel can't be in applied_values.")
 
     def __call__(self, img):
         """
         Args:
-            img: shape must be (batch_size, 1, spatial_dim1[, spatial_dim2, ...]).
+            img: shape must be (batch_size, C, spatial_dim1[, spatial_dim2, ...]).
 
         Returns:
-            A PyTorch Tensor with shape (batch_size, 1, spatial_dim1[, spatial_dim2, ...]).
+            A PyTorch Tensor with shape (batch_size, C, spatial_dim1[, spatial_dim2, ...]).
         """
         channel_dim = 1
         if img.shape[channel_dim] == 1:
-            img = torch.squeeze(img, dim=channel_dim)
-        else:
-            raise ValueError("Input data have more than 1 channel.")
+            if self.applied_values is None:
+                raise ValueError("Please provide applied_values for 1 channel data.")
 
-        if self.independent:
-            for i in self.applied_values:
-                foreground = (img == i).type(torch.uint8)
+            img = torch.squeeze(img, dim=channel_dim)
+
+            if self.independent:
+                for i in self.applied_values:
+                    foreground = (img == i).type(torch.uint8)
+                    mask = get_largest_connected_component_mask(foreground, self.connectivity)
+                    img[foreground != mask] = self.background
+            else:
+                foreground = torch.zeros_like(img)
+                for i in self.applied_values:
+                    foreground += (img == i).type(torch.uint8)
                 mask = get_largest_connected_component_mask(foreground, self.connectivity)
                 img[foreground != mask] = self.background
+            output = torch.unsqueeze(img, dim=channel_dim)
         else:
-            foreground = torch.zeros_like(img)
-            for i in self.applied_values:
-                foreground += (img == i).type(torch.uint8)
-            mask = get_largest_connected_component_mask(foreground, self.connectivity)
-            img[foreground != mask] = self.background
+            # one-hot data
+            if self.applied_channel_indices is None:
+                raise ValueError("Please provide applied_channel_indices for one-hot data.")
 
-        return torch.unsqueeze(img, dim=channel_dim)
+            # one-hot data is assumed to have binary value in each channel
+            if self.independent:
+                for i in self.applied_channel_indices:
+                    foreground = img[:, i, ...].type(torch.uint8)
+                    mask = get_largest_connected_component_mask(foreground, self.connectivity)
+                    img[:, i, ...][foreground != mask] = 0
+            else:
+                applied_img = img[:, self.applied_channel_indices, ...].type(torch.uint8)
+                foreground = torch.any(applied_img, dim=channel_dim)
+                mask = get_largest_connected_component_mask(foreground, self.connectivity)
+                background_mask = torch.unsqueeze(foreground != mask, dim=channel_dim)
+                background_mask = torch.repeat_interleave(background_mask, len(self.applied_channel_indices), dim=channel_dim)
+                applied_img[background_mask] = 0
+                img[:, self.applied_channel_indices, ...] = applied_img.type(img.type())
+            output = img
+
+        return output
