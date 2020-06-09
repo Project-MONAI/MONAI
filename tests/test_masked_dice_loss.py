@@ -15,7 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.losses import TverskyLoss
+from monai.losses import MaskedDiceLoss
 
 TEST_CASES = [
     [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
@@ -23,24 +23,27 @@ TEST_CASES = [
         {
             "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
             "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
+            "mask": torch.tensor([[[[0.0, 0.0], [1.0, 1.0]]]]),
             "smooth": 1e-6,
         },
-        0.307576,
+        0.500,
     ],
     [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
         {"include_background": True, "sigmoid": True},
         {
             "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]], [[[1.0, -1.0], [-1.0, 1.0]]]]),
             "target": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]]], [[[1.0, 0.0], [1.0, 0.0]]]]),
+            "mask": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]]], [[[1.0, 1.0], [0.0, 0.0]]]]),
             "smooth": 1e-4,
         },
-        0.416657,
+        0.422969,
     ],
     [  # shape: (2, 2, 3), (2, 1, 3)
         {"include_background": False, "to_onehot_y": True},
         {
             "input": torch.tensor([[[1.0, 1.0, 0.0], [0.0, 0.0, 1.0]], [[1.0, 0.0, 1.0], [0.0, 1.0, 0.0]]]),
             "target": torch.tensor([[[0.0, 0.0, 1.0]], [[0.0, 1.0, 0.0]]]),
+            "mask": torch.tensor([[[1.0, 1.0, 1.0]], [[0.0, 1.0, 0.0]]]),
             "smooth": 0.0,
         },
         0.0,
@@ -50,18 +53,19 @@ TEST_CASES = [
         {
             "input": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
             "target": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
+            "mask": torch.tensor([[[1.0, 1.0, 0.0]]]),
             "smooth": 1e-4,
         },
-        0.435050,
+        0.47033,
     ],
     [  # shape: (2, 2, 3), (2, 1, 3)
-        {"include_background": True, "to_onehot_y": True, "sigmoid": True, "reduction": "sum"},
+        {"include_background": True, "to_onehot_y": True, "sigmoid": True, "reduction": "none"},
         {
             "input": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
             "target": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
             "smooth": 1e-4,
         },
-        1.74013,
+        [[0.296529, 0.415136], [0.599976, 0.428559]],
     ],
     [  # shape: (2, 2, 3), (2, 1, 3)
         {"include_background": True, "to_onehot_y": True, "softmax": True},
@@ -73,63 +77,76 @@ TEST_CASES = [
         0.383713,
     ],
     [  # shape: (2, 2, 3), (2, 1, 3)
-        {"include_background": True, "to_onehot_y": True, "softmax": True, "reduction": "none"},
+        {"include_background": True, "to_onehot_y": True, "softmax": True, "reduction": "sum"},
         {
             "input": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
             "target": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
             "smooth": 1e-4,
         },
-        [[0.210961, 0.295339], [0.599952, 0.428547]],
+        1.534853,
     ],
     [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
-        {"include_background": True, "sigmoid": True, "alpha": 0.3, "beta": 0.7},
+        {"include_background": True, "sigmoid": True},
         {
             "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
             "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
             "smooth": 1e-6,
         },
-        0.3589,
+        0.307576,
     ],
     [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
-        {"include_background": True, "sigmoid": True, "alpha": 0.7, "beta": 0.3},
+        {"include_background": True, "sigmoid": True, "squared_pred": True},
         {
             "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
             "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
-            "smooth": 1e-6,
+            "smooth": 1e-5,
         },
-        0.247366,
+        0.178337,
+    ],
+    [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
+        {"include_background": True, "sigmoid": True, "jaccard": True},
+        {
+            "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
+            "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
+            "smooth": 1e-5,
+        },
+        -0.059094,
     ],
 ]
 
 
-class TestTverskyLoss(unittest.TestCase):
+class TestDiceLoss(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_data, expected_val):
-        result = TverskyLoss(**input_param).forward(**input_data)
-        np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, rtol=1e-4)
+        result = MaskedDiceLoss(**input_param).forward(**input_data)
+        np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, rtol=1e-5)
 
     def test_ill_shape(self):
-        loss = TverskyLoss()
+        loss = MaskedDiceLoss()
         with self.assertRaisesRegex(AssertionError, ""):
-            loss.forward(torch.ones((2, 2, 3)), torch.ones((4, 5, 6)))
+            loss.forward(torch.ones((1, 2, 3)), torch.ones((4, 5, 6)))
+
+    def test_ill_opts(self):
+        with self.assertRaisesRegex(ValueError, ""):
+            MaskedDiceLoss(sigmoid=True, softmax=True)
         chn_input = torch.ones((1, 1, 3))
         chn_target = torch.ones((1, 1, 3))
         with self.assertRaisesRegex(ValueError, ""):
-            TverskyLoss(reduction="unknown")(chn_input, chn_target)
+            MaskedDiceLoss(reduction="unknown")(chn_input, chn_target)
         with self.assertRaisesRegex(ValueError, ""):
-            TverskyLoss(reduction=None)(chn_input, chn_target)
+            MaskedDiceLoss(reduction=None)(chn_input, chn_target)
 
     def test_input_warnings(self):
         chn_input = torch.ones((1, 1, 3))
         chn_target = torch.ones((1, 1, 3))
         with self.assertWarns(Warning):
-            loss = TverskyLoss(include_background=False)
+            loss = MaskedDiceLoss(include_background=False)
             loss.forward(chn_input, chn_target)
         with self.assertWarns(Warning):
-            loss = TverskyLoss(softmax=True)
+            loss = MaskedDiceLoss(softmax=True)
             loss.forward(chn_input, chn_target)
         with self.assertWarns(Warning):
-            loss = TverskyLoss(to_onehot_y=True)
+            loss = MaskedDiceLoss(to_onehot_y=True)
             loss.forward(chn_input, chn_target)
 
 

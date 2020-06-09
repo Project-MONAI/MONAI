@@ -14,11 +14,19 @@ from skimage import io, transform
 
 
 def write_png(
-    data, file_name, output_shape=None, interp_order=3, mode="constant", cval=0, scale=False, plugin=None, **plugin_args
+    data,
+    file_name,
+    output_shape=None,
+    interp_order=3,
+    mode="constant",
+    cval=0,
+    scale=False,
+    plugin=None,
+    **plugin_args,
 ):
     """
     Write numpy data into png files to disk.  
-    Spatially It supports HW for 2D.(H,W) or (H,W,3) or (H,W,4)
+    Spatially it supports HW for 2D.(H,W) or (H,W,3) or (H,W,4)
     It's based on skimage library: https://scikit-image.org/docs/dev/api/skimage
 
     Args:

@@ -39,7 +39,7 @@ class Flatten(nn.Module):
 
 
 class GaussianFilter(nn.Module):
-    def __init__(self, spatial_dims, sigma, truncated=4.0):
+    def __init__(self, spatial_dims, sigma, truncated: float = 4.0):
         """
         Args:
             spatial_dims (int): number of spatial dimensions of the input image.
@@ -58,7 +58,7 @@ class GaussianFilter(nn.Module):
         for idx, param in enumerate(self.kernel):
             self.register_parameter(f"kernel_{idx}", param)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         """
         Args:
             x (tensor): in shape [Batch, chns, H, W, D].
