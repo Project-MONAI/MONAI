@@ -20,12 +20,12 @@ from monai.transforms import Rand2DElastic
 TEST_CASES = [
     [
         {"spacing": (0.3, 0.3), "magnitude_range": (1.0, 2.0), "prob": 0.0, "as_tensor_output": False, "device": None},
-        {"img": torch.ones((3, 3, 3)), "spatial_size": (2, 2)},
+        {"data": torch.ones((3, 3, 3)), "spatial_size": (2, 2)},
         np.ones((3, 2, 2)),
     ],
     [
         {"spacing": (0.3, 0.3), "magnitude_range": (1.0, 2.0), "prob": 0.9, "as_tensor_output": False, "device": None},
-        {"img": torch.ones((3, 3, 3)), "spatial_size": (2, 2), "mode": "bilinear"},
+        {"data": torch.ones((3, 3, 3)), "spatial_size": (2, 2), "mode": "bilinear"},
         np.array([[[0.0, 0.0], [0.0, 0.04970419]], [[0.0, 0.0], [0.0, 0.04970419]], [[0.0, 0.0], [0.0, 0.04970419]]]),
     ],
     [
@@ -39,7 +39,7 @@ TEST_CASES = [
             "device": None,
             "spatial_size": (2, 2),
         },
-        {"img": torch.arange(27).reshape((3, 3, 3))},
+        {"data": torch.arange(27).reshape((3, 3, 3))},
         torch.tensor(
             [
                 [[1.6605, 1.0083], [6.0000, 6.2224]],
@@ -59,7 +59,7 @@ TEST_CASES = [
             "device": None,
             "spatial_size": (2, 2),
         },
-        {"img": torch.arange(27).reshape((3, 3, 3))},
+        {"data": torch.arange(27).reshape((3, 3, 3))},
         np.array(
             [
                 [[0.2001334, 1.2563337], [5.2274017, 7.90148]],

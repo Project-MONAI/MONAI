@@ -53,11 +53,15 @@ class SpatialPad(Transform):
         else:
             return [(0, max(self.spatial_size[i] - data_shape[i], 0)) for i in range(len(self.spatial_size))]
 
-    def __call__(self, img, mode: Optional[str] = None):  # type: ignore # see issue #495
-        data_pad_width = self._determine_data_pad_width(img.shape[1:])
+    def __call__(
+        self, data, mode: Optional[str] = None, *args, **kwargs,
+    ):
+        assert len(args) == 0, f"unused args {args}"
+        assert len(kwargs) == 0, f"unused kwargs {kwargs}"
+        data_pad_width = self._determine_data_pad_width(data.shape[1:])
         all_pad_width = [(0, 0)] + data_pad_width
-        img = np.pad(img, all_pad_width, mode=mode or self.mode)
-        return img
+        data = np.pad(data, all_pad_width, mode=mode or self.mode)
+        return data
 
 
 class SpatialCrop(Transform):

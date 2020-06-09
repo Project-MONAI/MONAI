@@ -76,22 +76,27 @@ class Spacing(Transform):
         self.mode = mode
         self.dtype = dtype
 
-    def __call__(  # type: ignore # see issue #495
+    def __call__(
         self,
-        data_array: np.ndarray,
+        data: np.ndarray,
         affine=None,
         interp_order: Optional[str] = None,
         mode: Optional[str] = None,
         dtype: Optional[np.dtype] = None,
+        *args,
+        **kwargs,
     ):
         """
         Args:
-            data_array (ndarray): in shape (num_channels, H[, W, ...]).
-            affine (matrix): (N+1)x(N+1) original affine matrix for spatially ND `data_array`. Defaults to identity.
+            data (ndarray): in shape (num_channels, H[, W, ...]).
+            affine (matrix): (N+1)x(N+1) original affine matrix for spatially ND `data`. Defaults to identity.
         Returns:
-            data_array (resampled into `self.pixdim`), original pixdim, current pixdim.
+            data (resampled into `self.pixdim`), original pixdim, current pixdim.
         """
-        sr = data_array.ndim - 1
+        assert len(args) == 0, f"unused args {args}"
+        assert len(kwargs) == 0, f"unused kwargs {kwargs}"
+
+        sr = data.ndim - 1
         if sr <= 0:
             raise ValueError("the array should have at least one spatial dimension.")
         if affine is None:
@@ -107,7 +112,7 @@ class Spacing(Transform):
             raise ValueError(f"pixdim must be positive, got {out_d}")
         # compute output affine, shape and offset
         new_affine = zoom_affine(affine_, out_d, diagonal=self.diagonal)
-        output_shape, offset = compute_shape_offset(data_array.shape[1:], affine_, new_affine)
+        output_shape, offset = compute_shape_offset(data.shape[1:], affine_, new_affine)
         new_affine[:sr, -1] = offset[:sr]
         transform = np.linalg.inv(affine_) @ new_affine
         # adapt to the actual rank
@@ -116,7 +121,7 @@ class Spacing(Transform):
 
         # no resampling if it's identity transform
         if np.allclose(transform_, np.diag(np.ones(len(transform_))), atol=1e-3):
-            output_data = data_array.copy().astype(_dtype)
+            output_data = data.copy().astype(_dtype)
             new_affine = to_affine_nd(affine, new_affine)
             return output_data, affine, new_affine
 
@@ -129,7 +134,7 @@ class Spacing(Transform):
             reverse_indexing=True,
         )
         output_data = affine_xform(
-            torch.from_numpy((data_array.astype(np.float64))[None]),  # AffineTransform requires a batch dim
+            torch.from_numpy((data.astype(np.float64))[None]),  # AffineTransform requires a batch dim
             torch.from_numpy(transform_.astype(np.float64)),
             spatial_size=output_shape,
         )
@@ -166,17 +171,20 @@ class Orientation(Transform):
         self.as_closest_canonical = as_closest_canonical
         self.labels = labels
 
-    def __call__(self, data_array: np.ndarray, affine=None):  # type: ignore # see issue #495
+    def __call__(self, data: np.ndarray, affine=None, *args, **kwargs):
         """
-        original orientation of `data_array` is defined by `affine`.
+        original orientation of `data` is defined by `affine`.
 
         Args:
-            data_array (ndarray): in shape (num_channels, H[, W, ...]).
-            affine (matrix): (N+1)x(N+1) original affine matrix for spatially ND `data_array`. Defaults to identity.
+            data (ndarray): in shape (num_channels, H[, W, ...]).
+            affine (matrix): (N+1)x(N+1) original affine matrix for spatially ND `data`. Defaults to identity.
         Returns:
-            data_array (reoriented in `self.axcodes`), original axcodes, current axcodes.
+            data (reoriented in `self.axcodes`), original axcodes, current axcodes.
         """
-        sr = data_array.ndim - 1
+        assert len(args) == 0, f"unused args {args}"
+        assert len(kwargs) == 0, f"unused kwargs {kwargs}"
+
+        sr = data.ndim - 1
         if sr <= 0:
             raise ValueError("the array should have at least one spatial dimension.")
         if affine is None:
@@ -198,11 +206,11 @@ class Orientation(Transform):
         ornt = spatial_ornt.copy()
         ornt[:, 0] += 1  # skip channel dim
         ornt = np.concatenate([np.array([[0, 1]]), ornt])
-        shape = data_array.shape[1:]
-        data_array = nib.orientations.apply_orientation(data_array, ornt)
+        shape = data.shape[1:]
+        data = nib.orientations.apply_orientation(data, ornt)
         new_affine = affine_ @ nib.orientations.inv_ornt_aff(spatial_ornt, shape)
         new_affine = to_affine_nd(affine, new_affine)
-        return data_array, affine, new_affine
+        return data, affine, new_affine
 
 
 class Flip(Transform):
@@ -265,22 +273,27 @@ class Resize(Transform):
         self.preserve_range = preserve_range
         self.anti_aliasing = anti_aliasing
 
-    def __call__(  # type: ignore # see issue #495
+    def __call__(
         self,
-        img,
+        data: np.ndarray,
         order=None,
         mode: Optional[str] = None,
-        cval: Optional[Union[int, float]] = None,
+        cval: Optional[float] = None,
         clip: Optional[bool] = None,
         preserve_range: Optional[bool] = None,
         anti_aliasing: Optional[bool] = None,
+        *args,
+        **kwargs,
     ):
         """
         Args:
-            img (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
+            data (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
+        assert len(args) == 0, f"unused args {args}"
+        assert len(kwargs) == 0, f"unused kwargs {kwargs}"
+
         resized = list()
-        for channel in img:
+        for channel in data:
             resized.append(
                 resize(
                     image=channel,
@@ -293,7 +306,7 @@ class Resize(Transform):
                     anti_aliasing=self.anti_aliasing if anti_aliasing is None else anti_aliasing,
                 )
             )
-        return np.stack(resized).astype(img.dtype)
+        return np.stack(resized).astype(data.dtype)
 
 
 class Rotate(Transform):
@@ -333,20 +346,25 @@ class Rotate(Transform):
         self.cval = cval
         self.prefilter = prefilter
 
-    def __call__(  # type: ignore # see issue #495
+    def __call__(
         self,
-        img,
+        data,
         order=None,
         mode: Optional[str] = None,
         cval: Optional[Union[int, float]] = None,
         prefilter: Optional[bool] = None,
+        *args,
+        **kwargs,
     ):
         """
         Args:
-            img (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
+            data (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
+        assert len(args) == 0, f"unused args {args}"
+        assert len(kwargs) == 0, f"unused kwargs {kwargs}"
+
         rotated = list()
-        for channel in img:
+        for channel in data:
             rotated.append(
                 scipy.ndimage.rotate(
                     input=channel,
@@ -359,7 +377,7 @@ class Rotate(Transform):
                     prefilter=self.prefilter if prefilter is None else prefilter,
                 )
             )
-        return np.stack(rotated).astype(img.dtype)
+        return np.stack(rotated).astype(data.dtype)
 
 
 class Zoom(Transform):
@@ -475,15 +493,18 @@ class Rotate90(Transform):
         self.k = k
         self.spatial_axes = spatial_axes
 
-    def __call__(self, img: np.ndarray):  # type: ignore # see issue #495
+    def __call__(self, data: np.ndarray, *args, **kwargs):
         """
         Args:
-            img (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
+            data (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
+        assert len(args) == 0, f"unused args {args}"
+        assert len(kwargs) == 0, f"unused kwargs {kwargs}"
+
         rotated = list()
-        for channel in img:
+        for channel in data:
             rotated.append(np.rot90(channel, self.k, self.spatial_axes))
-        return np.stack(rotated).astype(img.dtype)
+        return np.stack(rotated).astype(data.dtype)
 
 
 class RandRotate90(Randomizable, Transform):
@@ -571,17 +592,22 @@ class RandRotate(Randomizable, Transform):
         self._do_transform = self.R.random_sample() < self.prob
         self.angle = self.R.uniform(low=self.degrees[0], high=self.degrees[1])
 
-    def __call__(  # type: ignore # see issue #495
+    def __call__(
         self,
-        img,
+        data,
         order=None,
         mode: Optional[str] = None,
-        cval: Optional[Union[int, float]] = None,
+        cval: Optional[float] = None,
         prefilter: Optional[bool] = None,
+        *args,
+        **kwargs,
     ):
+        assert len(args) == 0, f"unused args {args}"
+        assert len(kwargs) == 0, f"unused kwargs {kwargs}"
+
         self.randomize()
         if not self._do_transform:
-            return img
+            return data
         rotator = Rotate(
             angle=self.angle,
             spatial_axes=self.spatial_axes,
@@ -591,7 +617,7 @@ class RandRotate(Randomizable, Transform):
             cval=self.cval if cval is None else cval,
             prefilter=self.prefilter if prefilter is None else prefilter,
         )
-        return rotator(img)
+        return rotator(data)
 
 
 class RandFlip(Randomizable, Transform):
@@ -675,20 +701,25 @@ class RandZoom(Randomizable, Transform):
         else:
             self._zoom = self.R.uniform(self.min_zoom, self.max_zoom)
 
-    def __call__(  # type: ignore # see issue #495
+    def __call__(
         self,
-        img,
+        data,
         order=None,
         mode: Optional[str] = None,
         cval: Union[int, float] = None,
         prefilter: Optional[bool] = None,
+        *args,
+        **kwargs,
     ):
+        assert len(args) == 0, f"unused args {args}"
+        assert len(kwargs) == 0, f"unused kwargs {kwargs}"
+
         self.randomize()
         if not self._do_transform:
-            return img
+            return data
         zoomer = Zoom(self._zoom, use_gpu=self.use_gpu, keep_size=self.keep_size)
         return zoomer(
-            img,
+            data,
             order=self.interp_order if order is None else order,
             mode=mode or self.mode,
             cval=self.cval if cval is None else cval,
@@ -981,25 +1012,30 @@ class Affine(Transform):
         self.padding_mode = padding_mode
         self.mode = mode
 
-    def __call__(  # type: ignore # see issue #495
+    def __call__(
         self,
-        img: Union[np.ndarray, torch.Tensor],
+        data: Union[np.ndarray, torch.Tensor],
         spatial_size=None,
         padding_mode: Optional[str] = None,
         mode: Optional[str] = None,
+        *args,
+        **kwargs,
     ):
         """
         Args:
-            img (ndarray or tensor): shape must be (num_channels, H, W[, D]),
+            data (ndarray or tensor): shape must be (num_channels, H, W[, D]),
             spatial_size (list or tuple of int): output image spatial size.
-                if `img` has two spatial dimensions, `spatial_size` should have 2 elements [h, w].
-                if `img` has three spatial dimensions, `spatial_size` should have 3 elements [h, w, d].
+                if `data` has two spatial dimensions, `spatial_size` should have 2 elements [h, w].
+                if `data` has three spatial dimensions, `spatial_size` should have 3 elements [h, w, d].
             padding_mode ('zeros'|'border'|'reflection'): mode of handling out of range indices. Defaults to 'zeros'.
             mode ('nearest'|'bilinear'): interpolation order. Defaults to 'bilinear'.
         """
+        assert len(args) == 0, f"unused args {args}"
+        assert len(kwargs) == 0, f"unused kwargs {kwargs}"
+
         grid = self.affine_grid(spatial_size=spatial_size or self.spatial_size)
         return self.resampler(
-            img=img, grid=grid, padding_mode=padding_mode or self.padding_mode, mode=mode or self.mode
+            img=data, grid=grid, padding_mode=padding_mode or self.padding_mode, mode=mode or self.mode
         )
 
 
@@ -1065,22 +1101,27 @@ class RandAffine(Randomizable, Transform):
         self.do_transform = self.R.rand() < self.prob
         self.rand_affine_grid.randomize()
 
-    def __call__(  # type: ignore # see issue #495
+    def __call__(
         self,
-        img: Union[np.ndarray, torch.Tensor],
+        data: Union[np.ndarray, torch.Tensor],
         spatial_size=None,
         padding_mode: Optional[str] = None,
         mode: Optional[str] = None,
+        *args,
+        **kwargs,
     ):
         """
         Args:
-            img (ndarray or tensor): shape must be (num_channels, H, W[, D]),
+            data (ndarray or tensor): shape must be (num_channels, H, W[, D]),
             spatial_size (list or tuple of int): output image spatial size.
-                if `img` has two spatial dimensions, `spatial_size` should have 2 elements [h, w].
-                if `img` has three spatial dimensions, `spatial_size` should have 3 elements [h, w, d].
+                if `data` has two spatial dimensions, `spatial_size` should have 2 elements [h, w].
+                if `data` has three spatial dimensions, `spatial_size` should have 3 elements [h, w, d].
             padding_mode ('zeros'|'border'|'reflection'): mode of handling out of range indices. Defaults to 'zeros'.
             mode ('nearest'|'bilinear'): interpolation order. Defaults to 'bilinear'.
         """
+        assert len(args) == 0, f"unused args {args}"
+        assert len(kwargs) == 0, f"unused kwargs {kwargs}"
+
         self.randomize()
         _spatial_size = spatial_size or self.spatial_size
         if self.do_transform:
@@ -1088,7 +1129,7 @@ class RandAffine(Randomizable, Transform):
         else:
             grid = create_grid(_spatial_size)
         return self.resampler(
-            img=img, grid=grid, padding_mode=padding_mode or self.padding_mode, mode=mode or self.mode
+            img=data, grid=grid, padding_mode=padding_mode or self.padding_mode, mode=mode or self.mode
         )
 
 
@@ -1162,21 +1203,26 @@ class Rand2DElastic(Randomizable, Transform):
         self.deform_grid.randomize(spatial_size)
         self.rand_affine_grid.randomize()
 
-    def __call__(  # type: ignore # see issue #495
+    def __call__(
         self,
-        img: Union[np.ndarray, torch.Tensor],
+        data: Union[np.ndarray, torch.Tensor],
         spatial_size=None,
         padding_mode: Optional[str] = None,
         mode: Optional[str] = None,
+        *args,
+        **kwargs,
     ):
         """
         Args:
-            img (ndarray or tensor): shape must be (num_channels, H, W),
+            data (ndarray or tensor): shape must be (num_channels, H, W),
             spatial_size (2 ints): specifying output image spatial size [h, w].
             padding_mode ('zeros'|'border'|'reflection'): mode of handling out of range indices.
                 Defaults to ``'zeros'``.
             mode ('nearest'|'bilinear'): interpolation order. Defaults to ``self.mode``.
         """
+        assert len(args) == 0, f"unused args {args}"
+        assert len(kwargs) == 0, f"unused kwargs {kwargs}"
+
         spatial_size = spatial_size or self.spatial_size
         self.randomize(spatial_size)
         if self.do_transform:
@@ -1185,7 +1231,9 @@ class Rand2DElastic(Randomizable, Transform):
             grid = torch.nn.functional.interpolate(grid[None], spatial_size, mode="bicubic", align_corners=False)[0]
         else:
             grid = create_grid(spatial_size)
-        return self.resampler(img, grid, padding_mode=padding_mode or self.padding_mode, mode=mode or self.mode)
+        return self.resampler(
+            img=data, grid=grid, padding_mode=padding_mode or self.padding_mode, mode=mode or self.mode
+        )
 
 
 class Rand3DElastic(Randomizable, Transform):
@@ -1278,4 +1326,6 @@ class Rand3DElastic(Randomizable, Transform):
             offset = torch.as_tensor(self.rand_offset[None], device=self.device)
             grid[:3] += gaussian(offset)[0] * self.magnitude
             grid = self.rand_affine_grid(grid=grid)
-        return self.resampler(img, grid, padding_mode=self.padding_mode, mode=mode or self.mode)
+        return self.resampler(
+            img=img, grid=grid, padding_mode=padding_mode or self.padding_mode, mode=mode or self.mode
+        )

@@ -20,17 +20,17 @@ from monai.transforms import Affine
 TEST_CASES = [
     [
         dict(padding_mode="zeros", as_tensor_output=False, device=None),
-        {"img": np.arange(4).reshape((1, 2, 2)), "spatial_size": (4, 4)},
+        {"data": np.arange(4).reshape((1, 2, 2)), "spatial_size": (4, 4)},
         np.array([[[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.25, 0.0], [0.0, 0.5, 0.75, 0.0], [0.0, 0.0, 0.0, 0.0]]]),
     ],
     [
         dict(rotate_params=[np.pi / 2], padding_mode="zeros", as_tensor_output=False, device=None),
-        {"img": np.arange(4).reshape((1, 2, 2)), "spatial_size": (4, 4)},
+        {"data": np.arange(4).reshape((1, 2, 2)), "spatial_size": (4, 4)},
         np.array([[[0.0, 0.0, 0.0, 0.0], [0.0, 0.5, 0.0, 0.0], [0.0, 0.75, 0.25, 0.0], [0.0, 0.0, 0.0, 0.0]]]),
     ],
     [
         dict(padding_mode="zeros", as_tensor_output=False, device=None),
-        {"img": np.arange(8).reshape((1, 2, 2, 2)), "spatial_size": (4, 4, 4)},
+        {"data": np.arange(8).reshape((1, 2, 2, 2)), "spatial_size": (4, 4, 4)},
         np.array(
             [
                 [
@@ -44,7 +44,7 @@ TEST_CASES = [
     ],
     [
         dict(rotate_params=[np.pi / 2], padding_mode="zeros", as_tensor_output=False, device=None),
-        {"img": np.arange(8).reshape((1, 2, 2, 2)), "spatial_size": (4, 4, 4)},
+        {"data": np.arange(8).reshape((1, 2, 2, 2)), "spatial_size": (4, 4, 4)},
         np.array(
             [
                 [

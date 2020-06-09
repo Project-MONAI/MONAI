@@ -118,9 +118,11 @@ class CastToType(Transform):
         """
         self.dtype = dtype
 
-    def __call__(self, img: np.ndarray):  # type: ignore # see issue #495
-        assert isinstance(img, np.ndarray), "image must be numpy array."
-        return img.astype(self.dtype)
+    def __call__(self, data: np.ndarray, *args, **kwargs):
+        assert len(args) == 0, f"unused args {args}"
+        assert len(kwargs) == 0, f"unused kwargs {kwargs}"
+        assert isinstance(data, np.ndarray), "image must be numpy array."
+        return data.astype(self.dtype)
 
 
 class ToTensor(Transform):
@@ -161,12 +163,14 @@ class SqueezeDim(Transform):
             raise ValueError(f"Invalid channel dimension {dim}")
         self.dim = dim
 
-    def __call__(self, img):  # type: ignore # see issue #495
+    def __call__(self, data: np.ndarray, *args, **kwargs):
         """
         Args:
-            img (ndarray): numpy arrays with required dimension `dim` removed
+            data (ndarray): numpy arrays with required dimension `dim` removed
         """
-        return img.squeeze(self.dim)
+        assert len(args) == 0, f"unused args {args}"
+        assert len(kwargs) == 0, f"unused kwargs {kwargs}"
+        return data.squeeze(self.dim)
 
 
 class DataStats(Transform):
@@ -209,31 +213,36 @@ class DataStats(Transform):
         if logger_handler is not None:
             self._logger.addHandler(logger_handler)
 
-    def __call__(  # type: ignore # see issue #495
+    def __call__(
         self,
-        img,
+        data,
         prefix: Optional[str] = None,
         data_shape: Optional[bool] = None,
         intensity_range: Optional[bool] = None,
         data_value: Optional[bool] = None,
-        additional_info=None,
+        additional_info: Optional[Callable] = None,
+        *args,
+        **kwargs,
     ):
+        assert len(args) == 0, f"unused args {args}"
+        assert len(kwargs) == 0, f"unused kwargs {kwargs}"
+
         lines = [f"{prefix or self.prefix} statistics:"]
 
         if self.data_shape if data_shape is None else data_shape:
-            lines.append(f"Shape: {img.shape}")
+            lines.append(f"Shape: {data.shape}")
         if self.intensity_range if intensity_range is None else intensity_range:
-            lines.append(f"Intensity range: ({np.min(img)}, {np.max(img)})")
+            lines.append(f"Intensity range: ({np.min(data)}, {np.max(data)})")
         if self.data_value if data_value is None else data_value:
-            lines.append(f"Value: {img}")
+            lines.append(f"Value: {data}")
         additional_info = self.additional_info if additional_info is None else additional_info
         if additional_info is not None:
-            lines.append(f"Additional info: {additional_info(img)}")
+            lines.append(f"Additional info: {additional_info(data)}")
         separator = "\n"
         self.output = f"{separator.join(lines)}"
         self._logger.debug(self.output)
 
-        return img
+        return data
 
 
 class SimulateDelay(Transform):

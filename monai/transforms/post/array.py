@@ -38,16 +38,21 @@ class SplitChannel(Transform):
         self.to_onehot = to_onehot
         self.num_classes = num_classes
 
-    def __call__(self, img, to_onehot: Optional[bool] = None, num_classes: Optional[int] = None):  # type: ignore # see issue #495
+    def __call__(
+        self, data, to_onehot: Optional[bool] = None, num_classes: Optional[int] = None, *args, **kwargs,
+    ):
+        assert len(args) == 0, f"unused args {args}"
+        assert len(kwargs) == 0, f"unused kwargs {kwargs}"
+
         if to_onehot or self.to_onehot:
             if num_classes is None:
                 num_classes = self.num_classes
             assert isinstance(num_classes, int), "must specify class number for One-Hot."
-            img = one_hot(img, num_classes)
-        n_classes = img.shape[1]
+            data = one_hot(data, num_classes)
+        n_classes = data.shape[1]
         outputs = list()
         for i in range(n_classes):
-            outputs.append(img[:, i : i + 1])
+            outputs.append(data[:, i : i + 1])
 
         return outputs
 
@@ -69,22 +74,31 @@ class Activations(Transform):
         self.softmax = softmax
         self.other = other
 
-    def __call__(  # type: ignore # see issue #495
-        self, img, sigmoid: Optional[bool] = None, softmax: Optional[bool] = None, other: Optional[Callable] = None
+    def __call__(
+        self,
+        data,
+        sigmoid: Optional[bool] = None,
+        softmax: Optional[bool] = None,
+        other: Optional[Callable] = None,
+        *args,
+        **kwargs,
     ):
+        assert len(args) == 0, f"unused args {args}"
+        assert len(kwargs) == 0, f"unused kwargs {kwargs}"
+
         if sigmoid is True and softmax is True:
             raise ValueError("sigmoid=True and softmax=True are not compatible.")
         if sigmoid or self.sigmoid:
-            img = torch.sigmoid(img)
+            data = torch.sigmoid(data)
         if softmax or self.softmax:
-            img = torch.softmax(img, dim=1)
+            data = torch.softmax(data, dim=1)
         act_func = self.other if other is None else other
         if act_func is not None:
             if not callable(act_func):
                 raise ValueError("act_func must be a Callable function.")
-            img = act_func(img)
+            data = act_func(data)
 
-        return img
+        return data
 
 
 class AsDiscrete(Transform):
@@ -118,27 +132,32 @@ class AsDiscrete(Transform):
         self.threshold_values = threshold_values
         self.logit_thresh = logit_thresh
 
-    def __call__(  # type: ignore # see issue #495
+    def __call__(
         self,
-        img,
+        data,
         argmax: Optional[bool] = None,
         to_onehot: Optional[bool] = None,
         n_classes: Optional[int] = None,
         threshold_values: Optional[bool] = None,
         logit_thresh: Optional[float] = None,
+        *args,
+        **kwargs,
     ):
+        assert len(args) == 0, f"unused args {args}"
+        assert len(kwargs) == 0, f"unused kwargs {kwargs}"
+
         if argmax or self.argmax:
-            img = torch.argmax(img, dim=1, keepdim=True)
+            data = torch.argmax(data, dim=1, keepdim=True)
 
         if to_onehot or self.to_onehot:
             _nclasses = self.n_classes if n_classes is None else n_classes
             assert isinstance(_nclasses, int), "One of self.n_classes or n_classes must be an integer"
-            img = one_hot(img, _nclasses)
+            data = one_hot(data, _nclasses)
 
         if threshold_values or self.threshold_values:
-            img = img >= (self.logit_thresh if logit_thresh is None else logit_thresh)
+            data = data >= (self.logit_thresh if logit_thresh is None else logit_thresh)
 
-        return img.float()
+        return data.float()
 
 
 class KeepLargestConnectedComponent(Transform):
