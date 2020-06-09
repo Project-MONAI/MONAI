@@ -23,7 +23,7 @@ def write_nifti(
     target_affine=None,
     resample=True,
     output_shape=None,
-    interp_order: int = InterpolationCode.SPLINE3,
+    interp_order=InterpolationCode.SPLINE3,
     mode="constant",
     cval=0,
     dtype=None,

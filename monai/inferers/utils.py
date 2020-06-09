@@ -42,16 +42,16 @@ def sliding_window_inference(
 
     # determine image spatial size and batch size
     # Note: all input images must have the same image size and batch size
-    image_size = list(inputs.shape[2:])
+    image_size_ = list(inputs.shape[2:])
     batch_size = inputs.shape[0]
 
     # TODO: Enable batch sizes > 1 in future
     if batch_size > 1:
         raise NotImplementedError
 
-    original_image_size = [image_size[i] for i in range(num_spatial_dims)]
+    original_image_size = [image_size_[i] for i in range(num_spatial_dims)]
     # in case that image size is smaller than roi size
-    image_size = tuple(max(image_size[i], roi_size[i]) for i in range(num_spatial_dims))
+    image_size = tuple(max(image_size_[i], roi_size[i]) for i in range(num_spatial_dims))
     pad_size = [i for k in range(len(inputs.shape) - 1, 1, -1) for i in (0, max(roi_size[k - 2] - inputs.shape[k], 0))]
     inputs = F.pad(inputs, pad=pad_size, mode="constant", value=0)
 
