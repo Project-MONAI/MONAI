@@ -121,7 +121,7 @@ def main():
         strides=(2, 2, 2, 2),
         num_res_units=2,
     )
-    loss = monai.losses.DiceLoss(do_sigmoid=True)
+    loss = monai.losses.DiceLoss(sigmoid=True)
     lr = 1e-3
     opt = torch.optim.Adam(net.parameters(), lr)
     device = torch.device("cuda:0")
@@ -153,7 +153,7 @@ def main():
     # set parameters for validation
     metric_name = "Mean_Dice"
     # add evaluation metric to the evaluator engine
-    val_metrics = {metric_name: MeanDice(add_sigmoid=True, to_onehot_y=False)}
+    val_metrics = {metric_name: MeanDice(sigmoid=True, to_onehot_y=False)}
 
     # Ignite evaluator expects batch=(img, seg) and returns output=(y_pred, y) at every iteration,
     # user can add output_transform to return other values

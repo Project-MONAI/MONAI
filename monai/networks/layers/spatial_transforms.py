@@ -92,7 +92,7 @@ class AffineTransform(nn.Module):
             raise ValueError("affine must be Nxdxd or dxd.")
         if theta.ndim == 2:
             theta = theta[None]  # adds a batch dim.
-        theta = theta.clone().float()  # no in-place change of theta
+        theta = theta.clone()  # no in-place change of theta
         theta_shape = tuple(theta.shape[1:])
         if theta_shape in ((2, 3), (3, 4)):  # needs padding to dxd
             pad_affine = torch.tensor([0, 0, 1] if theta_shape[0] == 2 else [0, 0, 0, 1])
@@ -103,7 +103,6 @@ class AffineTransform(nn.Module):
             raise ValueError(f"affine must be Nx3x3 or Nx4x4, got: {theta.shape}.")
 
         # validate `src`
-        src = src.float()  # always use float for compatibility
         sr = src.ndim - 2  # input spatial rank
         if sr not in (2, 3):
             raise ValueError("src must be spatially 2D or 3D.")
@@ -117,15 +116,14 @@ class AffineTransform(nn.Module):
             dst_size = src_size[:2] + ensure_tuple(spatial_size)
 
         # reverse and normalise theta if needed
-        theta = theta.to(src)
-        if self.reverse_indexing:
-            rev_idx = torch.as_tensor(range(sr - 1, -1, -1), device=src.device)
-            theta[:, :sr] = theta[:, rev_idx]
-            theta[:, :, :sr] = theta[:, :, rev_idx]
         if not self.normalized:
             theta = to_norm_affine(
                 affine=theta, src_size=src_size[2:], dst_size=dst_size[2:], align_corners=self.align_corners
             )
+        if self.reverse_indexing:
+            rev_idx = torch.as_tensor(range(sr - 1, -1, -1), device=src.device)
+            theta[:, :sr] = theta[:, rev_idx]
+            theta[:, :, :sr] = theta[:, :, rev_idx]
         if (theta.shape[0] == 1) and src_size[0] > 1:
             # adds a batch dim to `theta` in order to match `src`
             theta = theta.repeat(src_size[0], 1, 1)
