@@ -13,14 +13,14 @@ import unittest
 
 import numpy as np
 
-from monai.transforms import IdentityIntensity
+from monai.transforms import Identity
 from tests.utils import NumpyImageTestCase2D
 
 
-class TestIdentityIntensity(NumpyImageTestCase2D):
-    def test_IdentityIntensity(self):
+class TestIdentity(NumpyImageTestCase2D):
+    def test_Identity(self):
         img = self.imt
-        identity = IdentityIntensity()
+        identity = Identity()
         self.assertTrue(np.allclose(img, identity(img)))
 
 
