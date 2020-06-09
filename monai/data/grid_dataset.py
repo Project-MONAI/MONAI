@@ -25,7 +25,7 @@ class GridPatchDataset(IterableDataset):
     def __init__(self, dataset, patch_size, start_pos=(), pad_mode: str = "wrap", **pad_opts):
         """
         Initializes this dataset in terms of the input dataset and patch size. The `patch_size` is the size of the 
-        patch to sample from the input arrays. Tt is assumed the arrays first dimension is the channel dimension which
+        patch to sample from the input arrays. It is assumed the arrays first dimension is the channel dimension which
         will be yielded in its entirety so this should not be specified in `patch_size`. For example, for an input 3D
         array with 1 channel of size (1, 20, 20, 20) a regular grid sampling of eight patches (1, 10, 10, 10) would be 
         specified by a `patch_size` of (10, 10, 10).

@@ -32,13 +32,13 @@ class LrScheduleHandler:
         """
         Args:
             lr_scheduler (torch.optim.lr_scheduler): typically, lr_scheduler should be PyTorch
-                lr_scheduler object. if customized version, must have `step` and `get_last_lr` methods.
+                lr_scheduler object. If customized version, must have `step` and `get_last_lr` methods.
             print_lr (bool): whether to print out the latest learning rate with logging.
             name (str): identifier of logging.logger to use, if None, defaulting to ``engine.logger``.
             epoch_level (bool): execute lr_scheduler.step() after every epoch or every iteration.
                 `True` is epoch level, `False` is iteration level.
             step_transform (Callable): a callable that is used to transform the information from `engine`
-                to expected input data of lr_scheduler.step() function if neccessary.
+                to expected input data of lr_scheduler.step() function if necessary.
 
         """
         self.lr_scheduler = lr_scheduler

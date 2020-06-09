@@ -56,7 +56,7 @@ do
         ;;
         --codeformat)
           doBlackFormat=true
-          doFlakeFormat=true
+          doFlake8Format=true
           doPytypeFormat=true
           doMypyFormat=true
         ;;
