@@ -165,11 +165,11 @@ def plot_2d_or_3d_image(
     Args:
         data (Tensor or np.array): target data to be plotted as image on the TensorBoard.
             The data is expected to have 'NCHW[D]' dimensions, and only plot the first in the batch.
-        step (int): current step to plot in a chart.
+        step: current step to plot in a chart.
         writer (SummaryWriter): specify TensorBoard SummaryWriter to plot the image.
-        index (int): plot which element in the input data batch, default is the first element.
-        max_channels (int): number of channels to plot.
-        max_frames (int): number of frames for 2D-t plot.
+        index: plot which element in the input data batch, default is the first element.
+        max_channels: number of channels to plot.
+        max_frames: number of frames for 2D-t plot.
         tag (str): tag of the plotted image on TensorBoard.
     """
     assert isinstance(writer, SummaryWriter) is True, "must provide a TensorBoard SummaryWriter."

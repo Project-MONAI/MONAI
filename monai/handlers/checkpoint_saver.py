@@ -36,12 +36,12 @@ class CheckpointSaver:
             checkpoint name is: {file_prefix}_key_metric=0.XXXX.pth.
         key_metric_name (str): the name of key_metric in ignite metrics dictionary.
             if None, use `engine.state.key_metric` instead.
-        key_metric_n_saved (int): save top N checkpoints or sessions, sorted by the value of key
+        key_metric_n_saved: save top N checkpoints or sessions, sorted by the value of key
             metric in descending order.
         epoch_level (bool): save checkpoint during training for every N epochs or every N iterations.
             `True` is epoch level, `False` is iteration level.
-        save_interval (int): save checkpoint every N epochs, default is 0 to save no checkpoint.
-        n_saved (int): save latest N checkpoints of epoch level or iteration level, 'None' is to save all.
+        save_interval: save checkpoint every N epochs, default is 0 to save no checkpoint.
+        n_saved: save latest N checkpoints of epoch level or iteration level, 'None' is to save all.
 
     Note:
         CheckpointHandler can be used during training, validation or evaluation.

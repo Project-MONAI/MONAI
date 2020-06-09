@@ -235,7 +235,7 @@ class Resize(Transform):
 
     Args:
         spatial_size (tuple or list): expected shape of spatial dimensions after resize operation.
-        interp_order (int): Order of spline interpolation. Default=InterpolationCode.LINEAR.
+        interp_order: Order of spline interpolation. Default=InterpolationCode.LINEAR.
         mode (str): Points outside boundaries are filled according to given mode.
             Options are 'constant', 'edge', 'symmetric', 'reflect', 'wrap'.
         cval (float): Used with mode 'constant', the value outside image boundaries.
@@ -307,7 +307,7 @@ class Rotate(Transform):
             This is the first two axis in spatial dimensions.
         reshape (bool): If reshape is true, the output shape is adapted so that the
             input array is contained completely in the output. Default is True.
-        interp_order (int): Order of spline interpolation. Range 0-5. Default: InterpolationCode.LINEAR. This is
+        interp_order: Order of spline interpolation. Range 0-5. Default: InterpolationCode.LINEAR. This is
             different from scipy where default interpolation is InterpolationCode.SPLINE3.
         mode (str): Points outside boundary filled according to this mode. Options are
             'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
@@ -370,7 +370,7 @@ class Zoom(Transform):
         zoom (float or sequence): The zoom factor along the spatial axes.
             If a float, zoom is the same for each spatial axis.
             If a sequence, zoom should contain one value for each spatial axis.
-        interp_order (int): order of interpolation. Default=InterpolationCode.SPLINE3.
+        interp_order: order of interpolation. Default=InterpolationCode.SPLINE3.
         mode (str): Determines how input is extended beyond boundaries. Default is 'constant'.
         cval (scalar, optional): Value to fill past edges. Default is 0.
         prefilter (bool): Apply spline_filter before interpolation. Default: True.
@@ -468,7 +468,7 @@ class Rotate90(Transform):
     def __init__(self, k: int = 1, spatial_axes=(0, 1)):
         """
         Args:
-            k (int): number of times to rotate by 90 degrees.
+            k: number of times to rotate by 90 degrees.
             spatial_axes (2 ints): defines the plane to rotate with 2 spatial axes.
                 Default: (0, 1), this is the first two axis in spatial dimensions.
         """
@@ -497,7 +497,7 @@ class RandRotate90(Randomizable, Transform):
         Args:
             prob (float): probability of rotating.
                 (Default 0.1, with 10% probability it returns a rotated array)
-            max_k (int): number of rotations will be sampled from `np.random.randint(max_k) + 1`.
+            max_k: number of rotations will be sampled from `np.random.randint(max_k) + 1`.
                 (Default 3)
             spatial_axes (2 ints): defines the plane to rotate with 2 spatial axes.
                 Default: (0, 1), this is the first two axis in spatial dimensions.
@@ -532,7 +532,7 @@ class RandRotate(Randomizable, Transform):
             This is the first two axis in spatial dimensions.
         reshape (bool): If reshape is true, the output shape is adapted so that the
             input array is contained completely in the output. Default is True.
-        interp_order (int): Order of spline interpolation. Range 0-5. Default: InterpolationCode.LINEAR. This is
+        interp_order: Order of spline interpolation. Range 0-5. Default: InterpolationCode.LINEAR. This is
             different from scipy where default interpolation is InterpolationCode.SPLINE3.
         mode (str): Points outside boundary filled according to this mode. Options are
             'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
@@ -630,7 +630,7 @@ class RandZoom(Randomizable, Transform):
         max_zoom (float or sequence): Max zoom factor. Can be float or sequence same size as image.
             If a float, max_zoom is the same for each spatial axis.
             If a sequence, max_zoom should contain one value for each spatial axis.
-        interp_order (int): order of interpolation. Default=InterpolationCode.SPLINE3.
+        interp_order: order of interpolation. Default=InterpolationCode.SPLINE3.
         mode ('reflect', 'constant', 'nearest', 'mirror', 'wrap'): Determines how input is
             extended beyond boundaries. Default: 'constant'.
         cval (scalar, optional): Value to fill past edges. Default is 0.
