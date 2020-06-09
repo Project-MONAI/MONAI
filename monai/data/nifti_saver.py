@@ -118,8 +118,9 @@ class NiftiSaver:
         When saving multiple time steps or multiple channels `batch_data`,
         time and/or modality axes should be appended after the batch dimensions.
         For example, the shape of a batch of 2D eight-class
-        segmentation probabilities to be saved could be `(batch, 8, 64, 64, 1)`.
-        or `(batch, 8, 64, 64)`
+        segmentation probabilities to be saved could be `(batch, 8, 64, 64)`;
+        in this case each item in the batch will be saved as (64, 64, 1, 8)
+        NIfTI file (the third dimension is reserved as a spatial dimension).
 
         args:
             batch_data (Tensor or ndarray): target batch data content that save into NIfTI format.

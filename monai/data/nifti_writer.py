@@ -54,7 +54,8 @@ def write_nifti(
     When saving multiple time steps or multiple channels `data`, time and/or
     modality axes should be appended after the first three dimensions.  For
     example, shape of 2D eight-class segmentation probabilities to be saved
-    could be `(64, 64, 1, 8)`,
+    could be `(64, 64, 1, 8)`. Also, data in shape (64, 64, 8), (64, 64, 8, 1)
+    will be considered as a single-channel 3D image.
 
     Args:
         data (numpy.ndarray): input data to write to file.
