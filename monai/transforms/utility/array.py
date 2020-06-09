@@ -187,9 +187,9 @@ class DataStats(Transform):
         """
         Args:
             prefix (string): will be printed in format: "{prefix} statistics".
-            data_shape (bool): whether to show the shape of input data.
-            intensity_range (bool): whether to show the intensity value range of input data.
-            data_value (bool): whether to show the raw value of input data.
+            data_shape: whether to show the shape of input data.
+            intensity_range: whether to show the intensity value range of input data.
+            data_value: whether to show the raw value of input data.
                 a typical example is to print some properties of Nifti image: affine, pixdim, etc.
             additional_info (Callable): user can define callable function to extract additional info from input data.
             logger_handler (logging.handler): add additional handler to output data: save to file, etc.

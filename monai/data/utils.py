@@ -157,7 +157,7 @@ def iter_patch(
         arr (np.ndarray): array to iterate over
         patch_size (tuple of int or None): size of patches to generate slices for, 0 or None selects whole dimension
         start_pos (tuple of it, optional): starting position in the array, default is 0 for each dimension
-        copy_back (bool): if True data from the yielded patches is copied back to `arr` once the generator completes
+        copy_back: if True data from the yielded patches is copied back to `arr` once the generator completes
         pad_mode (str, optional): padding mode, see `numpy.pad`
         pad_opts (dict, optional): padding options, see `numpy.pad`
 
@@ -304,7 +304,7 @@ def zoom_affine(affine, scale, diagonal: bool = True):
     Args:
         affine (nxn matrix): a square matrix.
         scale (sequence of floats): new scaling factor along each dimension.
-        diagonal (bool): whether to return a diagonal scaling matrix.
+        diagonal: whether to return a diagonal scaling matrix.
             Defaults to True.
 
     returns:

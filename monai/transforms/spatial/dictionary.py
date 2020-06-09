@@ -66,7 +66,7 @@ class Spacingd(MapTransform):
         """
         Args:
             pixdim (sequence of floats): output voxel spacing.
-            diagonal (bool): whether to resample the input to have a diagonal affine matrix.
+            diagonal: whether to resample the input to have a diagonal affine matrix.
                 If True, the input data is resampled to the following affine::
 
                     np.diag((pixdim_0, pixdim_1, pixdim_2, 1))
@@ -317,7 +317,7 @@ class RandAffined(Randomizable, MapTransform):
                 this is useful to set different modes for different data items.
             padding_mode (str or sequence of str): mode of handling out of range indices.
                 Available options are 'zeros', 'border', 'reflection'.  Defaults to ``'zeros'``.
-            as_tensor_output (bool): the computation is implemented using pytorch tensors, this option specifies
+            as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
             device (torch.device): device on which the tensor will be allocated.
 
@@ -399,7 +399,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
                 this is useful to set different modes for different data items.
             padding_mode (str or sequence of str): mode of handling out of range indices.
                 Available options are 'zeros', 'border', 'reflection'.  Defaults to ``'zeros'``.
-            as_tensor_output (bool): the computation is implemented using pytorch tensors, this option specifies
+            as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
             device (torch.device): device on which the tensor will be allocated.
         See also:
@@ -487,7 +487,7 @@ class Rand3DElasticd(Randomizable, MapTransform):
                 this is useful to set different modes for different data items.
             padding_mode (str or sequence of str): mode of handling out of range indices.
                 Available options are 'zeros', 'border', 'reflection'.  Defaults to ``'zeros'``.
-            as_tensor_output (bool): the computation is implemented using pytorch tensors, this option specifies
+            as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
             device (torch.device): device on which the tensor will be allocated.
         See also:
@@ -600,7 +600,7 @@ class Rotated(MapTransform):
         angle (float): Rotation angle in degrees.
         spatial_axes (tuple of 2 ints): Spatial axes of rotation. Default: (0, 1).
             This is the first two axis in spatial dimensions.
-        reshape (bool): If reshape is true, the output shape is adapted so that the
+        reshape: If reshape is true, the output shape is adapted so that the
             input array is contained completely in the output. Default is True.
         interp_order (int or sequence of int): Order of spline interpolation. Range 0-5.
             Default: InterpolationCode.LINEAR. This is different from scipy where default interpolation
@@ -653,7 +653,7 @@ class RandRotated(Randomizable, MapTransform):
             angle is picked from (-degrees, degrees).
         spatial_axes (tuple of 2 ints): Spatial axes of rotation. Default: (0, 1).
             This is the first two axis in spatial dimensions.
-        reshape (bool): If reshape is true, the output shape is adapted so that the
+        reshape: If reshape is true, the output shape is adapted so that the
             input array is contained completely in the output. Default is True.
         interp_order (int or sequence of int): Order of spline interpolation. Range 0-5.
             Default: InterpolationCode.LINEAR. This is different from scipy where default
@@ -726,9 +726,9 @@ class Zoomd(MapTransform):
         mode (str or sequence of str): Determines how input is extended beyond boundaries. Default is 'constant'.
         cval (scalar or sequence of scalar): Value to fill past edges. Default is 0.
         prefilter (bool or sequence of bool): Apply spline_filter before interpolation. Default: True.
-        use_gpu (bool): Should use cpu or gpu. Uses cupyx which doesn't support order > 1 and modes
+        use_gpu: Should use cpu or gpu. Uses cupyx which doesn't support order > 1 and modes
             'wrap' and 'reflect'. Defaults to cpu for these cases or if cupyx not found.
-        keep_size (bool): Should keep original size (pad if needed), default is True.
+        keep_size: Should keep original size (pad if needed), default is True.
     """
 
     def __init__(
@@ -740,7 +740,7 @@ class Zoomd(MapTransform):
         cval=0,
         prefilter=True,
         use_gpu: bool = False,
-        keep_size=True,
+        keep_size: bool = True,
     ):
         super().__init__(keys)
         self.zoomer = Zoom(zoom=zoom, use_gpu=use_gpu, keep_size=keep_size)
@@ -780,9 +780,9 @@ class RandZoomd(Randomizable, MapTransform):
             Determines how input is extended beyond boundaries. Default: 'constant'.
         cval (scalar or sequence of scalar): Value to fill past edges. Default is 0.
         prefilter (bool or sequence of bool): Apply spline_filter before interpolation. Default: True.
-        use_gpu (bool): Should use cpu or gpu. Uses cupyx which doesn't support order > 1 and modes
+        use_gpu: Should use cpu or gpu. Uses cupyx which doesn't support order > 1 and modes
             'wrap' and 'reflect'. Defaults to cpu for these cases or if cupyx not found.
-        keep_size (bool): Should keep original size (pad if needed), default is True.
+        keep_size: Should keep original size (pad if needed), default is True.
     """
 
     def __init__(

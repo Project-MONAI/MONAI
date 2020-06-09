@@ -29,7 +29,7 @@ class Workflow(ABC, Engine):
     Args:
         device (torch.device): an object representing the device on which to run.
         max_epochs: the total epoch number for engine to run, validator and evaluator have only 1 epoch.
-        amp (bool): whether to enable auto-mixed-precision training, reserved.
+        amp: whether to enable auto-mixed-precision training, reserved.
         data_loader (torch.DataLoader): Ignite engine use data_loader to run, must be torch.DataLoader.
         prepare_batch (Callable): function to parse image and label for every iteration.
         iteration_update (Callable): the callable function for every iteration, expect to accept `engine`
@@ -49,7 +49,7 @@ class Workflow(ABC, Engine):
         self,
         device,
         max_epochs: int,
-        amp,
+        amp: bool,
         data_loader,
         prepare_batch=default_prepare_batch,
         iteration_update=None,

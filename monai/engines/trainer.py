@@ -56,7 +56,7 @@ class SupervisedTrainer(Trainer):
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
         lr_scheduler (LR Scheduler): the lr scheduler associated to the optimizer.
         inferer (Inferer): inference method that execute model forward on input data, like: SlidingWindow, etc.
-        amp (bool): whether to enable auto-mixed-precision training, reserved.
+        amp: whether to enable auto-mixed-precision training, reserved.
         post_transform (Transform): execute additional transformation for the model output data.
             Typically, several Tensor based transforms composed by `Compose`.
         key_train_metric (ignite.metric): compute metric when every iteration completed, and save average value to
