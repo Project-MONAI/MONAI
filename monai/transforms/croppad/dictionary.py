@@ -163,7 +163,7 @@ class CropForegroundd(MapTransform):
         source_key: str,
         select_fn: Callable = lambda x: x > 0,
         channel_indexes: Callable = None,
-        margin=0,
+        margin: int = 0,
     ):
         """
         Args:
@@ -173,7 +173,7 @@ class CropForegroundd(MapTransform):
             select_fn (Callable): function to select expected foreground, default is to select values > 0.
             channel_indexes (int, tuple or list): if defined, select foreground only on the specified channels
                 of image. if None, select foreground on the whole image.
-            margin (int): add margin to all dims of the bounding box.
+            margin: add margin to all dims of the bounding box.
         """
         super().__init__(keys)
         self.source_key = source_key
@@ -206,7 +206,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
           foreground voxel as a center rather than a background voxel.
         neg (int, float): used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
           foreground voxel as a center rather than a background voxel.
-        num_samples (int): number of samples (crop regions) to take in each list.
+        num_samples: number of samples (crop regions) to take in each list.
         image_key (str): if image_key is not None, use ``label == 0 & image > image_threshold`` to select
             the negative sample(background) center. so the crop center will only exist on valid image area.
         image_threshold (int or float): if enabled image_key, use ``image > image_threshold`` to determine

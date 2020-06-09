@@ -45,7 +45,7 @@ class AsChannelFirstd(MapTransform):
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            channel_dim (int): which dimension of input image is the channel, default is the last dimension.
+            channel_dim: which dimension of input image is the channel, default is the last dimension.
         """
         super().__init__(keys)
         self.converter = AsChannelFirst(channel_dim=channel_dim)
@@ -67,7 +67,7 @@ class AsChannelLastd(MapTransform):
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            channel_dim (int): which dimension of input image is the channel, default is the first dimension.
+            channel_dim: which dimension of input image is the channel, default is the first dimension.
         """
         super().__init__(keys)
         self.converter = AsChannelLast(channel_dim=channel_dim)
@@ -110,7 +110,7 @@ class RepeatChanneld(MapTransform):
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            repeats (int): the number of repetitions for each element.
+            repeats: the number of repetitions for each element.
         """
         super().__init__(keys)
         self.repeater = RepeatChannel(repeats)
@@ -193,7 +193,7 @@ class SqueezeDimd(MapTransform):
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            dim (int): dimension to be squeezed. Default: 0 (the first dimension)
+            dim: dimension to be squeezed. Default: 0 (the first dimension)
         """
         super().__init__(keys)
         self.converter = SqueezeDim(dim=dim)

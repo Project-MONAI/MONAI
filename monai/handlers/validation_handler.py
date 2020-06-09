@@ -24,7 +24,7 @@ class ValidationHandler:
         """
         Args:
             validator (Evaluator): run the validator when trigger validation, suppose to be Evaluator.
-            interval (int): do validation every N epochs or every N iterations during training.
+            interval: do validation every N epochs or every N iterations during training.
             epoch_level (bool): execute validation every N epochs or N iterations.
                 `True` is epoch level, `False` is iteration level.
 
