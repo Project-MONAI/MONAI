@@ -23,6 +23,7 @@ doBlackFormat=false
 doPytypeFormat=false
 doMypyFormat=false
 doFlake8Format=false
+clean_cache_files=false
 
 NUM_PARALLEL=1
 
@@ -79,6 +80,9 @@ do
           NUM_PARALLEL=$2
           shift
         ;;
+        --clean)
+          clean_cache_files=true
+        ;;
         *)
             echo "ERROR: Incorrect commandline provided"
             echo "Invalid key: $key"
@@ -117,6 +121,14 @@ fi
 
 # Unconditionally report on the state of monai
 python -c 'import monai; monai.config.print_config()'
+
+#Cleaning the files when ussing --clean in args, if theres no files exit just exit 
+if [ "$clean_cache_file" = true]
+then 
+  rm !(".mypy_cache" | ".pytype")
+fi
+
+
 
 # report on code format
 if [ "$doBlackFormat" = 'true' ]
