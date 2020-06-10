@@ -62,7 +62,7 @@ class ROCAUC(Metric):
         self.softmax = softmax
         self.average = average
 
-    def reset(self):
+    def reset(self) -> None:
         self._predictions = []
         self._targets = []
 

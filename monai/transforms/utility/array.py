@@ -162,7 +162,7 @@ class Transpose(Transform):
     Transposes the input image based on the given `indices` dimension ordering.
     """
 
-    def __init__(self, indices):
+    def __init__(self, indices) -> None:
         self.indices = indices
 
     def __call__(self, img):

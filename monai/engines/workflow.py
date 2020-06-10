@@ -129,7 +129,7 @@ class Workflow(Engine):
             for handler in handlers:
                 handler.attach(self)
 
-    def run(self):
+    def run(self) -> None:
         """
         Execute training, validation or evaluation based on Ignite Engine.
 

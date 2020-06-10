@@ -73,7 +73,7 @@ class LayerFactory:
     callables. These functions are referred to by name and can be added at any time.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.factories = {}
 
     @property
