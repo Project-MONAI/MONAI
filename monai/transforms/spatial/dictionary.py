@@ -15,10 +15,12 @@ defined in :py:class:`monai.transforms.spatial.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Hashable, Optional
+from typing import Optional
 
 import numpy as np
 import torch
+
+from monai.config.type_definitions import KeysCollection
 from monai.data.utils import InterpolationCode
 
 from monai.networks.layers.simplelayers import GaussianFilter
@@ -56,7 +58,7 @@ class Spacingd(MapTransform):
 
     def __init__(
         self,
-        keys: Hashable,
+        keys: KeysCollection,
         pixdim,
         diagonal: bool = False,
         interp_order: str = "bilinear",
@@ -129,7 +131,7 @@ class Orientationd(MapTransform):
 
     def __init__(
         self,
-        keys: Hashable,
+        keys: KeysCollection,
         axcodes=None,
         as_closest_canonical: bool = False,
         labels=tuple(zip("LPI", "RAS")),
@@ -169,7 +171,7 @@ class Rotate90d(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.Rotate90`.
     """
 
-    def __init__(self, keys: Hashable, k: int = 1, spatial_axes=(0, 1)):
+    def __init__(self, keys: KeysCollection, k: int = 1, spatial_axes=(0, 1)):
         """
         Args:
             k: number of times to rotate by 90 degrees.
@@ -192,10 +194,10 @@ class RandRotate90d(Randomizable, MapTransform):
     in the plane specified by `spatial_axes`.
     """
 
-    def __init__(self, keys: Hashable, prob: float = 0.1, max_k: int = 3, spatial_axes=(0, 1)):
+    def __init__(self, keys: KeysCollection, prob: float = 0.1, max_k: int = 3, spatial_axes=(0, 1)):
         """
         Args:
-            keys (hashable items): keys of the corresponding items to be transformed.
+            keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             prob (float): probability of rotating.
                 (Default 0.1, with 10% probability it returns a rotated array.)
@@ -234,7 +236,7 @@ class Resized(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.Resize`.
 
     Args:
-        keys (hashable items): keys of the corresponding items to be transformed.
+        keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
         spatial_size (tuple or list): expected shape of spatial dimensions after resize operation.
         interp_order (str of sequence of str):
@@ -246,7 +248,9 @@ class Resized(MapTransform):
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
     """
 
-    def __init__(self, keys: Hashable, spatial_size, interp_order: str = "area", align_corners: Optional[bool] = None):
+    def __init__(
+        self, keys: KeysCollection, spatial_size, interp_order: str = "area", align_corners: Optional[bool] = None
+    ):
         super().__init__(keys)
         self.interp_order = ensure_tuple_rep(interp_order, len(self.keys))
         self.resizer = Resize(spatial_size=spatial_size, align_corners=align_corners)
@@ -265,7 +269,7 @@ class RandAffined(Randomizable, MapTransform):
 
     def __init__(
         self,
-        keys: Hashable,
+        keys: KeysCollection,
         spatial_size,
         prob: float = 0.1,
         rotate_range=None,
@@ -279,7 +283,7 @@ class RandAffined(Randomizable, MapTransform):
     ):
         """
         Args:
-            keys (Hashable items): keys of the corresponding items to be transformed.
+            keys: keys of the corresponding items to be transformed.
             spatial_size (list or tuple of int): output image spatial size.
                 if ``data`` component has two spatial dimensions, ``spatial_size`` should have 2 elements [h, w].
                 if ``data`` component has three spatial dimensions, ``spatial_size`` should have 3 elements [h, w, d].
@@ -343,7 +347,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
 
     def __init__(
         self,
-        keys: Hashable,
+        keys: KeysCollection,
         spatial_size,
         spacing,
         magnitude_range,
@@ -359,7 +363,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
     ):
         """
         Args:
-            keys (Hashable items): keys of the corresponding items to be transformed.
+            keys: keys of the corresponding items to be transformed.
             spatial_size (2 ints): specifying output image spatial size [h, w].
             spacing (2 ints): distance in between the control points.
             magnitude_range (2 ints): the random offsets will be generated from
@@ -430,7 +434,7 @@ class Rand3DElasticd(Randomizable, MapTransform):
 
     def __init__(
         self,
-        keys: Hashable,
+        keys: KeysCollection,
         spatial_size,
         sigma_range,
         magnitude_range,
@@ -446,7 +450,7 @@ class Rand3DElasticd(Randomizable, MapTransform):
     ):
         """
         Args:
-            keys (Hashable items): keys of the corresponding items to be transformed.
+            keys: keys of the corresponding items to be transformed.
             spatial_size (3 ints): specifying output image spatial size [h, w, d].
             sigma_range (2 ints): a Gaussian kernel with standard deviation sampled
                  from ``uniform[sigma_range[0], sigma_range[1])`` will be used to smooth the random offset grid.
@@ -523,7 +527,7 @@ class Flipd(MapTransform):
         spatial_axis (None, int or tuple of ints): Spatial axes along which to flip over. Default is None.
     """
 
-    def __init__(self, keys: Hashable, spatial_axis=None):
+    def __init__(self, keys: KeysCollection, spatial_axis=None):
         super().__init__(keys)
         self.flipper = Flip(spatial_axis=spatial_axis)
 
@@ -545,7 +549,7 @@ class RandFlipd(Randomizable, MapTransform):
         spatial_axis (None, int or tuple of ints): Spatial axes along which to flip over. Default is None.
     """
 
-    def __init__(self, keys: Hashable, prob: float = 0.1, spatial_axis=None):
+    def __init__(self, keys: KeysCollection, prob: float = 0.1, spatial_axis=None):
         super().__init__(keys)
         self.spatial_axis = spatial_axis
         self.prob = prob
@@ -587,7 +591,7 @@ class Rotated(MapTransform):
 
     def __init__(
         self,
-        keys: Hashable,
+        keys: KeysCollection,
         angle: float,
         spatial_axes=(0, 1),
         reshape: bool = True,
@@ -640,7 +644,7 @@ class RandRotated(Randomizable, MapTransform):
 
     def __init__(
         self,
-        keys: Hashable,
+        keys: KeysCollection,
         degrees,
         prob: float = 0.1,
         spatial_axes=(0, 1),
@@ -706,7 +710,12 @@ class Zoomd(MapTransform):
     """
 
     def __init__(
-        self, keys: Hashable, zoom, interp_order: str = "area", align_corners: Optional[bool] = None, keep_size=True,
+        self,
+        keys: KeysCollection,
+        zoom,
+        interp_order: str = "area",
+        align_corners: Optional[bool] = None,
+        keep_size: bool = True,
     ):
         super().__init__(keys)
         self.zoomer = Zoom(zoom=zoom, align_corners=align_corners, keep_size=keep_size)
@@ -723,7 +732,7 @@ class RandZoomd(Randomizable, MapTransform):
     """Dict-based version :py:class:`monai.transforms.RandZoom`.
 
     Args:
-        keys (dict): Keys to pick data for transformation.
+        keys: Keys to pick data for transformation.
         prob (float): Probability of zooming.
         min_zoom (float or sequence): Min zoom factor. Can be float or sequence same size as image.
             If a float, min_zoom is the same for each spatial axis.
@@ -737,12 +746,12 @@ class RandZoomd(Randomizable, MapTransform):
         align_corners (optional bool): This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
-        keep_size (bool): Should keep original size (pad if needed), default is True.
+        keep_size: Should keep original size (pad if needed), default is True.
     """
 
     def __init__(
         self,
-        keys: Hashable,
+        keys: KeysCollection,
         prob: float = 0.1,
         min_zoom=0.9,
         max_zoom=1.1,

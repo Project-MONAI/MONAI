@@ -11,6 +11,7 @@
 
 import itertools
 from collections.abc import Iterable
+from typing import Any, Tuple
 
 import numpy as np
 import torch
@@ -49,7 +50,7 @@ def issequenceiterable(obj):
     return isinstance(obj, Iterable) and not isinstance(obj, str)
 
 
-def ensure_tuple(vals):
+def ensure_tuple(vals: Any) -> Tuple[Any, ...]:
     """Returns a tuple of `vals`"""
     if not issequenceiterable(vals):
         vals = (vals,)
