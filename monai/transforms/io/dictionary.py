@@ -31,7 +31,7 @@ class LoadNiftid(MapTransform):
     stack them together and add a new dimension as the first dimension, and use the
     meta data of the first image to represent the stacked result. Note that the affine
     transform of all the stacked images should be same. The output metadata field will
-    be created as ``self.meta_key_format(key, metadata_key)``.
+    be created as ``key_{meta_key_postfix}``.
     """
 
     def __init__(
@@ -39,8 +39,8 @@ class LoadNiftid(MapTransform):
         keys: KeysCollection,
         as_closest_canonical: bool = False,
         dtype: Optional[np.dtype] = np.float32,
-        meta_key_format: str = "{}.{}",
-        overwriting_keys: bool = False,
+        meta_key_postfix: str = "meta",
+        overwriting: bool = False,
     ):
         """
         Args:
@@ -48,15 +48,18 @@ class LoadNiftid(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             as_closest_canonical: if True, load the image as closest to canonical axis format.
             dtype (np.dtype, optional): if not None convert the loaded image to this data type.
-            meta_key_format (str): key format to store meta data of the nifti image.
-                it must contain 2 fields for the key of this image and the key of every meta data item.
-            overwriting_keys: whether allow to overwrite existing keys of meta data.
+            meta_key_postfix (str): use `key_{postfix}` to to store meta data of the nifti image,
+                default is `meta`. The meta data is a dictionary object.
+                For example, load nifti file for `image`, store the metadata into `image_meta`.
+            overwriting (bool): whether allow to overwrite existing meta data of same key.
                 default is False, which will raise exception if encountering existing key.
         """
         super().__init__(keys)
         self.loader = LoadNifti(as_closest_canonical, False, dtype)
-        self.meta_key_format = meta_key_format
-        self.overwriting_keys = overwriting_keys
+        if not isinstance(meta_key_postfix, str):
+            raise ValueError("meta_key_postfix must be a string.")
+        self.meta_key_postfix = meta_key_postfix
+        self.overwriting = overwriting
 
     def __call__(self, data):
         d = dict(data)
@@ -65,11 +68,10 @@ class LoadNiftid(MapTransform):
             assert isinstance(data, (tuple, list)), "loader must return a tuple or list."
             d[key] = data[0]
             assert isinstance(data[1], dict), "metadata must be a dict."
-            for k in sorted(data[1]):
-                key_to_add = self.meta_key_format.format(key, k)
-                if key_to_add in d and not self.overwriting_keys:
-                    raise KeyError(f"meta data key {key_to_add} already exists.")
-                d[key_to_add] = data[1][k]
+            key_to_add = f"{key}_{self.meta_key_postfix}"
+            if key_to_add in d and not self.overwriting:
+                raise KeyError(f"meta data with key {key_to_add} already exists.")
+            d[key_to_add] = data[1]
         return d
 
 
@@ -78,18 +80,30 @@ class LoadPNGd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.LoadPNG`.
     """
 
-    def __init__(self, keys: KeysCollection, dtype: Optional[np.dtype] = np.float32, meta_key_format: str = "{}.{}"):
+    def __init__(
+        self,
+        keys: KeysCollection,
+        dtype: Optional[np.dtype] = np.float32,
+        meta_key_postfix: str = "meta",
+        overwriting: bool = False,
+    ):
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             dtype (np.dtype, optional): if not None convert the loaded image to this data type.
-            meta_key_format (str): key format to store meta data of the loaded image.
-                it must contain 2 fields for the key of this image and the key of every meta data item.
+            meta_key_postfix (str): use `key_{postfix}` to to store meta data of the nifti image,
+                default is `meta`. The meta data is a dictionary object.
+                For example, load nifti file for `image`, store the metadata into `image_meta`.
+            overwriting: whether allow to overwrite existing meta data of same key.
+                default is False, which will raise exception if encountering existing key.
         """
         super().__init__(keys)
         self.loader = LoadPNG(False, dtype)
-        self.meta_key_format = meta_key_format
+        if not isinstance(meta_key_postfix, str):
+            raise ValueError("meta_key_postfix must be a string.")
+        self.meta_key_postfix = meta_key_postfix
+        self.overwriting = overwriting
 
     def __call__(self, data):
         d = dict(data)
@@ -98,9 +112,10 @@ class LoadPNGd(MapTransform):
             assert isinstance(data, (tuple, list)), "loader must return a tuple or list."
             d[key] = data[0]
             assert isinstance(data[1], dict), "metadata must be a dict."
-            for k in sorted(data[1]):
-                key_to_add = self.meta_key_format.format(key, k)
-                d[key_to_add] = data[1][k]
+            key_to_add = f"{key}_{self.meta_key_postfix}"
+            if key_to_add in d and not self.overwriting:
+                raise KeyError(f"meta data with key {key_to_add} already exists.")
+            d[key_to_add] = data[1]
         return d
 
 
