@@ -158,8 +158,8 @@ class NormalizeIntensity(Transform):
     Args:
         subtrahend (ndarray): the amount to subtract by (usually the mean).
         divisor (ndarray): the amount to divide by (usually the standard deviation).
-        nonzero (bool): whether only normalize non-zero values.
-        channel_wise (bool): if using calculated mean and std, calculate on each channel separately
+        nonzero: whether only normalize non-zero values.
+        channel_wise: if using calculated mean and std, calculate on each channel separately
             or calculate on the entire image directly.
     """
 
@@ -204,7 +204,7 @@ class ThresholdIntensity(Transform):
 
     Args:
         threshold (float or int): the threshold to filter intensity values.
-        above (bool): filter values above the threshold or below the threshold, default is True.
+        above: filter values above the threshold or below the threshold, default is True.
         cval (float or int): value to fill the remaining parts of the image, default is 0.
     """
 
@@ -227,7 +227,7 @@ class ScaleIntensityRange(Transform):
         a_max (int or float): intensity original range max.
         b_min (int or float): intensity target range min.
         b_max (int or float): intensity target range max.
-        clip (bool): whether to perform clip after scaling.
+        clip: whether to perform clip after scaling.
     """
 
     def __init__(

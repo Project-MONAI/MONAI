@@ -157,7 +157,7 @@ def iter_patch(
         arr (np.ndarray): array to iterate over
         patch_size (tuple of int or None): size of patches to generate slices for, 0 or None selects whole dimension
         start_pos (tuple of it, optional): starting position in the array, default is 0 for each dimension
-        copy_back (bool): if True data from the yielded patches is copied back to `arr` once the generator completes
+        copy_back: if True data from the yielded patches is copied back to `arr` once the generator completes
         pad_mode (str, optional): padding mode, see `numpy.pad`
         pad_opts (dict, optional): padding options, see `numpy.pad`
 
@@ -304,7 +304,7 @@ def zoom_affine(affine, scale, diagonal: bool = True):
     Args:
         affine (nxn matrix): a square matrix.
         scale (sequence of floats): new scaling factor along each dimension.
-        diagonal (bool): whether to return a diagonal scaling matrix.
+        diagonal: whether to return a diagonal scaling matrix.
             Defaults to True.
 
     returns:
@@ -387,12 +387,12 @@ def to_affine_nd(r, affine):
     """
     affine_ = np.array(affine, dtype=np.float64)
     if affine_.ndim != 2:
-        raise ValueError("input affine must have two dimensions")
+        raise ValueError(f"input affine matrix must have two dimensions, got {affine_.ndim}.")
     new_affine = np.array(r, dtype=np.float64, copy=True)
     if new_affine.ndim == 0:
         sr = new_affine.astype(int)
         if not np.isfinite(sr) or sr < 0:
-            raise ValueError("r must be positive.")
+            raise ValueError(f"r must be positive, got {sr}.")
         new_affine = np.eye(sr + 1, dtype=np.float64)
     d = max(min(len(new_affine) - 1, len(affine_) - 1), 1)
     new_affine[:d, :d] = affine_[:d, :d]

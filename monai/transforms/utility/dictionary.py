@@ -26,6 +26,7 @@ from monai.transforms.utility.array import (
     AddChannel,
     AsChannelFirst,
     ToTensor,
+    ToNumpy,
     AsChannelLast,
     CastToType,
     RepeatChannel,
@@ -157,6 +158,27 @@ class ToTensord(MapTransform):
         """
         super().__init__(keys)
         self.converter = ToTensor()
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.converter(d[key])
+        return d
+
+
+class ToNumpyd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.ToNumpy`.
+    """
+
+    def __init__(self, keys: Hashable):
+        """
+        Args:
+            keys (hashable items): keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+        """
+        super().__init__(keys)
+        self.converter = ToNumpy()
 
     def __call__(self, data):
         d = dict(data)

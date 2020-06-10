@@ -41,16 +41,18 @@ class PNGSaver:
             output_dir (str): output image directory.
             output_postfix (str): a string appended to all output file names.
             output_ext (str): output file extension name.
-            resample (bool): whether to resample and resize if providing spatial_shape in the metadata.
-            interp_order: the order of the spline interpolation, default is InterpolationCode.SPLINE3.
+            resample: whether to resample and resize if providing spatial_shape in the metadata.
+                Defaults to True.
+            interp_order (int): the order of the spline interpolation, default is InterpolationCode.SPLINE3.
                 This option is used when spatial_shape is specified and different from the data shape.
-                The order has to be in the range 0 - 5.
-            mode (`reflect|constant|nearest|mirror|wrap`):
+                The order has to be in the range 0 - 5. Defaults to 3.
+            mode (`constant|edge|symmetric|reflect|wrap`):
                 The mode parameter determines how the input array is extended beyond its boundaries.
                 This option is used when spatial_shape is specified and different from the data shape.
+                Defaults to "constant".
             cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
                 This option is used when spatial_shape is specified and different from the data shape.
-            scale (bool): whether to scale data with 255 and convert to uint8 for data in range [0, 1].
+            scale: whether to scale data with 255 and convert to uint8 for data in range [0, 1].
 
         """
         self.output_dir = output_dir
