@@ -32,21 +32,21 @@ class TverskyLoss(_Loss):
 
     def __init__(
         self,
-        include_background=True,
-        to_onehot_y=False,
-        do_sigmoid=False,
-        do_softmax=False,
-        alpha=0.5,
-        beta=0.5,
-        reduction="mean",
+        include_background: bool = True,
+        to_onehot_y: bool = False,
+        sigmoid: bool = False,
+        softmax: bool = False,
+        alpha: float = 0.5,
+        beta: float = 0.5,
+        reduction: str = "mean",
     ):
 
         """
         Args:
             include_background (bool): If False channel index 0 (background category) is excluded from the calculation.
             to_onehot_y (bool): whether to convert `y` into the one-hot format. Defaults to False.
-            do_sigmoid (bool): If True, apply a sigmoid function to the prediction.
-            do_softmax (bool): If True, apply a softmax function to the prediction.
+            sigmoid (bool): If True, apply a sigmoid function to the prediction.
+            softmax (bool): If True, apply a softmax function to the prediction.
             alpha (float): weight of false positives
             beta  (float): weight of false negatives
             reduction (`none|mean|sum`): Specifies the reduction to apply to the output:
@@ -61,32 +61,32 @@ class TverskyLoss(_Loss):
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
 
-        if do_sigmoid and do_softmax:
-            raise ValueError("do_sigmoid=True and do_softmax=True are not compatible.")
-        self.do_sigmoid = do_sigmoid
-        self.do_softmax = do_softmax
+        if sigmoid and softmax:
+            raise ValueError("sigmoid=True and softmax=True are not compatible.")
+        self.sigmoid = sigmoid
+        self.softmax = softmax
         self.alpha = alpha
         self.beta = beta
 
-    def forward(self, input, target, smooth=1e-5):
+    def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5):
         """
         Args:
             input (tensor): the shape should be BNH[WD].
             target (tensor): the shape should be BNH[WD].
             smooth (float): a small constant to avoid nan.
         """
-        if self.do_sigmoid:
+        if self.sigmoid:
             input = torch.sigmoid(input)
         n_pred_ch = input.shape[1]
         if n_pred_ch == 1:
-            if self.do_softmax:
-                warnings.warn("single channel prediction, `do_softmax=True` ignored.")
+            if self.softmax:
+                warnings.warn("single channel prediction, `softmax=True` ignored.")
             if self.to_onehot_y:
                 warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
             if not self.include_background:
                 warnings.warn("single channel prediction, `include_background=False` ignored.")
         else:
-            if self.do_softmax:
+            if self.softmax:
                 input = torch.softmax(input, 1)
             if self.to_onehot_y:
                 target = one_hot(target, n_pred_ch)

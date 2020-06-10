@@ -15,6 +15,9 @@ defined in :py:class:`monai.transforms.spatial.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
+from typing import Hashable, Optional
+
+import numpy as np
 import torch
 from monai.data.utils import InterpolationCode
 
@@ -51,7 +54,14 @@ class Spacingd(MapTransform):
     """
 
     def __init__(
-        self, keys, pixdim, diagonal=False, interp_order=3, mode="nearest", cval=0, dtype=None, meta_key_postfix="meta"
+        self,
+        keys: Hashable,
+        pixdim,
+        diagonal: bool = False,
+        interp_order: str = "bilinear",
+        mode: str = "border",
+        dtype: Optional[np.dtype] = None,
+        meta_key_postfix: str = "meta",
     ):
         """
         Args:
@@ -68,28 +78,25 @@ class Spacingd(MapTransform):
                 translations components from the original affine will be
                 preserved in the target affine. This option will not flip/swap
                 axes against the original ones.
-            interp_order (int or sequence of ints): int: the same interpolation order
-                for all data indexed by `self.keys`; sequence of ints, should
+            interp_order (`nearest|bilinear` or a squence of str): str: the same interpolation order
+                for all data indexed by `self.keys`; sequence of str, should
                 correspond to an interpolation order for each data item indexed
-                by `self.keys` respectively.
+                by `self.keys` respectively. Defaults to `bilinear`.
             mode (str or sequence of str):
-                Available options are `reflect|constant|nearest|mirror|wrap`.
+                Available options are `zeros|border|reflection`.
                 The mode parameter determines how the input array is extended beyond its boundaries.
-                Default is 'nearest'.
-            cval (scalar or sequence of scalars): Value to fill past edges of input if mode is "constant".
-                Default is 0.0.
-            dtype (None or np.dtype or sequence of np.dtype): output array data type, defaults to None to
-                use input data's dtype.
-            meta_key_postfix (str): use `key_{postfix}` to to fetch meta data of the key data, default is `meta`.
-                for example, to handle key `image`,  read/write affine matrices from the
-                metadata `image_meta` dictionary's `affine`.
-
+                Default is 'border'.
+            dtype (None or np.dtype or sequence of np.dtype): output array data type.
+                Defaults to None to use input data's dtype.
+            meta_key_postfix (str): use `key_{postfix}` to to fetch the meta data according to the key data,
+                default is `meta`, the meta data is a dictionary object.
+                For example, to handle key `image`,  read/write affine matrices from the
+                metadata `image_meta` dictionary's `affine` field.
         """
         super().__init__(keys)
         self.spacing_transform = Spacing(pixdim, diagonal=diagonal)
         self.interp_order = ensure_tuple_rep(interp_order, len(self.keys))
         self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.cval = ensure_tuple_rep(cval, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         if not isinstance(meta_key_postfix, str):
             raise ValueError("meta_key_postfix must be a string.")
@@ -106,7 +113,6 @@ class Spacingd(MapTransform):
                 affine=meta_data["affine"],
                 interp_order=self.interp_order[idx],
                 mode=self.mode[idx],
-                cval=self.cval[idx],
                 dtype=self.dtype[idx],
             )
             # set the 'affine' key
@@ -126,7 +132,12 @@ class Orientationd(MapTransform):
     """
 
     def __init__(
-        self, keys, axcodes=None, as_closest_canonical=False, labels=tuple(zip("LPI", "RAS")), meta_key_postfix="meta"
+        self,
+        keys: Hashable,
+        axcodes=None,
+        as_closest_canonical: bool = False,
+        labels=tuple(zip("LPI", "RAS")),
+        meta_key_postfix: str = "meta",
     ):
         """
         Args:
@@ -139,9 +150,10 @@ class Orientationd(MapTransform):
             labels : optional, None or sequence of (2,) sequences
                 (2,) sequences are labels for (beginning, end) of output axis.
                 Defaults to ``(('L', 'R'), ('P', 'A'), ('I', 'S'))``.
-            meta_key_postfix (str): use `key_{postfix}` to to fetch meta data of the key data, default is `meta`.
-                for example, to handle key `image`,  read/write affine matrices from the
-                metadata `image_meta` dictionary's `affine`.
+            meta_key_postfix (str): use `key_{postfix}` to to fetch the meta data according to the key data,
+                default is `meta`, the meta data is a dictionary object.
+                For example, to handle key `image`,  read/write affine matrices from the
+                metadata `image_meta` dictionary's `affine` field.
 
         See Also:
             `nibabel.orientations.ornt2axcodes`.
@@ -166,10 +178,10 @@ class Rotate90d(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.Rotate90`.
     """
 
-    def __init__(self, keys, k=1, spatial_axes=(0, 1)):
+    def __init__(self, keys: Hashable, k: int = 1, spatial_axes=(0, 1)):
         """
         Args:
-            k (int): number of times to rotate by 90 degrees.
+            k: number of times to rotate by 90 degrees.
             spatial_axes (2 ints): defines the plane to rotate with 2 spatial axes.
                 Default: (0, 1), this is the first two axis in spatial dimensions.
         """
@@ -189,14 +201,14 @@ class RandRotate90d(Randomizable, MapTransform):
     in the plane specified by `spatial_axes`.
     """
 
-    def __init__(self, keys, prob=0.1, max_k=3, spatial_axes=(0, 1)):
+    def __init__(self, keys: Hashable, prob: float = 0.1, max_k: int = 3, spatial_axes=(0, 1)):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             prob (float): probability of rotating.
                 (Default 0.1, with 10% probability it returns a rotated array.)
-            max_k (int): number of rotations will be sampled from `np.random.randint(max_k) + 1`.
+            max_k: number of rotations will be sampled from `np.random.randint(max_k) + 1`.
                 (Default 3)
             spatial_axes (2 ints): defines the plane to rotate with 2 spatial axes.
                 Default: (0, 1), this is the first two axis in spatial dimensions.
@@ -248,7 +260,7 @@ class Resized(MapTransform):
 
     def __init__(
         self,
-        keys,
+        keys: Hashable,
         spatial_size,
         interp_order=1,
         mode="reflect",
@@ -289,17 +301,17 @@ class RandAffined(Randomizable, MapTransform):
 
     def __init__(
         self,
-        keys,
+        keys: Hashable,
         spatial_size,
-        prob=0.1,
+        prob: float = 0.1,
         rotate_range=None,
         shear_range=None,
         translate_range=None,
         scale_range=None,
         mode="bilinear",
         padding_mode="zeros",
-        as_tensor_output=True,
-        device=None,
+        as_tensor_output: bool = True,
+        device: Optional[torch.device] = None,
     ):
         """
         Args:
@@ -367,19 +379,19 @@ class Rand2DElasticd(Randomizable, MapTransform):
 
     def __init__(
         self,
-        keys,
+        keys: Hashable,
         spatial_size,
         spacing,
         magnitude_range,
-        prob=0.1,
+        prob: float = 0.1,
         rotate_range=None,
         shear_range=None,
         translate_range=None,
         scale_range=None,
         mode="bilinear",
         padding_mode="zeros",
-        as_tensor_output=False,
-        device=None,
+        as_tensor_output: bool = False,
+        device: Optional[torch.device] = None,
     ):
         """
         Args:
@@ -420,7 +432,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.mode = ensure_tuple_rep(mode, len(self.keys))
 
-    def set_random_state(self, seed=None, state=None):
+    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
         self.rand_2d_elastic.set_random_state(seed, state)
         super().set_random_state(seed, state)
         return self
@@ -454,19 +466,19 @@ class Rand3DElasticd(Randomizable, MapTransform):
 
     def __init__(
         self,
-        keys,
+        keys: Hashable,
         spatial_size,
         sigma_range,
         magnitude_range,
-        prob=0.1,
+        prob: float = 0.1,
         rotate_range=None,
         shear_range=None,
         translate_range=None,
         scale_range=None,
         mode="bilinear",
         padding_mode="zeros",
-        as_tensor_output=False,
-        device=None,
+        as_tensor_output: bool = False,
+        device: Optional[torch.device] = None,
     ):
         """
         Args:
@@ -508,7 +520,7 @@ class Rand3DElasticd(Randomizable, MapTransform):
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.mode = ensure_tuple_rep(mode, len(self.keys))
 
-    def set_random_state(self, seed=None, state=None):
+    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
         self.rand_3d_elastic.set_random_state(seed, state)
         super().set_random_state(seed, state)
         return self
@@ -547,7 +559,7 @@ class Flipd(MapTransform):
         spatial_axis (None, int or tuple of ints): Spatial axes along which to flip over. Default is None.
     """
 
-    def __init__(self, keys, spatial_axis=None):
+    def __init__(self, keys: Hashable, spatial_axis=None):
         super().__init__(keys)
         self.flipper = Flip(spatial_axis=spatial_axis)
 
@@ -569,7 +581,7 @@ class RandFlipd(Randomizable, MapTransform):
         spatial_axis (None, int or tuple of ints): Spatial axes along which to flip over. Default is None.
     """
 
-    def __init__(self, keys, prob=0.1, spatial_axis=None):
+    def __init__(self, keys: Hashable, prob: float = 0.1, spatial_axis=None):
         super().__init__(keys)
         self.spatial_axis = spatial_axis
         self.prob = prob
@@ -611,10 +623,10 @@ class Rotated(MapTransform):
 
     def __init__(
         self,
-        keys,
-        angle,
+        keys: Hashable,
+        angle: float,
         spatial_axes=(0, 1),
-        reshape=True,
+        reshape: bool = True,
         interp_order=InterpolationCode.LINEAR,
         mode="constant",
         cval=0,
@@ -664,11 +676,11 @@ class RandRotated(Randomizable, MapTransform):
 
     def __init__(
         self,
-        keys,
+        keys: Hashable,
         degrees,
-        prob=0.1,
+        prob: float = 0.1,
         spatial_axes=(0, 1),
-        reshape=True,
+        reshape: bool = True,
         interp_order=InterpolationCode.LINEAR,
         mode="constant",
         cval=0,
@@ -731,13 +743,13 @@ class Zoomd(MapTransform):
 
     def __init__(
         self,
-        keys,
+        keys: Hashable,
         zoom,
         interp_order=InterpolationCode.SPLINE3,
         mode="constant",
         cval=0,
         prefilter=True,
-        use_gpu=False,
+        use_gpu: bool = False,
         keep_size=True,
     ):
         super().__init__(keys)
@@ -785,16 +797,16 @@ class RandZoomd(Randomizable, MapTransform):
 
     def __init__(
         self,
-        keys,
-        prob=0.1,
+        keys: Hashable,
+        prob: float = 0.1,
         min_zoom=0.9,
         max_zoom=1.1,
         interp_order=InterpolationCode.SPLINE3,
         mode="constant",
         cval=0,
         prefilter=True,
-        use_gpu=False,
-        keep_size=True,
+        use_gpu: bool = False,
+        keep_size: bool = True,
     ):
         super().__init__(keys)
         if hasattr(min_zoom, "__iter__") and hasattr(max_zoom, "__iter__"):

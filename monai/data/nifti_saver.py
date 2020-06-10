@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Union, Optional
+
 import numpy as np
 import torch
 from monai.data.nifti_writer import write_nifti
@@ -25,14 +27,14 @@ class NiftiSaver:
 
     def __init__(
         self,
-        output_dir="./",
-        output_postfix="seg",
-        output_ext=".nii.gz",
-        resample=True,
-        interp_order=3,
-        mode="constant",
-        cval=0,
-        dtype=None,
+        output_dir: str = "./",
+        output_postfix: str = "seg",
+        output_ext: str = ".nii.gz",
+        resample: bool = True,
+        interp_order: int = 3,
+        mode: str = "constant",
+        cval: Union[int, float] = 0,
+        dtype: Optional[np.dtype] = None,
     ):
         """
         Args:
@@ -40,7 +42,7 @@ class NiftiSaver:
             output_postfix (str): a string appended to all output file names.
             output_ext (str): output file extension name.
             resample (bool): whether to resample before saving the data array.
-            interp_order (int): the order of the spline interpolation, default is InterpolationCode.SPLINE3.
+            interp_order: the order of the spline interpolation, default is InterpolationCode.SPLINE3.
                 The order has to be in the range 0 - 5.
                 https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.affine_transform.html
                 this option is used when `resample = True`.
@@ -63,7 +65,7 @@ class NiftiSaver:
         self.dtype = dtype
         self._data_index = 0
 
-    def save(self, data, meta_data=None):
+    def save(self, data: Union[torch.Tensor, np.ndarray], meta_data=None):
         """
         Save data into a Nifti file.
         The metadata could optionally have the following keys:
@@ -108,7 +110,7 @@ class NiftiSaver:
             dtype=self.dtype or data.dtype,
         )
 
-    def save_batch(self, batch_data, meta_data=None):
+    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data=None):
         """Save a batch of data into Nifti format files.
 
         args:

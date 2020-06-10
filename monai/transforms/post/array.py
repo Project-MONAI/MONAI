@@ -13,6 +13,8 @@ A collection of "vanilla" transforms for the model output tensors
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
+from typing import Optional, Callable
+
 import torch
 from monai.transforms.compose import Transform
 from monai.networks.utils import one_hot
@@ -28,15 +30,15 @@ class SplitChannel(Transform):
 
     Args:
         to_onehot (bool): whether to convert the data to One-Hot format first, default is False.
-        num_classes (int): the class number used to convert to One-Hot format if `to_onehot` is True.
+        num_classes: the class number used to convert to One-Hot format if `to_onehot` is True.
 
     """
 
-    def __init__(self, to_onehot=False, num_classes=None):
+    def __init__(self, to_onehot: bool = False, num_classes: Optional[int] = None):
         self.to_onehot = to_onehot
         self.num_classes = num_classes
 
-    def __call__(self, img, to_onehot=None, num_classes=None):
+    def __call__(self, img, to_onehot: Optional[bool] = None, num_classes: Optional[int] = None):  # type: ignore # see issue #495
         if to_onehot or self.to_onehot:
             if num_classes is None:
                 num_classes = self.num_classes
@@ -62,12 +64,14 @@ class Activations(Transform):
 
     """
 
-    def __init__(self, sigmoid=False, softmax=False, other=None):
+    def __init__(self, sigmoid: bool = False, softmax: bool = False, other: Optional[Callable] = None):
         self.sigmoid = sigmoid
         self.softmax = softmax
         self.other = other
 
-    def __call__(self, img, sigmoid=None, softmax=None, other=None):
+    def __call__(  # type: ignore # see issue #495
+        self, img, sigmoid: Optional[bool] = None, softmax: Optional[bool] = None, other: Optional[Callable] = None
+    ):
         if sigmoid is True and softmax is True:
             raise ValueError("sigmoid=True and softmax=True are not compatible.")
         if sigmoid or self.sigmoid:
@@ -100,19 +104,36 @@ class AsDiscrete(Transform):
 
     """
 
-    def __init__(self, argmax=False, to_onehot=False, n_classes=None, threshold_values=False, logit_thresh=0.5):
+    def __init__(
+        self,
+        argmax: bool = False,
+        to_onehot: bool = False,
+        n_classes: Optional[int] = None,
+        threshold_values: bool = False,
+        logit_thresh: float = 0.5,
+    ):
         self.argmax = argmax
         self.to_onehot = to_onehot
         self.n_classes = n_classes
         self.threshold_values = threshold_values
         self.logit_thresh = logit_thresh
 
-    def __call__(self, img, argmax=None, to_onehot=None, n_classes=None, threshold_values=None, logit_thresh=None):
+    def __call__(  # type: ignore # see issue #495
+        self,
+        img,
+        argmax: Optional[bool] = None,
+        to_onehot: Optional[bool] = None,
+        n_classes: Optional[int] = None,
+        threshold_values: Optional[bool] = None,
+        logit_thresh: Optional[float] = None,
+    ):
         if argmax or self.argmax:
             img = torch.argmax(img, dim=1, keepdim=True)
 
         if to_onehot or self.to_onehot:
-            img = one_hot(img, self.n_classes if n_classes is None else n_classes)
+            _nclasses = self.n_classes if n_classes is None else n_classes
+            assert isinstance(_nclasses, int), "One of self.n_classes or n_classes must be an integer"
+            img = one_hot(img, _nclasses)
 
         if threshold_values or self.threshold_values:
             img = img >= (self.logit_thresh if logit_thresh is None else logit_thresh)
@@ -161,7 +182,9 @@ class KeepLargestConnectedComponent(Transform):
 
     """
 
-    def __init__(self, applied_values, independent=True, background=0, connectivity=None):
+    def __init__(
+        self, applied_values, independent: bool = True, background: int = 0, connectivity: Optional[int] = None
+    ):
         """
         Args:
             applied_values (list or tuple of int): number list for applying the connected component on.
@@ -169,8 +192,8 @@ class KeepLargestConnectedComponent(Transform):
             independent (bool): consider several labels as a whole or independent, default is `True`.
                 Example use case would be segment label 1 is liver and label 2 is liver tumor, in that case
                 you want this "independent" to be specified as False.
-            background (int): Background pixel value. The over-segmented pixels will be set as this value.
-            connectivity (int): Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
+            background: Background pixel value. The over-segmented pixels will be set as this value.
+            connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
                 Accepted values are ranging from  1 to input.ndim. If ``None``, a full
                 connectivity of ``input.ndim`` is used.
         """

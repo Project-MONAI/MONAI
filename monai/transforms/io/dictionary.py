@@ -15,6 +15,8 @@ defined in :py:class:`monai.transforms.io.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
+from typing import Hashable, Optional
+
 import numpy as np
 
 from monai.transforms.compose import MapTransform
@@ -31,15 +33,23 @@ class LoadNiftid(MapTransform):
     be created as ``key_{meta_key_postfix}``.
     """
 
-    def __init__(self, keys, as_closest_canonical=False, dtype=np.float32, meta_key_postfix="meta", overwriting=False):
+    def __init__(
+        self,
+        keys: Hashable,
+        as_closest_canonical: bool = False,
+        dtype: Optional[np.dtype] = np.float32,
+        meta_key_postfix: str = "meta",
+        overwriting: bool = False,
+    ):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             as_closest_canonical (bool): if True, load the image as closest to canonical axis format.
             dtype (np.dtype, optional): if not None convert the loaded image to this data type.
-            meta_key_postfix (str): use `key_{postfix}` to to store meta data of the nifti image, default is `meta`.
-                for example, load nifti file for `image`, store the metadata into `image_meta`.
+            meta_key_postfix (str): use `key_{postfix}` to to store meta data of the nifti image,
+                default is `meta`. The meta data is a dictionary object.
+                For example, load nifti file for `image`, store the metadata into `image_meta`.
             overwriting (bool): whether allow to overwrite existing meta data of same key.
                 default is False, which will raise exception if encountering existing key.
         """
@@ -69,14 +79,15 @@ class LoadPNGd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.LoadPNG`.
     """
 
-    def __init__(self, keys, dtype=np.float32, meta_key_postfix="meta", overwriting=False):
+    def __init__(self, keys: Hashable, dtype: Optional[np.dtype] = np.float32, meta_key_postfix: str = "meta", overwriting=False):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             dtype (np.dtype, optional): if not None convert the loaded image to this data type.
-            meta_key_postfix (str): use `key_{postfix}` to to store meta data of the png image, default is `meta`.
-                for example, load png file for `image`, store the metadata into `image_meta`.
+            meta_key_postfix (str): use `key_{postfix}` to to store meta data of the nifti image,
+                default is `meta`. The meta data is a dictionary object.
+                For example, load nifti file for `image`, store the metadata into `image_meta`.
             overwriting (bool): whether allow to overwrite existing meta data of same key.
                 default is False, which will raise exception if encountering existing key.
         """

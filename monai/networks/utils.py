@@ -13,12 +13,11 @@ Utilities and types for defining networks, these depend on PyTorch.
 """
 
 import warnings
-
 import torch
 import torch.nn.functional as f
 
 
-def one_hot(labels, num_classes):
+def one_hot(labels, num_classes: int, dtype: torch.dtype = torch.float):
     """
     For a tensor `labels` of dimensions B1[spatial_dims], return a tensor of dimensions `BN[spatial_dims]`
     for `num_classes` N number of classes.
@@ -28,26 +27,31 @@ def one_hot(labels, num_classes):
         For every value v = labels[b,1,h,w], the value in the result at [b,v,h,w] will be 1 and all others 0.
         Note that this will include the background label, thus a binary mask should be treated as having 2 classes.
     """
-    num_dims = labels.dim()
-    if num_dims > 1:
-        assert labels.shape[1] == 1, "labels should have a channel with length equals to one."
-        labels = torch.squeeze(labels, 1)
-    labels = f.one_hot(labels.long(), num_classes)
-    new_axes = [0, -1] + list(range(1, num_dims - 1))
-    labels = labels.permute(*new_axes)
-    if not labels.is_contiguous():
-        return labels.contiguous()
+    assert labels.dim() > 0, "labels should have dim of 1 or more."
+
+    # if 1D, add singelton dim at the end
+    if labels.dim() == 1:
+        labels = labels.view(-1, 1)
+
+    sh = list(labels.shape)
+
+    assert sh[1] == 1, "labels should have a channel with length equals to one."
+    sh[1] = num_classes
+
+    o = torch.zeros(size=sh, dtype=dtype, device=labels.device)
+    labels = o.scatter_(dim=1, index=labels.long(), value=1)
+
     return labels
 
 
-def slice_channels(tensor, *slicevals):
+def slice_channels(tensor: torch.Tensor, *slicevals):
     slices = [slice(None)] * len(tensor.shape)
     slices[1] = slice(*slicevals)
 
     return tensor[slices]
 
 
-def predict_segmentation(logits, mutually_exclusive=False, threshold=0):
+def predict_segmentation(logits: torch.Tensor, mutually_exclusive: bool = False, threshold: float = 0):
     """
     Given the logits from a network, computing the segmentation by thresholding all values above 0
     if multi-labels task, computing the `argmax` along the channel axis if multi-classes task,
@@ -82,18 +86,18 @@ def normalize_transform(shape, device=None, dtype=None, align_corners=False):
             corner pixels rather than the image corners.
             See also: https://pytorch.org/docs/stable/nn.functional.html#torch.nn.functional.grid_sample
     """
-    shape_ = list(shape)[::-1]
+    norm = torch.tensor(shape, dtype=torch.float64, device=device)  # no in-place change
     if align_corners:
-        norm = torch.as_tensor(shape_ + [1.0], dtype=dtype, device=device)
-        norm[:-1] = 2.0 / (norm[:-1] - 1.0)
-        norm = torch.diag(norm)
+        norm[norm <= 1.0] = 2.0
+        norm = 2.0 / (norm - 1.0)
+        norm = torch.diag(torch.cat((norm, torch.ones((1,), dtype=torch.float64, device=device))))
         norm[:-1, -1] = -1.0
     else:
-        norm = torch.as_tensor(shape_ + [1.0], dtype=dtype, device=device)
-        norm[:-1] = 2.0 / norm[:-1]
-        norm = torch.diag(norm)
-        norm[:-1, -1] = 1.0 / torch.as_tensor(shape_, dtype=dtype, device=device) - 1.0
-    norm = norm.unsqueeze(0)  # adds a batch dim.
+        norm[norm <= 0.0] = 2.0
+        norm = 2.0 / norm
+        norm = torch.diag(torch.cat((norm, torch.ones((1,), dtype=torch.float64, device=device))))
+        norm[:-1, -1] = 1.0 / torch.tensor(shape, dtype=torch.float32, device=device) - 1.0
+    norm = norm.unsqueeze(0).to(dtype=dtype)
     norm.requires_grad = False
     return norm
 

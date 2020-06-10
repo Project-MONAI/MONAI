@@ -13,6 +13,8 @@ A collection of "vanilla" transforms for IO functions
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
+from typing import Optional
+
 import numpy as np
 import nibabel as nib
 from PIL import Image
@@ -31,7 +33,9 @@ class LoadNifti(Transform):
     that the affine transform of all the images should be same if ``image_only=False``.
     """
 
-    def __init__(self, as_closest_canonical=False, image_only=False, dtype=np.float32):
+    def __init__(
+        self, as_closest_canonical: bool = False, image_only: bool = False, dtype: Optional[np.dtype] = np.float32
+    ):
         """
         Args:
             as_closest_canonical (bool): if True, load the image as closest to canonical axis format.
@@ -84,11 +88,13 @@ class LoadNifti(Transform):
             if not compatible_meta:
                 for meta_key in header:
                     meta_datum = header[meta_key]
+                    # pytype: disable=attribute-error
                     if (
                         type(meta_datum).__name__ == "ndarray"
                         and np_str_obj_array_pattern.search(meta_datum.dtype.str) is not None
                     ):
                         continue
+                    # pytype: enable=attribute-error
                     compatible_meta[meta_key] = meta_datum
             else:
                 assert np.allclose(
@@ -108,7 +114,7 @@ class LoadPNG(Transform):
     https://pillow.readthedocs.io/en/stable/reference/Image.html
     """
 
-    def __init__(self, image_only=False, dtype=np.float32):
+    def __init__(self, image_only: bool = False, dtype: Optional[np.dtype] = np.float32):
         """Args:
             image_only (bool): if True return only the image volume, otherwise return image data array and metadata.
             dtype (np.dtype, optional): if not None convert the loaded image to this data type.
