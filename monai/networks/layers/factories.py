@@ -60,7 +60,7 @@ can be parameterized with the factory name and the arguments to pass to the crea
     layer = use_factory( (fact.TEST, kwargs) )
 """
 
-from typing import Callable
+from typing import Callable, Any
 
 import torch.nn as nn
 
@@ -102,7 +102,7 @@ class LayerFactory:
 
         return _add
 
-    def get_constructor(self, factory_name, *args):
+    def get_constructor(self, factory_name, *args) -> Any:
         """
         Get the constructor for the given factory name and arguments.
         """
@@ -113,7 +113,7 @@ class LayerFactory:
         fact = self.factories[factory_name.upper()]
         return fact(*args)
 
-    def __getitem__(self, args):
+    def __getitem__(self, args) -> Any:
         """
         Get the given name or name/arguments pair. If `args` is a callable it is assumed to be the constructor
         itself and is returned, otherwise it should be the factory name or a pair containing the name and arguments.

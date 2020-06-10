@@ -15,6 +15,8 @@ defined in :py:class:`monai.transforms.io.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
+from typing import Hashable, Optional
+
 import numpy as np
 
 from monai.transforms.compose import MapTransform
@@ -32,7 +34,12 @@ class LoadNiftid(MapTransform):
     """
 
     def __init__(
-        self, keys, as_closest_canonical=False, dtype=np.float32, meta_key_format="{}.{}", overwriting_keys=False
+        self,
+        keys: Hashable,
+        as_closest_canonical: bool = False,
+        dtype: Optional[np.dtype] = np.float32,
+        meta_key_format: str = "{}.{}",
+        overwriting_keys: bool = False,
     ):
         """
         Args:
@@ -70,7 +77,7 @@ class LoadPNGd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.LoadPNG`.
     """
 
-    def __init__(self, keys, dtype=np.float32, meta_key_format="{}.{}"):
+    def __init__(self, keys: Hashable, dtype: Optional[np.dtype] = np.float32, meta_key_format: str = "{}.{}"):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.

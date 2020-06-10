@@ -9,7 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ignite.engine import Events
+from typing import Optional, Union, Callable
+
+import numpy as np
+from ignite.engine import Events, Engine
 import logging
 from monai.data import NiftiSaver, PNGSaver
 
@@ -21,18 +24,18 @@ class SegmentationSaver:
 
     def __init__(
         self,
-        output_dir="./",
-        output_postfix="seg",
-        output_ext=".nii.gz",
-        resample=True,
-        interp_order=0,
-        mode="constant",
-        cval=0,
-        scale=False,
-        dtype=None,
-        batch_transform=lambda x: x,
-        output_transform=lambda x: x,
-        name=None,
+        output_dir: str = "./",
+        output_postfix: str = "seg",
+        output_ext: str = ".nii.gz",
+        resample: bool = True,
+        interp_order: int = 0,
+        mode: str = "constant",
+        cval: Union[int, float] = 0,
+        scale: bool = False,
+        dtype: Optional[np.dtype] = None,
+        batch_transform: Callable = lambda x: x,
+        output_transform: Callable = lambda x: x,
+        name: Optional[str] = None,
     ):
         """
         Args:
@@ -40,19 +43,19 @@ class SegmentationSaver:
             output_postfix (str): a string appended to all output file names.
             output_ext (str): output file extension name.
             resample (bool): whether to resample before saving the data array.
-            interp_order (int): the order of the spline interpolation, default is 0.
+            interp_order: the order of the spline interpolation, default is 0.
                 The order has to be in the range 0 - 5.
                 https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.affine_transform.html
-                this option is used when `resample = True`.
+                This option is used when `resample = True`.
             mode (`reflect|constant|nearest|mirror|wrap`):
                 The mode parameter determines how the input array is extended beyond its boundaries.
-                this option is used when `resample = True`.
+                This option is used when `resample = True`.
             cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
-                this option is used when `resample = True`.
+                This option is used when `resample = True`.
             scale (bool): whether to scale data with 255 and convert to uint8 for data in range [0, 1].
-                it's used for PNG format only.
+                It's used for PNG format only.
             dtype (np.dtype, optional): convert the image data to save to this data type.
-                If None, keep the original type of data. it's used for Nifti format only.
+                If None, keep the original type of data. It's used for Nifti format only.
             batch_transform (Callable): a callable that is used to transform the
                 ignite.engine.batch into expected format to extract the meta_data dictionary.
             output_transform (Callable): a callable that is used to transform the
@@ -62,6 +65,7 @@ class SegmentationSaver:
             name (str): identifier of logging.logger to use, defaulting to `engine.logger`.
 
         """
+        self.saver: Union[NiftiSaver, PNGSaver]
         if output_ext in (".nii.gz", ".nii"):
             self.saver = NiftiSaver(output_dir, output_postfix, output_ext, resample, interp_order, mode, cval, dtype)
         elif output_ext == ".png":
@@ -71,7 +75,7 @@ class SegmentationSaver:
 
         self.logger = None if name is None else logging.getLogger(name)
 
-    def attach(self, engine):
+    def attach(self, engine: Engine):
         if self.logger is None:
             self.logger = engine.logger
         if not engine.has_event_handler(self, Events.ITERATION_COMPLETED):
@@ -80,7 +84,7 @@ class SegmentationSaver:
     def __call__(self, engine):
         """
         This method assumes self.batch_transform will extract metadata from the input batch.
-        output file datatype is determined from ``engine.state.output.dtype``.
+        Output file datatype is determined from ``engine.state.output.dtype``.
 
         """
         meta_data = self.batch_transform(engine.state.batch)

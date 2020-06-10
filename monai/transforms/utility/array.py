@@ -15,7 +15,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 import time
 
-from typing import Callable
+from typing import Callable, Optional
 import logging
 import numpy as np
 import torch
@@ -36,10 +36,10 @@ class AsChannelFirst(Transform):
     so that the multidimensional image array can be correctly interpreted by the other transforms.
 
     Args:
-        channel_dim (int): which dimension of input image is the channel, default is the last dimension.
+        channel_dim: which dimension of input image is the channel, default is the last dimension.
     """
 
-    def __init__(self, channel_dim=-1):
+    def __init__(self, channel_dim: int = -1):
         assert isinstance(channel_dim, int) and channel_dim >= -1, "invalid channel dimension."
         self.channel_dim = channel_dim
 
@@ -59,10 +59,10 @@ class AsChannelLast(Transform):
     so that MONAI transforms can construct a chain with other 3rd party transforms together.
 
     Args:
-        channel_dim (int): which dimension of input image is the channel, default is the first dimension.
+        channel_dim: which dimension of input image is the channel, default is the first dimension.
     """
 
-    def __init__(self, channel_dim=0):
+    def __init__(self, channel_dim: int = 0):
         assert isinstance(channel_dim, int) and channel_dim >= -1, "invalid channel dimension."
         self.channel_dim = channel_dim
 
@@ -95,10 +95,10 @@ class RepeatChannel(Transform):
     ``RepeatChannel(repeats=2)([[1, 2], [3, 4]])`` generates: ``[[1, 2], [1, 2], [3, 4], [3, 4]]``
 
     Args:
-        repeats (int): the number of repetitions for each element.
+        repeats: the number of repetitions for each element.
     """
 
-    def __init__(self, repeats):
+    def __init__(self, repeats: int):
         assert repeats > 0, "repeats count must be greater than 0."
         self.repeats = repeats
 
@@ -111,14 +111,14 @@ class CastToType(Transform):
     Cast the image data to specified numpy data type.
     """
 
-    def __init__(self, dtype=np.float32):
+    def __init__(self, dtype: np.dtype = np.float32):
         """
         Args:
             dtype (np.dtype): convert image to this data type, default is `np.float32`.
         """
         self.dtype = dtype
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray):  # type: ignore # see issue #495
         assert isinstance(img, np.ndarray), "image must be numpy array."
         return img.astype(self.dtype)
 
@@ -148,25 +148,25 @@ class Transpose(Transform):
 
 class SqueezeDim(Transform):
     """
-    Squeeze undesired unitary dimensions
+    Squeeze a unitary dimension.
     """
 
-    def __init__(self, dim=None):
+    def __init__(self, dim: Optional[int] = 0):
         """
         Args:
-            dim (int): dimension to be squeezed.
-                Default: None (all dimensions of size 1 will be removed)
+            dim: dimension to be squeezed. Default = 0
+                "None" works when the input is numpy array.
         """
-        if dim is not None:
-            assert isinstance(dim, int) and dim >= -1, "invalid channel dimension."
+        if dim is not None and not isinstance(dim, int):
+            raise ValueError(f"Invalid channel dimension {dim}")
         self.dim = dim
 
-    def __call__(self, img):
+    def __call__(self, img):  # type: ignore # see issue #495
         """
         Args:
             img (ndarray): numpy arrays with required dimension `dim` removed
         """
-        return np.squeeze(img, self.dim)
+        return img.squeeze(self.dim)
 
 
 class DataStats(Transform):
@@ -177,12 +177,12 @@ class DataStats(Transform):
 
     def __init__(
         self,
-        prefix="Data",
-        data_shape=True,
-        intensity_range=True,
-        data_value=False,
-        additional_info: Callable = None,
-        logger_handler=None,
+        prefix: str = "Data",
+        data_shape: bool = True,
+        intensity_range: bool = True,
+        data_value: bool = False,
+        additional_info: Optional[Callable] = None,
+        logger_handler: Optional[logging.Handler] = None,
     ):
         """
         Args:
@@ -203,13 +203,21 @@ class DataStats(Transform):
         if additional_info is not None and not callable(additional_info):
             raise ValueError("argument `additional_info` must be a callable.")
         self.additional_info = additional_info
-        self.output = None
+        self.output: Optional[str] = None
         logging.basicConfig(level=logging.NOTSET)
         self._logger = logging.getLogger("DataStats")
         if logger_handler is not None:
             self._logger.addHandler(logger_handler)
 
-    def __call__(self, img, prefix=None, data_shape=None, intensity_range=None, data_value=None, additional_info=None):
+    def __call__(  # type: ignore # see issue #495
+        self,
+        img,
+        prefix: Optional[str] = None,
+        data_shape: Optional[bool] = None,
+        intensity_range: Optional[bool] = None,
+        data_value: Optional[bool] = None,
+        additional_info=None,
+    ):
         lines = [f"{prefix or self.prefix} statistics:"]
 
         if self.data_shape if data_shape is None else data_shape:
@@ -240,7 +248,7 @@ class SimulateDelay(Transform):
     to sub-optimal design choices.
     """
 
-    def __init__(self, delay_time=0.0):
+    def __init__(self, delay_time: float = 0.0):
         """
         Args:
             delay_time(float): The minimum amount of time, in fractions of seconds,

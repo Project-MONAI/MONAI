@@ -26,7 +26,7 @@ TEST_CASE_1 = [  # y (1, 1, 2, 2), y_pred (1, 1, 2, 2), expected out (1, 1)
         "to_onehot_y": False,
         "mutually_exclusive": False,
         "logit_thresh": 0.5,
-        "add_sigmoid": True,
+        "sigmoid": True,
     },
     [[0.8]],
 ]
