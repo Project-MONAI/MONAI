@@ -47,8 +47,8 @@ class TverskyLoss(_Loss):
             to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
             sigmoid: If True, apply a sigmoid function to the prediction.
             softmax: If True, apply a softmax function to the prediction.
-            alpha (float): weight of false positives
-            beta  (float): weight of false negatives
+            alpha: weight of false positives
+            beta: weight of false negatives
             reduction (`none|mean|sum`): Specifies the reduction to apply to the output:
                 ``'none'``: no reduction will be applied,
                 ``'mean'``: the sum of the output will be divided by the number of elements in the output,
@@ -73,7 +73,7 @@ class TverskyLoss(_Loss):
         Args:
             input (tensor): the shape should be BNH[WD].
             target (tensor): the shape should be BNH[WD].
-            smooth (float): a small constant to avoid nan.
+            smooth: a small constant to avoid nan.
         """
         if self.sigmoid:
             input = torch.sigmoid(input)

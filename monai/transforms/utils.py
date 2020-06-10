@@ -169,7 +169,7 @@ def generate_pos_neg_label_crop_centers(
     num_samples: int,
     pos_ratio: float,
     image: Optional[np.ndarray] = None,
-    image_threshold: Union[int, float] = 0,
+    image_threshold: float = 0.0,
     rand_state: np.random.RandomState = np.random,
 ):
     """Generate valid sample locations based on image with option for specifying foreground ratio
@@ -179,10 +179,10 @@ def generate_pos_neg_label_crop_centers(
         label (numpy.ndarray): use the label data to get the foreground/background information.
         size (list or tuple): size of the ROIs to be sampled.
         num_samples: total sample centers to be generated.
-        pos_ratio (float): ratio of total locations generated that have center being foreground.
+        pos_ratio: ratio of total locations generated that have center being foreground.
         image (numpy.ndarray): if image is not None, use ``label = 0 & image > image_threshold``
             to select background. so the crop center will only exist on valid image area.
-        image_threshold (int or float): if enabled image_key, use ``image > image_threshold`` to
+        image_threshold: if enabled image_key, use ``image > image_threshold`` to
             determine the valid image content area.
         rand_state (random.RandomState): numpy randomState object to align with other modules.
     """

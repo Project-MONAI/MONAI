@@ -25,7 +25,7 @@ class FocalLoss(_WeightedLoss):
     def __init__(self, gamma: float = 2.0, weight: Optional[torch.Tensor] = None, reduction: str = "mean"):
         """
         Args:
-            gamma (float): value of the exponent gamma in the definition of the Focal loss.
+            gamma: value of the exponent gamma in the definition of the Focal loss.
             weight (tensor): weights to apply to the voxels of each class. If None no weights are applied.
                 This corresponds to the weights `\alpha` in [1].
             reduction (`none|mean|sum`): Specifies the reduction to apply to the output:

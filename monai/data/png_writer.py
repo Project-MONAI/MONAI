@@ -19,7 +19,7 @@ def write_png(
     output_shape=None,
     interp_order: int = 3,
     mode="constant",
-    cval=0,
+    cval: float = 0.0,
     scale: bool = False,
     plugin=None,
     **plugin_args,
