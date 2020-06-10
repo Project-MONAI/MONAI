@@ -18,46 +18,46 @@ from monai.transforms import Spacingd
 
 class TestSpacingDCase(unittest.TestCase):
     def test_spacingd_3d(self):
-        data = {"image": np.ones((2, 10, 15, 20)), "image.affine": np.eye(4)}
+        data = {"image": np.ones((2, 10, 15, 20)), "image_meta": {"affine": np.eye(4)}}
         spacing = Spacingd(keys="image", pixdim=(1, 2, 1.4))
         res = spacing(data)
-        self.assertEqual(("image", "image.affine"), tuple(sorted(res)))
+        self.assertEqual(("image", "image_meta"), tuple(sorted(res)))
         np.testing.assert_allclose(res["image"].shape, (2, 10, 8, 15))
-        np.testing.assert_allclose(res["image.affine"], np.diag([1, 2, 1.4, 1.0]))
+        np.testing.assert_allclose(res["image_meta"]["affine"], np.diag([1, 2, 1.4, 1.0]))
 
     def test_spacingd_2d(self):
-        data = {"image": np.ones((2, 10, 20)), "image.affine": np.eye(3)}
+        data = {"image": np.ones((2, 10, 20)), "image_meta": {"affine": np.eye(3)}}
         spacing = Spacingd(keys="image", pixdim=(1, 2, 1.4))
         res = spacing(data)
-        self.assertEqual(("image", "image.affine"), tuple(sorted(res)))
+        self.assertEqual(("image", "image_meta"), tuple(sorted(res)))
         np.testing.assert_allclose(res["image"].shape, (2, 10, 10))
-        np.testing.assert_allclose(res["image.affine"], np.diag((1, 2, 1)))
+        np.testing.assert_allclose(res["image_meta"]["affine"], np.diag((1, 2, 1)))
 
     def test_interp_all(self):
         data = {
             "image": np.arange(20).reshape((2, 1, 10)),
             "seg": np.ones((2, 1, 10)),
-            "image.affine": np.eye(4),
-            "seg.affine": np.eye(4),
+            "image_meta": {"affine": np.eye(4)},
+            "seg_meta": {"affine": np.eye(4)},
         }
         spacing = Spacingd(keys=("image", "seg"), interp_order="nearest", pixdim=(1, 0.2,))
         res = spacing(data)
-        self.assertEqual(("image", "image.affine", "seg", "seg.affine"), tuple(sorted(res)))
+        self.assertEqual(("image", "image_meta", "seg", "seg_meta"), tuple(sorted(res)))
         np.testing.assert_allclose(res["image"].shape, (2, 1, 46))
-        np.testing.assert_allclose(res["image.affine"], np.diag((1, 0.2, 1, 1)))
+        np.testing.assert_allclose(res["image_meta"]["affine"], np.diag((1, 0.2, 1, 1)))
 
     def test_interp_sep(self):
         data = {
             "image": np.ones((2, 1, 10)),
             "seg": np.ones((2, 1, 10)),
-            "image.affine": np.eye(4),
-            "seg.affine": np.eye(4),
+            "image_meta": {"affine": np.eye(4)},
+            "seg_meta": {"affine": np.eye(4)},
         }
         spacing = Spacingd(keys=("image", "seg"), interp_order=("bilinear", "nearest"), pixdim=(1, 0.2,))
         res = spacing(data)
-        self.assertEqual(("image", "image.affine", "seg", "seg.affine"), tuple(sorted(res)))
+        self.assertEqual(("image", "image_meta", "seg", "seg_meta"), tuple(sorted(res)))
         np.testing.assert_allclose(res["image"].shape, (2, 1, 46))
-        np.testing.assert_allclose(res["image.affine"], np.diag((1, 0.2, 1, 1)))
+        np.testing.assert_allclose(res["image_meta"]["affine"], np.diag((1, 0.2, 1, 1)))
 
 
 if __name__ == "__main__":

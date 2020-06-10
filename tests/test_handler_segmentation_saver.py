@@ -12,25 +12,28 @@
 import os
 import shutil
 import unittest
+
+import numpy as np
 import torch
 from ignite.engine import Engine
 from parameterized import parameterized
+
 from monai.handlers import SegmentationSaver
 
-TEST_CASE_1 = [".nii.gz"]
+TEST_CASE_0 = [".nii.gz"]
 
 TEST_CASE_1 = [".png"]
 
 
 class TestHandlerSegmentationSaver(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_1])
+    @parameterized.expand([TEST_CASE_0, TEST_CASE_1])
     def test_saved_content(self, output_ext):
         default_dir = os.path.join(".", "tempdir")
         shutil.rmtree(default_dir, ignore_errors=True)
 
         # set up engine
         def _train_func(engine, batch):
-            return torch.zeros(8, 1, 2, 2)
+            return torch.randint(0, 255, (8, 1, 2, 2)).float()
 
         engine = Engine(_train_func)
 
@@ -39,6 +42,35 @@ class TestHandlerSegmentationSaver(unittest.TestCase):
         saver.attach(engine)
 
         data = [{"filename_or_obj": ["testfile" + str(i) for i in range(8)]}]
+        engine.run(data, max_epochs=1)
+        for i in range(8):
+            filepath = os.path.join("testfile" + str(i), "testfile" + str(i) + "_seg" + output_ext)
+            self.assertTrue(os.path.exists(os.path.join(default_dir, filepath)))
+        shutil.rmtree(default_dir)
+
+    @parameterized.expand([TEST_CASE_0, TEST_CASE_1])
+    def test_save_resized_content(self, output_ext):
+        default_dir = os.path.join(".", "tempdir")
+        shutil.rmtree(default_dir, ignore_errors=True)
+
+        # set up engine
+        def _train_func(engine, batch):
+            return torch.randint(0, 255, (8, 1, 2, 2)).float()
+
+        engine = Engine(_train_func)
+
+        # set up testing handler
+        saver = SegmentationSaver(output_dir=default_dir, output_postfix="seg", output_ext=output_ext)
+        saver.attach(engine)
+
+        data = [
+            {
+                "filename_or_obj": ["testfile" + str(i) for i in range(8)],
+                "spatial_shape": [(28, 28)] * 8,
+                "affine": [np.diag(np.ones(4)) * 5] * 8,
+                "original_affine": [np.diag(np.ones(4)) * 1.0] * 8,
+            }
+        ]
         engine.run(data, max_epochs=1)
         for i in range(8):
             filepath = os.path.join("testfile" + str(i), "testfile" + str(i) + "_seg" + output_ext)

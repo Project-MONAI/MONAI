@@ -87,14 +87,20 @@ class TestNiftiLoadRead(unittest.TestCase):
         data, _, new_affine = Orientation("ILP")(data, new_affine)
         if os.path.exists(test_image):
             os.remove(test_image)
-        write_nifti(data[0], test_image, new_affine, original_affine, interp_order=0, mode="reflect")
+        write_nifti(data[0], test_image, new_affine, original_affine, interp_order="nearest", mode="border")
         saved = nib.load(test_image)
         saved_data = saved.get_fdata()
         np.testing.assert_allclose(saved_data, np.arange(64).reshape(1, 8, 8), atol=1e-7)
         if os.path.exists(test_image):
             os.remove(test_image)
         write_nifti(
-            data[0], test_image, new_affine, original_affine, interp_order=0, mode="reflect", output_shape=(1, 8, 8)
+            data[0],
+            test_image,
+            new_affine,
+            original_affine,
+            interp_order="nearest",
+            mode="border",
+            output_shape=(1, 8, 8),
         )
         saved = nib.load(test_image)
         saved_data = saved.get_fdata()
@@ -102,37 +108,13 @@ class TestNiftiLoadRead(unittest.TestCase):
         if os.path.exists(test_image):
             os.remove(test_image)
 
-    def test_write_1d(self):
-        out_dir = tempfile.mkdtemp()
-        image_name = os.path.join(out_dir, "test.nii.gz")
-        img = np.arange(5).reshape(-1)
-        write_nifti(img, image_name, affine=np.diag([1, 1, 1]), target_affine=np.diag([1.4, 2.0, 1]))
-        out = nib.load(image_name)
-        np.testing.assert_allclose(out.get_fdata(), [0, 1, 3, 0])
-        np.testing.assert_allclose(out.affine, np.diag([1.4, 1, 1, 1]))
-
-        image_name = os.path.join(out_dir, "test1.nii.gz")
-        img = np.arange(5).reshape(-1)
-        write_nifti(img, image_name, affine=[[1]], target_affine=[[1.4]])
-        out = nib.load(image_name)
-        np.testing.assert_allclose(out.get_fdata(), [0, 1, 3, 0])
-        np.testing.assert_allclose(out.affine, np.diag([1.4, 1, 1, 1]))
-
-        image_name = os.path.join(out_dir, "test2.nii.gz")
-        img = np.arange(5).reshape(-1)
-        write_nifti(img, image_name, affine=np.diag([1.5, 1.5, 1.5]), target_affine=np.diag([1.5, 1.5, 1.5]))
-        out = nib.load(image_name)
-        np.testing.assert_allclose(out.get_fdata(), np.arange(5).reshape(-1))
-        np.testing.assert_allclose(out.affine, np.diag([1.5, 1, 1, 1]))
-        shutil.rmtree(out_dir)
-
     def test_write_2d(self):
         out_dir = tempfile.mkdtemp()
         image_name = os.path.join(out_dir, "test.nii.gz")
         img = np.arange(6).reshape((2, 3))
         write_nifti(img, image_name, affine=np.diag([1]), target_affine=np.diag([1.4]))
         out = nib.load(image_name)
-        np.testing.assert_allclose(out.get_fdata(), [[0, 1, 2], [0, 0, 0]])
+        np.testing.assert_allclose(out.get_fdata(), [[0, 1, 2], [3.0, 4, 5]])
         np.testing.assert_allclose(out.affine, np.diag([1.4, 1, 1, 1]))
 
         image_name = os.path.join(out_dir, "test1.nii.gz")

@@ -17,6 +17,7 @@ import torch
 import numpy as np
 from skimage import measure
 
+from monai.config.type_definitions import IndexSelection
 from monai.utils.misc import ensure_tuple
 
 
@@ -168,7 +169,7 @@ def generate_pos_neg_label_crop_centers(
     num_samples: int,
     pos_ratio: float,
     image: Optional[np.ndarray] = None,
-    image_threshold: Union[int, float] = 0,
+    image_threshold: float = 0.0,
     rand_state: np.random.RandomState = np.random,
 ):
     """Generate valid sample locations based on image with option for specifying foreground ratio
@@ -177,11 +178,11 @@ def generate_pos_neg_label_crop_centers(
     Args:
         label (numpy.ndarray): use the label data to get the foreground/background information.
         size (list or tuple): size of the ROIs to be sampled.
-        num_samples (int): total sample centers to be generated.
-        pos_ratio (float): ratio of total locations generated that have center being foreground.
+        num_samples: total sample centers to be generated.
+        pos_ratio: ratio of total locations generated that have center being foreground.
         image (numpy.ndarray): if image is not None, use ``label = 0 & image > image_threshold``
             to select background. so the crop center will only exist on valid image area.
-        image_threshold (int or float): if enabled image_key, use ``image > image_threshold`` to
+        image_threshold: if enabled image_key, use ``image > image_threshold`` to
             determine the valid image content area.
         rand_state (random.RandomState): numpy randomState object to align with other modules.
     """
@@ -247,7 +248,7 @@ def apply_transform(transform: Callable, data, map_items: bool = True):
     Args:
         transform (callable): a callable to be used to transform `data`
         data (object): an object to be transformed.
-        map_item (bool): whether to apply transform to each item in `data`,
+        map_item: whether to apply transform to each item in `data`,
             if `data` is a list or tuple. Defaults to True.
     """
     try:
@@ -265,7 +266,7 @@ def create_grid(spatial_size, spacing=None, homogeneous: bool = True, dtype: np.
     Args:
         spatial_size (sequence of ints): spatial size of the grid.
         spacing (sequence of ints): same len as ``spatial_size``, defaults to 1.0 (dense grid).
-        homogeneous (bool): whether to make homogeneous coordinates.
+        homogeneous: whether to make homogeneous coordinates.
         dtype (type): output grid data type.
     """
     spacing = spacing or tuple(1.0 for _ in spatial_size)
@@ -332,7 +333,7 @@ def create_shear(spatial_dims: int, coefs):
     """
     create a shearing matrix
     Args:
-        spatial_dims (int): spatial rank
+        spatial_dims: spatial rank
         coefs (floats): shearing factors, defaults to 0.
     """
     coefs = list(ensure_tuple(coefs))
@@ -358,7 +359,7 @@ def create_scale(spatial_dims: int, scaling_factor):
     """
     create a scaling matrix
     Args:
-        spatial_dims (int): spatial rank
+        spatial_dims: spatial rank
         scaling_factor (floats): scaling factors, defaults to 1.
     """
     scaling_factor = list(ensure_tuple(scaling_factor))
@@ -371,7 +372,7 @@ def create_translate(spatial_dims: int, shift):
     """
     create a translation matrix
     Args:
-        spatial_dims (int): spatial rank
+        spatial_dims: spatial rank
         shift (floats): translate factors, defaults to 0.
     """
     shift = ensure_tuple(shift)
@@ -382,7 +383,10 @@ def create_translate(spatial_dims: int, shift):
 
 
 def generate_spatial_bounding_box(
-    img: np.ndarray, select_fn: Callable = lambda x: x > 0, channel_indexes=None, margin: int = 0
+    img: np.ndarray,
+    select_fn: Callable = lambda x: x > 0,
+    channel_indexes: Optional[IndexSelection] = None,
+    margin: int = 0,
 ):
     """
     generate the spatial bounding box of foreground in the image with start-end positions.
@@ -392,9 +396,9 @@ def generate_spatial_bounding_box(
     Args:
         img (ndarrary): source image to generate bounding box from.
         select_fn (Callable): function to select expected foreground, default is to select values > 0.
-        channel_indexes (int, tuple or list): if defined, select foreground only on the specified channels
+        channel_indexes: if defined, select foreground only on the specified channels
             of image. if None, select foreground on the whole image.
-        margin (int): add margin to all dims of the bounding box.
+        margin: add margin to all dims of the bounding box.
     """
     assert isinstance(margin, int), "margin must be int type."
     data = img[[*(ensure_tuple(channel_indexes))]] if channel_indexes is not None else img
@@ -416,7 +420,7 @@ def get_largest_connected_component_mask(img, connectivity: Optional[int] = None
 
     Args:
         img: Image to get largest connected component from. Shape is (batch_size, spatial_dim1 [, spatial_dim2, ...])
-        connectivity (int): Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
+        connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
             Accepted values are ranging from  1 to input.ndim. If ``None``, a full
             connectivity of ``input.ndim`` is used.
     """

@@ -137,12 +137,12 @@ class HighResNet(nn.Module):
     https://github.com/fepegar/highresnet
 
     Args:
-        spatial_dims (int): number of spatial dimensions of the input image.
-        in_channels (int): number of input channels.
-        out_channels (int): number of output channels.
+        spatial_dims: number of spatial dimensions of the input image.
+        in_channels: number of input channels.
+        out_channels: number of output channels.
         norm_type ('batch'|'instance'): feature normalisation with batchnorm or instancenorm.
         acti_type ('relu'|'prelu'|'relu6'): non-linear activation using ReLU or PReLU.
-        dropout_prob (float): probability of the feature map to be zeroed
+        dropout_prob: probability of the feature map to be zeroed
             (only applies to the penultimate conv layer).
         layer_params (a list of dictionaries): specifying key parameters of each layer/block.
     """

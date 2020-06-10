@@ -34,7 +34,7 @@ class ClassificationSaver:
         Args:
             output_dir (str): output CSV file directory.
             filename (str): name of the saved CSV file name.
-            overwrite (bool): whether to overwriting existing CSV file content. If we are not overwriting,
+            overwrite: whether to overwriting existing CSV file content. If we are not overwriting,
                 then we check if the results have been previously saved, and load them to the prediction_dict.
             batch_transform (Callable): a callable that is used to transform the
                 ignite.engine.batch into expected format to extract the meta_data dictionary.

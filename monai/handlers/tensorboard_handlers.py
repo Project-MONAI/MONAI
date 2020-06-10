@@ -191,8 +191,8 @@ class TensorBoardImageHandler(object):
         self,
         summary_writer: Optional[SummaryWriter] = None,
         log_dir: str = "./runs",
-        interval=1,
-        epoch_level=True,
+        interval: int = 1,
+        epoch_level: bool = True,
         batch_transform: Callable = lambda x: x,
         output_transform: Callable = lambda x: x,
         global_iter_transform: Callable = lambda x: x,
@@ -205,8 +205,8 @@ class TensorBoardImageHandler(object):
             summary_writer (SummaryWriter): user can specify TensorBoard SummaryWriter,
                 default to create a new writer.
             log_dir (str): if using default SummaryWriter, write logs to this directory, default is `./runs`.
-            interval (int): plot content from engine.state every N epochs or every N iterations, default is 1.
-            epoch_level (bool): plot content from engine.state every N epochs or N iterations. `True` is epoch level,
+            interval: plot content from engine.state every N epochs or every N iterations, default is 1.
+            epoch_level: plot content from engine.state every N epochs or N iterations. `True` is epoch level,
                 `False` is iteration level.
             batch_transform (Callable): a callable that is used to transform the
                 ``ignite.engine.batch`` into expected format to extract several label data.
@@ -214,9 +214,9 @@ class TensorBoardImageHandler(object):
                 ``ignite.engine.output`` into expected format to extract several output data.
             global_iter_transform (Callable): a callable that is used to customize global step number for TensorBoard.
                 For example, in evaluation, the evaluator engine needs to know current epoch from trainer.
-            index (int): plot which element in a data batch, default is the first element.
-            max_channels (int): number of channels to plot.
-            max_frames (int): number of frames for 2D-t plot.
+            index: plot which element in a data batch, default is the first element.
+            max_channels: number of channels to plot.
+            max_frames: number of frames for 2D-t plot.
         """
         self._writer = SummaryWriter(log_dir=log_dir) if summary_writer is None else summary_writer
         self.interval = interval
