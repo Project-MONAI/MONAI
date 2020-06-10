@@ -17,6 +17,7 @@ import torch
 import numpy as np
 from skimage import measure
 
+from monai.config.type_definitions import IndexSelection
 from monai.utils.misc import ensure_tuple
 
 
@@ -382,7 +383,10 @@ def create_translate(spatial_dims: int, shift):
 
 
 def generate_spatial_bounding_box(
-    img: np.ndarray, select_fn: Callable = lambda x: x > 0, channel_indexes=None, margin: int = 0
+    img: np.ndarray,
+    select_fn: Callable = lambda x: x > 0,
+    channel_indexes: Optional[IndexSelection] = None,
+    margin: int = 0,
 ):
     """
     generate the spatial bounding box of foreground in the image with start-end positions.
@@ -392,7 +396,7 @@ def generate_spatial_bounding_box(
     Args:
         img (ndarrary): source image to generate bounding box from.
         select_fn (Callable): function to select expected foreground, default is to select values > 0.
-        channel_indexes (int, tuple or list): if defined, select foreground only on the specified channels
+        channel_indexes: if defined, select foreground only on the specified channels
             of image. if None, select foreground on the whole image.
         margin: add margin to all dims of the bounding box.
     """
