@@ -16,12 +16,13 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
 from logging import Handler
-from typing import Optional, Hashable
+from typing import Optional
 
 import numpy as np
 
+from monai.config.type_definitions import KeysCollection
 from monai.transforms.compose import MapTransform
-from monai.utils.misc import ensure_tuple_rep
+from monai.utils.misc import ensure_tuple_rep, ensure_tuple
 from monai.transforms.utility.array import (
     AddChannel,
     AsChannelFirst,
@@ -41,10 +42,10 @@ class AsChannelFirstd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.AsChannelFirst`.
     """
 
-    def __init__(self, keys: Hashable, channel_dim: int = -1):
+    def __init__(self, keys: KeysCollection, channel_dim: int = -1):
         """
         Args:
-            keys (hashable items): keys of the corresponding items to be transformed.
+            keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             channel_dim: which dimension of input image is the channel, default is the last dimension.
         """
@@ -63,10 +64,10 @@ class AsChannelLastd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.AsChannelLast`.
     """
 
-    def __init__(self, keys: Hashable, channel_dim: int = 0):
+    def __init__(self, keys: KeysCollection, channel_dim: int = 0):
         """
         Args:
-            keys (hashable items): keys of the corresponding items to be transformed.
+            keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             channel_dim: which dimension of input image is the channel, default is the first dimension.
         """
@@ -85,10 +86,10 @@ class AddChanneld(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.AddChannel`.
     """
 
-    def __init__(self, keys: Hashable):
+    def __init__(self, keys: KeysCollection):
         """
         Args:
-            keys (hashable items): keys of the corresponding items to be transformed.
+            keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
         """
         super().__init__(keys)
@@ -106,10 +107,10 @@ class RepeatChanneld(MapTransform):
     dictionary-based wrapper of :py:class:`monai.transforms.RepeatChannel`.
     """
 
-    def __init__(self, keys: Hashable, repeats: int):
+    def __init__(self, keys: KeysCollection, repeats: int):
         """
         Args:
-            keys (hashable items): keys of the corresponding items to be transformed.
+            keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             repeats: the number of repetitions for each element.
         """
@@ -128,10 +129,10 @@ class CastToTyped(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.CastToType`.
     """
 
-    def __init__(self, keys: Hashable, dtype: np.dtype = np.float32):
+    def __init__(self, keys: KeysCollection, dtype: np.dtype = np.float32):
         """
         Args:
-            keys (hashable items): keys of the corresponding items to be transformed.
+            keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             dtype (np.dtype): convert image to this data type, default is `np.float32`.
         """
@@ -150,10 +151,10 @@ class ToTensord(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.ToTensor`.
     """
 
-    def __init__(self, keys: Hashable):
+    def __init__(self, keys: KeysCollection):
         """
         Args:
-            keys (hashable items): keys of the corresponding items to be transformed.
+            keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
         """
         super().__init__(keys)
@@ -171,10 +172,10 @@ class ToNumpyd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.ToNumpy`.
     """
 
-    def __init__(self, keys: Hashable):
+    def __init__(self, keys: KeysCollection):
         """
         Args:
-            keys (hashable items): keys of the corresponding items to be transformed.
+            keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
         """
         super().__init__(keys)
@@ -193,10 +194,10 @@ class DeleteKeysd(MapTransform):
     It will remove the key-values and copy the others to construct a new dictionary.
     """
 
-    def __init__(self, keys: Hashable):
+    def __init__(self, keys: KeysCollection):
         """
         Args:
-            keys (hashable items): keys of the corresponding items to be transformed.
+            keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
         """
         super().__init__(keys)
@@ -210,10 +211,10 @@ class SqueezeDimd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.SqueezeDim`.
     """
 
-    def __init__(self, keys: Hashable, dim: Optional[int] = 0):
+    def __init__(self, keys: KeysCollection, dim: int = 0):
         """
         Args:
-            keys (hashable items): keys of the corresponding items to be transformed.
+            keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             dim: dimension to be squeezed. Default: 0 (the first dimension)
         """
@@ -234,7 +235,7 @@ class DataStatsd(MapTransform):
 
     def __init__(
         self,
-        keys: Hashable,
+        keys: KeysCollection,
         prefix="Data",
         data_shape=True,
         intensity_range=True,
@@ -244,7 +245,7 @@ class DataStatsd(MapTransform):
     ):
         """
         Args:
-            keys (hashable items): keys of the corresponding items to be transformed.
+            keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             prefix (string or list of string): will be printed in format: "{prefix} statistics".
             data_shape (bool or list of bool): whether to show the shape of input data.
@@ -284,10 +285,10 @@ class SimulateDelayd(MapTransform):
     dictionary-based wrapper of :py:class:monai.transforms.utility.array.SimulateDelay.
     """
 
-    def __init__(self, keys: Hashable, delay_time=0.0):
+    def __init__(self, keys: KeysCollection, delay_time=0.0):
         """
         Args:
-            keys (hashable items): keys of the corresponding items to be transformed.
+            keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             delay_time(float or list of float): The minimum amount of time, in fractions of seconds,
                 to accomplish this identity task. If a list is provided, it must be of length equal

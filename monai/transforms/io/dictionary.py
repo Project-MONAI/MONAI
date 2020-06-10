@@ -15,10 +15,11 @@ defined in :py:class:`monai.transforms.io.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Hashable, Optional
+from typing import Optional
 
 import numpy as np
 
+from monai.config.type_definitions import KeysCollection
 from monai.transforms.compose import MapTransform
 from monai.transforms.io.array import LoadNifti, LoadPNG
 
@@ -35,7 +36,7 @@ class LoadNiftid(MapTransform):
 
     def __init__(
         self,
-        keys: Hashable,
+        keys: KeysCollection,
         as_closest_canonical: bool = False,
         dtype: Optional[np.dtype] = np.float32,
         meta_key_postfix: str = "meta",
@@ -43,7 +44,7 @@ class LoadNiftid(MapTransform):
     ):
         """
         Args:
-            keys (hashable items): keys of the corresponding items to be transformed.
+            keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             as_closest_canonical: if True, load the image as closest to canonical axis format.
             dtype (np.dtype, optional): if not None convert the loaded image to this data type.
@@ -80,17 +81,21 @@ class LoadPNGd(MapTransform):
     """
 
     def __init__(
-        self, keys: Hashable, dtype: Optional[np.dtype] = np.float32, meta_key_postfix: str = "meta", overwriting=False
+        self,
+        keys: KeysCollection,
+        dtype: Optional[np.dtype] = np.float32,
+        meta_key_postfix: str = "meta",
+        overwriting: bool = False,
     ):
         """
         Args:
-            keys (hashable items): keys of the corresponding items to be transformed.
+            keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             dtype (np.dtype, optional): if not None convert the loaded image to this data type.
             meta_key_postfix (str): use `key_{postfix}` to to store meta data of the nifti image,
                 default is `meta`. The meta data is a dictionary object.
                 For example, load nifti file for `image`, store the metadata into `image_meta`.
-            overwriting (bool): whether allow to overwrite existing meta data of same key.
+            overwriting: whether allow to overwrite existing meta data of same key.
                 default is False, which will raise exception if encountering existing key.
         """
         super().__init__(keys)

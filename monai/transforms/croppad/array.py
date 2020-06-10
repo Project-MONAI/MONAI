@@ -17,6 +17,7 @@ from typing import Optional, Callable
 
 import numpy as np
 
+from monai.config.type_definitions import IndexSelection
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.compose import Transform, Randomizable
 from monai.transforms.utils import generate_spatial_bounding_box
@@ -179,11 +180,13 @@ class CropForeground(Transform):
 
     """
 
-    def __init__(self, select_fn: Callable = lambda x: x > 0, channel_indexes=None, margin: int = 0):
+    def __init__(
+        self, select_fn: Callable = lambda x: x > 0, channel_indexes: Optional[IndexSelection] = None, margin: int = 0,
+    ):
         """
         Args:
             select_fn (Callable): function to select expected foreground, default is to select values > 0.
-            channel_indexes (int, tuple or list): if defined, select foreground only on the specified channels
+            channel_indexes: if defined, select foreground only on the specified channels
                 of image. if None, select foreground on the whole image.
             margin: add margin to all dims of the bounding box.
         """
