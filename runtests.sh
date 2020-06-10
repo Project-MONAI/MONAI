@@ -129,7 +129,7 @@ then
   rm -i .mypy_cache
   rm -i .pytype
   rm -i .coverage
-  echo "All temporary files where erased!"
+  echo "All temporary files were erased!"
   exit
 fi
 
