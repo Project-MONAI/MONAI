@@ -15,9 +15,11 @@ defined in :py:class:`monai.transforms.intensity.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Hashable, Union, Optional
+from typing import Union, Optional, Tuple
 
 import numpy as np
+
+from monai.config.type_definitions import KeysCollection
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.intensity.array import (
     NormalizeIntensity,
@@ -34,14 +36,14 @@ class RandGaussianNoised(Randomizable, MapTransform):
     Add Gaussian noise to image. This transform assumes all the expected fields have same shape.
 
     Args:
-        keys (hashable items): keys of the corresponding items to be transformed.
+        keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
         prob (float): Probability to add Gaussian noise.
         mean (float or array of floats): Mean or “centre” of the distribution.
         std (float): Standard deviation (spread) of distribution.
     """
 
-    def __init__(self, keys: Hashable, prob: float = 0.1, mean=0.0, std: float = 0.1):
+    def __init__(self, keys: KeysCollection, prob: float = 0.1, mean=0.0, std: float = 0.1):
         super().__init__(keys)
         self.prob = prob
         self.mean = mean
@@ -70,10 +72,10 @@ class ShiftIntensityd(MapTransform):
     dictionary-based wrapper of :py:class:`monai.transforms.ShiftIntensity`.
     """
 
-    def __init__(self, keys: Hashable, offset: Union[int, float]):
+    def __init__(self, keys: KeysCollection, offset: Union[int, float]):
         """
         Args:
-            keys (hashable items): keys of the corresponding items to be transformed.
+            keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             offset (int or float): offset value to shift the intensity of image.
         """
@@ -92,10 +94,10 @@ class RandShiftIntensityd(Randomizable, MapTransform):
     dictionary-based version :py:class:`monai.transforms.RandShiftIntensity`.
     """
 
-    def __init__(self, keys: Hashable, offsets, prob: float = 0.1):
+    def __init__(self, keys: KeysCollection, offsets, prob: float = 0.1):
         """
         Args:
-            keys (hashable items): keys of the corresponding items to be transformed.
+            keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             offsets(int, float, tuple or list): offset range to randomly shift.
                 if single number, offset value is picked from (-offsets, offsets).
@@ -132,14 +134,14 @@ class ScaleIntensityd(MapTransform):
 
     def __init__(
         self,
-        keys: Hashable,
+        keys: KeysCollection,
         minv: Union[int, float] = 0.0,
         maxv: Union[int, float] = 1.0,
         factor: Optional[float] = None,
     ):
         """
         Args:
-            keys (hashable items): keys of the corresponding items to be transformed.
+            keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             minv (int or float): minimum value of output data.
             maxv (int or float): maximum value of output data.
@@ -161,10 +163,10 @@ class RandScaleIntensityd(Randomizable, MapTransform):
     dictionary-based version :py:class:`monai.transforms.RandScaleIntensity`.
     """
 
-    def __init__(self, keys: Hashable, factors, prob: float = 0.1):
+    def __init__(self, keys: KeysCollection, factors, prob: float = 0.1):
         """
         Args:
-            keys (hashable items): keys of the corresponding items to be transformed.
+            keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             factors(float, tuple or list): factor range to randomly scale by ``v = v * (1 + factor)``.
                 if single number, factor value is picked from (-factors, factors).
@@ -200,7 +202,7 @@ class NormalizeIntensityd(MapTransform):
     mean and std on each channel separately.
 
     Args:
-        keys (hashable items): keys of the corresponding items to be transformed.
+        keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
         subtrahend (ndarray): the amount to subtract by (usually the mean)
         divisor (ndarray): the amount to divide by (usually the standard deviation)
@@ -211,7 +213,7 @@ class NormalizeIntensityd(MapTransform):
 
     def __init__(
         self,
-        keys: Hashable,
+        keys: KeysCollection,
         subtrahend: Optional[np.ndarray] = None,
         divisor: Optional[np.ndarray] = None,
         nonzero: bool = False,
@@ -232,14 +234,16 @@ class ThresholdIntensityd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.ThresholdIntensity`.
 
     Args:
-        keys (hashable items): keys of the corresponding items to be transformed.
+        keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
         threshold (float or int): the threshold to filter intensity values.
         above: filter values above the threshold or below the threshold, default is True.
         cval (float or int): value to fill the remaining parts of the image, default is 0.
     """
 
-    def __init__(self, keys: Hashable, threshold: Union[int, float], above: bool = True, cval: Union[int, float] = 0):
+    def __init__(
+        self, keys: KeysCollection, threshold: Union[int, float], above: bool = True, cval: Union[int, float] = 0,
+    ):
         super().__init__(keys)
         self.filter = ThresholdIntensity(threshold, above, cval)
 
@@ -255,7 +259,7 @@ class ScaleIntensityRanged(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.ScaleIntensityRange`.
 
     Args:
-        keys (hashable items): keys of the corresponding items to be transformed.
+        keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
         a_min (int or float): intensity original range min.
         a_max (int or float): intensity original range max.
@@ -266,7 +270,7 @@ class ScaleIntensityRanged(MapTransform):
 
     def __init__(
         self,
-        keys: Hashable,
+        keys: KeysCollection,
         a_min: Union[int, float],
         a_max: Union[int, float],
         b_min: Union[int, float],
@@ -294,7 +298,7 @@ class AdjustContrastd(MapTransform):
         gamma (float): gamma value to adjust the contrast as function.
     """
 
-    def __init__(self, keys: Hashable, gamma: Union[int, float]):
+    def __init__(self, keys: KeysCollection, gamma: Union[int, float]):
         super().__init__(keys)
         self.adjuster = AdjustContrast(gamma)
 
@@ -313,20 +317,22 @@ class RandAdjustContrastd(Randomizable, MapTransform):
         `x = ((x - min) / intensity_range) ^ gamma * intensity_range + min`
 
     Args:
-        keys (hashable items): keys of the corresponding items to be transformed.
+        keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
         prob (float): Probability of adjustment.
         gamma (tuple of float or float): Range of gamma values.
             If single number, value is picked from (0.5, gamma), default is (0.5, 4.5).
     """
 
-    def __init__(self, keys, prob=0.1, gamma=(0.5, 4.5)):
+    def __init__(self, keys: KeysCollection, prob=0.1, gamma: Union[Tuple[float, float], float] = (0.5, 4.5)):
         super().__init__(keys)
         self.prob = prob
+        self.gamma: Tuple[float, float]
         if not isinstance(gamma, (tuple, list)):
             assert gamma > 0.5, "if gamma is single number, must greater than 0.5 and value is picked from (0.5, gamma)"
             self.gamma = (0.5, gamma)
         else:
+            assert len(gamma) == 2, "gamma should be a number or pair of numbers."
             self.gamma = gamma
         assert len(self.gamma) == 2, "gamma should be a number or pair of numbers."
 
