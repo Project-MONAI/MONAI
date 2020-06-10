@@ -59,7 +59,7 @@ def predict_segmentation(logits: torch.Tensor, mutually_exclusive: bool = False,
 
     Args:
         logits (Tensor): raw data of model output.
-        mutually_exclusive (bool): if True, `logits` will be converted into a binary matrix using
+        mutually_exclusive: if True, `logits` will be converted into a binary matrix using
             a combination of argmax, which is suitable for multi-classes task. Defaults to False.
         threshold (float): thresholding the prediction values if multi-labels task.
     """
@@ -72,7 +72,7 @@ def predict_segmentation(logits: torch.Tensor, mutually_exclusive: bool = False,
         return logits.argmax(1, keepdim=True)
 
 
-def normalize_transform(shape, device=None, dtype=None, align_corners=False):
+def normalize_transform(shape, device=None, dtype=None, align_corners: bool = False):
     """
     Compute an affine matrix according to the input shape.
     The transform normalizes the homogeneous image coordinates to the
@@ -82,7 +82,7 @@ def normalize_transform(shape, device=None, dtype=None, align_corners=False):
         shape (sequence of int): input spatial shape
         device (torch device): device on which the returned affine will be allocated.
         dtype (torch dtype): data type of the returned affine
-        align_corners (bool): if True, consider -1 and 1 to refer to the centers of the
+        align_corners: if True, consider -1 and 1 to refer to the centers of the
             corner pixels rather than the image corners.
             See also: https://pytorch.org/docs/stable/nn.functional.html#torch.nn.functional.grid_sample
     """
@@ -102,7 +102,7 @@ def normalize_transform(shape, device=None, dtype=None, align_corners=False):
     return norm
 
 
-def to_norm_affine(affine, src_size, dst_size, align_corners=False):
+def to_norm_affine(affine, src_size, dst_size, align_corners: bool = False):
     """
     Given ``affine`` defined for coordinates in the pixel space, compute the corresponding affine
     for the normalized coordinates.
@@ -111,7 +111,7 @@ def to_norm_affine(affine, src_size, dst_size, align_corners=False):
         affine (torch Tensor): Nxdxd batched square matrix
         src_size (sequence of int): source image spatial shape
         dst_size (sequence of int): target image spatial shape
-        align_corners (bool): if True, consider -1 and 1 to refer to the centers of the
+        align_corners: if True, consider -1 and 1 to refer to the centers of the
             corner pixels rather than the image corners.
             See also: https://pytorch.org/docs/stable/nn.functional.html#torch.nn.functional.grid_sample
     """

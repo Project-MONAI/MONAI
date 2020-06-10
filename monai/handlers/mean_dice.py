@@ -37,12 +37,12 @@ class MeanDice(Metric):
         """
 
         Args:
-            include_background (Bool): whether to include dice computation on the first channel of the predicted output.
+            include_background: whether to include dice computation on the first channel of the predicted output.
                 Defaults to True.
-            to_onehot_y (Bool): whether to convert the output prediction into the one-hot format. Defaults to False.
-            mutually_exclusive (Bool): if True, the output prediction will be converted into a binary matrix using
+            to_onehot_y: whether to convert the output prediction into the one-hot format. Defaults to False.
+            mutually_exclusive: if True, the output prediction will be converted into a binary matrix using
                 a combination of argmax and to_onehot. Defaults to False.
-            sigmoid (Bool): whether to add sigmoid function to the output prediction before computing Dice.
+            sigmoid: whether to add sigmoid function to the output prediction before computing Dice.
                 Defaults to False.
             logit_thresh (Float): the threshold value to round value to 0.0 and 1.0. Defaults to None (no thresholding).
             output_transform (Callable): transform the ignite.engine.state.output into [y_pred, y] pair.

@@ -42,7 +42,7 @@ class SegmentationSaver:
             output_dir (str): output image directory.
             output_postfix (str): a string appended to all output file names.
             output_ext (str): output file extension name.
-            resample (bool): whether to resample before saving the data array.
+            resample: whether to resample before saving the data array.
             interp_order: the order of the spline interpolation, default is 0.
                 The order has to be in the range 0 - 5.
                 https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.affine_transform.html
@@ -52,7 +52,7 @@ class SegmentationSaver:
                 This option is used when `resample = True`.
             cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
                 This option is used when `resample = True`.
-            scale (bool): whether to scale data with 255 and convert to uint8 for data in range [0, 1].
+            scale: whether to scale data with 255 and convert to uint8 for data in range [0, 1].
                 It's used for PNG format only.
             dtype (np.dtype, optional): convert the image data to save to this data type.
                 If None, keep the original type of data. It's used for Nifti format only.

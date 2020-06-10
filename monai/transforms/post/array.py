@@ -29,9 +29,8 @@ class SplitChannel(Transform):
     (batch_size, num_channels, spatial_dim_1[, spatial_dim_2, ...])
 
     Args:
-        to_onehot (bool): whether to convert the data to One-Hot format first, default is False.
+        to_onehot: whether to convert the data to One-Hot format first, default is False.
         num_classes: the class number used to convert to One-Hot format if `to_onehot` is True.
-
     """
 
     def __init__(self, to_onehot: bool = False, num_classes: Optional[int] = None):
@@ -57,8 +56,8 @@ class Activations(Transform):
     Add activation operations to the model output, typically `Sigmoid` or `Softmax`.
 
     Args:
-        sigmoid (bool): whether to execute sigmoid function on model output before transform.
-        softmax (bool): whether to execute softmax function on model output before transform.
+        sigmoid: whether to execute sigmoid function on model output before transform.
+        softmax: whether to execute softmax function on model output before transform.
         other (Callable): callable function to execute other activation layers, for example:
             `other = lambda x: torch.tanh(x)`
 
@@ -96,10 +95,10 @@ class AsDiscrete(Transform):
         -  convert input value to One-Hot format
 
     Args:
-        argmax (bool): whether to execute argmax function on input data before transform.
-        to_onehot (bool): whether to convert input data into the one-hot format. Defaults to False.
-        n_classes (bool): the number of classes to convert to One-Hot format.
-        threshold_values (bool): whether threshold the float value to int number 0 or 1, default is False.
+        argmax: whether to execute argmax function on input data before transform.
+        to_onehot: whether to convert input data into the one-hot format. Defaults to False.
+        n_classes: the number of classes to convert to One-Hot format.
+        threshold_values: whether threshold the float value to int number 0 or 1, default is False.
         logit_thresh (float): the threshold value for thresholding operation, default is 0.5.
 
     """
@@ -189,7 +188,7 @@ class KeepLargestConnectedComponent(Transform):
         Args:
             applied_values (list or tuple of int): number list for applying the connected component on.
                 The pixel whose value is not in this list will remain unchanged.
-            independent (bool): consider several labels as a whole or independent, default is `True`.
+            independent: consider several labels as a whole or independent, default is `True`.
                 Example use case would be segment label 1 is liver and label 2 is liver tumor, in that case
                 you want this "independent" to be specified as False.
             background: Background pixel value. The over-segmented pixels will be set as this value.

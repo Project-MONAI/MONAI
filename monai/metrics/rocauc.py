@@ -66,8 +66,8 @@ def compute_roc_auc(
             it must be One-Hot format and first dim is batch, example shape: [16] or [16, 2].
         y (torch.Tensor): ground truth to compute ROC AUC metric, the first dim is batch.
             example shape: [16, 1] will be converted into [16, 2] (where `2` is inferred from `y_pred`).
-        to_onehot_y (bool): whether to convert `y` into the one-hot format. Defaults to False.
-        softmax (bool): whether to add softmax function to `y_pred` before computation. Defaults to False.
+        to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
+        softmax: whether to add softmax function to `y_pred` before computation. Defaults to False.
         average (`macro|weighted|micro|None`): type of averaging performed if not binary
             classification. Default is 'macro'.
 

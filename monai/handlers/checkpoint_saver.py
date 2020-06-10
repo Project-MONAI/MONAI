@@ -30,15 +30,15 @@ class CheckpointSaver:
 
         name (str): identifier of logging.logger to use, if None, defaulting to ``engine.logger``.
         file_prefix (str): prefix for the filenames to which objects will be saved.
-        save_final (bool): whether to save checkpoint or session at final iteration or exception.
-        save_key_metric (bool): whether to save checkpoint or session when the value of key_metric is
+        save_final: whether to save checkpoint or session at final iteration or exception.
+        save_key_metric: whether to save checkpoint or session when the value of key_metric is
             higher than all the previous values during training.keep 4 decimal places of metric,
             checkpoint name is: {file_prefix}_key_metric=0.XXXX.pth.
         key_metric_name (str): the name of key_metric in ignite metrics dictionary.
             if None, use `engine.state.key_metric` instead.
         key_metric_n_saved: save top N checkpoints or sessions, sorted by the value of key
             metric in descending order.
-        epoch_level (bool): save checkpoint during training for every N epochs or every N iterations.
+        epoch_level: save checkpoint during training for every N epochs or every N iterations.
             `True` is epoch level, `False` is iteration level.
         save_interval: save checkpoint every N epochs, default is 0 to save no checkpoint.
         n_saved: save latest N checkpoints of epoch level or iteration level, 'None' is to save all.
