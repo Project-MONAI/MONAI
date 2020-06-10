@@ -14,7 +14,6 @@ Utilities and types for defining networks, these depend on PyTorch.
 
 import warnings
 import torch
-import torch.nn.functional as f
 
 
 def one_hot(labels, num_classes: int, dtype: torch.dtype = torch.float):
@@ -96,7 +95,7 @@ def normalize_transform(shape, device=None, dtype=None, align_corners: bool = Fa
         norm[norm <= 0.0] = 2.0
         norm = 2.0 / norm
         norm = torch.diag(torch.cat((norm, torch.ones((1,), dtype=torch.float64, device=device))))
-        norm[:-1, -1] = 1.0 / torch.tensor(shape, dtype=torch.float32, device=device) - 1.0
+        norm[:-1, -1] = 1.0 / torch.tensor(shape, dtype=torch.float64, device=device) - 1.0
     norm = norm.unsqueeze(0).to(dtype=dtype)
     norm.requires_grad = False
     return norm
