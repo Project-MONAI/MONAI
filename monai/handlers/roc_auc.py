@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Sequence, Union
+from typing import Callable, Optional, Sequence, Union, List
 
 import torch
 
@@ -63,8 +63,8 @@ class ROCAUC(Metric):
         self.average = average
 
     def reset(self) -> None:
-        self._predictions = []
-        self._targets = []
+        self._predictions: List[float] = []
+        self._targets: List[float] = []
 
     def update(self, output: Sequence[torch.Tensor]):
         y_pred, y = output
