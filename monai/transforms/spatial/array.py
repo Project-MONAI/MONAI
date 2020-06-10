@@ -290,7 +290,7 @@ class Rotate(Transform):
     https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.rotate.html
 
     Args:
-        angle (float): Rotation angle in degrees.
+        angle: Rotation angle in degrees.
         spatial_axes (tuple of 2 ints): Spatial axes of rotation. Default: (0, 1).
             This is the first two axis in spatial dimensions.
         reshape: If reshape is true, the output shape is adapted so that the
@@ -299,18 +299,18 @@ class Rotate(Transform):
             different from scipy where default interpolation is InterpolationCode.SPLINE3.
         mode (str): Points outside boundary filled according to this mode. Options are
             'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
-        cval (scalar): Values to fill outside boundary. Default: 0.
+        cval: Values to fill outside boundary. Default: 0.
         prefilter: Apply spline_filter before interpolation. Default: True.
     """
 
     def __init__(
         self,
-        angle,
+        angle: float,
         spatial_axes=(0, 1),
         reshape: bool = True,
         interp_order=1,
         mode: str = "constant",
-        cval: Union[int, float] = 0,
+        cval: float = 0.0,
         prefilter: bool = True,
     ):
         self.angle = angle
@@ -326,7 +326,7 @@ class Rotate(Transform):
         img,
         order=None,
         mode: Optional[str] = None,
-        cval: Optional[Union[int, float]] = None,
+        cval: Optional[float] = None,
         prefilter: Optional[bool] = None,
     ):
         """
@@ -442,7 +442,7 @@ class RandRotate90(Randomizable, Transform):
     def __init__(self, prob: float = 0.1, max_k: int = 3, spatial_axes=(0, 1)):
         """
         Args:
-            prob (float): probability of rotating.
+            prob: probability of rotating.
                 (Default 0.1, with 10% probability it returns a rotated array)
             max_k: number of rotations will be sampled from `np.random.randint(max_k) + 1`.
                 (Default 3)
@@ -474,7 +474,7 @@ class RandRotate(Randomizable, Transform):
     Args:
         degrees (tuple of float or float): Range of rotation in degrees. If single number,
             angle is picked from (-degrees, degrees).
-        prob (float): Probability of rotation.
+        prob: Probability of rotation.
         spatial_axes (tuple of 2 ints): Spatial axes of rotation. Default: (0, 1).
             This is the first two axis in spatial dimensions.
         reshape: If reshape is true, the output shape is adapted so that the
@@ -483,7 +483,7 @@ class RandRotate(Randomizable, Transform):
             different from scipy where default interpolation is InterpolationCode.SPLINE3.
         mode (str): Points outside boundary filled according to this mode. Options are
             'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
-        cval (scalar): Value to fill outside boundary. Default: 0.
+        cval: Value to fill outside boundary. Default: 0.
         prefilter: Apply spline_filter before interpolation. Default: True.
     """
 
@@ -495,7 +495,7 @@ class RandRotate(Randomizable, Transform):
         reshape: bool = True,
         interp_order=InterpolationCode.LINEAR,
         mode: str = "constant",
-        cval: Union[int, float] = 0,
+        cval: float = 0.0,
         prefilter: bool = True,
     ):
         self.degrees = degrees
@@ -523,10 +523,11 @@ class RandRotate(Randomizable, Transform):
         img,
         order=None,
         mode: Optional[str] = None,
-        cval: Optional[Union[int, float]] = None,
+        cval: Optional[float] = None,
         prefilter: Optional[bool] = None,
     ):
         self.randomize()
+        assert self.angle is not None
         if not self._do_transform:
             return img
         rotator = Rotate(
@@ -547,7 +548,7 @@ class RandFlip(Randomizable, Transform):
     https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
 
     Args:
-        prob (float): Probability of flipping.
+        prob: Probability of flipping.
         spatial_axis (None, int or tuple of ints): Spatial axes along which to flip over. Default is None.
     """
 
@@ -570,7 +571,7 @@ class RandZoom(Randomizable, Transform):
     """Randomly zooms input arrays with given probability within given zoom range.
 
     Args:
-        prob (float): Probability of zooming.
+        prob: Probability of zooming.
         min_zoom (float or sequence): Min zoom factor. Can be float or sequence same size as image.
             If a float, min_zoom is the same for each spatial axis.
             If a sequence, min_zoom should contain one value for each spatial axis.
@@ -615,7 +616,7 @@ class RandZoom(Randomizable, Transform):
             self._zoom = self.R.uniform(self.min_zoom, self.max_zoom)
 
     def __call__(  # type: ignore # see issue #495
-        self, img, interp_order=None
+        self, img, interp_order: Optional[str] = None
     ):
         self.randomize()
         _dtype = np.float32
@@ -952,7 +953,7 @@ class RandAffine(Randomizable, Transform):
     ):
         """
         Args:
-            prob (float): probability of returning a randomized affine grid.
+            prob: probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid.
             spatial_size (list or tuple of int): output image spatial size.
                 if `img` has two spatial dimensions, `spatial_size` should have 2 elements [h, w].
@@ -1046,7 +1047,7 @@ class Rand2DElastic(Randomizable, Transform):
             spacing (2 ints): distance in between the control points.
             magnitude_range (2 ints): the random offsets will be generated from
                 ``uniform[magnitude[0], magnitude[1])``.
-            prob (float): probability of returning a randomized affine grid.
+            prob: probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
             spatial_size (2 ints): specifying output image spatial size [h, w].
@@ -1143,7 +1144,7 @@ class Rand3DElastic(Randomizable, Transform):
                  from ``uniform[sigma_range[0], sigma_range[1])`` will be used to smooth the random offset grid.
             magnitude_range (2 ints): the random offsets on the grid will be generated from
                 ``uniform[magnitude[0], magnitude[1])``.
-            prob (float): probability of returning a randomized affine grid.
+            prob: probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
             spatial_size (3 ints): specifying output image spatial size [h, w, d].

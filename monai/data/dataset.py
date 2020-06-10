@@ -239,7 +239,7 @@ class CacheDataset(Dataset):
             transform (Callable): transforms to execute operations on input data.
             cache_num: number of items to be cached. Default is `sys.maxsize`.
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
-            cache_rate (float): percentage of cached data in total, default is 1.0 (cache all).
+            cache_rate: percentage of cached data in total, default is 1.0 (cache all).
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
             num_workers: the number of worker threads to use.
                 If 0 a single thread will be used. Default is 0.

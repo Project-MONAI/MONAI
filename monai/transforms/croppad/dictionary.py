@@ -203,14 +203,14 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         keys (list): parameter will be used to get and set the actual data item to transform.
         label_key (str): name of key for label image, this will be used for finding foreground/background.
         size (list, tuple): the size of the crop region e.g. [224,224,128]
-        pos (int, float): used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
+        pos: used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
           foreground voxel as a center rather than a background voxel.
-        neg (int, float): used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
+        neg: used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
           foreground voxel as a center rather than a background voxel.
         num_samples: number of samples (crop regions) to take in each list.
         image_key (str): if image_key is not None, use ``label == 0 & image > image_threshold`` to select
             the negative sample(background) center. so the crop center will only exist on valid image area.
-        image_threshold (int or float): if enabled image_key, use ``image > image_threshold`` to determine
+        image_threshold: if enabled image_key, use ``image > image_threshold`` to determine
             the valid image content area.
     """
 
@@ -219,11 +219,11 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         keys: KeysCollection,
         label_key: str,
         size,
-        pos: Union[int, float] = 1,
-        neg: Union[int, float] = 1,
+        pos: float = 1.0,
+        neg: float = 1.0,
         num_samples: int = 1,
         image_key: Optional[str] = None,
-        image_threshold: Union[int, float] = 0,
+        image_threshold: float = 0.0,
     ):
         super().__init__(keys)
         assert isinstance(label_key, str), "label_key must be a string."

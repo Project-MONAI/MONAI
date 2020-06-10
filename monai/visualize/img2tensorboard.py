@@ -20,7 +20,7 @@ from monai.transforms.utils import rescale_array
 from typing import Sequence, Union, Optional
 
 
-def _image3_animated_gif(tag: str, image: Union[np.ndarray, torch.Tensor], scale_factor: float = 1):
+def _image3_animated_gif(tag: str, image: Union[np.ndarray, torch.Tensor], scale_factor: float = 1.0):
     """Function to actually create the animated gif.
     Args:
         tag: Data identifier
@@ -52,7 +52,7 @@ def make_animated_gif_summary(
     animation_axes: Sequence[int] = (3,),
     image_axes: Sequence[int] = (1, 2),
     other_indices=None,
-    scale_factor: float = 1,
+    scale_factor: float = 1.0,
 ):
     """Creates an animated gif out of an image tensor in 'CHWD' format and returns Summary.
 
