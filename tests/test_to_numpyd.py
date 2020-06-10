@@ -19,19 +19,19 @@ class TestToNumpyd(unittest.TestCase):
     def test_numpy_input(self):
         test_data = np.array([[1, 2], [3, 4]])
         test_data = np.rot90(test_data)
-        self.assertFalse(test_data.flags['C_CONTIGUOUS'])
-        result = ToNumpyd(keys='img')({'img': test_data})['img']
+        self.assertFalse(test_data.flags["C_CONTIGUOUS"])
+        result = ToNumpyd(keys="img")({"img": test_data})["img"]
         self.assertTrue(isinstance(result, np.ndarray))
-        self.assertTrue(result.flags['C_CONTIGUOUS'])
+        self.assertTrue(result.flags["C_CONTIGUOUS"])
         np.testing.assert_allclose(result, test_data)
 
     def test_tensor_input(self):
         test_data = torch.tensor([[1, 2], [3, 4]])
         test_data = test_data.rot90()
         self.assertFalse(test_data.is_contiguous())
-        result = ToNumpyd(keys='img')({'img': test_data})['img']
+        result = ToNumpyd(keys="img")({"img": test_data})["img"]
         self.assertTrue(isinstance(result, np.ndarray))
-        self.assertTrue(result.flags['C_CONTIGUOUS'])
+        self.assertTrue(result.flags["C_CONTIGUOUS"])
         np.testing.assert_allclose(result, test_data.numpy())
 
 

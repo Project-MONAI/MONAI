@@ -19,10 +19,10 @@ class TestToNumpy(unittest.TestCase):
     def test_numpy_input(self):
         test_data = np.array([[1, 2], [3, 4]])
         test_data = np.rot90(test_data)
-        self.assertFalse(test_data.flags['C_CONTIGUOUS'])
+        self.assertFalse(test_data.flags["C_CONTIGUOUS"])
         result = ToNumpy()(test_data)
         self.assertTrue(isinstance(result, np.ndarray))
-        self.assertTrue(result.flags['C_CONTIGUOUS'])
+        self.assertTrue(result.flags["C_CONTIGUOUS"])
         np.testing.assert_allclose(result, test_data)
 
     def test_tensor_input(self):
@@ -31,7 +31,7 @@ class TestToNumpy(unittest.TestCase):
         self.assertFalse(test_data.is_contiguous())
         result = ToNumpy()(test_data)
         self.assertTrue(isinstance(result, np.ndarray))
-        self.assertTrue(result.flags['C_CONTIGUOUS'])
+        self.assertTrue(result.flags["C_CONTIGUOUS"])
         np.testing.assert_allclose(result, test_data.numpy())
 
 
