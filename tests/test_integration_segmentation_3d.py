@@ -220,9 +220,7 @@ def run_inference_test(root_dir, device=torch.device("cuda:0")):
             metric_count += len(value)
             metric_sum += value.sum().item()
             val_outputs = (val_outputs.sigmoid() >= 0.5).float()
-            saver.save_batch(
-                val_outputs, {"filename_or_obj": val_data["img.filename_or_obj"], "affine": val_data["img.affine"]}
-            )
+            saver.save_batch(val_outputs, val_data["img_meta"])
         metric = metric_sum / metric_count
     return metric
 

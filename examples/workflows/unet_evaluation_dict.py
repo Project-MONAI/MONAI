@@ -92,13 +92,8 @@ def main():
         CheckpointLoader(load_path="./runs/net_key_metric=0.9101.pth", load_dict={"net": net}),
         SegmentationSaver(
             output_dir="./runs/",
-            batch_transform=lambda x: {
-                "filename_or_obj": x["image.filename_or_obj"],
-                "affine": x["image.affine"],
-                "original_affine": x["image.original_affine"],
-                "spatial_shape": x["image.spatial_shape"],
-            },
-            output_transform=lambda x: x["pred_act_dis"],
+            batch_transform=lambda batch: batch["image_meta"],
+            output_transform=lambda output: output["pred_act_dis"],
         ),
     ]
 

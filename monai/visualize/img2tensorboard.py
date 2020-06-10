@@ -20,7 +20,7 @@ from monai.transforms.utils import rescale_array
 from typing import Sequence, Union, Optional
 
 
-def _image3_animated_gif(tag: str, image: Union[np.ndarray, torch.Tensor], scale_factor: float = 1):
+def _image3_animated_gif(tag: str, image: Union[np.ndarray, torch.Tensor], scale_factor: float = 1.0):
     """Function to actually create the animated gif.
     Args:
         tag: Data identifier
@@ -52,7 +52,7 @@ def make_animated_gif_summary(
     animation_axes: Sequence[int] = (3,),
     image_axes: Sequence[int] = (1, 2),
     other_indices=None,
-    scale_factor: float = 1,
+    scale_factor: float = 1.0,
 ):
     """Creates an animated gif out of an image tensor in 'CHWD' format and returns Summary.
 
@@ -165,11 +165,11 @@ def plot_2d_or_3d_image(
     Args:
         data (Tensor or np.array): target data to be plotted as image on the TensorBoard.
             The data is expected to have 'NCHW[D]' dimensions, and only plot the first in the batch.
-        step (int): current step to plot in a chart.
+        step: current step to plot in a chart.
         writer (SummaryWriter): specify TensorBoard SummaryWriter to plot the image.
-        index (int): plot which element in the input data batch, default is the first element.
-        max_channels (int): number of channels to plot.
-        max_frames (int): number of frames for 2D-t plot.
+        index: plot which element in the input data batch, default is the first element.
+        max_channels: number of channels to plot.
+        max_frames: number of frames for 2D-t plot.
         tag (str): tag of the plotted image on TensorBoard.
     """
     assert isinstance(writer, SummaryWriter) is True, "must provide a TensorBoard SummaryWriter."
