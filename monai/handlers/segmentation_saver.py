@@ -28,8 +28,8 @@ class SegmentationSaver:
         output_postfix: str = "seg",
         output_ext: str = ".nii.gz",
         resample: bool = True,
-        interp_order: int = 0,
-        mode: str = "constant",
+        interp_order="bilinear",
+        mode: str = "border",
         cval: Union[int, float] = 0,
         scale: bool = False,
         dtype: Optional[np.dtype] = None,
@@ -42,17 +42,21 @@ class SegmentationSaver:
             output_dir (str): output image directory.
             output_postfix (str): a string appended to all output file names.
             output_ext (str): output file extension name.
-            resample: whether to resample before saving the data array.
-            interp_order: the order of the spline interpolation, default is 0.
+            resample (bool): whether to resample before saving the data array.
+            interp_order (int or str):
+                The interpolation mode. This option is used when `resample = True`.
+                When saving NIfTI files, the options are "nearest", "bilinear". Defaults to "bilinear".
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                When saving PNG files, this sets the order of the spline interpolation.
                 The order has to be in the range 0 - 5.
                 https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.affine_transform.html
+            mode (str): The mode parameter determines how the input array is extended beyond its boundaries.
                 This option is used when `resample = True`.
-            mode (`reflect|constant|nearest|mirror|wrap`):
-                The mode parameter determines how the input array is extended beyond its boundaries.
-                This option is used when `resample = True`.
+                When saving NIfTI files, the options are "zeros", "border", "reflection". Default is "border".
+                When saving PNG files, the options are "reflect", "constant", "nearest", "mirror", "wrap".
             cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
-                This option is used when `resample = True`.
-            scale: whether to scale data with 255 and convert to uint8 for data in range [0, 1].
+                this option is used when `resample = True`. It's used for PNG format only.
+            scale (bool): whether to scale data with 255 and convert to uint8 for data in range [0, 1].
                 It's used for PNG format only.
             dtype (np.dtype, optional): convert the image data to save to this data type.
                 If None, keep the original type of data. It's used for Nifti format only.
@@ -67,9 +71,29 @@ class SegmentationSaver:
         """
         self.saver: Union[NiftiSaver, PNGSaver]
         if output_ext in (".nii.gz", ".nii"):
-            self.saver = NiftiSaver(output_dir, output_postfix, output_ext, resample, interp_order, mode, cval, dtype)
+            self.saver = NiftiSaver(
+                output_dir=output_dir,
+                output_postfix=output_postfix,
+                output_ext=output_ext,
+                resample=resample,
+                interp_order=interp_order,
+                mode=mode,
+                dtype=dtype,
+            )
         elif output_ext == ".png":
-            self.saver = PNGSaver(output_dir, output_postfix, output_ext, resample, interp_order, mode, cval, scale)
+            # handling the function's default
+            interp_order = 1 if interp_order == "bilinear" else interp_order
+            mode = "edge" if mode == "border" else mode
+            self.saver = PNGSaver(
+                output_dir=output_dir,
+                output_postfix=output_postfix,
+                output_ext=output_ext,
+                resample=resample,
+                interp_order=interp_order,
+                mode=mode,
+                cval=cval,
+                scale=scale,
+            )
         self.batch_transform = batch_transform
         self.output_transform = output_transform
 

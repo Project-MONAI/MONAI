@@ -11,9 +11,10 @@
 
 import nibabel as nib
 import numpy as np
-import scipy.ndimage
+import torch
 
-from monai.data.utils import compute_shape_offset, to_affine_nd, InterpolationCode
+from monai.data.utils import compute_shape_offset, to_affine_nd
+from monai.networks.layers import AffineTransform
 
 
 def write_nifti(
@@ -23,9 +24,8 @@ def write_nifti(
     target_affine=None,
     resample: bool = True,
     output_shape=None,
-    interp_order=InterpolationCode.SPLINE3,
-    mode="constant",
-    cval=0,
+    interp_order: str = "bilinear",
+    mode: str = "border",
     dtype=None,
 ):
     """
@@ -54,7 +54,8 @@ def write_nifti(
     When saving multiple time steps or multiple channels `data`, time and/or
     modality axes should be appended after the first three dimensions.  For
     example, shape of 2D eight-class segmentation probabilities to be saved
-    could be `(64, 64, 1, 8)`,
+    could be `(64, 64, 1, 8)`. Also, data in shape (64, 64, 8), (64, 64, 8, 1)
+    will be considered as a single-channel 3D image.
 
     Args:
         data (numpy.ndarray): input data to write to file.
@@ -66,16 +67,13 @@ def write_nifti(
         resample: whether to run resampling when the target affine
             could not be achieved by swapping/flipping data axes.
         output_shape (None or tuple of ints): output image shape.
-            this option is used when resample = True.
-        interp_order: the order of the spline interpolation, default is InterpolationCode.SPLINE3.
-            The order has to be in the range 0 - 5.
-            https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.affine_transform.html
-            this option is used when `resample = True`.
-        mode (`reflect|constant|nearest|mirror|wrap`):
+            This option is used when resample = True.
+        interp_order (`nearest|bilinear`): the interpolation mode, default is "bilinear".
+            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            This option is used when `resample = True`.
+        mode (`zeros|border|reflection`):
             The mode parameter determines how the input array is extended beyond its boundaries.
-            this option is used when `resample = True`.
-        cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
-            this option is used when `resample = True`.
+            Defaults to "border". This option is used when `resample = True`.
         dtype (np.dtype, optional): convert the image to save to this data type.
     """
     assert isinstance(data, np.ndarray), "input data must be numpy array."
@@ -88,7 +86,7 @@ def write_nifti(
         target_affine = affine
     target_affine = to_affine_nd(sr, target_affine)
 
-    if np.allclose(affine, target_affine):
+    if np.allclose(affine, target_affine, atol=1e-3):
         # no affine changes, save (data, affine)
         results_img = nib.Nifti1Image(data.astype(dtype), to_affine_nd(3, target_affine))
         nib.save(results_img, file_name)
@@ -101,38 +99,42 @@ def write_nifti(
     data_shape = data.shape
     data = nib.orientations.apply_orientation(data, ornt_transform)
     _affine = affine @ nib.orientations.inv_ornt_aff(ornt_transform, data_shape)
-    if np.allclose(_affine, target_affine) or not resample:
+    if np.allclose(_affine, target_affine, atol=1e-3) or not resample:
         results_img = nib.Nifti1Image(data.astype(dtype), to_affine_nd(3, target_affine))
         nib.save(results_img, file_name)
         return
 
     # need resampling
+    affine_xform = AffineTransform(
+        normalized=False, mode=interp_order, padding_mode=mode, align_corners=True, reverse_indexing=True
+    )
     transform = np.linalg.inv(_affine) @ target_affine
     if output_shape is None:
         output_shape, _ = compute_shape_offset(data.shape, _affine, target_affine)
-    dtype = dtype or data.dtype
     if data.ndim > 3:  # multi channel, resampling each channel
+        while len(output_shape) < 3:
+            output_shape = list(output_shape) + [1]
         spatial_shape, channel_shape = data.shape[:3], data.shape[3:]
-        data_ = data.astype(dtype).reshape(list(spatial_shape) + [-1])
-        data_chns = []
-        for chn in range(data_.shape[-1]):
-            data_chns.append(
-                scipy.ndimage.affine_transform(
-                    data_[..., chn],
-                    matrix=transform,
-                    output_shape=output_shape[:3],
-                    order=interp_order,
-                    mode=mode,
-                    cval=cval,
-                )
-            )
-        data_chns_ = np.stack(data_chns, axis=-1)
-        data_ = data_chns_.reshape(list(data_chns_.shape[:3]) + list(channel_shape))
-    else:
-        data_ = data.astype(dtype)
-        data_ = scipy.ndimage.affine_transform(
-            data_, matrix=transform, output_shape=output_shape[: data_.ndim], order=interp_order, mode=mode, cval=cval
+        data_ = data.reshape(list(spatial_shape) + [-1])
+        data_ = np.moveaxis(data_, -1, 0)  # channel first for pytorch
+        data_ = affine_xform(
+            torch.from_numpy((data_.astype(np.float64))[None]),
+            torch.from_numpy(transform.astype(np.float64)),
+            spatial_size=output_shape[:3],
         )
-    results_img = nib.Nifti1Image(data_, to_affine_nd(3, target_affine))
+        data_ = data_.squeeze(0).detach().cpu().numpy()
+        data_ = np.moveaxis(data_, 0, -1)  # channel last for nifti
+        data_ = data_.reshape(list(data_.shape[:3]) + list(channel_shape))
+    else:  # single channel image, need to expand to have batch and channel
+        while len(output_shape) < len(data.shape):
+            output_shape = list(output_shape) + [1]
+        data_ = affine_xform(
+            torch.from_numpy((data.astype(np.float64))[None, None]),
+            torch.from_numpy(transform.astype(np.float64)),
+            spatial_size=output_shape[: len(data.shape)],
+        )
+        data_ = data_.squeeze(0).squeeze(0).detach().cpu().numpy()
+    dtype = dtype or data.dtype
+    results_img = nib.Nifti1Image(data_.astype(dtype), to_affine_nd(3, target_affine))
     nib.save(results_img, file_name)
     return
