@@ -49,7 +49,7 @@ class Identityd(MapTransform):
         keys (dict): Keys to pick data for transformation.
     """
 
-    def __init__(self, keys: Hashable):
+    def __init__(self, keys: KeysCollection):
         super().__init__(keys)
 
     def __call__(self, data):
