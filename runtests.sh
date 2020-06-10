@@ -127,7 +127,9 @@ python -c 'import monai; monai.config.print_config()'
 if [ "$clean_cache_files" = true ]
 then
   rm -r mypy_cache
+
   rm -r pytype
+
   rm -r coverage
   echo "All temporary files were erased!"
   exit
