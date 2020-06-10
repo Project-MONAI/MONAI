@@ -21,7 +21,7 @@ from monai.config.type_definitions import KeysCollection
 class TestSimulateDelay(NumpyImageTestCase2D):
     @parameterized.expand([(0.45,), (1,)])
     def test_value(self, delay_test_time: float):
-        resize = SimulateDelayd(keys=("imgd",), delay_time=delay_test_time)
+        resize = SimulateDelayd(keys="imgd", delay_time=delay_test_time)
         start: float = time.time()
         _ = resize({"imgd": self.imt[0]})
         stop: float = time.time()
