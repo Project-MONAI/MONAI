@@ -134,6 +134,17 @@ class ToTensor(Transform):
         return torch.as_tensor(np.ascontiguousarray(img))
 
 
+class ToNumpy(Transform):
+    """
+    Converts the input Tensor data to numpy array.
+    """
+
+    def __call__(self, img):
+        if torch.is_tensor(img):
+            img = img.detach().cpu().numpy()
+        return np.ascontiguousarray(img)
+
+
 class Transpose(Transform):
     """
     Transposes the input image based on the given `indices` dimension ordering.
