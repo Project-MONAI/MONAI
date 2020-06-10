@@ -108,10 +108,10 @@ class AsDiscreted(MapTransform):
         self,
         keys: Hashable,
         output_postfix: str = "discreted",
-        argmax=False,
-        to_onehot=False,
-        n_classes=None,
-        threshold_values=False,
+        argmax: bool = False,
+        to_onehot: bool = False,
+        n_classes: Optional[int] = None,
+        threshold_values: bool = False,
         logit_thresh=0.5,
     ):
         """
@@ -122,10 +122,10 @@ class AsDiscreted(MapTransform):
                 for example: if the keys of input data is `pred` and `label`, output_postfix is `discreted`,
                 the output data keys will be: `pred_discreted`, `label_discreted`.
                 if set to None, will replace the original data with the same key.
-            argmax (bool): whether to execute argmax function on input data before transform.
-            to_onehot (bool): whether to convert input data into the one-hot format. Defaults to False.
-            n_classes (bool): the number of classes to convert to One-Hot format.
-            threshold_values (bool): whether threshold the float value to int number 0 or 1, default is False.
+            argmax: whether to execute argmax function on input data before transform.
+            to_onehot: whether to convert input data into the one-hot format. Defaults to False.
+            n_classes: the number of classes to convert to One-Hot format.
+            threshold_values: whether threshold the float value to int number 0 or 1, default is False.
             logit_thresh (float): the threshold value for thresholding operation, default is 0.5.
         """
         super().__init__(keys)
@@ -174,7 +174,7 @@ class KeepLargestConnectedComponentd(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             applied_values (list or tuple of int): number list for applying the connected component on.
                 The pixel whose value is not in this list will remain unchanged.
-            independent (bool): consider several labels as a whole or independent, default is `True`.
+            independent: consider several labels as a whole or independent, default is `True`.
                 Example use case would be segment label 1 is liver and label 2 is liver tumor, in that case
                 you want this "independent" to be specified as False.
             background: Background pixel value. The over-segmented pixels will be set as this value.

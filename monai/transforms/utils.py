@@ -247,7 +247,7 @@ def apply_transform(transform: Callable, data, map_items: bool = True):
     Args:
         transform (callable): a callable to be used to transform `data`
         data (object): an object to be transformed.
-        map_item (bool): whether to apply transform to each item in `data`,
+        map_item: whether to apply transform to each item in `data`,
             if `data` is a list or tuple. Defaults to True.
     """
     try:
@@ -265,7 +265,7 @@ def create_grid(spatial_size, spacing=None, homogeneous: bool = True, dtype: np.
     Args:
         spatial_size (sequence of ints): spatial size of the grid.
         spacing (sequence of ints): same len as ``spatial_size``, defaults to 1.0 (dense grid).
-        homogeneous (bool): whether to make homogeneous coordinates.
+        homogeneous: whether to make homogeneous coordinates.
         dtype (type): output grid data type.
     """
     spacing = spacing or tuple(1.0 for _ in spatial_size)

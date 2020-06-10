@@ -44,7 +44,7 @@ def create_multigpu_supervised_trainer(
         loss_fn (`torch.nn` loss function): the loss function to use.
         devices (list, optional): device(s) type specification (default: None).
             Applies to both model and batches. None is all devices used, empty list is CPU only.
-        non_blocking (bool, optional): if True and this copy is between CPU and GPU, the copy may occur asynchronously
+        non_blocking: if True and this copy is between CPU and GPU, the copy may occur asynchronously
             with respect to the host. For other cases, this argument has no effect.
         prepare_batch (callable, optional): function that receives `batch`, `device`, `non_blocking` and outputs
             tuple of tensors `(batch_x, batch_y)`.
@@ -85,7 +85,7 @@ def create_multigpu_supervised_evaluator(
         metrics (dict of str - :class:`~ignite.metrics.Metric`): a map of metric names to Metrics.
         devices (list, optional): device(s) type specification (default: None).
             Applies to both model and batches. None is all devices used, empty list is CPU only.
-        non_blocking (bool, optional): if True and this copy is between CPU and GPU, the copy may occur asynchronously
+        non_blocking: if True and this copy is between CPU and GPU, the copy may occur asynchronously
             with respect to the host. For other cases, this argument has no effect.
         prepare_batch (callable, optional): function that receives `batch`, `device`, `non_blocking` and outputs
             tuple of tensors `(batch_x, batch_y)`.
