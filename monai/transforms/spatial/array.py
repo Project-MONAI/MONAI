@@ -20,8 +20,8 @@ import nibabel as nib
 import numpy as np
 import scipy.ndimage
 import torch
-import torch.nn.functional as F
 
+from monai.config import get_torch_version_tuple
 from monai.data.utils import InterpolationCode, compute_shape_offset, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter
 from monai.transforms.compose import Randomizable, Transform
@@ -33,7 +33,16 @@ from monai.transforms.utils import (
     create_shear,
     create_translate,
 )
-from monai.utils.misc import ensure_tuple, ensure_tuple_size, ensure_tuple_rep
+from monai.utils.misc import ensure_tuple, ensure_tuple_rep, ensure_tuple_size
+
+if get_torch_version_tuple() >= (1, 5):
+    # additional argument since torch 1.5 (to avoid warnings)
+    def _torch_interp(**kwargs):
+        return torch.nn.functional.interpolate(**kwargs, recompute_scale_factor=False)
+
+
+else:
+    _torch_interp = torch.nn.functional.interpolate
 
 
 class Spacing(Transform):
@@ -265,7 +274,7 @@ class Resize(Transform):
                 "len(spatial_size) cannot be smaller than the image spatial dimensions, "
                 f"got {output_ndim} and {input_ndim}."
             )
-        resized = F.interpolate(
+        resized = _torch_interp(
             input=torch.as_tensor(img[None], dtype=torch.float),
             size=self.spatial_size,
             mode=interp_order or self.interp_order,
@@ -375,7 +384,7 @@ class Zoom(Transform):
             img (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
         self.zoom = ensure_tuple_rep(self.zoom, img.ndim - 1)  # match the spatial image dim
-        zoomed = F.interpolate(
+        zoomed = _torch_interp(
             input=torch.as_tensor(img[None], dtype=torch.float),
             scale_factor=list(self.zoom),
             mode=interp_order or self.interp_order,
@@ -1102,7 +1111,7 @@ class Rand2DElastic(Randomizable, Transform):
         if self.do_transform:
             grid = self.deform_grid(spatial_size=spatial_size)
             grid = self.rand_affine_grid(grid=grid)
-            grid = torch.nn.functional.interpolate(grid[None], spatial_size, mode="bicubic", align_corners=False)[0]
+            grid = _torch_interp(input=grid[None], size=spatial_size, mode="bicubic", align_corners=False)[0]
         else:
             grid = create_grid(spatial_size)
         return self.resampler(img, grid, padding_mode=padding_mode or self.padding_mode, mode=mode or self.mode)

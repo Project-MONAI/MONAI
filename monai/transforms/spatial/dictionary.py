@@ -34,6 +34,7 @@ from monai.transforms.spatial.array import (
     Rotate90,
     Spacing,
     Zoom,
+    _torch_interp,
 )
 from monai.transforms.utils import create_grid
 from monai.utils.misc import ensure_tuple_rep
@@ -411,7 +412,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
         if self.rand_2d_elastic.do_transform:
             grid = self.rand_2d_elastic.deform_grid(spatial_size)
             grid = self.rand_2d_elastic.rand_affine_grid(grid=grid)
-            grid = torch.nn.functional.interpolate(grid[None], spatial_size, mode="bicubic", align_corners=False)[0]
+            grid = _torch_interp(input=grid[None], size=spatial_size, mode="bicubic", align_corners=False)[0]
         else:
             grid = create_grid(spatial_size)
 
