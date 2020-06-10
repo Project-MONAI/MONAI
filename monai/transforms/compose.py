@@ -63,7 +63,7 @@ class Randomizable(ABC):
     this is mainly for randomized data augmentation transforms.
     """
 
-    R = np.random.RandomState()
+    R: np.random.RandomState = np.random.RandomState()
 
     def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
         """

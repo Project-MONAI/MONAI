@@ -779,7 +779,7 @@ class RandZoomd(Randomizable, MapTransform):
         self.keep_size = keep_size
 
         self._do_transform = False
-        self._zoom = None
+        self._zoom: Optional[np.random.RandomState] = None
 
     def randomize(self) -> None:  # type: ignore # see issue #495
         self._do_transform = self.R.random_sample() < self.prob
