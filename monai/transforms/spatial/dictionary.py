@@ -26,6 +26,7 @@ from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.spatial.array import (
     Flip,
+    Identity,
     Orientation,
     Rand2DElastic,
     Rand3DElastic,
@@ -39,6 +40,24 @@ from monai.transforms.spatial.array import (
 )
 from monai.transforms.utils import create_grid
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep
+
+
+class Identityd(MapTransform):
+    """Dictionary-based wrapper of :py:class:`monai.transforms.Identity`.
+
+    Args:
+        keys (dict): Keys to pick data for transformation.
+    """
+
+    def __init__(self, keys: Hashable):
+        super().__init__(keys)
+
+    def __call__(self, data):
+        d = dict(data)
+        identity = Identity()
+        for key in self.keys:
+            d[key] = identity(d[key])
+        return d
 
 
 class Spacingd(MapTransform):

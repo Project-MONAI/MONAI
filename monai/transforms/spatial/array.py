@@ -52,8 +52,8 @@ class Identity(Transform):
     def __init__(self):
         pass
 
-    def __call__(self, img):
-        return img
+    def __call__(self, data):
+        return data
 
 
 class Spacing(Transform):
