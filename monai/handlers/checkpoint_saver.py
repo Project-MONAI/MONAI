@@ -149,7 +149,10 @@ class CheckpointSaver:
         Save final checkpoint if configure save_final is True.
 
         """
+        assert callable(self._final_checkpoint), "Error: _final_checkpoint function not specified."
         self._final_checkpoint(engine, self.save_dict)
+        assert self.logger is not None
+        assert hasattr(self.logger, "info"), "Error, provided logger has not info attribute."
         self.logger.info(f"Train completed, saved final checkpoint: {self._final_checkpoint.last_checkpoint}")
 
     def exception_raised(self, engine, e) -> None:
@@ -157,13 +160,17 @@ class CheckpointSaver:
         Save current data as final checkpoint if configure save_final is True.
 
         """
+        assert callable(self._final_checkpoint), "Error: _final_checkpoint function not specified."
         self._final_checkpoint(engine, self.save_dict)
+        assert self.logger is not None
+        assert hasattr(self.logger, "info"), "Error, provided logger has not info attribute."
         self.logger.info(f"Exception_raised, saved exception checkpoint: {self._final_checkpoint.last_checkpoint}")
 
     def metrics_completed(self, engine) -> None:
         """Callback to compare metrics and save models in train or validation when epoch completed.
 
         """
+        assert callable(self._key_metric_checkpoint), "Error: _key_metric_checkpoint function not specified."
         self._key_metric_checkpoint(engine, self.save_dict)
 
     def interval_completed(self, engine) -> None:
@@ -171,7 +178,10 @@ class CheckpointSaver:
         Save checkpoint if configure save_interval = N
 
         """
+        assert callable(self._interval_checkpoint), "Error: _interval_checkpoint function not specified."
         self._interval_checkpoint(engine, self.save_dict)
+        assert self.logger is not None
+        assert hasattr(self.logger, "info"), "Error, provided logger has not info attribute."
         if self.epoch_level:
             self.logger.info(f"Saved checkpoint at epoch: {engine.state.epoch}")
         else:
