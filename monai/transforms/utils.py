@@ -246,7 +246,7 @@ def apply_transform(transform: Callable, data, map_items: bool = True):
     otherwise transform will be applied once with `data` as the argument.
 
     Args:
-        transform (callable): a callable to be used to transform `data`
+        transform: a callable to be used to transform `data`
         data (object): an object to be transformed.
         map_item: whether to apply transform to each item in `data`,
             if `data` is a list or tuple. Defaults to True.
@@ -395,7 +395,7 @@ def generate_spatial_bounding_box(
 
     Args:
         img (ndarrary): source image to generate bounding box from.
-        select_fn (Callable): function to select expected foreground, default is to select values > 0.
+        select_fn: function to select expected foreground, default is to select values > 0.
         channel_indexes: if defined, select foreground only on the specified channels
             of image. if None, select foreground on the whole image.
         margin: add margin to all dims of the bounding box.

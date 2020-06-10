@@ -58,7 +58,7 @@ class Activations(Transform):
     Args:
         sigmoid: whether to execute sigmoid function on model output before transform.
         softmax: whether to execute softmax function on model output before transform.
-        other (Callable): callable function to execute other activation layers, for example:
+        other: callable function to execute other activation layers, for example:
             `other = lambda x: torch.tanh(x)`
 
     """

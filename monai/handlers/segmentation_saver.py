@@ -57,9 +57,9 @@ class SegmentationSaver:
                 It's used for PNG format only.
             dtype (np.dtype, optional): convert the image data to save to this data type.
                 If None, keep the original type of data. It's used for Nifti format only.
-            batch_transform (Callable): a callable that is used to transform the
+            batch_transform: a callable that is used to transform the
                 ignite.engine.batch into expected format to extract the meta_data dictionary.
-            output_transform (Callable): a callable that is used to transform the
+            output_transform: a callable that is used to transform the
                 ignite.engine.output into the form expected image data.
                 The first dimension of this transform's output will be treated as the
                 batch dimension. Each item in the batch will be saved individually.

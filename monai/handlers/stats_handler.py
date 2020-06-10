@@ -11,6 +11,8 @@
 
 import warnings
 import logging
+from typing import Callable, Optional
+
 import torch
 from ignite.engine import Engine, Events
 from monai.utils import is_scalar
@@ -34,10 +36,10 @@ class StatsHandler(object):
 
     def __init__(
         self,
-        epoch_print_logger=None,
-        iteration_print_logger=None,
-        output_transform=lambda x: x,
-        global_epoch_transform=lambda x: x,
+        epoch_print_logger: Optional[Callable] = None,
+        iteration_print_logger: Optional[Callable] = None,
+        output_transform: Callable = lambda x: x,
+        global_epoch_transform: Callable = lambda x: x,
         name=None,
         tag_name=DEFAULT_TAG,
         key_var_format=DEFAULT_KEY_VAL_FORMAT,
@@ -46,15 +48,15 @@ class StatsHandler(object):
         """
 
         Args:
-            epoch_print_logger (Callable): customized callable printer for epoch level logging.
+            epoch_print_logger: customized callable printer for epoch level logging.
                 Must accept parameter "engine", use default printer if None.
-            iteration_print_logger (Callable): customized callable printer for iteration level logging.
+            iteration_print_logger: customized callable printer for iteration level logging.
                 Must accept parameter "engine", use default printer if None.
-            output_transform (Callable): a callable that is used to transform the
+            output_transform: a callable that is used to transform the
                 ``ignite.engine.output`` into a scalar to print, or a dictionary of {key: scalar}.
                 In the latter case, the output string will be formatted as key: value.
                 By default this value logging happens when every iteration completed.
-            global_epoch_transform (Callable): a callable that is used to customize global epoch number.
+            global_epoch_transform: a callable that is used to customize global epoch number.
                 For example, in evaluation, the evaluator engine might want to print synced epoch number
                 with the trainer engine.
             name (str): identifier of logging.logger to use, defaulting to ``engine.logger``.
