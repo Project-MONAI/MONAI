@@ -87,7 +87,7 @@ do
             echo "ERROR: Incorrect commandline provided"
             echo "Invalid key: $key"
             echo "runtests.sh [--codeformat] [--black] [--black-fix] [--flake8] [--pytype] [--mypy] "
-            echo "            [--nounittests] [--coverage] [--quick] [--net] [--dryrun] [--zoo] [-j number]"
+            echo "            [--nounittests] [--coverage] [--quick] [--net] [--dryrun] [--zoo] [-j number] [--clean]"
             echo "      --codeformat      : shorthand to run all code style and static analysis tests"
             echo "      --black           : Run the \"black\" autoformatting tools as a lint checker"
             echo "      --black-fix       : Apply \"black\" autofix feature"
@@ -105,7 +105,6 @@ do
             exit 1
         ;;
     esac
-    # shellcheck disable=SC2068
     echo $@
     shift
 done
@@ -124,11 +123,12 @@ fi
 # Unconditionally report on the state of monai
 python -c 'import monai; monai.config.print_config()'
 
-#Cleaning the files when ussing --clean in args, if theres no files exit just exit 
+#Cleaning the files when ussing --clean in args and exit
 if [ "$clean_cache_file" = true ]
 then
   rm -i .mypy_cache
   rm -i .pytype
+  rm -i .coverage
   echo "All temporary files where erased!"
   exit
 fi
