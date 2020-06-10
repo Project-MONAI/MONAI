@@ -46,12 +46,12 @@ class DiceLoss(_Loss):
     ):
         """
         Args:
-            include_background (bool): If False channel index 0 (background category) is excluded from the calculation.
-            to_onehot_y (bool): whether to convert `y` into the one-hot format. Defaults to False.
-            sigmoid (bool): If True, apply a sigmoid function to the prediction.
-            softmax (bool): If True, apply a softmax function to the prediction.
-            squared_pred (bool): use squared versions of targets and predictions in the denominator or not.
-            jaccard (bool): compute Jaccard Index (soft IoU) instead of dice or not.
+            include_background: If False channel index 0 (background category) is excluded from the calculation.
+            to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
+            sigmoid: If True, apply a sigmoid function to the prediction.
+            softmax: If True, apply a softmax function to the prediction.
+            squared_pred: use squared versions of targets and predictions in the denominator or not.
+            jaccard: compute Jaccard Index (soft IoU) instead of dice or not.
             reduction (`none|mean|sum`): Specifies the reduction to apply to the output:
                 ``'none'``: no reduction will be applied,
                 ``'mean'``: the sum of the output will be divided by the number of elements in the output,
@@ -192,10 +192,10 @@ class GeneralizedDiceLoss(_Loss):
     ):
         """
         Args:
-            include_background (bool): If False channel index 0 (background category) is excluded from the calculation.
-            to_onehot_y (bool): whether to convert `y` into the one-hot format. Defaults to False.
-            sigmoid (bool): If True, apply a sigmoid function to the prediction.
-            softmax (bool): If True, apply a softmax function to the prediction.
+            include_background: If False channel index 0 (background category) is excluded from the calculation.
+            to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
+            sigmoid: If True, apply a sigmoid function to the prediction.
+            softmax: If True, apply a softmax function to the prediction.
             w_type ('square'|'simple'|'uniform'): type of function to transform ground truth volume to a weight factor.
                 Default: `'square'`
             reduction (`none|mean|sum`): Specifies the reduction to apply to the output:

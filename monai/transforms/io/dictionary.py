@@ -45,11 +45,11 @@ class LoadNiftid(MapTransform):
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            as_closest_canonical (bool): if True, load the image as closest to canonical axis format.
+            as_closest_canonical: if True, load the image as closest to canonical axis format.
             dtype (np.dtype, optional): if not None convert the loaded image to this data type.
             meta_key_format (str): key format to store meta data of the nifti image.
                 it must contain 2 fields for the key of this image and the key of every meta data item.
-            overwriting_keys (bool): whether allow to overwrite existing keys of meta data.
+            overwriting_keys: whether allow to overwrite existing keys of meta data.
                 default is False, which will raise exception if encountering existing key.
         """
         super().__init__(keys)
