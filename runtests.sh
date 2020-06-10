@@ -101,7 +101,7 @@ do
             echo "      --dryrun          : display the commands to the screen without running"
             echo "      --zoo             : not yet implmented"
             echo "       -j               : number of parallel jobs to run"
-            echo "      --clean          : Clean temporary files from tests"
+            echo "      --clean           : Clean temporary files from tests"
             exit 1
         ;;
     esac
