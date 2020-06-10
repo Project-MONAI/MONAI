@@ -208,7 +208,7 @@ class RandRotate90d(Randomizable, MapTransform):
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            prob (float): probability of rotating.
+            prob: probability of rotating.
                 (Default 0.1, with 10% probability it returns a rotated array.)
             max_k: number of rotations will be sampled from `np.random.randint(max_k) + 1`.
                 (Default 3)
@@ -321,7 +321,7 @@ class RandAffined(Randomizable, MapTransform):
             spatial_size (list or tuple of int): output image spatial size.
                 if ``data`` component has two spatial dimensions, ``spatial_size`` should have 2 elements [h, w].
                 if ``data`` component has three spatial dimensions, ``spatial_size`` should have 3 elements [h, w, d].
-            prob (float): probability of returning a randomized affine grid.
+            prob: probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid.
             mode (str or sequence of str): interpolation order.
                 Available options are 'nearest', 'bilinear'. Defaults to ``'bilinear'``.
@@ -402,7 +402,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
             spacing (2 ints): distance in between the control points.
             magnitude_range (2 ints): the random offsets will be generated from
                 ``uniform[magnitude[0], magnitude[1])``.
-            prob (float): probability of returning a randomized affine grid.
+            prob: probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
             mode (str or sequence of str): interpolation order.
@@ -490,7 +490,7 @@ class Rand3DElasticd(Randomizable, MapTransform):
                  from ``uniform[sigma_range[0], sigma_range[1])`` will be used to smooth the random offset grid.
             magnitude_range (2 ints): the random offsets on the grid will be generated from
                 ``uniform[magnitude[0], magnitude[1])``.
-            prob (float): probability of returning a randomized affine grid.
+            prob: probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
             mode (str or sequence of str): interpolation order.
@@ -579,7 +579,7 @@ class RandFlipd(Randomizable, MapTransform):
     https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
 
     Args:
-        prob (float): Probability of flipping.
+        prob: Probability of flipping.
         spatial_axis (None, int or tuple of ints): Spatial axes along which to flip over. Default is None.
     """
 
@@ -609,7 +609,7 @@ class Rotated(MapTransform):
 
     Args:
         keys (dict): Keys to pick data for transformation.
-        angle (float): Rotation angle in degrees.
+        angle: Rotation angle in degrees.
         spatial_axes (tuple of 2 ints): Spatial axes of rotation. Default: (0, 1).
             This is the first two axis in spatial dimensions.
         reshape: If reshape is true, the output shape is adapted so that the
@@ -660,7 +660,7 @@ class RandRotated(Randomizable, MapTransform):
     Randomly rotates the input arrays.
 
     Args:
-        prob (float): Probability of rotation.
+        prob: Probability of rotation.
         degrees (tuple of float or float): Range of rotation in degrees. If single number,
             angle is picked from (-degrees, degrees).
         spatial_axes (tuple of 2 ints): Spatial axes of rotation. Default: (0, 1).
@@ -780,7 +780,7 @@ class RandZoomd(Randomizable, MapTransform):
 
     Args:
         keys: Keys to pick data for transformation.
-        prob (float): Probability of zooming.
+        prob: Probability of zooming.
         min_zoom (float or sequence): Min zoom factor. Can be float or sequence same size as image.
             If a float, min_zoom is the same for each spatial axis.
             If a sequence, min_zoom should contain one value for each spatial axis.
@@ -805,7 +805,7 @@ class RandZoomd(Randomizable, MapTransform):
         max_zoom=1.1,
         interp_order=InterpolationCode.SPLINE3,
         mode="constant",
-        cval=0,
+        cval: float = 0.0,
         prefilter=True,
         use_gpu: bool = False,
         keep_size: bool = True,

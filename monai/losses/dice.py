@@ -78,7 +78,7 @@ class DiceLoss(_Loss):
         Args:
             input (tensor): the shape should be BNH[WD].
             target (tensor): the shape should be BNH[WD].
-            smooth (float): a small constant to avoid nan.
+            smooth: a small constant to avoid nan.
         """
         if self.sigmoid:
             input = torch.sigmoid(input)
@@ -149,7 +149,7 @@ class MaskedDiceLoss(DiceLoss):
             input (tensor): the shape should be BNH[WD].
             target (tensor): the shape should be BNH[WD].
             mask (tensor): (optional) the shape should B1H[WD] or 11H[WD]
-            smooth (float): a small constant to avoid nan.
+            smooth: a small constant to avoid nan.
         """
         if mask is not None:
             # checking if mask is of proper shape
@@ -227,7 +227,7 @@ class GeneralizedDiceLoss(_Loss):
         Args:
             input (tensor): the shape should be BNH[WD].
             target (tensor): the shape should be BNH[WD].
-            smooth (float): a small constant to avoid nan.
+            smooth: a small constant to avoid nan.
         """
         if self.sigmoid:
             input = torch.sigmoid(input)

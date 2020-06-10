@@ -33,7 +33,7 @@ class PNGSaver:
         resample: bool = True,
         interp_order: int = 3,
         mode: str = "constant",
-        cval: Union[int, float] = 0,
+        cval: float = 0.0,
         scale: bool = False,
     ):
         """

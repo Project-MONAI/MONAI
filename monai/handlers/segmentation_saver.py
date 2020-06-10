@@ -30,7 +30,7 @@ class SegmentationSaver:
         resample: bool = True,
         interp_order="bilinear",
         mode: str = "border",
-        cval: Union[int, float] = 0,
+        cval: float = 0.0,
         scale: bool = False,
         dtype: Optional[np.dtype] = None,
         batch_transform: Callable = lambda x: x,
