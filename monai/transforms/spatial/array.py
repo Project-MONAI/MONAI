@@ -463,7 +463,7 @@ class RandRotate90(Randomizable, Transform):
         self._do_transform = False
         self._rand_k = 0
 
-    def randomize(self) -> None:
+    def randomize(self) -> None:  # type: ignore # see issue #495
         self._rand_k = self.R.randint(self.max_k) + 1
         self._do_transform = self.R.random() < self.prob
 
@@ -534,7 +534,7 @@ class RandRotate(Randomizable, Transform):
         self.y = 0.0
         self.z = 0.0
 
-    def randomize(self) -> None:
+    def randomize(self) -> None:  # type: ignore # see issue #495
         self._do_transform = self.R.random_sample() < self.prob
         self.x = self.R.uniform(low=self.range_x[0], high=self.range_x[1])
         self.y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
@@ -573,7 +573,7 @@ class RandFlip(Randomizable, Transform):
         self.flipper = Flip(spatial_axis=spatial_axis)
         self._do_transform = False
 
-    def randomize(self) -> None:
+    def randomize(self) -> None:  # type: ignore # see issue #495
         self._do_transform = self.R.random_sample() < self.prob
 
     def __call__(self, img):
@@ -624,7 +624,7 @@ class RandZoom(Randomizable, Transform):
         self._do_transform = False
         self._zoom = None
 
-    def randomize(self) -> None:
+    def randomize(self) -> None:  # type: ignore # see issue #495
         self._do_transform = self.R.random_sample() < self.prob
         if hasattr(self.min_zoom, "__iter__"):
             self._zoom = (self.R.uniform(l, h) for l, h in zip(self.min_zoom, self.max_zoom))
@@ -746,7 +746,7 @@ class RandAffineGrid(Randomizable, Transform):
         self.as_tensor_output = as_tensor_output
         self.device = device
 
-    def randomize(self) -> None:
+    def randomize(self) -> None:  # type: ignore # see issue #495
         if self.rotate_range:
             self.rotate_params = [self.R.uniform(-f, f) for f in self.rotate_range if f is not None]
         if self.shear_range:
@@ -1007,7 +1007,7 @@ class RandAffine(Randomizable, Transform):
         super().set_random_state(seed, state)
         return self
 
-    def randomize(self) -> None:
+    def randomize(self) -> None:  # type: ignore # see issue #495
         self.do_transform = self.R.rand() < self.prob
         self.rand_affine_grid.randomize()
 
