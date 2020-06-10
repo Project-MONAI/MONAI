@@ -79,7 +79,9 @@ class LoadPNGd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.LoadPNG`.
     """
 
-    def __init__(self, keys: Hashable, dtype: Optional[np.dtype] = np.float32, meta_key_postfix: str = "meta", overwriting=False):
+    def __init__(
+        self, keys: Hashable, dtype: Optional[np.dtype] = np.float32, meta_key_postfix: str = "meta", overwriting=False
+    ):
         """
         Args:
             keys (hashable items): keys of the corresponding items to be transformed.
