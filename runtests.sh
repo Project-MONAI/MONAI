@@ -124,11 +124,11 @@ fi
 python -c 'import monai; monai.config.print_config()'
 
 #Cleaning the files when ussing --clean in args and exit
-if [ "$clean_cache_file" = true ]
+if [ "$clean_cache_files" = true ]
 then
-  rm -i .mypy_cache
-  rm -i .pytype
-  rm -i .coverage
+  rm -r mypy_cache
+  rm -r pytype
+  rm -r coverage
   echo "All temporary files were erased!"
   exit
 fi
