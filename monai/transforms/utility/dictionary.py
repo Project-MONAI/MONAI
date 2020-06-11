@@ -39,7 +39,7 @@ from monai.transforms.utility.array import (
 
 
 class Identityd(MapTransform):
-    """Dictionary-based wrapper of :py:class:`monai.transforms.Identity`.
+    """Dictionary-based wrapper of :py:class:`monai.transforms.utility.array.Identity`.
 
     Args:
         keys (dict): Keys to pick data for transformation.
