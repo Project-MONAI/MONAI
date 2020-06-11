@@ -84,7 +84,7 @@ class Spacing(Transform):
         self.mode = mode
         self.dtype = dtype
 
-    def __call__(  # type: ignore # see issue #495
+    def __call__(
         self,
         data_array: np.ndarray,
         affine=None,
@@ -174,7 +174,7 @@ class Orientation(Transform):
         self.as_closest_canonical = as_closest_canonical
         self.labels = labels
 
-    def __call__(self, data_array: np.ndarray, affine=None):  # type: ignore # see issue #495
+    def __call__(self, data_array: np.ndarray, affine=None):
         """
         original orientation of `data_array` is defined by `affine`.
 
@@ -256,9 +256,7 @@ class Resize(Transform):
         self.interp_order = interp_order
         self.align_corners = align_corners
 
-    def __call__(  # type: ignore # see issue #495
-        self, img, interp_order: Optional[str] = None
-    ):
+    def __call__(self, img, interp_order: Optional[str] = None):
         """
         Args:
             img (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
@@ -316,9 +314,7 @@ class Rotate(Transform):
         self.mode = mode
         self.align_corners = align_corners
 
-    def __call__(  # type: ignore # see issue #495
-        self, img, interp_order: Optional[str] = None, mode: Optional[str] = None,
-    ):
+    def __call__(self, img, interp_order: Optional[str] = None, mode: Optional[str] = None):
         """
         Args:
             img (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
@@ -433,7 +429,7 @@ class Rotate90(Transform):
         self.k = k
         self.spatial_axes = spatial_axes
 
-    def __call__(self, img: np.ndarray):  # type: ignore # see issue #495
+    def __call__(self, img: np.ndarray):
         """
         Args:
             img (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
@@ -544,9 +540,7 @@ class RandRotate(Randomizable, Transform):
         self.y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
         self.z = self.R.uniform(low=self.range_z[0], high=self.range_z[1])
 
-    def __call__(  # type: ignore # see issue #495
-        self, img, interp_order: Optional[str] = None, mode: Optional[str] = None,
-    ):
+    def __call__(self, img, interp_order: Optional[str] = None, mode: Optional[str] = None):
         """
         Args:
             img (ndarray): channel first array, must have shape 2D: (nchannels, H, W), or 3D: (nchannels, H, W, D).
@@ -637,9 +631,7 @@ class RandZoom(Randomizable, Transform):
         else:
             self._zoom = self.R.uniform(self.min_zoom, self.max_zoom)
 
-    def __call__(  # type: ignore # see issue #495
-        self, img, interp_order: Optional[str] = None
-    ):
+    def __call__(self, img, interp_order: Optional[str] = None):
         self.randomize()
         _dtype = np.float32
         if not self._do_transform:
@@ -843,21 +835,23 @@ class Resample(Transform):
         self.as_tensor_output = as_tensor_output
         self.device = device
 
-    def __call__(  # type: ignore # see issue #495
+    def __call__(
         self,
         img: Union[np.ndarray, torch.Tensor],
-        grid: Union[np.ndarray, torch.Tensor],
+        grid: Optional[Union[np.ndarray, torch.Tensor]] = None,
         padding_mode: Optional[str] = None,
-        mode: Optional[str] = None,
+        mode: str = "bilinear",
     ):
         """
         Args:
-            img (ndarray or tensor): shape must be (num_channels, H, W[, D]).
-            grid (ndarray or tensor): shape must be (3, H, W) for 2D or (4, H, W, D) for 3D.
+            img: shape must be (num_channels, H, W[, D]).
+            grid: shape must be (3, H, W) for 2D or (4, H, W, D) for 3D.
             mode ('nearest'|'bilinear'): interpolation order. Defaults to 'bilinear'.
         """
+
         if not torch.is_tensor(img):
             img = torch.as_tensor(np.ascontiguousarray(img))
+        assert grid is not None, "Error, grid argument must be supplied as an ndarray or tensor "
         grid = torch.tensor(grid) if not torch.is_tensor(grid) else grid.detach().clone()
         if self.device:
             img = img.to(self.device)
@@ -933,7 +927,7 @@ class Affine(Transform):
         self.padding_mode = padding_mode
         self.mode = mode
 
-    def __call__(  # type: ignore # see issue #495
+    def __call__(
         self,
         img: Union[np.ndarray, torch.Tensor],
         spatial_size=None,
@@ -1017,7 +1011,7 @@ class RandAffine(Randomizable, Transform):
         self.do_transform = self.R.rand() < self.prob
         self.rand_affine_grid.randomize()
 
-    def __call__(  # type: ignore # see issue #495
+    def __call__(
         self,
         img: Union[np.ndarray, torch.Tensor],
         spatial_size=None,
@@ -1114,7 +1108,7 @@ class Rand2DElastic(Randomizable, Transform):
         self.deform_grid.randomize(spatial_size)
         self.rand_affine_grid.randomize()
 
-    def __call__(  # type: ignore # see issue #495
+    def __call__(
         self,
         img: Union[np.ndarray, torch.Tensor],
         spatial_size=None,

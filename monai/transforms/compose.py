@@ -42,7 +42,7 @@ class Transform(ABC):
     """
 
     @abstractmethod
-    def __call__(self, data, *args, **kwargs):
+    def __call__(self, data: Any):
         """
         ``data`` is an element which often comes from an iteration over an
         iterable, such as :py:class:`torch.utils.data.Dataset`. This method should
@@ -93,7 +93,7 @@ class Randomizable(ABC):
         return self
 
     @abstractmethod
-    def randomize(self, *args, **kwargs):
+    def randomize(self):
         """
         Within this method, :py:attr:`self.R` should be used, instead of `np.random`, to introduce random factors.
 
