@@ -1,4 +1,4 @@
-# Modules in v0.1(public alpha)
+# Modules in v0.1.0 (public alpha)
 
 MONAI aims at supporting deep learning in medical image analysis at multiple granularities.
 This figure shows modules currently available in the codebase.
