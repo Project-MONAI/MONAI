@@ -29,7 +29,7 @@ class SegmentationSaver:
         output_postfix: str = "seg",
         output_ext: str = ".nii.gz",
         resample: bool = True,
-        interp_order="nearest",
+        interp_order: str = "nearest",
         mode: str = "border",
         scale: bool = False,
         dtype: Optional[np.dtype] = None,

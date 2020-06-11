@@ -17,7 +17,7 @@ from monai.utils.misc import ensure_tuple_rep
 
 
 def write_png(
-    data, file_name, output_shape=None, interp_order: str = "bicubic", scale=False, plugin=None, **plugin_args,
+    data, file_name, output_shape=None, interp_order: str = "bicubic", scale: bool = False, plugin=None, **plugin_args,
 ):
     """
     Write numpy data into png files to disk.
@@ -47,9 +47,9 @@ def write_png(
             data = np.moveaxis(data, -1, 0)  # to channel first
             data = xform(data)
             data = np.moveaxis(data, 0, -1)
-        else:
+        else:  # (H, W)
             data = np.expand_dims(data, 0)  # make a channel
-            data = xform(data)[0]  # first batch first channel
+            data = xform(data)[0]  # first channel
         if interp_order != "nearest":
             data = np.clip(data, _min, _max)
 

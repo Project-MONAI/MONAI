@@ -33,7 +33,7 @@ class PNGSaver:
         output_postfix: str = "seg",
         output_ext: str = ".png",
         resample: bool = True,
-        interp_order: str = "bicubic",
+        interp_order: str = "nearest",
         scale: bool = False,
     ):
         """
@@ -42,8 +42,8 @@ class PNGSaver:
             output_postfix (str): a string appended to all output file names.
             output_ext (str): output file extension name.
             resample (bool): whether to resample and resize if providing spatial_shape in the metadata.
-            interp_order (`nearest|linear|bilinear|bicubic|trilinear|area`):
-                the interpolation mode. Default="bicubic".
+            interp_order (`nearest|bilinear|bicubic|area`):
+                the interpolation mode. Default="nearest".
                 See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             scale (bool): whether to scale data with 255 and convert to uint8 for data in range [0, 1].
 
