@@ -38,14 +38,14 @@ class PNGSaver:
     ):
         """
         Args:
-            output_dir (str): output image directory.
-            output_postfix (str): a string appended to all output file names.
-            output_ext (str): output file extension name.
-            resample (bool): whether to resample and resize if providing spatial_shape in the metadata.
+            output_dir: output image directory.
+            output_postfix: a string appended to all output file names.
+            output_ext: output file extension name.
+            resample: whether to resample and resize if providing spatial_shape in the metadata.
             interp_order (`nearest|bilinear|bicubic|area`):
                 the interpolation mode. Default="nearest".
                 See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
-            scale (bool): whether to scale data with 255 and convert to uint8 for data in range [0, 1].
+            scale: whether to scale data with 255 and convert to uint8 for data in range [0, 1].
 
         """
         self.output_dir = output_dir

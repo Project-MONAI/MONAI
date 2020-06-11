@@ -31,8 +31,8 @@ class SpatialPad(Transform):
 
     Args:
         spatial_size (list): the spatial size of output data after padding.
-        method (str): pad image symmetric on every side or only pad at the end sides. default is 'symmetric'.
-        mode (str): one of the following string values or a user supplied function: {'constant', 'edge', 'linear_ramp',
+        method: pad image symmetric on every side or only pad at the end sides. default is 'symmetric'.
+        mode: one of the following string values or a user supplied function: {'constant', 'edge', 'linear_ramp',
             'maximum', 'mean', 'median', 'minimum', 'reflect', 'symmetric', 'wrap', 'empty', <function>}
             for more details, please check: https://docs.scipy.org/doc/numpy/reference/generated/numpy.pad.html
     """
@@ -185,7 +185,7 @@ class CropForeground(Transform):
     ):
         """
         Args:
-            select_fn (Callable): function to select expected foreground, default is to select values > 0.
+            select_fn: function to select expected foreground, default is to select values > 0.
             channel_indexes: if defined, select foreground only on the specified channels
                 of image. if None, select foreground on the whole image.
             margin: add margin to all dims of the bounding box.

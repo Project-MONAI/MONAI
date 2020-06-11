@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional, Callable
+
 from abc import ABC, abstractmethod
 import torch
 from ignite.engine import Engine, State, Events
@@ -31,8 +33,8 @@ class Workflow(ABC, Engine):
         max_epochs: the total epoch number for engine to run, validator and evaluator have only 1 epoch.
         amp: whether to enable auto-mixed-precision training, reserved.
         data_loader (torch.DataLoader): Ignite engine use data_loader to run, must be torch.DataLoader.
-        prepare_batch (Callable): function to parse image and label for every iteration.
-        iteration_update (Callable): the callable function for every iteration, expect to accept `engine`
+        prepare_batch: function to parse image and label for every iteration.
+        iteration_update: the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
         post_transform (Transform): execute additional transformation for the model output data.
             Typically, several Tensor based transforms composed by `Compose`.
@@ -51,8 +53,8 @@ class Workflow(ABC, Engine):
         max_epochs: int,
         amp: bool,
         data_loader,
-        prepare_batch=default_prepare_batch,
-        iteration_update=None,
+        prepare_batch: Callable = default_prepare_batch,
+        iteration_update: Optional[Callable] = None,
         post_transform=None,
         key_metric=None,
         additional_metrics=None,

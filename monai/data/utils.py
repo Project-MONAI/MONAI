@@ -407,10 +407,10 @@ def create_file_basename(postfix: str, input_file_name: str, folder_path: str, d
     filename (extension is added by lib level writer before writing the file)
 
     Args:
-        postfix (str): output name's postfix
-        input_file_name (str): path to the input image file
-        folder_path (str): path for the output file
-        data_root_dir (str): if not empty, it specifies the beginning parts of the input file's
+        postfix: output name's postfix
+        input_file_name: path to the input image file
+        folder_path: path for the output file
+        data_root_dir: if not empty, it specifies the beginning parts of the input file's
             absolute path. This is used to compute `input_file_rel_path`, the relative path to the file from
             `data_root_dir` to preserve folder structure when saving in case there are files in different
             folders with the same file names.
@@ -438,12 +438,12 @@ def create_file_basename(postfix: str, input_file_name: str, folder_path: str, d
     return os.path.join(subfolder_path, filename + "_" + postfix)
 
 
-def compute_importance_map(patch_size, mode="constant", sigma_scale: float = 0.125, device=None):
+def compute_importance_map(patch_size, mode: str = "constant", sigma_scale: float = 0.125, device=None):
     """Get importance map for different weight modes.
 
     Args:
         patch_size (tuple): Size of the required importance map. This should be either H, W [,D].
-        mode (str): Importance map type. Options are 'constant' (Each weight has value 1.0)
+        mode: Importance map type. Options are 'constant' (Each weight has value 1.0)
             or 'gaussian' (Importance becomes lower away from center).
         sigma_scale: Sigma_scale to calculate sigma for each dimension
             (sigma = sigma_scale * dim_size). Used for gaussian mode only.

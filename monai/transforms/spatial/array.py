@@ -247,7 +247,7 @@ class Resize(Transform):
         interp_order (`nearest|linear|bilinear|bicubic|trilinear|area`):
             the interpolation mode. Default="area".
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
-        align_corners (optional bool): This only has an effect when mode is
+        align_corners: This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
     """
@@ -295,7 +295,7 @@ class Rotate(Transform):
             input array is contained completely in the output. Default is True.
         interp_order: Order of spline interpolation. Range 0-5. Default: InterpolationCode.LINEAR. This is
             different from scipy where default interpolation is InterpolationCode.SPLINE3.
-        mode (str): Points outside boundary filled according to this mode. Options are
+        mode: Points outside boundary filled according to this mode. Options are
             'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
         cval: Values to fill outside boundary. Default: 0.
         prefilter: Apply spline_filter before interpolation. Default: True.
@@ -363,10 +363,10 @@ class Zoom(Transform):
         interp_order (`nearest|linear|bilinear|bicubic|trilinear|area`):
             the interpolation mode. Default="area".
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
-        align_corners (optional bool): This only has an effect when mode is
+        align_corners: This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
-        keep_size (bool): Should keep original size (padding/slicing if needed), default is True.
+        keep_size: Should keep original size (padding/slicing if needed), default is True.
     """
 
     def __init__(
@@ -482,7 +482,7 @@ class RandRotate(Randomizable, Transform):
             input array is contained completely in the output. Default is True.
         interp_order: Order of spline interpolation. Range 0-5. Default: InterpolationCode.LINEAR. This is
             different from scipy where default interpolation is InterpolationCode.SPLINE3.
-        mode (str): Points outside boundary filled according to this mode. Options are
+        mode: Points outside boundary filled according to this mode. Options are
             'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
         cval: Value to fill outside boundary. Default: 0.
         prefilter: Apply spline_filter before interpolation. Default: True.
