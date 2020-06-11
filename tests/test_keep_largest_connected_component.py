@@ -72,84 +72,84 @@ grid_3 = torch.tensor(
 
 TEST_CASE_1 = [
     "value_1",
-    {"independent": False, "applied_values": [1]},
+    {"independent": False, "applied_labels": 1},
     grid_1,
     torch.tensor([[[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [0, 2, 1, 0, 0], [0, 2, 0, 1, 0], [2, 2, 0, 0, 2]]]]),
 ]
 
 TEST_CASE_2 = [
     "value_2",
-    {"independent": False, "applied_values": [2]},
+    {"independent": False, "applied_labels": [2]},
     grid_1,
     torch.tensor([[[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [1, 2, 1, 0, 0], [1, 2, 0, 1, 0], [2, 2, 0, 0, 0]]]]),
 ]
 
 TEST_CASE_3 = [
     "independent_value_1_2",
-    {"independent": True, "applied_values": [1, 2]},
+    {"independent": True, "applied_labels": [1, 2]},
     grid_1,
     torch.tensor([[[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [0, 2, 1, 0, 0], [0, 2, 0, 1, 0], [2, 2, 0, 0, 0]]]]),
 ]
 
 TEST_CASE_4 = [
     "dependent_value_1_2",
-    {"independent": False, "applied_values": [1, 2]},
+    {"independent": False, "applied_labels": [1, 2]},
     grid_1,
     torch.tensor([[[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [1, 2, 1, 0, 0], [1, 2, 0, 1, 0], [2, 2, 0, 0, 2]]]]),
 ]
 
 TEST_CASE_5 = [
     "value_1",
-    {"independent": True, "applied_values": [1]},
+    {"independent": True, "applied_labels": [1]},
     grid_2,
     torch.tensor([[[[0, 0, 0, 0, 1], [0, 0, 1, 1, 1], [0, 0, 1, 1, 2], [0, 0, 1, 2, 2], [0, 0, 0, 0, 0]]]]),
 ]
 
 TEST_CASE_6 = [
     "independent_value_1_2",
-    {"independent": True, "applied_values": [1, 2]},
+    {"independent": True, "applied_labels": [1, 2]},
     grid_2,
     torch.tensor([[[[0, 0, 0, 0, 1], [0, 0, 1, 1, 1], [0, 0, 1, 1, 2], [0, 0, 1, 2, 2], [0, 0, 0, 0, 0]]]]),
 ]
 
 TEST_CASE_7 = [
     "dependent_value_1_2",
-    {"independent": False, "applied_values": [1, 2]},
+    {"independent": False, "applied_labels": [1, 2]},
     grid_2,
     torch.tensor([[[[0, 0, 0, 0, 1], [0, 0, 1, 1, 1], [0, 0, 1, 1, 2], [0, 0, 1, 2, 2], [0, 0, 0, 0, 1]]]]),
 ]
 
 TEST_CASE_8 = [
     "value_1_connect_1",
-    {"independent": False, "applied_values": [1], "connectivity": 1},
+    {"independent": False, "applied_labels": [1], "connectivity": 1},
     grid_1,
     torch.tensor([[[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [0, 2, 1, 0, 0], [0, 2, 0, 0, 0], [2, 2, 0, 0, 2]]]]),
 ]
 
 TEST_CASE_9 = [
     "independent_value_1_2_connect_1",
-    {"independent": True, "applied_values": [1, 2], "connectivity": 1},
+    {"independent": True, "applied_labels": [1, 2], "connectivity": 1},
     grid_1,
     torch.tensor([[[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [0, 2, 1, 0, 0], [0, 2, 0, 0, 0], [2, 2, 0, 0, 0]]]]),
 ]
 
 TEST_CASE_10 = [
     "dependent_value_1_2_connect_1",
-    {"independent": False, "applied_values": [1, 2], "connectivity": 1},
+    {"independent": False, "applied_labels": [1, 2], "connectivity": 1},
     grid_1,
     torch.tensor([[[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [1, 2, 1, 0, 0], [1, 2, 0, 0, 0], [2, 2, 0, 0, 0]]]]),
 ]
 
 TEST_CASE_11 = [
     "value_0_background_3",
-    {"independent": False, "applied_values": [0], "background": 3},
+    {"independent": False, "applied_labels": [0], "background": 3},
     grid_1,
     torch.tensor([[[[3, 3, 1, 3, 3], [3, 2, 1, 1, 1], [1, 2, 1, 0, 0], [1, 2, 0, 1, 0], [2, 2, 0, 0, 2]]]]),
 ]
 
 TEST_CASE_12 = [
     "all_0_batch_2",
-    {"independent": False, "applied_values": [1], "background": 3},
+    {"independent": False, "applied_labels": [1], "background": 3},
     torch.tensor(
         [
             [[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]],
@@ -165,8 +165,8 @@ TEST_CASE_12 = [
 ]
 
 TEST_CASE_13 = [
-    "onehot_independent_batch_2_apply_channel_1_connect_1",
-    {"independent": True, "applied_channel_indices": [1], "connectivity": 1},
+    "onehot_independent_batch_2_apply_label_1_connect_1",
+    {"independent": True, "applied_labels": [1], "connectivity": 1},
     grid_3,
     torch.tensor(
         [
@@ -221,8 +221,8 @@ TEST_CASE_13 = [
 ]
 
 TEST_CASE_14 = [
-    "onehot_independent_batch_2_apply_channel_1_connect_2",
-    {"independent": True, "applied_channel_indices": [1], "connectivity": 2},
+    "onehot_independent_batch_2_apply_label_1_connect_2",
+    {"independent": True, "applied_labels": [1], "connectivity": 2},
     grid_3,
     torch.tensor(
         [
@@ -277,8 +277,8 @@ TEST_CASE_14 = [
 ]
 
 TEST_CASE_15 = [
-    "onehot_independent_batch_2_apply_channel_1_2_connect_2",
-    {"independent": True, "applied_channel_indices": [1, 2], "connectivity": 2},
+    "onehot_independent_batch_2_apply_label_1_2_connect_2",
+    {"independent": True, "applied_labels": [1, 2], "connectivity": 2},
     grid_3,
     torch.tensor(
         [
@@ -333,8 +333,8 @@ TEST_CASE_15 = [
 ]
 
 TEST_CASE_16 = [
-    "onehot_dependent_batch_2_apply_channel_1_2_connect_2",
-    {"independent": False, "applied_channel_indices": [1, 2], "connectivity": 2},
+    "onehot_dependent_batch_2_apply_label_1_2_connect_2",
+    {"independent": False, "applied_labels": [1, 2], "connectivity": 2},
     grid_3,
     torch.tensor(
         [
@@ -389,8 +389,8 @@ TEST_CASE_16 = [
 ]
 
 TEST_CASE_17 = [
-    "onehot_dependent_batch_2_apply_channel_1_2_connect_1",
-    {"independent": False, "applied_channel_indices": [1, 2], "connectivity": 1},
+    "onehot_dependent_batch_2_apply_label_1_2_connect_1",
+    {"independent": False, "applied_labels": [1, 2], "connectivity": 1},
     grid_3,
     torch.tensor(
         [
@@ -465,36 +465,22 @@ VALID_CASES = [
 ]
 
 ITEST_CASE_1 = [
-    "no_applied_values_or_applied_channels",
-    {"independent": False},
-    grid_1,
-    ValueError,
-]
-
-ITEST_CASE_1 = [
-    "no_applied_values_or_applied_channel_indices",
+    "no_applied_labels_for_single_channel",
     {"independent": False},
     grid_1,
     ValueError,
 ]
 
 ITEST_CASE_2 = [
-    "background_in_applied_values",
-    {"independent": False, "background": 1, "applied_values": [1, 2]},
+    "background_in_applied_labels",
+    {"independent": False, "background": 1, "applied_labels": [1, 2]},
     grid_1,
     ValueError,
 ]
 
 ITEST_CASE_3 = [
-    "no_applied_values_for_single_channel",
-    {"independent": False, "background": 1, "applied_channel_indices": [1, 2]},
-    grid_1,
-    ValueError,
-]
-
-ITEST_CASE_4 = [
-    "no_applied_channel_indices_for_multi_channel",
-    {"independent": False, "background": 0, "applied_values": [1, 2]},
+    "no_applied_labels_for_multi_channel",
+    {"independent": False, "background": 0},
     grid_3,
     ValueError,
 ]
@@ -503,7 +489,6 @@ INVALID_CASES = [
     ITEST_CASE_1,
     ITEST_CASE_2,
     ITEST_CASE_3,
-    ITEST_CASE_4,
 ]
 
 

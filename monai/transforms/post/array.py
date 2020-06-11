@@ -19,6 +19,7 @@ import torch
 from monai.transforms.compose import Transform
 from monai.networks.utils import one_hot
 from monai.transforms.utils import get_largest_connected_component_mask
+from monai.utils.misc import ensure_tuple
 
 
 class SplitChannel(Transform):
@@ -151,13 +152,13 @@ class KeepLargestConnectedComponent(Transform):
       2) With shape (batch_size, C, spatial_dim1[, spatial_dim2, ...]) and the values should be 0, 1 on each labels.
 
     For example:
-    Use KeepLargestConnectedComponent with applied_values=[1], connectivity=1
+    Use KeepLargestConnectedComponent with applied_labels=[1], connectivity=1
 
        [1, 0, 0]         [0, 0, 0]
        [0, 1, 1]    =>   [0, 1 ,1]
        [0, 1, 1]         [0, 1, 1]
 
-    Use KeepLargestConnectedComponent with applied_values[1, 2], independent=False, connectivity=1
+    Use KeepLargestConnectedComponent with applied_labels[1, 2], independent=False, connectivity=1
 
       [0, 0, 1, 0 ,0]           [0, 0, 1, 0 ,0]
       [0, 2, 1, 1 ,1]           [0, 2, 1, 1 ,1]
@@ -165,7 +166,7 @@ class KeepLargestConnectedComponent(Transform):
       [1, 2, 0, 1 ,0]           [1, 2, 0, 0 ,0]
       [2, 2, 0, 0 ,2]           [2, 2, 0, 0 ,0]
 
-    Use KeepLargestConnectedComponent with applied_values[1, 2], independent=True, connectivity=1
+    Use KeepLargestConnectedComponent with applied_labels[1, 2], independent=True, connectivity=1
 
       [0, 0, 1, 0 ,0]           [0, 0, 1, 0 ,0]
       [0, 2, 1, 1 ,1]           [0, 2, 1, 1 ,1]
@@ -173,7 +174,7 @@ class KeepLargestConnectedComponent(Transform):
       [1, 2, 0, 1 ,0]           [0, 2, 0, 0 ,0]
       [2, 2, 0, 0 ,2]           [2, 2, 0, 0 ,0]
 
-    Use KeepLargestConnectedComponent with applied_values[1, 2], independent=False, connectivity=2
+    Use KeepLargestConnectedComponent with applied_labels[1, 2], independent=False, connectivity=2
 
       [0, 0, 1, 0 ,0]           [0, 0, 1, 0 ,0]
       [0, 2, 1, 1 ,1]           [0, 2, 1, 1 ,1]
@@ -185,40 +186,36 @@ class KeepLargestConnectedComponent(Transform):
 
     def __init__(
         self,
-        applied_values=None,
+        applied_labels=None,
         independent: bool = True,
         background: int = 0,
-        connectivity: Optional[int] = None,
-        applied_channel_indices=None,
+        connectivity: Optional[int] = None
     ):
         """
         Args:
-            applied_values (list or tuple of int): number list for applying the connected component on.
-                The pixel whose value is not in this list will remain unchanged. This will be used only
-                if the data has one channel.
+            applied_labels (int, list or tuple of int): Labels for applying the connected component on.
+                If only one channel. The pixel whose value is not in this list will remain unchanged.
+                If the data is in one-hot format, this is used to determine what channels to apply.
             independent (bool): consider several labels as a whole or independent, default is `True`.
                 Example use case would be segment label 1 is liver and label 2 is liver tumor, in that case
                 you want this "independent" to be specified as False.
             background: Background pixel value. The over-segmented pixels will be set as this value.
+                Note that for one-hot data, the over-segment pixels will be set to 0 in its channel.
             connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
                 Accepted values are ranging from  1 to input.ndim. If ``None``, a full
                 connectivity of ``input.ndim`` is used.
-            applied_channel_indices (list): If the data is in one-hot format, this is used to determine what channels
-                to apply.
         """
         super().__init__()
-        self.applied_values = applied_values
+        if applied_labels is None:
+            raise ValueError("Please provide applied_labels.")
+
+        self.applied_labels = ensure_tuple(applied_labels)
         self.independent = independent
         self.background = background
         self.connectivity = connectivity
-        self.applied_channel_indices = applied_channel_indices
 
-        if applied_values is None and applied_channel_indices is None:
-            raise ValueError("Please provide either applied_values or applied_channel_indices.")
-
-        if applied_channel_indices is None:
-            if background in applied_values:
-                raise ValueError("Background pixel can't be in applied_values.")
+        if background in self.applied_labels:
+            raise ValueError("Background pixel can't be in applied_labels.")
 
     def __call__(self, img):
         """
@@ -230,44 +227,38 @@ class KeepLargestConnectedComponent(Transform):
         """
         channel_dim = 1
         if img.shape[channel_dim] == 1:
-            if self.applied_values is None:
-                raise ValueError("Please provide applied_values for 1 channel data.")
 
             img = torch.squeeze(img, dim=channel_dim)
 
             if self.independent:
-                for i in self.applied_values:
+                for i in self.applied_labels:
                     foreground = (img == i).type(torch.uint8)
                     mask = get_largest_connected_component_mask(foreground, self.connectivity)
                     img[foreground != mask] = self.background
             else:
                 foreground = torch.zeros_like(img)
-                for i in self.applied_values:
+                for i in self.applied_labels:
                     foreground += (img == i).type(torch.uint8)
                 mask = get_largest_connected_component_mask(foreground, self.connectivity)
                 img[foreground != mask] = self.background
             output = torch.unsqueeze(img, dim=channel_dim)
         else:
-            # one-hot data
-            if self.applied_channel_indices is None:
-                raise ValueError("Please provide applied_channel_indices for one-hot data.")
-
             # one-hot data is assumed to have binary value in each channel
             if self.independent:
-                for i in self.applied_channel_indices:
+                for i in self.applied_labels:
                     foreground = img[:, i, ...].type(torch.uint8)
                     mask = get_largest_connected_component_mask(foreground, self.connectivity)
                     img[:, i, ...][foreground != mask] = 0
             else:
-                applied_img = img[:, self.applied_channel_indices, ...].type(torch.uint8)
+                applied_img = img[:, self.applied_labels, ...].type(torch.uint8)
                 foreground = torch.any(applied_img, dim=channel_dim)
                 mask = get_largest_connected_component_mask(foreground, self.connectivity)
                 background_mask = torch.unsqueeze(foreground != mask, dim=channel_dim)
                 background_mask = torch.repeat_interleave(
-                    background_mask, len(self.applied_channel_indices), dim=channel_dim
+                    background_mask, len(self.applied_labels), dim=channel_dim
                 )
                 applied_img[background_mask] = 0
-                img[:, self.applied_channel_indices, ...] = applied_img.type(img.type())
+                img[:, self.applied_labels, ...] = applied_img.type(img.type())
             output = img
 
         return output
