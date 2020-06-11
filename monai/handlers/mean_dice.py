@@ -45,7 +45,7 @@ class MeanDice(Metric):
             sigmoid: whether to add sigmoid function to the output prediction before computing Dice.
                 Defaults to False.
             logit_thresh: the threshold value to round value to 0.0 and 1.0. Defaults to None (no thresholding).
-            output_transform (Callable): transform the ignite.engine.state.output into [y_pred, y] pair.
+            output_transform: transform the ignite.engine.state.output into [y_pred, y] pair.
             device (torch.device): device specification in case of distributed computation usage.
 
         See also:
