@@ -162,7 +162,7 @@ class KeepLargestConnectedComponentd(MapTransform):
 
     def __init__(
         self,
-        keys: Hashable,
+        keys: KeysCollection,
         applied_labels=None,
         independent: bool = True,
         background: int = 0,
