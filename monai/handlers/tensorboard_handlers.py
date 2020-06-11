@@ -51,15 +51,15 @@ class TensorBoardStatsHandler(object):
             summary_writer (SummaryWriter): user can specify TensorBoard SummaryWriter,
                 default to create a new writer.
             log_dir (str): if using default SummaryWriter, write logs to this directory, default is `./runs`.
-            epoch_event_writer (Callable): customized callable TensorBoard writer for epoch level.
+            epoch_event_writer: customized callable TensorBoard writer for epoch level.
                 Must accept parameter "engine" and "summary_writer", use default event writer if None.
-            iteration_event_writer (Callable): customized callable TensorBoard writer for iteration level.
+            iteration_event_writer: customized callable TensorBoard writer for iteration level.
                 Must accept parameter "engine" and "summary_writer", use default event writer if None.
-            output_transform (Callable): a callable that is used to transform the
+            output_transform: a callable that is used to transform the
                 ``ignite.engine.output`` into a scalar to plot, or a dictionary of {key: scalar}.
                 In the latter case, the output string will be formatted as key: value.
                 By default this value plotting happens when every iteration completed.
-            global_epoch_transform (Callable): a callable that is used to customize global epoch number.
+            global_epoch_transform: a callable that is used to customize global epoch number.
                 For example, in evaluation, the evaluator engine might want to use trainer engines epoch number
                 when plotting epoch vs metric curves.
             tag_name (string): when iteration output is a scalar, tag_name is used to plot, defaults to ``'Loss'``.
@@ -208,11 +208,11 @@ class TensorBoardImageHandler(object):
             interval: plot content from engine.state every N epochs or every N iterations, default is 1.
             epoch_level: plot content from engine.state every N epochs or N iterations. `True` is epoch level,
                 `False` is iteration level.
-            batch_transform (Callable): a callable that is used to transform the
+            batch_transform: a callable that is used to transform the
                 ``ignite.engine.batch`` into expected format to extract several label data.
-            output_transform (Callable): a callable that is used to transform the
+            output_transform: a callable that is used to transform the
                 ``ignite.engine.output`` into expected format to extract several output data.
-            global_iter_transform (Callable): a callable that is used to customize global step number for TensorBoard.
+            global_iter_transform: a callable that is used to customize global step number for TensorBoard.
                 For example, in evaluation, the evaluator engine needs to know current epoch from trainer.
             index: plot which element in a data batch, default is the first element.
             max_channels: number of channels to plot.

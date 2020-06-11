@@ -51,8 +51,8 @@ class SupervisedTrainer(Trainer):
         network (Network): to train with this network.
         optimizer (Optimizer): the optimizer associated to the network.
         loss_function (Loss): the loss function associated to the optimizer.
-        prepare_batch (Callable): function to parse image and label for current iteration.
-        iteration_update (Callable): the callable function for every iteration, expect to accept `engine`
+        prepare_batch: function to parse image and label for current iteration.
+        iteration_update: the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
         inferer (Inferer): inference method that execute model forward on input data, like: SlidingWindow, etc.
         amp: whether to enable auto-mixed-precision training, reserved.

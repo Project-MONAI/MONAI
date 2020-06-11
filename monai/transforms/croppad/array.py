@@ -185,7 +185,7 @@ class CropForeground(Transform):
     ):
         """
         Args:
-            select_fn (Callable): function to select expected foreground, default is to select values > 0.
+            select_fn: function to select expected foreground, default is to select values > 0.
             channel_indexes: if defined, select foreground only on the specified channels
                 of image. if None, select foreground on the whole image.
             margin: add margin to all dims of the bounding box.

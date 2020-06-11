@@ -43,7 +43,7 @@ class Dataset(_TorchDataset):
         """
         Args:
             data (Iterable): input data to load and transform to generate dataset for model.
-            transform (Callable, optional): a callable data transform on input data.
+            transform: a callable data transform on input data.
         """
         self.data = data
         self.transform = transform
@@ -97,7 +97,7 @@ class PersistentDataset(Dataset):
         """
         Args:
             data (Iterable): input data to load and transform to generate dataset for model.
-            transform (Callable, optional): transforms to execute operations on input data.
+            transform: transforms to execute operations on input data.
             cache_dir (Path or str or None): If specified, this is the location for persistent storage
                 of pre-computed transformed data tensors. The cache_dir is computed once, and
                 persists on disk until explicitly removed.  Different runs, programs, experiments
@@ -236,7 +236,7 @@ class CacheDataset(Dataset):
         """
         Args:
             data (Iterable): input data to load and transform to generate dataset for model.
-            transform (Callable): transforms to execute operations on input data.
+            transform: transforms to execute operations on input data.
             cache_num: number of items to be cached. Default is `sys.maxsize`.
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
             cache_rate: percentage of cached data in total, default is 1.0 (cache all).
@@ -317,11 +317,11 @@ class ZipDataset(Dataset):
 
     """
 
-    def __init__(self, datasets, transform=None):
+    def __init__(self, datasets, transform: Optional[Callable] = None):
         """
         Args:
             datasets (list or tuple): list of datasets to zip together.
-            transform (Callable): a callable data transform operates on the zipped item from `datasets`.
+            transform: a callable data transform operates on the zipped item from `datasets`.
         """
         super().__init__(list(datasets), transform=transform)
 
@@ -405,11 +405,11 @@ class ArrayDataset(Randomizable):
 
         Args:
             img (Sequence): sequence of images.
-            img_transform (Callable, optional): transform to apply to each element in `img`.
+            img_transform: transform to apply to each element in `img`.
             seg (Sequence, optional): sequence of segmentations.
-            seg_transform (Callable, optional): transform to apply to each element in `seg`.
+            seg_transform: transform to apply to each element in `seg`.
             labels (Sequence, optional): sequence of labels.
-            label_transform (Callable, optional): transform to apply to each element in `labels`.
+            label_transform: transform to apply to each element in `labels`.
 
         """
         items = [(img, img_transform), (seg, seg_transform), (labels, label_transform)]
