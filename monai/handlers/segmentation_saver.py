@@ -39,21 +39,21 @@ class SegmentationSaver:
     ):
         """
         Args:
-            output_dir (str): output image directory.
-            output_postfix (str): a string appended to all output file names.
-            output_ext (str): output file extension name.
-            resample (bool): whether to resample before saving the data array.
-            interp_order (str):
+            output_dir: output image directory.
+            output_postfix: a string appended to all output file names.
+            output_ext: output file extension name.
+            resample: whether to resample before saving the data array.
+            interp_order:
                 The interpolation mode. Defaults to "nearest". This option is used when `resample = True`.
                 When saving NIfTI files, the available options are "nearest", "bilinear"
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample.
                 When saving PNG files, the available options are "nearest", "bilinear", "bicubic", "area".
                 See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate.
-            mode (str): The mode parameter determines how the input array is extended beyond its boundaries.
+            mode: The mode parameter determines how the input array is extended beyond its boundaries.
                 This option is used when `resample = True`.
                 When saving NIfTI files, the options are "zeros", "border", "reflection". Default is "border".
                 When saving PNG files, the options is ignored.
-            scale (bool): whether to scale data with 255 and convert to uint8 for data in range [0, 1].
+            scale: whether to scale data with 255 and convert to uint8 for data in range [0, 1].
                 It's used for PNG format only.
             dtype (np.dtype, optional): convert the image data to save to this data type.
                 If None, keep the original type of data. It's used for Nifti format only.
@@ -63,7 +63,7 @@ class SegmentationSaver:
                 ignite.engine.output into the form expected image data.
                 The first dimension of this transform's output will be treated as the
                 batch dimension. Each item in the batch will be saved individually.
-            name (str): identifier of logging.logger to use, defaulting to `engine.logger`.
+            name: identifier of logging.logger to use, defaulting to `engine.logger`.
 
         """
         self.saver: Union[NiftiSaver, PNGSaver]
