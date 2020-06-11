@@ -23,6 +23,18 @@ import torch
 from monai.transforms.compose import Transform
 
 
+class Identity(Transform):
+    """
+    Identity transform output is same as the input.
+    """
+
+    def __init__(self):
+        pass
+
+    def __call__(self, data):
+        return np.asanyarray(data)
+
+
 class AsChannelFirst(Transform):
     """
     Change the channel dimension of the image to the first dimension.

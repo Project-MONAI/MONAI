@@ -11,14 +11,12 @@
 
 import unittest
 
-import numpy as np
-
-from monai.transforms import Identityd
+from monai.transforms.utility.dictionary import Identityd
 from tests.utils import NumpyImageTestCase2D
 
 
 class TestIdentity(NumpyImageTestCase2D):
-    def test_Identity(self):
+    def test_identityd(self):
         img = self.imt
         data = dict()
         data["img"] = img
