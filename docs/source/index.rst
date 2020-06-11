@@ -43,7 +43,8 @@ Technical documentation is available via `Read the Docs <https://monai.readthedo
    :maxdepth: 1
    :caption: Technical highlights
 
-   highlights.md
+   highlights_v0.1.md
+   highlights_v0.2.md
 
 .. toctree::
    :maxdepth: 1

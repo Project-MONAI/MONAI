@@ -1,8 +1,8 @@
-# Modules for public alpha
+# Modules in v0.1(public alpha)
 
 MONAI aims at supporting deep learning in medical image analysis at multiple granularities.
 This figure shows modules currently available in the codebase.
-![image](../images/end_to_end_process.png)
+![image](../images/modules_v0.1.png)
 The rest of this page provides more details for each module.
 
 * [Data I/O, preprocessing, and augmentation](#medical-image-data-io-preprocessing-and-augmentation)
