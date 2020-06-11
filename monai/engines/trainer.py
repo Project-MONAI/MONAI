@@ -54,7 +54,6 @@ class SupervisedTrainer(Trainer):
         prepare_batch (Callable): function to parse image and label for current iteration.
         iteration_update (Callable): the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
-        lr_scheduler (LR Scheduler): the lr scheduler associated to the optimizer.
         inferer (Inferer): inference method that execute model forward on input data, like: SlidingWindow, etc.
         amp: whether to enable auto-mixed-precision training, reserved.
         post_transform (Transform): execute additional transformation for the model output data.
@@ -78,7 +77,6 @@ class SupervisedTrainer(Trainer):
         loss_function,
         prepare_batch: Callable = default_prepare_batch,
         iteration_update: Optional[Callable] = None,
-        lr_scheduler=None,
         inferer=SimpleInferer(),
         amp: bool = True,
         post_transform=None,
