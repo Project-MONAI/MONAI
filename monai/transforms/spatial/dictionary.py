@@ -21,7 +21,6 @@ import numpy as np
 import torch
 
 from monai.config.type_definitions import KeysCollection
-from monai.data.utils import InterpolationCode
 
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.compose import MapTransform, Randomizable

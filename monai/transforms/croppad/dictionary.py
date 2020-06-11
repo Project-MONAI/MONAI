@@ -15,7 +15,7 @@ defined in :py:class:`monai.transforms.croppad.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Union, Optional, Callable, Iterable
+from typing import Optional, Callable
 
 from monai.config.type_definitions import KeysCollection, IndexSelection
 from monai.data.utils import get_random_patch, get_valid_patch_size

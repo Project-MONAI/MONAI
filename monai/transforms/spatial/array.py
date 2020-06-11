@@ -21,7 +21,7 @@ import numpy as np
 import torch
 
 from monai.config import get_torch_version_tuple
-from monai.data.utils import InterpolationCode, compute_shape_offset, to_affine_nd, zoom_affine
+from monai.data.utils import compute_shape_offset, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter
 from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.utils import (
@@ -37,7 +37,7 @@ from monai.utils.misc import ensure_tuple, ensure_tuple_rep, ensure_tuple_size
 if get_torch_version_tuple() >= (1, 5):
     # additional argument since torch 1.5 (to avoid warnings)
     def _torch_interp(**kwargs):
-        return torch.nn.functional.interpolate(**kwargs, recompute_scale_factor=False)
+        return torch.nn.functional.interpolate(recompute_scale_factor=False, **kwargs)
 
 
 else:
