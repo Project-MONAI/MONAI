@@ -167,7 +167,7 @@ class KeepLargestConnectedComponentd(MapTransform):
         independent: bool = True,
         background: int = 0,
         connectivity: Optional[int] = None,
-        output_postfix: str = "largestcc"
+        output_postfix: str = "largestcc",
     ):
         """
         Args:
@@ -192,9 +192,7 @@ class KeepLargestConnectedComponentd(MapTransform):
         if output_postfix is not None and not isinstance(output_postfix, str):
             raise ValueError("output_postfix must be a string.")
         self.output_postfix = output_postfix
-        self.converter = KeepLargestConnectedComponent(
-            applied_labels, independent, background, connectivity
-        )
+        self.converter = KeepLargestConnectedComponent(applied_labels, independent, background, connectivity)
 
     def __call__(self, data):
         d = dict(data)
