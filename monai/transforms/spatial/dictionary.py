@@ -15,10 +15,12 @@ defined in :py:class:`monai.transforms.spatial.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Hashable, Optional
+from typing import Optional
 
 import numpy as np
 import torch
+
+from monai.config.type_definitions import KeysCollection
 from monai.data.utils import InterpolationCode
 
 from monai.networks.layers.simplelayers import GaussianFilter
@@ -44,10 +46,10 @@ class Spacingd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.Spacing`.
 
     This transform assumes the ``data`` dictionary has a key for the input
-    data's affine.  The key is formed by ``meta_key_format.format(key, 'affine')``.
+    data's metadata and contains `affine` field.  The key is formed by ``key_{meta_key_postfix}``.
 
     After resampling the input array, this transform will write the new affine
-     to the key formed by ``meta_key_format.format(key, 'affine')``.
+    to the `affine` field of metadata which is formed by ``key_{meta_key_postfix}``.
 
     see also:
         :py:class:`monai.transforms.Spacing`
@@ -55,18 +57,18 @@ class Spacingd(MapTransform):
 
     def __init__(
         self,
-        keys: Hashable,
+        keys: KeysCollection,
         pixdim,
         diagonal: bool = False,
         interp_order: str = "bilinear",
         mode: str = "border",
         dtype: Optional[np.dtype] = None,
-        meta_key_format: str = "{}.{}",
+        meta_key_postfix: str = "meta",
     ):
         """
         Args:
             pixdim (sequence of floats): output voxel spacing.
-            diagonal (bool): whether to resample the input to have a diagonal affine matrix.
+            diagonal: whether to resample the input to have a diagonal affine matrix.
                 If True, the input data is resampled to the following affine::
 
                     np.diag((pixdim_0, pixdim_1, pixdim_2, 1))
@@ -88,30 +90,35 @@ class Spacingd(MapTransform):
                 Default is 'border'.
             dtype (None or np.dtype or sequence of np.dtype): output array data type.
                 Defaults to None to use input data's dtype.
-            meta_key_format (str): key format to read/write affine matrices to the data dictionary.
+            meta_key_postfix (str): use `key_{postfix}` to to fetch the meta data according to the key data,
+                default is `meta`, the meta data is a dictionary object.
+                For example, to handle key `image`,  read/write affine matrices from the
+                metadata `image_meta` dictionary's `affine` field.
         """
         super().__init__(keys)
         self.spacing_transform = Spacing(pixdim, diagonal=diagonal)
         self.interp_order = ensure_tuple_rep(interp_order, len(self.keys))
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
-        self.meta_key_format = meta_key_format
+        if not isinstance(meta_key_postfix, str):
+            raise ValueError("meta_key_postfix must be a string.")
+        self.meta_key_postfix = meta_key_postfix
 
     def __call__(self, data):
         d = dict(data)
         for idx, key in enumerate(self.keys):
-            affine_key = self.meta_key_format.format(key, "affine")
+            meta_data = d[f"{key}_{self.meta_key_postfix}"]
             # resample array of each corresponding key
             # using affine fetched from d[affine_key]
             d[key], _, new_affine = self.spacing_transform(
                 data_array=d[key],
-                affine=d[affine_key],
+                affine=meta_data["affine"],
                 interp_order=self.interp_order[idx],
                 mode=self.mode[idx],
                 dtype=self.dtype[idx],
             )
             # set the 'affine' key
-            d[affine_key] = new_affine
+            meta_data["affine"] = new_affine
         return d
 
 
@@ -120,19 +127,19 @@ class Orientationd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.Orientation`.
 
     This transform assumes the ``data`` dictionary has a key for the input
-    data's affine.  The key is formed by ``meta_key_format.format(key, 'affine')``.
+    data's metadata and contains `affine` field.  The key is formed by ``key_{meta_key_postfix}``.
 
     After reorienting the input array, this transform will write the new affine
-     to the key formed by ``meta_key_format.format(key, 'affine')``.
+    to the `affine` field of metadata which is formed by ``key_{meta_key_postfix}``.
     """
 
     def __init__(
         self,
-        keys: Hashable,
+        keys: KeysCollection,
         axcodes=None,
         as_closest_canonical: bool = False,
         labels=tuple(zip("LPI", "RAS")),
-        meta_key_format: str = "{}.{}",
+        meta_key_postfix: str = "meta",
     ):
         """
         Args:
@@ -145,21 +152,26 @@ class Orientationd(MapTransform):
             labels : optional, None or sequence of (2,) sequences
                 (2,) sequences are labels for (beginning, end) of output axis.
                 Defaults to ``(('L', 'R'), ('P', 'A'), ('I', 'S'))``.
-            meta_key_format (str): key format to read/write affine matrices to the data dictionary.
+            meta_key_postfix (str): use `key_{postfix}` to to fetch the meta data according to the key data,
+                default is `meta`, the meta data is a dictionary object.
+                For example, to handle key `image`,  read/write affine matrices from the
+                metadata `image_meta` dictionary's `affine` field.
 
         See Also:
             `nibabel.orientations.ornt2axcodes`.
         """
         super().__init__(keys)
         self.ornt_transform = Orientation(axcodes=axcodes, as_closest_canonical=as_closest_canonical, labels=labels)
-        self.meta_key_format = meta_key_format
+        if not isinstance(meta_key_postfix, str):
+            raise ValueError("meta_key_postfix must be a string.")
+        self.meta_key_postfix = meta_key_postfix
 
     def __call__(self, data):
         d = dict(data)
         for key in self.keys:
-            affine_key = self.meta_key_format.format(key, "affine")
-            d[key], _, new_affine = self.ornt_transform(d[key], affine=d[affine_key])
-            d[affine_key] = new_affine
+            meta_data = d[f"{key}_{self.meta_key_postfix}"]
+            d[key], _, new_affine = self.ornt_transform(d[key], affine=meta_data["affine"])
+            meta_data["affine"] = new_affine
         return d
 
 
@@ -168,7 +180,7 @@ class Rotate90d(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.Rotate90`.
     """
 
-    def __init__(self, keys: Hashable, k: int = 1, spatial_axes=(0, 1)):
+    def __init__(self, keys: KeysCollection, k: int = 1, spatial_axes=(0, 1)):
         """
         Args:
             k: number of times to rotate by 90 degrees.
@@ -191,12 +203,12 @@ class RandRotate90d(Randomizable, MapTransform):
     in the plane specified by `spatial_axes`.
     """
 
-    def __init__(self, keys: Hashable, prob: float = 0.1, max_k: int = 3, spatial_axes=(0, 1)):
+    def __init__(self, keys: KeysCollection, prob: float = 0.1, max_k: int = 3, spatial_axes=(0, 1)):
         """
         Args:
-            keys (hashable items): keys of the corresponding items to be transformed.
+            keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            prob (float): probability of rotating.
+            prob: probability of rotating.
                 (Default 0.1, with 10% probability it returns a rotated array.)
             max_k: number of rotations will be sampled from `np.random.randint(max_k) + 1`.
                 (Default 3)
@@ -233,7 +245,7 @@ class Resized(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.Resize`.
 
     Args:
-        keys (hashable items): keys of the corresponding items to be transformed.
+        keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
         spatial_size (tuple or list): expected shape of spatial dimensions after resize operation.
         interp_order (int or sequence of int): Order of spline interpolation. Default=InterpolationCode.LINEAR.
@@ -250,7 +262,7 @@ class Resized(MapTransform):
 
     def __init__(
         self,
-        keys: Hashable,
+        keys: KeysCollection,
         spatial_size,
         interp_order=1,
         mode="reflect",
@@ -291,7 +303,7 @@ class RandAffined(Randomizable, MapTransform):
 
     def __init__(
         self,
-        keys: Hashable,
+        keys: KeysCollection,
         spatial_size,
         prob: float = 0.1,
         rotate_range=None,
@@ -305,11 +317,11 @@ class RandAffined(Randomizable, MapTransform):
     ):
         """
         Args:
-            keys (Hashable items): keys of the corresponding items to be transformed.
+            keys: keys of the corresponding items to be transformed.
             spatial_size (list or tuple of int): output image spatial size.
                 if ``data`` component has two spatial dimensions, ``spatial_size`` should have 2 elements [h, w].
                 if ``data`` component has three spatial dimensions, ``spatial_size`` should have 3 elements [h, w, d].
-            prob (float): probability of returning a randomized affine grid.
+            prob: probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid.
             mode (str or sequence of str): interpolation order.
                 Available options are 'nearest', 'bilinear'. Defaults to ``'bilinear'``.
@@ -317,7 +329,7 @@ class RandAffined(Randomizable, MapTransform):
                 this is useful to set different modes for different data items.
             padding_mode (str or sequence of str): mode of handling out of range indices.
                 Available options are 'zeros', 'border', 'reflection'.  Defaults to ``'zeros'``.
-            as_tensor_output (bool): the computation is implemented using pytorch tensors, this option specifies
+            as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
             device (torch.device): device on which the tensor will be allocated.
 
@@ -369,7 +381,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
 
     def __init__(
         self,
-        keys: Hashable,
+        keys: KeysCollection,
         spatial_size,
         spacing,
         magnitude_range,
@@ -385,12 +397,12 @@ class Rand2DElasticd(Randomizable, MapTransform):
     ):
         """
         Args:
-            keys (Hashable items): keys of the corresponding items to be transformed.
+            keys: keys of the corresponding items to be transformed.
             spatial_size (2 ints): specifying output image spatial size [h, w].
             spacing (2 ints): distance in between the control points.
             magnitude_range (2 ints): the random offsets will be generated from
                 ``uniform[magnitude[0], magnitude[1])``.
-            prob (float): probability of returning a randomized affine grid.
+            prob: probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
             mode (str or sequence of str): interpolation order.
@@ -399,7 +411,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
                 this is useful to set different modes for different data items.
             padding_mode (str or sequence of str): mode of handling out of range indices.
                 Available options are 'zeros', 'border', 'reflection'.  Defaults to ``'zeros'``.
-            as_tensor_output (bool): the computation is implemented using pytorch tensors, this option specifies
+            as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
             device (torch.device): device on which the tensor will be allocated.
         See also:
@@ -456,7 +468,7 @@ class Rand3DElasticd(Randomizable, MapTransform):
 
     def __init__(
         self,
-        keys: Hashable,
+        keys: KeysCollection,
         spatial_size,
         sigma_range,
         magnitude_range,
@@ -472,13 +484,13 @@ class Rand3DElasticd(Randomizable, MapTransform):
     ):
         """
         Args:
-            keys (Hashable items): keys of the corresponding items to be transformed.
+            keys: keys of the corresponding items to be transformed.
             spatial_size (3 ints): specifying output image spatial size [h, w, d].
             sigma_range (2 ints): a Gaussian kernel with standard deviation sampled
                  from ``uniform[sigma_range[0], sigma_range[1])`` will be used to smooth the random offset grid.
             magnitude_range (2 ints): the random offsets on the grid will be generated from
                 ``uniform[magnitude[0], magnitude[1])``.
-            prob (float): probability of returning a randomized affine grid.
+            prob: probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
             mode (str or sequence of str): interpolation order.
@@ -487,7 +499,7 @@ class Rand3DElasticd(Randomizable, MapTransform):
                 this is useful to set different modes for different data items.
             padding_mode (str or sequence of str): mode of handling out of range indices.
                 Available options are 'zeros', 'border', 'reflection'.  Defaults to ``'zeros'``.
-            as_tensor_output (bool): the computation is implemented using pytorch tensors, this option specifies
+            as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
             device (torch.device): device on which the tensor will be allocated.
         See also:
@@ -549,7 +561,7 @@ class Flipd(MapTransform):
         spatial_axis (None, int or tuple of ints): Spatial axes along which to flip over. Default is None.
     """
 
-    def __init__(self, keys: Hashable, spatial_axis=None):
+    def __init__(self, keys: KeysCollection, spatial_axis=None):
         super().__init__(keys)
         self.flipper = Flip(spatial_axis=spatial_axis)
 
@@ -567,11 +579,11 @@ class RandFlipd(Randomizable, MapTransform):
     https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
 
     Args:
-        prob (float): Probability of flipping.
+        prob: Probability of flipping.
         spatial_axis (None, int or tuple of ints): Spatial axes along which to flip over. Default is None.
     """
 
-    def __init__(self, keys: Hashable, prob: float = 0.1, spatial_axis=None):
+    def __init__(self, keys: KeysCollection, prob: float = 0.1, spatial_axis=None):
         super().__init__(keys)
         self.spatial_axis = spatial_axis
         self.prob = prob
@@ -597,10 +609,10 @@ class Rotated(MapTransform):
 
     Args:
         keys (dict): Keys to pick data for transformation.
-        angle (float): Rotation angle in degrees.
+        angle: Rotation angle in degrees.
         spatial_axes (tuple of 2 ints): Spatial axes of rotation. Default: (0, 1).
             This is the first two axis in spatial dimensions.
-        reshape (bool): If reshape is true, the output shape is adapted so that the
+        reshape: If reshape is true, the output shape is adapted so that the
             input array is contained completely in the output. Default is True.
         interp_order (int or sequence of int): Order of spline interpolation. Range 0-5.
             Default: InterpolationCode.LINEAR. This is different from scipy where default interpolation
@@ -613,7 +625,7 @@ class Rotated(MapTransform):
 
     def __init__(
         self,
-        keys: Hashable,
+        keys: KeysCollection,
         angle: float,
         spatial_axes=(0, 1),
         reshape: bool = True,
@@ -648,12 +660,12 @@ class RandRotated(Randomizable, MapTransform):
     Randomly rotates the input arrays.
 
     Args:
-        prob (float): Probability of rotation.
+        prob: Probability of rotation.
         degrees (tuple of float or float): Range of rotation in degrees. If single number,
             angle is picked from (-degrees, degrees).
         spatial_axes (tuple of 2 ints): Spatial axes of rotation. Default: (0, 1).
             This is the first two axis in spatial dimensions.
-        reshape (bool): If reshape is true, the output shape is adapted so that the
+        reshape: If reshape is true, the output shape is adapted so that the
             input array is contained completely in the output. Default is True.
         interp_order (int or sequence of int): Order of spline interpolation. Range 0-5.
             Default: InterpolationCode.LINEAR. This is different from scipy where default
@@ -666,7 +678,7 @@ class RandRotated(Randomizable, MapTransform):
 
     def __init__(
         self,
-        keys: Hashable,
+        keys: KeysCollection,
         degrees,
         prob: float = 0.1,
         spatial_axes=(0, 1),
@@ -726,21 +738,21 @@ class Zoomd(MapTransform):
         mode (str or sequence of str): Determines how input is extended beyond boundaries. Default is 'constant'.
         cval (scalar or sequence of scalar): Value to fill past edges. Default is 0.
         prefilter (bool or sequence of bool): Apply spline_filter before interpolation. Default: True.
-        use_gpu (bool): Should use cpu or gpu. Uses cupyx which doesn't support order > 1 and modes
+        use_gpu: Should use cpu or gpu. Uses cupyx which doesn't support order > 1 and modes
             'wrap' and 'reflect'. Defaults to cpu for these cases or if cupyx not found.
-        keep_size (bool): Should keep original size (pad if needed), default is True.
+        keep_size: Should keep original size (pad if needed), default is True.
     """
 
     def __init__(
         self,
-        keys: Hashable,
+        keys: KeysCollection,
         zoom,
         interp_order=InterpolationCode.SPLINE3,
         mode="constant",
         cval=0,
         prefilter=True,
         use_gpu: bool = False,
-        keep_size=True,
+        keep_size: bool = True,
     ):
         super().__init__(keys)
         self.zoomer = Zoom(zoom=zoom, use_gpu=use_gpu, keep_size=keep_size)
@@ -767,8 +779,8 @@ class RandZoomd(Randomizable, MapTransform):
     """Dict-based version :py:class:`monai.transforms.RandZoom`.
 
     Args:
-        keys (dict): Keys to pick data for transformation.
-        prob (float): Probability of zooming.
+        keys: Keys to pick data for transformation.
+        prob: Probability of zooming.
         min_zoom (float or sequence): Min zoom factor. Can be float or sequence same size as image.
             If a float, min_zoom is the same for each spatial axis.
             If a sequence, min_zoom should contain one value for each spatial axis.
@@ -780,20 +792,20 @@ class RandZoomd(Randomizable, MapTransform):
             Determines how input is extended beyond boundaries. Default: 'constant'.
         cval (scalar or sequence of scalar): Value to fill past edges. Default is 0.
         prefilter (bool or sequence of bool): Apply spline_filter before interpolation. Default: True.
-        use_gpu (bool): Should use cpu or gpu. Uses cupyx which doesn't support order > 1 and modes
+        use_gpu: Should use cpu or gpu. Uses cupyx which doesn't support order > 1 and modes
             'wrap' and 'reflect'. Defaults to cpu for these cases or if cupyx not found.
-        keep_size (bool): Should keep original size (pad if needed), default is True.
+        keep_size: Should keep original size (pad if needed), default is True.
     """
 
     def __init__(
         self,
-        keys: Hashable,
+        keys: KeysCollection,
         prob: float = 0.1,
         min_zoom=0.9,
         max_zoom=1.1,
         interp_order=InterpolationCode.SPLINE3,
         mode="constant",
-        cval=0,
+        cval: float = 0.0,
         prefilter=True,
         use_gpu: bool = False,
         keep_size: bool = True,

@@ -81,7 +81,7 @@ class DenseNet(nn.Module):
         block_config (tuple): how many layers in each pooling block.
         bn_size: multiplicative factor for number of bottle neck layers.
                       (i.e. bn_size * k features in the bottleneck layer)
-        dropout_prob (Float): dropout rate after each dense layer.
+        dropout_prob: dropout rate after each dense layer.
     """
 
     def __init__(
@@ -93,7 +93,7 @@ class DenseNet(nn.Module):
         growth_rate: int = 32,
         block_config=(6, 12, 24, 16),
         bn_size: int = 4,
-        dropout_prob=0,
+        dropout_prob: float = 0.0,
     ):
 
         super(DenseNet, self).__init__()

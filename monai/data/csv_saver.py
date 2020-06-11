@@ -31,7 +31,7 @@ class CSVSaver:
         Args:
             output_dir (str): output CSV file directory.
             filename (str): name of the saved CSV file name.
-            overwrite (bool): whether to overwriting existing CSV file content. If we are not overwriting,
+            overwrite: whether to overwriting existing CSV file content. If we are not overwriting,
                 then we check if the results have been previously saved, and load them to the prediction_dict.
 
         """

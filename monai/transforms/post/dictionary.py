@@ -15,8 +15,9 @@ defined in :py:class:`monai.transforms.utility.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Optional, Hashable
+from typing import Optional
 
+from monai.config.type_definitions import KeysCollection
 from monai.utils.misc import ensure_tuple_rep
 from monai.transforms.compose import MapTransform
 from monai.transforms.post.array import SplitChannel, Activations, AsDiscrete, KeepLargestConnectedComponent
@@ -29,10 +30,10 @@ class SplitChanneld(MapTransform):
 
     """
 
-    def __init__(self, keys: Hashable, output_postfixes, to_onehot=False, num_classes=None):
+    def __init__(self, keys: KeysCollection, output_postfixes, to_onehot=False, num_classes=None):
         """
         Args:
-            keys (hashable items): keys of the corresponding items to be transformed.
+            keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             output_postfixes (list, tuple): the postfixes to construct keys to store splitted data.
                 for example: if the key of input data is `pred` and split 2 classes, the output
@@ -65,10 +66,10 @@ class Activationsd(MapTransform):
     Add activation layers to the input data specified by `keys`.
     """
 
-    def __init__(self, keys: Hashable, output_postfix: str = "act", sigmoid=False, softmax=False, other=None):
+    def __init__(self, keys: KeysCollection, output_postfix: str = "act", sigmoid=False, softmax=False, other=None):
         """
         Args:
-            keys (hashable items): keys of the corresponding items to model output and label.
+            keys: keys of the corresponding items to model output and label.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             output_postfix (str): the postfix string to construct keys to store converted data.
                 for example: if the keys of input data is `pred` and `label`, output_postfix is `act`,
@@ -106,27 +107,27 @@ class AsDiscreted(MapTransform):
 
     def __init__(
         self,
-        keys: Hashable,
+        keys: KeysCollection,
         output_postfix: str = "discreted",
-        argmax=False,
-        to_onehot=False,
-        n_classes=None,
-        threshold_values=False,
-        logit_thresh=0.5,
+        argmax: bool = False,
+        to_onehot: bool = False,
+        n_classes: Optional[int] = None,
+        threshold_values: bool = False,
+        logit_thresh: float = 0.5,
     ):
         """
         Args:
-            keys (hashable items): keys of the corresponding items to model output and label.
+            keys: keys of the corresponding items to model output and label.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             output_postfix (str): the postfix string to construct keys to store converted data.
                 for example: if the keys of input data is `pred` and `label`, output_postfix is `discreted`,
                 the output data keys will be: `pred_discreted`, `label_discreted`.
                 if set to None, will replace the original data with the same key.
-            argmax (bool): whether to execute argmax function on input data before transform.
-            to_onehot (bool): whether to convert input data into the one-hot format. Defaults to False.
-            n_classes (bool): the number of classes to convert to One-Hot format.
-            threshold_values (bool): whether threshold the float value to int number 0 or 1, default is False.
-            logit_thresh (float): the threshold value for thresholding operation, default is 0.5.
+            argmax: whether to execute argmax function on input data before transform.
+            to_onehot: whether to convert input data into the one-hot format. Defaults to False.
+            n_classes: the number of classes to convert to One-Hot format.
+            threshold_values: whether threshold the float value to int number 0 or 1, default is False.
+            logit_thresh: the threshold value for thresholding operation, default is 0.5.
         """
         super().__init__(keys)
         if output_postfix is not None and not isinstance(output_postfix, str):
@@ -170,7 +171,7 @@ class KeepLargestConnectedComponentd(MapTransform):
     ):
         """
         Args:
-            keys (hashable items): keys of the corresponding items to be transformed.
+            keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             applied_labels (int, list or tuple of int): Labels for applying the connected component on.
                 If only one channel. The pixel whose value is not in this list will remain unchanged.
