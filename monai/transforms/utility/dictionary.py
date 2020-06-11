@@ -55,6 +55,7 @@ class Identityd(MapTransform):
             d[key] = self.identity(d[key])
         return d
 
+
 class AsChannelFirstd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.AsChannelFirst`.
