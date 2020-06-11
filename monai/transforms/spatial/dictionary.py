@@ -662,13 +662,13 @@ class RandRotated(Randomizable, MapTransform):
         super().__init__(keys)
         self.range_x = ensure_tuple(range_x)
         if len(self.range_x) == 1:
-            self.range_x = sorted((-self.range_x[0], self.range_x[0]))
+            self.range_x = tuple(sorted([-self.range_x[0], self.range_x[0]]))
         self.range_y = ensure_tuple(range_y)
         if len(self.range_y) == 1:
-            self.range_y = sorted((-self.range_y[0], self.range_y[0]))
+            self.range_y = tuple(sorted([-self.range_y[0], self.range_y[0]]))
         self.range_z = ensure_tuple(range_z)
         if len(self.range_z) == 1:
-            self.range_z = sorted((-self.range_z[0], self.range_z[0]))
+            self.range_z = tuple(sorted([-self.range_z[0], self.range_z[0]]))
 
         self.prob = prob
         self.keep_size = keep_size
