@@ -71,12 +71,12 @@ class StatsHandler(object):
         self.iteration_print_logger = iteration_print_logger
         self.output_transform = output_transform
         self.global_epoch_transform = global_epoch_transform
-        self.logger = None if name is None else logging.getLogger(name)
+        self.logger = logging.getLogger(name)
 
         self.tag_name = tag_name
         self.key_var_format = key_var_format
         if logger_handler is not None:
-            self.logger.addHandler(logger_handler)  # pytype: disable=attribute-error
+            self.logger.addHandler(logger_handler)
 
     def attach(self, engine: Engine):
         """
