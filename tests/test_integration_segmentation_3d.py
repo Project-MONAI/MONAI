@@ -52,8 +52,8 @@ def run_training_test(root_dir, device=torch.device("cuda:0"), cachedataset=Fals
     train_transforms = Compose(
         [
             LoadNiftid(keys=["img", "seg"]),
-            Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], interp_order=["bilinear", "nearest"]),
             AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
+            Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], interp_order=["bilinear", "nearest"]),
             ScaleIntensityd(keys=["img", "seg"]),
             RandCropByPosNegLabeld(
                 keys=["img", "seg"], label_key="seg", size=[96, 96, 96], pos=1, neg=1, num_samples=4
@@ -66,8 +66,8 @@ def run_training_test(root_dir, device=torch.device("cuda:0"), cachedataset=Fals
     val_transforms = Compose(
         [
             LoadNiftid(keys=["img", "seg"]),
-            Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], interp_order=["bilinear", "nearest"]),
             AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
+            Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], interp_order=["bilinear", "nearest"]),
             ScaleIntensityd(keys=["img", "seg"]),
             ToTensord(keys=["img", "seg"]),
         ]
@@ -258,18 +258,18 @@ class IntegrationSegmentation3D(unittest.TestCase):
             np.testing.assert_allclose(
                 losses,
                 [
-                    0.5480509608983993,
-                    0.46773012578487394,
-                    0.4449450016021729,
-                    0.4429117202758789,
-                    0.4266220510005951,
-                    0.4189875662326813,
+                    0.5446721106767655,
+                    0.47511033713817596,
+                    0.4449633926153183,
+                    0.42703236639499664,
+                    0.43338048458099365,
+                    0.4250185787677765,
                 ],
                 rtol=1e-3,
             )
             repeated[i].extend(losses)
             print("best metric", best_metric)
-            np.testing.assert_allclose(best_metric, 0.9281478852033616, rtol=1e-3)
+            np.testing.assert_allclose(best_metric, 0.9315729558467865, rtol=1e-3)
             repeated[i].append(best_metric)
             np.testing.assert_allclose(best_metric_epoch, 6)
             self.assertTrue(len(glob(os.path.join(self.data_dir, "runs"))) > 0)
@@ -280,50 +280,50 @@ class IntegrationSegmentation3D(unittest.TestCase):
 
             # check inference properties
             print("infer metric", infer_metric)
-            np.testing.assert_allclose(infer_metric, 0.9276287078857421, rtol=1e-3)
+            np.testing.assert_allclose(infer_metric, 0.9317406713962555, rtol=1e-3)
             repeated[i].append(infer_metric)
             output_files = sorted(glob(os.path.join(self.data_dir, "output", "img*", "*.nii.gz")))
             sums = [
-                0.12279891967773438,
-                0.13062572479248047,
-                0.1316366195678711,
-                0.12099170684814453,
-                0.16374444961547852,
-                0.1474461555480957,
-                0.12650299072265625,
-                0.14547109603881836,
-                0.13530206680297852,
-                0.15510225296020508,
-                0.1400594711303711,
-                0.1470775604248047,
-                0.12418031692504883,
-                0.09789371490478516,
-                0.13944005966186523,
-                0.17546558380126953,
-                0.1519641876220703,
-                0.08295297622680664,
-                0.1682891845703125,
-                0.17422246932983398,
-                0.17064905166625977,
-                0.1806168556213379,
-                0.14097881317138672,
-                0.11398553848266602,
-                0.12688827514648438,
-                0.1236882209777832,
-                0.2005314826965332,
-                0.1399993896484375,
-                0.12934064865112305,
-                0.08836174011230469,
-                0.10311698913574219,
-                0.11167573928833008,
-                0.0979313850402832,
-                0.13147354125976562,
-                0.14134931564331055,
-                0.16820192337036133,
-                0.19240856170654297,
-                0.1563401222229004,
-                0.1651287078857422,
-                0.06423425674438477,
+                0.12231683731079102,
+                0.1304492950439453,
+                0.13103389739990234,
+                0.12055253982543945,
+                0.16393518447875977,
+                0.14713191986083984,
+                0.12597894668579102,
+                0.14522886276245117,
+                0.13489341735839844,
+                0.15492963790893555,
+                0.1398162841796875,
+                0.1469135284423828,
+                0.1236867904663086,
+                0.09705924987792969,
+                0.1391434669494629,
+                0.17519617080688477,
+                0.15174245834350586,
+                0.08218145370483398,
+                0.1685023307800293,
+                0.17438125610351562,
+                0.17048406600952148,
+                0.180755615234375,
+                0.1407794952392578,
+                0.11354923248291016,
+                0.12623214721679688,
+                0.12312602996826172,
+                0.20070409774780273,
+                0.13995695114135742,
+                0.12910842895507812,
+                0.08772659301757812,
+                0.10249042510986328,
+                0.11148881912231445,
+                0.09734582901000977,
+                0.13138771057128906,
+                0.1410813331604004,
+                0.16798830032348633,
+                0.1925334930419922,
+                0.1564631462097168,
+                0.16519880294799805,
+                0.06282520294189453,
             ]
             for (output, s) in zip(output_files, sums):
                 ave = np.mean(nib.load(output).get_fdata())
