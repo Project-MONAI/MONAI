@@ -150,6 +150,10 @@ class KeepLargestConnectedComponent(Transform):
       1) With shape (batch_size, 1, spatial_dim1[, spatial_dim2, ...]) and the values correspond to expected labels.
       2) With shape (batch_size, C, spatial_dim1[, spatial_dim2, ...]) and the values should be 0, 1 on each labels.
 
+    Note:
+        For single channel data, 0 will be treated as background and the over-segment pixels will be set to 0.
+        For one-hot data, the over-segment pixels will be set to 0 in its channel.
+
     For example:
     Use KeepLargestConnectedComponent with applied_labels=[1], connectivity=1
 
@@ -184,7 +188,7 @@ class KeepLargestConnectedComponent(Transform):
     """
 
     def __init__(
-        self, applied_labels=None, independent: bool = True, background: int = 0, connectivity: Optional[int] = None
+        self, applied_labels, independent: bool = True, connectivity: Optional[int] = None
     ):
         """
         Args:
@@ -194,23 +198,14 @@ class KeepLargestConnectedComponent(Transform):
             independent (bool): consider several labels as a whole or independent, default is `True`.
                 Example use case would be segment label 1 is liver and label 2 is liver tumor, in that case
                 you want this "independent" to be specified as False.
-            background: Background pixel value. The over-segmented pixels will be set as this value.
-                Note that for one-hot data, the over-segment pixels will be set to 0 in its channel.
             connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
                 Accepted values are ranging from  1 to input.ndim. If ``None``, a full
                 connectivity of ``input.ndim`` is used.
         """
         super().__init__()
-        if applied_labels is None:
-            raise ValueError("Please provide applied_labels.")
-
         self.applied_labels = ensure_tuple(applied_labels)
         self.independent = independent
-        self.background = background
         self.connectivity = connectivity
-
-        if background in self.applied_labels:
-            raise ValueError("Background pixel can't be in applied_labels.")
 
     def __call__(self, img):
         """
@@ -229,13 +224,13 @@ class KeepLargestConnectedComponent(Transform):
                 for i in self.applied_labels:
                     foreground = (img == i).type(torch.uint8)
                     mask = get_largest_connected_component_mask(foreground, self.connectivity)
-                    img[foreground != mask] = self.background
+                    img[foreground != mask] = 0
             else:
                 foreground = torch.zeros_like(img)
                 for i in self.applied_labels:
                     foreground += (img == i).type(torch.uint8)
                 mask = get_largest_connected_component_mask(foreground, self.connectivity)
-                img[foreground != mask] = self.background
+                img[foreground != mask] = 0
             output = torch.unsqueeze(img, dim=channel_dim)
         else:
             # one-hot data is assumed to have binary value in each channel
