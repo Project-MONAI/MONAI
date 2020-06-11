@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - fix-metadata-integration-test
 
 jobs:
   coverage-py3:
