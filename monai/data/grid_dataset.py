@@ -34,7 +34,7 @@ class GridPatchDataset(IterableDataset):
             dataset (Dataset): the dataset to read array data from
             patch_size (tuple of int or None): size of patches to generate slices for, 0/None selects whole dimension
             start_pos (tuple of it, optional): starting position in the array, default is 0 for each dimension
-            pad_mode (str, optional): padding mode, see numpy.pad
+            pad_mode: padding mode, see numpy.pad
             pad_opts (dict, optional): padding options, see numpy.pad
         """
 

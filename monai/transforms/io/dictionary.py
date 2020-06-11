@@ -48,7 +48,7 @@ class LoadNiftid(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             as_closest_canonical: if True, load the image as closest to canonical axis format.
             dtype (np.dtype, optional): if not None convert the loaded image to this data type.
-            meta_key_postfix (str): use `key_{postfix}` to to store meta data of the nifti image,
+            meta_key_postfix: use `key_{postfix}` to to store meta data of the nifti image,
                 default is `meta`. The meta data is a dictionary object.
                 For example, load nifti file for `image`, store the metadata into `image_meta`.
             overwriting (bool): whether allow to overwrite existing meta data of same key.
@@ -92,7 +92,7 @@ class LoadPNGd(MapTransform):
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             dtype (np.dtype, optional): if not None convert the loaded image to this data type.
-            meta_key_postfix (str): use `key_{postfix}` to to store meta data of the nifti image,
+            meta_key_postfix: use `key_{postfix}` to to store meta data of the nifti image,
                 default is `meta`. The meta data is a dictionary object.
                 For example, load nifti file for `image`, store the metadata into `image_meta`.
             overwriting: whether allow to overwrite existing meta data of same key.

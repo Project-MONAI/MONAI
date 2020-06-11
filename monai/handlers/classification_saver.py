@@ -32,8 +32,8 @@ class ClassificationSaver:
     ):
         """
         Args:
-            output_dir (str): output CSV file directory.
-            filename (str): name of the saved CSV file name.
+            output_dir: output CSV file directory.
+            filename: name of the saved CSV file name.
             overwrite: whether to overwriting existing CSV file content. If we are not overwriting,
                 then we check if the results have been previously saved, and load them to the prediction_dict.
             batch_transform: a callable that is used to transform the
@@ -42,7 +42,7 @@ class ClassificationSaver:
                 ignite.engine.output into the form expected model prediction data.
                 The first dimension of this transform's output will be treated as the
                 batch dimension. Each item in the batch will be saved individually.
-            name (str): identifier of logging.logger to use, defaulting to `engine.logger`.
+            name: identifier of logging.logger to use, defaulting to `engine.logger`.
 
         """
         self.saver = CSVSaver(output_dir, filename, overwrite)

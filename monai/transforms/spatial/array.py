@@ -246,7 +246,7 @@ class Resize(Transform):
         interp_order (`nearest|linear|bilinear|bicubic|trilinear|area`):
             the interpolation mode. Default="area".
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
-        align_corners (optional bool): This only has an effect when mode is
+        align_corners: This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
     """
@@ -288,7 +288,7 @@ class Rotate(Transform):
     Args:
         angle (float or sequence of float): Rotation angle(s) in degrees.
             should a float for 2D, three floats for 3D.
-        keep_size (bool): If it is True, the output shape is kept the same as the input.
+        keep_size: If it is True, the output shape is kept the same as the input.
             If it is False, the output shape is adapted so that the
             input array is contained completely in the output. Default is True.
         interp_order (`nearest|bilinear`): interpolation mode, defaults to "bilinear"
@@ -296,7 +296,7 @@ class Rotate(Transform):
             See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample.
         mode (`zeros|border|reflection`): Points outside boundary filled according to this mode.
             Available options are 'zeros', 'border', 'reflection'. Defaults to "border".
-        align_corners (bool): Defaults to False.
+        align_corners: Defaults to False.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
     """
 
@@ -369,10 +369,10 @@ class Zoom(Transform):
         interp_order (`nearest|linear|bilinear|bicubic|trilinear|area`):
             the interpolation mode. Default="area".
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
-        align_corners (optional bool): This only has an effect when mode is
+        align_corners: This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
-        keep_size (bool): Should keep original size (padding/slicing if needed), default is True.
+        keep_size: Should keep original size (padding/slicing if needed), default is True.
     """
 
     def __init__(
@@ -489,8 +489,8 @@ class RandRotate(Randomizable, Transform):
         range_z (tuple of float or float): Range of rotation angle in degrees in the
             plane defined by the second and third axes.
             If single number, angle is uniformly sampled from (-range_z, range_z).
-        prob (float): Probability of rotation.
-        keep_size (bool): If it is False, the output shape is adapted so that the
+        prob: Probability of rotation.
+        keep_size: If it is False, the output shape is adapted so that the
             input array is contained completely in the output.
             If it is True, the output shape is the same as the input. Default is True.
         interp_order (`nearest|bilinear`): interpolation mode, defaults to "bilinear"
@@ -498,7 +498,7 @@ class RandRotate(Randomizable, Transform):
             See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample.
         mode (`zeros|border|reflection`): Points outside boundary filled according to this mode.
             Available options are 'zeros', 'border', 'reflection'. Defaults to "border".
-        align_corners (bool): Defaults to False.
+        align_corners: Defaults to False.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
     """
 

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional
+
 import numpy as np
 from skimage import io
 
@@ -17,7 +19,13 @@ from monai.utils.misc import ensure_tuple_rep
 
 
 def write_png(
-    data, file_name, output_shape=None, interp_order: str = "bicubic", scale: bool = False, plugin=None, **plugin_args,
+    data,
+    file_name: str,
+    output_shape=None,
+    interp_order: str = "bicubic",
+    scale: bool = False,
+    plugin: Optional[str] = None,
+    **plugin_args,
 ):
     """
     Write numpy data into png files to disk.
@@ -26,13 +34,13 @@ def write_png(
 
     Args:
         data (numpy.ndarray): input data to write to file.
-        file_name (string): expected file name that saved on disk.
+        file_name: expected file name that saved on disk.
         output_shape (None or tuple of ints): output image shape.
         interp_order (`nearest|linear|bilinear|bicubic|trilinear|area`):
             the interpolation mode. Default="bicubic".
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
-        scale (bool): whether to postprocess data by clipping to [0, 1] and scaling [0, 255] (uint8).
-        plugin (string): name of plugin to use in `imsave`. By default, the different plugins
+        scale: whether to postprocess data by clipping to [0, 1] and scaling [0, 255] (uint8).
+        plugin: name of plugin to use in `imsave`. By default, the different plugins
             are tried(starting with imageio) until a suitable candidate is found.
         plugin_args (keywords): arguments passed to the given plugin.
 

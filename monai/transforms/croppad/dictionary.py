@@ -37,7 +37,7 @@ class SpatialPadd(MapTransform):
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             spatial_size (list): the spatial size of output data after padding.
-            method (str): pad image symmetric on every side or only pad at the end sides. default is 'symmetric'.
+            method: pad image symmetric on every side or only pad at the end sides. default is 'symmetric'.
             mode (str or sequence of str): one of the following string values or a user supplied function:
                 {'constant', 'edge', 'linear_ramp', 'maximum', 'mean', 'median', 'minimum', 'reflect', 'symmetric',
                 'wrap', 'empty', <function>}
@@ -170,7 +170,7 @@ class CropForegroundd(MapTransform):
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            source_key (str): data source to generate the bounding box of foreground, can be image or label, etc.
+            source_key: data source to generate the bounding box of foreground, can be image or label, etc.
             select_fn: function to select expected foreground, default is to select values > 0.
             channel_indexes: if defined, select foreground only on the specified channels
                 of image. if None, select foreground on the whole image.
@@ -201,14 +201,14 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
 
     Args:
         keys (list): parameter will be used to get and set the actual data item to transform.
-        label_key (str): name of key for label image, this will be used for finding foreground/background.
+        label_key: name of key for label image, this will be used for finding foreground/background.
         size (list, tuple): the size of the crop region e.g. [224,224,128]
         pos: used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
           foreground voxel as a center rather than a background voxel.
         neg: used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
           foreground voxel as a center rather than a background voxel.
         num_samples: number of samples (crop regions) to take in each list.
-        image_key (str): if image_key is not None, use ``label == 0 & image > image_threshold`` to select
+        image_key: if image_key is not None, use ``label == 0 & image > image_threshold`` to select
             the negative sample(background) center. so the crop center will only exist on valid image area.
         image_threshold: if enabled image_key, use ``image > image_threshold`` to determine
             the valid image content area.
