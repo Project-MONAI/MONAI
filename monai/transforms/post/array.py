@@ -187,9 +187,7 @@ class KeepLargestConnectedComponent(Transform):
 
     """
 
-    def __init__(
-        self, applied_labels, independent: bool = True, connectivity: Optional[int] = None
-    ):
+    def __init__(self, applied_labels, independent: bool = True, connectivity: Optional[int] = None):
         """
         Args:
             applied_labels (int, list or tuple of int): Labels for applying the connected component on.
