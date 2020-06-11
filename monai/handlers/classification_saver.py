@@ -36,9 +36,9 @@ class ClassificationSaver:
             filename (str): name of the saved CSV file name.
             overwrite: whether to overwriting existing CSV file content. If we are not overwriting,
                 then we check if the results have been previously saved, and load them to the prediction_dict.
-            batch_transform (Callable): a callable that is used to transform the
+            batch_transform: a callable that is used to transform the
                 ignite.engine.batch into expected format to extract the meta_data dictionary.
-            output_transform (Callable): a callable that is used to transform the
+            output_transform: a callable that is used to transform the
                 ignite.engine.output into the form expected model prediction data.
                 The first dimension of this transform's output will be treated as the
                 batch dimension. Each item in the batch will be saved individually.

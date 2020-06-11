@@ -118,7 +118,7 @@ class CastToType(Transform):
         """
         self.dtype = dtype
 
-    def __call__(self, img: np.ndarray):  # type: ignore # see issue #495
+    def __call__(self, img: np.ndarray):
         assert isinstance(img, np.ndarray), "image must be numpy array."
         return img.astype(self.dtype)
 
@@ -172,7 +172,7 @@ class SqueezeDim(Transform):
             raise ValueError(f"Invalid channel dimension {dim}")
         self.dim = dim
 
-    def __call__(self, img):  # type: ignore # see issue #495
+    def __call__(self, img):
         """
         Args:
             img (ndarray): numpy arrays with required dimension `dim` removed
@@ -202,7 +202,7 @@ class DataStats(Transform):
             intensity_range: whether to show the intensity value range of input data.
             data_value: whether to show the raw value of input data.
                 a typical example is to print some properties of Nifti image: affine, pixdim, etc.
-            additional_info (Callable): user can define callable function to extract additional info from input data.
+            additional_info: user can define callable function to extract additional info from input data.
             logger_handler (logging.handler): add additional handler to output data: save to file, etc.
                 add existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html
         """
@@ -220,7 +220,7 @@ class DataStats(Transform):
         if logger_handler is not None:
             self._logger.addHandler(logger_handler)
 
-    def __call__(  # type: ignore # see issue #495
+    def __call__(
         self,
         img,
         prefix: Optional[str] = None,

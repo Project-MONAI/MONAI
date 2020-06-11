@@ -123,43 +123,42 @@ fi
 # Unconditionally report on the state of monai
 python -c 'import monai; monai.config.print_config()'
 
-#Cleaning the files when ussing --clean in args and exit
+# Cleaning the files when ussing --clean in args and exit
 if [ "$clean_cache_files" = true ]
 then
 
-   if [  -d  .mypy_cache ]
-  then
-    rm -r  .mypy_cache
-  elif [ -f .mypy_cache ]
-  then
-    rm .mypy_cache
-  else
-    echo "File or directory doesn't exist "
-  fi
+    if [ -d .mypy_cache ]
+    then
+        rm -r .mypy_cache
+    elif [ -f .mypy_cache ]
+    then
+        rm .mypy_cache
+    else
+        echo "removing .mypy_cache: file or directory doesn't exist."
+    fi
 
-   if [ -d  .pytype ]
-  then
-    rm -r  .pytype
-  elif [ -f .pytype ]
-  then
-    rm .pytype
-  else
-    echo "File or directory doesn't exist"
-  fi
+    if [ -d .pytype ]
+    then
+        rm -r .pytype
+    elif [ -f .pytype ]
+    then
+        rm .pytype
+    else
+        echo "removing .pytype: file or directory doesn't exist."
+    fi
 
-   if [ -d  .coverage ]
-  then
-    rm -r  .coverage
-  elif [ -f .coverage ]
-  then
-    rm .coverage
-  else
-    echo "File or directory doesn't exist"
-  fi
-  exit
+    if [ -d .coverage ]
+    then
+        rm -r .coverage
+    elif [ -f .coverage ]
+    then
+        rm .coverage
+    else
+        echo "removing .coverage: file or directory doesn't exist."
+    fi
+
+    exit
 fi
-
-
 
 # report on code format
 if [ "$doBlackFormat" = 'true' ]
