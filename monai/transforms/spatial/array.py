@@ -355,6 +355,9 @@ class Zoom(Transform):
     Zooms an ND image using :py:class:`torch.nn.functional.interpolate`.
     For details, please see https://pytorch.org/docs/stable/nn.functional.html#interpolate.
 
+    Different from :py:class:`monai.transforms.resize`, this transform takes scaling factors
+    as input, and provides an option of preserving the input spatial size.
+
     Args:
         zoom (float or sequence): The zoom factor along the spatial axes.
             If a float, zoom is the same for each spatial axis.
@@ -365,7 +368,7 @@ class Zoom(Transform):
         align_corners (optional bool): This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
-        keep_size (bool): Should keep original size (pad if needed), default is True.
+        keep_size (bool): Should keep original size (padding/slicing if needed), default is True.
     """
 
     def __init__(
