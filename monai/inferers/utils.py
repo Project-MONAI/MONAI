@@ -9,13 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Callable
+
 import torch
 import torch.nn.functional as F
 from monai.data.utils import dense_patch_slices, compute_importance_map
 
 
 def sliding_window_inference(
-    inputs, roi_size, sw_batch_size: int, predictor, overlap: float = 0.25, blend_mode="constant",
+    inputs, roi_size, sw_batch_size: int, predictor: Callable, overlap: float = 0.25, blend_mode="constant",
 ):
     """
     Use SlidingWindow method to execute inference.
@@ -24,7 +26,7 @@ def sliding_window_inference(
         inputs (torch Tensor): input image to be processed (assuming NCHW[D])
         roi_size (list, tuple): the window size to execute SlidingWindow inference.
         sw_batch_size: the batch size to run window slices.
-        predictor (Callable): given input tensor `patch_data` in shape NCHW[D], `predictor(patch_data)`
+        predictor: given input tensor `patch_data` in shape NCHW[D], `predictor(patch_data)`
             should return a prediction with the same spatial shape and batch_size, i.e. NMHW[D];
             where HW[D] represents the patch spatial size, M is the number of output channels, N is `sw_batch_size`.
         overlap: Amount of overlap between scans.

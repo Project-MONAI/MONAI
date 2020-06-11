@@ -36,7 +36,7 @@ class ROCAUC(Metric):
               indicator matrix as a label.
             - None: the scores for each class are returned.
 
-        output_transform (callable, optional): a callable that is used to transform the
+        output_transform: a callable that is used to transform the
             :class:`~ignite.engine.Engine` `process_function` output into the
             form expected by the metric. This can be useful if, for example, you have a multi-output model and
             you want to compute the metric with respect to one of the outputs.
