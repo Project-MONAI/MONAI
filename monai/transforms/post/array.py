@@ -37,7 +37,7 @@ class SplitChannel(Transform):
         self.to_onehot = to_onehot
         self.num_classes = num_classes
 
-    def __call__(self, img, to_onehot: Optional[bool] = None, num_classes: Optional[int] = None):  # type: ignore # see issue #495
+    def __call__(self, img, to_onehot: Optional[bool] = None, num_classes: Optional[int] = None):
         if to_onehot or self.to_onehot:
             if num_classes is None:
                 num_classes = self.num_classes
@@ -68,7 +68,7 @@ class Activations(Transform):
         self.softmax = softmax
         self.other = other
 
-    def __call__(  # type: ignore # see issue #495
+    def __call__(
         self, img, sigmoid: Optional[bool] = None, softmax: Optional[bool] = None, other: Optional[Callable] = None
     ):
         if sigmoid is True and softmax is True:
@@ -117,7 +117,7 @@ class AsDiscrete(Transform):
         self.threshold_values = threshold_values
         self.logit_thresh = logit_thresh
 
-    def __call__(  # type: ignore # see issue #495
+    def __call__(
         self,
         img,
         argmax: Optional[bool] = None,
