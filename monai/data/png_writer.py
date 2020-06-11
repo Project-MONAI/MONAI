@@ -10,22 +10,17 @@
 # limitations under the License.
 
 import numpy as np
-from skimage import io, transform
+from skimage import io
+
+from monai.transforms import Resize
+from monai.utils.misc import ensure_tuple_rep
 
 
 def write_png(
-    data,
-    file_name,
-    output_shape=None,
-    interp_order: int = 3,
-    mode="constant",
-    cval: float = 0.0,
-    scale: bool = False,
-    plugin=None,
-    **plugin_args,
+    data, file_name, output_shape=None, interp_order: str = "bicubic", scale: bool = False, plugin=None, **plugin_args,
 ):
     """
-    Write numpy data into png files to disk.  
+    Write numpy data into png files to disk.
     Spatially it supports HW for 2D.(H,W) or (H,W,3) or (H,W,4)
     It's based on skimage library: https://scikit-image.org/docs/dev/api/skimage
 
@@ -33,15 +28,10 @@ def write_png(
         data (numpy.ndarray): input data to write to file.
         file_name (string): expected file name that saved on disk.
         output_shape (None or tuple of ints): output image shape.
-        interp_order (int): the order of the spline interpolation, default is InterpolationCode.SPLINE3.
-            The order has to be in the range 0 - 5. Defaults to 3.
-            this option is used when `output_shape != None`.
-        mode (`constant|edge|symmetric|reflect|wrap`):
-            The mode parameter determines how the input array is extended beyond its boundaries.
-            This option is used when `output_shape != None`. Defaults to "constant".
-        cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
-            this option is used when `output_shape != None`.
-        scale: whether to scale data with 255 and convert to uint8 for data in range [0, 1].
+        interp_order (`nearest|linear|bilinear|bicubic|trilinear|area`):
+            the interpolation mode. Default="bicubic".
+            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+        scale (bool): whether to postprocess data by clipping to [0, 1] and scaling [0, 255] (uint8).
         plugin (string): name of plugin to use in `imsave`. By default, the different plugins
             are tried(starting with imageio) until a suitable candidate is found.
         plugin_args (keywords): arguments passed to the given plugin.
@@ -50,17 +40,21 @@ def write_png(
     assert isinstance(data, np.ndarray), "input data must be numpy array."
 
     if output_shape is not None:
-        assert (
-            isinstance(output_shape, (list, tuple)) and len(output_shape) == 2
-        ), "output_shape must be a list of 2 values (H, W)."
-
+        output_shape = ensure_tuple_rep(output_shape, 2)
+        xform = Resize(spatial_size=output_shape, interp_order=interp_order)
+        _min, _max = np.min(data), np.max(data)
         if len(data.shape) == 3:
-            output_shape = tuple(output_shape) + (data.shape[2],)
-
-        data = transform.resize(data, output_shape, order=interp_order, mode=mode, cval=cval, preserve_range=True)
+            data = np.moveaxis(data, -1, 0)  # to channel first
+            data = xform(data)
+            data = np.moveaxis(data, 0, -1)
+        else:  # (H, W)
+            data = np.expand_dims(data, 0)  # make a channel
+            data = xform(data)[0]  # first channel
+        if interp_order != "nearest":
+            data = np.clip(data, _min, _max)
 
     if scale:
-        assert np.min(data) >= 0 and np.max(data) <= 1, "png writer only can scale data in range [0, 1]."
+        data = np.clip(data, 0.0, 1.0)  # png writer only can scale data in range [0, 1].
         data = 255 * data
     data = data.astype(np.uint8)
     io.imsave(file_name, data, plugin=plugin, **plugin_args)

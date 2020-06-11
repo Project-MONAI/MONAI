@@ -58,9 +58,9 @@ def ensure_tuple(vals: Any) -> Tuple[Any, ...]:
     return tuple(vals)
 
 
-def ensure_tuple_size(tup, dim):
-    """Returns a copy of `tup` with `dim` values by either shortened or padded with zeros as necessary."""
-    tup = tuple(tup) + (0,) * dim
+def ensure_tuple_size(tup, dim, pad_val=0):
+    """Returns a copy of `tup` with `dim` values by either shortened or padded with `pad_val` as necessary."""
+    tup = tuple(tup) + (pad_val,) * dim
     return tup[:dim]
 
 

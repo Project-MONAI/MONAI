@@ -36,6 +36,7 @@ from monai.transforms.spatial.array import (
     Rotate90,
     Spacing,
     Zoom,
+    _torch_interp,
 )
 from monai.transforms.utils import create_grid
 from monai.utils.misc import ensure_tuple_rep
@@ -80,7 +81,7 @@ class Spacingd(MapTransform):
                 translations components from the original affine will be
                 preserved in the target affine. This option will not flip/swap
                 axes against the original ones.
-            interp_order (`nearest|bilinear` or a squence of str): str: the same interpolation order
+            interp_order (`nearest|bilinear` or a sequence of str): str: the same interpolation order
                 for all data indexed by `self.keys`; sequence of str, should
                 correspond to an interpolation order for each data item indexed
                 by `self.keys` respectively. Defaults to `bilinear`.
@@ -248,51 +249,26 @@ class Resized(MapTransform):
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
         spatial_size (tuple or list): expected shape of spatial dimensions after resize operation.
-        interp_order (int or sequence of int): Order of spline interpolation. Default=InterpolationCode.LINEAR.
-        mode (str or sequence of str): Points outside boundaries are filled according to given mode.
-            Options are 'constant', 'edge', 'symmetric', 'reflect', 'wrap'.
-        cval (float or sequence of float): Used with mode 'constant', the value outside image boundaries.
-        clip (bool or sequence of bool): Whether to clip range of output values after interpolation. Default: True.
-        preserve_range (bool or sequence of bool): Whether to keep original range of values. Default is True.
-            If False, input is converted according to conventions of img_as_float. See
-            https://scikit-image.org/docs/dev/user_guide/data_types.html.
-        anti_aliasing (bool or sequence of bool): Whether to apply a gaussian filter to image before down-scaling.
-            Default is True.
+        interp_order (str of sequence of str):
+            the interpolation mode. Available options are nearest, linear, bilinear, bicubic,
+            trilinear, area. Default="area".
+            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+        align_corners (optional bool): This only has an effect when mode is
+            'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
+            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
     """
 
     def __init__(
-        self,
-        keys: KeysCollection,
-        spatial_size,
-        interp_order=1,
-        mode="reflect",
-        cval=0,
-        clip=True,
-        preserve_range=True,
-        anti_aliasing=True,
+        self, keys: KeysCollection, spatial_size, interp_order: str = "area", align_corners: Optional[bool] = None
     ):
         super().__init__(keys)
         self.interp_order = ensure_tuple_rep(interp_order, len(self.keys))
-        self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.cval = ensure_tuple_rep(cval, len(self.keys))
-        self.clip = ensure_tuple_rep(clip, len(self.keys))
-        self.preserve_range = ensure_tuple_rep(preserve_range, len(self.keys))
-        self.anti_aliasing = ensure_tuple_rep(anti_aliasing, len(self.keys))
-
-        self.resizer = Resize(spatial_size=spatial_size)
+        self.resizer = Resize(spatial_size=spatial_size, align_corners=align_corners)
 
     def __call__(self, data):
         d = dict(data)
         for idx, key in enumerate(self.keys):
-            d[key] = self.resizer(
-                d[key],
-                order=self.interp_order[idx],
-                mode=self.mode[idx],
-                cval=self.cval[idx],
-                clip=self.clip[idx],
-                preserve_range=self.preserve_range[idx],
-                anti_aliasing=self.anti_aliasing[idx],
-            )
+            d[key] = self.resizer(d[key], interp_order=self.interp_order[idx])
         return d
 
 
@@ -450,7 +426,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
         if self.rand_2d_elastic.do_transform:
             grid = self.rand_2d_elastic.deform_grid(spatial_size)
             grid = self.rand_2d_elastic.rand_affine_grid(grid=grid)
-            grid = torch.nn.functional.interpolate(grid[None], spatial_size, mode="bicubic", align_corners=False)[0]
+            grid = _torch_interp(input=grid[None], size=spatial_size, mode="bicubic", align_corners=False)[0]
         else:
             grid = create_grid(spatial_size)
 
@@ -734,44 +710,31 @@ class Zoomd(MapTransform):
         zoom (float or sequence): The zoom factor along the spatial axes.
             If a float, zoom is the same for each spatial axis.
             If a sequence, zoom should contain one value for each spatial axis.
-        interp_order (int or sequence of int): order of interpolation. Default=InterpolationCode.SPLINE3.
-        mode (str or sequence of str): Determines how input is extended beyond boundaries. Default is 'constant'.
-        cval (scalar or sequence of scalar): Value to fill past edges. Default is 0.
-        prefilter (bool or sequence of bool): Apply spline_filter before interpolation. Default: True.
-        use_gpu: Should use cpu or gpu. Uses cupyx which doesn't support order > 1 and modes
-            'wrap' and 'reflect'. Defaults to cpu for these cases or if cupyx not found.
-        keep_size: Should keep original size (pad if needed), default is True.
+        interp_order (str or sequence of str): the interpolation mode. Default="area".
+            Available options are nearest, linear, bilinear, bicubic, trilinear, area.
+            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+        align_corners (optional bool): This only has an effect when mode is
+            'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
+            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+        keep_size (bool): Should keep original size (pad if needed), default is True.
     """
 
     def __init__(
         self,
         keys: KeysCollection,
         zoom,
-        interp_order=InterpolationCode.SPLINE3,
-        mode="constant",
-        cval=0,
-        prefilter=True,
-        use_gpu: bool = False,
+        interp_order: str = "area",
+        align_corners: Optional[bool] = None,
         keep_size: bool = True,
     ):
         super().__init__(keys)
-        self.zoomer = Zoom(zoom=zoom, use_gpu=use_gpu, keep_size=keep_size)
-
+        self.zoomer = Zoom(zoom=zoom, align_corners=align_corners, keep_size=keep_size)
         self.interp_order = ensure_tuple_rep(interp_order, len(self.keys))
-        self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.cval = ensure_tuple_rep(cval, len(self.keys))
-        self.prefilter = ensure_tuple_rep(prefilter, len(self.keys))
 
     def __call__(self, data):
         d = dict(data)
         for idx, key in enumerate(self.keys):
-            d[key] = self.zoomer(
-                d[key],
-                order=self.interp_order[idx],
-                mode=self.mode[idx],
-                cval=self.cval[idx],
-                prefilter=self.prefilter[idx],
-            )
+            d[key] = self.zoomer(d[key], interp_order=self.interp_order[idx])
         return d
 
 
@@ -787,13 +750,12 @@ class RandZoomd(Randomizable, MapTransform):
         max_zoom (float or sequence): Max zoom factor. Can be float or sequence same size as image.
             If a float, max_zoom is the same for each spatial axis.
             If a sequence, max_zoom should contain one value for each spatial axis.
-        interp_order (int or sequence of int): order of interpolation. Default=InterpolationCode.SPLINE3.
-        mode (str or sequence of str): Available options are 'reflect', 'constant', 'nearest', 'mirror', 'wrap'.
-            Determines how input is extended beyond boundaries. Default: 'constant'.
-        cval (scalar or sequence of scalar): Value to fill past edges. Default is 0.
-        prefilter (bool or sequence of bool): Apply spline_filter before interpolation. Default: True.
-        use_gpu: Should use cpu or gpu. Uses cupyx which doesn't support order > 1 and modes
-            'wrap' and 'reflect'. Defaults to cpu for these cases or if cupyx not found.
+        interp_order (str or sequence of str): the interpolation mode. Default="area".
+            Available options are nearest, linear, bilinear, bicubic, trilinear, area.
+            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+        align_corners (optional bool): This only has an effect when mode is
+            'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
+            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
         keep_size: Should keep original size (pad if needed), default is True.
     """
 
@@ -803,11 +765,8 @@ class RandZoomd(Randomizable, MapTransform):
         prob: float = 0.1,
         min_zoom=0.9,
         max_zoom=1.1,
-        interp_order=InterpolationCode.SPLINE3,
-        mode="constant",
-        cval: float = 0.0,
-        prefilter=True,
-        use_gpu: bool = False,
+        interp_order: str = "area",
+        align_corners: Optional[bool] = None,
         keep_size: bool = True,
     ):
         super().__init__(keys)
@@ -816,13 +775,10 @@ class RandZoomd(Randomizable, MapTransform):
         self.min_zoom = min_zoom
         self.max_zoom = max_zoom
         self.prob = prob
-        self.use_gpu = use_gpu
-        self.keep_size = keep_size
 
         self.interp_order = ensure_tuple_rep(interp_order, len(self.keys))
-        self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.cval = ensure_tuple_rep(cval, len(self.keys))
-        self.prefilter = ensure_tuple_rep(prefilter, len(self.keys))
+        self.align_corners = align_corners
+        self.keep_size = keep_size
 
         self._do_transform = False
         self._zoom = None
@@ -839,15 +795,9 @@ class RandZoomd(Randomizable, MapTransform):
         d = dict(data)
         if not self._do_transform:
             return d
-        zoomer = Zoom(self._zoom, use_gpu=self.use_gpu, keep_size=self.keep_size)
+        zoomer = Zoom(self._zoom, align_corners=self.align_corners, keep_size=self.keep_size)
         for idx, key in enumerate(self.keys):
-            d[key] = zoomer(
-                d[key],
-                order=self.interp_order[idx],
-                mode=self.mode[idx],
-                cval=self.cval[idx],
-                prefilter=self.prefilter[idx],
-            )
+            d[key] = zoomer(d[key], interp_order=self.interp_order[idx])
         return d
 
 

@@ -61,17 +61,20 @@ class NiftiSaver:
         self.dtype = dtype
         self._data_index = 0
 
-    def save(self, data: Union[torch.Tensor, np.ndarray], meta_data=None):
+    def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: dict = None):
         """
         Save data into a Nifti file.
-        The metadata could optionally have the following keys:
+        The meta_data could optionally have the following keys:
 
             - ``'filename_or_obj'`` -- for output file name creation, corresponding to filename or object.
             - ``'original_affine'`` -- for data orientation handling, defaulting to an identity matrix.
             - ``'affine'`` -- for data output affine, defaulting to an identity matrix.
             - ``'spatial_shape'`` -- for data output shape.
 
-        If meta_data is None, use the default index from 0 to save data instead.
+        When meta_data is specified, the saver will try to resample batch data from the space
+        defined by "affine" to the space defined by "original_affine".
+
+        If meta_data is None, use the default index (starting from 0) as the filename.
 
         args:
             data (Tensor or ndarray): target data content that to be saved as a NIfTI format file.

@@ -118,7 +118,7 @@ class CastToType(Transform):
         """
         self.dtype = dtype
 
-    def __call__(self, img: np.ndarray):  # type: ignore # see issue #495
+    def __call__(self, img: np.ndarray):
         assert isinstance(img, np.ndarray), "image must be numpy array."
         return img.astype(self.dtype)
 
@@ -172,7 +172,7 @@ class SqueezeDim(Transform):
             raise ValueError(f"Invalid channel dimension {dim}")
         self.dim = dim
 
-    def __call__(self, img):  # type: ignore # see issue #495
+    def __call__(self, img):
         """
         Args:
             img (ndarray): numpy arrays with required dimension `dim` removed
@@ -220,7 +220,7 @@ class DataStats(Transform):
         if logger_handler is not None:
             self._logger.addHandler(logger_handler)
 
-    def __call__(  # type: ignore # see issue #495
+    def __call__(
         self,
         img,
         prefix: Optional[str] = None,
