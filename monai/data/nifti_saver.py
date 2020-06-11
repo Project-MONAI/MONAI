@@ -39,9 +39,9 @@ class NiftiSaver:
     ):
         """
         Args:
-            output_dir (str): output image directory.
-            output_postfix (str): a string appended to all output file names.
-            output_ext (str): output file extension name.
+            output_dir: output image directory.
+            output_postfix: a string appended to all output file names.
+            output_ext: output file extension name.
             resample (bool): whether to resample before saving the data array.
             interp_order (`nearest|bilinear`): the interpolation mode, default is "bilinear".
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample

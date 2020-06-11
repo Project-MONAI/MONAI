@@ -91,7 +91,7 @@ class Spacingd(MapTransform):
                 Default is 'border'.
             dtype (None or np.dtype or sequence of np.dtype): output array data type.
                 Defaults to None to use input data's dtype.
-            meta_key_postfix (str): use `key_{postfix}` to to fetch the meta data according to the key data,
+            meta_key_postfix: use `key_{postfix}` to to fetch the meta data according to the key data,
                 default is `meta`, the meta data is a dictionary object.
                 For example, to handle key `image`,  read/write affine matrices from the
                 metadata `image_meta` dictionary's `affine` field.
@@ -153,7 +153,7 @@ class Orientationd(MapTransform):
             labels : optional, None or sequence of (2,) sequences
                 (2,) sequences are labels for (beginning, end) of output axis.
                 Defaults to ``(('L', 'R'), ('P', 'A'), ('I', 'S'))``.
-            meta_key_postfix (str): use `key_{postfix}` to to fetch the meta data according to the key data,
+            meta_key_postfix: use `key_{postfix}` to to fetch the meta data according to the key data,
                 default is `meta`, the meta data is a dictionary object.
                 For example, to handle key `image`,  read/write affine matrices from the
                 metadata `image_meta` dictionary's `affine` field.

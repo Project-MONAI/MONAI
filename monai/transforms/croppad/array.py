@@ -31,8 +31,8 @@ class SpatialPad(Transform):
 
     Args:
         spatial_size (list): the spatial size of output data after padding.
-        method (str): pad image symmetric on every side or only pad at the end sides. default is 'symmetric'.
-        mode (str): one of the following string values or a user supplied function: {'constant', 'edge', 'linear_ramp',
+        method: pad image symmetric on every side or only pad at the end sides. default is 'symmetric'.
+        mode: one of the following string values or a user supplied function: {'constant', 'edge', 'linear_ramp',
             'maximum', 'mean', 'median', 'minimum', 'reflect', 'symmetric', 'wrap', 'empty', <function>}
             for more details, please check: https://docs.scipy.org/doc/numpy/reference/generated/numpy.pad.html
     """
