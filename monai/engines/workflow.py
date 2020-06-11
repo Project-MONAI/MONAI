@@ -13,6 +13,7 @@ from abc import ABC, abstractmethod
 import torch
 from ignite.engine import Engine, State, Events
 from .utils import default_prepare_batch
+from monai.transforms import apply_transform
 
 
 class Workflow(ABC, Engine):
@@ -27,12 +28,14 @@ class Workflow(ABC, Engine):
 
     Args:
         device (torch.device): an object representing the device on which to run.
-        max_epochs (int): the total epoch number for engine to run, validator and evaluator have only 1 epoch.
-        amp (bool): whether to enable auto-mixed-precision training, reserved.
+        max_epochs: the total epoch number for engine to run, validator and evaluator have only 1 epoch.
+        amp: whether to enable auto-mixed-precision training, reserved.
         data_loader (torch.DataLoader): Ignite engine use data_loader to run, must be torch.DataLoader.
         prepare_batch (Callable): function to parse image and label for every iteration.
         iteration_update (Callable): the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
+        post_transform (Transform): execute additional transformation for the model output data.
+            Typically, several Tensor based transforms composed by `Compose`.
         key_metric (ignite.metric): compute metric when every iteration completed, and save average value to
             engine.state.metrics when epoch completed. key_metric is the main metric to compare and save the
             checkpoint into files.
@@ -45,22 +48,27 @@ class Workflow(ABC, Engine):
     def __init__(
         self,
         device,
-        max_epochs,
-        amp,
+        max_epochs: int,
+        amp: bool,
         data_loader,
         prepare_batch=default_prepare_batch,
         iteration_update=None,
+        post_transform=None,
         key_metric=None,
         additional_metrics=None,
         handlers=None,
     ):
+        # pytype: disable=invalid-directive
+        # pytype: disable=wrong-arg-count
         super().__init__(iteration_update if iteration_update is not None else self._iteration)
+        # pytype: enable=invalid-directive
+        # pytype: enable=wrong-arg-count
         # FIXME:
         if amp:
             self.logger.info("Will add AMP support when PyTorch v1.6 released.")
         if not isinstance(device, torch.device):
             raise ValueError("device must be PyTorch device object.")
-        if not isinstance(data_loader, torch.utils.data.DataLoader):
+        if not isinstance(data_loader, torch.utils.data.DataLoader):  # type: ignore
             raise ValueError("data_loader must be PyTorch DataLoader.")
 
         # set all sharable data for the workflow based on Ignite engine.state
@@ -82,6 +90,12 @@ class Workflow(ABC, Engine):
         )
         self.data_loader = data_loader
         self.prepare_batch = prepare_batch
+
+        if post_transform is not None:
+
+            @self.on(Events.ITERATION_COMPLETED)
+            def run_post_transform(engine):
+                engine.state.output = apply_transform(post_transform, engine.state.output)
 
         metrics = None
         if key_metric is not None:
@@ -118,7 +132,7 @@ class Workflow(ABC, Engine):
         super().run(data=self.data_loader, epoch_length=len(self.data_loader))
 
     @abstractmethod
-    def _iteration(self, engine, batchdata):
+    def _iteration(self, engine: Engine, batchdata):
         """
         Abstract callback function for the processing logic of 1 iteration in Ignite Engine.
         Need subclass to implement different logics, like SupervisedTrainer/Evaluator, GANTrainer, etc.

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Union
+
 import torch
 import numpy as np
 from monai.data.png_writer import write_png
@@ -25,30 +27,32 @@ class PNGSaver:
 
     def __init__(
         self,
-        output_dir="./",
-        output_postfix="seg",
-        output_ext=".png",
-        resample=True,
-        interp_order=3,
-        mode="constant",
-        cval=0,
-        scale=False,
+        output_dir: str = "./",
+        output_postfix: str = "seg",
+        output_ext: str = ".png",
+        resample: bool = True,
+        interp_order: int = 3,
+        mode: str = "constant",
+        cval: float = 0.0,
+        scale: bool = False,
     ):
         """
         Args:
             output_dir (str): output image directory.
             output_postfix (str): a string appended to all output file names.
             output_ext (str): output file extension name.
-            resample (bool): whether to resample and resize if providing spatial_shape in the metadata.
+            resample: whether to resample and resize if providing spatial_shape in the metadata.
+                Defaults to True.
             interp_order (int): the order of the spline interpolation, default is InterpolationCode.SPLINE3.
                 This option is used when spatial_shape is specified and different from the data shape.
-                The order has to be in the range 0 - 5.
-            mode (`reflect|constant|nearest|mirror|wrap`):
+                The order has to be in the range 0 - 5. Defaults to 3.
+            mode (`constant|edge|symmetric|reflect|wrap`):
                 The mode parameter determines how the input array is extended beyond its boundaries.
                 This option is used when spatial_shape is specified and different from the data shape.
+                Defaults to "constant".
             cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
                 This option is used when spatial_shape is specified and different from the data shape.
-            scale (bool): whether to scale data with 255 and convert to uint8 for data in range [0, 1].
+            scale: whether to scale data with 255 and convert to uint8 for data in range [0, 1].
 
         """
         self.output_dir = output_dir
@@ -61,7 +65,7 @@ class PNGSaver:
         self.scale = scale
         self._data_index = 0
 
-    def save(self, data, meta_data=None):
+    def save(self, data: Union[torch.Tensor, np.ndarray], meta_data=None):
         """
         Save data into a png file.
         The metadata could optionally have the following keys:
@@ -108,7 +112,7 @@ class PNGSaver:
             scale=self.scale,
         )
 
-    def save_batch(self, batch_data, meta_data=None):
+    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data=None):
         """Save a batch of data into png format files.
 
         args:

@@ -18,7 +18,7 @@ import logging
 import nibabel as nib
 import numpy as np
 import torch
-from torch.utils.data import DataLoader
+from ignite.metrics import Accuracy
 
 import monai
 from monai.transforms import (
@@ -29,12 +29,22 @@ from monai.transforms import (
     RandCropByPosNegLabeld,
     RandRotate90d,
     ToTensord,
+    Activationsd,
+    AsDiscreted,
+    KeepLargestConnectedComponentd,
 )
-from monai.handlers import StatsHandler, ValidationHandler, MeanDice
-from monai.data import create_test_image_3d, list_data_collate
+from monai.handlers import (
+    StatsHandler,
+    TensorBoardStatsHandler,
+    TensorBoardImageHandler,
+    ValidationHandler,
+    LrScheduleHandler,
+    CheckpointSaver,
+    MeanDice,
+)
+from monai.data import create_test_image_3d
 from monai.engines import SupervisedTrainer, SupervisedEvaluator
 from monai.inferers import SimpleInferer, SlidingWindowInferer
-from monai.engines.utils import CommonKeys as Keys
 
 
 def main():
@@ -53,38 +63,38 @@ def main():
 
     images = sorted(glob(os.path.join(tempdir, "img*.nii.gz")))
     segs = sorted(glob(os.path.join(tempdir, "seg*.nii.gz")))
-    train_files = [{Keys.IMAGE: img, Keys.LABEL: seg} for img, seg in zip(images[:20], segs[:20])]
-    val_files = [{Keys.IMAGE: img, Keys.LABEL: seg} for img, seg in zip(images[-20:], segs[-20:])]
+    train_files = [{"image": img, "label": seg} for img, seg in zip(images[:20], segs[:20])]
+    val_files = [{"image": img, "label": seg} for img, seg in zip(images[-20:], segs[-20:])]
 
     # define transforms for image and segmentation
     train_transforms = Compose(
         [
-            LoadNiftid(keys=[Keys.IMAGE, Keys.LABEL]),
-            AsChannelFirstd(keys=[Keys.IMAGE, Keys.LABEL], channel_dim=-1),
-            ScaleIntensityd(keys=[Keys.IMAGE, Keys.LABEL]),
+            LoadNiftid(keys=["image", "label"]),
+            AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
+            ScaleIntensityd(keys=["image", "label"]),
             RandCropByPosNegLabeld(
-                keys=[Keys.IMAGE, Keys.LABEL], label_key=Keys.LABEL, size=[96, 96, 96], pos=1, neg=1, num_samples=4
+                keys=["image", "label"], label_key="label", size=[96, 96, 96], pos=1, neg=1, num_samples=4
             ),
-            RandRotate90d(keys=[Keys.IMAGE, Keys.LABEL], prob=0.5, spatial_axes=[0, 2]),
-            ToTensord(keys=[Keys.IMAGE, Keys.LABEL]),
+            RandRotate90d(keys=["image", "label"], prob=0.5, spatial_axes=[0, 2]),
+            ToTensord(keys=["image", "label"]),
         ]
     )
     val_transforms = Compose(
         [
-            LoadNiftid(keys=[Keys.IMAGE, Keys.LABEL]),
-            AsChannelFirstd(keys=[Keys.IMAGE, Keys.LABEL], channel_dim=-1),
-            ScaleIntensityd(keys=[Keys.IMAGE, Keys.LABEL]),
-            ToTensord(keys=[Keys.IMAGE, Keys.LABEL]),
+            LoadNiftid(keys=["image", "label"]),
+            AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
+            ScaleIntensityd(keys=["image", "label"]),
+            ToTensord(keys=["image", "label"]),
         ]
     )
 
     # create a training data loader
-    train_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
+    train_ds = monai.data.CacheDataset(data=train_files, transform=train_transforms, cache_rate=0.5)
     # use batch_size=2 to load images and use RandCropByPosNegLabeld to generate 2 x 4 images for network training
-    train_loader = DataLoader(train_ds, batch_size=2, shuffle=True, num_workers=4, collate_fn=list_data_collate)
+    train_loader = monai.data.DataLoader(train_ds, batch_size=2, shuffle=True, num_workers=4)
     # create a validation data loader
-    val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
-    val_loader = DataLoader(val_ds, batch_size=1, num_workers=4, collate_fn=list_data_collate)
+    val_ds = monai.data.CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0)
+    val_loader = monai.data.DataLoader(val_ds, batch_size=1, num_workers=4)
 
     # create UNet, DiceLoss and Adam optimizer
     device = torch.device("cuda:0")
@@ -96,28 +106,56 @@ def main():
         strides=(2, 2, 2, 2),
         num_res_units=2,
     ).to(device)
-    loss = monai.losses.DiceLoss(do_sigmoid=True)
+    loss = monai.losses.DiceLoss(sigmoid=True)
     opt = torch.optim.Adam(net.parameters(), 1e-3)
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(opt, step_size=2, gamma=0.1)
 
-    val_handlers = [StatsHandler(output_transform=lambda x: None)]
+    val_post_transforms = Compose(
+        [
+            Activationsd(keys="pred", output_postfix="act", sigmoid=True),
+            AsDiscreted(keys="pred_act", output_postfix="dis", threshold_values=True),
+            KeepLargestConnectedComponentd(keys="pred_act_dis", applied_values=[1], output_postfix=None),
+        ]
+    )
+    val_handlers = [
+        StatsHandler(output_transform=lambda x: None),
+        TensorBoardStatsHandler(log_dir="./runs/", output_transform=lambda x: None),
+        TensorBoardImageHandler(
+            log_dir="./runs/",
+            batch_transform=lambda x: (x["image"], x["label"]),
+            output_transform=lambda x: x["pred_act_dis"],
+        ),
+        CheckpointSaver(save_dir="./runs/", save_dict={"net": net}, save_key_metric=True),
+    ]
 
     evaluator = SupervisedEvaluator(
         device=device,
         val_data_loader=val_loader,
         network=net,
         inferer=SlidingWindowInferer(roi_size=(96, 96, 96), sw_batch_size=4, overlap=0.5),
-        val_handlers=val_handlers,
+        post_transform=val_post_transforms,
         key_val_metric={
             "val_mean_dice": MeanDice(
-                include_background=True, add_sigmoid=True, output_transform=lambda x: (x[Keys.PRED], x[Keys.LABEL])
+                include_background=True, output_transform=lambda x: (x["pred_act_dis"], x["label"])
             )
         },
-        additional_metrics=None,
+        additional_metrics={"val_acc": Accuracy(output_transform=lambda x: (x["pred_act_dis"], x["label"]))},
+        val_handlers=val_handlers,
     )
 
+    train_post_transforms = Compose(
+        [
+            Activationsd(keys="pred", output_postfix="act", sigmoid=True),
+            AsDiscreted(keys="pred_act", output_postfix="dis", threshold_values=True),
+            KeepLargestConnectedComponentd(keys="pred_act_dis", applied_values=[1], output_postfix=None),
+        ]
+    )
     train_handlers = [
+        LrScheduleHandler(lr_scheduler=lr_scheduler, print_lr=True),
         ValidationHandler(validator=evaluator, interval=2, epoch_level=True),
-        StatsHandler(tag_name="train_loss", output_transform=lambda x: x[Keys.INFO][Keys.LOSS]),
+        StatsHandler(tag_name="train_loss", output_transform=lambda x: x["loss"]),
+        TensorBoardStatsHandler(log_dir="./runs/", tag_name="train_loss", output_transform=lambda x: x["loss"]),
+        CheckpointSaver(save_dir="./runs/", save_dict={"net": net, "opt": opt}, save_interval=2, epoch_level=True),
     ]
 
     trainer = SupervisedTrainer(
@@ -128,9 +166,10 @@ def main():
         optimizer=opt,
         loss_function=loss,
         inferer=SimpleInferer(),
-        train_handlers=train_handlers,
         amp=False,
-        key_train_metric=None,
+        post_transform=train_post_transforms,
+        key_train_metric={"train_acc": Accuracy(output_transform=lambda x: (x["pred_act_dis"], x["label"]))},
+        train_handlers=train_handlers,
     )
     trainer.run()
 

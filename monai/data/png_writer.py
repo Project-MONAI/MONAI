@@ -14,11 +14,19 @@ from skimage import io, transform
 
 
 def write_png(
-    data, file_name, output_shape=None, interp_order=3, mode="constant", cval=0, scale=False, plugin=None, **plugin_args
+    data,
+    file_name,
+    output_shape=None,
+    interp_order: int = 3,
+    mode="constant",
+    cval: float = 0.0,
+    scale: bool = False,
+    plugin=None,
+    **plugin_args,
 ):
     """
     Write numpy data into png files to disk.  
-    Spatially It supports HW for 2D.(H,W) or (H,W,3) or (H,W,4)
+    Spatially it supports HW for 2D.(H,W) or (H,W,3) or (H,W,4)
     It's based on skimage library: https://scikit-image.org/docs/dev/api/skimage
 
     Args:
@@ -26,14 +34,14 @@ def write_png(
         file_name (string): expected file name that saved on disk.
         output_shape (None or tuple of ints): output image shape.
         interp_order (int): the order of the spline interpolation, default is InterpolationCode.SPLINE3.
-            The order has to be in the range 0 - 5.
+            The order has to be in the range 0 - 5. Defaults to 3.
             this option is used when `output_shape != None`.
-        mode (`reflect|constant|nearest|mirror|wrap`):
+        mode (`constant|edge|symmetric|reflect|wrap`):
             The mode parameter determines how the input array is extended beyond its boundaries.
-            this option is used when `output_shape != None`.
+            This option is used when `output_shape != None`. Defaults to "constant".
         cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
             this option is used when `output_shape != None`.
-        scale (bool): whether to scale data with 255 and convert to uint8 for data in range [0, 1].
+        scale: whether to scale data with 255 and convert to uint8 for data in range [0, 1].
         plugin (string): name of plugin to use in `imsave`. By default, the different plugins
             are tried(starting with imageio) until a suitable candidate is found.
         plugin_args (keywords): arguments passed to the given plugin.
@@ -47,7 +55,7 @@ def write_png(
         ), "output_shape must be a list of 2 values (H, W)."
 
         if len(data.shape) == 3:
-            output_shape += (data.shape[2],)
+            output_shape = tuple(output_shape) + (data.shape[2],)
 
         data = transform.resize(data, output_shape, order=interp_order, mode=mode, cval=cval, preserve_range=True)
 
