@@ -9,8 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional, Callable
+
 import logging
-from ignite.engine import Events
+from ignite.engine import Events, Engine
 from monai.utils import ensure_tuple
 
 
@@ -19,17 +21,24 @@ class LrScheduleHandler:
     Ignite handler to update the Learning Rate based on PyTorch LR scheduler.
     """
 
-    def __init__(self, lr_scheduler, print_lr=True, name=None, epoch_level=True, step_transform=lambda engine: ()):
+    def __init__(
+        self,
+        lr_scheduler,
+        print_lr: bool = True,
+        name: Optional[str] = None,
+        epoch_level: bool = True,
+        step_transform: Callable = lambda engine: (),
+    ):
         """
         Args:
             lr_scheduler (torch.optim.lr_scheduler): typically, lr_scheduler should be PyTorch
-                lr_scheduler object. if customized version, must have `step` and `get_last_lr` methods.
-            print_lr (bool): whether to print out the latest learning rate with logging.
+                lr_scheduler object. If customized version, must have `step` and `get_last_lr` methods.
+            print_lr: whether to print out the latest learning rate with logging.
             name (str): identifier of logging.logger to use, if None, defaulting to ``engine.logger``.
-            epoch_level (bool): execute lr_scheduler.step() after every epoch or every iteration.
+            epoch_level: execute lr_scheduler.step() after every epoch or every iteration.
                 `True` is epoch level, `False` is iteration level.
             step_transform (Callable): a callable that is used to transform the information from `engine`
-                to expected input data of lr_scheduler.step() function if neccessary.
+                to expected input data of lr_scheduler.step() function if necessary.
 
         """
         self.lr_scheduler = lr_scheduler
@@ -40,7 +49,7 @@ class LrScheduleHandler:
             raise ValueError("argument `step_transform` must be a callable.")
         self.step_transform = step_transform
 
-    def attach(self, engine):
+    def attach(self, engine: Engine):
         if self.logger is None:
             self.logger = engine.logger
         if self.epoch_level:

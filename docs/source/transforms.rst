@@ -97,6 +97,12 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
+`ToNumpy`
+~~~~~~~~~
+.. autoclass:: ToNumpy
+    :members:
+    :special-members: __call__
+
 `Transpose`
 ~~~~~~~~~~~
 .. autoclass:: Transpose
@@ -392,6 +398,12 @@ Dictionary-based Transforms
 `ToTensord`
 ~~~~~~~~~~~
 .. autoclass:: ToTensord
+    :members:
+    :special-members: __call__
+
+`ToNumpyd`
+~~~~~~~~~~
+.. autoclass:: ToNumpyd
     :members:
     :special-members: __call__
 

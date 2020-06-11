@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional
+
 import os
 import warnings
 import math
@@ -39,7 +41,7 @@ class InterpolationCode(enum.IntEnum):
     SPLINE5 = 5
 
 
-def get_random_patch(dims, patch_size, rand_state=None):
+def get_random_patch(dims, patch_size, rand_state: Optional[np.random.RandomState] = None):
     """
     Returns a tuple of slices to define a random patch in an array of shape `dims` with size `patch_size` or the as
     close to it as possible within the given dimension. It is expected that `patch_size` is a valid patch for a source
@@ -143,7 +145,9 @@ def dense_patch_slices(image_size, patch_size, scan_interval):
     return slices
 
 
-def iter_patch(arr, patch_size, start_pos=(), copy_back=True, pad_mode="wrap", **pad_opts):
+def iter_patch(
+    arr: np.ndarray, patch_size, start_pos=(), copy_back: bool = True, pad_mode: Optional[str] = "wrap", **pad_opts
+):
     """
     Yield successive patches from `arr` of size `patch_size`. The iteration can start from position `start_pos` in `arr`
     but drawing from a padded array extended by the `patch_size` in each dimension (so these coordinates can be negative
@@ -153,7 +157,7 @@ def iter_patch(arr, patch_size, start_pos=(), copy_back=True, pad_mode="wrap", *
         arr (np.ndarray): array to iterate over
         patch_size (tuple of int or None): size of patches to generate slices for, 0 or None selects whole dimension
         start_pos (tuple of it, optional): starting position in the array, default is 0 for each dimension
-        copy_back (bool): if True data from the yielded patches is copied back to `arr` once the generator completes
+        copy_back: if True data from the yielded patches is copied back to `arr` once the generator completes
         pad_mode (str, optional): padding mode, see `numpy.pad`
         pad_opts (dict, optional): padding options, see `numpy.pad`
 
@@ -210,18 +214,31 @@ def list_data_collate(batch):
     Enhancement for PyTorch DataLoader default collate.
     If dataset already returns a list of batch data that generated in transforms, need to merge all data to 1 list.
     Then it's same as the default collate behavior.
+
     Note:
         Need to use this collate if apply some transforms that can generate batch data.
+
     """
     elem = batch[0]
     data = [i for k in batch for i in k] if isinstance(elem, list) else batch
     return default_collate(data)
 
 
+def worker_init_fn(worker_id):
+    """
+    Callback function for PyTorch DataLoader `worker_init_fn`.
+    It can set different random seed for the transforms in different workers.
+
+    """
+    worker_info = torch.utils.data.get_worker_info()  # type: ignore
+    if hasattr(worker_info.dataset, "transform") and hasattr(worker_info.dataset.transform, "set_random_state"):
+        worker_info.dataset.transform.set_random_state(worker_info.seed % (2 ** 32))
+
+
 def correct_nifti_header_if_necessary(img_nii):
     """
-    check nifti object header's format, update the header if needed.
-    in the updated image pixdim matches the affine.
+    Check nifti object header's format, update the header if needed.
+    In the updated image pixdim matches the affine.
 
     Args:
         img_nii (nifti image object)
@@ -274,20 +291,20 @@ def rectify_header_sform_qform(img_nii):
     return img_nii
 
 
-def zoom_affine(affine, scale, diagonal=True):
+def zoom_affine(affine, scale, diagonal: bool = True):
     """
-    To make column norm of `affine` the same as `scale`.  if diagonal is False,
+    To make column norm of `affine` the same as `scale`.  If diagonal is False,
     returns an affine that combines orthogonal rotation and the new scale.
-    This is done by first decomposing`affine`, then setting the zoom factors to
+    This is done by first decomposing `affine`, then setting the zoom factors to
     `scale`, and composing a new affine; the shearing factors are removed.  If
-    diagonal is True, returns an diagonal matrix, the scaling factors are set
+    diagonal is True, returns a diagonal matrix, the scaling factors are set
     to the diagonal elements.  This function always return an affine with zero
     translations.
 
     Args:
         affine (nxn matrix): a square matrix.
         scale (sequence of floats): new scaling factor along each dimension.
-        diagonal (bool): whether to return a diagonal scaling matrix.
+        diagonal: whether to return a diagonal scaling matrix.
             Defaults to True.
 
     returns:
@@ -366,16 +383,16 @@ def to_affine_nd(r, affine):
         r (int or matrix): number of spatial dimensions or an output affine to be filled.
         affine (matrix): 2D affine matrix
     Returns:
-        a (r+1) x (r+1) matrix
+        an (r+1) x (r+1) matrix
     """
     affine_ = np.array(affine, dtype=np.float64)
     if affine_.ndim != 2:
-        raise ValueError("input affine must have two dimensions")
+        raise ValueError(f"input affine matrix must have two dimensions, got {affine_.ndim}.")
     new_affine = np.array(r, dtype=np.float64, copy=True)
     if new_affine.ndim == 0:
         sr = new_affine.astype(int)
         if not np.isfinite(sr) or sr < 0:
-            raise ValueError("r must be positive.")
+            raise ValueError(f"r must be positive, got {sr}.")
         new_affine = np.eye(sr + 1, dtype=np.float64)
     d = max(min(len(new_affine) - 1, len(affine_) - 1), 1)
     new_affine[:d, :d] = affine_[:d, :d]
@@ -384,7 +401,7 @@ def to_affine_nd(r, affine):
     return new_affine
 
 
-def create_file_basename(postfix, input_file_name, folder_path, data_root_dir=""):
+def create_file_basename(postfix: str, input_file_name: str, folder_path: str, data_root_dir: str = ""):
     """
     Utility function to create the path to the output file based on the input
     filename (extension is added by lib level writer before writing the file)
@@ -421,14 +438,14 @@ def create_file_basename(postfix, input_file_name, folder_path, data_root_dir=""
     return os.path.join(subfolder_path, filename + "_" + postfix)
 
 
-def compute_importance_map(patch_size, mode="constant", sigma_scale=0.125, device=None):
+def compute_importance_map(patch_size, mode="constant", sigma_scale: float = 0.125, device=None):
     """Get importance map for different weight modes.
 
     Args:
         patch_size (tuple): Size of the required importance map. This should be either H, W [,D].
         mode (str): Importance map type. Options are 'constant' (Each weight has value 1.0)
             or 'gaussian' (Importance becomes lower away from center).
-        sigma_scale (float): Sigma_scale to calculate sigma for each dimension
+        sigma_scale: Sigma_scale to calculate sigma for each dimension
             (sigma = sigma_scale * dim_size). Used for gaussian mode only.
         device (str of pytorch device): Device to put importance map on.
 

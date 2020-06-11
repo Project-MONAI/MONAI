@@ -9,6 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Callable, Optional
+
+import torch
+from ignite.metrics import Metric
+from ignite.engine import Engine
 from monai.inferers.inferer import SimpleInferer
 from .workflow import Workflow
 from .utils import default_prepare_batch
@@ -41,7 +46,7 @@ class SupervisedTrainer(Trainer):
 
     Args:
         device (torch.device): an object representing the device on which to run.
-        max_epochs (int): the total epoch number for engine to run, validator and evaluator have only 1 epoch.
+        max_epochs: the total epoch number for engine to run, validator and evaluator have only 1 epoch.
         train_data_loader (torch.DataLoader): Ignite engine use data_loader to run, must be torch.DataLoader.
         network (Network): to train with this network.
         optimizer (Optimizer): the optimizer associated to the network.
@@ -51,7 +56,9 @@ class SupervisedTrainer(Trainer):
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
         lr_scheduler (LR Scheduler): the lr scheduler associated to the optimizer.
         inferer (Inferer): inference method that execute model forward on input data, like: SlidingWindow, etc.
-        amp (bool): whether to enable auto-mixed-precision training.
+        amp: whether to enable auto-mixed-precision training, reserved.
+        post_transform (Transform): execute additional transformation for the model output data.
+            Typically, several Tensor based transforms composed by `Compose`.
         key_train_metric (ignite.metric): compute metric when every iteration completed, and save average value to
             engine.state.metrics when epoch completed. key_train_metric is the main metric to compare and save the
             checkpoint into files.
@@ -63,18 +70,19 @@ class SupervisedTrainer(Trainer):
 
     def __init__(
         self,
-        device,
-        max_epochs,
+        device: torch.device,
+        max_epochs: int,
         train_data_loader,
         network,
         optimizer,
         loss_function,
-        prepare_batch=default_prepare_batch,
-        iteration_update=None,
+        prepare_batch: Callable = default_prepare_batch,
+        iteration_update: Optional[Callable] = None,
         lr_scheduler=None,
         inferer=SimpleInferer(),
-        amp=True,
-        key_train_metric=None,
+        amp: bool = True,
+        post_transform=None,
+        key_train_metric: Optional[Metric] = None,
         additional_metrics=None,
         train_handlers=None,
     ):
@@ -89,6 +97,7 @@ class SupervisedTrainer(Trainer):
             key_metric=key_train_metric,
             additional_metrics=additional_metrics,
             handlers=train_handlers,
+            post_transform=post_transform,
         )
 
         self.network = network
@@ -96,7 +105,7 @@ class SupervisedTrainer(Trainer):
         self.loss_function = loss_function
         self.inferer = inferer
 
-    def _iteration(self, engine, batchdata):
+    def _iteration(self, engine: Engine, batchdata):
         """
         Callback function for the Supervised Training processing logic of 1 iteration in Ignite Engine.
 
@@ -110,7 +119,6 @@ class SupervisedTrainer(Trainer):
         inputs, targets = self.prepare_batch(batchdata)
         inputs, targets = inputs.to(engine.state.device), targets.to(engine.state.device)
 
-        results = dict()
         self.network.train()
         self.optimizer.zero_grad()
         # execute forward computation
@@ -118,7 +126,6 @@ class SupervisedTrainer(Trainer):
         # compute loss
         loss = self.loss_function(predictions, targets).mean()
         loss.backward()
-        results[Keys.LOSS] = loss.item()
         self.optimizer.step()
 
-        return {Keys.PRED: predictions, Keys.LABEL: targets, Keys.INFO: results}
+        return {Keys.PRED: predictions, Keys.LABEL: targets, Keys.LOSS: loss.item()}
