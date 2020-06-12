@@ -37,7 +37,7 @@ def main():
         "/workspace/data/medical/ixi/IXI-T1/IXI574-IOP-1156-T1.nii.gz",
         "/workspace/data/medical/ixi/IXI-T1/IXI585-Guys-1130-T1.nii.gz",
     ]
-    
+
     # Windows Paths
     # images = [
     #     "workspace\data\medical\ixi\IXI-T1\IXI607-Guys-1097-T1.nii.gz",
