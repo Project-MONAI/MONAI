@@ -16,7 +16,7 @@ from ignite.engine import create_supervised_trainer, create_supervised_evaluator
 from .utils import get_devices_spec
 
 
-def _default_transform(x, y, y_pred, loss):
+def _default_transform(_x, _y, _y_pred, loss):
     return loss.item()
 
 

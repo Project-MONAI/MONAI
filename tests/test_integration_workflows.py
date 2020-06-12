@@ -105,7 +105,7 @@ def run_training_test(root_dir, device=torch.device("cuda:0")):
         [
             Activationsd(keys="pred", output_postfix="act", sigmoid=True),
             AsDiscreted(keys="pred_act", output_postfix="dis", threshold_values=True),
-            KeepLargestConnectedComponentd(keys="pred_act_dis", applied_values=[1], output_postfix=None),
+            KeepLargestConnectedComponentd(keys="pred_act_dis", applied_labels=[1], output_postfix=None),
         ]
     )
     val_handlers = [
@@ -138,7 +138,7 @@ def run_training_test(root_dir, device=torch.device("cuda:0")):
         [
             Activationsd(keys="pred", output_postfix="act", sigmoid=True),
             AsDiscreted(keys="pred_act", output_postfix="dis", threshold_values=True),
-            KeepLargestConnectedComponentd(keys="pred_act_dis", applied_values=[1], output_postfix=None),
+            KeepLargestConnectedComponentd(keys="pred_act_dis", applied_labels=[1], output_postfix=None),
         ]
     )
     train_handlers = [
@@ -200,7 +200,7 @@ def run_inference_test(root_dir, model_file, device=torch.device("cuda:0")):
         [
             Activationsd(keys="pred", output_postfix="act", sigmoid=True),
             AsDiscreted(keys="pred_act", output_postfix="dis", threshold_values=True),
-            KeepLargestConnectedComponentd(keys="pred_act_dis", applied_values=[1], output_postfix=None),
+            KeepLargestConnectedComponentd(keys="pred_act_dis", applied_labels=[1], output_postfix=None),
         ]
     )
     val_handlers = [

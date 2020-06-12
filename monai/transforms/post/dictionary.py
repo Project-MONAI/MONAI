@@ -163,9 +163,8 @@ class KeepLargestConnectedComponentd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        applied_values,
+        applied_labels,
         independent: bool = True,
-        background: int = 0,
         connectivity: Optional[int] = None,
         output_postfix: str = "largestcc",
     ):
@@ -173,12 +172,12 @@ class KeepLargestConnectedComponentd(MapTransform):
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            applied_values (list or tuple of int): number list for applying the connected component on.
-                The pixel whose value is not in this list will remain unchanged.
-            independent: consider several labels as a whole or independent, default is `True`.
+            applied_labels (int, list or tuple of int): Labels for applying the connected component on.
+                If only one channel. The pixel whose value is not in this list will remain unchanged.
+                If the data is in one-hot format, this is used to determine what channels to apply.
+            independent (bool): consider several labels as a whole or independent, default is `True`.
                 Example use case would be segment label 1 is liver and label 2 is liver tumor, in that case
                 you want this "independent" to be specified as False.
-            background: Background pixel value. The over-segmented pixels will be set as this value.
             connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
                 Accepted values are ranging from  1 to input.ndim. If ``None``, a full
                 connectivity of ``input.ndim`` is used.
@@ -191,7 +190,7 @@ class KeepLargestConnectedComponentd(MapTransform):
         if output_postfix is not None and not isinstance(output_postfix, str):
             raise ValueError("output_postfix must be a string.")
         self.output_postfix = output_postfix
-        self.converter = KeepLargestConnectedComponent(applied_values, independent, background, connectivity)
+        self.converter = KeepLargestConnectedComponent(applied_labels, independent, connectivity)
 
     def __call__(self, data):
         d = dict(data)

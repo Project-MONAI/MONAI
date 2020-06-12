@@ -22,7 +22,7 @@ import numpy as np
 
 from monai.config.type_definitions import KeysCollection
 from monai.transforms.compose import MapTransform
-from monai.utils.misc import ensure_tuple_rep, ensure_tuple
+from monai.utils.misc import ensure_tuple_rep
 from monai.transforms.utility.array import (
     AddChannel,
     AsChannelFirst,

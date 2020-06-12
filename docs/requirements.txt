@@ -4,7 +4,6 @@ pytorch-ignite==0.3.0
 numpy>=1.17
 nibabel
 parameterized
-scipy
 scikit-image>=0.14.2
 tensorboard
 commonmark==0.9.1
