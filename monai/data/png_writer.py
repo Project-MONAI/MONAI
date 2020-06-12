@@ -57,10 +57,10 @@ def write_png(data, file_name: str, output_shape=None, interp_order: str = "bicu
 
     if scale is not None:
         data = np.clip(data, 0.0, 1.0)  # png writer only can scale data in range [0, 1]
-        if scale == 255:
-            data = (255 * data).astype(np.uint8)
-        elif scale == 65535:
-            data = (65535 * data).astype(np.uint16)
+        if scale == np.iinfo(np.uint8).max:
+            data = (scale * data).astype(np.uint8)
+        elif scale == np.iinfo(np.uint16).max:
+            data = (scale * data).astype(np.uint16)
         else:
             raise ValueError(f"unsupported scale value: {scale}.")
 
