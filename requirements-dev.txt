@@ -4,7 +4,6 @@ scipy
 coverage
 parameterized
 flake8>=3.8.1
-flake8-mypy
 flake8-bugbear
 flake8-comprehensions
 flake8-executable
