@@ -12,7 +12,7 @@
 from typing import Optional
 
 import numpy as np
-from skimage import io
+from PIL import Image
 
 from monai.transforms import Resize
 from monai.utils.misc import ensure_tuple_rep
@@ -23,9 +23,7 @@ def write_png(
     file_name: str,
     output_shape=None,
     interp_order: str = "bicubic",
-    scale: bool = False,
-    plugin: Optional[str] = None,
-    **plugin_args,
+    scale: bool = False
 ):
     """
     Write numpy data into png files to disk.
@@ -40,13 +38,11 @@ def write_png(
             the interpolation mode. Default="bicubic".
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
         scale: whether to postprocess data by clipping to [0, 1] and scaling [0, 255] (uint8).
-        plugin: name of plugin to use in `imsave`. By default, the different plugins
-            are tried(starting with imageio) until a suitable candidate is found.
-        plugin_args (keywords): arguments passed to the given plugin.
 
     """
     assert isinstance(data, np.ndarray), "input data must be numpy array."
-
+    if len(data.shape) == 3 and data.shape[2] == 1:
+        data = data.squeeze(2)
     if output_shape is not None:
         output_shape = ensure_tuple_rep(output_shape, 2)
         xform = Resize(spatial_size=output_shape, interp_order=interp_order)
@@ -64,6 +60,6 @@ def write_png(
     if scale:
         data = np.clip(data, 0.0, 1.0)  # png writer only can scale data in range [0, 1].
         data = 255 * data
-    data = data.astype(np.uint8)
-    io.imsave(file_name, data, plugin=plugin, **plugin_args)
+    img = Image.fromarray(data.astype(np.uint8))
+    img.save(file_name, "PNG")
     return
