@@ -34,7 +34,7 @@ class PNGSaver:
         output_ext: str = ".png",
         resample: bool = True,
         interp_order: str = "nearest",
-        scale: bool = False,
+        scale=None,
     ):
         """
         Args:
@@ -45,7 +45,8 @@ class PNGSaver:
             interp_order (`nearest|bilinear|bicubic|area`):
                 the interpolation mode. Default="nearest".
                 See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
-            scale: whether to scale data with 255 and convert to uint8 for data in range [0, 1].
+            scale (255, 65535): postprocess data by clipping to [0, 1] and scaling
+                [0, 255] (uint8) or [0, 65535] (uint16). Default is None to disable scaling.
 
         """
         self.output_dir = output_dir

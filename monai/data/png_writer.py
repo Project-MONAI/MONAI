@@ -18,7 +18,7 @@ from monai.transforms import Resize
 from monai.utils.misc import ensure_tuple_rep
 
 
-def write_png(data, file_name: str, output_shape=None, interp_order: str = "bicubic", scale: bool = False):
+def write_png(data, file_name: str, output_shape=None, interp_order: str = "bicubic", scale=None):
     """
     Write numpy data into png files to disk.
     Spatially it supports HW for 2D.(H,W) or (H,W,3) or (H,W,4)
@@ -31,7 +31,8 @@ def write_png(data, file_name: str, output_shape=None, interp_order: str = "bicu
         interp_order (`nearest|linear|bilinear|bicubic|trilinear|area`):
             the interpolation mode. Default="bicubic".
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
-        scale: whether to postprocess data by clipping to [0, 1] and scaling [0, 255] (uint8).
+        scale (255, 65535): postprocess data by clipping to [0, 1] and scaling
+            [0, 255] (uint8) or [0, 65535] (uint16). Default is None to disable scaling.
 
     """
     assert isinstance(data, np.ndarray), "input data must be numpy array."
@@ -52,9 +53,15 @@ def write_png(data, file_name: str, output_shape=None, interp_order: str = "bicu
         if interp_order != "nearest":
             data = np.clip(data, _min, _max)
 
-    if scale:
+    if scale is not None:
         data = np.clip(data, 0.0, 1.0)  # png writer only can scale data in range [0, 1]
-        data = 255 * data
-    img = Image.fromarray(data.astype(np.uint8))
+        if scale == 255:
+            data = (255 * data).astype(np.uint8)
+        elif scale == 65535:
+            data = (65535 * data).astype(np.uint16)
+        else:
+            raise ValueError(f"unsupported scale value: {scale}.")
+
+    img = Image.fromarray(data)
     img.save(file_name, "PNG")
     return

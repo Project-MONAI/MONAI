@@ -53,7 +53,8 @@ class SegmentationSaver:
                 This option is used when `resample = True`.
                 When saving NIfTI files, the options are "zeros", "border", "reflection". Default is "border".
                 When saving PNG files, the options is ignored.
-            scale: whether to scale data with 255 and convert to uint8 for data in range [0, 1].
+            scale (255, 65535): postprocess data by clipping to [0, 1] and scaling
+                [0, 255] (uint8) or [0, 65535] (uint16). Default is None to disable scaling.
                 It's used for PNG format only.
             dtype (np.dtype, optional): convert the image data to save to this data type.
                 If None, keep the original type of data. It's used for Nifti format only.
