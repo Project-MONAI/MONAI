@@ -38,14 +38,16 @@ class CheckpointLoader:
         assert load_path is not None, "must provide clear path to load checkpoint."
         self.load_path = load_path
         assert load_dict is not None and len(load_dict) > 0, "must provide target objects to load."
-        self.logger = None if name is None else logging.getLogger(name)
+        self.logger = logging.getLogger(name)
         for k, v in load_dict.items():
             if hasattr(v, "module"):
                 load_dict[k] = v.module
         self.load_dict = load_dict
 
+        self._name = name
+
     def attach(self, engine: Engine):
-        if self.logger is None:
+        if self._name is None:
             self.logger = engine.logger
         return engine.add_event_handler(Events.STARTED, self)
 

@@ -50,9 +50,10 @@ class ClassificationSaver:
         self.output_transform = output_transform
 
         self.logger = None if name is None else logging.getLogger(name)
+        self._name = name
 
     def attach(self, engine: Engine):
-        if self.logger is None:
+        if self._name is None:
             self.logger = engine.logger
         if not engine.has_event_handler(self, Events.ITERATION_COMPLETED):
             engine.add_event_handler(Events.ITERATION_COMPLETED, self)

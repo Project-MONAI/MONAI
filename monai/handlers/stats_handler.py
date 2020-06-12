@@ -72,6 +72,7 @@ class StatsHandler(object):
         self.output_transform = output_transform
         self.global_epoch_transform = global_epoch_transform
         self.logger = logging.getLogger(name)
+        self._name = name
 
         self.tag_name = tag_name
         self.key_var_format = key_var_format
@@ -86,7 +87,7 @@ class StatsHandler(object):
             engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.
 
         """
-        if self.logger is None:
+        if self._name is None:
             self.logger = engine.logger
         if not engine.has_event_handler(self.iteration_completed, Events.ITERATION_COMPLETED):
             engine.add_event_handler(Events.ITERATION_COMPLETED, self.iteration_completed)
