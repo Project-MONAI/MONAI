@@ -34,7 +34,7 @@ jobs:
     - name: Type check with Pytype static analysis
       run: |
         # Git hub actions have 2 cores, so parallize pytype
-        $(pwd)/runtests.sh --nounittests --pytype -j 2 
+        $(pwd)/runtests.sh --nounittests --pytype -j 2
 
   quick-py3:
     runs-on: ${{ matrix.os }}
@@ -60,7 +60,8 @@ jobs:
     - name: Install the dependencies
       run: |
         python -m pip install torch==1.4
-        python -m pip install -r requirements-dev.txt
+        python -c "f=open('requirements-dev.txt', 'r'); txt=f.readlines(); f.close(); f=open('temp.txt', 'w'); f.writelines([x for x in txt[1:5]]); f.close()"
+        python -m pip install -r temp.txt
         python -m pip list
     - name: Run quick tests (CPU ${{ runner.os }})
       run: |
