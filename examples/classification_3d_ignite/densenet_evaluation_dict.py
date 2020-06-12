@@ -42,7 +42,7 @@ def main():
     ]
 
     # 2 binary labels for gender classification: man and woman
-    labels = np.array([0, 0, 1, 0, 1, 0, 1, 0, 1, 0])
+    labels = np.array([0, 0, 1, 0, 1, 0, 1, 0, 1, 0], dtype=np.int64)
     val_files = [{"img": img, "label": label} for img, label in zip(images, labels)]
 
     # define transforms for image

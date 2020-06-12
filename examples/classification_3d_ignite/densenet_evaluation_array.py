@@ -43,7 +43,7 @@ def main():
     ]
 
     # 2 binary labels for gender classification: man and woman
-    labels = np.array([0, 0, 1, 0, 1, 0, 1, 0, 1, 0])
+    labels = np.array([0, 0, 1, 0, 1, 0, 1, 0, 1, 0], dtype=np.int64)
 
     # define transforms for image
     val_transforms = Compose([ScaleIntensity(), AddChannel(), Resize((96, 96, 96)), ToTensor()])
