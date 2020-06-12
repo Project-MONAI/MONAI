@@ -13,9 +13,14 @@ from typing import Optional, Callable
 
 from abc import ABC, abstractmethod
 import torch
-from ignite.engine import Engine, State, Events
 from .utils import default_prepare_batch
 from monai.transforms import apply_transform
+
+from monai.utils import exact_version, optional_import
+
+Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
+State, _ = optional_import("ignite.engine", "0.3.0", exact_version, "State")
+Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
 
 
 class Workflow(ABC, Engine):

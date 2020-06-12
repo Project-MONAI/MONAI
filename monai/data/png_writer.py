@@ -12,10 +12,11 @@
 from typing import Optional
 
 import numpy as np
-from PIL import Image
 
 from monai.transforms import Resize
-from monai.utils.misc import ensure_tuple_rep
+from monai.utils import ensure_tuple_rep, min_version, optional_import
+
+Image, _ = optional_import("PIL", name="Image")
 
 
 def write_png(data, file_name: str, output_shape=None, interp_order: str = "bicubic", scale=None):

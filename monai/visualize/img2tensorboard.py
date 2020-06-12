@@ -11,13 +11,15 @@
 
 import torch
 import numpy as np
-import PIL
-from PIL.GifImagePlugin import Image as GifImage
 from torch.utils.tensorboard import SummaryWriter
-from tensorboard.compat.proto import summary_pb2
 from monai.transforms.utils import rescale_array
+from monai.utils import optional_import
 
 from typing import Sequence, Union, Optional
+
+PIL, _ = optional_import("PIL")
+GifImage, _ = optional_import("PIL.GifImagePlugin", name="Image")
+summary_pb2, _ = optional_import("tensorboard.compat.proto", name="summary_pb2")
 
 
 def _image3_animated_gif(tag: str, image: Union[np.ndarray, torch.Tensor], scale_factor: float = 1.0):

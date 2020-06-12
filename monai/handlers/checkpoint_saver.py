@@ -9,10 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 from typing import Optional
 
-import logging
-from ignite.engine import Events, Engine
+from ignite.engine import Engine, Events
 from ignite.handlers import ModelCheckpoint
 
 

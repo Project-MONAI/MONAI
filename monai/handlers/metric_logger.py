@@ -12,7 +12,10 @@
 from collections import defaultdict
 from typing import Callable
 
-from ignite.engine import Events, Engine
+from monai.utils import exact_version, optional_import
+
+Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
+Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 
 
 class MetricLogger:
@@ -22,10 +25,10 @@ class MetricLogger:
         self.loss: list = []
         self.metrics: defaultdict = defaultdict(list)
 
-    def attach(self, engine: Engine):
+    def attach(self, engine):
         return engine.add_event_handler(Events.ITERATION_COMPLETED, self)
 
-    def __call__(self, engine: Engine):
+    def __call__(self, engine):
         self.loss.append(self.loss_transform(engine.state.output))
 
         for m, v in engine.state.metrics.items():

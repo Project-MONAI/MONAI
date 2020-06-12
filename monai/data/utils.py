@@ -14,13 +14,14 @@ from typing import Optional
 import os
 import warnings
 import math
-import nibabel as nib
 from itertools import starmap, product
 import torch
 from torch.utils.data._utils.collate import default_collate
 import numpy as np
-from monai.utils import ensure_tuple_size
+from monai.utils import ensure_tuple_size, optional_import
 from monai.networks.layers.simplelayers import GaussianFilter
+
+nib, _ = optional_import("nibabel")
 
 
 def get_random_patch(dims, patch_size, rand_state: Optional[np.random.RandomState] = None):
