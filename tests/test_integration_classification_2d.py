@@ -61,7 +61,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device=torch.dev
             LoadPNG(image_only=True),
             AddChannel(),
             ScaleIntensity(),
-            RandRotate(degrees=15, prob=0.5, reshape=False),
+            RandRotate(range_x=15, prob=0.5, keep_size=True),
             RandFlip(spatial_axis=0, prob=0.5),
             RandZoom(min_zoom=0.9, max_zoom=1.1, prob=0.5),
             ToTensor(),
@@ -221,11 +221,11 @@ class IntegrationClassification2D(unittest.TestCase):
 
             # check training properties
             np.testing.assert_allclose(
-                losses, [0.8184022269431194, 0.17296756841954153, 0.07789294457264767, 0.04796914244960448], rtol=1e-3
+                losses, [0.7797081090842083, 0.16179659706392105, 0.07446704363557184, 0.045996826011568875], rtol=1e-3
             )
             repeated[i].extend(losses)
             print("best metric", best_metric)
-            np.testing.assert_allclose(best_metric, 0.9999440132655022, rtol=1e-4)
+            np.testing.assert_allclose(best_metric, 0.9999268330306007, rtol=1e-4)
             repeated[i].append(best_metric)
             np.testing.assert_allclose(best_metric_epoch, 4)
             model_file = os.path.join(self.data_dir, "best_metric_model.pth")
@@ -234,7 +234,7 @@ class IntegrationClassification2D(unittest.TestCase):
             infer_metric = run_inference_test(self.data_dir, self.test_x, self.test_y, device=self.device)
 
             # check inference properties
-            np.testing.assert_allclose(np.asarray(infer_metric), [1032, 895, 982, 1033, 959, 1047], atol=1)
+            np.testing.assert_allclose(np.asarray(infer_metric), [1031, 895, 981, 1033, 960, 1047], atol=1)
             repeated[i].extend(infer_metric)
 
         np.testing.assert_allclose(repeated[0], repeated[1])

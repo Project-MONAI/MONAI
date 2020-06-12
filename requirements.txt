@@ -4,5 +4,4 @@ numpy>=1.17
 nibabel
 tensorboard
 pillow
-scipy
 scikit-image>=0.14.2

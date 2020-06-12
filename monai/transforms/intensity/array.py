@@ -13,7 +13,7 @@ A collection of "vanilla" transforms for intensity adjustment
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Union, Optional, Tuple
+from typing import Optional, Tuple
 
 import numpy as np
 
