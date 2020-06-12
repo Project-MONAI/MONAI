@@ -79,7 +79,7 @@ def main():
     prediction_saver = ClassificationSaver(
         output_dir="tempdir",
         name="evaluator",
-        batch_transform=lambda batch: {"filename_or_obj": batch["img.filename_or_obj"]},
+        batch_transform=lambda batch: batch["img_meta"],
         output_transform=lambda output: output[0].argmax(1),
     )
     prediction_saver.attach(evaluator)

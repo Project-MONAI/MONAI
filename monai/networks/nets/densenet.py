@@ -10,6 +10,7 @@
 # limitations under the License.
 
 from collections import OrderedDict
+from typing import Callable
 
 import torch
 import torch.nn as nn
@@ -17,34 +18,14 @@ import torch.nn as nn
 from monai.networks.layers.factories import Conv, Dropout, Pool, Norm
 
 
-def densenet121(**kwargs):
-    model = DenseNet(init_features=64, growth_rate=32, block_config=(6, 12, 24, 16), **kwargs)
-    return model
-
-
-def densenet169(**kwargs):
-    model = DenseNet(init_features=64, growth_rate=32, block_config=(6, 12, 32, 32), **kwargs)
-    return model
-
-
-def densenet201(**kwargs):
-    model = DenseNet(init_features=64, growth_rate=32, block_config=(6, 12, 48, 32), **kwargs)
-    return model
-
-
-def densenet264(**kwargs):
-    model = DenseNet(init_features=64, growth_rate=32, block_config=(6, 12, 64, 48), **kwargs)
-    return model
-
-
 class _DenseLayer(nn.Sequential):
     def __init__(self, spatial_dims, in_channels, growth_rate, bn_size, dropout_prob):
         super(_DenseLayer, self).__init__()
 
         out_channels = bn_size * growth_rate
-        conv_type = Conv[Conv.CONV, spatial_dims]
-        norm_type = Norm[Norm.BATCH, spatial_dims]
-        dropout_type = Dropout[Dropout.DROPOUT, spatial_dims]
+        conv_type: Callable = Conv[Conv.CONV, spatial_dims]
+        norm_type: Callable = Norm[Norm.BATCH, spatial_dims]
+        dropout_type: Callable = Dropout[Dropout.DROPOUT, spatial_dims]
 
         self.add_module("norm1", norm_type(in_channels))
         self.add_module("relu1", nn.ReLU(inplace=True))
@@ -75,9 +56,9 @@ class _Transition(nn.Sequential):
     def __init__(self, spatial_dims, in_channels, out_channels):
         super(_Transition, self).__init__()
 
-        conv_type = Conv[Conv.CONV, spatial_dims]
-        norm_type = Norm[Norm.BATCH, spatial_dims]
-        pool_type = Pool[Pool.AVG, spatial_dims]
+        conv_type: Callable = Conv[Conv.CONV, spatial_dims]
+        norm_type: Callable = Norm[Norm.BATCH, spatial_dims]
+        pool_type: Callable = Pool[Pool.AVG, spatial_dims]
 
         self.add_module("norm", norm_type(in_channels))
         self.add_module("relu", nn.ReLU(inplace=True))
@@ -92,35 +73,35 @@ class DenseNet(nn.Module):
     https://github.com/pytorch/vision/blob/master/torchvision/models/densenet.py
 
     Args:
-        spatial_dims (Int): number of spatial dimensions of the input image.
-        in_channels (Int): number of the input channel.
-        out_channels (Int): number of the output classes.
-        init_features (Int) number of filters in the first convolution layer.
-        growth_rate (Int): how many filters to add each layer (k in paper).
+        spatial_dims: number of spatial dimensions of the input image.
+        in_channels: number of the input channel.
+        out_channels: number of the output classes.
+        init_features: number of filters in the first convolution layer.
+        growth_rate: how many filters to add each layer (k in paper).
         block_config (tuple): how many layers in each pooling block.
-        bn_size (Int) multiplicative factor for number of bottle neck layers.
+        bn_size: multiplicative factor for number of bottle neck layers.
                       (i.e. bn_size * k features in the bottleneck layer)
-        dropout_prob (Float): dropout rate after each dense layer.
+        dropout_prob: dropout rate after each dense layer.
     """
 
     def __init__(
         self,
-        spatial_dims,
-        in_channels,
-        out_channels,
-        init_features=64,
-        growth_rate=32,
+        spatial_dims: int,
+        in_channels: int,
+        out_channels: int,
+        init_features: int = 64,
+        growth_rate: int = 32,
         block_config=(6, 12, 24, 16),
-        bn_size=4,
-        dropout_prob=0,
+        bn_size: int = 4,
+        dropout_prob: float = 0.0,
     ):
 
         super(DenseNet, self).__init__()
 
-        conv_type = Conv[Conv.CONV, spatial_dims]
-        norm_type = Norm[Norm.BATCH, spatial_dims]
-        pool_type = Pool[Pool.MAX, spatial_dims]
-        avg_pool_type = Pool[Pool.ADAPTIVEAVG, spatial_dims]
+        conv_type: Callable = Conv[Conv.CONV, spatial_dims]
+        norm_type: Callable = Norm[Norm.BATCH, spatial_dims]
+        pool_type: Callable = Pool[Pool.MAX, spatial_dims]
+        avg_pool_type: Callable = Pool[Pool.ADAPTIVEAVG, spatial_dims]
 
         self.features = nn.Sequential(
             OrderedDict(
@@ -165,16 +146,39 @@ class DenseNet(nn.Module):
             )
         )
 
+        # Avoid Built-in function isinstance was called with the wrong arguments warning
+        # pytype: disable=wrong-arg-types
         for m in self.modules():
-            if isinstance(m, conv_type):
+            if isinstance(m, conv_type):  # type: ignore
                 nn.init.kaiming_normal_(m.weight)
-            elif isinstance(m, norm_type):
+            elif isinstance(m, norm_type):  # type: ignore
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.Linear):
+            elif isinstance(m, nn.Linear):  # type: ignore
                 nn.init.constant_(m.bias, 0)
+        # pytype: enable=wrong-arg-types
 
     def forward(self, x):
         x = self.features(x)
         x = self.class_layers(x)
         return x
+
+
+def densenet121(**kwargs) -> DenseNet:
+    model = DenseNet(init_features=64, growth_rate=32, block_config=(6, 12, 24, 16), **kwargs)
+    return model
+
+
+def densenet169(**kwargs) -> DenseNet:
+    model = DenseNet(init_features=64, growth_rate=32, block_config=(6, 12, 32, 32), **kwargs)
+    return model
+
+
+def densenet201(**kwargs) -> DenseNet:
+    model = DenseNet(init_features=64, growth_rate=32, block_config=(6, 12, 48, 32), **kwargs)
+    return model
+
+
+def densenet264(**kwargs) -> DenseNet:
+    model = DenseNet(init_features=64, growth_rate=32, block_config=(6, 12, 64, 48), **kwargs)
+    return model
