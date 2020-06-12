@@ -251,7 +251,7 @@ class Resize(Transform):
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
     """
 
-    def __init__(self, spatial_size, interp_order: str = "area", align_corners: Optional[bool] = None):
+    def __init__(self, spatial_size, interp_order: str = "area", align_corners: Optional[bool] = False):
         self.spatial_size = ensure_tuple(spatial_size)
         self.interp_order = interp_order
         self.align_corners = align_corners
@@ -376,7 +376,7 @@ class Zoom(Transform):
     """
 
     def __init__(
-        self, zoom, interp_order: str = "area", align_corners: Optional[bool] = None, keep_size: bool = True,
+        self, zoom, interp_order: str = "area", align_corners: Optional[bool] = False, keep_size: bool = True,
     ):
         self.zoom = zoom
         self.interp_order = interp_order
@@ -609,7 +609,7 @@ class RandZoom(Randomizable, Transform):
         min_zoom=0.9,
         max_zoom=1.1,
         interp_order: str = "area",
-        align_corners: Optional[bool] = None,
+        align_corners: Optional[bool] = False,
         keep_size: bool = True,
     ):
         if hasattr(min_zoom, "__iter__") and hasattr(max_zoom, "__iter__"):

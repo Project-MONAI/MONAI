@@ -258,7 +258,7 @@ class Resized(MapTransform):
     """
 
     def __init__(
-        self, keys: KeysCollection, spatial_size, interp_order: str = "area", align_corners: Optional[bool] = None
+        self, keys: KeysCollection, spatial_size, interp_order: str = "area", align_corners: Optional[bool] = False
     ):
         super().__init__(keys)
         self.interp_order = ensure_tuple_rep(interp_order, len(self.keys))
@@ -722,7 +722,7 @@ class Zoomd(MapTransform):
         keys: KeysCollection,
         zoom,
         interp_order: str = "area",
-        align_corners: Optional[bool] = None,
+        align_corners: Optional[bool] = False,
         keep_size: bool = True,
     ):
         super().__init__(keys)
@@ -764,7 +764,7 @@ class RandZoomd(Randomizable, MapTransform):
         min_zoom=0.9,
         max_zoom=1.1,
         interp_order: str = "area",
-        align_corners: Optional[bool] = None,
+        align_corners: Optional[bool] = False,
         keep_size: bool = True,
     ):
         super().__init__(keys)
