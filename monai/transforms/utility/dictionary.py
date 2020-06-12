@@ -34,7 +34,26 @@ from monai.transforms.utility.array import (
     SqueezeDim,
     DataStats,
     SimulateDelay,
+    Identity,
 )
+
+
+class Identityd(MapTransform):
+    """Dictionary-based wrapper of :py:class:`monai.transforms.utility.array.Identity`.
+
+    Args:
+        keys (dict): Keys to pick data for transformation.
+    """
+
+    def __init__(self, keys: KeysCollection):
+        super().__init__(keys)
+        self.identity = Identity()
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.identity(d[key])
+        return d
 
 
 class AsChannelFirstd(MapTransform):
