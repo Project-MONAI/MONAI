@@ -41,7 +41,7 @@ def write_png(
 
     """
     assert isinstance(data, np.ndarray), "input data must be numpy array."
-    if len(data.shape) == 3 and data.shape[2] == 1:
+    if len(data.shape) == 3 and data.shape[2] == 1:  # PIL Image can't save image with 1 channel
         data = data.squeeze(2)
     if output_shape is not None:
         output_shape = ensure_tuple_rep(output_shape, 2)
@@ -58,7 +58,7 @@ def write_png(
             data = np.clip(data, _min, _max)
 
     if scale:
-        data = np.clip(data, 0.0, 1.0)  # png writer only can scale data in range [0, 1].
+        data = np.clip(data, 0.0, 1.0)  # png writer only can scale data in range [0, 1]
         data = 255 * data
     img = Image.fromarray(data.astype(np.uint8))
     img.save(file_name, "PNG")

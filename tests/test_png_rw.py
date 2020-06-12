@@ -24,6 +24,26 @@ class TestPngWrite(unittest.TestCase):
     def test_write_gray(self):
         out_dir = tempfile.mkdtemp()
         image_name = os.path.join(out_dir, "test.png")
+        img = np.random.rand(2, 3)
+        img_save_val = (255 * img).astype(np.uint8)
+        write_png(img, image_name, scale=True)
+        out = np.asarray(Image.open(image_name))
+        np.testing.assert_allclose(out, img_save_val)
+        shutil.rmtree(out_dir)
+
+    def test_write_gray_1height(self):
+        out_dir = tempfile.mkdtemp()
+        image_name = os.path.join(out_dir, "test.png")
+        img = np.random.rand(1, 3)
+        img_save_val = (255 * img).astype(np.uint8)
+        write_png(img, image_name, scale=True)
+        out = np.asarray(Image.open(image_name))
+        np.testing.assert_allclose(out, img_save_val)
+        shutil.rmtree(out_dir)
+
+    def test_write_gray_1channel(self):
+        out_dir = tempfile.mkdtemp()
+        image_name = os.path.join(out_dir, "test.png")
         img = np.random.rand(2, 3, 1)
         img_save_val = (255 * img).astype(np.uint8).squeeze(2)
         write_png(img, image_name, scale=True)
