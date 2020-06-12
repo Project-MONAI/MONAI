@@ -40,7 +40,7 @@ def sliding_window_inference(
     """
     num_spatial_dims = len(inputs.shape) - 2
     assert len(roi_size) == num_spatial_dims, f"roi_size {roi_size} does not match input dims."
-    assert overlap >= 0 and overlap < 1, "overlap must be >= 0 and < 1."
+    assert 0 <= overlap < 1, "overlap must be >= 0 and < 1."
 
     # determine image spatial size and batch size
     # Note: all input images must have the same image size and batch size

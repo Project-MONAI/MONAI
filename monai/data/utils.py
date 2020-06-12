@@ -22,24 +22,6 @@ import numpy as np
 from monai.utils import ensure_tuple_size
 from monai.networks.layers.simplelayers import GaussianFilter
 
-import enum
-
-
-class InterpolationCode(enum.IntEnum):
-    """
-    A convenience enumeration to make code uses more expressive
-    """
-
-    SPLINE0 = 0
-    NEARESTNEIGHBOR = 0
-    SPLINE1 = 1
-    LINEAR = 1
-    SPLINE2 = 2
-    CUBIC = 2
-    SPLINE3 = 3
-    SPLINE4 = 4
-    SPLINE5 = 5
-
 
 def get_random_patch(dims, patch_size, rand_state: Optional[np.random.RandomState] = None):
     """
@@ -351,7 +333,7 @@ def compute_shape_offset(spatial_shape, in_affine, out_affine):
     corners = in_affine @ corners
     corners_out = np.linalg.inv(out_affine) @ corners
     corners_out = corners_out[:-1] / corners_out[-1]
-    out_shape = np.round(np.max(corners_out, 1) - np.min(corners_out, 1) + 1.0)
+    out_shape = np.round(corners_out.ptp(axis=1) + 1.0)
     if np.allclose(nib.io_orientation(in_affine), nib.io_orientation(out_affine)):
         # same orientation, get translate from the origin
         offset = in_affine @ ([0] * sr + [1])
@@ -452,7 +434,6 @@ def compute_importance_map(patch_size, mode: str = "constant", sigma_scale: floa
     Returns:
         Tensor of size patch_size.
     """
-    importance_map = None
     if mode == "constant":
         importance_map = torch.ones(patch_size, device=device).float()
     elif mode == "gaussian":

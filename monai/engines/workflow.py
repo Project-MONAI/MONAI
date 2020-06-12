@@ -99,7 +99,6 @@ class Workflow(ABC, Engine):
             def run_post_transform(engine):
                 engine.state.output = apply_transform(post_transform, engine.state.output)
 
-        metrics = None
         if key_metric is not None:
 
             if not isinstance(key_metric, dict):

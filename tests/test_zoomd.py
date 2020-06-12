@@ -21,7 +21,7 @@ from tests.utils import NumpyImageTestCase2D
 
 VALID_CASES = [
     (1.5, "nearest", False),
-    (0.4, "bilinear", False),
+    (0.3, "bilinear", False),
     (0.8, "bilinear", False),
 ]
 
