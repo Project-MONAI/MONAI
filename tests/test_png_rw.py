@@ -15,7 +15,7 @@ import tempfile
 import unittest
 
 import numpy as np
-from skimage import io
+from PIL import Image
 
 from monai.data import write_png
 
@@ -24,12 +24,30 @@ class TestPngWrite(unittest.TestCase):
     def test_write_gray(self):
         out_dir = tempfile.mkdtemp()
         image_name = os.path.join(out_dir, "test.png")
+        img = np.random.rand(2, 3)
+        img_save_val = (255 * img).astype(np.uint8)
+        write_png(img, image_name, scale=255)
+        out = np.asarray(Image.open(image_name))
+        np.testing.assert_allclose(out, img_save_val)
+        shutil.rmtree(out_dir)
+
+    def test_write_gray_1height(self):
+        out_dir = tempfile.mkdtemp()
+        image_name = os.path.join(out_dir, "test.png")
+        img = np.random.rand(1, 3)
+        img_save_val = (65535 * img).astype(np.uint16)
+        write_png(img, image_name, scale=65535)
+        out = np.asarray(Image.open(image_name))
+        np.testing.assert_allclose(out, img_save_val)
+        shutil.rmtree(out_dir)
+
+    def test_write_gray_1channel(self):
+        out_dir = tempfile.mkdtemp()
+        image_name = os.path.join(out_dir, "test.png")
         img = np.random.rand(2, 3, 1)
-        img_save_val = 255 * img
-        # saving with io.imsave (h, w, 1) will only give us (h,w) while reading it back.
-        img_save_val = img_save_val[:, :, 0].astype(np.uint8)
-        write_png(img, image_name, scale=True)
-        out = io.imread(image_name)
+        img_save_val = (255 * img).astype(np.uint8).squeeze(2)
+        write_png(img, image_name, scale=255)
+        out = np.asarray(Image.open(image_name))
         np.testing.assert_allclose(out, img_save_val)
         shutil.rmtree(out_dir)
 
@@ -38,8 +56,18 @@ class TestPngWrite(unittest.TestCase):
         image_name = os.path.join(out_dir, "test.png")
         img = np.random.rand(2, 3, 3)
         img_save_val = (255 * img).astype(np.uint8)
-        write_png(img, image_name, scale=True)
-        out = io.imread(image_name)
+        write_png(img, image_name, scale=255)
+        out = np.asarray(Image.open(image_name))
+        np.testing.assert_allclose(out, img_save_val)
+        shutil.rmtree(out_dir)
+
+    def test_write_2channels(self):
+        out_dir = tempfile.mkdtemp()
+        image_name = os.path.join(out_dir, "test.png")
+        img = np.random.rand(2, 3, 2)
+        img_save_val = (255 * img).astype(np.uint8)
+        write_png(img, image_name, scale=255)
+        out = np.asarray(Image.open(image_name))
         np.testing.assert_allclose(out, img_save_val)
         shutil.rmtree(out_dir)
 
@@ -47,8 +75,8 @@ class TestPngWrite(unittest.TestCase):
         out_dir = tempfile.mkdtemp()
         image_name = os.path.join(out_dir, "test.png")
         img = np.random.rand(2, 2, 3)
-        write_png(img, image_name, (4, 4), scale=True)
-        out = io.imread(image_name)
+        write_png(img, image_name, (4, 4), scale=255)
+        out = np.asarray(Image.open(image_name))
         np.testing.assert_allclose(out.shape, (4, 4, 3))
         shutil.rmtree(out_dir)
 
