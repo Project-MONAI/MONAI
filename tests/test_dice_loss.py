@@ -19,7 +19,7 @@ from monai.losses import DiceLoss
 
 TEST_CASES = [
     [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
-        {"include_background": True, "do_sigmoid": True},
+        {"include_background": True, "sigmoid": True},
         {
             "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
             "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
@@ -28,7 +28,7 @@ TEST_CASES = [
         0.307576,
     ],
     [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
-        {"include_background": True, "do_sigmoid": True},
+        {"include_background": True, "sigmoid": True},
         {
             "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]], [[[1.0, -1.0], [-1.0, 1.0]]]]),
             "target": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]]], [[[1.0, 0.0], [1.0, 0.0]]]]),
@@ -46,7 +46,7 @@ TEST_CASES = [
         0.0,
     ],
     [  # shape: (2, 2, 3), (2, 1, 3)
-        {"include_background": True, "to_onehot_y": True, "do_sigmoid": True},
+        {"include_background": True, "to_onehot_y": True, "sigmoid": True},
         {
             "input": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
             "target": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
@@ -55,7 +55,7 @@ TEST_CASES = [
         0.435050,
     ],
     [  # shape: (2, 2, 3), (2, 1, 3)
-        {"include_background": True, "to_onehot_y": True, "do_sigmoid": True, "reduction": "none"},
+        {"include_background": True, "to_onehot_y": True, "sigmoid": True, "reduction": "none"},
         {
             "input": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
             "target": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
@@ -64,7 +64,7 @@ TEST_CASES = [
         [[0.296529, 0.415136], [0.599976, 0.428559]],
     ],
     [  # shape: (2, 2, 3), (2, 1, 3)
-        {"include_background": True, "to_onehot_y": True, "do_softmax": True},
+        {"include_background": True, "to_onehot_y": True, "softmax": True},
         {
             "input": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
             "target": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
@@ -73,7 +73,7 @@ TEST_CASES = [
         0.383713,
     ],
     [  # shape: (2, 2, 3), (2, 1, 3)
-        {"include_background": True, "to_onehot_y": True, "do_softmax": True, "reduction": "sum"},
+        {"include_background": True, "to_onehot_y": True, "softmax": True, "reduction": "sum"},
         {
             "input": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
             "target": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
@@ -82,7 +82,7 @@ TEST_CASES = [
         1.534853,
     ],
     [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
-        {"include_background": True, "do_sigmoid": True},
+        {"include_background": True, "sigmoid": True},
         {
             "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
             "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
@@ -91,7 +91,7 @@ TEST_CASES = [
         0.307576,
     ],
     [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
-        {"include_background": True, "do_sigmoid": True, "squared_pred": True},
+        {"include_background": True, "sigmoid": True, "squared_pred": True},
         {
             "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
             "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
@@ -100,7 +100,7 @@ TEST_CASES = [
         0.178337,
     ],
     [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
-        {"include_background": True, "do_sigmoid": True, "jaccard": True},
+        {"include_background": True, "sigmoid": True, "jaccard": True},
         {
             "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
             "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
@@ -124,7 +124,7 @@ class TestDiceLoss(unittest.TestCase):
 
     def test_ill_opts(self):
         with self.assertRaisesRegex(ValueError, ""):
-            DiceLoss(do_sigmoid=True, do_softmax=True)
+            DiceLoss(sigmoid=True, softmax=True)
         chn_input = torch.ones((1, 1, 3))
         chn_target = torch.ones((1, 1, 3))
         with self.assertRaisesRegex(ValueError, ""):
@@ -139,7 +139,7 @@ class TestDiceLoss(unittest.TestCase):
             loss = DiceLoss(include_background=False)
             loss.forward(chn_input, chn_target)
         with self.assertWarns(Warning):
-            loss = DiceLoss(do_softmax=True)
+            loss = DiceLoss(softmax=True)
             loss.forward(chn_input, chn_target)
         with self.assertWarns(Warning):
             loss = DiceLoss(to_onehot_y=True)
