@@ -15,7 +15,7 @@ from monai.transforms.utility.dictionary import Identityd
 from tests.utils import NumpyImageTestCase2D
 
 
-class TestIdentity(NumpyImageTestCase2D):
+class TestIdentityd(NumpyImageTestCase2D):
     def test_identityd(self):
         img = self.imt
         data = dict()
