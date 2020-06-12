@@ -30,7 +30,7 @@ class SpatialPad(Transform):
      for additional details.
 
     Args:
-        spatial_size (list): the spatial size of output data after padding.
+        spatial_size (sequence of int): the spatial size of output data after padding.
         method: pad image symmetric on every side or only pad at the end sides. default is 'symmetric'.
         mode: one of the following string values or a user supplied function: {'constant', 'edge', 'linear_ramp',
             'maximum', 'mean', 'median', 'minimum', 'reflect', 'symmetric', 'wrap', 'empty', <function>}

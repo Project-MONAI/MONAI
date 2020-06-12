@@ -11,7 +11,7 @@
 
 import random
 import warnings
-from typing import Optional, Union, Callable
+from typing import Optional, Callable
 
 import torch
 import numpy as np
@@ -248,7 +248,7 @@ def apply_transform(transform: Callable, data, map_items: bool = True):
     Args:
         transform: a callable to be used to transform `data`
         data (object): an object to be transformed.
-        map_item: whether to apply transform to each item in `data`,
+        map_items: whether to apply transform to each item in `data`,
             if `data` is a list or tuple. Defaults to True.
     """
     try:

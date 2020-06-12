@@ -18,11 +18,10 @@ from typing import List, Optional, Union
 
 import nibabel as nib
 import numpy as np
-import scipy.ndimage
 import torch
 
 from monai.config import get_torch_version_tuple
-from monai.data.utils import InterpolationCode, compute_shape_offset, to_affine_nd, zoom_affine
+from monai.data.utils import compute_shape_offset, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter
 from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.utils import (
@@ -38,7 +37,7 @@ from monai.utils.misc import ensure_tuple, ensure_tuple_rep, ensure_tuple_size
 if get_torch_version_tuple() >= (1, 5):
     # additional argument since torch 1.5 (to avoid warnings)
     def _torch_interp(**kwargs):
-        return torch.nn.functional.interpolate(**kwargs, recompute_scale_factor=False)
+        return torch.nn.functional.interpolate(recompute_scale_factor=False, **kwargs)
 
 
 else:
@@ -284,68 +283,75 @@ class Resize(Transform):
 
 class Rotate(Transform):
     """
-    Rotates an input image by given angle. Uses scipy.ndimage.rotate. For more details, see
-    https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.rotate.html
+    Rotates an input image by given angle using :py:class:`monai.networks.layers.AffineTransform`.
 
     Args:
-        angle: Rotation angle in degrees.
-        spatial_axes (tuple of 2 ints): Spatial axes of rotation. Default: (0, 1).
-            This is the first two axis in spatial dimensions.
-        reshape: If reshape is true, the output shape is adapted so that the
+        angle (float or sequence of float): Rotation angle(s) in degrees.
+            should a float for 2D, three floats for 3D.
+        keep_size: If it is True, the output shape is kept the same as the input.
+            If it is False, the output shape is adapted so that the
             input array is contained completely in the output. Default is True.
-        interp_order: Order of spline interpolation. Range 0-5. Default: InterpolationCode.LINEAR. This is
-            different from scipy where default interpolation is InterpolationCode.SPLINE3.
-        mode: Points outside boundary filled according to this mode. Options are
-            'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
-        cval: Values to fill outside boundary. Default: 0.
-        prefilter: Apply spline_filter before interpolation. Default: True.
+        interp_order (`nearest|bilinear`): interpolation mode, defaults to "bilinear"
+            Available options are 'nearest', 'bilinear'.
+            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample.
+        mode (`zeros|border|reflection`): Points outside boundary filled according to this mode.
+            Available options are 'zeros', 'border', 'reflection'. Defaults to "border".
+        align_corners: Defaults to False.
+            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
     """
 
     def __init__(
         self,
-        angle: float,
-        spatial_axes=(0, 1),
-        reshape: bool = True,
-        interp_order=1,
-        mode: str = "constant",
-        cval: float = 0.0,
-        prefilter: bool = True,
+        angle,
+        keep_size: bool = True,
+        interp_order: str = "bilinear",
+        mode: str = "border",
+        align_corners: bool = False,
     ):
         self.angle = angle
-        self.spatial_axes = spatial_axes
-        self.reshape = reshape
+        self.keep_size = keep_size
         self.interp_order = interp_order
         self.mode = mode
-        self.cval = cval
-        self.prefilter = prefilter
+        self.align_corners = align_corners
 
-    def __call__(
-        self,
-        img,
-        order=None,
-        mode: Optional[str] = None,
-        cval: Optional[float] = None,
-        prefilter: Optional[bool] = None,
-    ):
+    def __call__(self, img, interp_order: Optional[str] = None, mode: Optional[str] = None):
         """
         Args:
             img (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
-        rotated = list()
-        for channel in img:
-            rotated.append(
-                scipy.ndimage.rotate(
-                    input=channel,
-                    angle=self.angle,
-                    axes=self.spatial_axes,
-                    reshape=self.reshape,
-                    order=self.interp_order if order is None else order,
-                    mode=mode or self.mode,
-                    cval=self.cval if cval is None else cval,
-                    prefilter=self.prefilter if prefilter is None else prefilter,
-                )
+        im_shape = np.asarray(img.shape[1:])  # spatial dimensions
+        input_ndim = len(im_shape)
+        if input_ndim not in (2, 3):
+            raise ValueError("Rotate only supports 2D and 3D: [chns, H, W] and [chns, H, W, D].")
+        _angle = ensure_tuple_rep(self.angle, 1 if input_ndim == 2 else 3)
+        _rad = np.deg2rad(_angle)
+        transform = create_rotate(input_ndim, _rad)
+        shift = create_translate(input_ndim, (im_shape - 1) / 2)
+        if self.keep_size:
+            output_shape = im_shape
+        else:
+            corners = np.asarray(np.meshgrid(*[(0, dim) for dim in im_shape], indexing="ij")).reshape(
+                (len(im_shape), -1)
             )
-        return np.stack(rotated).astype(img.dtype)
+            corners = transform[:-1, :-1] @ corners
+            output_shape = (corners.ptp(axis=1) + 0.5).astype(int)
+        shift_1 = create_translate(input_ndim, -(output_shape - 1) / 2)
+        transform = shift @ transform @ shift_1
+        _dtype = img.dtype
+        xform = AffineTransform(
+            normalized=False,
+            mode=interp_order or self.interp_order,
+            padding_mode=mode or self.mode,
+            align_corners=self.align_corners,
+            reverse_indexing=True,
+        )
+        output = xform(
+            torch.from_numpy(img.astype(np.float64)[None]),
+            torch.from_numpy(transform.astype(np.float64)),
+            spatial_size=output_shape,
+        )
+        output = output.squeeze(0).detach().cpu().numpy().astype(_dtype)
+        return output
 
 
 class Zoom(Transform):
@@ -470,75 +476,84 @@ class RandRotate90(Randomizable, Transform):
 
 
 class RandRotate(Randomizable, Transform):
-    """Randomly rotates the input arrays.
+    """
+    Randomly rotate the input arrays.
 
     Args:
-        degrees (tuple of float or float): Range of rotation in degrees. If single number,
-            angle is picked from (-degrees, degrees).
+        range_x (tuple of float or float): Range of rotation angle in degrees in the
+            plane defined by the first and second axes.
+            If single number, angle is uniformly sampled from (-range_x, range_x).
+        range_y (tuple of float or float): Range of rotation angle in degrees in the
+            plane defined by the first and third axes.
+            If single number, angle is uniformly sampled from (-range_y, range_y).
+        range_z (tuple of float or float): Range of rotation angle in degrees in the
+            plane defined by the second and third axes.
+            If single number, angle is uniformly sampled from (-range_z, range_z).
         prob: Probability of rotation.
-        spatial_axes (tuple of 2 ints): Spatial axes of rotation. Default: (0, 1).
-            This is the first two axis in spatial dimensions.
-        reshape: If reshape is true, the output shape is adapted so that the
-            input array is contained completely in the output. Default is True.
-        interp_order: Order of spline interpolation. Range 0-5. Default: InterpolationCode.LINEAR. This is
-            different from scipy where default interpolation is InterpolationCode.SPLINE3.
-        mode: Points outside boundary filled according to this mode. Options are
-            'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
-        cval: Value to fill outside boundary. Default: 0.
-        prefilter: Apply spline_filter before interpolation. Default: True.
+        keep_size: If it is False, the output shape is adapted so that the
+            input array is contained completely in the output.
+            If it is True, the output shape is the same as the input. Default is True.
+        interp_order (`nearest|bilinear`): interpolation mode, defaults to "bilinear"
+            Available options are 'nearest', 'bilinear'.
+            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample.
+        mode (`zeros|border|reflection`): Points outside boundary filled according to this mode.
+            Available options are 'zeros', 'border', 'reflection'. Defaults to "border".
+        align_corners: Defaults to False.
+            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
     """
 
     def __init__(
         self,
-        degrees,
+        range_x=0.0,
+        range_y=0.0,
+        range_z=0.0,
         prob: float = 0.1,
-        spatial_axes=(0, 1),
-        reshape: bool = True,
-        interp_order=InterpolationCode.LINEAR,
-        mode: str = "constant",
-        cval: float = 0.0,
-        prefilter: bool = True,
+        keep_size: bool = True,
+        interp_order: str = "bilinear",
+        mode: str = "border",
+        align_corners: bool = False,
     ):
-        self.degrees = degrees
+        self.range_x = ensure_tuple(range_x)
+        if len(self.range_x) == 1:
+            self.range_x = tuple(sorted([-self.range_x[0], self.range_x[0]]))
+        self.range_y = ensure_tuple(range_y)
+        if len(self.range_y) == 1:
+            self.range_y = tuple(sorted([-self.range_y[0], self.range_y[0]]))
+        self.range_z = ensure_tuple(range_z)
+        if len(self.range_z) == 1:
+            self.range_z = tuple(sorted([-self.range_z[0], self.range_z[0]]))
+
         self.prob = prob
-        self.spatial_axes = spatial_axes
-        self.reshape = reshape
+        self.keep_size = keep_size
         self.interp_order = interp_order
         self.mode = mode
-        self.cval = cval
-        self.prefilter = prefilter
-
-        if not hasattr(self.degrees, "__iter__"):
-            self.degrees = (-self.degrees, self.degrees)
-        assert len(self.degrees) == 2, "degrees should be a number or pair of numbers."
+        self.align_corners = align_corners
 
         self._do_transform = False
-        self.angle = None
+        self.x = 0.0
+        self.y = 0.0
+        self.z = 0.0
 
     def randomize(self):
         self._do_transform = self.R.random_sample() < self.prob
-        self.angle = self.R.uniform(low=self.degrees[0], high=self.degrees[1])
+        self.x = self.R.uniform(low=self.range_x[0], high=self.range_x[1])
+        self.y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
+        self.z = self.R.uniform(low=self.range_z[0], high=self.range_z[1])
 
-    def __call__(
-        self,
-        img,
-        order=None,
-        mode: Optional[str] = None,
-        cval: Optional[float] = None,
-        prefilter: Optional[bool] = None,
-    ):
+    def __call__(self, img, interp_order: Optional[str] = None, mode: Optional[str] = None):
+        """
+        Args:
+            img (ndarray): channel first array, must have shape 2D: (nchannels, H, W), or 3D: (nchannels, H, W, D).
+        """
         self.randomize()
-        assert self.angle is not None
         if not self._do_transform:
             return img
         rotator = Rotate(
-            angle=self.angle,
-            spatial_axes=self.spatial_axes,
-            reshape=self.reshape,
-            interp_order=self.interp_order if order is None else order,
+            angle=self.x if img.ndim == 3 else (self.x, self.y, self.z),
+            keep_size=self.keep_size,
+            interp_order=interp_order or self.interp_order,
             mode=mode or self.mode,
-            cval=self.cval if cval is None else cval,
-            prefilter=self.prefilter if prefilter is None else prefilter,
+            align_corners=self.align_corners,
         )
         return rotator(img)
 

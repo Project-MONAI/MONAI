@@ -18,7 +18,7 @@ import nibabel as nib
 import numpy as np
 import torch
 
-from monai.data.synthetic import create_test_image_2d
+from monai.data.synthetic import create_test_image_2d, create_test_image_3d
 
 quick_test_var = "QUICKTEST"
 
@@ -45,7 +45,7 @@ def make_nifti_image(array, affine=None):
 
 
 class NumpyImageTestCase2D(unittest.TestCase):
-    im_shape = (128, 128)
+    im_shape = (128, 64)
     input_channels = 1
     output_channels = 4
     num_classes = 3
@@ -61,6 +61,28 @@ class NumpyImageTestCase2D(unittest.TestCase):
 class TorchImageTestCase2D(NumpyImageTestCase2D):
     def setUp(self):
         NumpyImageTestCase2D.setUp(self)
+        self.imt = torch.tensor(self.imt)
+        self.seg1 = torch.tensor(self.seg1)
+        self.segn = torch.tensor(self.segn)
+
+
+class NumpyImageTestCase3D(unittest.TestCase):
+    im_shape = (64, 48, 80)
+    input_channels = 1
+    output_channels = 4
+    num_classes = 3
+
+    def setUp(self):
+        im, msk = create_test_image_3d(self.im_shape[0], self.im_shape[1], self.im_shape[2], 4, 20, 0, self.num_classes)
+
+        self.imt = im[None, None]
+        self.seg1 = (msk[None, None] > 0).astype(np.float32)
+        self.segn = msk[None, None]
+
+
+class TorchImageTestCase3D(NumpyImageTestCase3D):
+    def setUp(self):
+        NumpyImageTestCase3D.setUp(self)
         self.imt = torch.tensor(self.imt)
         self.seg1 = torch.tensor(self.seg1)
         self.segn = torch.tensor(self.segn)

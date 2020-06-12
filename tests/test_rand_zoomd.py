@@ -18,7 +18,7 @@ from tests.utils import NumpyImageTestCase2D
 
 from monai.transforms import RandZoomd
 
-VALID_CASES = [(0.9, 1.1, "nearest", None, False)]
+VALID_CASES = [(0.8, 1.2, "nearest", None, False)]
 
 
 class TestRandZoomd(NumpyImageTestCase2D):

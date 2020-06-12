@@ -21,7 +21,6 @@ import numpy as np
 import torch
 
 from monai.config.type_definitions import KeysCollection
-from monai.data.utils import InterpolationCode
 
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.compose import MapTransform, Randomizable
@@ -39,7 +38,7 @@ from monai.transforms.spatial.array import (
     _torch_interp,
 )
 from monai.transforms.utils import create_grid
-from monai.utils.misc import ensure_tuple_rep
+from monai.utils.misc import ensure_tuple, ensure_tuple_rep
 
 
 class Spacingd(MapTransform):
@@ -585,49 +584,38 @@ class Rotated(MapTransform):
 
     Args:
         keys (dict): Keys to pick data for transformation.
-        angle: Rotation angle in degrees.
-        spatial_axes (tuple of 2 ints): Spatial axes of rotation. Default: (0, 1).
-            This is the first two axis in spatial dimensions.
-        reshape: If reshape is true, the output shape is adapted so that the
-            input array is contained completely in the output. Default is True.
-        interp_order (int or sequence of int): Order of spline interpolation. Range 0-5.
-            Default: InterpolationCode.LINEAR. This is different from scipy where default interpolation
-            is InterpolationCode.SPLINE3.
-        mode (str or sequence of str): Points outside boundary filled according to this mode. Options are
-            'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
-        cval (scalar or sequence of scalar): Values to fill outside boundary. Default: 0.
-        prefilter (bool or sequence of bool): Apply spline_filter before interpolation. Default: True.
+        angle (float or sequence of float): Rotation angle(s) in degrees.
+        keep_size (bool): If it is False, the output shape is adapted so that the
+            input array is contained completely in the output.
+            If it is True, the output shape is the same as the input. Default is True.
+        interp_order (str or sequence of str): interpolation mode, defaults to "bilinear".
+            Available options are 'nearest', 'bilinear'.
+            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample.
+        mode (str or sequence of str): Points outside boundary filled according to this mode.
+            Available options are 'zeros', 'border', 'reflection'. Defaults to "border".
+        align_corners (bool): Defaults to False.
+            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
     """
 
     def __init__(
         self,
         keys: KeysCollection,
-        angle: float,
-        spatial_axes=(0, 1),
-        reshape: bool = True,
-        interp_order=InterpolationCode.LINEAR,
-        mode="constant",
-        cval=0,
-        prefilter=True,
+        angle,
+        keep_size: bool = True,
+        interp_order: str = "bilinear",
+        mode: str = "border",
+        align_corners: bool = False,
     ):
         super().__init__(keys)
-        self.rotator = Rotate(angle=angle, spatial_axes=spatial_axes, reshape=reshape)
+        self.rotator = Rotate(angle=angle, keep_size=keep_size, align_corners=align_corners)
 
         self.interp_order = ensure_tuple_rep(interp_order, len(self.keys))
         self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.cval = ensure_tuple_rep(cval, len(self.keys))
-        self.prefilter = ensure_tuple_rep(prefilter, len(self.keys))
 
     def __call__(self, data):
         d = dict(data)
         for idx, key in enumerate(self.keys):
-            d[key] = self.rotator(
-                d[key],
-                order=self.interp_order[idx],
-                mode=self.mode[idx],
-                cval=self.cval[idx],
-                prefilter=self.prefilter[idx],
-            )
+            d[key] = self.rotator(d[key], interp_order=self.interp_order[idx], mode=self.mode[idx])
         return d
 
 
@@ -636,70 +624,80 @@ class RandRotated(Randomizable, MapTransform):
     Randomly rotates the input arrays.
 
     Args:
-        prob: Probability of rotation.
-        degrees (tuple of float or float): Range of rotation in degrees. If single number,
-            angle is picked from (-degrees, degrees).
-        spatial_axes (tuple of 2 ints): Spatial axes of rotation. Default: (0, 1).
-            This is the first two axis in spatial dimensions.
-        reshape: If reshape is true, the output shape is adapted so that the
-            input array is contained completely in the output. Default is True.
-        interp_order (int or sequence of int): Order of spline interpolation. Range 0-5.
-            Default: InterpolationCode.LINEAR. This is different from scipy where default
-            interpolation is InterpolationCode.SPLINE3.
-        mode (str or sequence of str): Points outside boundary filled according to this mode. Options are
-            'constant', 'nearest', 'reflect', 'wrap'. Default: 'constant'.
-        cval (scalar or sequence of scalar): Value to fill outside boundary. Default: 0.
-        prefilter (bool or sequence of bool): Apply spline_filter before interpolation. Default: True.
+        range_x (tuple of float or float): Range of rotation angle in degrees in the
+            plane defined by the first and second axes.
+            If single number, angle is uniformly sampled from (-range_x, range_x).
+        range_y (tuple of float or float): Range of rotation angle in degrees in the
+            plane defined by the first and third axes.
+            If single number, angle is uniformly sampled from (-range_y, range_y).
+        range_z (tuple of float or float): Range of rotation angle in degrees in the
+            plane defined by the second and third axes.
+            If single number, angle is uniformly sampled from (-range_z, range_z).
+        prob (float): Probability of rotation.
+        keep_size (bool): If it is False, the output shape is adapted so that the
+            input array is contained completely in the output.
+            If it is True, the output shape is the same as the input. Default is True.
+        interp_order (str or sequence of str): interpolation mode, defaults to "bilinear"
+            Available options are 'nearest', 'bilinear'.
+            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample.
+        mode (str or sequence of str): Points outside boundary filled according to this mode.
+            Available options are 'zeros', 'border', 'reflection'. Defaults to "border".
+        align_corners (bool): Defaults to False.
+            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
     """
 
     def __init__(
         self,
         keys: KeysCollection,
-        degrees,
+        range_x=0.0,
+        range_y=0.0,
+        range_z=0.0,
         prob: float = 0.1,
-        spatial_axes=(0, 1),
-        reshape: bool = True,
-        interp_order=InterpolationCode.LINEAR,
-        mode="constant",
-        cval=0,
-        prefilter=True,
+        keep_size: bool = True,
+        interp_order: str = "bilinear",
+        mode: str = "border",
+        align_corners: bool = False,
     ):
         super().__init__(keys)
-        self.prob = prob
-        self.degrees = degrees
-        self.reshape = reshape
-        self.spatial_axes = spatial_axes
+        self.range_x = ensure_tuple(range_x)
+        if len(self.range_x) == 1:
+            self.range_x = tuple(sorted([-self.range_x[0], self.range_x[0]]))
+        self.range_y = ensure_tuple(range_y)
+        if len(self.range_y) == 1:
+            self.range_y = tuple(sorted([-self.range_y[0], self.range_y[0]]))
+        self.range_z = ensure_tuple(range_z)
+        if len(self.range_z) == 1:
+            self.range_z = tuple(sorted([-self.range_z[0], self.range_z[0]]))
 
+        self.prob = prob
+        self.keep_size = keep_size
         self.interp_order = ensure_tuple_rep(interp_order, len(self.keys))
         self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.cval = ensure_tuple_rep(cval, len(self.keys))
-        self.prefilter = ensure_tuple_rep(prefilter, len(self.keys))
-
-        if not hasattr(self.degrees, "__iter__"):
-            self.degrees = (-self.degrees, self.degrees)
-        assert len(self.degrees) == 2, "degrees should be a number or pair of numbers."
+        self.align_corners = align_corners
 
         self._do_transform = False
-        self.angle = None
+        self.x = 0.0
+        self.y = 0.0
+        self.z = 0.0
 
     def randomize(self):
         self._do_transform = self.R.random_sample() < self.prob
-        self.angle = self.R.uniform(low=self.degrees[0], high=self.degrees[1])
+        self.x = self.R.uniform(low=self.range_x[0], high=self.range_x[1])
+        self.y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
+        self.z = self.R.uniform(low=self.range_z[0], high=self.range_z[1])
 
     def __call__(self, data):
         self.randomize()
         d = dict(data)
         if not self._do_transform:
             return d
-        rotator = Rotate(angle=self.angle, spatial_axes=self.spatial_axes, reshape=self.reshape)
+        rotator = Rotate(
+            angle=self.x if d[self.keys[0]].ndim == 3 else (self.x, self.y, self.z),
+            keep_size=self.keep_size,
+            align_corners=self.align_corners,
+        )
         for idx, key in enumerate(self.keys):
-            d[key] = rotator(
-                d[key],
-                order=self.interp_order[idx],
-                mode=self.mode[idx],
-                cval=self.cval[idx],
-                prefilter=self.prefilter[idx],
-            )
+            d[key] = rotator(d[key], interp_order=self.interp_order[idx], mode=self.mode[idx])
         return d
 
 
