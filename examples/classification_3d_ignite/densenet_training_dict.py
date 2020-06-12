@@ -30,10 +30,10 @@ def main():
 
     # IXI dataset as a demo, downloadable from https://brain-development.org/ixi-dataset/
     images = [
+        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI314-IOP-0889-T1.nii.gz"]),
         os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI249-Guys-1072-T1.nii.gz"]),
         os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI609-HH-2600-T1.nii.gz"]),
         os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI173-HH-1590-T1.nii.gz"]),
-        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI314-IOP-0889-T1.nii.gz"]),
         os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI020-Guys-0700-T1.nii.gz"]),
         os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI342-Guys-0909-T1.nii.gz"]),
         os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI134-Guys-0780-T1.nii.gz"]),
