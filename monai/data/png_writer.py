@@ -18,13 +18,7 @@ from monai.transforms import Resize
 from monai.utils.misc import ensure_tuple_rep
 
 
-def write_png(
-    data,
-    file_name: str,
-    output_shape=None,
-    interp_order: str = "bicubic",
-    scale: bool = False
-):
+def write_png(data, file_name: str, output_shape=None, interp_order: str = "bicubic", scale: bool = False):
     """
     Write numpy data into png files to disk.
     Spatially it supports HW for 2D.(H,W) or (H,W,3) or (H,W,4)
