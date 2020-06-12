@@ -43,14 +43,16 @@ class LrScheduleHandler:
         """
         self.lr_scheduler = lr_scheduler
         self.print_lr = print_lr
-        self.logger = None if name is None else logging.getLogger(name)
+        self.logger = logging.getLogger(name)
         self.epoch_level = epoch_level
         if not callable(step_transform):
             raise ValueError("argument `step_transform` must be a callable.")
         self.step_transform = step_transform
 
+        self._name = name
+
     def attach(self, engine: Engine):
-        if self.logger is None:
+        if self._name is None:
             self.logger = engine.logger
         if self.epoch_level:
             engine.add_event_handler(Events.EPOCH_COMPLETED, self)
