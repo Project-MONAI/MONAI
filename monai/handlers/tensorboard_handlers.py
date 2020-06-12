@@ -14,7 +14,6 @@ from typing import Callable, Optional
 
 import numpy as np
 import torch
-from torch.utils.tensorboard import SummaryWriter
 
 from monai.utils import exact_version, optional_import
 from monai.utils.misc import is_scalar
@@ -22,6 +21,7 @@ from monai.visualize import plot_2d_or_3d_image
 
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
 Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
+SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
 DEFAULT_TAG = "Loss"
 

@@ -38,6 +38,11 @@ class TestOptionalImport(unittest.TestCase):
         self.assertFalse(flag)
         with self.assertRaisesRegex(AttributeError, "version"):
             my_module.randint(1, 2, (1, 2))
+        with self.assertRaisesRegex(ValueError, "invalid literal"):
+            my_module, flag = optional_import("torch", "test")  # version should be number.number
+            my_module.nn
+            self.assertTrue(flag)
+            print(my_module.randint(1, 2, (1, 2)))
 
     def test_import_good_number(self):
         my_module, flag = optional_import("torch", "0")

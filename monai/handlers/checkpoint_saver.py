@@ -12,8 +12,11 @@
 import logging
 from typing import Optional
 
-from ignite.engine import Engine, Events
-from ignite.handlers import ModelCheckpoint
+from monai.utils import exact_version, optional_import
+
+Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
+Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
+ModelCheckpoint, _ = optional_import("ignite.handlers", "0.3.0", exact_version, "ModelCheckpoint")
 
 
 class CheckpointSaver:

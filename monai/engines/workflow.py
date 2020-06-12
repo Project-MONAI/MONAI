@@ -11,7 +11,6 @@
 
 from typing import Optional, Callable
 
-from abc import ABC, abstractmethod
 import torch
 from .utils import default_prepare_batch
 from monai.transforms import apply_transform
@@ -23,7 +22,7 @@ State, _ = optional_import("ignite.engine", "0.3.0", exact_version, "State")
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
 
 
-class Workflow(ABC, Engine):
+class Workflow(Engine):
     """
     Workflow defines the core work process inheriting from Ignite engine.
     All trainer, validator and evaluator share this same workflow as base class,
@@ -137,7 +136,6 @@ class Workflow(ABC, Engine):
         """
         super().run(data=self.data_loader, epoch_length=len(self.data_loader))
 
-    @abstractmethod
     def _iteration(self, engine: Engine, batchdata):
         """
         Abstract callback function for the processing logic of 1 iteration in Ignite Engine.

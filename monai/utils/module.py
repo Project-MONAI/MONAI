@@ -15,7 +15,7 @@ from pkgutil import walk_packages
 from re import match
 from typing import Any, Callable, Tuple
 
-OPTIONAL_IMPORT_MSG_FMT = "No module named '{0}'"
+OPTIONAL_IMPORT_MSG_FMT = "{}"
 
 
 def export(modname):
@@ -102,7 +102,7 @@ def optional_import(
         module: name of the module to be imported.
         version: version string used by the version_checker.
         version_checker: a callable to check the module version, Defaults to monai.utils.min_version.
-        name: attribute (such as method/class) to return from the imported module.
+        name: a non-module attribute (such as method/class) to import from the imported module.
         descriptor: a format string for the final error message when using a not imported module.
 
     Returns:
@@ -129,44 +129,46 @@ def optional_import(
         <built-in method conv1d of type object at 0x11a49eac0>
 
         >>> conv, flag = optional_import('torch.nn.functional', '42', name='conv1d')
-        >>> conv()  # trying to use a function from the not sucessfully imported module (due to unmatched version)
+        >>> conv()  # trying to use a function from the not successfully imported module (due to unmatched version)
         AttributeError: Optional import: No module named 'torch.nn.functional' (requires version '42', by 'min_version').
     """
 
     tb = None
     exception_str = ""
+    if name:
+        actual_cmd = f"from {module} import {name}"
+    else:
+        actual_cmd = f"import {module}"
     try:
         pkg = __import__(module)  # top level module
         the_module = importlib.import_module(module)
-        if name:
+        if name:  # user specified to load class/function/... from the module
             the_module = getattr(the_module, name)
     except Exception as import_exception:  # any exceptions during import
         tb = import_exception.__traceback__
         exception_str = f"{import_exception}"
     else:  # found the module
-        if version_checker(pkg, version):
+        if version_checker(pkg, f"{version}"):
             return the_module, True
 
     # preparing lazy error message
-    if version and tb is None:
-        descriptor += " (requires version '{1}' by '{2}')"
+    msg = descriptor.format(actual_cmd)
+    if version and tb is None:  # a pure version issue
+        msg += f" (requires version '{version}' by '{version_checker.__name__}')"
     if exception_str:
-        descriptor += f" ({exception_str})"
-    msg = descriptor.format(module, version, version_checker.__name__)
+        msg += f" ({exception_str})"
 
     class _LazyRaise:
-        def __init__(self, msg: str, trace_back=None):
-            self.msg = msg
-            self.trace_back = trace_back
+        def __init__(self, *_args, **_kwargs):
+            if tb is None:
+                self._exception = AttributeError(f"Optional import: {msg}.")
+            else:
+                self._exception = AttributeError(f"Optional import: {msg}.").with_traceback(tb)
 
         def __getattr__(self, name):
-            if self.trace_back is None:
-                raise AttributeError(f"Optional import: {self.msg}.")
-            raise AttributeError(f"Optional import: {self.msg}.").with_traceback(self.trace_back)
+            raise self._exception
 
         def __call__(self, *_args, **_kwargs):
-            if self.trace_back is None:
-                raise AttributeError(f"Optional import: {self.msg}.")
-            raise AttributeError(f"Optional import: {self.msg}.").with_traceback(self.trace_back)
+            raise self._exception
 
-    return _LazyRaise(msg, tb), False
+    return _LazyRaise(), False
