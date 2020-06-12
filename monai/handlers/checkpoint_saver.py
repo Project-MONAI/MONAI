@@ -76,10 +76,11 @@ class CheckpointSaver:
             if hasattr(v, "module"):
                 save_dict[k] = v.module
         self.save_dict = save_dict
-        self.logger = None if name is None else logging.getLogger(name)
+        self.logger = logging.getLogger(name)
         self.epoch_level = epoch_level
         self.save_interval = save_interval
         self._final_checkpoint = self._key_metric_checkpoint = self._interval_checkpoint = None
+        self._name = name
 
         if save_final:
 
@@ -127,7 +128,7 @@ class CheckpointSaver:
             )
 
     def attach(self, engine: Engine):
-        if self.logger is None:
+        if self._name is None:
             self.logger = engine.logger
         if self._final_checkpoint is not None:
             engine.add_event_handler(Events.COMPLETED, self.completed)
