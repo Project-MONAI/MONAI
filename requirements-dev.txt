@@ -1,6 +1,8 @@
 # Requirements for testing
 -r requirements.txt
 scipy
+coverage
+parameterized
 flake8>=3.8.1
 flake8-mypy
 flake8-bugbear
@@ -11,8 +13,6 @@ mccabe
 pep8-naming
 pycodestyle
 pyflakes
-coverage
-parameterized
 black
 pytype>=2020.6.1
 mypy
