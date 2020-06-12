@@ -1,5 +1,6 @@
 # Requirements for testing
 -r requirements.txt
+scipy
 flake8>=3.8.1
 flake8-mypy
 flake8-bugbear
@@ -13,3 +14,5 @@ pyflakes
 coverage
 parameterized
 black
+pytype>=2020.6.1
+mypy
