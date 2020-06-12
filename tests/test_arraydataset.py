@@ -17,9 +17,10 @@ import unittest
 import nibabel as nib
 import numpy as np
 from parameterized import parameterized
+from torch.utils.data import DataLoader
 
 from monai.data import ArrayDataset
-from monai.transforms import AddChannel, Compose, LoadNifti, RandAdjustContrast, Spacing, RandGaussianNoise
+from monai.transforms import AddChannel, Compose, LoadNifti, RandAdjustContrast, RandGaussianNoise, Spacing
 
 TEST_CASE_1 = [
     Compose([LoadNifti(image_only=True), AddChannel(), RandGaussianNoise(prob=1.0)]),
@@ -74,6 +75,7 @@ class TestArrayDataset(unittest.TestCase):
         test_segs = [test_seg1, test_seg2]
         test_labels = [1, 1]
         dataset = ArrayDataset(test_images, img_transform, test_segs, label_transform, test_labels, None)
+        self.assertEqual(len(dataset), 2)
         dataset.set_random_state(1234)
         data1 = dataset[0]
         data2 = dataset[1]
@@ -102,6 +104,7 @@ class TestArrayDataset(unittest.TestCase):
         nib.save(test_image, test_image2)
         test_images = [test_image1, test_image2]
         dataset = ArrayDataset(test_images, img_transform)
+        self.assertEqual(len(dataset), 2)
         dataset.set_random_state(1234)
         data1 = dataset[0]
         data2 = dataset[1]
@@ -114,6 +117,26 @@ class TestArrayDataset(unittest.TestCase):
         data2_new = dataset[1]
         np.testing.assert_allclose(data2, data2_new, atol=1e-3)
         shutil.rmtree(tempdir)
+
+    @parameterized.expand([TEST_CASE_4])
+    def test_dataloading(self, img_transform, expected_shape):
+        test_image = nib.Nifti1Image(np.random.randint(0, 2, size=(128, 128, 128)), np.eye(4))
+        tempdir = tempfile.mkdtemp()
+        test_image1 = os.path.join(tempdir, "test_image1.nii.gz")
+        test_image2 = os.path.join(tempdir, "test_image2.nii.gz")
+        nib.save(test_image, test_image1)
+        nib.save(test_image, test_image2)
+        test_images = [test_image1, test_image2]
+        dataset = ArrayDataset(test_images, img_transform)
+        self.assertEqual(len(dataset), 2)
+        dataset.set_random_state(1234)
+        loader = DataLoader(dataset, batch_size=10, num_workers=1)
+        imgs = next(iter(loader))  # test batching
+        np.testing.assert_allclose(imgs.shape, [2] + list(expected_shape))
+
+        dataset.set_random_state(1234)
+        new_imgs = next(iter(loader))  # test batching
+        np.testing.assert_allclose(imgs, new_imgs, atol=1e-3)
 
 
 if __name__ == "__main__":
