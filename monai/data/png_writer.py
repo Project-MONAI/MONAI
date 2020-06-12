@@ -39,7 +39,8 @@ def write_png(data, file_name: str, output_shape=None, interp_order: str = "bicu
         data = data.squeeze(2)
     if output_shape is not None:
         output_shape = ensure_tuple_rep(output_shape, 2)
-        xform = Resize(spatial_size=output_shape, interp_order=interp_order, align_corners=False)
+        align_corners = False if interp_order in ("linear", "bilinear", "bicubic", "trilinear") else None
+        xform = Resize(spatial_size=output_shape, interp_order=interp_order, align_corners=align_corners)
         _min, _max = np.min(data), np.max(data)
         if len(data.shape) == 3:
             data = np.moveaxis(data, -1, 0)  # to channel first
