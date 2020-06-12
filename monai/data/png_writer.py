@@ -21,8 +21,10 @@ from monai.utils.misc import ensure_tuple_rep
 def write_png(data, file_name: str, output_shape=None, interp_order: str = "bicubic", scale=None):
     """
     Write numpy data into png files to disk.
-    Spatially it supports HW for 2D.(H,W) or (H,W,3) or (H,W,4)
-    It's based on skimage library: https://scikit-image.org/docs/dev/api/skimage
+    Spatially it supports HW for 2D.(H,W) or (H,W,3) or (H,W,4).
+    If `scale` is None, expect the input data in `np.uint8` or `np.uint16` type.
+    It's based on the Image module in PIL library:
+    https://pillow.readthedocs.io/en/stable/reference/Image.html
 
     Args:
         data (numpy.ndarray): input data to write to file.
@@ -31,7 +33,7 @@ def write_png(data, file_name: str, output_shape=None, interp_order: str = "bicu
         interp_order (`nearest|linear|bilinear|bicubic|trilinear|area`):
             the interpolation mode. Default="bicubic".
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
-        scale (255, 65535): postprocess data by clipping to [0, 1] and scaling
+        scale (255, 65535): postprocess data by clipping to [0, 1] and scaling to
             [0, 255] (uint8) or [0, 65535] (uint16). Default is None to disable scaling.
 
     """

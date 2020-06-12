@@ -31,7 +31,7 @@ class SegmentationSaver:
         resample: bool = True,
         interp_order: str = "nearest",
         mode: str = "border",
-        scale: bool = False,
+        scale=None,
         dtype: Optional[np.dtype] = None,
         batch_transform: Callable = lambda x: x,
         output_transform: Callable = lambda x: x,
