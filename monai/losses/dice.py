@@ -146,8 +146,8 @@ class MaskedDiceLoss(DiceLoss):
         Args:
             input (tensor): the shape should be BNH[WD].
             target (tensor): the shape should be BNH[WD].
-            mask (tensor): (optional) the shape should B1H[WD] or 11H[WD]
             smooth: a small constant to avoid nan.
+            mask (tensor): (optional) the shape should B1H[WD] or 11H[WD].
         """
         if mask is not None:
             # checking if mask is of proper shape
