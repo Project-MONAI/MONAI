@@ -39,13 +39,16 @@ from monai.transforms.utility.array import (
 
 
 class Identityd(MapTransform):
-    """Dictionary-based wrapper of :py:class:`monai.transforms.utility.array.Identity`.
-
-    Args:
-        keys (dict): Keys to pick data for transformation.
+    """Dictionary-based wrapper of :py:class:`monai.transforms.Identity`.
     """
 
     def __init__(self, keys: KeysCollection):
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+
+        """
         super().__init__(keys)
         self.identity = Identity()
 
@@ -324,6 +327,7 @@ class SimulateDelayd(MapTransform):
         return d
 
 
+IdentityD = IdentityDict = Identityd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
 AddChannelD = AddChannelDict = AddChanneld
