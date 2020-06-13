@@ -115,9 +115,10 @@ class LoadPNG(Transform):
     """
 
     def __init__(self, image_only: bool = False, dtype: Optional[np.dtype] = np.float32):
-        """Args:
+        """
+        Args:
             image_only: if True return only the image volume, otherwise return image data array and metadata.
-            dtype (np.dtype, optional): if not None convert the loaded image to this data type.
+            dtype: if not None convert the loaded image to this data type.
         """
         self.image_only = image_only
         self.dtype = dtype
