@@ -61,6 +61,12 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
+`Identity`
+~~~~~~~~~~
+.. autoclass:: Identity
+    :members:
+    :special-members: __call__
+
 `AsChannelFirst`
 ~~~~~~~~~~~~~~~~
 .. autoclass:: AsChannelFirst
@@ -362,6 +368,12 @@ Dictionary-based Transforms
 `LoadPNGd`
 ~~~~~~~~~~
 .. autoclass:: LoadPNGd
+    :members:
+    :special-members: __call__
+
+`Identityd`
+~~~~~~~~~~~
+.. autoclass:: Identityd
     :members:
     :special-members: __call__
 

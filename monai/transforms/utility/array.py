@@ -25,14 +25,14 @@ from monai.transforms.compose import Transform
 
 class Identity(Transform):
     """
-    Identity transform output is same as the input.
+    Convert the input to an np.ndarray, if input data is np.ndarray or subclasses, return unchanged data.
+    As the output value is same as input, it can be used as a testing tool to verify the transform chain,
+    Compose or transform adaptor, etc.
+
     """
 
-    def __init__(self):
-        pass
-
-    def __call__(self, data):
-        return np.asanyarray(data)
+    def __call__(self, img):
+        return np.asanyarray(img)
 
 
 class AsChannelFirst(Transform):
