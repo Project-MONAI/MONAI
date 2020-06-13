@@ -92,6 +92,7 @@ def optional_import(
     version_checker: Callable = min_version,
     name: str = "",
     descriptor: str = OPTIONAL_IMPORT_MSG_FMT,
+    version_args=None,
 ) -> Tuple[Any, bool]:
     """
     Imports an optional module specified by `module` string.
@@ -104,6 +105,7 @@ def optional_import(
         version_checker: a callable to check the module version, Defaults to monai.utils.min_version.
         name: a non-module attribute (such as method/class) to import from the imported module.
         descriptor: a format string for the final error message when using a not imported module.
+        version_args: additional parameters to the version checker.
 
     Returns:
         The imported module and a boolean flag indicating whether the import is successful.
@@ -118,11 +120,11 @@ def optional_import(
         >>> print(flag)
         False
         >>> the_module.method  # trying to access a module which is not imported
-        AttributeError: Optional import: No module named 'unknown_module'.
+        AttributeError: Optional import: import unknown_module (No module named 'unknown_module').
 
         >>> torch, flag = optional_import('torch', '42', exact_version)
         >>> torch.nn  # trying to access a module for which there isn't a proper version imported
-        AttributeError: Optional import: No module named 'torch' (requires version '42', by 'exact_version').
+        AttributeError: Optional import: import torch (requires version '42' by 'exact_version').
 
         >>> conv, flag = optional_import('torch.nn.functional', '1.0', name='conv1d')
         >>> print(conv)
@@ -130,7 +132,7 @@ def optional_import(
 
         >>> conv, flag = optional_import('torch.nn.functional', '42', name='conv1d')
         >>> conv()  # trying to use a function from the not successfully imported module (due to unmatched version)
-        AttributeError: Optional import: No module named 'torch.nn.functional' (requires version '42', by 'min_version').
+        AttributeError: Optional import: from torch.nn.functional import conv1d (requires version '42' by 'min_version').
     """
 
     tb = None
@@ -148,7 +150,9 @@ def optional_import(
         tb = import_exception.__traceback__
         exception_str = f"{import_exception}"
     else:  # found the module
-        if version_checker(pkg, f"{version}"):
+        if version_args and version_checker(pkg, f"{version}", version_args):
+            return the_module, True
+        if not version_args and version_checker(pkg, f"{version}"):
             return the_module, True
 
     # preparing lazy error message

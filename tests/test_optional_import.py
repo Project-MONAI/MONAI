@@ -73,6 +73,16 @@ class TestOptionalImport(unittest.TestCase):
         self.assertTrue(flag)
         print(nn.functional)
 
+    def test_additional(self):
+        test_args = {"a": "test", "b": "test"}
+
+        def versioning(module, ver, a):
+            self.assertEqual(a, test_args)
+            return True
+
+        nn, flag = optional_import("torch", "1.1", version_checker=versioning, name="nn", version_args=test_args)
+        self.assertTrue(flag)
+
 
 if __name__ == "__main__":
     unittest.main()
