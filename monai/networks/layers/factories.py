@@ -60,7 +60,7 @@ can be parameterized with the factory name and the arguments to pass to the crea
     layer = use_factory( (fact.TEST, kwargs) )
 """
 
-from typing import Callable, Any
+from typing import Any, Callable
 
 import torch.nn as nn
 
@@ -190,6 +190,14 @@ def batch_factory(dim):
 Act.add_factory_callable("relu", lambda: nn.modules.ReLU)
 Act.add_factory_callable("leakyrelu", lambda: nn.modules.LeakyReLU)
 Act.add_factory_callable("prelu", lambda: nn.modules.PReLU)
+Act.add_factory_callable("relu6", lambda: nn.modules.ReLU6)
+Act.add_factory_callable("selu", lambda: nn.modules.SELU)
+Act.add_factory_callable("celu", lambda: nn.modules.CELU)
+Act.add_factory_callable("gelu", lambda: nn.modules.GELU)
+Act.add_factory_callable("sigmoid", lambda: nn.modules.Sigmoid)
+Act.add_factory_callable("tanh", lambda: nn.modules.Tanh)
+Act.add_factory_callable("softmax", lambda: nn.modules.SoftMax)
+Act.add_factory_callable("logsoftmax", lambda: nn.modules.LogSoftMax)
 
 
 @Conv.factory_function("conv")
