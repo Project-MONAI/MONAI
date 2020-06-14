@@ -3,6 +3,7 @@
 coverage
 parameterized
 pytorch-ignite==0.3.0
+scipy
 nibabel
 pillow
 tensorboard

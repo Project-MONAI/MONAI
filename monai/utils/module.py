@@ -158,7 +158,7 @@ def optional_import(
     # preparing lazy error message
     msg = descriptor.format(actual_cmd)
     if version and tb is None:  # a pure version issue
-        msg += f" (requires version '{version}' by '{version_checker.__name__}')"
+        msg += f" (requires '{module} {version}' by '{version_checker.__name__}')"
     if exception_str:
         msg += f" ({exception_str})"
 
