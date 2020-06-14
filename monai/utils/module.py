@@ -36,7 +36,7 @@ def export(modname):
     return _inner
 
 
-def load_submodules(basemod, load_all=True, exclude_pattern="(.*[tT]est.*)|(_.*)"):
+def load_submodules(basemod, load_all: bool = True, exclude_pattern: str = "(.*[tT]est.*)|(_.*)"):
     """
     Traverse the source of the module structure starting with module `basemod`, loading all packages plus all files if
     `loadAll` is True, excluding anything whose name matches `excludePattern`.
