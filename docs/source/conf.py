@@ -92,11 +92,13 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.viewcode",
     "sphinx.ext.autosectionlabel",
+    "sphinx_autodoc_typehints",
 ]
 
 autoclass_content = "both"
 add_module_names = True
 autosectionlabel_prefix_document = True
+napoleon_use_param = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
