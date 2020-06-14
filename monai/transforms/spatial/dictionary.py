@@ -63,7 +63,7 @@ class Spacingd(MapTransform):
         interp_order: str = "bilinear",
         mode: str = "border",
         dtype: Optional[np.dtype] = None,
-        meta_key_postfix: str = "meta",
+        meta_key_postfix: str = "meta_dict",
     ):
         """
         Args:
@@ -91,9 +91,9 @@ class Spacingd(MapTransform):
             dtype (None or np.dtype or sequence of np.dtype): output array data type.
                 Defaults to None to use input data's dtype.
             meta_key_postfix: use `key_{postfix}` to to fetch the meta data according to the key data,
-                default is `meta`, the meta data is a dictionary object.
+                default is `meta_dict`, the meta data is a dictionary object.
                 For example, to handle key `image`,  read/write affine matrices from the
-                metadata `image_meta` dictionary's `affine` field.
+                metadata `image_meta_dict` dictionary's `affine` field.
         """
         super().__init__(keys)
         self.spacing_transform = Spacing(pixdim, diagonal=diagonal)
@@ -139,7 +139,7 @@ class Orientationd(MapTransform):
         axcodes=None,
         as_closest_canonical: bool = False,
         labels=tuple(zip("LPI", "RAS")),
-        meta_key_postfix: str = "meta",
+        meta_key_postfix: str = "meta_dict",
     ):
         """
         Args:
@@ -153,9 +153,9 @@ class Orientationd(MapTransform):
                 (2,) sequences are labels for (beginning, end) of output axis.
                 Defaults to ``(('L', 'R'), ('P', 'A'), ('I', 'S'))``.
             meta_key_postfix: use `key_{postfix}` to to fetch the meta data according to the key data,
-                default is `meta`, the meta data is a dictionary object.
+                default is `meta_dict`, the meta data is a dictionary object.
                 For example, to handle key `image`,  read/write affine matrices from the
-                metadata `image_meta` dictionary's `affine` field.
+                metadata `image_meta_dict` dictionary's `affine` field.
 
         See Also:
             `nibabel.orientations.ornt2axcodes`.

@@ -90,7 +90,7 @@ def main():
             metric_count += len(value)
             metric_sum += value.sum().item()
             val_outputs = (val_outputs.sigmoid() >= 0.5).float()
-            saver.save_batch(val_outputs, val_data["img_meta"])
+            saver.save_batch(val_outputs, val_data["img_meta_dict"])
         metric = metric_sum / metric_count
         print("evaluation metric:", metric)
     shutil.rmtree(tempdir)

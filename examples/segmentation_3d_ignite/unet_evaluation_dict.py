@@ -101,7 +101,7 @@ def main():
         output_ext=".nii.gz",
         output_postfix="seg",
         name="evaluator",
-        batch_transform=lambda batch: batch["img_meta"],
+        batch_transform=lambda batch: batch["img_meta_dict"],
         output_transform=lambda output: predict_segmentation(output[0]),
     ).attach(evaluator)
     # the model was trained by "unet_training_dict" example

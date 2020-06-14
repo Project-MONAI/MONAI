@@ -208,7 +208,7 @@ def run_inference_test(root_dir, model_file, device=torch.device("cuda:0")):
         CheckpointLoader(load_path=f"{model_file}", load_dict={"net": net}),
         SegmentationSaver(
             output_dir=root_dir,
-            batch_transform=lambda batch: batch["image_meta"],
+            batch_transform=lambda batch: batch["image_meta_dict"],
             output_transform=lambda output: output["pred_act_dis"],
         ),
     ]
