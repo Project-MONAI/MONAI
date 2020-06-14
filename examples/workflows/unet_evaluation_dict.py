@@ -92,7 +92,7 @@ def main():
         CheckpointLoader(load_path="./runs/net_key_metric=0.9101.pth", load_dict={"net": net}),
         SegmentationSaver(
             output_dir="./runs/",
-            batch_transform=lambda batch: batch["image_meta"],
+            batch_transform=lambda batch: batch["image_meta_dict"],
             output_transform=lambda output: output["pred_act_dis"],
         ),
     ]
