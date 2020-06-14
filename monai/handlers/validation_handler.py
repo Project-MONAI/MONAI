@@ -38,11 +38,11 @@ class ValidationHandler:
         self.interval = interval
         self.epoch_level = epoch_level
 
-    def attach(self, engine):
+    def attach(self, engine: Engine):
         if self.epoch_level:
             engine.add_event_handler(Events.EPOCH_COMPLETED(every=self.interval), self)
         else:
             engine.add_event_handler(Events.ITERATION_COMPLETED(every=self.interval), self)
 
-    def __call__(self, engine):
+    def __call__(self, engine: Engine):
         self.validator.run(engine.state.epoch)

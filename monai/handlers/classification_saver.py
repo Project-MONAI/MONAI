@@ -55,7 +55,7 @@ class ClassificationSaver:
         self.logger = None if name is None else logging.getLogger(name)
         self._name = name
 
-    def attach(self, engine):
+    def attach(self, engine: Engine):
         if self._name is None:
             self.logger = engine.logger
         if not engine.has_event_handler(self, Events.ITERATION_COMPLETED):
@@ -63,7 +63,7 @@ class ClassificationSaver:
         if not engine.has_event_handler(self.saver.finalize, Events.COMPLETED):
             engine.add_event_handler(Events.COMPLETED, lambda engine: self.saver.finalize())
 
-    def __call__(self, engine):
+    def __call__(self, engine: Engine):
         """
         This method assumes self.batch_transform will extract metadata from the input batch.
 

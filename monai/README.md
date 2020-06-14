@@ -6,9 +6,11 @@
 
 * **data**: for the datasets, readers/writers, and synthetic data
 
-* **engine**: engine-derived classes for extending Ignite behaviour.
+* **engines**: engine-derived classes for extending Ignite behaviour.
 
 * **handlers**: defines handlers for implementing functionality at various stages in the training process.
+
+* **inferers**: defines model inference methods. 
 
 * **losses**: classes defining loss functions.
 
