@@ -15,7 +15,6 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.blocks import ChannelSELayer, ResidualSELayer
-from monai.networks.blocks.squeeze_and_excitation import SUPPORTED_ACTI_1, SUPPORTED_ACTI_2
 
 TEST_CASES = [  # single channel 3D, batch 16
     [  # 4-channel 2D, batch 7
@@ -31,8 +30,8 @@ TEST_CASES = [  # single channel 3D, batch 16
 ]
 
 TEST_CASES_3D = []
-for type_1 in SUPPORTED_ACTI_1:
-    for type_2 in SUPPORTED_ACTI_2:
+for type_1 in {"relu", "relu6", "leakyrelu"}:
+    for type_2 in {"prelu", "sigmoid", "relu"}:
         test_case = [
             {"spatial_dims": 3, "in_channels": 10, "r": 3, "acti_type_1": type_1, "acti_type_2": type_2},
             torch.randn(16, 10, 32, 24, 48),

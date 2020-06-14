@@ -37,11 +37,8 @@ Layers
 `Factories`
 ~~~~~~~~~~~
 .. automodule:: monai.networks.layers.factories
+  :members:
 .. currentmodule:: monai.networks.layers
-
-`LayerFactory`
-##############
-.. autoclass:: LayerFactory
 
 `SkipConnection`
 ~~~~~~~~~~~~~~~~

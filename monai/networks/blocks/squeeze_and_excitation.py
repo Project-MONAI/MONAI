@@ -9,19 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import torch
 import torch.nn as nn
-
-from monai.networks.layers.factories import Pool
-
-SUPPORTED_ACTI_1 = {"relu": nn.ReLU, "relu6": nn.ReLU6, "leakyrelu": nn.LeakyReLU}
-
-SUPPORTED_ACTI_2 = {
-    "relu": nn.ReLU,
-    "prelu": nn.PReLU,
-    "relu6": nn.ReLU6,
-    "leakyrelu": nn.LeakyReLU,
-    "sigmoid": nn.Sigmoid,
-}
+from monai.networks.layers.factories import Act, Pool
 
 
 class ChannelSELayer(nn.Module):
@@ -38,12 +28,8 @@ class ChannelSELayer(nn.Module):
             spatial_dims: number of spatial dimensions, could be 1, 2, or 3.
             in_channels: number of input channels.
             r: the reduction ratio r in the paper. Defaults to 2.
-            acti_type_1: activation type of the hidden squeeze layer.
-                Supported types: "relu", "relu6", "leakyrelu".
-                Defaults to "relu".
-            acti_type_2: activation type of the output squeeze layer.
-                Supported types: "relu", "prelu", "leakyrelu", "sigmoid".
-                Defaults to "sigmoid".
+            acti_type_1: activation type of the hidden squeeze layer. Defaults to "relu".
+            acti_type_2: activation type of the output squeeze layer. Defaults to "sigmoid".
         """
         super(ChannelSELayer, self).__init__()
 
@@ -55,36 +41,47 @@ class ChannelSELayer(nn.Module):
             raise ValueError("r must be a positive number smaller than `in_channels`.")
         self.fc = nn.Sequential(
             nn.Linear(in_channels, channels, bias=True),
-            SUPPORTED_ACTI_1[acti_type_1](inplace=True),
+            Act[acti_type_1](inplace=True),
             nn.Linear(channels, in_channels, bias=True),
-            SUPPORTED_ACTI_2[acti_type_2](),
+            Act[acti_type_2](),
         )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
+        """
+        Args:
+            x: in shape (batch, channel, spatial_1[, spatial_2, ...]).
+        """
         b, c = x.shape[:2]
         y = self.avg_pool(x).view(b, c)
         y = self.fc(y).view([b, c] + [1] * (x.ndim - 2))
         return x * y
 
 
-class ResidualSELayer(nn.Module):
+class ResidualSELayer(ChannelSELayer):
     """
     A "squeeze-and-excitation"-like layer with a residual connection.
-
-    See also ::py:class:`monai.networks.blocks.ChannelSELayer`.
     """
 
-    def __init__(self, spatial_dims: int, in_channels: int, r: int = 2):
+    def __init__(
+        self, spatial_dims: int, in_channels: int, r: int = 2, acti_type_1: str = "leakyrelu", acti_type_2: str = "relu"
+    ):
         """
         Args:
             spatial_dims: number of spatial dimensions, could be 1, 2, or 3.
             in_channels: number of input channels.
             r: the reduction ratio r in the paper. Defaults to 2.
+            acti_type_1: defaults to "leakyrelu".
+            acti_type_2: defaults to "relu".
+
+        See also ::py:class:`monai.networks.blocks.ChannelSELayer`.
         """
-        super(ResidualSELayer, self).__init__()
-        self.channel_se_layer = ChannelSELayer(
-            spatial_dims=spatial_dims, in_channels=in_channels, r=r, acti_type_1="leakyrelu", acti_type_2="relu"
+        super().__init__(
+            spatial_dims=spatial_dims, in_channels=in_channels, r=r, acti_type_1=acti_type_1, acti_type_2=acti_type_2
         )
 
-    def forward(self, x):
-        return x + self.channel_se_layer(x)
+    def forward(self, x: torch.Tensor):
+        """
+        Args:
+            x: in shape (batch, channel, spatial_1[, spatial_2, ...]).
+        """
+        return x + super().forward(x)
