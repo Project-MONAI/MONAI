@@ -94,7 +94,7 @@ docker run --gpus all --rm -ti --ipc=host projectmonai/monai:latest
 
 You can also run a milestone release docker image by specifying the image tag, for example:
 ```
-docker run --gpus all --rm -ti --ipc=host projectmonai/monai:latest
+docker run --gpus all --rm -ti --ipc=host projectmonai/monai:0.1.0
 ```
 
 ## Installing the recommended dependencies
