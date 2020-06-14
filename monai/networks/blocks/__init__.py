@@ -9,4 +9,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .convolutions import *
+from .convolutions import Convolution, ResidualUnit
+from .squeeze_and_excitation import ChannelSELayer, ResidualSELayer

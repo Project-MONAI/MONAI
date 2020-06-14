@@ -20,6 +20,16 @@ Blocks
 .. autoclass:: ResidualUnit
     :members:
 
+`Squeeze-and-Excitation`
+~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: ChannelSELayer
+    :members:
+
+`Residual Squeeze-and-Excitation`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: ResidualSELayer
+    :members:
+
 
 Layers
 ------
