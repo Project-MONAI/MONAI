@@ -74,7 +74,7 @@ def main():
             value = torch.eq(val_outputs, val_labels)
             metric_count += len(value)
             num_correct += value.sum().item()
-            saver.save_batch(val_outputs, val_data["img_meta"])
+            saver.save_batch(val_outputs, val_data["img_meta_dict"])
         metric = num_correct / metric_count
         print("evaluation metric:", metric)
         saver.finalize()
