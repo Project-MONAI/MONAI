@@ -33,7 +33,7 @@ class PNGSaver:
         output_postfix: str = "seg",
         output_ext: str = ".png",
         resample: bool = True,
-        interp_order: str = "nearest",
+        mode: str = "nearest",
         scale=None,
     ):
         """
@@ -42,8 +42,8 @@ class PNGSaver:
             output_postfix: a string appended to all output file names.
             output_ext: output file extension name.
             resample: whether to resample and resize if providing spatial_shape in the metadata.
-            interp_order (`nearest|bilinear|bicubic|area`):
-                the interpolation mode. Default="nearest".
+            mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
+                The interpolation mode. Defaults to ``"nearest"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             scale (255, 65535): postprocess data by clipping to [0, 1] and scaling
                 [0, 255] (uint8) or [0, 65535] (uint16). Default is None to disable scaling.
@@ -53,7 +53,7 @@ class PNGSaver:
         self.output_postfix = output_postfix
         self.output_ext = output_ext
         self.resample = resample
-        self.interp_order = interp_order
+        self.mode = mode
         self.scale = scale
 
         self._data_index = 0
@@ -96,11 +96,7 @@ class PNGSaver:
             raise ValueError("PNG image should only have 1, 3 or 4 channels.")
 
         write_png(
-            data,
-            file_name=filename,
-            output_spatial_shape=spatial_shape,
-            interp_order=self.interp_order,
-            scale=self.scale,
+            data, file_name=filename, output_spatial_shape=spatial_shape, mode=self.mode, scale=self.scale,
         )
 
     def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data=None):

@@ -31,11 +31,12 @@ class FocalLoss(_WeightedLoss):
             gamma: value of the exponent gamma in the definition of the Focal loss.
             weight (tensor): weights to apply to the voxels of each class. If None no weights are applied.
                 This corresponds to the weights `\alpha` in [1].
-            reduction (`none|mean|sum`): Specifies the reduction to apply to the output:
-                ``'none'``: no reduction will be applied,
-                ``'mean'``: the sum of the output will be divided by the batch size in the output,
-                ``'sum'``: the output will be summed over the batch dim.
-                Default: ``'mean'``.
+        reduction: {``"none"``, ``"mean"``, ``"sum"``}
+            Specifies the reduction to apply to the output. Defaults to ``"mean"``.
+
+            - ``"none"``: no reduction will be applied.
+            - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
+            - ``"sum"``: the output will be summed.
 
         Example:
             .. code-block:: python
