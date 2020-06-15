@@ -42,7 +42,7 @@ class TestCopyKeysd(unittest.TestCase):
         device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu:0")
         input_data = {
             "img": torch.tensor([[0, 1], [1, 2]], device=device),
-            "seg": torch.tensor([[0, 1], [1, 2]], device=device)
+            "seg": torch.tensor([[0, 1], [1, 2]], device=device),
         }
         result = CopyKeysd(keys="img", times=1, names="img_1")(input_data)
         self.assertTrue("img_1" in result)

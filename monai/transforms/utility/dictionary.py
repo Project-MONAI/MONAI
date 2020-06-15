@@ -333,6 +333,7 @@ class CopyKeysd(MapTransform):
     It can copy several keys together and copy several times.
 
     """
+
     def __init__(self, keys: KeysCollection, times: int, names):
         """
         Args:
