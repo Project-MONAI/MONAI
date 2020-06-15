@@ -20,7 +20,9 @@ from .utils import download_url, extractall
 class MedNISTDataset(Randomizable, CacheDataset):
     resource = "https://www.dropbox.com/s/5wwskxctvcxiuea/MedNIST.tar.gz"
 
-    def __init__(self, root, transform, section, download=False, cache_num=sys.maxsize, cache_rate=1.0, num_workers=0, seed=0):
+    def __init__(
+        self, root, transform, section, download=False, cache_num=sys.maxsize, cache_rate=1.0, num_workers=0, seed=0
+    ):
         if not os.path.isdir(root):
             raise ValueError("root must be a directory.")
         self.root = root
@@ -33,7 +35,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
         if os.path.exists(self.tarfile_name) and not os.path.exists(self.dataset_dir):
             extractall()
         if not os.path.exists(self.dataset_dir):
-            raise RuntimeError('can not find dataset directory, please use download=True to download it.')
+            raise RuntimeError("can not find dataset directory, please use download=True to download it.")
         data = self._generate_data_list()
         super().__init__(data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers)
 
@@ -47,11 +49,17 @@ class MedNISTDataset(Randomizable, CacheDataset):
         download_url(self.resource, self.tarfile_name)
 
     def _generate_data_list(self):
-        class_names = sorted([x for x in os.listdir(self.dataset_dir) if os.path.isdir(os.path.join(self.dataset_dir, x))])
+        class_names = sorted(
+            [x for x in os.listdir(self.dataset_dir) if os.path.isdir(os.path.join(self.dataset_dir, x))]
+        )
         num_class = len(class_names)
-        image_files = [[os.path.join(self.dataset_dir, class_names[i], x)
-                        for x in os.listdir(os.path.join(self.dataset_dir, class_names[i]))]
-                       for i in range(num_class)]
+        image_files = [
+            [
+                os.path.join(self.dataset_dir, class_names[i], x)
+                for x in os.listdir(os.path.join(self.dataset_dir, class_names[i]))
+            ]
+            for i in range(num_class)
+        ]
         num_each = [len(image_files[i]) for i in range(num_class)]
         image_files_list = []
         image_class = []
