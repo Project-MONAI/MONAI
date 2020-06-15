@@ -46,7 +46,7 @@ class TestCopleNET(unittest.TestCase):
             input_data = input_data.to(torch.device("cuda"))
         net.eval()
         with torch.no_grad():
-            result = net.forward(input_data)
+            result = net.forward(input_data.float())
             self.assertEqual(result.shape, expected_shape)
 
 
