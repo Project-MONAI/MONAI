@@ -20,6 +20,16 @@ Blocks
 .. autoclass:: ResidualUnit
     :members:
 
+`Squeeze-and-Excitation`
+~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: ChannelSELayer
+    :members:
+
+`Residual Squeeze-and-Excitation`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: ResidualSELayer
+    :members:
+
 
 Layers
 ------
@@ -27,11 +37,8 @@ Layers
 `Factories`
 ~~~~~~~~~~~
 .. automodule:: monai.networks.layers.factories
+  :members:
 .. currentmodule:: monai.networks.layers
-
-`LayerFactory`
-##############
-.. autoclass:: LayerFactory
 
 `SkipConnection`
 ~~~~~~~~~~~~~~~~

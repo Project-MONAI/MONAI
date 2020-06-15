@@ -10,36 +10,107 @@
 # limitations under the License.
 
 import unittest
-import numpy as np
 
+import numpy as np
 import scipy.ndimage
 from parameterized import parameterized
+from tests.utils import NumpyImageTestCase2D, NumpyImageTestCase3D
 
 from monai.transforms import Rotated
-from tests.utils import NumpyImageTestCase2D
 
-TEST_CASES = [
-    (90, (0, 1), True, 1, "reflect", 0, True),
-    (-90, (1, 0), True, 3, "constant", 0, True),
-    (180, (1, 0), False, 2, "constant", 4, False),
+TEST_CASES_2D = [
+    (-30, False, "bilinear", "border", False),
+    (-45, True, "bilinear", "border", False),
+    (40, True, "nearest", "reflection", False),
+    (-180, False, "nearest", "zeros", False),
+    (90, False, "bilinear", "zeros", True),
+]
+
+TEST_CASES_3D = [
+    (-30, False, "bilinear", "border", False),
+    (-45, True, "bilinear", "border", False),
+    (40, True, "nearest", "reflection", False),
+    (-180, False, "nearest", "zeros", False),
+    (90, False, "bilinear", "zeros", True),
 ]
 
 
-class TestRotated(NumpyImageTestCase2D):
-    @parameterized.expand(TEST_CASES)
-    def test_correct_results(self, angle, spatial_axes, reshape, interp_order, mode, cval, prefilter):
-        key = "img"
-        rotate_fn = Rotated(key, angle, spatial_axes, reshape, interp_order, mode, cval, prefilter)
-        rotated = rotate_fn({key: self.imt[0]})
-        expected = list()
-        for channel in self.imt[0]:
-            expected.append(
-                scipy.ndimage.rotate(
-                    channel, angle, spatial_axes, reshape, order=interp_order, mode=mode, cval=cval, prefilter=prefilter
-                )
-            )
-        expected = np.stack(expected).astype(np.float32)
-        self.assertTrue(np.allclose(expected, rotated[key]))
+class TestRotated2D(NumpyImageTestCase2D):
+    @parameterized.expand(TEST_CASES_2D)
+    def test_correct_results(self, angle, keep_size, interp_order, mode, align_corners):
+        rotate_fn = Rotated(("img", "seg"), angle, keep_size, (interp_order, "nearest"), mode, align_corners)
+        rotated = rotate_fn({"img": self.imt[0], "seg": self.segn[0]})
+        if keep_size:
+            np.testing.assert_allclose(self.imt[0].shape, rotated["img"].shape)
+        _order = 0 if interp_order == "nearest" else 1
+        if mode == "border":
+            _mode = "nearest"
+        elif mode == "reflection":
+            _mode = "reflect"
+        else:
+            _mode = "constant"
+        expected = scipy.ndimage.rotate(
+            self.imt[0, 0], -angle, (0, 1), not keep_size, order=_order, mode=_mode, prefilter=False
+        )
+        np.testing.assert_allclose(expected, rotated["img"][0], atol=1e-3)
+
+        expected = scipy.ndimage.rotate(
+            self.segn[0, 0], -angle, (0, 1), not keep_size, order=0, mode=_mode, prefilter=False
+        )
+        expected = np.stack(expected).astype(int)
+        self.assertLessEqual(np.count_nonzero(expected != rotated["seg"][0]), 20)
+
+
+class TestRotated3D(NumpyImageTestCase3D):
+    @parameterized.expand(TEST_CASES_3D)
+    def test_correct_results(self, angle, keep_size, interp_order, mode, align_corners):
+        rotate_fn = Rotated(("img", "seg"), [0, angle, 0], keep_size, (interp_order, "nearest"), mode, align_corners)
+        rotated = rotate_fn({"img": self.imt[0], "seg": self.segn[0]})
+        if keep_size:
+            np.testing.assert_allclose(self.imt[0].shape, rotated["img"].shape)
+        _order = 0 if interp_order == "nearest" else 1
+        if mode == "border":
+            _mode = "nearest"
+        elif mode == "reflection":
+            _mode = "reflect"
+        else:
+            _mode = "constant"
+        expected = scipy.ndimage.rotate(
+            self.imt[0, 0], angle, (0, 2), not keep_size, order=_order, mode=_mode, prefilter=False
+        )
+        np.testing.assert_allclose(expected, rotated["img"][0], atol=1e-3)
+
+        expected = scipy.ndimage.rotate(
+            self.segn[0, 0], angle, (0, 2), not keep_size, order=0, mode=_mode, prefilter=False
+        )
+        expected = np.stack(expected).astype(int)
+        self.assertLessEqual(np.count_nonzero(expected != rotated["seg"][0]), 100)
+
+
+class TestRotated3DXY(NumpyImageTestCase3D):
+    @parameterized.expand(TEST_CASES_3D)
+    def test_correct_results(self, angle, keep_size, interp_order, mode, align_corners):
+        rotate_fn = Rotated(("img", "seg"), [0, 0, angle], keep_size, (interp_order, "nearest"), mode, align_corners)
+        rotated = rotate_fn({"img": self.imt[0], "seg": self.segn[0]})
+        if keep_size:
+            np.testing.assert_allclose(self.imt[0].shape, rotated["img"].shape)
+        _order = 0 if interp_order == "nearest" else 1
+        if mode == "border":
+            _mode = "nearest"
+        elif mode == "reflection":
+            _mode = "reflect"
+        else:
+            _mode = "constant"
+        expected = scipy.ndimage.rotate(
+            self.imt[0, 0], -angle, (0, 1), not keep_size, order=_order, mode=_mode, prefilter=False
+        )
+        np.testing.assert_allclose(expected, rotated["img"][0], atol=1e-3)
+
+        expected = scipy.ndimage.rotate(
+            self.segn[0, 0], -angle, (0, 1), not keep_size, order=0, mode=_mode, prefilter=False
+        )
+        expected = np.stack(expected).astype(int)
+        self.assertLessEqual(np.count_nonzero(expected != rotated["seg"][0]), 100)
 
 
 if __name__ == "__main__":

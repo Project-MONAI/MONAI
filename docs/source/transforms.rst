@@ -61,6 +61,12 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
+`Identity`
+~~~~~~~~~~
+.. autoclass:: Identity
+    :members:
+    :special-members: __call__
+
 `AsChannelFirst`
 ~~~~~~~~~~~~~~~~
 .. autoclass:: AsChannelFirst
@@ -94,6 +100,12 @@ Vanilla Transforms
 `ToTensor`
 ~~~~~~~~~~
 .. autoclass:: ToTensor
+    :members:
+    :special-members: __call__
+
+`ToNumpy`
+~~~~~~~~~
+.. autoclass:: ToNumpy
     :members:
     :special-members: __call__
 
@@ -359,6 +371,12 @@ Dictionary-based Transforms
     :members:
     :special-members: __call__
 
+`Identityd`
+~~~~~~~~~~~
+.. autoclass:: Identityd
+    :members:
+    :special-members: __call__
+
 `AsChannelFirstd`
 ~~~~~~~~~~~~~~~~~
 .. autoclass:: AsChannelFirstd
@@ -392,6 +410,12 @@ Dictionary-based Transforms
 `ToTensord`
 ~~~~~~~~~~~
 .. autoclass:: ToTensord
+    :members:
+    :special-members: __call__
+
+`ToNumpyd`
+~~~~~~~~~~
+.. autoclass:: ToNumpyd
     :members:
     :special-members: __call__
 
