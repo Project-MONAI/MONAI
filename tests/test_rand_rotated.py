@@ -16,42 +16,70 @@ import scipy.ndimage
 from parameterized import parameterized
 
 from monai.transforms import RandRotated
-from tests.utils import NumpyImageTestCase2D
+from tests.utils import NumpyImageTestCase2D, NumpyImageTestCase3D
 
 
-class TestRandRotated(NumpyImageTestCase2D):
+class TestRandRotated2D(NumpyImageTestCase2D):
     @parameterized.expand(
         [
-            (90, (0, 1), True, 1, "reflect", 0, True),
-            ((-45, 45), (1, 0), True, 3, "constant", 0, True),
-            (180, (1, 0), False, 2, "constant", 4, False),
+            (90, True, "bilinear", "border", False),
+            (45, True, "nearest", "border", False),
+            (180, False, "nearest", "zeros", True),
+            ((-45, 0), False, "nearest", "zeros", True),
         ]
     )
-    def test_correct_results(self, degrees, spatial_axes, reshape, order, mode, cval, prefilter):
+    def test_correct_results(self, degrees, keep_size, order, mode, align_corners):
         rotate_fn = RandRotated(
             "img",
-            degrees,
+            range_x=degrees,
             prob=1.0,
-            spatial_axes=spatial_axes,
-            reshape=reshape,
+            keep_size=keep_size,
             interp_order=order,
             mode=mode,
-            cval=cval,
-            prefilter=prefilter,
+            align_corners=align_corners,
         )
         rotate_fn.set_random_state(243)
-        rotated = rotate_fn({"img": self.imt[0]})
+        rotated = rotate_fn({"img": self.imt[0], "seg": self.segn[0]})
 
-        angle = rotate_fn.angle
-        expected = list()
-        for channel in self.imt[0]:
-            expected.append(
-                scipy.ndimage.rotate(
-                    channel, angle, spatial_axes, reshape, order=order, mode=mode, cval=cval, prefilter=prefilter
-                )
-            )
+        _order = 0 if order == "nearest" else 1
+        if mode == "border":
+            _mode = "nearest"
+        elif mode == "reflection":
+            _mode = "reflect"
+        else:
+            _mode = "constant"
+        angle = rotate_fn.x
+        expected = scipy.ndimage.rotate(
+            self.imt[0, 0], -angle, (0, 1), not keep_size, order=_order, mode=_mode, prefilter=False
+        )
         expected = np.stack(expected).astype(np.float32)
-        self.assertTrue(np.allclose(expected, rotated["img"]))
+        self.assertTrue(np.allclose(expected, rotated["img"][0]))
+
+
+class TestRandRotated3D(NumpyImageTestCase3D):
+    @parameterized.expand(
+        [
+            (90, -30, (0.0, 180), False, "bilinear", "border", False, (1, 87, 104, 109)),
+            (45, (-20, 40), (20, 30), False, "nearest", "border", True, (1, 89, 105, 104)),
+            (0.0, (360, 370), (-1, 1), True, "nearest", "zeros", True, (1, 48, 64, 80)),
+            ((-45, 0), 0, 0, False, "nearest", "zeros", False, (1, 48, 77, 90)),
+        ]
+    )
+    def test_correct_shapes(self, x, y, z, keep_size, order, mode, align_corners, expected):
+        rotate_fn = RandRotated(
+            "img",
+            range_x=x,
+            range_y=y,
+            range_z=z,
+            prob=1.0,
+            keep_size=keep_size,
+            interp_order=order,
+            mode=mode,
+            align_corners=align_corners,
+        )
+        rotate_fn.set_random_state(243)
+        rotated = rotate_fn({"img": self.imt[0], "seg": self.segn[0]})
+        np.testing.assert_allclose(rotated["img"].shape, expected)
 
 
 if __name__ == "__main__":
