@@ -46,7 +46,11 @@ class UpSample(nn.Module):
         if not out_channels:
             out_channels = in_channels
         if not with_conv:
-            _mode = ["linear", "bilinear", "trilinear"][spatial_dims - 1] if mode.lower().endswith("linear") else mode
+            if mode.lower().endswith("linear"):  # choose mode string based on spatial_dims
+                linear_mode = ["linear", "bilinear", "trilinear"]
+                _mode = linear_mode[spatial_dims - 1]
+            else:
+                _mode = mode
             self.upsample = nn.Sequential(
                 Conv[Conv.CONV, spatial_dims](in_channels=in_channels, out_channels=out_channels, kernel_size=1),
                 nn.Upsample(scale_factor=scale_factor, mode=_mode, align_corners=align_corners),
