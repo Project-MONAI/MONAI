@@ -17,12 +17,12 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 from logging import Handler
 from typing import Optional
-
+import copy
 import numpy as np
 
 from monai.config.type_definitions import KeysCollection
 from monai.transforms.compose import MapTransform
-from monai.utils.misc import ensure_tuple_rep
+from monai.utils.misc import ensure_tuple, ensure_tuple_rep
 from monai.transforms.utility.array import (
     AddChannel,
     AsChannelFirst,
@@ -210,9 +210,9 @@ class ToNumpyd(MapTransform):
         return d
 
 
-class DeleteKeysd(MapTransform):
+class DeleteItemsd(MapTransform):
     """
-    Delete specified keys from data dictionary to release memory.
+    Delete specified items from data dictionary to release memory.
     It will remove the key-values and copy the others to construct a new dictionary.
     """
 
@@ -327,6 +327,42 @@ class SimulateDelayd(MapTransform):
         return d
 
 
+class CopyItemsd(MapTransform):
+    """
+    Copy specified items from data dictionary and save with different key names.
+    It can copy several items together and copy several times.
+
+    """
+
+    def __init__(self, keys: KeysCollection, times: int, names):
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            times: expected copy times, for example, if keys is "img", times is 3,
+                it will add 3 copies of "img" data to the dictionary.
+            names(str, list or tuple of str): the names coresponding to the newly copied data,
+                the length should match `len(keys) x times`. for example, if keys is ["img", "seg"]
+                and times is 2, names can be: ["img_1", "seg_1", "img_2", "seg_2"].
+        """
+        super().__init__(keys)
+        if times < 1:
+            raise ValueError("times must be greater than 0.")
+        self.times = times
+        names = ensure_tuple(names)
+        if len(names) != (len(self.keys) * times):
+            raise ValueError("length of names does not match `len(keys) x times`.")
+        self.names = names
+
+    def __call__(self, data):
+        d = dict(data)
+        for key, new_key in zip(self.keys * self.times, self.names):
+            if new_key in d:
+                raise KeyError(f"key {new_key} already exists in dictionary.")
+            d[new_key] = copy.deepcopy(d[key])
+        return d
+
+
 IdentityD = IdentityDict = Identityd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
@@ -334,7 +370,8 @@ AddChannelD = AddChannelDict = AddChanneld
 RepeatChannelD = RepeatChannelDict = RepeatChanneld
 CastToTypeD = CastToTypeDict = CastToTyped
 ToTensorD = ToTensorDict = ToTensord
-DeleteKeysD = DeleteKeysDict = DeleteKeysd
+DeleteItemsD = DeleteItemsDict = DeleteItemsd
 SqueezeDimD = SqueezeDimDict = SqueezeDimd
 DataStatsD = DataStatsDict = DataStatsd
 SimulateDelayD = SimulateDelayDict = SimulateDelayd
+CopyItemsD = CopyItemsDict = CopyItemsd
