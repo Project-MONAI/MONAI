@@ -27,16 +27,16 @@ TEST_CASES = [
         torch.randn(16, 4, 20),
         (16, 8, 40),
     ],  # 4-channel 1D, batch 16
-    [  # 4-channel 3D, batch 16
+    [
         {"spatial_dims": 3, "in_channels": 4, "mode": "bilinear"},
         torch.randn(16, 4, 32, 24, 48),
         (16, 4, 64, 48, 96),
-    ],
-    [  # 1-channel 3D, batch 16
+    ],  # 4-channel 3D, batch 16
+    [
         {"spatial_dims": 3, "in_channels": 1, "with_conv": False, "scale_factor": 3, "align_corners": False},
         torch.randn(16, 1, 10, 15, 20),
         (16, 1, 30, 45, 60),
-    ],
+    ],  # 1-channel 3D, batch 16
 ]
 
 TEST_CASES_EQ = []
@@ -58,7 +58,7 @@ for s in range(1, 5):
         TEST_CASES_EQ.append(test_case)
 
 
-class TestMaxAvgPool(unittest.TestCase):
+class TestUpsample(unittest.TestCase):
     @parameterized.expand(TEST_CASES + TEST_CASES_EQ)
     def test_shape(self, input_param, input_data, expected_shape):
         net = UpSample(**input_param)
