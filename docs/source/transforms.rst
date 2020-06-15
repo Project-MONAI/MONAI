@@ -343,12 +343,6 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
-`CopyKeys`
-~~~~~~~~~~
-.. autoclass:: CopyKeys
-    :members:
-    :special-members: __call__
-
 
 Dictionary-based Transforms
 ---------------------------
@@ -593,9 +587,9 @@ Dictionary-based Transforms
     :members:
     :special-members: __call__
 
-`DeleteKeysd`
-~~~~~~~~~~~~~
-.. autoclass:: DeleteKeysd
+`DeleteItemsd`
+~~~~~~~~~~~~~~
+.. autoclass:: DeleteItemsd
     :members:
     :special-members: __call__
 
@@ -641,9 +635,9 @@ Dictionary-based Transforms
     :members:
     :special-members: __call__
 
-`CopyKeysd`
-~~~~~~~~~~~
-.. autoclass:: CopyKeysd
+`CopyItemsd`
+~~~~~~~~~~~~
+.. autoclass:: CopyItemsd
     :members:
     :special-members: __call__
 

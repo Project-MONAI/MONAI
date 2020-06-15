@@ -210,9 +210,9 @@ class ToNumpyd(MapTransform):
         return d
 
 
-class DeleteKeysd(MapTransform):
+class DeleteItemsd(MapTransform):
     """
-    Delete specified keys from data dictionary to release memory.
+    Delete specified items from data dictionary to release memory.
     It will remove the key-values and copy the others to construct a new dictionary.
     """
 
@@ -327,10 +327,10 @@ class SimulateDelayd(MapTransform):
         return d
 
 
-class CopyKeysd(MapTransform):
+class CopyItemsd(MapTransform):
     """
-    Copy specified keys from data dictionary and save with different key names.
-    It can copy several keys together and copy several times.
+    Copy specified items from data dictionary and save with different key names.
+    It can copy several items together and copy several times.
 
     """
 
@@ -356,12 +356,10 @@ class CopyKeysd(MapTransform):
 
     def __call__(self, data):
         d = dict(data)
-        for idx, key in enumerate(self.keys):
-            for t in range(self.times):
-                index = idx * self.times + t
-                if self.names[index] in d:
-                    raise KeyError(f"key {self.names[index]} already exists in dictionary.")
-                d[self.names[index]] = copy.deepcopy(d[key])
+        for key, new_key in zip(self.keys * self.times, self.names):
+            if new_key in d:
+                raise KeyError(f"key {new_key} already exists in dictionary.")
+            d[new_key] = copy.deepcopy(d[key])
         return d
 
 
@@ -372,8 +370,8 @@ AddChannelD = AddChannelDict = AddChanneld
 RepeatChannelD = RepeatChannelDict = RepeatChanneld
 CastToTypeD = CastToTypeDict = CastToTyped
 ToTensorD = ToTensorDict = ToTensord
-DeleteKeysD = DeleteKeysDict = DeleteKeysd
+DeleteItemsD = DeleteItemsDict = DeleteItemsd
 SqueezeDimD = SqueezeDimDict = SqueezeDimd
 DataStatsD = DataStatsDict = DataStatsd
 SimulateDelayD = SimulateDelayDict = SimulateDelayd
-CopyKeysD = CopyKeysDict = CopyKeysd
+CopyItemsD = CopyItemsDict = CopyItemsd
