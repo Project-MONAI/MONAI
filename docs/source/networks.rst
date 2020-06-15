@@ -30,6 +30,11 @@ Blocks
 .. autoclass:: ResidualSELayer
     :members:
 
+`Simple ASPP`
+~~~~~~~~~~~~~
+.. autoclass:: SimpleASPP
+    :members:
+
 
 Layers
 ------
