@@ -343,6 +343,12 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
+`CopyKeys`
+~~~~~~~~~~
+.. autoclass:: CopyKeys
+    :members:
+    :special-members: __call__
+
 
 Dictionary-based Transforms
 ---------------------------
@@ -632,6 +638,12 @@ Dictionary-based Transforms
 `KeepLargestConnectedComponentd`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: KeepLargestConnectedComponentd
+    :members:
+    :special-members: __call__
+
+`CopyKeysd`
+~~~~~~~~~~~
+.. autoclass:: CopyKeysd
     :members:
     :special-members: __call__
 

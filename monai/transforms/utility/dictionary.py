@@ -17,12 +17,12 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 from logging import Handler
 from typing import Optional
-
+import copy
 import numpy as np
 
 from monai.config.type_definitions import KeysCollection
 from monai.transforms.compose import MapTransform
-from monai.utils.misc import ensure_tuple_rep
+from monai.utils.misc import ensure_tuple, ensure_tuple_rep
 from monai.transforms.utility.array import (
     AddChannel,
     AsChannelFirst,
@@ -327,6 +327,43 @@ class SimulateDelayd(MapTransform):
         return d
 
 
+class CopyKeysd(MapTransform):
+    """
+    Copy specified keys from data dictionary and save with different key names.
+    It can copy several keys together and copy several times.
+
+    """
+    def __init__(self, keys: KeysCollection, times: int, names):
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            times: expected copy times, for example, if keys is "img", times is 3,
+                it will add 3 copies of "img" data to the dictionary.
+            names(str, list or tuple of str): the names coresponding to the newly copied data,
+                the length should match `len(keys) x times`. for example, if keys is ["img", "seg"]
+                and times is 2, names can be: ["img_1", "seg_1", "img_2", "seg_2"].
+        """
+        super().__init__(keys)
+        if times < 1:
+            raise ValueError("times must be greater than 0.")
+        self.times = times
+        names = ensure_tuple(names)
+        if len(names) != (len(self.keys) * times):
+            raise ValueError("length of names does not match `len(keys) x times`.")
+        self.names = names
+
+    def __call__(self, data):
+        d = dict(data)
+        for idx, key in enumerate(self.keys):
+            for t in range(self.times):
+                index = idx * self.times + t
+                if self.names[index] in d:
+                    raise KeyError(f"key {self.names[index]} already exists in dictionary.")
+                d[self.names[index]] = copy.deepcopy(d[key])
+        return d
+
+
 IdentityD = IdentityDict = Identityd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
@@ -338,3 +375,4 @@ DeleteKeysD = DeleteKeysDict = DeleteKeysd
 SqueezeDimD = SqueezeDimDict = SqueezeDimd
 DataStatsD = DataStatsDict = DataStatsd
 SimulateDelayD = SimulateDelayDict = SimulateDelayd
+CopyKeysD = CopyKeysDict = CopyKeysd
