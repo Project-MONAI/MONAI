@@ -41,9 +41,12 @@ class TestCopleNET(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_data, expected_shape):
         net = CopleNet(**input_param)
+        if torch.cuda.is_available():
+            net = net.to(torch.device("cuda"))
+            input_data = input_data.to(torch.device("cuda"))
         net.eval()
         with torch.no_grad():
-            result = net.forward(input_data)
+            result = net.forward(input_data.float())
             self.assertEqual(result.shape, expected_shape)
 
 
