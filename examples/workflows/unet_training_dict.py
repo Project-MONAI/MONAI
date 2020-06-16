@@ -112,9 +112,9 @@ def main():
 
     val_post_transforms = Compose(
         [
-            Activationsd(keys="pred", output_postfix="act", sigmoid=True),
-            AsDiscreted(keys="pred_act", output_postfix="dis", threshold_values=True),
-            KeepLargestConnectedComponentd(keys="pred_act_dis", applied_labels=[1], output_postfix=None),
+            Activationsd(keys="pred", sigmoid=True),
+            AsDiscreted(keys="pred", threshold_values=True),
+            KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),
         ]
     )
     val_handlers = [
@@ -123,7 +123,7 @@ def main():
         TensorBoardImageHandler(
             log_dir="./runs/",
             batch_transform=lambda x: (x["image"], x["label"]),
-            output_transform=lambda x: x["pred_act_dis"],
+            output_transform=lambda x: x["pred"],
         ),
         CheckpointSaver(save_dir="./runs/", save_dict={"net": net}, save_key_metric=True),
     ]
@@ -136,18 +136,18 @@ def main():
         post_transform=val_post_transforms,
         key_val_metric={
             "val_mean_dice": MeanDice(
-                include_background=True, output_transform=lambda x: (x["pred_act_dis"], x["label"])
+                include_background=True, output_transform=lambda x: (x["pred"], x["label"])
             )
         },
-        additional_metrics={"val_acc": Accuracy(output_transform=lambda x: (x["pred_act_dis"], x["label"]))},
+        additional_metrics={"val_acc": Accuracy(output_transform=lambda x: (x["pred"], x["label"]))},
         val_handlers=val_handlers,
     )
 
     train_post_transforms = Compose(
         [
-            Activationsd(keys="pred", output_postfix="act", sigmoid=True),
-            AsDiscreted(keys="pred_act", output_postfix="dis", threshold_values=True),
-            KeepLargestConnectedComponentd(keys="pred_act_dis", applied_labels=[1], output_postfix=None),
+            Activationsd(keys="pred", sigmoid=True),
+            AsDiscreted(keys="pred", threshold_values=True),
+            KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),
         ]
     )
     train_handlers = [
@@ -168,7 +168,7 @@ def main():
         inferer=SimpleInferer(),
         amp=False,
         post_transform=train_post_transforms,
-        key_train_metric={"train_acc": Accuracy(output_transform=lambda x: (x["pred_act_dis"], x["label"]))},
+        key_train_metric={"train_acc": Accuracy(output_transform=lambda x: (x["pred"], x["label"]))},
         train_handlers=train_handlers,
     )
     trainer.run()
