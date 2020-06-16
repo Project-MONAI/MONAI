@@ -9,8 +9,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .aspp import SimpleASPP
-from .convolutions import Convolution, ResidualUnit
-from .downsample import MaxAvgPool
-from .squeeze_and_excitation import ChannelSELayer, ResidualSELayer
-from .upsample import UpSample
+import unittest
+
+import numpy as np
+
+from monai.transforms.utility.array import Identity
+from tests.utils import NumpyImageTestCase2D
+
+
+class TestIdentity(NumpyImageTestCase2D):
+    def test_identity(self):
+        img = self.imt
+        identity = Identity()
+        self.assertTrue(np.allclose(img, identity(img)))
+
+
+if __name__ == "__main__":
+    unittest.main()

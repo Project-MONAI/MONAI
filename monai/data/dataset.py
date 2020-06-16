@@ -340,7 +340,7 @@ class ZipDataset(Dataset):
         return data
 
 
-class ArrayDataset(Randomizable):
+class ArrayDataset(Randomizable, _TorchDataset):
     """
     Dataset for segmentation and classification tasks based on array format input data and transforms.
     It ensures the same random seeds in the randomized transforms defined for image, segmentation and label.
@@ -418,6 +418,9 @@ class ArrayDataset(Randomizable):
         self.dataset = datasets[0] if len(datasets) == 1 else ZipDataset(datasets)
 
         self._seed = 0  # transform synchronization seed
+
+    def __len__(self):
+        return len(self.dataset)
 
     def randomize(self):
         self._seed = self.R.randint(np.iinfo(np.int32).max)

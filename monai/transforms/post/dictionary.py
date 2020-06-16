@@ -41,6 +41,7 @@ class SplitChanneld(MapTransform):
             to_onehot (bool or list of bool): whether to convert the data to One-Hot format, default is False.
             num_classes (int or list of int): the class number used to convert to One-Hot format
                 if `to_onehot` is True.
+
         """
         super().__init__(keys)
         if not isinstance(output_postfixes, (list, tuple)):
@@ -66,26 +67,20 @@ class Activationsd(MapTransform):
     Add activation layers to the input data specified by `keys`.
     """
 
-    def __init__(self, keys: KeysCollection, output_postfix: str = "act", sigmoid=False, softmax=False, other=None):
+    def __init__(self, keys: KeysCollection, sigmoid=False, softmax=False, other=None):
         """
         Args:
             keys: keys of the corresponding items to model output and label.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            output_postfix: the postfix string to construct keys to store converted data.
-                for example: if the keys of input data is `pred` and `label`, output_postfix is `act`,
-                the output data keys will be: `pred_act`, `label_act`.
-                if set to None, will replace the original data with the same key.
             sigmoid (bool, tuple or list of bool): whether to execute sigmoid function on model
                 output before transform.
             softmax (bool, tuple or list of bool): whether to execute softmax function on model
                 output before transform.
             other (Callable, tuple or list of Callables): callable function to execute other activation layers,
                 for example: `other = lambda x: torch.tanh(x)`
+
         """
         super().__init__(keys)
-        if output_postfix is not None and not isinstance(output_postfix, str):
-            raise ValueError("output_postfix must be a string.")
-        self.output_postfix = output_postfix
         self.sigmoid = ensure_tuple_rep(sigmoid, len(self.keys))
         self.softmax = ensure_tuple_rep(softmax, len(self.keys))
         self.other = ensure_tuple_rep(other, len(self.keys))
@@ -94,9 +89,7 @@ class Activationsd(MapTransform):
     def __call__(self, data):
         d = dict(data)
         for idx, key in enumerate(self.keys):
-            ret = self.converter(d[key], self.sigmoid[idx], self.softmax[idx], self.other[idx])
-            output_key = key if self.output_postfix is None else f"{key}_{self.output_postfix}"
-            d[output_key] = ret
+            d[key] = self.converter(d[key], self.sigmoid[idx], self.softmax[idx], self.other[idx])
         return d
 
 
@@ -108,7 +101,6 @@ class AsDiscreted(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        output_postfix: str = "discreted",
         argmax: bool = False,
         to_onehot: bool = False,
         n_classes: Optional[int] = None,
@@ -119,20 +111,14 @@ class AsDiscreted(MapTransform):
         Args:
             keys: keys of the corresponding items to model output and label.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            output_postfix: the postfix string to construct keys to store converted data.
-                for example: if the keys of input data is `pred` and `label`, output_postfix is `discreted`,
-                the output data keys will be: `pred_discreted`, `label_discreted`.
-                if set to None, will replace the original data with the same key.
             argmax: whether to execute argmax function on input data before transform.
             to_onehot: whether to convert input data into the one-hot format. Defaults to False.
             n_classes: the number of classes to convert to One-Hot format.
             threshold_values: whether threshold the float value to int number 0 or 1, default is False.
             logit_thresh: the threshold value for thresholding operation, default is 0.5.
+
         """
         super().__init__(keys)
-        if output_postfix is not None and not isinstance(output_postfix, str):
-            raise ValueError("output_postfix must be a string.")
-        self.output_postfix = output_postfix
         self.argmax = ensure_tuple_rep(argmax, len(self.keys))
         self.to_onehot = ensure_tuple_rep(to_onehot, len(self.keys))
         self.n_classes = ensure_tuple_rep(n_classes, len(self.keys))
@@ -143,8 +129,7 @@ class AsDiscreted(MapTransform):
     def __call__(self, data):
         d = dict(data)
         for idx, key in enumerate(self.keys):
-            output_key = key if self.output_postfix is None else f"{key}_{self.output_postfix}"
-            d[output_key] = self.converter(
+            d[key] = self.converter(
                 d[key],
                 self.argmax[idx],
                 self.to_onehot[idx],
@@ -181,22 +166,15 @@ class KeepLargestConnectedComponentd(MapTransform):
             connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
                 Accepted values are ranging from  1 to input.ndim. If ``None``, a full
                 connectivity of ``input.ndim`` is used.
-            output_postfix: the postfix string to construct keys to store converted data.
-                for example: if the keys of input data is `label`, output_postfix is `largestcc`,
-                the output data keys will be: `label_largestcc`.
-                if set to None, will replace the original data with the same key.
+
         """
         super().__init__(keys)
-        if output_postfix is not None and not isinstance(output_postfix, str):
-            raise ValueError("output_postfix must be a string.")
-        self.output_postfix = output_postfix
         self.converter = KeepLargestConnectedComponent(applied_labels, independent, connectivity)
 
     def __call__(self, data):
         d = dict(data)
         for idx, key in enumerate(self.keys):
-            output_key = key if self.output_postfix is None else f"{key}_{self.output_postfix}"
-            d[output_key] = self.converter(d[key])
+            d[key] = self.converter(d[key])
         return d
 
 
