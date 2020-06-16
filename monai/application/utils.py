@@ -47,8 +47,10 @@ def download_url(url: str, filepath: str, md5_value: str = None):
             for chunk in iter(lambda: f.read(1024 * 1024), b""):
                 md5.update(chunk)
         if md5_value != md5.hexdigest():
-            raise RuntimeError(f"MD5 check of downloaded file failed, \
-                               URL={url}, filepath={filepath}, expected MD5={md5_value}")
+            raise RuntimeError(
+                f"MD5 check of downloaded file failed, \
+                               URL={url}, filepath={filepath}, expected MD5={md5_value}"
+            )
 
 
 def extractall(filepath: str, output_dir: str = None):
