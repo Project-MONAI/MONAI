@@ -35,6 +35,16 @@ Blocks
 .. autoclass:: SimpleASPP
     :members:
 
+`MaxAvgPooling`
+~~~~~~~~~~~~~~~
+.. autoclass:: MaxAvgPool
+    :members:
+
+`Upsampling`
+~~~~~~~~~~~~
+.. autoclass:: UpSample
+    :members:
+
 
 Layers
 ------

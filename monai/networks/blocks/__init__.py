@@ -11,4 +11,6 @@
 
 from .aspp import SimpleASPP
 from .convolutions import Convolution, ResidualUnit
+from .downsample import MaxAvgPool
 from .squeeze_and_excitation import ChannelSELayer, ResidualSELayer
+from .upsample import UpSample
