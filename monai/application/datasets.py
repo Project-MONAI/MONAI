@@ -27,12 +27,12 @@ class MedNISTDataset(Randomizable, CacheDataset):
     Args:
         root: target dictionary to download and load MedNIST dataset.
         section: expected data section, can be: `training`, `validation` or `test`.
+        transform: transforms to execute operations on input data.
         download: whether to download the MedNIST from resource link, default is False.
             if expected file already exists, skip downloading even set it to True.
             user can manually copy `MedNIST.tar.gz` file or `MedNIST` folder to root directory.
         extract: whether to extract the MedNIST.tar.gz file under root directory, default is False.
         seed: random seed to randomly split training, validation and test datasets, defaut is 0.
-        transform: transforms to execute operations on input data.
         cache_num: number of items to be cached. Default is `sys.maxsize`.
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         cache_rate: percentage of cached data in total, default is 1.0 (cache all).
@@ -49,10 +49,10 @@ class MedNISTDataset(Randomizable, CacheDataset):
         self,
         root: str,
         section: str,
+        transform: Callable[..., Any],
         download: bool = False,
         extract: bool = False,
         seed: int = 0,
-        transform: Callable[..., Any] = None,
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
         num_workers: int = 0,

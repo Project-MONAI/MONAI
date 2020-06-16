@@ -10,7 +10,8 @@
 # limitations under the License.
 
 import os
-import urllib
+from urllib.request import urlretrieve
+from urllib.error import URLError
 import hashlib
 import tarfile
 from monai.utils import process_bar
@@ -36,9 +37,9 @@ def download_url(url: str, filepath: str, md5_value: str = None):
         process_bar(blocknum * blocksize, totalsize)
 
     try:
-        urllib.request.urlretrieve(url, filepath, reporthook=_process_hook)
+        urlretrieve(url, filepath, reporthook=_process_hook)
         print(f"\ndownloaded file: {filepath}.")
-    except (urllib.error.URLError, IOError) as e:
+    except (URLError, IOError) as e:
         raise e
 
     if md5_value is not None:
@@ -53,14 +54,14 @@ def download_url(url: str, filepath: str, md5_value: str = None):
             )
 
 
-def extractall(filepath: str, output_dir: str = None):
+def extractall(filepath: str, output_dir: str):
     """
     Extract file to the output directory.
 
     Args:
         filepath: the file path of compressed file.
         output_dir: target directory to save extracted files.
-            defaut is None to save in current directory.
+
     """
     target_file = os.path.join(output_dir, os.path.basename(filepath).split(".")[0])
     if os.path.exists(target_file):
@@ -70,17 +71,18 @@ def extractall(filepath: str, output_dir: str = None):
     datafile.close()
 
 
-def download_and_extract(url: str, filepath: str, md5_value: str = None, output_dir: str = None):
+def download_and_extract(url: str, filepath: str, output_dir: str, md5_value: str = None):
     """
     Download file from URL and extract it to the output directory.
 
     Args:
         url: source URL link to download file.
         filepath: the file path of compressed file.
-        md5_value: expected MD5 value to validate the downloaded file.
-            if None, skip MD5 validation.
         output_dir: target directory to save extracted files.
             defaut is None to save in current directory.
+        md5_value: expected MD5 value to validate the downloaded file.
+            if None, skip MD5 validation.
+
     """
     download_url(url=url, filepath=filepath, md5_value=md5_value)
     extractall(filepath=filepath, output_dir=output_dir)
