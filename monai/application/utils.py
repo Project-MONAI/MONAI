@@ -17,6 +17,28 @@ import tarfile
 from monai.utils import process_bar
 
 
+def check_md5(filepath: str, md5_value: str = None):
+    """
+    check MD5 signature of specified file.
+
+    Args:
+        filepath: path of source file to verify MD5.
+        md5_value: expected MD5 value of the file.
+
+    """
+    if md5_value is not None:
+        md5 = hashlib.md5()
+        with open(filepath, "rb") as f:
+            for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                md5.update(chunk)
+        if md5_value != md5.hexdigest():
+            return False
+    else:
+        print(f"expected MD5 is None, skip MD5 check for file {filepath}.")
+
+    return True
+
+
 def download_url(url: str, filepath: str, md5_value: str = None):
     """
     Download file from specified URL link, support process bar and MD5 check.
@@ -29,6 +51,8 @@ def download_url(url: str, filepath: str, md5_value: str = None):
 
     """
     if os.path.exists(filepath):
+        if not check_md5(filepath, md5_value):
+            raise RuntimeError(f"MD5 check of existing file {filepath} failed, please delete it and try again.")
         print(f"file {filepath} exists, skip downloading.")
         return
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
@@ -42,16 +66,11 @@ def download_url(url: str, filepath: str, md5_value: str = None):
     except (URLError, IOError) as e:
         raise e
 
-    if md5_value is not None:
-        md5 = hashlib.md5()
-        with open(filepath, "rb") as f:
-            for chunk in iter(lambda: f.read(1024 * 1024), b""):
-                md5.update(chunk)
-        if md5_value != md5.hexdigest():
-            raise RuntimeError(
-                f"MD5 check of downloaded file failed, \
-                               URL={url}, filepath={filepath}, expected MD5={md5_value}"
-            )
+    if not check_md5(filepath, md5_value):
+        raise RuntimeError(
+            f"MD5 check of downloaded file failed, \
+            URL={url}, filepath={filepath}, expected MD5={md5_value}."
+        )
 
 
 def extractall(filepath: str, output_dir: str):
