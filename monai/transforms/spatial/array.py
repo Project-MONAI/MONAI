@@ -377,9 +377,7 @@ class Zoom(Transform):
         keep_size: Should keep original size (padding/slicing if needed), default is True.
     """
 
-    def __init__(
-        self, zoom, interp_order: str = "area", align_corners: Optional[bool] = None, keep_size: bool = True,
-    ):
+    def __init__(self, zoom, interp_order: str = "area", align_corners: Optional[bool] = None, keep_size: bool = True):
         self.zoom = zoom
         self.interp_order = interp_order
         self.align_corners = align_corners
@@ -1206,9 +1204,7 @@ class Rand3DElastic(Randomizable, Transform):
         self.sigma = self.R.uniform(self.sigma_range[0], self.sigma_range[1])
         self.rand_affine_grid.randomize()
 
-    def __call__(
-        self, img, spatial_size=None, padding_mode=None, mode=None,
-    ):
+    def __call__(self, img, spatial_size=None, padding_mode=None, mode=None):
         """
         Args:
             img (ndarray or tensor): shape must be (num_channels, H, W, D),

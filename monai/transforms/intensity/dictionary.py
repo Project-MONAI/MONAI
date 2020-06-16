@@ -132,9 +132,7 @@ class ScaleIntensityd(MapTransform):
     If `minv` and `maxv` not provided, use `factor` to scale image by ``v = v * (1 + factor)``.
     """
 
-    def __init__(
-        self, keys: KeysCollection, minv: float = 0.0, maxv: float = 1.0, factor: Optional[float] = None,
-    ):
+    def __init__(self, keys: KeysCollection, minv: float = 0.0, maxv: float = 1.0, factor: Optional[float] = None):
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -237,9 +235,7 @@ class ThresholdIntensityd(MapTransform):
         cval: value to fill the remaining parts of the image, default is 0.
     """
 
-    def __init__(
-        self, keys: KeysCollection, threshold: float, above: bool = True, cval: float = 0.0,
-    ):
+    def __init__(self, keys: KeysCollection, threshold: float, above: bool = True, cval: float = 0.0):
         super().__init__(keys)
         self.filter = ThresholdIntensity(threshold, above, cval)
 
@@ -265,7 +261,7 @@ class ScaleIntensityRanged(MapTransform):
     """
 
     def __init__(
-        self, keys: KeysCollection, a_min: float, a_max: float, b_min: float, b_max: float, clip: bool = False,
+        self, keys: KeysCollection, a_min: float, a_max: float, b_min: float, b_max: float, clip: bool = False
     ):
         super().__init__(keys)
         self.scaler = ScaleIntensityRange(a_min, a_max, b_min, b_max, clip)

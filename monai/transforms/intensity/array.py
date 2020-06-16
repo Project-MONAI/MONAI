@@ -94,9 +94,7 @@ class ScaleIntensity(Transform):
     If `minv` and `maxv` not provided, use `factor` to scale image by ``v = v * (1 + factor)``.
     """
 
-    def __init__(
-        self, minv: Optional[float] = 0.0, maxv: Optional[float] = 1.0, factor: Optional[float] = None,
-    ):
+    def __init__(self, minv: Optional[float] = 0.0, maxv: Optional[float] = 1.0, factor: Optional[float] = None):
         """
         Args:
             minv: minimum value of output data.
@@ -228,9 +226,7 @@ class ScaleIntensityRange(Transform):
         clip: whether to perform clip after scaling.
     """
 
-    def __init__(
-        self, a_min: float, a_max: float, b_min: float, b_max: float, clip: bool = False,
-    ):
+    def __init__(self, a_min: float, a_max: float, b_min: float, b_max: float, clip: bool = False):
         self.a_min = a_min
         self.a_max = a_max
         self.b_min = b_min
