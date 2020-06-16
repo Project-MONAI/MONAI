@@ -10,35 +10,98 @@
 # limitations under the License.
 
 import unittest
-import numpy as np
 
+import numpy as np
 import scipy.ndimage
 from parameterized import parameterized
+from tests.utils import NumpyImageTestCase2D, NumpyImageTestCase3D
 
 from monai.transforms import Rotate
-from tests.utils import NumpyImageTestCase2D
 
-TEST_CASES = [
-    (90, (0, 1), True, 1, "reflect", 0, True),
-    (-90, (1, 0), True, 3, "constant", 0, True),
-    (180, (1, 0), False, 2, "constant", 4, False),
+TEST_CASES_2D = [
+    (30, False, "bilinear", "border", False),
+    (45, True, "bilinear", "border", False),
+    (-40, True, "nearest", "reflection", False),
+    (180, False, "nearest", "zeros", False),
+    (-90, False, "bilinear", "zeros", True),
+]
+
+TEST_CASES_3D = [
+    (-90.0, True, "nearest", "border", False),
+    (45, True, "bilinear", "border", False),
+    (-40, True, "nearest", "reflection", False),
+    (180, False, "nearest", "zeros", False),
+    (-90, False, "bilinear", "zeros", False),
+]
+
+TEST_CASES_SHAPE_3D = [
+    ([-90.0, 1.0, 2.0], "nearest", "border", False),
+    ([45, 0, 0], "bilinear", "border", False),
+    ([-40, -20, 20], "nearest", "reflection", False),
 ]
 
 
-class TestRotate(NumpyImageTestCase2D):
-    @parameterized.expand(TEST_CASES)
-    def test_correct_results(self, angle, spatial_axes, reshape, order, mode, cval, prefilter):
-        rotate_fn = Rotate(angle, spatial_axes, reshape, order, mode, cval, prefilter)
+class TestRotate2D(NumpyImageTestCase2D):
+    @parameterized.expand(TEST_CASES_2D)
+    def test_correct_results(self, angle, keep_size, order, mode, align_corners):
+        rotate_fn = Rotate(angle, keep_size, order, mode, align_corners)
         rotated = rotate_fn(self.imt[0])
+        if keep_size:
+            np.testing.assert_allclose(self.imt[0].shape, rotated.shape)
+        _order = 0 if order == "nearest" else 1
+        if mode == "border":
+            _mode = "nearest"
+        elif mode == "reflection":
+            _mode = "reflect"
+        else:
+            _mode = "constant"
+
         expected = list()
         for channel in self.imt[0]:
             expected.append(
-                scipy.ndimage.rotate(
-                    channel, angle, spatial_axes, reshape, order=order, mode=mode, cval=cval, prefilter=prefilter
-                )
+                scipy.ndimage.rotate(channel, -angle, (0, 1), not keep_size, order=_order, mode=_mode, prefilter=False)
             )
         expected = np.stack(expected).astype(np.float32)
-        self.assertTrue(np.allclose(expected, rotated))
+        np.testing.assert_allclose(expected, rotated, atol=1e-1)
+
+
+class TestRotate3D(NumpyImageTestCase3D):
+    @parameterized.expand(TEST_CASES_3D)
+    def test_correct_results(self, angle, keep_size, order, mode, align_corners):
+        rotate_fn = Rotate([angle, 0, 0], keep_size, order, mode, align_corners)
+        rotated = rotate_fn(self.imt[0])
+        if keep_size:
+            np.testing.assert_allclose(self.imt[0].shape, rotated.shape)
+        _order = 0 if order == "nearest" else 1
+        if mode == "border":
+            _mode = "nearest"
+        elif mode == "reflection":
+            _mode = "reflect"
+        else:
+            _mode = "constant"
+
+        expected = list()
+        for channel in self.imt[0]:
+            expected.append(
+                scipy.ndimage.rotate(channel, -angle, (1, 2), not keep_size, order=_order, mode=_mode, prefilter=False)
+            )
+        expected = np.stack(expected).astype(np.float32)
+        np.testing.assert_allclose(expected, rotated, atol=1e-1)
+
+    @parameterized.expand(TEST_CASES_SHAPE_3D)
+    def test_correct_shape(self, angle, order, mode, align_corners):
+        rotate_fn = Rotate(angle, True, align_corners)
+        rotated = rotate_fn(self.imt[0], interp_order=order, mode=mode)
+        np.testing.assert_allclose(self.imt[0].shape, rotated.shape)
+
+    def test_ill_case(self):
+        rotate_fn = Rotate(10, True)
+        with self.assertRaises(ValueError):  # wrong shape
+            rotate_fn(self.imt)
+
+        rotate_fn = Rotate(10, keep_size=False)
+        with self.assertRaises(ValueError):  # wrong mode
+            rotate_fn(self.imt[0], mode="trilinear")
 
 
 if __name__ == "__main__":

@@ -20,31 +20,32 @@ from monai.metrics import compute_meandice
 
 
 class MeanDice(Metric):
-    """Computes Dice score metric from full size Tensor and collects average over batch, class-channels, iterations.
+    """
+    Computes Dice score metric from full size Tensor and collects average over batch, class-channels, iterations.
     """
 
     def __init__(
         self,
-        include_background=True,
-        to_onehot_y=False,
-        mutually_exclusive=False,
-        add_sigmoid=False,
-        logit_thresh=0.5,
+        include_background: bool = True,
+        to_onehot_y: bool = False,
+        mutually_exclusive: bool = False,
+        sigmoid: bool = False,
+        logit_thresh: float = 0.5,
         output_transform: Callable = lambda x: x,
-        device: Optional[Union[str, torch.device]] = None,
+        device: Optional[torch.device] = None,
     ):
         """
 
         Args:
-            include_background (Bool): whether to include dice computation on the first channel of the predicted output.
+            include_background: whether to include dice computation on the first channel of the predicted output.
                 Defaults to True.
-            to_onehot_y (Bool): whether to convert the output prediction into the one-hot format. Defaults to False.
-            mutually_exclusive (Bool): if True, the output prediction will be converted into a binary matrix using
+            to_onehot_y: whether to convert the output prediction into the one-hot format. Defaults to False.
+            mutually_exclusive: if True, the output prediction will be converted into a binary matrix using
                 a combination of argmax and to_onehot. Defaults to False.
-            add_sigmoid (Bool): whether to add sigmoid function to the output prediction before computing Dice.
+            sigmoid: whether to add sigmoid function to the output prediction before computing Dice.
                 Defaults to False.
-            logit_thresh (Float): the threshold value to round value to 0.0 and 1.0. Defaults to None (no thresholding).
-            output_transform (Callable): transform the ignite.engine.state.output into [y_pred, y] pair.
+            logit_thresh: the threshold value to round value to 0.0 and 1.0. Defaults to None (no thresholding).
+            output_transform: transform the ignite.engine.state.output into [y_pred, y] pair.
             device (torch.device): device specification in case of distributed computation usage.
 
         See also:
@@ -54,7 +55,7 @@ class MeanDice(Metric):
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         self.mutually_exclusive = mutually_exclusive
-        self.add_sigmoid = add_sigmoid
+        self.sigmoid = sigmoid
         self.logit_thresh = logit_thresh
 
         self._sum = 0
@@ -76,7 +77,7 @@ class MeanDice(Metric):
             self.include_background,
             self.to_onehot_y,
             self.mutually_exclusive,
-            self.add_sigmoid,
+            self.sigmoid,
             self.logit_thresh,
         )
 
