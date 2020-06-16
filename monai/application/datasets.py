@@ -10,18 +10,49 @@
 # limitations under the License.
 
 import os
+import sys
 import tarfile
 import wget
 import numpy as np
+from typing import Callable, Optional
 from monai.data import CacheDataset
+from monai.transforms import Randomizable
 from .utils import download_url, extractall
 
 
 class MedNISTDataset(Randomizable, CacheDataset):
-    resource = "https://www.dropbox.com/s/5wwskxctvcxiuea/MedNIST.tar.gz"
+    """
+    The Dataset to automatically download MedNIST data and generate items for training, validation or test.
+    It's based on `CacheDataset` to accelerate the training process.
+
+    Args:
+        root: target dictionary to download and load MedNIST dataset.
+        section: expected data section, can be: `training`, `validation` or `test`.
+        download: whether to download the MedNIST from resource link, default is False.
+            if expected file already exists, skip downloading even set it to True.
+        seed: random seed to randomly split training, validation and test datasets, defaut is 0.
+        transform: transforms to execute operations on input data.
+        cache_num: number of items to be cached. Default is `sys.maxsize`.
+            will take the minimum of (cache_num, data_length x cache_rate, data_length).
+        cache_rate: percentage of cached data in total, default is 1.0 (cache all).
+            will take the minimum of (cache_num, data_length x cache_rate, data_length).
+        num_workers: the number of worker threads to use.
+            If 0 a single thread will be used. Default is 0.
+
+    """
+    resource = "https://www.dropbox.com/s/5wwskxctvcxiuea/MedNIST.tar.gz?dl=1"
+    md5 = "0bc7306e7427e00ad1c5526a6677552d"
 
     def __init__(
-        self, root, transform, section, download=False, cache_num=sys.maxsize, cache_rate=1.0, num_workers=0, seed=0
+        self,
+        root: str,
+        section: str,
+        download: bool = False,
+        seed: int = 0,
+        transform: Optional[Callable] = None,
+        cache_num: int = sys.maxsize,
+        cache_rate: float = 1.0,
+        num_workers: int = 0
     ):
         if not os.path.isdir(root):
             raise ValueError("root must be a directory.")
@@ -33,7 +64,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
         if download:
             self._download()
         if os.path.exists(self.tarfile_name) and not os.path.exists(self.dataset_dir):
-            extractall()
+            extractall(self.tarfile_name, self.root)
         if not os.path.exists(self.dataset_dir):
             raise RuntimeError("can not find dataset directory, please use download=True to download it.")
         data = self._generate_data_list()
@@ -46,7 +77,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
         if os.path.exists(self.tarfile_name) or os.path.exists(self.dataset_dir):
             return
         os.makedirs(self.root, exist_ok=True)
-        download_url(self.resource, self.tarfile_name)
+        download_url(self.resource, self.tarfile_name, self.md5)
 
     def _generate_data_list(self):
         class_names = sorted(
