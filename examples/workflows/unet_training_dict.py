@@ -121,9 +121,7 @@ def main():
         StatsHandler(output_transform=lambda x: None),
         TensorBoardStatsHandler(log_dir="./runs/", output_transform=lambda x: None),
         TensorBoardImageHandler(
-            log_dir="./runs/",
-            batch_transform=lambda x: (x["image"], x["label"]),
-            output_transform=lambda x: x["pred"],
+            log_dir="./runs/", batch_transform=lambda x: (x["image"], x["label"]), output_transform=lambda x: x["pred"],
         ),
         CheckpointSaver(save_dir="./runs/", save_dict={"net": net}, save_key_metric=True),
     ]
@@ -135,9 +133,7 @@ def main():
         inferer=SlidingWindowInferer(roi_size=(96, 96, 96), sw_batch_size=4, overlap=0.5),
         post_transform=val_post_transforms,
         key_val_metric={
-            "val_mean_dice": MeanDice(
-                include_background=True, output_transform=lambda x: (x["pred"], x["label"])
-            )
+            "val_mean_dice": MeanDice(include_background=True, output_transform=lambda x: (x["pred"], x["label"]))
         },
         additional_metrics={"val_acc": Accuracy(output_transform=lambda x: (x["pred"], x["label"]))},
         val_handlers=val_handlers,
