@@ -13,7 +13,7 @@ import os
 import sys
 import tarfile
 import numpy as np
-from typing import Callable, Optional
+from typing import Any, Callable
 from monai.data import CacheDataset
 from monai.transforms import Randomizable
 from .utils import download_url, extractall
@@ -29,6 +29,8 @@ class MedNISTDataset(Randomizable, CacheDataset):
         section: expected data section, can be: `training`, `validation` or `test`.
         download: whether to download the MedNIST from resource link, default is False.
             if expected file already exists, skip downloading even set it to True.
+            user can manually copy `MedNIST.tar.gz` file or `MedNIST` folder to root directory.
+        extract: whether to extract the MedNIST.tar.gz file under root directory, default is False.
         seed: random seed to randomly split training, validation and test datasets, defaut is 0.
         transform: transforms to execute operations on input data.
         cache_num: number of items to be cached. Default is `sys.maxsize`.
@@ -48,46 +50,40 @@ class MedNISTDataset(Randomizable, CacheDataset):
         root: str,
         section: str,
         download: bool = False,
+        extract: bool = False,
         seed: int = 0,
-        transform: Optional[Callable] = None,
+        transform: Callable[..., Any] = None,
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
         num_workers: int = 0,
     ):
         if not os.path.isdir(root):
             raise ValueError("root must be a directory.")
-        self.root = root
         self.section = section
         self.set_random_state(seed=seed)
-        self.tarfile_name = os.path.join(self.root, "MedNIST.tar.gz")
-        self.dataset_dir = os.path.join(self.root, "MedNIST")
+        tarfile_name = os.path.join(root, "MedNIST.tar.gz")
+        dataset_dir = os.path.join(root, "MedNIST")
         if download:
-            self._download()
-        if os.path.exists(self.tarfile_name) and not os.path.exists(self.dataset_dir):
-            extractall(self.tarfile_name, self.root)
-        if not os.path.exists(self.dataset_dir):
+            download_url(self.resource, tarfile_name, self.md5)
+        if extract:
+            extractall(tarfile_name, root)
+        if not os.path.exists(dataset_dir):
             raise RuntimeError("can not find dataset directory, please use download=True to download it.")
-        data = self._generate_data_list()
+        data = self._generate_data_list(dataset_dir)
         super().__init__(data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers)
 
     def randomize(self):
         self.rann = self.R.random()
 
-    def _download(self):
-        if os.path.exists(self.tarfile_name) or os.path.exists(self.dataset_dir):
-            return
-        os.makedirs(self.root, exist_ok=True)
-        download_url(self.resource, self.tarfile_name, self.md5)
-
-    def _generate_data_list(self):
+    def _generate_data_list(self, dataset_dir):
         class_names = sorted(
-            [x for x in os.listdir(self.dataset_dir) if os.path.isdir(os.path.join(self.dataset_dir, x))]
+            [x for x in os.listdir(dataset_dir) if os.path.isdir(os.path.join(dataset_dir, x))]
         )
         num_class = len(class_names)
         image_files = [
             [
-                os.path.join(self.dataset_dir, class_names[i], x)
-                for x in os.listdir(os.path.join(self.dataset_dir, class_names[i]))
+                os.path.join(dataset_dir, class_names[i], x)
+                for x in os.listdir(os.path.join(dataset_dir, class_names[i]))
             ]
             for i in range(num_class)
         ]

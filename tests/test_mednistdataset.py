@@ -30,7 +30,7 @@ class TestMedNISTDataset(unittest.TestCase):
                 ToTensord(keys=["image", "label"]),
             ]
         )
-        dataset = MedNISTDataset(root=tempdir, transform=transform, section="test", download=True)
+        dataset = MedNISTDataset(root=tempdir, transform=transform, section="test", download=True, extract=True)
         self.assertEqual(len(dataset), 5986)
         self.assertTrue("image" in dataset[0])
         self.assertTrue("label" in dataset[0])
