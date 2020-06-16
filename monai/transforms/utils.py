@@ -12,10 +12,11 @@
 import random
 import warnings
 from typing import Optional, Callable
+from itertools import product
+from collections import deque
 
 import torch
 import numpy as np
-from skimage import measure
 
 from monai.config.type_definitions import IndexSelection
 from monai.utils.misc import ensure_tuple
@@ -427,7 +428,103 @@ def get_largest_connected_component_mask(img, connectivity: Optional[int] = None
     img_arr = img.detach().cpu().numpy()
     largest_cc = np.zeros(shape=img_arr.shape, dtype=img_arr.dtype)
     for i, item in enumerate(img_arr):
-        item = measure.label(item, connectivity=connectivity)
+        item = label_connected_regions(item, connectivity=connectivity)
         if item.max() != 0:
             largest_cc[i, ...] = item == (np.argmax(np.bincount(item.flat)[1:]) + 1)
     return torch.as_tensor(largest_cc, device=img.device)
+
+
+def label_connected_regions(img, background: int = 0, connectivity: Optional[int] = None):
+    """
+    Label connected regions of an integer array.
+
+    Args:
+        img: Image to get largest connected component from. Shape is (spatial_dim1 [, spatial_dim2, ...])
+        background : int, optional
+            Consider all pixels with this value as background pixels, and label
+            them as 0. By default, 0-valued pixels are considered as background
+            pixels.
+        connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
+            Accepted values are ranging from  1 to input.ndim. If ``None``, a full
+            connectivity of ``input.ndim`` is used.
+    """
+    if connectivity is None:
+        connectivity = len(img.shape)
+
+    movements = _get_movements(len(img.shape), connectivity)
+
+    total_labels = 1
+    visited = np.zeros_like(img, dtype=np.bool)
+    labels = np.zeros_like(img, dtype=np.int16)
+
+    # iterate all entries
+    for point in zip(*np.where(img != background)):
+        if labels[point] == 0:
+            labels[point] = total_labels
+            total_labels += 1
+            _bfs(point, img, visited, movements, labels)
+
+    return labels
+
+
+def _is_valid_point(point, key, img, visited, labels):
+    """checks if a point in inside the img and have the value equal to key."""
+    for i, s in enumerate(img.shape):
+        if not (0 <= point[i] < s):
+            return False
+
+    if visited[point]:
+        return False
+
+    if img[point] != key:
+        return False
+
+    # 0 is the background value
+    if labels[point] != 0:
+        return False
+
+    return True
+
+
+def _get_movements(dim, connectivity):
+    """
+    Generator to get a list of possible movements based on dim and connectivity.
+
+    Args:
+        dim: number of dimension.
+        connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
+    """
+    move = [-1, 0, 1]
+    movements = [x for x in product(move, repeat=dim) if np.sum(np.abs(x)) <= connectivity]
+    return movements
+
+
+def _dfs(source, img, visited, movements, labels):
+    """
+    Can be deleted later...
+    """
+    if visited[source]:
+        return
+
+    visited[source] = True
+
+    for m in movements:
+        next_point = tuple(source + np.array(m))
+        if _is_valid_point(next_point, img[source], img, visited, labels):
+            labels[next_point] = labels[source]
+            _dfs(next_point, img, visited, movements, labels)
+    return
+
+
+def _bfs(source, img, visited, movements, labels):
+    queue = deque([source])
+    while queue:
+        point = queue.popleft()
+        if not visited[point]:
+            visited[point] = True
+            for m in movements:
+                next_point = tuple(point + np.array(m))
+                if _is_valid_point(next_point, img[point], img, visited, labels):
+                    labels[next_point] = labels[point]
+                    queue.append(next_point)
+    return
