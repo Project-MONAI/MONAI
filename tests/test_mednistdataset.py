@@ -22,12 +22,14 @@ from monai.transforms import LoadPNGd, AddChanneld, ScaleIntensityd, ToTensord, 
 class TestMedNISTDataset(unittest.TestCase):
     def test_values(self):
         tempdir = tempfile.mkdtemp()
-        transform = Compose([
-            LoadPNGd(keys="image"),
-            AddChanneld(keys="image"),
-            ScaleIntensityd(keys="image"),
-            ToTensord(keys=["image", "label"])
-        ])
+        transform = Compose(
+            [
+                LoadPNGd(keys="image"),
+                AddChanneld(keys="image"),
+                ScaleIntensityd(keys="image"),
+                ToTensord(keys=["image", "label"]),
+            ]
+        )
         dataset = MedNISTDataset(root=tempdir, transform=transform, section="test", download=True)
         self.assertEqual(len(dataset), 5986)
         self.assertTrue("image" in dataset[0])

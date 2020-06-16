@@ -40,6 +40,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
             If 0 a single thread will be used. Default is 0.
 
     """
+
     resource = "https://www.dropbox.com/s/5wwskxctvcxiuea/MedNIST.tar.gz?dl=1"
     md5 = "0bc7306e7427e00ad1c5526a6677552d"
 
@@ -52,7 +53,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
         transform: Optional[Callable] = None,
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
-        num_workers: int = 0
+        num_workers: int = 0,
     ):
         if not os.path.isdir(root):
             raise ValueError("root must be a directory.")

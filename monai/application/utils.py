@@ -27,6 +27,7 @@ def download_url(url: str, filepath: str, md5_value: str = None):
             if None, skip MD5 validation.
 
     """
+
     def _process_hook(blocknum, blocksize, totalsize):
         process_bar(blocknum * blocksize, totalsize)
 
@@ -38,8 +39,8 @@ def download_url(url: str, filepath: str, md5_value: str = None):
 
     if md5_value is not None:
         md5 = hashlib.md5()
-        with open(filepath, 'rb') as f:
-            for chunk in iter(lambda: f.read(1024 * 1024), b''):
+        with open(filepath, "rb") as f:
+            for chunk in iter(lambda: f.read(1024 * 1024), b""):
                 md5.update(chunk)
         if md5_value != md5.hexdigest():
             raise RuntimeError("MD5 check of downloaded file failed.")
