@@ -12,7 +12,6 @@
 import os
 import sys
 import tarfile
-import wget
 import numpy as np
 from typing import Callable, Optional
 from monai.data import CacheDataset
