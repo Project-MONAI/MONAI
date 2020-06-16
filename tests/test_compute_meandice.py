@@ -15,7 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.metrics import compute_meandice
+from monai.metrics import compute_meandice, DiceMetric
 
 # keep background
 TEST_CASE_1 = [  # y (1, 1, 2, 2), y_pred (1, 1, 2, 2), expected out (1, 1)
@@ -60,6 +60,48 @@ TEST_CASE_3 = [
     [[False, True, True], [False, False, True]],
 ]
 
+TEST_CASE_4 = [
+    {"include_background": True, "to_onehot_y": True, "reduction": "mean_batch"},
+    {
+        "input": torch.tensor(
+            [
+                [[[1.0, 1.0], [1.0, 0.0]], [[0.0, 1.0], [0.0, 0.0]], [[0.0, 1.0], [1.0, 1.0]]],
+                [[[1.0, 0.0], [1.0, 1.0]], [[0.0, 1.0], [1.0, 1.0]], [[0.0, 1.0], [1.0, 0.0]]],
+            ]
+        ),
+        "target": torch.tensor([[[[0.0, 0.0], [0.0, 0.0]]], [[[1.0, 1.0], [2.0, 0.0]]]]),
+    },
+    [0.6786, 0.4000, 0.6667],
+]
+
+TEST_CASE_5 = [
+    {"include_background": True, "to_onehot_y": True, "reduction": "sum_batch"},
+    {
+        "input": torch.tensor(
+            [
+                [[[1.0, 1.0], [1.0, 0.0]], [[0.0, 1.0], [0.0, 0.0]], [[0.0, 1.0], [1.0, 1.0]]],
+                [[[1.0, 0.0], [1.0, 1.0]], [[0.0, 1.0], [1.0, 1.0]], [[0.0, 1.0], [1.0, 0.0]]],
+            ]
+        ),
+        "target": torch.tensor([[[[0.0, 0.0], [0.0, 0.0]]], [[[0.0, 0.0], [0.0, 0.0]]]]),
+    },
+    [1.7143, 0.0000, 0.0000],
+]
+
+TEST_CASE_6 = [
+    {"to_onehot_y": True, "include_background": False, "reduction": "sum_batch"},
+    {
+        "input": torch.tensor(
+            [
+                [[[1.0, 1.0], [1.0, 0.0]], [[0.0, 1.0], [0.0, 0.0]], [[0.0, 1.0], [1.0, 1.0]]],
+                [[[1.0, 0.0], [1.0, 1.0]], [[0.0, 1.0], [1.0, 1.0]], [[0.0, 1.0], [1.0, 0.0]]],
+            ]
+        ),
+        "target": torch.tensor([[[[0.0, 0.0], [0.0, 0.0]]], [[[0.0, 0.0], [0.0, 0.0]]]]),
+    },
+    [0.0000, 0.0000],
+]
+
 
 class TestComputeMeanDice(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
@@ -71,6 +113,26 @@ class TestComputeMeanDice(unittest.TestCase):
     def test_nans(self, input_data, expected_value):
         result = compute_meandice(**input_data)
         self.assertTrue(np.allclose(np.isnan(result.cpu().numpy()), expected_value))
+
+    #############################################
+    # DiceMetric class tests
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    def test_value_class(self, input_data, expected_value):
+
+        # same test as for compute_meandice
+        vals = dict()
+        vals["input"] = input_data.pop("y_pred")
+        vals["target"] = input_data.pop("y")
+        dice_metric = DiceMetric(**input_data, reduction="none")
+        result = dice_metric(**vals)
+        self.assertTrue(np.allclose(result.cpu().numpy(), expected_value, atol=1e-4))
+
+    @parameterized.expand([TEST_CASE_4, TEST_CASE_5, TEST_CASE_5])
+    def test_nans_class(self, params, input_data, expected_value):
+
+        dice_metric = DiceMetric(**params)
+        result = dice_metric(**input_data)
+        self.assertTrue(np.allclose(result.cpu().numpy(), expected_value, atol=1e-4))
 
 
 if __name__ == "__main__":
