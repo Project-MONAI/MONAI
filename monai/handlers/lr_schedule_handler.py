@@ -9,11 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Callable
-
 import logging
-from ignite.engine import Events, Engine
-from monai.utils import ensure_tuple
+from typing import Callable, Optional
+
+from monai.utils import ensure_tuple, exact_version, optional_import
+
+Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
+Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 
 
 class LrScheduleHandler:

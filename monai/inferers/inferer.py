@@ -10,8 +10,10 @@
 # limitations under the License.
 
 from abc import ABC, abstractmethod
-from .utils import sliding_window_inference
+
 import torch
+
+from .utils import sliding_window_inference
 
 
 class Inferer(ABC):

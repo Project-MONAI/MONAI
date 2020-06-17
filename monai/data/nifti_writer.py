@@ -9,12 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import nibabel as nib
 import numpy as np
 import torch
 
 from monai.data.utils import compute_shape_offset, to_affine_nd
 from monai.networks.layers import AffineTransform
+from monai.utils import optional_import
+
+nib, _ = optional_import("nibabel")
 
 
 def write_nifti(
