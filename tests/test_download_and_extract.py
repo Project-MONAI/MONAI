@@ -15,9 +15,11 @@ import shutil
 import numpy as np
 import tempfile
 from monai.application import download_and_extract, download_url, extractall
+from tests.utils import skip_if_quick
 
 
 class TestDownloadAndExtract(unittest.TestCase):
+    @skip_if_quick
     def test_actions(self):
         tempdir = tempfile.mkdtemp()
         url = "https://www.dropbox.com/s/5wwskxctvcxiuea/MedNIST.tar.gz?dl=1"
