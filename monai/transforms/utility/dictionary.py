@@ -379,9 +379,9 @@ class ConcatItemsd(MapTransform):
             name: the name coresponding to the key to store the concatenated data.
 
         """
-        if len(keys) < 2:
-            raise ValueError("must provide must than 1 items to concat.")
         super().__init__(keys)
+        if len(self.keys) < 2:
+            raise ValueError("must provide must than 1 items to concat.")
         self.name = name
 
     def __call__(self, data):
