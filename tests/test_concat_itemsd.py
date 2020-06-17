@@ -18,12 +18,11 @@ from monai.transforms import ConcatItemsd
 
 
 class TestConcatItemsd(unittest.TestCase):
-
     def test_tensor_values(self):
         device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu:0")
         input_data = {
             "img1": torch.tensor([[0, 1], [1, 2]], device=device),
-            "img2": torch.tensor([[0, 1], [1, 2]], device=device)
+            "img2": torch.tensor([[0, 1], [1, 2]], device=device),
         }
         result = ConcatItemsd(keys=["img1", "img2"], name="cat_img")(input_data)
         self.assertTrue("cat_img" in result)

@@ -370,6 +370,7 @@ class ConcatItemsd(MapTransform):
     Expect all the items are numpy array or PyTorch Tensor.
 
     """
+
     def __init__(self, keys: KeysCollection, name: str):
         """
         Args:
