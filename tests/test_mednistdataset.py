@@ -17,9 +17,11 @@ import tempfile
 from monai.application import MedNISTDataset
 from tests.utils import NumpyImageTestCase2D
 from monai.transforms import LoadPNGd, AddChanneld, ScaleIntensityd, ToTensord, Compose
+from tests.utils import skip_if_quick
 
 
 class TestMedNISTDataset(unittest.TestCase):
+    @skip_if_quick
     def test_values(self):
         tempdir = tempfile.mkdtemp()
         transform = Compose(
