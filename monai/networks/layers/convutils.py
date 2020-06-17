@@ -19,8 +19,12 @@ def same_padding(kernel_size, dilation=1):
     Return the padding value needed to ensure a convolution using the given kernel size produces an output of the same
     shape as the input for a stride of 1, otherwise ensure a shape of the input divided by the stride rounded down.
     """
+
     kernel_size = np.atleast_1d(kernel_size)
-    padding = ((kernel_size - 1) // 2) + (dilation - 1)
+    dilation = np.atleast_1d(dilation)
+    if np.any((kernel_size - 1) * dilation % 2 == 1):
+        raise NotImplementedError(f"same padding not available for k={kernel_size} and d={dilation}.")
+    padding = (kernel_size - 1) / 2 * dilation
     padding = tuple(int(p) for p in padding)
 
     return tuple(padding) if len(padding) > 1 else padding[0]

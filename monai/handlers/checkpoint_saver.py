@@ -9,8 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional
+
 import logging
-from ignite.engine import Events
+from ignite.engine import Events, Engine
 from ignite.handlers import ModelCheckpoint
 
 
@@ -21,25 +23,25 @@ class CheckpointSaver:
     and last model or exception.
 
     Args:
-        save_dir (str): the target directory to save the checkpoints.
+        save_dir: the target directory to save the checkpoints.
         save_dict (dict): source objects that save to the checkpoint. examples::
 
-            {'network': net, 'optimizer': optimizer, 'engine', engine}
+            {'network': net, 'optimizer': optimizer, 'lr_scheduler': lr_scheduler}
 
-        name (str): identifier of logging.logger to use, if None, defaulting to ``engine.logger``.
-        file_prefix (str): prefix for the filenames to which objects will be saved.
-        save_final (bool): whether to save checkpoint or session at final iteration or exception.
-        save_key_metric (bool): whether to save checkpoint or session when the value of key_metric is
+        name: identifier of logging.logger to use, if None, defaulting to ``engine.logger``.
+        file_prefix: prefix for the filenames to which objects will be saved.
+        save_final: whether to save checkpoint or session at final iteration or exception.
+        save_key_metric: whether to save checkpoint or session when the value of key_metric is
             higher than all the previous values during training.keep 4 decimal places of metric,
             checkpoint name is: {file_prefix}_key_metric=0.XXXX.pth.
-        key_metric_name (str): the name of key_metric in ignite metrics dictionary.
+        key_metric_name: the name of key_metric in ignite metrics dictionary.
             if None, use `engine.state.key_metric` instead.
-        key_metric_n_saved (int): save top N checkpoints or sessions, sorted by the value of key
+        key_metric_n_saved: save top N checkpoints or sessions, sorted by the value of key
             metric in descending order.
-        epoch_level (bool): save checkpoint during training for every N epochs or every N iterations.
+        epoch_level: save checkpoint during training for every N epochs or every N iterations.
             `True` is epoch level, `False` is iteration level.
-        save_interval (int): save checkpoint every N epochs, default is 0 to save no model.
-        n_saved (int): save latest N checkpoints of epoch level or iteration level, 'None' is to save all.
+        save_interval: save checkpoint every N epochs, default is 0 to save no checkpoint.
+        n_saved: save latest N checkpoints of epoch level or iteration level, 'None' is to save all.
 
     Note:
         CheckpointHandler can be used during training, validation or evaluation.
@@ -55,17 +57,17 @@ class CheckpointSaver:
 
     def __init__(
         self,
-        save_dir,
+        save_dir: str,
         save_dict,
-        name=None,
-        file_prefix="",
-        save_final=False,
-        save_key_metric=False,
-        key_metric_name=None,
-        key_metric_n_saved=1,
-        epoch_level=True,
-        save_interval=0,
-        n_saved=None,
+        name: Optional[str] = None,
+        file_prefix: str = "",
+        save_final: bool = False,
+        save_key_metric: bool = False,
+        key_metric_name: Optional[str] = None,
+        key_metric_n_saved: int = 1,
+        epoch_level: bool = True,
+        save_interval: int = 0,
+        n_saved: Optional[int] = None,
     ):
         assert save_dir is not None, "must provide directory to save the checkpoints."
         self.save_dir = save_dir
@@ -74,10 +76,11 @@ class CheckpointSaver:
             if hasattr(v, "module"):
                 save_dict[k] = v.module
         self.save_dict = save_dict
-        self.logger = None if name is None else logging.getLogger(name)
+        self.logger = logging.getLogger(name)
         self.epoch_level = epoch_level
         self.save_interval = save_interval
         self._final_checkpoint = self._key_metric_checkpoint = self._interval_checkpoint = None
+        self._name = name
 
         if save_final:
 
@@ -124,8 +127,8 @@ class CheckpointSaver:
                 require_empty=False,
             )
 
-    def attach(self, engine):
-        if self.logger is None:
+    def attach(self, engine: Engine):
+        if self._name is None:
             self.logger = engine.logger
         if self._final_checkpoint is not None:
             engine.add_event_handler(Events.COMPLETED, self.completed)
