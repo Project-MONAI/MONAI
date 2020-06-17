@@ -9,8 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ignite.engine import Events, Engine
 from monai.engines import Evaluator
+from monai.utils import exact_version, optional_import
+
+Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
+Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 
 
 class ValidationHandler:

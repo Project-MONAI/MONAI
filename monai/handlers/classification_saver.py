@@ -9,11 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Callable
-
-from ignite.engine import Events, Engine
 import logging
+from typing import Callable, Optional
+
 from monai.data import CSVSaver
+from monai.utils import exact_version, optional_import
+
+Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
+Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 
 
 class ClassificationSaver:
