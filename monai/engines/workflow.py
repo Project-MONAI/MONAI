@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from abc import ABC, abstractmethod
 from typing import Callable, Optional
 
 import torch
@@ -23,7 +22,7 @@ State, _ = optional_import("ignite.engine", "0.3.0", exact_version, "State")
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
 
 
-class Workflow(ABC, Engine):
+class Workflow(Engine):
     """
     Workflow defines the core work process inheriting from Ignite engine.
     All trainer, validator and evaluator share this same workflow as base class,
@@ -137,7 +136,6 @@ class Workflow(ABC, Engine):
         """
         super().run(data=self.data_loader, epoch_length=len(self.data_loader))
 
-    @abstractmethod
     def _iteration(self, engine: Engine, batchdata):
         """
         Abstract callback function for the processing logic of 1 iteration in Ignite Engine.
