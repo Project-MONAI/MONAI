@@ -14,6 +14,7 @@ from urllib.request import urlretrieve
 from urllib.error import URLError
 import hashlib
 import tarfile
+import zipfile
 from monai.utils import process_bar
 
 
@@ -73,19 +74,30 @@ def download_url(url: str, filepath: str, md5_value: str = None):
         )
 
 
-def extractall(filepath: str, output_dir: str):
+def extractall(filepath: str, output_dir: str, md5_value: str = None):
     """
     Extract file to the output directory.
+    Expected file types are: `zip`, `tar.gz` and `tar`.
 
     Args:
         filepath: the file path of compressed file.
         output_dir: target directory to save extracted files.
+        md5_value: expected MD5 value to validate the compressed file.
+            if None, skip MD5 validation.
 
     """
     target_file = os.path.join(output_dir, os.path.basename(filepath).split(".")[0])
     if os.path.exists(target_file):
         print(f"extracted file {target_file} exists, skip extracting.")
-    datafile = tarfile.open(filepath)
+        return
+    if not check_md5(filepath, md5_value):
+        raise RuntimeError(f"MD5 check of compressed file {filepath} failed.")
+    if filepath.endswith("zip"):
+        datafile = zipfile.open(filepath)
+    elif filepath.endswith("tar") or filepath.endswith("tar.gz"):
+        datafile = tarfile.open(filepath)
+    else:
+        raise TypeError("unsupported compressed file type.")
     datafile.extractall(output_dir)
     datafile.close()
 
@@ -104,4 +116,4 @@ def download_and_extract(url: str, filepath: str, output_dir: str, md5_value: st
 
     """
     download_url(url=url, filepath=filepath, md5_value=md5_value)
-    extractall(filepath=filepath, output_dir=output_dir)
+    extractall(filepath=filepath, output_dir=output_dir, md5_value=md5_value)

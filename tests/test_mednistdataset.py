@@ -30,12 +30,24 @@ class TestMedNISTDataset(unittest.TestCase):
                 ToTensord(keys=["image", "label"]),
             ]
         )
-        dataset = MedNISTDataset(root=tempdir, transform=transform, section="test", download=True, extract=True)
-        self.assertEqual(len(dataset), 5986)
-        self.assertTrue("image" in dataset[0])
-        self.assertTrue("label" in dataset[0])
-        self.assertTrue("image_meta_dict" in dataset[0])
-        self.assertTupleEqual(dataset[0]["image"].shape, (1, 64, 64))
+
+        def _test_dataset(dataset):
+            self.assertEqual(len(dataset), 5986)
+            self.assertTrue("image" in dataset[0])
+            self.assertTrue("label" in dataset[0])
+            self.assertTrue("image_meta_dict" in dataset[0])
+            self.assertTupleEqual(dataset[0]["image"].shape, (1, 64, 64))
+
+        data = MedNISTDataset(root_dir=tempdir, transform=transform, section="test", download=True)
+        _test_dataset(data)
+        data = MedNISTDataset(root_dir=tempdir, transform=transform, section="test", download=False)
+        _test_dataset(data)
+        shutil.rmtree(os.path.join(tempdir, "MedNIST"))
+        try:
+            data = MedNISTDataset(root_dir=tempdir, transform=transform, section="test", download=False)
+        except RuntimeError as e:
+            self.assertTrue(str(e).startswith("can not find dataset directory"))
+
         shutil.rmtree(tempdir)
 
 

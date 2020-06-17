@@ -16,7 +16,7 @@ import numpy as np
 from typing import Any, Callable
 from monai.data import CacheDataset
 from monai.transforms import Randomizable
-from .utils import download_url, extractall
+from .utils import download_and_extract
 
 
 class MedNISTDataset(Randomizable, CacheDataset):
@@ -25,14 +25,16 @@ class MedNISTDataset(Randomizable, CacheDataset):
     It's based on `CacheDataset` to accelerate the training process.
 
     Args:
-        root: target dictionary to download and load MedNIST dataset.
+        root_dir: target directory to download and load MedNIST dataset.
         section: expected data section, can be: `training`, `validation` or `test`.
         transform: transforms to execute operations on input data.
-        download: whether to download the MedNIST from resource link, default is False.
+        download: whether to download and extract the MedNIST from resource link, default is False.
             if expected file already exists, skip downloading even set it to True.
             user can manually copy `MedNIST.tar.gz` file or `MedNIST` folder to root directory.
         extract: whether to extract the MedNIST.tar.gz file under root directory, default is False.
         seed: random seed to randomly split training, validation and test datasets, defaut is 0.
+        val_frac: percentage of of validation fraction in the whole dataset, default is 0.1.
+        test_frac: percentage of of test fraction in the whole dataset, default is 0.1.
         cache_num: number of items to be cached. Default is `sys.maxsize`.
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         cache_rate: percentage of cached data in total, default is 1.0 (cache all).
@@ -44,29 +46,33 @@ class MedNISTDataset(Randomizable, CacheDataset):
 
     resource = "https://www.dropbox.com/s/5wwskxctvcxiuea/MedNIST.tar.gz?dl=1"
     md5 = "0bc7306e7427e00ad1c5526a6677552d"
+    compressed_file_name = "MedNIST.tar.gz"
+    dataset_folder_name = "MedNIST"
 
     def __init__(
         self,
-        root: str,
+        root_dir: str,
         section: str,
         transform: Callable[..., Any],
         download: bool = False,
-        extract: bool = False,
         seed: int = 0,
+        val_frac: float = 0.1,
+        test_frac: float = 0.1,
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
         num_workers: int = 0,
     ):
-        if not os.path.isdir(root):
-            raise ValueError("root must be a directory.")
+        if not os.path.isdir(root_dir):
+            raise ValueError("root_dir must be a directory.")
         self.section = section
+        self.val_frac = val_frac
+        self.test_frac = test_frac
         self.set_random_state(seed=seed)
-        tarfile_name = os.path.join(root, "MedNIST.tar.gz")
-        dataset_dir = os.path.join(root, "MedNIST")
+        tarfile_name = os.path.join(root_dir, self.compressed_file_name)
+        dataset_dir = os.path.join(root_dir, self.dataset_folder_name)
         if download:
-            download_url(self.resource, tarfile_name, self.md5)
-        if extract:
-            extractall(tarfile_name, root)
+            download_and_extract(self.resource, tarfile_name, root_dir, self.md5)
+
         if not os.path.exists(dataset_dir):
             raise RuntimeError("can not find dataset directory, please use download=True to download it.")
         data = self._generate_data_list(dataset_dir)
@@ -93,20 +99,18 @@ class MedNISTDataset(Randomizable, CacheDataset):
             image_class.extend([i] * num_each[i])
         num_total = len(image_class)
 
-        val_frac = 0.1
-        test_frac = 0.1
         data = list()
 
         for i in range(num_total):
             self.randomize()
             if self.section == "training":
-                if self.rann < val_frac + test_frac:
+                if self.rann < self.val_frac + self.test_frac:
                     continue
             elif self.section == "validation":
-                if self.rann >= val_frac:
+                if self.rann >= self.val_frac:
                     continue
             elif self.section == "test":
-                if self.rann < val_frac or self.rann >= val_frac + test_frac:
+                if self.rann < self.val_frac or self.rann >= self.val_frac + self.test_frac:
                     continue
             else:
                 raise ValueError("section name can only be: training, validation or test.")
