@@ -92,14 +92,17 @@ def extractall(filepath: str, output_dir: str, md5_value: str = None):
         return
     if not check_md5(filepath, md5_value):
         raise RuntimeError(f"MD5 check of compressed file {filepath} failed.")
+
     if filepath.endswith("zip"):
-        datafile = zipfile.open(filepath)
+        zip_file = zipfile.ZipFile(filepath)
+        zip_file.extractall(output_dir)
+        zip_file.close()
     elif filepath.endswith("tar") or filepath.endswith("tar.gz"):
-        datafile = tarfile.open(filepath)
+        tar_file = tarfile.open(filepath)
+        tar_file.extractall(output_dir)
+        tar_file.close()
     else:
         raise TypeError("unsupported compressed file type.")
-    datafile.extractall(output_dir)
-    datafile.close()
 
 
 def download_and_extract(url: str, filepath: str, output_dir: str, md5_value: str = None):
