@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import warnings
+
 import torch
 from monai.networks.utils import one_hot
 
@@ -173,6 +174,8 @@ def compute_meandice(
         y.shape,
         y_pred.shape,
     )
+    y = y.float()
+    y_pred = y_pred.float()
 
     # reducing only spatial dimensions (not batch nor channels)
     reduce_axis = list(range(2, n_len))

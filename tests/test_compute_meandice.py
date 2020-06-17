@@ -15,7 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.metrics import compute_meandice, DiceMetric
+from monai.metrics import DiceMetric, compute_meandice
 
 # keep background
 TEST_CASE_1 = [  # y (1, 1, 2, 2), y_pred (1, 1, 2, 2), expected out (1, 1)
@@ -103,11 +103,17 @@ TEST_CASE_6 = [
 ]
 
 
+TEST_CASE_7 = [
+    {"y": torch.from_numpy(np.ones((2, 2, 3, 3))), "y_pred": torch.from_numpy(np.ones((2, 2, 3, 3)))},
+    [[1.0000, 1.0000], [1.0000, 1.0000]],
+]
+
+
 class TestComputeMeanDice(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_7])
     def test_value(self, input_data, expected_value):
         result = compute_meandice(**input_data)
-        self.assertTrue(np.allclose(result.cpu().numpy(), expected_value, atol=1e-4))
+        np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
 
     @parameterized.expand([TEST_CASE_3])
     def test_nans(self, input_data, expected_value):
@@ -125,14 +131,14 @@ class TestComputeMeanDice(unittest.TestCase):
         vals["target"] = input_data.pop("y")
         dice_metric = DiceMetric(**input_data, reduction="none")
         result = dice_metric(**vals)
-        self.assertTrue(np.allclose(result.cpu().numpy(), expected_value, atol=1e-4))
+        np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
 
     @parameterized.expand([TEST_CASE_4, TEST_CASE_5, TEST_CASE_5])
     def test_nans_class(self, params, input_data, expected_value):
 
         dice_metric = DiceMetric(**params)
         result = dice_metric(**input_data)
-        self.assertTrue(np.allclose(result.cpu().numpy(), expected_value, atol=1e-4))
+        np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
 
 
 if __name__ == "__main__":
