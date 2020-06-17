@@ -25,10 +25,10 @@ class MetricLogger:
         self.loss: list = []
         self.metrics: defaultdict = defaultdict(list)
 
-    def attach(self, engine):
+    def attach(self, engine: Engine):
         return engine.add_event_handler(Events.ITERATION_COMPLETED, self)
 
-    def __call__(self, engine):
+    def __call__(self, engine: Engine):
         self.loss.append(self.loss_transform(engine.state.output))
 
         for m, v in engine.state.metrics.items():

@@ -21,6 +21,7 @@ from .utils import default_prepare_batch
 from .workflow import Workflow
 
 Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
+Metric, _ = optional_import("ignite.metrics", "0.3.0", exact_version, "Metric")
 
 
 class Trainer(Workflow):
@@ -83,7 +84,7 @@ class SupervisedTrainer(Trainer):
         inferer=SimpleInferer(),
         amp: bool = True,
         post_transform=None,
-        key_train_metric=None,
+        key_train_metric: Optional[Metric] = None,
         additional_metrics=None,
         train_handlers=None,
     ):

@@ -12,7 +12,6 @@
 from typing import Callable, Optional
 
 import torch
-
 from monai.inferers.inferer import SimpleInferer
 from monai.utils import exact_version, optional_import
 
@@ -21,6 +20,7 @@ from .utils import default_prepare_batch
 from .workflow import Workflow
 
 Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
+Metric, _ = optional_import("ignite.metrics", "0.3.0", exact_version, "Metric")
 
 
 class Evaluator(Workflow):
@@ -51,7 +51,7 @@ class Evaluator(Workflow):
         prepare_batch: Callable = default_prepare_batch,
         iteration_update: Optional[Callable] = None,
         post_transform=None,
-        key_val_metric=None,
+        key_val_metric: Optional[Metric] = None,
         additional_metrics=None,
         val_handlers=None,
     ):

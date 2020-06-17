@@ -9,16 +9,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .utils import sliding_window_inference
+from abc import ABC, abstractmethod
+
 import torch
 
+from .utils import sliding_window_inference
 
-class Inferer:
+
+class Inferer(ABC):
     """
     A base class for model inference.
     Extend this class to support operations during inference, e.g. a sliding window method.
     """
 
+    @abstractmethod
     def __call__(self, inputs: torch.Tensor, network):
         """
         Run inference on `inputs` with the `network` model.

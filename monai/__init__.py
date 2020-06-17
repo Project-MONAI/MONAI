@@ -23,9 +23,9 @@ __copyright__ = "(c) 2020 MONAI Consortium"
 __basedir__ = os.path.dirname(__file__)
 
 excludes = "^(handlers)"  # the handlers have some external decorators the users may not have installed
-load_submodules(
-    sys.modules[__name__], False, exclude_pattern=excludes
-)  # load directory modules only, skip loading individual files
-load_submodules(
-    sys.modules[__name__], True, exclude_pattern=excludes
-)  # load all modules, this will trigger all export decorations
+
+# load directory modules only, skip loading individual files
+load_submodules(sys.modules[__name__], False, exclude_pattern=excludes)
+
+# load all modules, this will trigger all export decorations
+load_submodules(sys.modules[__name__], True, exclude_pattern=excludes)
