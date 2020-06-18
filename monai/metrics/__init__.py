@@ -11,5 +11,5 @@
 
 from monai.metrics.functional import *
 from monai.metrics.metric import Metric, CumulativeMetric
-from monai.metrics.dice import Dice
-from monai.metrics.rocauc import CumulativeROCAUC
+from monai.metrics.dice import Dice, CumulativeDice
+from monai.metrics.rocauc import ROCOUC, CumulativeROCAUC
