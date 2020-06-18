@@ -371,18 +371,20 @@ class ConcatItemsd(MapTransform):
 
     """
 
-    def __init__(self, keys: KeysCollection, name: str):
+    def __init__(self, keys: KeysCollection, name: str, dim: int = 0):
         """
         Args:
             keys: keys of the corresponding items to be concatenated together.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             name: the name coresponding to the key to store the concatenated data.
+            dim: on which dimension to concatenate the items, default is 0.
 
         """
         super().__init__(keys)
         if len(self.keys) < 2:
             raise ValueError("must provide must than 1 items to concat.")
         self.name = name
+        self.dim = dim
 
     def __call__(self, data):
         d = dict(data)
@@ -391,13 +393,13 @@ class ConcatItemsd(MapTransform):
         for key in self.keys:
             if data_type is None:
                 data_type = type(d[key])
-            elif data_type != type(d[key]):
+            elif not isinstance(data_type, type(d[key])):
                 raise TypeError("not all the items are with same data type.")
             output.append(d[key])
         if data_type == np.ndarray:
-            d[self.name] = np.concatenate(output, axis=0)
+            d[self.name] = np.concatenate(output, axis=self.dim)
         elif data_type == torch.Tensor:
-            d[self.name] = torch.cat(output, dim=0)
+            d[self.name] = torch.cat(output, dim=self.dim)
         else:
             raise TypeError(f"unsupported data type to concat: {data_type}.")
         return d
