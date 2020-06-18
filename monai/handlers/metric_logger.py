@@ -12,7 +12,10 @@
 from collections import defaultdict
 from typing import Callable
 
-from ignite.engine import Events, Engine
+from monai.utils import exact_version, optional_import
+
+Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
+Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 
 
 class MetricLogger:

@@ -12,8 +12,14 @@
 from typing import Callable
 
 import torch
-from ignite.engine import create_supervised_trainer, create_supervised_evaluator, _prepare_batch
+
+from monai.utils import exact_version, optional_import
+
 from .utils import get_devices_spec
+
+create_supervised_trainer, _ = optional_import("ignite.engine", "0.3.0", exact_version, "create_supervised_trainer")
+create_supervised_evaluator, _ = optional_import("ignite.engine", "0.3.0", exact_version, "create_supervised_evaluator")
+_prepare_batch, _ = optional_import("ignite.engine", "0.3.0", exact_version, "_prepare_batch")
 
 
 def _default_transform(_x, _y, _y_pred, loss):

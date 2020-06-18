@@ -13,9 +13,12 @@ import logging
 from typing import Callable, Optional, Union
 
 import numpy as np
-from ignite.engine import Engine, Events
 
 from monai.data import NiftiSaver, PNGSaver
+from monai.utils import exact_version, optional_import
+
+Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
+Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 
 
 class SegmentationSaver:

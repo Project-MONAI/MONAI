@@ -119,5 +119,4 @@ temp/
 *.orig
 *.bak
 *.swp
-*~
 .DS_Store

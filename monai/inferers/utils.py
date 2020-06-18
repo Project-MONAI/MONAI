@@ -13,18 +13,30 @@ from typing import Callable
 
 import torch
 import torch.nn.functional as F
-from monai.data.utils import dense_patch_slices, compute_importance_map
+from monai.data.utils import compute_importance_map, dense_patch_slices, get_valid_patch_size
 
 
 def sliding_window_inference(
-    inputs, roi_size, sw_batch_size: int, predictor: Callable, overlap: float = 0.25, blend_mode: str = "constant",
+    inputs: torch.Tensor,
+    roi_size,
+    sw_batch_size: int,
+    predictor: Callable,
+    overlap: float = 0.25,
+    blend_mode: str = "constant",
+    padding_mode: str = "constant",
+    cval=0,
 ):
     """
-    Use SlidingWindow method to execute inference.
+    Sliding window inference on `inputs` with `predictor`.
+
+    When roi_size is 0, the corresponding inputs dimension will be used as the window dimension.
+
+    When roi_size is larger than the inputs' spatial size, the input image are padded during inference.
+    To maintain the same spatial sizes, the output image will be cropped to the original input size.
 
     Args:
-        inputs (torch Tensor): input image to be processed (assuming NCHW[D])
-        roi_size (list, tuple): the window size to execute SlidingWindow inference.
+        inputs: input image to be processed (assuming NCHW[D])
+        roi_size (list, tuple): the spatial window size for inferences.
         sw_batch_size: the batch size to run window slices.
         predictor: given input tensor `patch_data` in shape NCHW[D], `predictor(patch_data)`
             should return a prediction with the same spatial shape and batch_size, i.e. NMHW[D];
@@ -32,11 +44,13 @@ def sliding_window_inference(
         overlap: Amount of overlap between scans.
         blend_mode: How to blend output of overlapping windows. Options are 'constant', 'gaussian'. 'constant'
             gives equal weight to all predictions while gaussian gives less weight to predictions on edges of windows.
+        padding_mode: padding mode when roi_size is larger than inputs.
+            options are 'constant', 'reflect', 'replicate' or 'circular'. Default: 'constant'
+        cval: fill value for 'constant' padding mode. Default: 0
 
     Note:
-        must be channel first, support both 2D and 3D.
-        input data must have batch dim.
-        execute on 1 image/per inference, run a batch of window slices of 1 input image.
+        - input must be channel-first and have a batch dim, support both spatial 2D and 3D.
+        - currently only supports `inputs` with batch_size=1.
     """
     num_spatial_dims = len(inputs.shape) - 2
     assert len(roi_size) == num_spatial_dims, f"roi_size {roi_size} does not match input dims."
@@ -54,8 +68,12 @@ def sliding_window_inference(
     original_image_size = [image_size_[i] for i in range(num_spatial_dims)]
     # in case that image size is smaller than roi size
     image_size = tuple(max(image_size_[i], roi_size[i]) for i in range(num_spatial_dims))
-    pad_size = [i for k in range(len(inputs.shape) - 1, 1, -1) for i in (0, max(roi_size[k - 2] - inputs.shape[k], 0))]
-    inputs = F.pad(inputs, pad=pad_size, mode="constant", value=0)
+    pad_size = []
+    for k in range(len(inputs.shape) - 1, 1, -1):
+        diff = max(roi_size[k - 2] - inputs.shape[k], 0)
+        half = diff // 2
+        pad_size.extend([half, diff - half])
+    inputs = F.pad(inputs, pad=pad_size, mode=padding_mode, value=cval)
 
     scan_interval = _get_scan_interval(image_size, roi_size, num_spatial_dims, overlap)
 
@@ -85,7 +103,9 @@ def sliding_window_inference(
     output_shape = [batch_size, output_classes] + list(image_size)
 
     # Create importance map
-    importance_map = compute_importance_map(roi_size, mode=blend_mode, device=inputs.device)
+    importance_map = compute_importance_map(
+        get_valid_patch_size(image_size, roi_size), mode=blend_mode, device=inputs.device
+    )
 
     # allocate memory to store the full output and the count for overlapping parts
     output_image = torch.zeros(output_shape, dtype=torch.float32, device=inputs.device)
@@ -112,8 +132,15 @@ def sliding_window_inference(
     output_image /= count_map
 
     if num_spatial_dims == 3:
-        return output_image[..., : original_image_size[0], : original_image_size[1], : original_image_size[2]]
-    return output_image[..., : original_image_size[0], : original_image_size[1]]  # 2D
+        return output_image[
+            ...,
+            pad_size[4] : original_image_size[0] + pad_size[4],
+            pad_size[2] : original_image_size[1] + pad_size[2],
+            pad_size[0] : original_image_size[2] + pad_size[0],
+        ]
+    return output_image[
+        ..., pad_size[2] : original_image_size[0] + pad_size[2], pad_size[0] : original_image_size[1] + pad_size[0]
+    ]  # 2D
 
 
 def _get_scan_interval(image_size, roi_size, num_spatial_dims: int, overlap: float):

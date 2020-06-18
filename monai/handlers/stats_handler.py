@@ -9,13 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
 import logging
+import warnings
 from typing import Callable, Optional
 
 import torch
-from ignite.engine import Engine, Events
-from monai.utils import is_scalar
+
+from monai.utils import exact_version, is_scalar, optional_import
+
+Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
+Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 
 DEFAULT_KEY_VAL_FORMAT = "{}: {:.4f} "
 DEFAULT_TAG = "Loss"

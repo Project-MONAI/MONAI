@@ -1,8 +1,13 @@
 # Requirements for testing
 -r requirements.txt
-scipy
 coverage
 parameterized
+pytorch-ignite==0.3.0
+scipy
+nibabel
+pillow
+tensorboard
+scikit-image>=0.14.2
 flake8>=3.8.1
 flake8-bugbear
 flake8-comprehensions

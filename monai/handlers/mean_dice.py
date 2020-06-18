@@ -12,11 +12,14 @@
 from typing import Callable, Optional, Sequence, Union
 
 import torch
-from ignite.exceptions import NotComputableError
-from ignite.metrics import Metric
-from ignite.metrics.metric import reinit__is_reduced, sync_all_reduce
 
 from monai.metrics import compute_meandice
+from monai.utils import exact_version, optional_import
+
+NotComputableError, _ = optional_import("ignite.exceptions", "0.3.0", exact_version, "NotComputableError")
+Metric, _ = optional_import("ignite.metrics", "0.3.0", exact_version, "Metric")
+reinit__is_reduced, _ = optional_import("ignite.metrics.metric", "0.3.0", exact_version, "reinit__is_reduced")
+sync_all_reduce, _ = optional_import("ignite.metrics.metric", "0.3.0", exact_version, "sync_all_reduce")
 
 
 class MeanDice(Metric):
