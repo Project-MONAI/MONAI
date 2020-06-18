@@ -19,26 +19,24 @@ class Metric(ABC):
 
     @abstractmethod
     def __call__(self, *args, **kwargs) -> None:
+        """
+        Compute metric
+        """
         raise NotImplementedError
 
 
-class PartialMetric(Metric):
+class CumulativeMetric(Metric):
     """
     Abstract base class for metrics which need to be computed over multiple
-    samples and need to store intermediate values.
+    samples and need to store intermediate values. To be consistent with
+    the other metrics, the metric can be called after all samples
+    were added to compute the final result.
     """
 
     @abstractmethod
     def add_sample(self, *args, **kwargs) -> None:
         """
         Add a new sample for evaluation
-        """
-        raise NotImplementedError
-        
-    @abstractmethod
-    def evaluate(self, *args, **kwargs) -> None:
-        """
-        Evaluate the metric from added samples
         """
         raise NotImplementedError
 

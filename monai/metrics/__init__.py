@@ -10,6 +10,6 @@
 # limitations under the License.
 
 from monai.metrics.functional import *
-from monai.metrics.metric import Metric, PartialMetric
-from monai.metrics.dice import DiceMetric
-from monai.metrics.rocauc import ROCAUC
+from monai.metrics.metric import Metric, CumulativeMetric
+from monai.metrics.dice import Dice
+from monai.metrics.rocauc import CumulativeROCAUC

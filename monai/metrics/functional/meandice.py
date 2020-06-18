@@ -15,7 +15,7 @@ import torch
 from monai.networks.utils import one_hot
 
 
-def compute_meandice(
+def _convert_predictions(
     y_pred: torch.Tensor,
     y: torch.Tensor,
     include_background: bool = True,
@@ -24,35 +24,7 @@ def compute_meandice(
     sigmoid: bool = False,
     logit_thresh: float = 0.5,
 ):
-    """Computes Dice score metric from full size Tensor and collects average.
-
-    Args:
-        y_pred (torch.Tensor): input data to compute, typical segmentation model output.
-            it must be one-hot format and first dim is batch, example shape: [16, 3, 32, 32].
-        y (torch.Tensor): ground truth to compute mean dice metric, the first dim is batch.
-            example shape: [16, 1, 32, 32] will be converted into [16, 3, 32, 32].
-            alternative shape: [16, 3, 32, 32] and set `to_onehot_y=False` to use 3-class labels directly.
-        include_background: whether to skip Dice computation on the first channel of
-            the predicted output. Defaults to True.
-        to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
-        mutually_exclusive: if True, `y_pred` will be converted into a binary matrix using
-            a combination of argmax and to_onehot.  Defaults to False.
-        sigmoid: whether to add sigmoid function to y_pred before computation. Defaults to False.
-        logit_thresh: the threshold value used to convert (after sigmoid if `sigmoid=True`)
-            `y_pred` into a binary matrix. Defaults to 0.5.
-
-    Returns:
-        Dice scores per batch and per class, (shape [batch_size, n_classes]).
-
-    Note:
-        This method provides two options to convert `y_pred` into a binary matrix
-            (1) when `mutually_exclusive` is True, it uses a combination of ``argmax`` and ``to_onehot``,
-            (2) when `mutually_exclusive` is False, it uses a threshold ``logit_thresh``
-                (optionally with a ``sigmoid`` function before thresholding).
-
-    """
     n_classes = y_pred.shape[1]
-    n_len = len(y_pred.shape)
 
     if sigmoid:
         y_pred = y_pred.float().sigmoid()
@@ -89,12 +61,60 @@ def compute_meandice(
     )
     y = y.float()
     y_pred = y_pred.float()
+    return y_pred, y
+
+
+def compute_meandice(
+    y_pred: torch.Tensor,
+    y: torch.Tensor,
+    include_background: bool = True,
+    to_onehot_y: bool = False,
+    mutually_exclusive: bool = False,
+    sigmoid: bool = False,
+    logit_thresh: float = 0.5,
+):
+    """Computes Dice score metric from full size Tensor and collects average.
+
+    Args:
+        y_pred : input data to compute, typical segmentation model output.
+            it must be one-hot format and first dim is batch, example shape: [16, 3, 32, 32].
+        y: ground truth to compute mean dice metric, the first dim is batch.
+            example shape: [16, 1, 32, 32] will be converted into [16, 3, 32, 32].
+            alternative shape: [16, 3, 32, 32] and set `to_onehot_y=False` to use 3-class labels directly.
+        include_background: whether to skip Dice computation on the first channel of
+            the predicted output. Defaults to True.
+        to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
+        mutually_exclusive: if True, `y_pred` will be converted into a binary matrix using
+            a combination of argmax and to_onehot.  Defaults to False.
+        sigmoid: whether to add sigmoid function to y_pred before computation. Defaults to False.
+        logit_thresh: the threshold value used to convert (after sigmoid if `sigmoid=True`)
+            `y_pred` into a binary matrix. Defaults to 0.5.
+
+    Returns:
+        Dice scores per batch and per class, (shape [batch_size, n_classes]).
+
+    Note:
+        This method provides two options to convert `y_pred` into a binary matrix
+            (1) when `mutually_exclusive` is True, it uses a combination of ``argmax`` and ``to_onehot``,
+            (2) when `mutually_exclusive` is False, it uses a threshold ``logit_thresh``
+                (optionally with a ``sigmoid`` function before thresholding).
+    """
+    y_pred, y = _convert_predictions(
+        y_pred,
+        y,
+        include_background=include_background,
+        to_onehot_y=to_onehot_y,
+        mutually_exclusive=mutually_exclusive,
+        sigmoid=sigmoid,
+        logit_thresh=logit_thresh,
+    )
+    n_len = len(y_pred.shape)
 
     # reducing only spatial dimensions (not batch nor channels)
     reduce_axis = list(range(2, n_len))
     intersection = torch.sum(y * y_pred, dim=reduce_axis)
 
-    y_o = torch.sum(y, reduce_axis)
+    y_o = torch.sum(y, dim=reduce_axis)
     y_pred_o = torch.sum(y_pred, dim=reduce_axis)
     denominator = y_o + y_pred_o
 

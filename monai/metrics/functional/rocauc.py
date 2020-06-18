@@ -62,9 +62,9 @@ def compute_roc_auc(
     sklearn.metrics.roc_auc_score.html#sklearn.metrics.roc_auc_score>`_.
 
     Args:
-        y_pred (torch.Tensor): input data to compute, typical classification model output.
+        y_pred: input data to compute, typical classification model output.
             it must be One-Hot format and first dim is batch, example shape: [16] or [16, 2].
-        y (torch.Tensor): ground truth to compute ROC AUC metric, the first dim is batch.
+        y: ground truth to compute ROC AUC metric, the first dim is batch.
             example shape: [16, 1] will be converted into [16, 2] (where `2` is inferred from `y_pred`).
         to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
         softmax: whether to add softmax function to `y_pred` before computation. Defaults to False.
@@ -81,7 +81,6 @@ def compute_roc_auc(
 
     Note:
         ROCAUC expects y to be comprised of 0's and 1's. `y_pred` must be either prob. estimates or confidence values.
-
     """
     y_pred_ndim = y_pred.ndimension()
     y_ndim = y.ndimension()
