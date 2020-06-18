@@ -16,7 +16,6 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 import warnings
 from typing import List, Optional, Union
 
-import nibabel as nib
 import numpy as np
 import torch
 
@@ -33,6 +32,9 @@ from monai.transforms.utils import (
     create_translate,
 )
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep, ensure_tuple_size
+from monai.utils import optional_import
+
+nib, _ = optional_import("nibabel")
 
 if get_torch_version_tuple() >= (1, 5):
     # additional argument since torch 1.5 (to avoid warnings)

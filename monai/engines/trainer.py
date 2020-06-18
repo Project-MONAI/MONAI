@@ -12,12 +12,16 @@
 from typing import Callable, Optional
 
 import torch
-from ignite.metrics import Metric
-from ignite.engine import Engine
+
 from monai.inferers.inferer import SimpleInferer
-from .workflow import Workflow
-from .utils import default_prepare_batch
+from monai.utils import exact_version, optional_import
+
 from .utils import CommonKeys as Keys
+from .utils import default_prepare_batch
+from .workflow import Workflow
+
+Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
+Metric, _ = optional_import("ignite.metrics", "0.3.0", exact_version, "Metric")
 
 
 class Trainer(Workflow):

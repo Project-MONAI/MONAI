@@ -16,13 +16,16 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 from typing import Optional
 
 import numpy as np
-import nibabel as nib
-from PIL import Image
+
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
 
 from monai.data.utils import correct_nifti_header_if_necessary
 from monai.transforms.compose import Transform
 from monai.utils.misc import ensure_tuple
+from monai.utils import optional_import
+
+nib, _ = optional_import("nibabel")
+Image, _ = optional_import("PIL.Image")
 
 
 class LoadNifti(Transform):

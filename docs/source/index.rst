@@ -60,6 +60,12 @@ Technical documentation is available via `Read the Docs <https://monai.readthedo
    visualize
    utils
 
+.. toctree::
+  :maxdepth: 1
+  :caption: Installation
+
+  installation
+
 
 Contributing
 ------------

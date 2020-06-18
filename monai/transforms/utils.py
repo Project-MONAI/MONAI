@@ -15,10 +15,11 @@ from typing import Optional, Callable
 
 import torch
 import numpy as np
-from skimage import measure
 
 from monai.config.type_definitions import IndexSelection
-from monai.utils.misc import ensure_tuple
+from monai.utils import ensure_tuple, optional_import, min_version
+
+measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 
 
 def rand_choice(prob=0.5):
