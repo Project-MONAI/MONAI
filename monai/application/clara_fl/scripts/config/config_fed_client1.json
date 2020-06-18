@@ -1,0 +1,24 @@
+{
+    "servers": [
+        {
+            "name": "clara_fl_server",
+            "service": {
+                "target": "fedserver.monai:8002",
+                "options": [
+                    ["grpc.max_send_message_length",    1000000000],
+                    ["grpc.max_receive_message_length", 1000000000]
+                ]
+            }
+        }
+    ],
+    "client": {
+        "local_epochs": 5,
+        "steps_aggregation": 0,
+        "exclude_vars": "dummy",
+        "privacy": {},
+        "retry_timeout": 30,
+        "ssl_private_key": "resources/certs/client1.key",
+        "ssl_cert": "resources/certs/client1.crt",
+        "ssl_root_cert": "resources/certs/rootCA.pem"
+    }
+}
