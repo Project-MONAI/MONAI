@@ -641,6 +641,12 @@ Dictionary-based Transforms
     :members:
     :special-members: __call__
 
+`ConcatItemsd`
+~~~~~~~~~~~~~~
+.. autoclass:: ConcatItemsd
+    :members:
+    :special-members: __call__
+
 
 Transform Adaptors
 ------------------
