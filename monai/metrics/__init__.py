@@ -11,3 +11,5 @@
 
 from monai.metrics.functional import *
 from monai.metrics.metric import Metric, PartialMetric
+from monai.metrics.dice import DiceMetric
+from monai.metrics.rocauc import ROCAUC
