@@ -78,7 +78,7 @@ def main():
     evaluator = Engine(_sliding_window_processor)
 
     # add evaluation metric to the evaluator engine
-    MeanDice(add_sigmoid=True, to_onehot_y=False).attach(evaluator, "Mean_Dice")
+    MeanDice(sigmoid=True, to_onehot_y=False).attach(evaluator, "Mean_Dice")
 
     # StatsHandler prints loss at every iteration and print metrics at every epoch,
     # we don't need to print loss for evaluator, so just print metrics, user can also customize print functions
