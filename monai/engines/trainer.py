@@ -141,5 +141,5 @@ class SupervisedTrainer(Trainer):
             Keys.IMAGE: inputs,
             Keys.LABEL: targets,
             Keys.PRED: predictions,
-            Keys.LOSS: loss.item()
+            Keys.LOSS: loss.item(),
         }
