@@ -393,7 +393,7 @@ class ConcatItemsd(MapTransform):
         for key in self.keys:
             if data_type is None:
                 data_type = type(d[key])
-            elif not isinstance(data_type, type(d[key])):
+            elif not isinstance(d[key], data_type):
                 raise TypeError("not all the items are with same data type.")
             output.append(d[key])
         if data_type == np.ndarray:
