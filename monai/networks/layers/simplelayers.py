@@ -84,6 +84,10 @@ class GaussianFilter(nn.Module):
         """
         Args:
             x (tensor): in shape [Batch, chns, H, W, D].
+
+        Raises:
+            TypeError: x must be a Tensor, got {type(x).__name__}.
+
         """
         if not torch.is_tensor(x):
             raise TypeError(f"x must be a Tensor, got {type(x).__name__}.")

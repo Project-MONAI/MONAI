@@ -120,6 +120,9 @@ class SupervisedTrainer(Trainer):
             engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.
             batchdata (dict or array of tensor): input data for this iteration.
 
+        Raises:
+            ValueError: must provide batch data for current iteration.
+
         """
         if batchdata is None:
             raise ValueError("must provide batch data for current iteration.")

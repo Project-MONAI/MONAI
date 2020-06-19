@@ -67,6 +67,10 @@ def ensure_tuple_size(tup, dim, pad_val=0):
 def ensure_tuple_rep(tup, dim):
     """
     Returns a copy of `tup` with `dim` values by either shortened or duplicated input.
+
+    Raises:
+        ValueError: sequence must have length {dim}, got length {len(tup)}.
+
     """
     if not issequenceiterable(tup):
         return (tup,) * dim

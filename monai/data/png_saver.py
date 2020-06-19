@@ -76,6 +76,9 @@ class PNGSaver:
                 C should be 1, 3 or 4
             meta_data (dict): the meta data information corresponding to the data.
 
+        Raises:
+            ValueError: PNG image should only have 1, 3 or 4 channels.
+
         See Also
             :py:meth:`monai.data.png_writer.write_png`
         """

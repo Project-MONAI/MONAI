@@ -99,6 +99,10 @@ class Spacingd(MapTransform):
                 default is `meta_dict`, the meta data is a dictionary object.
                 For example, to handle key `image`,  read/write affine matrices from the
                 metadata `image_meta_dict` dictionary's `affine` field.
+
+        Raises:
+            ValueError: meta_key_postfix must be a string.
+
         """
         super().__init__(keys)
         self.spacing_transform = Spacing(pixdim, diagonal=diagonal)
@@ -161,6 +165,9 @@ class Orientationd(MapTransform):
                 default is `meta_dict`, the meta data is a dictionary object.
                 For example, to handle key `image`,  read/write affine matrices from the
                 metadata `image_meta_dict` dictionary's `affine` field.
+
+        Raises:
+            ValueError: meta_key_postfix must be a string.
 
         See Also:
             `nibabel.orientations.ornt2axcodes`.

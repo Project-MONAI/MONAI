@@ -108,6 +108,11 @@ class Spacing(Transform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         Returns:
             data_array (resampled into `self.pixdim`), original pixdim, current pixdim.
+
+        Raises:
+            ValueError: the array should have at least one spatial dimension.
+            ValueError: pixdim must be positive, got {out_d}
+
         """
         sr = data_array.ndim - 1
         if sr <= 0:
@@ -174,6 +179,9 @@ class Orientation(Transform):
                 (2,) sequences are labels for (beginning, end) of output axis.
                 Defaults to ``(('L', 'R'), ('P', 'A'), ('I', 'S'))``.
 
+        Raises:
+            ValueError: provide either `axcodes` or `as_closest_canonical=True`.
+
         See Also: `nibabel.orientations.ornt2axcodes`.
         """
         if axcodes is None and not as_closest_canonical:
@@ -193,6 +201,12 @@ class Orientation(Transform):
             affine (matrix): (N+1)x(N+1) original affine matrix for spatially ND `data_array`. Defaults to identity.
         Returns:
             data_array (reoriented in `self.axcodes`), original axcodes, current axcodes.
+
+        Raises:
+            ValueError: the array should have at least one spatial dimension.
+            ValueError: `self.axcodes` should have at least {sr} elements
+                given the data array is in spatial {sr}D, got "{self.axcodes}"
+
         """
         sr = data_array.ndim - 1
         if sr <= 0:
@@ -278,6 +292,11 @@ class Resize(Transform):
             mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
                 The interpolation mode. Defaults to ``self.mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+
+        Raises:
+            ValueError: len(spatial_size) cannot be smaller than the image spatial dimensions,
+                got {output_ndim} and {input_ndim}.
+
         """
         input_ndim = img.ndim - 1  # spatial ndim
         output_ndim = len(self.spatial_size)
@@ -348,6 +367,10 @@ class Rotate(Transform):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+
+        Raises:
+            ValueError: Rotate only supports 2D and 3D: [chns, H, W] and [chns, H, W, D].
+
         """
         im_shape = np.asarray(img.shape[1:])  # spatial dimensions
         input_ndim = len(im_shape)
@@ -707,6 +730,10 @@ class AffineGrid(Transform):
         Args:
             spatial_size (list or tuple of int): output grid size.
             grid (ndarray): grid to be transformed. Shape must be (3, H, W) for 2D or (4, H, W, D) for 3D.
+
+        Raises:
+            ValueError: Either specify a grid or a spatial size to create a grid from.
+
         """
         if grid is None:
             if spatial_size is not None:

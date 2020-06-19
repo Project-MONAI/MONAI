@@ -186,6 +186,10 @@ def generate_pos_neg_label_crop_centers(
         image_threshold: if enabled image_key, use ``image > image_threshold`` to
             determine the valid image content area.
         rand_state (random.RandomState): numpy randomState object to align with other modules.
+
+    Raises:
+        ValueError: no sampling location available.
+
     """
     max_size = label.shape[1:]
     if len(max_size) != len(spatial_size):
@@ -258,6 +262,10 @@ def apply_transform(transform: Callable, data, map_items: bool = True):
         data (object): an object to be transformed.
         map_items: whether to apply transform to each item in `data`,
             if `data` is a list or tuple. Defaults to True.
+
+    Raises:
+        with_traceback: applying transform {transform}.
+
     """
     try:
         if isinstance(data, (list, tuple)) and map_items:
@@ -308,6 +316,10 @@ def create_rotate(spatial_dims: int, radians):
         radians (float or a sequence of floats): rotation radians
         when spatial_dims == 3, the `radians` sequence corresponds to
         rotation in the 1st, 2nd, and 3rd dim respectively.
+
+    Raises:
+        ValueError: create_rotate got spatial_dims={spatial_dims}, radians={radians}.
+
     """
     radians = ensure_tuple(radians)
     if spatial_dims == 2:
@@ -343,6 +355,10 @@ def create_shear(spatial_dims: int, coefs):
     Args:
         spatial_dims: spatial rank
         coefs (floats): shearing factors, defaults to 0.
+
+    Raises:
+        NotImplementedError: spatial_dims must be 2 or 3
+
     """
     coefs = list(ensure_tuple(coefs))
     if spatial_dims == 2:
@@ -360,7 +376,7 @@ def create_shear(spatial_dims: int, coefs):
                 [0.0, 0.0, 0.0, 1.0],
             ]
         )
-    raise NotImplementedError
+    raise NotImplementedError("spatial_dims must be 2 or 3")
 
 
 def create_scale(spatial_dims: int, scaling_factor):

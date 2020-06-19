@@ -148,6 +148,9 @@ class SupervisedEvaluator(Evaluator):
             engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.
             batchdata (TransformContext, ndarray): input data for this iteration.
 
+        Raises:
+            ValueError: must provide batch data for current iteration.
+
         """
         if batchdata is None:
             raise ValueError("must provide batch data for current iteration.")
