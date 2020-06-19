@@ -18,6 +18,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 from logging import Handler
 from typing import Optional
 import copy
+import torch
 import numpy as np
 
 from monai.config.type_definitions import KeysCollection
@@ -363,6 +364,47 @@ class CopyItemsd(MapTransform):
         return d
 
 
+class ConcatItemsd(MapTransform):
+    """
+    Concatenate specified items from data dictionary together on the first dim to construct a big array.
+    Expect all the items are numpy array or PyTorch Tensor.
+
+    """
+
+    def __init__(self, keys: KeysCollection, name: str, dim: int = 0):
+        """
+        Args:
+            keys: keys of the corresponding items to be concatenated together.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            name: the name coresponding to the key to store the concatenated data.
+            dim: on which dimension to concatenate the items, default is 0.
+
+        """
+        super().__init__(keys)
+        if len(self.keys) < 2:
+            raise ValueError("must provide must than 1 items to concat.")
+        self.name = name
+        self.dim = dim
+
+    def __call__(self, data):
+        d = dict(data)
+        output = list()
+        data_type = None
+        for key in self.keys:
+            if data_type is None:
+                data_type = type(d[key])
+            elif not isinstance(d[key], data_type):
+                raise TypeError("not all the items are with same data type.")
+            output.append(d[key])
+        if data_type == np.ndarray:
+            d[self.name] = np.concatenate(output, axis=self.dim)
+        elif data_type == torch.Tensor:
+            d[self.name] = torch.cat(output, dim=self.dim)
+        else:
+            raise TypeError(f"unsupported data type to concat: {data_type}.")
+        return d
+
+
 IdentityD = IdentityDict = Identityd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
@@ -375,3 +417,4 @@ SqueezeDimD = SqueezeDimDict = SqueezeDimd
 DataStatsD = DataStatsDict = DataStatsd
 SimulateDelayD = SimulateDelayDict = SimulateDelayd
 CopyItemsD = CopyItemsDict = CopyItemsd
+ConcatItemsD = ConcatItemsDict = ConcatItemsd
