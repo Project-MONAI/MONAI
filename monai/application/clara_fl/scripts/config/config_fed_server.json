@@ -3,7 +3,7 @@
         {
             "name": "clara_fl_server",
             "service": {
-                "target": "fedserver.monai:8002",
+                "target": "fedserver:8002",
                 "options": [
                     ["grpc.max_send_message_length",    1000000000],
                     ["grpc.max_receive_message_length", 1000000000]
@@ -12,8 +12,8 @@
             "ssl_private_key": "resources/certs/server.key",
             "ssl_cert": "resources/certs/server.crt",
             "ssl_root_cert": "resources/certs/rootCA.pem",
-            "min_num_clients": 5,
-            "max_num_clients": 6,
+            "min_num_clients": 2,
+            "max_num_clients": 5,
             "start_round": 0,
             "num_rounds": 10,
             "exclude_vars": "(Adam|beta.*power|global_step)",

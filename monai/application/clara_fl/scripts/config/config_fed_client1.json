@@ -3,7 +3,7 @@
         {
             "name": "clara_fl_server",
             "service": {
-                "target": "fedserver.monai:8002",
+                "target": "fedserver:8002",
                 "options": [
                     ["grpc.max_send_message_length",    1000000000],
                     ["grpc.max_receive_message_length", 1000000000]
@@ -12,7 +12,7 @@
         }
     ],
     "client": {
-        "local_epochs": 5,
+        "local_epochs": 1,
         "steps_aggregation": 0,
         "exclude_vars": "dummy",
         "privacy": {},

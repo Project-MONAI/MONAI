@@ -9,5 +9,6 @@ python3 -u -m monai.application.clara_fl.server.fed_aggregate \
     -m $MMAR_ROOT \
     -s $SERVER_FILE \
     --set \
+    MMAR_CKPT=$MMAR_ROOT/models/net_key_metric=0.4006.pth \
     MMAR_CKPT_DIR=$MMAR_ROOT/models \
     secure_train=true

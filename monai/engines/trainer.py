@@ -101,7 +101,6 @@ class SupervisedTrainer(Trainer):
             handlers=train_handlers,
             post_transform=post_transform,
         )
-
         self.network = network
         self.optimizer = optimizer
         self.loss_function = loss_function

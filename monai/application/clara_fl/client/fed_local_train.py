@@ -8,7 +8,7 @@ import time
 import sys
 
 
-from fmonai.application.clara_fl.trainers.client_trainer import ClientTrainer
+from monai.application.clara_fl.trainers.client_trainer import ClientTrainer
 from monai.application.clara_fl.argument_utils import parse_vars
 
 
