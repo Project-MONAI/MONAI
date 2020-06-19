@@ -14,11 +14,12 @@ import tempfile
 import unittest
 from subprocess import PIPE, Popen
 
-import nibabel as nib
 import numpy as np
 import torch
-
 from monai.data.synthetic import create_test_image_2d, create_test_image_3d
+from monai.utils import optional_import
+
+nib, _ = optional_import("nibabel")
 
 quick_test_var = "QUICKTEST"
 
