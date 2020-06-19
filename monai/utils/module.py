@@ -93,6 +93,7 @@ def optional_import(
     name: str = "",
     descriptor: str = OPTIONAL_IMPORT_MSG_FMT,
     version_args=None,
+    allow_namespace_pkg: bool = False,
 ) -> Tuple[Any, bool]:
     """
     Imports an optional module specified by `module` string.
@@ -106,6 +107,7 @@ def optional_import(
         name: a non-module attribute (such as method/class) to import from the imported module.
         descriptor: a format string for the final error message when using a not imported module.
         version_args: additional parameters to the version checker.
+        allow_namespace_pkg: whether importing a namespace package is allowed. Defaults to False.
 
     Returns:
         The imported module and a boolean flag indicating whether the import is successful.
@@ -144,6 +146,9 @@ def optional_import(
     try:
         pkg = __import__(module)  # top level module
         the_module = importlib.import_module(module)
+        if not allow_namespace_pkg:
+            is_namespace = getattr(the_module, "__file__", None) is None and hasattr(the_module, "__path__")
+            assert not is_namespace
         if name:  # user specified to load class/function/... from the module
             the_module = getattr(the_module, name)
     except Exception as import_exception:  # any exceptions during import
