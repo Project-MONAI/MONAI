@@ -111,7 +111,6 @@ class SupervisedTrainer(Trainer):
         """
         Callback function for the Supervised Training processing logic of 1 iteration in Ignite Engine.
         Return below items in a dictionary:
-            - BATCH: all the batch input data for current iteration.
             - IMAGE: image Tensor data for model input, already moved to device.
             - LABEL: label Tensor data corresponding to the image, already moved to device.
             - PRED: prediction result of model.
@@ -136,10 +135,4 @@ class SupervisedTrainer(Trainer):
         loss.backward()
         self.optimizer.step()
 
-        return {
-            Keys.BATCH: batchdata,
-            Keys.IMAGE: inputs,
-            Keys.LABEL: targets,
-            Keys.PRED: predictions,
-            Keys.LOSS: loss.item(),
-        }
+        return {Keys.IMAGE: inputs, Keys.LABEL: targets, Keys.PRED: predictions, Keys.LOSS: loss.item()}

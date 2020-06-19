@@ -15,7 +15,6 @@ import torch
 class CommonKeys:
     """
     A set of common keys for dictionary based supervised training process.
-    `BATCH` is the batch data for 1 iteration
     `IMAGE` is the input image data.
     `LABEL` is the training or evaluation label of segmentation or classification task.
     `PRED` is the prediction data of model output.
@@ -24,7 +23,6 @@ class CommonKeys:
 
     """
 
-    BATCH = "batch"
     IMAGE = "image"
     LABEL = "label"
     PRED = "pred"
