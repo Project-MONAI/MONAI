@@ -110,6 +110,11 @@ class SupervisedTrainer(Trainer):
     def _iteration(self, engine: Engine, batchdata):
         """
         Callback function for the Supervised Training processing logic of 1 iteration in Ignite Engine.
+        Return below items in a dictionary:
+            - IMAGE: image Tensor data for model input, already moved to device.
+            - LABEL: label Tensor data corresponding to the image, already moved to device.
+            - PRED: prediction result of model.
+            - LOSS: loss value computed by loss function.
 
         Args:
             engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.
@@ -130,4 +135,4 @@ class SupervisedTrainer(Trainer):
         loss.backward()
         self.optimizer.step()
 
-        return {Keys.PRED: predictions, Keys.LABEL: targets, Keys.LOSS: loss.item()}
+        return {Keys.IMAGE: inputs, Keys.LABEL: targets, Keys.PRED: predictions, Keys.LOSS: loss.item()}

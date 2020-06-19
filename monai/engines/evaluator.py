@@ -142,6 +142,10 @@ class SupervisedEvaluator(Evaluator):
     def _iteration(self, engine: Engine, batchdata):
         """
         callback function for the Supervised Evaluation processing logic of 1 iteration in Ignite Engine.
+        Return below items in a dictionary:
+            - IMAGE: image Tensor data for model input, already moved to device.
+            - LABEL: label Tensor data corresponding to the image, already moved to device.
+            - PRED: prediction result of model.
 
         Args:
             engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.
@@ -160,4 +164,4 @@ class SupervisedEvaluator(Evaluator):
         with torch.no_grad():
             predictions = self.inferer(inputs, self.network)
 
-        return {Keys.PRED: predictions, Keys.LABEL: targets}
+        return {Keys.IMAGE: inputs, Keys.LABEL: targets, Keys.PRED: predictions}
