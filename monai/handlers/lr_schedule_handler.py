@@ -9,11 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Callable
-
 import logging
-from ignite.engine import Events, Engine
-from monai.utils import ensure_tuple
+from typing import Callable, Optional
+
+from monai.utils import ensure_tuple, exact_version, optional_import
+
+Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
+Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 
 
 class LrScheduleHandler:
@@ -34,23 +36,25 @@ class LrScheduleHandler:
             lr_scheduler (torch.optim.lr_scheduler): typically, lr_scheduler should be PyTorch
                 lr_scheduler object. If customized version, must have `step` and `get_last_lr` methods.
             print_lr: whether to print out the latest learning rate with logging.
-            name (str): identifier of logging.logger to use, if None, defaulting to ``engine.logger``.
+            name: identifier of logging.logger to use, if None, defaulting to ``engine.logger``.
             epoch_level: execute lr_scheduler.step() after every epoch or every iteration.
                 `True` is epoch level, `False` is iteration level.
-            step_transform (Callable): a callable that is used to transform the information from `engine`
+            step_transform: a callable that is used to transform the information from `engine`
                 to expected input data of lr_scheduler.step() function if necessary.
 
         """
         self.lr_scheduler = lr_scheduler
         self.print_lr = print_lr
-        self.logger = None if name is None else logging.getLogger(name)
+        self.logger = logging.getLogger(name)
         self.epoch_level = epoch_level
         if not callable(step_transform):
             raise ValueError("argument `step_transform` must be a callable.")
         self.step_transform = step_transform
 
+        self._name = name
+
     def attach(self, engine: Engine):
-        if self.logger is None:
+        if self._name is None:
             self.logger = engine.logger
         if self.epoch_level:
             engine.add_event_handler(Events.EPOCH_COMPLETED, self)

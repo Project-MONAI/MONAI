@@ -12,12 +12,16 @@
 from typing import Callable, Optional
 
 import torch
-from ignite.metrics import Metric
-from ignite.engine import Engine
+
 from monai.inferers.inferer import SimpleInferer
-from .workflow import Workflow
-from .utils import default_prepare_batch
+from monai.utils import exact_version, optional_import
+
 from .utils import CommonKeys as Keys
+from .utils import default_prepare_batch
+from .workflow import Workflow
+
+Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
+Metric, _ = optional_import("ignite.metrics", "0.3.0", exact_version, "Metric")
 
 
 class Trainer(Workflow):
@@ -51,8 +55,8 @@ class SupervisedTrainer(Trainer):
         network (Network): to train with this network.
         optimizer (Optimizer): the optimizer associated to the network.
         loss_function (Loss): the loss function associated to the optimizer.
-        prepare_batch (Callable): function to parse image and label for current iteration.
-        iteration_update (Callable): the callable function for every iteration, expect to accept `engine`
+        prepare_batch: function to parse image and label for current iteration.
+        iteration_update: the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
         inferer (Inferer): inference method that execute model forward on input data, like: SlidingWindow, etc.
         amp: whether to enable auto-mixed-precision training, reserved.
@@ -106,6 +110,11 @@ class SupervisedTrainer(Trainer):
     def _iteration(self, engine: Engine, batchdata):
         """
         Callback function for the Supervised Training processing logic of 1 iteration in Ignite Engine.
+        Return below items in a dictionary:
+            - IMAGE: image Tensor data for model input, already moved to device.
+            - LABEL: label Tensor data corresponding to the image, already moved to device.
+            - PRED: prediction result of model.
+            - LOSS: loss value computed by loss function.
 
         Args:
             engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.
@@ -126,4 +135,4 @@ class SupervisedTrainer(Trainer):
         loss.backward()
         self.optimizer.step()
 
-        return {Keys.PRED: predictions, Keys.LABEL: targets, Keys.LOSS: loss.item()}
+        return {Keys.IMAGE: inputs, Keys.LABEL: targets, Keys.PRED: predictions, Keys.LOSS: loss.item()}

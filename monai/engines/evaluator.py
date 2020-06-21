@@ -9,15 +9,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Callable
+from typing import Callable, Optional
 
 import torch
 from monai.inferers.inferer import SimpleInferer
-from ignite.metrics import Metric
-from ignite.engine import Engine
-from .workflow import Workflow
-from .utils import default_prepare_batch
+from monai.utils import exact_version, optional_import
+
 from .utils import CommonKeys as Keys
+from .utils import default_prepare_batch
+from .workflow import Workflow
+
+Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
+Metric, _ = optional_import("ignite.metrics", "0.3.0", exact_version, "Metric")
 
 
 class Evaluator(Workflow):
@@ -27,8 +30,8 @@ class Evaluator(Workflow):
     Args:
         device (torch.device): an object representing the device on which to run.
         val_data_loader (torch.DataLoader): Ignite engine use data_loader to run, must be torch.DataLoader.
-        prepare_batch (Callable): function to parse image and label for current iteration.
-        iteration_update (Callable): the callable function for every iteration, expect to accept `engine`
+        prepare_batch: function to parse image and label for current iteration.
+        iteration_update: the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
         post_transform (Transform): execute additional transformation for the model output data.
             Typically, several Tensor based transforms composed by `Compose`.
@@ -94,8 +97,8 @@ class SupervisedEvaluator(Evaluator):
         device (torch.device): an object representing the device on which to run.
         val_data_loader (torch.DataLoader): Ignite engine use data_loader to run, must be torch.DataLoader.
         network (Network): use the network to run model forward.
-        prepare_batch (Callable): function to parse image and label for current iteration.
-        iteration_update (Callable): the callable function for every iteration, expect to accept `engine`
+        prepare_batch: function to parse image and label for current iteration.
+        iteration_update: the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
         inferer (Inferer): inference method that execute model forward on input data, like: SlidingWindow, etc.
         post_transform (Transform): execute additional transformation for the model output data.
@@ -139,6 +142,10 @@ class SupervisedEvaluator(Evaluator):
     def _iteration(self, engine: Engine, batchdata):
         """
         callback function for the Supervised Evaluation processing logic of 1 iteration in Ignite Engine.
+        Return below items in a dictionary:
+            - IMAGE: image Tensor data for model input, already moved to device.
+            - LABEL: label Tensor data corresponding to the image, already moved to device.
+            - PRED: prediction result of model.
 
         Args:
             engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.
@@ -157,4 +164,4 @@ class SupervisedEvaluator(Evaluator):
         with torch.no_grad():
             predictions = self.inferer(inputs, self.network)
 
-        return {Keys.PRED: predictions, Keys.LABEL: targets}
+        return {Keys.IMAGE: inputs, Keys.LABEL: targets, Keys.PRED: predictions}

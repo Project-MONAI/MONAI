@@ -43,8 +43,8 @@ class NiftiDataset(Dataset, Randomizable):
             seg_files (list of str): if in segmentation task, list of segmentation filenames
             labels (list or array): if in classification task, list of classification labels
             as_closest_canonical: if True, load the image as closest to canonical orientation
-            transform (Callable, optional): transform to apply to image arrays
-            seg_transform (Callable, optional): transform to apply to segmentation arrays
+            transform: transform to apply to image arrays
+            seg_transform: transform to apply to segmentation arrays
             image_only: if True return only the image volume, other return image volume and header dict
             dtype (np.dtype, optional): if not None convert the loaded image to this data type
         """

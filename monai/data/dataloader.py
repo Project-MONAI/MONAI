@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional
+from typing import Optional, Callable
 
 import torch
 from monai.data import list_data_collate, worker_init_fn
@@ -45,7 +45,7 @@ class DataLoader(torch.utils.data.DataLoader):
             will be smaller. (default: ``False``)
         timeout (numeric, optional): if positive, the timeout value for collecting a batch
             from workers. Should always be non-negative. (default: ``0``)
-        multiprocessing_context (callable, optional): specify a valid start method for multi-processing.
+        multiprocessing_context: specify a valid start method for multi-processing.
 
     """
 
@@ -60,7 +60,7 @@ class DataLoader(torch.utils.data.DataLoader):
         pin_memory=False,
         drop_last=False,
         timeout=0,
-        multiprocessing_context=None,
+        multiprocessing_context: Optional[Callable] = None,
     ):
         super().__init__(
             dataset=dataset,

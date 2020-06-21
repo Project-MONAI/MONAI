@@ -9,12 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 from typing import Optional
 
-import logging
 import torch
-from ignite.engine import Events, Engine
-from ignite.handlers import Checkpoint
+
+from monai.utils import exact_version, optional_import
+
+Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
+Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
+Checkpoint, _ = optional_import("ignite.handlers", "0.3.0", exact_version, "Checkpoint")
 
 
 class CheckpointLoader:
@@ -25,12 +29,12 @@ class CheckpointLoader:
     as PyTorch recommended and then use this loader to load the model.
 
     Args:
-        load_path (str): the file path of checkpoint, it should be a PyTorch `pth` file.
+        load_path: the file path of checkpoint, it should be a PyTorch `pth` file.
         load_dict (dict): target objects that load checkpoint to. examples::
 
             {'network': net, 'optimizer': optimizer, 'lr_scheduler': lr_scheduler}
 
-        name (str): identifier of logging.logger to use, if None, defaulting to ``engine.logger``.
+        name: identifier of logging.logger to use, if None, defaulting to ``engine.logger``.
 
     """
 
@@ -38,14 +42,16 @@ class CheckpointLoader:
         assert load_path is not None, "must provide clear path to load checkpoint."
         self.load_path = load_path
         assert load_dict is not None and len(load_dict) > 0, "must provide target objects to load."
-        self.logger = None if name is None else logging.getLogger(name)
+        self.logger = logging.getLogger(name)
         for k, v in load_dict.items():
             if hasattr(v, "module"):
                 load_dict[k] = v.module
         self.load_dict = load_dict
 
+        self._name = name
+
     def attach(self, engine: Engine):
-        if self.logger is None:
+        if self._name is None:
             self.logger = engine.logger
         return engine.add_event_handler(Events.STARTED, self)
 

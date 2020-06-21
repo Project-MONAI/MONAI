@@ -17,12 +17,13 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 from logging import Handler
 from typing import Optional
-
+import copy
+import torch
 import numpy as np
 
 from monai.config.type_definitions import KeysCollection
 from monai.transforms.compose import MapTransform
-from monai.utils.misc import ensure_tuple_rep, ensure_tuple
+from monai.utils.misc import ensure_tuple, ensure_tuple_rep
 from monai.transforms.utility.array import (
     AddChannel,
     AsChannelFirst,
@@ -34,7 +35,29 @@ from monai.transforms.utility.array import (
     SqueezeDim,
     DataStats,
     SimulateDelay,
+    Identity,
 )
+
+
+class Identityd(MapTransform):
+    """Dictionary-based wrapper of :py:class:`monai.transforms.Identity`.
+    """
+
+    def __init__(self, keys: KeysCollection):
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+
+        """
+        super().__init__(keys)
+        self.identity = Identity()
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.identity(d[key])
+        return d
 
 
 class AsChannelFirstd(MapTransform):
@@ -188,9 +211,9 @@ class ToNumpyd(MapTransform):
         return d
 
 
-class DeleteKeysd(MapTransform):
+class DeleteItemsd(MapTransform):
     """
-    Delete specified keys from data dictionary to release memory.
+    Delete specified items from data dictionary to release memory.
     It will remove the key-values and copy the others to construct a new dictionary.
     """
 
@@ -305,13 +328,93 @@ class SimulateDelayd(MapTransform):
         return d
 
 
+class CopyItemsd(MapTransform):
+    """
+    Copy specified items from data dictionary and save with different key names.
+    It can copy several items together and copy several times.
+
+    """
+
+    def __init__(self, keys: KeysCollection, times: int, names):
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            times: expected copy times, for example, if keys is "img", times is 3,
+                it will add 3 copies of "img" data to the dictionary.
+            names(str, list or tuple of str): the names coresponding to the newly copied data,
+                the length should match `len(keys) x times`. for example, if keys is ["img", "seg"]
+                and times is 2, names can be: ["img_1", "seg_1", "img_2", "seg_2"].
+        """
+        super().__init__(keys)
+        if times < 1:
+            raise ValueError("times must be greater than 0.")
+        self.times = times
+        names = ensure_tuple(names)
+        if len(names) != (len(self.keys) * times):
+            raise ValueError("length of names does not match `len(keys) x times`.")
+        self.names = names
+
+    def __call__(self, data):
+        d = dict(data)
+        for key, new_key in zip(self.keys * self.times, self.names):
+            if new_key in d:
+                raise KeyError(f"key {new_key} already exists in dictionary.")
+            d[new_key] = copy.deepcopy(d[key])
+        return d
+
+
+class ConcatItemsd(MapTransform):
+    """
+    Concatenate specified items from data dictionary together on the first dim to construct a big array.
+    Expect all the items are numpy array or PyTorch Tensor.
+
+    """
+
+    def __init__(self, keys: KeysCollection, name: str, dim: int = 0):
+        """
+        Args:
+            keys: keys of the corresponding items to be concatenated together.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            name: the name coresponding to the key to store the concatenated data.
+            dim: on which dimension to concatenate the items, default is 0.
+
+        """
+        super().__init__(keys)
+        if len(self.keys) < 2:
+            raise ValueError("must provide must than 1 items to concat.")
+        self.name = name
+        self.dim = dim
+
+    def __call__(self, data):
+        d = dict(data)
+        output = list()
+        data_type = None
+        for key in self.keys:
+            if data_type is None:
+                data_type = type(d[key])
+            elif not isinstance(d[key], data_type):
+                raise TypeError("not all the items are with same data type.")
+            output.append(d[key])
+        if data_type == np.ndarray:
+            d[self.name] = np.concatenate(output, axis=self.dim)
+        elif data_type == torch.Tensor:
+            d[self.name] = torch.cat(output, dim=self.dim)
+        else:
+            raise TypeError(f"unsupported data type to concat: {data_type}.")
+        return d
+
+
+IdentityD = IdentityDict = Identityd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
 AddChannelD = AddChannelDict = AddChanneld
 RepeatChannelD = RepeatChannelDict = RepeatChanneld
 CastToTypeD = CastToTypeDict = CastToTyped
 ToTensorD = ToTensorDict = ToTensord
-DeleteKeysD = DeleteKeysDict = DeleteKeysd
+DeleteItemsD = DeleteItemsDict = DeleteItemsd
 SqueezeDimD = SqueezeDimDict = SqueezeDimd
 DataStatsD = DataStatsDict = DataStatsd
 SimulateDelayD = SimulateDelayDict = SimulateDelayd
+CopyItemsD = CopyItemsDict = CopyItemsd
+ConcatItemsD = ConcatItemsDict = ConcatItemsd

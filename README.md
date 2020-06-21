@@ -10,7 +10,7 @@
 [![codecov](https://codecov.io/gh/Project-MONAI/MONAI/branch/master/graph/badge.svg)](https://codecov.io/gh/Project-MONAI/MONAI)
 [![PyPI version](https://badge.fury.io/py/monai.svg)](https://badge.fury.io/py/monai)
 
-MONAI is a [PyTorch](https://pytorch.org/)-based, [open-source](https://github.com/Project-MONAI/MONAI/blob/master/LICENSE) framework for deep learning in healthcare imaging, part of [PyTorch Ecosystem](https://pytorch.org/ecosystem/).  
+MONAI is a [PyTorch](https://pytorch.org/)-based, [open-source](https://github.com/Project-MONAI/MONAI/blob/master/LICENSE) framework for deep learning in healthcare imaging, part of [PyTorch Ecosystem](https://pytorch.org/ecosystem/).
 Its ambitions are:
 - developing a community of academic, industrial and clinical researchers collaborating on a common foundation;
 - creating state-of-the-art, end-to-end training workflows for healthcare imaging;
@@ -42,6 +42,8 @@ Alternatively, pre-built Docker image is available via [DockerHub](https://hub.d
   # with docker v19.03+
   docker run --gpus all --rm -ti --ipc=host projectmonai/monai:latest
   ```
+
+For more details, please refer to [the installation guide](https://monai.readthedocs.io/en/latest/installation.html).
 
 ## Getting Started
 

@@ -23,6 +23,18 @@ import torch
 from monai.transforms.compose import Transform
 
 
+class Identity(Transform):
+    """
+    Convert the input to an np.ndarray, if input data is np.ndarray or subclasses, return unchanged data.
+    As the output value is same as input, it can be used as a testing tool to verify the transform chain,
+    Compose or transform adaptor, etc.
+
+    """
+
+    def __call__(self, img):
+        return np.asanyarray(img)
+
+
 class AsChannelFirst(Transform):
     """
     Change the channel dimension of the image to the first dimension.
@@ -197,12 +209,12 @@ class DataStats(Transform):
     ):
         """
         Args:
-            prefix (string): will be printed in format: "{prefix} statistics".
+            prefix: will be printed in format: "{prefix} statistics".
             data_shape: whether to show the shape of input data.
             intensity_range: whether to show the intensity value range of input data.
             data_value: whether to show the raw value of input data.
                 a typical example is to print some properties of Nifti image: affine, pixdim, etc.
-            additional_info (Callable): user can define callable function to extract additional info from input data.
+            additional_info: user can define callable function to extract additional info from input data.
             logger_handler (logging.handler): add additional handler to output data: save to file, etc.
                 add existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html
         """

@@ -9,12 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Union, Callable
+from typing import Callable, Optional, Sequence, Union
 
 import torch
-from ignite.metrics import Metric
 
 from monai.metrics import compute_roc_auc
+from monai.utils import exact_version, optional_import
+
+Metric, _ = optional_import("ignite.metrics", "0.3.0", exact_version, "Metric")
 
 
 class ROCAUC(Metric):
@@ -36,7 +38,7 @@ class ROCAUC(Metric):
               indicator matrix as a label.
             - None: the scores for each class are returned.
 
-        output_transform (callable, optional): a callable that is used to transform the
+        output_transform: a callable that is used to transform the
             :class:`~ignite.engine.Engine` `process_function` output into the
             form expected by the metric. This can be useful if, for example, you have a multi-output model and
             you want to compute the metric with respect to one of the outputs.

@@ -39,7 +39,7 @@ class LoadNiftid(MapTransform):
         keys: KeysCollection,
         as_closest_canonical: bool = False,
         dtype: Optional[np.dtype] = np.float32,
-        meta_key_postfix: str = "meta",
+        meta_key_postfix: str = "meta_dict",
         overwriting: bool = False,
     ):
         """
@@ -48,9 +48,9 @@ class LoadNiftid(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             as_closest_canonical: if True, load the image as closest to canonical axis format.
             dtype (np.dtype, optional): if not None convert the loaded image to this data type.
-            meta_key_postfix (str): use `key_{postfix}` to to store meta data of the nifti image,
-                default is `meta`. The meta data is a dictionary object.
-                For example, load nifti file for `image`, store the metadata into `image_meta`.
+            meta_key_postfix: use `key_{postfix}` to to store meta data of the nifti image,
+                default is `meta_dict`. The meta data is a dictionary object.
+                For example, load nifti file for `image`, store the metadata into `image_meta_dict`.
             overwriting (bool): whether allow to overwrite existing meta data of same key.
                 default is False, which will raise exception if encountering existing key.
         """
@@ -84,7 +84,7 @@ class LoadPNGd(MapTransform):
         self,
         keys: KeysCollection,
         dtype: Optional[np.dtype] = np.float32,
-        meta_key_postfix: str = "meta",
+        meta_key_postfix: str = "meta_dict",
         overwriting: bool = False,
     ):
         """
@@ -92,9 +92,9 @@ class LoadPNGd(MapTransform):
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             dtype (np.dtype, optional): if not None convert the loaded image to this data type.
-            meta_key_postfix (str): use `key_{postfix}` to to store meta data of the nifti image,
-                default is `meta`. The meta data is a dictionary object.
-                For example, load nifti file for `image`, store the metadata into `image_meta`.
+            meta_key_postfix: use `key_{postfix}` to to store meta data of the nifti image,
+                default is `meta_dict`. The meta data is a dictionary object.
+                For example, load nifti file for `image`, store the metadata into `image_meta_dict`.
             overwriting: whether allow to overwrite existing meta data of same key.
                 default is False, which will raise exception if encountering existing key.
         """

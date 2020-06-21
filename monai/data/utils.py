@@ -14,31 +14,14 @@ from typing import Optional
 import os
 import warnings
 import math
-import nibabel as nib
 from itertools import starmap, product
 import torch
 from torch.utils.data._utils.collate import default_collate
 import numpy as np
-from monai.utils import ensure_tuple_size
+from monai.utils import ensure_tuple_size, optional_import
 from monai.networks.layers.simplelayers import GaussianFilter
 
-import enum
-
-
-class InterpolationCode(enum.IntEnum):
-    """
-    A convenience enumeration to make code uses more expressive
-    """
-
-    SPLINE0 = 0
-    NEARESTNEIGHBOR = 0
-    SPLINE1 = 1
-    LINEAR = 1
-    SPLINE2 = 2
-    CUBIC = 2
-    SPLINE3 = 3
-    SPLINE4 = 4
-    SPLINE5 = 5
+nib, _ = optional_import("nibabel")
 
 
 def get_random_patch(dims, patch_size, rand_state: Optional[np.random.RandomState] = None):
@@ -351,7 +334,7 @@ def compute_shape_offset(spatial_shape, in_affine, out_affine):
     corners = in_affine @ corners
     corners_out = np.linalg.inv(out_affine) @ corners
     corners_out = corners_out[:-1] / corners_out[-1]
-    out_shape = np.round(np.max(corners_out, 1) - np.min(corners_out, 1) + 1.0)
+    out_shape = np.round(corners_out.ptp(axis=1) + 1.0)
     if np.allclose(nib.io_orientation(in_affine), nib.io_orientation(out_affine)):
         # same orientation, get translate from the origin
         offset = in_affine @ ([0] * sr + [1])
@@ -407,10 +390,10 @@ def create_file_basename(postfix: str, input_file_name: str, folder_path: str, d
     filename (extension is added by lib level writer before writing the file)
 
     Args:
-        postfix (str): output name's postfix
-        input_file_name (str): path to the input image file
-        folder_path (str): path for the output file
-        data_root_dir (str): if not empty, it specifies the beginning parts of the input file's
+        postfix: output name's postfix
+        input_file_name: path to the input image file
+        folder_path: path for the output file
+        data_root_dir: if not empty, it specifies the beginning parts of the input file's
             absolute path. This is used to compute `input_file_rel_path`, the relative path to the file from
             `data_root_dir` to preserve folder structure when saving in case there are files in different
             folders with the same file names.
@@ -438,12 +421,12 @@ def create_file_basename(postfix: str, input_file_name: str, folder_path: str, d
     return os.path.join(subfolder_path, filename + "_" + postfix)
 
 
-def compute_importance_map(patch_size, mode="constant", sigma_scale: float = 0.125, device=None):
+def compute_importance_map(patch_size, mode: str = "constant", sigma_scale: float = 0.125, device=None):
     """Get importance map for different weight modes.
 
     Args:
         patch_size (tuple): Size of the required importance map. This should be either H, W [,D].
-        mode (str): Importance map type. Options are 'constant' (Each weight has value 1.0)
+        mode: Importance map type. Options are 'constant' (Each weight has value 1.0)
             or 'gaussian' (Importance becomes lower away from center).
         sigma_scale: Sigma_scale to calculate sigma for each dimension
             (sigma = sigma_scale * dim_size). Used for gaussian mode only.
@@ -452,7 +435,6 @@ def compute_importance_map(patch_size, mode="constant", sigma_scale: float = 0.1
     Returns:
         Tensor of size patch_size.
     """
-    importance_map = None
     if mode == "constant":
         importance_map = torch.ones(patch_size, device=device).float()
     elif mode == "gaussian":

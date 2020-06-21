@@ -9,14 +9,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from abc import ABC, abstractmethod
+from typing import Callable, Optional
+
 import torch
-from ignite.engine import Engine, State, Events
-from .utils import default_prepare_batch
 from monai.transforms import apply_transform
+from monai.utils import exact_version, optional_import
+
+from .utils import default_prepare_batch
+
+Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
+State, _ = optional_import("ignite.engine", "0.3.0", exact_version, "State")
+Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
 
 
-class Workflow(ABC, Engine):
+class Workflow(Engine):
     """
     Workflow defines the core work process inheriting from Ignite engine.
     All trainer, validator and evaluator share this same workflow as base class,
@@ -31,8 +37,8 @@ class Workflow(ABC, Engine):
         max_epochs: the total epoch number for engine to run, validator and evaluator have only 1 epoch.
         amp: whether to enable auto-mixed-precision training, reserved.
         data_loader (torch.DataLoader): Ignite engine use data_loader to run, must be torch.DataLoader.
-        prepare_batch (Callable): function to parse image and label for every iteration.
-        iteration_update (Callable): the callable function for every iteration, expect to accept `engine`
+        prepare_batch: function to parse image and label for every iteration.
+        iteration_update: the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
         post_transform (Transform): execute additional transformation for the model output data.
             Typically, several Tensor based transforms composed by `Compose`.
@@ -51,8 +57,8 @@ class Workflow(ABC, Engine):
         max_epochs: int,
         amp: bool,
         data_loader,
-        prepare_batch=default_prepare_batch,
-        iteration_update=None,
+        prepare_batch: Callable = default_prepare_batch,
+        iteration_update: Optional[Callable] = None,
         post_transform=None,
         key_metric=None,
         additional_metrics=None,
@@ -97,7 +103,6 @@ class Workflow(ABC, Engine):
             def run_post_transform(engine):
                 engine.state.output = apply_transform(post_transform, engine.state.output)
 
-        metrics = None
         if key_metric is not None:
 
             if not isinstance(key_metric, dict):
@@ -131,7 +136,6 @@ class Workflow(ABC, Engine):
         """
         super().run(data=self.data_loader, epoch_length=len(self.data_loader))
 
-    @abstractmethod
     def _iteration(self, engine: Engine, batchdata):
         """
         Abstract callback function for the processing logic of 1 iteration in Ignite Engine.

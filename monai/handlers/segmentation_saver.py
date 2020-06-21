@@ -13,9 +13,12 @@ import logging
 from typing import Callable, Optional, Union
 
 import numpy as np
-from ignite.engine import Engine, Events
 
 from monai.data import NiftiSaver, PNGSaver
+from monai.utils import exact_version, optional_import
+
+Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
+Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 
 
 class SegmentationSaver:
@@ -31,7 +34,7 @@ class SegmentationSaver:
         resample: bool = True,
         interp_order: str = "nearest",
         mode: str = "border",
-        scale: bool = False,
+        scale=None,
         dtype: Optional[np.dtype] = None,
         batch_transform: Callable = lambda x: x,
         output_transform: Callable = lambda x: x,
@@ -39,31 +42,32 @@ class SegmentationSaver:
     ):
         """
         Args:
-            output_dir (str): output image directory.
-            output_postfix (str): a string appended to all output file names.
-            output_ext (str): output file extension name.
-            resample (bool): whether to resample before saving the data array.
-            interp_order (str):
+            output_dir: output image directory.
+            output_postfix: a string appended to all output file names.
+            output_ext: output file extension name.
+            resample: whether to resample before saving the data array.
+            interp_order:
                 The interpolation mode. Defaults to "nearest". This option is used when `resample = True`.
                 When saving NIfTI files, the available options are "nearest", "bilinear"
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample.
                 When saving PNG files, the available options are "nearest", "bilinear", "bicubic", "area".
                 See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate.
-            mode (str): The mode parameter determines how the input array is extended beyond its boundaries.
+            mode: The mode parameter determines how the input array is extended beyond its boundaries.
                 This option is used when `resample = True`.
                 When saving NIfTI files, the options are "zeros", "border", "reflection". Default is "border".
                 When saving PNG files, the options is ignored.
-            scale (bool): whether to scale data with 255 and convert to uint8 for data in range [0, 1].
+            scale (255, 65535): postprocess data by clipping to [0, 1] and scaling
+                [0, 255] (uint8) or [0, 65535] (uint16). Default is None to disable scaling.
                 It's used for PNG format only.
             dtype (np.dtype, optional): convert the image data to save to this data type.
                 If None, keep the original type of data. It's used for Nifti format only.
-            batch_transform (Callable): a callable that is used to transform the
+            batch_transform: a callable that is used to transform the
                 ignite.engine.batch into expected format to extract the meta_data dictionary.
-            output_transform (Callable): a callable that is used to transform the
+            output_transform: a callable that is used to transform the
                 ignite.engine.output into the form expected image data.
                 The first dimension of this transform's output will be treated as the
                 batch dimension. Each item in the batch will be saved individually.
-            name (str): identifier of logging.logger to use, defaulting to `engine.logger`.
+            name: identifier of logging.logger to use, defaulting to `engine.logger`.
 
         """
         self.saver: Union[NiftiSaver, PNGSaver]
@@ -90,9 +94,10 @@ class SegmentationSaver:
         self.output_transform = output_transform
 
         self.logger = None if name is None else logging.getLogger(name)
+        self._name = name
 
     def attach(self, engine: Engine):
-        if self.logger is None:
+        if self._name is None:
             self.logger = engine.logger
         if not engine.has_event_handler(self, Events.ITERATION_COMPLETED):
             engine.add_event_handler(Events.ITERATION_COMPLETED, self)

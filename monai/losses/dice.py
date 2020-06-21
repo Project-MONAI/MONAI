@@ -64,7 +64,7 @@ class DiceLoss(_Loss):
             raise ValueError(f"reduction={reduction} is invalid. Valid options are: none, mean or sum.")
 
         if sigmoid and softmax:
-            raise ValueError("do_sigmoid=True and do_softmax=True are not compatible.")
+            raise ValueError("sigmoid=True and softmax=True are not compatible.")
 
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
@@ -146,8 +146,8 @@ class MaskedDiceLoss(DiceLoss):
         Args:
             input (tensor): the shape should be BNH[WD].
             target (tensor): the shape should be BNH[WD].
-            mask (tensor): (optional) the shape should B1H[WD] or 11H[WD]
             smooth: a small constant to avoid nan.
+            mask (tensor): (optional) the shape should B1H[WD] or 11H[WD].
         """
         if mask is not None:
             # checking if mask is of proper shape

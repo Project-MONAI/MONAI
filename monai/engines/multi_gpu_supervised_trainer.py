@@ -12,11 +12,17 @@
 from typing import Callable
 
 import torch
-from ignite.engine import create_supervised_trainer, create_supervised_evaluator, _prepare_batch
+
+from monai.utils import exact_version, optional_import
+
 from .utils import get_devices_spec
 
+create_supervised_trainer, _ = optional_import("ignite.engine", "0.3.0", exact_version, "create_supervised_trainer")
+create_supervised_evaluator, _ = optional_import("ignite.engine", "0.3.0", exact_version, "create_supervised_evaluator")
+_prepare_batch, _ = optional_import("ignite.engine", "0.3.0", exact_version, "_prepare_batch")
 
-def _default_transform(x, y, y_pred, loss):
+
+def _default_transform(_x, _y, _y_pred, loss):
     return loss.item()
 
 
@@ -46,9 +52,9 @@ def create_multigpu_supervised_trainer(
             Applies to both model and batches. None is all devices used, empty list is CPU only.
         non_blocking: if True and this copy is between CPU and GPU, the copy may occur asynchronously
             with respect to the host. For other cases, this argument has no effect.
-        prepare_batch (callable, optional): function that receives `batch`, `device`, `non_blocking` and outputs
+        prepare_batch: function that receives `batch`, `device`, `non_blocking` and outputs
             tuple of tensors `(batch_x, batch_y)`.
-        output_transform (callable, optional): function that receives 'x', 'y', 'y_pred', 'loss' and returns value
+        output_transform: function that receives 'x', 'y', 'y_pred', 'loss' and returns value
             to be assigned to engine's state.output after each iteration. Default is returning `loss.item()`.
 
     Returns:
@@ -87,9 +93,9 @@ def create_multigpu_supervised_evaluator(
             Applies to both model and batches. None is all devices used, empty list is CPU only.
         non_blocking: if True and this copy is between CPU and GPU, the copy may occur asynchronously
             with respect to the host. For other cases, this argument has no effect.
-        prepare_batch (callable, optional): function that receives `batch`, `device`, `non_blocking` and outputs
+        prepare_batch: function that receives `batch`, `device`, `non_blocking` and outputs
             tuple of tensors `(batch_x, batch_y)`.
-        output_transform (callable, optional): function that receives 'x', 'y', 'y_pred' and returns value
+        output_transform: function that receives 'x', 'y', 'y_pred' and returns value
             to be assigned to engine's state.output after each iteration. Default is returning `(y_pred, y,)` which fits
             output expected by metrics. If you change it you should use `output_transform` in metrics.
 

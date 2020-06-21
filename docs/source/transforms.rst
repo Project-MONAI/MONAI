@@ -61,6 +61,12 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
+`Identity`
+~~~~~~~~~~
+.. autoclass:: Identity
+    :members:
+    :special-members: __call__
+
 `AsChannelFirst`
 ~~~~~~~~~~~~~~~~
 .. autoclass:: AsChannelFirst
@@ -365,6 +371,12 @@ Dictionary-based Transforms
     :members:
     :special-members: __call__
 
+`Identityd`
+~~~~~~~~~~~
+.. autoclass:: Identityd
+    :members:
+    :special-members: __call__
+
 `AsChannelFirstd`
 ~~~~~~~~~~~~~~~~~
 .. autoclass:: AsChannelFirstd
@@ -575,9 +587,9 @@ Dictionary-based Transforms
     :members:
     :special-members: __call__
 
-`DeleteKeysd`
-~~~~~~~~~~~~~
-.. autoclass:: DeleteKeysd
+`DeleteItemsd`
+~~~~~~~~~~~~~~
+.. autoclass:: DeleteItemsd
     :members:
     :special-members: __call__
 
@@ -620,6 +632,18 @@ Dictionary-based Transforms
 `KeepLargestConnectedComponentd`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: KeepLargestConnectedComponentd
+    :members:
+    :special-members: __call__
+
+`CopyItemsd`
+~~~~~~~~~~~~
+.. autoclass:: CopyItemsd
+    :members:
+    :special-members: __call__
+
+`ConcatItemsd`
+~~~~~~~~~~~~~~
+.. autoclass:: ConcatItemsd
     :members:
     :special-members: __call__
 

@@ -9,17 +9,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import nibabel as nib
 import numpy as np
 import torch
 
 from monai.data.utils import compute_shape_offset, to_affine_nd
 from monai.networks.layers import AffineTransform
+from monai.utils import optional_import
+
+nib, _ = optional_import("nibabel")
 
 
 def write_nifti(
     data,
-    file_name,
+    file_name: str,
     affine=None,
     target_affine=None,
     resample: bool = True,
@@ -59,7 +61,7 @@ def write_nifti(
 
     Args:
         data (numpy.ndarray): input data to write to file.
-        file_name (string): expected file name that saved on disk.
+        file_name: expected file name that saved on disk.
         affine (numpy.ndarray): the current affine of `data`. Defaults to `np.eye(4)`
         target_affine (numpy.ndarray, optional): before saving
             the (`data`, `affine`) as a Nifti1Image,
