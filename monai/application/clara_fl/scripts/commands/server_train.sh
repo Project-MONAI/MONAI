@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 export CUDA_VISIBLE_DEVICES=0
-export PYTHONPATH="/workspace/data/medical/Clara/federated-learning/src"
+export PYTHONPATH="/workspace/data/medical/Clara/federated-learning/src":"/workspace/data/medical/Clara/clara-common/dlmed/src"
 export MMAR_ROOT="/workspace/data/medical/MONAI/monai/application/clara_fl/scripts"
 
 SERVER_FILE=config/config_fed_server.json

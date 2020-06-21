@@ -52,12 +52,12 @@ class SupervisedFitter:
         data_list = "/workspace/data/medical/spleen/dataset_0.json"
         data_root = "/workspace/data/medical/spleen"
         train_datalist = load_decathalon_datalist(data_list, True, "training", data_root)
-        train_ds = CacheDataset(train_datalist, train_transforms, 32, 1.0, 4)
+        train_ds = CacheDataset(train_datalist, train_transforms, 32, 0.0, 4)
         # use batch_size=2 to load images and use RandCropByPosNegLabeld to generate 2 x 4 images for network training
         self.train_loader = DataLoader(train_ds, batch_size=2, shuffle=True, num_workers=4)
 
         val_datalist = load_decathalon_datalist(data_list, True, "validation", data_root)
-        val_ds = CacheDataset(val_datalist, val_transforms, 9, 1.0, 4)
+        val_ds = CacheDataset(val_datalist, val_transforms, 9, 0.0, 4)
         self.val_loader = DataLoader(val_ds, batch_size=1, shuffle=False, num_workers=4)
 
     def get_train_context(self):
