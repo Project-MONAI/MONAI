@@ -20,7 +20,7 @@ ENV PYTHONPATH=$PYTHONPATH:/opt/monai
 ENV PATH=/opt/tools:$PATH
 
 RUN python -m pip install --no-cache-dir -U pip wheel \
-  && python -m pip install --no-cache-dir -r requirements.txt
+  && python -m pip install --no-cache-dir -r requirements-dev.txt
 
 # NGC Client
 WORKDIR /opt/tools
