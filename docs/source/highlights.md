@@ -104,6 +104,11 @@ Users can also enable/disable deterministic at the beginning of training program
 monai.utils.set_determinism(seed=0, additional_settings=None)
 ```
 
+### 6. Multiple transform chains
+In order to execute different transforms on the same data and concat the results or give results to model directly, MONAI provides `CopyItems` transform to make copies of specified items in the data dictionary and `ConcatItems` transform to concat specified items on expected dimension, and also provides `DeleteItems` transform to delete unnecessary items to save memory.  
+A typical usage is to scale different intensity range on the same image and concat the results together as a 3 channels data.
+![image](../images/multi_transform_chains.png)
+
 ## Datasets
 ### 1. Cache IO and transforms data to accelerate training
 Users often need to train the model with many (potentially thousands of) epochs over the data to achieve the desired model quality. A native PyTorch
