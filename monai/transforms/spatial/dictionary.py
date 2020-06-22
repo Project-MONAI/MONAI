@@ -157,7 +157,7 @@ class Orientationd(MapTransform):
                 (Left, Right), (Posterior, Anterior), (Inferior, Superior).
                 default orientation labels options are: 'L' and 'R' for the first dimension,
                 'P' and 'A' for the second, 'I' and 'S' for the third.
-            as_closest_canonical (boo): if True, load the image as closest to canonical axis format.
+            as_closest_canonical: if True, load the image as closest to canonical axis format.
             labels : optional, None or sequence of (2,) sequences
                 (2,) sequences are labels for (beginning, end) of output axis.
                 Defaults to ``(('L', 'R'), ('P', 'A'), ('I', 'S'))``.

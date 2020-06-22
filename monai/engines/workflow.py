@@ -142,7 +142,7 @@ class Workflow(Engine):
         Need subclass to implement different logics, like SupervisedTrainer/Evaluator, GANTrainer, etc.
 
         Args:
-            engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
             batchdata (TransformContext, ndarray): input data for this iteration.
 
         Raises:

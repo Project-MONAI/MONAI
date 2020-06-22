@@ -328,7 +328,7 @@ def create_rotate(spatial_dims: int, radians):
     create a 2D or 3D rotation matrix
 
     Args:
-        spatial_dims (2|3): spatial rank
+        spatial_dims: {``2``, ``3``} spatial rank
         radians (float or a sequence of floats): rotation radians
             when spatial_dims == 3, the `radians` sequence corresponds to
             rotation in the 1st, 2nd, and 3rd dim respectively.

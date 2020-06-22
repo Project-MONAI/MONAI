@@ -117,7 +117,7 @@ class SupervisedTrainer(Trainer):
             - LOSS: loss value computed by loss function.
 
         Args:
-            engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
             batchdata (dict or array of tensor): input data for this iteration.
 
         Raises:
