@@ -47,8 +47,6 @@ pipelines.
 ### 2. Medical specific transforms
 MONAI aims at providing a rich set of popular medical image specific
 transformations. These currently include, for example:
-
-
 - `LoadNifti`:  Load Nifti format file from provided path
 - `Spacing`:  Resample input image into the specified `pixdim`
 - `Orientation`: Change the image's orientation into the specified `axcodes`
@@ -108,6 +106,20 @@ monai.utils.set_determinism(seed=0, additional_settings=None)
 In order to execute different transforms on the same data and concat the results or give results to model directly, MONAI provides `CopyItems` transform to make copies of specified items in the data dictionary and `ConcatItems` transform to concat specified items on expected dimension, and also provides `DeleteItems` transform to delete unnecessary items to save memory.  
 A typical usage is to scale different intensity range on the same image and concat the results together as a 3 channels data.
 ![image](../images/multi_transform_chains.png)
+
+### 7. Debug transforms with DataStats
+As we usually compose all the transforms in a chain, it's not easy to track the output of specific transform. To help debugging errors in transforms, MONAI provides an utility transform `DataStats` to print information about its input data, like: `data shape`, `intensity range`, `data value` and some `additional info`.  
+It's an independent transform and can be integrated into expected place in the transform chain.
+
+### 8. Post transforms for model output
+MONAI provides transforms not only for pre-processing but also for post-processing, which are used for many following tasks after model output.  
+Currently, these post transforms are available:
+- Add activition layer(Sigmoid, Softmax, etc.).
+- Convert to discrete values(Argmax, One-Hot, Threshold value, etc).
+- Split 1 multi-channel data into different several single channel data.
+- Keep only the largest connected component(remove noise in model output).
+
+After the post transforms, it's easier to compute metrics, save model output into files or visualize data in the TensorBoard.
 
 ## Datasets
 ### 1. Cache IO and transforms data to accelerate training
