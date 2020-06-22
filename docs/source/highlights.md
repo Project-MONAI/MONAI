@@ -1,13 +1,13 @@
 # Modules in v0.2.0
 
 MONAI aims at supporting deep learning in medical image analysis at multiple granularities.
-This figure shows a typical end-to-end workflow example of medical deep learning:
+This figure shows a typical example of the end-to-end workflow in medical deep learning area:
 ![image](../images/end_to_end.png)
 
 ## MONAI architecture
 The design principle of MONAI is to provide flexible and light APIs for different users.
 1. All the core components are independent modules, which can be easily integrated into any existing PyTorch programs to help researchers on specific functions.
-2. On the other hand, users can leverage the workflows in MONAI to quickly set up a robust training or evaluation program.
+2. On the other hand, users can leverage the workflows in MONAI to quickly set up a robust training or evaluation program for experiments.
 3. MONAI provides rich examples and notebooks to demonstrate core features.
 4. Researchers also contributed many implementations corresponding to state-of-the-art papers, including latest research challenges like: COVID-19 analysis and Model Parallel, Federated Learning, etc.
 
@@ -16,6 +16,7 @@ The overall architecture and modules are showed in below figure:
 The rest of this page provides more details for each module.
 
 * [Data I/O, processing and augmentation](#medical-image-data-io-processing-and-augmentation)
+* [Datasets](#datasets)
 * [Loss functions](#losses)
 * [Network architectures](#network-architectures)
 * [Evaluation](#evaluation)
@@ -39,8 +40,7 @@ pipelines.
    transformations for both spatially 2D and 3D and retains the flexible
    transformation "compose" feature.
 2.  As medical image preprocessing often requires additional fine-grained
-    system parameters, MONAI provides transforms for input data encapsulated in
-    python dictionaries. Users can specify the keys corresponding to
+    system parameters, MONAI provides transforms for input data encapsulated in python dictionaries. Users can specify the keys corresponding to
     the expected data fields and system parameters to compose complex
     transformations.
 
@@ -60,9 +60,7 @@ transformations. These currently include, for example:
 
 ### 3. Fused spatial transforms and GPU acceleration
 As medical image volumes are usually large (in multi-dimensional arrays),
-pre-processing performance obviously affects the overall pipeline speed. MONAI
-provides affine transforms to execute fused spatial operations, supports GPU
-acceleration via native PyTorch to achieve high performance.
+pre-processing performance obviously affects the overall pipeline speed. MONAI provides affine transforms to execute fused spatial operations, supports GPU acceleration via native PyTorch to achieve high performance.
 
 For example:
 ```py
@@ -77,6 +75,7 @@ affine = Affine(
 # convert the image using bilinear interpolation
 new_img = affine(image, spatial_size=(300, 400), mode='bilinear')
 ```
+And all the spatial transforms(Spacing, Zoom, Rotate, Resize, etc.) are designed based on PyTorch native interfaces (instead of scipy, scikit-image, etc.).
 
 ### 4. Randomly crop out batch images based on positive/negative ratio
 Medical image data volume may be too large to fit into GPU memory. A
@@ -87,8 +86,7 @@ ratio sampling which may help stabilize the patch-based training process.
 
 ### 5. Deterministic training for reproducibility
 Deterministic training support is necessary and important for deep learning
-research, especially in the medical field. Users can easily set the random seed
-to all the transforms in MONAI locally and will not affect other
+research, especially in the medical field. Users can easily set the random seed to all the random transforms in MONAI locally and will not affect other
 non-deterministic modules in the user's program.
 For example:
 ```py
@@ -101,27 +99,22 @@ train_transforms = monai.transforms.Compose([
 # set determinism for reproducibility
 train_transforms.set_random_state(seed=0)
 ```
-Users can also enable/disable deterministic training directly:
+Users can also enable/disable deterministic at the beginning of training program:
 ```py
 monai.utils.set_determinism(seed=0, additional_settings=None)
 ```
 
-### 6. Cache IO and transforms data to accelerate training
-Users often need to train the model with many (potentially thousands of) epochs
-over the data to achieve the desired model quality. A native PyTorch
+## Datasets
+### 1. Cache IO and transforms data to accelerate training
+Users often need to train the model with many (potentially thousands of) epochs over the data to achieve the desired model quality. A native PyTorch
 implementation may repeatedly load data and run the same preprocessing steps
 for every epoch during training, which can be time-consuming and unnecessary,
-especially when the medical image volumes are large.
-MONAI provides a caching mechanism to accelerate these transformation steps
-during training by storing the intermediate outcomes before the first
-randomized transform in the transform chain. Enabling this feature could
-potentially give 10x training speedups.
+especially when the medical image volumes are large.  
+MONAI provides a mutli-threads caching mechanism to accelerate these transformation steps during training by storing the intermediate outcomes before the first randomized transform in the transform chain. Enabling this feature could potentially give 10x training speedups.
 ![image](../images/cache_dataset.png)
 
-A PersistentDataset is similar to the CacheIO, where the intermediate cache
-values are persisted to disk storage for rapid retrieval between experimental
-runs (as is the case when tuning hyper parameters), or when the entire data set
-size exceeds available memory.
+### 2. Cache intermediate outcomes into persistent storage
+The PersistentDataset is similar to the CacheDataset, where the intermediate cache values are persisted to disk storage for rapid retrieval between experimental runs (as is the case when tuning hyper parameters), or when the entire data set size exceeds available memory.
 
 ## Losses
 There are domain-specific loss functions in the medical imaging research which
