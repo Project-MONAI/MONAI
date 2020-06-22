@@ -15,14 +15,16 @@ The overall architecture and modules are showed in below figure:
 ![image](../images/arch_modules_v0.2.png)
 The rest of this page provides more details for each module.
 
-* [Data I/O, preprocessing, and augmentation](#medical-image-data-io-preprocessing-and-augmentation)
+* [Data I/O, processing and augmentation](#medical-image-data-io-processing-and-augmentation)
 * [Loss functions](#losses)
 * [Network architectures](#network-architectures)
 * [Evaluation](#evaluation)
 * [Visualization](#visualization)
 * [Result writing](#result-writing)
+* [Workflows](#workflows)
+* [Research](#research)
 
-## Medical image data I/O, preprocessing, and augmentation
+## Medical image data I/O, processing and augmentation
 Medical images require highly specialized methods for I/O, preprocessing, and
 augmentation. Medical images are often in specialized formats with rich
 meta-information, and the data volumes are often high-dimensional. These
@@ -178,3 +180,9 @@ Currently MONAI supports writing the model outputs as NIfTI files for
 segmentation tasks, and as CSV files for classification tasks. A rich set of
 formats will be supported, along with relevant statistics and evaluation
 metrics automatically computed from the outputs.
+
+## Workflows
+(placeholder)
+
+## Research
+(placeholder)

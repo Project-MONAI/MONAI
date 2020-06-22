@@ -51,6 +51,8 @@ Tutorials & examples are located at [monai/examples](https://github.com/Project-
 
 Technical documentation is available via [Read the Docs](https://monai.readthedocs.io/en/latest/).
 
+Detailed introduction of highlight technical features is [Highlights](https://monai.readthedocs.io/en/latest/highlights.html).
+
 ## Contributing
 For guidance on making a contribution to MONAI, see the [contributing guidelines](https://github.com/Project-MONAI/MONAI/blob/master/CONTRIBUTING.md).
 
