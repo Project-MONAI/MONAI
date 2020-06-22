@@ -61,13 +61,13 @@ class DivisiblePadd(MapTransform):
     Dictionary-based wrapper of :py:class: `monai.transforms.DivisiblePad`.
     """
 
-    def __init__(self, keys: KeysCollection, k, mode: str = "constant"):
+    def __init__(self, keys: KeysCollection, k, mode="constant"):
         """
         Args:
             k (int or sequence of int): the target k for each spatial dimension.
                 if `k` is negative or 0, the original size is preserved.
                 if `k` is an int, the same `k` be applied to all the input spatial dimensions.
-            mode: padding mode for SpatialPad.
+            mode (str or sequence of str): padding mode for SpatialPad.
 
         See also :py:class:`monai.transforms.SpatialPad`
         """
