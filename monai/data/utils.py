@@ -303,7 +303,7 @@ def zoom_affine(affine, scale, diagonal: bool = True):
         diagonal: whether to return a diagonal scaling matrix.
             Defaults to True.
 
-    returns:
+    Returns:
         the updated `n x n` affine.
 
     Raises:
