@@ -15,24 +15,21 @@ import os
 
 import numpy as np
 import torch
-from monai.transforms import SpatialPad, AddChannelDict, Compose
+from monai.transforms import AddChannelDict, Compose
 from monai.losses import DiceLoss
 from monai.metrics import compute_meandice
 from monai.data import Dataset
 from torchgpipe import GPipe
 from torchgpipe.balance import balance_by_size
 
-# from utils import pad, random_crop_pos_neg_multi_channel_3d
-# from utils import focal, caldice
-# from utils import tversky_loss_wmask_stable as tversky_loss_wmask
 from unet_pipe import UNet, flatten_sequential
 
 N_CLASSES = 10
-TEST_PATH = "./data/HNPETCTclean/"  # path for processed data
-PET_PATH = "./data/HNCetuximabclean/"
+VAL_PATH = "./data/HNPETCTclean/"
+TRAIN_PATH = "./data/HNCetuximabclean/"
 
 torch.backends.cudnn.enabled = True
-from data_utils import get_filenames, load_data_mask
+from data_utils import get_filenames, load_data_and_mask
 
 
 class ImageLabelDataset:
@@ -48,7 +45,7 @@ class ImageLabelDataset:
     def __getitem__(self, index):
         data = os.path.join(self.path, self.data[index])
         train_data, train_masks_data = get_filenames(data)
-        data = load_data_mask(train_data, train_masks_data)  # read into a data dict
+        data = load_data_and_mask(train_data, train_masks_data)  # read into a data dict
         # loading image
         data["image"] = data["image"].astype(np.float32)
         # loading labels
@@ -83,22 +80,23 @@ def train(n_feat, crop_size, bs, ep, pretrain=None):
     print(f"input image crop_size: {crop_size}")
 
     train_transform = Compose([AddChannelDict(keys="image")])
-    traindataset = Dataset(ImageLabelDataset(path=PET_PATH, n_class=N_CLASSES), transform=train_transform)
-    traindataloader = torch.utils.data.DataLoader(traindataset, num_workers=6, batch_size=bs, shuffle=True)
-    # testdataset = Dataset(ImageLabelDataset(TEST_PATH, n_class=N_CLASSES))
-    # testdataloader = torch.utils.data.DataLoader(testdataset, num_workers=6, batch_size=1)
-    # print(f"training images: {len(traindataloader)}, validation images: {len(testdataloader)}")
+    train_dataset = Dataset(ImageLabelDataset(path=TRAIN_PATH, n_class=N_CLASSES), transform=train_transform)
+    train_dataloader = torch.utils.data.DataLoader(train_dataset, num_workers=6, batch_size=bs, shuffle=True)
+
+    val_dataset = Dataset(ImageLabelDataset(VAL_PATH, n_class=N_CLASSES))
+    val_dataloader = torch.utils.data.DataLoader(val_dataset, num_workers=6, batch_size=1)
+    print(f"training images: {len(train_dataloader)}, validation images: {len(val_dataloader)}")
 
     optimizer = torch.optim.RMSprop(model.parameters(), lr=5e-4)
-    data_dict = traindataset[0]
+    data_dict = train_dataset[0]
     x = data_dict["image"]
     x = torch.from_numpy(np.expand_dims(x, 0)).float()  # adds a batch dim
     x = torch.autograd.Variable(x.cuda())
     partitions = torch.cuda.device_count()
-    print(partitions, x.size())
+    print(f"partiaion: {partitions}, input: {x.size()}")
     balance = balance_by_size(partitions, model, x)
     model = GPipe(model, balance, chunks=4, checkpoint="always")
-    loss = DiceLoss(softmax=True, reduction="none")
+    loss_func = DiceLoss(softmax=True, reduction="none")
 
     if pretrain:
         pretrained_dict = torch.load(pretrain)["weight"]
@@ -111,7 +109,7 @@ def train(n_feat, crop_size, bs, ep, pretrain=None):
     for epoch in range(ep):
         model.train()
         trainloss = 0
-        for data_dict in traindataloader:
+        for data_dict in train_dataloader:
             x_train = data_dict["image"]
             y_train = data_dict["label"]
             flagvec = data_dict["with_complete_groundtruth"]
@@ -123,28 +121,28 @@ def train(n_feat, crop_size, bs, ep, pretrain=None):
 
             # loss = tversky_loss_wmask(o, y_train, flagvec * torch.from_numpy(lossweight))
             # loss += 0.1 * focal(o, y_train, flagvec * torch.from_numpy(lossweight))
-            loss = (loss(o, y_train) * flagvec * lossweight).mean()
+            loss = (loss_func(o, y_train.to(o)) * flagvec.to(o) * lossweight.to(o)).mean()
             loss.backward()
             optimizer.step()
             trainloss += loss.item()
-        print("epoch %i TRAIN loss %.4f" % (epoch, trainloss / len(traindataloader)))
+        print("epoch %i TRAIN loss %.4f" % (epoch, trainloss / len(train_dataloader)))
 
         if epoch % 10 == 0:
             model.eval()
-            # check training dice
+            # check validation dice
             testloss = [0 for _ in range(N_CLASSES - 1)]
             ntest = [0 for _ in range(N_CLASSES - 1)]
-            for data_dict in traindataloader:
+            for data_dict in val_dataloader:
                 x_test = data_dict["image"]
                 y_test = data_dict["label"]
                 with torch.no_grad():
                     x_test = torch.autograd.Variable(x_test.cuda())
                 o = model(x_test).to(0, non_blocking=True)
-                loss = compute_meandice(o, y_test, mutually_exclusive=True, include_background=False)
-                testloss = [l + tl if l != -1 else tl for l, tl in zip(loss, testloss)]
-                ntest = [n + 1 if l != -1 else n for l, n in zip(loss, ntest)]
+                loss = compute_meandice(o, y_test.to(o), mutually_exclusive=True, include_background=False)
+                testloss = [l.item() + tl if l == l else tl for l, tl in zip(loss[0], testloss)]
+                ntest = [n + 1 if l == l else n for l, n in zip(loss[0], ntest)]
             testloss = [l / n for l, n in zip(testloss, ntest)]
-            print("train scores %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f" % tuple(testloss))
+            print("validation scores %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f" % tuple(testloss))
 
     print("total time", time.time() - b_time)
 
