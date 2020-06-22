@@ -56,8 +56,12 @@ class SpatialPad(Transform):
     def __call__(self, img, mode: Optional[str] = None):
         data_pad_width = self._determine_data_pad_width(img.shape[1:])
         all_pad_width = [(0, 0)] + data_pad_width
-        img = np.pad(img, all_pad_width, mode=mode or self.mode)
-        return img
+        if not np.asarray(all_pad_width).any():
+            # all zeros, skip padding
+            return img
+        else:
+            img = np.pad(img, all_pad_width, mode=mode or self.mode)
+            return img
 
 
 class DivisiblePad(Transform):
