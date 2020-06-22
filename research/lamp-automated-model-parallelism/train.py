@@ -25,8 +25,8 @@ from torchgpipe.balance import balance_by_size
 from unet_pipe import UNet, flatten_sequential
 
 N_CLASSES = 10
-VAL_PATH = "./data/HNPETCTclean/"
-TRAIN_PATH = "./data/HNCetuximabclean/"
+TRAIN_PATH = "./data/HNPETCTclean/"
+VAL_PATH = "./data/HNCetuximabclean/"
 
 torch.backends.cudnn.enabled = True
 from data_utils import get_filenames, load_data_and_mask
@@ -71,21 +71,22 @@ class ImageLabelDataset:
 
 
 def train(n_feat, crop_size, bs, ep, pretrain=None):
-    model = UNet(spatial_dims=3, in_channels=1, out_channels=N_CLASSES, n_feat=n_feat)
-    model = flatten_sequential(model)
-    model = model.cuda()
-    lossweight = torch.from_numpy(np.array([2.22, 1.31, 1.99, 1.13, 1.93, 1.93, 1.0, 1.0, 1.90, 1.98], np.float32))
-
     crop_size = [int(cz) for cz in crop_size.split(",")]
     print(f"input image crop_size: {crop_size}")
 
     train_transform = Compose([AddChannelDict(keys="image")])
     train_dataset = Dataset(ImageLabelDataset(path=TRAIN_PATH, n_class=N_CLASSES), transform=train_transform)
     train_dataloader = torch.utils.data.DataLoader(train_dataset, num_workers=6, batch_size=bs, shuffle=True)
-
-    val_dataset = Dataset(ImageLabelDataset(VAL_PATH, n_class=N_CLASSES))
+    print(train_dataset[0]['image'].shape)
+    val_dataset = Dataset(ImageLabelDataset(VAL_PATH, n_class=N_CLASSES), transform=train_transform)
     val_dataloader = torch.utils.data.DataLoader(val_dataset, num_workers=6, batch_size=1)
+    print(val_dataset[0]['image'].shape)
     print(f"training images: {len(train_dataloader)}, validation images: {len(val_dataloader)}")
+
+    model = UNet(spatial_dims=3, in_channels=1, out_channels=N_CLASSES, n_feat=n_feat)
+    model = flatten_sequential(model)
+    model = model.cuda()
+    lossweight = torch.from_numpy(np.array([2.22, 1.31, 1.99, 1.13, 1.93, 1.93, 1.0, 1.0, 1.90, 1.98], np.float32))
 
     optimizer = torch.optim.RMSprop(model.parameters(), lr=5e-4)
     data_dict = train_dataset[0]
