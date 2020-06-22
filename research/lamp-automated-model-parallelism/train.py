@@ -11,11 +11,12 @@
 
 import time
 from argparse import ArgumentParser
+import os
 
 import numpy as np
 import torch
 from monai.transforms import SpatialPad, AddChannelDict, Compose
-from monai.losses import MaskedDiceLoss
+from monai.losses import DiceLoss
 from monai.metrics import compute_meandice
 from monai.data import Dataset
 from torchgpipe import GPipe
@@ -24,40 +25,49 @@ from torchgpipe.balance import balance_by_size
 # from utils import pad, random_crop_pos_neg_multi_channel_3d
 # from utils import focal, caldice
 # from utils import tversky_loss_wmask_stable as tversky_loss_wmask
-from unet_pipe import UNet
+from unet_pipe import UNet, flatten_sequential
 
 N_CLASSES = 10
-TEST_PATH = "./testpddca15_crp.pth"  # path for processed data
-PET_PATH = "./trainpddca15_pet_crp.pth"
+TEST_PATH = "./data/HNPETCTclean/"  # path for processed data
+PET_PATH = "./data/HNCetuximabclean/"
 
 torch.backends.cudnn.enabled = True
+from data_utils import get_filenames, load_data_mask
 
 
 class ImageLabelDataset:
+    """
+    Load image and multi-class labels based on the predefined folder structure.
+    """
+
     def __init__(self, path, n_class=10):
-        self.data = torch.load(path)
+        self.path = path
+        self.data = sorted(os.listdir(path))
         self.n_class = n_class
 
     def __getitem__(self, index):
-        data = self.data[index]
-        img = data["img"].numpy().astype(np.float32)
-        mask0 = np.zeros((1,) + img.shape)
+        data = os.path.join(self.path, self.data[index])
+        train_data, train_masks_data = get_filenames(data)
+        data = load_data_mask(train_data, train_masks_data)  # read into a data dict
+        # loading image
+        data["image"] = data["image"].astype(np.float32)
+        # loading labels
+        class_shape = (1,) + data["image"].shape
+        mask0 = np.zeros(class_shape)
         mask_list = []
         flagvect = np.ones((self.n_class,), np.float32)
-        for i, mask in enumerate(data["mask"]):
+        for i, mask in enumerate(data["label"]):
             if mask is None:
-                mask = np.zeros((1,) + img.shape)
+                mask = np.zeros(class_shape)
                 flagvect[0] = 0
                 flagvect[i + 1] = 0
             mask0 = np.logical_or(mask0, mask)
-            mask_list.append(mask.reshape((1,) + img.shape))
+            mask_list.append(mask.reshape(class_shape))
         mask0 = 1 - mask0
-        label = np.concatenate([mask0] + mask_list, axis=0).astype(np.uint8)
-        return {
-            "image": img,  # shape (H, W, D)
-            "label": label,  # shape (chns, H, W, D)
-            "with_complete_groundtruth": flagvect,  # flagvec is a boolean indicator for complete annotation
-        }
+        data["label"] = np.concatenate([mask0] + mask_list, axis=0).astype(np.uint8)
+        # setting flags
+        data["with_complete_groundtruth"] = flagvect  # flagvec is a boolean indicator for complete annotation
+        return data
 
     def __len__(self):
         return len(self.data)
@@ -65,8 +75,8 @@ class ImageLabelDataset:
 
 def train(n_feat, crop_size, bs, ep, pretrain=None):
     model = UNet(spatial_dims=3, in_channels=1, out_channels=N_CLASSES, n_feat=n_feat)
-    if torch.cuda.is_available():
-        model = model.cuda()
+    model = flatten_sequential(model)
+    model = model.cuda()
     lossweight = torch.from_numpy(np.array([2.22, 1.31, 1.99, 1.13, 1.93, 1.93, 1.0, 1.0, 1.90, 1.98], np.float32))
 
     crop_size = [int(cz) for cz in crop_size.split(",")]
@@ -75,7 +85,6 @@ def train(n_feat, crop_size, bs, ep, pretrain=None):
     train_transform = Compose([AddChannelDict(keys="image")])
     traindataset = Dataset(ImageLabelDataset(path=PET_PATH, n_class=N_CLASSES), transform=train_transform)
     traindataloader = torch.utils.data.DataLoader(traindataset, num_workers=6, batch_size=bs, shuffle=True)
-
     # testdataset = Dataset(ImageLabelDataset(TEST_PATH, n_class=N_CLASSES))
     # testdataloader = torch.utils.data.DataLoader(testdataset, num_workers=6, batch_size=1)
     # print(f"training images: {len(traindataloader)}, validation images: {len(testdataloader)}")
@@ -89,7 +98,7 @@ def train(n_feat, crop_size, bs, ep, pretrain=None):
     print(partitions, x.size())
     balance = balance_by_size(partitions, model, x)
     model = GPipe(model, balance, chunks=4, checkpoint="always")
-    loss = MaskedDiceLoss(softmax=True, reduction="none")
+    loss = DiceLoss(softmax=True, reduction="none")
 
     if pretrain:
         pretrained_dict = torch.load(pretrain)["weight"]
