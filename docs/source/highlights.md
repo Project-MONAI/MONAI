@@ -121,6 +121,11 @@ Currently, these post transforms are available:
 
 After the post transforms, it's easier to compute metrics, save model output into files or visualize data in the TensorBoard.
 
+### 9. Integrate 3rd party transforms
+The design of MONAI transforms are quite straight forward and work for array data or dictionary data directly. And MONAI also provides `Adaptor` tool to adapt input/output data format for 3rd party transforms. To convert the data shape or data type, users can use the utility transforms `ToTensor`, `ToNumpy`, `SqueeseDim`, etc.  
+So it's easy to enhance the transform chain by integrating more transforms from other libraries, like: `ITK`, `BatchGenerator`, `TorchIO` and `Rising`, etc.  
+For more details, check the tutorial: [integrate 3rd pary transforms into MONAI program](https://github.com/Project-MONAI/MONAI/blob/master/examples/notebooks/integrate_3rd_party_transforms.ipynb).
+
 ## Datasets
 ### 1. Cache IO and transforms data to accelerate training
 Users often need to train the model with many (potentially thousands of) epochs over the data to achieve the desired model quality. A native PyTorch
