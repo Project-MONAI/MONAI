@@ -97,7 +97,7 @@ class DoubleConv(nn.Module):
         return self.conv(x)
 
 
-class UNet(nn.Module):
+class UNet(nn.Sequential):
     def __init__(self, spatial_dims: int, in_channels: int, out_channels: int, n_feat: int = 32, depth: int = 4):
         """
         A UNet-like architecture for model parallelism.
@@ -158,8 +158,8 @@ class UNet(nn.Module):
         decoder = nn.Sequential(*decoder_layers)
 
         # making a sequential model
-        self.sequential = nn.Sequential(OrderedDict([("encoder", encoder), ("decoder", decoder)]))
-        self.sequential = flatten_sequential(self.sequential)
+        self.add_module("encoder", flatten_sequential(encoder))
+        self.add_module("decoder", flatten_sequential(decoder))
 
         for m in self.modules():
             if isinstance(m, Conv[Conv.CONV, spatial_dims]):
@@ -169,6 +169,3 @@ class UNet(nn.Module):
                 nn.init.constant_(m.bias, 0)
             elif isinstance(m, Conv[Conv.CONVTRANS, spatial_dims]):
                 nn.init.kaiming_normal_(m.weight)
-
-    def forward(self, x: torch.Tensor):
-        return self.sequential(x)
