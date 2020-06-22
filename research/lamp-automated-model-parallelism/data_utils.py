@@ -39,12 +39,12 @@ def get_filenames(path, maskname=STRUCTURES):
         if os.path.exists(os.path.join(path, "./structures/" + seg + "_crp_v2.npy")):
             maskfiles.append(os.path.join(path, "./structures/" + seg + "_crp_v2.npy"))
         else:
-            print("missing annotation", seg, path.split("/")[-1])
+            # print("missing annotation", seg, path.split("/")[-1])
             maskfiles.append(None)
     return os.path.join(path, "img_crp_v2.npy"), maskfiles
 
 
-def load_data_mask(data, mask_data):
+def load_data_and_mask(data, mask_data):
     """
     Load data filename and mask_data (list of file names)
     into a dictionary of {'image': array, "label": list of arrays, "name": str}.

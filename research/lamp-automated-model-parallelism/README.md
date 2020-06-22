@@ -22,23 +22,22 @@ MICCAI 2020 (paper link: TBC)
 
 ### Data
 Head and Neck CT dataset
+please download and unzip the images into `./data` folder.
+`HNPETCTclean.zip`: https://drive.google.com/file/d/17SUj2Si3eD8BHQ7nGpPSO_6wSLlk0TEg/view?usp=sharing
+`HNCetuximabclean.zip`: https://drive.google.com/file/d/1XbsHVVtap72qp11Pv2cUzbV3dosOjBos/view?usp=sharing
+
+Please find more details at https://github.com/wentaozhu/AnatomyNet-for-anatomical-segmentation.git
 
 
 ### Hardware
-Head and Neck dataset: U-Net-32 2x16G, U-Net-64 4x16G, U-Net-128 2x32G,
+U-Net-32 2x16G, U-Net-64 4x16G, U-Net-128 2x32G
 
 
 ### Commands
 The number of features in the first block (--n_feat) can be 32, 64, or 128.
-
-    mkdir ./data;
-    # download data from https://drive.google.com/drive/folders/1cHfH37jU9wzWMyH1KwFiU2FDmWxWCGk6?usp=sharing
-    # or https://github.com/wentaozhu/AnatomyNet-for-anatomical-segmentation.git
-    mkdir ./model;
+```bash
     mkdir ./log;
     python train.py --n_feat=128 --crop_size='64,64,64' --bs=16 --ep=4800 > ./log/YOURLOG.log
     python train.py --n_feat=128 --crop_size='128,128,128' --bs=4 --ep=1200 --pretrain='./model/BESTMODELFROM64,64,64' > ./log/YOURLOG.log
     python train_1.py --n_feat=128 --crop_size='-1,-1,-1' --bs=1 --ep=300 --pretrain='./model/BESTMODELFROM128,128,128' > ./log/YOURLOG.log
-
-
-If you have any questions, feel free to contact Wentao Zhu (wentaoz@nvidia.com)
+```
