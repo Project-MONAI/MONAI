@@ -41,10 +41,9 @@ Technical documentation is available via `Read the Docs <https://monai.readthedo
 
 .. toctree::
    :maxdepth: 1
-   :caption: Technical highlights
+   :caption: Introduction of technical highlights
 
-   highlights_v0.1.0.md
-   highlights_v0.2.0.md
+   highlights.md
 
 .. toctree::
    :maxdepth: 1

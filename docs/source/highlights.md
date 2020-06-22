@@ -1,8 +1,18 @@
-# Modules in v0.1.0 (public alpha)
+# Modules in v0.2.0
 
 MONAI aims at supporting deep learning in medical image analysis at multiple granularities.
-This figure shows modules currently available in the codebase.
-![image](../images/modules_v0.1.png)
+This figure shows a typical end-to-end workflow example of medical deep learning:
+![image](../images/end_to_end.png)
+
+## MONAI architecture
+The design principle of MONAI is to provide flexible and light APIs for different users.
+1. All the core components are independent modules, which can be easily integrated into any existing PyTorch programs to help researchers on specific functions.
+2. On the other hand, users can leverage the workflows in MONAI to quickly set up a robust training or evaluation program.
+3. MONAI provides rich examples and notebooks to demonstrate core features.
+4. Researchers also contributed many implementations corresponding to state-of-the-art papers, including latest research challenges like: COVID-19 analysis and Model Parallel, Federated Learning, etc.
+
+The overall architecture and modules are showed in below figure:
+![image](../images/arch_modules_v0.2.png)
 The rest of this page provides more details for each module.
 
 * [Data I/O, preprocessing, and augmentation](#medical-image-data-io-preprocessing-and-augmentation)
