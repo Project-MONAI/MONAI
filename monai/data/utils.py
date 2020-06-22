@@ -383,6 +383,7 @@ def to_affine_nd(r, affine):
     Args:
         r (int or matrix): number of spatial dimensions or an output affine to be filled.
         affine (matrix): 2D affine matrix
+
     Returns:
         an (r+1) x (r+1) matrix
 

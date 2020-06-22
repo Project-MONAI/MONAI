@@ -106,6 +106,7 @@ class Spacing(Transform):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+
         Returns:
             data_array (resampled into `self.pixdim`), original pixdim, current pixdim.
 
@@ -199,6 +200,7 @@ class Orientation(Transform):
         Args:
             data_array (ndarray): in shape (num_channels, H[, W, ...]).
             affine (matrix): (N+1)x(N+1) original affine matrix for spatially ND `data_array`. Defaults to identity.
+
         Returns:
             data_array (reoriented in `self.axcodes`), original axcodes, current axcodes.
 
