@@ -9,6 +9,9 @@
 
 A reimplementation of the LAMP system originally proposed by:
 
+Wentao Zhu, Can Zhao, Holger Roth, Ziyue Xu, and Daguang Xu (2020)
+"LAMP: Large Deep Nets with Automated Model Parallelism for Image Segmentation."
+MICCAI 2020 (paper link: TBC)
 
 
 ## To run the demo:
