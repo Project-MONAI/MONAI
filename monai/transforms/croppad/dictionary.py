@@ -15,12 +15,12 @@ defined in :py:class:`monai.transforms.croppad.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Optional, Callable
+from typing import Callable, Optional
 
-from monai.config.type_definitions import KeysCollection, IndexSelection
+from monai.config.type_definitions import IndexSelection, KeysCollection
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.compose import MapTransform, Randomizable
-from monai.transforms.croppad.array import SpatialCrop, CenterSpatialCrop, SpatialPad
+from monai.transforms.croppad.array import CenterSpatialCrop, DivisiblePad, SpatialCrop, SpatialPad
 from monai.transforms.utils import generate_pos_neg_label_crop_centers, generate_spatial_bounding_box
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep
 
@@ -46,6 +46,34 @@ class SpatialPadd(MapTransform):
         super().__init__(keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padder = SpatialPad(spatial_size, method)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key, m in zip(self.keys, self.mode):
+            d[key] = self.padder(d[key], mode=m)
+        return d
+
+
+class DivisiblePadd(MapTransform):
+    """
+    Pad the input data, so that the spatial sizes are divisible by `k`.
+
+    Dictionary-based wrapper of :py:class: `monai.transforms.DivisiblePad`.
+    """
+
+    def __init__(self, keys: KeysCollection, k, mode="constant"):
+        """
+        Args:
+            k (int or sequence of int): the target k for each spatial dimension.
+                if `k` is negative or 0, the original size is preserved.
+                if `k` is an int, the same `k` be applied to all the input spatial dimensions.
+            mode (str or sequence of str): padding mode for SpatialPad.
+
+        See also :py:class:`monai.transforms.SpatialPad`
+        """
+        super().__init__(keys)
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.padder = DivisiblePad(k=k)
 
     def __call__(self, data):
         d = dict(data)
@@ -268,6 +296,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
 
 
 SpatialPadD = SpatialPadDict = SpatialPadd
+DivisiblePadD = DivisiblePadDict = DivisiblePadd
 SpatialCropD = SpatialCropDict = SpatialCropd
 CenterSpatialCropD = CenterSpatialCropDict = CenterSpatialCropd
 RandSpatialCropD = RandSpatialCropDict = RandSpatialCropd
