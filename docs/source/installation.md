@@ -123,8 +123,13 @@ pip install -r requirements-dev.txt
 ```
 
 Since MONAI v0.2.0, the extras syntax such as `pip install 'monai[nibabel]'` is available via PyPI.
-The options are `[nibabel, skimage, pillow, tensorboard, ignite]`.
+
+- The options are
+```
+[nibabel, skimage, pillow, tensorboard, ignite]
+```
 which correspond to `nibabel`, `scikit-image`, `pillow`, `tensorboard`, and `pytorch-ignite` respectively.
-`pip install 'monai[all]'` installs all the optional dependencies.
+
+- `pip install 'monai[all]'` installs all the optional dependencies.
 
 
