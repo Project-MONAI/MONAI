@@ -17,7 +17,7 @@ import torch
 from monai.data.utils import compute_shape_offset, to_affine_nd
 from monai.networks.layers import AffineTransform
 from monai.utils import optional_import
-from monai.utils.enums import GridSampleMode
+from monai.utils.enums import GridSampleMode, GridSamplePadMode
 
 nib, _ = optional_import("nibabel")
 
@@ -30,7 +30,7 @@ def write_nifti(
     resample: bool = True,
     output_spatial_shape=None,
     mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-    padding_mode: str = "border",
+    padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
     dtype=None,
 ):
     """

@@ -33,7 +33,7 @@ from monai.transforms.utils import (
 )
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep, ensure_tuple_size
 from monai.utils import optional_import
-from monai.utils.enums import GridSampleMode, InterpolateMode, NumpyPadMode
+from monai.utils.enums import GridSampleMode, GridSamplePadMode, InterpolateMode, NumpyPadMode
 
 nib, _ = optional_import("nibabel")
 
@@ -57,7 +57,7 @@ class Spacing(Transform):
         pixdim,
         diagonal: bool = False,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-        padding_mode: str = "border",
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         dtype: Optional[np.dtype] = None,
     ):
         """
@@ -85,7 +85,7 @@ class Spacing(Transform):
         self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
         self.diagonal = diagonal
         self.mode = GridSampleMode(mode)
-        self.padding_mode = padding_mode
+        self.padding_mode = GridSamplePadMode(padding_mode)
         self.dtype = dtype
 
     def __call__(
@@ -93,7 +93,7 @@ class Spacing(Transform):
         data_array: np.ndarray,
         affine=None,
         mode: Optional[Union[GridSampleMode, str]] = None,
-        padding_mode: Optional[str] = None,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         dtype: Optional[np.dtype] = None,
     ):
         """
@@ -324,16 +324,21 @@ class Rotate(Transform):
         angle,
         keep_size: bool = True,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-        padding_mode: str = "border",
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         align_corners: bool = False,
     ):
         self.angle = angle
         self.keep_size = keep_size
         self.mode = GridSampleMode(mode)
-        self.padding_mode = padding_mode
+        self.padding_mode = GridSamplePadMode(padding_mode)
         self.align_corners = align_corners
 
-    def __call__(self, img, mode: Optional[Union[GridSampleMode, str]] = None, padding_mode: Optional[str] = None):
+    def __call__(
+        self,
+        img,
+        mode: Optional[Union[GridSampleMode, str]] = None,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
+    ):
         """
         Args:
             img (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
@@ -540,7 +545,7 @@ class RandRotate(Randomizable, Transform):
         prob: float = 0.1,
         keep_size: bool = True,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-        padding_mode: str = "border",
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         align_corners: bool = False,
     ):
         self.range_x = ensure_tuple(range_x)
@@ -556,7 +561,7 @@ class RandRotate(Randomizable, Transform):
         self.prob = prob
         self.keep_size = keep_size
         self.mode = GridSampleMode(mode)
-        self.padding_mode = padding_mode
+        self.padding_mode = GridSamplePadMode(padding_mode)
         self.align_corners = align_corners
 
         self._do_transform = False
@@ -570,7 +575,12 @@ class RandRotate(Randomizable, Transform):
         self.y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
         self.z = self.R.uniform(low=self.range_z[0], high=self.range_z[1])
 
-    def __call__(self, img, mode: Optional[Union[GridSampleMode, str]] = None, padding_mode: Optional[str] = None):
+    def __call__(
+        self,
+        img,
+        mode: Optional[Union[GridSampleMode, str]] = None,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
+    ):
         """
         Args:
             img (ndarray): channel first array, must have shape 2D: (nchannels, H, W), or 3D: (nchannels, H, W, D).
@@ -846,7 +856,7 @@ class Resample(Transform):
     def __init__(
         self,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-        padding_mode: str = "zeros",
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.ZEROS,
         as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
     ):
@@ -865,7 +875,7 @@ class Resample(Transform):
             device (torch.device): device on which the tensor will be allocated.
         """
         self.mode = GridSampleMode(mode)
-        self.padding_mode = padding_mode
+        self.padding_mode = GridSamplePadMode(padding_mode)
         self.as_tensor_output = as_tensor_output
         self.device = device
 
@@ -874,7 +884,7 @@ class Resample(Transform):
         img: Union[np.ndarray, torch.Tensor],
         grid: Optional[Union[np.ndarray, torch.Tensor]] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
-        padding_mode: Optional[str] = None,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
     ):
         """
         Args:
@@ -906,7 +916,7 @@ class Resample(Transform):
             img[None].float(),
             grid[None].float(),
             mode=self.mode.value if mode is None else GridSampleMode(mode).value,
-            padding_mode=padding_mode or self.padding_mode,
+            padding_mode=self.padding_mode.value if padding_mode is None else GridSamplePadMode(padding_mode).value,
             align_corners=False,
         )[0]
         if self.as_tensor_output:
@@ -927,7 +937,7 @@ class Affine(Transform):
         scale_params=None,
         spatial_size=None,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-        padding_mode: str = "zeros",
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.ZEROS,
         as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
     ):
@@ -968,14 +978,14 @@ class Affine(Transform):
         self.resampler = Resample(as_tensor_output=as_tensor_output, device=device)
         self.spatial_size = spatial_size
         self.mode = GridSampleMode(mode)
-        self.padding_mode = padding_mode
+        self.padding_mode = GridSamplePadMode(padding_mode)
 
     def __call__(
         self,
         img: Union[np.ndarray, torch.Tensor],
         spatial_size=None,
         mode: Optional[Union[GridSampleMode, str]] = None,
-        padding_mode: Optional[str] = None,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
     ):
         """
         Args:
@@ -1010,7 +1020,7 @@ class RandAffine(Randomizable, Transform):
         scale_range=None,
         spatial_size=None,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-        padding_mode: str = "zeros",
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.ZEROS,
         as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
     ):
@@ -1048,7 +1058,7 @@ class RandAffine(Randomizable, Transform):
 
         self.spatial_size = spatial_size
         self.mode = GridSampleMode(mode)
-        self.padding_mode = padding_mode
+        self.padding_mode = GridSamplePadMode(padding_mode)
 
         self.do_transform = False
         self.prob = prob
@@ -1067,7 +1077,7 @@ class RandAffine(Randomizable, Transform):
         img: Union[np.ndarray, torch.Tensor],
         spatial_size=None,
         mode: Optional[Union[GridSampleMode, str]] = None,
-        padding_mode: Optional[str] = None,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
     ):
         """
         Args:
@@ -1109,7 +1119,7 @@ class Rand2DElastic(Randomizable, Transform):
         scale_range=None,
         spatial_size=None,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-        padding_mode: str = "zeros",
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.ZEROS,
         as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
     ):
@@ -1151,7 +1161,7 @@ class Rand2DElastic(Randomizable, Transform):
 
         self.spatial_size = spatial_size
         self.mode = GridSampleMode(mode)
-        self.padding_mode = padding_mode
+        self.padding_mode = GridSamplePadMode(padding_mode)
         self.prob = prob
         self.do_transform = False
 
@@ -1171,7 +1181,7 @@ class Rand2DElastic(Randomizable, Transform):
         img: Union[np.ndarray, torch.Tensor],
         spatial_size=None,
         mode: Optional[Union[GridSampleMode, str]] = None,
-        padding_mode: Optional[str] = None,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
     ):
         """
         Args:
@@ -1213,7 +1223,7 @@ class Rand3DElastic(Randomizable, Transform):
         scale_range=None,
         spatial_size=None,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-        padding_mode: str = "zeros",
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.ZEROS,
         as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
     ):
@@ -1248,7 +1258,7 @@ class Rand3DElastic(Randomizable, Transform):
         self.magnitude_range = magnitude_range
         self.spatial_size = spatial_size
         self.mode = GridSampleMode(mode)
-        self.padding_mode = padding_mode
+        self.padding_mode = GridSamplePadMode(padding_mode)
         self.device = device
 
         self.prob = prob
@@ -1275,7 +1285,7 @@ class Rand3DElastic(Randomizable, Transform):
         img,
         spatial_size=None,
         mode: Optional[Union[GridSampleMode, str]] = None,
-        padding_mode: Optional[str] = None,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
     ):
         """
         Args:

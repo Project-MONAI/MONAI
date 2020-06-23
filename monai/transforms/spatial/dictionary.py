@@ -39,7 +39,7 @@ from monai.transforms.spatial.array import (
 )
 from monai.transforms.utils import create_grid
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep
-from monai.utils.enums import GridSampleMode, InterpolateMode
+from monai.utils.enums import GridSampleMode, GridSamplePadMode, InterpolateMode
 
 
 class Spacingd(MapTransform):
@@ -62,7 +62,7 @@ class Spacingd(MapTransform):
         pixdim,
         diagonal: bool = False,
         mode: Union[Sequence[object], GridSampleMode, str] = GridSampleMode.BILINEAR,
-        padding_mode: Union[Sequence[str], str] = "border",
+        padding_mode: Union[Sequence[object], GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         dtype: Optional[np.dtype] = None,
         meta_key_postfix: str = "meta_dict",
     ):
@@ -291,7 +291,7 @@ class RandAffined(Randomizable, MapTransform):
         translate_range=None,
         scale_range=None,
         mode: Union[Sequence[object], GridSampleMode, str] = GridSampleMode.BILINEAR,
-        padding_mode: Union[Sequence[str], str] = "zeros",
+        padding_mode: Union[Sequence[object], GridSamplePadMode, str] = GridSamplePadMode.ZEROS,
         as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
     ):
@@ -373,7 +373,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
         translate_range=None,
         scale_range=None,
         mode: Union[Sequence[object], GridSampleMode, str] = GridSampleMode.BILINEAR,
-        padding_mode: Union[Sequence[str], str] = "zeros",
+        padding_mode: Union[Sequence[object], GridSamplePadMode, str] = GridSamplePadMode.ZEROS,
         as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
     ):
@@ -466,7 +466,7 @@ class Rand3DElasticd(Randomizable, MapTransform):
         translate_range=None,
         scale_range=None,
         mode: Union[Sequence[object], GridSampleMode, str] = GridSampleMode.BILINEAR,
-        padding_mode: Union[Sequence[str], str] = "zeros",
+        padding_mode: Union[Sequence[object], GridSamplePadMode, str] = GridSamplePadMode.ZEROS,
         as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
     ):
@@ -623,7 +623,7 @@ class Rotated(MapTransform):
         angle,
         keep_size: bool = True,
         mode: Union[Sequence[object], GridSampleMode, str] = GridSampleMode.BILINEAR,
-        padding_mode: Union[Sequence[str], str] = "border",
+        padding_mode: Union[Sequence[object], GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         align_corners: bool = False,
     ):
         super().__init__(keys)
@@ -678,7 +678,7 @@ class RandRotated(Randomizable, MapTransform):
         prob: float = 0.1,
         keep_size: bool = True,
         mode: Union[Sequence[object], GridSampleMode, str] = GridSampleMode.BILINEAR,
-        padding_mode: Union[Sequence[str], str] = "border",
+        padding_mode: Union[Sequence[object], GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         align_corners: bool = False,
     ):
         super().__init__(keys)

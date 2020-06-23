@@ -16,7 +16,7 @@ import numpy as np
 
 from monai.data import NiftiSaver, PNGSaver
 from monai.utils import exact_version, optional_import
-from monai.utils.enums import GridSampleMode, InterpolateMode
+from monai.utils.enums import GridSampleMode, GridSamplePadMode, InterpolateMode
 
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
 Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
@@ -34,7 +34,7 @@ class SegmentationSaver:
         output_ext: str = ".nii.gz",
         resample: bool = True,
         mode: Union[GridSampleMode, InterpolateMode, str] = "nearest",
-        padding_mode: str = "border",
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         scale=None,
         dtype: Optional[np.dtype] = None,
         batch_transform: Callable = lambda x: x,
