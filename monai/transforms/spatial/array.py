@@ -33,6 +33,7 @@ from monai.transforms.utils import (
 )
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep, ensure_tuple_size
 from monai.utils import optional_import
+from monai.utils.enums import NumpyPadMode
 
 nib, _ = optional_import("nibabel")
 
@@ -429,7 +430,7 @@ class Zoom(Transform):
                 pad_vec[idx] = [half, diff - half]
             elif diff < 0:  # need slicing
                 slice_vec[idx] = slice(half, half + od)
-        zoomed = np.pad(zoomed, pad_vec, mode="edge")
+        zoomed = np.pad(zoomed, pad_vec, mode=NumpyPadMode.EDGE.value)
         return zoomed[tuple(slice_vec)]
 
 
