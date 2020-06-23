@@ -9,9 +9,9 @@
 
 A reimplementation of the LAMP system originally proposed by:
 
-Wentao Zhu, Can Zhao, Holger Roth, Ziyue Xu, and Daguang Xu (2020)
+Wentao Zhu, Can Zhao, Wenqi Li, Holger Roth, Ziyue Xu, and Daguang Xu (2020)
 "LAMP: Large Deep Nets with Automated Model Parallelism for Image Segmentation."
-MICCAI 2020 (paper link: TBC)
+MICCAI 2020 (Early Accept, paper link: TBC)
 
 
 ## To run the demo:
@@ -23,8 +23,10 @@ MICCAI 2020 (paper link: TBC)
 ### Data
 Head and Neck CT dataset
 please download and unzip the images into `./data` folder.
-`HNPETCTclean.zip`: https://drive.google.com/file/d/17SUj2Si3eD8BHQ7nGpPSO_6wSLlk0TEg/view?usp=sharing
-`HNCetuximabclean.zip`: https://drive.google.com/file/d/1XbsHVVtap72qp11Pv2cUzbV3dosOjBos/view?usp=sharing
+
+- `HNPETCTclean.zip`: https://drive.google.com/file/d/17SUj2Si3eD8BHQ7nGpPSO_6wSLlk0TEg/view?usp=sharing
+- `HNCetuximabclean.zip`: https://drive.google.com/file/d/1XbsHVVtap72qp11Pv2cUzbV3dosOjBos/view?usp=sharing
+- `PDDCA18.zip`: https://drive.google.com/file/d/1yTarwj5_rp7eX2gCm5k8R0RsZVGzdYlc/view?usp=sharing
 
 Please find more details at https://github.com/wentaozhu/AnatomyNet-for-anatomical-segmentation.git
 
