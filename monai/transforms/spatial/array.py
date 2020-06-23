@@ -33,7 +33,7 @@ from monai.transforms.utils import (
 )
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep, ensure_tuple_size
 from monai.utils import optional_import
-from monai.utils.enums import GridSampleMode, NumpyPadMode
+from monai.utils.enums import GridSampleMode, InterpolateMode, NumpyPadMode
 
 nib, _ = optional_import("nibabel")
 
@@ -261,12 +261,17 @@ class Resize(Transform):
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
     """
 
-    def __init__(self, spatial_size, mode: str = "area", align_corners: Optional[bool] = None):
+    def __init__(
+        self,
+        spatial_size,
+        mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
+        align_corners: Optional[bool] = None,
+    ):
         self.spatial_size = ensure_tuple(spatial_size)
-        self.mode = mode
+        self.mode = InterpolateMode(mode)
         self.align_corners = align_corners
 
-    def __call__(self, img, mode: Optional[str] = None):
+    def __call__(self, img, mode: Optional[Union[InterpolateMode, str]] = None):
         """
         Args:
             img (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
@@ -287,7 +292,7 @@ class Resize(Transform):
         resized = _torch_interp(
             input=torch.as_tensor(img[None], dtype=torch.float),
             size=self.spatial_size,
-            mode=mode or self.mode,
+            mode=self.mode.value if mode is None else InterpolateMode(mode).value,
             align_corners=self.align_corners,
         )
         resized = resized.squeeze(0).detach().cpu().numpy()
@@ -396,15 +401,19 @@ class Zoom(Transform):
     """
 
     def __init__(
-        self, zoom, mode: str = "area", align_corners: Optional[bool] = None, keep_size: bool = True,
+        self,
+        zoom,
+        mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
+        align_corners: Optional[bool] = None,
+        keep_size: bool = True,
     ):
         self.zoom = zoom
-        self.mode = mode
+        self.mode = InterpolateMode(mode)
         self.align_corners = align_corners
         self.keep_size = keep_size
 
     def __call__(  # type: ignore # see issue #495
-        self, img, mode: Optional[str] = None
+        self, img, mode: Optional[Union[InterpolateMode, str]] = None
     ):
         """
         Args:
@@ -414,7 +423,7 @@ class Zoom(Transform):
         zoomed = _torch_interp(
             input=torch.as_tensor(img[None], dtype=torch.float),
             scale_factor=list(self.zoom),
-            mode=mode or self.mode,
+            mode=self.mode.value if mode is None else InterpolateMode(mode).value,
             align_corners=self.align_corners,
         )
         zoomed = zoomed.squeeze(0).detach().cpu().numpy()
@@ -629,7 +638,7 @@ class RandZoom(Randomizable, Transform):
         prob: float = 0.1,
         min_zoom=0.9,
         max_zoom=1.1,
-        mode: str = "area",
+        mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
         keep_size: bool = True,
     ):
@@ -638,7 +647,7 @@ class RandZoom(Randomizable, Transform):
         self.min_zoom = min_zoom
         self.max_zoom = max_zoom
         self.prob = prob
-        self.mode = mode
+        self.mode = InterpolateMode(mode)
         self.align_corners = align_corners
         self.keep_size = keep_size
 
@@ -652,7 +661,7 @@ class RandZoom(Randomizable, Transform):
         else:
             self._zoom = self.R.uniform(self.min_zoom, self.max_zoom)
 
-    def __call__(self, img, mode: Optional[str] = None):
+    def __call__(self, img, mode: Optional[Union[InterpolateMode, str]] = None):
         self.randomize()
         _dtype = np.float32
         if not self._do_transform:
@@ -1180,7 +1189,9 @@ class Rand2DElastic(Randomizable, Transform):
         if self.do_transform:
             grid = self.deform_grid(spatial_size=spatial_size)
             grid = self.rand_affine_grid(grid=grid)
-            grid = _torch_interp(input=grid[None], size=spatial_size, mode="bicubic", align_corners=False)[0]
+            grid = _torch_interp(
+                input=grid[None], size=spatial_size, mode=InterpolateMode.BICUBIC.value, align_corners=False
+            )[0]
         else:
             grid = create_grid(spatial_size)
         return self.resampler(img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode)

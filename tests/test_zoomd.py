@@ -21,7 +21,7 @@ from tests.utils import NumpyImageTestCase2D
 
 VALID_CASES = [(1.5, "nearest", False), (0.3, "bilinear", False), (0.8, "bilinear", False)]
 
-INVALID_CASES = [("no_zoom", None, "bilinear", TypeError), ("invalid_order", 0.9, "s", NotImplementedError)]
+INVALID_CASES = [("no_zoom", None, "bilinear", TypeError), ("invalid_order", 0.9, "s", ValueError)]
 
 
 class TestZoomd(NumpyImageTestCase2D):

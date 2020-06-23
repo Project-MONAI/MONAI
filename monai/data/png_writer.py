@@ -9,15 +9,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Union
+
 import numpy as np
 
 from monai.transforms import Resize
 from monai.utils import ensure_tuple_rep, min_version, optional_import
+from monai.utils.enums import InterpolateMode
 
 Image, _ = optional_import("PIL", name="Image")
 
 
-def write_png(data, file_name: str, output_spatial_shape=None, mode: str = "bicubic", scale=None):
+def write_png(
+    data,
+    file_name: str,
+    output_spatial_shape=None,
+    mode: Union[InterpolateMode, str] = InterpolateMode.BICUBIC,
+    scale=None,
+):
     """
     Write numpy data into png files to disk.
     Spatially it supports HW for 2D.(H,W) or (H,W,3) or (H,W,4).
@@ -41,7 +50,8 @@ def write_png(data, file_name: str, output_spatial_shape=None, mode: str = "bicu
         data = data.squeeze(2)
     if output_spatial_shape is not None:
         output_spatial_shape = ensure_tuple_rep(output_spatial_shape, 2)
-        align_corners = False if mode in ("linear", "bilinear", "bicubic", "trilinear") else None
+        mode = InterpolateMode(mode)
+        align_corners = None if mode in (InterpolateMode.NEAREST, InterpolateMode.AREA) else False
         xform = Resize(spatial_size=output_spatial_shape, mode=mode, align_corners=align_corners)
         _min, _max = np.min(data), np.max(data)
         if len(data.shape) == 3:
@@ -51,7 +61,7 @@ def write_png(data, file_name: str, output_spatial_shape=None, mode: str = "bicu
         else:  # (H, W)
             data = np.expand_dims(data, 0)  # make a channel
             data = xform(data)[0]  # first channel
-        if mode != "nearest":
+        if mode != InterpolateMode.NEAREST:
             data = np.clip(data, _min, _max)
 
     if scale is not None:
