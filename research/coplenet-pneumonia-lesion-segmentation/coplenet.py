@@ -118,7 +118,7 @@ class CopleNet(nn.Module):
         self.up4 = UpBlock(ft_chns[1], f0_half, ft_chns[0], bilinear, dropout[0], spatial_dims)
 
         self.aspp = SimpleASPP(
-            spatial_dims, ft_chns[4], int(ft_chns[4] / 4), kernel_sizes=[1, 3, 3, 3], dilations=[1, 2, 4, 6],
+            spatial_dims, ft_chns[4], int(ft_chns[4] / 4), kernel_sizes=[1, 3, 3, 3], dilations=[1, 2, 4, 6]
         )
 
         self.out_conv = Convolution(spatial_dims, ft_chns[0], out_channels, conv_only=True)

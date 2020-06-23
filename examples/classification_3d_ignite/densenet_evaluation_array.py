@@ -50,7 +50,7 @@ def main():
     # define nifti dataset
     val_ds = NiftiDataset(image_files=images, labels=labels, transform=val_transforms, image_only=False)
     # create DenseNet121
-    net = monai.networks.nets.densenet.densenet121(spatial_dims=3, in_channels=1, out_channels=2,)
+    net = monai.networks.nets.densenet.densenet121(spatial_dims=3, in_channels=1, out_channels=2)
     device = torch.device("cuda:0")
 
     metric_name = "Accuracy"

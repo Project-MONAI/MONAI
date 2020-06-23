@@ -214,7 +214,7 @@ class CropForeground(Transform):
     """
 
     def __init__(
-        self, select_fn: Callable = lambda x: x > 0, channel_indexes: Optional[IndexSelection] = None, margin: int = 0,
+        self, select_fn: Callable = lambda x: x > 0, channel_indexes: Optional[IndexSelection] = None, margin: int = 0
     ):
         """
         Args:
