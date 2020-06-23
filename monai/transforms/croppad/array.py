@@ -84,6 +84,7 @@ class BorderPad(Transform):
             for more details, please check: https://docs.scipy.org/doc/numpy/reference/generated/numpy.pad.html
 
     """
+
     def __init__(self, spatial_border, mode: str = "constant"):
         self.spatial_border = spatial_border
         self.mode = mode
