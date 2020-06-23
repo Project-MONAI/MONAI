@@ -61,7 +61,7 @@ class MeanDice(Metric):
             mutually_exclusive=mutually_exclusive,
             sigmoid=sigmoid,
             logit_thresh=logit_thresh,
-            reduction="mean"
+            reduction="mean",
         )
         self._sum = 0
         self._num_examples = 0

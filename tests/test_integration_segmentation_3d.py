@@ -79,13 +79,7 @@ def run_training_test(root_dir, device=torch.device("cuda:0"), cachedataset=Fals
     else:
         train_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
     # use batch_size=2 to load images and use RandCropByPosNegLabeld to generate 2 x 4 images for network training
-    train_loader = DataLoader(
-        train_ds,
-        batch_size=2,
-        shuffle=True,
-        num_workers=4,
-        collate_fn=list_data_collate
-    )
+    train_loader = DataLoader(train_ds, batch_size=2, shuffle=True, num_workers=4, collate_fn=list_data_collate)
     # create a validation data loader
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
     val_loader = DataLoader(val_ds, batch_size=1, num_workers=4, collate_fn=list_data_collate)
