@@ -47,7 +47,7 @@ class ImageLabelDataset:
         train_data, train_masks_data = get_filenames(data)
         data = load_data_and_mask(train_data, train_masks_data)  # read into a data dict
         # loading image
-        data["image"] = data["image"].astype(np.float32)
+        data["image"] = data["image"].astype(np.float32)  # shape (H W D)
         # loading labels
         class_shape = (1,) + data["image"].shape
         mask0 = np.zeros(class_shape)
@@ -61,7 +61,7 @@ class ImageLabelDataset:
             mask0 = np.logical_or(mask0, mask)
             mask_list.append(mask.reshape(class_shape))
         mask0 = 1 - mask0
-        data["label"] = np.concatenate([mask0] + mask_list, axis=0).astype(np.uint8)
+        data["label"] = np.concatenate([mask0] + mask_list, axis=0).astype(np.uint8)  # shape (C H W D)
         # setting flags
         data["with_complete_groundtruth"] = flagvect  # flagvec is a boolean indicator for complete annotation
         return data
