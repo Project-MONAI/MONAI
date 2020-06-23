@@ -224,7 +224,7 @@ class RandRotate90d(Randomizable, MapTransform):
         self._do_transform = False
         self._rand_k = 0
 
-    def randomize(self):
+    def randomize(self) -> None:  # type: ignore # see issue #495
         self._rand_k = self.R.randint(self.max_k) + 1
         self._do_transform = self.R.random() < self.prob
 
@@ -331,7 +331,7 @@ class RandAffined(Randomizable, MapTransform):
         super().set_random_state(seed, state)
         return self
 
-    def randomize(self):
+    def randomize(self) -> None:  # type: ignore # see issue #495
         self.rand_affine.randomize()
 
     def __call__(self, data):
@@ -414,7 +414,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
         super().set_random_state(seed, state)
         return self
 
-    def randomize(self, spatial_size):
+    def randomize(self, spatial_size) -> None:  # type: ignore # see issue #495
         self.rand_2d_elastic.randomize(spatial_size)
 
     def __call__(self, data):
@@ -502,7 +502,7 @@ class Rand3DElasticd(Randomizable, MapTransform):
         super().set_random_state(seed, state)
         return self
 
-    def randomize(self, grid_size):
+    def randomize(self, grid_size) -> None:  # type: ignore # see issue #495
         self.rand_3d_elastic.randomize(grid_size)
 
     def __call__(self, data):
@@ -566,7 +566,7 @@ class RandFlipd(Randomizable, MapTransform):
         self._do_transform = False
         self.flipper = Flip(spatial_axis=spatial_axis)
 
-    def randomize(self):
+    def randomize(self) -> None:  # type: ignore # see issue #495
         self._do_transform = self.R.random_sample() < self.prob
 
     def __call__(self, data):
@@ -680,7 +680,7 @@ class RandRotated(Randomizable, MapTransform):
         self.y = 0.0
         self.z = 0.0
 
-    def randomize(self):
+    def randomize(self) -> None:  # type: ignore # see issue #495
         self._do_transform = self.R.random_sample() < self.prob
         self.x = self.R.uniform(low=self.range_x[0], high=self.range_x[1])
         self.y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
@@ -779,9 +779,9 @@ class RandZoomd(Randomizable, MapTransform):
         self.keep_size = keep_size
 
         self._do_transform = False
-        self._zoom = None
+        self._zoom: Optional[np.random.RandomState] = None
 
-    def randomize(self):
+    def randomize(self) -> None:  # type: ignore # see issue #495
         self._do_transform = self.R.random_sample() < self.prob
         if hasattr(self.min_zoom, "__iter__"):
             self._zoom = (self.R.uniform(l, h) for l, h in zip(self.min_zoom, self.max_zoom))

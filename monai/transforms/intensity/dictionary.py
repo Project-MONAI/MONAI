@@ -51,7 +51,7 @@ class RandGaussianNoised(Randomizable, MapTransform):
         self._do_transform = False
         self._noise = None
 
-    def randomize(self, im_shape):
+    def randomize(self, im_shape) -> None:  # type: ignore # see issue #495
         self._do_transform = self.R.random() < self.prob
         self._noise = self.R.normal(self.mean, self.R.uniform(0, self.std), size=im_shape)
 
@@ -110,7 +110,7 @@ class RandShiftIntensityd(Randomizable, MapTransform):
         self.prob = prob
         self._do_transform = False
 
-    def randomize(self):
+    def randomize(self) -> None:  # type: ignore # see issue #495
         self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
         self._do_transform = self.R.random() < self.prob
 
@@ -133,8 +133,8 @@ class ScaleIntensityd(MapTransform):
     """
 
     def __init__(
-        self, keys: KeysCollection, minv: float = 0.0, maxv: float = 1.0, factor: Optional[float] = None,
-    ):
+        self, keys: KeysCollection, minv: float = 0.0, maxv: float = 1.0, factor: Optional[float] = None
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -176,7 +176,7 @@ class RandScaleIntensityd(Randomizable, MapTransform):
         self.prob = prob
         self._do_transform = False
 
-    def randomize(self):
+    def randomize(self) -> None:  # type: ignore # see issue #495
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
         self._do_transform = self.R.random() < self.prob
 
@@ -237,9 +237,7 @@ class ThresholdIntensityd(MapTransform):
         cval: value to fill the remaining parts of the image, default is 0.
     """
 
-    def __init__(
-        self, keys: KeysCollection, threshold: float, above: bool = True, cval: float = 0.0,
-    ):
+    def __init__(self, keys: KeysCollection, threshold: float, above: bool = True, cval: float = 0.0) -> None:
         super().__init__(keys)
         self.filter = ThresholdIntensity(threshold, above, cval)
 
@@ -265,8 +263,8 @@ class ScaleIntensityRanged(MapTransform):
     """
 
     def __init__(
-        self, keys: KeysCollection, a_min: float, a_max: float, b_min: float, b_max: float, clip: bool = False,
-    ):
+        self, keys: KeysCollection, a_min: float, a_max: float, b_min: float, b_max: float, clip: bool = False
+    ) -> None:
         super().__init__(keys)
         self.scaler = ScaleIntensityRange(a_min, a_max, b_min, b_max, clip)
 
@@ -330,7 +328,7 @@ class RandAdjustContrastd(Randomizable, MapTransform):
         self._do_transform = False
         self.gamma_value = None
 
-    def randomize(self):
+    def randomize(self) -> None:  # type: ignore # see issue #495
         self._do_transform = self.R.random_sample() < self.prob
         self.gamma_value = self.R.uniform(low=self.gamma[0], high=self.gamma[1])
 

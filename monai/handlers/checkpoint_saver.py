@@ -144,34 +144,44 @@ class CheckpointSaver:
             else:
                 engine.add_event_handler(Events.ITERATION_COMPLETED(every=self.save_interval), self.interval_completed)
 
-    def completed(self, engine):
+    def completed(self, engine) -> None:
         """Callback for train or validation/evaluation completed Event.
         Save final checkpoint if configure save_final is True.
 
         """
+        assert callable(self._final_checkpoint), "Error: _final_checkpoint function not specified."
         self._final_checkpoint(engine, self.save_dict)
+        assert self.logger is not None
+        assert hasattr(self.logger, "info"), "Error, provided logger has not info attribute."
         self.logger.info(f"Train completed, saved final checkpoint: {self._final_checkpoint.last_checkpoint}")
 
-    def exception_raised(self, engine, e):
+    def exception_raised(self, engine, e) -> None:
         """Callback for train or validation/evaluation exception raised Event.
         Save current data as final checkpoint if configure save_final is True.
 
         """
+        assert callable(self._final_checkpoint), "Error: _final_checkpoint function not specified."
         self._final_checkpoint(engine, self.save_dict)
+        assert self.logger is not None
+        assert hasattr(self.logger, "info"), "Error, provided logger has not info attribute."
         self.logger.info(f"Exception_raised, saved exception checkpoint: {self._final_checkpoint.last_checkpoint}")
 
-    def metrics_completed(self, engine):
+    def metrics_completed(self, engine) -> None:
         """Callback to compare metrics and save models in train or validation when epoch completed.
 
         """
+        assert callable(self._key_metric_checkpoint), "Error: _key_metric_checkpoint function not specified."
         self._key_metric_checkpoint(engine, self.save_dict)
 
-    def interval_completed(self, engine):
+    def interval_completed(self, engine) -> None:
         """Callback for train epoch/iteration completed Event.
         Save checkpoint if configure save_interval = N
 
         """
+        assert callable(self._interval_checkpoint), "Error: _interval_checkpoint function not specified."
         self._interval_checkpoint(engine, self.save_dict)
+        assert self.logger is not None
+        assert hasattr(self.logger, "info"), "Error, provided logger has not info attribute."
         if self.epoch_level:
             self.logger.info(f"Saved checkpoint at epoch: {engine.state.epoch}")
         else:
