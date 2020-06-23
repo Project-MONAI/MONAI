@@ -64,6 +64,30 @@ class SpatialPad(Transform):
             return img
 
 
+class BorderPad(Transform):
+    def __init__(self, spatial_border, mode: str = "constant"):
+        self.spatial_border = spatial_border
+        self.mode = mode
+
+    def __call__(self, img, mode: Optional[str] = None):
+        spatial_shape = img.shape[1:]
+        spatial_border = ensure_tuple(self.spatial_border)
+        for b in spatial_border:
+            if b < 0 or not isinstance(b, int):
+                raise ValueError("spatial_border must be int number and can not be less than 0.")
+
+        if len(spatial_border) == 1:
+            data_pad_width = [(spatial_border[0], spatial_border[0]) for _ in len(spatial_shape)]
+        elif len(spatial_border) == len(spatial_shape):
+            data_pad_width = [(spatial_border[i], spatial_border[i]) for i in len(spatial_shape)]
+        elif len(spatial_border) == len(spatial_shape) * 2:
+            data_pad_width = [(spatial_border[2 * i], spatial_border[2 * i + 1]) for i in len(spatial_shape)]
+        else:
+            raise ValueError("unsupported length of spatial_border definition.")
+
+        return np.pad(img, [(0, 0)] + data_pad_width, mode=mode or self.mode)
+
+
 class DivisiblePad(Transform):
     """
     Pad the input data, so that the spatial sizes are divisible by `k`.
