@@ -24,9 +24,7 @@ MICCAI 2020 (Early Accept, paper link: TBC)
 Head and Neck CT dataset
 please download and unzip the images into `./data` folder.
 
-- `HNPETCTclean.zip`: https://drive.google.com/file/d/17SUj2Si3eD8BHQ7nGpPSO_6wSLlk0TEg/view?usp=sharing
-- `HNCetuximabclean.zip`: https://drive.google.com/file/d/1XbsHVVtap72qp11Pv2cUzbV3dosOjBos/view?usp=sharing
-- `PDDCA18.zip`: https://drive.google.com/file/d/1yTarwj5_rp7eX2gCm5k8R0RsZVGzdYlc/view?usp=sharing
+- `HaN.zip`: https://drive.google.com/file/d/1A2zpVlR3CkvtkJPvtAF3-MH0nr1WZ2Mn/view?usp=sharing
 
 Please find more details at https://github.com/wentaozhu/AnatomyNet-for-anatomical-segmentation.git
 
