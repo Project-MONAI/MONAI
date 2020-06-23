@@ -96,7 +96,7 @@ class PNGSaver:
             raise ValueError("PNG image should only have 1, 3 or 4 channels.")
 
         write_png(
-            data, file_name=filename, output_shape=spatial_shape, interp_order=self.interp_order, scale=self.scale,
+            data, file_name=filename, output_shape=spatial_shape, interp_order=self.interp_order, scale=self.scale
         )
 
     def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data=None):

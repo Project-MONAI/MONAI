@@ -83,10 +83,7 @@ class Evaluator(Workflow):
         super().run()
 
     def get_validation_stats(self):
-        return {
-            "best_validation_metric": self.state.best_metric,
-            "best_validation_epoch": self.state.best_metric_epoch,
-        }
+        return {"best_validation_metric": self.state.best_metric, "best_validation_epoch": self.state.best_metric_epoch}
 
 
 class SupervisedEvaluator(Evaluator):

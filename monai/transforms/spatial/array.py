@@ -224,7 +224,7 @@ class Flip(Transform):
         spatial_axis (None, int or tuple of ints): spatial axes along which to flip over. Default is None.
     """
 
-    def __init__(self, spatial_axis=None):
+    def __init__(self, spatial_axis=None) -> None:
         self.spatial_axis = spatial_axis
 
     def __call__(self, img):
@@ -377,9 +377,7 @@ class Zoom(Transform):
         keep_size: Should keep original size (padding/slicing if needed), default is True.
     """
 
-    def __init__(
-        self, zoom, interp_order: str = "area", align_corners: Optional[bool] = None, keep_size: bool = True,
-    ):
+    def __init__(self, zoom, interp_order: str = "area", align_corners: Optional[bool] = None, keep_size: bool = True):
         self.zoom = zoom
         self.interp_order = interp_order
         self.align_corners = align_corners
@@ -465,7 +463,7 @@ class RandRotate90(Randomizable, Transform):
         self._do_transform = False
         self._rand_k = 0
 
-    def randomize(self):
+    def randomize(self) -> None:  # type: ignore # see issue #495
         self._rand_k = self.R.randint(self.max_k) + 1
         self._do_transform = self.R.random() < self.prob
 
@@ -536,7 +534,7 @@ class RandRotate(Randomizable, Transform):
         self.y = 0.0
         self.z = 0.0
 
-    def randomize(self):
+    def randomize(self) -> None:  # type: ignore # see issue #495
         self._do_transform = self.R.random_sample() < self.prob
         self.x = self.R.uniform(low=self.range_x[0], high=self.range_x[1])
         self.y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
@@ -575,7 +573,7 @@ class RandFlip(Randomizable, Transform):
         self.flipper = Flip(spatial_axis=spatial_axis)
         self._do_transform = False
 
-    def randomize(self):
+    def randomize(self) -> None:  # type: ignore # see issue #495
         self._do_transform = self.R.random_sample() < self.prob
 
     def __call__(self, img):
@@ -624,9 +622,9 @@ class RandZoom(Randomizable, Transform):
         self.keep_size = keep_size
 
         self._do_transform = False
-        self._zoom = None
+        self._zoom: Optional[np.random.RandomState] = None
 
-    def randomize(self):
+    def randomize(self) -> None:  # type: ignore # see issue #495
         self._do_transform = self.R.random_sample() < self.prob
         if hasattr(self.min_zoom, "__iter__"):
             self._zoom = (self.R.uniform(l, h) for l, h in zip(self.min_zoom, self.max_zoom))
@@ -740,15 +738,15 @@ class RandAffineGrid(Randomizable, Transform):
         self.translate_range = ensure_tuple(translate_range)
         self.scale_range = ensure_tuple(scale_range)
 
-        self.rotate_params = None
-        self.shear_params = None
-        self.translate_params = None
-        self.scale_params = None
+        self.rotate_params: Optional[List[float]] = None
+        self.shear_params: Optional[List[float]] = None
+        self.translate_params: Optional[List[float]] = None
+        self.scale_params: Optional[List[float]] = None
 
         self.as_tensor_output = as_tensor_output
         self.device = device
 
-    def randomize(self):
+    def randomize(self) -> None:  # type: ignore # see issue #495
         if self.rotate_range:
             self.rotate_params = [self.R.uniform(-f, f) for f in self.rotate_range if f is not None]
         if self.shear_range:
@@ -1009,7 +1007,7 @@ class RandAffine(Randomizable, Transform):
         super().set_random_state(seed, state)
         return self
 
-    def randomize(self):
+    def randomize(self) -> None:  # type: ignore # see issue #495
         self.do_transform = self.R.rand() < self.prob
         self.rand_affine_grid.randomize()
 
@@ -1206,9 +1204,7 @@ class Rand3DElastic(Randomizable, Transform):
         self.sigma = self.R.uniform(self.sigma_range[0], self.sigma_range[1])
         self.rand_affine_grid.randomize()
 
-    def __call__(
-        self, img, spatial_size=None, padding_mode=None, mode=None,
-    ):
+    def __call__(self, img, spatial_size=None, padding_mode=None, mode=None):
         """
         Args:
             img (ndarray or tensor): shape must be (num_channels, H, W, D),

@@ -52,10 +52,7 @@ TEST_CASE_3 = [
     (1, 64, 64, 33),
 ]
 
-TEST_CASE_4 = [
-    Compose([LoadNifti(image_only=True), AddChannel(), RandGaussianNoise(prob=1.0)]),
-    (1, 128, 128, 128),
-]
+TEST_CASE_4 = [Compose([LoadNifti(image_only=True), AddChannel(), RandGaussianNoise(prob=1.0)]), (1, 128, 128, 128)]
 
 
 class TestArrayDataset(unittest.TestCase):

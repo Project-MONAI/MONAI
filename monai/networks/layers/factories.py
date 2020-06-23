@@ -60,7 +60,7 @@ can be parameterized with the factory name and the arguments to pass to the crea
     layer = use_factory( (fact.TEST, kwargs) )
 """
 
-from typing import Any, Callable
+from typing import Any, Callable, Dict
 
 import torch.nn as nn
 
@@ -73,8 +73,8 @@ class LayerFactory:
     callables. These functions are referred to by name and can be added at any time.
     """
 
-    def __init__(self):
-        self.factories = {}
+    def __init__(self) -> None:
+        self.factories: Dict[str, Callable] = {}
 
     @property
     def names(self):

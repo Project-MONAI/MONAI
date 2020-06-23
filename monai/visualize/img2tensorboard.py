@@ -145,7 +145,7 @@ def add_animated_gif_no_channels(
     """
     writer._get_file_writer().add_summary(
         make_animated_gif_summary(
-            tag, image_tensor, max_out=max_out, animation_axes=[1], image_axes=[1, 2], scale_factor=scale_factor,
+            tag, image_tensor, max_out=max_out, animation_axes=[1], image_axes=[1, 2], scale_factor=scale_factor
         ),
         global_step,
     )
