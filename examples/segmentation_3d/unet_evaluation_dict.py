@@ -26,6 +26,7 @@ from monai.inferers import sliding_window_inference
 from monai.metrics import compute_meandice
 from monai.networks.nets import UNet
 from monai.transforms import Compose, LoadNiftid, AsChannelFirstd, ScaleIntensityd, ToTensord
+from monai.engines import get_devices_spec
 
 
 def main():
@@ -62,7 +63,8 @@ def main():
         val_ds, batch_size=1, num_workers=4, collate_fn=list_data_collate, pin_memory=torch.cuda.is_available()
     )
 
-    device = torch.device("cuda:0")
+    # try to use all the available GPUs
+    devices = get_devices_spec(None)
     model = UNet(
         dimensions=3,
         in_channels=1,
@@ -70,16 +72,21 @@ def main():
         channels=(16, 32, 64, 128, 256),
         strides=(2, 2, 2, 2),
         num_res_units=2,
-    ).to(device)
+    ).to(devices[0])
 
     model.load_state_dict(torch.load("best_metric_model.pth"))
+
+    # if we have multiple GPUs, set data parallel to execute sliding window inference
+    if len(devices) > 1:
+        model = torch.nn.DataParallel(model, device_ids=devices)
+
     model.eval()
     with torch.no_grad():
         metric_sum = 0.0
         metric_count = 0
         saver = NiftiSaver(output_dir="./output")
         for val_data in val_loader:
-            val_images, val_labels = val_data["img"].to(device), val_data["seg"].to(device)
+            val_images, val_labels = val_data["img"].to(devices[0]), val_data["seg"].to(devices[0])
             # define sliding window size and batch size for windows inference
             roi_size = (96, 96, 96)
             sw_batch_size = 4
