@@ -217,6 +217,12 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
+`DivisiblePad`
+~~~~~~~~~~~~~~
+.. autoclass:: DivisiblePad
+    :members:
+    :special-members: __call__
+
 `SpatialCrop`
 ~~~~~~~~~~~~~
 .. autoclass:: SpatialCrop
@@ -500,6 +506,12 @@ Dictionary-based Transforms
 `SpatialPadd`
 ~~~~~~~~~~~~~
 .. autoclass:: SpatialPadd
+    :members:
+    :special-members: __call__
+
+`DivisiblePadd`
+~~~~~~~~~~~~~~~
+.. autoclass:: DivisiblePadd
     :members:
     :special-members: __call__
 
