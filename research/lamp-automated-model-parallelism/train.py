@@ -23,13 +23,13 @@ from torchgpipe import GPipe
 from torchgpipe.balance import balance_by_size
 
 from unet_pipe import UNet, flatten_sequential
+from data_utils import get_filenames, load_data_and_mask
 
 N_CLASSES = 10
 TRAIN_PATH = "./data/HNPETCTclean/"
 VAL_PATH = "./data/HNCetuximabclean/"
 
 torch.backends.cudnn.enabled = True
-from data_utils import get_filenames, load_data_and_mask
 
 
 class ImageLabelDataset:
@@ -74,13 +74,16 @@ def train(n_feat, crop_size, bs, ep, pretrain=None):
     crop_size = [int(cz) for cz in crop_size.split(",")]
     print(f"input image crop_size: {crop_size}")
 
+    # starting training set loader
     train_transform = Compose([AddChannelDict(keys="image")])
     train_dataset = Dataset(ImageLabelDataset(path=TRAIN_PATH, n_class=N_CLASSES), transform=train_transform)
     train_dataloader = torch.utils.data.DataLoader(train_dataset, num_workers=6, batch_size=bs, shuffle=True)
-    print(train_dataset[0]['image'].shape)
+    print(train_dataset[0]["image"].shape)
+
+    # starting validation set loader
     val_dataset = Dataset(ImageLabelDataset(VAL_PATH, n_class=N_CLASSES), transform=train_transform)
     val_dataloader = torch.utils.data.DataLoader(val_dataset, num_workers=6, batch_size=1)
-    print(val_dataset[0]['image'].shape)
+    print(val_dataset[0]["image"].shape)
     print(f"training images: {len(train_dataloader)}, validation images: {len(val_dataloader)}")
 
     model = UNet(spatial_dims=3, in_channels=1, out_channels=N_CLASSES, n_feat=n_feat)
@@ -89,12 +92,13 @@ def train(n_feat, crop_size, bs, ep, pretrain=None):
     lossweight = torch.from_numpy(np.array([2.22, 1.31, 1.99, 1.13, 1.93, 1.93, 1.0, 1.0, 1.90, 1.98], np.float32))
 
     optimizer = torch.optim.RMSprop(model.parameters(), lr=5e-4)
+    # config GPipe
     data_dict = train_dataset[0]
     x = data_dict["image"]
     x = torch.from_numpy(np.expand_dims(x, 0)).float()  # adds a batch dim
     x = torch.autograd.Variable(x.cuda())
     partitions = torch.cuda.device_count()
-    print(f"partiaion: {partitions}, input: {x.size()}")
+    print(f"partition: {partitions}, input: {x.size()}")
     balance = balance_by_size(partitions, model, x)
     model = GPipe(model, balance, chunks=4, checkpoint="always")
     loss_func = DiceLoss(softmax=True, reduction="none")

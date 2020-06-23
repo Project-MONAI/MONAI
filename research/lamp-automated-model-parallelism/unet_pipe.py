@@ -158,8 +158,8 @@ class UNet(nn.Sequential):
         decoder = nn.Sequential(*decoder_layers)
 
         # making a sequential model
-        self.add_module("encoder", flatten_sequential(encoder))
-        self.add_module("decoder", flatten_sequential(decoder))
+        self.add_module("encoder", encoder)
+        self.add_module("decoder", decoder)
 
         for m in self.modules():
             if isinstance(m, Conv[Conv.CONV, spatial_dims]):
