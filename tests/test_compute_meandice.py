@@ -63,13 +63,13 @@ TEST_CASE_3 = [
 TEST_CASE_4 = [
     {"include_background": True, "to_onehot_y": True, "reduction": "mean_batch"},
     {
-        "input": torch.tensor(
+        "y_pred": torch.tensor(
             [
                 [[[1.0, 1.0], [1.0, 0.0]], [[0.0, 1.0], [0.0, 0.0]], [[0.0, 1.0], [1.0, 1.0]]],
                 [[[1.0, 0.0], [1.0, 1.0]], [[0.0, 1.0], [1.0, 1.0]], [[0.0, 1.0], [1.0, 0.0]]],
             ]
         ),
-        "target": torch.tensor([[[[0.0, 0.0], [0.0, 0.0]]], [[[1.0, 1.0], [2.0, 0.0]]]]),
+        "y": torch.tensor([[[[0.0, 0.0], [0.0, 0.0]]], [[[1.0, 1.0], [2.0, 0.0]]]]),
     },
     [0.6786, 0.4000, 0.6667],
 ]
@@ -77,13 +77,13 @@ TEST_CASE_4 = [
 TEST_CASE_5 = [
     {"include_background": True, "to_onehot_y": True, "reduction": "sum_batch"},
     {
-        "input": torch.tensor(
+        "y_pred": torch.tensor(
             [
                 [[[1.0, 1.0], [1.0, 0.0]], [[0.0, 1.0], [0.0, 0.0]], [[0.0, 1.0], [1.0, 1.0]]],
                 [[[1.0, 0.0], [1.0, 1.0]], [[0.0, 1.0], [1.0, 1.0]], [[0.0, 1.0], [1.0, 0.0]]],
             ]
         ),
-        "target": torch.tensor([[[[0.0, 0.0], [0.0, 0.0]]], [[[0.0, 0.0], [0.0, 0.0]]]]),
+        "y": torch.tensor([[[[0.0, 0.0], [0.0, 0.0]]], [[[0.0, 0.0], [0.0, 0.0]]]]),
     },
     [1.7143, 0.0000, 0.0000],
 ]
@@ -91,13 +91,13 @@ TEST_CASE_5 = [
 TEST_CASE_6 = [
     {"to_onehot_y": True, "include_background": False, "reduction": "sum_batch"},
     {
-        "input": torch.tensor(
+        "y_pred": torch.tensor(
             [
                 [[[1.0, 1.0], [1.0, 0.0]], [[0.0, 1.0], [0.0, 0.0]], [[0.0, 1.0], [1.0, 1.0]]],
                 [[[1.0, 0.0], [1.0, 1.0]], [[0.0, 1.0], [1.0, 1.0]], [[0.0, 1.0], [1.0, 0.0]]],
             ]
         ),
-        "target": torch.tensor([[[[0.0, 0.0], [0.0, 0.0]]], [[[0.0, 0.0], [0.0, 0.0]]]]),
+        "y": torch.tensor([[[[0.0, 0.0], [0.0, 0.0]]], [[[0.0, 0.0], [0.0, 0.0]]]]),
     },
     [0.0000, 0.0000],
 ]
@@ -127,8 +127,8 @@ class TestComputeMeanDice(unittest.TestCase):
 
         # same test as for compute_meandice
         vals = dict()
-        vals["input"] = input_data.pop("y_pred")
-        vals["target"] = input_data.pop("y")
+        vals["y_pred"] = input_data.pop("y_pred")
+        vals["y"] = input_data.pop("y")
         dice_metric = DiceMetric(**input_data, reduction="none")
         result = dice_metric(**vals)
         np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
