@@ -114,7 +114,7 @@ def train(n_feat, crop_size, bs, ep, pretrain=None):
     for epoch in range(ep):
         model.train()
         trainloss = 0
-        for data_dict in train_dataloader:
+        for b_idx, data_dict in enumerate(train_dataloader):
             x_train = data_dict["image"]
             y_train = data_dict["label"]
             flagvec = data_dict["with_complete_groundtruth"]
@@ -130,7 +130,10 @@ def train(n_feat, crop_size, bs, ep, pretrain=None):
             loss.backward()
             optimizer.step()
             trainloss += loss.item()
-        print("epoch %i TRAIN loss %.4f" % (epoch, trainloss / len(train_dataloader)))
+
+            if b_idx % 20 == 0:
+                print(f"Train Epoch: {epoch} [{b_idx}/{len(train_dataloader)}] \tLoss: {loss.item()}")
+        print(f"epoch {epoch} TRAIN loss {trainloss / len(train_dataloader)}")
 
         if epoch % 10 == 0:
             model.eval()
