@@ -30,7 +30,7 @@ class TestRandRotate2D(NumpyImageTestCase2D):
     )
     def test_correct_results(self, degrees, keep_size, order, mode, align_corners):
         rotate_fn = RandRotate(
-            range_x=degrees, prob=1.0, keep_size=keep_size, interp_order=order, mode=mode, align_corners=align_corners,
+            range_x=degrees, prob=1.0, keep_size=keep_size, interp_order=order, mode=mode, align_corners=align_corners
         )
         rotate_fn.set_random_state(243)
         rotated = rotate_fn(self.imt[0])

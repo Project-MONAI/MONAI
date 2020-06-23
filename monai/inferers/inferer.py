@@ -40,7 +40,7 @@ class SimpleInferer(Inferer):
 
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         Inferer.__init__(self)
 
     def __call__(self, inputs: torch.Tensor, network):

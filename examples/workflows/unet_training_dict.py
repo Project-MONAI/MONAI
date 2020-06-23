@@ -121,7 +121,7 @@ def main():
         StatsHandler(output_transform=lambda x: None),
         TensorBoardStatsHandler(log_dir="./runs/", output_transform=lambda x: None),
         TensorBoardImageHandler(
-            log_dir="./runs/", batch_transform=lambda x: (x["image"], x["label"]), output_transform=lambda x: x["pred"],
+            log_dir="./runs/", batch_transform=lambda x: (x["image"], x["label"]), output_transform=lambda x: x["pred"]
         ),
         CheckpointSaver(save_dir="./runs/", save_dict={"net": net}, save_key_metric=True),
     ]

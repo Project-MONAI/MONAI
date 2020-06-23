@@ -18,14 +18,26 @@ from monai.networks.utils import one_hot
 class DiceMetric:
     """
     Compute average Dice loss between two tensors. It can support both multi-classes and multi-labels tasks.
-    Input logits `input` (BNHW[D] where N is number of classes) is compared with ground truth `target` (BNHW[D]).
-    Axis N of `input` is expected to have logit predictions for each class rather than being image channels,
-    while the same axis of `target` can be 1 or N (one-hot format). The `smooth` parameter is a value added to the
-    intersection and union components of the inter-over-union calculation to smooth results and prevent divide by 0,
-    this value should be small. The `include_background` class attribute can be set to False for an instance of
-    DiceLoss to exclude the first category (channel index 0) which is by convention assumed to be background.
-    If the non-background segmentations are small compared to the total image size they can get overwhelmed by
-    the signal from the background so excluding it in such cases helps convergence.
+    Input logits `y_pred` (BNHW[D] where N is number of classes) is compared with ground truth `y` (BNHW[D]).
+    Axis N of `y_preds` is expected to have logit predictions for each class rather than being image channels,
+    while the same axis of `y` can be 1 or N (one-hot format). The `include_background` class attribute can be
+    set to False for an instance of DiceLoss to exclude the first category (channel index 0) which is by
+    convention assumed to be background. If the non-background segmentations are small compared to the total
+    image size they can get overwhelmed by the signal from the background so excluding it in such cases helps
+    convergence.
+
+    Args:
+        include_background: whether to skip Dice computation on the first channel of
+            the predicted output. Defaults to True.
+        to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
+        mutually_exclusive: if True, `y_pred` will be converted into a binary matrix using
+            a combination of argmax and to_onehot.  Defaults to False.
+        sigmoid: whether to add sigmoid function to y_pred before computation. Defaults to False.
+        logit_thresh: the threshold value used to convert (after sigmoid if `sigmoid=True`)
+            `y_pred` into a binary matrix. Defaults to 0.5.
+        reduction: define the mode to reduce computation result of 1 batch data.
+            available modes: `none`, `mean`, `sum`, `mean_batch`, `sum_batch`, `mean_batch`, `sum_batch`.
+            default is `mean`, average on channel dim then on batch dim.
 
     """
 
@@ -40,7 +52,7 @@ class DiceMetric:
     ):
         super().__init__()
 
-        if reduction not in ["none", "mean", "sum", "mean_batch", "sum_batch"]:
+        if reduction not in ["none", "mean", "sum", "mean_batch", "sum_batch", "mean_channel", "sum_channel"]:
             raise ValueError(f"reduction={reduction} is invalid. Valid options are: none, mean or sum.")
 
         self.include_background = include_background
@@ -52,12 +64,12 @@ class DiceMetric:
 
         self.not_nans = None  # keep track for valid elements in the batch
 
-    def __call__(self, input: torch.Tensor, target: torch.Tensor):
+    def __call__(self, y_pred: torch.Tensor, y: torch.Tensor):
 
         # compute dice (BxC) for each channel for each batch
         f = compute_meandice(
-            y_pred=input,
-            y=target,
+            y_pred=y_pred,
+            y=y,
             include_background=self.include_background,
             to_onehot_y=self.to_onehot_y,
             mutually_exclusive=self.mutually_exclusive,
@@ -75,13 +87,13 @@ class DiceMetric:
         t_zero = torch.zeros(1, device=f.device, dtype=torch.float)
 
         if self.reduction == "mean":
-            # 2 steps, first, mean by  batch (accounting for nans), then by channel
+            # 2 steps, first, mean by channel (accounting for nans), then by batch
 
-            not_nans = not_nans.sum(dim=0)
-            f = torch.where(not_nans > 0, f.sum(dim=0) / not_nans, t_zero)  # batch average
+            not_nans = not_nans.sum(dim=1)
+            f = torch.where(not_nans > 0, f.sum(dim=1) / not_nans, t_zero)  # channel average
 
             not_nans = not_nans.sum()
-            f = torch.where(not_nans > 0, f.sum() / not_nans, t_zero)  # channel average
+            f = torch.where(not_nans > 0, f.sum() / not_nans, t_zero)  # batch average
 
         elif self.reduction == "sum":
             not_nans = not_nans.sum()
@@ -92,12 +104,19 @@ class DiceMetric:
         elif self.reduction == "sum_batch":
             not_nans = not_nans.sum(dim=0)
             f = f.sum(dim=0)  # the batch sum
+        elif self.reduction == "mean_channel":
+            not_nans = not_nans.sum(dim=1)
+            f = torch.where(not_nans > 0, f.sum(dim=1) / not_nans, t_zero)  # channel average
+        elif self.reduction == "sum_channel":
+            not_nans = not_nans.sum(dim=1)
+            f = f.sum(dim=1)  # the channel sum
         elif self.reduction == "none":
             pass
         else:
             raise ValueError(f"reduction={self.reduction} is invalid.")
 
-        self.not_nans = not_nans  # preserve, since we may need it later to know how many elements were valid
+        # save not_nans since we may need it later to know how many elements were valid
+        self.not_nans = not_nans
 
         return f
 
@@ -186,4 +205,4 @@ def compute_meandice(
     denominator = y_o + y_pred_o
 
     f = torch.where(y_o > 0, (2.0 * intersection) / denominator, torch.tensor(float("nan"), device=y_o.device))
-    return f  # returns array of Dice shape: [Batch, n_classes]
+    return f  # returns array of Dice shape: [batch, n_classes]

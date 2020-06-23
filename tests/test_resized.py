@@ -39,7 +39,7 @@ class TestResized(NumpyImageTestCase2D):
         for channel in self.imt[0]:
             expected.append(
                 skimage.transform.resize(
-                    channel, spatial_size, order=_order, clip=False, preserve_range=False, anti_aliasing=False,
+                    channel, spatial_size, order=_order, clip=False, preserve_range=False, anti_aliasing=False
                 )
             )
         expected = np.stack(expected).astype(np.float32)

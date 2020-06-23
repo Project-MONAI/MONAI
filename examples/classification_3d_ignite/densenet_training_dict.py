@@ -85,7 +85,7 @@ def main():
     print(check_data["img"].shape, check_data["label"])
 
     # create DenseNet121, CrossEntropyLoss and Adam optimizer
-    net = monai.networks.nets.densenet.densenet121(spatial_dims=3, in_channels=1, out_channels=2,)
+    net = monai.networks.nets.densenet.densenet121(spatial_dims=3, in_channels=1, out_channels=2)
     loss = torch.nn.CrossEntropyLoss()
     lr = 1e-5
     opt = torch.optim.Adam(net.parameters(), lr)

@@ -22,9 +22,9 @@ from monai.utils import ensure_tuple, optional_import, min_version
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 
 
-def rand_choice(prob=0.5):
+def rand_choice(prob: float = 0.5) -> bool:
     """Returns True if a randomly chosen number is less than or equal to `prob`, by default this is a 50/50 chance."""
-    return random.random() <= prob
+    return bool(random.random() <= prob)
 
 
 def img_bounds(img):
@@ -39,7 +39,7 @@ def in_bounds(x, y, margin, maxx, maxy):
     return margin <= x < (maxx - margin) and margin <= y < (maxy - margin)
 
 
-def is_empty(img):
+def is_empty(img) -> bool:
     """Returns True if `img` is empty, that is its maximum value is not greater than its minimum."""
     return not (img.max() > img.min())  # use > instead of <= so that an image full of NaNs will result in True
 
