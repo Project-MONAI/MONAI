@@ -24,7 +24,7 @@ from torch.utils.tensorboard import SummaryWriter
 import monai
 from monai.data import create_test_image_3d, NiftiSaver, list_data_collate
 from monai.inferers import sliding_window_inference
-from monai.metrics import compute_meandice
+from monai.metrics import DiceMetric
 from monai.networks.nets import UNet
 from monai.transforms import (
     Compose,
@@ -84,14 +84,12 @@ def run_training_test(root_dir, device=torch.device("cuda:0"), cachedataset=Fals
         batch_size=2,
         shuffle=True,
         num_workers=4,
-        collate_fn=list_data_collate,
-        pin_memory=torch.cuda.is_available(),
+        collate_fn=list_data_collate
     )
     # create a validation data loader
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
-    val_loader = DataLoader(
-        val_ds, batch_size=1, num_workers=4, collate_fn=list_data_collate, pin_memory=torch.cuda.is_available()
-    )
+    val_loader = DataLoader(val_ds, batch_size=1, num_workers=4, collate_fn=list_data_collate)
+    dice_metric = DiceMetric(include_background=True, to_onehot_y=False, sigmoid=True, reduction="mean")
 
     # create UNet, DiceLoss and Adam optimizer
     model = monai.networks.nets.UNet(
@@ -146,11 +144,9 @@ def run_training_test(root_dir, device=torch.device("cuda:0"), cachedataset=Fals
                     val_images, val_labels = val_data["img"].to(device), val_data["seg"].to(device)
                     sw_batch_size, roi_size = 4, (96, 96, 96)
                     val_outputs = sliding_window_inference(val_images, roi_size, sw_batch_size, model)
-                    value = compute_meandice(
-                        y_pred=val_outputs, y=val_labels, include_background=True, to_onehot_y=False, sigmoid=True
-                    )
-                    metric_count += len(value)
-                    metric_sum += value.sum().item()
+                    value, not_nans = dice_metric(y_pred=val_outputs, y=val_labels)
+                    metric_count += not_nans.item()
+                    metric_sum += value.item() * not_nans.item()
                 metric = metric_sum / metric_count
                 metric_values.append(metric)
                 if metric > best_metric:
@@ -189,9 +185,8 @@ def run_inference_test(root_dir, device=torch.device("cuda:0")):
     )
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
     # sliding window inferene need to input 1 image in every iteration
-    val_loader = DataLoader(
-        val_ds, batch_size=1, num_workers=4, collate_fn=list_data_collate, pin_memory=torch.cuda.is_available()
-    )
+    val_loader = DataLoader(val_ds, batch_size=1, num_workers=4, collate_fn=list_data_collate)
+    dice_metric = DiceMetric(include_background=True, to_onehot_y=False, sigmoid=True, reduction="mean")
 
     model = UNet(
         dimensions=3,
@@ -214,11 +209,9 @@ def run_inference_test(root_dir, device=torch.device("cuda:0")):
             # define sliding window size and batch size for windows inference
             sw_batch_size, roi_size = 4, (96, 96, 96)
             val_outputs = sliding_window_inference(val_images, roi_size, sw_batch_size, model)
-            value = compute_meandice(
-                y_pred=val_outputs, y=val_labels, include_background=True, to_onehot_y=False, sigmoid=True
-            )
-            metric_count += len(value)
-            metric_sum += value.sum().item()
+            value, not_nans = dice_metric(y_pred=val_outputs, y=val_labels)
+            metric_count += not_nans.item()
+            metric_sum += value.item() * not_nans.item()
             val_outputs = (val_outputs.sigmoid() >= 0.5).float()
             saver.save_batch(val_outputs, val_data["img_meta_dict"])
         metric = metric_sum / metric_count

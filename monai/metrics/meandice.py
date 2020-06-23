@@ -37,6 +37,7 @@ class DiceMetric:
             `y_pred` into a binary matrix. Defaults to 0.5.
         reduction: define the mode to reduce computation result of 1 batch data.
             available modes: `none`, `mean`, `sum`, `mean_batch`, `sum_batch`, `mean_batch`, `sum_batch`.
+            default is `mean`, average on channel dim then on batch dim.
 
     """
 
@@ -86,13 +87,13 @@ class DiceMetric:
         t_zero = torch.zeros(1, device=f.device, dtype=torch.float)
 
         if self.reduction == "mean":
-            # 2 steps, first, mean by batch (accounting for nans), then by channel
+            # 2 steps, first, mean by channel (accounting for nans), then by batch
 
-            not_nans = not_nans.sum(dim=0)
-            f = torch.where(not_nans > 0, f.sum(dim=0) / not_nans, t_zero)  # batch average
+            not_nans = not_nans.sum(dim=1)
+            f = torch.where(not_nans > 0, f.sum(dim=1) / not_nans, t_zero)  # channel average
 
             not_nans = not_nans.sum()
-            f = torch.where(not_nans > 0, f.sum() / not_nans, t_zero)  # channel average
+            f = torch.where(not_nans > 0, f.sum() / not_nans, t_zero)  # batch average
 
         elif self.reduction == "sum":
             not_nans = not_nans.sum()
@@ -114,9 +115,8 @@ class DiceMetric:
         else:
             raise ValueError(f"reduction={self.reduction} is invalid.")
 
-        self.not_nans = not_nans  # preserve, since we may need it later to know how many elements were valid
-
-        return f
+        # also return not_nans since we may need it later to know how many elements were valid
+        return f, not_nans
 
 
 def compute_meandice(

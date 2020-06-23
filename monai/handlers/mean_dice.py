@@ -61,9 +61,8 @@ class MeanDice(Metric):
             mutually_exclusive=mutually_exclusive,
             sigmoid=sigmoid,
             logit_thresh=logit_thresh,
-            reduction="mean_channel"
+            reduction="mean"
         )
-
         self._sum = 0
         self._num_examples = 0
 
@@ -77,12 +76,11 @@ class MeanDice(Metric):
         if not len(output) == 2:
             raise ValueError("MeanDice metric can only support y_pred and y.")
         y_pred, y = output
-        scores = self.dice(y_pred, y)
+        score, not_nans = self.dice(y_pred, y)
 
         # add all items in current batch
-        for batch in scores:
-            self._sum += batch.item()
-            self._num_examples += 1
+        self._sum += score.item() * not_nans.item()
+        self._num_examples += not_nans.item()
 
     @sync_all_reduce("_sum", "_num_examples")
     def compute(self):
