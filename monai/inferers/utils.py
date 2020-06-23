@@ -9,11 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable
+from typing import Callable, Union
 
 import torch
 import torch.nn.functional as F
 from monai.data.utils import compute_importance_map, dense_patch_slices, get_valid_patch_size
+from monai.utils.enums import BlendMode
 
 
 def sliding_window_inference(
@@ -22,7 +23,7 @@ def sliding_window_inference(
     sw_batch_size: int,
     predictor: Callable,
     overlap: float = 0.25,
-    mode: str = "constant",
+    mode: Union[BlendMode, str] = BlendMode.CONSTANT,
     padding_mode: str = "constant",
     cval=0,
 ):

@@ -20,7 +20,7 @@ from torch.utils.data._utils.collate import default_collate
 import numpy as np
 from monai.utils import ensure_tuple_size, optional_import
 from monai.networks.layers.simplelayers import GaussianFilter
-from monai.utils.enums import NumpyPadMode
+from monai.utils.enums import NumpyPadMode, BlendMode
 
 nib, _ = optional_import("nibabel")
 
@@ -430,7 +430,9 @@ def create_file_basename(postfix: str, input_file_name: str, folder_path: str, d
     return os.path.join(subfolder_path, filename + "_" + postfix)
 
 
-def compute_importance_map(patch_size, mode: str = "constant", sigma_scale: float = 0.125, device=None):
+def compute_importance_map(
+    patch_size, mode: Union[BlendMode, str] = BlendMode.CONSTANT, sigma_scale: float = 0.125, device=None
+):
     """Get importance map for different weight modes.
 
     Args:
@@ -448,9 +450,10 @@ def compute_importance_map(patch_size, mode: str = "constant", sigma_scale: floa
     Returns:
         Tensor of size patch_size.
     """
-    if mode == "constant":
+    mode = BlendMode(mode)
+    if mode == BlendMode.CONSTANT:
         importance_map = torch.ones(patch_size, device=device).float()
-    elif mode == "gaussian":
+    elif mode == BlendMode.GAUSSIAN:
         center_coords = [i // 2 for i in patch_size]
         sigmas = [i * sigma_scale for i in patch_size]
 
