@@ -25,8 +25,8 @@ from torchgpipe.balance import balance_by_size
 from unet_pipe import UNet, flatten_sequential
 
 N_CLASSES = 10
-TRAIN_PATH = "./data/HNPETCTclean/"
-VAL_PATH = "./data/HNCetuximabclean/"
+TRAIN_PATH = "./data/HaN/train/"
+VAL_PATH = "./data/HaN/test/"
 
 torch.backends.cudnn.enabled = True
 from data_utils import get_filenames, load_data_and_mask
