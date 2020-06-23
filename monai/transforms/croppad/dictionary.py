@@ -57,7 +57,7 @@ class SpatialPadd(MapTransform):
 class BorderPadd(MapTransform):
     """
     Pad the input data by adding specified borders to every dimension.
-    Dictionary-based wrapper of :py:class: `monai.transforms.BorderPad`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.BorderPad`.
     """
 
     def __init__(self, keys: KeysCollection, spatial_border, mode="constant"):
