@@ -131,14 +131,14 @@ class TestComputeMeanDice(unittest.TestCase):
         vals["y"] = input_data.pop("y")
         dice_metric = DiceMetric(**input_data, reduction="none")
         result = dice_metric(**vals)
-        np.testing.assert_allclose(result[0].cpu().numpy(), expected_value, atol=1e-4)
+        np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
 
     @parameterized.expand([TEST_CASE_4, TEST_CASE_5, TEST_CASE_5])
     def test_nans_class(self, params, input_data, expected_value):
 
         dice_metric = DiceMetric(**params)
         result = dice_metric(**input_data)
-        np.testing.assert_allclose(result[0].cpu().numpy(), expected_value, atol=1e-4)
+        np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
 
 
 if __name__ == "__main__":

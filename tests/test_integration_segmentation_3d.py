@@ -138,9 +138,10 @@ def run_training_test(root_dir, device=torch.device("cuda:0"), cachedataset=Fals
                     val_images, val_labels = val_data["img"].to(device), val_data["seg"].to(device)
                     sw_batch_size, roi_size = 4, (96, 96, 96)
                     val_outputs = sliding_window_inference(val_images, roi_size, sw_batch_size, model)
-                    value, not_nans = dice_metric(y_pred=val_outputs, y=val_labels)
-                    metric_count += not_nans.item()
-                    metric_sum += value.item() * not_nans.item()
+                    value = dice_metric(y_pred=val_outputs, y=val_labels)
+                    not_nans = dice_metric.not_nans.item()
+                    metric_count += not_nans
+                    metric_sum += value.item() * not_nans
                 metric = metric_sum / metric_count
                 metric_values.append(metric)
                 if metric > best_metric:
@@ -203,9 +204,10 @@ def run_inference_test(root_dir, device=torch.device("cuda:0")):
             # define sliding window size and batch size for windows inference
             sw_batch_size, roi_size = 4, (96, 96, 96)
             val_outputs = sliding_window_inference(val_images, roi_size, sw_batch_size, model)
-            value, not_nans = dice_metric(y_pred=val_outputs, y=val_labels)
-            metric_count += not_nans.item()
-            metric_sum += value.item() * not_nans.item()
+            value = dice_metric(y_pred=val_outputs, y=val_labels)
+            not_nans = dice_metric.not_nans.item()
+            metric_count += not_nans
+            metric_sum += value.item() * not_nans
             val_outputs = (val_outputs.sigmoid() >= 0.5).float()
             saver.save_batch(val_outputs, val_data["img_meta_dict"])
         metric = metric_sum / metric_count

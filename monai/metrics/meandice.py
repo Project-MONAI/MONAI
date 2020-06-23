@@ -115,8 +115,10 @@ class DiceMetric:
         else:
             raise ValueError(f"reduction={self.reduction} is invalid.")
 
-        # also return not_nans since we may need it later to know how many elements were valid
-        return f, not_nans
+        # save not_nans since we may need it later to know how many elements were valid
+        self.not_nans = not_nans
+
+        return f
 
 
 def compute_meandice(

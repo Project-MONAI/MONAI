@@ -83,9 +83,9 @@ def main():
             roi_size = (96, 96, 96)
             sw_batch_size = 4
             val_outputs = sliding_window_inference(val_images, roi_size, sw_batch_size, model)
-            value, not_nans = dice_metric(y_pred=val_outputs, y=val_labels)
-            metric_count += not_nans.item()
-            metric_sum += value.item() * not_nans.item()
+            value = dice_metric(y_pred=val_outputs, y=val_labels)
+            metric_count += len(value)
+            metric_sum += value.item() * len(value)
             val_outputs = (val_outputs.sigmoid() >= 0.5).float()
             saver.save_batch(val_outputs, val_data["img_meta_dict"])
         metric = metric_sum / metric_count

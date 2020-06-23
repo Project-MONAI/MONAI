@@ -76,11 +76,12 @@ class MeanDice(Metric):
         if not len(output) == 2:
             raise ValueError("MeanDice metric can only support y_pred and y.")
         y_pred, y = output
-        score, not_nans = self.dice(y_pred, y)
+        score = self.dice(y_pred, y)
+        not_nans = self.dice.not_nans.item()
 
         # add all items in current batch
-        self._sum += score.item() * not_nans.item()
-        self._num_examples += not_nans.item()
+        self._sum += score.item() * not_nans
+        self._num_examples += not_nans
 
     @sync_all_reduce("_sum", "_num_examples")
     def compute(self):
