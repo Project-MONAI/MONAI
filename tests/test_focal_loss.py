@@ -34,8 +34,8 @@ class TestFocalLoss(unittest.TestCase):
             if torch.cuda.is_available():
                 x = x.cuda()
                 l = l.cuda()
-            output0 = focal_loss.forward(x, l)
-            output1 = ce.forward(x, l[:, 0])
+            output0 = focal_loss(x, l)
+            output1 = ce(x, l[:, 0])
             a = float(output0.cpu().detach())
             b = float(output1.cpu().detach())
             if abs(a - b) > max_error:
@@ -58,8 +58,8 @@ class TestFocalLoss(unittest.TestCase):
             if torch.cuda.is_available():
                 x = x.cuda()
                 l = l.cuda()
-            output0 = focal_loss.forward(x, l)
-            output1 = ce.forward(x, l[:, 0])
+            output0 = focal_loss(x, l)
+            output1 = ce(x, l[:, 0])
             a = float(output0.cpu().detach())
             b = float(output1.cpu().detach())
             if abs(a - b) > max_error:
@@ -78,7 +78,7 @@ class TestFocalLoss(unittest.TestCase):
 
         # focal loss for pred_very_good should be close to 0
         target = target.unsqueeze(1)  # shape (1, 1, H, W)
-        focal_loss_good = float(loss.forward(pred_very_good, target).cpu())
+        focal_loss_good = float(loss(pred_very_good, target).cpu())
         self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
 
     def test_empty_class_2d(self):
@@ -94,7 +94,7 @@ class TestFocalLoss(unittest.TestCase):
 
         # focal loss for pred_very_good should be close to 0
         target = target.unsqueeze(1)  # shape (1, 1, H, W)
-        focal_loss_good = float(loss.forward(pred_very_good, target).cpu())
+        focal_loss_good = float(loss(pred_very_good, target).cpu())
         self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
 
     def test_multi_class_seg_2d(self):
@@ -111,10 +111,10 @@ class TestFocalLoss(unittest.TestCase):
         target_one_hot = F.one_hot(target, num_classes=num_classes).permute(0, 3, 1, 2)  # test one hot
         target = target.unsqueeze(1)  # shape (1, 1, H, W)
 
-        focal_loss_good = float(loss.forward(pred_very_good, target).cpu())
+        focal_loss_good = float(loss(pred_very_good, target).cpu())
         self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
 
-        focal_loss_good = float(loss.forward(pred_very_good, target_one_hot).cpu())
+        focal_loss_good = float(loss(pred_very_good, target_one_hot).cpu())
         self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
 
     def test_bin_seg_3d(self):
@@ -140,10 +140,10 @@ class TestFocalLoss(unittest.TestCase):
 
         # focal loss for pred_very_good should be close to 0
         target = target.unsqueeze(1)  # shape (1, 1, H, W)
-        focal_loss_good = float(loss.forward(pred_very_good, target).cpu())
+        focal_loss_good = float(loss(pred_very_good, target).cpu())
         self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
 
-        focal_loss_good = float(loss.forward(pred_very_good, target_one_hot).cpu())
+        focal_loss_good = float(loss(pred_very_good, target_one_hot).cpu())
         self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
 
     def test_ill_opts(self):
