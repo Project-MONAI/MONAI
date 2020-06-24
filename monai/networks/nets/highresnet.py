@@ -16,13 +16,13 @@ import torch.nn.functional as F
 
 from monai.networks.layers.convutils import same_padding
 from monai.networks.layers.factories import Conv, Dropout, Norm
-from monai.utils.enums import Normalisation
+from monai.utils.enums import Normalisation, Activation
 
 SUPPORTED_NORM = {
     Normalisation.BATCH: lambda spatial_dims: Norm[Norm.BATCH, spatial_dims],
     Normalisation.INSTANCE: lambda spatial_dims: Norm[Norm.INSTANCE, spatial_dims],
 }
-SUPPORTED_ACTI = {"relu": nn.ReLU, "prelu": nn.PReLU, "relu6": nn.ReLU6}
+SUPPORTED_ACTI = {Activation.RELU: nn.ReLU, Activation.PRELU: nn.PReLU, Activation.RELU6: nn.ReLU6}
 DEFAULT_LAYER_PARAMS_3D = (
     # initial conv layer
     {"name": "conv_0", "n_features": 16, "kernel_size": 3},
@@ -44,7 +44,7 @@ class ConvNormActi(nn.Module):
         out_channels: int,
         kernel_size: int,
         norm_type: Optional[Union[Normalisation, str]] = None,
-        acti_type: Optional[str] = None,
+        acti_type: Optional[Union[Activation, str]] = None,
         dropout_prob: Optional[float] = None,
     ):
 
@@ -61,6 +61,7 @@ class ConvNormActi(nn.Module):
             norm_type = Normalisation(norm_type)
             layers.append(SUPPORTED_NORM[norm_type](spatial_dims)(out_channels))
         if acti_type is not None:
+            acti_type = Activation(acti_type)
             layers.append(SUPPORTED_ACTI[acti_type](inplace=True))
         if dropout_prob is not None:
             dropout_type = Dropout[Dropout.DROPOUT, spatial_dims]
@@ -80,7 +81,7 @@ class HighResBlock(nn.Module):
         kernels=(3, 3),
         dilation=1,
         norm_type: Union[Normalisation, str] = Normalisation.INSTANCE,
-        acti_type: str = "relu",
+        acti_type: Union[Activation, str] = Activation.RELU,
         channel_matching: str = "pad",
     ):
         """
@@ -99,6 +100,7 @@ class HighResBlock(nn.Module):
         super(HighResBlock, self).__init__()
         conv_type = Conv[Conv.CONV, spatial_dims]
         norm_type = Normalisation(norm_type)
+        acti_type = Activation(acti_type)
 
         self.project, self.pad = None, None
         if in_channels != out_channels:
@@ -165,7 +167,7 @@ class HighResNet(nn.Module):
         in_channels: int = 1,
         out_channels: int = 1,
         norm_type: Union[Normalisation, str] = Normalisation.BATCH,
-        acti_type: str = "relu",
+        acti_type: Union[Activation, str] = Activation.RELU,
         dropout_prob: Optional[float] = None,
         layer_params=DEFAULT_LAYER_PARAMS_3D,
     ):
