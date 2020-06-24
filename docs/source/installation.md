@@ -102,22 +102,34 @@ By default, the installation steps will only download and install the minimal re
 Optional dependencies can be installed using [the extras syntax](https://packaging.python.org/tutorials/installing-packages/#installing-setuptools-extras) to support additional features.
 
 For example, to install MONAI with Nibabel and Scikit-image support:
-```
+```bash
 git clone https://github.com/Project-MONAI/MONAI.git
 cd MONAI/
 pip install -e '.[nibabel,skimage]'
 ```
 
 Alternatively, to install all optional dependencies:
-```
+```bash
 git clone https://github.com/Project-MONAI/MONAI.git
 cd MONAI/
 pip install -e '.[all]'
 ```
 
 To install all optional dependencies for MONAI development:
-```
+```bash
 git clone https://github.com/Project-MONAI/MONAI.git
 cd MONAI/
 pip install -r requirements-dev.txt
 ```
+
+Since MONAI v0.2.0, the extras syntax such as `pip install 'monai[nibabel]'` is available via PyPI.
+
+- The options are
+```
+[nibabel, skimage, pillow, tensorboard, ignite]
+```
+which correspond to `nibabel`, `scikit-image`, `pillow`, `tensorboard`, and `pytorch-ignite` respectively.
+
+- `pip install 'monai[all]'` installs all the optional dependencies.
+
+

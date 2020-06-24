@@ -93,7 +93,7 @@ class BorderPadd(MapTransform):
 class DivisiblePadd(MapTransform):
     """
     Pad the input data, so that the spatial sizes are divisible by `k`.
-    Dictionary-based wrapper of :py:class: `monai.transforms.DivisiblePad`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.DivisiblePad`.
     """
 
     def __init__(self, keys: KeysCollection, k, mode="constant"):
