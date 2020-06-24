@@ -297,3 +297,31 @@ class RandAdjustContrast(Randomizable, Transform):
             return img
         adjuster = AdjustContrast(self.gamma_value)
         return adjuster(img)
+
+
+class ScaleIntensityRangePercentiles(Transform):
+    """Apply specific intensity scaling to the whole numpy array.
+    Scaling from [lower percentile intensity, upper percentile intensity] to [b_min, b_max] with clip option.
+
+    Args:
+        lower: lower percentile.
+        upper: upper percentile.
+        b_min: intensity target range min.
+        b_max: intensity target range max.
+        clip: whether to perform clip after scaling.
+    """
+
+    def __init__(self, lower: float, upper: float, b_min: float, b_max: float, clip: bool = False) -> None:
+        assert 0.0 <= lower <= 100.0, "Percentiles must be in the range [0, 100]"
+        assert 0.0 <= upper <= 100.0, "Percentiles must be in the range [0, 100]"
+        self.lower = lower
+        self.upper = upper
+        self.b_min = b_min
+        self.b_max = b_max
+        self.clip = clip
+
+    def __call__(self, img):
+        a_min = np.percentile(img, self.lower)
+        a_max = np.percentile(img, self.upper)
+        scalar = ScaleIntensityRange(a_min=a_min, a_max=a_max, b_min=self.b_min, b_max=self.b_max, clip=self.clip)
+        return scalar(img)
