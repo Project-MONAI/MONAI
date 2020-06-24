@@ -16,7 +16,7 @@ import os
 import numpy as np
 import torch
 from monai.transforms import AddChannelDict, Compose
-from monai.losses import DiceLoss
+from monai.losses import DiceLoss, FocalLoss
 from monai.metrics import compute_meandice
 from monai.data import Dataset
 from torchgpipe import GPipe
@@ -102,6 +102,10 @@ def train(n_feat, crop_size, bs, ep, pretrain=None):
     balance = balance_by_size(partitions, model, x)
     model = GPipe(model, balance, chunks=4, checkpoint="always")
     loss_func = DiceLoss(softmax=True, reduction="none")
+    # use the same pipeline and loss in 
+    # AnatomyNet: Deep learning for fast and fully automated whole‐volume segmentation of head and neck anatomy,
+    # Medical Physics, 2018.
+    focal_loss_func = FocalLoss(reduction="none")
 
     if pretrain:
         pretrained_dict = torch.load(pretrain)["weight"]
@@ -124,9 +128,8 @@ def train(n_feat, crop_size, bs, ep, pretrain=None):
             optimizer.zero_grad()
             o = model(x_train).to(0, non_blocking=True).float()
 
-            # loss = tversky_loss_wmask(o, y_train, flagvec * torch.from_numpy(lossweight))
-            # loss += 0.1 * focal(o, y_train, flagvec * torch.from_numpy(lossweight))
             loss = (loss_func(o, y_train.to(o)) * flagvec.to(o) * lossweight.to(o)).mean()
+            loss += 0.5 * (focal_loss_func(o, y_train.to(o)) * flagvec.to(o) * lossweight.to(o)).mean()
             loss.backward()
             optimizer.step()
             trainloss += loss.item()
