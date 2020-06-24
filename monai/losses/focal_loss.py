@@ -18,12 +18,11 @@ from torch.nn.modules.loss import _WeightedLoss
 
 class FocalLoss(_WeightedLoss):
     """
-    PyTorch implementation of the Focal Loss.
+    Reimplementation of the Focal Loss described in:
 
         - "Focal Loss for Dense Object Detection", T. Lin et al., ICCV 2017
         - "AnatomyNet: Deep learning for fast and fully automated whole‐volume segmentation of head and neck anatomy",
           Zhu et al., Medical Physics 2018
-
     """
 
     def __init__(self, gamma: float = 2.0, weight: Optional[torch.Tensor] = None, reduction: str = "mean"):
@@ -58,9 +57,9 @@ class FocalLoss(_WeightedLoss):
         Args:
             input: (tensor): the shape should be BCH[WD].
                 where C is the number of classes.
-            target: (tensor): the shape should be B1H[WD].
-                The target that this loss expects should be a class index in the range
-                [0, C-1] where C is the number of classes.
+            target: (tensor): the shape should be B1H[WD] or BCH[WD].
+                If the target's shape is B1H[WD], the target that this loss expects should be a class index
+                in the range [0, C-1] where C is the number of classes.
         """
         i = input
         t = target
