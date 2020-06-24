@@ -121,6 +121,7 @@ def train(n_feat, crop_size, bs, ep, optimizer="rmsprop", lr=5e-4, pretrain=None
         model.load_state_dict(pretrained_dict)
 
     b_time = time.time()
+    best_test_loss = [0 for _ in range(9)]
     for epoch in range(ep):
         model.train()
         trainloss = 0
@@ -160,6 +161,8 @@ def train(n_feat, crop_size, bs, ep, optimizer="rmsprop", lr=5e-4, pretrain=None
                 ntest = [n + 1 if l == l else n for l, n in zip(loss[0], ntest)]
             testloss = [l / n for l, n in zip(testloss, ntest)]
             print("validation scores %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f" % tuple(testloss))
+            best_test_loss = [max(l1, l2) for l1, l2 in zip(best_test_loss, testloss)]
+            print("best validation scores %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f" % tuple(best_test_loss))
 
     print("total time", time.time() - b_time)
 
