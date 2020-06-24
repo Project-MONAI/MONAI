@@ -35,14 +35,10 @@ facilitate user-friendly, reproducible, optimized medical data pre-processing
 pipelines.
 
 ### 1. Transforms support both Dictionary and Array format data
-1. The widely used computer vision packages (such as ``torchvision``) focus on
-   spatially 2D array image processing. MONAI provides more domain-specific
-   transformations for both spatially 2D and 3D and retains the flexible
-   transformation "compose" feature.
-2.  As medical image preprocessing often requires additional fine-grained
-    system parameters, MONAI provides transforms for input data encapsulated in python dictionaries. Users can specify the keys corresponding to
-    the expected data fields and system parameters to compose complex
-    transformations.
+- The widely used computer vision packages (such as ``torchvision``) focus on spatially 2D array image processing. MONAI provides more domain-specific transformations for both spatially 2D and 3D and retains the flexible transformation "compose" feature.
+- As medical image preprocessing often requires additional fine-grained system parameters, MONAI provides transforms for input data encapsulated in python dictionaries. Users can specify the keys corresponding to the expected data fields and system parameters to compose complex transformations.
+
+There are huge number of transforms in 6 categories: Crop & Pad, Intensity, IO, Post, Spatial and Utilities. For more details, please check: [all the transforms in MONAI](https://monai.readthedocs.io/en/latest/transforms.html).
 
 ### 2. Medical specific transforms
 MONAI aims at providing a rich set of popular medical image specific
@@ -132,25 +128,36 @@ Users often need to train the model with many (potentially thousands of) epochs 
 implementation may repeatedly load data and run the same preprocessing steps
 for every epoch during training, which can be time-consuming and unnecessary,
 especially when the medical image volumes are large.  
-MONAI provides a mutli-threads caching mechanism to accelerate these transformation steps during training by storing the intermediate outcomes before the first randomized transform in the transform chain. Enabling this feature could potentially give 10x training speedups.
+MONAI provides a multi-threads `CacheDataset` to accelerate these transformation steps during training by storing the intermediate outcomes before the first randomized transform in the transform chain. Enabling this feature could potentially give 10x training speedups.
 ![image](../images/cache_dataset.png)
 
 ### 2. Cache intermediate outcomes into persistent storage
-The PersistentDataset is similar to the CacheDataset, where the intermediate cache values are persisted to disk storage for rapid retrieval between experimental runs (as is the case when tuning hyper parameters), or when the entire data set size exceeds available memory.
+The `PersistentDataset` is similar to the CacheDataset, where the intermediate cache values are persisted to disk storage for rapid retrieval between experimental runs (as is the case when tuning hyper parameters), or when the entire data set size exceeds available memory.
+
+### 3. Zip several PyTorch datasets and output data together
+MONAI provides `ZipDataset` to connect several PyTorch datasets and combine the output data(with the same index) together in a tuple, which can be helpful to execute complicated training progress based on several data sources.  
+For example:
+```py
+class DatasetA(Dataset):
+    def __getitem__(self, index: int):
+        return image_data[index]
+
+class DatasetB(Dataset):
+    def __getitem__(self, index: int):
+        return extra_data[index]
+
+dataset = ZipDataset([DatasetA(), DatasetB()], transform)
+```
+
+### 4. Predefined Datasets for public medical data
+In order to quickly get start with popular training data in medical domain, MONAI provides several data-specific Datasets(like: `MedNISTDataset`, `DecathlonDataset`, etc.), which include downloading, extracting data files and support generation of training/evaluation items with transforms. And they are flexible that users can easily modify the JSON config file to change the default behaviors.  
+If anyone wants to contribute a new public dataset, just refer to existing Datasets and leverage the download and extracting APIs, etc.
 
 ## Losses
-There are domain-specific loss functions in the medical imaging research which
-are not typically used in the generic computer vision tasks. As an important
-module of MONAI, these loss functions are implemented in PyTorch, such as Dice
-loss and generalized Dice loss.
+There are domain-specific loss functions in the medical imaging research which are not typically used in the generic computer vision tasks. As an important module of MONAI, these loss functions are implemented in PyTorch, such as `DiceLoss`, `GeneralizedDiceLoss`, `MaskedDiceLoss`, `TverskyLoss` and `FocalLoss`, etc.
 
 ## Network architectures
-Some deep neural network architectures have shown to be particularly effective
-for medical imaging analysis tasks. MONAI implements reference networks with
-the aims of both flexibility and code readability.  To leverage the
-common network layers and blocks, MONAI provides several predefined layers
-and blocks which are compatible with 1D, 2D and 3D networks. Users can easily
-integrate the layer factories in their own networks.
+Some deep neural network architectures have shown to be particularly effective for medical imaging analysis tasks. MONAI implements reference networks with the aims of both flexibility and code readability. To leverage the common network layers and blocks, MONAI provides several predefined layers and blocks which are compatible with 1D, 2D and 3D networks. Users can easily integrate the layer factories in their own networks.
 For example:
 ```py
 # import MONAI’s layer factory
@@ -169,8 +176,8 @@ reference implementations for the relevant widely-used approaches. Currently,
 several popular evaluation metrics and inference patterns are included:
 
 ### 1. Sliding window inference
-For model inferences on large volumes, the sliding window approach is a popular
-choice to achieve high performance while having flexible memory requirements.
+For model inferences on large volumes, the sliding window approach is a popular choice to achieve high performance while having flexible memory requirements. It also supports `overlap` and `blending_mode` parameters to smooth the segmentation result with weights for better metrics.  
+The typical progress:
 1. Select continuous windows on the original image.
 2. Iteratively run batched window inferences until all windows are analyzed.
 3. Aggregate the inference outputs to a single segmentation map.
@@ -184,17 +191,11 @@ segmentation tasks and the area under the ROC curve for classification tasks.
 We continue to integrate more options.
 
 ## Visualization
-Beyond the simple point and curve plotting, MONAI provides intuitive interfaces
-to visualize multidimensional data as GIF animations in TensorBoard. This could
-provide a quick qualitative assessment of the model by visualizing, for
-example, the volumetric inputs, segmentation maps, and intermediate feature
-maps.
+Beyond the simple point and curve plotting, MONAI provides intuitive interfaces to visualize multidimensional data as GIF animations in TensorBoard. This could provide a quick qualitative assessment of the model by visualizing, for example, the volumetric inputs, segmentation maps, and intermediate feature maps.
 
 ## Result writing
-Currently MONAI supports writing the model outputs as NIfTI files for
-segmentation tasks, and as CSV files for classification tasks. A rich set of
-formats will be supported, along with relevant statistics and evaluation
-metrics automatically computed from the outputs.
+Currently MONAI supports writing the model outputs as NIfTI files or PNG files for segmentation tasks, and as CSV files for classification tasks. And the writers can restore the data spacing, orientation or shape according to the `original_shape` or `original_affine` information from the input image.  
+A rich set of formats will be supported soon, along with relevant statistics and evaluation metrics automatically computed from the outputs.
 
 ## Workflows
 (placeholder)
