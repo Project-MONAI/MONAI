@@ -30,7 +30,9 @@ Please find more details at https://github.com/wentaozhu/AnatomyNet-for-anatomic
 
 
 ### Hardware
-U-Net-32 2x16G, U-Net-64 4x16G, U-Net-128 2x32G
+- U-Net (`n_feat=32`): 2x 16Gb GPUs
+- U-Net (`n_feat=64`): 4x 16Gb GPUs
+- U-Net (`n_feat=128`): 2x 32G GPUs
 
 
 ### Commands
