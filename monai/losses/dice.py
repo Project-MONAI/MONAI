@@ -16,7 +16,7 @@ import torch
 from torch.nn.modules.loss import _Loss
 
 from monai.networks.utils import one_hot
-from monai.utils.enums import LossReduction
+from monai.utils.enums import LossReduction, Weight
 
 
 class DiceLoss(_Loss):
@@ -184,7 +184,7 @@ class GeneralizedDiceLoss(_Loss):
         to_onehot_y: bool = False,
         sigmoid: bool = False,
         softmax: bool = False,
-        w_type: str = "square",
+        w_type: Union[Weight, str] = Weight.SQUARE,
         reduction: Union[LossReduction, str] = LossReduction.MEAN,
     ):
         """
@@ -211,10 +211,11 @@ class GeneralizedDiceLoss(_Loss):
         self.sigmoid = sigmoid
         self.softmax = softmax
 
+        w_type = Weight(w_type)
         self.w_func: Callable = torch.ones_like
-        if w_type == "simple":
+        if w_type == Weight.SIMPLE:
             self.w_func = torch.reciprocal
-        elif w_type == "square":
+        elif w_type == Weight.SQUARE:
             self.w_func = lambda x: torch.reciprocal(x * x)
 
     def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5):
