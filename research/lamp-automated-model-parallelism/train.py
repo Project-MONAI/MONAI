@@ -15,10 +15,11 @@ import os
 
 import numpy as np
 import torch
-from monai.transforms import AddChannelDict, Compose
+from monai.transforms import AddChannelDict, Compose, RandCropByPosNegLabeld, CopyItemsd
 from monai.losses import DiceLoss, FocalLoss
 from monai.metrics import compute_meandice
-from monai.data import Dataset
+from monai.data import Dataset, list_data_collate
+from monai.utils import first
 from torchgpipe import GPipe
 from torchgpipe.balance import balance_by_size
 
@@ -75,13 +76,31 @@ def train(n_feat, crop_size, bs, ep, optimizer="rmsprop", lr=5e-4, pretrain=None
     print(f"input image crop_size: {crop_size}")
 
     # starting training set loader
-    train_transform = Compose([AddChannelDict(keys="image")])
-    train_dataset = Dataset(ImageLabelDataset(path=TRAIN_PATH, n_class=N_CLASSES), transform=train_transform)
-    train_dataloader = torch.utils.data.DataLoader(train_dataset, num_workers=6, batch_size=bs, shuffle=True)
-    print(train_dataset[0]["image"].shape)
+    train_images = ImageLabelDataset(path=TRAIN_PATH, n_class=N_CLASSES)
+    if np.any([cz == -1 for cz in crop_size]):  # using full image
+        train_transform = Compose([AddChannelDict(keys="image")])
+        train_dataset = Dataset(train_images, transform=train_transform)
+        # when bs > 1, the loader assumes that the full image sizes are the same across the dataset
+        train_dataloader = torch.utils.data.DataLoader(train_dataset, num_workers=6, batch_size=bs, shuffle=True)
+    else:
+        train_transform = Compose(
+            [
+                AddChannelDict(keys="image"),
+                CopyItemsd(keys="label", times=1, names="label_fg"),
+                lambda d: d.update({"label_fg": d["label_fg"][1:]}) or d,  # excluding label bg from the sampling mask
+                RandCropByPosNegLabeld(keys=("image", "label"), label_key="label_fg", size=crop_size, num_samples=bs),
+            ]
+        )
+        train_dataset = Dataset(train_images, transform=train_transform)
+        train_dataloader = torch.utils.data.DataLoader(
+            train_dataset, num_workers=0, batch_size=1, shuffle=True, collate_fn=list_data_collate
+        )
+    first_sample = first(train_dataloader)
+    print(first_sample["image"].shape)
 
     # starting validation set loader
-    val_dataset = Dataset(ImageLabelDataset(VAL_PATH, n_class=N_CLASSES), transform=train_transform)
+    val_transform = Compose([AddChannelDict(keys="image")])
+    val_dataset = Dataset(ImageLabelDataset(VAL_PATH, n_class=N_CLASSES), transform=val_transform)
     val_dataloader = torch.utils.data.DataLoader(val_dataset, num_workers=6, batch_size=1)
     print(val_dataset[0]["image"].shape)
     print(f"training images: {len(train_dataloader)}, validation images: {len(val_dataloader)}")
@@ -99,9 +118,7 @@ def train(n_feat, crop_size, bs, ep, optimizer="rmsprop", lr=5e-4, pretrain=None
         raise ValueError(f"Unknown optimizer type {optimizer}. (options are 'rmsprop' and 'momentum').")
 
     # config GPipe
-    data_dict = train_dataset[0]
-    x = data_dict["image"]
-    x = torch.from_numpy(np.expand_dims(x, 0)).float()  # adds a batch dim
+    x = first_sample["image"].float()
     x = torch.autograd.Variable(x.cuda())
     partitions = torch.cuda.device_count()
     print(f"partition: {partitions}, input: {x.size()}")
