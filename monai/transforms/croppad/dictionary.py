@@ -23,7 +23,7 @@ from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.croppad.array import CenterSpatialCrop, DivisiblePad, SpatialCrop, SpatialPad, BorderPad
 from monai.transforms.utils import generate_pos_neg_label_crop_centers, generate_spatial_bounding_box
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep
-from monai.utils.enums import NumpyPadMode
+from monai.utils.enums import NumpyPadMode, Method
 
 
 class SpatialPadd(MapTransform):
@@ -36,7 +36,7 @@ class SpatialPadd(MapTransform):
         self,
         keys: KeysCollection,
         spatial_size,
-        method: str = "symmetric",
+        method: Union[Method, str] = Method.SYMMETRIC,
         mode: Union[Sequence[object], NumpyPadMode, str] = NumpyPadMode.CONSTANT,
     ):
         """

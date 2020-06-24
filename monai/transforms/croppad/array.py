@@ -21,7 +21,7 @@ from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.utils import generate_spatial_bounding_box
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep
-from monai.utils.enums import NumpyPadMode
+from monai.utils.enums import NumpyPadMode, Method
 
 
 class SpatialPad(Transform):
@@ -40,14 +40,18 @@ class SpatialPad(Transform):
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
     """
 
-    def __init__(self, spatial_size, method: str = "symmetric", mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT):
+    def __init__(
+        self,
+        spatial_size,
+        method: Union[Method, str] = Method.SYMMETRIC,
+        mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+    ):
         self.spatial_size = ensure_tuple(spatial_size)
-        assert method in ("symmetric", "end"), "unsupported padding type."
-        self.method = method
+        self.method = Method(method)
         self.mode = NumpyPadMode(mode)
 
     def _determine_data_pad_width(self, data_shape):
-        if self.method == "symmetric":
+        if self.method == Method.SYMMETRIC:
             pad_width = list()
             for i in range(len(self.spatial_size)):
                 width = max(self.spatial_size[i] - data_shape[i], 0)
@@ -149,7 +153,7 @@ class DivisiblePad(Transform):
             new_dim = int(np.ceil(dim / k_d) * k_d) if k_d > 0 else dim
             new_size.append(new_dim)
 
-        spatial_pad = SpatialPad(spatial_size=new_size, method="symmetric", mode=mode or self.mode)
+        spatial_pad = SpatialPad(spatial_size=new_size, method=Method.SYMMETRIC, mode=mode or self.mode)
         return spatial_pad(img)
 
 
