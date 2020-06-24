@@ -19,10 +19,11 @@ from torch.nn.modules.loss import _WeightedLoss
 class FocalLoss(_WeightedLoss):
     """
     PyTorch implementation of the Focal Loss.
-    [1] "Focal Loss for Dense Object Detection", T. Lin et al., ICCV 2017
-    Focal + Dice loss for (medical) segmentation.
-    [2] "AnatomyNet: Deep learning for fast and fully automated whole‐volume segmentation of head and neck anatomy",
-    Medical Physics 2018
+
+        - "Focal Loss for Dense Object Detection", T. Lin et al., ICCV 2017
+        - "AnatomyNet: Deep learning for fast and fully automated whole‐volume segmentation of head and neck anatomy",
+          Zhu et al., Medical Physics 2018
+
     """
 
     def __init__(self, gamma: float = 2.0, weight: Optional[torch.Tensor] = None, reduction: str = "mean"):
@@ -67,7 +68,7 @@ class FocalLoss(_WeightedLoss):
         if i.ndim != t.ndim:
             raise ValueError(f"input and target must have the same number of dimensions, got {i.ndim} and {t.ndim}")
 
-        if target.shape[1] != 1 and target.shape[1] != i.shape[1]:
+        if target.shape[1] != 1 or target.shape[1] != i.shape[1]:
             raise ValueError(
                 "target must have one channel, and should be a class index in the range [0, C-1] "
                 + f"where C is the number of classes inferred from 'input': C={i.shape[1]}. "

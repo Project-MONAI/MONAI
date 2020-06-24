@@ -70,7 +70,7 @@ class ImageLabelDataset:
         return len(self.data)
 
 
-def train(n_feat, crop_size, bs, ep, pretrain=None):
+def train(n_feat, crop_size, bs, ep, optimizer="rmsprop", lr=5e-4, pretrain=None):
     crop_size = [int(cz) for cz in crop_size.split(",")]
     print(f"input image crop_size: {crop_size}")
 
@@ -88,10 +88,16 @@ def train(n_feat, crop_size, bs, ep, pretrain=None):
 
     model = UNet(spatial_dims=3, in_channels=1, out_channels=N_CLASSES, n_feat=n_feat)
     model = flatten_sequential(model)
-    model = model.cuda()
+    # model = model.cuda()
     lossweight = torch.from_numpy(np.array([2.22, 1.31, 1.99, 1.13, 1.93, 1.93, 1.0, 1.0, 1.90, 1.98], np.float32))
 
-    optimizer = torch.optim.RMSprop(model.parameters(), lr=5e-4)
+    if optimizer.lower() == "rmsprop":
+        optimizer = torch.optim.RMSprop(model.parameters(), lr=lr)  # lr = 5e-4
+    elif optimizer.lower() == "momentum":
+        optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)  # lr = 1e-4 for finetuning
+    else:
+        raise ValueError(f"Unknown optimizer type {optimizer}. (options are 'rmsprop' and 'momentum').")
+
     # config GPipe
     data_dict = train_dataset[0]
     x = data_dict["image"]
@@ -102,7 +108,7 @@ def train(n_feat, crop_size, bs, ep, pretrain=None):
     balance = balance_by_size(partitions, model, x)
     model = GPipe(model, balance, chunks=4, checkpoint="always")
     loss_func = DiceLoss(softmax=True, reduction="none")
-    # use the same pipeline and loss in 
+    # use the same pipeline and loss in
     # AnatomyNet: Deep learning for fast and fully automated whole‐volume segmentation of head and neck anatomy,
     # Medical Physics, 2018.
     focal_loss_func = FocalLoss(reduction="none")
@@ -163,8 +169,12 @@ if __name__ == "__main__":
     parser.add_argument("--n_feat", type=int, default=32, dest="n_feat")
     parser.add_argument("--crop_size", type=str, default="-1,-1,-1", dest="crop_size")
     parser.add_argument("--bs", type=int, default=1, dest="bs")  # batch size
-    parser.add_argument("--ep", type=int, default=150, dest="ep")  # 150
+    parser.add_argument("--ep", type=int, default=150, dest="ep")  # number of epochs
+    parser.add_argument("--lr", type=float, default=5e-4, dest="lr")  # learning rate
+    parser.add_argument("--optimizer", type=str, default="rmsprop", dest="optimizer")  # type of optimizer
     parser.add_argument("--pretrain", type=str, default=None, dest="pretrain")
     args = parser.parse_args()
 
-    train(**vars(args))
+    input_dict = vars(args)
+    print(input_dict)
+    train(**input_dict)
