@@ -68,7 +68,7 @@ class FocalLoss(_WeightedLoss):
         if i.ndim != t.ndim:
             raise ValueError(f"input and target must have the same number of dimensions, got {i.ndim} and {t.ndim}")
 
-        if target.shape[1] != 1 or target.shape[1] != i.shape[1]:
+        if target.shape[1] != 1 and target.shape[1] != i.shape[1]:
             raise ValueError(
                 "target must have one channel, and should be a class index in the range [0, C-1] "
                 + f"where C is the number of classes inferred from 'input': C={i.shape[1]}. "
