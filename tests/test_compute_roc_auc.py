@@ -39,7 +39,7 @@ TEST_CASE_5 = [
         "y": torch.tensor([[0], [1], [0], [1]]),
         "to_onehot_y": True,
         "softmax": True,
-        "average": None,
+        "average": "none",
     },
     [0.75, 0.75],
 ]
