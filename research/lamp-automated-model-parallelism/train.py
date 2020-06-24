@@ -15,10 +15,11 @@ import os
 
 import numpy as np
 import torch
-from monai.transforms import AddChannelDict, Compose
+from monai.transforms import AddChannelDict, Compose, RandCropByPosNegLabeld, CopyItemsd
 from monai.losses import DiceLoss, FocalLoss
 from monai.metrics import compute_meandice
-from monai.data import Dataset
+from monai.data import Dataset, list_data_collate
+from monai.utils import first
 from torchgpipe import GPipe
 from torchgpipe.balance import balance_by_size
 
@@ -26,8 +27,8 @@ from unet_pipe import UNet, flatten_sequential
 from data_utils import get_filenames, load_data_and_mask
 
 N_CLASSES = 10
-TRAIN_PATH = "./data/HaN/train/"
-VAL_PATH = "./data/HaN/test/"
+TRAIN_PATH = "./data/HaN/train/"  # training data folder
+VAL_PATH = "./data/HaN/test/"  # validation data folder
 
 torch.backends.cudnn.enabled = True
 
@@ -75,13 +76,31 @@ def train(n_feat, crop_size, bs, ep, optimizer="rmsprop", lr=5e-4, pretrain=None
     print(f"input image crop_size: {crop_size}")
 
     # starting training set loader
-    train_transform = Compose([AddChannelDict(keys="image")])
-    train_dataset = Dataset(ImageLabelDataset(path=TRAIN_PATH, n_class=N_CLASSES), transform=train_transform)
-    train_dataloader = torch.utils.data.DataLoader(train_dataset, num_workers=6, batch_size=bs, shuffle=True)
-    print(train_dataset[0]["image"].shape)
+    train_images = ImageLabelDataset(path=TRAIN_PATH, n_class=N_CLASSES)
+    if np.any([cz == -1 for cz in crop_size]):  # using full image
+        train_transform = Compose([AddChannelDict(keys="image")])
+        train_dataset = Dataset(train_images, transform=train_transform)
+        # when bs > 1, the loader assumes that the full image sizes are the same across the dataset
+        train_dataloader = torch.utils.data.DataLoader(train_dataset, num_workers=6, batch_size=bs, shuffle=True)
+    else:
+        train_transform = Compose(
+            [
+                AddChannelDict(keys="image"),
+                CopyItemsd(keys="label", times=1, names="label_fg"),
+                lambda d: d.update({"label_fg": d["label_fg"][1:]}) or d,  # excluding label bg from the sampling mask
+                RandCropByPosNegLabeld(keys=("image", "label"), label_key="label_fg", size=crop_size, num_samples=bs),
+            ]
+        )
+        train_dataset = Dataset(train_images, transform=train_transform)
+        train_dataloader = torch.utils.data.DataLoader(
+            train_dataset, num_workers=0, batch_size=1, shuffle=True, collate_fn=list_data_collate
+        )
+    first_sample = first(train_dataloader)
+    print(first_sample["image"].shape)
 
     # starting validation set loader
-    val_dataset = Dataset(ImageLabelDataset(VAL_PATH, n_class=N_CLASSES), transform=train_transform)
+    val_transform = Compose([AddChannelDict(keys="image")])
+    val_dataset = Dataset(ImageLabelDataset(VAL_PATH, n_class=N_CLASSES), transform=val_transform)
     val_dataloader = torch.utils.data.DataLoader(val_dataset, num_workers=6, batch_size=1)
     print(val_dataset[0]["image"].shape)
     print(f"training images: {len(train_dataloader)}, validation images: {len(val_dataloader)}")
@@ -99,21 +118,24 @@ def train(n_feat, crop_size, bs, ep, optimizer="rmsprop", lr=5e-4, pretrain=None
         raise ValueError(f"Unknown optimizer type {optimizer}. (options are 'rmsprop' and 'momentum').")
 
     # config GPipe
-    data_dict = train_dataset[0]
-    x = data_dict["image"]
-    x = torch.from_numpy(np.expand_dims(x, 0)).float()  # adds a batch dim
+    x = first_sample["image"].float()
     x = torch.autograd.Variable(x.cuda())
     partitions = torch.cuda.device_count()
     print(f"partition: {partitions}, input: {x.size()}")
     balance = balance_by_size(partitions, model, x)
     model = GPipe(model, balance, chunks=4, checkpoint="always")
-    loss_func = DiceLoss(softmax=True, reduction="none")
+
+    # config loss functions
+    dice_loss_func = DiceLoss(softmax=True, reduction="none")
     # use the same pipeline and loss in
     # AnatomyNet: Deep learning for fast and fully automated whole‐volume segmentation of head and neck anatomy,
     # Medical Physics, 2018.
     focal_loss_func = FocalLoss(reduction="none")
 
+    model_name = f"./HaN_{n_feat}_{bs}_{ep}_{crop_size}_{lr}"
+    print(f"save model as '{model_name}' during training.")
     if pretrain:
+        print(f"loading from {pretrain}.")
         pretrained_dict = torch.load(pretrain)["weight"]
         model_dict = model.state_dict()
         pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
@@ -121,6 +143,8 @@ def train(n_feat, crop_size, bs, ep, optimizer="rmsprop", lr=5e-4, pretrain=None
         model.load_state_dict(pretrained_dict)
 
     b_time = time.time()
+    best_val_loss = [0] * (N_CLASSES - 1)  # foreground
+    best_ave = -1
     for epoch in range(ep):
         model.train()
         trainloss = 0
@@ -134,7 +158,7 @@ def train(n_feat, crop_size, bs, ep, optimizer="rmsprop", lr=5e-4, pretrain=None
             optimizer.zero_grad()
             o = model(x_train).to(0, non_blocking=True).float()
 
-            loss = (loss_func(o, y_train.to(o)) * flagvec.to(o) * lossweight.to(o)).mean()
+            loss = (dice_loss_func(o, y_train.to(o)) * flagvec.to(o) * lossweight.to(o)).mean()
             loss += 0.5 * (focal_loss_func(o, y_train.to(o)) * flagvec.to(o) * lossweight.to(o)).mean()
             loss.backward()
             optimizer.step()
@@ -147,19 +171,27 @@ def train(n_feat, crop_size, bs, ep, optimizer="rmsprop", lr=5e-4, pretrain=None
         if epoch % 10 == 0:
             model.eval()
             # check validation dice
-            testloss = [0 for _ in range(N_CLASSES - 1)]
-            ntest = [0 for _ in range(N_CLASSES - 1)]
+            val_loss = [0] * (N_CLASSES - 1)
+            n_val = [0] * (N_CLASSES - 1)
             for data_dict in val_dataloader:
-                x_test = data_dict["image"]
-                y_test = data_dict["label"]
+                x_val = data_dict["image"]
+                y_val = data_dict["label"]
                 with torch.no_grad():
-                    x_test = torch.autograd.Variable(x_test.cuda())
-                o = model(x_test).to(0, non_blocking=True)
-                loss = compute_meandice(o, y_test.to(o), mutually_exclusive=True, include_background=False)
-                testloss = [l.item() + tl if l == l else tl for l, tl in zip(loss[0], testloss)]
-                ntest = [n + 1 if l == l else n for l, n in zip(loss[0], ntest)]
-            testloss = [l / n for l, n in zip(testloss, ntest)]
-            print("validation scores %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f" % tuple(testloss))
+                    x_val = torch.autograd.Variable(x_val.cuda())
+                o = model(x_val).to(0, non_blocking=True)
+                loss = compute_meandice(o, y_val.to(o), mutually_exclusive=True, include_background=False)
+                val_loss = [l.item() + tl if l == l else tl for l, tl in zip(loss[0], val_loss)]
+                n_val = [n + 1 if l == l else n for l, n in zip(loss[0], n_val)]
+            val_loss = [l / n for l, n in zip(val_loss, n_val)]
+            print("validation scores %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f" % tuple(val_loss))
+            best_val_loss = [max(l1, l2) for l1, l2 in zip(best_val_loss, val_loss)]
+            print("best validation scores %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f" % tuple(best_val_loss))
+            ave_score = np.mean(val_loss)
+            if ave_score > best_ave:
+                print(f"new best: {ave_score} at epoch {epoch}")
+                best_ave = ave_score
+                state = {"epoch": epoch, "weight": model.state_dict(), "score": ave_score}
+                torch.save(state, f"{model_name}")
 
     print("total time", time.time() - b_time)
 

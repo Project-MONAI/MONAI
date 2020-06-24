@@ -30,14 +30,16 @@ Please find more details at https://github.com/wentaozhu/AnatomyNet-for-anatomic
 
 
 ### Hardware
-U-Net-32 2x16G, U-Net-64 4x16G, U-Net-128 2x32G
+- U-Net (`n_feat=32`): 2x 16Gb GPUs
+- U-Net (`n_feat=64`): 4x 16Gb GPUs
+- U-Net (`n_feat=128`): 2x 32G GPUs
 
 
 ### Commands
-The number of features in the first block (--n_feat) can be 32, 64, or 128.
+The number of features in the first block (`--n_feat`) can be 32, 64, or 128.
 ```bash
     mkdir ./log;
     python train.py --n_feat=128 --crop_size='64,64,64' --bs=16 --ep=4800 > ./log/YOURLOG.log
-    python train.py --n_feat=128 --crop_size='128,128,128' --bs=4 --ep=1200 --pretrain='./model/BESTMODELFROM64,64,64' > ./log/YOURLOG.log
-    python train_1.py --n_feat=128 --crop_size='-1,-1,-1' --bs=1 --ep=300 --pretrain='./model/BESTMODELFROM128,128,128' > ./log/YOURLOG.log
+    python train.py --n_feat=128 --crop_size='128,128,128' --bs=4 --ep=1200 --pretrain='./HaN_64,64,64' > ./log/YOURLOG.log
+    python train.py --n_feat=128 --crop_size='-1,-1,-1' --bs=1 --ep=300 --pretrain='./HaN_128,128,128' > ./log/YOURLOG.log
 ```
