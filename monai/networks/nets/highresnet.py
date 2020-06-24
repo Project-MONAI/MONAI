@@ -16,7 +16,7 @@ import torch.nn.functional as F
 
 from monai.networks.layers.convutils import same_padding
 from monai.networks.layers.factories import Conv, Dropout, Norm
-from monai.utils.enums import Normalisation, Activation
+from monai.utils.enums import Normalisation, Activation, ChannelMatching
 
 SUPPORTED_NORM = {
     Normalisation.BATCH: lambda spatial_dims: Norm[Norm.BATCH, spatial_dims],
@@ -82,7 +82,7 @@ class HighResBlock(nn.Module):
         dilation=1,
         norm_type: Union[Normalisation, str] = Normalisation.INSTANCE,
         acti_type: Union[Activation, str] = Activation.RELU,
-        channel_matching: str = "pad",
+        channel_matching: Union[ChannelMatching, str] = ChannelMatching.PAD,
     ):
         """
         Args:
@@ -104,11 +104,10 @@ class HighResBlock(nn.Module):
 
         self.project, self.pad = None, None
         if in_channels != out_channels:
-            if channel_matching not in ("pad", "project"):
-                raise ValueError(f"channel matching must be pad or project, got {channel_matching}.")
-            if channel_matching == "project":
+            channel_matching = ChannelMatching(channel_matching)
+            if channel_matching == ChannelMatching.PROJECT:
                 self.project = conv_type(in_channels, out_channels, kernel_size=1)
-            if channel_matching == "pad":
+            if channel_matching == ChannelMatching.PAD:
                 if in_channels > out_channels:
                     raise ValueError("in_channels > out_channels is incompatible with `channel_matching=pad`.")
                 pad_1 = (out_channels - in_channels) // 2
