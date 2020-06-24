@@ -18,7 +18,7 @@ from monai.transforms import generate_pos_neg_label_crop_centers
 TEST_CASE_1 = [
     {
         "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
-        "size": [2, 2, 2],
+        "spatial_size": [2, 2, 2],
         "num_samples": 2,
         "pos_ratio": 1.0,
         "image": None,
@@ -30,9 +30,24 @@ TEST_CASE_1 = [
     3,
 ]
 
+TEST_CASE_2 = [
+    {
+        "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
+        "spatial_size": [2, 2, 2],
+        "num_samples": 2,
+        "pos_ratio": None,
+        "image": None,
+        "image_threshold": 0,
+        "rand_state": np.random.RandomState(),
+    },
+    list,
+    2,
+    3,
+]
+
 
 class TestGeneratePosNegLabelCropCenters(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_type_shape(self, input_data, expected_type, expected_count, expected_shape):
         result = generate_pos_neg_label_crop_centers(**input_data)
         self.assertIsInstance(result, expected_type)

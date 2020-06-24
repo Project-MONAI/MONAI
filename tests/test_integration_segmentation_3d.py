@@ -56,7 +56,7 @@ def run_training_test(root_dir, device=torch.device("cuda:0"), cachedataset=Fals
             Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], interp_order=["bilinear", "nearest"]),
             ScaleIntensityd(keys=["img", "seg"]),
             RandCropByPosNegLabeld(
-                keys=["img", "seg"], label_key="seg", size=[96, 96, 96], pos=1, neg=1, num_samples=4
+                keys=["img", "seg"], label_key="seg", spatial_size=[96, 96, 96], pos=1, neg=1, num_samples=4
             ),
             RandRotate90d(keys=["img", "seg"], prob=0.8, spatial_axes=[0, 2]),
             ToTensord(keys=["img", "seg"]),
