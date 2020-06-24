@@ -28,6 +28,7 @@ from monai.transforms.intensity.array import (
     AdjustContrast,
     ShiftIntensity,
     ScaleIntensity,
+    ScaleIntensityRangePercentiles,
 )
 
 
@@ -343,6 +344,32 @@ class RandAdjustContrastd(Randomizable, MapTransform):
         return d
 
 
+class ScaleIntensityRangePercentilesd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.ScaleIntensityRangePercentiles`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: monai.transforms.MapTransform
+        lower: lower percentile.
+        upper: upper percentile.
+        b_min: intensity target range min.
+        b_max: intensity target range max.
+        clip: whether to perform clip after scaling.
+    """
+
+    def __init__(
+        self, keys: KeysCollection, lower: float, upper: float, b_min: float, b_max: float, clip: bool = False
+    ) -> None:
+        super().__init__(keys)
+        self.scaler = ScaleIntensityRangePercentiles(lower, upper, b_min, b_max, clip)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.scaler(d[key])
+        return d
+
 RandGaussianNoiseD = RandGaussianNoiseDict = RandGaussianNoised
 ShiftIntensityD = ShiftIntensityDict = ShiftIntensityd
 RandShiftIntensityD = RandShiftIntensityDict = RandShiftIntensityd
@@ -353,3 +380,4 @@ ThresholdIntensityD = ThresholdIntensityDict = ThresholdIntensityd
 ScaleIntensityRangeD = ScaleIntensityRangeDict = ScaleIntensityRanged
 AdjustContrastD = AdjustContrastDict = AdjustContrastd
 RandAdjustContrastD = RandAdjustContrastDict = RandAdjustContrastd
+ScaleIntensityRangePercentilesD = ScaleIntensityRangePercentilesDict = ScaleIntensityRangePercentilesd
