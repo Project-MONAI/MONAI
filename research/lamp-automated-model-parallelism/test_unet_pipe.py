@@ -35,7 +35,7 @@ TEST_CASES = [
 ]
 
 
-class TestCopleNET(unittest.TestCase):
+class TestUNET(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_data, expected_shape):
         net = UNet(**input_param)

@@ -23,7 +23,7 @@ from torchgpipe.skip import Namespace, pop, skippable, stash
 class Stash(nn.Module):
     def forward(self, input: torch.Tensor):
         yield stash("skip", input)
-        return input
+        return input  # noqa  using yield together with return
 
 
 @skippable(stash=[], pop=["skip"])
