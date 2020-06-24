@@ -11,6 +11,7 @@
 
 import itertools
 from collections.abc import Iterable
+from typing import Any, Tuple
 
 import numpy as np
 import torch
@@ -49,7 +50,7 @@ def issequenceiterable(obj):
     return isinstance(obj, Iterable) and not isinstance(obj, str)
 
 
-def ensure_tuple(vals):
+def ensure_tuple(vals: Any) -> Tuple[Any, ...]:
     """Returns a tuple of `vals`"""
     if not issequenceiterable(vals):
         vals = (vals,)
@@ -57,9 +58,9 @@ def ensure_tuple(vals):
     return tuple(vals)
 
 
-def ensure_tuple_size(tup, dim):
-    """Returns a copy of `tup` with `dim` values by either shortened or padded with zeros as necessary."""
-    tup = tuple(tup) + (0,) * dim
+def ensure_tuple_size(tup, dim, pad_val=0):
+    """Returns a copy of `tup` with `dim` values by either shortened or padded with `pad_val` as necessary."""
+    tup = tuple(tup) + (pad_val,) * dim
     return tup[:dim]
 
 
@@ -87,14 +88,14 @@ def is_scalar(val):
     return np.isscalar(val)
 
 
-def process_bar(index, count, bar_len=30, newline=False):
+def process_bar(index: int, count: int, bar_len: int = 30, newline: bool = False):
     """print a process bar to track some time consuming task.
 
     Args:
-        index (int): current satus in process.
-        count (int): total steps of the process.
-        bar_len(int): the total length of the bar on screen, default is 30 char.
-        newline (bool): whether to print in a new line for every index.
+        index: current satus in process.
+        count: total steps of the process.
+        bar_len: the total length of the bar on screen, default is 30 char.
+        newline: whether to print in a new line for every index.
     """
     end = "\r" if newline is False else "\r\n"
     filled_len = int(bar_len * index // count)

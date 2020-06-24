@@ -10,6 +10,6 @@
 # limitations under the License.
 
 # have to explicitly bring these in here to resolve circular import issues
-from .module import export
+from .module import export, optional_import, min_version, exact_version
 from .decorators import *
 from .misc import *

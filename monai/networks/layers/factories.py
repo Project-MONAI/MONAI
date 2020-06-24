@@ -60,7 +60,7 @@ can be parameterized with the factory name and the arguments to pass to the crea
     layer = use_factory( (fact.TEST, kwargs) )
 """
 
-from typing import Callable
+from typing import Any, Callable, Dict
 
 import torch.nn as nn
 
@@ -73,8 +73,8 @@ class LayerFactory:
     callables. These functions are referred to by name and can be added at any time.
     """
 
-    def __init__(self):
-        self.factories = {}
+    def __init__(self) -> None:
+        self.factories: Dict[str, Callable] = {}
 
     @property
     def names(self):
@@ -102,7 +102,7 @@ class LayerFactory:
 
         return _add
 
-    def get_constructor(self, factory_name, *args):
+    def get_constructor(self, factory_name, *args) -> Any:
         """
         Get the constructor for the given factory name and arguments.
         """
@@ -113,7 +113,7 @@ class LayerFactory:
         fact = self.factories[factory_name.upper()]
         return fact(*args)
 
-    def __getitem__(self, args):
+    def __getitem__(self, args) -> Any:
         """
         Get the given name or name/arguments pair. If `args` is a callable it is assumed to be the constructor
         itself and is returned, otherwise it should be the factory name or a pair containing the name and arguments.
@@ -190,6 +190,14 @@ def batch_factory(dim):
 Act.add_factory_callable("relu", lambda: nn.modules.ReLU)
 Act.add_factory_callable("leakyrelu", lambda: nn.modules.LeakyReLU)
 Act.add_factory_callable("prelu", lambda: nn.modules.PReLU)
+Act.add_factory_callable("relu6", lambda: nn.modules.ReLU6)
+Act.add_factory_callable("selu", lambda: nn.modules.SELU)
+Act.add_factory_callable("celu", lambda: nn.modules.CELU)
+Act.add_factory_callable("gelu", lambda: nn.modules.GELU)
+Act.add_factory_callable("sigmoid", lambda: nn.modules.Sigmoid)
+Act.add_factory_callable("tanh", lambda: nn.modules.Tanh)
+Act.add_factory_callable("softmax", lambda: nn.modules.SoftMax)
+Act.add_factory_callable("logsoftmax", lambda: nn.modules.LogSoftMax)
 
 
 @Conv.factory_function("conv")
