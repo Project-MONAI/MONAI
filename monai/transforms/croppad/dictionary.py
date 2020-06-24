@@ -20,7 +20,7 @@ from typing import Callable, Optional
 from monai.config.type_definitions import IndexSelection, KeysCollection
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.compose import MapTransform, Randomizable
-from monai.transforms.croppad.array import CenterSpatialCrop, DivisiblePad, SpatialCrop, SpatialPad
+from monai.transforms.croppad.array import CenterSpatialCrop, DivisiblePad, SpatialCrop, SpatialPad, BorderPad
 from monai.transforms.utils import generate_pos_neg_label_crop_centers, generate_spatial_bounding_box
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep
 
@@ -54,10 +54,45 @@ class SpatialPadd(MapTransform):
         return d
 
 
+class BorderPadd(MapTransform):
+    """
+    Pad the input data by adding specified borders to every dimension.
+    Dictionary-based wrapper of :py:class:`monai.transforms.BorderPad`.
+    """
+
+    def __init__(self, keys: KeysCollection, spatial_border, mode="constant"):
+        """
+        Args:
+            spatial_border (int or sequence of int): specified size for every spatial border. it can be 3 shapes:
+                - single int number, pad all the borders with the same size.
+                - length equals the length of image shape, pad every spatial dimension separately.
+                    for example, image shape(CHW) is [1, 4, 4], spatial_border is [2, 1],
+                    pad every border of H dim with 2, pad every border of W dim with 1, result shape is [1, 8, 6].
+                - length equals 2 x (length of image shape), pad every border of every dimension separately.
+                    for example, image shape(CHW) is [1, 4, 4], spatial_border is [1, 2, 3, 4], pad top of H dim with 1,
+                    pad bottom of H dim with 2, pad left of W dim with 3, pad right of W dim with 4.
+                    the result shape is [1, 7, 11].
+            mode (str or sequence of str): one of the following string values or a user supplied function:
+                {'constant', 'edge', 'linear_ramp', 'maximum', 'mean', 'median', 'minimum', 'reflect',
+                'symmetric', 'wrap', 'empty', <function>}
+                user can set a sequence of mode values corresponding to every item specified by `keys`.
+                for more details, please check: https://docs.scipy.org/doc/numpy/reference/generated/numpy.pad.html
+
+        """
+        super().__init__(keys)
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.padder = BorderPad(spatial_border=spatial_border)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key, m in zip(self.keys, self.mode):
+            d[key] = self.padder(d[key], mode=m)
+        return d
+
+
 class DivisiblePadd(MapTransform):
     """
     Pad the input data, so that the spatial sizes are divisible by `k`.
-
     Dictionary-based wrapper of :py:class: `monai.transforms.DivisiblePad`.
     """
 
@@ -296,6 +331,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
 
 
 SpatialPadD = SpatialPadDict = SpatialPadd
+BorderPadD = BorderPadDict = BorderPadd
 DivisiblePadD = DivisiblePadDict = DivisiblePadd
 SpatialCropD = SpatialCropDict = SpatialCropd
 CenterSpatialCropD = CenterSpatialCropDict = CenterSpatialCropd

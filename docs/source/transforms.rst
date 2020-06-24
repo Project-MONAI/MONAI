@@ -217,6 +217,12 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
+`BorderPad`
+~~~~~~~~~~~
+.. autoclass:: BorderPad
+    :members:
+    :special-members: __call__
+
 `DivisiblePad`
 ~~~~~~~~~~~~~~
 .. autoclass:: DivisiblePad
@@ -506,6 +512,12 @@ Dictionary-based Transforms
 `SpatialPadd`
 ~~~~~~~~~~~~~
 .. autoclass:: SpatialPadd
+    :members:
+    :special-members: __call__
+
+`BorderPadd`
+~~~~~~~~~~~~
+.. autoclass:: BorderPadd
     :members:
     :special-members: __call__
 
