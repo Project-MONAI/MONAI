@@ -107,13 +107,13 @@ def train(n_feat, crop_size, bs, ep, optimizer="rmsprop", lr=5e-4, pretrain=None
                     sigma_range=(10, 50),  # 30
                     magnitude_range=[600, 1200],  # 1000
                     prob=0.8,
-                    rotate_range=(np.pi/12, np.pi/12, np.pi/12),
-                    shear_range=(np.pi/18, np.pi/18, np.pi/18),
+                    rotate_range=(np.pi / 12, np.pi / 12, np.pi / 12),
+                    shear_range=(np.pi / 18, np.pi / 18, np.pi / 18),
                     translate_range=(sz * 0.05 for sz in crop_size),
                     scale_range=(0.2, 0.2, 0.2),
                     mode=("bilinear", "nearest"),
                     padding_mode=("border", "zeros"),
-                )
+                ),
             ]
         )
         train_dataset = Dataset(train_images, transform=train_transform)
@@ -131,13 +131,13 @@ def train(n_feat, crop_size, bs, ep, optimizer="rmsprop", lr=5e-4, pretrain=None
                     sigma_range=(10, 50),  # 30
                     magnitude_range=[600, 1200],  # 1000
                     prob=0.8,
-                    rotate_range=(np.pi/12, np.pi/12, np.pi/12),
-                    shear_range=(np.pi/18, np.pi/18, np.pi/18),
+                    rotate_range=(np.pi / 12, np.pi / 12, np.pi / 12),
+                    shear_range=(np.pi / 18, np.pi / 18, np.pi / 18),
                     translate_range=(sz * 0.05 for sz in crop_size),
                     scale_range=(0.2, 0.2, 0.2),
                     mode=("bilinear", "nearest"),
                     padding_mode=("border", "zeros"),
-                )
+                ),
             ]
         )
         train_dataset = Dataset(train_images, transform=train_transform)  # each dataset item is a list of windows
