@@ -81,7 +81,24 @@ def train(n_feat, crop_size, bs, ep, optimizer="rmsprop", lr=5e-4, pretrain=None
     # starting training set loader
     train_images = ImageLabelDataset(path=TRAIN_PATH, n_class=N_CLASSES)
     if np.any([cz == -1 for cz in crop_size]):  # using full image
-        train_transform = Compose([AddChannelDict(keys="image")])
+        train_transform = Compose(
+            [
+                AddChannelDict(keys="image"),
+                Rand3DElasticd(
+                    keys=("image", "label"),
+                    spatial_size=crop_size,
+                    sigma_range=(10, 50),  # 30
+                    magnitude_range=[600, 1200],  # 1000
+                    prob=0.8,
+                    rotate_range=(np.pi / 12, np.pi / 12, np.pi / 12),
+                    shear_range=(np.pi / 18, np.pi / 18, np.pi / 18),
+                    translate_range=(sz * 0.05 for sz in crop_size),
+                    scale_range=(0.2, 0.2, 0.2),
+                    mode=("bilinear", "nearest"),
+                    padding_mode=("border", "zeros"),
+                ),
+            ]
+        )
         train_dataset = Dataset(train_images, transform=train_transform)
         # when bs > 1, the loader assumes that the full image sizes are the same across the dataset
         train_dataloader = torch.utils.data.DataLoader(train_dataset, num_workers=4, batch_size=bs, shuffle=True)
