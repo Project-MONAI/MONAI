@@ -43,7 +43,7 @@ class Regressor(nn.Module):
         Construct the regressor network with the number of layers defined by `channels` and `strides`. Inputs are
         first passed through the convolutional layers in the forward pass, the output from this is then pass
         through a fully connected layer to relate them to the final output tensor.
-        
+
         Args:
             in_shape: tuple of integers stating the dimension of the input tensor (minus batch dimension)
             out_shape: tuple of integers stating the dimension of the final output tensor

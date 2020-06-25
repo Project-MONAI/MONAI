@@ -23,10 +23,10 @@ class Generator(nn.Module):
     constructs an output tensor of greater size and high dimensionality. The method `_get_layer` is used to
     create each of these layers, override this method to define layers beyond the default Convolution or
     ResidualUnit layers. 
-    
+
     For example, a generator accepting a latent vector if shape (42,24) and producing an output volume of
     shape (1,64,64) can be constructed as:
-    
+
         gen = Generator((42, 24), (64, 8, 8), (32, 16, 1), (2, 2, 2))
     """
 
@@ -50,7 +50,7 @@ class Generator(nn.Module):
         the length of `channels` and `strides` which must match, each layer having the number of output channels 
         given in `channels` and an upsample factor given in `strides` (ie. a transpose convolution with that stride
         size). 
-        
+
         Args:
             latent_shape: tuple of integers stating the dimension of the input latent vector (minus batch dimension)
             start_shape: tuple of integers stating the dimension of the tensor to pass to convolution subnetwork
