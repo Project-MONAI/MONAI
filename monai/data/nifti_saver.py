@@ -105,7 +105,7 @@ class NiftiSaver:
             affine=affine,
             target_affine=original_affine,
             resample=self.resample,
-            output_shape=spatial_shape,
+            output_spatial_shape=spatial_shape,
             interp_order=self.interp_order,
             mode=self.mode,
             dtype=self.dtype or data.dtype,
