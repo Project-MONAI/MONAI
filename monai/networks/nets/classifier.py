@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
+import torch.nn as nn
 from monai.networks.layers.factories import Norm, Act, split_args
 from monai.networks.nets.regressor import Regressor
 
