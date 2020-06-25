@@ -508,6 +508,8 @@ class Rand3DElasticd(Randomizable, MapTransform):
     def __call__(self, data):
         d = dict(data)
         spatial_size = self.rand_3d_elastic.spatial_size
+        if np.any([sz <= 1 for sz in spatial_size]):
+            spatial_size = data[self.keys[0]].shape[1:]
         self.randomize(spatial_size)
         grid = create_grid(spatial_size)
         if self.rand_3d_elastic.do_transform:
