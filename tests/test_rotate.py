@@ -67,15 +67,15 @@ class TestRotate2D(NumpyImageTestCase2D):
 
 class TestRotate3D(NumpyImageTestCase3D):
     @parameterized.expand(TEST_CASES_3D)
-    def test_correct_results(self, angle, keep_size, order, mode, align_corners):
-        rotate_fn = Rotate([angle, 0, 0], keep_size, order, mode, align_corners)
+    def test_correct_results(self, angle, keep_size, mode, padding_mode, align_corners):
+        rotate_fn = Rotate([angle, 0, 0], keep_size, mode, padding_mode, align_corners)
         rotated = rotate_fn(self.imt[0])
         if keep_size:
             np.testing.assert_allclose(self.imt[0].shape, rotated.shape)
-        _order = 0 if order == "nearest" else 1
-        if mode == "border":
+        _order = 0 if mode == "nearest" else 1
+        if padding_mode == "border":
             _mode = "nearest"
-        elif mode == "reflection":
+        elif padding_mode == "reflection":
             _mode = "reflect"
         else:
             _mode = "constant"
