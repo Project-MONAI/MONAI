@@ -17,6 +17,7 @@ from parameterized import parameterized
 
 from monai.transforms import RandRotated
 from tests.utils import NumpyImageTestCase2D, NumpyImageTestCase3D
+from monai.utils.enums import GridSampleMode, GridSamplePadMode
 
 
 class TestRandRotated2D(NumpyImageTestCase2D):
@@ -60,9 +61,13 @@ class TestRandRotated3D(NumpyImageTestCase3D):
     @parameterized.expand(
         [
             (90, -30, (0.0, 180), False, "bilinear", "border", False, (1, 87, 104, 109)),
+            (90, -30, (0.0, 180), False, GridSampleMode.NEAREST, GridSamplePadMode.BORDER, False, (1, 87, 104, 109)),
             (45, (-20, 40), (20, 30), False, "nearest", "border", True, (1, 89, 105, 104)),
+            (45, (-20, 40), (20, 30), False, GridSampleMode.NEAREST, GridSamplePadMode.BORDER, True, (1, 89, 105, 104)),
             (0.0, (360, 370), (-1, 1), True, "nearest", "zeros", True, (1, 48, 64, 80)),
+            (0.0, (360, 370), (-1, 1), True, GridSampleMode.NEAREST, GridSamplePadMode.ZEROS, True, (1, 48, 64, 80)),
             ((-45, 0), 0, 0, False, "nearest", "zeros", False, (1, 48, 77, 90)),
+            ((-45, 0), 0, 0, False, GridSampleMode.NEAREST, GridSamplePadMode.ZEROS, False, (1, 48, 77, 90)),
         ]
     )
     def test_correct_shapes(self, x, y, z, keep_size, mode, padding_mode, align_corners, expected):
