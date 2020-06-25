@@ -17,7 +17,7 @@ from monai.utils import ensure_tuple_rep, min_version, optional_import
 Image, _ = optional_import("PIL", name="Image")
 
 
-def write_png(data, file_name: str, output_shape=None, interp_order: str = "bicubic", scale=None):
+def write_png(data, file_name: str, output_spatial_shape=None, interp_order: str = "bicubic", scale=None):
     """
     Write numpy data into png files to disk.
     Spatially it supports HW for 2D.(H,W) or (H,W,3) or (H,W,4).
@@ -28,7 +28,7 @@ def write_png(data, file_name: str, output_shape=None, interp_order: str = "bicu
     Args:
         data (numpy.ndarray): input data to write to file.
         file_name: expected file name that saved on disk.
-        output_shape (None or tuple of ints): output image shape.
+        output_spatial_shape (None or tuple of ints): spatial shape of the output image.
         interp_order (`nearest|linear|bilinear|bicubic|trilinear|area`):
             the interpolation mode. Default="bicubic".
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
@@ -39,10 +39,10 @@ def write_png(data, file_name: str, output_shape=None, interp_order: str = "bicu
     assert isinstance(data, np.ndarray), "input data must be numpy array."
     if len(data.shape) == 3 and data.shape[2] == 1:  # PIL Image can't save image with 1 channel
         data = data.squeeze(2)
-    if output_shape is not None:
-        output_shape = ensure_tuple_rep(output_shape, 2)
+    if output_spatial_shape is not None:
+        output_spatial_shape = ensure_tuple_rep(output_spatial_shape, 2)
         align_corners = False if interp_order in ("linear", "bilinear", "bicubic", "trilinear") else None
-        xform = Resize(spatial_size=output_shape, interp_order=interp_order, align_corners=align_corners)
+        xform = Resize(spatial_size=output_spatial_shape, interp_order=interp_order, align_corners=align_corners)
         _min, _max = np.min(data), np.max(data)
         if len(data.shape) == 3:
             data = np.moveaxis(data, -1, 0)  # to channel first
