@@ -141,7 +141,7 @@ class UNet(nn.Sequential):
                 [
                     ("Up", UpSample(spatial_dims, in_ch, out_ch, 2, True)),
                     ("skip", PopCat().isolate(namespaces[i - 1])),
-                    ("Conv1x1x1", Conv[Conv.CONV, spatial_dims](in_ch, in_ch, kernel_size=1)),
+                    ("Conv1x1x1", Conv[Conv.CONV, spatial_dims](out_ch * 2, in_ch, kernel_size=1)),
                     ("Conv", DoubleConv(spatial_dims, in_ch, out_ch, stride=1, conv_only=True)),
                 ]
             )

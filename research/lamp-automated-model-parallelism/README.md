@@ -38,8 +38,8 @@ Please find more details at https://github.com/wentaozhu/AnatomyNet-for-anatomic
 ### Commands
 The number of features in the first block (`--n_feat`) can be 32, 64, or 128.
 ```bash
-    mkdir ./log;
-    python train.py --n_feat=128 --crop_size='64,64,64' --bs=16 --ep=4800 > ./log/YOURLOG.log
-    python train.py --n_feat=128 --crop_size='128,128,128' --bs=4 --ep=1200 --pretrain='./HaN_64,64,64' > ./log/YOURLOG.log
-    python train.py --n_feat=128 --crop_size='-1,-1,-1' --bs=1 --ep=300 --pretrain='./HaN_128,128,128' > ./log/YOURLOG.log
+mkdir ./log;
+python train.py --n_feat=128 --crop_size='64,64,64' --bs=16 --ep=4800 > ./log/YOURLOG.log
+python train.py --n_feat=128 --crop_size='128,128,128' --bs=4 --ep=1200 --pretrain='./HaN_64,64,64' > ./log/YOURLOG.log
+python train.py --n_feat=128 --crop_size='-1,-1,-1' --bs=1 --ep=300 --pretrain='./HaN_128,128,128' > ./log/YOURLOG.log
 ```
