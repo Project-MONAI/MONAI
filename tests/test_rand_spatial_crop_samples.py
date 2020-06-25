@@ -17,7 +17,7 @@ from monai.transforms import RandSpatialCropSamples
 TEST_CASE_1 = [
     {"roi_size": [3, 3, 3], "num_samples": 4, "random_center": True},
     np.random.randint(0, 2, size=[3, 3, 3, 3]),
-    (3, 3, 3, 3)
+    (3, 3, 3, 3),
 ]
 
 TEST_CASE_2 = [

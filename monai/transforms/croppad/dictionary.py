@@ -229,12 +229,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
     """
 
     def __init__(
-        self,
-        keys: KeysCollection,
-        roi_size,
-        num_samples: int,
-        random_center: bool = True,
-        random_size: bool = True
+        self, keys: KeysCollection, roi_size, num_samples: int, random_center: bool = True, random_size: bool = True
     ):
         super().__init__(keys)
         if num_samples < 1:

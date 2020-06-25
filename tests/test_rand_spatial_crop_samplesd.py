@@ -16,19 +16,13 @@ from monai.transforms import RandSpatialCropSamplesd
 
 TEST_CASE_1 = [
     {"keys": ["img", "seg"], "num_samples": 4, "roi_size": [3, 3, 3], "random_center": True},
-    {
-        "img": np.random.randint(0, 2, size=[3, 3, 3, 3]),
-        "seg": np.random.randint(0, 2, size=[3, 3, 3, 3])
-    },
+    {"img": np.random.randint(0, 2, size=[3, 3, 3, 3]), "seg": np.random.randint(0, 2, size=[3, 3, 3, 3])},
     (3, 3, 3, 3),
 ]
 
 TEST_CASE_2 = [
     {"keys": ["img", "seg"], "num_samples": 8, "roi_size": [3, 3, 3], "random_center": False},
-    {
-        "img": np.random.randint(0, 2, size=[3, 3, 3, 3]),
-        "seg": np.random.randint(0, 2, size=[3, 3, 3, 3])
-    },
+    {"img": np.random.randint(0, 2, size=[3, 3, 3, 3]), "seg": np.random.randint(0, 2, size=[3, 3, 3, 3])},
     (3, 3, 3, 3),
 ]
 

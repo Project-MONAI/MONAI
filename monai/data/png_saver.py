@@ -100,7 +100,7 @@ class PNGSaver:
             file_name=filename,
             output_spatial_shape=spatial_shape,
             interp_order=self.interp_order,
-            scale=self.scale
+            scale=self.scale,
         )
 
     def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data=None):
