@@ -169,10 +169,15 @@ def optional_import(
 
     class _LazyRaise:
         def __init__(self, *_args, **_kwargs):
+            _default_msg = (
+                f"Optional import: {msg}."
+                + "\n\nFor details about installing the optional dependencies, please visit:"
+                + "\n    http://monai.rtfd.io/en/latest/installation.html#installing-the-recommended-dependencies"
+            )
             if tb is None:
-                self._exception = AttributeError(f"Optional import: {msg}.")
+                self._exception = AttributeError(_default_msg)
             else:
-                self._exception = AttributeError(f"Optional import: {msg}.").with_traceback(tb)
+                self._exception = AttributeError(_default_msg).with_traceback(tb)
 
         def __getattr__(self, name):
             raise self._exception

@@ -13,21 +13,21 @@ A collection of "vanilla" transforms for crop and pad operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Optional, Callable
+from typing import Callable, Optional
 
 import numpy as np
-
 from monai.config.type_definitions import IndexSelection
 from monai.data.utils import get_random_patch, get_valid_patch_size
-from monai.transforms.compose import Transform, Randomizable
+from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.utils import generate_spatial_bounding_box
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep
 
 
 class SpatialPad(Transform):
-    """Performs padding to the data, symmetric for all sides or all on one side for each dimension.
-     Uses np.pad so in practice, a mode needs to be provided. See numpy.lib.arraypad.pad
-     for additional details.
+    """
+    Performs padding to the data, symmetric for all sides or all on one side for each dimension.
+    Uses np.pad so in practice, a mode needs to be provided. See numpy.lib.arraypad.pad
+    for additional details.
 
     Args:
         spatial_size (sequence of int): the spatial size of output data after padding.
@@ -57,8 +57,85 @@ class SpatialPad(Transform):
     def __call__(self, img, mode: Optional[str] = None):
         data_pad_width = self._determine_data_pad_width(img.shape[1:])
         all_pad_width = [(0, 0)] + data_pad_width
-        img = np.pad(img, all_pad_width, mode=mode or self.mode)
-        return img
+        if not np.asarray(all_pad_width).any():
+            # all zeros, skip padding
+            return img
+        else:
+            img = np.pad(img, all_pad_width, mode=mode or self.mode)
+            return img
+
+
+class BorderPad(Transform):
+    """
+    Pad the input data by adding specified borders to every dimension.
+
+    Args:
+        spatial_border (int or sequence of int): specified size for every spatial border. it can be 3 shapes:
+            - single int number, pad all the borders with the same size.
+            - length equals the length of image shape, pad every spatial dimension separately.
+                for example, image shape(CHW) is [1, 4, 4], spatial_border is [2, 1],
+                pad every border of H dim with 2, pad every border of W dim with 1, result shape is [1, 8, 6].
+            - length equals 2 x (length of image shape), pad every border of every dimension separately.
+                for example, image shape(CHW) is [1, 4, 4], spatial_border is [1, 2, 3, 4], pad top of H dim with 1,
+                pad bottom of H dim with 2, pad left of W dim with 3, pad right of W dim with 4.
+                the result shape is [1, 7, 11].
+        mode: one of the following string values or a user supplied function: {'constant', 'edge', 'linear_ramp',
+            'maximum', 'mean', 'median', 'minimum', 'reflect', 'symmetric', 'wrap', 'empty', <function>}
+            for more details, please check: https://docs.scipy.org/doc/numpy/reference/generated/numpy.pad.html
+
+    """
+
+    def __init__(self, spatial_border, mode: str = "constant"):
+        self.spatial_border = spatial_border
+        self.mode = mode
+
+    def __call__(self, img, mode: Optional[str] = None):
+        spatial_shape = img.shape[1:]
+        spatial_border = ensure_tuple(self.spatial_border)
+        for b in spatial_border:
+            if b < 0 or not isinstance(b, int):
+                raise ValueError("spatial_border must be int number and can not be less than 0.")
+
+        if len(spatial_border) == 1:
+            data_pad_width = [(spatial_border[0], spatial_border[0]) for _ in range(len(spatial_shape))]
+        elif len(spatial_border) == len(spatial_shape):
+            data_pad_width = [(spatial_border[i], spatial_border[i]) for i in range(len(spatial_shape))]
+        elif len(spatial_border) == len(spatial_shape) * 2:
+            data_pad_width = [(spatial_border[2 * i], spatial_border[2 * i + 1]) for i in range(len(spatial_shape))]
+        else:
+            raise ValueError("unsupported length of spatial_border definition.")
+
+        return np.pad(img, [(0, 0)] + data_pad_width, mode=mode or self.mode)
+
+
+class DivisiblePad(Transform):
+    """
+    Pad the input data, so that the spatial sizes are divisible by `k`.
+    """
+
+    def __init__(self, k, mode: str = "constant"):
+        """
+        Args:
+            k (int or sequence of int): the target k for each spatial dimension.
+                if `k` is negative or 0, the original size is preserved.
+                if `k` is an int, the same `k` be applied to all the input spatial dimensions.
+            mode: padding mode for SpatialPad.
+
+        See also :py:class:`monai.transforms.SpatialPad`
+        """
+        self.k = k
+        self.mode = mode
+
+    def __call__(self, img, mode: Optional[str] = None):
+        spatial_shape = img.shape[1:]
+        k = ensure_tuple_rep(self.k, len(spatial_shape))
+        new_size = []
+        for k_d, dim in zip(k, spatial_shape):
+            new_dim = int(np.ceil(dim / k_d) * k_d) if k_d > 0 else dim
+            new_size.append(new_dim)
+
+        spatial_pad = SpatialPad(spatial_size=new_size, method="symmetric", mode=mode or self.mode)
+        return spatial_pad(img)
 
 
 class SpatialCrop(Transform):
@@ -181,7 +258,7 @@ class CropForeground(Transform):
     """
 
     def __init__(
-        self, select_fn: Callable = lambda x: x > 0, channel_indexes: Optional[IndexSelection] = None, margin: int = 0,
+        self, select_fn: Callable = lambda x: x > 0, channel_indexes: Optional[IndexSelection] = None, margin: int = 0
     ):
         """
         Args:

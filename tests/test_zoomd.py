@@ -19,11 +19,7 @@ from parameterized import parameterized
 from monai.transforms import Zoomd
 from tests.utils import NumpyImageTestCase2D
 
-VALID_CASES = [
-    (1.5, "nearest", False),
-    (0.3, "bilinear", False),
-    (0.8, "bilinear", False),
-]
+VALID_CASES = [(1.5, "nearest", False), (0.3, "bilinear", False), (0.8, "bilinear", False)]
 
 INVALID_CASES = [("no_zoom", None, "bilinear", TypeError), ("invalid_order", 0.9, "s", NotImplementedError)]
 
@@ -32,7 +28,7 @@ class TestZoomd(NumpyImageTestCase2D):
     @parameterized.expand(VALID_CASES)
     def test_correct_results(self, zoom, order, keep_size):
         key = "img"
-        zoom_fn = Zoomd(key, zoom=zoom, interp_order=order, keep_size=keep_size,)
+        zoom_fn = Zoomd(key, zoom=zoom, interp_order=order, keep_size=keep_size)
         zoomed = zoom_fn({key: self.imt[0]})
         _order = 0
         if order.endswith("linear"):

@@ -63,7 +63,7 @@ class Randomizable(ABC):
     this is mainly for randomized data augmentation transforms.
     """
 
-    R = np.random.RandomState()
+    R: np.random.RandomState = np.random.RandomState()
 
     def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
         """
@@ -167,7 +167,7 @@ class Compose(Randomizable):
         them are called on the labels.
     """
 
-    def __init__(self, transforms=None):
+    def __init__(self, transforms=None) -> None:
         if transforms is None:
             transforms = []
         if not isinstance(transforms, (list, tuple)):
@@ -190,7 +190,7 @@ class Compose(Randomizable):
             except TypeError as type_error:
                 tfm_name: str = type(_transform).__name__
                 warnings.warn(
-                    f'Transform "{tfm_name}" in Compose not randomized\n{tfm_name}.{type_error}.', RuntimeWarning,
+                    f'Transform "{tfm_name}" in Compose not randomized\n{tfm_name}.{type_error}.', RuntimeWarning
                 )
 
     def __call__(self, input_):

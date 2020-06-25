@@ -30,7 +30,7 @@ class Trainer(Workflow):
 
     """
 
-    def run(self):
+    def run(self) -> None:
         """
         Execute training based on Ignite Engine.
         If call this function multiple times, it will continuously run from the previous state.

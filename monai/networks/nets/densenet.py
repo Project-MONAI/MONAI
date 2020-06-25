@@ -16,10 +16,11 @@ import torch
 import torch.nn as nn
 
 from monai.networks.layers.factories import Conv, Dropout, Pool, Norm
+from typing import Any
 
 
 class _DenseLayer(nn.Sequential):
-    def __init__(self, spatial_dims, in_channels, growth_rate, bn_size, dropout_prob):
+    def __init__(self, spatial_dims, in_channels, growth_rate, bn_size, dropout_prob) -> None:
         super(_DenseLayer, self).__init__()
 
         out_channels = bn_size * growth_rate
@@ -38,13 +39,13 @@ class _DenseLayer(nn.Sequential):
         if dropout_prob > 0:
             self.add_module("dropout", dropout_type(dropout_prob))
 
-    def forward(self, x):
+    def forward(self, x) -> Any:
         new_features = super(_DenseLayer, self).forward(x)
         return torch.cat([x, new_features], 1)
 
 
 class _DenseBlock(nn.Sequential):
-    def __init__(self, spatial_dims, layers, in_channels, bn_size, growth_rate, dropout_prob):
+    def __init__(self, spatial_dims, layers: int, in_channels, bn_size, growth_rate, dropout_prob) -> None:
         super(_DenseBlock, self).__init__()
         for i in range(layers):
             layer = _DenseLayer(spatial_dims, in_channels, growth_rate, bn_size, dropout_prob)
@@ -53,7 +54,7 @@ class _DenseBlock(nn.Sequential):
 
 
 class _Transition(nn.Sequential):
-    def __init__(self, spatial_dims, in_channels, out_channels):
+    def __init__(self, spatial_dims, in_channels, out_channels) -> None:
         super(_Transition, self).__init__()
 
         conv_type: Callable = Conv[Conv.CONV, spatial_dims]

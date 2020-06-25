@@ -232,7 +232,7 @@ class TensorBoardImageHandler(object):
         self.max_frames = max_frames
         self.max_channels = max_channels
 
-    def attach(self, engine):
+    def attach(self, engine) -> None:
         if self.epoch_level:
             engine.add_event_handler(Events.EPOCH_COMPLETED(every=self.interval), self)
         else:
