@@ -301,7 +301,7 @@ class RandAdjustContrast(Randomizable, Transform):
 
 class ScaleIntensityRangePercentiles(Transform):
     """Apply specific intensity scaling to the whole numpy array.
-    Scaling from [lower percentile intensity, upper percentile intensity] to [b_min, b_max] with clip option.
+    Scaling from [lower intensity percentile, upper intensity percentile] to [b_min, b_max] with clip option.
 
     Args:
         lower: lower percentile.

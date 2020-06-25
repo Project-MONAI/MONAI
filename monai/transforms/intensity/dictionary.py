@@ -370,6 +370,7 @@ class ScaleIntensityRangePercentilesd(MapTransform):
             d[key] = self.scaler(d[key])
         return d
 
+
 RandGaussianNoiseD = RandGaussianNoiseDict = RandGaussianNoised
 ShiftIntensityD = ShiftIntensityDict = ShiftIntensityd
 RandShiftIntensityD = RandShiftIntensityDict = RandShiftIntensityd
