@@ -79,7 +79,7 @@ class ImageLabelDataset:
             data_image = np.zeros(sz)
             data_image[s_h:e_h, s_w:e_w, s_d:e_d] = np.array(data["image"])
             data["image"] = data_image.astype(np.float32)
-            data_label = np.zeros([self.n_class,] + sz)
+            data_label = np.zeros([self.n_class] + sz)
             data_label[:, s_h:e_h, s_w:e_w, s_d:e_d] = np.array(data["label"])
             data["label"] = data_label.astype(np.uint8)
         return data
@@ -98,27 +98,10 @@ def train(n_feat, crop_size, bs, ep, optimizer="rmsprop", lr=5e-4, pretrain=None
     # starting training set loader
     train_images = ImageLabelDataset(path=TRAIN_PATH, pad_size=crop_size, n_class=N_CLASSES)
     if np.any([cz == -1 for cz in crop_size]):  # using full image
-        train_transform = Compose(
-            [
-                AddChannelDict(keys="image"),
-                Rand3DElasticd(
-                    keys=("image", "label"),
-                    spatial_size=(-1, -1, -1),
-                    sigma_range=(10, 50),  # 30
-                    magnitude_range=[600, 1200],  # 1000
-                    prob=0.8,
-                    rotate_range=(np.pi / 12, np.pi / 12, np.pi / 12),
-                    shear_range=(np.pi / 18, np.pi / 18, np.pi / 18),
-                    translate_range=(sz * 0.05 for sz in crop_size),
-                    scale_range=(0.2, 0.2, 0.2),
-                    mode=("bilinear", "nearest"),
-                    padding_mode=("border", "zeros"),
-                ),
-            ]
-        )
+        train_transform = Compose([AddChannelDict(keys="image")])
         train_dataset = Dataset(train_images, transform=train_transform)
         # when bs > 1, the loader assumes that the full image sizes are the same across the dataset
-        train_dataloader = torch.utils.data.DataLoader(train_dataset, num_workers=bs, batch_size=bs, shuffle=True)
+        train_dataloader = torch.utils.data.DataLoader(train_dataset, num_workers=0, batch_size=bs, shuffle=True)
     else:
         # draw balanced foreground/background window samples according to the ground truth label
         train_transform = Compose(
