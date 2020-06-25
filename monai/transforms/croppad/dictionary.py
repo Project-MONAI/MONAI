@@ -208,6 +208,47 @@ class RandSpatialCropd(Randomizable, MapTransform):
         return d
 
 
+class RandSpatialCropSamplesd(Randomizable, MapTransform):
+    """
+    Dictionary-based version :py:class:`monai.transforms.RandSpatialCropSamples`.
+    Crop image with random size or specific size ROI to generate a list of N samples.
+    It can crop at a random position as center or at the image center. And allows to set
+    the minimum size to limit the randomly generated ROI. Suppose all the expected fields
+    specified by `keys` have same shape.
+    It will return a list of dictionaries for all the cropped images.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: monai.transforms.MapTransform
+        roi_size (list, tuple): if `random_size` is True, the spatial size of the minimum crop region.
+            if `random_size` is False, specify the expected ROI size to crop. e.g. [224, 224, 128]
+        num_samples: number of samples (crop regions) to take in the returned list.
+        random_center: crop at random position as center or the image center.
+        random_size: crop with random size or specific size ROI.
+            The actual size is sampled from `randint(roi_size, img_size)`.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        roi_size,
+        num_samples: int,
+        random_center: bool = True,
+        random_size: bool = True
+    ):
+        super().__init__(keys)
+        if num_samples < 1:
+            raise ValueError("number of samples must be greater than 0.")
+        self.num_samples = num_samples
+        self.cropper = RandSpatialCropd(keys, roi_size, random_center, random_size)
+
+    def randomize(self):
+        pass
+
+    def __call__(self, data):
+        return [self.cropper(data) for _ in range(self.num_samples)]
+
+
 class CropForegroundd(MapTransform):
     """
     dictionary-based version :py:class:`monai.transforms.CropForeground`.
@@ -267,11 +308,9 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         label_key: name of key for label image, this will be used for finding foreground/background.
         spatial_size (sequence of int): the spatial size of the crop region e.g. [224, 224, 128]
         pos: used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
-            foreground voxel as a center rather than a background voxel. if both pos and neg are None,
-            use a randomly selected postion in the image as crop center.
+            foreground voxel as a center rather than a background voxel.
         neg: used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
-            foreground voxel as a center rather than a background voxel. if both pos and neg are None,
-            use a randomly selected postion in the image as crop center.
+            foreground voxel as a center rather than a background voxel.
         num_samples: number of samples (crop regions) to take in each list.
         image_key: if image_key is not None, use ``label == 0 & image > image_threshold`` to select
             the negative sample(background) center. so the crop center will only exist on valid image area.
@@ -284,8 +323,8 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         keys: KeysCollection,
         label_key: str,
         spatial_size,
-        pos: Optional[float] = 1.0,
-        neg: Optional[float] = 1.0,
+        pos: float = 1.0,
+        neg: float = 1.0,
         num_samples: int = 1,
         image_key: Optional[str] = None,
         image_threshold: float = 0.0,
@@ -293,16 +332,11 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         super().__init__(keys)
         self.label_key = label_key
         self.spatial_size = spatial_size
-        if pos is None and neg is None:
-            self.pos_ratio = None
-        else:
-            if pos is None or neg is None:
-                raise ValueError("if want to disable pos/neg ratio, must set both pos and neg to None.")
-            if pos < 0 or neg < 0:
-                raise ValueError("pos and neg must be greater than or equal to 0.")
-            if pos + neg == 0:
-                raise ValueError("pos and neg cannot both be 0.")
-            self.pos_ratio = pos / (pos + neg)
+        if pos < 0 or neg < 0:
+            raise ValueError("pos and neg must be greater than or equal to 0.")
+        if pos + neg == 0:
+            raise ValueError("pos and neg cannot both be 0.")
+        self.pos_ratio = pos / (pos + neg)
         self.num_samples = num_samples
         self.image_key = image_key
         self.image_threshold = image_threshold
@@ -338,5 +372,6 @@ DivisiblePadD = DivisiblePadDict = DivisiblePadd
 SpatialCropD = SpatialCropDict = SpatialCropd
 CenterSpatialCropD = CenterSpatialCropDict = CenterSpatialCropd
 RandSpatialCropD = RandSpatialCropDict = RandSpatialCropd
+RandSpatialCropSamplesD = RandSpatialCropSamplesDict = RandSpatialCropSamplesd
 CropForegroundD = CropForegroundDict = CropForegroundd
 RandCropByPosNegLabelD = RandCropByPosNegLabelDict = RandCropByPosNegLabeld

@@ -168,7 +168,7 @@ def generate_pos_neg_label_crop_centers(
     label: np.ndarray,
     spatial_size,
     num_samples: int,
-    pos_ratio: Optional[float] = None,
+    pos_ratio: float,
     image: Optional[np.ndarray] = None,
     image_threshold: float = 0.0,
     rand_state: np.random.RandomState = np.random,
@@ -180,8 +180,7 @@ def generate_pos_neg_label_crop_centers(
         label (numpy.ndarray): use the label data to get the foreground/background information.
         spatial_size (sequence of int): spatial size of the ROIs to be sampled.
         num_samples: total sample centers to be generated.
-        pos_ratio: ratio of total locations generated that have center being foreground. if None,
-            use a randomly selected postion in the image as crop center.
+        pos_ratio: ratio of total locations generated that have center being foreground.
         image (numpy.ndarray): if image is not None, use ``label = 0 & image > image_threshold``
             to select background. so the crop center will only exist on valid image area.
         image_threshold: if enabled image_key, use ``image > image_threshold`` to
@@ -215,37 +214,32 @@ def generate_pos_neg_label_crop_centers(
         return center_ori
 
     centers = []
-    if pos_ratio is None:
-        for _ in range(num_samples):
-            center_ori = [rand_state.randint(l) for l in max_size]
-            centers.append(_correct_centers(center_ori, valid_start, valid_end))
+    # Prepare fg/bg indices
+    label_flat = np.any(label, axis=0).ravel()  # in case label has multiple dimensions
+    fg_indices = np.nonzero(label_flat)[0]
+    if image is not None:
+        img_flat = np.any(image > image_threshold, axis=0).ravel()
+        bg_indices = np.nonzero(np.logical_and(img_flat, ~label_flat))[0]
     else:
-        # Prepare fg/bg indices
-        label_flat = np.any(label, axis=0).ravel()  # in case label has multiple dimensions
-        fg_indices = np.nonzero(label_flat)[0]
-        if image is not None:
-            img_flat = np.any(image > image_threshold, axis=0).ravel()
-            bg_indices = np.nonzero(np.logical_and(img_flat, ~label_flat))[0]
-        else:
-            bg_indices = np.nonzero(~label_flat)[0]
+        bg_indices = np.nonzero(~label_flat)[0]
 
-        if not len(fg_indices) or not len(bg_indices):
-            if not len(fg_indices) and not len(bg_indices):
-                raise ValueError("no sampling location available.")
-            warnings.warn(
-                f"N foreground {len(fg_indices)}, N  background {len(bg_indices)},"
-                "unable to generate class balanced samples."
-            )
-            pos_ratio = 0 if not len(fg_indices) else 1
+    if not len(fg_indices) or not len(bg_indices):
+        if not len(fg_indices) and not len(bg_indices):
+            raise ValueError("no sampling location available.")
+        warnings.warn(
+            f"N foreground {len(fg_indices)}, N  background {len(bg_indices)},"
+            "unable to generate class balanced samples."
+        )
+        pos_ratio = 0 if not len(fg_indices) else 1
 
-        for _ in range(num_samples):
-            indices_to_use = fg_indices if rand_state.rand() < pos_ratio else bg_indices
-            random_int = rand_state.randint(len(indices_to_use))
-            center = np.unravel_index(indices_to_use[random_int], label.shape)
-            center = center[1:]
-            # shift center to range of valid centers
-            center_ori = [c for c in center]
-            centers.append(_correct_centers(center_ori, valid_start, valid_end))
+    for _ in range(num_samples):
+        indices_to_use = fg_indices if rand_state.rand() < pos_ratio else bg_indices
+        random_int = rand_state.randint(len(indices_to_use))
+        center = np.unravel_index(indices_to_use[random_int], label.shape)
+        center = center[1:]
+        # shift center to range of valid centers
+        center_ori = [c for c in center]
+        centers.append(_correct_centers(center_ori, valid_start, valid_end))
 
     return centers
 
