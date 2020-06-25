@@ -301,7 +301,26 @@ class RandAdjustContrast(Randomizable, Transform):
 
 class ScaleIntensityRangePercentiles(Transform):
     """Apply specific intensity scaling to the whole numpy array.
-    Scaling from [lower intensity percentile, upper intensity percentile] to [b_min, b_max] with clip option.
+    Scaling from [lower_intensity_percentile, upper_intensity_percentile] to [b_min, b_max] with clip option. For example:
+
+    .. code-block:: python
+        :emphasize-lines: 8
+
+        image = np.array(
+            [[[0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+              [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+              [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+              [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+              [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+              [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]]]) 
+        scaler = ScaleIntensityRangePercentiles(lower=11, upper=99, b_min=0, b_max=1, clip=False)
+        print(scaler(image))
+        [[[-0.125  0.     0.125  0.25   0.375  0.5    0.625  0.75   0.875  1.   ]
+          [-0.125  0.     0.125  0.25   0.375  0.5    0.625  0.75   0.875  1.   ]
+          [-0.125  0.     0.125  0.25   0.375  0.5    0.625  0.75   0.875  1.   ]
+          [-0.125  0.     0.125  0.25   0.375  0.5    0.625  0.75   0.875  1.   ]
+          [-0.125  0.     0.125  0.25   0.375  0.5    0.625  0.75   0.875  1.   ]
+          [-0.125  0.     0.125  0.25   0.375  0.5    0.625  0.75   0.875  1.   ]]]
 
     Args:
         lower: lower percentile.
