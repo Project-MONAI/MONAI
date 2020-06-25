@@ -201,6 +201,8 @@ def generate_pos_neg_label_crop_centers(
             valid_end[i] += 1
 
     # Prepare fg/bg indices
+    if label.shape[0] > 1:
+        label = label[1:]  # for One-Hot format data, remove the background channel
     label_flat = np.any(label, axis=0).ravel()  # in case label has multiple dimensions
     fg_indices = np.nonzero(label_flat)[0]
     if image is not None:
