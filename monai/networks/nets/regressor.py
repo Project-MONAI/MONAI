@@ -93,7 +93,7 @@ class Regressor(nn.Module):
         number of channels. The `strides` indicates downsampling factor, ie. convolutional stride. If `is_last`
         is True this is the final layer and is not expected to include activation and normalization layers.
         """
-        
+
         common_kwargs = dict(
             dimensions=self.dimensions,
             in_channels=in_channels,
@@ -105,19 +105,12 @@ class Regressor(nn.Module):
             dropout=self.dropout,
             bias=self.bias,
         )
-        
+
         if self.num_res_units > 0:
-            layer = ResidualUnit(
-                subunits=self.num_res_units,
-                last_conv_only=is_last,
-                **common_kwargs
-            )
+            layer = ResidualUnit(subunits=self.num_res_units, last_conv_only=is_last, **common_kwargs)
         else:
-            layer = Convolution(
-                conv_only=is_last,
-                **common_kwargs
-            )
-            
+            layer = Convolution(conv_only=is_last, **common_kwargs)
+
         return layer
 
     def _get_final_layer(self, in_shape):

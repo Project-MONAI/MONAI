@@ -17,39 +17,21 @@ from parameterized import parameterized
 from monai.networks.nets import Generator
 
 TEST_CASE_0 = [
-    {
-        "latent_shape": (64,), 
-        "start_shape": (8, 8, 8), 
-        "channels": (8, 4, 1), 
-        "strides": (2, 2, 2), 
-        "num_res_units": 0
-    }, 
-    torch.rand(16, 64), 
-    (16, 1, 64, 64)
+    {"latent_shape": (64,), "start_shape": (8, 8, 8), "channels": (8, 4, 1), "strides": (2, 2, 2), "num_res_units": 0},
+    torch.rand(16, 64),
+    (16, 1, 64, 64),
 ]
 
 TEST_CASE_1 = [
-    {
-        "latent_shape": (64,),
-        "start_shape": (8, 8, 8),
-        "channels": (8, 4, 1),
-        "strides": (2, 2, 2),
-        "num_res_units": 2
-    }, 
+    {"latent_shape": (64,), "start_shape": (8, 8, 8), "channels": (8, 4, 1), "strides": (2, 2, 2), "num_res_units": 2},
     torch.rand(16, 64),
-    (16, 1, 64, 64)
+    (16, 1, 64, 64),
 ]
 
 TEST_CASE_2 = [
-    {
-        "latent_shape": (64,),
-        "start_shape": (8, 8, 8),
-        "channels": (8, 1), 
-        "strides": (2, 2),
-        "num_res_units": 2
-    }, 
+    {"latent_shape": (64,), "start_shape": (8, 8, 8), "channels": (8, 1), "strides": (2, 2), "num_res_units": 2},
     torch.rand(16, 64),
-    (16, 1, 32, 32)
+    (16, 1, 32, 32),
 ]
 
 CASES = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2]

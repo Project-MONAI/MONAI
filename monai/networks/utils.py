@@ -148,4 +148,3 @@ def normal_init(m, std=0.02, normal_func=torch.nn.init.normal_):
     elif cname.find("BatchNorm") != -1:
         normal_func(m.weight.data, 1.0, std)
         nn.init.constant_(m.bias.data, 0)
-        

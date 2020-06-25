@@ -112,16 +112,13 @@ class Generator(nn.Module):
             in_channels=in_channels,
             strides=strides,
             is_transposed=True,
-            conv_only=is_last or self.num_res_units > 0, 
-            **common_kwargs
+            conv_only=is_last or self.num_res_units > 0,
+            **common_kwargs,
         )
 
         if self.num_res_units > 0:
             ru = ResidualUnit(
-                in_channels=out_channels,
-                subunits=self.num_res_units,
-                last_conv_only=is_last,
-                **common_kwargs
+                in_channels=out_channels, subunits=self.num_res_units, last_conv_only=is_last, **common_kwargs
             )
 
             layer = nn.Sequential(layer, ru)
@@ -134,5 +131,3 @@ class Generator(nn.Module):
         x = self.reshape(x)
         x = self.conv(x)
         return x
-
-    
