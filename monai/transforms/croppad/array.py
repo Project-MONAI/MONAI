@@ -213,6 +213,8 @@ class RandSpatialCrop(Randomizable, Transform):
         self.roi_size = roi_size
         self.random_center = random_center
         self.random_size = random_size
+        self._size = None
+        self._slices = None
 
     def randomize(self, img_size):
         self._size = ensure_tuple_rep(self.roi_size, len(img_size))
