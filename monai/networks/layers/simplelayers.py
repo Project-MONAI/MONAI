@@ -47,7 +47,7 @@ class Reshape(nn.Module):
         """
         Given a shape list/tuple `shape` of integers (s0, s1, ... , sn), this layer will reshape input tensors of
         shape (batch, s0 * s1 * ... * sn) to shape (batch, s0, s1, ... , sn).
-        
+
         Args:
             shape: list/tuple of integer shape dimensions 
         """
