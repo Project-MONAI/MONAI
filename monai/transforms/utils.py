@@ -11,17 +11,20 @@
 
 import random
 import warnings
+from typing import Optional, Callable
 
 import torch
 import numpy as np
-from skimage import measure
 
-from monai.utils.misc import ensure_tuple
+from monai.config.type_definitions import IndexSelection
+from monai.utils import ensure_tuple, optional_import, min_version
+
+measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 
 
-def rand_choice(prob=0.5):
+def rand_choice(prob: float = 0.5) -> bool:
     """Returns True if a randomly chosen number is less than or equal to `prob`, by default this is a 50/50 chance."""
-    return random.random() <= prob
+    return bool(random.random() <= prob)
 
 
 def img_bounds(img):
@@ -36,7 +39,7 @@ def in_bounds(x, y, margin, maxx, maxy):
     return margin <= x < (maxx - margin) and margin <= y < (maxy - margin)
 
 
-def is_empty(img):
+def is_empty(img) -> bool:
     """Returns True if `img` is empty, that is its maximum value is not greater than its minimum."""
     return not (img.max() > img.min())  # use > instead of <= so that an image full of NaNs will result in True
 
@@ -52,7 +55,7 @@ def zero_margins(img, margin):
     return True
 
 
-def rescale_array(arr, minv=0.0, maxv=1.0, dtype=np.float32):
+def rescale_array(arr, minv=0.0, maxv=1.0, dtype: Optional[np.dtype] = np.float32):
     """Rescale the values of numpy array `arr` to be from `minv` to `maxv`."""
     if dtype is not None:
         arr = arr.astype(dtype)
@@ -67,18 +70,18 @@ def rescale_array(arr, minv=0.0, maxv=1.0, dtype=np.float32):
     return (norm * (maxv - minv)) + minv  # rescale by minv and maxv, which is the normalized array by default
 
 
-def rescale_instance_array(arr, minv=0.0, maxv=1.0, dtype=np.float32):
+def rescale_instance_array(arr: np.ndarray, minv: float = 0.0, maxv: float = 1.0, dtype: np.dtype = np.float32):
     """Rescale each array slice along the first dimension of `arr` independently."""
-    out = np.zeros(arr.shape, dtype)
+    out: np.ndarray = np.zeros(arr.shape, dtype)
     for i in range(arr.shape[0]):
         out[i] = rescale_array(arr[i], minv, maxv, dtype)
 
     return out
 
 
-def rescale_array_int_max(arr, dtype=np.uint16):
+def rescale_array_int_max(arr: np.ndarray, dtype: np.dtype = np.uint16):
     """Rescale the array `arr` to be between the minimum and maximum values of the type `dtype`."""
-    info = np.iinfo(dtype)
+    info: np.iinfo = np.iinfo(dtype)
     return rescale_array(arr, info.min, info.max).astype(dtype)
 
 
@@ -162,7 +165,13 @@ def one_hot(labels, num_classes):
 
 
 def generate_pos_neg_label_crop_centers(
-    label, size, num_samples, pos_ratio, image=None, image_threshold=0, rand_state=np.random
+    label: np.ndarray,
+    size,
+    num_samples: int,
+    pos_ratio: float,
+    image: Optional[np.ndarray] = None,
+    image_threshold: float = 0.0,
+    rand_state: np.random.RandomState = np.random,
 ):
     """Generate valid sample locations based on image with option for specifying foreground ratio
     Valid: samples sitting entirely within image, expected input shape: [C, H, W, D] or [C, H, W]
@@ -170,11 +179,11 @@ def generate_pos_neg_label_crop_centers(
     Args:
         label (numpy.ndarray): use the label data to get the foreground/background information.
         size (list or tuple): size of the ROIs to be sampled.
-        num_samples (int): total sample centers to be generated.
-        pos_ratio (float): ratio of total locations generated that have center being foreground.
+        num_samples: total sample centers to be generated.
+        pos_ratio: ratio of total locations generated that have center being foreground.
         image (numpy.ndarray): if image is not None, use ``label = 0 & image > image_threshold``
             to select background. so the crop center will only exist on valid image area.
-        image_threshold (int or float): if enabled image_key, use ``image > image_threshold`` to
+        image_threshold: if enabled image_key, use ``image > image_threshold`` to
             determine the valid image content area.
         rand_state (random.RandomState): numpy randomState object to align with other modules.
     """
@@ -230,33 +239,35 @@ def generate_pos_neg_label_crop_centers(
     return centers
 
 
-def apply_transform(transform, data):
+def apply_transform(transform: Callable, data, map_items: bool = True):
     """
     Transform `data` with `transform`.
-    If `data` is a list or tuple, each item of `data` will be transformed
+    If `data` is a list or tuple and `map_data` is True, each item of `data` will be transformed
     and this method returns a list of outcomes.
     otherwise transform will be applied once with `data` as the argument.
 
     Args:
-        transform (callable): a callable to be used to transform `data`
+        transform: a callable to be used to transform `data`
         data (object): an object to be transformed.
+        map_items: whether to apply transform to each item in `data`,
+            if `data` is a list or tuple. Defaults to True.
     """
     try:
-        if isinstance(data, (list, tuple)):
+        if isinstance(data, (list, tuple)) and map_items:
             return [transform(item) for item in data]
         return transform(data)
     except Exception as e:
-        raise Exception(f"applying transform {transform}.").with_traceback(e.__traceback__)
+        raise type(e)(f"applying transform {transform}.").with_traceback(e.__traceback__)
 
 
-def create_grid(spatial_size, spacing=None, homogeneous=True, dtype=float):
+def create_grid(spatial_size, spacing=None, homogeneous: bool = True, dtype: np.dtype = float):
     """
     compute a `spatial_size` mesh.
 
     Args:
         spatial_size (sequence of ints): spatial size of the grid.
         spacing (sequence of ints): same len as ``spatial_size``, defaults to 1.0 (dense grid).
-        homogeneous (bool): whether to make homogeneous coordinates.
+        homogeneous: whether to make homogeneous coordinates.
         dtype (type): output grid data type.
     """
     spacing = spacing or tuple(1.0 for _ in spatial_size)
@@ -267,7 +278,7 @@ def create_grid(spatial_size, spacing=None, homogeneous=True, dtype=float):
     return np.concatenate([coords, np.ones_like(coords[:1])])
 
 
-def create_control_grid(spatial_shape, spacing, homogeneous=True, dtype=float):
+def create_control_grid(spatial_shape, spacing, homogeneous: bool = True, dtype: Optional[np.dtype] = float):
     """
     control grid with two additional point in each direction
     """
@@ -281,7 +292,7 @@ def create_control_grid(spatial_shape, spacing, homogeneous=True, dtype=float):
     return create_grid(grid_shape, spacing, homogeneous, dtype)
 
 
-def create_rotate(spatial_dims, radians):
+def create_rotate(spatial_dims: int, radians):
     """
     create a 2D or 3D rotation matrix
 
@@ -319,11 +330,11 @@ def create_rotate(spatial_dims, radians):
     raise ValueError(f"create_rotate got spatial_dims={spatial_dims}, radians={radians}.")
 
 
-def create_shear(spatial_dims, coefs):
+def create_shear(spatial_dims: int, coefs):
     """
     create a shearing matrix
     Args:
-        spatial_dims (int): spatial rank
+        spatial_dims: spatial rank
         coefs (floats): shearing factors, defaults to 0.
     """
     coefs = list(ensure_tuple(coefs))
@@ -345,11 +356,11 @@ def create_shear(spatial_dims, coefs):
     raise NotImplementedError
 
 
-def create_scale(spatial_dims, scaling_factor):
+def create_scale(spatial_dims: int, scaling_factor):
     """
     create a scaling matrix
     Args:
-        spatial_dims (int): spatial rank
+        spatial_dims: spatial rank
         scaling_factor (floats): scaling factors, defaults to 1.
     """
     scaling_factor = list(ensure_tuple(scaling_factor))
@@ -358,11 +369,11 @@ def create_scale(spatial_dims, scaling_factor):
     return np.diag(scaling_factor[:spatial_dims] + [1.0])
 
 
-def create_translate(spatial_dims, shift):
+def create_translate(spatial_dims: int, shift):
     """
     create a translation matrix
     Args:
-        spatial_dims (int): spatial rank
+        spatial_dims: spatial rank
         shift (floats): translate factors, defaults to 0.
     """
     shift = ensure_tuple(shift)
@@ -372,7 +383,12 @@ def create_translate(spatial_dims, shift):
     return affine
 
 
-def generate_spatial_bounding_box(img, select_fn=lambda x: x > 0, channel_indexes=None, margin=0):
+def generate_spatial_bounding_box(
+    img: np.ndarray,
+    select_fn: Callable = lambda x: x > 0,
+    channel_indexes: Optional[IndexSelection] = None,
+    margin: int = 0,
+):
     """
     generate the spatial bounding box of foreground in the image with start-end positions.
     Users can define arbitrary function to select expected foreground from the whole image or specified channels.
@@ -380,10 +396,10 @@ def generate_spatial_bounding_box(img, select_fn=lambda x: x > 0, channel_indexe
 
     Args:
         img (ndarrary): source image to generate bounding box from.
-        select_fn (Callable): function to select expected foreground, default is to select values > 0.
-        channel_indexes (int, tuple or list): if defined, select foreground only on the specified channels
+        select_fn: function to select expected foreground, default is to select values > 0.
+        channel_indexes: if defined, select foreground only on the specified channels
             of image. if None, select foreground on the whole image.
-        margin (int): add margin to all dims of the bounding box.
+        margin: add margin to all dims of the bounding box.
     """
     assert isinstance(margin, int), "margin must be int type."
     data = img[[*(ensure_tuple(channel_indexes))]] if channel_indexes is not None else img
@@ -399,13 +415,13 @@ def generate_spatial_bounding_box(img, select_fn=lambda x: x > 0, channel_indexe
     return box_start, box_end
 
 
-def get_largest_connected_component_mask(img, connectivity=None):
+def get_largest_connected_component_mask(img, connectivity: Optional[int] = None):
     """
     Gets the largest connected component mask of an image.
 
     Args:
         img: Image to get largest connected component from. Shape is (batch_size, spatial_dim1 [, spatial_dim2, ...])
-        connectivity (int): Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
+        connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
             Accepted values are ranging from  1 to input.ndim. If ``None``, a full
             connectivity of ``input.ndim`` is used.
     """
