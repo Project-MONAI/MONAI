@@ -72,6 +72,9 @@ class ImageLabelDataset:
 
 
 def train(n_feat, crop_size, bs, ep, optimizer="rmsprop", lr=5e-4, pretrain=None):
+    model_name = f"./HaN_{n_feat}_{bs}_{ep}_{crop_size}_{lr}"
+    print(f"save the best model as '{model_name}' during training.")
+
     crop_size = [int(cz) for cz in crop_size.split(",")]
     print(f"input image crop_size: {crop_size}")
 
@@ -130,8 +133,6 @@ def train(n_feat, crop_size, bs, ep, optimizer="rmsprop", lr=5e-4, pretrain=None
     # Medical Physics, 2018.
     focal_loss_func = FocalLoss(reduction="none")
 
-    model_name = f"./HaN_{n_feat}_{bs}_{ep}_{crop_size}_{lr}"
-    print(f"save the best model as '{model_name}' during training.")
     if pretrain:
         print(f"loading from {pretrain}.")
         pretrained_dict = torch.load(pretrain)["weight"]
