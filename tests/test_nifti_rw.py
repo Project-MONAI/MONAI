@@ -100,7 +100,7 @@ class TestNiftiLoadRead(unittest.TestCase):
             original_affine,
             interp_order="nearest",
             mode="border",
-            output_shape=(1, 8, 8),
+            output_spatial_shape=(1, 8, 8),
         )
         saved = nib.load(test_image)
         saved_data = saved.get_fdata()

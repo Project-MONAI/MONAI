@@ -200,7 +200,6 @@ class RandSpatialCrop(Randomizable, Transform):
     """
     Crop image with random size or specific size ROI. It can crop at a random position as center
     or at the image center. And allows to set the minimum size to limit the randomly generated ROI.
-    This transform assumes all the expected fields specified by `keys` have same shape.
 
     Args:
         roi_size (list, tuple): if `random_size` is True, the spatial size of the minimum crop region.
@@ -214,6 +213,8 @@ class RandSpatialCrop(Randomizable, Transform):
         self.roi_size = roi_size
         self.random_center = random_center
         self.random_size = random_size
+        self._size = None
+        self._slices = None
 
     def randomize(self, img_size):
         self._size = ensure_tuple_rep(self.roi_size, len(img_size))
@@ -230,6 +231,36 @@ class RandSpatialCrop(Randomizable, Transform):
         else:
             cropper = CenterSpatialCrop(self._size)
             return cropper(img)
+
+
+class RandSpatialCropSamples(Randomizable, Transform):
+    """
+    Crop image with random size or specific size ROI to generate a list of N samples.
+    It can crop at a random position as center or at the image center. And allows to set
+    the minimum size to limit the randomly generated ROI.
+    It will return a list of cropped images.
+
+    Args:
+        roi_size (list, tuple): if `random_size` is True, the spatial size of the minimum crop region.
+            if `random_size` is False, specify the expected ROI size to crop. e.g. [224, 224, 128]
+        num_samples: number of samples (crop regions) to take in the returned list.
+        random_center: crop at random position as center or the image center.
+        random_size: crop with random size or specific size ROI.
+            The actual size is sampled from `randint(roi_size, img_size)`.
+
+    """
+
+    def __init__(self, roi_size, num_samples: int, random_center: bool = True, random_size: bool = True):
+        if num_samples < 1:
+            raise ValueError("number of samples must be greater than 0.")
+        self.num_samples = num_samples
+        self.cropper = RandSpatialCrop(roi_size, random_center, random_size)
+
+    def randomize(self):
+        pass
+
+    def __call__(self, img):
+        return [self.cropper(img) for _ in range(self.num_samples)]
 
 
 class CropForeground(Transform):

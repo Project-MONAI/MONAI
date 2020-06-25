@@ -108,6 +108,31 @@ Nets
 .. autoclass:: Unet
 .. autoclass:: unet
 
+`Generator`
+~~~~~~~~~~~
+.. autoclass:: Generator
+  :members:
+  
+`Regressor`
+~~~~~~~~~~~
+.. autoclass:: Regressor
+  :members:
+  
+`Classifier`
+~~~~~~~~~~~~
+.. autoclass:: Classifier
+  :members:
+  
+`Discriminator`
+~~~~~~~~~~~~~~~
+.. autoclass:: Discriminator
+  :members:
+  
+`Critic`
+~~~~~~~~
+.. autoclass:: critic
+  :members:
+
 Utilities
 ---------
 .. automodule:: monai.networks.utils
