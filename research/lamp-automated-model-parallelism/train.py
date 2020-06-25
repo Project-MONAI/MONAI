@@ -15,7 +15,7 @@ import os
 
 import numpy as np
 import torch
-from monai.transforms import AddChannelDict, Compose, RandCropByPosNegLabeld, CopyItemsd, Rand3DElasticd
+from monai.transforms import AddChannelDict, Compose, RandCropByPosNegLabeld, Rand3DElasticd, SpatialPadd
 from monai.losses import DiceLoss, FocalLoss
 from monai.metrics import compute_meandice
 from monai.data import Dataset, list_data_collate
@@ -38,10 +38,9 @@ class ImageLabelDataset:
     Load image and multi-class labels based on the predefined folder structure.
     """
 
-    def __init__(self, path, pad_size, n_class=10):
+    def __init__(self, path, n_class=10):
         self.path = path
         self.data = sorted(os.listdir(path))
-        self.pad_size = pad_size
         self.n_class = n_class
 
     def __getitem__(self, index):
@@ -66,22 +65,6 @@ class ImageLabelDataset:
         data["label"] = np.concatenate([mask0] + mask_list, axis=0).astype(np.uint8)  # shape (C H W D)
         # setting flags
         data["with_complete_groundtruth"] = flagvect  # flagvec is a boolean indicator for complete annotation
-        # pad image and label bigger than pad_size for sliding window
-        if not np.any([pz == -1 for pz in self.pad_size]):
-            d_shape = data["image"].shape
-            sz = [max(p_sz, d_sz) for p_sz, d_sz in zip(self.pad_size, d_shape)]
-            s_h = (sz[0] - d_shape[0]) // 2
-            e_h = s_h + d_shape[0]
-            s_w = (sz[1] - d_shape[1]) // 2
-            e_w = s_w + d_shape[1]
-            s_d = (sz[2] - d_shape[2]) // 2
-            e_d = s_d + d_shape[2]
-            data_image = np.zeros(sz)
-            data_image[s_h:e_h, s_w:e_w, s_d:e_d] = np.array(data["image"])
-            data["image"] = data_image.astype(np.float32)
-            data_label = np.zeros([self.n_class] + sz)
-            data_label[:, s_h:e_h, s_w:e_w, s_d:e_d] = np.array(data["label"])
-            data["label"] = data_label.astype(np.uint8)
         return data
 
     def __len__(self):
@@ -96,17 +79,18 @@ def train(n_feat, crop_size, bs, ep, optimizer="rmsprop", lr=5e-4, pretrain=None
     print(f"input image crop_size: {crop_size}")
 
     # starting training set loader
-    train_images = ImageLabelDataset(path=TRAIN_PATH, pad_size=crop_size, n_class=N_CLASSES)
+    train_images = ImageLabelDataset(path=TRAIN_PATH, n_class=N_CLASSES)
     if np.any([cz == -1 for cz in crop_size]):  # using full image
         train_transform = Compose([AddChannelDict(keys="image")])
         train_dataset = Dataset(train_images, transform=train_transform)
         # when bs > 1, the loader assumes that the full image sizes are the same across the dataset
-        train_dataloader = torch.utils.data.DataLoader(train_dataset, num_workers=0, batch_size=bs, shuffle=True)
+        train_dataloader = torch.utils.data.DataLoader(train_dataset, num_workers=4, batch_size=bs, shuffle=True)
     else:
         # draw balanced foreground/background window samples according to the ground truth label
         train_transform = Compose(
             [
                 AddChannelDict(keys="image"),
+                SpatialPadd(keys=("image", "label"), spatial_size=crop_size),  # ensure image size >= crop_size
                 RandCropByPosNegLabeld(
                     keys=("image", "label"), label_key="label", spatial_size=crop_size, num_samples=bs
                 ),
@@ -127,14 +111,14 @@ def train(n_feat, crop_size, bs, ep, optimizer="rmsprop", lr=5e-4, pretrain=None
         )
         train_dataset = Dataset(train_images, transform=train_transform)  # each dataset item is a list of windows
         train_dataloader = torch.utils.data.DataLoader(  # stack each dataset item into a single tensor
-            train_dataset, num_workers=0, batch_size=1, shuffle=True, collate_fn=list_data_collate
+            train_dataset, num_workers=4, batch_size=1, shuffle=True, collate_fn=list_data_collate
         )
     first_sample = first(train_dataloader)
     print(first_sample["image"].shape)
 
     # starting validation set loader
     val_transform = Compose([AddChannelDict(keys="image")])
-    val_dataset = Dataset(ImageLabelDataset(VAL_PATH, pad_size=(-1,), n_class=N_CLASSES), transform=val_transform)
+    val_dataset = Dataset(ImageLabelDataset(VAL_PATH, n_class=N_CLASSES), transform=val_transform)
     val_dataloader = torch.utils.data.DataLoader(val_dataset, num_workers=1, batch_size=1)
     print(val_dataset[0]["image"].shape)
     print(f"training images: {len(train_dataloader)}, validation images: {len(val_dataloader)}")
