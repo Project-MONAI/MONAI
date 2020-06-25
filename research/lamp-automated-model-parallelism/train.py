@@ -83,16 +83,15 @@ def train(n_feat, crop_size, bs, ep, optimizer="rmsprop", lr=5e-4, pretrain=None
         # when bs > 1, the loader assumes that the full image sizes are the same across the dataset
         train_dataloader = torch.utils.data.DataLoader(train_dataset, num_workers=6, batch_size=bs, shuffle=True)
     else:
+        # draw balanced foreground/background window samples according to the ground truth label
         train_transform = Compose(
             [
                 AddChannelDict(keys="image"),
-                CopyItemsd(keys="label", times=1, names="label_fg"),
-                lambda d: d.update({"label_fg": d["label_fg"][1:]}) or d,  # excluding label bg from the sampling mask
-                RandCropByPosNegLabeld(keys=("image", "label"), label_key="label_fg", size=crop_size, num_samples=bs),
+                RandCropByPosNegLabeld(keys=("image", "label"), label_key="label", size=crop_size, num_samples=bs),
             ]
         )
-        train_dataset = Dataset(train_images, transform=train_transform)
-        train_dataloader = torch.utils.data.DataLoader(
+        train_dataset = Dataset(train_images, transform=train_transform)  # each dataset item is a list of windows
+        train_dataloader = torch.utils.data.DataLoader(  # stack each dataset item into a single tensor
             train_dataset, num_workers=0, batch_size=1, shuffle=True, collate_fn=list_data_collate
         )
     first_sample = first(train_dataloader)
@@ -107,7 +106,6 @@ def train(n_feat, crop_size, bs, ep, optimizer="rmsprop", lr=5e-4, pretrain=None
 
     model = UNet(spatial_dims=3, in_channels=1, out_channels=N_CLASSES, n_feat=n_feat)
     model = flatten_sequential(model)
-    # model = model.cuda()
     lossweight = torch.from_numpy(np.array([2.22, 1.31, 1.99, 1.13, 1.93, 1.93, 1.0, 1.0, 1.90, 1.98], np.float32))
 
     if optimizer.lower() == "rmsprop":
@@ -133,7 +131,7 @@ def train(n_feat, crop_size, bs, ep, optimizer="rmsprop", lr=5e-4, pretrain=None
     focal_loss_func = FocalLoss(reduction="none")
 
     model_name = f"./HaN_{n_feat}_{bs}_{ep}_{crop_size}_{lr}"
-    print(f"save model as '{model_name}' during training.")
+    print(f"save the best model as '{model_name}' during training.")
     if pretrain:
         print(f"loading from {pretrain}.")
         pretrained_dict = torch.load(pretrain)["weight"]
