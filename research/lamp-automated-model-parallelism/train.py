@@ -15,7 +15,7 @@ import os
 
 import numpy as np
 import torch
-from monai.transforms import AddChannelDict, Compose, RandCropByPosNegLabeld, CopyItemsd
+from monai.transforms import AddChannelDict, Compose, RandCropByPosNegLabeld, CopyItemsd, Rand3DElasticd
 from monai.losses import DiceLoss, FocalLoss
 from monai.metrics import compute_meandice
 from monai.data import Dataset, list_data_collate
@@ -38,9 +38,10 @@ class ImageLabelDataset:
     Load image and multi-class labels based on the predefined folder structure.
     """
 
-    def __init__(self, path, n_class=10):
+    def __init__(self, path, pad_size, n_class=10):
         self.path = path
         self.data = sorted(os.listdir(path))
+        self.pad_size = pad_size
         self.n_class = n_class
 
     def __getitem__(self, index):
@@ -65,6 +66,22 @@ class ImageLabelDataset:
         data["label"] = np.concatenate([mask0] + mask_list, axis=0).astype(np.uint8)  # shape (C H W D)
         # setting flags
         data["with_complete_groundtruth"] = flagvect  # flagvec is a boolean indicator for complete annotation
+        # pad image and label bigger than pad_size for sliding window
+        if not np.any([pz == -1 for pz in self.pad_size]):
+            d_shape = data["image"].shape
+            sz = [max(p_sz, d_sz) for p_sz, d_sz in zip(self.pad_size, d_shape)]
+            s_h = (sz[0] - d_shape[0]) // 2
+            e_h = s_h + d_shape[0]
+            s_w = (sz[1] - d_shape[1]) // 2
+            e_w = s_w + d_shape[1]
+            s_d = (sz[2] - d_shape[2]) // 2
+            e_d = s_d + d_shape[2]
+            data_image = np.zeros(sz)
+            data_image[s_h:e_h, s_w:e_w, s_d:e_d] = np.array(data["image"])
+            data["image"] = data_image.astype(np.float32)
+            data_label = np.zeros([self.n_class,] + sz)
+            data_label[:, s_h:e_h, s_w:e_w, s_d:e_d] = np.array(data["label"])
+            data["label"] = data_label.astype(np.uint8)
         return data
 
     def __len__(self):
@@ -72,25 +89,55 @@ class ImageLabelDataset:
 
 
 def train(n_feat, crop_size, bs, ep, optimizer="rmsprop", lr=5e-4, pretrain=None):
-    model_name = f"./HaN_{n_feat}_{bs}_{ep}_{crop_size}_{lr}"
+    model_name = f"./HaN_{n_feat}_{bs}_{ep}_{crop_size}_{lr}_"
     print(f"save the best model as '{model_name}' during training.")
 
     crop_size = [int(cz) for cz in crop_size.split(",")]
     print(f"input image crop_size: {crop_size}")
 
     # starting training set loader
-    train_images = ImageLabelDataset(path=TRAIN_PATH, n_class=N_CLASSES)
+    train_images = ImageLabelDataset(path=TRAIN_PATH, pad_size=crop_size, n_class=N_CLASSES)
     if np.any([cz == -1 for cz in crop_size]):  # using full image
-        train_transform = Compose([AddChannelDict(keys="image")])
+        train_transform = Compose(
+            [
+                AddChannelDict(keys="image"),
+                Rand3DElasticd(
+                    keys=("image", "label"),
+                    spatial_size=(-1, -1, -1),
+                    sigma_range=(10, 50),  # 30
+                    magnitude_range=[600, 1200],  # 1000
+                    prob=0.8,
+                    rotate_range=(np.pi/12, np.pi/12, np.pi/12),
+                    shear_range=(np.pi/18, np.pi/18, np.pi/18),
+                    translate_range=(sz * 0.05 for sz in crop_size),
+                    scale_range=(0.2, 0.2, 0.2),
+                    mode=("bilinear", "nearest"),
+                    padding_mode=("border", "zeros"),
+                )
+            ]
+        )
         train_dataset = Dataset(train_images, transform=train_transform)
         # when bs > 1, the loader assumes that the full image sizes are the same across the dataset
-        train_dataloader = torch.utils.data.DataLoader(train_dataset, num_workers=6, batch_size=bs, shuffle=True)
+        train_dataloader = torch.utils.data.DataLoader(train_dataset, num_workers=bs, batch_size=bs, shuffle=True)
     else:
         # draw balanced foreground/background window samples according to the ground truth label
         train_transform = Compose(
             [
                 AddChannelDict(keys="image"),
                 RandCropByPosNegLabeld(keys=("image", "label"), label_key="label", size=crop_size, num_samples=bs),
+                Rand3DElasticd(
+                    keys=("image", "label"),
+                    spatial_size=crop_size,
+                    sigma_range=(10, 50),  # 30
+                    magnitude_range=[600, 1200],  # 1000
+                    prob=0.8,
+                    rotate_range=(np.pi/12, np.pi/12, np.pi/12),
+                    shear_range=(np.pi/18, np.pi/18, np.pi/18),
+                    translate_range=(sz * 0.05 for sz in crop_size),
+                    scale_range=(0.2, 0.2, 0.2),
+                    mode=("bilinear", "nearest"),
+                    padding_mode=("border", "zeros"),
+                )
             ]
         )
         train_dataset = Dataset(train_images, transform=train_transform)  # each dataset item is a list of windows
@@ -102,8 +149,8 @@ def train(n_feat, crop_size, bs, ep, optimizer="rmsprop", lr=5e-4, pretrain=None
 
     # starting validation set loader
     val_transform = Compose([AddChannelDict(keys="image")])
-    val_dataset = Dataset(ImageLabelDataset(VAL_PATH, n_class=N_CLASSES), transform=val_transform)
-    val_dataloader = torch.utils.data.DataLoader(val_dataset, num_workers=6, batch_size=1)
+    val_dataset = Dataset(ImageLabelDataset(VAL_PATH, pad_size=(-1,), n_class=N_CLASSES), transform=val_transform)
+    val_dataloader = torch.utils.data.DataLoader(val_dataset, num_workers=1, batch_size=1)
     print(val_dataset[0]["image"].shape)
     print(f"training images: {len(train_dataloader)}, validation images: {len(val_dataloader)}")
 
@@ -183,14 +230,12 @@ def train(n_feat, crop_size, bs, ep, optimizer="rmsprop", lr=5e-4, pretrain=None
                 n_val = [n + 1 if l == l else n for l, n in zip(loss[0], n_val)]
             val_loss = [l / n for l, n in zip(val_loss, n_val)]
             print("validation scores %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f" % tuple(val_loss))
-            best_val_loss = [max(l1, l2) for l1, l2 in zip(best_val_loss, val_loss)]
+            for c in range(1, 10):
+                if best_val_loss[c - 1] < val_loss[c - 1]:
+                    best_val_loss[c - 1] = val_loss[c - 1]
+                    state = {"epoch": epoch, "weight": model.state_dict(), "score_" + str(c): best_val_loss[c - 1]}
+                    torch.save(state, f"{model_name}" + str(c))
             print("best validation scores %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f" % tuple(best_val_loss))
-            ave_score = np.mean(val_loss)
-            if ave_score > best_ave:
-                print(f"new best: {ave_score} at epoch {epoch}")
-                best_ave = ave_score
-                state = {"epoch": epoch, "weight": model.state_dict(), "score": ave_score}
-                torch.save(state, f"{model_name}")
 
     print("total time", time.time() - b_time)
 

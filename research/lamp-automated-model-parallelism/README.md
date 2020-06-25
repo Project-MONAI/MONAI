@@ -17,16 +17,24 @@ MICCAI 2020 (Early Accept, paper link: https://arxiv.org/abs/2006.12575)
 ## To run the demo:
 
 ### Prerequisites
-- install the latest version of MONAI: `git clone https://github.com/Project-MONAI/MONAI` and `pip install -e .`.
+- install the latest version of MONAI: `git clone https://github.com/Project-MONAI/MONAI` and `pip install -e .`
 - `pip install torchgpipe`
 
 ### Data
+```bash
+mkdir ./data;
+cd ./data;
+```
 Head and Neck CT dataset
-please download and unzip the images into `./data` folder.
+
+Please download and unzip the images into `./data` folder.
 
 - `HaN.zip`: https://drive.google.com/file/d/1A2zpVlR3CkvtkJPvtAF3-MH0nr1WZ2Mn/view?usp=sharing
+```bash
+unzip HaN.zip;  # unzip
+```
 
-Please find more details at https://github.com/wentaozhu/AnatomyNet-for-anatomical-segmentation.git
+Please find more details of the dataset at https://github.com/wentaozhu/AnatomyNet-for-anatomical-segmentation.git
 
 
 ### Hardware
@@ -39,7 +47,7 @@ Please find more details at https://github.com/wentaozhu/AnatomyNet-for-anatomic
 The number of features in the first block (`--n_feat`) can be 32, 64, or 128.
 ```bash
 mkdir ./log;
-python train.py --n_feat=128 --crop_size='64,64,64' --bs=16 --ep=4800 > ./log/YOURLOG.log
-python train.py --n_feat=128 --crop_size='128,128,128' --bs=4 --ep=1200 --pretrain='./HaN_64,64,64' > ./log/YOURLOG.log
-python train.py --n_feat=128 --crop_size='-1,-1,-1' --bs=1 --ep=300 --pretrain='./HaN_128,128,128' > ./log/YOURLOG.log
+python train.py --n_feat=128 --crop_size='64,64,64' --bs=16 --ep=4800  --lr=0.001 > ./log/YOURLOG.log
+python train.py --n_feat=128 --crop_size='128,128,128' --bs=4 --ep=1200 --lr=0.001 --pretrain='./HaN_32_16_1200_64,64,64_0.001_*'  > ./log/YOURLOG.log
+python train.py --n_feat=128 --crop_size='-1,-1,-1' --bs=1 --ep=300 --lr=0.001 --pretrain='./HaN_32_16_1200_64,64,64_0.001_*' > ./log/YOURLOG.log
 ```
