@@ -107,7 +107,9 @@ def train(n_feat, crop_size, bs, ep, optimizer="rmsprop", lr=5e-4, pretrain=None
         train_transform = Compose(
             [
                 AddChannelDict(keys="image"),
-                RandCropByPosNegLabeld(keys=("image", "label"), label_key="label", spatial_size=crop_size, num_samples=bs),
+                RandCropByPosNegLabeld(
+                    keys=("image", "label"), label_key="label", spatial_size=crop_size, num_samples=bs
+                ),
                 Rand3DElasticd(
                     keys=("image", "label"),
                     spatial_size=crop_size,

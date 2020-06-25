@@ -37,7 +37,7 @@ unzip HaN.zip;  # unzip
 Please find more details of the dataset at https://github.com/wentaozhu/AnatomyNet-for-anatomical-segmentation.git
 
 
-### Hardware requirements
+### Minimal hardware requirements for full image training
 - U-Net (`n_feat=32`): 2x 16Gb GPUs
 - U-Net (`n_feat=64`): 4x 16Gb GPUs
 - U-Net (`n_feat=128`): 2x 32Gb GPUs
