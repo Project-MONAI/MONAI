@@ -17,6 +17,7 @@ import monai
 import numpy as np
 import torch
 
+
 try:
     import ignite
 
@@ -98,6 +99,12 @@ def print_config(file=sys.stdout):
     print("\nOptional dependencies:", file=file, flush=True)
     for k, v in get_optional_config_values().items():
         print(f"{k} version: {v}", file=file, flush=True)
+    print("\nFor details about installing the optional dependencies, please visit:", file=file, flush=True)
+    print(
+        "    http://monai.rtfd.io/en/latest/installation.html#installing-the-recommended-dependencies",
+        file=file,
+        flush=True,
+    )
 
 
 def set_visible_devices(*dev_inds):
