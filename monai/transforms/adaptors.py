@@ -240,7 +240,7 @@ def to_kwargs(fn):
 
 
 class FunctionSignature:
-    def __init__(self, function):
+    def __init__(self, function) -> None:
         import inspect
 
         sfn = inspect.signature(function)

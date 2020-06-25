@@ -27,15 +27,9 @@ TEST_CASE_4 = [{}, np.random.rand(1, 2, 1, 3), (2, 1, 3)]
 
 TEST_CASE_4_PT = [{}, torch.rand(1, 2, 1, 3), (2, 1, 3)]
 
-TEST_CASE_5 = [
-    {"dim": -2},
-    np.random.rand(1, 1, 16, 8, 1),
-]
+TEST_CASE_5 = [{"dim": -2}, np.random.rand(1, 1, 16, 8, 1)]
 
-TEST_CASE_6 = [
-    {"dim": 0.5},
-    np.random.rand(1, 1, 16, 8, 1),
-]
+TEST_CASE_6 = [{"dim": 0.5}, np.random.rand(1, 1, 16, 8, 1)]
 
 
 class TestSqueezeDim(unittest.TestCase):

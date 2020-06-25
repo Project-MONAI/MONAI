@@ -12,30 +12,27 @@
 import unittest
 import numpy as np
 from parameterized import parameterized
-from monai.transforms import SpatialCrop
+from monai.transforms import RandSpatialCropSamples
 
 TEST_CASE_1 = [
-    {"roi_center": [1, 1, 1], "roi_size": [2, 2, 2]},
+    {"roi_size": [3, 3, 3], "num_samples": 4, "random_center": True},
     np.random.randint(0, 2, size=[3, 3, 3, 3]),
-    (3, 2, 2, 2),
+    (3, 3, 3, 3),
 ]
 
-TEST_CASE_2 = [{"roi_start": [0, 0, 0], "roi_end": [2, 2, 2]}, np.random.randint(0, 2, size=[3, 3, 3, 3]), (3, 2, 2, 2)]
-
-TEST_CASE_3 = [{"roi_start": [0, 0], "roi_end": [2, 2]}, np.random.randint(0, 2, size=[3, 3, 3, 3]), (3, 2, 2, 3)]
-
-TEST_CASE_4 = [
-    {"roi_start": [0, 0, 0, 0, 0], "roi_end": [2, 2, 2, 2, 2]},
+TEST_CASE_2 = [
+    {"roi_size": [3, 3, 3], "num_samples": 8, "random_center": False},
     np.random.randint(0, 2, size=[3, 3, 3, 3]),
-    (3, 2, 2, 2),
+    (3, 3, 3, 3),
 ]
 
 
-class TestSpatialCrop(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
+class TestRandSpatialCropSamples(unittest.TestCase):
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_shape(self, input_param, input_data, expected_shape):
-        result = SpatialCrop(**input_param)(input_data)
-        self.assertTupleEqual(result.shape, expected_shape)
+        result = RandSpatialCropSamples(**input_param)(input_data)
+        for item in result:
+            self.assertTupleEqual(item.shape, expected_shape)
 
 
 if __name__ == "__main__":

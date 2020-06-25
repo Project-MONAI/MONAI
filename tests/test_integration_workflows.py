@@ -65,7 +65,7 @@ def run_training_test(root_dir, device=torch.device("cuda:0")):
             AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
             ScaleIntensityd(keys=["image", "label"]),
             RandCropByPosNegLabeld(
-                keys=["image", "label"], label_key="label", size=[96, 96, 96], pos=1, neg=1, num_samples=4
+                keys=["image", "label"], label_key="label", spatial_size=[96, 96, 96], pos=1, neg=1, num_samples=4
             ),
             RandRotate90d(keys=["image", "label"], prob=0.5, spatial_axes=[0, 2]),
             ToTensord(keys=["image", "label"]),
@@ -112,7 +112,7 @@ def run_training_test(root_dir, device=torch.device("cuda:0")):
         StatsHandler(output_transform=lambda x: None),
         TensorBoardStatsHandler(log_dir=root_dir, output_transform=lambda x: None),
         TensorBoardImageHandler(
-            log_dir=root_dir, batch_transform=lambda x: (x["image"], x["label"]), output_transform=lambda x: x["pred"],
+            log_dir=root_dir, batch_transform=lambda x: (x["image"], x["label"]), output_transform=lambda x: x["pred"]
         ),
         CheckpointSaver(save_dir=root_dir, save_dict={"net": net}, save_key_metric=True),
     ]

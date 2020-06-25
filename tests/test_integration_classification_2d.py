@@ -23,16 +23,7 @@ from torch.utils.data import DataLoader
 import monai
 from monai.metrics import compute_roc_auc
 from monai.networks.nets import densenet121
-from monai.transforms import (
-    AddChannel,
-    Compose,
-    LoadPNG,
-    RandFlip,
-    RandRotate,
-    RandZoom,
-    ScaleIntensity,
-    ToTensor,
-)
+from monai.transforms import AddChannel, Compose, LoadPNG, RandFlip, RandRotate, RandZoom, ScaleIntensity, ToTensor
 from monai.utils import set_determinism
 from tests.utils import skip_if_quick
 
@@ -77,7 +68,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device=torch.dev
     val_ds = MedNISTDataset(val_x, val_y, val_transforms)
     val_loader = DataLoader(val_ds, batch_size=300, num_workers=10)
 
-    model = densenet121(spatial_dims=2, in_channels=1, out_channels=len(np.unique(train_y)),).to(device)
+    model = densenet121(spatial_dims=2, in_channels=1, out_channels=len(np.unique(train_y))).to(device)
     loss_function = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), 1e-5)
     epoch_num = 4
@@ -140,7 +131,7 @@ def run_inference_test(root_dir, test_x, test_y, device=torch.device("cuda:0")):
     val_ds = MedNISTDataset(test_x, test_y, val_transforms)
     val_loader = DataLoader(val_ds, batch_size=300, num_workers=10)
 
-    model = densenet121(spatial_dims=2, in_channels=1, out_channels=len(np.unique(test_y)),).to(device)
+    model = densenet121(spatial_dims=2, in_channels=1, out_channels=len(np.unique(test_y))).to(device)
 
     model_filename = os.path.join(root_dir, "best_metric_model.pth")
     model.load_state_dict(torch.load(model_filename))

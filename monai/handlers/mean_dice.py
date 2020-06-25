@@ -13,7 +13,7 @@ from typing import Callable, Optional, Sequence, Union
 
 import torch
 
-from monai.metrics import compute_meandice
+from monai.metrics import DiceMetric
 from monai.utils import exact_version, optional_import
 
 NotComputableError, _ = optional_import("ignite.exceptions", "0.3.0", exact_version, "NotComputableError")
@@ -55,12 +55,14 @@ class MeanDice(Metric):
             :py:meth:`monai.metrics.meandice.compute_meandice`
         """
         super().__init__(output_transform, device=device)
-        self.include_background = include_background
-        self.to_onehot_y = to_onehot_y
-        self.mutually_exclusive = mutually_exclusive
-        self.sigmoid = sigmoid
-        self.logit_thresh = logit_thresh
-
+        self.dice = DiceMetric(
+            include_background=include_background,
+            to_onehot_y=to_onehot_y,
+            mutually_exclusive=mutually_exclusive,
+            sigmoid=sigmoid,
+            logit_thresh=logit_thresh,
+            reduction="mean",
+        )
         self._sum = 0
         self._num_examples = 0
 
@@ -74,24 +76,12 @@ class MeanDice(Metric):
         if not len(output) == 2:
             raise ValueError("MeanDice metric can only support y_pred and y.")
         y_pred, y = output
-        scores = compute_meandice(
-            y_pred,
-            y,
-            self.include_background,
-            self.to_onehot_y,
-            self.mutually_exclusive,
-            self.sigmoid,
-            self.logit_thresh,
-        )
+        score = self.dice(y_pred, y)
+        not_nans = self.dice.not_nans.item()
 
         # add all items in current batch
-        for batch in scores:
-            not_nan = ~torch.isnan(batch)
-            if not_nan.sum() == 0:
-                continue
-            class_avg = batch[not_nan].mean().item()
-            self._sum += class_avg
-            self._num_examples += 1
+        self._sum += score.item() * not_nans
+        self._num_examples += not_nans
 
     @sync_all_reduce("_sum", "_num_examples")
     def compute(self):
