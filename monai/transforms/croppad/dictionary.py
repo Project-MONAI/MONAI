@@ -187,6 +187,8 @@ class RandSpatialCropd(Randomizable, MapTransform):
         self.roi_size = roi_size
         self.random_center = random_center
         self.random_size = random_size
+        self._slices = None
+        self._size = None
 
     def randomize(self, img_size):
         self._size = ensure_tuple_rep(self.roi_size, len(img_size))
@@ -206,6 +208,42 @@ class RandSpatialCropd(Randomizable, MapTransform):
                 cropper = CenterSpatialCrop(self._size)
                 d[key] = cropper(d[key])
         return d
+
+
+class RandSpatialCropSamplesd(Randomizable, MapTransform):
+    """
+    Dictionary-based version :py:class:`monai.transforms.RandSpatialCropSamples`.
+    Crop image with random size or specific size ROI to generate a list of N samples.
+    It can crop at a random position as center or at the image center. And allows to set
+    the minimum size to limit the randomly generated ROI. Suppose all the expected fields
+    specified by `keys` have same shape.
+    It will return a list of dictionaries for all the cropped images.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: monai.transforms.MapTransform
+        roi_size (list, tuple): if `random_size` is True, the spatial size of the minimum crop region.
+            if `random_size` is False, specify the expected ROI size to crop. e.g. [224, 224, 128]
+        num_samples: number of samples (crop regions) to take in the returned list.
+        random_center: crop at random position as center or the image center.
+        random_size: crop with random size or specific size ROI.
+            The actual size is sampled from `randint(roi_size, img_size)`.
+    """
+
+    def __init__(
+        self, keys: KeysCollection, roi_size, num_samples: int, random_center: bool = True, random_size: bool = True
+    ):
+        super().__init__(keys)
+        if num_samples < 1:
+            raise ValueError("number of samples must be greater than 0.")
+        self.num_samples = num_samples
+        self.cropper = RandSpatialCropd(keys, roi_size, random_center, random_size)
+
+    def randomize(self):
+        pass
+
+    def __call__(self, data):
+        return [self.cropper(data) for _ in range(self.num_samples)]
 
 
 class CropForegroundd(MapTransform):
@@ -265,11 +303,11 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
     Args:
         keys (list): parameter will be used to get and set the actual data item to transform.
         label_key: name of key for label image, this will be used for finding foreground/background.
-        size (list, tuple): the size of the crop region e.g. [224,224,128]
+        spatial_size (sequence of int): the spatial size of the crop region e.g. [224, 224, 128]
         pos: used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
-          foreground voxel as a center rather than a background voxel.
+            foreground voxel as a center rather than a background voxel.
         neg: used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
-          foreground voxel as a center rather than a background voxel.
+            foreground voxel as a center rather than a background voxel.
         num_samples: number of samples (crop regions) to take in each list.
         image_key: if image_key is not None, use ``label == 0 & image > image_threshold`` to select
             the negative sample(background) center. so the crop center will only exist on valid image area.
@@ -281,7 +319,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         self,
         keys: KeysCollection,
         label_key: str,
-        size,
+        spatial_size,
         pos: float = 1.0,
         neg: float = 1.0,
         num_samples: int = 1,
@@ -289,18 +327,13 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         image_threshold: float = 0.0,
     ):
         super().__init__(keys)
-        assert isinstance(label_key, str), "label_key must be a string."
-        assert isinstance(size, (list, tuple)), "size must be list or tuple."
-        assert all(isinstance(x, int) and x > 0 for x in size), "all elements of size must be positive integers."
-        assert float(pos) >= 0 and float(neg) >= 0, "pos and neg must be greater than or equal to 0."
-        assert float(pos) + float(neg) > 0, "pos and neg cannot both be 0."
-        assert isinstance(num_samples, int), "invalid samples number: {}. num_samples must be an integer.".format(
-            num_samples
-        )
-        assert num_samples >= 0, "num_samples must be greater than or equal to 0."
         self.label_key = label_key
-        self.size = size
-        self.pos_ratio = float(pos) / (float(pos) + float(neg))
+        self.spatial_size = spatial_size
+        if pos < 0 or neg < 0:
+            raise ValueError("pos and neg must be greater than or equal to 0.")
+        if pos + neg == 0:
+            raise ValueError("pos and neg cannot both be 0.")
+        self.pos_ratio = pos / (pos + neg)
         self.num_samples = num_samples
         self.image_key = image_key
         self.image_threshold = image_threshold
@@ -308,7 +341,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
 
     def randomize(self, label, image):
         self.centers = generate_pos_neg_label_crop_centers(
-            label, self.size, self.num_samples, self.pos_ratio, image, self.image_threshold, self.R
+            label, self.spatial_size, self.num_samples, self.pos_ratio, image, self.image_threshold, self.R
         )
 
     def __call__(self, data):
@@ -321,7 +354,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
             if key in self.keys:
                 img = d[key]
                 for i, center in enumerate(self.centers):
-                    cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.size)
+                    cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)
                     results[i][key] = cropper(img)
             else:
                 for i in range(self.num_samples):
@@ -336,5 +369,6 @@ DivisiblePadD = DivisiblePadDict = DivisiblePadd
 SpatialCropD = SpatialCropDict = SpatialCropd
 CenterSpatialCropD = CenterSpatialCropDict = CenterSpatialCropd
 RandSpatialCropD = RandSpatialCropDict = RandSpatialCropd
+RandSpatialCropSamplesD = RandSpatialCropSamplesDict = RandSpatialCropSamplesd
 CropForegroundD = CropForegroundDict = CropForegroundd
 RandCropByPosNegLabelD = RandCropByPosNegLabelDict = RandCropByPosNegLabeld
