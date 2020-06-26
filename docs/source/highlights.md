@@ -146,8 +146,9 @@ dataset = ZipDataset([DatasetA(), DatasetB()], transform)
 
 ### 4. Predefined Datasets for public medical data
 To quickly get started with popular training data in the medical domain, MONAI provides several data-specific Datasets(like: `MedNISTDataset`, `DecathlonDataset`, etc.), which include downloading, extracting data files and support generation of training/evaluation items with transforms. And they are flexible that users can easily modify the JSON config file to change the default behaviors.
-
 MONAI always welcome new contributions of public datasets, please refer to existing Datasets and leverage the download and extracting APIs, etc.
+The common progress of predefined datasets:
+![image](../images/dataset_progress.png)
 
 ## Losses
 There are domain-specific loss functions in the medical imaging research which are not typically used in the generic computer vision tasks. As an important module of MONAI, these loss functions are implemented in PyTorch, such as `DiceLoss`, `GeneralizedDiceLoss`, `MaskedDiceLoss`, `TverskyLoss` and `FocalLoss`, etc.
@@ -178,7 +179,6 @@ A typical process is:
 2. Iteratively run batched window inferences until all windows are analyzed.
 3. Aggregate the inference outputs to a single segmentation map.
 4. Save the results to file or compute some evaluation metrics.
-
 ![image](../images/sliding_window.png)
 
 ### 2. Metrics for medical tasks
@@ -198,7 +198,6 @@ These features decouple the domain-specific components and the generic machine l
 The trainers and evaluators of the workflows are compatible with pytorch-ignite `Engine` and `Event-Handler` mechanism. There are rich event handlers in MONAI to independently attach to the trainer or evaluator.
 
 The workflow and event handlers are shown as below:
-
 ![image](../images/workflows.png)
 
 ## Research
