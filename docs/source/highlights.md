@@ -26,13 +26,7 @@ The rest of this page provides more details for each module.
 * [Research](#research)
 
 ## Medical image data I/O, processing and augmentation
-Medical images require highly specialized methods for I/O, preprocessing, and
-augmentation. Medical images are often in specialized formats with rich
-meta-information, and the data volumes are often high-dimensional. These
-require carefully designed manipulation procedures. The medical imaging focus
-of MONAI is enabled by powerful and flexible image transformations that
-facilitate user-friendly, reproducible, optimized medical data pre-processing
-pipelines.
+Medical images require highly specialized methods for I/O, preprocessing, and augmentation. Medical images are often in specialized formats with rich meta-information, and the data volumes are often high-dimensional. These require carefully designed manipulation procedures. The medical imaging focus of MONAI is enabled by powerful and flexible image transformations that facilitate user-friendly, reproducible, optimized medical data pre-processing pipelines.
 
 ### 1. Transforms support both Dictionary and Array format data
 - The widely used computer vision packages (such as ``torchvision``) focus on spatially 2D array image processing. MONAI provides more domain-specific transformations for both spatially 2D and 3D and retains the flexible transformation "compose" feature.
@@ -53,9 +47,7 @@ transformations. These currently include, for example:
 - `Rand3DElastic`: Random elastic deformation and affine in 3D
 
 ### 3. Fused spatial transforms and GPU acceleration
-As medical image volumes are usually large (in multi-dimensional arrays),
-pre-processing performance affects the overall pipeline speed. MONAI provides affine transforms to execute fused spatial operations, supports GPU acceleration via native PyTorch for high performance.
-
+As medical image volumes are usually large (in multi-dimensional arrays), pre-processing performance affects the overall pipeline speed. MONAI provides affine transforms to execute fused spatial operations, supports GPU acceleration via native PyTorch for high performance.  
 For example:
 ```py
 # create an Affine transform
@@ -72,16 +64,10 @@ new_img = affine(image, spatial_size=(300, 400), mode='bilinear')
 Currently all the geometric image transforms(Spacing, Zoom, Rotate, Resize, etc.) are designed based on the PyTorch native interfaces (instead of scipy, scikit-image, etc.).
 
 ### 4. Randomly crop out batch images based on positive/negative ratio
-Medical image data volume may be too large to fit into GPU memory. A
-widely-used approach is to randomly draw small size data samples during
-training and run a “sliding window” routine for inference.  MONAI currently
-provides general random sampling strategies including class-balanced fixed
-ratio sampling which may help stabilize the patch-based training process.
+Medical image data volume may be too large to fit into GPU memory. A widely-used approach is to randomly draw small size data samples during training and run a “sliding window” routine for inference.  MONAI currently provides general random sampling strategies including class-balanced fixed ratio sampling which may help stabilize the patch-based training process.
 
 ### 5. Deterministic training for reproducibility
-Deterministic training support is necessary and important for deep learning
-research, especially in the medical field. Users can easily set the random seed to all the random transforms in MONAI locally and will not affect other
-non-deterministic modules in the user's program.
+Deterministic training support is necessary and important for deep learning research, especially in the medical field. Users can easily set the random seed to all the random transforms in MONAI locally and will not affect other non-deterministic modules in the user's program.
 For example:
 ```py
 # define a transform chain for pre-processing
@@ -123,10 +109,7 @@ For more details, please check out the tutorial: [integrate 3rd pary transforms 
 
 ## Datasets
 ### 1. Cache IO and transforms data to accelerate training
-Users often need to train the model with many (potentially thousands of) epochs over the data to achieve the desired model quality. A native PyTorch
-implementation may repeatedly load data and run the same preprocessing steps
-for every epoch during training, which can be time-consuming and unnecessary,
-especially when the medical image volumes are large.
+Users often need to train the model with many (potentially thousands of) epochs over the data to achieve the desired model quality. A native PyTorch implementation may repeatedly load data and run the same preprocessing steps for every epoch during training, which can be time-consuming and unnecessary, especially when the medical image volumes are large.  
 MONAI provides a multi-threads `CacheDataset` to accelerate these transformation steps during training by storing the intermediate outcomes before the first randomized transform in the transform chain. Enabling this feature could potentially give 10x training speedups.
 ![image](../images/cache_dataset.png)
 
@@ -168,11 +151,10 @@ name, dimension = Conv.CONVTRANS, 3
 conv_type = Conv[name, dimension]
 add_module('conv1', conv_type(in_channels, out_channels, kernel_size=1, bias=False))
 ```
+And there are already several 1D/2D/3D compatible implementation of networks, such as: UNet, DenseNet, GAN, etc.
 
 ## Evaluation
-To run model inferences and evaluate the model quality, MONAI provides
-reference implementations for the relevant widely-used approaches. Currently,
-several popular evaluation metrics and inference patterns are included:
+To run model inferences and evaluate the model quality, MONAI provides reference implementations for the relevant widely-used approaches. Currently, several popular evaluation metrics and inference patterns are included:
 
 ### 1. Sliding window inference
 For model inferences on large volumes, the sliding window approach is a popular choice to achieve high performance while having flexible memory requirements. It also supports `overlap` and `blending_mode` parameters to smooth the segmentation result with weights for better metrics.
@@ -184,10 +166,7 @@ The typical progress:
 ![image](../images/sliding_window.png)
 
 ### 2. Metrics for medical tasks
-Various useful evaluation metrics have been used to measure the quality of
-medical image specific models. MONAI already implemented mean Dice score for
-segmentation tasks and the area under the ROC curve for classification tasks.
-We continue to integrate more options.
+Various useful evaluation metrics have been used to measure the quality of medical image specific models. MONAI already implemented mean Dice score for segmentation tasks and the area under the ROC curve for classification tasks. We continue to integrate more options.
 
 ## Visualization
 Beyond the simple point and curve plotting, MONAI provides intuitive interfaces to visualize multidimensional data as GIF animations in TensorBoard. This could provide a quick qualitative assessment of the model by visualizing, for example, the volumetric inputs, segmentation maps, and intermediate feature maps.
