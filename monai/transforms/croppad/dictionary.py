@@ -76,6 +76,8 @@ class BorderPadd(MapTransform):
     ):
         """
         Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
             spatial_border (int or sequence of int): specified size for every spatial border. it can be 3 shapes:
                 - single int number, pad all the borders with the same size.
                 - length equals the length of image shape, pad every spatial dimension separately.
@@ -90,11 +92,6 @@ class BorderPadd(MapTransform):
                 For a sequence each element corresponds to a key in ``keys``.
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
-            mode (str or sequence of str): one of the following string values or a user supplied function:
-                {'constant', 'edge', 'linear_ramp', 'maximum', 'mean', 'median', 'minimum', 'reflect',
-                'symmetric', 'wrap', 'empty', <function>}
-                user can set a sequence of mode values corresponding to every item specified by `keys`.
-                for more details, please check: https://docs.scipy.org/doc/numpy/reference/generated/numpy.pad.html
 
         """
         super().__init__(keys)
@@ -117,6 +114,8 @@ class DivisiblePadd(MapTransform):
     def __init__(self, keys: KeysCollection, k, mode: NumpyPadModeSequence = NumpyPadMode.CONSTANT):
         """
         Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
             k (int or sequence of int): the target k for each spatial dimension.
                 if `k` is negative or 0, the original size is preserved.
                 if `k` is an int, the same `k` be applied to all the input spatial dimensions.
@@ -323,7 +322,8 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
     And will return a list of dictionaries for all the cropped images.
 
     Args:
-        keys (list): parameter will be used to get and set the actual data item to transform.
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
         label_key: name of key for label image, this will be used for finding foreground/background.
         spatial_size (sequence of int): the spatial size of the crop region e.g. [224, 224, 128]
         pos: used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
@@ -335,6 +335,11 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
             the negative sample(background) center. so the crop center will only exist on valid image area.
         image_threshold: if enabled image_key, use ``image > image_threshold`` to determine
             the valid image content area.
+
+    Raises:
+        ValueError: pos and neg must be greater than or equal to 0.
+        ValueError: pos and neg cannot both be 0.
+
     """
 
     def __init__(

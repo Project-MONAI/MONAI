@@ -80,7 +80,7 @@ class Spacing(Transform):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"border"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-            dtype (None or np.dtype): output array data type, defaults to np.float32.
+            dtype: output array data type. Defaults to ``np.float32``.
         """
         self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
         self.diagonal = diagonal
@@ -106,6 +106,7 @@ class Spacing(Transform):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            dtype: output array data type. Defaults to ``self.dtype``.
 
         Returns:
             data_array (resampled into `self.pixdim`), original pixdim, current pixdim.
@@ -609,6 +610,12 @@ class RandRotate(Randomizable, Transform):
         """
         Args:
             img (ndarray): channel first array, must have shape 2D: (nchannels, H, W), or 3D: (nchannels, H, W, D).
+            mode: {``"bilinear"``, ``"nearest"``}
+                Interpolation mode to calculate output values. Defaults to ``self.mode``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+                Padding mode for outside grid values. Defaults to ``self.padding_mode``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         """
         self.randomize()
         if not self._do_transform:
@@ -697,6 +704,13 @@ class RandZoom(Randomizable, Transform):
             self._zoom = self.R.uniform(self.min_zoom, self.max_zoom)
 
     def __call__(self, img, mode: Optional[Union[InterpolateMode, str]] = None):
+        """
+        Args:
+            img (ndarray): channel first array, must have shape 2D: (nchannels, H, W), or 3D: (nchannels, H, W, D).
+            mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
+                The interpolation mode. Defaults to ``self.mode``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+        """
         self.randomize()
         _dtype = np.float32
         if not self._do_transform:
