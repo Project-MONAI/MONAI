@@ -46,9 +46,9 @@ transformations. These currently include, for example:
 - `Rand2DElastic`: Random elastic deformation and affine in 2D
 - `Rand3DElastic`: Random elastic deformation and affine in 3D
 <p>
-<img src="../images/hist1.png" width="20%" alt='histology'>
-<img src="../images/hist2.png" width="20%" alt='histology'>
-<img src="../images/hist3.png" width="20%" alt='histology'>
+<img src="../images/hist1.png" width="30%" alt='histology'>
+<img src="../images/hist2.png" width="30%" alt='histology'>
+<img src="../images/hist3.png" width="30%" alt='histology'>
 </p>
 
 ### 3. Fused spatial transforms and GPU acceleration
@@ -67,9 +67,9 @@ affine = Affine(
 new_img = affine(image, spatial_size=(300, 400), mode='bilinear')
 ```
 <p>
-<img src="../images/3d1.png" width="20%" alt='spleen'>
-<img src="../images/3d2.png" width="20%" alt='spleen'>
-<img src="../images/3d3.png" width="20%" alt='spleen'>
+<img src="../images/3d1.png" width="30" alt='spleen'>
+<img src="../images/3d2.png" width="30" alt='spleen'>
+<img src="../images/3d3.png" width="30" alt='spleen'>
 </p>
 Currently all the geometric image transforms(Spacing, Zoom, Rotate, Resize, etc.) are designed based on the PyTorch native interfaces (instead of scipy, scikit-image, etc.).
 
