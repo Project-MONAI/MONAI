@@ -52,11 +52,12 @@ class DiceLoss(_Loss):
             softmax: If True, apply a softmax function to the prediction.
             squared_pred: use squared versions of targets and predictions in the denominator or not.
             jaccard: compute Jaccard Index (soft IoU) instead of dice or not.
-            reduction (`none|mean|sum`): Specifies the reduction to apply to the output:
-                ``'none'``: no reduction will be applied,
-                ``'mean'``: the sum of the output will be divided by the number of elements in the output,
-                ``'sum'``: the output will be summed.
-                Default: ``'mean'``.
+            reduction: {``"none"``, ``"mean"``, ``"sum"``}
+                Specifies the reduction to apply to the output. Defaults to ``"mean"``.
+
+                - ``"none"``: no reduction will be applied.
+                - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
+                - ``"sum"``: the output will be summed.
         """
         super().__init__(reduction=reduction)
 
@@ -194,13 +195,14 @@ class GeneralizedDiceLoss(_Loss):
             to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
             sigmoid: If True, apply a sigmoid function to the prediction.
             softmax: If True, apply a softmax function to the prediction.
-            w_type ('square'|'simple'|'uniform'): type of function to transform ground truth volume to a weight factor.
-                Default: `'square'`
-            reduction (`none|mean|sum`): Specifies the reduction to apply to the output:
-                ``'none'``: no reduction will be applied,
-                ``'mean'``: the sum of the output will be divided by the batch size in the output,
-                ``'sum'``: the output will be summed over the batch dim.
-                Default: ``'mean'``.
+            w_type: {``"square"``, ``"simple"``, ``"uniform"``}
+                Type of function to transform ground truth volume to a weight factor. Defaults to ``"square"``.
+            reduction: {``"none"``, ``"mean"``, ``"sum"``}
+                Specifies the reduction to apply to the output. Defaults to ``"mean"``.
+
+                - ``"none"``: no reduction will be applied.
+                - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
+                - ``"sum"``: the output will be summed.
         """
         super().__init__(reduction=reduction)
 

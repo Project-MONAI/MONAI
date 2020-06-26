@@ -25,11 +25,11 @@ INVALID_CASES = [((None, None), "bilinear", TypeError), ((0.9, 0.9), "s", NotImp
 
 class TestZoom(NumpyImageTestCase2D):
     @parameterized.expand(VALID_CASES)
-    def test_correct_results(self, zoom, interp_order):
-        zoom_fn = Zoom(zoom=zoom, interp_order=interp_order, keep_size=False)
+    def test_correct_results(self, zoom, mode):
+        zoom_fn = Zoom(zoom=zoom, mode=mode, keep_size=False)
         zoomed = zoom_fn(self.imt[0])
         _order = 0
-        if interp_order.endswith("linear"):
+        if mode.endswith("linear"):
             _order = 1
         expected = list()
         for channel in self.imt[0]:
@@ -39,7 +39,7 @@ class TestZoom(NumpyImageTestCase2D):
 
     def test_keep_size(self):
         zoom_fn = Zoom(zoom=[0.6, 0.6], keep_size=True, align_corners=True)
-        zoomed = zoom_fn(self.imt[0], interp_order="bilinear")
+        zoomed = zoom_fn(self.imt[0], mode="bilinear")
         np.testing.assert_allclose(zoomed.shape, self.imt.shape[1:])
 
         zoom_fn = Zoom(zoom=[1.3, 1.3], keep_size=True)
@@ -47,9 +47,9 @@ class TestZoom(NumpyImageTestCase2D):
         np.testing.assert_allclose(zoomed.shape, self.imt.shape[1:])
 
     @parameterized.expand(INVALID_CASES)
-    def test_invalid_inputs(self, zoom, order, raises):
+    def test_invalid_inputs(self, zoom, mode, raises):
         with self.assertRaises(raises):
-            zoom_fn = Zoom(zoom=zoom, interp_order=order)
+            zoom_fn = Zoom(zoom=zoom, mode=mode)
             zoom_fn(self.imt[0])
 
 
