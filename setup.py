@@ -19,5 +19,5 @@ if __name__ == "__main__":
         cmdclass=versioneer.get_cmdclass(),
         packages=find_packages(exclude=("docs", "examples", "tests")),
         zip_safe=False,
-        package_data={'monai': ['py.typed']}
+        package_data={"monai": ["py.typed"]},
     )
