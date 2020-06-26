@@ -87,10 +87,14 @@ def dense_patch_slices(image_size, patch_size, scan_interval):
 
     Returns:
         a list of slice objects defining each patch
+
+    Raises:
+        ValueError: image_size should have 2 or 3 elements
+
     """
     num_spatial_dims = len(image_size)
     if num_spatial_dims not in (2, 3):
-        raise ValueError("image_size should has 2 or 3 elements")
+        raise ValueError("image_size should have 2 or 3 elements")
     patch_size = get_valid_patch_size(image_size, patch_size)
     scan_interval = ensure_tuple_size(scan_interval, num_spatial_dims)
 
@@ -299,8 +303,13 @@ def zoom_affine(affine, scale, diagonal: bool = True):
         diagonal: whether to return a diagonal scaling matrix.
             Defaults to True.
 
-    returns:
+    Returns:
         the updated `n x n` affine.
+
+    Raises:
+        ValueError: affine should be a square matrix
+        ValueError: scale must be a sequence of positive numbers.
+
     """
     affine = np.array(affine, dtype=float, copy=True)
     if len(affine) != len(affine[0]):
@@ -374,8 +383,14 @@ def to_affine_nd(r, affine):
     Args:
         r (int or matrix): number of spatial dimensions or an output affine to be filled.
         affine (matrix): 2D affine matrix
+
     Returns:
         an (r+1) x (r+1) matrix
+
+    Raises:
+        ValueError: input affine matrix must have two dimensions, got {affine_.ndim}.
+        ValueError: r must be positive, got {sr}.
+
     """
     affine_ = np.array(affine, dtype=np.float64)
     if affine_.ndim != 2:
@@ -449,6 +464,10 @@ def compute_importance_map(
 
     Returns:
         Tensor of size patch_size.
+
+    Raises:
+        ValueError: mode must be "constant" or "gaussian".
+
     """
     mode = BlendMode(mode)
     if mode == BlendMode.CONSTANT:

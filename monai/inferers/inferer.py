@@ -32,6 +32,10 @@ class Inferer(ABC):
         Args:
             inputs (torch.tensor): input of the model inference.
             network (Network): model for inference.
+
+        Raises:
+            NotImplementedError: subclass will implement the operations.
+
         """
         raise NotImplementedError("subclass will implement the operations.")
 

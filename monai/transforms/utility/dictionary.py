@@ -345,6 +345,11 @@ class CopyItemsd(MapTransform):
             names(str, list or tuple of str): the names coresponding to the newly copied data,
                 the length should match `len(keys) x times`. for example, if keys is ["img", "seg"]
                 and times is 2, names can be: ["img_1", "seg_1", "img_2", "seg_2"].
+
+        Raises:
+            ValueError: times must be greater than 0.
+            ValueError: length of names does not match `len(keys) x times`.
+
         """
         super().__init__(keys)
         if times < 1:
@@ -378,6 +383,9 @@ class ConcatItemsd(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             name: the name coresponding to the key to store the concatenated data.
             dim: on which dimension to concatenate the items, default is 0.
+
+        Raises:
+            ValueError: must provide must than 1 items to concat.
 
         """
         super().__init__(keys)

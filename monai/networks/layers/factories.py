@@ -105,6 +105,10 @@ class LayerFactory:
     def get_constructor(self, factory_name, *args) -> Any:
         """
         Get the constructor for the given factory name and arguments.
+
+        Raises:
+            ValueError: Factories must be selected by name
+
         """
 
         if not isinstance(factory_name, str):
@@ -146,6 +150,10 @@ class LayerFactory:
 def split_args(args):
     """
     Split arguments in a way to be suitable for using with the factory types. If `args` is a name it's interpreted
+
+    Raises:
+        ValueError: Layer specifiers must be single strings or pairs of the form (name/object-types, argument dict)
+
     """
 
     if isinstance(args, str):

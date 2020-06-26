@@ -145,8 +145,11 @@ class SupervisedEvaluator(Evaluator):
             - PRED: prediction result of model.
 
         Args:
-            engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
             batchdata (TransformContext, ndarray): input data for this iteration.
+
+        Raises:
+            ValueError: must provide batch data for current iteration.
 
         """
         if batchdata is None:

@@ -51,6 +51,10 @@ class SimpleASPP(nn.Module):
                 Defaults to batch norm.
             acti_type: final kernel-size-one convolution activation type.
                 Defaults to leaky ReLU.
+
+        Raises:
+            ValueError: len(kernel_sizes) and len(dilations) must be the same.
+
         """
         super().__init__()
         if len(kernel_sizes) != len(dilations):

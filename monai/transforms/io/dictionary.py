@@ -53,6 +53,10 @@ class LoadNiftid(MapTransform):
                 For example, load nifti file for `image`, store the metadata into `image_meta_dict`.
             overwriting (bool): whether allow to overwrite existing meta data of same key.
                 default is False, which will raise exception if encountering existing key.
+
+        Raises:
+            ValueError: meta_key_postfix must be a string.
+
         """
         super().__init__(keys)
         self.loader = LoadNifti(as_closest_canonical, False, dtype)
@@ -97,6 +101,10 @@ class LoadPNGd(MapTransform):
                 For example, load nifti file for `image`, store the metadata into `image_meta_dict`.
             overwriting: whether allow to overwrite existing meta data of same key.
                 default is False, which will raise exception if encountering existing key.
+
+        Raises:
+            ValueError: meta_key_postfix must be a string.
+
         """
         super().__init__(keys)
         self.loader = LoadPNG(False, dtype)

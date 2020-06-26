@@ -80,7 +80,7 @@ class Spacing(Transform):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"border"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-            dtype (None or np.dtype): output array data type, defaults to np.float32.
+            dtype: output array data type. Defaults to ``np.float32``.
         """
         self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
         self.diagonal = diagonal
@@ -106,8 +106,15 @@ class Spacing(Transform):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            dtype: output array data type. Defaults to ``self.dtype``.
+
         Returns:
             data_array (resampled into `self.pixdim`), original pixdim, current pixdim.
+
+        Raises:
+            ValueError: the array should have at least one spatial dimension.
+            ValueError: pixdim must be positive, got {out_d}
+
         """
         sr = data_array.ndim - 1
         if sr <= 0:
@@ -169,10 +176,13 @@ class Orientation(Transform):
                 (Left, Right), (Posterior, Anterior), (Inferior, Superior).
                 default orientation labels options are: 'L' and 'R' for the first dimension,
                 'P' and 'A' for the second, 'I' and 'S' for the third.
-            as_closest_canonical (boo): if True, load the image as closest to canonical axis format.
+            as_closest_canonical: if True, load the image as closest to canonical axis format.
             labels : optional, None or sequence of (2,) sequences
                 (2,) sequences are labels for (beginning, end) of output axis.
                 Defaults to ``(('L', 'R'), ('P', 'A'), ('I', 'S'))``.
+
+        Raises:
+            ValueError: provide either `axcodes` or `as_closest_canonical=True`.
 
         See Also: `nibabel.orientations.ornt2axcodes`.
         """
@@ -191,8 +201,15 @@ class Orientation(Transform):
         Args:
             data_array (ndarray): in shape (num_channels, H[, W, ...]).
             affine (matrix): (N+1)x(N+1) original affine matrix for spatially ND `data_array`. Defaults to identity.
+
         Returns:
             data_array (reoriented in `self.axcodes`), original axcodes, current axcodes.
+
+        Raises:
+            ValueError: the array should have at least one spatial dimension.
+            ValueError: `self.axcodes` should have at least {sr} elements
+                given the data array is in spatial {sr}D, got "{self.axcodes}"
+
         """
         sr = data_array.ndim - 1
         if sr <= 0:
@@ -278,6 +295,11 @@ class Resize(Transform):
             mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
                 The interpolation mode. Defaults to ``self.mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+
+        Raises:
+            ValueError: len(spatial_size) cannot be smaller than the image spatial dimensions,
+                got {output_ndim} and {input_ndim}.
+
         """
         input_ndim = img.ndim - 1  # spatial ndim
         output_ndim = len(self.spatial_size)
@@ -348,6 +370,10 @@ class Rotate(Transform):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+
+        Raises:
+            ValueError: Rotate only supports 2D and 3D: [chns, H, W] and [chns, H, W, D].
+
         """
         im_shape = np.asarray(img.shape[1:])  # spatial dimensions
         input_ndim = len(im_shape)
@@ -584,6 +610,12 @@ class RandRotate(Randomizable, Transform):
         """
         Args:
             img (ndarray): channel first array, must have shape 2D: (nchannels, H, W), or 3D: (nchannels, H, W, D).
+            mode: {``"bilinear"``, ``"nearest"``}
+                Interpolation mode to calculate output values. Defaults to ``self.mode``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+                Padding mode for outside grid values. Defaults to ``self.padding_mode``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         """
         self.randomize()
         if not self._do_transform:
@@ -672,6 +704,13 @@ class RandZoom(Randomizable, Transform):
             self._zoom = self.R.uniform(self.min_zoom, self.max_zoom)
 
     def __call__(self, img, mode: Optional[Union[InterpolateMode, str]] = None):
+        """
+        Args:
+            img (ndarray): channel first array, must have shape 2D: (nchannels, H, W), or 3D: (nchannels, H, W, D).
+            mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
+                The interpolation mode. Defaults to ``self.mode``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+        """
         self.randomize()
         _dtype = np.float32
         if not self._do_transform:
@@ -707,6 +746,10 @@ class AffineGrid(Transform):
         Args:
             spatial_size (list or tuple of int): output grid size.
             grid (ndarray): grid to be transformed. Shape must be (3, H, W) for 2D or (4, H, W, D) for 3D.
+
+        Raises:
+            ValueError: Either specify a grid or a spatial size to create a grid from.
+
         """
         if grid is None:
             if spatial_size is not None:

@@ -53,8 +53,12 @@ class Transform(ABC):
         - the channel dimension is not omitted even if number of channels is one.
 
         This method can optionally take additional arguments to help execute transformation operation.
+
+        Raises:
+            NotImplementedError: Subclass {self.__class__.__name__} must implement the compute method
+
         """
-        raise NotImplementedError
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement the compute method")
 
 
 class Randomizable(ABC):
@@ -77,6 +81,10 @@ class Randomizable(ABC):
 
         Returns:
             a Randomizable instance.
+
+        Raises:
+            ValueError: `state` must be a `np.random.RandomState`, got {type(state)}
+
         """
         if seed is not None:
             _seed = id(seed) if not isinstance(seed, int) else seed
@@ -102,8 +110,12 @@ class Randomizable(ABC):
 
         This method can optionally take additional arguments so that the random factors are generated based on
         properties of the input data.
+
+        Raises:
+            NotImplementedError: Subclass {self.__class__.__name__} must implement the compute method
+
         """
-        raise NotImplementedError
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement the compute method")
 
 
 class Compose(Randomizable):
@@ -230,4 +242,4 @@ class MapTransform(Transform):
 
     @abstractmethod
     def __call__(self, data):
-        raise NotImplementedError
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement the compute method")

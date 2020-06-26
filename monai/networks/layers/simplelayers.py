@@ -20,7 +20,9 @@ __all__ = ["SkipConnection", "Flatten", "GaussianFilter"]
 
 
 class SkipConnection(nn.Module):
-    """Concats the forward pass input with the result from the given submodule."""
+    """
+    Concats the forward pass input with the result from the given submodule.
+    """
 
     def __init__(self, submodule, cat_dim=1):
         super().__init__()
@@ -32,7 +34,9 @@ class SkipConnection(nn.Module):
 
 
 class Flatten(nn.Module):
-    """Flattens the given input in the forward pass to be [B,-1] in shape."""
+    """
+    Flattens the given input in the forward pass to be [B,-1] in shape.
+    """
 
     def forward(self, x):
         return x.view(x.size(0), -1)
@@ -84,6 +88,10 @@ class GaussianFilter(nn.Module):
         """
         Args:
             x (tensor): in shape [Batch, chns, H, W, D].
+
+        Raises:
+            TypeError: x must be a Tensor, got {type(x).__name__}.
+
         """
         if not torch.is_tensor(x):
             raise TypeError(f"x must be a Tensor, got {type(x).__name__}.")

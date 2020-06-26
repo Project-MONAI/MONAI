@@ -31,6 +31,9 @@ class ValidationHandler:
             epoch_level: execute validation every N epochs or N iterations.
                 `True` is epoch level, `False` is iteration level.
 
+        Raises:
+            ValueError: validator must be Evaluator ignite engine.
+
         """
         if not isinstance(validator, Evaluator):  # type: ignore
             raise ValueError("validator must be Evaluator ignite engine.")

@@ -44,6 +44,9 @@ def write_png(
         scale (255, 65535): postprocess data by clipping to [0, 1] and scaling to
             [0, 255] (uint8) or [0, 65535] (uint16). Default is None to disable scaling.
 
+    Raises:
+        ValueError: unsupported scale value: {scale}.
+
     """
     assert isinstance(data, np.ndarray), "input data must be numpy array."
     if len(data.shape) == 3 and data.shape[2] == 1:  # PIL Image can't save image with 1 channel

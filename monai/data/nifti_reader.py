@@ -47,6 +47,10 @@ class NiftiDataset(Dataset, Randomizable):
             seg_transform: transform to apply to segmentation arrays
             image_only: if True return only the image volume, other return image volume and header dict
             dtype (np.dtype, optional): if not None convert the loaded image to this data type
+
+        Raises:
+            ValueError: Must have same number of image and segmentation files
+
         """
 
         if seg_files is not None and len(image_files) != len(seg_files):
