@@ -14,6 +14,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 from typing import Optional, Tuple
+from warnings import warn
 
 import numpy as np
 
@@ -236,6 +237,10 @@ class ScaleIntensityRange(Transform):
         self.clip = clip
 
     def __call__(self, img):
+        if self.a_max - self.a_min == 0.0:
+            warn("Divide by zero (a_min == a_max)", Warning)
+            return img - self.a_min + self.b_min
+
         img = (img - self.a_min) / (self.a_max - self.a_min)
         img = img * (self.b_max - self.b_min) + self.b_min
         if self.clip:
@@ -297,3 +302,89 @@ class RandAdjustContrast(Randomizable, Transform):
             return img
         adjuster = AdjustContrast(self.gamma_value)
         return adjuster(img)
+
+
+class ScaleIntensityRangePercentiles(Transform):
+    """
+    Apply range scaling to a numpy array based on the intensity distribution of the input.
+
+    By default this transform will scale from [lower_intensity_percentile, upper_intensity_percentile] to [b_min, b_max], where 
+    {lower,upper}_intensity_percentile are the intensity values at the corresponding percentiles of ``img``. 
+
+    The ``relative`` parameter can also be set to scale from [lower_intensity_percentile, upper_intensity_percentile] to the 
+    lower and upper percentiles of the output range [b_min, b_max]
+
+    For example:
+
+    .. code-block:: python
+        :emphasize-lines: 11, 22
+
+        image = np.array(
+            [[[1, 2, 3, 4, 5],
+              [1, 2, 3, 4, 5],
+              [1, 2, 3, 4, 5],
+              [1, 2, 3, 4, 5],
+              [1, 2, 3, 4, 5],
+              [1, 2, 3, 4, 5]]]) 
+
+        # Scale from lower and upper image intensity percentiles 
+        # to output range [b_min, b_max]
+        scaler = ScaleIntensityRangePercentiles(10, 90, 0, 200, False, False)
+        print(scaler(image))
+        [[[0., 50., 100., 150., 200.],
+          [0., 50., 100., 150., 200.],
+          [0., 50., 100., 150., 200.],
+          [0., 50., 100., 150., 200.],
+          [0., 50., 100., 150., 200.],
+          [0., 50., 100., 150., 200.]]]
+
+        # Scale from lower and upper image intensity percentiles 
+        # to lower and upper percentiles of the output range [b_min, b_max]
+        rel_scaler = ScaleIntensityRangePercentiles(10, 90, 0, 200, False, True)
+        print(rel_scaler(image))
+        [[[20., 60., 100., 140., 180.],
+          [20., 60., 100., 140., 180.],
+          [20., 60., 100., 140., 180.],
+          [20., 60., 100., 140., 180.],
+          [20., 60., 100., 140., 180.],
+          [20., 60., 100., 140., 180.]]]
+
+
+    Args:
+        lower: lower intensity percentile.
+        upper: upper intensity percentile.
+        b_min: intensity target range min.
+        b_max: intensity target range max.
+        clip: whether to perform clip after scaling.
+        relative: whether to scale to the coresponding percentiles of [b_min, b_max].
+    """
+
+    def __init__(
+        self, lower: float, upper: float, b_min: float, b_max: float, clip: bool = False, relative: bool = False
+    ) -> None:
+        assert 0.0 <= lower <= 100.0, "Percentiles must be in the range [0, 100]"
+        assert 0.0 <= upper <= 100.0, "Percentiles must be in the range [0, 100]"
+        self.lower = lower
+        self.upper = upper
+        self.b_min = b_min
+        self.b_max = b_max
+        self.clip = clip
+        self.relative = relative
+
+    def __call__(self, img):
+        a_min = np.percentile(img, self.lower)
+        a_max = np.percentile(img, self.upper)
+        b_min = self.b_min
+        b_max = self.b_max
+
+        if self.relative:
+            b_min = ((self.b_max - self.b_min) * (self.lower / 100.0)) + self.b_min
+            b_max = ((self.b_max - self.b_min) * (self.upper / 100.0)) + self.b_min
+
+        scalar = ScaleIntensityRange(a_min=a_min, a_max=a_max, b_min=b_min, b_max=b_max, clip=False)
+        img = scalar(img)
+
+        if self.clip:
+            img = np.clip(img, self.b_min, self.b_max)
+
+        return img
