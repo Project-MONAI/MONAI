@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional
+
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -35,7 +37,14 @@ DEFAULT_LAYER_PARAMS_3D = (
 
 class ConvNormActi(nn.Module):
     def __init__(
-        self, spatial_dims, in_channels, out_channels, kernel_size, norm_type=None, acti_type=None, dropout_prob=None
+        self,
+        spatial_dims: int,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int,
+        norm_type: Optional[str] = None,
+        acti_type: Optional[str] = None,
+        dropout_prob: Optional[float] = None,
     ):
 
         super(ConvNormActi, self).__init__()
@@ -63,20 +72,27 @@ class ConvNormActi(nn.Module):
 class HighResBlock(nn.Module):
     def __init__(
         self,
-        spatial_dims,
-        in_channels,
-        out_channels,
+        spatial_dims: int,
+        in_channels: int,
+        out_channels: int,
         kernels=(3, 3),
         dilation=1,
-        norm_type="instance",
-        acti_type="relu",
-        channel_matching="pad",
+        norm_type: str = "instance",
+        acti_type: str = "relu",
+        channel_matching: str = "pad",
     ):
         """
         Args:
             kernels (list of int): each integer k in `kernels` corresponds to a convolution layer with kernel size k.
-            channel_matching ('pad'|'project'): handling residual branch and conv branch channel mismatches
-                with either zero padding ('pad') or a trainable conv with kernel size 1 ('project').
+            norm_type: {``"batch"``, ``"instance"``}
+                Feature normalisation with batchnorm or instancenorm. Defaults to ``"instance"``.
+            acti_type: {``"relu"``, ``"prelu"``, ``"relu6"``}
+                Non-linear activation using ReLU or PReLU. Defaults to ``"relu"``.
+            channel_matching: {``"pad"``, ``"project"``}
+                Specifies handling residual branch and conv branch channel mismatches. Defaults to ``"pad"``.
+
+                - ``"pad"``: with zero padding.
+                - ``"project"``: with a trainable conv with kernel size.
         """
         super(HighResBlock, self).__init__()
         conv_type = Conv[Conv.CONV, spatial_dims]
@@ -128,24 +144,26 @@ class HighResNet(nn.Module):
     https://github.com/fepegar/highresnet
 
     Args:
-        spatial_dims (int): number of spatial dimensions of the input image.
-        in_channels (int): number of input channels.
-        out_channels (int): number of output channels.
-        norm_type ('batch'|'instance'): feature normalisation with batchnorm or instancenorm.
-        acti_type ('relu'|'prelu'|'relu6'): non-linear activation using ReLU or PReLU.
-        dropout_prob (float): probability of the feature map to be zeroed
+        spatial_dims: number of spatial dimensions of the input image.
+        in_channels: number of input channels.
+        out_channels: number of output channels.
+        norm_type: {``"batch"``, ``"instance"``}
+            Feature normalisation with batchnorm or instancenorm. Defaults to ``"batch"``.
+        acti_type: {``"relu"``, ``"prelu"``, ``"relu6"``}
+            Non-linear activation using ReLU or PReLU. Defaults to ``"relu"``.
+        dropout_prob: probability of the feature map to be zeroed
             (only applies to the penultimate conv layer).
         layer_params (a list of dictionaries): specifying key parameters of each layer/block.
     """
 
     def __init__(
         self,
-        spatial_dims=3,
-        in_channels=1,
-        out_channels=1,
-        norm_type="batch",
-        acti_type="relu",
-        dropout_prob=None,
+        spatial_dims: int = 3,
+        in_channels: int = 1,
+        out_channels: int = 1,
+        norm_type: str = "batch",
+        acti_type: str = "relu",
+        dropout_prob: Optional[float] = None,
         layer_params=DEFAULT_LAYER_PARAMS_3D,
     ):
 

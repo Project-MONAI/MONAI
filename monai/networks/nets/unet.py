@@ -36,7 +36,7 @@ class UNet(nn.Module):
         dropout=0,
     ):
         super().__init__()
-        assert len(channels) == (len(strides) + 1)
+
         self.dimensions = dimensions
         self.in_channels = in_channels
         self.out_channels = out_channels

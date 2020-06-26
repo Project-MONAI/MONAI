@@ -61,6 +61,12 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
+`Identity`
+~~~~~~~~~~
+.. autoclass:: Identity
+    :members:
+    :special-members: __call__
+
 `AsChannelFirst`
 ~~~~~~~~~~~~~~~~
 .. autoclass:: AsChannelFirst
@@ -94,6 +100,12 @@ Vanilla Transforms
 `ToTensor`
 ~~~~~~~~~~
 .. autoclass:: ToTensor
+    :members:
+    :special-members: __call__
+
+`ToNumpy`
+~~~~~~~~~
+.. autoclass:: ToNumpy
     :members:
     :special-members: __call__
 
@@ -205,6 +217,18 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
+`BorderPad`
+~~~~~~~~~~~
+.. autoclass:: BorderPad
+    :members:
+    :special-members: __call__
+
+`DivisiblePad`
+~~~~~~~~~~~~~~
+.. autoclass:: DivisiblePad
+    :members:
+    :special-members: __call__
+
 `SpatialCrop`
 ~~~~~~~~~~~~~
 .. autoclass:: SpatialCrop
@@ -220,6 +244,12 @@ Vanilla Transforms
 `RandSpatialCrop`
 ~~~~~~~~~~~~~~~~~
 .. autoclass:: RandSpatialCrop
+    :members:
+    :special-members: __call__
+
+`RandSpatialCropSamples`
+~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: RandSpatialCropSamples
     :members:
     :special-members: __call__
 
@@ -359,6 +389,12 @@ Dictionary-based Transforms
     :members:
     :special-members: __call__
 
+`Identityd`
+~~~~~~~~~~~
+.. autoclass:: Identityd
+    :members:
+    :special-members: __call__
+
 `AsChannelFirstd`
 ~~~~~~~~~~~~~~~~~
 .. autoclass:: AsChannelFirstd
@@ -392,6 +428,12 @@ Dictionary-based Transforms
 `ToTensord`
 ~~~~~~~~~~~
 .. autoclass:: ToTensord
+    :members:
+    :special-members: __call__
+
+`ToNumpyd`
+~~~~~~~~~~
+.. autoclass:: ToNumpyd
     :members:
     :special-members: __call__
 
@@ -479,6 +521,18 @@ Dictionary-based Transforms
     :members:
     :special-members: __call__
 
+`BorderPadd`
+~~~~~~~~~~~~
+.. autoclass:: BorderPadd
+    :members:
+    :special-members: __call__
+
+`DivisiblePadd`
+~~~~~~~~~~~~~~~
+.. autoclass:: DivisiblePadd
+    :members:
+    :special-members: __call__
+
 `SpatialCropd`
 ~~~~~~~~~~~~~~
 .. autoclass:: SpatialCropd
@@ -494,6 +548,12 @@ Dictionary-based Transforms
 `RandSpatialCropd`
 ~~~~~~~~~~~~~~~~~~
 .. autoclass:: RandSpatialCropd
+    :members:
+    :special-members: __call__
+
+`RandSpatialCropSamplesd`
+~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: RandSpatialCropSamplesd
     :members:
     :special-members: __call__
 
@@ -563,9 +623,9 @@ Dictionary-based Transforms
     :members:
     :special-members: __call__
 
-`DeleteKeysd`
-~~~~~~~~~~~~~
-.. autoclass:: DeleteKeysd
+`DeleteItemsd`
+~~~~~~~~~~~~~~
+.. autoclass:: DeleteItemsd
     :members:
     :special-members: __call__
 
@@ -608,6 +668,18 @@ Dictionary-based Transforms
 `KeepLargestConnectedComponentd`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: KeepLargestConnectedComponentd
+    :members:
+    :special-members: __call__
+
+`CopyItemsd`
+~~~~~~~~~~~~
+.. autoclass:: CopyItemsd
+    :members:
+    :special-members: __call__
+
+`ConcatItemsd`
+~~~~~~~~~~~~~~
+.. autoclass:: ConcatItemsd
     :members:
     :special-members: __call__
 

@@ -15,12 +15,24 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 import time
 
-from typing import Callable
+from typing import Callable, Optional
 import logging
 import numpy as np
 import torch
 
 from monai.transforms.compose import Transform
+
+
+class Identity(Transform):
+    """
+    Convert the input to an np.ndarray, if input data is np.ndarray or subclasses, return unchanged data.
+    As the output value is same as input, it can be used as a testing tool to verify the transform chain,
+    Compose or transform adaptor, etc.
+
+    """
+
+    def __call__(self, img):
+        return np.asanyarray(img)
 
 
 class AsChannelFirst(Transform):
@@ -36,10 +48,10 @@ class AsChannelFirst(Transform):
     so that the multidimensional image array can be correctly interpreted by the other transforms.
 
     Args:
-        channel_dim (int): which dimension of input image is the channel, default is the last dimension.
+        channel_dim: which dimension of input image is the channel, default is the last dimension.
     """
 
-    def __init__(self, channel_dim=-1):
+    def __init__(self, channel_dim: int = -1):
         assert isinstance(channel_dim, int) and channel_dim >= -1, "invalid channel dimension."
         self.channel_dim = channel_dim
 
@@ -59,10 +71,10 @@ class AsChannelLast(Transform):
     so that MONAI transforms can construct a chain with other 3rd party transforms together.
 
     Args:
-        channel_dim (int): which dimension of input image is the channel, default is the first dimension.
+        channel_dim: which dimension of input image is the channel, default is the first dimension.
     """
 
-    def __init__(self, channel_dim=0):
+    def __init__(self, channel_dim: int = 0):
         assert isinstance(channel_dim, int) and channel_dim >= -1, "invalid channel dimension."
         self.channel_dim = channel_dim
 
@@ -95,10 +107,10 @@ class RepeatChannel(Transform):
     ``RepeatChannel(repeats=2)([[1, 2], [3, 4]])`` generates: ``[[1, 2], [1, 2], [3, 4], [3, 4]]``
 
     Args:
-        repeats (int): the number of repetitions for each element.
+        repeats: the number of repetitions for each element.
     """
 
-    def __init__(self, repeats):
+    def __init__(self, repeats: int):
         assert repeats > 0, "repeats count must be greater than 0."
         self.repeats = repeats
 
@@ -111,14 +123,14 @@ class CastToType(Transform):
     Cast the image data to specified numpy data type.
     """
 
-    def __init__(self, dtype=np.float32):
+    def __init__(self, dtype: np.dtype = np.float32):
         """
         Args:
             dtype (np.dtype): convert image to this data type, default is `np.float32`.
         """
         self.dtype = dtype
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray):
         assert isinstance(img, np.ndarray), "image must be numpy array."
         return img.astype(self.dtype)
 
@@ -134,12 +146,23 @@ class ToTensor(Transform):
         return torch.as_tensor(np.ascontiguousarray(img))
 
 
+class ToNumpy(Transform):
+    """
+    Converts the input Tensor data to numpy array.
+    """
+
+    def __call__(self, img):
+        if torch.is_tensor(img):
+            img = img.detach().cpu().numpy()
+        return np.ascontiguousarray(img)
+
+
 class Transpose(Transform):
     """
     Transposes the input image based on the given `indices` dimension ordering.
     """
 
-    def __init__(self, indices):
+    def __init__(self, indices) -> None:
         self.indices = indices
 
     def __call__(self, img):
@@ -148,17 +171,17 @@ class Transpose(Transform):
 
 class SqueezeDim(Transform):
     """
-    Squeeze undesired unitary dimensions
+    Squeeze a unitary dimension.
     """
 
-    def __init__(self, dim=None):
+    def __init__(self, dim: Optional[int] = 0):
         """
         Args:
-            dim (int): dimension to be squeezed.
-                Default: None (all dimensions of size 1 will be removed)
+            dim: dimension to be squeezed. Default = 0
+                "None" works when the input is numpy array.
         """
-        if dim is not None:
-            assert isinstance(dim, int) and dim >= -1, "invalid channel dimension."
+        if dim is not None and not isinstance(dim, int):
+            raise ValueError(f"Invalid channel dimension {dim}")
         self.dim = dim
 
     def __call__(self, img):
@@ -166,7 +189,7 @@ class SqueezeDim(Transform):
         Args:
             img (ndarray): numpy arrays with required dimension `dim` removed
         """
-        return np.squeeze(img, self.dim)
+        return img.squeeze(self.dim)
 
 
 class DataStats(Transform):
@@ -177,21 +200,21 @@ class DataStats(Transform):
 
     def __init__(
         self,
-        prefix="Data",
-        data_shape=True,
-        intensity_range=True,
-        data_value=False,
-        additional_info: Callable = None,
-        logger_handler=None,
+        prefix: str = "Data",
+        data_shape: bool = True,
+        intensity_range: bool = True,
+        data_value: bool = False,
+        additional_info: Optional[Callable] = None,
+        logger_handler: Optional[logging.Handler] = None,
     ):
         """
         Args:
-            prefix (string): will be printed in format: "{prefix} statistics".
-            data_shape (bool): whether to show the shape of input data.
-            intensity_range (bool): whether to show the intensity value range of input data.
-            data_value (bool): whether to show the raw value of input data.
+            prefix: will be printed in format: "{prefix} statistics".
+            data_shape: whether to show the shape of input data.
+            intensity_range: whether to show the intensity value range of input data.
+            data_value: whether to show the raw value of input data.
                 a typical example is to print some properties of Nifti image: affine, pixdim, etc.
-            additional_info (Callable): user can define callable function to extract additional info from input data.
+            additional_info: user can define callable function to extract additional info from input data.
             logger_handler (logging.handler): add additional handler to output data: save to file, etc.
                 add existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html
         """
@@ -203,13 +226,21 @@ class DataStats(Transform):
         if additional_info is not None and not callable(additional_info):
             raise ValueError("argument `additional_info` must be a callable.")
         self.additional_info = additional_info
-        self.output = None
+        self.output: Optional[str] = None
         logging.basicConfig(level=logging.NOTSET)
         self._logger = logging.getLogger("DataStats")
         if logger_handler is not None:
             self._logger.addHandler(logger_handler)
 
-    def __call__(self, img, prefix=None, data_shape=None, intensity_range=None, data_value=None, additional_info=None):
+    def __call__(
+        self,
+        img,
+        prefix: Optional[str] = None,
+        data_shape: Optional[bool] = None,
+        intensity_range: Optional[bool] = None,
+        data_value: Optional[bool] = None,
+        additional_info=None,
+    ):
         lines = [f"{prefix or self.prefix} statistics:"]
 
         if self.data_shape if data_shape is None else data_shape:
@@ -240,10 +271,10 @@ class SimulateDelay(Transform):
     to sub-optimal design choices.
     """
 
-    def __init__(self, delay_time=0.0):
+    def __init__(self, delay_time: float = 0.0):
         """
         Args:
-            delay_time(float): The minimum amount of time, in fractions of seconds,
+            delay_time: The minimum amount of time, in fractions of seconds,
                 to accomplish this delay task.
         """
         super().__init__()
