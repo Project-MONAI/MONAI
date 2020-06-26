@@ -21,7 +21,7 @@ from monai.transforms import Resize
 
 class TestResize(NumpyImageTestCase2D):
     def test_invalid_inputs(self):
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises(ValueError):
             resize = Resize(spatial_size=(128, 128, 3), mode="order")
             resize(self.imt[0])
 

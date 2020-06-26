@@ -10,11 +10,13 @@
 # limitations under the License.
 
 import math
+from typing import Union
 
 import torch
 from torch.utils.data import IterableDataset
 
 from monai.data.utils import iter_patch
+from monai.utils.enums import NumpyPadMode
 
 
 class GridPatchDataset(IterableDataset):
@@ -22,7 +24,9 @@ class GridPatchDataset(IterableDataset):
     Yields patches from arrays read from an input dataset. The patches are chosen in a contiguous grid sampling scheme.
     """
 
-    def __init__(self, dataset, patch_size, start_pos=(), mode: str = "wrap", **pad_opts):
+    def __init__(
+        self, dataset, patch_size, start_pos=(), mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP, **pad_opts
+    ):
         """
         Initializes this dataset in terms of the input dataset and patch size. The `patch_size` is the size of the 
         patch to sample from the input arrays. It is assumed the arrays first dimension is the channel dimension which
@@ -44,7 +48,7 @@ class GridPatchDataset(IterableDataset):
         self.dataset = dataset
         self.patch_size = (None,) + tuple(patch_size)
         self.start_pos = start_pos
-        self.mode = mode
+        self.mode: NumpyPadMode = NumpyPadMode(mode)
         self.pad_opts = pad_opts
 
     def __iter__(self):

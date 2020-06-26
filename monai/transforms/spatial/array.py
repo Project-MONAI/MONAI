@@ -33,6 +33,7 @@ from monai.transforms.utils import (
 )
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep, ensure_tuple_size
 from monai.utils import optional_import
+from monai.utils.enums import GridSampleMode, GridSamplePadMode, InterpolateMode, NumpyPadMode
 
 nib, _ = optional_import("nibabel")
 
@@ -55,8 +56,8 @@ class Spacing(Transform):
         self,
         pixdim,
         diagonal: bool = False,
-        mode: str = "bilinear",
-        padding_mode: str = "border",
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         dtype: Optional[np.dtype] = None,
     ):
         """
@@ -83,16 +84,16 @@ class Spacing(Transform):
         """
         self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
         self.diagonal = diagonal
-        self.mode = mode
-        self.padding_mode = padding_mode
+        self.mode: GridSampleMode = GridSampleMode(mode)
+        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
         self.dtype = dtype
 
     def __call__(
         self,
         data_array: np.ndarray,
         affine=None,
-        mode: Optional[str] = None,
-        padding_mode: Optional[str] = None,
+        mode: Optional[Union[GridSampleMode, str]] = None,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         dtype: Optional[np.dtype] = None,
     ):
         """
@@ -260,12 +261,17 @@ class Resize(Transform):
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
     """
 
-    def __init__(self, spatial_size, mode: str = "area", align_corners: Optional[bool] = None):
+    def __init__(
+        self,
+        spatial_size,
+        mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
+        align_corners: Optional[bool] = None,
+    ):
         self.spatial_size = ensure_tuple(spatial_size)
-        self.mode = mode
+        self.mode: InterpolateMode = InterpolateMode(mode)
         self.align_corners = align_corners
 
-    def __call__(self, img, mode: Optional[str] = None):
+    def __call__(self, img, mode: Optional[Union[InterpolateMode, str]] = None):
         """
         Args:
             img (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
@@ -286,7 +292,7 @@ class Resize(Transform):
         resized = _torch_interp(
             input=torch.as_tensor(img[None], dtype=torch.float),
             size=self.spatial_size,
-            mode=mode or self.mode,
+            mode=self.mode.value if mode is None else InterpolateMode(mode).value,
             align_corners=self.align_corners,
         )
         resized = resized.squeeze(0).detach().cpu().numpy()
@@ -317,17 +323,22 @@ class Rotate(Transform):
         self,
         angle,
         keep_size: bool = True,
-        mode: str = "bilinear",
-        padding_mode: str = "border",
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         align_corners: bool = False,
     ):
         self.angle = angle
         self.keep_size = keep_size
-        self.mode = mode
-        self.padding_mode = padding_mode
+        self.mode: GridSampleMode = GridSampleMode(mode)
+        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
         self.align_corners = align_corners
 
-    def __call__(self, img, mode: Optional[str] = None, padding_mode: Optional[str] = None):
+    def __call__(
+        self,
+        img,
+        mode: Optional[Union[GridSampleMode, str]] = None,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
+    ):
         """
         Args:
             img (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
@@ -395,15 +406,19 @@ class Zoom(Transform):
     """
 
     def __init__(
-        self, zoom, mode: str = "area", align_corners: Optional[bool] = None, keep_size: bool = True,
+        self,
+        zoom,
+        mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
+        align_corners: Optional[bool] = None,
+        keep_size: bool = True,
     ):
         self.zoom = zoom
-        self.mode = mode
+        self.mode: InterpolateMode = InterpolateMode(mode)
         self.align_corners = align_corners
         self.keep_size = keep_size
 
     def __call__(  # type: ignore # see issue #495
-        self, img, mode: Optional[str] = None
+        self, img, mode: Optional[Union[InterpolateMode, str]] = None
     ):
         """
         Args:
@@ -413,7 +428,7 @@ class Zoom(Transform):
         zoomed = _torch_interp(
             input=torch.as_tensor(img[None], dtype=torch.float),
             scale_factor=list(self.zoom),
-            mode=mode or self.mode,
+            mode=self.mode.value if mode is None else InterpolateMode(mode).value,
             align_corners=self.align_corners,
         )
         zoomed = zoomed.squeeze(0).detach().cpu().numpy()
@@ -429,7 +444,7 @@ class Zoom(Transform):
                 pad_vec[idx] = [half, diff - half]
             elif diff < 0:  # need slicing
                 slice_vec[idx] = slice(half, half + od)
-        zoomed = np.pad(zoomed, pad_vec, mode="edge")
+        zoomed = np.pad(zoomed, pad_vec, mode=NumpyPadMode.EDGE.value)
         return zoomed[tuple(slice_vec)]
 
 
@@ -529,8 +544,8 @@ class RandRotate(Randomizable, Transform):
         range_z=0.0,
         prob: float = 0.1,
         keep_size: bool = True,
-        mode: str = "bilinear",
-        padding_mode: str = "border",
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         align_corners: bool = False,
     ):
         self.range_x = ensure_tuple(range_x)
@@ -545,8 +560,8 @@ class RandRotate(Randomizable, Transform):
 
         self.prob = prob
         self.keep_size = keep_size
-        self.mode = mode
-        self.padding_mode = padding_mode
+        self.mode: GridSampleMode = GridSampleMode(mode)
+        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
         self.align_corners = align_corners
 
         self._do_transform = False
@@ -560,7 +575,12 @@ class RandRotate(Randomizable, Transform):
         self.y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
         self.z = self.R.uniform(low=self.range_z[0], high=self.range_z[1])
 
-    def __call__(self, img, mode: Optional[str] = None, padding_mode: Optional[str] = None):
+    def __call__(
+        self,
+        img,
+        mode: Optional[Union[GridSampleMode, str]] = None,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
+    ):
         """
         Args:
             img (ndarray): channel first array, must have shape 2D: (nchannels, H, W), or 3D: (nchannels, H, W, D).
@@ -628,7 +648,7 @@ class RandZoom(Randomizable, Transform):
         prob: float = 0.1,
         min_zoom=0.9,
         max_zoom=1.1,
-        mode: str = "area",
+        mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
         keep_size: bool = True,
     ):
@@ -637,7 +657,7 @@ class RandZoom(Randomizable, Transform):
         self.min_zoom = min_zoom
         self.max_zoom = max_zoom
         self.prob = prob
-        self.mode = mode
+        self.mode: InterpolateMode = InterpolateMode(mode)
         self.align_corners = align_corners
         self.keep_size = keep_size
 
@@ -651,7 +671,7 @@ class RandZoom(Randomizable, Transform):
         else:
             self._zoom = self.R.uniform(self.min_zoom, self.max_zoom)
 
-    def __call__(self, img, mode: Optional[str] = None):
+    def __call__(self, img, mode: Optional[Union[InterpolateMode, str]] = None):
         self.randomize()
         _dtype = np.float32
         if not self._do_transform:
@@ -835,8 +855,8 @@ class RandDeformGrid(Randomizable, Transform):
 class Resample(Transform):
     def __init__(
         self,
-        mode: str = "bilinear",
-        padding_mode: str = "zeros",
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.ZEROS,
         as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
     ):
@@ -854,8 +874,8 @@ class Resample(Transform):
             as_tensor_output: whether to return a torch tensor. Defaults to False.
             device (torch.device): device on which the tensor will be allocated.
         """
-        self.mode = mode
-        self.padding_mode = padding_mode
+        self.mode: GridSampleMode = GridSampleMode(mode)
+        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
         self.as_tensor_output = as_tensor_output
         self.device = device
 
@@ -863,8 +883,8 @@ class Resample(Transform):
         self,
         img: Union[np.ndarray, torch.Tensor],
         grid: Optional[Union[np.ndarray, torch.Tensor]] = None,
-        mode: Optional[str] = None,
-        padding_mode: Optional[str] = None,
+        mode: Optional[Union[GridSampleMode, str]] = None,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
     ):
         """
         Args:
@@ -895,8 +915,8 @@ class Resample(Transform):
         out = torch.nn.functional.grid_sample(
             img[None].float(),
             grid[None].float(),
-            mode=mode or self.mode,
-            padding_mode=padding_mode or self.padding_mode,
+            mode=self.mode.value if mode is None else GridSampleMode(mode).value,
+            padding_mode=self.padding_mode.value if padding_mode is None else GridSamplePadMode(padding_mode).value,
             align_corners=False,
         )[0]
         if self.as_tensor_output:
@@ -916,8 +936,8 @@ class Affine(Transform):
         translate_params=None,
         scale_params=None,
         spatial_size=None,
-        mode: str = "bilinear",
-        padding_mode: str = "zeros",
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.ZEROS,
         as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
     ):
@@ -957,15 +977,15 @@ class Affine(Transform):
         )
         self.resampler = Resample(as_tensor_output=as_tensor_output, device=device)
         self.spatial_size = spatial_size
-        self.mode = mode
-        self.padding_mode = padding_mode
+        self.mode: GridSampleMode = GridSampleMode(mode)
+        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
 
     def __call__(
         self,
         img: Union[np.ndarray, torch.Tensor],
         spatial_size=None,
-        mode: Optional[str] = None,
-        padding_mode: Optional[str] = None,
+        mode: Optional[Union[GridSampleMode, str]] = None,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
     ):
         """
         Args:
@@ -999,8 +1019,8 @@ class RandAffine(Randomizable, Transform):
         translate_range=None,
         scale_range=None,
         spatial_size=None,
-        mode: str = "bilinear",
-        padding_mode: str = "zeros",
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.ZEROS,
         as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
     ):
@@ -1037,8 +1057,8 @@ class RandAffine(Randomizable, Transform):
         self.resampler = Resample(as_tensor_output=as_tensor_output, device=device)
 
         self.spatial_size = spatial_size
-        self.mode = mode
-        self.padding_mode = padding_mode
+        self.mode: GridSampleMode = GridSampleMode(mode)
+        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
 
         self.do_transform = False
         self.prob = prob
@@ -1056,8 +1076,8 @@ class RandAffine(Randomizable, Transform):
         self,
         img: Union[np.ndarray, torch.Tensor],
         spatial_size=None,
-        mode: Optional[str] = None,
-        padding_mode: Optional[str] = None,
+        mode: Optional[Union[GridSampleMode, str]] = None,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
     ):
         """
         Args:
@@ -1098,8 +1118,8 @@ class Rand2DElastic(Randomizable, Transform):
         translate_range=None,
         scale_range=None,
         spatial_size=None,
-        mode: str = "bilinear",
-        padding_mode: str = "zeros",
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.ZEROS,
         as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
     ):
@@ -1140,8 +1160,8 @@ class Rand2DElastic(Randomizable, Transform):
         self.resampler = Resample(as_tensor_output=as_tensor_output, device=device)
 
         self.spatial_size = spatial_size
-        self.mode = mode
-        self.padding_mode = padding_mode
+        self.mode: GridSampleMode = GridSampleMode(mode)
+        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
         self.prob = prob
         self.do_transform = False
 
@@ -1160,8 +1180,8 @@ class Rand2DElastic(Randomizable, Transform):
         self,
         img: Union[np.ndarray, torch.Tensor],
         spatial_size=None,
-        mode: Optional[str] = None,
-        padding_mode: Optional[str] = None,
+        mode: Optional[Union[GridSampleMode, str]] = None,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
     ):
         """
         Args:
@@ -1179,7 +1199,9 @@ class Rand2DElastic(Randomizable, Transform):
         if self.do_transform:
             grid = self.deform_grid(spatial_size=spatial_size)
             grid = self.rand_affine_grid(grid=grid)
-            grid = _torch_interp(input=grid[None], size=spatial_size, mode="bicubic", align_corners=False)[0]
+            grid = _torch_interp(
+                input=grid[None], size=spatial_size, mode=InterpolateMode.BICUBIC.value, align_corners=False
+            )[0]
         else:
             grid = create_grid(spatial_size)
         return self.resampler(img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode)
@@ -1200,8 +1222,8 @@ class Rand3DElastic(Randomizable, Transform):
         translate_range=None,
         scale_range=None,
         spatial_size=None,
-        mode: str = "bilinear",
-        padding_mode: str = "zeros",
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.ZEROS,
         as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
     ):
@@ -1235,8 +1257,8 @@ class Rand3DElastic(Randomizable, Transform):
         self.sigma_range = sigma_range
         self.magnitude_range = magnitude_range
         self.spatial_size = spatial_size
-        self.mode = mode
-        self.padding_mode = padding_mode
+        self.mode: GridSampleMode = GridSampleMode(mode)
+        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
         self.device = device
 
         self.prob = prob
@@ -1259,7 +1281,11 @@ class Rand3DElastic(Randomizable, Transform):
         self.rand_affine_grid.randomize()
 
     def __call__(
-        self, img, spatial_size=None, mode: Optional[str] = None, padding_mode: Optional[str] = None,
+        self,
+        img,
+        spatial_size=None,
+        mode: Optional[Union[GridSampleMode, str]] = None,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
     ):
         """
         Args:

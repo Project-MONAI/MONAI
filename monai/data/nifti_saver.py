@@ -17,6 +17,7 @@ import torch
 from monai.data.nifti_writer import write_nifti
 
 from .utils import create_file_basename
+from monai.utils.enums import GridSampleMode, GridSamplePadMode
 
 
 class NiftiSaver:
@@ -33,8 +34,8 @@ class NiftiSaver:
         output_postfix: str = "seg",
         output_ext: str = ".nii.gz",
         resample: bool = True,
-        mode: str = "bilinear",
-        padding_mode: str = "border",
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         dtype: Optional[np.dtype] = None,
     ):
         """
@@ -58,8 +59,8 @@ class NiftiSaver:
         self.output_postfix = output_postfix
         self.output_ext = output_ext
         self.resample = resample
-        self.mode = mode
-        self.padding_mode = padding_mode
+        self.mode: GridSampleMode = GridSampleMode(mode)
+        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
         self.dtype = dtype
         self._data_index = 0
 

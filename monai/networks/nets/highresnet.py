@@ -9,19 +9,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional
+from typing import Optional, Union
 
 import torch.nn as nn
 import torch.nn.functional as F
 
 from monai.networks.layers.convutils import same_padding
 from monai.networks.layers.factories import Conv, Dropout, Norm
+from monai.utils.enums import Normalisation, Activation, ChannelMatching
 
 SUPPORTED_NORM = {
-    "batch": lambda spatial_dims: Norm[Norm.BATCH, spatial_dims],
-    "instance": lambda spatial_dims: Norm[Norm.INSTANCE, spatial_dims],
+    Normalisation.BATCH: lambda spatial_dims: Norm[Norm.BATCH, spatial_dims],
+    Normalisation.INSTANCE: lambda spatial_dims: Norm[Norm.INSTANCE, spatial_dims],
 }
-SUPPORTED_ACTI = {"relu": nn.ReLU, "prelu": nn.PReLU, "relu6": nn.ReLU6}
+SUPPORTED_ACTI = {Activation.RELU: nn.ReLU, Activation.PRELU: nn.PReLU, Activation.RELU6: nn.ReLU6}
 DEFAULT_LAYER_PARAMS_3D = (
     # initial conv layer
     {"name": "conv_0", "n_features": 16, "kernel_size": 3},
@@ -42,8 +43,8 @@ class ConvNormActi(nn.Module):
         in_channels: int,
         out_channels: int,
         kernel_size: int,
-        norm_type: Optional[str] = None,
-        acti_type: Optional[str] = None,
+        norm_type: Optional[Union[Normalisation, str]] = None,
+        acti_type: Optional[Union[Activation, str]] = None,
         dropout_prob: Optional[float] = None,
     ):
 
@@ -57,8 +58,10 @@ class ConvNormActi(nn.Module):
         layers.append(conv)
 
         if norm_type is not None:
+            norm_type = Normalisation(norm_type)
             layers.append(SUPPORTED_NORM[norm_type](spatial_dims)(out_channels))
         if acti_type is not None:
+            acti_type = Activation(acti_type)
             layers.append(SUPPORTED_ACTI[acti_type](inplace=True))
         if dropout_prob is not None:
             dropout_type = Dropout[Dropout.DROPOUT, spatial_dims]
@@ -77,9 +80,9 @@ class HighResBlock(nn.Module):
         out_channels: int,
         kernels=(3, 3),
         dilation=1,
-        norm_type: str = "instance",
-        acti_type: str = "relu",
-        channel_matching: str = "pad",
+        norm_type: Union[Normalisation, str] = Normalisation.INSTANCE,
+        acti_type: Union[Activation, str] = Activation.RELU,
+        channel_matching: Union[ChannelMatching, str] = ChannelMatching.PAD,
     ):
         """
         Args:
@@ -96,14 +99,15 @@ class HighResBlock(nn.Module):
         """
         super(HighResBlock, self).__init__()
         conv_type = Conv[Conv.CONV, spatial_dims]
+        norm_type = Normalisation(norm_type)
+        acti_type = Activation(acti_type)
 
         self.project, self.pad = None, None
         if in_channels != out_channels:
-            if channel_matching not in ("pad", "project"):
-                raise ValueError(f"channel matching must be pad or project, got {channel_matching}.")
-            if channel_matching == "project":
+            channel_matching = ChannelMatching(channel_matching)
+            if channel_matching == ChannelMatching.PROJECT:
                 self.project = conv_type(in_channels, out_channels, kernel_size=1)
-            if channel_matching == "pad":
+            if channel_matching == ChannelMatching.PAD:
                 if in_channels > out_channels:
                     raise ValueError("in_channels > out_channels is incompatible with `channel_matching=pad`.")
                 pad_1 = (out_channels - in_channels) // 2
@@ -161,8 +165,8 @@ class HighResNet(nn.Module):
         spatial_dims: int = 3,
         in_channels: int = 1,
         out_channels: int = 1,
-        norm_type: str = "batch",
-        acti_type: str = "relu",
+        norm_type: Union[Normalisation, str] = Normalisation.BATCH,
+        acti_type: Union[Activation, str] = Activation.RELU,
         dropout_prob: Optional[float] = None,
         layer_params=DEFAULT_LAYER_PARAMS_3D,
     ):

@@ -9,12 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional
+from typing import Optional, Union
 
 import torch
 import warnings
 import numpy as np
 from monai.networks.utils import one_hot
+from monai.utils.enums import Average
 
 
 def _calculate(y, y_pred):
@@ -55,7 +56,7 @@ def compute_roc_auc(
     y: torch.Tensor,
     to_onehot_y: bool = False,
     softmax: bool = False,
-    average: Optional[str] = "macro",
+    average: Union[Average, str] = Average.MACRO,
 ):
     """Computes Area Under the Receiver Operating Characteristic Curve (ROC AUC). Referring to:
     `sklearn.metrics.roc_auc_score <https://scikit-learn.org/stable/modules/generated/
@@ -68,7 +69,7 @@ def compute_roc_auc(
             example shape: [16, 1] will be converted into [16, 2] (where `2` is inferred from `y_pred`).
         to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
         softmax: whether to add softmax function to `y_pred` before computation. Defaults to False.
-        average: {``"macro"``, ``"weighted"``, ``"micro"``, ``None``}
+        average: {``"macro"``, ``"weighted"``, ``"micro"``, ``"none"``}
             Type of averaging performed if not binary classification.
             Defaults to ``"macro"``.
 
@@ -78,7 +79,7 @@ def compute_roc_auc(
                 weighted by support (the number of true instances for each label).
             - ``"micro"``: calculate metrics globally by considering each element of the label
                 indicator matrix as a label.
-            - ``None``: the scores for each class are returned.
+            - ``"none"``: the scores for each class are returned.
 
     Note:
         ROCAUC expects y to be comprised of 0's and 1's. `y_pred` must be either prob. estimates or confidence values.
@@ -111,16 +112,17 @@ def compute_roc_auc(
 
         assert y.shape == y_pred.shape, "data shapes of y_pred and y do not match."
 
-        if average == "micro":
+        average = Average(average)
+        if average == Average.MICRO:
             return _calculate(y.flatten(), y_pred.flatten())
         else:
             y, y_pred = y.transpose(0, 1), y_pred.transpose(0, 1)
             auc_values = [_calculate(y_, y_pred_) for y_, y_pred_ in zip(y, y_pred)]
-            if average is None:
+            if average == Average.NONE:
                 return auc_values
-            if average == "macro":
+            if average == Average.MACRO:
                 return np.mean(auc_values)
-            if average == "weighted":
+            if average == Average.WEIGHTED:
                 weights = [sum(y_) for y_ in y]
                 return np.average(auc_values, weights=weights)
             raise ValueError("unsupported average method.")
