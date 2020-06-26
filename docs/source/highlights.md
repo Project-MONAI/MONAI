@@ -11,7 +11,7 @@ The design principle of MONAI is to provide flexible and light APIs for users wi
 3. Rich examples and demos are provided to demonstrate the key features.
 4. Researchers contribute implementations based on the state-of-the-art for the latest research challenges, including: COVID-19 image analysis, Model Parallel, and Federated Learning.
 
-The overall architecture and modules are showed in below figure:
+The overall architecture and modules are showed in the following figure:
 ![image](../images/arch_modules_v0.2.png)
 The rest of this page provides more details for each module.
 
@@ -45,9 +45,14 @@ transformations. These currently include, for example:
 - `Affine`: Transform image based on the affine parameters
 - `Rand2DElastic`: Random elastic deformation and affine in 2D
 - `Rand3DElastic`: Random elastic deformation and affine in 3D
+<p>
+<img src="../images/hist1.png" width="20%" alt='histology'>
+<img src="../images/hist2.png" width="20%" alt='histology'>
+<img src="../images/hist3.png" width="20%" alt='histology'>
+</p>
 
 ### 3. Fused spatial transforms and GPU acceleration
-As medical image volumes are usually large (in multi-dimensional arrays), pre-processing performance affects the overall pipeline speed. MONAI provides affine transforms to execute fused spatial operations, supports GPU acceleration via native PyTorch for high performance.  
+As medical image volumes are usually large (in multi-dimensional arrays), pre-processing performance affects the overall pipeline speed. MONAI provides affine transforms to execute fused spatial operations, supports GPU acceleration via native PyTorch for high performance.
 For example:
 ```py
 # create an Affine transform
@@ -61,6 +66,11 @@ affine = Affine(
 # convert the image using bilinear interpolation
 new_img = affine(image, spatial_size=(300, 400), mode='bilinear')
 ```
+<p>
+<img src="../images/3d1.png" width="20%" alt='spleen'>
+<img src="../images/3d2.png" width="20%" alt='spleen'>
+<img src="../images/3d3.png" width="20%" alt='spleen'>
+</p>
 Currently all the geometric image transforms(Spacing, Zoom, Rotate, Resize, etc.) are designed based on the PyTorch native interfaces (instead of scipy, scikit-image, etc.).
 
 ### 4. Randomly crop out batch images based on positive/negative ratio
@@ -109,7 +119,7 @@ For more details, please check out the tutorial: [integrate 3rd pary transforms 
 
 ## Datasets
 ### 1. Cache IO and transforms data to accelerate training
-Users often need to train the model with many (potentially thousands of) epochs over the data to achieve the desired model quality. A native PyTorch implementation may repeatedly load data and run the same preprocessing steps for every epoch during training, which can be time-consuming and unnecessary, especially when the medical image volumes are large.  
+Users often need to train the model with many (potentially thousands of) epochs over the data to achieve the desired model quality. A native PyTorch implementation may repeatedly load data and run the same preprocessing steps for every epoch during training, which can be time-consuming and unnecessary, especially when the medical image volumes are large.
 MONAI provides a multi-threads `CacheDataset` to accelerate these transformation steps during training by storing the intermediate outcomes before the first randomized transform in the transform chain. Enabling this feature could potentially give 10x training speedups.
 ![image](../images/cache_dataset.png)
 
@@ -188,12 +198,12 @@ There are already several implementation in MONAI corresponding to latest papers
 A reimplementation of the COPLE-Net originally proposed by:
 G. Wang, X. Liu, C. Li, Z. Xu, J. Ruan, H. Zhu, T. Meng, K. Li, N. Huang, S. Zhang. (2020) "A Noise-robust Framework for Automatic Segmentation of COVID-19 Pneumonia Lesions from CT Images." IEEE Transactions on Medical Imaging. 2020. DOI: 10.1109/TMI.2020.3000314
 <p>
-<img src="../images/coplenet.png" width="70%" alt='lung-ct'>
+<img src="../images/coplenet.png" width="50%" alt='lung-ct'>
 </p>
 
 ### 2. LAMP: Large Deep Nets with Automated Model Parallelism for Image Segmentation
 A reimplementation of the LAMP system originally proposed by:
 Wentao Zhu, Can Zhao, Wenqi Li, Holger Roth, Ziyue Xu, and Daguang Xu (2020) "LAMP: Large Deep Nets with Automated Model Parallelism for Image Segmentation." MICCAI 2020 (Early Accept, paper link: https://arxiv.org/abs/2006.12575)
 <p>
-<img src="../images/unet-pipe.png" width="70%" alt='unet-multi-gpu'>
+<img src="../images/unet-pipe.png" width="50%" alt='unet-multi-gpu'>
 </p>
