@@ -9,10 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Union
 import warnings
 
 import torch
 from monai.networks.utils import one_hot
+from monai.utils.enums import MetricReduction
 
 
 class DiceMetric:
@@ -47,19 +49,15 @@ class DiceMetric:
         mutually_exclusive: bool = False,
         sigmoid: bool = False,
         logit_thresh: float = 0.5,
-        reduction: str = "mean",
+        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
     ):
         super().__init__()
-
-        if reduction not in ["none", "mean", "sum", "mean_batch", "sum_batch", "mean_channel", "sum_channel"]:
-            raise ValueError(f"reduction={reduction} is invalid. Valid options are: none, mean or sum.")
-
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         self.mutually_exclusive = mutually_exclusive
         self.sigmoid = sigmoid
         self.logit_thresh = logit_thresh
-        self.reduction = reduction
+        self.reduction: MetricReduction = MetricReduction(reduction)
 
         self.not_nans = None  # keep track for valid elements in the batch
 
@@ -85,7 +83,7 @@ class DiceMetric:
 
         t_zero = torch.zeros(1, device=f.device, dtype=torch.float)
 
-        if self.reduction == "mean":
+        if self.reduction == MetricReduction.MEAN:
             # 2 steps, first, mean by channel (accounting for nans), then by batch
 
             not_nans = not_nans.sum(dim=1)
@@ -94,22 +92,22 @@ class DiceMetric:
             not_nans = not_nans.sum()
             f = torch.where(not_nans > 0, f.sum() / not_nans, t_zero)  # batch average
 
-        elif self.reduction == "sum":
+        elif self.reduction == MetricReduction.SUM:
             not_nans = not_nans.sum()
             f = torch.sum(f)  # sum over the batch and channel dims
-        elif self.reduction == "mean_batch":
+        elif self.reduction == MetricReduction.MEAN_BATCH:
             not_nans = not_nans.sum(dim=0)
             f = torch.where(not_nans > 0, f.sum(dim=0) / not_nans, t_zero)  # batch average
-        elif self.reduction == "sum_batch":
+        elif self.reduction == MetricReduction.SUM_BATCH:
             not_nans = not_nans.sum(dim=0)
             f = f.sum(dim=0)  # the batch sum
-        elif self.reduction == "mean_channel":
+        elif self.reduction == MetricReduction.MEAN_CHANNEL:
             not_nans = not_nans.sum(dim=1)
             f = torch.where(not_nans > 0, f.sum(dim=1) / not_nans, t_zero)  # channel average
-        elif self.reduction == "sum_channel":
+        elif self.reduction == MetricReduction.SUM_CHANNEL:
             not_nans = not_nans.sum(dim=1)
             f = f.sum(dim=1)  # the channel sum
-        elif self.reduction == "none":
+        elif self.reduction == MetricReduction.NONE:
             pass
         else:
             raise ValueError(f"reduction={self.reduction} is invalid.")

@@ -50,7 +50,7 @@ class TestRandZoomd(NumpyImageTestCase2D):
         self.assertTrue(np.array_equal(zoomed[key].shape, self.imt.shape[1:]))
 
     @parameterized.expand(
-        [("no_min_zoom", None, 1.1, "bilinear", TypeError), ("invalid_order", 0.9, 1.1, "s", NotImplementedError)]
+        [("no_min_zoom", None, 1.1, "bilinear", TypeError), ("invalid_order", 0.9, 1.1, "s", ValueError)]
     )
     def test_invalid_inputs(self, _, min_zoom, max_zoom, mode, raises):
         key = "img"

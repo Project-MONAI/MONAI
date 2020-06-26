@@ -15,6 +15,7 @@ import torch
 
 from monai.metrics import compute_roc_auc
 from monai.utils import exact_version, optional_import
+from monai.utils.enums import Average
 
 Metric, _ = optional_import("ignite.metrics", "0.3.0", exact_version, "Metric")
 
@@ -27,7 +28,7 @@ class ROCAUC(Metric):
     Args:
         to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
         softmax: whether to add softmax function to `y_pred` before computation. Defaults to False.
-        average: {``"macro"``, ``"weighted"``, ``"micro"``, ``None``}
+        average: {``"macro"``, ``"weighted"``, ``"micro"``, ``"none"``}
             Type of averaging performed if not binary classification. Defaults to ``"macro"``.
 
             - ``"macro"``: calculate metrics for each label, and find their unweighted mean.
@@ -36,7 +37,7 @@ class ROCAUC(Metric):
                 weighted by support (the number of true instances for each label).
             - ``"micro"``: calculate metrics globally by considering each element of the label
                 indicator matrix as a label.
-            - ``None``: the scores for each class are returned.
+            - ``"none"``: the scores for each class are returned.
 
         output_transform: a callable that is used to transform the
             :class:`~ignite.engine.Engine` `process_function` output into the
@@ -53,14 +54,14 @@ class ROCAUC(Metric):
         self,
         to_onehot_y: bool = False,
         softmax: bool = False,
-        average: Optional[str] = "macro",
+        average: Union[Average, str] = Average.MACRO,
         output_transform: Callable = lambda x: x,
         device: Optional[Union[str, torch.device]] = None,
     ):
         super().__init__(output_transform, device=device)
         self.to_onehot_y = to_onehot_y
         self.softmax = softmax
-        self.average = average
+        self.average: Average = Average(average)
 
     def reset(self) -> None:
         self._predictions: List[float] = []

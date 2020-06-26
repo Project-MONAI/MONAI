@@ -13,7 +13,7 @@ A collection of "vanilla" transforms for crop and pad operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
 
 import numpy as np
 from monai.config.type_definitions import IndexSelection
@@ -21,6 +21,7 @@ from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.utils import generate_spatial_bounding_box
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep
+from monai.utils.enums import NumpyPadMode, Method
 
 
 class SpatialPad(Transform):
@@ -39,15 +40,18 @@ class SpatialPad(Transform):
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
     """
 
-    def __init__(self, spatial_size, method: str = "symmetric", mode: str = "constant"):
+    def __init__(
+        self,
+        spatial_size,
+        method: Union[Method, str] = Method.SYMMETRIC,
+        mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+    ):
         self.spatial_size = ensure_tuple(spatial_size)
-        assert method in ("symmetric", "end"), "unsupported padding type."
-        self.method = method
-        assert isinstance(mode, str), "mode must be str."
-        self.mode = mode
+        self.method: Method = Method(method)
+        self.mode: NumpyPadMode = NumpyPadMode(mode)
 
     def _determine_data_pad_width(self, data_shape):
-        if self.method == "symmetric":
+        if self.method == Method.SYMMETRIC:
             pad_width = list()
             for i in range(len(self.spatial_size)):
                 width = max(self.spatial_size[i] - data_shape[i], 0)
@@ -56,7 +60,7 @@ class SpatialPad(Transform):
         else:
             return [(0, max(self.spatial_size[i] - data_shape[i], 0)) for i in range(len(self.spatial_size))]
 
-    def __call__(self, img, mode: Optional[str] = None):
+    def __call__(self, img, mode: Optional[Union[NumpyPadMode, str]] = None):
         """
         Args:
             mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
@@ -70,7 +74,7 @@ class SpatialPad(Transform):
             # all zeros, skip padding
             return img
         else:
-            img = np.pad(img, all_pad_width, mode=mode or self.mode)
+            img = np.pad(img, all_pad_width, mode=self.mode.value if mode is None else NumpyPadMode(mode).value)
             return img
 
 
@@ -95,11 +99,11 @@ class BorderPad(Transform):
 
     """
 
-    def __init__(self, spatial_border, mode: str = "constant"):
+    def __init__(self, spatial_border, mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT):
         self.spatial_border = spatial_border
-        self.mode = mode
+        self.mode: NumpyPadMode = NumpyPadMode(mode)
 
-    def __call__(self, img, mode: Optional[str] = None):
+    def __call__(self, img, mode: Optional[Union[NumpyPadMode, str]] = None):
         spatial_shape = img.shape[1:]
         spatial_border = ensure_tuple(self.spatial_border)
         for b in spatial_border:
@@ -115,7 +119,9 @@ class BorderPad(Transform):
         else:
             raise ValueError("unsupported length of spatial_border definition.")
 
-        return np.pad(img, [(0, 0)] + data_pad_width, mode=mode or self.mode)
+        return np.pad(
+            img, [(0, 0)] + data_pad_width, mode=self.mode.value if mode is None else NumpyPadMode(mode).value
+        )
 
 
 class DivisiblePad(Transform):
@@ -123,7 +129,7 @@ class DivisiblePad(Transform):
     Pad the input data, so that the spatial sizes are divisible by `k`.
     """
 
-    def __init__(self, k, mode: str = "constant"):
+    def __init__(self, k, mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT):
         """
         Args:
             k (int or sequence of int): the target k for each spatial dimension.
@@ -137,9 +143,9 @@ class DivisiblePad(Transform):
         See also :py:class:`monai.transforms.SpatialPad`
         """
         self.k = k
-        self.mode = mode
+        self.mode: NumpyPadMode = NumpyPadMode(mode)
 
-    def __call__(self, img, mode: Optional[str] = None):
+    def __call__(self, img, mode: Optional[Union[NumpyPadMode, str]] = None):
         spatial_shape = img.shape[1:]
         k = ensure_tuple_rep(self.k, len(spatial_shape))
         new_size = []
@@ -147,7 +153,7 @@ class DivisiblePad(Transform):
             new_dim = int(np.ceil(dim / k_d) * k_d) if k_d > 0 else dim
             new_size.append(new_dim)
 
-        spatial_pad = SpatialPad(spatial_size=new_size, method="symmetric", mode=mode or self.mode)
+        spatial_pad = SpatialPad(spatial_size=new_size, method=Method.SYMMETRIC, mode=mode or self.mode)
         return spatial_pad(img)
 
 

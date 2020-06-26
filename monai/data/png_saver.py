@@ -17,6 +17,7 @@ import torch
 from monai.data.png_writer import write_png
 
 from .utils import create_file_basename
+from monai.utils.enums import InterpolateMode
 
 
 class PNGSaver:
@@ -33,7 +34,7 @@ class PNGSaver:
         output_postfix: str = "seg",
         output_ext: str = ".png",
         resample: bool = True,
-        mode: str = "nearest",
+        mode: Union[InterpolateMode, str] = InterpolateMode.NEAREST,
         scale=None,
     ):
         """
@@ -53,7 +54,7 @@ class PNGSaver:
         self.output_postfix = output_postfix
         self.output_ext = output_ext
         self.resample = resample
-        self.mode = mode
+        self.mode: InterpolateMode = InterpolateMode(mode)
         self.scale = scale
 
         self._data_index = 0
