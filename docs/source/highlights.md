@@ -203,6 +203,8 @@ The workflow and event handlers are shown as below:
 
 ## Research
 There are several research prototypes in MONAI corresponding to the recently published papers that address advanced research problems.
+We always welcome contributions in forms of comments, suggestions, and code implementations.
+The generic patterns/modules identified from the research prototypes will be integrated into MONAI core functoinality.
 
 ### COPLE-Net for COVID-19 Pneumonia Lesion Segmentation
 A reimplementation of the COPLE-Net originally proposed by:
