@@ -9,24 +9,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
-
 import hashlib
 import json
-from pathlib import Path
-
-import torch
-import numpy as np
-
-from multiprocessing.pool import ThreadPool
+import sys
 import threading
+from multiprocessing.pool import ThreadPool
+from pathlib import Path
+from typing import Callable, Optional
 
-from monai.transforms import Compose, Randomizable
+import numpy as np
+import torch
+from torch.utils.data import Dataset as _TorchDataset
+
+from monai.transforms import Compose, Randomizable, Transform
 from monai.transforms.utils import apply_transform
-from monai.utils import process_bar, get_seed
+from monai.utils import get_seed, process_bar
 
 
-class Dataset(torch.utils.data.Dataset):
+class Dataset(_TorchDataset):
     """
     A generic dataset with a length property and an optional callable data transform
     when fetching a data sample.
@@ -39,11 +39,11 @@ class Dataset(torch.utils.data.Dataset):
          },                           },                           }]
     """
 
-    def __init__(self, data, transform=None):
+    def __init__(self, data, transform: Optional[Callable] = None):
         """
         Args:
             data (Iterable): input data to load and transform to generate dataset for model.
-            transform (Callable, optional): a callable data transform on input data.
+            transform: a callable data transform on input data.
         """
         self.data = data
         self.transform = transform
@@ -51,10 +51,10 @@ class Dataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.data)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int):
         data = self.data[index]
         if self.transform is not None:
-            data = self.transform(data)
+            data = apply_transform(self.transform, data)
 
         return data
 
@@ -80,7 +80,7 @@ class PersistentDataset(Dataset):
         [ LoadNiftid(keys=['image', 'label']),
           Orientationd(keys=['image', 'label'], axcodes='RAS'),
           ScaleIntensityRanged(keys=['image'], a_min=-57, a_max=164, b_min=0.0, b_max=1.0, clip=True),
-          RandCropByPosNegLabeld(keys=['image', 'label'], label_key='label', size=(96, 96, 96),
+          RandCropByPosNegLabeld(keys=['image', 'label'], label_key='label', spatial_size=(96, 96, 96),
                                  pos=1, neg=1, num_samples=4, image_key='image', image_threshold=0),
           ToTensord(keys=['image', 'label'])]
 
@@ -93,11 +93,11 @@ class PersistentDataset(Dataset):
     followed by applying the random dependant parts of transform processing.
     """
 
-    def __init__(self, data, transform=None, cache_dir=None):
+    def __init__(self, data, transform: Optional[Callable] = None, cache_dir=None):
         """
         Args:
             data (Iterable): input data to load and transform to generate dataset for model.
-            transform (Callable, optional): transforms to execute operations on input data.
+            transform: transforms to execute operations on input data.
             cache_dir (Path or str or None): If specified, this is the location for persistent storage
                 of pre-computed transformed data tensors. The cache_dir is computed once, and
                 persists on disk until explicitly removed.  Different runs, programs, experiments
@@ -119,9 +119,9 @@ class PersistentDataset(Dataset):
             the transformed element up to the first identified
             random transform object
         """
-        for _transform in self.transform.transforms:
-            # execute all the deterministic transforms before the first random transform
-            if isinstance(_transform, Randomizable):
+        for _transform in self.transform.transforms:  # pytype: disable=attribute-error
+            # execute all the deterministic transforms
+            if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
                 break
             item_transformed = apply_transform(_transform, item_transformed)
         return item_transformed
@@ -130,13 +130,17 @@ class PersistentDataset(Dataset):
         """
         Process the data from before the first random transform to the final state ready for evaluation.
         Args:
-            item_transformed: The data to be transformed (already process upto the first random transform)
+            item_transformed: The data to be transformed (already processed up to the first random transform)
         Returns:
             the transformed element through the random transforms
         """
         start_post_randomize_run = False
-        for _transform in self.transform.transforms:
-            if start_post_randomize_run or isinstance(_transform, Randomizable):
+        for _transform in self.transform.transforms:  # pytype: disable=attribute-error
+            if (
+                start_post_randomize_run
+                or isinstance(_transform, Randomizable)
+                or not isinstance(_transform, Transform)
+            ):
                 start_post_randomize_run = True
                 item_transformed = apply_transform(_transform, item_transformed)
         return item_transformed
@@ -204,7 +208,7 @@ class CacheDataset(Dataset):
     It is recommended to experiment with different `cache_num` or `cache_rate` to identify the best training speed.
 
     To improve the caching efficiency, please always put as many as possible non-random transforms
-    before the randomised ones when composing the chain of transforms.
+    before the randomized ones when composing the chain of transforms.
 
     For example, if the transform is a `Compose` of::
 
@@ -222,20 +226,22 @@ class CacheDataset(Dataset):
     this dataset will cache the results up to ``ScaleIntensityRanged``, as
     all non-random transforms `LoadNiftid`, `AddChanneld`, `Spacingd`, `Orientationd`, `ScaleIntensityRanged`
     can be cached. During training, the dataset will load the cached results and run
-    ``RandCropByPosNegLabeld`` and ``ToTensord``, as ``RandCropByPosNegLabeld`` is a randomised transform
+    ``RandCropByPosNegLabeld`` and ``ToTensord``, as ``RandCropByPosNegLabeld`` is a randomized transform
     and the outcome not cached.
     """
 
-    def __init__(self, data, transform, cache_num=sys.maxsize, cache_rate=1.0, num_workers=0):
+    def __init__(
+        self, data, transform: Callable, cache_num: int = sys.maxsize, cache_rate: float = 1.0, num_workers: int = 0
+    ):
         """
         Args:
             data (Iterable): input data to load and transform to generate dataset for model.
-            transform (Callable): transforms to execute operations on input data.
-            cache_num (int): number of items to be cached. Default is `sys.maxsize`.
+            transform: transforms to execute operations on input data.
+            cache_num: number of items to be cached. Default is `sys.maxsize`.
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
-            cache_rate (float): percentage of cached data in total, default is 1.0 (cache all).
+            cache_rate: percentage of cached data in total, default is 1.0 (cache all).
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
-            num_workers (int): the number of worker threads to use.
+            num_workers: the number of worker threads to use.
                 If 0 a single thread will be used. Default is 0.
         """
         if not isinstance(transform, Compose):
@@ -260,8 +266,8 @@ class CacheDataset(Dataset):
 
     def _load_cache_item(self, item, transforms):
         for _transform in transforms:
-            # execute all the deterministic transforms before the first random transform
-            if isinstance(_transform, Randomizable):
+            # execute all the deterministic transforms
+            if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
                 break
             item = apply_transform(_transform, item)
         return item
@@ -278,8 +284,8 @@ class CacheDataset(Dataset):
             # load data from cache and execute from the first random transform
             start_run = False
             data = self._cache[index]
-            for _transform in self.transform.transforms:
-                if not start_run and not isinstance(_transform, Randomizable):
+            for _transform in self.transform.transforms:  # pytype: disable=attribute-error
+                if not start_run and not isinstance(_transform, Randomizable) and isinstance(_transform, Transform):
                     continue
                 else:
                     start_run = True
@@ -290,55 +296,54 @@ class CacheDataset(Dataset):
         return data
 
 
-class ZipDataset(torch.utils.data.Dataset):
+class ZipDataset(Dataset):
     """
     Zip several PyTorch datasets and output data(with the same index) together in a tuple.
     If the output of single dataset is already a tuple, flatten it and extend to the result.
     For example: if datasetA returns (img, imgmeta), datasetB returns (seg, segmeta),
     finally return (img, imgmeta, seg, segmeta).
     And if the datasets don't have same length, use the minimum length of them as the length
-    of ZipDataset. Example code::
+    of ZipDataset.
 
-        zip_data = ZipDataset([[1, 2, 3], [4, 5]])
-        print(len(zip_data))
-        output:
+    Examples::
+
+        >>> zip_data = ZipDataset([[1, 2, 3], [4, 5]])
+        >>> print(len(zip_data))
         2
-        for item in zip_data:
-            print(item)
-        output:
+        >>> for item in zip_data:
+        >>>    print(item)
         [1, 4]
         [2, 5]
 
     """
 
-    def __init__(self, datasets, transform=None):
+    def __init__(self, datasets, transform: Optional[Callable] = None):
         """
         Args:
             datasets (list or tuple): list of datasets to zip together.
+            transform: a callable data transform operates on the zipped item from `datasets`.
         """
-        self.datasets = list(datasets)
-        self.len = min([len(dataset) for dataset in self.datasets])
-        self.transform = transform
+        super().__init__(list(datasets), transform=transform)
 
     def __len__(self):
-        return self.len
+        return min([len(dataset) for dataset in self.data])
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int):
         def to_list(x):
             return list(x) if isinstance(x, (tuple, list)) else [x]
 
         data = list()
-        for dataset in self.datasets:
+        for dataset in self.data:
             data.extend(to_list(dataset[index]))
         if self.transform is not None:
-            data = self.transform(data)
+            data = apply_transform(self.transform, data, map_items=False)  # transform the list data
         return data
 
 
-class ArrayDataset(ZipDataset, Randomizable):
+class ArrayDataset(Randomizable, _TorchDataset):
     """
     Dataset for segmentation and classification tasks based on array format input data and transforms.
-    It can apply same random operations for both image transforms and segmentation label transforms.
+    It ensures the same random seeds in the randomized transforms defined for image, segmentation and label.
     The `transform` can be :py:class:`monai.transforms.Compose` or any other callable object.
     For example:
     If train based on Nifti format images without metadata, all transforms can be composed::
@@ -350,8 +355,9 @@ class ArrayDataset(ZipDataset, Randomizable):
                 RandAdjustContrast()
             ]
         )
+        ArrayDataset(img_file_list, img_transform=img_transform)
 
-    If train based on Nifti format images and the metadata, the array transforms can not be composed
+    If training based on images and the metadata, the array transforms can not be composed
     because several transforms receives multiple parameters or return multiple values. Then Users need
     to define their own callable method to parse metadata from `LoadNifti` or set `affine` matrix
     to `Spacing` transform::
@@ -370,35 +376,64 @@ class ArrayDataset(ZipDataset, Randomizable):
                 RandAdjustContrast()
             ]
         )
+        ArrayDataset(img_file_list, img_transform=img_transform)
 
-    Recommend to use dictionary Datasets for complicated data pre-processing.
+    Examples::
+
+        >>> ds = ArrayDataset([1, 2, 3, 4], lambda x: x + 0.1)
+        >>> print(ds[0])
+        1.1
+
+        >>> ds = ArrayDataset(img=[1, 2, 3, 4], seg=[5, 6, 7, 8])
+        >>> print(ds[0])
+        [1, 5]
+
     """
 
     def __init__(
-        self, img_files, img_transform=None, seg_files=None, seg_transform=None, labels=None, label_transform=None
+        self,
+        img,
+        img_transform: Optional[Callable] = None,
+        seg=None,
+        seg_transform: Optional[Callable] = None,
+        labels=None,
+        label_transform: Optional[Callable] = None,
     ):
         """
         Initializes the dataset with the filename lists. The transform `img_transform` is applied
         to the images and `seg_transform` to the segmentations.
+
         Args:
-            img_files (iterable, list of str): list of image filenames
-            img_transform (Callable, optional): transform to apply to image arrays
-            seg_files (iterable, list of str): if in segmentation task, list of segmentation filenames
-            seg_transform (Callable, optional): transform to apply to segmentation arrays
-            labels (iterable, list or array): if in classification task, list of classification labels
-            label_transform (Callable, optional): transform to apply to label arrays
+            img (Sequence): sequence of images.
+            img_transform: transform to apply to each element in `img`.
+            seg (Sequence, optional): sequence of segmentations.
+            seg_transform: transform to apply to each element in `seg`.
+            labels (Sequence, optional): sequence of labels.
+            label_transform: transform to apply to each element in `labels`.
 
         """
-        items = [(img_files, img_transform), (seg_files, seg_transform), (labels, label_transform)]
+        items = [(img, img_transform), (seg, seg_transform), (labels, label_transform)]
         self.set_random_state(seed=get_seed())
-        super().__init__([Dataset(x[0], x[1]) for x in items if x[0] is not None])
+        datasets = [Dataset(x[0], x[1]) for x in items if x[0] is not None]
+        self.dataset = datasets[0] if len(datasets) == 1 else ZipDataset(datasets)
+
+        self._seed = 0  # transform synchronization seed
+
+    def __len__(self):
+        return len(self.dataset)
 
     def randomize(self):
-        self.seed = self.R.randint(np.iinfo(np.int32).max)
+        self._seed = self.R.randint(np.iinfo(np.int32).max)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int):
         self.randomize()
-        for dataset in self.datasets:
-            if isinstance(dataset.transform, Randomizable):
-                dataset.transform.set_random_state(seed=self.seed)
-        return super().__getitem__(index)
+        if isinstance(self.dataset, ZipDataset):
+            # set transforms of each zip component
+            for dataset in self.dataset.data:
+                transform = getattr(dataset, "transform", None)
+                if isinstance(transform, Randomizable):
+                    transform.set_random_state(seed=self._seed)
+        transform = getattr(self.dataset, "transform", None)
+        if isinstance(transform, Randomizable):
+            transform.set_random_state(seed=self._seed)
+        return self.dataset[index]

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional
+
 import torch
 import warnings
 import numpy as np
@@ -48,7 +50,13 @@ def _calculate(y, y_pred):
     return auc / (nneg * (n - nneg))
 
 
-def compute_roc_auc(y_pred, y, to_onehot_y=False, add_softmax=False, average="macro"):
+def compute_roc_auc(
+    y_pred: torch.Tensor,
+    y: torch.Tensor,
+    to_onehot_y: bool = False,
+    softmax: bool = False,
+    average: Optional[str] = "macro",
+):
     """Computes Area Under the Receiver Operating Characteristic Curve (ROC AUC). Referring to:
     `sklearn.metrics.roc_auc_score <https://scikit-learn.org/stable/modules/generated/
     sklearn.metrics.roc_auc_score.html#sklearn.metrics.roc_auc_score>`_.
@@ -58,18 +66,19 @@ def compute_roc_auc(y_pred, y, to_onehot_y=False, add_softmax=False, average="ma
             it must be One-Hot format and first dim is batch, example shape: [16] or [16, 2].
         y (torch.Tensor): ground truth to compute ROC AUC metric, the first dim is batch.
             example shape: [16, 1] will be converted into [16, 2] (where `2` is inferred from `y_pred`).
-        to_onehot_y (bool): whether to convert `y` into the one-hot format. Defaults to False.
-        add_softmax (bool): whether to add softmax function to `y_pred` before computation. Defaults to False.
-        average (`macro|weighted|micro|None`): type of averaging performed if not binary
-            classification. Default is 'macro'.
+        to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
+        softmax: whether to add softmax function to `y_pred` before computation. Defaults to False.
+        average: {``"macro"``, ``"weighted"``, ``"micro"``, ``None``}
+            Type of averaging performed if not binary classification.
+            Defaults to ``"macro"``.
 
-            - 'macro': calculate metrics for each label, and find their unweighted mean.
-              this does not take label imbalance into account.
-            - 'weighted': calculate metrics for each label, and find their average,
-              weighted by support (the number of true instances for each label).
-            - 'micro': calculate metrics globally by considering each element of the label
-              indicator matrix as a label.
-            - None: the scores for each class are returned.
+            - ``"macro"``: calculate metrics for each label, and find their unweighted mean.
+                This does not take label imbalance into account.
+            - ``"weighted"``: calculate metrics for each label, and find their average,
+                weighted by support (the number of true instances for each label).
+            - ``"micro"``: calculate metrics globally by considering each element of the label
+                indicator matrix as a label.
+            - ``None``: the scores for each class are returned.
 
     Note:
         ROCAUC expects y to be comprised of 0's and 1's. `y_pred` must be either prob. estimates or confidence values.
@@ -90,14 +99,14 @@ def compute_roc_auc(y_pred, y, to_onehot_y=False, add_softmax=False, average="ma
     if y_pred_ndim == 1:
         if to_onehot_y:
             warnings.warn("y_pred has only one channel, to_onehot_y=True ignored.")
-        if add_softmax:
-            warnings.warn("y_pred has only one channel, add_softmax=True ignored.")
+        if softmax:
+            warnings.warn("y_pred has only one channel, softmax=True ignored.")
         return _calculate(y, y_pred)
     else:
         n_classes = y_pred.shape[1]
         if to_onehot_y:
             y = one_hot(y, n_classes)
-        if add_softmax:
+        if softmax:
             y_pred = y_pred.float().softmax(dim=1)
 
         assert y.shape == y_pred.shape, "data shapes of y_pred and y do not match."

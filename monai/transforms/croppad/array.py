@@ -13,28 +13,33 @@ A collection of "vanilla" transforms for crop and pad operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-import numpy as np
+from typing import Callable, Optional
 
+import numpy as np
+from monai.config.type_definitions import IndexSelection
 from monai.data.utils import get_random_patch, get_valid_patch_size
-from monai.transforms.compose import Transform, Randomizable
+from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.utils import generate_spatial_bounding_box
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep
 
 
 class SpatialPad(Transform):
-    """Performs padding to the data, symmetric for all sides or all on one side for each dimension.
-     Uses np.pad so in practice, a mode needs to be provided. See numpy.lib.arraypad.pad
-     for additional details.
+    """
+    Performs padding to the data, symmetric for all sides or all on one side for each dimension.
+    Uses np.pad so in practice, a mode needs to be provided. See numpy.lib.arraypad.pad
+    for additional details.
 
     Args:
-        spatial_size (list): the spatial size of output data after padding.
-        method (str): pad image symmetric on every side or only pad at the end sides. default is 'symmetric'.
-        mode (str): one of the following string values or a user supplied function: {'constant', 'edge', 'linear_ramp',
-            'maximum', 'mean', 'median', 'minimum', 'reflect', 'symmetric', 'wrap', 'empty', <function>}
-            for more details, please check: https://docs.scipy.org/doc/numpy/reference/generated/numpy.pad.html
+        spatial_size (sequence of int): the spatial size of output data after padding.
+        method: {``"symmetric"``, ``"end"``}
+            Pad image symmetric on every side or only pad at the end sides. Defaults to ``"symmetric"``.
+        mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
+            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
     """
 
-    def __init__(self, spatial_size, method="symmetric", mode="constant"):
+    def __init__(self, spatial_size, method: str = "symmetric", mode: str = "constant"):
         self.spatial_size = ensure_tuple(spatial_size)
         assert method in ("symmetric", "end"), "unsupported padding type."
         self.method = method
@@ -51,11 +56,99 @@ class SpatialPad(Transform):
         else:
             return [(0, max(self.spatial_size[i] - data_shape[i], 0)) for i in range(len(self.spatial_size))]
 
-    def __call__(self, img, mode=None):
+    def __call__(self, img, mode: Optional[str] = None):
+        """
+        Args:
+            mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
+                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                One of the listed string values or a user supplied function. Defaults to ``self.mode``.
+                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+        """
         data_pad_width = self._determine_data_pad_width(img.shape[1:])
         all_pad_width = [(0, 0)] + data_pad_width
-        img = np.pad(img, all_pad_width, mode=mode or self.mode)
-        return img
+        if not np.asarray(all_pad_width).any():
+            # all zeros, skip padding
+            return img
+        else:
+            img = np.pad(img, all_pad_width, mode=mode or self.mode)
+            return img
+
+
+class BorderPad(Transform):
+    """
+    Pad the input data by adding specified borders to every dimension.
+
+    Args:
+        spatial_border (int or sequence of int): specified size for every spatial border. it can be 3 shapes:
+            - single int number, pad all the borders with the same size.
+            - length equals the length of image shape, pad every spatial dimension separately.
+                for example, image shape(CHW) is [1, 4, 4], spatial_border is [2, 1],
+                pad every border of H dim with 2, pad every border of W dim with 1, result shape is [1, 8, 6].
+            - length equals 2 x (length of image shape), pad every border of every dimension separately.
+                for example, image shape(CHW) is [1, 4, 4], spatial_border is [1, 2, 3, 4], pad top of H dim with 1,
+                pad bottom of H dim with 2, pad left of W dim with 3, pad right of W dim with 4.
+                the result shape is [1, 7, 11].
+        mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
+                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+
+    """
+
+    def __init__(self, spatial_border, mode: str = "constant"):
+        self.spatial_border = spatial_border
+        self.mode = mode
+
+    def __call__(self, img, mode: Optional[str] = None):
+        spatial_shape = img.shape[1:]
+        spatial_border = ensure_tuple(self.spatial_border)
+        for b in spatial_border:
+            if b < 0 or not isinstance(b, int):
+                raise ValueError("spatial_border must be int number and can not be less than 0.")
+
+        if len(spatial_border) == 1:
+            data_pad_width = [(spatial_border[0], spatial_border[0]) for _ in range(len(spatial_shape))]
+        elif len(spatial_border) == len(spatial_shape):
+            data_pad_width = [(spatial_border[i], spatial_border[i]) for i in range(len(spatial_shape))]
+        elif len(spatial_border) == len(spatial_shape) * 2:
+            data_pad_width = [(spatial_border[2 * i], spatial_border[2 * i + 1]) for i in range(len(spatial_shape))]
+        else:
+            raise ValueError("unsupported length of spatial_border definition.")
+
+        return np.pad(img, [(0, 0)] + data_pad_width, mode=mode or self.mode)
+
+
+class DivisiblePad(Transform):
+    """
+    Pad the input data, so that the spatial sizes are divisible by `k`.
+    """
+
+    def __init__(self, k, mode: str = "constant"):
+        """
+        Args:
+            k (int or sequence of int): the target k for each spatial dimension.
+                if `k` is negative or 0, the original size is preserved.
+                if `k` is an int, the same `k` be applied to all the input spatial dimensions.
+            mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
+                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+
+        See also :py:class:`monai.transforms.SpatialPad`
+        """
+        self.k = k
+        self.mode = mode
+
+    def __call__(self, img, mode: Optional[str] = None):
+        spatial_shape = img.shape[1:]
+        k = ensure_tuple_rep(self.k, len(spatial_shape))
+        new_size = []
+        for k_d, dim in zip(k, spatial_shape):
+            new_dim = int(np.ceil(dim / k_d) * k_d) if k_d > 0 else dim
+            new_size.append(new_dim)
+
+        spatial_pad = SpatialPad(spatial_size=new_size, method="symmetric", mode=mode or self.mode)
+        return spatial_pad(img)
 
 
 class SpatialCrop(Transform):
@@ -120,20 +213,21 @@ class RandSpatialCrop(Randomizable, Transform):
     """
     Crop image with random size or specific size ROI. It can crop at a random position as center
     or at the image center. And allows to set the minimum size to limit the randomly generated ROI.
-    This transform assumes all the expected fields specified by `keys` have same shape.
 
     Args:
         roi_size (list, tuple): if `random_size` is True, the spatial size of the minimum crop region.
             if `random_size` is False, specify the expected ROI size to crop. e.g. [224, 224, 128]
-        random_center (bool): crop at random position as center or the image center.
-        random_size (bool): crop with random size or specific size ROI.
+        random_center: crop at random position as center or the image center.
+        random_size: crop with random size or specific size ROI.
             The actual size is sampled from `randint(roi_size, img_size)`.
     """
 
-    def __init__(self, roi_size, random_center=True, random_size=True):
+    def __init__(self, roi_size, random_center: bool = True, random_size: bool = True):
         self.roi_size = roi_size
         self.random_center = random_center
         self.random_size = random_size
+        self._size = None
+        self._slices = None
 
     def randomize(self, img_size):
         self._size = ensure_tuple_rep(self.roi_size, len(img_size))
@@ -150,6 +244,36 @@ class RandSpatialCrop(Randomizable, Transform):
         else:
             cropper = CenterSpatialCrop(self._size)
             return cropper(img)
+
+
+class RandSpatialCropSamples(Randomizable, Transform):
+    """
+    Crop image with random size or specific size ROI to generate a list of N samples.
+    It can crop at a random position as center or at the image center. And allows to set
+    the minimum size to limit the randomly generated ROI.
+    It will return a list of cropped images.
+
+    Args:
+        roi_size (list, tuple): if `random_size` is True, the spatial size of the minimum crop region.
+            if `random_size` is False, specify the expected ROI size to crop. e.g. [224, 224, 128]
+        num_samples: number of samples (crop regions) to take in the returned list.
+        random_center: crop at random position as center or the image center.
+        random_size: crop with random size or specific size ROI.
+            The actual size is sampled from `randint(roi_size, img_size)`.
+
+    """
+
+    def __init__(self, roi_size, num_samples: int, random_center: bool = True, random_size: bool = True):
+        if num_samples < 1:
+            raise ValueError("number of samples must be greater than 0.")
+        self.num_samples = num_samples
+        self.cropper = RandSpatialCrop(roi_size, random_center, random_size)
+
+    def randomize(self):
+        pass
+
+    def __call__(self, img):
+        return [self.cropper(img) for _ in range(self.num_samples)]
 
 
 class CropForeground(Transform):
@@ -177,13 +301,15 @@ class CropForeground(Transform):
 
     """
 
-    def __init__(self, select_fn=lambda x: x > 0, channel_indexes=None, margin=0):
+    def __init__(
+        self, select_fn: Callable = lambda x: x > 0, channel_indexes: Optional[IndexSelection] = None, margin: int = 0
+    ):
         """
         Args:
-            select_fn (Callable): function to select expected foreground, default is to select values > 0.
-            channel_indexes (int, tuple or list): if defined, select foreground only on the specified channels
+            select_fn: function to select expected foreground, default is to select values > 0.
+            channel_indexes: if defined, select foreground only on the specified channels
                 of image. if None, select foreground on the whole image.
-            margin (int): add margin to all dims of the bounding box.
+            margin: add margin to all dims of the bounding box.
         """
         self.select_fn = select_fn
         self.channel_indexes = ensure_tuple(channel_indexes) if channel_indexes is not None else None

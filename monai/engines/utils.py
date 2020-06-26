@@ -27,7 +27,6 @@ class CommonKeys:
     LABEL = "label"
     PRED = "pred"
     LOSS = "loss"
-    INFO = "info"
 
 
 def get_devices_spec(devices=None):

@@ -13,10 +13,11 @@ A collection of generic interfaces for MONAI transforms.
 """
 
 import warnings
-from typing import Hashable
+from typing import Hashable, Optional, Tuple, Any
 from abc import ABC, abstractmethod
 import numpy as np
 
+from monai.config.type_definitions import KeysCollection
 from monai.utils.misc import ensure_tuple, get_seed
 from .utils import apply_transform
 
@@ -41,7 +42,7 @@ class Transform(ABC):
     """
 
     @abstractmethod
-    def __call__(self, data, *args, **kwargs):
+    def __call__(self, data: Any):
         """
         ``data`` is an element which often comes from an iteration over an
         iterable, such as :py:class:`torch.utils.data.Dataset`. This method should
@@ -62,16 +63,16 @@ class Randomizable(ABC):
     this is mainly for randomized data augmentation transforms.
     """
 
-    R = np.random.RandomState()
+    R: np.random.RandomState = np.random.RandomState()
 
-    def set_random_state(self, seed=None, state=None):
+    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
         """
         Set the random state locally, to control the randomness, the derived
         classes should use :py:attr:`self.R` instead of `np.random` to introduce random
         factors.
 
         Args:
-            seed (int): set the random state with an integer seed.
+            seed: set the random state with an integer seed.
             state (np.random.RandomState): set the random state with a `np.random.RandomState` object.
 
         Returns:
@@ -92,7 +93,7 @@ class Randomizable(ABC):
         return self
 
     @abstractmethod
-    def randomize(self, *args, **kwargs):
+    def randomize(self):
         """
         Within this method, :py:attr:`self.R` should be used, instead of `np.random`, to introduce random factors.
 
@@ -166,7 +167,7 @@ class Compose(Randomizable):
         them are called on the labels.
     """
 
-    def __init__(self, transforms=None):
+    def __init__(self, transforms=None) -> None:
         if transforms is None:
             transforms = []
         if not isinstance(transforms, (list, tuple)):
@@ -174,7 +175,7 @@ class Compose(Randomizable):
         self.transforms = transforms
         self.set_random_state(seed=get_seed())
 
-    def set_random_state(self, seed=None, state=None):
+    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
         for _transform in self.transforms:
             if not isinstance(_transform, Randomizable):
                 continue
@@ -189,7 +190,7 @@ class Compose(Randomizable):
             except TypeError as type_error:
                 tfm_name: str = type(_transform).__name__
                 warnings.warn(
-                    f'Transform "{tfm_name}" in Compose not randomized\n{tfm_name}.{type_error}.', RuntimeWarning,
+                    f'Transform "{tfm_name}" in Compose not randomized\n{tfm_name}.{type_error}.', RuntimeWarning
                 )
 
     def __call__(self, input_):
@@ -219,8 +220,8 @@ class MapTransform(Transform):
 
     """
 
-    def __init__(self, keys):
-        self.keys = ensure_tuple(keys)
+    def __init__(self, keys: KeysCollection):
+        self.keys: Tuple[Any, ...] = ensure_tuple(keys)
         if not self.keys:
             raise ValueError("keys unspecified")
         for key in self.keys:
