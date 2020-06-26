@@ -198,7 +198,19 @@ Currently MONAI supports writing the model outputs as NIfTI files or PNG files f
 A rich set of formats will be supported soon, along with relevant statistics and evaluation metrics automatically computed from the outputs.
 
 ## Workflows
-(placeholder)
+To quickly set up training/evaluation experiments or pipelines, MONAI provides a set of workflows to significantly simplify the modules, decouple all the components during a training progress, and unify the program APIs for higher level applications, like: AutoML, Federated Learning, etc.  
+The trainers and evaluators of the workflows are compatible with ignite `Engine` and `Event-Handler` mechanism. There are rich event handlers in MONAI to independently attach to the trainer or evaluator.  
+The workflow progress and event handlers are shown as below:  
+![image](../images/workflows.png)
 
 ## Research
-(placeholder)
+We encourage deep learning researchers in medical domain to implement their awesome research works based on MONAI components and contribute into MONAI. It can be helpful to cooperate with others for the future research.  
+There are already several implementation in MONAI corresponding to latest papers that are trying to solve challenging topics(COVID-19, Model Parallel, etc.), like:
+### 1. COPLE-Net for COVID-19 Pneumonia Lesion Segmentation
+A reimplementation of the COPLE-Net originally proposed by:  
+G. Wang, X. Liu, C. Li, Z. Xu, J. Ruan, H. Zhu, T. Meng, K. Li, N. Huang, S. Zhang. (2020) "A Noise-robust Framework for Automatic Segmentation of COVID-19 Pneumonia Lesions from CT Images." IEEE Transactions on Medical Imaging. 2020. DOI: 10.1109/TMI.2020.3000314
+![image](../images/coplenet.png)
+
+### 2. LAMP: Large Deep Nets with Automated Model Parallelism for Image Segmentation
+A reimplementation of the LAMP system originally proposed by:  
+Wentao Zhu, Can Zhao, Wenqi Li, Holger Roth, Ziyue Xu, and Daguang Xu (2020) "LAMP: Large Deep Nets with Automated Model Parallelism for Image Segmentation." MICCAI 2020 (Early Accept, paper link: https://arxiv.org/abs/2006.12575)
