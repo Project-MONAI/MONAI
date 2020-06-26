@@ -25,6 +25,8 @@ from monai.transforms.utils import generate_pos_neg_label_crop_centers, generate
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import NumpyPadMode, Method
 
+NumpyPadModeSequence = Union[Sequence[Union[NumpyPadMode, str]], NumpyPadMode, str]
+
 
 class SpatialPadd(MapTransform):
     """
@@ -37,7 +39,7 @@ class SpatialPadd(MapTransform):
         keys: KeysCollection,
         spatial_size,
         method: Union[Method, str] = Method.SYMMETRIC,
-        mode: Union[Sequence[object], NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+        mode: NumpyPadModeSequence = NumpyPadMode.CONSTANT,
     ):
         """
         Args:
@@ -70,10 +72,7 @@ class BorderPadd(MapTransform):
     """
 
     def __init__(
-        self,
-        keys: KeysCollection,
-        spatial_border,
-        mode: Union[Sequence[object], NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+        self, keys: KeysCollection, spatial_border, mode: NumpyPadModeSequence = NumpyPadMode.CONSTANT,
     ):
         """
         Args:
@@ -115,9 +114,7 @@ class DivisiblePadd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.DivisiblePad`.
     """
 
-    def __init__(
-        self, keys: KeysCollection, k, mode: Union[Sequence[object], NumpyPadMode, str] = NumpyPadMode.CONSTANT
-    ):
+    def __init__(self, keys: KeysCollection, k, mode: NumpyPadModeSequence = NumpyPadMode.CONSTANT):
         """
         Args:
             k (int or sequence of int): the target k for each spatial dimension.
