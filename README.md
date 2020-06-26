@@ -19,12 +19,14 @@ Its ambitions are:
 
 ## Features
 > _The codebase is currently under active development._
+> _Please see [the technical highlights](https://monai.readthedocs.io/en/latest/highlights.html) of the current milestone release._
 
 - flexible pre-processing for multi-dimensional medical imaging data;
 - compositional & portable APIs for ease of integration in existing workflows;
 - domain-specific implementations for networks, losses, evaluation metrics and more;
 - customizable design for varying user expertise;
 - multi-GPU data parallelism support.
+
 
 ## Installation
 To install [the current release](https://pypi.org/project/monai/):
@@ -50,8 +52,6 @@ For more details, please refer to [the installation guide](https://monai.readthe
 Tutorials & examples are located at [monai/examples](https://github.com/Project-MONAI/MONAI/tree/master/examples).
 
 Technical documentation is available via [Read the Docs](https://monai.readthedocs.io/en/latest/).
-
-Detailed introduction of highlight technical features is [Highlights](https://monai.readthedocs.io/en/latest/highlights.html).
 
 ## Contributing
 For guidance on making a contribution to MONAI, see the [contributing guidelines](https://github.com/Project-MONAI/MONAI/blob/master/CONTRIBUTING.md).
