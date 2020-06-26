@@ -14,7 +14,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from unet_pipe import UNet
+from unet_pipe import UNetPipe
 
 TEST_CASES = [
     [  # 1-channel 3D, batch 12
@@ -35,10 +35,10 @@ TEST_CASES = [
 ]
 
 
-class TestUNET(unittest.TestCase):
+class TestUNETPipe(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_data, expected_shape):
-        net = UNet(**input_param)
+        net = UNetPipe(**input_param)
         if torch.cuda.is_available():
             net = net.to(torch.device("cuda"))
             input_data = input_data.to(torch.device("cuda"))

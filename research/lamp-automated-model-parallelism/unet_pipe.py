@@ -110,7 +110,7 @@ class UNetPipe(nn.Sequential):
             n_feat: number of features in the first convolution.
             depth: number of downsampling stages.
         """
-        super(UNet, self).__init__()
+        super(UNetPipe, self).__init__()
         n_enc_filter: List[int] = [n_feat]
         for i in range(1, depth + 1):
             n_enc_filter.append(min(n_enc_filter[-1] * 2, 1024))
