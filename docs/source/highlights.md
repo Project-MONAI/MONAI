@@ -187,9 +187,13 @@ There are already several implementation in MONAI corresponding to latest papers
 ### 1. COPLE-Net for COVID-19 Pneumonia Lesion Segmentation
 A reimplementation of the COPLE-Net originally proposed by:
 G. Wang, X. Liu, C. Li, Z. Xu, J. Ruan, H. Zhu, T. Meng, K. Li, N. Huang, S. Zhang. (2020) "A Noise-robust Framework for Automatic Segmentation of COVID-19 Pneumonia Lesions from CT Images." IEEE Transactions on Medical Imaging. 2020. DOI: 10.1109/TMI.2020.3000314
-![image](../images/coplenet.png)
+<p>
+<img src="../images/coplenet.png" width="70%" alt='lung-ct'>
+</p>
 
 ### 2. LAMP: Large Deep Nets with Automated Model Parallelism for Image Segmentation
 A reimplementation of the LAMP system originally proposed by:
 Wentao Zhu, Can Zhao, Wenqi Li, Holger Roth, Ziyue Xu, and Daguang Xu (2020) "LAMP: Large Deep Nets with Automated Model Parallelism for Image Segmentation." MICCAI 2020 (Early Accept, paper link: https://arxiv.org/abs/2006.12575)
-
+<p>
+<img src="../images/unet-pipe.png" width="70%" alt='unet-multi-gpu'>
+</p>
