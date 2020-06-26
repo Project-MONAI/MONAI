@@ -17,7 +17,7 @@ from monai.utils import ensure_tuple_rep, min_version, optional_import
 Image, _ = optional_import("PIL", name="Image")
 
 
-def write_png(data, file_name: str, output_spatial_shape=None, interp_order: str = "bicubic", scale=None):
+def write_png(data, file_name: str, output_spatial_shape=None, mode: str = "bicubic", scale=None):
     """
     Write numpy data into png files to disk.
     Spatially it supports HW for 2D.(H,W) or (H,W,3) or (H,W,4).
@@ -29,8 +29,8 @@ def write_png(data, file_name: str, output_spatial_shape=None, interp_order: str
         data (numpy.ndarray): input data to write to file.
         file_name: expected file name that saved on disk.
         output_spatial_shape (None or tuple of ints): spatial shape of the output image.
-        interp_order (`nearest|linear|bilinear|bicubic|trilinear|area`):
-            the interpolation mode. Default="bicubic".
+        mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
+            The interpolation mode. Defaults to ``"bicubic"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
         scale (255, 65535): postprocess data by clipping to [0, 1] and scaling to
             [0, 255] (uint8) or [0, 65535] (uint16). Default is None to disable scaling.
@@ -41,8 +41,8 @@ def write_png(data, file_name: str, output_spatial_shape=None, interp_order: str
         data = data.squeeze(2)
     if output_spatial_shape is not None:
         output_spatial_shape = ensure_tuple_rep(output_spatial_shape, 2)
-        align_corners = False if interp_order in ("linear", "bilinear", "bicubic", "trilinear") else None
-        xform = Resize(spatial_size=output_spatial_shape, interp_order=interp_order, align_corners=align_corners)
+        align_corners = False if mode in ("linear", "bilinear", "bicubic", "trilinear") else None
+        xform = Resize(spatial_size=output_spatial_shape, mode=mode, align_corners=align_corners)
         _min, _max = np.min(data), np.max(data)
         if len(data.shape) == 3:
             data = np.moveaxis(data, -1, 0)  # to channel first
@@ -51,7 +51,7 @@ def write_png(data, file_name: str, output_spatial_shape=None, interp_order: str
         else:  # (H, W)
             data = np.expand_dims(data, 0)  # make a channel
             data = xform(data)[0]  # first channel
-        if interp_order != "nearest":
+        if mode != "nearest":
             data = np.clip(data, _min, _max)
 
     if scale is not None:

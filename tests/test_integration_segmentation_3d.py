@@ -53,7 +53,7 @@ def run_training_test(root_dir, device=torch.device("cuda:0"), cachedataset=Fals
         [
             LoadNiftid(keys=["img", "seg"]),
             AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
-            Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], interp_order=["bilinear", "nearest"]),
+            Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"]),
             ScaleIntensityd(keys=["img", "seg"]),
             RandCropByPosNegLabeld(
                 keys=["img", "seg"], label_key="seg", spatial_size=[96, 96, 96], pos=1, neg=1, num_samples=4
@@ -67,7 +67,7 @@ def run_training_test(root_dir, device=torch.device("cuda:0"), cachedataset=Fals
         [
             LoadNiftid(keys=["img", "seg"]),
             AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
-            Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], interp_order=["bilinear", "nearest"]),
+            Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"]),
             ScaleIntensityd(keys=["img", "seg"]),
             ToTensord(keys=["img", "seg"]),
         ]
@@ -173,7 +173,7 @@ def run_inference_test(root_dir, device=torch.device("cuda:0")):
         [
             LoadNiftid(keys=["img", "seg"]),
             AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
-            Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], interp_order=["bilinear", "nearest"]),
+            Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"]),
             ScaleIntensityd(keys=["img", "seg"]),
             ToTensord(keys=["img", "seg"]),
         ]

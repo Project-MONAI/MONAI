@@ -31,10 +31,12 @@ class SpatialPad(Transform):
 
     Args:
         spatial_size (sequence of int): the spatial size of output data after padding.
-        method: pad image symmetric on every side or only pad at the end sides. default is 'symmetric'.
-        mode: one of the following string values or a user supplied function: {'constant', 'edge', 'linear_ramp',
-            'maximum', 'mean', 'median', 'minimum', 'reflect', 'symmetric', 'wrap', 'empty', <function>}
-            for more details, please check: https://docs.scipy.org/doc/numpy/reference/generated/numpy.pad.html
+        method: {``"symmetric"``, ``"end"``}
+            Pad image symmetric on every side or only pad at the end sides. Defaults to ``"symmetric"``.
+        mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
+            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
     """
 
     def __init__(self, spatial_size, method: str = "symmetric", mode: str = "constant"):
@@ -55,6 +57,13 @@ class SpatialPad(Transform):
             return [(0, max(self.spatial_size[i] - data_shape[i], 0)) for i in range(len(self.spatial_size))]
 
     def __call__(self, img, mode: Optional[str] = None):
+        """
+        Args:
+            mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
+                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                One of the listed string values or a user supplied function. Defaults to ``self.mode``.
+                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+        """
         data_pad_width = self._determine_data_pad_width(img.shape[1:])
         all_pad_width = [(0, 0)] + data_pad_width
         if not np.asarray(all_pad_width).any():
@@ -79,9 +88,10 @@ class BorderPad(Transform):
                 for example, image shape(CHW) is [1, 4, 4], spatial_border is [1, 2, 3, 4], pad top of H dim with 1,
                 pad bottom of H dim with 2, pad left of W dim with 3, pad right of W dim with 4.
                 the result shape is [1, 7, 11].
-        mode: one of the following string values or a user supplied function: {'constant', 'edge', 'linear_ramp',
-            'maximum', 'mean', 'median', 'minimum', 'reflect', 'symmetric', 'wrap', 'empty', <function>}
-            for more details, please check: https://docs.scipy.org/doc/numpy/reference/generated/numpy.pad.html
+        mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
+                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
 
     """
 
@@ -119,7 +129,10 @@ class DivisiblePad(Transform):
             k (int or sequence of int): the target k for each spatial dimension.
                 if `k` is negative or 0, the original size is preserved.
                 if `k` is an int, the same `k` be applied to all the input spatial dimensions.
-            mode: padding mode for SpatialPad.
+            mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
+                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
 
         See also :py:class:`monai.transforms.SpatialPad`
         """

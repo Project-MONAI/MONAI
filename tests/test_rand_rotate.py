@@ -28,14 +28,19 @@ class TestRandRotate2D(NumpyImageTestCase2D):
             ((-45, 0), False, "nearest", "zeros", True),
         ]
     )
-    def test_correct_results(self, degrees, keep_size, order, mode, align_corners):
+    def test_correct_results(self, degrees, keep_size, mode, padding_mode, align_corners):
         rotate_fn = RandRotate(
-            range_x=degrees, prob=1.0, keep_size=keep_size, interp_order=order, mode=mode, align_corners=align_corners
+            range_x=degrees,
+            prob=1.0,
+            keep_size=keep_size,
+            mode=mode,
+            padding_mode=padding_mode,
+            align_corners=align_corners,
         )
         rotate_fn.set_random_state(243)
         rotated = rotate_fn(self.imt[0])
 
-        _order = 0 if order == "nearest" else 1
+        _order = 0 if mode == "nearest" else 1
         if mode == "border":
             _mode = "nearest"
         elif mode == "reflection":
@@ -59,15 +64,15 @@ class TestRandRotate3D(NumpyImageTestCase3D):
             ((-45, 0), 0, 0, False, "nearest", "zeros", False, (1, 48, 77, 90)),
         ]
     )
-    def test_correct_results(self, x, y, z, keep_size, order, mode, align_corners, expected):
+    def test_correct_results(self, x, y, z, keep_size, mode, padding_mode, align_corners, expected):
         rotate_fn = RandRotate(
             range_x=x,
             range_y=y,
             range_z=z,
             prob=1.0,
             keep_size=keep_size,
-            interp_order=order,
             mode=mode,
+            padding_mode=padding_mode,
             align_corners=align_corners,
         )
         rotate_fn.set_random_state(243)

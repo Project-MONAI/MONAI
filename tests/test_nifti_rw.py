@@ -81,13 +81,11 @@ class TestNiftiLoadRead(unittest.TestCase):
         np.set_printoptions(suppress=True, precision=3)
         test_image = make_nifti_image(np.arange(64).reshape(1, 8, 8), np.diag([1.5, 1.5, 1.5, 1]))
         data, header = LoadNifti(as_closest_canonical=False)(test_image)
-        data, original_affine, new_affine = Spacing([0.8, 0.8, 0.8])(
-            data[None], header["affine"], interp_order="nearest"
-        )
+        data, original_affine, new_affine = Spacing([0.8, 0.8, 0.8])(data[None], header["affine"], mode="nearest")
         data, _, new_affine = Orientation("ILP")(data, new_affine)
         if os.path.exists(test_image):
             os.remove(test_image)
-        write_nifti(data[0], test_image, new_affine, original_affine, interp_order="nearest", mode="border")
+        write_nifti(data[0], test_image, new_affine, original_affine, mode="nearest", padding_mode="border")
         saved = nib.load(test_image)
         saved_data = saved.get_fdata()
         np.testing.assert_allclose(saved_data, np.arange(64).reshape(1, 8, 8), atol=1e-7)
@@ -98,8 +96,8 @@ class TestNiftiLoadRead(unittest.TestCase):
             test_image,
             new_affine,
             original_affine,
-            interp_order="nearest",
-            mode="border",
+            mode="nearest",
+            padding_mode="border",
             output_spatial_shape=(1, 8, 8),
         )
         saved = nib.load(test_image)

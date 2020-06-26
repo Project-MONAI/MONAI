@@ -35,9 +35,8 @@ class DiceMetric:
         sigmoid: whether to add sigmoid function to y_pred before computation. Defaults to False.
         logit_thresh: the threshold value used to convert (after sigmoid if `sigmoid=True`)
             `y_pred` into a binary matrix. Defaults to 0.5.
-        reduction: define the mode to reduce computation result of 1 batch data.
-            available modes: `none`, `mean`, `sum`, `mean_batch`, `sum_batch`, `mean_batch`, `sum_batch`.
-            default is `mean`, average on channel dim then on batch dim.
+        reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``, ``"mean_channel"``, ``"sum_channel"``}
+            Define the mode to reduce computation result of 1 batch data. Defaults to ``"mean"``.
 
     """
 

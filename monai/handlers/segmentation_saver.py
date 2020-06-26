@@ -32,8 +32,8 @@ class SegmentationSaver:
         output_postfix: str = "seg",
         output_ext: str = ".nii.gz",
         resample: bool = True,
-        interp_order: str = "nearest",
-        mode: str = "border",
+        mode: str = "nearest",
+        padding_mode: str = "border",
         scale=None,
         dtype: Optional[np.dtype] = None,
         batch_transform: Callable = lambda x: x,
@@ -46,16 +46,23 @@ class SegmentationSaver:
             output_postfix: a string appended to all output file names.
             output_ext: output file extension name.
             resample: whether to resample before saving the data array.
-            interp_order:
-                The interpolation mode. Defaults to "nearest". This option is used when `resample = True`.
-                When saving NIfTI files, the available options are "nearest", "bilinear"
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample.
-                When saving PNG files, the available options are "nearest", "bilinear", "bicubic", "area".
-                See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate.
-            mode: The mode parameter determines how the input array is extended beyond its boundaries.
-                This option is used when `resample = True`.
-                When saving NIfTI files, the options are "zeros", "border", "reflection". Default is "border".
-                When saving PNG files, the options is ignored.
+            mode: This option is used when ``resample = True``. Defaults to ``"nearest"``.
+
+                - NIfTI files {``"bilinear"``, ``"nearest"``}
+                    Interpolation mode to calculate output values.
+                    See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                - PNG files {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
+                    The interpolation mode.
+                    See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+
+            padding_mode: This option is used when ``resample = True``. Defaults to ``"border"``.
+
+                - NIfTI files {``"zeros"``, ``"border"``, ``"reflection"``}
+                    Padding mode for outside grid values.
+                    See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                - PNG files
+                    This option is ignored.
+
             scale (255, 65535): postprocess data by clipping to [0, 1] and scaling
                 [0, 255] (uint8) or [0, 65535] (uint16). Default is None to disable scaling.
                 It's used for PNG format only.
@@ -77,8 +84,8 @@ class SegmentationSaver:
                 output_postfix=output_postfix,
                 output_ext=output_ext,
                 resample=resample,
-                interp_order=interp_order,
                 mode=mode,
+                padding_mode=padding_mode,
                 dtype=dtype,
             )
         elif output_ext == ".png":
@@ -87,7 +94,7 @@ class SegmentationSaver:
                 output_postfix=output_postfix,
                 output_ext=output_ext,
                 resample=resample,
-                interp_order=interp_order,
+                mode=mode,
                 scale=scale,
             )
         self.batch_transform = batch_transform
