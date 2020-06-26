@@ -14,6 +14,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 from typing import Optional, Tuple
+from warnings import warn
 
 import numpy as np
 
@@ -236,6 +237,10 @@ class ScaleIntensityRange(Transform):
         self.clip = clip
 
     def __call__(self, img):
+        if self.a_max - self.a_min == 0.0:
+            warn("Divide by zero (a_min == a_max)", Warning)
+            return img - self.a_min + self.b_min
+
         img = (img - self.a_min) / (self.a_max - self.a_min)
         img = img * (self.b_max - self.b_min) + self.b_min
         if self.clip:
