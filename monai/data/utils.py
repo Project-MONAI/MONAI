@@ -129,7 +129,7 @@ def dense_patch_slices(image_size, patch_size, scan_interval):
 
 
 def iter_patch(
-    arr: np.ndarray, patch_size, start_pos=(), copy_back: bool = True, pad_mode: Optional[str] = "wrap", **pad_opts
+    arr: np.ndarray, patch_size, start_pos=(), copy_back: bool = True, mode: str = "wrap", **pad_opts,
 ):
     """
     Yield successive patches from `arr` of size `patch_size`. The iteration can start from position `start_pos` in `arr`
@@ -141,7 +141,10 @@ def iter_patch(
         patch_size (tuple of int or None): size of patches to generate slices for, 0 or None selects whole dimension
         start_pos (tuple of it, optional): starting position in the array, default is 0 for each dimension
         copy_back: if True data from the yielded patches is copied back to `arr` once the generator completes
-        pad_mode (str, optional): padding mode, see `numpy.pad`
+        mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
+            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            One of the listed string values or a user supplied function. Defaults to ``"wrap"``.
+            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
         pad_opts (dict, optional): padding options, see `numpy.pad`
 
     Yields:
@@ -153,7 +156,7 @@ def iter_patch(
     start_pos = ensure_tuple_size(start_pos, arr.ndim)
 
     # pad image by maximum values needed to ensure patches are taken from inside an image
-    arrpad = np.pad(arr, tuple((p, p) for p in patch_size), pad_mode, **pad_opts)
+    arrpad = np.pad(arr, tuple((p, p) for p in patch_size), mode, **pad_opts)
 
     # choose a start position in the padded image
     start_pos_padded = tuple(s + p for s, p in zip(start_pos, patch_size))
@@ -426,8 +429,12 @@ def compute_importance_map(patch_size, mode: str = "constant", sigma_scale: floa
 
     Args:
         patch_size (tuple): Size of the required importance map. This should be either H, W [,D].
-        mode: Importance map type. Options are 'constant' (Each weight has value 1.0)
-            or 'gaussian' (Importance becomes lower away from center).
+        mode: {``"constant"``, ``"gaussian"``}
+            How to blend output of overlapping windows. Defaults to ``"constant"``.
+
+            - ``"constant``": gives equal weight to all predictions.
+            - ``"gaussian``": gives less weight to predictions on edges of windows.
+
         sigma_scale: Sigma_scale to calculate sigma for each dimension
             (sigma = sigma_scale * dim_size). Used for gaussian mode only.
         device (str of pytorch device): Device to put importance map on.

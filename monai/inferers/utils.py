@@ -22,7 +22,7 @@ def sliding_window_inference(
     sw_batch_size: int,
     predictor: Callable,
     overlap: float = 0.25,
-    blend_mode: str = "constant",
+    mode: str = "constant",
     padding_mode: str = "constant",
     cval=0,
 ):
@@ -42,10 +42,15 @@ def sliding_window_inference(
             should return a prediction with the same spatial shape and batch_size, i.e. NMHW[D];
             where HW[D] represents the patch spatial size, M is the number of output channels, N is `sw_batch_size`.
         overlap: Amount of overlap between scans.
-        blend_mode: How to blend output of overlapping windows. Options are 'constant', 'gaussian'. 'constant'
-            gives equal weight to all predictions while gaussian gives less weight to predictions on edges of windows.
-        padding_mode: padding mode when roi_size is larger than inputs.
-            options are 'constant', 'reflect', 'replicate' or 'circular'. Default: 'constant'
+        mode: {``"constant"``, ``"gaussian"``}
+            How to blend output of overlapping windows. Defaults to ``"constant"``.
+
+            - ``"constant``": gives equal weight to all predictions.
+            - ``"gaussian``": gives less weight to predictions on edges of windows.
+
+        padding_mode: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}
+            Padding mode when ``roi_size`` is larger than inputs. Defaults to ``"constant"``
+            See also: https://pytorch.org/docs/stable/nn.functional.html#pad
         cval: fill value for 'constant' padding mode. Default: 0
 
     Note:
@@ -103,9 +108,7 @@ def sliding_window_inference(
     output_shape = [batch_size, output_classes] + list(image_size)
 
     # Create importance map
-    importance_map = compute_importance_map(
-        get_valid_patch_size(image_size, roi_size), mode=blend_mode, device=inputs.device
-    )
+    importance_map = compute_importance_map(get_valid_patch_size(image_size, roi_size), mode=mode, device=inputs.device)
 
     # allocate memory to store the full output and the count for overlapping parts
     output_image = torch.zeros(output_shape, dtype=torch.float32, device=inputs.device)

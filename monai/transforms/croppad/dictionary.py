@@ -15,7 +15,7 @@ defined in :py:class:`monai.transforms.croppad.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Callable, Optional
+from typing import Callable, Optional, Sequence, Union
 
 from monai.config.type_definitions import IndexSelection, KeysCollection
 from monai.data.utils import get_random_patch, get_valid_patch_size
@@ -31,17 +31,25 @@ class SpatialPadd(MapTransform):
     Performs padding to the data, symmetric for all sides or all on one side for each dimension.
     """
 
-    def __init__(self, keys: KeysCollection, spatial_size, method: str = "symmetric", mode="constant"):
+    def __init__(
+        self,
+        keys: KeysCollection,
+        spatial_size,
+        method: str = "symmetric",
+        mode: Union[Sequence[str], str] = "constant",
+    ):
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             spatial_size (list): the spatial size of output data after padding.
-            method: pad image symmetric on every side or only pad at the end sides. default is 'symmetric'.
-            mode (str or sequence of str): one of the following string values or a user supplied function:
-                {'constant', 'edge', 'linear_ramp', 'maximum', 'mean', 'median', 'minimum', 'reflect', 'symmetric',
-                'wrap', 'empty', <function>}
-                for more details, please check: https://docs.scipy.org/doc/numpy/reference/generated/numpy.pad.html
+            method: {``"symmetric"``, ``"end"``}
+                Pad image symmetric on every side or only pad at the end sides. Defaults to ``"symmetric"``.
+            mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
+                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                For a sequence each element corresponds to a key in ``keys``.
+                One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
         """
         super().__init__(keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
@@ -60,7 +68,7 @@ class BorderPadd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.BorderPad`.
     """
 
-    def __init__(self, keys: KeysCollection, spatial_border, mode="constant"):
+    def __init__(self, keys: KeysCollection, spatial_border, mode: Union[Sequence[str], str] = "constant"):
         """
         Args:
             spatial_border (int or sequence of int): specified size for every spatial border. it can be 3 shapes:
@@ -72,6 +80,11 @@ class BorderPadd(MapTransform):
                     for example, image shape(CHW) is [1, 4, 4], spatial_border is [1, 2, 3, 4], pad top of H dim with 1,
                     pad bottom of H dim with 2, pad left of W dim with 3, pad right of W dim with 4.
                     the result shape is [1, 7, 11].
+            mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
+                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                For a sequence each element corresponds to a key in ``keys``.
+                One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
             mode (str or sequence of str): one of the following string values or a user supplied function:
                 {'constant', 'edge', 'linear_ramp', 'maximum', 'mean', 'median', 'minimum', 'reflect',
                 'symmetric', 'wrap', 'empty', <function>}
@@ -96,13 +109,17 @@ class DivisiblePadd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.DivisiblePad`.
     """
 
-    def __init__(self, keys: KeysCollection, k, mode="constant"):
+    def __init__(self, keys: KeysCollection, k, mode: Union[Sequence[str], str] = "constant"):
         """
         Args:
             k (int or sequence of int): the target k for each spatial dimension.
                 if `k` is negative or 0, the original size is preserved.
                 if `k` is an int, the same `k` be applied to all the input spatial dimensions.
-            mode (str or sequence of str): padding mode for SpatialPad.
+            mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
+                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                For a sequence each element corresponds to a key in ``keys``.
+                One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
 
         See also :py:class:`monai.transforms.SpatialPad`
         """

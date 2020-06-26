@@ -22,18 +22,18 @@ from monai.transforms import Resized
 class TestResized(NumpyImageTestCase2D):
     def test_invalid_inputs(self):
         with self.assertRaises(NotImplementedError):
-            resize = Resized(keys="img", spatial_size=(128, 128, 3), interp_order="order")
+            resize = Resized(keys="img", spatial_size=(128, 128, 3), mode="order")
             resize({"img": self.imt[0]})
 
         with self.assertRaises(ValueError):
-            resize = Resized(keys="img", spatial_size=(128,), interp_order="order")
+            resize = Resized(keys="img", spatial_size=(128,), mode="order")
             resize({"img": self.imt[0]})
 
     @parameterized.expand([((64, 64), "area"), ((32, 32, 32), "area"), ((256, 256), "bilinear")])
-    def test_correct_results(self, spatial_size, interp_order):
-        resize = Resized("img", spatial_size, interp_order)
+    def test_correct_results(self, spatial_size, mode):
+        resize = Resized("img", spatial_size, mode)
         _order = 0
-        if interp_order.endswith("linear"):
+        if mode.endswith("linear"):
             _order = 1
         expected = list()
         for channel in self.imt[0]:

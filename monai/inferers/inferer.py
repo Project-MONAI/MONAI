@@ -63,8 +63,11 @@ class SlidingWindowInferer(Inferer):
         roi_size (list, tuple): the window size to execute SlidingWindow evaluation.
         sw_batch_size: the batch size to run window slices.
         overlap: Amount of overlap between scans.
-        blend_mode: How to blend output of overlapping windows. Options are 'constant', 'gaussian'. 'constant'
-            gives equal weight to all predictions while gaussian gives less weight to predictions on edges of windows.
+        mode: {``"constant"``, ``"gaussian"``}
+            How to blend output of overlapping windows. Defaults to ``"constant"``.
+
+            - ``"constant``": gives equal weight to all predictions.
+            - ``"gaussian``": gives less weight to predictions on edges of windows.
 
     Note:
         the "sw_batch_size" here is to run a batch of window slices of 1 input image,
@@ -72,14 +75,14 @@ class SlidingWindowInferer(Inferer):
 
     """
 
-    def __init__(self, roi_size, sw_batch_size: int = 1, overlap: float = 0.25, blend_mode: str = "constant"):
+    def __init__(self, roi_size, sw_batch_size: int = 1, overlap: float = 0.25, mode: str = "constant"):
         Inferer.__init__(self)
         if not isinstance(roi_size, (list, tuple)):
             raise ValueError("must specify the roi size in a list or tuple for SlidingWindow.")
         self.roi_size = roi_size
         self.sw_batch_size = sw_batch_size
         self.overlap = overlap
-        self.blend_mode = blend_mode
+        self.mode = mode
 
     def __call__(self, inputs: torch.Tensor, network):
         """
@@ -90,6 +93,4 @@ class SlidingWindowInferer(Inferer):
             network (Network): target model to execute inference.
 
         """
-        return sliding_window_inference(
-            inputs, self.roi_size, self.sw_batch_size, network, self.overlap, self.blend_mode
-        )
+        return sliding_window_inference(inputs, self.roi_size, self.sw_batch_size, network, self.overlap, self.mode)

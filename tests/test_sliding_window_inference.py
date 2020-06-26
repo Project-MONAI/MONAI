@@ -40,9 +40,7 @@ class TestSlidingWindowInference(unittest.TestCase):
         def compute(data):
             return data + 1
 
-        result = sliding_window_inference(
-            inputs.to(device), roi_shape, sw_batch_size, compute, overlap, blend_mode=mode
-        )
+        result = sliding_window_inference(inputs.to(device), roi_shape, sw_batch_size, compute, overlap, mode=mode)
         expected_val = np.ones(image_shape, dtype=np.float32) + 1
         self.assertTrue(np.allclose(result.numpy(), expected_val))
 
