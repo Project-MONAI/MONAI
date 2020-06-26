@@ -60,7 +60,7 @@ class SimpleASPP(nn.Module):
         self.convs = nn.ModuleList()
         for k, d, p in zip(kernel_sizes, dilations, pads):
             _conv = Conv[Conv.CONV, spatial_dims](
-                in_channels=in_channels, out_channels=conv_out_channels, kernel_size=k, dilation=d, padding=p,
+                in_channels=in_channels, out_channels=conv_out_channels, kernel_size=k, dilation=d, padding=p
             )
             self.convs.append(_conv)
 

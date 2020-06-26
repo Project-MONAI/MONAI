@@ -84,8 +84,15 @@ class HighResBlock(nn.Module):
         """
         Args:
             kernels (list of int): each integer k in `kernels` corresponds to a convolution layer with kernel size k.
-            channel_matching ('pad'|'project'): handling residual branch and conv branch channel mismatches
-                with either zero padding ('pad') or a trainable conv with kernel size 1 ('project').
+            norm_type: {``"batch"``, ``"instance"``}
+                Feature normalisation with batchnorm or instancenorm. Defaults to ``"instance"``.
+            acti_type: {``"relu"``, ``"prelu"``, ``"relu6"``}
+                Non-linear activation using ReLU or PReLU. Defaults to ``"relu"``.
+            channel_matching: {``"pad"``, ``"project"``}
+                Specifies handling residual branch and conv branch channel mismatches. Defaults to ``"pad"``.
+
+                - ``"pad"``: with zero padding.
+                - ``"project"``: with a trainable conv with kernel size.
         """
         super(HighResBlock, self).__init__()
         conv_type = Conv[Conv.CONV, spatial_dims]
@@ -140,8 +147,10 @@ class HighResNet(nn.Module):
         spatial_dims: number of spatial dimensions of the input image.
         in_channels: number of input channels.
         out_channels: number of output channels.
-        norm_type ('batch'|'instance'): feature normalisation with batchnorm or instancenorm.
-        acti_type ('relu'|'prelu'|'relu6'): non-linear activation using ReLU or PReLU.
+        norm_type: {``"batch"``, ``"instance"``}
+            Feature normalisation with batchnorm or instancenorm. Defaults to ``"batch"``.
+        acti_type: {``"relu"``, ``"prelu"``, ``"relu6"``}
+            Non-linear activation using ReLU or PReLU. Defaults to ``"relu"``.
         dropout_prob: probability of the feature map to be zeroed
             (only applies to the penultimate conv layer).
         layer_params (a list of dictionaries): specifying key parameters of each layer/block.

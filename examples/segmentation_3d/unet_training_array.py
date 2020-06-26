@@ -25,7 +25,7 @@ import monai
 from monai.data import NiftiDataset, create_test_image_3d
 from monai.inferers import sliding_window_inference
 from monai.transforms import Compose, AddChannel, ScaleIntensity, RandSpatialCrop, RandRotate90, ToTensor
-from monai.metrics import compute_meandice
+from monai.metrics import DiceMetric
 from monai.visualize.img2tensorboard import plot_2d_or_3d_image
 
 
@@ -81,6 +81,7 @@ def main():
     # create a validation data loader
     val_ds = NiftiDataset(images[-20:], segs[-20:], transform=val_imtrans, seg_transform=val_segtrans)
     val_loader = DataLoader(val_ds, batch_size=1, num_workers=4, pin_memory=torch.cuda.is_available())
+    dice_metric = DiceMetric(include_background=True, to_onehot_y=False, sigmoid=True, reduction="mean")
 
     # create UNet, DiceLoss and Adam optimizer
     device = torch.device("cuda:0")
@@ -137,11 +138,9 @@ def main():
                     roi_size = (96, 96, 96)
                     sw_batch_size = 4
                     val_outputs = sliding_window_inference(val_images, roi_size, sw_batch_size, model)
-                    value = compute_meandice(
-                        y_pred=val_outputs, y=val_labels, include_background=True, to_onehot_y=False, sigmoid=True
-                    )
+                    value = dice_metric(y_pred=val_outputs, y=val_labels)
                     metric_count += len(value)
-                    metric_sum += value.sum().item()
+                    metric_sum += value.item() * len(value)
                 metric = metric_sum / metric_count
                 metric_values.append(metric)
                 if metric > best_metric:

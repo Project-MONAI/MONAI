@@ -15,10 +15,7 @@ import sys
 from parameterized import parameterized
 from monai.transforms import DeleteItemsd
 
-TEST_CASE_1 = [
-    {"keys": [str(i) for i in range(30)]},
-    20,
-]
+TEST_CASE_1 = [{"keys": [str(i) for i in range(30)]}, 20]
 
 
 class TestDeleteItemsd(unittest.TestCase):

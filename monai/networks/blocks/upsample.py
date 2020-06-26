@@ -38,8 +38,11 @@ class UpSample(nn.Module):
             out_channels: number of channels of the output image. Defaults to `in_channels`.
             scale_factor: multiplier for spatial size. Has to match input size if it is a tuple. Defaults to 2.
             with_conv: whether to use a transposed convolution for upsampling. Defaults to False.
-            mode: the interpolation mode. Defaults to "linear", this corresponds to linear, bilinear, trilinear
-                for 1D, 2D, and 3D respectively.
+            mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``}
+                If ends with ``"linear"`` will use ``spatial dims`` to determine the correct interpolation.
+                This corresponds to linear, bilinear, trilinear for 1D, 2D, and 3D respectively.
+                The interpolation mode. Defaults to ``"linear"``.
+                See also: https://pytorch.org/docs/stable/nn.html#upsample
             align_corners: set the align_corners parameter of `torch.nn.Upsample`. Defaults to True.
         """
         super().__init__()

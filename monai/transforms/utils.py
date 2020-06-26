@@ -22,9 +22,9 @@ from monai.utils import ensure_tuple, optional_import, min_version
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 
 
-def rand_choice(prob=0.5):
+def rand_choice(prob: float = 0.5) -> bool:
     """Returns True if a randomly chosen number is less than or equal to `prob`, by default this is a 50/50 chance."""
-    return random.random() <= prob
+    return bool(random.random() <= prob)
 
 
 def img_bounds(img):
@@ -39,7 +39,7 @@ def in_bounds(x, y, margin, maxx, maxy):
     return margin <= x < (maxx - margin) and margin <= y < (maxy - margin)
 
 
-def is_empty(img):
+def is_empty(img) -> bool:
     """Returns True if `img` is empty, that is its maximum value is not greater than its minimum."""
     return not (img.max() > img.min())  # use > instead of <= so that an image full of NaNs will result in True
 
@@ -166,7 +166,7 @@ def one_hot(labels, num_classes):
 
 def generate_pos_neg_label_crop_centers(
     label: np.ndarray,
-    size,
+    spatial_size,
     num_samples: int,
     pos_ratio: float,
     image: Optional[np.ndarray] = None,
@@ -178,7 +178,7 @@ def generate_pos_neg_label_crop_centers(
 
     Args:
         label (numpy.ndarray): use the label data to get the foreground/background information.
-        size (list or tuple): size of the ROIs to be sampled.
+        spatial_size (sequence of int): spatial size of the ROIs to be sampled.
         num_samples: total sample centers to be generated.
         pos_ratio: ratio of total locations generated that have center being foreground.
         image (numpy.ndarray): if image is not None, use ``label = 0 & image > image_threshold``
@@ -188,19 +188,35 @@ def generate_pos_neg_label_crop_centers(
         rand_state (random.RandomState): numpy randomState object to align with other modules.
     """
     max_size = label.shape[1:]
-    assert len(max_size) == len(size), f"expected size ({len(max_size)}) does not match label dim ({len(size)})."
-    assert (np.subtract(max_size, size) >= 0).all(), "proposed roi is larger than image itself."
+    if len(max_size) != len(spatial_size):
+        raise ValueError(f"expected size ({len(max_size)}) does not match label dim ({len(spatial_size)}).")
+    if not (np.subtract(max_size, spatial_size) >= 0).all():
+        raise ValueError("proposed roi is larger than image itself.")
 
     # Select subregion to assure valid roi
-    valid_start = np.floor_divide(size, 2)
-    valid_end = np.subtract(max_size + np.array(1), size / np.array(2)).astype(np.uint16)  # add 1 for random
+    valid_start = np.floor_divide(spatial_size, 2)
+    valid_end = np.subtract(max_size + np.array(1), spatial_size / np.array(2)).astype(np.uint16)  # add 1 for random
     # int generation to have full range on upper side, but subtract unfloored size/2 to prevent rounded range
     # from being too high
     for i in range(len(valid_start)):  # need this because np.random.randint does not work with same start and end
         if valid_start[i] == valid_end[i]:
             valid_end[i] += 1
 
+    def _correct_centers(center_ori, valid_start, valid_end):
+        centers = list()
+        for i, c in enumerate(center_ori):
+            center_i = c
+            if c < valid_start[i]:
+                center_i = valid_start[i]
+            if c >= valid_end[i]:
+                center_i = valid_end[i] - 1
+            center_ori[i] = center_i
+        return center_ori
+
+    centers = []
     # Prepare fg/bg indices
+    if label.shape[0] > 1:
+        label = label[1:]  # for One-Hot format data, remove the background channel
     label_flat = np.any(label, axis=0).ravel()  # in case label has multiple dimensions
     fg_indices = np.nonzero(label_flat)[0]
     if image is not None:
@@ -213,13 +229,11 @@ def generate_pos_neg_label_crop_centers(
         if not len(fg_indices) and not len(bg_indices):
             raise ValueError("no sampling location available.")
         warnings.warn(
-            "N foreground {}, N  background {}, unable to generate class balanced samples.".format(
-                len(fg_indices), len(bg_indices)
-            )
+            f"N foreground {len(fg_indices)}, N  background {len(bg_indices)},"
+            "unable to generate class balanced samples."
         )
         pos_ratio = 0 if not len(fg_indices) else 1
 
-    centers = []
     for _ in range(num_samples):
         indices_to_use = fg_indices if rand_state.rand() < pos_ratio else bg_indices
         random_int = rand_state.randint(len(indices_to_use))
@@ -227,14 +241,7 @@ def generate_pos_neg_label_crop_centers(
         center = center[1:]
         # shift center to range of valid centers
         center_ori = [c for c in center]
-        for i, c in enumerate(center):
-            center_i = c
-            if c < valid_start[i]:
-                center_i = valid_start[i]
-            if c >= valid_end[i]:
-                center_i = valid_end[i] - 1
-            center_ori[i] = center_i
-        centers.append(center_ori)
+        centers.append(_correct_centers(center_ori, valid_start, valid_end))
 
     return centers
 

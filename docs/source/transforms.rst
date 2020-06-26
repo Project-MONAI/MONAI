@@ -217,6 +217,12 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
+`BorderPad`
+~~~~~~~~~~~
+.. autoclass:: BorderPad
+    :members:
+    :special-members: __call__
+
 `DivisiblePad`
 ~~~~~~~~~~~~~~
 .. autoclass:: DivisiblePad
@@ -238,6 +244,12 @@ Vanilla Transforms
 `RandSpatialCrop`
 ~~~~~~~~~~~~~~~~~
 .. autoclass:: RandSpatialCrop
+    :members:
+    :special-members: __call__
+
+`RandSpatialCropSamples`
+~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: RandSpatialCropSamples
     :members:
     :special-members: __call__
 
@@ -509,6 +521,12 @@ Dictionary-based Transforms
     :members:
     :special-members: __call__
 
+`BorderPadd`
+~~~~~~~~~~~~
+.. autoclass:: BorderPadd
+    :members:
+    :special-members: __call__
+
 `DivisiblePadd`
 ~~~~~~~~~~~~~~~
 .. autoclass:: DivisiblePadd
@@ -530,6 +548,12 @@ Dictionary-based Transforms
 `RandSpatialCropd`
 ~~~~~~~~~~~~~~~~~~
 .. autoclass:: RandSpatialCropd
+    :members:
+    :special-members: __call__
+
+`RandSpatialCropSamplesd`
+~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: RandSpatialCropSamplesd
     :members:
     :special-members: __call__
 

@@ -22,8 +22,10 @@ def same_padding(kernel_size, dilation=1):
 
     kernel_size = np.atleast_1d(kernel_size)
     dilation = np.atleast_1d(dilation)
+
     if np.any((kernel_size - 1) * dilation % 2 == 1):
-        raise NotImplementedError(f"same padding not available for k={kernel_size} and d={dilation}.")
+        raise NotImplementedError(f"Same padding not available for k={kernel_size} and d={dilation}.")
+
     padding = (kernel_size - 1) / 2 * dilation
     padding = tuple(int(p) for p in padding)
 

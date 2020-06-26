@@ -17,11 +17,7 @@ from parameterized import parameterized
 from monai.networks.blocks import ChannelSELayer, ResidualSELayer
 
 TEST_CASES = [  # single channel 3D, batch 16
-    [  # 4-channel 2D, batch 7
-        {"spatial_dims": 2, "in_channels": 4, "r": 3},
-        torch.randn(7, 4, 64, 48),
-        (7, 4, 64, 48),
-    ],
+    [{"spatial_dims": 2, "in_channels": 4, "r": 3}, torch.randn(7, 4, 64, 48), (7, 4, 64, 48)],  # 4-channel 2D, batch 7
     [  # 4-channel 1D, batch 16
         {"spatial_dims": 1, "in_channels": 4, "r": 3, "acti_type_1": "relu"},
         torch.randn(16, 4, 63),

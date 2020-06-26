@@ -67,7 +67,7 @@ class NiftiDataset(Dataset, Randomizable):
     def __len__(self):
         return len(self.image_files)
 
-    def randomize(self):
+    def randomize(self) -> None:  # type: ignore # see issue #495
         self._seed = self.R.randint(np.iinfo(np.int32).max)
 
     def __getitem__(self, index: int):
