@@ -136,7 +136,9 @@ dataset = ZipDataset([DatasetA(), DatasetB()], transform)
 
 ### 4. Predefined Datasets for public medical data
 In order to quickly get start with popular training data in medical domain, MONAI provides several data-specific Datasets(like: `MedNISTDataset`, `DecathlonDataset`, etc.), which include downloading, extracting data files and support generation of training/evaluation items with transforms. And they are flexible that users can easily modify the JSON config file to change the default behaviors.  
-If anyone wants to contribute a new public dataset, just refer to existing Datasets and leverage the download and extracting APIs, etc.
+If anyone wants to contribute a new public dataset, just refer to existing Datasets and leverage the download and extracting APIs, etc.  
+The common progress of predefined datasets:
+![image](../images/dataset_progress.png)
 
 ## Losses
 There are domain-specific loss functions in the medical imaging research which are not typically used in the generic computer vision tasks. As an important module of MONAI, these loss functions are implemented in PyTorch, such as `DiceLoss`, `GeneralizedDiceLoss`, `MaskedDiceLoss`, `TverskyLoss` and `FocalLoss`, etc.
