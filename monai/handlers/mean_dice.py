@@ -15,6 +15,7 @@ import torch
 
 from monai.metrics import DiceMetric
 from monai.utils import exact_version, optional_import
+from monai.utils.enums import MetricReduction
 
 NotComputableError, _ = optional_import("ignite.exceptions", "0.3.0", exact_version, "NotComputableError")
 Metric, _ = optional_import("ignite.metrics", "0.3.0", exact_version, "Metric")
@@ -61,7 +62,7 @@ class MeanDice(Metric):
             mutually_exclusive=mutually_exclusive,
             sigmoid=sigmoid,
             logit_thresh=logit_thresh,
-            reduction="mean",
+            reduction=MetricReduction.MEAN,
         )
         self._sum = 0
         self._num_examples = 0

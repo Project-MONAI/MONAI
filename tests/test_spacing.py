@@ -19,37 +19,37 @@ from monai.utils import ensure_tuple
 
 TEST_CASES = [
     [
-        {"pixdim": (1.0, 1.5, 1.0), "mode": "zeros", "dtype": np.float},
+        {"pixdim": (1.0, 1.5, 1.0), "padding_mode": "zeros", "dtype": np.float},
         np.arange(4).reshape((1, 2, 2)) + 1.0,  # data
         {"affine": np.eye(4)},
         np.array([[[1.0, 1.0], [3.0, 2.0]]]),
     ],
     [
-        {"pixdim": 1.0, "mode": "zeros", "dtype": np.float},
+        {"pixdim": 1.0, "padding_mode": "zeros", "dtype": np.float},
         np.ones((1, 2, 1, 2)),  # data
         {"affine": np.eye(4)},
         np.array([[[[1.0, 1.0]], [[1.0, 1.0]]]]),
     ],
     [
-        {"pixdim": (1.0, 1.0, 1.0), "mode": "zeros", "dtype": np.float},
+        {"pixdim": (1.0, 1.0, 1.0), "padding_mode": "zeros", "dtype": np.float},
         np.ones((1, 2, 1, 2)),  # data
         {"affine": np.eye(4)},
         np.array([[[[1.0, 1.0]], [[1.0, 1.0]]]]),
     ],
     [
-        {"pixdim": (1.0, 0.2, 1.5), "diagonal": False, "mode": "zeros"},
+        {"pixdim": (1.0, 0.2, 1.5), "diagonal": False, "padding_mode": "zeros"},
         np.ones((1, 2, 1, 2)),  # data
         {"affine": np.array([[2, 1, 0, 4], [-1, -3, 0, 5], [0, 0, 2.0, 5], [0, 0, 0, 1]])},
         np.array([[[[0.95527864, 0.95527864]], [[1.0, 1.0]], [[1.0, 1.0]]]]),
     ],
     [
-        {"pixdim": (3.0, 1.0), "mode": "zeros"},
+        {"pixdim": (3.0, 1.0), "padding_mode": "zeros"},
         np.arange(24).reshape((2, 3, 4)),  # data
         {"affine": np.diag([-3.0, 0.2, 1.5, 1])},
         np.array([[[0, 0], [4, 0], [8, 0]], [[12, 0], [16, 0], [20, 0]]]),
     ],
     [
-        {"pixdim": (3.0, 1.0), "mode": "zeros"},
+        {"pixdim": (3.0, 1.0), "padding_mode": "zeros"},
         np.arange(24).reshape((2, 3, 4)),  # data
         {},
         np.array([[[0, 1, 2, 3], [0, 0, 0, 0]], [[12, 13, 14, 15], [0, 0, 0, 0]]]),
@@ -77,7 +77,7 @@ TEST_CASES = [
         ),
     ],
     [
-        {"pixdim": (4.0, 5.0, 6.0), "mode": "border", "diagonal": True},
+        {"pixdim": (4.0, 5.0, 6.0), "padding_mode": "border", "diagonal": True},
         np.arange(24).reshape((1, 2, 3, 4)),  # data
         {"affine": np.array([[-4, 0, 0, -4], [0, 5, 0, 0], [0, 0, 6, 0], [0, 0, 0, 1]])},
         np.array(
@@ -85,17 +85,17 @@ TEST_CASES = [
         ),
     ],
     [
-        {"pixdim": (4.0, 5.0, 6.0), "mode": "border", "diagonal": True},
+        {"pixdim": (4.0, 5.0, 6.0), "padding_mode": "border", "diagonal": True},
         np.arange(24).reshape((1, 2, 3, 4)),  # data
-        {"affine": np.array([[-4, 0, 0, -4], [0, 5, 0, 0], [0, 0, 6, 0], [0, 0, 0, 1]]), "interp_order": "nearest"},
+        {"affine": np.array([[-4, 0, 0, -4], [0, 5, 0, 0], [0, 0, 6, 0], [0, 0, 0, 1]]), "mode": "nearest"},
         np.array(
             [[[[12, 13, 14, 15], [16, 17, 18, 19], [20, 21, 22, 23]], [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]]]]
         ),
     ],
     [
-        {"pixdim": (1.9, 4.0, 5.0), "mode": "zeros", "diagonal": True},
+        {"pixdim": (1.9, 4.0, 5.0), "padding_mode": "zeros", "diagonal": True},
         np.arange(24).reshape((1, 4, 6)),  # data
-        {"affine": np.array([[-4, 0, 0, -4], [0, 5, 0, 0], [0, 0, 6, 0], [0, 0, 0, 1]]), "interp_order": "nearest"},
+        {"affine": np.array([[-4, 0, 0, -4], [0, 5, 0, 0], [0, 0, 6, 0], [0, 0, 0, 1]]), "mode": "nearest"},
         np.array(
             [
                 [
@@ -111,9 +111,9 @@ TEST_CASES = [
         ),
     ],
     [
-        {"pixdim": (5.0, 3.0, 6.0), "mode": "border", "diagonal": True, "dtype": np.float32},
+        {"pixdim": (5.0, 3.0, 6.0), "padding_mode": "border", "diagonal": True, "dtype": np.float32},
         np.arange(24).reshape((1, 4, 6)),  # data
-        {"affine": np.array([[-4, 0, 0, 0], [0, 5, 0, 0], [0, 0, 6, 0], [0, 0, 0, 1]]), "interp_order": "bilinear"},
+        {"affine": np.array([[-4, 0, 0, 0], [0, 5, 0, 0], [0, 0, 6, 0], [0, 0, 0, 1]]), "mode": "bilinear"},
         np.array(
             [
                 [
@@ -125,28 +125,9 @@ TEST_CASES = [
         ),
     ],
     [
-        {"pixdim": (5.0, 3.0, 6.0), "mode": "zeros", "diagonal": True, "dtype": np.float32},
+        {"pixdim": (5.0, 3.0, 6.0), "padding_mode": "zeros", "diagonal": True, "dtype": np.float32},
         np.arange(24).reshape((1, 4, 6)),  # data
-        {"affine": np.array([[-4, 0, 0, 0], [0, 5, 0, 0], [0, 0, 6, 0], [0, 0, 0, 1]]), "interp_order": "bilinear"},
-        np.array(
-            [
-                [
-                    [18.0000, 18.6000, 19.2000, 19.8000, 20.4000, 21.0000, 21.6000, 22.2000, 22.8000],
-                    [10.5000, 11.1000, 11.7000, 12.3000, 12.9000, 13.5000, 14.1000, 14.7000, 15.3000],
-                    [3.0000, 3.6000, 4.2000, 4.8000, 5.4000, 6.0000, 6.6000, 7.2000, 7.8000],
-                ]
-            ]
-        ),
-    ],
-    [
-        {"pixdim": (5.0, 3.0, 6.0), "diagonal": True, "mode": "test", "interp_order": "test"},
-        np.arange(24).reshape((1, 4, 6)),  # data
-        {
-            "affine": np.array([[-4, 0, 0, 0], [0, 5, 0, 0], [0, 0, 6, 0], [0, 0, 0, 1]]),
-            "interp_order": "bilinear",
-            "mode": "zeros",
-            "dtype": np.float64,
-        },
+        {"affine": np.array([[-4, 0, 0, 0], [0, 5, 0, 0], [0, 0, 6, 0], [0, 0, 0, 1]]), "mode": "bilinear"},
         np.array(
             [
                 [

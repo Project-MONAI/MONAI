@@ -14,6 +14,7 @@ Utilities and types for defining networks, these depend on PyTorch.
 
 import warnings
 import torch
+import torch.nn as nn
 
 
 def one_hot(labels, num_classes: int, dtype: torch.dtype = torch.float):
@@ -128,3 +129,22 @@ def to_norm_affine(affine, src_size, dst_size, align_corners: bool = False):
     dst_xform = normalize_transform(dst_size, affine.device, affine.dtype, align_corners)
     new_affine = src_xform @ affine @ torch.inverse(dst_xform)
     return new_affine
+
+
+def normal_init(m, std=0.02, normal_func=torch.nn.init.normal_):
+    """
+    Initialize the weight and bias tensors of `m' and its submodules to values from a normal distribution with a 
+    stddev of `std'. Weight tensors of convolution and linear modules are initialized with a mean of 0, batch 
+    norm modules with a mean of 1. The callable `normal_func', used to assign values, should have the same arguments 
+    as its default normal_(). This can be used with `nn.Module.apply` to visit submodules of a network.
+    """
+    cname = m.__class__.__name__
+
+    if getattr(m, "weight", None) is not None and (cname.find("Conv") != -1 or cname.find("Linear") != -1):
+        normal_func(m.weight.data, 0.0, std)
+        if getattr(m, "bias", None) is not None:
+            nn.init.constant_(m.bias.data, 0.0)
+
+    elif cname.find("BatchNorm") != -1:
+        normal_func(m.weight.data, 1.0, std)
+        nn.init.constant_(m.bias.data, 0)

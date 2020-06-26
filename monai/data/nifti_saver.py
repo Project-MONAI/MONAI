@@ -17,6 +17,7 @@ import torch
 from monai.data.nifti_writer import write_nifti
 
 from .utils import create_file_basename
+from monai.utils.enums import GridSampleMode, GridSamplePadMode
 
 
 class NiftiSaver:
@@ -33,8 +34,8 @@ class NiftiSaver:
         output_postfix: str = "seg",
         output_ext: str = ".nii.gz",
         resample: bool = True,
-        interp_order: str = "bilinear",
-        mode: str = "border",
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         dtype: Optional[np.dtype] = None,
     ):
         """
@@ -43,12 +44,14 @@ class NiftiSaver:
             output_postfix: a string appended to all output file names.
             output_ext: output file extension name.
             resample (bool): whether to resample before saving the data array.
-            interp_order (`nearest|bilinear`): the interpolation mode, default is "bilinear".
+            mode: {``"bilinear"``, ``"nearest"``}
+                This option is used when ``resample = True``.
+                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-                This option is used when `resample = True`.
-            mode (`zeros|border|reflection`):
-                The mode parameter determines how the input array is extended beyond its boundaries.
-                Defaults to "border". This option is used when `resample = True`.
+            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+                This option is used when ``resample = True``.
+                Padding mode for outside grid values. Defaults to ``"border"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             dtype (np.dtype, optional): convert the image data to save to this data type.
                 If None, keep the original type of data.
         """
@@ -56,8 +59,8 @@ class NiftiSaver:
         self.output_postfix = output_postfix
         self.output_ext = output_ext
         self.resample = resample
-        self.interp_order = interp_order
-        self.mode = mode
+        self.mode: GridSampleMode = GridSampleMode(mode)
+        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
         self.dtype = dtype
         self._data_index = 0
 
@@ -105,9 +108,9 @@ class NiftiSaver:
             affine=affine,
             target_affine=original_affine,
             resample=self.resample,
-            output_shape=spatial_shape,
-            interp_order=self.interp_order,
+            output_spatial_shape=spatial_shape,
             mode=self.mode,
+            padding_mode=self.padding_mode,
             dtype=self.dtype or data.dtype,
         )
 

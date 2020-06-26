@@ -9,12 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Union
+
 import numpy as np
 import torch
 
 from monai.data.utils import compute_shape_offset, to_affine_nd
 from monai.networks.layers import AffineTransform
 from monai.utils import optional_import
+from monai.utils.enums import GridSampleMode, GridSamplePadMode
 
 nib, _ = optional_import("nibabel")
 
@@ -25,9 +28,9 @@ def write_nifti(
     affine=None,
     target_affine=None,
     resample: bool = True,
-    output_shape=None,
-    interp_order: str = "bilinear",
-    mode: str = "border",
+    output_spatial_shape=None,
+    mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+    padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
     dtype=None,
 ):
     """
@@ -44,7 +47,7 @@ def write_nifti(
     3.0)-mm space will return a 10x10-pixel image.  However, resampling a
     20x20-pixel image from pixel size (2.0, 2.0)-mm to (3.0, 3.0)-mma space
     will output a 14x14-pixel image, where the image shape is rounded from
-    13.333x13.333 pixels. In this case `output_shape` could be specified so
+    13.333x13.333 pixels. In this case `output_spatial_shape` could be specified so
     that this function writes image data to a designated shape.
 
     When `affine` and `target_affine` are None, the data will be saved with an
@@ -68,14 +71,16 @@ def write_nifti(
             transform the data into the coordinates defined by `target_affine`.
         resample: whether to run resampling when the target affine
             could not be achieved by swapping/flipping data axes.
-        output_shape (None or tuple of ints): output image shape.
+        output_spatial_shape (None or tuple of ints): spatial shape of the output image.
             This option is used when resample = True.
-        interp_order (`nearest|bilinear`): the interpolation mode, default is "bilinear".
+        mode: {``"bilinear"``, ``"nearest"``}
+            This option is used when ``resample = True``.
+            Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-            This option is used when `resample = True`.
-        mode (`zeros|border|reflection`):
-            The mode parameter determines how the input array is extended beyond its boundaries.
-            Defaults to "border". This option is used when `resample = True`.
+        padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+            This option is used when ``resample = True``.
+            Padding mode for outside grid values. Defaults to ``"border"``.
+            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         dtype (np.dtype, optional): convert the image to save to this data type.
     """
     assert isinstance(data, np.ndarray), "input data must be numpy array."
@@ -108,32 +113,32 @@ def write_nifti(
 
     # need resampling
     affine_xform = AffineTransform(
-        normalized=False, mode=interp_order, padding_mode=mode, align_corners=True, reverse_indexing=True
+        normalized=False, mode=mode, padding_mode=padding_mode, align_corners=True, reverse_indexing=True
     )
     transform = np.linalg.inv(_affine) @ target_affine
-    if output_shape is None:
-        output_shape, _ = compute_shape_offset(data.shape, _affine, target_affine)
+    if output_spatial_shape is None:
+        output_spatial_shape, _ = compute_shape_offset(data.shape, _affine, target_affine)
     if data.ndim > 3:  # multi channel, resampling each channel
-        while len(output_shape) < 3:
-            output_shape = list(output_shape) + [1]
+        while len(output_spatial_shape) < 3:
+            output_spatial_shape = list(output_spatial_shape) + [1]
         spatial_shape, channel_shape = data.shape[:3], data.shape[3:]
         data_ = data.reshape(list(spatial_shape) + [-1])
         data_ = np.moveaxis(data_, -1, 0)  # channel first for pytorch
         data_ = affine_xform(
             torch.from_numpy((data_.astype(np.float64))[None]),
             torch.from_numpy(transform.astype(np.float64)),
-            spatial_size=output_shape[:3],
+            spatial_size=output_spatial_shape[:3],
         )
         data_ = data_.squeeze(0).detach().cpu().numpy()
         data_ = np.moveaxis(data_, 0, -1)  # channel last for nifti
         data_ = data_.reshape(list(data_.shape[:3]) + list(channel_shape))
     else:  # single channel image, need to expand to have batch and channel
-        while len(output_shape) < len(data.shape):
-            output_shape = list(output_shape) + [1]
+        while len(output_spatial_shape) < len(data.shape):
+            output_spatial_shape = list(output_spatial_shape) + [1]
         data_ = affine_xform(
             torch.from_numpy((data.astype(np.float64))[None, None]),
             torch.from_numpy(transform.astype(np.float64)),
-            spatial_size=output_shape[: len(data.shape)],
+            spatial_size=output_spatial_shape[: len(data.shape)],
         )
         data_ = data_.squeeze(0).squeeze(0).detach().cpu().numpy()
     dtype = dtype or data.dtype

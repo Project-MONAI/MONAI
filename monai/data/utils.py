@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional
+from typing import Optional, Union
 
 import os
 import warnings
@@ -20,6 +20,7 @@ from torch.utils.data._utils.collate import default_collate
 import numpy as np
 from monai.utils import ensure_tuple_size, optional_import
 from monai.networks.layers.simplelayers import GaussianFilter
+from monai.utils.enums import NumpyPadMode, BlendMode
 
 nib, _ = optional_import("nibabel")
 
@@ -129,7 +130,12 @@ def dense_patch_slices(image_size, patch_size, scan_interval):
 
 
 def iter_patch(
-    arr: np.ndarray, patch_size, start_pos=(), copy_back: bool = True, pad_mode: Optional[str] = "wrap", **pad_opts
+    arr: np.ndarray,
+    patch_size,
+    start_pos=(),
+    copy_back: bool = True,
+    mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
+    **pad_opts,
 ):
     """
     Yield successive patches from `arr` of size `patch_size`. The iteration can start from position `start_pos` in `arr`
@@ -141,7 +147,10 @@ def iter_patch(
         patch_size (tuple of int or None): size of patches to generate slices for, 0 or None selects whole dimension
         start_pos (tuple of it, optional): starting position in the array, default is 0 for each dimension
         copy_back: if True data from the yielded patches is copied back to `arr` once the generator completes
-        pad_mode (str, optional): padding mode, see `numpy.pad`
+        mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
+            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            One of the listed string values or a user supplied function. Defaults to ``"wrap"``.
+            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
         pad_opts (dict, optional): padding options, see `numpy.pad`
 
     Yields:
@@ -153,7 +162,7 @@ def iter_patch(
     start_pos = ensure_tuple_size(start_pos, arr.ndim)
 
     # pad image by maximum values needed to ensure patches are taken from inside an image
-    arrpad = np.pad(arr, tuple((p, p) for p in patch_size), pad_mode, **pad_opts)
+    arrpad = np.pad(arr, tuple((p, p) for p in patch_size), NumpyPadMode(mode).value, **pad_opts)
 
     # choose a start position in the padded image
     start_pos_padded = tuple(s + p for s, p in zip(start_pos, patch_size))
@@ -421,13 +430,19 @@ def create_file_basename(postfix: str, input_file_name: str, folder_path: str, d
     return os.path.join(subfolder_path, filename + "_" + postfix)
 
 
-def compute_importance_map(patch_size, mode: str = "constant", sigma_scale: float = 0.125, device=None):
+def compute_importance_map(
+    patch_size, mode: Union[BlendMode, str] = BlendMode.CONSTANT, sigma_scale: float = 0.125, device=None
+):
     """Get importance map for different weight modes.
 
     Args:
         patch_size (tuple): Size of the required importance map. This should be either H, W [,D].
-        mode: Importance map type. Options are 'constant' (Each weight has value 1.0)
-            or 'gaussian' (Importance becomes lower away from center).
+        mode: {``"constant"``, ``"gaussian"``}
+            How to blend output of overlapping windows. Defaults to ``"constant"``.
+
+            - ``"constant``": gives equal weight to all predictions.
+            - ``"gaussian``": gives less weight to predictions on edges of windows.
+
         sigma_scale: Sigma_scale to calculate sigma for each dimension
             (sigma = sigma_scale * dim_size). Used for gaussian mode only.
         device (str of pytorch device): Device to put importance map on.
@@ -435,9 +450,10 @@ def compute_importance_map(patch_size, mode: str = "constant", sigma_scale: floa
     Returns:
         Tensor of size patch_size.
     """
-    if mode == "constant":
+    mode = BlendMode(mode)
+    if mode == BlendMode.CONSTANT:
         importance_map = torch.ones(patch_size, device=device).float()
-    elif mode == "gaussian":
+    elif mode == BlendMode.GAUSSIAN:
         center_coords = [i // 2 for i in patch_size]
         sigmas = [i * sigma_scale for i in patch_size]
 

@@ -9,11 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional
+from typing import Optional, Union
 
 import torch
 import torch.nn as nn
 from monai.networks.layers.factories import Conv
+from monai.utils.enums import UpsampleMode
 
 
 class UpSample(nn.Module):
@@ -28,7 +29,7 @@ class UpSample(nn.Module):
         out_channels: Optional[int] = None,
         scale_factor=2,
         with_conv: bool = False,
-        mode: str = "linear",
+        mode: Union[UpsampleMode, str] = UpsampleMode.LINEAR,
         align_corners: Optional[bool] = True,
     ):
         """
@@ -38,22 +39,24 @@ class UpSample(nn.Module):
             out_channels: number of channels of the output image. Defaults to `in_channels`.
             scale_factor: multiplier for spatial size. Has to match input size if it is a tuple. Defaults to 2.
             with_conv: whether to use a transposed convolution for upsampling. Defaults to False.
-            mode: the interpolation mode. Defaults to "linear", this corresponds to linear, bilinear, trilinear
-                for 1D, 2D, and 3D respectively.
+            mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``}
+                If ends with ``"linear"`` will use ``spatial dims`` to determine the correct interpolation.
+                This corresponds to linear, bilinear, trilinear for 1D, 2D, and 3D respectively.
+                The interpolation mode. Defaults to ``"linear"``.
+                See also: https://pytorch.org/docs/stable/nn.html#upsample
             align_corners: set the align_corners parameter of `torch.nn.Upsample`. Defaults to True.
         """
         super().__init__()
         if not out_channels:
             out_channels = in_channels
         if not with_conv:
-            if mode.lower().endswith("linear"):  # choose mode string based on spatial_dims
-                linear_mode = ["linear", "bilinear", "trilinear"]
-                _mode = linear_mode[spatial_dims - 1]
-            else:
-                _mode = mode
+            mode = UpsampleMode(mode)
+            linear_mode = [UpsampleMode.LINEAR, UpsampleMode.BILINEAR, UpsampleMode.TRILINEAR]
+            if mode in linear_mode:  # choose mode based on spatial_dims
+                mode = linear_mode[spatial_dims - 1]
             self.upsample = nn.Sequential(
                 Conv[Conv.CONV, spatial_dims](in_channels=in_channels, out_channels=out_channels, kernel_size=1),
-                nn.Upsample(scale_factor=scale_factor, mode=_mode, align_corners=align_corners),
+                nn.Upsample(scale_factor=scale_factor, mode=mode.value, align_corners=align_corners),
             )
         else:
             self.upsample = Conv[Conv.CONVTRANS, spatial_dims](

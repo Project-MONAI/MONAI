@@ -38,6 +38,28 @@ class Flatten(nn.Module):
         return x.view(x.size(0), -1)
 
 
+class Reshape(nn.Module):
+    """
+    Reshapes input tensors to the given shape (minus batch dimension), retaining original batch size.
+    """
+
+    def __init__(self, *shape):
+        """
+        Given a shape list/tuple `shape` of integers (s0, s1, ... , sn), this layer will reshape input tensors of
+        shape (batch, s0 * s1 * ... * sn) to shape (batch, s0, s1, ... , sn).
+
+        Args:
+            shape: list/tuple of integer shape dimensions 
+        """
+        super().__init__()
+        self.shape = (1,) + tuple(shape)
+
+    def forward(self, x):
+        shape = list(self.shape)
+        shape[0] = x.shape[0]  # done this way for Torchscript
+        return x.reshape(shape)
+
+
 class GaussianFilter(nn.Module):
     def __init__(self, spatial_dims: int, sigma, truncated: float = 4.0):
         """

@@ -15,7 +15,7 @@ defined in :py:class:`monai.transforms.spatial.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Optional
+from typing import Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -39,6 +39,11 @@ from monai.transforms.spatial.array import (
 )
 from monai.transforms.utils import create_grid
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep
+from monai.utils.enums import GridSampleMode, GridSamplePadMode, InterpolateMode
+
+GridSampleModeSequence = Union[Sequence[Union[GridSampleMode, str]], GridSampleMode, str]
+GridSamplePadModeSequence = Union[Sequence[Union[GridSamplePadMode, str]], GridSamplePadMode, str]
+InterpolateModeSequence = Union[Sequence[Union[InterpolateMode, str]], InterpolateMode, str]
 
 
 class Spacingd(MapTransform):
@@ -60,8 +65,8 @@ class Spacingd(MapTransform):
         keys: KeysCollection,
         pixdim,
         diagonal: bool = False,
-        interp_order: str = "bilinear",
-        mode: str = "border",
+        mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
+        padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
         dtype: Optional[np.dtype] = None,
         meta_key_postfix: str = "meta_dict",
     ):
@@ -80,14 +85,14 @@ class Spacingd(MapTransform):
                 translations components from the original affine will be
                 preserved in the target affine. This option will not flip/swap
                 axes against the original ones.
-            interp_order (`nearest|bilinear` or a sequence of str): str: the same interpolation order
-                for all data indexed by `self.keys`; sequence of str, should
-                correspond to an interpolation order for each data item indexed
-                by `self.keys` respectively. Defaults to `bilinear`.
-            mode (str or sequence of str):
-                Available options are `zeros|border|reflection`.
-                The mode parameter determines how the input array is extended beyond its boundaries.
-                Default is 'border'.
+            mode: {``"bilinear"``, ``"nearest"``}
+                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+                For a sequence each element corresponds to a key in ``keys``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+                Padding mode for outside grid values. Defaults to ``"border"``.
+                For a sequence each element corresponds to a key in ``keys``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             dtype (None or np.dtype or sequence of np.dtype): output array data type.
                 Defaults to None to use input data's dtype.
             meta_key_postfix: use `key_{postfix}` to to fetch the meta data according to the key data,
@@ -97,8 +102,8 @@ class Spacingd(MapTransform):
         """
         super().__init__(keys)
         self.spacing_transform = Spacing(pixdim, diagonal=diagonal)
-        self.interp_order = ensure_tuple_rep(interp_order, len(self.keys))
         self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         if not isinstance(meta_key_postfix, str):
             raise ValueError("meta_key_postfix must be a string.")
@@ -113,8 +118,8 @@ class Spacingd(MapTransform):
             d[key], _, new_affine = self.spacing_transform(
                 data_array=d[key],
                 affine=meta_data["affine"],
-                interp_order=self.interp_order[idx],
                 mode=self.mode[idx],
+                padding_mode=self.padding_mode[idx],
                 dtype=self.dtype[idx],
             )
             # set the 'affine' key
@@ -248,9 +253,9 @@ class Resized(MapTransform):
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
         spatial_size (tuple or list): expected shape of spatial dimensions after resize operation.
-        interp_order (str of sequence of str):
-            the interpolation mode. Available options are nearest, linear, bilinear, bicubic,
-            trilinear, area. Default="area".
+        mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
+            The interpolation mode. Defaults to ``"area"``.
+            For a sequence each element corresponds to a key in ``keys``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
         align_corners (optional bool): This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
@@ -258,16 +263,20 @@ class Resized(MapTransform):
     """
 
     def __init__(
-        self, keys: KeysCollection, spatial_size, interp_order: str = "area", align_corners: Optional[bool] = None
+        self,
+        keys: KeysCollection,
+        spatial_size,
+        mode: InterpolateModeSequence = InterpolateMode.AREA,
+        align_corners: Optional[bool] = None,
     ):
         super().__init__(keys)
-        self.interp_order = ensure_tuple_rep(interp_order, len(self.keys))
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.resizer = Resize(spatial_size=spatial_size, align_corners=align_corners)
 
     def __call__(self, data):
         d = dict(data)
         for idx, key in enumerate(self.keys):
-            d[key] = self.resizer(d[key], interp_order=self.interp_order[idx])
+            d[key] = self.resizer(d[key], mode=self.mode[idx])
         return d
 
 
@@ -285,8 +294,8 @@ class RandAffined(Randomizable, MapTransform):
         shear_range=None,
         translate_range=None,
         scale_range=None,
-        mode="bilinear",
-        padding_mode="zeros",
+        mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
+        padding_mode: GridSamplePadModeSequence = GridSamplePadMode.ZEROS,
         as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
     ):
@@ -298,12 +307,14 @@ class RandAffined(Randomizable, MapTransform):
                 if ``data`` component has three spatial dimensions, ``spatial_size`` should have 3 elements [h, w, d].
             prob: probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid.
-            mode (str or sequence of str): interpolation order.
-                Available options are 'nearest', 'bilinear'. Defaults to ``'bilinear'``.
-                if mode is a tuple of interpolation mode strings, each string corresponds to a key in ``keys``.
-                this is useful to set different modes for different data items.
-            padding_mode (str or sequence of str): mode of handling out of range indices.
-                Available options are 'zeros', 'border', 'reflection'.  Defaults to ``'zeros'``.
+            mode: {``"bilinear"``, ``"nearest"``}
+                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+                For a sequence each element corresponds to a key in ``keys``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+                Padding mode for outside grid values. Defaults to ``"zeros"``.
+                For a sequence each element corresponds to a key in ``keys``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
             device (torch.device): device on which the tensor will be allocated.
@@ -323,8 +334,8 @@ class RandAffined(Randomizable, MapTransform):
             as_tensor_output=as_tensor_output,
             device=device,
         )
-        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
     def set_random_state(self, seed=None, state=None):
         self.rand_affine.set_random_state(seed, state)
@@ -345,7 +356,7 @@ class RandAffined(Randomizable, MapTransform):
             grid = create_grid(spatial_size=spatial_size)
 
         for idx, key in enumerate(self.keys):
-            d[key] = self.rand_affine.resampler(d[key], grid, padding_mode=self.padding_mode[idx], mode=self.mode[idx])
+            d[key] = self.rand_affine.resampler(d[key], grid, mode=self.mode[idx], padding_mode=self.padding_mode[idx])
         return d
 
 
@@ -365,8 +376,8 @@ class Rand2DElasticd(Randomizable, MapTransform):
         shear_range=None,
         translate_range=None,
         scale_range=None,
-        mode="bilinear",
-        padding_mode="zeros",
+        mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
+        padding_mode: GridSamplePadModeSequence = GridSamplePadMode.ZEROS,
         as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
     ):
@@ -380,12 +391,14 @@ class Rand2DElasticd(Randomizable, MapTransform):
             prob: probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
-            mode (str or sequence of str): interpolation order.
-                Available options are 'nearest', 'bilinear'. Defaults to ``'bilinear'``.
-                if mode is a tuple of interpolation mode strings, each string corresponds to a key in ``keys``.
-                this is useful to set different modes for different data items.
-            padding_mode (str or sequence of str): mode of handling out of range indices.
-                Available options are 'zeros', 'border', 'reflection'.  Defaults to ``'zeros'``.
+            mode: {``"bilinear"``, ``"nearest"``}
+                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+                For a sequence each element corresponds to a key in ``keys``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+                Padding mode for outside grid values. Defaults to ``"zeros"``.
+                For a sequence each element corresponds to a key in ``keys``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
             device (torch.device): device on which the tensor will be allocated.
@@ -406,8 +419,8 @@ class Rand2DElasticd(Randomizable, MapTransform):
             as_tensor_output=as_tensor_output,
             device=device,
         )
-        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
     def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
         self.rand_2d_elastic.set_random_state(seed, state)
@@ -420,18 +433,22 @@ class Rand2DElasticd(Randomizable, MapTransform):
     def __call__(self, data):
         d = dict(data)
         spatial_size = self.rand_2d_elastic.spatial_size
+        if np.any([sz <= 1 for sz in spatial_size]):
+            spatial_size = data[self.keys[0]].shape[1:]
         self.randomize(spatial_size)
 
         if self.rand_2d_elastic.do_transform:
             grid = self.rand_2d_elastic.deform_grid(spatial_size)
             grid = self.rand_2d_elastic.rand_affine_grid(grid=grid)
-            grid = _torch_interp(input=grid[None], size=spatial_size, mode="bicubic", align_corners=False)[0]
+            grid = _torch_interp(
+                input=grid[None], size=spatial_size, mode=InterpolateMode.BICUBIC.value, align_corners=False
+            )[0]
         else:
             grid = create_grid(spatial_size)
 
         for idx, key in enumerate(self.keys):
             d[key] = self.rand_2d_elastic.resampler(
-                d[key], grid, padding_mode=self.padding_mode[idx], mode=self.mode[idx]
+                d[key], grid, mode=self.mode[idx], padding_mode=self.padding_mode[idx]
             )
         return d
 
@@ -452,8 +469,8 @@ class Rand3DElasticd(Randomizable, MapTransform):
         shear_range=None,
         translate_range=None,
         scale_range=None,
-        mode="bilinear",
-        padding_mode="zeros",
+        mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
+        padding_mode: GridSamplePadModeSequence = GridSamplePadMode.ZEROS,
         as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
     ):
@@ -468,12 +485,14 @@ class Rand3DElasticd(Randomizable, MapTransform):
             prob: probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
-            mode (str or sequence of str): interpolation order.
-                Available options are 'nearest', 'bilinear'. Defaults to ``'bilinear'``.
-                if mode is a tuple of interpolation mode strings, each string corresponds to a key in ``keys``.
-                this is useful to set different modes for different data items.
-            padding_mode (str or sequence of str): mode of handling out of range indices.
-                Available options are 'zeros', 'border', 'reflection'.  Defaults to ``'zeros'``.
+            mode: {``"bilinear"``, ``"nearest"``}
+                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+                For a sequence each element corresponds to a key in ``keys``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+                Padding mode for outside grid values. Defaults to ``"zeros"``.
+                For a sequence each element corresponds to a key in ``keys``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
             device (torch.device): device on which the tensor will be allocated.
@@ -494,8 +513,8 @@ class Rand3DElasticd(Randomizable, MapTransform):
             as_tensor_output=as_tensor_output,
             device=device,
         )
-        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
     def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
         self.rand_3d_elastic.set_random_state(seed, state)
@@ -508,6 +527,8 @@ class Rand3DElasticd(Randomizable, MapTransform):
     def __call__(self, data):
         d = dict(data)
         spatial_size = self.rand_3d_elastic.spatial_size
+        if np.any([sz <= 1 for sz in spatial_size]):
+            spatial_size = data[self.keys[0]].shape[1:]
         self.randomize(spatial_size)
         grid = create_grid(spatial_size)
         if self.rand_3d_elastic.do_transform:
@@ -520,7 +541,7 @@ class Rand3DElasticd(Randomizable, MapTransform):
 
         for idx, key in enumerate(self.keys):
             d[key] = self.rand_3d_elastic.resampler(
-                d[key], grid, padding_mode=self.padding_mode[idx], mode=self.mode[idx]
+                d[key], grid, mode=self.mode[idx], padding_mode=self.padding_mode[idx]
             )
         return d
 
@@ -588,11 +609,14 @@ class Rotated(MapTransform):
         keep_size (bool): If it is False, the output shape is adapted so that the
             input array is contained completely in the output.
             If it is True, the output shape is the same as the input. Default is True.
-        interp_order (str or sequence of str): interpolation mode, defaults to "bilinear".
-            Available options are 'nearest', 'bilinear'.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample.
-        mode (str or sequence of str): Points outside boundary filled according to this mode.
-            Available options are 'zeros', 'border', 'reflection'. Defaults to "border".
+        mode: {``"bilinear"``, ``"nearest"``}
+            Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+            For a sequence each element corresponds to a key in ``keys``.
+            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+        padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+            Padding mode for outside grid values. Defaults to ``"border"``.
+            For a sequence each element corresponds to a key in ``keys``.
+            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         align_corners (bool): Defaults to False.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
     """
@@ -602,20 +626,20 @@ class Rotated(MapTransform):
         keys: KeysCollection,
         angle,
         keep_size: bool = True,
-        interp_order: str = "bilinear",
-        mode: str = "border",
+        mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
+        padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
         align_corners: bool = False,
     ):
         super().__init__(keys)
         self.rotator = Rotate(angle=angle, keep_size=keep_size, align_corners=align_corners)
 
-        self.interp_order = ensure_tuple_rep(interp_order, len(self.keys))
         self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
     def __call__(self, data):
         d = dict(data)
         for idx, key in enumerate(self.keys):
-            d[key] = self.rotator(d[key], interp_order=self.interp_order[idx], mode=self.mode[idx])
+            d[key] = self.rotator(d[key], mode=self.mode[idx], padding_mode=self.padding_mode[idx])
         return d
 
 
@@ -637,11 +661,14 @@ class RandRotated(Randomizable, MapTransform):
         keep_size (bool): If it is False, the output shape is adapted so that the
             input array is contained completely in the output.
             If it is True, the output shape is the same as the input. Default is True.
-        interp_order (str or sequence of str): interpolation mode, defaults to "bilinear"
-            Available options are 'nearest', 'bilinear'.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample.
-        mode (str or sequence of str): Points outside boundary filled according to this mode.
-            Available options are 'zeros', 'border', 'reflection'. Defaults to "border".
+        mode: {``"bilinear"``, ``"nearest"``}
+            Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+            For a sequence each element corresponds to a key in ``keys``.
+            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+        padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+            Padding mode for outside grid values. Defaults to ``"border"``.
+            For a sequence each element corresponds to a key in ``keys``.
+            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         align_corners (bool): Defaults to False.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
     """
@@ -654,8 +681,8 @@ class RandRotated(Randomizable, MapTransform):
         range_z=0.0,
         prob: float = 0.1,
         keep_size: bool = True,
-        interp_order: str = "bilinear",
-        mode: str = "border",
+        mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
+        padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
         align_corners: bool = False,
     ):
         super().__init__(keys)
@@ -671,8 +698,8 @@ class RandRotated(Randomizable, MapTransform):
 
         self.prob = prob
         self.keep_size = keep_size
-        self.interp_order = ensure_tuple_rep(interp_order, len(self.keys))
         self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = align_corners
 
         self._do_transform = False
@@ -697,7 +724,7 @@ class RandRotated(Randomizable, MapTransform):
             align_corners=self.align_corners,
         )
         for idx, key in enumerate(self.keys):
-            d[key] = rotator(d[key], interp_order=self.interp_order[idx], mode=self.mode[idx])
+            d[key] = rotator(d[key], mode=self.mode[idx], padding_mode=self.padding_mode[idx])
         return d
 
 
@@ -708,8 +735,9 @@ class Zoomd(MapTransform):
         zoom (float or sequence): The zoom factor along the spatial axes.
             If a float, zoom is the same for each spatial axis.
             If a sequence, zoom should contain one value for each spatial axis.
-        interp_order (str or sequence of str): the interpolation mode. Default="area".
-            Available options are nearest, linear, bilinear, bicubic, trilinear, area.
+        mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
+            The interpolation mode. Defaults to ``"area"``.
+            For a sequence each element corresponds to a key in ``keys``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
         align_corners (optional bool): This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
@@ -721,18 +749,18 @@ class Zoomd(MapTransform):
         self,
         keys: KeysCollection,
         zoom,
-        interp_order: str = "area",
+        mode: InterpolateModeSequence = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
         keep_size: bool = True,
     ):
         super().__init__(keys)
         self.zoomer = Zoom(zoom=zoom, align_corners=align_corners, keep_size=keep_size)
-        self.interp_order = ensure_tuple_rep(interp_order, len(self.keys))
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
 
     def __call__(self, data):
         d = dict(data)
         for idx, key in enumerate(self.keys):
-            d[key] = self.zoomer(d[key], interp_order=self.interp_order[idx])
+            d[key] = self.zoomer(d[key], mode=self.mode[idx])
         return d
 
 
@@ -748,8 +776,9 @@ class RandZoomd(Randomizable, MapTransform):
         max_zoom (float or sequence): Max zoom factor. Can be float or sequence same size as image.
             If a float, max_zoom is the same for each spatial axis.
             If a sequence, max_zoom should contain one value for each spatial axis.
-        interp_order (str or sequence of str): the interpolation mode. Default="area".
-            Available options are nearest, linear, bilinear, bicubic, trilinear, area.
+        mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
+            The interpolation mode. Defaults to ``"area"``.
+            For a sequence each element corresponds to a key in ``keys``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
         align_corners (optional bool): This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
@@ -763,7 +792,7 @@ class RandZoomd(Randomizable, MapTransform):
         prob: float = 0.1,
         min_zoom=0.9,
         max_zoom=1.1,
-        interp_order: str = "area",
+        mode: InterpolateModeSequence = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
         keep_size: bool = True,
     ):
@@ -774,7 +803,7 @@ class RandZoomd(Randomizable, MapTransform):
         self.max_zoom = max_zoom
         self.prob = prob
 
-        self.interp_order = ensure_tuple_rep(interp_order, len(self.keys))
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.align_corners = align_corners
         self.keep_size = keep_size
 
@@ -795,7 +824,7 @@ class RandZoomd(Randomizable, MapTransform):
             return d
         zoomer = Zoom(self._zoom, align_corners=self.align_corners, keep_size=self.keep_size)
         for idx, key in enumerate(self.keys):
-            d[key] = zoomer(d[key], interp_order=self.interp_order[idx])
+            d[key] = zoomer(d[key], mode=self.mode[idx])
         return d
 
 

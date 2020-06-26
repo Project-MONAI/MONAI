@@ -253,6 +253,12 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
+`RandSpatialCropSamples`
+~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: RandSpatialCropSamples
+    :members:
+    :special-members: __call__
+
 `CropForeground`
 ~~~~~~~~~~~~~~~~
 .. autoclass:: CropForeground
@@ -554,6 +560,12 @@ Dictionary-based Transforms
 `RandSpatialCropd`
 ~~~~~~~~~~~~~~~~~~
 .. autoclass:: RandSpatialCropd
+    :members:
+    :special-members: __call__
+
+`RandSpatialCropSamplesd`
+~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: RandSpatialCropSamplesd
     :members:
     :special-members: __call__
 

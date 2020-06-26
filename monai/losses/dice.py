@@ -10,12 +10,13 @@
 # limitations under the License.
 
 import warnings
-from typing import Callable
+from typing import Callable, Union
 
 import torch
 from torch.nn.modules.loss import _Loss
 
 from monai.networks.utils import one_hot
+from monai.utils.enums import LossReduction, Weight
 
 
 class DiceLoss(_Loss):
@@ -42,7 +43,7 @@ class DiceLoss(_Loss):
         softmax: bool = False,
         squared_pred: bool = False,
         jaccard: bool = False,
-        reduction: str = "mean",
+        reduction: Union[LossReduction, str] = LossReduction.MEAN,
     ):
         """
         Args:
@@ -52,16 +53,14 @@ class DiceLoss(_Loss):
             softmax: If True, apply a softmax function to the prediction.
             squared_pred: use squared versions of targets and predictions in the denominator or not.
             jaccard: compute Jaccard Index (soft IoU) instead of dice or not.
-            reduction (`none|mean|sum`): Specifies the reduction to apply to the output:
-                ``'none'``: no reduction will be applied,
-                ``'mean'``: the sum of the output will be divided by the number of elements in the output,
-                ``'sum'``: the output will be summed.
-                Default: ``'mean'``.
-        """
-        super().__init__(reduction=reduction)
+            reduction: {``"none"``, ``"mean"``, ``"sum"``}
+                Specifies the reduction to apply to the output. Defaults to ``"mean"``.
 
-        if reduction not in ["none", "mean", "sum"]:
-            raise ValueError(f"reduction={reduction} is invalid. Valid options are: none, mean or sum.")
+                - ``"none"``: no reduction will be applied.
+                - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
+                - ``"sum"``: the output will be summed.
+        """
+        super().__init__(reduction=LossReduction(reduction))
 
         if sigmoid and softmax:
             raise ValueError("sigmoid=True and softmax=True are not compatible.")
@@ -124,11 +123,11 @@ class DiceLoss(_Loss):
 
         f = 1.0 - (2.0 * intersection + smooth) / (denominator + smooth)
 
-        if self.reduction == "mean":
+        if self.reduction == LossReduction.MEAN:
             f = torch.mean(f)  # the batch and channel average
-        elif self.reduction == "sum":
+        elif self.reduction == LossReduction.SUM:
             f = torch.sum(f)  # sum over the batch and channel dims
-        elif self.reduction == "none":
+        elif self.reduction == LossReduction.NONE:
             pass  # returns [N, n_classes] losses
         else:
             raise ValueError(f"reduction={self.reduction} is invalid.")
@@ -185,8 +184,8 @@ class GeneralizedDiceLoss(_Loss):
         to_onehot_y: bool = False,
         sigmoid: bool = False,
         softmax: bool = False,
-        w_type: str = "square",
-        reduction: str = "mean",
+        w_type: Union[Weight, str] = Weight.SQUARE,
+        reduction: Union[LossReduction, str] = LossReduction.MEAN,
     ):
         """
         Args:
@@ -194,18 +193,16 @@ class GeneralizedDiceLoss(_Loss):
             to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
             sigmoid: If True, apply a sigmoid function to the prediction.
             softmax: If True, apply a softmax function to the prediction.
-            w_type ('square'|'simple'|'uniform'): type of function to transform ground truth volume to a weight factor.
-                Default: `'square'`
-            reduction (`none|mean|sum`): Specifies the reduction to apply to the output:
-                ``'none'``: no reduction will be applied,
-                ``'mean'``: the sum of the output will be divided by the batch size in the output,
-                ``'sum'``: the output will be summed over the batch dim.
-                Default: ``'mean'``.
-        """
-        super().__init__(reduction=reduction)
+            w_type: {``"square"``, ``"simple"``, ``"uniform"``}
+                Type of function to transform ground truth volume to a weight factor. Defaults to ``"square"``.
+            reduction: {``"none"``, ``"mean"``, ``"sum"``}
+                Specifies the reduction to apply to the output. Defaults to ``"mean"``.
 
-        if reduction not in ["none", "mean", "sum"]:
-            raise ValueError(f"reduction={reduction} is invalid. Valid options are: none, mean or sum.")
+                - ``"none"``: no reduction will be applied.
+                - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
+                - ``"sum"``: the output will be summed.
+        """
+        super().__init__(reduction=LossReduction(reduction))
 
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
@@ -214,10 +211,11 @@ class GeneralizedDiceLoss(_Loss):
         self.sigmoid = sigmoid
         self.softmax = softmax
 
+        w_type = Weight(w_type)
         self.w_func: Callable = torch.ones_like
-        if w_type == "simple":
+        if w_type == Weight.SIMPLE:
             self.w_func = torch.reciprocal
-        elif w_type == "square":
+        elif w_type == Weight.SQUARE:
             self.w_func = lambda x: torch.reciprocal(x * x)
 
     def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5):
@@ -267,11 +265,11 @@ class GeneralizedDiceLoss(_Loss):
 
         f = 1.0 - (2.0 * (intersection * w).sum(1) + smooth) / ((denominator * w).sum(1) + smooth)
 
-        if self.reduction == "mean":
+        if self.reduction == LossReduction.MEAN:
             f = torch.mean(f)  # the batch and channel average
-        elif self.reduction == "sum":
+        elif self.reduction == LossReduction.SUM:
             f = torch.sum(f)  # sum over the batch and channel dims
-        elif self.reduction == "none":
+        elif self.reduction == LossReduction.NONE:
             pass  # returns [N, n_classes] losses
         else:
             raise ValueError(f"reduction={self.reduction} is invalid.")

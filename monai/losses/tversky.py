@@ -10,11 +10,13 @@
 # limitations under the License.
 
 import warnings
+from typing import Union
 
 import torch
 from torch.nn.modules.loss import _Loss
 
 from monai.networks.utils import one_hot
+from monai.utils.enums import LossReduction
 
 
 class TverskyLoss(_Loss):
@@ -38,7 +40,7 @@ class TverskyLoss(_Loss):
         softmax: bool = False,
         alpha: float = 0.5,
         beta: float = 0.5,
-        reduction: str = "mean",
+        reduction: Union[LossReduction, str] = LossReduction.MEAN,
     ):
 
         """
@@ -49,15 +51,15 @@ class TverskyLoss(_Loss):
             softmax: If True, apply a softmax function to the prediction.
             alpha: weight of false positives
             beta: weight of false negatives
-            reduction (`none|mean|sum`): Specifies the reduction to apply to the output:
-                ``'none'``: no reduction will be applied,
-                ``'mean'``: the sum of the output will be divided by the number of elements in the output,
-                ``'sum'``: the output will be summed.
-                Default: ``'mean'``.
+            reduction: {``"none"``, ``"mean"``, ``"sum"``}
+                Specifies the reduction to apply to the output. Defaults to ``"mean"``.
 
+                - ``"none"``: no reduction will be applied.
+                - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
+                - ``"sum"``: the output will be summed.
         """
 
-        super().__init__(reduction=reduction)
+        super().__init__(reduction=LossReduction(reduction))
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
 
@@ -115,10 +117,10 @@ class TverskyLoss(_Loss):
 
         score = 1.0 - numerator / denominator
 
-        if self.reduction == "sum":
+        if self.reduction == LossReduction.SUM:
             return score.sum()  # sum over the batch and channel dims
-        if self.reduction == "none":
+        if self.reduction == LossReduction.NONE:
             return score  # returns [N, n_classes] losses
-        if self.reduction == "mean":
+        if self.reduction == LossReduction.MEAN:
             return score.mean()
         raise ValueError(f"reduction={self.reduction} is invalid.")

@@ -9,11 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Union
+
 import torch
 import torch.nn as nn
 
 from monai.networks.utils import to_norm_affine
 from monai.utils import ensure_tuple
+from monai.utils.enums import GridSampleMode, GridSamplePadMode
 
 __all__ = ["AffineTransform"]
 
@@ -23,8 +26,8 @@ class AffineTransform(nn.Module):
         self,
         spatial_size=None,
         normalized: bool = False,
-        mode="bilinear",
-        padding_mode="zeros",
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.ZEROS,
         align_corners: bool = False,
         reverse_indexing: bool = True,
     ):
@@ -51,9 +54,12 @@ class AffineTransform(nn.Module):
                 for the normalized coordinates. If `normalized=False`, `theta` will be converted
                 to operate on normalized coordinates as pytorch affine_grid works with the normalized
                 coordinates.
-            mode (`nearest|bilinear`): interpolation mode.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample.
-            padding_mode (`zeros|border|reflection`): padding mode for outside grid values.
+            mode: {``"bilinear"``, ``"nearest"``}
+                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+                Padding mode for outside grid values. Defaults to ``"zeros"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             align_corners: see also https://pytorch.org/docs/stable/nn.functional.html#grid-sample.
             reverse_indexing: whether to reverse the spatial indexing of image and coordinates.
                 set to `False` if `theta` follows pytorch's default "D, H, W" convention.
@@ -62,8 +68,8 @@ class AffineTransform(nn.Module):
         super().__init__()
         self.spatial_size = ensure_tuple(spatial_size) if spatial_size is not None else None
         self.normalized = normalized
-        self.mode = mode
-        self.padding_mode = padding_mode
+        self.mode: GridSampleMode = GridSampleMode(mode)
+        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
         self.align_corners = align_corners
         self.reverse_indexing = reverse_indexing
 
@@ -138,8 +144,8 @@ class AffineTransform(nn.Module):
         dst = nn.functional.grid_sample(
             input=src.contiguous(),
             grid=grid,
-            mode=self.mode,
-            padding_mode=self.padding_mode,
+            mode=self.mode.value,
+            padding_mode=self.padding_mode.value,
             align_corners=self.align_corners,
         )
         return dst
