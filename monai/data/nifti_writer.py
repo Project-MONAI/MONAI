@@ -26,8 +26,8 @@ def write_nifti(
     target_affine=None,
     resample: bool = True,
     output_spatial_shape=None,
-    interp_order: str = "bilinear",
-    mode: str = "border",
+    mode: str = "bilinear",
+    padding_mode: str = "border",
     dtype=None,
 ):
     """
@@ -70,12 +70,14 @@ def write_nifti(
             could not be achieved by swapping/flipping data axes.
         output_spatial_shape (None or tuple of ints): spatial shape of the output image.
             This option is used when resample = True.
-        interp_order (`nearest|bilinear`): the interpolation mode, default is "bilinear".
+        mode: {``"bilinear"``, ``"nearest"``}
+            This option is used when ``resample = True``.
+            Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-            This option is used when `resample = True`.
-        mode (`zeros|border|reflection`):
-            The mode parameter determines how the input array is extended beyond its boundaries.
-            Defaults to "border". This option is used when `resample = True`.
+        padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+            This option is used when ``resample = True``.
+            Padding mode for outside grid values. Defaults to ``"border"``.
+            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         dtype (np.dtype, optional): convert the image to save to this data type.
     """
     assert isinstance(data, np.ndarray), "input data must be numpy array."
@@ -108,7 +110,7 @@ def write_nifti(
 
     # need resampling
     affine_xform = AffineTransform(
-        normalized=False, mode=interp_order, padding_mode=mode, align_corners=True, reverse_indexing=True
+        normalized=False, mode=mode, padding_mode=padding_mode, align_corners=True, reverse_indexing=True
     )
     transform = np.linalg.inv(_affine) @ target_affine
     if output_spatial_shape is None:

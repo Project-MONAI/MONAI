@@ -68,16 +68,17 @@ def compute_roc_auc(
             example shape: [16, 1] will be converted into [16, 2] (where `2` is inferred from `y_pred`).
         to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
         softmax: whether to add softmax function to `y_pred` before computation. Defaults to False.
-        average (`macro|weighted|micro|None`): type of averaging performed if not binary
-            classification. Default is 'macro'.
+        average: {``"macro"``, ``"weighted"``, ``"micro"``, ``None``}
+            Type of averaging performed if not binary classification.
+            Defaults to ``"macro"``.
 
-            - 'macro': calculate metrics for each label, and find their unweighted mean.
-              this does not take label imbalance into account.
-            - 'weighted': calculate metrics for each label, and find their average,
-              weighted by support (the number of true instances for each label).
-            - 'micro': calculate metrics globally by considering each element of the label
-              indicator matrix as a label.
-            - None: the scores for each class are returned.
+            - ``"macro"``: calculate metrics for each label, and find their unweighted mean.
+                This does not take label imbalance into account.
+            - ``"weighted"``: calculate metrics for each label, and find their average,
+                weighted by support (the number of true instances for each label).
+            - ``"micro"``: calculate metrics globally by considering each element of the label
+                indicator matrix as a label.
+            - ``None``: the scores for each class are returned.
 
     Note:
         ROCAUC expects y to be comprised of 0's and 1's. `y_pred` must be either prob. estimates or confidence values.
