@@ -9,9 +9,9 @@ The design principle of MONAI is to provide flexible and light APIs for users wi
 1. All the core components are independent modules, which can be easily integrated into any existing PyTorch programs.
 2. Users can leverage the workflows in MONAI to quickly set up a robust training or evaluation program for research experiments.
 3. Rich examples and demos are provided to demonstrate the key features.
-4. Researchers contribute implementations based on the state-of-the-art for the latest research challenges, including: COVID-19 image analysis, Model Parallel, and Federated Learning.
+4. Researchers contribute implementations based on the state-of-the-art for the latest research challenges, including COVID-19 image analysis, Model Parallel, and Federated Learning.
 
-The overall architecture and modules are showed in the following figure:
+The overall architecture and modules are shown in the following figure:
 ![image](../images/arch_modules_v0.2.png)
 The rest of this page provides more details for each module.
 
@@ -97,27 +97,27 @@ monai.utils.set_determinism(seed=0, additional_settings=None)
 ### 6. Multiple transform chains
 To apply different transforms on the same data and concatenate the results, MONAI provides `CopyItems` transform to make copies of specified items in the data dictionary and `ConcatItems` transform to combine specified items on the expected dimension, and also provides `DeleteItems` transform to delete unnecessary items to save memory.
 
-A typical usage is to scale the intensity of the same image into different ranges and concat the results together.
+Typical usage is to scale the intensity of the same image into different ranges and concatenate the results together.
 ![image](../images/multi_transform_chains.png)
 
 ### 7. Debug transforms with DataStats
-When transforms are combined with the "compose" function, it's not easy to track the output of specific transform. To help debugging errors in the composed transforms, MONAI provides utility transforms such as `DataStats` to print out intermediate data properties such as `data shape`, `intensity range`, `data value`.
+When transforms are combined with the "compose" function, it's not easy to track the output of specific transform. To help debug errors in the composed transforms, MONAI provides utility transforms such as `DataStats` to print out intermediate data properties such as `data shape`, `intensity range`, `data value`.
 It's a self-contained transform and can be integrated into any transform chain.
 
 ### 8. Post-processing transforms for model output
-MONAI also provides post-processing transforms for hanlding the model outputs.
+MONAI also provides post-processing transforms for handling the model outputs.
 Currently, the transforms include:
 - Adding activation layer (Sigmoid, Softmax, etc.).
 - Converting to discrete values (Argmax, One-Hot, Threshold value, etc).
 - Splitting multi-channel data into multiple single channels.
-- Removing segmentation noise based on connected component analysis.
+- Removing segmentation noise based on Connected Component Analysis.
 
 After applying the post-processing transforms, it's easier to compute metrics, save model output into files or visualize data in the TensorBoard.
 
 ### 9. Integrate third-party transforms
-The design of MONAI transforms is simple and intuitive. It works for array data or dictionary-based data. MONAI also provides `Adaptor` tools to accomodate different data format for 3rd party transforms. To convert the data shapes or types, utility transforms such as `ToTensor`, `ToNumpy`, `SqueeseDim` are  also provided. So it's easy to enhance the transform chain by seamlessly integrating transforms from external packages, including: `ITK`, `BatchGenerator`, `TorchIO` and `Rising`.
+The design of MONAI transforms emphasis code readability and usability. It works for array data or dictionary-based data. MONAI also provides `Adaptor` tools to accommodate different data format for 3rd party transforms. To convert the data shapes or types, utility transforms such as `ToTensor`, `ToNumpy`, `SqueeseDim` are also provided. So it's easy to enhance the transform chain by seamlessly integrating transforms from external packages, including: `ITK`, `BatchGenerator`, `TorchIO` and `Rising`.
 
-For more details, please check out the tutorial: [integrate 3rd pary transforms into MONAI program](https://github.com/Project-MONAI/MONAI/blob/master/examples/notebooks/integrate_3rd_party_transforms.ipynb).
+For more details, please check out the tutorial: [integrate 3rd party transforms into MONAI program](https://github.com/Project-MONAI/MONAI/blob/master/examples/notebooks/integrate_3rd_party_transforms.ipynb).
 
 ## Datasets
 ### 1. Cache IO and transforms data to accelerate training
@@ -126,9 +126,9 @@ MONAI provides a multi-threads `CacheDataset` to accelerate these transformation
 ![image](../images/cache_dataset.png)
 
 ### 2. Cache intermediate outcomes into persistent storage
-The `PersistentDataset` is similar to the CacheDataset, where the intermediate cache values are persisted to disk storage for rapid retrieval between experimental runs (as is the case when tuning hyper parameters), or when the entire data set size exceeds available memory.
+The `PersistentDataset` is similar to the CacheDataset, where the intermediate cache values are persisted to disk storage for rapid retrieval between experimental runs (as is the case when tuning hyperparameters), or when the entire data set size exceeds available memory.
 
-### 3. Zip mutiple PyTorch datasets and fuse the output
+### 3. Zip multiple PyTorch datasets and fuse the output
 MONAI provides `ZipDataset` to associate multiple PyTorch datasets and combine the output data (with the same corresponding batch index) into a tuple, which can be helpful to execute complex training processes based on various data sources.
 
 For example:
@@ -145,9 +145,9 @@ dataset = ZipDataset([DatasetA(), DatasetB()], transform)
 ```
 
 ### 4. Predefined Datasets for public medical data
-To quickly get start with popular training data in medical domain, MONAI provides several data-specific Datasets(like: `MedNISTDataset`, `DecathlonDataset`, etc.), which include downloading, extracting data files and support generation of training/evaluation items with transforms. And they are flexible that users can easily modify the JSON config file to change the default behaviors.
+To quickly get started with popular training data in the medical domain, MONAI provides several data-specific Datasets(like: `MedNISTDataset`, `DecathlonDataset`, etc.), which include downloading, extracting data files and support generation of training/evaluation items with transforms. And they are flexible that users can easily modify the JSON config file to change the default behaviors.
 
-MONAI always welcome new contribution of public datasets, please refer to existing Datasets and leverage the download and extracting APIs, etc.
+MONAI always welcome new contributions of public datasets, please refer to existing Datasets and leverage the download and extracting APIs, etc.
 
 ## Losses
 There are domain-specific loss functions in the medical imaging research which are not typically used in the generic computer vision tasks. As an important module of MONAI, these loss functions are implemented in PyTorch, such as `DiceLoss`, `GeneralizedDiceLoss`, `MaskedDiceLoss`, `TverskyLoss` and `FocalLoss`, etc.
@@ -165,7 +165,7 @@ name, dimension = Conv.CONVTRANS, 3
 conv_type = Conv[name, dimension]
 add_module('conv1', conv_type(in_channels, out_channels, kernel_size=1, bias=False))
 ```
-And there are already several 1D/2D/3D compatible implementation of networks, such as: UNet, DenseNet, GAN, etc.
+And there are several 1D/2D/3D-compatible implementations of intermediate blocks and generic networks, such as UNet, DenseNet, GAN.
 
 ## Evaluation
 To run model inferences and evaluate the model quality, MONAI provides reference implementations for the relevant widely-used approaches. Currently, several popular evaluation metrics and inference patterns are included:
@@ -194,16 +194,15 @@ A rich set of formats will be supported soon, along with relevant statistics and
 
 ## Workflows
 To quickly set up training and evaluation experiments, MONAI provides a set of workflows to significantly simplify the modules and allow for fast prototyping.
-These features decouple the domain-specific components and the generic machine learning processes. They also provide a set of unify APIs for higher level applications, like: AutoML, Federated Learning, etc.
-The trainers and evaluators of the workflows are compatible with ignite `Engine` and `Event-Handler` mechanism. There are rich event handlers in MONAI to independently attach to the trainer or evaluator.
+These features decouple the domain-specific components and the generic machine learning processes. They also provide a set of unify APIs for higher level applications (such as AutoML, Federated Learning).
+The trainers and evaluators of the workflows are compatible with pytorch-ignite `Engine` and `Event-Handler` mechanism. There are rich event handlers in MONAI to independently attach to the trainer or evaluator.
 
 The workflow and event handlers are shown as below:
 
 ![image](../images/workflows.png)
 
 ## Research
-We encourage deep learning researchers in medical domain to build their research with MONAI and contribute to MONAI.
-There are several research prototypes in MONAI corresponding to the recently published papers that are addresses research problems.
+There are several research prototypes in MONAI corresponding to the recently published papers that address advanced research problems.
 
 ### COPLE-Net for COVID-19 Pneumonia Lesion Segmentation
 A reimplementation of the COPLE-Net originally proposed by:
