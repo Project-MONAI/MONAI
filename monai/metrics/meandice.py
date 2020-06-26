@@ -147,6 +147,9 @@ def compute_meandice(
     Returns:
         Dice scores per batch and per class, (shape [batch_size, n_classes]).
 
+    Raises:
+        ValueError: sigmoid=True is incompatible with mutually_exclusive=True.
+
     Note:
         This method provides two options to convert `y_pred` into a binary matrix
             (1) when `mutually_exclusive` is True, it uses a combination of ``argmax`` and ``to_onehot``,

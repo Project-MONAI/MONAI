@@ -51,7 +51,9 @@ def issequenceiterable(obj):
 
 
 def ensure_tuple(vals: Any) -> Tuple[Any, ...]:
-    """Returns a tuple of `vals`"""
+    """
+    Returns a tuple of `vals`
+    """
     if not issequenceiterable(vals):
         vals = (vals,)
 
@@ -59,7 +61,9 @@ def ensure_tuple(vals: Any) -> Tuple[Any, ...]:
 
 
 def ensure_tuple_size(tup, dim, pad_val=0):
-    """Returns a copy of `tup` with `dim` values by either shortened or padded with `pad_val` as necessary."""
+    """
+    Returns a copy of `tup` with `dim` values by either shortened or padded with `pad_val` as necessary.
+    """
     tup = tuple(tup) + (pad_val,) * dim
     return tup[:dim]
 
@@ -67,6 +71,10 @@ def ensure_tuple_size(tup, dim, pad_val=0):
 def ensure_tuple_rep(tup, dim):
     """
     Returns a copy of `tup` with `dim` values by either shortened or duplicated input.
+
+    Raises:
+        ValueError: sequence must have length {dim}, got length {len(tup)}.
+
     """
     if not issequenceiterable(tup):
         return (tup,) * dim

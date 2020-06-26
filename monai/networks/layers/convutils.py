@@ -18,6 +18,10 @@ def same_padding(kernel_size, dilation=1):
     """
     Return the padding value needed to ensure a convolution using the given kernel size produces an output of the same
     shape as the input for a stride of 1, otherwise ensure a shape of the input divided by the stride rounded down.
+
+    Raises:
+        NotImplementedError: same padding not available for k={kernel_size} and d={dilation}.
+
     """
 
     kernel_size = np.atleast_1d(kernel_size)
@@ -55,6 +59,10 @@ def gaussian_1d(sigma, truncated=4.0):
 
     Returns:
         1D numpy array
+
+    Raises:
+        ValueError: sigma must be positive
+
     """
     if sigma <= 0:
         raise ValueError("sigma must be positive")

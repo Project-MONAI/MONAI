@@ -99,6 +99,10 @@ class Spacingd(MapTransform):
                 default is `meta_dict`, the meta data is a dictionary object.
                 For example, to handle key `image`,  read/write affine matrices from the
                 metadata `image_meta_dict` dictionary's `affine` field.
+
+        Raises:
+            ValueError: meta_key_postfix must be a string.
+
         """
         super().__init__(keys)
         self.spacing_transform = Spacing(pixdim, diagonal=diagonal)
@@ -153,7 +157,7 @@ class Orientationd(MapTransform):
                 (Left, Right), (Posterior, Anterior), (Inferior, Superior).
                 default orientation labels options are: 'L' and 'R' for the first dimension,
                 'P' and 'A' for the second, 'I' and 'S' for the third.
-            as_closest_canonical (boo): if True, load the image as closest to canonical axis format.
+            as_closest_canonical: if True, load the image as closest to canonical axis format.
             labels : optional, None or sequence of (2,) sequences
                 (2,) sequences are labels for (beginning, end) of output axis.
                 Defaults to ``(('L', 'R'), ('P', 'A'), ('I', 'S'))``.
@@ -161,6 +165,9 @@ class Orientationd(MapTransform):
                 default is `meta_dict`, the meta data is a dictionary object.
                 For example, to handle key `image`,  read/write affine matrices from the
                 metadata `image_meta_dict` dictionary's `affine` field.
+
+        Raises:
+            ValueError: meta_key_postfix must be a string.
 
         See Also:
             `nibabel.orientations.ornt2axcodes`.
@@ -402,6 +409,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
             as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
             device (torch.device): device on which the tensor will be allocated.
+
         See also:
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
@@ -496,6 +504,7 @@ class Rand3DElasticd(Randomizable, MapTransform):
             as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
             device (torch.device): device on which the tensor will be allocated.
+
         See also:
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.

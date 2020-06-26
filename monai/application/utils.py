@@ -50,6 +50,12 @@ def download_url(url: str, filepath: str, md5_value: str = None):
         md5_value: expected MD5 value to validate the downloaded file.
             if None, skip MD5 validation.
 
+    Raises:
+        RuntimeError: MD5 check of existing file {filepath} failed, please delete it and try again.
+        URLError: See urllib.request.urlopen
+        IOError: See urllib.request.urlopen
+        RuntimeError: MD5 check of downloaded file failed, URL={url}, filepath={filepath}, expected MD5={md5_value}.
+
     """
     if os.path.exists(filepath):
         if not check_md5(filepath, md5_value):
@@ -84,6 +90,10 @@ def extractall(filepath: str, output_dir: str, md5_value: str = None):
         output_dir: target directory to save extracted files.
         md5_value: expected MD5 value to validate the compressed file.
             if None, skip MD5 validation.
+
+    Raises:
+        RuntimeError: MD5 check of compressed file {filepath} failed.
+        TypeError: unsupported compressed file type.
 
     """
     target_file = os.path.join(output_dir, os.path.basename(filepath).split(".")[0])

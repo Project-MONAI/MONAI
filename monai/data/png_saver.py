@@ -69,12 +69,15 @@ class PNGSaver:
 
         If meta_data is None, use the default index (starting from 0) as the filename.
 
-        args:
+        Args:
             data (Tensor or ndarray): target data content that to be saved as a png format file.
                 Assuming the data shape are spatial dimensions.
                 Shape of the spatial dimensions (C,H,W).
                 C should be 1, 3 or 4
             meta_data (dict): the meta data information corresponding to the data.
+
+        Raises:
+            ValueError: PNG image should only have 1, 3 or 4 channels.
 
         See Also
             :py:meth:`monai.data.png_writer.write_png`
@@ -103,7 +106,7 @@ class PNGSaver:
     def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data=None):
         """Save a batch of data into png format files.
 
-        args:
+        Args:
             batch_data (Tensor or ndarray): target batch data content that save into png format.
             meta_data (dict): every key-value in the meta_data is corresponding to a batch of data.
         """

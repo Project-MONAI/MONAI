@@ -80,7 +80,7 @@ class TensorBoardStatsHandler(object):
         Register a set of Ignite Event-Handlers to a specified Ignite engine.
 
         Args:
-            engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
 
         """
         if not engine.has_event_handler(self.iteration_completed, Events.ITERATION_COMPLETED):
@@ -94,7 +94,7 @@ class TensorBoardStatsHandler(object):
         Write epoch level events, default values are from Ignite state.metrics dict.
 
         Args:
-            engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
 
         """
         if self.epoch_event_writer is not None:
@@ -108,7 +108,7 @@ class TensorBoardStatsHandler(object):
         Write iteration level events, default values are from Ignite state.logs dict.
 
         Args:
-            engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
 
         """
         if self.iteration_event_writer is not None:
@@ -122,7 +122,7 @@ class TensorBoardStatsHandler(object):
         Default is to write the values from Ignite state.metrics dict.
 
         Args:
-            engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
             writer (SummaryWriter): TensorBoard writer, created in TensorBoardHandler.
 
         """
@@ -138,7 +138,7 @@ class TensorBoardStatsHandler(object):
         Default is to write the loss value of current iteration.
 
         Args:
-            engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
             writer (SummaryWriter): TensorBoard writer, created in TensorBoardHandler.
 
         """

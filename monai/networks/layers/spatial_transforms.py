@@ -88,6 +88,14 @@ class AffineTransform(nn.Module):
                 `theta` will be repeated N times, N is the batch dim of `src`.
             spatial_size (list or tuple of int): output spatial shape, the full output shape will be
                 `[N, C, *spatial_size]` where N and C are inferred from the `src`.
+
+        Raises:
+            TypeError: both src and theta must be torch Tensor, got {type(src).__name__}, {type(theta).__name__}.
+            ValueError: affine must be Nxdxd or dxd.
+            ValueError: affine must be Nx3x3 or Nx4x4, got: {theta.shape}.
+            ValueError: src must be spatially 2D or 3D.
+            ValueError: batch dimension of affine and image does not match, got affine: {} and image: {}.
+
         """
         # validate `theta`
         if not torch.is_tensor(theta) or not torch.is_tensor(src):

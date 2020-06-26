@@ -81,6 +81,11 @@ def compute_roc_auc(
                 indicator matrix as a label.
             - ``"none"``: the scores for each class are returned.
 
+    Raises:
+        ValueError: predictions should be of shape (batch_size, n_classes) or (batch_size, ).
+        ValueError: targets should be of shape (batch_size, n_classes) or (batch_size, ).
+        ValueError: unsupported average method.
+
     Note:
         ROCAUC expects y to be comprised of 0's and 1's. `y_pred` must be either prob. estimates or confidence values.
 
