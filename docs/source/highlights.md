@@ -53,6 +53,7 @@ transformations. These currently include, for example:
 
 ### 3. Fused spatial transforms and GPU acceleration
 As medical image volumes are usually large (in multi-dimensional arrays), pre-processing performance affects the overall pipeline speed. MONAI provides affine transforms to execute fused spatial operations, supports GPU acceleration via native PyTorch for high performance.
+
 For example:
 ```py
 # create an Affine transform
@@ -78,6 +79,7 @@ Medical image data volume may be too large to fit into GPU memory. A widely-used
 
 ### 5. Deterministic training for reproducibility
 Deterministic training support is necessary and important for deep learning research, especially in the medical field. Users can easily set the random seed to all the random transforms in MONAI locally and will not affect other non-deterministic modules in the user's program.
+
 For example:
 ```py
 # define a transform chain for pre-processing
@@ -101,12 +103,10 @@ Typical usage is to scale the intensity of the same image into different ranges 
 ![image](../images/multi_transform_chains.png)
 
 ### 7. Debug transforms with DataStats
-When transforms are combined with the "compose" function, it's not easy to track the output of specific transform. To help debug errors in the composed transforms, MONAI provides utility transforms such as `DataStats` to print out intermediate data properties such as `data shape`, `intensity range`, `data value`.
-It's a self-contained transform and can be integrated into any transform chain.
+When transforms are combined with the "compose" function, it's not easy to track the output of specific transform. To help debug errors in the composed transforms, MONAI provides utility transforms such as `DataStats` to print out intermediate data properties such as `data shape`, `intensity range`, `data value`. It's a self-contained transform and can be integrated into any transform chain.
 
 ### 8. Post-processing transforms for model output
-MONAI also provides post-processing transforms for handling the model outputs.
-Currently, the transforms include:
+MONAI also provides post-processing transforms for handling the model outputs. Currently, the transforms include:
 - Adding activation layer (Sigmoid, Softmax, etc.).
 - Converting to discrete values (Argmax, One-Hot, Threshold value, etc).
 - Splitting multi-channel data into multiple single channels.
@@ -122,6 +122,7 @@ For more details, please check out the tutorial: [integrate 3rd party transforms
 ## Datasets
 ### 1. Cache IO and transforms data to accelerate training
 Users often need to train the model with many (potentially thousands of) epochs over the data to achieve the desired model quality. A native PyTorch implementation may repeatedly load data and run the same preprocessing steps for every epoch during training, which can be time-consuming and unnecessary, especially when the medical image volumes are large.
+
 MONAI provides a multi-threads `CacheDataset` to accelerate these transformation steps during training by storing the intermediate outcomes before the first randomized transform in the transform chain. Enabling this feature could potentially give 10x training speedups.
 ![image](../images/cache_dataset.png)
 
@@ -146,6 +147,7 @@ dataset = ZipDataset([DatasetA(), DatasetB()], transform)
 
 ### 4. Predefined Datasets for public medical data
 To quickly get started with popular training data in the medical domain, MONAI provides several data-specific Datasets(like: `MedNISTDataset`, `DecathlonDataset`, etc.), which include downloading, extracting data files and support generation of training/evaluation items with transforms. And they are flexible that users can easily modify the JSON config file to change the default behaviors.
+
 MONAI always welcome new contributions of public datasets, please refer to existing Datasets and leverage the download and extracting APIs, etc.
 The common progress of predefined datasets:
 ![image](../images/dataset_progress.png)
@@ -154,7 +156,10 @@ The common progress of predefined datasets:
 There are domain-specific loss functions in the medical imaging research which are not typically used in the generic computer vision tasks. As an important module of MONAI, these loss functions are implemented in PyTorch, such as `DiceLoss`, `GeneralizedDiceLoss`, `MaskedDiceLoss`, `TverskyLoss` and `FocalLoss`, etc.
 
 ## Network architectures
-Some deep neural network architectures have shown to be particularly effective for medical imaging analysis tasks. MONAI implements reference networks with the aims of both flexibility and code readability. To leverage the common network layers and blocks, MONAI provides several predefined layers and blocks which are compatible with 1D, 2D and 3D networks. Users can easily integrate the layer factories in their own networks.
+Some deep neural network architectures have shown to be particularly effective for medical imaging analysis tasks. MONAI implements reference networks with the aims of both flexibility and code readability.
+
+To leverage the common network layers and blocks, MONAI provides several predefined layers and blocks which are compatible with 1D, 2D and 3D networks. Users can easily integrate the layer factories in their own networks.
+
 For example:
 ```py
 # import MONAI’s layer factory
@@ -194,6 +199,7 @@ A rich set of formats will be supported soon, along with relevant statistics and
 
 ## Workflows
 To quickly set up training and evaluation experiments, MONAI provides a set of workflows to significantly simplify the modules and allow for fast prototyping.
+
 These features decouple the domain-specific components and the generic machine learning processes. They also provide a set of unify APIs for higher level applications (such as AutoML, Federated Learning).
 The trainers and evaluators of the workflows are compatible with pytorch-ignite `Engine` and `Event-Handler` mechanism. There are rich event handlers in MONAI to independently attach to the trainer or evaluator.
 
@@ -203,6 +209,7 @@ The workflow and event handlers are shown as below:
 ## Research
 There are several research prototypes in MONAI corresponding to the recently published papers that address advanced research problems.
 We always welcome contributions in forms of comments, suggestions, and code implementations.
+
 The generic patterns/modules identified from the research prototypes will be integrated into MONAI core functoinality.
 
 ### COPLE-Net for COVID-19 Pneumonia Lesion Segmentation
@@ -211,7 +218,7 @@ A reimplementation of the COPLE-Net originally proposed by:
 G. Wang, X. Liu, C. Li, Z. Xu, J. Ruan, H. Zhu, T. Meng, K. Li, N. Huang, S. Zhang. (2020) "A Noise-robust Framework for Automatic Segmentation of COVID-19 Pneumonia Lesions from CT Images." IEEE Transactions on Medical Imaging. 2020. [DOI: 10.1109/TMI.2020.3000314](https://doi.org/10.1109/TMI.2020.3000314)
 
 <p>
-<img src="../images/coplenet.png" width="50%" alt='lung-ct'>
+<img src="../images/coplenet.png" width="60%" alt='lung-ct'>
 </p>
 
 ### LAMP: Large Deep Nets with Automated Model Parallelism for Image Segmentation
@@ -219,5 +226,5 @@ A reimplementation of the LAMP system originally proposed by:
 
 Wentao Zhu, Can Zhao, Wenqi Li, Holger Roth, Ziyue Xu, and Daguang Xu (2020) "LAMP: Large Deep Nets with Automated Model Parallelism for Image Segmentation." MICCAI 2020 (Early Accept, paper link: https://arxiv.org/abs/2006.12575)
 <p>
-<img src="../images/unet-pipe.png" width="50%" alt='unet-multi-gpu'>
+<img src="../images/unet-pipe.png" width="60%" alt='unet-multi-gpu'>
 </p>
