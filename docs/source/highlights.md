@@ -167,8 +167,8 @@ And there are already several 1D/2D/3D compatible implementation of networks, su
 To run model inferences and evaluate the model quality, MONAI provides reference implementations for the relevant widely-used approaches. Currently, several popular evaluation metrics and inference patterns are included:
 
 ### 1. Sliding window inference
-For model inferences on large volumes, the sliding window approach is a popular choice to achieve high performance while having flexible memory requirements. It also supports `overlap` and `blending_mode` parameters to smooth the segmentation result with weights for better metrics.
-The typical progress:
+For model inferences on large volumes, the sliding window approach is a popular choice to achieve high performance while having flexible memory requirements (alternatively, please checkout the latest research on [model parallel training](#LAMP:-large-deep-nets-with-automated-model-parallelism-for-image-segmentation)). It also supports `overlap` and `blending_mode` parameters to smooth the segmentation result with weights for better metrics.
+The typical process is:
 1. Select continuous windows on the original image.
 2. Iteratively run batched window inferences until all windows are analyzed.
 3. Aggregate the inference outputs to a single segmentation map.
@@ -186,22 +186,24 @@ Currently MONAI supports writing the model outputs as NIfTI files or PNG files f
 A rich set of formats will be supported soon, along with relevant statistics and evaluation metrics automatically computed from the outputs.
 
 ## Workflows
-To quickly set up training/evaluation experiments or pipelines, MONAI provides a set of workflows to significantly simplify the modules, decouple all the components during a training progress, and unify the program APIs for higher level applications, like: AutoML, Federated Learning, etc.
+To quickly set up training and evaluation experiments, MONAI provides a set of workflows to significantly simplify the modules and allow for fast prototyping.
+These features decouple the domain-specific components and the generic machine learning processes. They also provide a set of unify APIs for higher level applications, like: AutoML, Federated Learning, etc.
 The trainers and evaluators of the workflows are compatible with ignite `Engine` and `Event-Handler` mechanism. There are rich event handlers in MONAI to independently attach to the trainer or evaluator.
-The workflow progress and event handlers are shown as below:
+
+The workflow and event handlers are shown as below:
 ![image](../images/workflows.png)
 
 ## Research
-We encourage deep learning researchers in medical domain to implement their awesome research works based on MONAI components and contribute into MONAI. It can be helpful to cooperate with others for the future research.
-There are already several implementation in MONAI corresponding to latest papers that are trying to solve challenging topics(COVID-19, Model Parallel, etc.), like:
-### 1. COPLE-Net for COVID-19 Pneumonia Lesion Segmentation
+We encourage deep learning researchers in medical domain to build their research with MONAI and contribute to MONAI.
+There are several research prototypes in MONAI corresponding to the recently published papers that are addresses research problems.
+### COPLE-Net for COVID-19 Pneumonia Lesion Segmentation
 A reimplementation of the COPLE-Net originally proposed by:
 G. Wang, X. Liu, C. Li, Z. Xu, J. Ruan, H. Zhu, T. Meng, K. Li, N. Huang, S. Zhang. (2020) "A Noise-robust Framework for Automatic Segmentation of COVID-19 Pneumonia Lesions from CT Images." IEEE Transactions on Medical Imaging. 2020. DOI: 10.1109/TMI.2020.3000314
 <p>
 <img src="../images/coplenet.png" width="50%" alt='lung-ct'>
 </p>
 
-### 2. LAMP: Large Deep Nets with Automated Model Parallelism for Image Segmentation
+### LAMP: Large Deep Nets with Automated Model Parallelism for Image Segmentation
 A reimplementation of the LAMP system originally proposed by:
 Wentao Zhu, Can Zhao, Wenqi Li, Holger Roth, Ziyue Xu, and Daguang Xu (2020) "LAMP: Large Deep Nets with Automated Model Parallelism for Image Segmentation." MICCAI 2020 (Early Accept, paper link: https://arxiv.org/abs/2006.12575)
 <p>
