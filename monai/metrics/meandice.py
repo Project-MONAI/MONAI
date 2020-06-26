@@ -57,7 +57,7 @@ class DiceMetric:
         self.mutually_exclusive = mutually_exclusive
         self.sigmoid = sigmoid
         self.logit_thresh = logit_thresh
-        self.reduction = MetricReduction(reduction)
+        self.reduction: MetricReduction = MetricReduction(reduction)
 
         self.not_nans = None  # keep track for valid elements in the batch
 

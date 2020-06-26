@@ -86,7 +86,7 @@ class SlidingWindowInferer(Inferer):
         self.roi_size = roi_size
         self.sw_batch_size = sw_batch_size
         self.overlap = overlap
-        self.mode = BlendMode(mode)
+        self.mode: BlendMode = BlendMode(mode)
 
     def __call__(self, inputs: torch.Tensor, network):
         """

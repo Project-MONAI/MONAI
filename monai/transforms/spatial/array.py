@@ -84,8 +84,8 @@ class Spacing(Transform):
         """
         self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
         self.diagonal = diagonal
-        self.mode = GridSampleMode(mode)
-        self.padding_mode = GridSamplePadMode(padding_mode)
+        self.mode: GridSampleMode = GridSampleMode(mode)
+        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
         self.dtype = dtype
 
     def __call__(
@@ -268,7 +268,7 @@ class Resize(Transform):
         align_corners: Optional[bool] = None,
     ):
         self.spatial_size = ensure_tuple(spatial_size)
-        self.mode = InterpolateMode(mode)
+        self.mode: InterpolateMode = InterpolateMode(mode)
         self.align_corners = align_corners
 
     def __call__(self, img, mode: Optional[Union[InterpolateMode, str]] = None):
@@ -329,8 +329,8 @@ class Rotate(Transform):
     ):
         self.angle = angle
         self.keep_size = keep_size
-        self.mode = GridSampleMode(mode)
-        self.padding_mode = GridSamplePadMode(padding_mode)
+        self.mode: GridSampleMode = GridSampleMode(mode)
+        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
         self.align_corners = align_corners
 
     def __call__(
@@ -413,7 +413,7 @@ class Zoom(Transform):
         keep_size: bool = True,
     ):
         self.zoom = zoom
-        self.mode = InterpolateMode(mode)
+        self.mode: InterpolateMode = InterpolateMode(mode)
         self.align_corners = align_corners
         self.keep_size = keep_size
 
@@ -560,8 +560,8 @@ class RandRotate(Randomizable, Transform):
 
         self.prob = prob
         self.keep_size = keep_size
-        self.mode = GridSampleMode(mode)
-        self.padding_mode = GridSamplePadMode(padding_mode)
+        self.mode: GridSampleMode = GridSampleMode(mode)
+        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
         self.align_corners = align_corners
 
         self._do_transform = False
@@ -657,7 +657,7 @@ class RandZoom(Randomizable, Transform):
         self.min_zoom = min_zoom
         self.max_zoom = max_zoom
         self.prob = prob
-        self.mode = InterpolateMode(mode)
+        self.mode: InterpolateMode = InterpolateMode(mode)
         self.align_corners = align_corners
         self.keep_size = keep_size
 
@@ -874,8 +874,8 @@ class Resample(Transform):
             as_tensor_output: whether to return a torch tensor. Defaults to False.
             device (torch.device): device on which the tensor will be allocated.
         """
-        self.mode = GridSampleMode(mode)
-        self.padding_mode = GridSamplePadMode(padding_mode)
+        self.mode: GridSampleMode = GridSampleMode(mode)
+        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
         self.as_tensor_output = as_tensor_output
         self.device = device
 
@@ -977,8 +977,8 @@ class Affine(Transform):
         )
         self.resampler = Resample(as_tensor_output=as_tensor_output, device=device)
         self.spatial_size = spatial_size
-        self.mode = GridSampleMode(mode)
-        self.padding_mode = GridSamplePadMode(padding_mode)
+        self.mode: GridSampleMode = GridSampleMode(mode)
+        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
 
     def __call__(
         self,
@@ -1057,8 +1057,8 @@ class RandAffine(Randomizable, Transform):
         self.resampler = Resample(as_tensor_output=as_tensor_output, device=device)
 
         self.spatial_size = spatial_size
-        self.mode = GridSampleMode(mode)
-        self.padding_mode = GridSamplePadMode(padding_mode)
+        self.mode: GridSampleMode = GridSampleMode(mode)
+        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
 
         self.do_transform = False
         self.prob = prob
@@ -1160,8 +1160,8 @@ class Rand2DElastic(Randomizable, Transform):
         self.resampler = Resample(as_tensor_output=as_tensor_output, device=device)
 
         self.spatial_size = spatial_size
-        self.mode = GridSampleMode(mode)
-        self.padding_mode = GridSamplePadMode(padding_mode)
+        self.mode: GridSampleMode = GridSampleMode(mode)
+        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
         self.prob = prob
         self.do_transform = False
 
@@ -1257,8 +1257,8 @@ class Rand3DElastic(Randomizable, Transform):
         self.sigma_range = sigma_range
         self.magnitude_range = magnitude_range
         self.spatial_size = spatial_size
-        self.mode = GridSampleMode(mode)
-        self.padding_mode = GridSamplePadMode(padding_mode)
+        self.mode: GridSampleMode = GridSampleMode(mode)
+        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
         self.device = device
 
         self.prob = prob

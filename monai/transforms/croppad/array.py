@@ -47,8 +47,8 @@ class SpatialPad(Transform):
         mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
     ):
         self.spatial_size = ensure_tuple(spatial_size)
-        self.method = Method(method)
-        self.mode = NumpyPadMode(mode)
+        self.method: Method = Method(method)
+        self.mode: NumpyPadMode = NumpyPadMode(mode)
 
     def _determine_data_pad_width(self, data_shape):
         if self.method == Method.SYMMETRIC:
@@ -101,7 +101,7 @@ class BorderPad(Transform):
 
     def __init__(self, spatial_border, mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT):
         self.spatial_border = spatial_border
-        self.mode = NumpyPadMode(mode)
+        self.mode: NumpyPadMode = NumpyPadMode(mode)
 
     def __call__(self, img, mode: Optional[Union[NumpyPadMode, str]] = None):
         spatial_shape = img.shape[1:]
@@ -143,7 +143,7 @@ class DivisiblePad(Transform):
         See also :py:class:`monai.transforms.SpatialPad`
         """
         self.k = k
-        self.mode = NumpyPadMode(mode)
+        self.mode: NumpyPadMode = NumpyPadMode(mode)
 
     def __call__(self, img, mode: Optional[Union[NumpyPadMode, str]] = None):
         spatial_shape = img.shape[1:]

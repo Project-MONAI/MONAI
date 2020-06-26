@@ -54,7 +54,7 @@ class PNGSaver:
         self.output_postfix = output_postfix
         self.output_ext = output_ext
         self.resample = resample
-        self.mode = InterpolateMode(mode)
+        self.mode: InterpolateMode = InterpolateMode(mode)
         self.scale = scale
 
         self._data_index = 0

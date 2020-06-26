@@ -68,8 +68,8 @@ class AffineTransform(nn.Module):
         super().__init__()
         self.spatial_size = ensure_tuple(spatial_size) if spatial_size is not None else None
         self.normalized = normalized
-        self.mode = GridSampleMode(mode)
-        self.padding_mode = GridSamplePadMode(padding_mode)
+        self.mode: GridSampleMode = GridSampleMode(mode)
+        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
         self.align_corners = align_corners
         self.reverse_indexing = reverse_indexing
 

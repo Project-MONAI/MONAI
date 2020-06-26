@@ -48,7 +48,7 @@ class GridPatchDataset(IterableDataset):
         self.dataset = dataset
         self.patch_size = (None,) + tuple(patch_size)
         self.start_pos = start_pos
-        self.mode = NumpyPadMode(mode)
+        self.mode: NumpyPadMode = NumpyPadMode(mode)
         self.pad_opts = pad_opts
 
     def __iter__(self):

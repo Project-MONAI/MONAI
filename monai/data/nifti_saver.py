@@ -59,8 +59,8 @@ class NiftiSaver:
         self.output_postfix = output_postfix
         self.output_ext = output_ext
         self.resample = resample
-        self.mode = GridSampleMode(mode)
-        self.padding_mode = GridSamplePadMode(padding_mode)
+        self.mode: GridSampleMode = GridSampleMode(mode)
+        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
         self.dtype = dtype
         self._data_index = 0
 

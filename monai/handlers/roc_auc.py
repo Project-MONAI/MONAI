@@ -61,7 +61,7 @@ class ROCAUC(Metric):
         super().__init__(output_transform, device=device)
         self.to_onehot_y = to_onehot_y
         self.softmax = softmax
-        self.average = Average(average)
+        self.average: Average = Average(average)
 
     def reset(self) -> None:
         self._predictions: List[float] = []
