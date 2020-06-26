@@ -67,11 +67,11 @@ affine = Affine(
 new_img = affine(image, spatial_size=(300, 400), mode='bilinear')
 ```
 <p>
-<img src="../images/3d1.png" width="30" alt='spleen'>
-<img src="../images/3d2.png" width="30" alt='spleen'>
-<img src="../images/3d3.png" width="30" alt='spleen'>
+<img src="../images/3d1.png" width="30%" alt='spleen'>
+<img src="../images/3d2.png" width="30%" alt='spleen'>
+<img src="../images/3d3.png" width="30%" alt='spleen'>
 </p>
-Currently all the geometric image transforms(Spacing, Zoom, Rotate, Resize, etc.) are designed based on the PyTorch native interfaces (instead of scipy, scikit-image, etc.).
+Currently all the geometric image transforms (Spacing, Zoom, Rotate, Resize, etc.) are designed based on the PyTorch native interfaces (instead of using scipy, scikit-image, etc.).
 
 ### 4. Randomly crop out batch images based on positive/negative ratio
 Medical image data volume may be too large to fit into GPU memory. A widely-used approach is to randomly draw small size data samples during training and run a “sliding window” routine for inference.  MONAI currently provides general random sampling strategies including class-balanced fixed ratio sampling which may help stabilize the patch-based training process.
@@ -115,6 +115,7 @@ After applying the post-processing transforms, it's easier to compute metrics, s
 
 ### 9. Integrate third-party transforms
 The design of MONAI transforms is simple and intuitive. It works for array data or dictionary-based data. MONAI also provides `Adaptor` tools to accomodate different data format for 3rd party transforms. To convert the data shapes or types, utility transforms such as `ToTensor`, `ToNumpy`, `SqueeseDim` are  also provided. So it's easy to enhance the transform chain by seamlessly integrating transforms from external packages, including: `ITK`, `BatchGenerator`, `TorchIO` and `Rising`.
+
 For more details, please check out the tutorial: [integrate 3rd pary transforms into MONAI program](https://github.com/Project-MONAI/MONAI/blob/master/examples/notebooks/integrate_3rd_party_transforms.ipynb).
 
 ## Datasets
@@ -126,8 +127,8 @@ MONAI provides a multi-threads `CacheDataset` to accelerate these transformation
 ### 2. Cache intermediate outcomes into persistent storage
 The `PersistentDataset` is similar to the CacheDataset, where the intermediate cache values are persisted to disk storage for rapid retrieval between experimental runs (as is the case when tuning hyper parameters), or when the entire data set size exceeds available memory.
 
-### 3. Zip several PyTorch datasets and output data together
-MONAI provides `ZipDataset` to connect several PyTorch datasets and combine the output data(with the same index) together in a tuple, which can be helpful to execute complicated training progress based on several data sources.
+### 3. Zip mutiple PyTorch datasets and fuse the output
+MONAI provides `ZipDataset` to associate multiple PyTorch datasets and combine the output data (with the same corresponding batch index) into a tuple, which can be helpful to execute complex training processes based on various data sources.
 For example:
 ```py
 class DatasetA(Dataset):
@@ -142,8 +143,9 @@ dataset = ZipDataset([DatasetA(), DatasetB()], transform)
 ```
 
 ### 4. Predefined Datasets for public medical data
-In order to quickly get start with popular training data in medical domain, MONAI provides several data-specific Datasets(like: `MedNISTDataset`, `DecathlonDataset`, etc.), which include downloading, extracting data files and support generation of training/evaluation items with transforms. And they are flexible that users can easily modify the JSON config file to change the default behaviors.
-If anyone wants to contribute a new public dataset, just refer to existing Datasets and leverage the download and extracting APIs, etc.
+To quickly get start with popular training data in medical domain, MONAI provides several data-specific Datasets(like: `MedNISTDataset`, `DecathlonDataset`, etc.), which include downloading, extracting data files and support generation of training/evaluation items with transforms. And they are flexible that users can easily modify the JSON config file to change the default behaviors.
+
+MONAI always welcome new contribution of public datasets, please refer to existing Datasets and leverage the download and extracting APIs, etc.
 
 ## Losses
 There are domain-specific loss functions in the medical imaging research which are not typically used in the generic computer vision tasks. As an important module of MONAI, these loss functions are implemented in PyTorch, such as `DiceLoss`, `GeneralizedDiceLoss`, `MaskedDiceLoss`, `TverskyLoss` and `FocalLoss`, etc.
@@ -167,12 +169,14 @@ And there are already several 1D/2D/3D compatible implementation of networks, su
 To run model inferences and evaluate the model quality, MONAI provides reference implementations for the relevant widely-used approaches. Currently, several popular evaluation metrics and inference patterns are included:
 
 ### 1. Sliding window inference
-For model inferences on large volumes, the sliding window approach is a popular choice to achieve high performance while having flexible memory requirements (alternatively, please checkout the latest research on [model parallel training](#LAMP:-large-deep-nets-with-automated-model-parallelism-for-image-segmentation)). It also supports `overlap` and `blending_mode` parameters to smooth the segmentation result with weights for better metrics.
-The typical process is:
+For model inferences on large volumes, the sliding window approach is a popular choice to achieve high performance while having flexible memory requirements (_alternatively, please check out the latest research on [model parallel training](#lamp-large-deep-nets-with-automated-model-parallelism-for-image-segmentation) using MONAI_). It also supports `overlap` and `blending_mode` configurations to handle the overlapped windows for better performances.
+
+A typical process is:
 1. Select continuous windows on the original image.
 2. Iteratively run batched window inferences until all windows are analyzed.
 3. Aggregate the inference outputs to a single segmentation map.
 4. Save the results to file or compute some evaluation metrics.
+
 ![image](../images/sliding_window.png)
 
 ### 2. Metrics for medical tasks
@@ -191,20 +195,25 @@ These features decouple the domain-specific components and the generic machine l
 The trainers and evaluators of the workflows are compatible with ignite `Engine` and `Event-Handler` mechanism. There are rich event handlers in MONAI to independently attach to the trainer or evaluator.
 
 The workflow and event handlers are shown as below:
+
 ![image](../images/workflows.png)
 
 ## Research
 We encourage deep learning researchers in medical domain to build their research with MONAI and contribute to MONAI.
 There are several research prototypes in MONAI corresponding to the recently published papers that are addresses research problems.
+
 ### COPLE-Net for COVID-19 Pneumonia Lesion Segmentation
 A reimplementation of the COPLE-Net originally proposed by:
-G. Wang, X. Liu, C. Li, Z. Xu, J. Ruan, H. Zhu, T. Meng, K. Li, N. Huang, S. Zhang. (2020) "A Noise-robust Framework for Automatic Segmentation of COVID-19 Pneumonia Lesions from CT Images." IEEE Transactions on Medical Imaging. 2020. DOI: 10.1109/TMI.2020.3000314
+
+G. Wang, X. Liu, C. Li, Z. Xu, J. Ruan, H. Zhu, T. Meng, K. Li, N. Huang, S. Zhang. (2020) "A Noise-robust Framework for Automatic Segmentation of COVID-19 Pneumonia Lesions from CT Images." IEEE Transactions on Medical Imaging. 2020. [DOI: 10.1109/TMI.2020.3000314](https://doi.org/10.1109/TMI.2020.3000314)
+
 <p>
 <img src="../images/coplenet.png" width="50%" alt='lung-ct'>
 </p>
 
 ### LAMP: Large Deep Nets with Automated Model Parallelism for Image Segmentation
 A reimplementation of the LAMP system originally proposed by:
+
 Wentao Zhu, Can Zhao, Wenqi Li, Holger Roth, Ziyue Xu, and Daguang Xu (2020) "LAMP: Large Deep Nets with Automated Model Parallelism for Image Segmentation." MICCAI 2020 (Early Accept, paper link: https://arxiv.org/abs/2006.12575)
 <p>
 <img src="../images/unet-pipe.png" width="50%" alt='unet-multi-gpu'>
