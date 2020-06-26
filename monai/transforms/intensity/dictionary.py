@@ -356,13 +356,21 @@ class ScaleIntensityRangePercentilesd(MapTransform):
         b_min: intensity target range min.
         b_max: intensity target range max.
         clip: whether to perform clip after scaling.
+        relative: whether to scale to the coresponding percentiles of [b_min, b_max]
     """
 
     def __init__(
-        self, keys: KeysCollection, lower: float, upper: float, b_min: float, b_max: float, clip: bool = False
+        self,
+        keys: KeysCollection,
+        lower: float,
+        upper: float,
+        b_min: float,
+        b_max: float,
+        clip: bool = False,
+        relative: bool = False,
     ) -> None:
         super().__init__(keys)
-        self.scaler = ScaleIntensityRangePercentiles(lower, upper, b_min, b_max, clip)
+        self.scaler = ScaleIntensityRangePercentiles(lower, upper, b_min, b_max, clip, relative)
 
     def __call__(self, data):
         d = dict(data)
