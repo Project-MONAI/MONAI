@@ -96,6 +96,7 @@ monai.utils.set_determinism(seed=0, additional_settings=None)
 
 ### 6. Multiple transform chains
 To apply different transforms on the same data and concatenate the results, MONAI provides `CopyItems` transform to make copies of specified items in the data dictionary and `ConcatItems` transform to combine specified items on the expected dimension, and also provides `DeleteItems` transform to delete unnecessary items to save memory.
+
 A typical usage is to scale the intensity of the same image into different ranges and concat the results together.
 ![image](../images/multi_transform_chains.png)
 
@@ -107,7 +108,7 @@ It's a self-contained transform and can be integrated into any transform chain.
 MONAI also provides post-processing transforms for hanlding the model outputs.
 Currently, the transforms include:
 - Adding activation layer (Sigmoid, Softmax, etc.).
-- Converting to discrete values(Argmax, One-Hot, Threshold value, etc).
+- Converting to discrete values (Argmax, One-Hot, Threshold value, etc).
 - Splitting multi-channel data into multiple single channels.
 - Removing segmentation noise based on connected component analysis.
 
@@ -129,6 +130,7 @@ The `PersistentDataset` is similar to the CacheDataset, where the intermediate c
 
 ### 3. Zip mutiple PyTorch datasets and fuse the output
 MONAI provides `ZipDataset` to associate multiple PyTorch datasets and combine the output data (with the same corresponding batch index) into a tuple, which can be helpful to execute complex training processes based on various data sources.
+
 For example:
 ```py
 class DatasetA(Dataset):
@@ -187,6 +189,7 @@ Beyond the simple point and curve plotting, MONAI provides intuitive interfaces 
 
 ## Result writing
 Currently MONAI supports writing the model outputs as NIfTI files or PNG files for segmentation tasks, and as CSV files for classification tasks. And the writers can restore the data spacing, orientation or shape according to the `original_shape` or `original_affine` information from the input image.
+
 A rich set of formats will be supported soon, along with relevant statistics and evaluation metrics automatically computed from the outputs.
 
 ## Workflows
