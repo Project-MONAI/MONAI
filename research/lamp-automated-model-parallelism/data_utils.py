@@ -39,7 +39,7 @@ def get_filenames(path, maskname=STRUCTURES):
         if os.path.exists(os.path.join(path, "./structures/" + seg + "_crp_v2.npy")):
             maskfiles.append(os.path.join(path, "./structures/" + seg + "_crp_v2.npy"))
         else:
-            # print("missing annotation", seg, path.split("/")[-1])
+            # the corresponding mask is missing seg, path.split("/")[-1]
             maskfiles.append(None)
     return os.path.join(path, "img_crp_v2.npy"), maskfiles
 

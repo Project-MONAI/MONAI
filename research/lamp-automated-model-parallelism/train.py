@@ -23,7 +23,7 @@ from monai.utils import first
 from torchgpipe import GPipe
 from torchgpipe.balance import balance_by_size
 
-from unet_pipe import UNet, flatten_sequential
+from unet_pipe import UNetPipe, flatten_sequential
 from data_utils import get_filenames, load_data_and_mask
 
 N_CLASSES = 10
@@ -140,7 +140,7 @@ def train(n_feat, crop_size, bs, ep, optimizer="rmsprop", lr=5e-4, pretrain=None
     print(val_dataset[0]["image"].shape)
     print(f"training images: {len(train_dataloader)}, validation images: {len(val_dataloader)}")
 
-    model = UNet(spatial_dims=3, in_channels=1, out_channels=N_CLASSES, n_feat=n_feat)
+    model = UNetPipe(spatial_dims=3, in_channels=1, out_channels=N_CLASSES, n_feat=n_feat)
     model = flatten_sequential(model)
     lossweight = torch.from_numpy(np.array([2.22, 1.31, 1.99, 1.13, 1.93, 1.93, 1.0, 1.0, 1.90, 1.98], np.float32))
 

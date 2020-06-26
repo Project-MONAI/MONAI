@@ -97,7 +97,7 @@ class DoubleConv(nn.Module):
         return self.conv(x)
 
 
-class UNet(nn.Sequential):
+class UNetPipe(nn.Sequential):
     def __init__(self, spatial_dims: int, in_channels: int, out_channels: int, n_feat: int = 32, depth: int = 4):
         """
         A UNet-like architecture for model parallelism.
