@@ -49,12 +49,12 @@ class TverskyLoss(_Loss):
             softmax: If True, apply a softmax function to the prediction.
             alpha: weight of false positives
             beta: weight of false negatives
-            reduction (`none|mean|sum`): Specifies the reduction to apply to the output:
-                ``'none'``: no reduction will be applied,
-                ``'mean'``: the sum of the output will be divided by the number of elements in the output,
-                ``'sum'``: the output will be summed.
-                Default: ``'mean'``.
+            reduction: {``"none"``, ``"mean"``, ``"sum"``}
+                Specifies the reduction to apply to the output. Defaults to ``"mean"``.
 
+                - ``"none"``: no reduction will be applied.
+                - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
+                - ``"sum"``: the output will be summed.
         """
 
         super().__init__(reduction=reduction)

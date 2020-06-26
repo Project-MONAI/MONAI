@@ -23,8 +23,8 @@ VALID_CASES = [(0.8, 1.2, "nearest", False)]
 
 class TestRandZoom(NumpyImageTestCase2D):
     @parameterized.expand(VALID_CASES)
-    def test_correct_results(self, min_zoom, max_zoom, order, keep_size):
-        random_zoom = RandZoom(prob=1.0, min_zoom=min_zoom, max_zoom=max_zoom, interp_order=order, keep_size=keep_size)
+    def test_correct_results(self, min_zoom, max_zoom, mode, keep_size):
+        random_zoom = RandZoom(prob=1.0, min_zoom=min_zoom, max_zoom=max_zoom, mode=mode, keep_size=keep_size,)
         random_zoom.set_random_state(1234)
         zoomed = random_zoom(self.imt[0])
         expected = list()
@@ -45,9 +45,9 @@ class TestRandZoom(NumpyImageTestCase2D):
     @parameterized.expand(
         [("no_min_zoom", None, 1.1, "bilinear", TypeError), ("invalid_order", 0.9, 1.1, "s", NotImplementedError)]
     )
-    def test_invalid_inputs(self, _, min_zoom, max_zoom, order, raises):
+    def test_invalid_inputs(self, _, min_zoom, max_zoom, mode, raises):
         with self.assertRaises(raises):
-            random_zoom = RandZoom(prob=1.0, min_zoom=min_zoom, max_zoom=max_zoom, interp_order=order)
+            random_zoom = RandZoom(prob=1.0, min_zoom=min_zoom, max_zoom=max_zoom, mode=mode)
             random_zoom(self.imt[0])
 
 
