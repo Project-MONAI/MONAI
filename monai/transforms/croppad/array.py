@@ -326,6 +326,12 @@ class RandCropByPosNegLabel(Randomizable, Transform):
     Crop random fixed sized regions with the center being a foreground or background voxel
     based on the Pos Neg Ratio.
     And will return a list of arrays for all the cropped images.
+    For example, crop two (3 x 3) arrays from (5 x 5) array with pos/neg=1:
+        [[[0, 0, 0, 0, 0],
+          [0, 1, 2, 1, 0],            [[0, 1, 2],     [[2, 1, 0],
+          [0, 1, 3, 0, 0],     -->     [0, 1, 3],      [3, 0, 0],
+          [0, 0, 0, 0, 0],             [0, 0, 0]]      [0, 0, 0]]
+          [0, 0, 0, 0, 0]]]
 
     Args:
         spatial_size (sequence of int): the spatial size of the crop region e.g. [224, 224, 128].
@@ -335,7 +341,8 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         neg: used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
             foreground voxel as a center rather than a background voxel.
         num_samples: number of samples (crop regions) to take in each list.
-        image: if not None, use ``label == 0 & image > image_threshold`` to select the negative
+        image: optional image data to help select valid area, can be same as `img` or another image array.
+            if not None, use ``label == 0 & image > image_threshold`` to select the negative
             sample(background) center. so the crop center will only exist on valid image area.
         image_threshold: if enabled `image`, use ``image > image_threshold`` to determine
             the valid image content area.
@@ -368,7 +375,16 @@ class RandCropByPosNegLabel(Randomizable, Transform):
             label, self.spatial_size, self.num_samples, self.pos_ratio, image, self.image_threshold, self.R
         )
 
-    def __call__(self, img, label=None, image=None):
+    def __call__(self, img: np.ndarray, label: Optional[np.ndarray] = None, image: Optional[np.ndarray] = None):
+        """
+        Args:
+            img: input data to crop samples from based on the pos/neg ratio of `label` and `image`.
+            label: the label image that is used for finding foreground/background, if None, use `self.label`.
+            image: optional image data to help select valid area, can be same as `img` or another image array.
+                use ``label == 0 & image > image_threshold`` to select the negative sample(background) center.
+                so the crop center will only exist on valid image area. if None, use `self.image`.
+
+        """
         self.randomize(self.label if label is None else label, self.image if image is None else image)
         results = list()
         for center in self.centers:
