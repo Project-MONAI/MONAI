@@ -319,6 +319,7 @@ class CropForegroundd(MapTransform):
 
 class RandCropByPosNegLabeld(Randomizable, MapTransform):
     """
+    dictionary-based version :py:class:`monai.transforms.RandCropByPosNegLabel`.
     Crop random fixed sized regions with the center being a foreground or background voxel
     based on the Pos Neg Ratio.
     And will return a list of dictionaries for all the cropped images.
@@ -327,7 +328,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
         label_key: name of key for label image, this will be used for finding foreground/background.
-        spatial_size (sequence of int): the spatial size of the crop region e.g. [224, 224, 128]
+        spatial_size (sequence of int): the spatial size of the crop region e.g. [224, 224, 128].
         pos: used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
             foreground voxel as a center rather than a background voxel.
         neg: used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
