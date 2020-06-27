@@ -13,13 +13,13 @@ A collection of "vanilla" transforms for crop and pad operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Callable, Optional, Union
+from typing import Callable, Optional, Union, List
 
 import numpy as np
 from monai.config.type_definitions import IndexSelection
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.compose import Randomizable, Transform
-from monai.transforms.utils import generate_spatial_bounding_box
+from monai.transforms.utils import generate_pos_neg_label_crop_centers, generate_spatial_bounding_box
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import NumpyPadMode, Method
 
@@ -347,3 +347,77 @@ class CropForeground(Transform):
         box_start, box_end = generate_spatial_bounding_box(img, self.select_fn, self.channel_indexes, self.margin)
         cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
         return cropper(img)
+
+
+class RandCropByPosNegLabel(Randomizable, Transform):
+    """
+    Crop random fixed sized regions with the center being a foreground or background voxel
+    based on the Pos Neg Ratio.
+    And will return a list of arrays for all the cropped images.
+    For example, crop two (3 x 3) arrays from (5 x 5) array with pos/neg=1:
+        [[[0, 0, 0, 0, 0],
+          [0, 1, 2, 1, 0],            [[0, 1, 2],     [[2, 1, 0],
+          [0, 1, 3, 0, 0],     -->     [0, 1, 3],      [3, 0, 0],
+          [0, 0, 0, 0, 0],             [0, 0, 0]]      [0, 0, 0]]
+          [0, 0, 0, 0, 0]]]
+
+    Args:
+        spatial_size (sequence of int): the spatial size of the crop region e.g. [224, 224, 128].
+        label: the label image that is used for finding foreground/background, if None, must set at `call`.
+        pos: used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
+            foreground voxel as a center rather than a background voxel.
+        neg: used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
+            foreground voxel as a center rather than a background voxel.
+        num_samples: number of samples (crop regions) to take in each list.
+        image: optional image data to help select valid area, can be same as `img` or another image array.
+            if not None, use ``label == 0 & image > image_threshold`` to select the negative
+            sample(background) center. so the crop center will only exist on valid image area.
+        image_threshold: if enabled `image`, use ``image > image_threshold`` to determine
+            the valid image content area.
+    """
+
+    def __init__(
+        self,
+        spatial_size,
+        label: Optional[np.ndarray] = None,
+        pos: float = 1.0,
+        neg: float = 1.0,
+        num_samples: int = 1,
+        image: Optional[np.ndarray] = None,
+        image_threshold: float = 0.0,
+    ):
+        self.spatial_size = spatial_size
+        self.label = label
+        if pos < 0 or neg < 0:
+            raise ValueError("pos and neg must be greater than or equal to 0.")
+        if pos + neg == 0:
+            raise ValueError("pos and neg cannot both be 0.")
+        self.pos_ratio = pos / (pos + neg)
+        self.num_samples = num_samples
+        self.image = image
+        self.image_threshold = image_threshold
+        self.centers = None
+
+    def randomize(self, label, image):
+        self.centers = generate_pos_neg_label_crop_centers(
+            label, self.spatial_size, self.num_samples, self.pos_ratio, image, self.image_threshold, self.R
+        )
+
+    def __call__(self, img: np.ndarray, label: Optional[np.ndarray] = None, image: Optional[np.ndarray] = None):
+        """
+        Args:
+            img: input data to crop samples from based on the pos/neg ratio of `label` and `image`.
+            label: the label image that is used for finding foreground/background, if None, use `self.label`.
+            image: optional image data to help select valid area, can be same as `img` or another image array.
+                use ``label == 0 & image > image_threshold`` to select the negative sample(background) center.
+                so the crop center will only exist on valid image area. if None, use `self.image`.
+
+        """
+        self.randomize(self.label if label is None else label, self.image if image is None else image)
+        results: List[np.ndarray] = list()
+        if self.centers is not None:
+            for center in self.centers:
+                cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)
+                results.append(cropper(img))
+
+        return results
