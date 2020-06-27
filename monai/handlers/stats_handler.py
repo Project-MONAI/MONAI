@@ -87,7 +87,7 @@ class StatsHandler(object):
         Register a set of Ignite Event-Handlers to a specified Ignite engine.
 
         Args:
-            engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
 
         """
         if self._name is None:
@@ -105,7 +105,7 @@ class StatsHandler(object):
         Print epoch level log, default values are from Ignite state.metrics dict.
 
         Args:
-            engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
 
         """
         if self.epoch_print_logger is not None:
@@ -119,7 +119,7 @@ class StatsHandler(object):
         Print iteration level log, default values are from Ignite state.logs dict.
 
         Args:
-            engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
 
         """
         if self.iteration_print_logger is not None:
@@ -133,7 +133,7 @@ class StatsHandler(object):
         Print the exception information and traceback.
 
         Args:
-            engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
             e (Exception): the exception caught in Ignite during engine.run().
 
         """
@@ -147,7 +147,7 @@ class StatsHandler(object):
         print the values from Ignite state.metrics dict.
 
         Args:
-            engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
 
         """
         prints_dict = engine.state.metrics
@@ -174,7 +174,7 @@ class StatsHandler(object):
         Default behavior is to print loss from output[1], skip if output[1] is not loss.
 
         Args:
-            engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
 
         """
         loss = self.output_transform(engine.state.output)

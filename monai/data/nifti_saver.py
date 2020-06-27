@@ -17,6 +17,7 @@ import torch
 from monai.data.nifti_writer import write_nifti
 
 from .utils import create_file_basename
+from monai.utils.enums import GridSampleMode, GridSamplePadMode
 
 
 class NiftiSaver:
@@ -33,8 +34,8 @@ class NiftiSaver:
         output_postfix: str = "seg",
         output_ext: str = ".nii.gz",
         resample: bool = True,
-        mode: str = "bilinear",
-        padding_mode: str = "border",
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         dtype: Optional[np.dtype] = None,
     ):
         """
@@ -58,8 +59,8 @@ class NiftiSaver:
         self.output_postfix = output_postfix
         self.output_ext = output_ext
         self.resample = resample
-        self.mode = mode
-        self.padding_mode = padding_mode
+        self.mode: GridSampleMode = GridSampleMode(mode)
+        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
         self.dtype = dtype
         self._data_index = 0
 
@@ -78,7 +79,7 @@ class NiftiSaver:
 
         If meta_data is None, use the default index (starting from 0) as the filename.
 
-        args:
+        Args:
             data (Tensor or ndarray): target data content that to be saved as a NIfTI format file.
                 Assuming the data shape starts with a channel dimension and followed by spatial dimensions.
             meta_data (dict): the meta data information corresponding to the data.
@@ -127,7 +128,7 @@ class NiftiSaver:
         in this case each item in the batch will be saved as (64, 64, 1, 8)
         NIfTI file (the third dimension is reserved as a spatial dimension).
 
-        args:
+        Args:
             batch_data (Tensor or ndarray): target batch data content that save into NIfTI format.
             meta_data (dict): every key-value in the meta_data is corresponding to a batch of data.
         """

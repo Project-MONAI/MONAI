@@ -17,8 +17,9 @@ from scipy.ndimage import zoom as zoom_scipy
 from tests.utils import NumpyImageTestCase2D
 
 from monai.transforms import RandZoom
+from monai.utils.enums import InterpolateMode, GridSampleMode
 
-VALID_CASES = [(0.8, 1.2, "nearest", False)]
+VALID_CASES = [(0.8, 1.2, "nearest", False), (0.8, 1.2, InterpolateMode.NEAREST, False)]
 
 
 class TestRandZoom(NumpyImageTestCase2D):
@@ -43,7 +44,11 @@ class TestRandZoom(NumpyImageTestCase2D):
         self.assertTrue(np.array_equal(zoomed.shape, self.imt.shape[1:]))
 
     @parameterized.expand(
-        [("no_min_zoom", None, 1.1, "bilinear", TypeError), ("invalid_order", 0.9, 1.1, "s", NotImplementedError)]
+        [
+            ("no_min_zoom", None, 1.1, "bilinear", TypeError),
+            ("invalid_mode", 0.9, 1.1, "s", ValueError),
+            ("invalid_mode", 0.9, 1.1, GridSampleMode.NEAREST, ValueError),
+        ]
     )
     def test_invalid_inputs(self, _, min_zoom, max_zoom, mode, raises):
         with self.assertRaises(raises):

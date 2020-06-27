@@ -16,6 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import RandAffined
+from monai.utils.enums import GridSampleMode
 
 TEST_CASES = [
     [
@@ -62,6 +63,40 @@ TEST_CASES = [
         dict(
             prob=0.9,
             mode=("bilinear", "nearest"),
+            rotate_range=(np.pi / 2,),
+            shear_range=[1, 2],
+            translate_range=[2, 1],
+            scale_range=[0.1, 0.2],
+            as_tensor_output=False,
+            spatial_size=(3, 3),
+            keys=("img", "seg"),
+            device=torch.device("cpu:0"),
+        ),
+        {"img": torch.arange(64).reshape((1, 8, 8)), "seg": torch.arange(64).reshape((1, 8, 8))},
+        {
+            "img": np.array([[[16.9127, 13.3079, 9.7031], [26.8129, 23.2081, 19.6033], [36.7131, 33.1083, 29.5035]]]),
+            "seg": np.array([[[19.0, 12.0, 12.0], [27.0, 20.0, 21.0], [35.0, 36.0, 29.0]]]),
+        },
+    ],
+    [
+        dict(
+            prob=0.9,
+            rotate_range=(np.pi / 2,),
+            shear_range=[1, 2],
+            translate_range=[2, 1],
+            as_tensor_output=True,
+            spatial_size=(2, 2, 2),
+            device=None,
+            keys=("img", "seg"),
+            mode=GridSampleMode.BILINEAR,
+        ),
+        {"img": torch.ones((1, 3, 3, 3)), "seg": torch.ones((1, 3, 3, 3))},
+        torch.tensor([[[[0.0000, 0.6577], [0.9911, 1.0000]], [[0.7781, 1.0000], [1.0000, 0.4000]]]]),
+    ],
+    [
+        dict(
+            prob=0.9,
+            mode=(GridSampleMode.BILINEAR, GridSampleMode.NEAREST),
             rotate_range=(np.pi / 2,),
             shear_range=[1, 2],
             translate_range=[2, 1],

@@ -9,11 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Union
+
 import torch
 import torch.nn as nn
 
 from monai.networks.utils import to_norm_affine
 from monai.utils import ensure_tuple
+from monai.utils.enums import GridSampleMode, GridSamplePadMode
 
 __all__ = ["AffineTransform"]
 
@@ -23,8 +26,8 @@ class AffineTransform(nn.Module):
         self,
         spatial_size=None,
         normalized: bool = False,
-        mode: str = "bilinear",
-        padding_mode: str = "zeros",
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.ZEROS,
         align_corners: bool = False,
         reverse_indexing: bool = True,
     ):
@@ -65,8 +68,8 @@ class AffineTransform(nn.Module):
         super().__init__()
         self.spatial_size = ensure_tuple(spatial_size) if spatial_size is not None else None
         self.normalized = normalized
-        self.mode = mode
-        self.padding_mode = padding_mode
+        self.mode: GridSampleMode = GridSampleMode(mode)
+        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
         self.align_corners = align_corners
         self.reverse_indexing = reverse_indexing
 
@@ -85,6 +88,14 @@ class AffineTransform(nn.Module):
                 `theta` will be repeated N times, N is the batch dim of `src`.
             spatial_size (list or tuple of int): output spatial shape, the full output shape will be
                 `[N, C, *spatial_size]` where N and C are inferred from the `src`.
+
+        Raises:
+            TypeError: both src and theta must be torch Tensor, got {type(src).__name__}, {type(theta).__name__}.
+            ValueError: affine must be Nxdxd or dxd.
+            ValueError: affine must be Nx3x3 or Nx4x4, got: {theta.shape}.
+            ValueError: src must be spatially 2D or 3D.
+            ValueError: batch dimension of affine and image does not match, got affine: {} and image: {}.
+
         """
         # validate `theta`
         if not torch.is_tensor(theta) or not torch.is_tensor(src):
@@ -141,8 +152,8 @@ class AffineTransform(nn.Module):
         dst = nn.functional.grid_sample(
             input=src.contiguous(),
             grid=grid,
-            mode=self.mode,
-            padding_mode=self.padding_mode,
+            mode=self.mode.value,
+            padding_mode=self.padding_mode.value,
             align_corners=self.align_corners,
         )
         return dst

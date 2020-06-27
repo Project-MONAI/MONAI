@@ -90,7 +90,7 @@ class TestRotate3D(NumpyImageTestCase3D):
 
     @parameterized.expand(TEST_CASES_SHAPE_3D)
     def test_correct_shape(self, angle, mode, padding_mode, align_corners):
-        rotate_fn = Rotate(angle, True, align_corners)
+        rotate_fn = Rotate(angle, True, align_corners=align_corners)
         rotated = rotate_fn(self.imt[0], mode=mode, padding_mode=padding_mode)
         np.testing.assert_allclose(self.imt[0].shape, rotated.shape)
 

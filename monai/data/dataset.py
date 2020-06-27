@@ -115,6 +115,7 @@ class PersistentDataset(Dataset):
 
         Args:
             item_transformed: The data to be transformed
+
         Returns:
             the transformed element up to the first identified
             random transform object
@@ -129,8 +130,10 @@ class PersistentDataset(Dataset):
     def _first_random_and_beyond_transform(self, item_transformed):
         """
         Process the data from before the first random transform to the final state ready for evaluation.
+
         Args:
             item_transformed: The data to be transformed (already processed up to the first random transform)
+
         Returns:
             the transformed element through the random transforms
         """
@@ -147,10 +150,11 @@ class PersistentDataset(Dataset):
 
     def _pre_first_random_cachecheck(self, item_transformed):
         """
-            A function to cache the expensive input data transform operations
-            so that huge data sets (larger than computer memory) can be processed
-            on the fly as needed, and intermediate results written to disk for
-            future use.
+        A function to cache the expensive input data transform operations
+        so that huge data sets (larger than computer memory) can be processed
+        on the fly as needed, and intermediate results written to disk for
+        future use.
+
         Args:
             item_transformed: The current data element to be mutated into transformed representation
 

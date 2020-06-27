@@ -55,6 +55,10 @@ def load_decathalon_datalist(
         data_list_key: the key to get a list of dictionary to be used, default is "training".
         base_dir: the base directory of the dataset, if None, use the datalist directory.
 
+    Raises:
+        ValueError: data list file {data_list_file_path} does not exist.
+        ValueError: data list {data_list_key} not specified in '{data_list_file_path}'.
+
     Returns a list of data items, each of which is a dict keyed by element names, for example:
 
     .. code-block::

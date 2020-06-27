@@ -9,11 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional
+from typing import Optional, Union
 
 import torch
 import torch.nn.functional as F
 from torch.nn.modules.loss import _WeightedLoss
+
+from monai.utils.enums import LossReduction
 
 
 class FocalLoss(_WeightedLoss):
@@ -25,18 +27,23 @@ class FocalLoss(_WeightedLoss):
           Zhu et al., Medical Physics 2018
     """
 
-    def __init__(self, gamma: float = 2.0, weight: Optional[torch.Tensor] = None, reduction: str = "mean"):
+    def __init__(
+        self,
+        gamma: float = 2.0,
+        weight: Optional[torch.Tensor] = None,
+        reduction: Union[LossReduction, str] = LossReduction.MEAN,
+    ):
         """
         Args:
             gamma: value of the exponent gamma in the definition of the Focal loss.
             weight (tensor): weights to apply to the voxels of each class. If None no weights are applied.
                 This corresponds to the weights `\alpha` in [1].
-        reduction: {``"none"``, ``"mean"``, ``"sum"``}
-            Specifies the reduction to apply to the output. Defaults to ``"mean"``.
+            reduction: {``"none"``, ``"mean"``, ``"sum"``}
+                Specifies the reduction to apply to the output. Defaults to ``"mean"``.
 
-            - ``"none"``: no reduction will be applied.
-            - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
-            - ``"sum"``: the output will be summed.
+                - ``"none"``: no reduction will be applied.
+                - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
+                - ``"sum"``: the output will be summed.
 
         Example:
             .. code-block:: python
@@ -50,7 +57,7 @@ class FocalLoss(_WeightedLoss):
                 fl(pred, grnd)
 
         """
-        super(FocalLoss, self).__init__(weight=weight, reduction=reduction)
+        super(FocalLoss, self).__init__(weight=weight, reduction=LossReduction(reduction))
         self.gamma = gamma
 
     def forward(self, input, target):
@@ -61,6 +68,14 @@ class FocalLoss(_WeightedLoss):
             target: (tensor): the shape should be B1H[WD] or BCH[WD].
                 If the target's shape is B1H[WD], the target that this loss expects should be a class index
                 in the range [0, C-1] where C is the number of classes.
+
+        Raises:
+            ValueError: input and target must have the same number of dimensions, got {i.ndim} and {t.ndim}
+            ValueError: target must have one channel or have the same shape as the input.
+                If it has one channel, it should be a class index in the range [0, C-1]
+                where C is the number of classes inferred from 'input': C={i.shape[1]}.
+            ValueError: reduction={self.reduction} is invalid.
+
         """
         i = input
         t = target
@@ -113,10 +128,10 @@ class FocalLoss(_WeightedLoss):
         else:
             loss = torch.mean(-weight * t * logpt, dim=-1)  # N,C
 
-        if self.reduction == "sum":
+        if self.reduction == LossReduction.SUM:
             return loss.sum()
-        if self.reduction == "none":
+        if self.reduction == LossReduction.NONE:
             return loss
-        if self.reduction == "mean":
+        if self.reduction == LossReduction.MEAN:
             return loss.mean()
         raise ValueError(f"reduction={self.reduction} is invalid.")
