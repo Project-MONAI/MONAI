@@ -114,6 +114,12 @@ def to_norm_affine(affine, src_size, dst_size, align_corners: bool = False):
         align_corners: if True, consider -1 and 1 to refer to the centers of the
             corner pixels rather than the image corners.
             See also: https://pytorch.org/docs/stable/nn.functional.html#torch.nn.functional.grid_sample
+
+    Raises:
+        ValueError: affine must be a tensor
+        ValueError: affine must be Nxdxd, got {tuple(affine.shape)}
+        ValueError: affine suggests a {sr}-D transform, but the sizes are src_size={src_size}, dst_size={dst_size}
+
     """
     if not torch.is_tensor(affine):
         raise ValueError("affine must be a tensor")

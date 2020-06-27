@@ -25,11 +25,12 @@ SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWrite
 
 def _image3_animated_gif(tag: str, image: Union[np.ndarray, torch.Tensor], scale_factor: float = 1.0):
     """Function to actually create the animated gif.
+
     Args:
         tag: Data identifier
         image: 3D image tensors expected to be in `HWD` format
         scale_factor: amount to multiply values by. if the image data is between 0 and 1, using 255 for this value will
-        scale it to displayable range
+            scale it to displayable range
     """
     assert len(image.shape) == 3, "3D image tensors expected to be in `HWD` format, len(image.shape) != 3"
 

@@ -13,6 +13,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 from monai.transforms import BorderPadd
+from monai.utils.enums import NumpyPadMode
 
 TEST_CASE_1 = [
     {"keys": ["img", "seg"], "spatial_border": 2, "mode": ["constant", "edge"]},
@@ -32,9 +33,21 @@ TEST_CASE_3 = [
     np.zeros((3, 11, 15, 15)),
 ]
 
+TEST_CASE_4 = [
+    {"keys": ["img", "seg"], "spatial_border": 2, "mode": ["constant", NumpyPadMode.EDGE]},
+    {"img": np.zeros((3, 8, 8, 4)), "seg": np.zeros((3, 8, 8, 4))},
+    np.zeros((3, 12, 12, 8)),
+]
+
+TEST_CASE_5 = [
+    {"keys": ["img", "seg"], "spatial_border": 2, "mode": [NumpyPadMode.CONSTANT, NumpyPadMode.EDGE]},
+    {"img": np.zeros((3, 8, 8, 4)), "seg": np.zeros((3, 8, 8, 4))},
+    np.zeros((3, 12, 12, 8)),
+]
+
 
 class TestBorderPadd(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
     def test_pad_shape(self, input_param, input_data, expected_val):
         padder = BorderPadd(**input_param)
         result = padder(input_data)

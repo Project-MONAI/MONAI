@@ -42,6 +42,9 @@ class LrScheduleHandler:
             step_transform: a callable that is used to transform the information from `engine`
                 to expected input data of lr_scheduler.step() function if necessary.
 
+        Raises:
+            ValueError: argument `step_transform` must be a callable.
+
         """
         self.lr_scheduler = lr_scheduler
         self.print_lr = print_lr

@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional
+from typing import Optional, Union
 
 import os
 import warnings
@@ -20,6 +20,7 @@ from torch.utils.data._utils.collate import default_collate
 import numpy as np
 from monai.utils import ensure_tuple_size, optional_import
 from monai.networks.layers.simplelayers import GaussianFilter
+from monai.utils.enums import NumpyPadMode, BlendMode
 
 nib, _ = optional_import("nibabel")
 
@@ -86,10 +87,14 @@ def dense_patch_slices(image_size, patch_size, scan_interval):
 
     Returns:
         a list of slice objects defining each patch
+
+    Raises:
+        ValueError: image_size should have 2 or 3 elements
+
     """
     num_spatial_dims = len(image_size)
     if num_spatial_dims not in (2, 3):
-        raise ValueError("image_size should has 2 or 3 elements")
+        raise ValueError("image_size should have 2 or 3 elements")
     patch_size = get_valid_patch_size(image_size, patch_size)
     scan_interval = ensure_tuple_size(scan_interval, num_spatial_dims)
 
@@ -129,7 +134,12 @@ def dense_patch_slices(image_size, patch_size, scan_interval):
 
 
 def iter_patch(
-    arr: np.ndarray, patch_size, start_pos=(), copy_back: bool = True, mode: str = "wrap", **pad_opts,
+    arr: np.ndarray,
+    patch_size,
+    start_pos=(),
+    copy_back: bool = True,
+    mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
+    **pad_opts,
 ):
     """
     Yield successive patches from `arr` of size `patch_size`. The iteration can start from position `start_pos` in `arr`
@@ -156,7 +166,7 @@ def iter_patch(
     start_pos = ensure_tuple_size(start_pos, arr.ndim)
 
     # pad image by maximum values needed to ensure patches are taken from inside an image
-    arrpad = np.pad(arr, tuple((p, p) for p in patch_size), mode, **pad_opts)
+    arrpad = np.pad(arr, tuple((p, p) for p in patch_size), NumpyPadMode(mode).value, **pad_opts)
 
     # choose a start position in the padded image
     start_pos_padded = tuple(s + p for s, p in zip(start_pos, patch_size))
@@ -293,8 +303,13 @@ def zoom_affine(affine, scale, diagonal: bool = True):
         diagonal: whether to return a diagonal scaling matrix.
             Defaults to True.
 
-    returns:
+    Returns:
         the updated `n x n` affine.
+
+    Raises:
+        ValueError: affine should be a square matrix
+        ValueError: scale must be a sequence of positive numbers.
+
     """
     affine = np.array(affine, dtype=float, copy=True)
     if len(affine) != len(affine[0]):
@@ -368,8 +383,14 @@ def to_affine_nd(r, affine):
     Args:
         r (int or matrix): number of spatial dimensions or an output affine to be filled.
         affine (matrix): 2D affine matrix
+
     Returns:
         an (r+1) x (r+1) matrix
+
+    Raises:
+        ValueError: input affine matrix must have two dimensions, got {affine.ndim}.
+        ValueError: r must be positive, got {sr}.
+
     """
     affine_ = np.array(affine, dtype=np.float64)
     if affine_.ndim != 2:
@@ -424,7 +445,9 @@ def create_file_basename(postfix: str, input_file_name: str, folder_path: str, d
     return os.path.join(subfolder_path, filename + "_" + postfix)
 
 
-def compute_importance_map(patch_size, mode: str = "constant", sigma_scale: float = 0.125, device=None):
+def compute_importance_map(
+    patch_size, mode: Union[BlendMode, str] = BlendMode.CONSTANT, sigma_scale: float = 0.125, device=None
+):
     """Get importance map for different weight modes.
 
     Args:
@@ -441,10 +464,15 @@ def compute_importance_map(patch_size, mode: str = "constant", sigma_scale: floa
 
     Returns:
         Tensor of size patch_size.
+
+    Raises:
+        ValueError: mode must be "constant" or "gaussian".
+
     """
-    if mode == "constant":
+    mode = BlendMode(mode)
+    if mode == BlendMode.CONSTANT:
         importance_map = torch.ones(patch_size, device=device).float()
-    elif mode == "gaussian":
+    elif mode == BlendMode.GAUSSIAN:
         center_coords = [i // 2 for i in patch_size]
         sigmas = [i * sigma_scale for i in patch_size]
 

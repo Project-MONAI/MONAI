@@ -9,12 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Union
+
 import numpy as np
 import torch
 
 from monai.data.utils import compute_shape_offset, to_affine_nd
 from monai.networks.layers import AffineTransform
 from monai.utils import optional_import
+from monai.utils.enums import GridSampleMode, GridSamplePadMode
 
 nib, _ = optional_import("nibabel")
 
@@ -26,8 +29,8 @@ def write_nifti(
     target_affine=None,
     resample: bool = True,
     output_spatial_shape=None,
-    mode: str = "bilinear",
-    padding_mode: str = "border",
+    mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+    padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
     dtype=None,
 ):
     """
