@@ -112,25 +112,25 @@ Nets
 ~~~~~~~~~~~
 .. autoclass:: Generator
   :members:
-  
+
 `Regressor`
 ~~~~~~~~~~~
 .. autoclass:: Regressor
   :members:
-  
+
 `Classifier`
 ~~~~~~~~~~~~
 .. autoclass:: Classifier
   :members:
-  
+
 `Discriminator`
 ~~~~~~~~~~~~~~~
 .. autoclass:: Discriminator
   :members:
-  
+
 `Critic`
 ~~~~~~~~
-.. autoclass:: critic
+.. autoclass:: Critic
   :members:
 
 Utilities

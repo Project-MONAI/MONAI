@@ -388,7 +388,7 @@ def to_affine_nd(r, affine):
         an (r+1) x (r+1) matrix
 
     Raises:
-        ValueError: input affine matrix must have two dimensions, got {affine_.ndim}.
+        ValueError: input affine matrix must have two dimensions, got {affine.ndim}.
         ValueError: r must be positive, got {sr}.
 
     """
