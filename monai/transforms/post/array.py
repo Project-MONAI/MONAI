@@ -293,6 +293,7 @@ class KeepLargestConnectedComponent(Transform):
 
         return output
 
+
 class LabelToContour(Transform):
     """
     Return the contour flag of objects in mask images that only compose of 0 and 1, with Laplace kernel
@@ -302,7 +303,7 @@ class LabelToContour(Transform):
         kernel_type: the method applied to do edge detection.
     """
 
-    def __init__(self, kernel_type='Laplace'):
+    def __init__(self, kernel_type="Laplace"):
         self.kernel_type = kernel_type
 
     def __find_img_contour(self, img):
@@ -313,7 +314,7 @@ class LabelToContour(Transform):
         conv.weight = torch.nn.Parameter(kernel, requires_grad=False)
 
         contour_img = conv(img)
-        torch.clamp_(contour_img, min=0., max=1.)
+        torch.clamp_(contour_img, min=0.0, max=1.0)
         return contour_img
 
     def __call__(self, img):
@@ -330,7 +331,7 @@ class LabelToContour(Transform):
                     a) defects inherent to Laplace kernel, ideally the edge should be thin enough, but now it has a thickness.
                     b) need to search the optimal/better thresold for classification
         """
-        if self.kernel_type != 'Laplace':
+        if self.kernel_type != "Laplace":
             raise NotImplementedError
         if img.ndim != 4 and img.ndim != 5:
             raise RuntimeError("img.ndim should be 4 or 5")
@@ -346,5 +347,5 @@ class LabelToContour(Transform):
         conv.weight = torch.nn.Parameter(kernel, requires_grad=False)
 
         contour_img = conv(img)
-        torch.clamp_(contour_img, min=0., max=1.)
+        torch.clamp_(contour_img, min=0.0, max=1.0)
         return contour_img
