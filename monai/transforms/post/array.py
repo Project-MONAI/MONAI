@@ -30,8 +30,10 @@ class SplitChannel(Transform):
     (batch_size, num_channels, spatial_dim_1[, spatial_dim_2, ...])
 
     Args:
-        to_onehot: whether to convert the data to One-Hot format first, default is False.
+        to_onehot: whether to convert the data to One-Hot format first.
+            Defaults to ``False``.
         num_classes: the class number used to convert to One-Hot format if `to_onehot` is True.
+            Defaults to ``None``.
     """
 
     def __init__(self, to_onehot: bool = False, num_classes: Optional[int] = None):
@@ -39,6 +41,13 @@ class SplitChannel(Transform):
         self.num_classes = num_classes
 
     def __call__(self, img, to_onehot: Optional[bool] = None, num_classes: Optional[int] = None):
+        """
+        Args:
+            to_onehot: whether to convert the data to One-Hot format first.
+                Defaults to ``self.to_onehot``.
+            num_classes: the class number used to convert to One-Hot format if `to_onehot` is True.
+                Defaults to ``self.num_classes``.
+        """
         if to_onehot or self.to_onehot:
             if num_classes is None:
                 num_classes = self.num_classes
@@ -58,9 +67,11 @@ class Activations(Transform):
 
     Args:
         sigmoid: whether to execute sigmoid function on model output before transform.
+            Defaults to ``False``.
         softmax: whether to execute softmax function on model output before transform.
+            Defaults to ``False``.
         other: callable function to execute other activation layers, for example:
-            `other = lambda x: torch.tanh(x)`
+            `other = lambda x: torch.tanh(x)`. Defaults to ``None``.
 
     """
 
@@ -72,6 +83,20 @@ class Activations(Transform):
     def __call__(
         self, img, sigmoid: Optional[bool] = None, softmax: Optional[bool] = None, other: Optional[Callable] = None
     ):
+        """
+        Args:
+            sigmoid: whether to execute sigmoid function on model output before transform.
+                Defaults to ``self.sigmoid``.
+            softmax: whether to execute softmax function on model output before transform.
+                Defaults to ``self.softmax``.
+            other: callable function to execute other activation layers, for example:
+                `other = lambda x: torch.tanh(x)`. Defaults to ``self.other``.
+
+        Raises:
+            ValueError: sigmoid=True and softmax=True are not compatible.
+            ValueError: act_func must be a Callable function.
+
+        """
         if sigmoid is True and softmax is True:
             raise ValueError("sigmoid=True and softmax=True are not compatible.")
         if sigmoid or self.sigmoid:
@@ -97,10 +122,15 @@ class AsDiscrete(Transform):
 
     Args:
         argmax: whether to execute argmax function on input data before transform.
-        to_onehot: whether to convert input data into the one-hot format. Defaults to False.
+            Defaults to ``False``.
+        to_onehot: whether to convert input data into the one-hot format.
+            Defaults to ``False``.
         n_classes: the number of classes to convert to One-Hot format.
-        threshold_values: whether threshold the float value to int number 0 or 1, default is False.
-        logit_thresh: the threshold value for thresholding operation, default is 0.5.
+            Defaults to ``None``.
+        threshold_values: whether threshold the float value to int number 0 or 1.
+            Defaults to ``False``.
+        logit_thresh: the threshold value for thresholding operation..
+            Defaults to ``0.5``.
 
     """
 
@@ -127,6 +157,20 @@ class AsDiscrete(Transform):
         threshold_values: Optional[bool] = None,
         logit_thresh: Optional[float] = None,
     ):
+        """
+        Args:
+            argmax: whether to execute argmax function on input data before transform.
+                Defaults to ``self.argmax``.
+            to_onehot: whether to convert input data into the one-hot format.
+                Defaults to ``self.to_onehot``.
+            n_classes: the number of classes to convert to One-Hot format.
+                Defaults to ``self.n_classes``.
+            threshold_values: whether threshold the float value to int number 0 or 1.
+                Defaults to ``self.threshold_values``.
+            logit_thresh: the threshold value for thresholding operation..
+                Defaults to ``self.logit_thresh``.
+
+        """
         if argmax or self.argmax:
             img = torch.argmax(img, dim=1, keepdim=True)
 
@@ -248,3 +292,60 @@ class KeepLargestConnectedComponent(Transform):
             output = img
 
         return output
+
+
+class LabelToContour(Transform):
+    """
+    Return the contour flag of objects in mask images that only compose of 0 and 1, with Laplace kernel
+        set as default for edge detection.
+
+    Args:
+        kernel_type: the method applied to do edge detection.
+    """
+
+    def __init__(self, kernel_type="Laplace"):
+        self.kernel_type = kernel_type
+
+    def __find_img_contour(self, img):
+        channels = img.shape[1]
+        conv = torch.nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1, bias=False, groups=channels)
+        kernel = torch.tensor([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]], dtype=torch.float32, device=img.device)
+        kernel = kernel.repeat(channels, 1, 1, 1)
+        conv.weight = torch.nn.Parameter(kernel, requires_grad=False)
+
+        contour_img = conv(img)
+        torch.clamp_(contour_img, min=0.0, max=1.0)
+        return contour_img
+
+    def __call__(self, img):
+        """
+        Args:
+            img: torch tensor of the img that you want to find the contour of, with shape being
+                 (batch_size, channels, width, height[, depth])
+
+        Returns:
+            A torch tensor with the same shape as img, note:
+                1. It's the binary classification result of whether a pixel is edge or not.
+                2. In order to keep the original shape of mask image, we use padding as default.
+                3. The edge detection is just approximate due to
+                    a) defects inherent to Laplace kernel, ideally the edge should be thin enough, but now it has a thickness.
+                    b) need to search the optimal/better thresold for classification
+        """
+        if self.kernel_type != "Laplace":
+            raise NotImplementedError
+        if img.ndim != 4 and img.ndim != 5:
+            raise RuntimeError("img.ndim should be 4 or 5")
+        if img.ndim == 4:
+            return self.__find_img_contour(img)
+
+        channels = img.shape[1]
+
+        conv = torch.nn.Conv3d(channels, channels, kernel_size=3, stride=1, padding=1, bias=False, groups=channels)
+        kernel = -1 * torch.ones(3, 3, 3, dtype=torch.float32, device=img.device)
+        kernel[1, 1, 1] = 26
+        kernel = kernel.repeat(channels, 1, 1, 1, 1)
+        conv.weight = torch.nn.Parameter(kernel, requires_grad=False)
+
+        contour_img = conv(img)
+        torch.clamp_(contour_img, min=0.0, max=1.0)
+        return contour_img

@@ -23,6 +23,9 @@ from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.croppad.array import CenterSpatialCrop, DivisiblePad, SpatialCrop, SpatialPad, BorderPad
 from monai.transforms.utils import generate_pos_neg_label_crop_centers, generate_spatial_bounding_box
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep
+from monai.utils.enums import NumpyPadMode, Method
+
+NumpyPadModeSequence = Union[Sequence[Union[NumpyPadMode, str]], NumpyPadMode, str]
 
 
 class SpatialPadd(MapTransform):
@@ -35,8 +38,8 @@ class SpatialPadd(MapTransform):
         self,
         keys: KeysCollection,
         spatial_size,
-        method: str = "symmetric",
-        mode: Union[Sequence[str], str] = "constant",
+        method: Union[Method, str] = Method.SYMMETRIC,
+        mode: NumpyPadModeSequence = NumpyPadMode.CONSTANT,
     ):
         """
         Args:
@@ -68,28 +71,29 @@ class BorderPadd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.BorderPad`.
     """
 
-    def __init__(self, keys: KeysCollection, spatial_border, mode: Union[Sequence[str], str] = "constant"):
+    def __init__(
+        self, keys: KeysCollection, spatial_border, mode: NumpyPadModeSequence = NumpyPadMode.CONSTANT,
+    ):
         """
         Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
             spatial_border (int or sequence of int): specified size for every spatial border. it can be 3 shapes:
+
                 - single int number, pad all the borders with the same size.
                 - length equals the length of image shape, pad every spatial dimension separately.
-                    for example, image shape(CHW) is [1, 4, 4], spatial_border is [2, 1],
-                    pad every border of H dim with 2, pad every border of W dim with 1, result shape is [1, 8, 6].
+                  for example, image shape(CHW) is [1, 4, 4], spatial_border is [2, 1],
+                  pad every border of H dim with 2, pad every border of W dim with 1, result shape is [1, 8, 6].
                 - length equals 2 x (length of image shape), pad every border of every dimension separately.
-                    for example, image shape(CHW) is [1, 4, 4], spatial_border is [1, 2, 3, 4], pad top of H dim with 1,
-                    pad bottom of H dim with 2, pad left of W dim with 3, pad right of W dim with 4.
-                    the result shape is [1, 7, 11].
+                  for example, image shape(CHW) is [1, 4, 4], spatial_border is [1, 2, 3, 4], pad top of H dim with 1,
+                  pad bottom of H dim with 2, pad left of W dim with 3, pad right of W dim with 4.
+                  the result shape is [1, 7, 11].
+
             mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
                 ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
                 For a sequence each element corresponds to a key in ``keys``.
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
-            mode (str or sequence of str): one of the following string values or a user supplied function:
-                {'constant', 'edge', 'linear_ramp', 'maximum', 'mean', 'median', 'minimum', 'reflect',
-                'symmetric', 'wrap', 'empty', <function>}
-                user can set a sequence of mode values corresponding to every item specified by `keys`.
-                for more details, please check: https://docs.scipy.org/doc/numpy/reference/generated/numpy.pad.html
 
         """
         super().__init__(keys)
@@ -109,9 +113,11 @@ class DivisiblePadd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.DivisiblePad`.
     """
 
-    def __init__(self, keys: KeysCollection, k, mode: Union[Sequence[str], str] = "constant"):
+    def __init__(self, keys: KeysCollection, k, mode: NumpyPadModeSequence = NumpyPadMode.CONSTANT):
         """
         Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
             k (int or sequence of int): the target k for each spatial dimension.
                 if `k` is negative or 0, the original size is preserved.
                 if `k` is an int, the same `k` be applied to all the input spatial dimensions.
@@ -313,14 +319,16 @@ class CropForegroundd(MapTransform):
 
 class RandCropByPosNegLabeld(Randomizable, MapTransform):
     """
+    dictionary-based version :py:class:`monai.transforms.RandCropByPosNegLabel`.
     Crop random fixed sized regions with the center being a foreground or background voxel
     based on the Pos Neg Ratio.
     And will return a list of dictionaries for all the cropped images.
 
     Args:
-        keys (list): parameter will be used to get and set the actual data item to transform.
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
         label_key: name of key for label image, this will be used for finding foreground/background.
-        spatial_size (sequence of int): the spatial size of the crop region e.g. [224, 224, 128]
+        spatial_size (sequence of int): the spatial size of the crop region e.g. [224, 224, 128].
         pos: used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
             foreground voxel as a center rather than a background voxel.
         neg: used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
@@ -330,6 +338,11 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
             the negative sample(background) center. so the crop center will only exist on valid image area.
         image_threshold: if enabled image_key, use ``image > image_threshold`` to determine
             the valid image content area.
+
+    Raises:
+        ValueError: pos and neg must be greater than or equal to 0.
+        ValueError: pos and neg cannot both be 0.
+
     """
 
     def __init__(

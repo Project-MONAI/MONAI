@@ -179,6 +179,10 @@ class SqueezeDim(Transform):
         Args:
             dim: dimension to be squeezed. Default = 0
                 "None" works when the input is numpy array.
+
+        Raises:
+            ValueError: Invalid channel dimension {dim}
+
         """
         if dim is not None and not isinstance(dim, int):
             raise ValueError(f"Invalid channel dimension {dim}")
@@ -217,6 +221,10 @@ class DataStats(Transform):
             additional_info: user can define callable function to extract additional info from input data.
             logger_handler (logging.handler): add additional handler to output data: save to file, etc.
                 add existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html
+
+        Raises:
+            ValueError: argument `additional_info` must be a callable.
+
         """
         assert isinstance(prefix, str), "prefix must be a string."
         self.prefix = prefix

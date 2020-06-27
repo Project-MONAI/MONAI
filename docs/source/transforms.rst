@@ -187,6 +187,12 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
+`ScaleIntensityRangePercentiles`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: ScaleIntensityRangePercentiles
+    :members:
+    :special-members: __call__
+
 `AdjustContrast`
 ~~~~~~~~~~~~~~~~
 .. autoclass:: AdjustContrast
@@ -500,6 +506,12 @@ Dictionary-based Transforms
 `ScaleIntensityRanged`
 ~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: ScaleIntensityRanged
+    :members:
+    :special-members: __call__
+
+`ScaleIntensityRangePercentilesd`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: ScaleIntensityRangePercentilesd
     :members:
     :special-members: __call__
 

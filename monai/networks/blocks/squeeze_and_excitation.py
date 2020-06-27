@@ -30,6 +30,10 @@ class ChannelSELayer(nn.Module):
             r: the reduction ratio r in the paper. Defaults to 2.
             acti_type_1: activation type of the hidden squeeze layer. Defaults to "relu".
             acti_type_2: activation type of the output squeeze layer. Defaults to "sigmoid".
+
+        Raises:
+            ValueError: r must be a positive number smaller than `in_channels`.
+
         """
         super(ChannelSELayer, self).__init__()
 
