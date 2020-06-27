@@ -54,6 +54,9 @@ def sliding_window_inference(
             See also: https://pytorch.org/docs/stable/nn.functional.html#pad
         cval: fill value for 'constant' padding mode. Default: 0
 
+    Raises:
+        NotImplementedError: inputs must have batch_size=1.
+
     Note:
         - input must be channel-first and have a batch dim, support both spatial 2D and 3D.
         - currently only supports `inputs` with batch_size=1.
@@ -69,7 +72,7 @@ def sliding_window_inference(
 
     # TODO: Enable batch sizes > 1 in future
     if batch_size > 1:
-        raise NotImplementedError
+        raise NotImplementedError("inputs must have batch_size=1.")
 
     original_image_size = [image_size_[i] for i in range(num_spatial_dims)]
     # in case that image size is smaller than roi size

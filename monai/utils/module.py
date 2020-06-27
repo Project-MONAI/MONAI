@@ -112,6 +112,9 @@ def optional_import(
     Returns:
         The imported module and a boolean flag indicating whether the import is successful.
 
+    Raises:
+        _exception: Optional import: {msg}.
+
     Examples::
 
         >>> torch, flag = optional_import('torch', '1.1')

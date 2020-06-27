@@ -95,9 +95,9 @@ class BorderPad(Transform):
               the result shape is [1, 7, 11].
 
         mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-                One of the listed string values or a user supplied function. Defaults to ``"constant"``.
-                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
 
     """
 
@@ -106,6 +106,18 @@ class BorderPad(Transform):
         self.mode: NumpyPadMode = NumpyPadMode(mode)
 
     def __call__(self, img, mode: Optional[Union[NumpyPadMode, str]] = None):
+        """
+        Args:
+            mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
+                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                One of the listed string values or a user supplied function. Defaults to ``self.mode``.
+                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+
+        Raises:
+            ValueError: spatial_border must be int number and can not be less than 0.
+            ValueError: unsupported length of spatial_border definition.
+
+        """
         spatial_shape = img.shape[1:]
         spatial_border = ensure_tuple(self.spatial_border)
         for b in spatial_border:
@@ -148,6 +160,14 @@ class DivisiblePad(Transform):
         self.mode: NumpyPadMode = NumpyPadMode(mode)
 
     def __call__(self, img, mode: Optional[Union[NumpyPadMode, str]] = None):
+        """
+        Args:
+            mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
+                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                One of the listed string values or a user supplied function. Defaults to ``self.mode``.
+                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+
+        """
         spatial_shape = img.shape[1:]
         k = ensure_tuple_rep(self.k, len(spatial_shape))
         new_size = []

@@ -57,6 +57,10 @@ class TverskyLoss(_Loss):
                 - ``"none"``: no reduction will be applied.
                 - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
                 - ``"sum"``: the output will be summed.
+
+        Raises:
+            ValueError: sigmoid=True and softmax=True are not compatible.
+
         """
 
         super().__init__(reduction=LossReduction(reduction))
@@ -76,6 +80,10 @@ class TverskyLoss(_Loss):
             input (tensor): the shape should be BNH[WD].
             target (tensor): the shape should be BNH[WD].
             smooth: a small constant to avoid nan.
+
+        Raises:
+            ValueError: reduction={self.reduction} is invalid.
+
         """
         if self.sigmoid:
             input = torch.sigmoid(input)

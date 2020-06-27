@@ -96,6 +96,11 @@ class HighResBlock(nn.Module):
 
                 - ``"pad"``: with zero padding.
                 - ``"project"``: with a trainable conv with kernel size.
+
+        Raises:
+            ValueError: channel matching must be pad or project, got {channel_matching}.
+            ValueError: in_channels > out_channels is incompatible with `channel_matching=pad`.
+
         """
         super(HighResBlock, self).__init__()
         conv_type = Conv[Conv.CONV, spatial_dims]

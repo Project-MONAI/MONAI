@@ -67,7 +67,7 @@ class CSVSaver:
             - ``'filename_or_obj'`` -- save the data corresponding to file name or object.
         If meta_data is None, use the default index from 0 to save data instead.
 
-        args:
+        Args:
             data (Tensor or ndarray): target data content that save into cache.
             meta_data (dict): the meta data information corresponding to the data.
 
@@ -81,7 +81,7 @@ class CSVSaver:
     def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data=None):
         """Save a batch of data into the cache dictionary.
 
-        args:
+        Args:
             batch_data (Tensor or ndarray): target batch data content that save into cache.
             meta_data (dict): every key-value in the meta_data is corresponding to 1 batch of data.
 

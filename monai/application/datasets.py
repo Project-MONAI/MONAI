@@ -42,6 +42,10 @@ class MedNISTDataset(Randomizable, CacheDataset):
         num_workers: the number of worker threads to use.
             If 0 a single thread will be used. Default is 0.
 
+    Raises:
+        ValueError: root_dir must be a directory.
+        RuntimeError: can not find dataset directory, please use download=True to download it.
+
     """
 
     resource = "https://www.dropbox.com/s/5wwskxctvcxiuea/MedNIST.tar.gz?dl=1"

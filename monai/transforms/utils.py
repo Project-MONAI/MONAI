@@ -23,29 +23,39 @@ measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 
 
 def rand_choice(prob: float = 0.5) -> bool:
-    """Returns True if a randomly chosen number is less than or equal to `prob`, by default this is a 50/50 chance."""
+    """
+    Returns True if a randomly chosen number is less than or equal to `prob`, by default this is a 50/50 chance.
+    """
     return bool(random.random() <= prob)
 
 
 def img_bounds(img):
-    """Returns the minimum and maximum indices of non-zero lines in axis 0 of `img`, followed by that for axis 1."""
+    """
+    Returns the minimum and maximum indices of non-zero lines in axis 0 of `img`, followed by that for axis 1.
+    """
     ax0 = np.any(img, axis=0)
     ax1 = np.any(img, axis=1)
     return np.concatenate((np.where(ax0)[0][[0, -1]], np.where(ax1)[0][[0, -1]]))
 
 
 def in_bounds(x, y, margin, maxx, maxy):
-    """Returns True if (x,y) is within the rectangle (margin, margin, maxx-margin, maxy-margin)."""
+    """
+    Returns True if (x,y) is within the rectangle (margin, margin, maxx-margin, maxy-margin).
+    """
     return margin <= x < (maxx - margin) and margin <= y < (maxy - margin)
 
 
 def is_empty(img) -> bool:
-    """Returns True if `img` is empty, that is its maximum value is not greater than its minimum."""
+    """
+    Returns True if `img` is empty, that is its maximum value is not greater than its minimum.
+    """
     return not (img.max() > img.min())  # use > instead of <= so that an image full of NaNs will result in True
 
 
 def zero_margins(img, margin):
-    """Returns True if the values within `margin` indices of the edges of `img` in dimensions 1 and 2 are 0."""
+    """
+    Returns True if the values within `margin` indices of the edges of `img` in dimensions 1 and 2 are 0.
+    """
     if np.any(img[:, :, :margin]) or np.any(img[:, :, -margin:]):
         return False
 
@@ -56,7 +66,9 @@ def zero_margins(img, margin):
 
 
 def rescale_array(arr, minv=0.0, maxv=1.0, dtype: Optional[np.dtype] = np.float32):
-    """Rescale the values of numpy array `arr` to be from `minv` to `maxv`."""
+    """
+    Rescale the values of numpy array `arr` to be from `minv` to `maxv`.
+    """
     if dtype is not None:
         arr = arr.astype(dtype)
 
@@ -71,7 +83,9 @@ def rescale_array(arr, minv=0.0, maxv=1.0, dtype: Optional[np.dtype] = np.float3
 
 
 def rescale_instance_array(arr: np.ndarray, minv: float = 0.0, maxv: float = 1.0, dtype: np.dtype = np.float32):
-    """Rescale each array slice along the first dimension of `arr` independently."""
+    """
+    Rescale each array slice along the first dimension of `arr` independently.
+    """
     out: np.ndarray = np.zeros(arr.shape, dtype)
     for i in range(arr.shape[0]):
         out[i] = rescale_array(arr[i], minv, maxv, dtype)
@@ -80,7 +94,9 @@ def rescale_instance_array(arr: np.ndarray, minv: float = 0.0, maxv: float = 1.0
 
 
 def rescale_array_int_max(arr: np.ndarray, dtype: np.dtype = np.uint16):
-    """Rescale the array `arr` to be between the minimum and maximum values of the type `dtype`."""
+    """
+    Rescale the array `arr` to be between the minimum and maximum values of the type `dtype`.
+    """
     info: np.iinfo = np.iinfo(dtype)
     return rescale_array(arr, info.min, info.max).astype(dtype)
 
@@ -186,6 +202,10 @@ def generate_pos_neg_label_crop_centers(
         image_threshold: if enabled image_key, use ``image > image_threshold`` to
             determine the valid image content area.
         rand_state (random.RandomState): numpy randomState object to align with other modules.
+
+    Raises:
+        ValueError: no sampling location available.
+
     """
     max_size = label.shape[1:]
     if len(max_size) != len(spatial_size):
@@ -258,6 +278,10 @@ def apply_transform(transform: Callable, data, map_items: bool = True):
         data (object): an object to be transformed.
         map_items: whether to apply transform to each item in `data`,
             if `data` is a list or tuple. Defaults to True.
+
+    Raises:
+        with_traceback: applying transform {transform}.
+
     """
     try:
         if isinstance(data, (list, tuple)) and map_items:
@@ -304,10 +328,14 @@ def create_rotate(spatial_dims: int, radians):
     create a 2D or 3D rotation matrix
 
     Args:
-        spatial_dims (2|3): spatial rank
+        spatial_dims: {``2``, ``3``} spatial rank
         radians (float or a sequence of floats): rotation radians
-        when spatial_dims == 3, the `radians` sequence corresponds to
-        rotation in the 1st, 2nd, and 3rd dim respectively.
+            when spatial_dims == 3, the `radians` sequence corresponds to
+            rotation in the 1st, 2nd, and 3rd dim respectively.
+
+    Raises:
+        ValueError: create_rotate got spatial_dims={spatial_dims}, radians={radians}.
+
     """
     radians = ensure_tuple(radians)
     if spatial_dims == 2:
@@ -340,9 +368,14 @@ def create_rotate(spatial_dims: int, radians):
 def create_shear(spatial_dims: int, coefs):
     """
     create a shearing matrix
+
     Args:
         spatial_dims: spatial rank
         coefs (floats): shearing factors, defaults to 0.
+
+    Raises:
+        NotImplementedError: spatial_dims must be 2 or 3
+
     """
     coefs = list(ensure_tuple(coefs))
     if spatial_dims == 2:
@@ -360,12 +393,13 @@ def create_shear(spatial_dims: int, coefs):
                 [0.0, 0.0, 0.0, 1.0],
             ]
         )
-    raise NotImplementedError
+    raise NotImplementedError("spatial_dims must be 2 or 3")
 
 
 def create_scale(spatial_dims: int, scaling_factor):
     """
     create a scaling matrix
+
     Args:
         spatial_dims: spatial rank
         scaling_factor (floats): scaling factors, defaults to 1.
@@ -379,6 +413,7 @@ def create_scale(spatial_dims: int, scaling_factor):
 def create_translate(spatial_dims: int, shift):
     """
     create a translation matrix
+
     Args:
         spatial_dims: spatial rank
         shift (floats): translate factors, defaults to 0.
