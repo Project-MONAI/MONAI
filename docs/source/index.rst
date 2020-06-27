@@ -37,7 +37,7 @@ Getting started
 
 Tutorials & examples are located at `monai/examples <https://github.com/Project-MONAI/MONAI/tree/master/examples>`_.
 
-Technical documentation is available via `Read the Docs <https://monai.readthedocs.io/en/latest/>`_.
+Technical documentation is available at `docs.monai.io <https://docs.monai.io>`_.
 
 .. toctree::
    :maxdepth: 1
@@ -78,7 +78,7 @@ Links
 -----
 
 - Website: https://monai.io/
-- API documentation: https://monai.readthedocs.io/en/latest/
+- API documentation: https://docs.monai.io
 - Code: https://github.com/Project-MONAI/MONAI
 - Project tracker: https://github.com/Project-MONAI/MONAI/projects
 - Issue tracker: https://github.com/Project-MONAI/MONAI/issues
