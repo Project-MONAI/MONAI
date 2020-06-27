@@ -412,7 +412,7 @@ class RandCropByPosNegLabel(Randomizable, Transform):
 
         """
         self.randomize(self.label if label is None else label, self.image if image is None else image)
-        results = list()
+        results: List[np.ndarray] = list()
         if self.centers is not None:
             for center in self.centers:
                 cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)
