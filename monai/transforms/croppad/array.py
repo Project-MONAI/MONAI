@@ -63,6 +63,8 @@ class SpatialPad(Transform):
     def __call__(self, img, mode: Optional[Union[NumpyPadMode, str]] = None):
         """
         Args:
+            img: data to be transformed, assuming `img` is channel-first and
+                padding doesn't apply to the channel dim.
             mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
                 ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
                 One of the listed string values or a user supplied function. Defaults to ``self.mode``.
@@ -98,7 +100,6 @@ class BorderPad(Transform):
             ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
             One of the listed string values or a user supplied function. Defaults to ``"constant"``.
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
-
     """
 
     def __init__(self, spatial_border, mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT):
@@ -108,6 +109,8 @@ class BorderPad(Transform):
     def __call__(self, img, mode: Optional[Union[NumpyPadMode, str]] = None):
         """
         Args:
+            img: data to be transformed, assuming `img` is channel-first and
+                padding doesn't apply to the channel dim.
             mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
                 ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
                 One of the listed string values or a user supplied function. Defaults to ``self.mode``.
@@ -116,7 +119,6 @@ class BorderPad(Transform):
         Raises:
             ValueError: spatial_border must be int number and can not be less than 0.
             ValueError: unsupported length of spatial_border definition.
-
         """
         spatial_shape = img.shape[1:]
         spatial_border = ensure_tuple(self.spatial_border)
@@ -162,11 +164,12 @@ class DivisiblePad(Transform):
     def __call__(self, img, mode: Optional[Union[NumpyPadMode, str]] = None):
         """
         Args:
+            img: data to be transformed, assuming `img` is channel-first
+                and padding doesn't apply to the channel dim.
             mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
                 ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
                 One of the listed string values or a user supplied function. Defaults to ``self.mode``.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
-
         """
         spatial_shape = img.shape[1:]
         k = ensure_tuple_rep(self.k, len(spatial_shape))
@@ -211,6 +214,10 @@ class SpatialCrop(Transform):
         assert np.all(self.roi_end >= self.roi_start), "invalid roi range."
 
     def __call__(self, img):
+        """
+        Apply the transform to `img`, assuming `img` is channel-first and
+        slicing doesn't apply to the channel dim.
+        """
         max_end = img.shape[1:]
         sd = min(len(self.roi_start), len(max_end))
         assert np.all(max_end[:sd] >= self.roi_start[:sd]), "roi start out of image space."
@@ -232,6 +239,10 @@ class CenterSpatialCrop(Transform):
         self.roi_size = roi_size
 
     def __call__(self, img):
+        """
+        Apply the transform to `img`, assuming `img` is channel-first and
+        slicing doesn't apply to the channel dim.
+        """
         center = [i // 2 for i in img.shape[1:]]
         cropper = SpatialCrop(roi_center=center, roi_size=self.roi_size)
         return cropper(img)
@@ -266,6 +277,10 @@ class RandSpatialCrop(Randomizable, Transform):
             self._slices = ensure_tuple(slice(None)) + get_random_patch(img_size, valid_size, self.R)
 
     def __call__(self, img):
+        """
+        Apply the transform to `img`, assuming `img` is channel-first and
+        slicing doesn't apply to the channel dim.
+        """
         self.randomize(img.shape[1:])
         if self.random_center:
             return img[self._slices]
@@ -288,7 +303,6 @@ class RandSpatialCropSamples(Randomizable, Transform):
         random_center: crop at random position as center or the image center.
         random_size: crop with random size or specific size ROI.
             The actual size is sampled from `randint(roi_size, img_size)`.
-
     """
 
     def __init__(self, roi_size, num_samples: int, random_center: bool = True, random_size: bool = True):
@@ -301,6 +315,10 @@ class RandSpatialCropSamples(Randomizable, Transform):
         pass
 
     def __call__(self, img):
+        """
+        Apply the transform to `img`, assuming `img` is channel-first and
+        cropping doesn't change the channel dim.
+        """
         return [self.cropper(img) for _ in range(self.num_samples)]
 
 
@@ -344,6 +362,10 @@ class CropForeground(Transform):
         self.margin = margin
 
     def __call__(self, img):
+        """
+        Apply the transform to `img`, assuming `img` is channel-first and
+        slicing doesn't change the channel dim.
+        """
         box_start, box_end = generate_spatial_bounding_box(img, self.select_fn, self.channel_indexes, self.margin)
         cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
         return cropper(img)
@@ -363,7 +385,8 @@ class RandCropByPosNegLabel(Randomizable, Transform):
 
     Args:
         spatial_size (sequence of int): the spatial size of the crop region e.g. [224, 224, 128].
-        label: the label image that is used for finding foreground/background, if None, must set at `call`.
+        label: the label image that is used for finding foreground/background, if None, must set at
+            `self.__call__`.  Non-zero indicates foreground, zero indicates background.
         pos: used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
             foreground voxel as a center rather than a background voxel.
         neg: used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
@@ -371,9 +394,9 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         num_samples: number of samples (crop regions) to take in each list.
         image: optional image data to help select valid area, can be same as `img` or another image array.
             if not None, use ``label == 0 & image > image_threshold`` to select the negative
-            sample(background) center. so the crop center will only exist on valid image area.
+            sample (background) center. So the crop center will only come from the valid image areas.
         image_threshold: if enabled `image`, use ``image > image_threshold`` to determine
-            the valid image content area.
+            the valid image content areas.
     """
 
     def __init__(
@@ -407,11 +430,11 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         """
         Args:
             img: input data to crop samples from based on the pos/neg ratio of `label` and `image`.
+                Assumes `img` is a channel-first array.
             label: the label image that is used for finding foreground/background, if None, use `self.label`.
             image: optional image data to help select valid area, can be same as `img` or another image array.
                 use ``label == 0 & image > image_threshold`` to select the negative sample(background) center.
                 so the crop center will only exist on valid image area. if None, use `self.image`.
-
         """
         self.randomize(self.label if label is None else label, self.image if image is None else image)
         results: List[np.ndarray] = list()
