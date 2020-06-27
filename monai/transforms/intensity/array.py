@@ -23,7 +23,8 @@ from monai.transforms.utils import rescale_array
 
 
 class RandGaussianNoise(Randomizable, Transform):
-    """Add Gaussian noise to image.
+    """
+    Add Gaussian noise to image.
 
     Args:
         prob: Probability to add Gaussian noise.
@@ -43,12 +44,16 @@ class RandGaussianNoise(Randomizable, Transform):
         self._noise = self.R.normal(self.mean, self.R.uniform(0, self.std), size=im_shape)
 
     def __call__(self, img):
+        """
+        Apply the transform to `img`.
+        """
         self.randomize(img.shape)
         return img + self._noise.astype(img.dtype) if self._do_transform else img
 
 
 class ShiftIntensity(Transform):
-    """Shift intensity uniformly for the entire image with specified `offset`.
+    """
+    Shift intensity uniformly for the entire image with specified `offset`.
 
     Args:
         offset: offset value to shift the intensity of image.
@@ -58,11 +63,15 @@ class ShiftIntensity(Transform):
         self.offset = offset
 
     def __call__(self, img):
+        """
+        Apply the transform to `img`.
+        """
         return (img + self.offset).astype(img.dtype)
 
 
 class RandShiftIntensity(Randomizable, Transform):
-    """Randomly shift intensity with randomly picked offset.
+    """
+    Randomly shift intensity with randomly picked offset.
     """
 
     def __init__(self, offsets, prob: float = 0.1):
@@ -82,6 +91,9 @@ class RandShiftIntensity(Randomizable, Transform):
         self._do_transform = self.R.random() < self.prob
 
     def __call__(self, img):
+        """
+        Apply the transform to `img`.
+        """
         self.randomize()
         if not self._do_transform:
             return img
@@ -109,6 +121,9 @@ class ScaleIntensity(Transform):
         self.factor = factor
 
     def __call__(self, img):
+        """
+        Apply the transform to `img`.
+        """
         if self.minv is not None and self.maxv is not None:
             return rescale_array(img, self.minv, self.maxv, img.dtype)
         else:
@@ -139,6 +154,9 @@ class RandScaleIntensity(Randomizable, Transform):
         self._do_transform = self.R.random() < self.prob
 
     def __call__(self, img):
+        """
+        Apply the transform to `img`.
+        """
         self.randomize()
         if not self._do_transform:
             return img
@@ -187,6 +205,9 @@ class NormalizeIntensity(Transform):
         return img
 
     def __call__(self, img):
+        """
+        Apply the transform to `img`, assuming `img` is a channel-first array if `self.channel_wise` is True,
+        """
         if self.channel_wise:
             for i, d in enumerate(img):
                 img[i] = self._normalize(d)
@@ -214,6 +235,9 @@ class ThresholdIntensity(Transform):
         self.cval: float = cval
 
     def __call__(self, img):
+        """
+        Apply the transform to `img`.
+        """
         return np.where(img > self.threshold if self.above else img < self.threshold, img, self.cval).astype(img.dtype)
 
 
@@ -237,6 +261,9 @@ class ScaleIntensityRange(Transform):
         self.clip = clip
 
     def __call__(self, img):
+        """
+        Apply the transform to `img`.
+        """
         if self.a_max - self.a_min == 0.0:
             warn("Divide by zero (a_min == a_max)", Warning)
             return img - self.a_min + self.b_min
@@ -262,6 +289,9 @@ class AdjustContrast(Transform):
         self.gamma = gamma
 
     def __call__(self, img):
+        """
+        Apply the transform to `img`.
+        """
         epsilon = 1e-7
         img_min = img.min()
         img_range = img.max() - img_min
@@ -297,6 +327,9 @@ class RandAdjustContrast(Randomizable, Transform):
         self.gamma_value = self.R.uniform(low=self.gamma[0], high=self.gamma[1])
 
     def __call__(self, img):
+        """
+        Apply the transform to `img`.
+        """
         self.randomize()
         if not self._do_transform:
             return img
@@ -308,10 +341,10 @@ class ScaleIntensityRangePercentiles(Transform):
     """
     Apply range scaling to a numpy array based on the intensity distribution of the input.
 
-    By default this transform will scale from [lower_intensity_percentile, upper_intensity_percentile] to [b_min, b_max], where 
-    {lower,upper}_intensity_percentile are the intensity values at the corresponding percentiles of ``img``. 
+    By default this transform will scale from [lower_intensity_percentile, upper_intensity_percentile] to [b_min, b_max], where
+    {lower,upper}_intensity_percentile are the intensity values at the corresponding percentiles of ``img``.
 
-    The ``relative`` parameter can also be set to scale from [lower_intensity_percentile, upper_intensity_percentile] to the 
+    The ``relative`` parameter can also be set to scale from [lower_intensity_percentile, upper_intensity_percentile] to the
     lower and upper percentiles of the output range [b_min, b_max]
 
     For example:
@@ -325,9 +358,9 @@ class ScaleIntensityRangePercentiles(Transform):
               [1, 2, 3, 4, 5],
               [1, 2, 3, 4, 5],
               [1, 2, 3, 4, 5],
-              [1, 2, 3, 4, 5]]]) 
+              [1, 2, 3, 4, 5]]])
 
-        # Scale from lower and upper image intensity percentiles 
+        # Scale from lower and upper image intensity percentiles
         # to output range [b_min, b_max]
         scaler = ScaleIntensityRangePercentiles(10, 90, 0, 200, False, False)
         print(scaler(image))
@@ -338,7 +371,7 @@ class ScaleIntensityRangePercentiles(Transform):
           [0., 50., 100., 150., 200.],
           [0., 50., 100., 150., 200.]]]
 
-        # Scale from lower and upper image intensity percentiles 
+        # Scale from lower and upper image intensity percentiles
         # to lower and upper percentiles of the output range [b_min, b_max]
         rel_scaler = ScaleIntensityRangePercentiles(10, 90, 0, 200, False, True)
         print(rel_scaler(image))
@@ -372,6 +405,9 @@ class ScaleIntensityRangePercentiles(Transform):
         self.relative = relative
 
     def __call__(self, img):
+        """
+        Apply the transform to `img`.
+        """
         a_min = np.percentile(img, self.lower)
         a_max = np.percentile(img, self.upper)
         b_min = self.b_min
