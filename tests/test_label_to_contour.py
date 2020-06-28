@@ -171,10 +171,6 @@ class TestContour(unittest.TestCase):
         error_input = torch.rand(1, 2, 3, 4, 5, 6)
         self.assertRaises(RuntimeError, LabelToContour(**input_param), error_input)
 
-        # check invalid kernel type
-        input_param["kernel_type"] = "Sobel"
-        self.assertRaises(NotImplementedError, LabelToContour(**input_param), test_cube)
-
 
 if __name__ == "__main__":
     unittest.main()
