@@ -139,9 +139,9 @@ def to_norm_affine(affine, src_size, dst_size, align_corners: bool = False):
 
 def normal_init(m, std=0.02, normal_func=torch.nn.init.normal_):
     """
-    Initialize the weight and bias tensors of `m' and its submodules to values from a normal distribution with a 
-    stddev of `std'. Weight tensors of convolution and linear modules are initialized with a mean of 0, batch 
-    norm modules with a mean of 1. The callable `normal_func', used to assign values, should have the same arguments 
+    Initialize the weight and bias tensors of `m' and its submodules to values from a normal distribution with a
+    stddev of `std'. Weight tensors of convolution and linear modules are initialized with a mean of 0, batch
+    norm modules with a mean of 1. The callable `normal_func', used to assign values, should have the same arguments
     as its default normal_(). This can be used with `nn.Module.apply` to visit submodules of a network.
     """
     cname = m.__class__.__name__

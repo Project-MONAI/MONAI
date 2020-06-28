@@ -42,7 +42,6 @@ class TverskyLoss(_Loss):
         beta: float = 0.5,
         reduction: Union[LossReduction, str] = LossReduction.MEAN,
     ):
-
         """
         Args:
             include_background: If False channel index 0 (background category) is excluded from the calculation.

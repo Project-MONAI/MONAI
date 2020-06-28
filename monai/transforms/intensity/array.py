@@ -308,10 +308,10 @@ class ScaleIntensityRangePercentiles(Transform):
     """
     Apply range scaling to a numpy array based on the intensity distribution of the input.
 
-    By default this transform will scale from [lower_intensity_percentile, upper_intensity_percentile] to [b_min, b_max], where 
-    {lower,upper}_intensity_percentile are the intensity values at the corresponding percentiles of ``img``. 
+    By default this transform will scale from [lower_intensity_percentile, upper_intensity_percentile] to [b_min, b_max], where
+    {lower,upper}_intensity_percentile are the intensity values at the corresponding percentiles of ``img``.
 
-    The ``relative`` parameter can also be set to scale from [lower_intensity_percentile, upper_intensity_percentile] to the 
+    The ``relative`` parameter can also be set to scale from [lower_intensity_percentile, upper_intensity_percentile] to the
     lower and upper percentiles of the output range [b_min, b_max]
 
     For example:
@@ -325,9 +325,9 @@ class ScaleIntensityRangePercentiles(Transform):
               [1, 2, 3, 4, 5],
               [1, 2, 3, 4, 5],
               [1, 2, 3, 4, 5],
-              [1, 2, 3, 4, 5]]]) 
+              [1, 2, 3, 4, 5]]])
 
-        # Scale from lower and upper image intensity percentiles 
+        # Scale from lower and upper image intensity percentiles
         # to output range [b_min, b_max]
         scaler = ScaleIntensityRangePercentiles(10, 90, 0, 200, False, False)
         print(scaler(image))
@@ -338,7 +338,7 @@ class ScaleIntensityRangePercentiles(Transform):
           [0., 50., 100., 150., 200.],
           [0., 50., 100., 150., 200.]]]
 
-        # Scale from lower and upper image intensity percentiles 
+        # Scale from lower and upper image intensity percentiles
         # to lower and upper percentiles of the output range [b_min, b_max]
         rel_scaler = ScaleIntensityRangePercentiles(10, 90, 0, 200, False, True)
         print(rel_scaler(image))
