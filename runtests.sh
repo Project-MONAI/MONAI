@@ -36,6 +36,71 @@ doCleanup=false
 
 NUM_PARALLEL=1
 
+function print_usage {
+    echo "runtests.sh [--codeformat] [--black] [--black-fix] [--flake8] [--pytype] [--mypy] [--nounittests]"
+    echo "            [--coverage] [--quick] [--net] [--dryrun] [-j number] [--clean] [--help] [--version]"
+    echo ""
+    echo "MONAI unit testing utilities."
+    echo ""
+    echo "Examples:"
+    echo "./runtests.sh --codeformat --coverage     # runs full tests (${green}recommended before making pull requests${noColor})."
+    echo "./runtests.sh --codeformat --nounittests  # runs coding style and static type checking."
+    echo "./runtests.sh --quick                     # runs minimal unit tests, for quick verification during code developments."
+    echo "./runtests.sh --black-fix                 # runs automatic code formatting using \"black\"."
+    echo ""
+    echo "Code style check options:"
+    echo "    --black           : perform \"black\" code format checks"
+    echo "    --black-fix       : format code using \"black\""
+    echo "    --flake8          : perform \"flake8\" code format checks"
+    echo ""
+    echo "Python type check options:"
+    echo "    --pytype          : perform \"pytype\" static type checks"
+    echo "    --mypy            : perform \"mypy\" static type checks"
+    echo "    -j, --jobs        : number of parallel jobs to run \"pytype\" (default $NUM_PARALLEL)"
+    echo ""
+    echo "MONAI unit testing options:"
+    echo "    --nounittests     : skip doing unit testing (i.e. only format lint testers)"
+    echo "    --coverage        : peforms coverage analysis of code for tests run"
+    echo "    -q, --quick       : disable long running tests"
+    echo "    --net             : perform training/inference/eval integration testing"
+    echo ""
+    echo "Misc. options:"
+    echo "    --dryrun          : display the commands to the screen without running"
+    echo "    -f, --codeformat  : shorthand to run all code style and static analysis tests"
+    echo "    -c, --clean       : clean temporary files from tests and exit"
+    echo "    -h, --help        : show this help message and exit"
+    echo "    -v, --version     : show MONAI and system version information and exit"
+    echo ""
+    echo "${separator}For bug reports, questions, and discussions, please file an issue at:"
+    echo "    https://github.com/Project-MONAI/MONAI/issues/new/choose"
+    echo ""
+    exit 1
+}
+
+function print_version {
+    ${cmdPrefix}python -c 'import monai; monai.config.print_config()'
+}
+
+function install_deps {
+    echo "Pip installing MONAI development dependencies..."
+    ${cmdPrefix}pip install -r requirements-dev.txt
+}
+
+function torch_validate {
+    ${cmdPrefix}python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
+}
+
+function print_error_msg() {
+    echo "${red}Error: $1.${noColor}"
+    echo ""
+}
+
+if [ -z "$1" ]
+then
+    print_error_msg "Too few arguments to $0"
+    print_usage
+fi
+
 # parse arguments
 while [[ $# -gt 0 ]]
 do
@@ -44,7 +109,7 @@ do
         --coverage)
             doCoverage=true
         ;;
-        --quick)
+        -q|--quick)
             doQuickTests=true
         ;;
         --net)
@@ -53,13 +118,10 @@ do
         --dryrun)
             doDryRun=true
         ;;
-        --nounittest*) # allow --nounittest | --nounittests | --nounittesting  etc.
+        --nou*)  # allow --nounittest | --nounittests | --nounittesting  etc.
             doUnitTests=false
         ;;
-        --zoo)
-            doZooTests=true
-        ;;
-        --codeformat)
+        -f|--codeformat)
             doBlackFormat=true
             doFlake8Format=true
             doPytypeFormat=true
@@ -81,33 +143,23 @@ do
         --mypy)
             doMypyFormat=true
         ;;
-        -j)
+        -j|--jobs)
             NUM_PARALLEL=$2
             shift
         ;;
-        --clean)
+        -c|--clean)
             doCleanup=true
         ;;
-        *)
-            echo "${red}ERROR: Incorrect commandline provided${noColor}"
-            echo "${red}Invalid key: $key${noColor}"
-            echo "runtests.sh [--codeformat] [--black] [--black-fix] [--flake8] [--pytype] [--mypy]"
-            echo "            [--nounittests] [--coverage] [--quick] [--net] [--dryrun] [--zoo] [-j number] [--clean]"
-            echo "      --codeformat      : shorthand to run all code style and static analysis tests"
-            echo "      --black           : perform \"black\" code format checks"
-            echo "      --black-fix       : format code using \"black\""
-            echo "      --flake8          : perform \"flake8\" code format checks"
-            echo "      --pytype          : perform \"pytype\" static type checks"
-            echo "      --mypy            : perform \"mypy\" static type checks"
-            echo "      --nounittests     : skip doing unit testing (i.e. only format lint testers)"
-            echo "      --coverage        : peforms coverage analysis of code for tests run"
-            echo "      --quick           : disable long running tests"
-            echo "      --net             : perform training/inference/eval integration testing"
-            echo "      --dryrun          : display the commands to the screen without running"
-            echo "      --zoo             : not yet implmented"
-            echo "       -j               : number of parallel jobs to run"
-            echo "      --clean           : clean temporary files from tests"
+        -h|--help)
+            print_usage
+        ;;
+        -v|--version)
+            print_version
             exit 1
+        ;;
+        *)
+            print_error_msg "Incorrect commandline provided, invalid key: $key"
+            print_usage
         ;;
     esac
     shift
@@ -134,7 +186,7 @@ then
 fi
 
 # unconditionally report on the state of monai
-${cmdPrefix}python -c 'import monai; monai.config.print_config()'
+print_version
 
 
 if [ $doCleanup = true ]
@@ -183,13 +235,14 @@ then
     # ensure that the necessary packages for code format testing are installed
     if [[ ! -f "$(which black)" ]]
     then
-        ${cmdPrefix}pip install -r requirements-dev.txt
+        install_deps
     fi
     ${cmdPrefix}black --version
 
     if [ $doCodeFormatFix = true ]
     then
         ${cmdPrefix}black "$(pwd)"
+        exit
     else
         ${cmdPrefix}black --check "$(pwd)"
     fi
@@ -214,7 +267,7 @@ then
     # ensure that the necessary packages for code format testing are installed
     if [[ ! -f "$(which flake8)" ]]
     then
-        ${cmdPrefix}pip install -r requirements-dev.txt
+        install_deps
     fi
     ${cmdPrefix}flake8 --version
 
@@ -240,7 +293,7 @@ then
     # ensure that the necessary packages for code format testing are installed
     if [[ ! -f "$(which pytype)" ]]
     then
-        ${cmdPrefix}pip install -r requirements-dev.txt
+        install_deps
     fi
     ${cmdPrefix}pytype --version
 
@@ -266,7 +319,7 @@ then
     # ensure that the necessary packages for code format testing are installed
     if [[ ! -f "$(which mypy)" ]]
     then
-        ${cmdPrefix}pip install -r requirements-dev.txt
+        install_deps
     fi
     ${cmdPrefix}mypy --version
 
@@ -318,7 +371,7 @@ fi
 if [ $doUnitTests = true ]
 then
     echo "${separator}${blue}unittests${noColor}"
-    ${cmdPrefix}python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
+    torch_validate
     ${cmdPrefix}${cmd} -m unittest -v
 fi
 
@@ -337,7 +390,7 @@ fi
 if [ $doZooTests = true ]
 then
     echo "${separator}${blue}zoo${noColor}"
-    echo "${red}ERROR:  --zoo options not yet implemented${noColor}"
+    print_error_msg "--zoo option not yet implemented"
     exit 255
 fi
 

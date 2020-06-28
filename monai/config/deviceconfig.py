@@ -101,7 +101,7 @@ def print_config(file=sys.stdout):
         print(f"{k} version: {v}", file=file, flush=True)
     print("\nFor details about installing the optional dependencies, please visit:", file=file, flush=True)
     print(
-        "    http://monai.rtfd.io/en/latest/installation.html#installing-the-recommended-dependencies",
+        "    http://monai.rtfd.io/en/latest/installation.html#installing-the-recommended-dependencies\n",
         file=file,
         flush=True,
     )
