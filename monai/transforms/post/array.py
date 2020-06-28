@@ -304,6 +304,7 @@ class LabelToContour(Transform):
         kernel_type: the method applied to do edge detection, default is "Laplace".
 
     """
+
     def __init__(self, kernel_type: str = "Laplace"):
         if kernel_type != "Laplace":
             raise NotImplementedError("currently, LabelToContour only supports Laplace kernel.")

@@ -25,7 +25,7 @@ from monai.transforms.post.array import (
     Activations,
     AsDiscrete,
     KeepLargestConnectedComponent,
-    LabelToContour
+    LabelToContour,
 )
 
 
@@ -185,6 +185,7 @@ class KeepLargestConnectedComponentd(MapTransform):
         for key in self.keys:
             d[key] = self.converter(d[key])
         return d
+
 
 class LabelToContourd(MapTransform):
     """
