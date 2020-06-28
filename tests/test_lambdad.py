@@ -22,20 +22,26 @@ class TestLambdad(NumpyImageTestCase2D):
         img = self.imt
         data = dict()
         data["img"] = img
-        func = lambda x: x
-        lambd = Lambdad(keys=data.keys(), func=func)
+
+        def identity_func(x):
+            return x
+
+        lambd = Lambdad(keys=data.keys(), func=identity_func)
         expected = data
-        expected["img"] = func(data["img"])
+        expected["img"] = identity_func(data["img"])
         self.assertTrue(np.allclose(expected["img"], lambd(data)["img"]))
 
     def test_lambdad_slicing(self):
         img = self.imt
         data = dict()
         data["img"] = img
-        func = lambda x: x[:, :, :6, ::-2]
-        lambd = Lambdad(keys=data.keys(), func=func)
+
+        def slice_func(x):
+            return x[:, :, :6, ::-2]
+
+        lambd = Lambdad(keys=data.keys(), func=slice_func)
         expected = dict()
-        expected["img"] = func(data["img"])
+        expected["img"] = slice_func(data["img"])
         self.assertTrue(np.allclose(expected["img"], lambd(data)["img"]))
 
 

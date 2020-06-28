@@ -20,15 +20,21 @@ from tests.utils import NumpyImageTestCase2D
 class TestLambda(NumpyImageTestCase2D):
     def test_lambda_identity(self):
         img = self.imt
-        func = lambda x: x
-        lambd = Lambda(func=func)
-        self.assertTrue(np.allclose(func(img), lambd(img)))
+
+        def identity_func(x):
+            return x
+
+        lambd = Lambda(func=identity_func)
+        self.assertTrue(np.allclose(identity_func(img), lambd(img)))
 
     def test_lambda_slicing(self):
         img = self.imt
-        func = lambda x: x[:, :, :6, ::-2]
-        lambd = Lambda(func=func)
-        self.assertTrue(np.allclose(func(img), lambd(img)))
+
+        def slice_func(x):
+            return x[:, :, :6, ::-2]
+
+        lambd = Lambda(func=slice_func)
+        self.assertTrue(np.allclose(slice_func(img), lambd(img)))
 
 
 if __name__ == "__main__":

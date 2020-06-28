@@ -301,7 +301,7 @@ class Lambda(Transform):
 
     .. code-block:: python
         :emphasize-lines: 2
-        
+
         image = np.ones((10, 2, 2))
         lambd = Lambda(func=lambda x: x[:4, :, :])
         print(lambd(image).shape)

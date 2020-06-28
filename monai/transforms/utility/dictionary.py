@@ -419,7 +419,7 @@ class Lambdad(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.Lambda`.
 
     For example:
-    
+
     .. code-block:: python
         :emphasize-lines: 2
 
