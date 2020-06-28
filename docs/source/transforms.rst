@@ -343,6 +343,12 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
+`Lambda`
+~~~~~~~~
+.. autoclass:: Lambda
+    :members:
+    :special-members: __call__
+
 `SplitChannel`
 ~~~~~~~~~~~~~~
 .. autoclass:: SplitChannel
@@ -692,6 +698,12 @@ Dictionary-based Transforms
 `ConcatItemsd`
 ~~~~~~~~~~~~~~
 .. autoclass:: ConcatItemsd
+    :members:
+    :special-members: __call__
+
+`Lambdad`
+~~~~~~~~~
+.. autoclass:: Lambdad
     :members:
     :special-members: __call__
 
