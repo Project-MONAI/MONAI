@@ -79,14 +79,16 @@ class BorderPadd(MapTransform):
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             spatial_border (int or sequence of int): specified size for every spatial border. it can be 3 shapes:
+
                 - single int number, pad all the borders with the same size.
                 - length equals the length of image shape, pad every spatial dimension separately.
-                    for example, image shape(CHW) is [1, 4, 4], spatial_border is [2, 1],
-                    pad every border of H dim with 2, pad every border of W dim with 1, result shape is [1, 8, 6].
+                  for example, image shape(CHW) is [1, 4, 4], spatial_border is [2, 1],
+                  pad every border of H dim with 2, pad every border of W dim with 1, result shape is [1, 8, 6].
                 - length equals 2 x (length of image shape), pad every border of every dimension separately.
-                    for example, image shape(CHW) is [1, 4, 4], spatial_border is [1, 2, 3, 4], pad top of H dim with 1,
-                    pad bottom of H dim with 2, pad left of W dim with 3, pad right of W dim with 4.
-                    the result shape is [1, 7, 11].
+                  for example, image shape(CHW) is [1, 4, 4], spatial_border is [1, 2, 3, 4], pad top of H dim with 1,
+                  pad bottom of H dim with 2, pad left of W dim with 3, pad right of W dim with 4.
+                  the result shape is [1, 7, 11].
+
             mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
                 ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
                 For a sequence each element corresponds to a key in ``keys``.
@@ -317,6 +319,7 @@ class CropForegroundd(MapTransform):
 
 class RandCropByPosNegLabeld(Randomizable, MapTransform):
     """
+    dictionary-based version :py:class:`monai.transforms.RandCropByPosNegLabel`.
     Crop random fixed sized regions with the center being a foreground or background voxel
     based on the Pos Neg Ratio.
     And will return a list of dictionaries for all the cropped images.
@@ -325,7 +328,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
         label_key: name of key for label image, this will be used for finding foreground/background.
-        spatial_size (sequence of int): the spatial size of the crop region e.g. [224, 224, 128]
+        spatial_size (sequence of int): the spatial size of the crop region e.g. [224, 224, 128].
         pos: used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
             foreground voxel as a center rather than a background voxel.
         neg: used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
