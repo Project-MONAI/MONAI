@@ -102,6 +102,13 @@ should pass, by running the following command locally:
 ./runtests.sh --codeformat --coverage
 ```
 
+It is recommended that the new test `test_[module_name].py` is constructed by using only
+python 3.6+ build-in functions, `torch`, `numpy`, and `parameterized` packages.
+If it requires any other external packages, please make sure:
+- the packages are listed in [`requirements-dev.txt`](requirements-dev.txt)
+- the new test `test_[module_name].py` is added to the `exclude_cases` in [`./tests/min_tests.py`](./tests/min_tests.py) so that
+the minimal CI runner will not execute it.
+
 _If it's not tested, it's broken_
 
 All new functionality should be accompanied by an appropriate set of tests.
