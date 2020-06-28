@@ -16,7 +16,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
 from logging import Handler
-from typing import Optional
+from typing import Optional, Callable
 import copy
 import torch
 import numpy as np
@@ -36,6 +36,7 @@ from monai.transforms.utility.array import (
     DataStats,
     SimulateDelay,
     Identity,
+    Lambda,
 )
 
 
@@ -413,6 +414,37 @@ class ConcatItemsd(MapTransform):
         return d
 
 
+class Lambdad(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.Lambda`.
+
+    For example:
+
+    .. code-block:: python
+        :emphasize-lines: 2
+
+        input_data={'image': np.zeros((10, 2, 2)), 'label': np.ones((10, 2, 2))}
+        lambd = Lambdad(keys='label', func=lambda x: x[:4, :, :])
+        print(lambd(input_data)['label'].shape)
+        (4, 2, 2)
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        func: Lambda/function to be applied.
+    """
+
+    def __init__(self, keys: KeysCollection, func: Callable) -> None:
+        super().__init__(keys)
+        self.lambd = Lambda(func)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.lambd(d[key])
+        return d
+
+
 IdentityD = IdentityDict = Identityd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
@@ -426,3 +458,4 @@ DataStatsD = DataStatsDict = DataStatsd
 SimulateDelayD = SimulateDelayDict = SimulateDelayd
 CopyItemsD = CopyItemsDict = CopyItemsd
 ConcatItemsD = ConcatItemsDict = ConcatItemsd
+LambdaD = LambdaDict = Lambdad

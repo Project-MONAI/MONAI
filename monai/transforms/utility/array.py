@@ -291,3 +291,29 @@ class SimulateDelay(Transform):
     def __call__(self, img, delay_time=None):
         time.sleep(self.delay_time if delay_time is None else delay_time)
         return img
+
+
+class Lambda(Transform):
+    """
+    Apply a user-defined lambda as a transform.
+
+    For example:
+
+    .. code-block:: python
+        :emphasize-lines: 2
+
+        image = np.ones((10, 2, 2))
+        lambd = Lambda(func=lambda x: x[:4, :, :])
+        print(lambd(image).shape)
+        (4, 2, 2)
+
+    Args:
+        func: Lambda/function to be applied.
+    """
+
+    def __init__(self, func: Callable) -> None:
+        assert callable(func), "func must be callable"
+        self.func = func
+
+    def __call__(self, img):
+        return self.func(img)
