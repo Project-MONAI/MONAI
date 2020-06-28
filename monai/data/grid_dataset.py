@@ -10,11 +10,13 @@
 # limitations under the License.
 
 import math
+from typing import Union
 
 import torch
 from torch.utils.data import IterableDataset
 
 from monai.data.utils import iter_patch
+from monai.utils.enums import NumpyPadMode
 
 
 class GridPatchDataset(IterableDataset):
@@ -22,10 +24,12 @@ class GridPatchDataset(IterableDataset):
     Yields patches from arrays read from an input dataset. The patches are chosen in a contiguous grid sampling scheme.
     """
 
-    def __init__(self, dataset, patch_size, start_pos=(), pad_mode="wrap", **pad_opts):
+    def __init__(
+        self, dataset, patch_size, start_pos=(), mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP, **pad_opts
+    ):
         """
         Initializes this dataset in terms of the input dataset and patch size. The `patch_size` is the size of the 
-        patch to sample from the input arrays. Tt is assumed the arrays first dimension is the channel dimension which
+        patch to sample from the input arrays. It is assumed the arrays first dimension is the channel dimension which
         will be yielded in its entirety so this should not be specified in `patch_size`. For example, for an input 3D
         array with 1 channel of size (1, 20, 20, 20) a regular grid sampling of eight patches (1, 10, 10, 10) would be 
         specified by a `patch_size` of (10, 10, 10).
@@ -34,14 +38,17 @@ class GridPatchDataset(IterableDataset):
             dataset (Dataset): the dataset to read array data from
             patch_size (tuple of int or None): size of patches to generate slices for, 0/None selects whole dimension
             start_pos (tuple of it, optional): starting position in the array, default is 0 for each dimension
-            pad_mode (str, optional): padding mode, see numpy.pad
+            mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
+                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                One of the listed string values or a user supplied function. Defaults to ``"wrap"``.
+                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
             pad_opts (dict, optional): padding options, see numpy.pad
         """
 
         self.dataset = dataset
         self.patch_size = (None,) + tuple(patch_size)
         self.start_pos = start_pos
-        self.pad_mode = pad_mode
+        self.mode: NumpyPadMode = NumpyPadMode(mode)
         self.pad_opts = pad_opts
 
     def __iter__(self):
@@ -59,8 +66,6 @@ class GridPatchDataset(IterableDataset):
         for index in range(iter_start, iter_end):
             arrays = self.dataset[index]
 
-            iters = [
-                iter_patch(a, self.patch_size, self.start_pos, False, self.pad_mode, **self.pad_opts) for a in arrays
-            ]
+            iters = [iter_patch(a, self.patch_size, self.start_pos, False, self.mode, **self.pad_opts) for a in arrays]
 
             yield from zip(*iters)

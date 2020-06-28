@@ -13,10 +13,13 @@ A collection of "vanilla" transforms for the model output tensors
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
+from typing import Optional, Callable
+
 import torch
 from monai.transforms.compose import Transform
 from monai.networks.utils import one_hot
 from monai.transforms.utils import get_largest_connected_component_mask
+from monai.utils.misc import ensure_tuple
 
 
 class SplitChannel(Transform):
@@ -27,16 +30,24 @@ class SplitChannel(Transform):
     (batch_size, num_channels, spatial_dim_1[, spatial_dim_2, ...])
 
     Args:
-        to_onehot (bool): whether to convert the data to One-Hot format first, default is False.
-        num_classes (int): the class number used to convert to One-Hot format if `to_onehot` is True.
-
+        to_onehot: whether to convert the data to One-Hot format first.
+            Defaults to ``False``.
+        num_classes: the class number used to convert to One-Hot format if `to_onehot` is True.
+            Defaults to ``None``.
     """
 
-    def __init__(self, to_onehot=False, num_classes=None):
+    def __init__(self, to_onehot: bool = False, num_classes: Optional[int] = None):
         self.to_onehot = to_onehot
         self.num_classes = num_classes
 
-    def __call__(self, img, to_onehot=None, num_classes=None):
+    def __call__(self, img, to_onehot: Optional[bool] = None, num_classes: Optional[int] = None):
+        """
+        Args:
+            to_onehot: whether to convert the data to One-Hot format first.
+                Defaults to ``self.to_onehot``.
+            num_classes: the class number used to convert to One-Hot format if `to_onehot` is True.
+                Defaults to ``self.num_classes``.
+        """
         if to_onehot or self.to_onehot:
             if num_classes is None:
                 num_classes = self.num_classes
@@ -55,19 +66,37 @@ class Activations(Transform):
     Add activation operations to the model output, typically `Sigmoid` or `Softmax`.
 
     Args:
-        sigmoid (bool): whether to execute sigmoid function on model output before transform.
-        softmax (bool): whether to execute softmax function on model output before transform.
-        other (Callable): callable function to execute other activation layers, for example:
-            `other = lambda x: torch.tanh(x)`
+        sigmoid: whether to execute sigmoid function on model output before transform.
+            Defaults to ``False``.
+        softmax: whether to execute softmax function on model output before transform.
+            Defaults to ``False``.
+        other: callable function to execute other activation layers, for example:
+            `other = lambda x: torch.tanh(x)`. Defaults to ``None``.
 
     """
 
-    def __init__(self, sigmoid=False, softmax=False, other=None):
+    def __init__(self, sigmoid: bool = False, softmax: bool = False, other: Optional[Callable] = None):
         self.sigmoid = sigmoid
         self.softmax = softmax
         self.other = other
 
-    def __call__(self, img, sigmoid=None, softmax=None, other=None):
+    def __call__(
+        self, img, sigmoid: Optional[bool] = None, softmax: Optional[bool] = None, other: Optional[Callable] = None
+    ):
+        """
+        Args:
+            sigmoid: whether to execute sigmoid function on model output before transform.
+                Defaults to ``self.sigmoid``.
+            softmax: whether to execute softmax function on model output before transform.
+                Defaults to ``self.softmax``.
+            other: callable function to execute other activation layers, for example:
+                `other = lambda x: torch.tanh(x)`. Defaults to ``self.other``.
+
+        Raises:
+            ValueError: sigmoid=True and softmax=True are not compatible.
+            ValueError: act_func must be a Callable function.
+
+        """
         if sigmoid is True and softmax is True:
             raise ValueError("sigmoid=True and softmax=True are not compatible.")
         if sigmoid or self.sigmoid:
@@ -92,27 +121,63 @@ class AsDiscrete(Transform):
         -  convert input value to One-Hot format
 
     Args:
-        argmax (bool): whether to execute argmax function on input data before transform.
-        to_onehot (bool): whether to convert input data into the one-hot format. Defaults to False.
-        n_classes (bool): the number of classes to convert to One-Hot format.
-        threshold_values (bool): whether threshold the float value to int number 0 or 1, default is False.
-        logit_thresh (float): the threshold value for thresholding operation, default is 0.5.
+        argmax: whether to execute argmax function on input data before transform.
+            Defaults to ``False``.
+        to_onehot: whether to convert input data into the one-hot format.
+            Defaults to ``False``.
+        n_classes: the number of classes to convert to One-Hot format.
+            Defaults to ``None``.
+        threshold_values: whether threshold the float value to int number 0 or 1.
+            Defaults to ``False``.
+        logit_thresh: the threshold value for thresholding operation..
+            Defaults to ``0.5``.
 
     """
 
-    def __init__(self, argmax=False, to_onehot=False, n_classes=None, threshold_values=False, logit_thresh=0.5):
+    def __init__(
+        self,
+        argmax: bool = False,
+        to_onehot: bool = False,
+        n_classes: Optional[int] = None,
+        threshold_values: bool = False,
+        logit_thresh: float = 0.5,
+    ):
         self.argmax = argmax
         self.to_onehot = to_onehot
         self.n_classes = n_classes
         self.threshold_values = threshold_values
         self.logit_thresh = logit_thresh
 
-    def __call__(self, img, argmax=None, to_onehot=None, n_classes=None, threshold_values=None, logit_thresh=None):
+    def __call__(
+        self,
+        img,
+        argmax: Optional[bool] = None,
+        to_onehot: Optional[bool] = None,
+        n_classes: Optional[int] = None,
+        threshold_values: Optional[bool] = None,
+        logit_thresh: Optional[float] = None,
+    ):
+        """
+        Args:
+            argmax: whether to execute argmax function on input data before transform.
+                Defaults to ``self.argmax``.
+            to_onehot: whether to convert input data into the one-hot format.
+                Defaults to ``self.to_onehot``.
+            n_classes: the number of classes to convert to One-Hot format.
+                Defaults to ``self.n_classes``.
+            threshold_values: whether threshold the float value to int number 0 or 1.
+                Defaults to ``self.threshold_values``.
+            logit_thresh: the threshold value for thresholding operation..
+                Defaults to ``self.logit_thresh``.
+
+        """
         if argmax or self.argmax:
             img = torch.argmax(img, dim=1, keepdim=True)
 
         if to_onehot or self.to_onehot:
-            img = one_hot(img, self.n_classes if n_classes is None else n_classes)
+            _nclasses = self.n_classes if n_classes is None else n_classes
+            assert isinstance(_nclasses, int), "One of self.n_classes or n_classes must be an integer"
+            img = one_hot(img, _nclasses)
 
         if threshold_values or self.threshold_values:
             img = img >= (self.logit_thresh if logit_thresh is None else logit_thresh)
@@ -124,18 +189,23 @@ class KeepLargestConnectedComponent(Transform):
     """
     Keeps only the largest connected component in the image.
     This transform can be used as a post-processing step to clean up over-segment areas in model output.
-    The input is assumed to be a PyTorch Tensor with shape (batch_size, 1, spatial_dim1[, spatial_dim2, ...])
 
-    Expected input data should have only 1 channel and the values correspond to expected labels.
+    The input is assumed to be a PyTorch Tensor:
+      1) With shape (batch_size, 1, spatial_dim1[, spatial_dim2, ...]) and the values correspond to expected labels.
+      2) With shape (batch_size, C, spatial_dim1[, spatial_dim2, ...]) and the values should be 0, 1 on each labels.
+
+    Note:
+        For single channel data, 0 will be treated as background and the over-segment pixels will be set to 0.
+        For one-hot data, the over-segment pixels will be set to 0 in its channel.
 
     For example:
-    Use KeepLargestConnectedComponent with applied_values=[1], connectivity=1
+    Use KeepLargestConnectedComponent with applied_labels=[1], connectivity=1
 
        [1, 0, 0]         [0, 0, 0]
        [0, 1, 1]    =>   [0, 1 ,1]
        [0, 1, 1]         [0, 1, 1]
 
-    Use KeepLargestConnectedComponent with applied_values[1, 2], independent=False, connectivity=1
+    Use KeepLargestConnectedComponent with applied_labels[1, 2], independent=False, connectivity=1
 
       [0, 0, 1, 0 ,0]           [0, 0, 1, 0 ,0]
       [0, 2, 1, 1 ,1]           [0, 2, 1, 1 ,1]
@@ -143,7 +213,7 @@ class KeepLargestConnectedComponent(Transform):
       [1, 2, 0, 1 ,0]           [1, 2, 0, 0 ,0]
       [2, 2, 0, 0 ,2]           [2, 2, 0, 0 ,0]
 
-    Use KeepLargestConnectedComponent with applied_values[1, 2], independent=True, connectivity=1
+    Use KeepLargestConnectedComponent with applied_labels[1, 2], independent=True, connectivity=1
 
       [0, 0, 1, 0 ,0]           [0, 0, 1, 0 ,0]
       [0, 2, 1, 1 ,1]           [0, 2, 1, 1 ,1]
@@ -151,7 +221,7 @@ class KeepLargestConnectedComponent(Transform):
       [1, 2, 0, 1 ,0]           [0, 2, 0, 0 ,0]
       [2, 2, 0, 0 ,2]           [2, 2, 0, 0 ,0]
 
-    Use KeepLargestConnectedComponent with applied_values[1, 2], independent=False, connectivity=2
+    Use KeepLargestConnectedComponent with applied_labels[1, 2], independent=False, connectivity=2
 
       [0, 0, 1, 0 ,0]           [0, 0, 1, 0 ,0]
       [0, 2, 1, 1 ,1]           [0, 2, 1, 1 ,1]
@@ -161,51 +231,121 @@ class KeepLargestConnectedComponent(Transform):
 
     """
 
-    def __init__(self, applied_values, independent=True, background=0, connectivity=None):
+    def __init__(self, applied_labels, independent: bool = True, connectivity: Optional[int] = None):
         """
         Args:
-            applied_values (list or tuple of int): number list for applying the connected component on.
-                The pixel whose value is not in this list will remain unchanged.
+            applied_labels (int, list or tuple of int): Labels for applying the connected component on.
+                If only one channel. The pixel whose value is not in this list will remain unchanged.
+                If the data is in one-hot format, this is used to determine what channels to apply.
             independent (bool): consider several labels as a whole or independent, default is `True`.
                 Example use case would be segment label 1 is liver and label 2 is liver tumor, in that case
                 you want this "independent" to be specified as False.
-            background (int): Background pixel value. The over-segmented pixels will be set as this value.
-            connectivity (int): Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
+            connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
                 Accepted values are ranging from  1 to input.ndim. If ``None``, a full
                 connectivity of ``input.ndim`` is used.
         """
         super().__init__()
-        self.applied_values = applied_values
+        self.applied_labels = ensure_tuple(applied_labels)
         self.independent = independent
-        self.background = background
         self.connectivity = connectivity
-        if background in applied_values:
-            raise ValueError("Background pixel can't be in applied_values.")
 
     def __call__(self, img):
         """
         Args:
-            img: shape must be (batch_size, 1, spatial_dim1[, spatial_dim2, ...]).
+            img: shape must be (batch_size, C, spatial_dim1[, spatial_dim2, ...]).
 
         Returns:
-            A PyTorch Tensor with shape (batch_size, 1, spatial_dim1[, spatial_dim2, ...]).
+            A PyTorch Tensor with shape (batch_size, C, spatial_dim1[, spatial_dim2, ...]).
         """
         channel_dim = 1
         if img.shape[channel_dim] == 1:
+
             img = torch.squeeze(img, dim=channel_dim)
-        else:
-            raise ValueError("Input data have more than 1 channel.")
 
-        if self.independent:
-            for i in self.applied_values:
-                foreground = (img == i).type(torch.uint8)
+            if self.independent:
+                for i in self.applied_labels:
+                    foreground = (img == i).type(torch.uint8)
+                    mask = get_largest_connected_component_mask(foreground, self.connectivity)
+                    img[foreground != mask] = 0
+            else:
+                foreground = torch.zeros_like(img)
+                for i in self.applied_labels:
+                    foreground += (img == i).type(torch.uint8)
                 mask = get_largest_connected_component_mask(foreground, self.connectivity)
-                img[foreground != mask] = self.background
+                img[foreground != mask] = 0
+            output = torch.unsqueeze(img, dim=channel_dim)
         else:
-            foreground = torch.zeros_like(img)
-            for i in self.applied_values:
-                foreground += (img == i).type(torch.uint8)
-            mask = get_largest_connected_component_mask(foreground, self.connectivity)
-            img[foreground != mask] = self.background
+            # one-hot data is assumed to have binary value in each channel
+            if self.independent:
+                for i in self.applied_labels:
+                    foreground = img[:, i, ...].type(torch.uint8)
+                    mask = get_largest_connected_component_mask(foreground, self.connectivity)
+                    img[:, i, ...][foreground != mask] = 0
+            else:
+                applied_img = img[:, self.applied_labels, ...].type(torch.uint8)
+                foreground = torch.any(applied_img, dim=channel_dim)
+                mask = get_largest_connected_component_mask(foreground, self.connectivity)
+                background_mask = torch.unsqueeze(foreground != mask, dim=channel_dim)
+                background_mask = torch.repeat_interleave(background_mask, len(self.applied_labels), dim=channel_dim)
+                applied_img[background_mask] = 0
+                img[:, self.applied_labels, ...] = applied_img.type(img.type())
+            output = img
 
-        return torch.unsqueeze(img, dim=channel_dim)
+        return output
+
+
+class LabelToContour(Transform):
+    """
+    Return the contour flag of objects in mask images that only compose of 0 and 1, with Laplace kernel
+        set as default for edge detection.
+
+    Args:
+        kernel_type: the method applied to do edge detection.
+    """
+
+    def __init__(self, kernel_type="Laplace"):
+        self.kernel_type = kernel_type
+
+    def __find_img_contour(self, img):
+        channels = img.shape[1]
+        conv = torch.nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1, bias=False, groups=channels)
+        kernel = torch.tensor([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]], dtype=torch.float32, device=img.device)
+        kernel = kernel.repeat(channels, 1, 1, 1)
+        conv.weight = torch.nn.Parameter(kernel, requires_grad=False)
+
+        contour_img = conv(img)
+        torch.clamp_(contour_img, min=0.0, max=1.0)
+        return contour_img
+
+    def __call__(self, img):
+        """
+        Args:
+            img: torch tensor of the img that you want to find the contour of, with shape being
+                 (batch_size, channels, width, height[, depth])
+
+        Returns:
+            A torch tensor with the same shape as img, note:
+                1. It's the binary classification result of whether a pixel is edge or not.
+                2. In order to keep the original shape of mask image, we use padding as default.
+                3. The edge detection is just approximate due to
+                    a) defects inherent to Laplace kernel, ideally the edge should be thin enough, but now it has a thickness.
+                    b) need to search the optimal/better thresold for classification
+        """
+        if self.kernel_type != "Laplace":
+            raise NotImplementedError
+        if img.ndim != 4 and img.ndim != 5:
+            raise RuntimeError("img.ndim should be 4 or 5")
+        if img.ndim == 4:
+            return self.__find_img_contour(img)
+
+        channels = img.shape[1]
+
+        conv = torch.nn.Conv3d(channels, channels, kernel_size=3, stride=1, padding=1, bias=False, groups=channels)
+        kernel = -1 * torch.ones(3, 3, 3, dtype=torch.float32, device=img.device)
+        kernel[1, 1, 1] = 26
+        kernel = kernel.repeat(channels, 1, 1, 1, 1)
+        conv.weight = torch.nn.Parameter(kernel, requires_grad=False)
+
+        contour_img = conv(img)
+        torch.clamp_(contour_img, min=0.0, max=1.0)
+        return contour_img
