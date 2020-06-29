@@ -32,6 +32,9 @@ class Identity(Transform):
     """
 
     def __call__(self, img):
+        """
+        Apply the transform to `img`.
+        """
         return np.asanyarray(img)
 
 
@@ -56,6 +59,9 @@ class AsChannelFirst(Transform):
         self.channel_dim = channel_dim
 
     def __call__(self, img):
+        """
+        Apply the transform to `img`.
+        """
         return np.moveaxis(img, self.channel_dim, 0)
 
 
@@ -79,6 +85,9 @@ class AsChannelLast(Transform):
         self.channel_dim = channel_dim
 
     def __call__(self, img):
+        """
+        Apply the transform to `img`.
+        """
         return np.moveaxis(img, self.channel_dim, -1)
 
 
@@ -97,6 +106,9 @@ class AddChannel(Transform):
     """
 
     def __call__(self, img):
+        """
+        Apply the transform to `img`.
+        """
         return img[None]
 
 
@@ -115,6 +127,9 @@ class RepeatChannel(Transform):
         self.repeats = repeats
 
     def __call__(self, img):
+        """
+        Apply the transform to `img`, assuming `img` is a "channel-first" array.
+        """
         return np.repeat(img, self.repeats, 0)
 
 
@@ -131,6 +146,9 @@ class CastToType(Transform):
         self.dtype = dtype
 
     def __call__(self, img: np.ndarray):
+        """
+        Apply the transform to `img`, assuming `img` is a numpy array.
+        """
         assert isinstance(img, np.ndarray), "image must be numpy array."
         return img.astype(self.dtype)
 
@@ -141,6 +159,9 @@ class ToTensor(Transform):
     """
 
     def __call__(self, img):
+        """
+        Apply the transform to `img` and make it contiguous.
+        """
         if torch.is_tensor(img):
             return img.contiguous()
         return torch.as_tensor(np.ascontiguousarray(img))
@@ -152,6 +173,9 @@ class ToNumpy(Transform):
     """
 
     def __call__(self, img):
+        """
+        Apply the transform to `img` and make it contiguous.
+        """
         if torch.is_tensor(img):
             img = img.detach().cpu().numpy()
         return np.ascontiguousarray(img)
@@ -166,6 +190,9 @@ class Transpose(Transform):
         self.indices = indices
 
     def __call__(self, img):
+        """
+        Apply the transform to `img`.
+        """
         return img.transpose(self.indices)
 
 
@@ -249,6 +276,9 @@ class DataStats(Transform):
         data_value: Optional[bool] = None,
         additional_info=None,
     ):
+        """
+        Apply the transform to `img`, optionally take arguments similar to the class constructor.
+        """
         lines = [f"{prefix or self.prefix} statistics:"]
 
         if self.data_shape if data_shape is None else data_shape:
@@ -289,6 +319,12 @@ class SimulateDelay(Transform):
         self.delay_time: float = delay_time
 
     def __call__(self, img, delay_time=None):
+        """
+        Args:
+            img: data remain unchanged throughout this transform.
+            delay_time: The minimum amount of time, in fractions of seconds,
+                to accomplish this delay task.
+        """
         time.sleep(self.delay_time if delay_time is None else delay_time)
         return img
 
@@ -316,4 +352,7 @@ class Lambda(Transform):
         self.func = func
 
     def __call__(self, img):
+        """
+        Apply `self.func` to `img`.
+        """
         return self.func(img)
