@@ -108,10 +108,10 @@ When transforms are combined with the "compose" function, it's not easy to track
 ### 8. Post-processing transforms for model output
 MONAI also provides post-processing transforms for handling the model outputs. Currently, the transforms include:
 - Adding activation layer (Sigmoid, Softmax, etc.).
-- Converting to discrete values (Argmax, One-Hot, Threshold value, etc).
+- Converting to discrete values (Argmax, One-Hot, Threshold value, etc), as below figure (b).
 - Splitting multi-channel data into multiple single channels.
-- Extracting contour of segmentation result, which can be used to map to original image and evaluate the model, as below figure (a) - (d).
-- Removing segmentation noise based on Connected Component Analysis, as below figure (e).
+- Removing segmentation noise based on Connected Component Analysis, as below figure (c).
+- Extracting contour of segmentation result, which can be used to map to original image and evaluate the model, as below figure (d) and (e).
 
 ![image](../images/post_transforms.png)
 
