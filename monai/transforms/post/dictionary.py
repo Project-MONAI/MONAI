@@ -155,11 +155,7 @@ class KeepLargestConnectedComponentd(MapTransform):
     """
 
     def __init__(
-        self,
-        keys: KeysCollection,
-        applied_labels,
-        independent: bool = True,
-        connectivity: Optional[int] = None,
+        self, keys: KeysCollection, applied_labels, independent: bool = True, connectivity: Optional[int] = None,
     ):
         """
         Args:
