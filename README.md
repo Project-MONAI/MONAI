@@ -6,7 +6,7 @@
 
 [![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 [![CI Build](https://github.com/Project-MONAI/MONAI/workflows/build/badge.svg?branch=master)](https://github.com/Project-MONAI/MONAI/commits/master)
-[![Documentation Status](https://readthedocs.org/projects/monai/badge/?version=latest)](https://monai.readthedocs.io/en/latest/?badge=latest)
+[![Documentation Status](https://readthedocs.org/projects/monai/badge/?version=latest)](https://docs.monai.io/en/latest/?badge=latest)
 [![codecov](https://codecov.io/gh/Project-MONAI/MONAI/branch/master/graph/badge.svg)](https://codecov.io/gh/Project-MONAI/MONAI)
 [![PyPI version](https://badge.fury.io/py/monai.svg)](https://badge.fury.io/py/monai)
 
@@ -43,20 +43,20 @@ Alternatively, pre-built Docker image is available via [DockerHub](https://hub.d
   docker run --gpus all --rm -ti --ipc=host projectmonai/monai:latest
   ```
 
-For more details, please refer to [the installation guide](https://monai.readthedocs.io/en/latest/installation.html).
+For more details, please refer to [the installation guide](https://docs.monai.io/en/latest/installation.html).
 
 ## Getting Started
 
 Tutorials & examples are located at [monai/examples](https://github.com/Project-MONAI/MONAI/tree/master/examples).
 
-Technical documentation is available via [Read the Docs](https://monai.readthedocs.io/en/latest/).
+Technical documentation is available at [docs.monai.io](https://docs.monai.io).
 
 ## Contributing
 For guidance on making a contribution to MONAI, see the [contributing guidelines](https://github.com/Project-MONAI/MONAI/blob/master/CONTRIBUTING.md).
 
 ## Links
 - Website: https://monai.io/
-- API documentation: https://monai.readthedocs.io/en/latest/
+- API documentation: https://docs.monai.io
 - Code: https://github.com/Project-MONAI/MONAI
 - Project tracker: https://github.com/Project-MONAI/MONAI/projects
 - Issue tracker: https://github.com/Project-MONAI/MONAI/issues
