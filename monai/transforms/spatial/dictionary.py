@@ -23,6 +23,7 @@ import torch
 from monai.config.type_definitions import KeysCollection
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.compose import MapTransform, Randomizable
+from monai.transforms.croppad.array import CenterSpatialCrop
 from monai.transforms.spatial.array import (
     Flip,
     Orientation,
@@ -453,8 +454,12 @@ class Rand2DElasticd(Randomizable, MapTransform):
             grid = self.rand_2d_elastic.deform_grid(spatial_size=sp_size)
             grid = self.rand_2d_elastic.rand_affine_grid(grid=grid)
             grid = _torch_interp(
-                input=grid[None], size=sp_size, mode=InterpolateMode.BICUBIC.value, align_corners=False
-            )[0]
+                input=grid[None],
+                scale_factor=list(self.rand_2d_elastic.deform_grid.spacing),
+                mode=InterpolateMode.BICUBIC.value,
+                align_corners=False,
+            )
+            grid = CenterSpatialCrop(roi_size=sp_size)(grid[0])
         else:
             grid = create_grid(spatial_size=sp_size)
 
