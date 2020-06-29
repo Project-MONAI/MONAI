@@ -128,7 +128,7 @@ class DiceLoss(_Loss):
         denominator = ground_o + pred_o
 
         if self.jaccard:
-            denominator -= intersection
+            denominator = 2.0 * (denominator - intersection)
 
         f = 1.0 - (2.0 * intersection + smooth) / (denominator + smooth)
 
