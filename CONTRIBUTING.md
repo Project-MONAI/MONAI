@@ -41,7 +41,7 @@ of the codebase named `[ticket_id]-[task_name]`.
 For example, branch name `19-ci-pipeline-setup` corresponds to [issue #19](https://github.com/Project-MONAI/MONAI/issues/19).
 Ideally, the new branch should be based on the latest `master` branch.
 1. Make changes to the branch ([use detailed commit messages if possible](https://chris.beams.io/posts/git-commit/)).
-1. Make sure that the changed codebase [passes all tests locally](#ensuring-code-quality).
+1. Make sure that new tests cover the changes and the changed codebase [passes all tests locally](#ensuring-code-quality).
 1. [Create a new pull request](https://help.github.com/en/desktop/contributing-to-projects/creating-a-pull-request) from the task branch to the master branch, with detailed descriptions of the purpose of this pull request.
 1. Check [the CI/CD status of the pull request][github ci], make sure all CI/CD tests passed.
 1. Wait for reviews; if there are reviews, make point-to-point responses, make further code changes if needed.
@@ -135,8 +135,9 @@ Before submitting a pull request, it is recommended to:
 - edit the relevant `.rst` files in [`docs/source`](./docs/source) accordingly.
 - build html documentation locally
 - check the auto-generated documentation (by browsing `./docs/build/html/index.html` with a web browser)
+- type `make clean` in `docs/` folder to remove the current build files.
 
-Please type `make help` for all supported formats, type `make clean` to remove the current build files.
+Please type `make help` for all supported format options.
 
 #### Automatic code formatting
 MONAI provides support of automatic Python code formatting via [a customised GitHub action](https://github.com/Project-MONAI/monai-code-formatter).
