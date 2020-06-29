@@ -42,6 +42,8 @@ Illustrate reading NIfTI files and iterating over image patches of the volumes l
 This notebook shows `PersistentDataset` that processes original data sources through the non-random transforms on first use.
 And stores these intermediate tensor values to an on-disk persistence representation.
 The intermediate processed tensors are loaded from disk on each use for processing by the random-transforms for each analysis request.
+#### [notebooks/post_transforms](./notebooks/post_transforms.ipynb)
+This notebook shows the usage of several post transforms based on the model output of spleen segmentation task.
 #### [notebooks/spleen_segmentation_3d](./notebooks/spleen_segmentation_3d.ipynb)
 This notebook is an end-to-end training and evaluation example of 3D segmentation based on [MSD Spleen dataset](http://medicaldecathlon.com).
 The example shows the flexibility of MONAI modules in a PyTorch-based program:
