@@ -1,15 +1,15 @@
 - [Introduction](#introduction)
 - [The contribution process](#the-contribution-process)
   * [Submitting pull requests](#submitting-pull-requests)
-  * [Coding style](#coding-style)
-  * [Automatic code formatting](#automatic-code-formatting)
-  * [Utility functions](#utility-functions)
-  * [Building the documentation](#building-the-documentation)
-- [Unit testing](#unit-testing)
-- [Linting and code style testing](#linting-and-code-style-testing)
+  * [Ensuring code quality](#ensuring-code-quality)
+    1. [Coding style](#coding-style)
+    1. [Code analysis and unit testing](#code-analysis-and-unit-testing)
+    1. [Building the documentation](#building-the-documentation)
+    1. [Automatic code formatting](#automatic-code-formatting)
+    1. [Utility functions](#utility-functions)
 - [The code reviewing process (for the maintainers)](#the-code-reviewing-process)
   * [Reviewing pull requests](#reviewing-pull-requests)
-- [Admin tasks](#admin-tasks)
+- [Admin tasks (for the maintainers)](#admin-tasks)
   * [Releasing a new version](#release-a-new-version)
 
 ## Introduction
@@ -21,9 +21,9 @@ This documentation is intended for individuals and institutions interested in co
 
 We are happy to talk with you about your needs for MONAI and your ideas for contributing to the project. One way to do this is to create an issue discussing your thoughts. It might be that a very similar feature is under development or already exists, so an issue is a great starting point.
 
-### Does it belong in PyTorch / Ignite  instead of MONAI?
+### Does it belong in PyTorch instead of MONAI?
 
-MONAI is based on the Ignite and PyTorch frameworks. These frameworks implement what we consider to be best practice for general deep learning functionality. MONAI builds on these frameworks with a strong focus on medical applications. As such, it is a good idea to consider whether your functionality is medical-application specific or not. General deep learning functionality may be better off in PyTorch; you can find their contribution guidelines [here](https://pytorch.org/docs/stable/community/contribution_guide.html).
+MONAI is based on the PyTorch and Numpy libraries. These libraries implement what we consider to be best practice for general scientific computing and deep learning functionality. MONAI builds on these with a strong focus on medical applications. As such, it is a good idea to consider whether your functionality is medical-application specific or not. General deep learning functionality may be better off in PyTorch; you can find their contribution guidelines [here](https://pytorch.org/docs/stable/community/contribution_guide.html).
 
 ## The contribution process
 
@@ -40,7 +40,8 @@ All code changes to the master branch must be done via [pull requests](https://h
 of the codebase named `[ticket_id]-[task_name]`.
 For example, branch name `19-ci-pipeline-setup` corresponds to [issue #19](https://github.com/Project-MONAI/MONAI/issues/19).
 Ideally, the new branch should be based on the latest `master` branch.
-1. Make changes to the branch ([use detailed commit messages if possible](https://chris.beams.io/posts/git-commit/)). If the changes introduce new features, make sure that you write [unit tests](#unit-testing).
+1. Make changes to the branch ([use detailed commit messages if possible](https://chris.beams.io/posts/git-commit/)).
+1. Make sure that new tests cover the changes and the changed codebase [passes all tests locally](#ensuring-code-quality).
 1. [Create a new pull request](https://help.github.com/en/desktop/contributing-to-projects/creating-a-pull-request) from the task branch to the master branch, with detailed descriptions of the purpose of this pull request.
 1. Check [the CI/CD status of the pull request][github ci], make sure all CI/CD tests passed.
 1. Wait for reviews; if there are reviews, make point-to-point responses, make further code changes if needed.
@@ -48,10 +49,22 @@ Ideally, the new branch should be based on the latest `master` branch.
 1. Reviewer and contributor may have discussions back and forth until all comments addressed.
 1. Wait for the pull request to be merged.
 
-### Coding style
-Coding style is checked by flake8, using [a flake8 configuration](./setup.cfg) similar to [PyTorch's](https://github.com/pytorch/pytorch/blob/master/.flake8).
+### Ensuring code quality
+To ensure the code quality, MONAI relies on several linting tools ([flake8 and its plugins](https://gitlab.com/pycqa/flake8), [black](https://github.com/psf/black)),
+static type analysis tools ([mypy](https://github.com/python/mypy), [pytype](https://github.com/google/pytype)), as well as a set of unit/integration tests.
+
+This section highlights all the necessary steps required before sending a pull request.
+To collaborate efficiently, please read through this section and follow them.
+
+* [Coding style](#coding-style)
+* [Code analysis and unit testing](#code-analysis-and-unit-testing)
+* [Building documentation](#building-the-documentation)
+
+#### Coding style
+Coding style is checked and enforced by flake8 and black, using [a flake8 configuration](./setup.cfg) similar to [PyTorch's](https://github.com/pytorch/pytorch/blob/master/.flake8).
+The next section provides [a few commands to run the relevant tools](#code-analysis-and-unit-testing).
+
 For string definition, [f-string](https://www.python.org/dev/peps/pep-0498/) is recommended to use over `%-print` and `format-print` from python 3.6. So please try to use `f-string` if you need to define any string object.
-Python code file formatting could be done locally before submitting a pull request (e.g. using [`psf/Black`](https://github.com/psf/black)), or during the pull request review using MONAI's automatic [code formatting workflow](#automatic-code-formatting).
 
 License information: all source code files should start with this paragraph:
 ```
@@ -68,52 +81,7 @@ License information: all source code files should start with this paragraph:
 
 ```
 
-### Automatic code formatting
-MONAI provides support of automatic Python code formatting via [a customised GitHub action](https://github.com/Project-MONAI/monai-code-formatter).
-This makes the project's Python coding style consistent and reduces maintenance burdens.
-Commenting a pull request with `/black` triggers the formatting action based on [`psf/Black`](https://github.com/psf/black) (this is implemented with [`slash command dispatch`](https://github.com/marketplace/actions/slash-command-dispatch)).
-
-
-Steps for the formatting process:
-- After submitting a pull request or push to an existing pull request,
-make a comment to the pull request to trigger the formatting action.
-The first line of the comment must be `/black` so that it will be interpreted by [the comment parser](https://github.com/marketplace/actions/slash-command-dispatch#how-are-comments-parsed-for-slash-commands).
-- [Auto] The GitHub action tries to format all Python files (using [`psf/Black`](https://github.com/psf/black)) in the branch and makes a commit under the name "MONAI bot" if there's code change. The actual formatting action is deployed at [project-monai/monai-code-formatter](https://github.com/Project-MONAI/monai-code-formatter).
-- [Auto] After the formatting commit, the GitHub action adds an emoji to the comment that triggered the process.
-- Repeat the above steps if necessary.
-
-### Utility functions
-MONAI provides a set of generic utility functions and frequently used routines.
-These are located in [``monai/utils``](./monai/utils/) and in the module folders such as [``networks/utils.py``](./monai/networks/).
-Users are encouraged to use these common routines to improve code readability and reduce the code maintenance burdens.
-
-Notably,
-- ``monai.module.export`` decorator can make the module name shorter when importing,
-for example, ``import monai.transforms.Spacing`` is the equivalent of ``monai.transforms.spatial.array.Spacing`` if
-``class Spacing`` defined in file `monai/transforms/spatial/array.py` is decorated with ``@export("monai.transforms")``.
-
-### Building the documentation
-To build documentation via Sphinx in`docs/` folder:
-```bash
-# install the doc-related dependencies
-pip install --upgrade pip
-pip install -r docs/requirements.txt
-
-# build the docs
-cd docs/
-make html
-```
-The above commands build html documentation. Type `make help` for all supported
-formats, type `make clean` to remove the current build files.  If there are any
-auto-generated files, please run `make clean` command to clean up, before
-submitting a pull request.
-
-When new classes or methods are added, it is recommended to:
-- build html documentation locally,
-- check the auto-generated documentation from python docstrings,
-- edit relevant `.rst` files in [`docs/source`](./docs/source) accordingly.
-
-## Unit testing
+#### Code analysis and unit testing
 MONAI tests are located under `tests/`.
 
 - The unit test's file name follows `test_[module_name].py`.
@@ -127,18 +95,19 @@ To run a particular test, for example `tests/test_dice_loss.py`:
 python -m tests.test_dice_loss
 ```
 
-## Linting and code style testing
-
-```bash
-# Install the various static analysis tools for development
-pip install -r requirements-dev.txt
-```
-
 Before submitting a pull request, we recommend that all linting and unit tests
 should pass, by running the following command locally:
-```
+
+```bash
 ./runtests.sh --codeformat --coverage
 ```
+
+It is recommended that the new test `test_[module_name].py` is constructed by using only
+python 3.6+ build-in functions, `torch`, `numpy`, and `parameterized` packages.
+If it requires any other external packages, please make sure:
+- the packages are listed in [`requirements-dev.txt`](requirements-dev.txt)
+- the new test `test_[module_name].py` is added to the `exclude_cases` in [`./tests/min_tests.py`](./tests/min_tests.py) so that
+the minimal CI runner will not execute it.
 
 _If it's not tested, it's broken_
 
@@ -147,6 +116,52 @@ MONAI functionality has plenty of unit tests from which you can draw inspiration
 and you can reach out to us if you are unsure of how to proceed with testing.
 
 MONAI's code coverage report is available at [CodeCov](https://codecov.io/gh/Project-MONAI/MONAI).
+
+#### Building the documentation
+MONAI's documentation is located at `docs/`.
+
+```bash
+# install the doc-related dependencies
+pip install --upgrade pip
+pip install -r docs/requirements.txt
+
+# build the docs
+cd docs/
+make html
+```
+The above commands build html documentation, they are used to automatically generate [https://docs.monai.io](https://docs.monai.io).
+
+Before submitting a pull request, it is recommended to:
+- edit the relevant `.rst` files in [`docs/source`](./docs/source) accordingly.
+- build html documentation locally
+- check the auto-generated documentation (by browsing `./docs/build/html/index.html` with a web browser)
+- type `make clean` in `docs/` folder to remove the current build files.
+
+Please type `make help` for all supported format options.
+
+#### Automatic code formatting
+MONAI provides support of automatic Python code formatting via [a customised GitHub action](https://github.com/Project-MONAI/monai-code-formatter).
+This makes the project's Python coding style consistent and reduces maintenance burdens.
+Commenting a pull request with `/black` triggers the formatting action based on [`psf/Black`](https://github.com/psf/black) (this is implemented with [`slash command dispatch`](https://github.com/marketplace/actions/slash-command-dispatch)).
+
+Steps for the formatting process:
+- After submitting a pull request or push to an existing pull request,
+make a comment to the pull request to trigger the formatting action.
+The first line of the comment must be `/black` so that it will be interpreted by [the comment parser](https://github.com/marketplace/actions/slash-command-dispatch#how-are-comments-parsed-for-slash-commands).
+- [Auto] The GitHub action tries to format all Python files (using [`psf/Black`](https://github.com/psf/black)) in the branch and makes a commit under the name "MONAI bot" if there's code change. The actual formatting action is deployed at [project-monai/monai-code-formatter](https://github.com/Project-MONAI/monai-code-formatter).
+- [Auto] After the formatting commit, the GitHub action adds an emoji to the comment that triggered the process.
+- Repeat the above steps if necessary.
+
+#### Utility functions
+MONAI provides a set of generic utility functions and frequently used routines.
+These are located in [``monai/utils``](./monai/utils/) and in the module folders such as [``networks/utils.py``](./monai/networks/).
+Users are encouraged to use these common routines to improve code readability and reduce the code maintenance burdens.
+
+Notably,
+- ``monai.module.export`` decorator can make the module name shorter when importing,
+for example, ``import monai.transforms.Spacing`` is the equivalent of ``monai.transforms.spatial.array.Spacing`` if
+``class Spacing`` defined in file `monai/transforms/spatial/array.py` is decorated with ``@export("monai.transforms")``.
+
 
 ## The code reviewing process
 
