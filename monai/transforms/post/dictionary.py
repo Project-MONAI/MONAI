@@ -20,7 +20,13 @@ from typing import Optional
 from monai.config.type_definitions import KeysCollection
 from monai.utils.misc import ensure_tuple_rep
 from monai.transforms.compose import MapTransform
-from monai.transforms.post.array import SplitChannel, Activations, AsDiscrete, KeepLargestConnectedComponent
+from monai.transforms.post.array import (
+    SplitChannel,
+    Activations,
+    AsDiscrete,
+    KeepLargestConnectedComponent,
+    LabelToContour,
+)
 
 
 class SplitChanneld(MapTransform):
@@ -145,7 +151,7 @@ class AsDiscreted(MapTransform):
 
 class KeepLargestConnectedComponentd(MapTransform):
     """
-    dictionary-based wrapper of :py:class:monai.transforms.utility.array.KeepLargestConnectedComponent.
+    dictionary-based wrapper of :py:class:monai.transforms.KeepLargestConnectedComponent.
     """
 
     def __init__(
@@ -176,7 +182,30 @@ class KeepLargestConnectedComponentd(MapTransform):
 
     def __call__(self, data):
         d = dict(data)
-        for idx, key in enumerate(self.keys):
+        for key in self.keys:
+            d[key] = self.converter(d[key])
+        return d
+
+
+class LabelToContourd(MapTransform):
+    """
+    dictionary-based wrapper of :py:class:monai.transforms.LabelToContour.
+    """
+
+    def __init__(self, keys: KeysCollection, kernel_type: str = "Laplace"):
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            kernel_type: the method applied to do edge detection, default is "Laplace".
+
+        """
+        super().__init__(keys)
+        self.converter = LabelToContour(kernel_type=kernel_type)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
             d[key] = self.converter(d[key])
         return d
 
@@ -185,3 +214,4 @@ SplitChannelD = SplitChannelDict = SplitChanneld
 ActivationsD = ActivationsDict = Activationsd
 AsDiscreteD = AsDiscreteDict = AsDiscreted
 KeepLargestConnectedComponentD = KeepLargestConnectedComponentDict = KeepLargestConnectedComponentd
+LabelToContourD = LabelToContourDict = LabelToContourd

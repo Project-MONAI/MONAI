@@ -12,7 +12,7 @@
 import unittest
 import torch
 import numpy as np
-from monai.transforms import LabelToContour
+from monai.transforms import LabelToContourd
 
 expected_output_for_cube = np.array(
     [
@@ -139,16 +139,16 @@ def gen_fixed_img():
     return img, expected_output_for_img
 
 
-class TestContour(unittest.TestCase):
+class TestContourd(unittest.TestCase):
     def test_contour(self):
-        input_param = {"kernel_type": "Laplace"}
+        input_param = {"keys": "img", "kernel_type": "Laplace"}
 
         # check 5-dim input data
         test_cube, expected_output = gen_fixed_cube()
-        test_result_cube = LabelToContour(**input_param)(test_cube)
-        self.assertEqual(test_result_cube.shape, test_cube.shape)
+        test_result_cube = LabelToContourd(**input_param)({"img": test_cube})
+        self.assertEqual(test_result_cube["img"].shape, test_cube.shape)
 
-        test_result_np = test_result_cube.data.cpu().numpy()
+        test_result_np = test_result_cube["img"].data.cpu().numpy()
         batch_size, channels = test_cube.shape[0], test_cube.shape[1]
         for batch in range(batch_size):
             for channel in range(channels):
@@ -157,19 +157,19 @@ class TestContour(unittest.TestCase):
         # check 4-dim input data
         test_img, expected_output = gen_fixed_img()
         batch_size, channels = test_img.shape[0], test_img.shape[1]
-        test_result_img = LabelToContour(**input_param)(test_img)
-        self.assertEqual(test_result_img.shape, test_img.shape)
+        test_result_img = LabelToContourd(**input_param)({"img": test_img})
+        self.assertEqual(test_result_img["img"].shape, test_img.shape)
 
-        test_result_np = test_result_img.data.cpu().numpy()
+        test_result_np = test_result_img["img"].data.cpu().numpy()
         for batch in range(batch_size):
             for channel in range(channels):
-                np.testing.assert_allclose(test_result_img[batch, channel, ...], expected_output)
+                np.testing.assert_allclose(test_result_img["img"][batch, channel, ...], expected_output)
 
         # check invalid input data
-        error_input = torch.rand(1, 2, 3)
-        self.assertRaises(RuntimeError, LabelToContour(**input_param), error_input)
-        error_input = torch.rand(1, 2, 3, 4, 5, 6)
-        self.assertRaises(RuntimeError, LabelToContour(**input_param), error_input)
+        error_input = {"img": torch.rand(1, 2, 3)}
+        self.assertRaises(RuntimeError, LabelToContourd(**input_param), error_input)
+        error_input = {"img": torch.rand(1, 2, 3, 4, 5, 6)}
+        self.assertRaises(RuntimeError, LabelToContourd(**input_param), error_input)
 
 
 if __name__ == "__main__":

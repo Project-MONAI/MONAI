@@ -16,6 +16,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 from typing import Optional, Callable
 
 import torch
+import torch.nn.functional as F
 from monai.transforms.compose import Transform
 from monai.networks.utils import one_hot
 from monai.transforms.utils import get_largest_connected_component_mask
@@ -296,56 +297,44 @@ class KeepLargestConnectedComponent(Transform):
 
 class LabelToContour(Transform):
     """
-    Return the contour flag of objects in mask images that only compose of 0 and 1, with Laplace kernel
-        set as default for edge detection.
+    Return the contour of binary input images that only compose of 0 and 1, with Laplace kernel
+    set as default for edge detection. Typical usage is to plot the edge of label or segmentation output.
 
     Args:
-        kernel_type: the method applied to do edge detection.
+        kernel_type: the method applied to do edge detection, default is "Laplace".
+
     """
 
-    def __init__(self, kernel_type="Laplace"):
+    def __init__(self, kernel_type: str = "Laplace"):
+        if kernel_type != "Laplace":
+            raise NotImplementedError("currently, LabelToContour only supports Laplace kernel.")
         self.kernel_type = kernel_type
-
-    def __find_img_contour(self, img):
-        channels = img.shape[1]
-        conv = torch.nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1, bias=False, groups=channels)
-        kernel = torch.tensor([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]], dtype=torch.float32, device=img.device)
-        kernel = kernel.repeat(channels, 1, 1, 1)
-        conv.weight = torch.nn.Parameter(kernel, requires_grad=False)
-
-        contour_img = conv(img)
-        torch.clamp_(contour_img, min=0.0, max=1.0)
-        return contour_img
 
     def __call__(self, img):
         """
         Args:
-            img: torch tensor of the img that you want to find the contour of, with shape being
-                 (batch_size, channels, width, height[, depth])
+            img: torch tensor data to extract the contour, with shape: [batch_size, channels, height, width[, depth]]
 
         Returns:
             A torch tensor with the same shape as img, note:
-                1. It's the binary classification result of whether a pixel is edge or not.
-                2. In order to keep the original shape of mask image, we use padding as default.
-                3. The edge detection is just approximate due to
-                    a) defects inherent to Laplace kernel, ideally the edge should be thin enough, but now it has a thickness.
-                    b) need to search the optimal/better thresold for classification
+                1. it's the binary classification result of whether a pixel is edge or not.
+                2. in order to keep the original shape of mask image, we use padding as default.
+                3. the edge detection is just approximate because it defects inherent to Laplace kernel,
+                   ideally the edge should be thin enough, but now it has a thickness.
+
         """
-        if self.kernel_type != "Laplace":
-            raise NotImplementedError
-        if img.ndim != 4 and img.ndim != 5:
-            raise RuntimeError("img.ndim should be 4 or 5")
-        if img.ndim == 4:
-            return self.__find_img_contour(img)
-
         channels = img.shape[1]
+        if img.ndim == 4:
+            kernel = torch.tensor([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]], dtype=torch.float32, device=img.device)
+            kernel = kernel.repeat(channels, 1, 1, 1)
+            contour_img = F.conv2d(img, kernel, bias=None, stride=1, padding=1, dilation=1, groups=channels)
+        elif img.ndim == 5:
+            kernel = -1 * torch.ones(3, 3, 3, dtype=torch.float32, device=img.device)
+            kernel[1, 1, 1] = 26
+            kernel = kernel.repeat(channels, 1, 1, 1, 1)
+            contour_img = F.conv3d(img, kernel, bias=None, stride=1, padding=1, dilation=1, groups=channels)
+        else:
+            raise RuntimeError("the dimensions of img should be 4 or 5.")
 
-        conv = torch.nn.Conv3d(channels, channels, kernel_size=3, stride=1, padding=1, bias=False, groups=channels)
-        kernel = -1 * torch.ones(3, 3, 3, dtype=torch.float32, device=img.device)
-        kernel[1, 1, 1] = 26
-        kernel = kernel.repeat(channels, 1, 1, 1, 1)
-        conv.weight = torch.nn.Parameter(kernel, requires_grad=False)
-
-        contour_img = conv(img)
         torch.clamp_(contour_img, min=0.0, max=1.0)
         return contour_img
