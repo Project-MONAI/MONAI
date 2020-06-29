@@ -16,6 +16,9 @@ import hashlib
 import tarfile
 import zipfile
 from monai.utils import progress_bar
+from monai.utils import optional_import
+
+gdown, has_gdown = optional_import("gdown", "3.8.2")
 
 
 def check_md5(filepath: str, md5_value: str = None):
@@ -64,14 +67,17 @@ def download_url(url: str, filepath: str, md5_value: str = None):
         return
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
-    def _process_hook(blocknum, blocksize, totalsize):
-        progress_bar(blocknum * blocksize, totalsize, f"Downloading {filepath.split('/')[-1]}:")
+    if url.startswith("https://drive.google.com"):
+        gdown.download(url, filepath, quiet=False)
+    else:
+        def _process_hook(blocknum, blocksize, totalsize):
+            progress_bar(blocknum * blocksize, totalsize, f"Downloading {filepath.split('/')[-1]}:")
 
-    try:
-        urlretrieve(url, filepath, reporthook=_process_hook)
-        print(f"\ndownloaded file: {filepath}.")
-    except (URLError, IOError) as e:
-        raise e
+        try:
+            urlretrieve(url, filepath, reporthook=_process_hook)
+            print(f"\ndownloaded file: {filepath}.")
+        except (URLError, IOError) as e:
+            raise e
 
     if not check_md5(filepath, md5_value):
         raise RuntimeError(
