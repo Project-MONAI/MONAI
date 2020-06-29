@@ -64,7 +64,7 @@ def load_decathalon_datalist(
     .. code-block::
 
         [
-            {'image': '/workspace/data/chest_19.nii.gz',  'label': 0}, 
+            {'image': '/workspace/data/chest_19.nii.gz',  'label': 0},
             {'image': '/workspace/data/chest_31.nii.gz',  'label': 1}
         ]
 

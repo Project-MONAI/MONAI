@@ -53,7 +53,7 @@ class Reshape(nn.Module):
         shape (batch, s0 * s1 * ... * sn) to shape (batch, s0, s1, ... , sn).
 
         Args:
-            shape: list/tuple of integer shape dimensions 
+            shape: list/tuple of integer shape dimensions
         """
         super().__init__()
         self.shape = (1,) + tuple(shape)
