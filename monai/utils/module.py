@@ -175,7 +175,7 @@ def optional_import(
             _default_msg = (
                 f"Optional import: {msg}."
                 + "\n\nFor details about installing the optional dependencies, please visit:"
-                + "\n    http://monai.rtfd.io/en/latest/installation.html#installing-the-recommended-dependencies"
+                + "\n    https://docs.monai.io/en/latest/installation.html#installing-the-recommended-dependencies"
             )
             if tb is None:
                 self._exception = AttributeError(_default_msg)
