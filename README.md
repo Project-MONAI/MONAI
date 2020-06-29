@@ -19,12 +19,14 @@ Its ambitions are:
 
 ## Features
 > _The codebase is currently under active development._
+> _Please see [the technical highlights](https://docs.monai.io/en/latest/highlights.html) of the current milestone release._
 
 - flexible pre-processing for multi-dimensional medical imaging data;
 - compositional & portable APIs for ease of integration in existing workflows;
 - domain-specific implementations for networks, losses, evaluation metrics and more;
 - customizable design for varying user expertise;
 - multi-GPU data parallelism support.
+
 
 ## Installation
 To install [the current release](https://pypi.org/project/monai/):
