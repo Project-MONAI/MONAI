@@ -23,7 +23,7 @@ from torch.utils.data import Dataset as _TorchDataset
 
 from monai.transforms import Compose, Randomizable, Transform
 from monai.transforms.utils import apply_transform
-from monai.utils import get_seed, process_bar
+from monai.utils import get_seed, progress_bar
 
 
 class Dataset(_TorchDataset):
@@ -254,7 +254,6 @@ class CacheDataset(Dataset):
         self.cache_num = min(cache_num, int(len(self) * cache_rate), len(self))
         if self.cache_num > 0:
             self._cache = [None] * self.cache_num
-            print("Load and cache transformed data...")
             if num_workers > 0:
                 self._item_processed = 0
                 self._thread_lock = threading.Lock()
@@ -266,7 +265,7 @@ class CacheDataset(Dataset):
             else:
                 for i in range(self.cache_num):
                     self._cache[i] = self._load_cache_item(data[i], transform.transforms)
-                    process_bar(i + 1, self.cache_num)
+                    progress_bar(i + 1, self.cache_num, "Load and cache transformed data: ")
 
     def _load_cache_item(self, item, transforms):
         for _transform in transforms:
@@ -281,7 +280,7 @@ class CacheDataset(Dataset):
         self._cache[i] = self._load_cache_item(item, transforms)
         with self._thread_lock:
             self._item_processed += 1
-            process_bar(self._item_processed, self.cache_num)
+            progress_bar(self._item_processed, self.cache_num, "Load and cache transformed data: ")
 
     def __getitem__(self, index):
         if index < self.cache_num:
