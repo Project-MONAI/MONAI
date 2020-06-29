@@ -373,6 +373,12 @@ Vanilla Transforms
     :members:
     :special-members: __call__
 
+`LabelToContour`
+~~~~~~~~~~~~~~~~
+.. autoclass:: LabelToContour
+    :members:
+    :special-members: __call__
+
 
 Dictionary-based Transforms
 ---------------------------
@@ -698,6 +704,12 @@ Dictionary-based Transforms
 `ConcatItemsd`
 ~~~~~~~~~~~~~~
 .. autoclass:: ConcatItemsd
+    :members:
+    :special-members: __call__
+
+`LabelToContourd`
+~~~~~~~~~~~~~~~~~
+.. autoclass:: LabelToContourd
     :members:
     :special-members: __call__
 
