@@ -72,6 +72,21 @@ def ensure_tuple_rep(tup, dim):
     """
     Returns a copy of `tup` with `dim` values by either shortened or duplicated input.
 
+    Examples::
+
+        >>> ensure_tuple_rep(1, 3)
+        (1, 1, 1)
+        >>> ensure_tuple_rep(None, 3)
+        (None, None, None)
+        >>> ensure_tuple_rep('test', 3)
+        ('test', 'test', 'test')
+        >>> ensure_tuple_rep([1, 2, 3], 3)
+        (1, 2, 3)
+        >>> ensure_tuple_rep(range(3), 3)
+        (0, 1, 2)
+        >>> ensure_tuple_rep([1, 2], 3)
+        ValueError: sequence must have length 3, got length 2.
+
     Raises:
         ValueError: sequence must have length {dim}, got length {len(tup)}.
 
@@ -82,6 +97,38 @@ def ensure_tuple_rep(tup, dim):
         return tuple(tup)
 
     raise ValueError(f"sequence must have length {dim}, got length {len(tup)}.")
+
+
+def adaptive_size(win_size, img_size):
+    """
+    Adapt `win_size` to `img_size`. Typically used when `win_size` is provided by the user,
+    `img_size` is defined by data, this function returns an updated `win_size` with non-positive
+    components replaced by the corresponding components from `img_size`.
+
+    Examples::
+
+        >>> adaptive_size(None, (32, 32))
+        (32, 32)
+        >>> adaptive_size((-1, 10), (32, 32))
+        (32, 10)
+        >>> adaptive_size((-1, None), (32, 32))
+        (32, 32)
+        >>> adaptive_size((1, None), (32, 32))
+        (1, 32)
+        >>> adaptive_size(0, (32, 32))
+        (32, 32)
+        >>> adaptive_size(range(3), (32, 64, 48))
+        (32, 1, 2)
+        >>> adaptive_size([0], (32, 32))
+        ValueError: sequence must have length 2, got length 1.
+
+    """
+    ndim = len(img_size)
+    w_size = ensure_tuple_rep(win_size, ndim)
+    w_size = tuple(  # use the input image's size if spatial_size is not defined
+        sp_d if (sp_d and sp_d > 0) else img_d for img_d, sp_d in zip(img_size, w_size)
+    )
+    return w_size
 
 
 def is_scalar_tensor(val):
