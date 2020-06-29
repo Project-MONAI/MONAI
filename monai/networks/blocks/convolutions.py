@@ -35,7 +35,7 @@ class Convolution(nn.Sequential):
         bias=True,
         conv_only=False,
         is_transposed=False,
-    ):
+    ) -> None:
         super().__init__()
         self.dimensions = dimensions
         self.in_channels = in_channels
@@ -93,7 +93,7 @@ class ResidualUnit(nn.Module):
         dilation=1,
         bias=True,
         last_conv_only=False,
-    ):
+    ) -> None:
         super().__init__()
         self.dimensions = dimensions
         self.in_channels = in_channels

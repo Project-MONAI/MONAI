@@ -18,7 +18,7 @@ TEST_CASE_1 = [
     {
         "keys": ["image", "extral", "label"],
         "label_key": "label",
-        "size": [2, 2, 2],
+        "spatial_size": [2, 2, 2],
         "pos": 1,
         "neg": 1,
         "num_samples": 2,
@@ -40,7 +40,7 @@ TEST_CASE_2 = [
     {
         "keys": ["image", "extral", "label"],
         "label_key": "label",
-        "size": [2, 2, 2],
+        "spatial_size": [2, 2, 2],
         "pos": 1,
         "neg": 1,
         "num_samples": 2,

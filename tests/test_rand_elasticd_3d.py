@@ -34,6 +34,19 @@ TEST_CASES = [
     [
         {
             "keys": ("img", "seg"),
+            "magnitude_range": (0.3, 2.3),
+            "sigma_range": (1.0, 20.0),
+            "prob": 0.0,
+            "as_tensor_output": False,
+            "device": None,
+            "spatial_size": (-1,),
+        },
+        {"img": torch.ones((1, 2, 2, 2)), "seg": torch.ones((1, 2, 2, 2))},
+        np.array([[[[0.125, 0.125], [0.125, 0.125]], [[0.125, 0.125], [0.125, 0.125]]]]),
+    ],
+    [
+        {
+            "keys": ("img", "seg"),
             "magnitude_range": (0.3, 0.3),
             "sigma_range": (1.0, 2.0),
             "prob": 0.9,

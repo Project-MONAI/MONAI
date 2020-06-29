@@ -28,7 +28,7 @@ TEST_CASE_5 = [(1, 3, 16, 15, 7), (20, 22, 23), 10, 0.5, "constant"]  # 3D large
 
 TEST_CASE_6 = [(1, 3, 16, 7), (80, 50), 7, 0.5, "gaussian"]  # 2D large overlap, gaussian
 
-TEST_CASE_7 = [(1, 3, 16, 15, 7), (4, 10, 7), 3, 0.25, "gaussian"]  # 3D small roi, guassian
+TEST_CASE_7 = [(1, 3, 16, 15, 7), (4, 10, 7), 3, 0.25, "gaussian"]  # 3D small roi, gaussian
 
 
 class TestSlidingWindowInference(unittest.TestCase):
@@ -40,9 +40,7 @@ class TestSlidingWindowInference(unittest.TestCase):
         def compute(data):
             return data + 1
 
-        result = sliding_window_inference(
-            inputs.to(device), roi_shape, sw_batch_size, compute, overlap, blend_mode=mode
-        )
+        result = sliding_window_inference(inputs.to(device), roi_shape, sw_batch_size, compute, overlap, mode=mode)
         expected_val = np.ones(image_shape, dtype=np.float32) + 1
         self.assertTrue(np.allclose(result.numpy(), expected_val))
 
