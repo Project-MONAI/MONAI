@@ -528,6 +528,10 @@ class RandRotate90(Randomizable, Transform):
         self._do_transform = self.R.random() < self.prob
 
     def __call__(self, img):
+        """
+        Args:
+            img (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
+        """
         self.randomize()
         if not self._do_transform:
             return img
@@ -649,6 +653,10 @@ class RandFlip(Randomizable, Transform):
         self._do_transform = self.R.random_sample() < self.prob
 
     def __call__(self, img):
+        """
+        Args:
+            img (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
+        """
         self.randomize()
         if not self._do_transform:
             return img
@@ -887,6 +895,10 @@ class RandDeformGrid(Randomizable, Transform):
         self.rand_mag = self.R.uniform(self.magnitude[0], self.magnitude[1])
 
     def __call__(self, spatial_size):
+        """
+        Args:
+            spatial_size (sequence of ints): spatial size of the grid.
+        """
         control_grid = create_control_grid(spatial_size, self.spacing)
         self.randomize(control_grid.shape[1:])
         control_grid[: len(spatial_size)] += self.rand_mag * self.random_offset
