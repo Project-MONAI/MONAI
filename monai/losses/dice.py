@@ -85,9 +85,13 @@ class DiceLoss(_Loss):
             smooth: a small constant to avoid nan.
 
         Raises:
+            ValueError: shape of input and target do not match.
             ValueError: reduction={self.reduction} is invalid.
 
         """
+        if target.shape != input.shape:
+            raise ValueError(f"Ground truth has differing shape ({target.shape}) from input ({input.shape})")
+            
         if self.sigmoid:
             input = torch.sigmoid(input)
 
@@ -110,10 +114,6 @@ class DiceLoss(_Loss):
                 target = target[:, 1:]
                 input = input[:, 1:]
 
-        assert (
-            target.shape == input.shape
-        ), f"ground truth has differing shape ({target.shape}) from input ({input.shape})"
-
         # reducing only spatial dimensions (not batch nor channels)
         reduce_axis = list(range(2, len(input.shape)))
         intersection = torch.sum(target * input, dim=reduce_axis)
@@ -128,7 +128,7 @@ class DiceLoss(_Loss):
         denominator = ground_o + pred_o
 
         if self.jaccard:
-            denominator -= intersection
+            denominator = 2.0 * (denominator - intersection)
 
         f = 1.0 - (2.0 * intersection + smooth) / (denominator + smooth)
 
@@ -139,7 +139,7 @@ class DiceLoss(_Loss):
         elif self.reduction == LossReduction.NONE:
             pass  # returns [N, n_classes] losses
         else:
-            raise ValueError(f"reduction={self.reduction} is invalid.")
+            raise ValueError(f"Reduction={self.reduction} is invalid.")
 
         return f
 
@@ -156,19 +156,28 @@ class MaskedDiceLoss(DiceLoss):
             target (tensor): the shape should be BNH[WD].
             smooth: a small constant to avoid nan.
             mask (tensor): (optional) the shape should B1H[WD] or 11H[WD].
+            
+        Raises:
+            ValueError: input and mask shape do not match
+            ValurError: mask dimension 0 is not 1 nor the same as input dimension 0
+            ValueError: mask has more than 1 channel when target is multidimensional
+            ValueError: spatial size of input and mask do not match
         """
         if mask is not None:
             # checking if mask is of proper shape
-            assert input.dim() == mask.dim(), f"dim of input ({input.shape}) is different from mask ({mask.shape})"
-            assert (
-                input.shape[0] == mask.shape[0] or mask.shape[0] == 1
-            ), f" batch size of mask ({mask.shape}) must be 1 or equal to input ({input.shape})"
-
+            
+            if input.dim() != mask.dim():
+                raise ValueError(f"dim of input ({input.shape}) is different from mask ({mask.shape})")
+                
+            if mask.shape[0] not in (1, input.shape[0]):
+                raise ValueError(f"Batch size of mask ({mask.shape}) must be 1 or equal to input ({input.shape})")
+            
             if target.dim() > 1:
-                assert mask.shape[1] == 1, f"mask ({mask.shape}) must have only 1 channel"
-                assert (
-                    input.shape[2:] == mask.shape[2:]
-                ), f"spatial size of input ({input.shape}) is different from mask ({mask.shape})"
+                if mask.shape[1] != 1:
+                    raise ValueError(f"Mask ({mask.shape}) must have only 1 channel")
+                    
+                if input.shape[2:] != mask.shape[2:]:
+                    raise ValueError(f"Spatial size of input ({input.shape}) is different from mask ({mask.shape})")
 
             input = input * mask
             target = target * mask
@@ -217,11 +226,12 @@ class GeneralizedDiceLoss(_Loss):
 
         """
         super().__init__(reduction=LossReduction(reduction))
+        
+        if sigmoid and softmax:
+            raise ValueError("sigmoid=True and softmax=True are not compatible.")
 
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
-        if sigmoid and softmax:
-            raise ValueError("sigmoid=True and softmax=True are not compatible.")
         self.sigmoid = sigmoid
         self.softmax = softmax
 
@@ -240,11 +250,16 @@ class GeneralizedDiceLoss(_Loss):
             smooth: a small constant to avoid nan.
 
         Raises:
+            ValueError: shape of input and target do not match.
             ValueError: reduction={self.reduction} is invalid.
 
         """
+        if target.shape != input.shape:
+            raise ValueError(f"Ground truth has differing shape ({target.shape}) from input ({input.shape})")
+            
         if self.sigmoid:
             input = torch.sigmoid(input)
+            
         n_pred_ch = input.shape[1]
         if n_pred_ch == 1:
             if self.softmax:
@@ -262,9 +277,6 @@ class GeneralizedDiceLoss(_Loss):
                 # if skipping background, removing first channel
                 target = target[:, 1:]
                 input = input[:, 1:]
-        assert (
-            target.shape == input.shape
-        ), f"ground truth has differing shape ({target.shape}) from input ({input.shape})"
 
         # reducing only spatial dimensions (not batch nor channels)
         reduce_axis = list(range(2, len(input.shape)))
@@ -290,7 +302,7 @@ class GeneralizedDiceLoss(_Loss):
         elif self.reduction == LossReduction.NONE:
             pass  # returns [N, n_classes] losses
         else:
-            raise ValueError(f"reduction={self.reduction} is invalid.")
+            raise ValueError(f"Reduction={self.reduction} is invalid.")
 
         return f
 
