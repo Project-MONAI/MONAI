@@ -15,7 +15,7 @@ from urllib.error import URLError
 import hashlib
 import tarfile
 import zipfile
-from monai.utils import process_bar
+from monai.utils import progress_bar
 
 
 def check_md5(filepath: str, md5_value: str = None):
@@ -65,7 +65,7 @@ def download_url(url: str, filepath: str, md5_value: str = None):
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
     def _process_hook(blocknum, blocksize, totalsize):
-        process_bar(blocknum * blocksize, totalsize)
+        progress_bar(blocknum * blocksize, totalsize, f"Downloading {filepath.split('/')[-1]}:")
 
     try:
         urlretrieve(url, filepath, reporthook=_process_hook)

@@ -96,19 +96,21 @@ def is_scalar(val):
     return np.isscalar(val)
 
 
-def process_bar(index: int, count: int, bar_len: int = 30, newline: bool = False):
-    """print a process bar to track some time consuming task.
+def progress_bar(index: int, count: int, desc: str = None, bar_len: int = 30, newline: bool = False):
+    """print a progress bar to track some time consuming task.
 
     Args:
-        index: current satus in process.
-        count: total steps of the process.
+        index: current satus in progress.
+        count: total steps of the progress.
+        desc: description of the progress bar, if not None, show before the progress bar.
         bar_len: the total length of the bar on screen, default is 30 char.
         newline: whether to print in a new line for every index.
     """
     end = "\r" if newline is False else "\r\n"
     filled_len = int(bar_len * index // count)
-    bar = "[" + "=" * filled_len + " " * (bar_len - filled_len) + "]"
-    print(f"{index}/{count} {bar:s}  ", end=end)
+    bar = f"{desc} " if desc is not None else ""
+    bar += "[" + "=" * filled_len + " " * (bar_len - filled_len) + "]"
+    print(f"{index}/{count} {bar}", end=end)
     if index == count:
         print("")
 
