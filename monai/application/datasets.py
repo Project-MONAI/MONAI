@@ -154,28 +154,28 @@ class DecathlonDataset(Randomizable, CacheDataset):
     """
 
     resource = {
-        "Task01_BrainTumour": "https://drive.google.com/drive/folders/1HqEgzS8BV2c7xYNrZdEAnrHk7osJJ--2",
-        "Task02_Heart": "https://drive.google.com/drive/folders/1HqEgzS8BV2c7xYNrZdEAnrHk7osJJ--2",
-        "Task03_Liver": "https://drive.google.com/drive/folders/1HqEgzS8BV2c7xYNrZdEAnrHk7osJJ--2",
-        "Task04_Hippocampus": "https://drive.google.com/drive/folders/1HqEgzS8BV2c7xYNrZdEAnrHk7osJJ--2",
-        "Task05_Prostate": "https://drive.google.com/drive/folders/1HqEgzS8BV2c7xYNrZdEAnrHk7osJJ--2",
-        "Task06_Lung": "https://drive.google.com/drive/folders/1HqEgzS8BV2c7xYNrZdEAnrHk7osJJ--2",
-        "Task07_Pancreas": "https://drive.google.com/drive/folders/1HqEgzS8BV2c7xYNrZdEAnrHk7osJJ--2",
-        "Task08_HepaticVessel": "https://drive.google.com/drive/folders/1HqEgzS8BV2c7xYNrZdEAnrHk7osJJ--2",
-        "Task09_Spleen": "https://drive.google.com/drive/folders/1HqEgzS8BV2c7xYNrZdEAnrHk7osJJ--2",
-        "Task10_colon": "https://drive.google.com/drive/folders/1HqEgzS8BV2c7xYNrZdEAnrHk7osJJ--2",
+        "Task01_BrainTumour": "https://drive.google.com/uc?id=1A2IU8Sgea1h3fYLpYtFb2v7NYdMjvEhU",
+        "Task02_Heart": "https://drive.google.com/uc?id=1wEB2I6S6tQBVEPxir8cA5kFB8gTQadYY",
+        "Task03_Liver": "https://drive.google.com/uc?id=1jyVGUGyxKBXV6_9ivuZapQS8eUJXCIpu",
+        "Task04_Hippocampus": "https://drive.google.com/uc?id=1RzPB1_bqzQhlWvU-YGvZzhx2omcDh38C",
+        "Task05_Prostate": "https://drive.google.com/uc?id=1Ff7c21UksxyT4JfETjaarmuKEjdqe1-a",
+        "Task06_Lung": "https://drive.google.com/uc?id=1I1LR7XjyEZ-VBQ-Xruh31V7xExMjlVvi",
+        "Task07_Pancreas": "https://drive.google.com/uc?id=1YZQFSonulXuagMIfbJkZeTFJ6qEUuUxL",
+        "Task08_HepaticVessel": "https://drive.google.com/uc?id=1qVrpV7vmhIsUxFiH189LmAn0ALbAPrgS",
+        "Task09_Spleen": "https://drive.google.com/uc?id=1jzeNU1EKnK81PyTsrx0ujfNl-t0Jo8uE",
+        "Task10_colon": "https://drive.google.com/uc?id=1m7tMpE9qEcQGQjL_BdMD-Mvgmc44hG1Y",
     }
     md5 = {
-        "Task01_BrainTumour": "0bc7306e7427e00ad1c5526a6677552d",
-        "Task02_Heart": "0bc7306e7427e00ad1c5526a6677552d",
-        "Task03_Liver": "0bc7306e7427e00ad1c5526a6677552d",
-        "Task04_Hippocampus": "0bc7306e7427e00ad1c5526a6677552d",
-        "Task05_Prostate": "0bc7306e7427e00ad1c5526a6677552d",
-        "Task06_Lung": "0bc7306e7427e00ad1c5526a6677552d",
-        "Task07_Pancreas": "0bc7306e7427e00ad1c5526a6677552d",
-        "Task08_HepaticVessel": "0bc7306e7427e00ad1c5526a6677552d",
-        "Task09_Spleen": "0bc7306e7427e00ad1c5526a6677552d",
-        "Task10_colon": "0bc7306e7427e00ad1c5526a6677552d",
+        "Task01_BrainTumour": "240a19d752f0d9e9101544901065d872",
+        "Task02_Heart": "06ee59366e1e5124267b774dbd654057",
+        "Task03_Liver": None,
+        "Task04_Hippocampus": "9d24dba78a72977dbd1d2e110310f31b",
+        "Task05_Prostate": "35138f08b1efaef89d7424d2bcc928db",
+        "Task06_Lung": None,
+        "Task07_Pancreas": None,
+        "Task08_HepaticVessel": "641d79e80ec66453921d997fbf12a29c",
+        "Task09_Spleen": "410d4a301da4e5b2f6f86ec3ddba524e",
+        "Task10_colon": "bad7a188931dc2f6acf72b08eb6202d0",
 
     }
 
@@ -187,8 +187,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         transform: Callable[..., Any],
         download: bool = False,
         seed: int = 0,
-        val_frac: float = 0.1,
-        test_frac: float = 0.1,
+        val_frac: float = 0.2,
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
         num_workers: int = 0,
@@ -220,7 +219,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
             return datalist
         else:
             data = list()
-            for i in range(datalist):
+            for i in datalist:
                 self.randomize()
                 if self.section == "training":
                     if self.rann < self.val_frac:
