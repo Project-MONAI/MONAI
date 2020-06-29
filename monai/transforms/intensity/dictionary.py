@@ -33,7 +33,8 @@ from monai.transforms.intensity.array import (
 
 
 class RandGaussianNoised(Randomizable, MapTransform):
-    """Dictionary-based version :py:class:`monai.transforms.RandGaussianNoise`.
+    """
+    Dictionary-based version :py:class:`monai.transforms.RandGaussianNoise`.
     Add Gaussian noise to image. This transform assumes all the expected fields have same shape.
 
     Args:
@@ -70,7 +71,7 @@ class RandGaussianNoised(Randomizable, MapTransform):
 
 class ShiftIntensityd(MapTransform):
     """
-    dictionary-based wrapper of :py:class:`monai.transforms.ShiftIntensity`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.ShiftIntensity`.
     """
 
     def __init__(self, keys: KeysCollection, offset: float):
@@ -92,7 +93,7 @@ class ShiftIntensityd(MapTransform):
 
 class RandShiftIntensityd(Randomizable, MapTransform):
     """
-    dictionary-based version :py:class:`monai.transforms.RandShiftIntensity`.
+    Dictionary-based version :py:class:`monai.transforms.RandShiftIntensity`.
     """
 
     def __init__(self, keys: KeysCollection, offsets, prob: float = 0.1):
@@ -128,7 +129,7 @@ class RandShiftIntensityd(Randomizable, MapTransform):
 
 class ScaleIntensityd(MapTransform):
     """
-    dictionary-based wrapper of :py:class:`monai.transforms.ScaleIntensity`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.ScaleIntensity`.
     Scale the intensity of input image to the given value range (minv, maxv).
     If `minv` and `maxv` not provided, use `factor` to scale image by ``v = v * (1 + factor)``.
     """
@@ -157,7 +158,7 @@ class ScaleIntensityd(MapTransform):
 
 class RandScaleIntensityd(Randomizable, MapTransform):
     """
-    dictionary-based version :py:class:`monai.transforms.RandScaleIntensity`.
+    Dictionary-based version :py:class:`monai.transforms.RandScaleIntensity`.
     """
 
     def __init__(self, keys: KeysCollection, factors, prob: float = 0.1):
@@ -194,7 +195,7 @@ class RandScaleIntensityd(Randomizable, MapTransform):
 
 class NormalizeIntensityd(MapTransform):
     """
-    dictionary-based wrapper of :py:class:`monai.transforms.NormalizeIntensity`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.NormalizeIntensity`.
     This transform can normalize only non-zero values or entire image, and can also calculate
     mean and std on each channel separately.
 
@@ -356,7 +357,7 @@ class ScaleIntensityRangePercentilesd(MapTransform):
         b_min: intensity target range min.
         b_max: intensity target range max.
         clip: whether to perform clip after scaling.
-        relative: whether to scale to the coresponding percentiles of [b_min, b_max]
+        relative: whether to scale to the corresponding percentiles of [b_min, b_max]
     """
 
     def __init__(
