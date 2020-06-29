@@ -9,7 +9,7 @@ The design principle of MONAI is to provide flexible and light APIs for users wi
 1. All the core components are independent modules, which can be easily integrated into any existing PyTorch programs.
 2. Users can leverage the workflows in MONAI to quickly set up a robust training or evaluation program for research experiments.
 3. Rich examples and demos are provided to demonstrate the key features.
-4. Researchers contribute implementations based on the state-of-the-art for the latest research challenges, including COVID-19 image analysis, Model Parallel, and Federated Learning.
+4. Researchers contribute implementations based on the state-of-the-art for the latest research challenges, including COVID-19 image analysis, Model Parallel, etc.
 
 The overall architecture and modules are shown in the following figure:
 ![image](../images/arch_modules_v0.2.png)
@@ -32,7 +32,7 @@ Medical images require highly specialized methods for I/O, preprocessing, and au
 - The widely used computer vision packages (such as ``torchvision``) focus on spatially 2D array image processing. MONAI provides more domain-specific transformations for both spatially 2D and 3D and retains the flexible transformation "compose" feature.
 - As medical image preprocessing often requires additional fine-grained system parameters, MONAI provides transforms for input data encapsulated in python dictionaries. Users can specify the keys corresponding to the expected data fields and system parameters to compose complex transformations.
 
-There is a rich set of transforms in six categories: Crop & Pad, Intensity, IO, Post-processing, Spatial, and Utilities. For more details, please visit [all the transforms in MONAI](https://monai.readthedocs.io/en/latest/transforms.html).
+There is a rich set of transforms in six categories: Crop & Pad, Intensity, IO, Post-processing, Spatial, and Utilities. For more details, please visit [all the transforms in MONAI](https://docs.monai.io/en/latest/transforms.html).
 
 ### 2. Medical specific transforms
 MONAI aims at providing a comprehensive medical image specific
@@ -118,7 +118,7 @@ MONAI also provides post-processing transforms for handling the model outputs. C
 After applying the post-processing transforms, it's easier to compute metrics, save model output into files or visualize data in the TensorBoard.
 
 ### 9. Integrate third-party transforms
-The design of MONAI transforms emphasis code readability and usability. It works for array data or dictionary-based data. MONAI also provides `Adaptor` tools to accommodate different data format for 3rd party transforms. To convert the data shapes or types, utility transforms such as `ToTensor`, `ToNumpy`, `SqueeseDim` are also provided. So it's easy to enhance the transform chain by seamlessly integrating transforms from external packages, including: `ITK`, `BatchGenerator`, `TorchIO` and `Rising`.
+The design of MONAI transforms emphasis code readability and usability. It works for array data or dictionary-based data. MONAI also provides `Adaptor` tools to accommodate different data format for 3rd party transforms. To convert the data shapes or types, utility transforms such as `ToTensor`, `ToNumpy`, `SqueezeDim` are also provided. So it's easy to enhance the transform chain by seamlessly integrating transforms from external packages, including: `ITK`, `BatchGenerator`, `TorchIO` and `Rising`.
 
 For more details, please check out the tutorial: [integrate 3rd party transforms into MONAI program](https://github.com/Project-MONAI/MONAI/blob/master/examples/notebooks/integrate_3rd_party_transforms.ipynb).
 
@@ -152,7 +152,7 @@ dataset = ZipDataset([DatasetA(), DatasetB()], transform)
 To quickly get started with popular training data in the medical domain, MONAI provides several data-specific Datasets(like: `MedNISTDataset`, `DecathlonDataset`, etc.), which include downloading, extracting data files and support generation of training/evaluation items with transforms. And they are flexible that users can easily modify the JSON config file to change the default behaviors.
 
 MONAI always welcome new contributions of public datasets, please refer to existing Datasets and leverage the download and extracting APIs, etc.
-The common progress of predefined datasets:
+The common workflow of predefined datasets:
 ![image](../images/dataset_progress.png)
 
 ## Losses
