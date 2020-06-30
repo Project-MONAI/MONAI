@@ -85,7 +85,7 @@ def main():
     evaluator = Engine(_sliding_window_processor)
 
     # add evaluation metric to the evaluator engine
-    MeanDice(add_sigmoid=True, to_onehot_y=False).attach(evaluator, "Mean_Dice")
+    MeanDice(sigmoid=True, to_onehot_y=False).attach(evaluator, "Mean_Dice")
 
     # StatsHandler prints loss at every iteration and print metrics at every epoch,
     # we don't need to print loss for evaluator, so just print metrics, user can also customize print functions
@@ -101,7 +101,7 @@ def main():
         output_ext=".nii.gz",
         output_postfix="seg",
         name="evaluator",
-        batch_transform=lambda batch: {"filename_or_obj": batch["img.filename_or_obj"], "affine": batch["img.affine"]},
+        batch_transform=lambda batch: batch["img_meta_dict"],
         output_transform=lambda output: predict_segmentation(output[0]),
     ).attach(evaluator)
     # the model was trained by "unet_training_dict" example

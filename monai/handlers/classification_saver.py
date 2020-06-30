@@ -9,9 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ignite.engine import Events
 import logging
+from typing import Callable, Optional
+
 from monai.data import CSVSaver
+from monai.utils import exact_version, optional_import
+
+Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
+Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 
 
 class ClassificationSaver:
@@ -21,26 +26,26 @@ class ClassificationSaver:
 
     def __init__(
         self,
-        output_dir="./",
-        filename="predictions.csv",
-        overwrite=True,
-        batch_transform=lambda x: x,
-        output_transform=lambda x: x,
-        name=None,
+        output_dir: str = "./",
+        filename: str = "predictions.csv",
+        overwrite: bool = True,
+        batch_transform: Callable = lambda x: x,
+        output_transform: Callable = lambda x: x,
+        name: Optional[str] = None,
     ):
         """
         Args:
-            output_dir (str): output CSV file directory.
-            filename (str): name of the saved CSV file name.
-            overwrite (bool): whether to overwriting existing CSV file content. If we are not overwriting,
+            output_dir: output CSV file directory.
+            filename: name of the saved CSV file name.
+            overwrite: whether to overwriting existing CSV file content. If we are not overwriting,
                 then we check if the results have been previously saved, and load them to the prediction_dict.
-            batch_transform (Callable): a callable that is used to transform the
+            batch_transform: a callable that is used to transform the
                 ignite.engine.batch into expected format to extract the meta_data dictionary.
-            output_transform (Callable): a callable that is used to transform the
+            output_transform: a callable that is used to transform the
                 ignite.engine.output into the form expected model prediction data.
                 The first dimension of this transform's output will be treated as the
                 batch dimension. Each item in the batch will be saved individually.
-            name (str): identifier of logging.logger to use, defaulting to `engine.logger`.
+            name: identifier of logging.logger to use, defaulting to `engine.logger`.
 
         """
         self.saver = CSVSaver(output_dir, filename, overwrite)
@@ -48,16 +53,17 @@ class ClassificationSaver:
         self.output_transform = output_transform
 
         self.logger = None if name is None else logging.getLogger(name)
+        self._name = name
 
-    def attach(self, engine):
-        if self.logger is None:
+    def attach(self, engine: Engine):
+        if self._name is None:
             self.logger = engine.logger
         if not engine.has_event_handler(self, Events.ITERATION_COMPLETED):
             engine.add_event_handler(Events.ITERATION_COMPLETED, self)
         if not engine.has_event_handler(self.saver.finalize, Events.COMPLETED):
             engine.add_event_handler(Events.COMPLETED, lambda engine: self.saver.finalize())
 
-    def __call__(self, engine):
+    def __call__(self, engine: Engine):
         """
         This method assumes self.batch_transform will extract metadata from the input batch.
 
