@@ -23,6 +23,7 @@ from monai.config import get_torch_version_tuple
 from monai.data.utils import compute_shape_offset, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter
 from monai.transforms.compose import Randomizable, Transform
+from monai.transforms.croppad.array import CenterSpatialCrop
 from monai.transforms.utils import (
     create_control_grid,
     create_grid,
@@ -40,7 +41,7 @@ nib, _ = optional_import("nibabel")
 if get_torch_version_tuple() >= (1, 5):
     # additional argument since torch 1.5 (to avoid warnings)
     def _torch_interp(**kwargs):
-        return torch.nn.functional.interpolate(recompute_scale_factor=False, **kwargs)
+        return torch.nn.functional.interpolate(recompute_scale_factor=True, **kwargs)
 
 
 else:
@@ -903,6 +904,7 @@ class RandDeformGrid(Randomizable, Transform):
         Args:
             spatial_size (sequence of ints): spatial size of the grid.
         """
+        self.spacing = fall_back_tuple(self.spacing, (1.0,) * len(spatial_size))
         control_grid = create_control_grid(spatial_size, self.spacing)
         self.randomize(control_grid.shape[1:])
         control_grid[: len(spatial_size)] += self.rand_mag * self.random_offset
@@ -1267,8 +1269,12 @@ class Rand2DElastic(Randomizable, Transform):
             grid = self.deform_grid(spatial_size=sp_size)
             grid = self.rand_affine_grid(grid=grid)
             grid = _torch_interp(
-                input=grid[None], size=sp_size, mode=InterpolateMode.BICUBIC.value, align_corners=False
-            )[0]
+                input=grid[None],
+                scale_factor=list(self.deform_grid.spacing),
+                mode=InterpolateMode.BICUBIC.value,
+                align_corners=False,
+            )
+            grid = CenterSpatialCrop(roi_size=sp_size)(grid[0])
         else:
             grid = create_grid(spatial_size=sp_size)
         return self.resampler(img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode)
