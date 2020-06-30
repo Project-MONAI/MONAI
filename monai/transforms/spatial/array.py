@@ -241,7 +241,8 @@ class Orientation(Transform):
 
 
 class Flip(Transform):
-    """Reverses the order of elements along the given spatial axis. Preserves shape.
+    """
+    Reverses the order of elements along the given spatial axis. Preserves shape.
     Uses ``np.flip`` in practice. See numpy.flip for additional details.
     https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
 
@@ -635,7 +636,8 @@ class RandRotate(Randomizable, Transform):
 
 
 class RandFlip(Randomizable, Transform):
-    """Randomly flips the image along axes. Preserves shape.
+    """
+    Randomly flips the image along axes. Preserves shape.
     See numpy.flip for additional details.
     https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
 
@@ -664,7 +666,8 @@ class RandFlip(Randomizable, Transform):
 
 
 class RandZoom(Randomizable, Transform):
-    """Randomly zooms input arrays with given probability within given zoom range.
+    """
+    Randomly zooms input arrays with given probability within given zoom range.
 
     Args:
         prob: Probability of zooming.
@@ -788,7 +791,7 @@ class AffineGrid(Transform):
 
 class RandAffineGrid(Randomizable, Transform):
     """
-    generate randomised affine grid
+    Generate randomised affine grid.
     """
 
     def __init__(
@@ -802,7 +805,8 @@ class RandAffineGrid(Randomizable, Transform):
     ):
         """
         Args:
-            rotate_range (a sequence of positive floats): rotate_range[0] with be used to generate the 1st rotation
+            rotate_range (a sequence of positive floats): angle range in radians.
+                rotate_range[0] with be used to generate the 1st rotation
                 parameter from `uniform[-rotate_range[0], rotate_range[0])`. Similarly, `rotate_range[2]` and
                 `rotate_range[3]` are used in 3D affine for the range of 2nd and 3rd axes.
             shear_range (a sequence of positive floats): shear_range[0] with be used to generate the 1st shearing
@@ -866,7 +870,7 @@ class RandAffineGrid(Randomizable, Transform):
 
 class RandDeformGrid(Randomizable, Transform):
     """
-    generate random deformation grid
+    Generate random deformation grid.
     """
 
     def __init__(self, spacing, magnitude_range, as_tensor_output: bool = True, device: Optional[torch.device] = None):
@@ -981,7 +985,7 @@ class Resample(Transform):
 
 class Affine(Transform):
     """
-    transform ``img`` given the affine parameters.
+    Transform ``img`` given the affine parameters.
     """
 
     def __init__(

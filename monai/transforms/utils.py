@@ -223,7 +223,6 @@ def generate_pos_neg_label_crop_centers(
             valid_end[i] += 1
 
     def _correct_centers(center_ori, valid_start, valid_end):
-        centers = list()
         for i, c in enumerate(center_ori):
             center_i = c
             if c < valid_start[i]:
