@@ -15,6 +15,7 @@ import torch
 import torch.nn.functional as F
 from monai.data.utils import compute_importance_map, dense_patch_slices, get_valid_patch_size
 from monai.utils.enums import BlendMode, PytorchPadMode
+from monai.utils import fall_back_tuple
 
 
 def sliding_window_inference(
@@ -30,14 +31,13 @@ def sliding_window_inference(
     """
     Sliding window inference on `inputs` with `predictor`.
 
-    When roi_size is 0, the corresponding inputs dimension will be used as the window dimension.
-
     When roi_size is larger than the inputs' spatial size, the input image are padded during inference.
     To maintain the same spatial sizes, the output image will be cropped to the original input size.
 
     Args:
         inputs: input image to be processed (assuming NCHW[D])
         roi_size (list, tuple): the spatial window size for inferences.
+            When its components have None or non-positives, the corresponding inputs dimension will be used.
         sw_batch_size: the batch size to run window slices.
         predictor: given input tensor `patch_data` in shape NCHW[D], `predictor(patch_data)`
             should return a prediction with the same spatial shape and batch_size, i.e. NMHW[D];
@@ -62,7 +62,6 @@ def sliding_window_inference(
         - currently only supports `inputs` with batch_size=1.
     """
     num_spatial_dims = len(inputs.shape) - 2
-    assert len(roi_size) == num_spatial_dims, f"roi_size {roi_size} does not match input dims."
     assert 0 <= overlap < 1, "overlap must be >= 0 and < 1."
 
     # determine image spatial size and batch size
@@ -74,7 +73,7 @@ def sliding_window_inference(
     if batch_size > 1:
         raise NotImplementedError("inputs must have batch_size=1.")
 
-    original_image_size = [image_size_[i] for i in range(num_spatial_dims)]
+    roi_size = fall_back_tuple(roi_size, image_size_)
     # in case that image size is smaller than roi size
     image_size = tuple(max(image_size_[i], roi_size[i]) for i in range(num_spatial_dims))
     pad_size = []
@@ -141,12 +140,12 @@ def sliding_window_inference(
     if num_spatial_dims == 3:
         return output_image[
             ...,
-            pad_size[4] : original_image_size[0] + pad_size[4],
-            pad_size[2] : original_image_size[1] + pad_size[2],
-            pad_size[0] : original_image_size[2] + pad_size[0],
+            pad_size[4] : image_size_[0] + pad_size[4],
+            pad_size[2] : image_size_[1] + pad_size[2],
+            pad_size[0] : image_size_[2] + pad_size[0],
         ]
     return output_image[
-        ..., pad_size[2] : original_image_size[0] + pad_size[2], pad_size[0] : original_image_size[1] + pad_size[0]
+        ..., pad_size[2] : image_size_[0] + pad_size[2], pad_size[0] : image_size_[1] + pad_size[0]
     ]  # 2D
 
 
