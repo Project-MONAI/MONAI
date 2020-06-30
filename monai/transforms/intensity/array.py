@@ -165,7 +165,8 @@ class RandScaleIntensity(Randomizable, Transform):
 
 
 class NormalizeIntensity(Transform):
-    """Normalize input based on provided args, using calculated mean and std if not provided
+    """
+    Normalize input based on provided args, using calculated mean and std if not provided
     (shape of subtrahend and divisor must match. if 0, entire volume uses same subtrahend and
     divisor, otherwise the shape can have dimension 1 for channels).
     This transform can normalize only non-zero values or entire image, and can also calculate
@@ -218,7 +219,8 @@ class NormalizeIntensity(Transform):
 
 
 class ThresholdIntensity(Transform):
-    """Filter the intensity values of whole image to below threshold or above threshold.
+    """
+    Filter the intensity values of whole image to below threshold or above threshold.
     And fill the remaining parts of the image to the `cval` value.
 
     Args:
@@ -242,7 +244,8 @@ class ThresholdIntensity(Transform):
 
 
 class ScaleIntensityRange(Transform):
-    """Apply specific intensity scaling to the whole numpy array.
+    """
+    Apply specific intensity scaling to the whole numpy array.
     Scaling from [a_min, a_max] to [b_min, b_max] with clip option.
 
     Args:
@@ -277,8 +280,10 @@ class ScaleIntensityRange(Transform):
 
 
 class AdjustContrast(Transform):
-    """Changes image intensity by gamma. Each pixel/voxel intensity is updated as:
-        `x = ((x - min) / intensity_range) ^ gamma * intensity_range + min`
+    """
+    Changes image intensity by gamma. Each pixel/voxel intensity is updated as::
+
+        x = ((x - min) / intensity_range) ^ gamma * intensity_range + min
 
     Args:
         gamma: gamma value to adjust the contrast as function.
@@ -299,8 +304,10 @@ class AdjustContrast(Transform):
 
 
 class RandAdjustContrast(Randomizable, Transform):
-    """Randomly changes image intensity by gamma. Each pixel/voxel intensity is updated as:
-        `x = ((x - min) / intensity_range) ^ gamma * intensity_range + min`
+    """
+    Randomly changes image intensity by gamma. Each pixel/voxel intensity is updated as::
+
+        x = ((x - min) / intensity_range) ^ gamma * intensity_range + min
 
     Args:
         prob: Probability of adjustment.
@@ -389,7 +396,7 @@ class ScaleIntensityRangePercentiles(Transform):
         b_min: intensity target range min.
         b_max: intensity target range max.
         clip: whether to perform clip after scaling.
-        relative: whether to scale to the coresponding percentiles of [b_min, b_max].
+        relative: whether to scale to the corresponding percentiles of [b_min, b_max].
     """
 
     def __init__(

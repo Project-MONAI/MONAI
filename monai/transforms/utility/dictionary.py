@@ -41,7 +41,8 @@ from monai.transforms.utility.array import (
 
 
 class Identityd(MapTransform):
-    """Dictionary-based wrapper of :py:class:`monai.transforms.Identity`.
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.Identity`.
     """
 
     def __init__(self, keys: KeysCollection):
@@ -128,7 +129,7 @@ class AddChanneld(MapTransform):
 
 class RepeatChanneld(MapTransform):
     """
-    dictionary-based wrapper of :py:class:`monai.transforms.RepeatChannel`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.RepeatChannel`.
     """
 
     def __init__(self, keys: KeysCollection, repeats: int):
@@ -306,7 +307,7 @@ class DataStatsd(MapTransform):
 
 class SimulateDelayd(MapTransform):
     """
-    dictionary-based wrapper of :py:class:monai.transforms.utility.array.SimulateDelay.
+    Dictionary-based wrapper of :py:class:monai.transforms.utility.array.SimulateDelay.
     """
 
     def __init__(self, keys: KeysCollection, delay_time=0.0):
