@@ -41,7 +41,7 @@ nib, _ = optional_import("nibabel")
 if get_torch_version_tuple() >= (1, 5):
     # additional argument since torch 1.5 (to avoid warnings)
     def _torch_interp(**kwargs):
-        return torch.nn.functional.interpolate(recompute_scale_factor=False, **kwargs)
+        return torch.nn.functional.interpolate(recompute_scale_factor=True, **kwargs)
 
 
 else:
