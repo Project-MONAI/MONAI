@@ -14,7 +14,7 @@ import os
 import shutil
 import tempfile
 
-from monai.application import MedNISTDataset
+from monai.apps import MedNISTDataset
 from monai.transforms import LoadPNGd, AddChanneld, ScaleIntensityd, ToTensord, Compose
 from tests.utils import skip_if_quick
 

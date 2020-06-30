@@ -14,7 +14,7 @@ import os
 import shutil
 import tempfile
 
-from monai.application import DecathlonDataset
+from monai.apps import DecathlonDataset
 from monai.transforms import LoadNiftid, AddChanneld, ScaleIntensityd, ToTensord, Compose
 from tests.utils import skip_if_quick
 

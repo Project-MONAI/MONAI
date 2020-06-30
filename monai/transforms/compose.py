@@ -190,7 +190,7 @@ class Compose(Randomizable):
         if transforms is None:
             transforms = []
         if not isinstance(transforms, (list, tuple)):
-            raise ValueError("Parameters 'transforms' must be a list or tuple")
+            raise ValueError("Parameters 'transforms' must be a list or tuple.")
         self.transforms = transforms
         self.set_random_state(seed=get_seed())
 

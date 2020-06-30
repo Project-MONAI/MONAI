@@ -78,7 +78,9 @@ class MedNISTDataset(Randomizable, CacheDataset):
             download_and_extract(self.resource, tarfile_name, root_dir, self.md5)
 
         if not os.path.exists(dataset_dir):
-            raise RuntimeError("can not find dataset directory, please use download=True to download it.")
+            raise RuntimeError(
+                f"can not find dataset directory: {dataset_dir}, please use download=True to download it."
+            )
         data = self._generate_data_list(dataset_dir)
         super().__init__(data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers)
 
@@ -124,15 +126,15 @@ class MedNISTDataset(Randomizable, CacheDataset):
 
 class DecathlonDataset(Randomizable, CacheDataset):
     """
-    The Dataset to automatically download the data of Decathlon challenge (http://medicaldecathlon.com/)
-    and generate items for training, validation or test. It's based on `CacheDataset` to accelerate
-    the training process.
+    The Dataset to automatically download the data of Medical Segmentation Decathlon challenge
+    (http://medicaldecathlon.com/) and generate items for training, validation or test.
+    It's based on :py:class:`monai.data.CacheDataset` to accelerate the training process.
 
     Args:
-        root_dir: target directory to download and load Decathlon dataset.
+        root_dir: user's local directory for caching and loading the MSD datasets.
         task: which task to download and execute: one of list ("Task01_BrainTumour", "Task02_Heart",
             "Task03_Liver", "Task04_Hippocampus", "Task05_Prostate", "Task06_Lung", "Task07_Pancreas",
-            "Task08_HepaticVessel", "Task09_Spleen", "Task10_colon").
+            "Task08_HepaticVessel", "Task09_Spleen", "Task10_Colon").
         section: expected data section, can be: `training`, `validation` or `test`.
         transform: transforms to execute operations on input data.
         download: whether to download and extract the Decathlon from resource link, default is False.
@@ -148,6 +150,20 @@ class DecathlonDataset(Randomizable, CacheDataset):
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         num_workers: the number of worker threads to use.
             If 0 a single thread will be used. Default is 0.
+
+    Example::
+        transform = Compose(
+            [
+                LoadNiftid(keys=["image", "label"]),
+                AddChanneld(keys=["image", "label"]),
+                ScaleIntensityd(keys="image"),
+                ToTensord(keys=["image", "label"]),
+            ]
+        )
+        data = DecathlonDataset(
+            root_dir="./", task="Task09_Spleen", transform=transform, section="validation", download=True
+        )
+        print(data[0]["image"], data[0]["label"])
 
     Raises:
         ValueError: root_dir must be a directory.
@@ -166,7 +182,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         "Task07_Pancreas": "https://drive.google.com/uc?id=1YZQFSonulXuagMIfbJkZeTFJ6qEUuUxL",
         "Task08_HepaticVessel": "https://drive.google.com/uc?id=1qVrpV7vmhIsUxFiH189LmAn0ALbAPrgS",
         "Task09_Spleen": "https://drive.google.com/uc?id=1jzeNU1EKnK81PyTsrx0ujfNl-t0Jo8uE",
-        "Task10_colon": "https://drive.google.com/uc?id=1m7tMpE9qEcQGQjL_BdMD-Mvgmc44hG1Y",
+        "Task10_Colon": "https://drive.google.com/uc?id=1m7tMpE9qEcQGQjL_BdMD-Mvgmc44hG1Y",
     }
     md5 = {
         "Task01_BrainTumour": "240a19d752f0d9e9101544901065d872",
@@ -178,7 +194,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         "Task07_Pancreas": "4f7080cfca169fa8066d17ce6eb061e4",
         "Task08_HepaticVessel": "641d79e80ec66453921d997fbf12a29c",
         "Task09_Spleen": "410d4a301da4e5b2f6f86ec3ddba524e",
-        "Task10_colon": "bad7a188931dc2f6acf72b08eb6202d0",
+        "Task10_Colon": "bad7a188931dc2f6acf72b08eb6202d0",
     }
 
     def __init__(
@@ -200,14 +216,16 @@ class DecathlonDataset(Randomizable, CacheDataset):
         self.val_frac = val_frac
         self.set_random_state(seed=seed)
         if task not in self.resource:
-            raise ValueError(f"unsupported task: {task}.")
+            raise ValueError(f"unsupported task: {task}, available options are: {list(self.resource)}.")
         dataset_dir = os.path.join(root_dir, task)
         tarfile_name = f"{dataset_dir}.tar"
         if download:
             download_and_extract(self.resource[task], tarfile_name, root_dir, self.md5[task])
 
         if not os.path.exists(dataset_dir):
-            raise RuntimeError("can not find dataset directory, please use download=True to download it.")
+            raise RuntimeError(
+                f"can not find dataset directory: {dataset_dir}, please use download=True to download it."
+            )
         data = self._generate_data_list(dataset_dir)
         super().__init__(data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers)
 
