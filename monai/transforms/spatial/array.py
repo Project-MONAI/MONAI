@@ -904,7 +904,7 @@ class RandDeformGrid(Randomizable, Transform):
         Args:
             spatial_size (sequence of ints): spatial size of the grid.
         """
-        self.spacing = adaptive_size(self.spacing, (1.0,) * len(spatial_size))
+        self.spacing = fall_back_tuple(self.spacing, (1.0,) * len(spatial_size))
         control_grid = create_control_grid(spatial_size, self.spacing)
         self.randomize(control_grid.shape[1:])
         control_grid[: len(spatial_size)] += self.rand_mag * self.random_offset
