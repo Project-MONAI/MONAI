@@ -35,6 +35,7 @@ class SplitChanneld(MapTransform):
     All the input specified by `keys` should be splitted into same count of data.
 
     """
+
     def __init__(self, keys: KeysCollection, output_postfixes, to_onehot=False, num_classes=None):
         """
         Args:
