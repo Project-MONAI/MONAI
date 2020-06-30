@@ -17,7 +17,7 @@ import torch
 import numpy as np
 
 from monai.config.type_definitions import IndexSelection
-from monai.utils import ensure_tuple, optional_import, min_version
+from monai.utils import ensure_tuple, ensure_tuple_size, fall_back_tuple, optional_import, min_version
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 
@@ -52,7 +52,7 @@ def is_empty(img) -> bool:
     return not (img.max() > img.min())  # use > instead of <= so that an image full of NaNs will result in True
 
 
-def zero_margins(img, margin):
+def zero_margins(img, margin) -> bool:
     """
     Returns True if the values within `margin` indices of the edges of `img` in dimensions 1 and 2 are 0.
     """
@@ -208,8 +208,7 @@ def generate_pos_neg_label_crop_centers(
 
     """
     max_size = label.shape[1:]
-    if len(max_size) != len(spatial_size):
-        raise ValueError(f"expected size ({len(max_size)}) does not match label dim ({len(spatial_size)}).")
+    spatial_size = fall_back_tuple(spatial_size, default=max_size)
     if not (np.subtract(max_size, spatial_size) >= 0).all():
         raise ValueError("proposed roi is larger than image itself.")
 
@@ -376,14 +375,11 @@ def create_shear(spatial_dims: int, coefs):
         NotImplementedError: spatial_dims must be 2 or 3
 
     """
-    coefs = list(ensure_tuple(coefs))
     if spatial_dims == 2:
-        while len(coefs) < 2:
-            coefs.append(0.0)
+        coefs = ensure_tuple_size(coefs, dim=2, pad_val=0.0)
         return np.array([[1, coefs[0], 0.0], [coefs[1], 1.0, 0.0], [0.0, 0.0, 1.0]])
     if spatial_dims == 3:
-        while len(coefs) < 6:
-            coefs.append(0.0)
+        coefs = ensure_tuple_size(coefs, dim=6, pad_val=0.0)
         return np.array(
             [
                 [1.0, coefs[0], coefs[1], 0.0],
@@ -403,10 +399,8 @@ def create_scale(spatial_dims: int, scaling_factor):
         spatial_dims: spatial rank
         scaling_factor (floats): scaling factors, defaults to 1.
     """
-    scaling_factor = list(ensure_tuple(scaling_factor))
-    while len(scaling_factor) < spatial_dims:
-        scaling_factor.append(1.0)
-    return np.diag(scaling_factor[:spatial_dims] + [1.0])
+    scaling_factor = ensure_tuple_size(scaling_factor, dim=spatial_dims, pad_val=1.0)
+    return np.diag(scaling_factor[:spatial_dims] + (1.0,))
 
 
 def create_translate(spatial_dims: int, shift):

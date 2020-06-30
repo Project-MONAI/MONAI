@@ -11,7 +11,7 @@
 
 import itertools
 from collections.abc import Iterable, Sequence
-from typing import Any, Tuple, Callable, Sized
+from typing import Any, Tuple, Callable
 
 import numpy as np
 import torch
@@ -45,14 +45,14 @@ def first(iterable, default=None):
 
 def issequenceiterable(obj) -> bool:
     """
-    Determine if the object is an iterable sequence and is not a string
+    Determine if the object is an iterable sequence and is not a string.
     """
     return isinstance(obj, Iterable) and not isinstance(obj, str)
 
 
 def ensure_tuple(vals: Any) -> Tuple:
     """
-    Returns a tuple of `vals`
+    Returns a tuple of `vals`.
     """
     if not issequenceiterable(vals):
         vals = (vals,)
@@ -60,12 +60,12 @@ def ensure_tuple(vals: Any) -> Tuple:
     return tuple(vals)
 
 
-def ensure_tuple_size(tup, dim: int, pad_val=0):
+def ensure_tuple_size(tup, dim: int, pad_val=0) -> Tuple:
     """
     Returns a copy of `tup` with `dim` values by either shortened or padded with `pad_val` as necessary.
     """
-    tup = tuple(tup) + (pad_val,) * dim
-    return tup[:dim]
+    tup = ensure_tuple(tup) + (pad_val,) * dim
+    return tuple(tup[:dim])
 
 
 def ensure_tuple_rep(tup: Any, dim: int):
