@@ -49,7 +49,7 @@ class Transform(ABC):
         return an updated version of ``data``.
         To simplify the input validations, most of the transforms assume that
 
-        - ``data`` component is a "channel-first" array,
+        - ``data`` is a "channel-first" array,
         - the channel dimension is not omitted even if number of channels is one.
 
         This method can optionally take additional arguments to help execute transformation operation.
@@ -242,4 +242,17 @@ class MapTransform(Transform):
 
     @abstractmethod
     def __call__(self, data):
+        """
+        ``data`` often comes from an iteration over an iterable,
+        such as :py:class:`torch.utils.data.Dataset`.
+
+        To simplify the input validations, this method assumes:
+
+        - ``data`` is a Python dictionary
+        - ``data[key]`` is a "channel-first" array, where ``key`` is an element of ``self.keys``
+        - the channel dimension is not omitted even if number of channels is one
+
+        returns:
+            An updated dictionary version of ``data`` by applying the transform.
+        """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement the compute method")
