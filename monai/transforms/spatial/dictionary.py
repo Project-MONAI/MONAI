@@ -21,7 +21,6 @@ import numpy as np
 import torch
 
 from monai.config.type_definitions import KeysCollection
-
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.spatial.array import (
@@ -38,8 +37,8 @@ from monai.transforms.spatial.array import (
     _torch_interp,
 )
 from monai.transforms.utils import create_grid
-from monai.utils.misc import ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import GridSampleMode, GridSamplePadMode, InterpolateMode
+from monai.utils.misc import ensure_tuple, ensure_tuple_rep, fall_back_tuple
 
 GridSampleModeSequence = Union[Sequence[Union[GridSampleMode, str]], GridSampleMode, str]
 GridSamplePadModeSequence = Union[Sequence[Union[GridSamplePadMode, str]], GridSamplePadMode, str]
@@ -312,6 +311,8 @@ class RandAffined(Randomizable, MapTransform):
         Args:
             keys: keys of the corresponding items to be transformed.
             spatial_size (list or tuple of int): output image spatial size.
+                if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
+                the transform will use the spatial size of `img`.
                 if ``data`` component has two spatial dimensions, ``spatial_size`` should have 2 elements [h, w].
                 if ``data`` component has three spatial dimensions, ``spatial_size`` should have 3 elements [h, w, d].
             prob: probability of returning a randomized affine grid.
@@ -358,11 +359,11 @@ class RandAffined(Randomizable, MapTransform):
         d = dict(data)
         self.randomize()
 
-        spatial_size = self.rand_affine.spatial_size
+        sp_size = fall_back_tuple(self.rand_affine.spatial_size, data[self.keys[0]].shape[1:])
         if self.rand_affine.do_transform:
-            grid = self.rand_affine.rand_affine_grid(spatial_size=spatial_size)
+            grid = self.rand_affine.rand_affine_grid(spatial_size=sp_size)
         else:
-            grid = create_grid(spatial_size=spatial_size)
+            grid = create_grid(spatial_size=sp_size)
 
         for idx, key in enumerate(self.keys):
             d[key] = self.rand_affine.resampler(d[key], grid, mode=self.mode[idx], padding_mode=self.padding_mode[idx])
@@ -394,6 +395,8 @@ class Rand2DElasticd(Randomizable, MapTransform):
         Args:
             keys: keys of the corresponding items to be transformed.
             spatial_size (2 ints): specifying output image spatial size [h, w].
+                if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
+                the transform will use the spatial size of `img`.
             spacing (2 ints): distance in between the control points.
             magnitude_range (2 ints): the random offsets will be generated from
                 ``uniform[magnitude[0], magnitude[1])``.
@@ -442,19 +445,18 @@ class Rand2DElasticd(Randomizable, MapTransform):
 
     def __call__(self, data):
         d = dict(data)
-        spatial_size = self.rand_2d_elastic.spatial_size
-        if np.any([sz <= 1 for sz in spatial_size]):
-            spatial_size = data[self.keys[0]].shape[1:]
-        self.randomize(spatial_size)
+
+        sp_size = fall_back_tuple(self.rand_2d_elastic.spatial_size, data[self.keys[0]].shape[1:])
+        self.randomize(spatial_size=sp_size)
 
         if self.rand_2d_elastic.do_transform:
-            grid = self.rand_2d_elastic.deform_grid(spatial_size)
+            grid = self.rand_2d_elastic.deform_grid(spatial_size=sp_size)
             grid = self.rand_2d_elastic.rand_affine_grid(grid=grid)
             grid = _torch_interp(
-                input=grid[None], size=spatial_size, mode=InterpolateMode.BICUBIC.value, align_corners=False
+                input=grid[None], size=sp_size, mode=InterpolateMode.BICUBIC.value, align_corners=False
             )[0]
         else:
-            grid = create_grid(spatial_size)
+            grid = create_grid(spatial_size=sp_size)
 
         for idx, key in enumerate(self.keys):
             d[key] = self.rand_2d_elastic.resampler(
@@ -488,6 +490,8 @@ class Rand3DElasticd(Randomizable, MapTransform):
         Args:
             keys: keys of the corresponding items to be transformed.
             spatial_size (3 ints): specifying output image spatial size [h, w, d].
+                if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
+                the transform will use the spatial size of `img`.
             sigma_range (2 ints): a Gaussian kernel with standard deviation sampled
                  from ``uniform[sigma_range[0], sigma_range[1])`` will be used to smooth the random offset grid.
             magnitude_range (2 ints): the random offsets on the grid will be generated from
@@ -537,11 +541,10 @@ class Rand3DElasticd(Randomizable, MapTransform):
 
     def __call__(self, data):
         d = dict(data)
-        spatial_size = self.rand_3d_elastic.spatial_size
-        if np.any([sz <= 1 for sz in spatial_size]):
-            spatial_size = data[self.keys[0]].shape[1:]
-        self.randomize(spatial_size)
-        grid = create_grid(spatial_size)
+        sp_size = fall_back_tuple(self.rand_3d_elastic.spatial_size, data[self.keys[0]].shape[1:])
+
+        self.randomize(grid_size=sp_size)
+        grid = create_grid(spatial_size=sp_size)
         if self.rand_3d_elastic.do_transform:
             device = self.rand_3d_elastic.device
             grid = torch.tensor(grid).to(device)

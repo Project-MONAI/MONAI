@@ -20,8 +20,18 @@ from monai.transforms import RandAffine
 TEST_CASES = [
     [
         dict(as_tensor_output=False, device=None),
-        {"img": torch.ones((3, 3, 3)), "spatial_size": (2, 2)},
-        np.ones((3, 2, 2)),
+        {"img": torch.arange(27).reshape((3, 3, 3))},
+        np.arange(27).reshape((3, 3, 3)),
+    ],
+    [
+        dict(as_tensor_output=False, device=None, spatial_size=-1),
+        {"img": torch.arange(27).reshape((3, 3, 3))},
+        np.arange(27).reshape((3, 3, 3)),
+    ],
+    [
+        dict(as_tensor_output=False, device=None),
+        {"img": torch.arange(27).reshape((3, 3, 3)), "spatial_size": (2, 2)},
+        np.array([[[2.0, 3.0], [5.0, 6.0]], [[11.0, 12.0], [14.0, 15.0]], [[20.0, 21.0], [23.0, 24.0]]]),
     ],
     [
         dict(as_tensor_output=True, device=None),
@@ -39,7 +49,7 @@ TEST_CASES = [
             device=None,
         ),
         {"img": torch.ones((1, 3, 3, 3)), "mode": "bilinear"},
-        torch.tensor([[[[0.0000, 0.6577], [0.9911, 1.0000]], [[0.7781, 1.0000], [1.0000, 0.4000]]]]),
+        torch.tensor([[[[0.3658, 1.0000], [1.0000, 1.0000]], [[1.0000, 1.0000], [1.0000, 0.9333]]]]),
     ],
     [
         dict(
@@ -52,7 +62,7 @@ TEST_CASES = [
             device=None,
         ),
         {"img": torch.arange(64).reshape((1, 8, 8)), "spatial_size": (3, 3)},
-        torch.tensor([[[16.9127, 13.3079, 9.7031], [26.8129, 23.2081, 19.6033], [36.7131, 33.1083, 29.5035]]]),
+        torch.tensor([[[18.7362, 15.5820, 12.4278], [27.3988, 24.2446, 21.0904], [36.0614, 32.9072, 29.7530]]]),
     ],
 ]
 
