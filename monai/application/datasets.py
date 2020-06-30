@@ -124,22 +124,24 @@ class MedNISTDataset(Randomizable, CacheDataset):
 
 class DecathlonDataset(Randomizable, CacheDataset):
     """
-    The Dataset to automatically download the dataset of Decathlon challenge (http://medicaldecathlon.com/)
+    The Dataset to automatically download the data of Decathlon challenge (http://medicaldecathlon.com/)
     and generate items for training, validation or test. It's based on `CacheDataset` to accelerate
     the training process.
 
     Args:
         root_dir: target directory to download and load Decathlon dataset.
-        task: which task to download and execute: "Task01_BrainTumour", "Task02_Heart",
+        task: which task to download and execute: one of list ("Task01_BrainTumour", "Task02_Heart",
             "Task03_Liver", "Task04_Hippocampus", "Task05_Prostate", "Task06_Lung", "Task07_Pancreas",
-            "Task08_HepaticVessel", "Task09_Spleen", "Task10_colon".
+            "Task08_HepaticVessel", "Task09_Spleen", "Task10_colon").
         section: expected data section, can be: `training`, `validation` or `test`.
         transform: transforms to execute operations on input data.
         download: whether to download and extract the Decathlon from resource link, default is False.
             if expected file already exists, skip downloading even set it to True.
             user can manually copy tar file or dataset folder to the root directory.
-        seed: random seed to randomly split training, validation and test datasets, defaut is 0.
-        val_frac: percentage of of validation fraction in the whole dataset, default is 0.1.
+        seed: random seed to randomly split `training`, `validation` and `test` datasets, defaut is 0.
+        val_frac: percentage of of validation fraction from the `training` section, default is 0.2.
+            Decathlon data only contains `training` section with labels and `test` section without labels,
+            so randomly select fraction from the `training` section as the `validation` section.
         cache_num: number of items to be cached. Default is `sys.maxsize`.
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         cache_rate: percentage of cached data in total, default is 1.0 (cache all).
@@ -149,6 +151,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
 
     Raises:
         ValueError: root_dir must be a directory.
+        ValueError: unsupported task.
         RuntimeError: can not find dataset directory, please use download=True to download it.
 
     """
@@ -168,11 +171,11 @@ class DecathlonDataset(Randomizable, CacheDataset):
     md5 = {
         "Task01_BrainTumour": "240a19d752f0d9e9101544901065d872",
         "Task02_Heart": "06ee59366e1e5124267b774dbd654057",
-        "Task03_Liver": None,
+        "Task03_Liver": "a90ec6c4aa7f6a3d087205e23d4e6397",
         "Task04_Hippocampus": "9d24dba78a72977dbd1d2e110310f31b",
         "Task05_Prostate": "35138f08b1efaef89d7424d2bcc928db",
-        "Task06_Lung": None,
-        "Task07_Pancreas": None,
+        "Task06_Lung": "8afd997733c7fc0432f71255ba4e52dc",
+        "Task07_Pancreas": "4f7080cfca169fa8066d17ce6eb061e4",
         "Task08_HepaticVessel": "641d79e80ec66453921d997fbf12a29c",
         "Task09_Spleen": "410d4a301da4e5b2f6f86ec3ddba524e",
         "Task10_colon": "bad7a188931dc2f6acf72b08eb6202d0",

@@ -27,17 +27,6 @@ gdown, has_gdown = optional_import("gdown", "3.11.1")
 class TestDecathlonDataset(unittest.TestCase):
     # @skip_if_quick
     def test_values(self):
-        """
-        resource = {
-            "Task03_Liver": "https://drive.google.com/uc?id=1jyVGUGyxKBXV6_9ivuZapQS8eUJXCIpu",
-            "Task06_Lung": "https://drive.google.com/uc?id=1I1LR7XjyEZ-VBQ-Xruh31V7xExMjlVvi",
-            "Task07_Pancreas": "https://drive.google.com/uc?id=1YZQFSonulXuagMIfbJkZeTFJ6qEUuUxL",
-        }
-        for k, v in resource.items():
-            filepath = k + ".tar"
-            gdown.download(v, filepath, quiet=False)
-            check_md5(filepath, "0bc7306e7427e00ad1c5526a6677552d")
-        """
         tempdir = tempfile.mkdtemp()
         transform = Compose(
             [
