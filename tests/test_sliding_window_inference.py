@@ -16,6 +16,8 @@ from parameterized import parameterized
 
 from monai.inferers import sliding_window_inference
 
+TEST_CASE_0 = [(1, 3, 16, 15, 7), (4, -1, 7), 3, 0.25, "constant"]  # 3D small roi
+
 TEST_CASE_1 = [(1, 3, 16, 15, 7), (4, 10, 7), 3, 0.25, "constant"]  # 3D small roi
 
 TEST_CASE_2 = [(1, 3, 16, 15, 7), (20, 22, 23), 10, 0.25, "constant"]  # 3D large roi
@@ -32,7 +34,9 @@ TEST_CASE_7 = [(1, 3, 16, 15, 7), (4, 10, 7), 3, 0.25, "gaussian"]  # 3D small r
 
 
 class TestSlidingWindowInference(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7])
+    @parameterized.expand(
+        [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7]
+    )
     def test_sliding_window_default(self, image_shape, roi_shape, sw_batch_size, overlap, mode):
         inputs = torch.ones(*image_shape)
         device = torch.device("cpu:0")

@@ -31,9 +31,9 @@ from monai.transforms.utils import (
     create_shear,
     create_translate,
 )
-from monai.utils.misc import ensure_tuple, ensure_tuple_rep, ensure_tuple_size
 from monai.utils import optional_import
 from monai.utils.enums import GridSampleMode, GridSamplePadMode, InterpolateMode, NumpyPadMode
+from monai.utils.misc import ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
 
 nib, _ = optional_import("nibabel")
 
@@ -976,7 +976,7 @@ class Resample(Transform):
             grid[None].float(),
             mode=self.mode.value if mode is None else GridSampleMode(mode).value,
             padding_mode=self.padding_mode.value if padding_mode is None else GridSamplePadMode(padding_mode).value,
-            align_corners=False,
+            align_corners=True,
         )[0]
         if self.as_tensor_output:
             return out
@@ -1050,6 +1050,8 @@ class Affine(Transform):
         Args:
             img (ndarray or tensor): shape must be (num_channels, H, W[, D]),
             spatial_size (list or tuple of int): output image spatial size.
+                if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
+                the transform will use the spatial size of `img`.
                 if `img` has two spatial dimensions, `spatial_size` should have 2 elements [h, w].
                 if `img` has three spatial dimensions, `spatial_size` should have 3 elements [h, w, d].
             mode: {``"bilinear"``, ``"nearest"``}
@@ -1059,7 +1061,8 @@ class Affine(Transform):
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         """
-        grid = self.affine_grid(spatial_size=spatial_size or self.spatial_size)
+        sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
+        grid = self.affine_grid(spatial_size=sp_size)
         return self.resampler(
             img=img, grid=grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode
         )
@@ -1142,6 +1145,8 @@ class RandAffine(Randomizable, Transform):
         Args:
             img (ndarray or tensor): shape must be (num_channels, H, W[, D]),
             spatial_size (list or tuple of int): output image spatial size.
+                if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
+                the transform will use the spatial size of `img`.
                 if `img` has two spatial dimensions, `spatial_size` should have 2 elements [h, w].
                 if `img` has three spatial dimensions, `spatial_size` should have 3 elements [h, w, d].
             mode: {``"bilinear"``, ``"nearest"``}
@@ -1152,11 +1157,12 @@ class RandAffine(Randomizable, Transform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         """
         self.randomize()
-        _spatial_size = spatial_size or self.spatial_size
+
+        sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
         if self.do_transform:
-            grid = self.rand_affine_grid(spatial_size=_spatial_size)
+            grid = self.rand_affine_grid(spatial_size=sp_size)
         else:
-            grid = create_grid(_spatial_size)
+            grid = create_grid(spatial_size=sp_size)
         return self.resampler(
             img=img, grid=grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode
         )
@@ -1246,6 +1252,8 @@ class Rand2DElastic(Randomizable, Transform):
         Args:
             img (ndarray or tensor): shape must be (num_channels, H, W),
             spatial_size (2 ints): specifying output image spatial size [h, w].
+                if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
+                the transform will use the spatial size of `img`.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``self.mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
@@ -1253,16 +1261,16 @@ class Rand2DElastic(Randomizable, Transform):
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         """
-        spatial_size = spatial_size or self.spatial_size
-        self.randomize(spatial_size)
+        sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
+        self.randomize(spatial_size=sp_size)
         if self.do_transform:
-            grid = self.deform_grid(spatial_size=spatial_size)
+            grid = self.deform_grid(spatial_size=sp_size)
             grid = self.rand_affine_grid(grid=grid)
             grid = _torch_interp(
-                input=grid[None], size=spatial_size, mode=InterpolateMode.BICUBIC.value, align_corners=False
+                input=grid[None], size=sp_size, mode=InterpolateMode.BICUBIC.value, align_corners=False
             )[0]
         else:
-            grid = create_grid(spatial_size)
+            grid = create_grid(spatial_size=sp_size)
         return self.resampler(img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode)
 
 
@@ -1350,6 +1358,8 @@ class Rand3DElastic(Randomizable, Transform):
         Args:
             img (ndarray or tensor): shape must be (num_channels, H, W, D),
             spatial_size (3 ints): specifying spatial 3D output image spatial size [h, w, d].
+                if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
+                the transform will use the spatial size of `img`.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``self.mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
@@ -1357,9 +1367,9 @@ class Rand3DElastic(Randomizable, Transform):
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         """
-        spatial_size = spatial_size or self.spatial_size
-        self.randomize(spatial_size)
-        grid = create_grid(spatial_size)
+        sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
+        self.randomize(grid_size=sp_size)
+        grid = create_grid(spatial_size=sp_size)
         if self.do_transform:
             assert self.rand_offset is not None
             grid = torch.as_tensor(np.ascontiguousarray(grid), device=self.device)
