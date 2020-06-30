@@ -376,7 +376,8 @@ class RandCropByPosNegLabel(Randomizable, Transform):
     Crop random fixed sized regions with the center being a foreground or background voxel
     based on the Pos Neg Ratio.
     And will return a list of arrays for all the cropped images.
-    For example, crop two (3 x 3) arrays from (5 x 5) array with pos/neg=1:
+    For example, crop two (3 x 3) arrays from (5 x 5) array with pos/neg=1::
+
         [[[0, 0, 0, 0, 0],
           [0, 1, 2, 1, 0],            [[0, 1, 2],     [[2, 1, 0],
           [0, 1, 3, 0, 0],     -->     [0, 1, 3],      [3, 0, 0],
