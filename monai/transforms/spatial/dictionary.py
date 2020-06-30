@@ -87,14 +87,15 @@ class Spacingd(MapTransform):
                 axes against the original ones.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-                For a sequence each element corresponds to a key in ``keys``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                It also can be a sequence of string, each element corresponds to a key in ``keys``.
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"border"``.
-                For a sequence each element corresponds to a key in ``keys``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                It also can be a sequence of string, each element corresponds to a key in ``keys``.
             dtype (None or np.dtype or sequence of np.dtype): output array data type.
-                Defaults to None to use input data's dtype.
+                Defaults to None to use input data's dtype. It also can be a sequence of np.dtype,
+                each element corresponds to a key in ``keys``.
             meta_key_postfix: use `key_{postfix}` to to fetch the meta data according to the key data,
                 default is `meta_dict`, the meta data is a dictionary object.
                 For example, to handle key `image`,  read/write affine matrices from the
@@ -263,8 +264,8 @@ class Resized(MapTransform):
         spatial_size (tuple or list): expected shape of spatial dimensions after resize operation.
         mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
-            For a sequence each element corresponds to a key in ``keys``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+            It also can be a sequence of string, each element corresponds to a key in ``keys``.
         align_corners (optional bool): This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
@@ -317,12 +318,12 @@ class RandAffined(Randomizable, MapTransform):
                 defaults to 0.1, with 10% chance returns a randomized grid.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-                For a sequence each element corresponds to a key in ``keys``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                It also can be a sequence of string, each element corresponds to a key in ``keys``.
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"zeros"``.
-                For a sequence each element corresponds to a key in ``keys``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                It also can be a sequence of string, each element corresponds to a key in ``keys``.
             as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
             device (torch.device): device on which the tensor will be allocated.
@@ -401,12 +402,12 @@ class Rand2DElasticd(Randomizable, MapTransform):
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-                For a sequence each element corresponds to a key in ``keys``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                It also can be a sequence of string, each element corresponds to a key in ``keys``.
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"zeros"``.
-                For a sequence each element corresponds to a key in ``keys``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                It also can be a sequence of string, each element corresponds to a key in ``keys``.
             as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
             device (torch.device): device on which the tensor will be allocated.
@@ -496,12 +497,12 @@ class Rand3DElasticd(Randomizable, MapTransform):
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-                For a sequence each element corresponds to a key in ``keys``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                It also can be a sequence of string, each element corresponds to a key in ``keys``.
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"zeros"``.
-                For a sequence each element corresponds to a key in ``keys``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                It also can be a sequence of string, each element corresponds to a key in ``keys``.
             as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
             device (torch.device): device on which the tensor will be allocated.
@@ -624,12 +625,12 @@ class Rotated(MapTransform):
             If it is True, the output shape is the same as the input. Default is True.
         mode: {``"bilinear"``, ``"nearest"``}
             Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-            For a sequence each element corresponds to a key in ``keys``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            It also can be a sequence of string, each element corresponds to a key in ``keys``.
         padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
             Padding mode for outside grid values. Defaults to ``"border"``.
-            For a sequence each element corresponds to a key in ``keys``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            It also can be a sequence of string, each element corresponds to a key in ``keys``.
         align_corners (bool): Defaults to False.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
     """
@@ -677,12 +678,12 @@ class RandRotated(Randomizable, MapTransform):
             If it is True, the output shape is the same as the input. Default is True.
         mode: {``"bilinear"``, ``"nearest"``}
             Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-            For a sequence each element corresponds to a key in ``keys``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            It also can be a sequence of string, each element corresponds to a key in ``keys``.
         padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
             Padding mode for outside grid values. Defaults to ``"border"``.
-            For a sequence each element corresponds to a key in ``keys``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            It also can be a sequence of string, each element corresponds to a key in ``keys``.
         align_corners (bool): Defaults to False.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
     """
@@ -752,8 +753,8 @@ class Zoomd(MapTransform):
             If a sequence, zoom should contain one value for each spatial axis.
         mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
-            For a sequence each element corresponds to a key in ``keys``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+            It also can be a sequence of string, each element corresponds to a key in ``keys``.
         align_corners (optional bool): This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
@@ -794,8 +795,8 @@ class RandZoomd(Randomizable, MapTransform):
             If a sequence, max_zoom should contain one value for each spatial axis.
         mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
-            For a sequence each element corresponds to a key in ``keys``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+            It also can be a sequence of string, each element corresponds to a key in ``keys``.
         align_corners (optional bool): This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate

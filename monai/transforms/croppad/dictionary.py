@@ -50,9 +50,10 @@ class SpatialPadd(MapTransform):
                 Pad image symmetric on every side or only pad at the end sides. Defaults to ``"symmetric"``.
             mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
                 ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-                For a sequence each element corresponds to a key in ``keys``.
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+
         """
         super().__init__(keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
@@ -91,9 +92,9 @@ class BorderPadd(MapTransform):
 
             mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
                 ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-                For a sequence each element corresponds to a key in ``keys``.
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+                It also can be a sequence of string, each element corresponds to a key in ``keys``.
 
         """
         super().__init__(keys)
@@ -123,11 +124,12 @@ class DivisiblePadd(MapTransform):
                 if `k` is an int, the same `k` be applied to all the input spatial dimensions.
             mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
                 ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-                For a sequence each element corresponds to a key in ``keys``.
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+                It also can be a sequence of string, each element corresponds to a key in ``keys``.
 
         See also :py:class:`monai.transforms.SpatialPad`
+
         """
         super().__init__(keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
