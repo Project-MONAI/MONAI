@@ -22,7 +22,7 @@ import monai  # noqa: E402
 
 # -- Project information -----------------------------------------------------
 project = "MONAI"
-copyright = "2020, MONAI Contributors"
+copyright = "2020 MONAI Consortium"
 author = "MONAI Contributors"
 
 # The full version, including alpha/beta/rc tags
@@ -78,11 +78,7 @@ def setup(app):
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-source_suffix = {
-    ".rst": "restructuredtext",
-    ".txt": "restructuredtext",
-    ".md": "markdown",
-}
+source_suffix = {".rst": "restructuredtext", ".txt": "restructuredtext", ".md": "markdown"}
 
 extensions = [
     "recommonmark",
@@ -92,11 +88,13 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.viewcode",
     "sphinx.ext.autosectionlabel",
+    "sphinx_autodoc_typehints",
 ]
 
 autoclass_content = "both"
 add_module_names = True
 autosectionlabel_prefix_document = True
+napoleon_use_param = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
