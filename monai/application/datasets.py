@@ -179,7 +179,6 @@ class DecathlonDataset(Randomizable, CacheDataset):
         "Task08_HepaticVessel": "641d79e80ec66453921d997fbf12a29c",
         "Task09_Spleen": "410d4a301da4e5b2f6f86ec3ddba524e",
         "Task10_colon": "bad7a188931dc2f6acf72b08eb6202d0",
-
     }
 
     def __init__(

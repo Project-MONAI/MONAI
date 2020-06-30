@@ -70,6 +70,7 @@ def download_url(url: str, filepath: str, md5_value: str = None):
     if url.startswith("https://drive.google.com"):
         gdown.download(url, filepath, quiet=False)
     else:
+
         def _process_hook(blocknum, blocksize, totalsize):
             progress_bar(blocknum * blocksize, totalsize, f"Downloading {filepath.split('/')[-1]}:")
 

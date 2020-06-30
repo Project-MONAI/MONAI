@@ -17,10 +17,12 @@ import tempfile
 from monai.application import DecathlonDataset
 from tests.utils import NumpyImageTestCase2D
 from monai.transforms import LoadNiftid, AddChanneld, ScaleIntensityd, ToTensord, Compose
+
 # from tests.utils import skip_if_quick
 
 from monai.utils import optional_import
 from monai.application import check_md5
+
 gdown, has_gdown = optional_import("gdown", "3.11.1")
 
 
@@ -45,11 +47,7 @@ class TestDecathlonDataset(unittest.TestCase):
             self.assertTupleEqual(dataset[0]["image"].shape, (1, 33, 47, 34))
 
         data = DecathlonDataset(
-            root_dir=tempdir,
-            task="Task04_Hippocampus",
-            transform=transform,
-            section="validation",
-            download=True
+            root_dir=tempdir, task="Task04_Hippocampus", transform=transform, section="validation", download=True
         )
         _test_dataset(data)
 
