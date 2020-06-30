@@ -28,7 +28,7 @@ class SplitChannel(Transform):
     Split PyTorch Tensor data according to the channel dim, if only 1 channel, convert to One-Hot
     format first based on the class number. Users can use this transform to compute metrics on every
     single class to get more details of validation/evaluation. Expected input shape:
-    (batch_size, num_channels, spatial_dim_1[, spatial_dim_2, ...])
+    ``(batch_size, num_channels, [spatial_dim_1, spatial_dim_2, ...])``
 
     Args:
         to_onehot: whether to convert the data to One-Hot format first.
@@ -114,7 +114,8 @@ class Activations(Transform):
 
 
 class AsDiscrete(Transform):
-    """Execute after model forward to transform model output to discrete values.
+    """
+    Execute after model forward to transform model output to discrete values.
     It can complete below operations:
 
         -  execute `argmax` for input logits values.
@@ -200,13 +201,13 @@ class KeepLargestConnectedComponent(Transform):
         For one-hot data, the over-segment pixels will be set to 0 in its channel.
 
     For example:
-    Use KeepLargestConnectedComponent with applied_labels=[1], connectivity=1
+    Use KeepLargestConnectedComponent with applied_labels=[1], connectivity=1::
 
        [1, 0, 0]         [0, 0, 0]
        [0, 1, 1]    =>   [0, 1 ,1]
        [0, 1, 1]         [0, 1, 1]
 
-    Use KeepLargestConnectedComponent with applied_labels[1, 2], independent=False, connectivity=1
+    Use KeepLargestConnectedComponent with applied_labels[1, 2], independent=False, connectivity=1::
 
       [0, 0, 1, 0 ,0]           [0, 0, 1, 0 ,0]
       [0, 2, 1, 1 ,1]           [0, 2, 1, 1 ,1]
@@ -214,7 +215,7 @@ class KeepLargestConnectedComponent(Transform):
       [1, 2, 0, 1 ,0]           [1, 2, 0, 0 ,0]
       [2, 2, 0, 0 ,2]           [2, 2, 0, 0 ,0]
 
-    Use KeepLargestConnectedComponent with applied_labels[1, 2], independent=True, connectivity=1
+    Use KeepLargestConnectedComponent with applied_labels[1, 2], independent=True, connectivity=1::
 
       [0, 0, 1, 0 ,0]           [0, 0, 1, 0 ,0]
       [0, 2, 1, 1 ,1]           [0, 2, 1, 1 ,1]
@@ -222,7 +223,7 @@ class KeepLargestConnectedComponent(Transform):
       [1, 2, 0, 1 ,0]           [0, 2, 0, 0 ,0]
       [2, 2, 0, 0 ,2]           [2, 2, 0, 0 ,0]
 
-    Use KeepLargestConnectedComponent with applied_labels[1, 2], independent=False, connectivity=2
+    Use KeepLargestConnectedComponent with applied_labels[1, 2], independent=False, connectivity=2::
 
       [0, 0, 1, 0 ,0]           [0, 0, 1, 0 ,0]
       [0, 2, 1, 1 ,1]           [0, 2, 1, 1 ,1]

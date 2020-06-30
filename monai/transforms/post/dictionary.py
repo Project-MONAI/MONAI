@@ -64,7 +64,7 @@ class SplitChanneld(MapTransform):
         d = dict(data)
         for idx, key in enumerate(self.keys):
             rets = self.splitter(d[key], self.to_onehot[idx], self.num_classes[idx])
-            assert len(self.output_postfixes) == len(rets), "count of splitted results must match output_postfixes."
+            assert len(self.output_postfixes) == len(rets), "count of split results must match output_postfixes."
             for i, r in enumerate(rets):
                 d[f"{key}_{self.output_postfixes[i]}"] = r
         return d
@@ -151,16 +151,11 @@ class AsDiscreted(MapTransform):
 
 class KeepLargestConnectedComponentd(MapTransform):
     """
-    dictionary-based wrapper of :py:class:monai.transforms.KeepLargestConnectedComponent.
+    Dictionary-based wrapper of :py:class:monai.transforms.KeepLargestConnectedComponent.
     """
 
     def __init__(
-        self,
-        keys: KeysCollection,
-        applied_labels,
-        independent: bool = True,
-        connectivity: Optional[int] = None,
-        output_postfix: str = "largestcc",
+        self, keys: KeysCollection, applied_labels, independent: bool = True, connectivity: Optional[int] = None,
     ):
         """
         Args:
@@ -189,7 +184,7 @@ class KeepLargestConnectedComponentd(MapTransform):
 
 class LabelToContourd(MapTransform):
     """
-    dictionary-based wrapper of :py:class:monai.transforms.LabelToContour.
+    Dictionary-based wrapper of :py:class:monai.transforms.LabelToContour.
     """
 
     def __init__(self, keys: KeysCollection, kernel_type: str = "Laplace"):

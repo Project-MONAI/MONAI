@@ -30,7 +30,7 @@ NumpyPadModeSequence = Union[Sequence[Union[NumpyPadMode, str]], NumpyPadMode, s
 
 class SpatialPadd(MapTransform):
     """
-    dictionary-based wrapper of :py:class:`monai.transforms.SpatialPad`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.SpatialPad`.
     Performs padding to the data, symmetric for all sides or all on one side for each dimension.
     """
 
@@ -142,7 +142,7 @@ class DivisiblePadd(MapTransform):
 
 class SpatialCropd(MapTransform):
     """
-    dictionary-based wrapper of :py:class:`monai.transforms.SpatialCrop`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.SpatialCrop`.
     Either a spatial center and size must be provided, or alternatively if center and size
     are not provided, the start and end coordinates of the ROI must be provided.
     """
@@ -271,7 +271,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
 
 class CropForegroundd(MapTransform):
     """
-    dictionary-based version :py:class:`monai.transforms.CropForeground`.
+    Dictionary-based version :py:class:`monai.transforms.CropForeground`.
     Crop only the foreground object of the expected images.
     The typical usage is to help training and evaluation if the valid part is small in the whole medical image.
     The valid part can be determined by any field in the data with `source_key`, for example:
@@ -319,7 +319,7 @@ class CropForegroundd(MapTransform):
 
 class RandCropByPosNegLabeld(Randomizable, MapTransform):
     """
-    dictionary-based version :py:class:`monai.transforms.RandCropByPosNegLabel`.
+    Dictionary-based version :py:class:`monai.transforms.RandCropByPosNegLabel`.
     Crop random fixed sized regions with the center being a foreground or background voxel
     based on the Pos Neg Ratio.
     And will return a list of dictionaries for all the cropped images.
