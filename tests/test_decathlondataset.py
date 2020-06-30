@@ -16,11 +16,11 @@ import tempfile
 
 from monai.application import DecathlonDataset
 from monai.transforms import LoadNiftid, AddChanneld, ScaleIntensityd, ToTensord, Compose
-# from tests.utils import skip_if_quick
+from tests.utils import skip_if_quick
 
 
 class TestDecathlonDataset(unittest.TestCase):
-    # @skip_if_quick
+    @skip_if_quick
     def test_values(self):
         tempdir = tempfile.mkdtemp()
         transform = Compose(
@@ -53,6 +53,7 @@ class TestDecathlonDataset(unittest.TestCase):
                 root_dir=tempdir, task="Task04_Hippocampus", transform=transform, section="validation", download=False
             )
         except RuntimeError as e:
+            print(str(e))
             self.assertTrue(str(e).startswith("can not find dataset directory"))
 
         shutil.rmtree(tempdir)

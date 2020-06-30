@@ -47,6 +47,7 @@ class TestMedNISTDataset(unittest.TestCase):
         try:
             data = MedNISTDataset(root_dir=tempdir, transform=transform, section="test", download=False)
         except RuntimeError as e:
+            print(str(e))
             self.assertTrue(str(e).startswith("can not find dataset directory"))
 
         shutil.rmtree(tempdir)
