@@ -15,15 +15,8 @@ import shutil
 import tempfile
 
 from monai.application import DecathlonDataset
-from tests.utils import NumpyImageTestCase2D
 from monai.transforms import LoadNiftid, AddChanneld, ScaleIntensityd, ToTensord, Compose
-
 # from tests.utils import skip_if_quick
-
-from monai.utils import optional_import
-from monai.application import check_md5
-
-gdown, has_gdown = optional_import("gdown", "3.11.1")
 
 
 class TestDecathlonDataset(unittest.TestCase):
@@ -50,6 +43,17 @@ class TestDecathlonDataset(unittest.TestCase):
             root_dir=tempdir, task="Task04_Hippocampus", transform=transform, section="validation", download=True
         )
         _test_dataset(data)
+        data = DecathlonDataset(
+            root_dir=tempdir, task="Task04_Hippocampus", transform=transform, section="validation", download=False
+        )
+        _test_dataset(data)
+        shutil.rmtree(os.path.join(tempdir, "Task04_Hippocampus"))
+        try:
+            data = DecathlonDataset(
+                root_dir=tempdir, task="Task04_Hippocampus", transform=transform, section="validation", download=False
+            )
+        except RuntimeError as e:
+            self.assertTrue(str(e).startswith("can not find dataset directory"))
 
         shutil.rmtree(tempdir)
 
