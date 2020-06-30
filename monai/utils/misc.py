@@ -101,15 +101,15 @@ def ensure_tuple_rep(tup: Any, dim: int):
 
 def fall_back_tuple(user_provided: Any, default: Sequence, func: Callable = lambda x: x and x > 0) -> Tuple:
     """
-    Refine `user_provided` according to `default`, and returns as a validated tuple.
+    Refine `user_provided` according to the `default`, and returns as a validated tuple.
 
     The validation is done for each element in `user_provided` using `func`.
     If `func(user_provided[idx])` returns False, the corresponding `default[idx]` will be used
     as the fallback.
 
-     Typically used when `user_provided` is a tuple of window size provided by the user,
+    Typically used when `user_provided` is a tuple of window size provided by the user,
     `default` is defined by data, this function returns an updated `user_provided` with its non-positive
-    components replaced by the corresponding components from `img_size`.
+    components replaced by the corresponding components from `default`.
 
     Args:
         user_provided: item to be validated.
@@ -137,9 +137,9 @@ def fall_back_tuple(user_provided: Any, default: Sequence, func: Callable = lamb
 
     """
     ndim = len(default)
-    w_size = ensure_tuple_rep(user_provided, ndim)
-    return tuple(  # use the input image's size if spatial_size is not defined
-        sp_d if func(sp_d) else img_d for img_d, sp_d in zip(default, w_size)
+    user = ensure_tuple_rep(user_provided, ndim)
+    return tuple(  # use the default values if user provided is not valid
+        user_c if func(user_c) else default_c for default_c, user_c in zip(default, user)
     )
 
 
