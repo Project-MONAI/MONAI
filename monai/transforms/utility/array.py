@@ -145,12 +145,12 @@ class CastToType(Transform):
         """
         self.dtype = dtype
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: np.ndarray, dtype=None):
         """
         Apply the transform to `img`, assuming `img` is a numpy array.
         """
         assert isinstance(img, np.ndarray), "image must be numpy array."
-        return img.astype(self.dtype)
+        return img.astype(self.dtype if dtype is None else dtype)
 
 
 class ToTensor(Transform):
@@ -347,12 +347,20 @@ class Lambda(Transform):
         func: Lambda/function to be applied.
     """
 
-    def __init__(self, func: Callable) -> None:
-        assert callable(func), "func must be callable"
+    def __init__(self, func: Optional[Callable] = None) -> None:
+        if func is not None and not callable(func):
+            raise ValueError("func must be callable.")
         self.func = func
 
-    def __call__(self, img):
+    def __call__(self, img, func=None):
         """
         Apply `self.func` to `img`.
         """
-        return self.func(img)
+        if func is not None:
+            if not callable(func):
+                raise ValueError("func must be callable.")
+            return func(img)
+        if self.func is not None:
+            return self.func(img)
+        else:
+            raise RuntimeError("neither func or self.func is callable.")
