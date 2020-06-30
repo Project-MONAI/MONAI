@@ -39,7 +39,7 @@ exclude_patterns = [
     "metrics",
     "engines",
     "data",
-    "application",
+    "apps",
     "config",
     "handlers",
     "losses",

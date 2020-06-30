@@ -3,6 +3,7 @@
 coverage
 parameterized
 pytorch-ignite==0.3.0
+gdown==3.11.1
 scipy
 nibabel
 pillow

@@ -14,7 +14,7 @@ import os
 import shutil
 import numpy as np
 import tempfile
-from monai.application import download_and_extract, download_url, extractall
+from monai.apps import download_and_extract, download_url, extractall
 from tests.utils import skip_if_quick
 
 
