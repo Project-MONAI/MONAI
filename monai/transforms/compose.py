@@ -52,10 +52,10 @@ class Transform(ABC):
         - ``data`` is a Numpy ndarray, PyTorch Tensor or string
         - the data shape can be:
 
-          #. string data without shape, `LoadNiftid` and `LoadPNGd` transforms expect file paths
+          #. string data without shape, `LoadNifti` and `LoadPNG` transforms expect file paths
           #. most of the pre-processing transforms expect: ``(num_channels, spatial_dim_1[, spatial_dim_2, ...])``,
-             except that `AddChanneld` expects (spatial_dim_1[, spatial_dim_2, ...]) and
-             `AsChannelFirstd` expects (spatial_dim_1[, spatial_dim_2, ...], num_channels)
+             except that `AddChannel` expects (spatial_dim_1[, spatial_dim_2, ...]) and
+             `AsChannelFirst` expects (spatial_dim_1[, spatial_dim_2, ...], num_channels)
           #. most of the post-processing transforms expect
              ``(batch_size, num_channels, spatial_dim_1[, spatial_dim_2, ...])``
 
