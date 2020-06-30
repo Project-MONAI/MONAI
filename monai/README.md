@@ -1,6 +1,6 @@
 # MONAI
 
-* **application**: for managing the training workflow.
+* **apps**: high level medical domain specific deep learning applications.
 
 * **config**: for system configuration and diagnostic output.
 

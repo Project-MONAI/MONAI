@@ -14,38 +14,44 @@ import os
 import shutil
 import tempfile
 
-from monai.apps import MedNISTDataset
-from monai.transforms import LoadPNGd, AddChanneld, ScaleIntensityd, ToTensord, Compose
+from monai.apps import DecathlonDataset
+from monai.transforms import LoadNiftid, AddChanneld, ScaleIntensityd, ToTensord, Compose
 from tests.utils import skip_if_quick
 
 
-class TestMedNISTDataset(unittest.TestCase):
+class TestDecathlonDataset(unittest.TestCase):
     @skip_if_quick
     def test_values(self):
         tempdir = tempfile.mkdtemp()
         transform = Compose(
             [
-                LoadPNGd(keys="image"),
-                AddChanneld(keys="image"),
+                LoadNiftid(keys=["image", "label"]),
+                AddChanneld(keys=["image", "label"]),
                 ScaleIntensityd(keys="image"),
                 ToTensord(keys=["image", "label"]),
             ]
         )
 
         def _test_dataset(dataset):
-            self.assertEqual(len(dataset), 5986)
+            self.assertEqual(len(dataset), 52)
             self.assertTrue("image" in dataset[0])
             self.assertTrue("label" in dataset[0])
             self.assertTrue("image_meta_dict" in dataset[0])
-            self.assertTupleEqual(dataset[0]["image"].shape, (1, 64, 64))
+            self.assertTupleEqual(dataset[0]["image"].shape, (1, 33, 47, 34))
 
-        data = MedNISTDataset(root_dir=tempdir, transform=transform, section="test", download=True)
+        data = DecathlonDataset(
+            root_dir=tempdir, task="Task04_Hippocampus", transform=transform, section="validation", download=True
+        )
         _test_dataset(data)
-        data = MedNISTDataset(root_dir=tempdir, transform=transform, section="test", download=False)
+        data = DecathlonDataset(
+            root_dir=tempdir, task="Task04_Hippocampus", transform=transform, section="validation", download=False
+        )
         _test_dataset(data)
-        shutil.rmtree(os.path.join(tempdir, "MedNIST"))
+        shutil.rmtree(os.path.join(tempdir, "Task04_Hippocampus"))
         try:
-            data = MedNISTDataset(root_dir=tempdir, transform=transform, section="test", download=False)
+            data = DecathlonDataset(
+                root_dir=tempdir, task="Task04_Hippocampus", transform=transform, section="validation", download=False
+            )
         except RuntimeError as e:
             print(str(e))
             self.assertTrue(str(e).startswith("can not find dataset directory"))
