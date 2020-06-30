@@ -38,7 +38,7 @@ from monai.transforms.spatial.array import (
 )
 from monai.transforms.utils import create_grid
 from monai.utils.enums import GridSampleMode, GridSamplePadMode, InterpolateMode
-from monai.utils.misc import adaptive_size, ensure_tuple, ensure_tuple_rep
+from monai.utils.misc import ensure_tuple, ensure_tuple_rep, fall_back_tuple
 
 GridSampleModeSequence = Union[Sequence[Union[GridSampleMode, str]], GridSampleMode, str]
 GridSamplePadModeSequence = Union[Sequence[Union[GridSamplePadMode, str]], GridSamplePadMode, str]
@@ -359,7 +359,7 @@ class RandAffined(Randomizable, MapTransform):
         d = dict(data)
         self.randomize()
 
-        sp_size = adaptive_size(self.rand_affine.spatial_size, data[self.keys[0]].shape[1:])
+        sp_size = fall_back_tuple(self.rand_affine.spatial_size, data[self.keys[0]].shape[1:])
         if self.rand_affine.do_transform:
             grid = self.rand_affine.rand_affine_grid(spatial_size=sp_size)
         else:
@@ -446,7 +446,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
     def __call__(self, data):
         d = dict(data)
 
-        sp_size = adaptive_size(self.rand_2d_elastic.spatial_size, data[self.keys[0]].shape[1:])
+        sp_size = fall_back_tuple(self.rand_2d_elastic.spatial_size, data[self.keys[0]].shape[1:])
         self.randomize(spatial_size=sp_size)
 
         if self.rand_2d_elastic.do_transform:
@@ -541,7 +541,7 @@ class Rand3DElasticd(Randomizable, MapTransform):
 
     def __call__(self, data):
         d = dict(data)
-        sp_size = adaptive_size(self.rand_3d_elastic.spatial_size, data[self.keys[0]].shape[1:])
+        sp_size = fall_back_tuple(self.rand_3d_elastic.spatial_size, data[self.keys[0]].shape[1:])
 
         self.randomize(grid_size=sp_size)
         grid = create_grid(spatial_size=sp_size)

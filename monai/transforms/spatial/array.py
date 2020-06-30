@@ -33,7 +33,7 @@ from monai.transforms.utils import (
 )
 from monai.utils import optional_import
 from monai.utils.enums import GridSampleMode, GridSamplePadMode, InterpolateMode, NumpyPadMode
-from monai.utils.misc import adaptive_size, ensure_tuple, ensure_tuple_rep, ensure_tuple_size
+from monai.utils.misc import ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
 
 nib, _ = optional_import("nibabel")
 
@@ -1061,7 +1061,7 @@ class Affine(Transform):
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         """
-        sp_size = adaptive_size(spatial_size or self.spatial_size, img.shape[1:])
+        sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
         grid = self.affine_grid(spatial_size=sp_size)
         return self.resampler(
             img=img, grid=grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode
@@ -1158,7 +1158,7 @@ class RandAffine(Randomizable, Transform):
         """
         self.randomize()
 
-        sp_size = adaptive_size(spatial_size or self.spatial_size, img.shape[1:])
+        sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
         if self.do_transform:
             grid = self.rand_affine_grid(spatial_size=sp_size)
         else:
@@ -1261,7 +1261,7 @@ class Rand2DElastic(Randomizable, Transform):
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         """
-        sp_size = adaptive_size(spatial_size or self.spatial_size, img.shape[1:])
+        sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
         self.randomize(spatial_size=sp_size)
         if self.do_transform:
             grid = self.deform_grid(spatial_size=sp_size)
@@ -1367,7 +1367,7 @@ class Rand3DElastic(Randomizable, Transform):
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         """
-        sp_size = adaptive_size(spatial_size or self.spatial_size, img.shape[1:])
+        sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
         self.randomize(grid_size=sp_size)
         grid = create_grid(spatial_size=sp_size)
         if self.do_transform:

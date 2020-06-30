@@ -10,8 +10,8 @@
 # limitations under the License.
 
 import itertools
-from collections.abc import Iterable
-from typing import Any, Tuple
+from collections.abc import Iterable, Sequence
+from typing import Any, Tuple, Callable, Sized
 
 import numpy as np
 import torch
@@ -43,14 +43,14 @@ def first(iterable, default=None):
     return default
 
 
-def issequenceiterable(obj):
+def issequenceiterable(obj) -> bool:
     """
     Determine if the object is an iterable sequence and is not a string
     """
     return isinstance(obj, Iterable) and not isinstance(obj, str)
 
 
-def ensure_tuple(vals: Any) -> Tuple[Any, ...]:
+def ensure_tuple(vals: Any) -> Tuple:
     """
     Returns a tuple of `vals`
     """
@@ -60,7 +60,7 @@ def ensure_tuple(vals: Any) -> Tuple[Any, ...]:
     return tuple(vals)
 
 
-def ensure_tuple_size(tup, dim, pad_val=0):
+def ensure_tuple_size(tup, dim: int, pad_val=0):
     """
     Returns a copy of `tup` with `dim` values by either shortened or padded with `pad_val` as necessary.
     """
@@ -68,7 +68,7 @@ def ensure_tuple_size(tup, dim, pad_val=0):
     return tup[:dim]
 
 
-def ensure_tuple_rep(tup, dim):
+def ensure_tuple_rep(tup: Any, dim: int):
     """
     Returns a copy of `tup` with `dim` values by either shortened or duplicated input.
 
@@ -99,51 +99,63 @@ def ensure_tuple_rep(tup, dim):
     raise ValueError(f"sequence must have length {dim}, got length {len(tup)}.")
 
 
-def adaptive_size(win_size, img_size):
+def fall_back_tuple(user_provided: Any, default: Sequence, func: Callable = lambda x: x and x > 0) -> Tuple:
     """
-    Adapt `win_size` to `img_size`. Typically used when `win_size` is provided by the user,
-    `img_size` is defined by data, this function returns an updated `win_size` with non-positive
+    Refine `user_provided` according to `default`, and returns as a validated tuple.
+
+    The validation is done for each element in `user_provided` using `func`.
+    If `func(user_provided[idx])` returns False, the corresponding `default[idx]` will be used
+    as the fallback.
+
+     Typically used when `user_provided` is a tuple of window size provided by the user,
+    `default` is defined by data, this function returns an updated `user_provided` with its non-positive
     components replaced by the corresponding components from `img_size`.
+
+    Args:
+        user_provided: item to be validated.
+        default: a sequence used to provided the fallbacks.
+        func: a Callable to validate every components of `user_provided`.
 
     Examples::
 
-        >>> adaptive_size(None, (32, 32))
+        >>> fall_back_tuple((1, 2), (32, 32))
+        (1, 2)
+        >>> fall_back_tuple(None, (32, 32))
         (32, 32)
-        >>> adaptive_size((-1, 10), (32, 32))
+        >>> fall_back_tuple((-1, 10), (32, 32))
         (32, 10)
-        >>> adaptive_size((-1, None), (32, 32))
+        >>> fall_back_tuple((-1, None), (32, 32))
         (32, 32)
-        >>> adaptive_size((1, None), (32, 32))
+        >>> fall_back_tuple((1, None), (32, 32))
         (1, 32)
-        >>> adaptive_size(0, (32, 32))
+        >>> fall_back_tuple(0, (32, 32))
         (32, 32)
-        >>> adaptive_size(range(3), (32, 64, 48))
+        >>> fall_back_tuple(range(3), (32, 64, 48))
         (32, 1, 2)
-        >>> adaptive_size([0], (32, 32))
+        >>> fall_back_tuple([0], (32, 32))
         ValueError: sequence must have length 2, got length 1.
 
     """
-    ndim = len(img_size)
-    w_size = ensure_tuple_rep(win_size, ndim)
-    w_size = tuple(  # use the input image's size if spatial_size is not defined
-        sp_d if (sp_d and sp_d > 0) else img_d for img_d, sp_d in zip(img_size, w_size)
+    ndim = len(default)
+    w_size = ensure_tuple_rep(user_provided, ndim)
+    return tuple(  # use the input image's size if spatial_size is not defined
+        sp_d if func(sp_d) else img_d for img_d, sp_d in zip(default, w_size)
     )
-    return w_size
 
 
-def is_scalar_tensor(val):
+def is_scalar_tensor(val) -> bool:
     if torch.is_tensor(val) and val.ndim == 0:
         return True
     return False
 
 
-def is_scalar(val):
+def is_scalar(val) -> bool:
     if torch.is_tensor(val) and val.ndim == 0:
         return True
-    return np.isscalar(val)
+    return bool(np.isscalar(val))
 
 
-def progress_bar(index: int, count: int, desc: str = None, bar_len: int = 30, newline: bool = False):
+def progress_bar(index: int, count: int, desc: str = None, bar_len: int = 30, newline: bool = False) -> None:
     """print a progress bar to track some time consuming task.
 
     Args:
@@ -166,7 +178,7 @@ def get_seed():
     return _seed
 
 
-def set_determinism(seed=np.iinfo(np.int32).max, additional_settings=None):
+def set_determinism(seed=np.iinfo(np.int32).max, additional_settings=None) -> None:
     """
     Set random seed for modules to enable or disable deterministic training.
 
