@@ -45,11 +45,8 @@ transformations. These currently include, for example:
 - `Affine`: Transform image based on the affine parameters
 - `Rand2DElastic`: Random elastic deformation and affine in 2D
 - `Rand3DElastic`: Random elastic deformation and affine in 3D
-<p>
-<img src="../images/hist1.png" width="30%" alt='histology'>
-<img src="../images/hist2.png" width="30%" alt='histology'>
-<img src="../images/hist3.png" width="30%" alt='histology'>
-</p>
+
+![image](../images/medical_transforms.png)
 
 ### 3. Fused spatial transforms and GPU acceleration
 As medical image volumes are usually large (in multi-dimensional arrays), pre-processing performance affects the overall pipeline speed. MONAI provides affine transforms to execute fused spatial operations, supports GPU acceleration via native PyTorch for high performance.
@@ -67,11 +64,7 @@ affine = Affine(
 # convert the image using bilinear interpolation
 new_img = affine(image, spatial_size=(300, 400), mode='bilinear')
 ```
-<p>
-<img src="../images/3d1.png" width="30%" alt='spleen'>
-<img src="../images/3d2.png" width="30%" alt='spleen'>
-<img src="../images/3d3.png" width="30%" alt='spleen'>
-</p>
+![image](../images/affine.png)
 Currently all the geometric image transforms (Spacing, Zoom, Rotate, Resize, etc.) are designed based on the PyTorch native interfaces (instead of using scipy, scikit-image, etc.).
 
 ### 4. Randomly crop out batch images based on positive/negative ratio
@@ -219,15 +212,10 @@ The generic patterns/modules identified from the research prototypes will be int
 A reimplementation of the COPLE-Net originally proposed by:
 
 G. Wang, X. Liu, C. Li, Z. Xu, J. Ruan, H. Zhu, T. Meng, K. Li, N. Huang, S. Zhang. (2020) "A Noise-robust Framework for Automatic Segmentation of COVID-19 Pneumonia Lesions from CT Images." IEEE Transactions on Medical Imaging. 2020. [DOI: 10.1109/TMI.2020.3000314](https://doi.org/10.1109/TMI.2020.3000314)
-
-<p>
-<img src="../images/coplenet.png" width="60%" alt='lung-ct'>
-</p>
+![image](../images/coplenet.png)
 
 ### LAMP: Large Deep Nets with Automated Model Parallelism for Image Segmentation
 A reimplementation of the LAMP system originally proposed by:
 
 Wentao Zhu, Can Zhao, Wenqi Li, Holger Roth, Ziyue Xu, and Daguang Xu (2020) "LAMP: Large Deep Nets with Automated Model Parallelism for Image Segmentation." MICCAI 2020 (Early Accept, paper link: https://arxiv.org/abs/2006.12575)
-<p>
-<img src="../images/unet-pipe.png" width="60%" alt='unet-multi-gpu'>
-</p>
+![image](../images/unet-pipe.png)
