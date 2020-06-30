@@ -45,7 +45,7 @@ class RandGaussianNoised(Randomizable, MapTransform):
         std: Standard deviation (spread) of distribution.
     """
 
-    def __init__(self, keys: KeysCollection, prob: float = 0.1, mean=0.0, std: float = 0.1):
+    def __init__(self, keys: KeysCollection, prob: float = 0.1, mean: float = 0.0, std: float = 0.1):
         super().__init__(keys)
         self.prob = prob
         self.mean = mean

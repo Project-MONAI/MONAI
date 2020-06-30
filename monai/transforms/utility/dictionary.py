@@ -160,14 +160,18 @@ class CastToTyped(MapTransform):
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             dtype (np.dtype): convert image to this data type, default is `np.float32`.
+                it also can be a sequence of np.dtype, each element corresponds to a key in ``keys``.
+
         """
         MapTransform.__init__(self, keys)
-        self.converter = CastToType(dtype)
+        self.dtype = ensure_tuple_rep(dtype, len(self.keys))
+        self.converter = CastToType()
 
     def __call__(self, data):
         d = dict(data)
-        for key in self.keys:
-            d[key] = self.converter(d[key])
+        for idx, key in enumerate(self.keys):
+            d[key] = self.converter(d[key], dtype=self.dtype[idx])
+
         return d
 
 
@@ -273,14 +277,20 @@ class DataStatsd(MapTransform):
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             prefix (string or list of string): will be printed in format: "{prefix} statistics".
+                it also can be a sequence of string, each element corresponds to a key in ``keys``.
             data_shape (bool or list of bool): whether to show the shape of input data.
+                it also can be a sequence of bool, each element corresponds to a key in ``keys``.
             intensity_range (bool or list of bool): whether to show the intensity value range of input data.
+                it also can be a sequence of bool, each element corresponds to a key in ``keys``.
             data_value (bool or list of bool): whether to show the raw value of input data.
+                it also can be a sequence of bool, each element corresponds to a key in ``keys``.
                 a typical example is to print some properties of Nifti image: affine, pixdim, etc.
             additional_info (Callable or list of Callable): user can define callable function to extract
-                additional info from input data.
+                additional info from input data. it also can be a sequence of string, each element
+                corresponds to a key in ``keys``.
             logger_handler (logging.handler): add additional handler to output data: save to file, etc.
                 add existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html
+
         """
         super().__init__(keys)
         self.prefix = ensure_tuple_rep(prefix, len(self.keys))
@@ -316,8 +326,8 @@ class SimulateDelayd(MapTransform):
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             delay_time(float or list of float): The minimum amount of time, in fractions of seconds,
-                to accomplish this identity task. If a list is provided, it must be of length equal
-                to the keys representing the delay for each key element.
+                to accomplish this identity task. It also can be a sequence of string, each element
+                corresponds to a key in ``keys``.
         """
         super().__init__(keys)
         self.delay_time = ensure_tuple_rep(delay_time, len(self.keys))
@@ -432,17 +442,20 @@ class Lambdad(MapTransform):
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
-        func: Lambda/function to be applied.
+        func: Lambda/function to be applied. It also can be a sequence of Callable,
+            each element corresponds to a key in ``keys``.
     """
 
     def __init__(self, keys: KeysCollection, func: Callable) -> None:
         super().__init__(keys)
-        self.lambd = Lambda(func)
+        self.func = ensure_tuple_rep(func, len(self.keys))
+        self.lambd = Lambda()
 
     def __call__(self, data):
         d = dict(data)
-        for key in self.keys:
-            d[key] = self.lambd(d[key])
+        for idx, key in enumerate(self.keys):
+            d[key] = self.lambd(d[key], func=self.func[idx])
+
         return d
 
 
