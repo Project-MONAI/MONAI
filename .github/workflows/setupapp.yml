@@ -91,7 +91,7 @@ jobs:
       run: |
         # min. requirements for windows instances
         python -m pip install torch==1.4
-        python -c "f=open('requirements-dev.txt', 'r'); txt=f.readlines(); f.close(); print(txt); f=open('requirements-dev.txt', 'w'); f.writelines(txt[1:4]); f.close()"
+        python -c "f=open('requirements-dev.txt', 'r'); txt=f.readlines(); f.close(); print(txt); f=open('requirements-dev.txt', 'w'); f.writelines(txt[1:5]); f.close()"
         cat "requirements-dev.txt"
         python -m pip install -r requirements-dev.txt
         python -m pip list

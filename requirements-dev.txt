@@ -3,6 +3,7 @@
 coverage
 parameterized
 pytorch-ignite==0.3.0
+gdown==3.11.1
 scipy
 nibabel
 pillow
@@ -20,4 +21,3 @@ pyflakes
 black
 pytype>=2020.6.1
 mypy
-gdown==3.11.1
