@@ -34,14 +34,26 @@ TEST_CASE_3 = [  # single channel 0D, batch 2, shape (2, 1)
     np.array([[0, 1, 0], [0, 0, 1]]),
 ]
 
+TEST_CASE_4 = [  # no channel 0D, batch 3, shape (3)
+    {"labels": torch.tensor([1, 2, 0]), "num_classes": 3, "dtype": torch.long},
+    (3, 3),
+    np.array([[0, 1, 0], [0, 0, 1], [1, 0, 0]]),
+]
+
 
 class TestToOneHot(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_shape(self, input_data, expected_shape, expected_result=None):
         result = one_hot(**input_data)
         self.assertEqual(result.shape, expected_shape)
         if expected_result is not None:
             self.assertTrue(np.allclose(expected_result, result.numpy()))
+
+        if "dtype" in input_data:
+            self.assertEqual(result.dtype, input_data["dtype"])
+        else:
+            # by default, expecting float type
+            self.assertEqual(result.dtype, torch.float)
 
 
 if __name__ == "__main__":

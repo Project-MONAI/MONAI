@@ -9,17 +9,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional, Union
+
 import torch.nn as nn
 import torch.nn.functional as F
 
 from monai.networks.layers.convutils import same_padding
 from monai.networks.layers.factories import Conv, Dropout, Norm
+from monai.utils.enums import Normalisation, Activation, ChannelMatching
 
 SUPPORTED_NORM = {
-    "batch": lambda spatial_dims: Norm[Norm.BATCH, spatial_dims],
-    "instance": lambda spatial_dims: Norm[Norm.INSTANCE, spatial_dims],
+    Normalisation.BATCH: lambda spatial_dims: Norm[Norm.BATCH, spatial_dims],
+    Normalisation.INSTANCE: lambda spatial_dims: Norm[Norm.INSTANCE, spatial_dims],
 }
-SUPPORTED_ACTI = {"relu": nn.ReLU, "prelu": nn.PReLU, "relu6": nn.ReLU6}
+SUPPORTED_ACTI = {Activation.RELU: nn.ReLU, Activation.PRELU: nn.PReLU, Activation.RELU6: nn.ReLU6}
 DEFAULT_LAYER_PARAMS_3D = (
     # initial conv layer
     {"name": "conv_0", "n_features": 16, "kernel_size": 3},
@@ -35,7 +38,14 @@ DEFAULT_LAYER_PARAMS_3D = (
 
 class ConvNormActi(nn.Module):
     def __init__(
-        self, spatial_dims, in_channels, out_channels, kernel_size, norm_type=None, acti_type=None, dropout_prob=None
+        self,
+        spatial_dims: int,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int,
+        norm_type: Optional[Union[Normalisation, str]] = None,
+        acti_type: Optional[Union[Activation, str]] = None,
+        dropout_prob: Optional[float] = None,
     ):
 
         super(ConvNormActi, self).__init__()
@@ -48,8 +58,10 @@ class ConvNormActi(nn.Module):
         layers.append(conv)
 
         if norm_type is not None:
+            norm_type = Normalisation(norm_type)
             layers.append(SUPPORTED_NORM[norm_type](spatial_dims)(out_channels))
         if acti_type is not None:
+            acti_type = Activation(acti_type)
             layers.append(SUPPORTED_ACTI[acti_type](inplace=True))
         if dropout_prob is not None:
             dropout_type = Dropout[Dropout.DROPOUT, spatial_dims]
@@ -63,31 +75,44 @@ class ConvNormActi(nn.Module):
 class HighResBlock(nn.Module):
     def __init__(
         self,
-        spatial_dims,
-        in_channels,
-        out_channels,
+        spatial_dims: int,
+        in_channels: int,
+        out_channels: int,
         kernels=(3, 3),
         dilation=1,
-        norm_type="instance",
-        acti_type="relu",
-        channel_matching="pad",
+        norm_type: Union[Normalisation, str] = Normalisation.INSTANCE,
+        acti_type: Union[Activation, str] = Activation.RELU,
+        channel_matching: Union[ChannelMatching, str] = ChannelMatching.PAD,
     ):
         """
         Args:
             kernels (list of int): each integer k in `kernels` corresponds to a convolution layer with kernel size k.
-            channel_matching ('pad'|'project'): handling residual branch and conv branch channel mismatches
-                with either zero padding ('pad') or a trainable conv with kernel size 1 ('project').
+            norm_type: {``"batch"``, ``"instance"``}
+                Feature normalisation with batchnorm or instancenorm. Defaults to ``"instance"``.
+            acti_type: {``"relu"``, ``"prelu"``, ``"relu6"``}
+                Non-linear activation using ReLU or PReLU. Defaults to ``"relu"``.
+            channel_matching: {``"pad"``, ``"project"``}
+                Specifies handling residual branch and conv branch channel mismatches. Defaults to ``"pad"``.
+
+                - ``"pad"``: with zero padding.
+                - ``"project"``: with a trainable conv with kernel size.
+
+        Raises:
+            ValueError: channel matching must be pad or project, got {channel_matching}.
+            ValueError: in_channels > out_channels is incompatible with `channel_matching=pad`.
+
         """
         super(HighResBlock, self).__init__()
         conv_type = Conv[Conv.CONV, spatial_dims]
+        norm_type = Normalisation(norm_type)
+        acti_type = Activation(acti_type)
 
         self.project, self.pad = None, None
         if in_channels != out_channels:
-            if channel_matching not in ("pad", "project"):
-                raise ValueError(f"channel matching must be pad or project, got {channel_matching}.")
-            if channel_matching == "project":
+            channel_matching = ChannelMatching(channel_matching)
+            if channel_matching == ChannelMatching.PROJECT:
                 self.project = conv_type(in_channels, out_channels, kernel_size=1)
-            if channel_matching == "pad":
+            if channel_matching == ChannelMatching.PAD:
                 if in_channels > out_channels:
                     raise ValueError("in_channels > out_channels is incompatible with `channel_matching=pad`.")
                 pad_1 = (out_channels - in_channels) // 2
@@ -128,24 +153,26 @@ class HighResNet(nn.Module):
     https://github.com/fepegar/highresnet
 
     Args:
-        spatial_dims (int): number of spatial dimensions of the input image.
-        in_channels (int): number of input channels.
-        out_channels (int): number of output channels.
-        norm_type ('batch'|'instance'): feature normalisation with batchnorm or instancenorm.
-        acti_type ('relu'|'prelu'|'relu6'): non-linear activation using ReLU or PReLU.
-        dropout_prob (float): probability of the feature map to be zeroed
+        spatial_dims: number of spatial dimensions of the input image.
+        in_channels: number of input channels.
+        out_channels: number of output channels.
+        norm_type: {``"batch"``, ``"instance"``}
+            Feature normalisation with batchnorm or instancenorm. Defaults to ``"batch"``.
+        acti_type: {``"relu"``, ``"prelu"``, ``"relu6"``}
+            Non-linear activation using ReLU or PReLU. Defaults to ``"relu"``.
+        dropout_prob: probability of the feature map to be zeroed
             (only applies to the penultimate conv layer).
         layer_params (a list of dictionaries): specifying key parameters of each layer/block.
     """
 
     def __init__(
         self,
-        spatial_dims=3,
-        in_channels=1,
-        out_channels=1,
-        norm_type="batch",
-        acti_type="relu",
-        dropout_prob=None,
+        spatial_dims: int = 3,
+        in_channels: int = 1,
+        out_channels: int = 1,
+        norm_type: Union[Normalisation, str] = Normalisation.BATCH,
+        acti_type: Union[Activation, str] = Activation.RELU,
+        dropout_prob: Optional[float] = None,
         layer_params=DEFAULT_LAYER_PARAMS_3D,
     ):
 
