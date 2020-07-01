@@ -18,7 +18,7 @@ import zipfile
 from monai.utils import progress_bar
 from monai.utils import optional_import
 
-gdown, has_gdown = optional_import("gdown", "3.11.1")
+gdown, has_gdown = optional_import("gdown", "3.6")
 
 
 def check_md5(filepath: str, md5_value: str = None):
