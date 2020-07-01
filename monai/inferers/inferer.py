@@ -67,7 +67,7 @@ class SlidingWindowInferer(Inferer):
 
     Args:
         roi_size (list, tuple): the window size to execute SlidingWindow evaluation.
-            If it has have non-positive components, the corresponding `inputs` size will be used.
+            If it has non-positive components, the corresponding `inputs` size will be used.
         sw_batch_size: the batch size to run window slices.
         overlap: Amount of overlap between scans.
         mode: {``"constant"``, ``"gaussian"``}
