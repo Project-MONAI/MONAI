@@ -40,7 +40,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
         cache_rate: percentage of cached data in total, default is 1.0 (cache all).
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         num_workers: the number of worker threads to use.
-            If 0 a single thread will be used. Default is 0.
+            if 0 a single thread will be used. Default is 0.
 
     Raises:
         ValueError: root_dir must be a directory.
@@ -149,7 +149,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         cache_rate: percentage of cached data in total, default is 1.0 (cache all).
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         num_workers: the number of worker threads to use.
-            If 0 a single thread will be used. Default is 0.
+            if 0 a single thread will be used. Default is 0.
 
     Example::
         transform = Compose(
