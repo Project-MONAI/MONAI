@@ -13,7 +13,7 @@ from typing import Callable, Optional
 
 import torch
 from monai.transforms import apply_transform
-from monai.utils import exact_version, optional_import
+from monai.utils import exact_version, optional_import, ensure_tuple
 
 from .utils import default_prepare_batch
 
@@ -125,7 +125,8 @@ class Workflow(Engine):
                         engine.state.best_metric = current_val_metric
                         engine.state.best_metric_epoch = engine.state.epoch
 
-        if handlers is not None and len(handlers) > 0:
+        if handlers is not None:
+            handlers = ensure_tuple(handlers)
             for handler in handlers:
                 handler.attach(self)
 

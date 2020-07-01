@@ -42,7 +42,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
         cache_rate: percentage of cached data in total, default is 1.0 (cache all).
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         num_workers: the number of worker threads to use.
-            If 0 a single thread will be used. Default is 0.
+            if 0 a single thread will be used. Default is 0.
 
     Raises:
         ValueError: root_dir must be a directory.
@@ -153,7 +153,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         cache_rate: percentage of cached data in total, default is 1.0 (cache all).
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         num_workers: the number of worker threads to use.
-            If 0 a single thread will be used. Default is 0.
+            if 0 a single thread will be used. Default is 0.
 
     Example::
 
@@ -183,8 +183,8 @@ class DecathlonDataset(Randomizable, CacheDataset):
         "Task01_BrainTumour": "https://drive.google.com/uc?id=1A2IU8Sgea1h3fYLpYtFb2v7NYdMjvEhU",
         "Task02_Heart": "https://drive.google.com/uc?id=1wEB2I6S6tQBVEPxir8cA5kFB8gTQadYY",
         "Task03_Liver": "https://drive.google.com/uc?id=1jyVGUGyxKBXV6_9ivuZapQS8eUJXCIpu",
-        "Task04_Hippocampus": "https://drive.google.com/uc?id=1RzPB1_bqzQhlWvU-YGvZzhx2omcDh38C",
-        "Task05_Prostate": "https://drive.google.com/uc?id=1Ff7c21UksxyT4JfETjaarmuKEjdqe1-a",
+        "Task04_Hippocampus": "https://www.dropbox.com/s/j9s3le3ogwztevr/Task04_Hippocampus.tar?dl=1",
+        "Task05_Prostate": "https://www.dropbox.com/s/y3xg3e2giz5f5s9/Task05_Prostate.tar?dl=1",
         "Task06_Lung": "https://drive.google.com/uc?id=1I1LR7XjyEZ-VBQ-Xruh31V7xExMjlVvi",
         "Task07_Pancreas": "https://drive.google.com/uc?id=1YZQFSonulXuagMIfbJkZeTFJ6qEUuUxL",
         "Task08_HepaticVessel": "https://drive.google.com/uc?id=1qVrpV7vmhIsUxFiH189LmAn0ALbAPrgS",
