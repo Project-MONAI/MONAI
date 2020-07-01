@@ -51,12 +51,14 @@ class Transform(ABC):
 
         - ``data`` is a Numpy ndarray, PyTorch Tensor or string
         - the data shape can be:
+
           #. string data without shape, `LoadNifti` and `LoadPNG` transforms expect file paths
-          #. most of the pre-processing transforms expect: (num_channels, spatial_dim_1[, spatial_dim_2, ...])
-             except that `AddChannel` expects: (spatial_dim_1[, spatial_dim_2, ...]) and
-             `AsChannelFirst` expects: (spatial_dim_1[, spatial_dim_2, ...], num_channels)
-          #. most of the post-processing transforms expect:
-             (batch_size, num_channels, spatial_dim_1[, spatial_dim_2, ...])
+          #. most of the pre-processing transforms expect: ``(num_channels, spatial_dim_1[, spatial_dim_2, ...])``,
+             except that `AddChannel` expects (spatial_dim_1[, spatial_dim_2, ...]) and
+             `AsChannelFirst` expects (spatial_dim_1[, spatial_dim_2, ...], num_channels)
+          #. most of the post-processing transforms expect
+             ``(batch_size, num_channels, spatial_dim_1[, spatial_dim_2, ...])``
+
         - the channel dimension is not omitted even if number of channels is one
 
         This method can optionally take additional arguments to help execute transformation operation.
@@ -70,8 +72,20 @@ class Transform(ABC):
 
 class Randomizable(ABC):
     """
-    An interface for handling local numpy random state.
-    this is mainly for randomized data augmentation transforms.
+    An interface for handling random state locally, currently based on a class variable `R`,
+    which is an instance of `np.random.RandomState`.
+    This is mainly for randomized data augmentation transforms. For example::
+
+        class RandShiftIntensity(Randomizable):
+            def randomize():
+                self._offset = self.R.uniform(low=0, high=100)
+            def __call__(self, img):
+                self.randomize()
+                return img + self._offset
+
+        transform = RandShiftIntensity()
+        transform.set_random_state(seed=0)
+
     """
 
     R: np.random.RandomState = np.random.RandomState()
@@ -258,12 +272,14 @@ class MapTransform(Transform):
         - ``data`` is a Python dictionary
         - ``data[key]`` is a Numpy ndarray, PyTorch Tensor or string, where ``key`` is an element
           of ``self.keys``, the data shape can be:
+
           #. string data without shape, `LoadNiftid` and `LoadPNGd` transforms expect file paths
-          #. most of the pre-processing transforms expect: (num_channels, spatial_dim_1[, spatial_dim_2, ...])
-             except that `AddChanneld` expects: (spatial_dim_1[, spatial_dim_2, ...]) and
-             `AsChannelFirstd` expects: (spatial_dim_1[, spatial_dim_2, ...], num_channels)
-          #. most of the post-processing transforms expect:
-             (batch_size, num_channels, spatial_dim_1[, spatial_dim_2, ...])
+          #. most of the pre-processing transforms expect: ``(num_channels, spatial_dim_1[, spatial_dim_2, ...])``,
+             except that `AddChanneld` expects (spatial_dim_1[, spatial_dim_2, ...]) and
+             `AsChannelFirstd` expects (spatial_dim_1[, spatial_dim_2, ...], num_channels)
+          #. most of the post-processing transforms expect
+             ``(batch_size, num_channels, spatial_dim_1[, spatial_dim_2, ...])``
+
         - the channel dimension is not omitted even if number of channels is one
 
         returns:

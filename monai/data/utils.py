@@ -18,7 +18,7 @@ from itertools import starmap, product
 import torch
 from torch.utils.data._utils.collate import default_collate
 import numpy as np
-from monai.utils import ensure_tuple_size, optional_import
+from monai.utils import ensure_tuple_size, ensure_tuple_rep, optional_import
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.utils.enums import NumpyPadMode, BlendMode
 
@@ -184,25 +184,25 @@ def iter_patch(
         arr[...] = arrpad[slices]
 
 
-def get_valid_patch_size(dims, patch_size):
+def get_valid_patch_size(image_size, patch_size):
     """
-    Given an image of dimensions `dims`, return a patch size tuple taking the dimension from `patch_size` if this is
-    not 0/None. Otherwise, or if `patch_size` is shorter than `dims`, the dimension from `dims` is taken. This ensures
-    the returned patch size is within the bounds of `dims`. If `patch_size` is a single number this is interpreted as a
-    patch of the same dimensionality of `dims` with that size in each dimension.
+    Given an image of dimensions `image_size`, return a patch size tuple taking the dimension from `patch_size` if this is
+    not 0/None. Otherwise, or if `patch_size` is shorter than `image_size`, the dimension from `image_size` is taken. This ensures
+    the returned patch size is within the bounds of `image_size`. If `patch_size` is a single number this is interpreted as a
+    patch of the same dimensionality of `image_size` with that size in each dimension.
     """
-    ndim = len(dims)
+    ndim = len(image_size)
 
     try:
         # if a single value was given as patch size, treat this as the size of the patch over all dimensions
         single_patch_size = int(patch_size)
-        patch_size = (single_patch_size,) * ndim
+        patch_size = ensure_tuple_rep(single_patch_size, ndim)
     except TypeError:  # raised if the patch size is multiple values
         # ensure patch size is at least as long as number of dimensions
         patch_size = ensure_tuple_size(patch_size, ndim)
 
     # ensure patch size dimensions are not larger than image dimension, if a dimension is None or 0 use whole dimension
-    return tuple(min(ms, ps or ms) for ms, ps in zip(dims, patch_size))
+    return tuple(min(ms, ps or ms) for ms, ps in zip(image_size, patch_size))
 
 
 def list_data_collate(batch):

@@ -67,6 +67,7 @@ class SlidingWindowInferer(Inferer):
 
     Args:
         roi_size (list, tuple): the window size to execute SlidingWindow evaluation.
+            If it has have non-positive components, the corresponding `inputs` size will be used.
         sw_batch_size: the batch size to run window slices.
         overlap: Amount of overlap between scans.
         mode: {``"constant"``, ``"gaussian"``}
@@ -85,8 +86,6 @@ class SlidingWindowInferer(Inferer):
         self, roi_size, sw_batch_size: int = 1, overlap: float = 0.25, mode: Union[BlendMode, str] = BlendMode.CONSTANT
     ):
         Inferer.__init__(self)
-        if not isinstance(roi_size, (list, tuple)):
-            raise ValueError("must specify the roi size in a list or tuple for SlidingWindow.")
         self.roi_size = roi_size
         self.sw_batch_size = sw_batch_size
         self.overlap = overlap

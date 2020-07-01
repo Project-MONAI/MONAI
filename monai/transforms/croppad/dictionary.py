@@ -22,7 +22,7 @@ from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.croppad.array import CenterSpatialCrop, DivisiblePad, SpatialCrop, SpatialPad, BorderPad
 from monai.transforms.utils import generate_pos_neg_label_crop_centers, generate_spatial_bounding_box
-from monai.utils.misc import ensure_tuple, ensure_tuple_rep
+from monai.utils.misc import ensure_tuple, ensure_tuple_rep, fall_back_tuple
 from monai.utils.enums import NumpyPadMode, Method
 
 NumpyPadModeSequence = Union[Sequence[Union[NumpyPadMode, str]], NumpyPadMode, str]
@@ -46,6 +46,7 @@ class SpatialPadd(MapTransform):
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             spatial_size (list): the spatial size of output data after padding.
+                If its components have non-positive values, the corresponding size of input image will be used.
             method: {``"symmetric"``, ``"end"``}
                 Pad image symmetric on every side or only pad at the end sides. Defaults to ``"symmetric"``.
             mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
@@ -177,6 +178,7 @@ class CenterSpatialCropd(MapTransform):
         keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
         roi_size (list, tuple): the size of the crop region e.g. [224,224,128]
+            If its components have non-positive values, the corresponding size of input image will be used.
     """
 
     def __init__(self, keys: KeysCollection, roi_size):
@@ -200,8 +202,9 @@ class RandSpatialCropd(Randomizable, MapTransform):
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
-        roi_size (list, tuple): if `random_size` is True, the spatial size of the minimum crop region.
-            if `random_size` is False, specify the expected ROI size to crop. e.g. [224, 224, 128]
+        roi_size (list, tuple): if `random_size` is True, it specifies the minimum crop region.
+            if `random_size` is False, it specifies the expected ROI size to crop. e.g. [224, 224, 128]
+            If its components have non-positive values, the corresponding size of input image will be used.
         random_center: crop at random position as center or the image center.
         random_size: crop with random size or specific size ROI.
             The actual size is sampled from `randint(roi_size, img_size)`.
@@ -216,7 +219,7 @@ class RandSpatialCropd(Randomizable, MapTransform):
         self._size = None
 
     def randomize(self, img_size):
-        self._size = ensure_tuple_rep(self.roi_size, len(img_size))
+        self._size = fall_back_tuple(self.roi_size, img_size)
         if self.random_size:
             self._size = [self.R.randint(low=self._size[i], high=img_size[i] + 1) for i in range(len(img_size))]
         if self.random_center:
@@ -331,6 +334,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
             See also: :py:class:`monai.transforms.compose.MapTransform`
         label_key: name of key for label image, this will be used for finding foreground/background.
         spatial_size (sequence of int): the spatial size of the crop region e.g. [224, 224, 128].
+            If its components have non-positive values, the corresponding size of `data[label_key]` will be used.
         pos: used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
             foreground voxel as a center rather than a background voxel.
         neg: used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
@@ -372,6 +376,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         self.centers = None
 
     def randomize(self, label, image):
+        self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
         self.centers = generate_pos_neg_label_crop_centers(
             label, self.spatial_size, self.num_samples, self.pos_ratio, image, self.image_threshold, self.R
         )
