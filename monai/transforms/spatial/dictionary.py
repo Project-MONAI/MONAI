@@ -262,6 +262,7 @@ class Resized(MapTransform):
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
         spatial_size (tuple or list): expected shape of spatial dimensions after resize operation.
+            If `spatial_size` are not defined, or smaller than 1, the transform will use the spatial size of `img`.
         mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
