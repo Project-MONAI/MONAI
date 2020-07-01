@@ -13,10 +13,11 @@ A collection of generic interfaces for MONAI transforms.
 """
 
 import warnings
-from typing import Hashable
+from typing import Hashable, Optional, Tuple, Any
 from abc import ABC, abstractmethod
 import numpy as np
 
+from monai.config.type_definitions import KeysCollection
 from monai.utils.misc import ensure_tuple, get_seed
 from .utils import apply_transform
 
@@ -41,19 +42,32 @@ class Transform(ABC):
     """
 
     @abstractmethod
-    def __call__(self, data, *args, **kwargs):
+    def __call__(self, data: Any):
         """
         ``data`` is an element which often comes from an iteration over an
         iterable, such as :py:class:`torch.utils.data.Dataset`. This method should
         return an updated version of ``data``.
         To simplify the input validations, most of the transforms assume that
 
-        - ``data`` component is a "channel-first" array,
-        - the channel dimension is not omitted even if number of channels is one.
+        - ``data`` is a Numpy ndarray, PyTorch Tensor or string
+        - the data shape can be:
+
+          #. string data without shape, `LoadNifti` and `LoadPNG` transforms expect file paths
+          #. most of the pre-processing transforms expect: ``(num_channels, spatial_dim_1[, spatial_dim_2, ...])``,
+             except that `AddChannel` expects (spatial_dim_1[, spatial_dim_2, ...]) and
+             `AsChannelFirst` expects (spatial_dim_1[, spatial_dim_2, ...], num_channels)
+          #. most of the post-processing transforms expect
+             ``(batch_size, num_channels, spatial_dim_1[, spatial_dim_2, ...])``
+
+        - the channel dimension is not omitted even if number of channels is one
 
         This method can optionally take additional arguments to help execute transformation operation.
+
+        Raises:
+            NotImplementedError: Subclass {self.__class__.__name__} must implement the compute method
+
         """
-        raise NotImplementedError
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement the compute method")
 
 
 class Randomizable(ABC):
@@ -62,20 +76,24 @@ class Randomizable(ABC):
     this is mainly for randomized data augmentation transforms.
     """
 
-    R = np.random.RandomState()
+    R: np.random.RandomState = np.random.RandomState()
 
-    def set_random_state(self, seed=None, state=None):
+    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
         """
         Set the random state locally, to control the randomness, the derived
         classes should use :py:attr:`self.R` instead of `np.random` to introduce random
         factors.
 
         Args:
-            seed (int): set the random state with an integer seed.
+            seed: set the random state with an integer seed.
             state (np.random.RandomState): set the random state with a `np.random.RandomState` object.
 
         Returns:
             a Randomizable instance.
+
+        Raises:
+            ValueError: `state` must be a `np.random.RandomState`, got {type(state)}
+
         """
         if seed is not None:
             _seed = id(seed) if not isinstance(seed, int) else seed
@@ -92,7 +110,7 @@ class Randomizable(ABC):
         return self
 
     @abstractmethod
-    def randomize(self, *args, **kwargs):
+    def randomize(self):
         """
         Within this method, :py:attr:`self.R` should be used, instead of `np.random`, to introduce random factors.
 
@@ -101,8 +119,12 @@ class Randomizable(ABC):
 
         This method can optionally take additional arguments so that the random factors are generated based on
         properties of the input data.
+
+        Raises:
+            NotImplementedError: Subclass {self.__class__.__name__} must implement the compute method
+
         """
-        raise NotImplementedError
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement the compute method")
 
 
 class Compose(Randomizable):
@@ -166,15 +188,15 @@ class Compose(Randomizable):
         them are called on the labels.
     """
 
-    def __init__(self, transforms=None):
+    def __init__(self, transforms=None) -> None:
         if transforms is None:
             transforms = []
         if not isinstance(transforms, (list, tuple)):
-            raise ValueError("Parameters 'transforms' must be a list or tuple")
+            raise ValueError("Parameters 'transforms' must be a list or tuple.")
         self.transforms = transforms
         self.set_random_state(seed=get_seed())
 
-    def set_random_state(self, seed=None, state=None):
+    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
         for _transform in self.transforms:
             if not isinstance(_transform, Randomizable):
                 continue
@@ -189,7 +211,7 @@ class Compose(Randomizable):
             except TypeError as type_error:
                 tfm_name: str = type(_transform).__name__
                 warnings.warn(
-                    f'Transform "{tfm_name}" in Compose not randomized\n{tfm_name}.{type_error}.', RuntimeWarning,
+                    f'Transform "{tfm_name}" in Compose not randomized\n{tfm_name}.{type_error}.', RuntimeWarning
                 )
 
     def __call__(self, input_):
@@ -219,8 +241,8 @@ class MapTransform(Transform):
 
     """
 
-    def __init__(self, keys):
-        self.keys = ensure_tuple(keys)
+    def __init__(self, keys: KeysCollection):
+        self.keys: Tuple[Any, ...] = ensure_tuple(keys)
         if not self.keys:
             raise ValueError("keys unspecified")
         for key in self.keys:
@@ -229,4 +251,26 @@ class MapTransform(Transform):
 
     @abstractmethod
     def __call__(self, data):
-        raise NotImplementedError
+        """
+        ``data`` often comes from an iteration over an iterable,
+        such as :py:class:`torch.utils.data.Dataset`.
+
+        To simplify the input validations, this method assumes:
+
+        - ``data`` is a Python dictionary
+        - ``data[key]`` is a Numpy ndarray, PyTorch Tensor or string, where ``key`` is an element
+          of ``self.keys``, the data shape can be:
+
+          #. string data without shape, `LoadNiftid` and `LoadPNGd` transforms expect file paths
+          #. most of the pre-processing transforms expect: ``(num_channels, spatial_dim_1[, spatial_dim_2, ...])``,
+             except that `AddChanneld` expects (spatial_dim_1[, spatial_dim_2, ...]) and
+             `AsChannelFirstd` expects (spatial_dim_1[, spatial_dim_2, ...], num_channels)
+          #. most of the post-processing transforms expect
+             ``(batch_size, num_channels, spatial_dim_1[, spatial_dim_2, ...])``
+
+        - the channel dimension is not omitted even if number of channels is one
+
+        returns:
+            An updated dictionary version of ``data`` by applying the transform.
+        """
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement the compute method")
