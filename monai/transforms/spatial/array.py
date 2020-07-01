@@ -272,6 +272,7 @@ class Resize(Transform):
 
     Args:
         spatial_size (tuple or list): expected shape of spatial dimensions after resize operation.
+            If `spatial_size` are not defined, or smaller than 1, the transform will use the spatial size of `img`.
         mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
@@ -318,9 +319,10 @@ class Resize(Transform):
                 "len(spatial_size) cannot be smaller than the image spatial dimensions, "
                 f"got {output_ndim} and {input_ndim}."
             )
+        spatial_size = fall_back_tuple(self.spatial_size, img.shape[1:])
         resized = _torch_interp(
             input=torch.as_tensor(img[None], dtype=torch.float),
-            size=self.spatial_size,
+            size=spatial_size,
             mode=self.mode.value if mode is None else InterpolateMode(mode).value,
             align_corners=self.align_corners if align_corners is None else align_corners,
         )
