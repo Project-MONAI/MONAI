@@ -69,6 +69,8 @@ def download_url(url: str, filepath: str, md5_value: str = None):
 
     if url.startswith("https://drive.google.com"):
         gdown.download(url, filepath, quiet=False)
+        if not os.path.exists(filepath):
+            raise RuntimeError("download failed due to network issue or permission denied.")
     else:
 
         def _process_hook(blocknum, blocksize, totalsize):

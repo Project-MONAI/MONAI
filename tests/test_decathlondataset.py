@@ -39,9 +39,15 @@ class TestDecathlonDataset(unittest.TestCase):
             self.assertTrue("image_meta_dict" in dataset[0])
             self.assertTupleEqual(dataset[0]["image"].shape, (1, 33, 47, 34))
 
-        data = DecathlonDataset(
-            root_dir=tempdir, task="Task04_Hippocampus", transform=transform, section="validation", download=True
-        )
+        try:
+            data = DecathlonDataset(
+                root_dir=tempdir, task="Task04_Hippocampus", transform=transform, section="validation", download=True
+            )
+        except RuntimeError as e:
+            if str(e).startswith("download failed due to network issue or permission denied."):
+                shutil.rmtree(tempdir)
+                return
+
         _test_dataset(data)
         data = DecathlonDataset(
             root_dir=tempdir, task="Task04_Hippocampus", transform=transform, section="validation", download=False
