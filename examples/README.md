@@ -44,6 +44,8 @@ And stores these intermediate tensor values to an on-disk persistence representa
 The intermediate processed tensors are loaded from disk on each use for processing by the random-transforms for each analysis request.
 #### [notebooks/post_transforms](./notebooks/post_transforms.ipynb)
 This notebook shows the usage of several post transforms based on the model output of spleen segmentation task.
+#### [notebooks/public_datasets](./notebooks/public_datasets.ipynb)
+This notebook shows how to quickly set up training workflow based on `MedNISTDataset` and `DecathlonDataset`, and how to create a new dataset.
 #### [notebooks/spleen_segmentation_3d](./notebooks/spleen_segmentation_3d.ipynb)
 This notebook is an end-to-end training and evaluation example of 3D segmentation based on [MSD Spleen dataset](http://medicaldecathlon.com).
 The example shows the flexibility of MONAI modules in a PyTorch-based program:
