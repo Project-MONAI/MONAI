@@ -1,7 +1,15 @@
 # Requirements for testing
 -r requirements.txt
+coverage
+parameterized
+pytorch-ignite==0.3.0
+gdown==3.11.1
+scipy
+nibabel
+pillow
+tensorboard
+scikit-image>=0.14.2
 flake8>=3.8.1
-flake8-mypy
 flake8-bugbear
 flake8-comprehensions
 flake8-executable
@@ -10,6 +18,6 @@ mccabe
 pep8-naming
 pycodestyle
 pyflakes
-coverage
-parameterized
 black
+pytype>=2020.6.1
+mypy

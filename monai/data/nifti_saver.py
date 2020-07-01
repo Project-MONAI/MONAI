@@ -9,10 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional, Union
+
 import numpy as np
 import torch
+
 from monai.data.nifti_writer import write_nifti
+
 from .utils import create_file_basename
+from monai.utils.enums import GridSampleMode, GridSamplePadMode
 
 
 class NiftiSaver:
@@ -25,57 +30,56 @@ class NiftiSaver:
 
     def __init__(
         self,
-        output_dir="./",
-        output_postfix="seg",
-        output_ext=".nii.gz",
-        resample=True,
-        interp_order=3,
-        mode="constant",
-        cval=0,
-        dtype=None,
+        output_dir: str = "./",
+        output_postfix: str = "seg",
+        output_ext: str = ".nii.gz",
+        resample: bool = True,
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        dtype: Optional[np.dtype] = None,
     ):
         """
         Args:
-            output_dir (str): output image directory.
-            output_postfix (str): a string appended to all output file names.
-            output_ext (str): output file extension name.
+            output_dir: output image directory.
+            output_postfix: a string appended to all output file names.
+            output_ext: output file extension name.
             resample (bool): whether to resample before saving the data array.
-            interp_order (int): the order of the spline interpolation, default is InterpolationCode.SPLINE3.
-                The order has to be in the range 0 - 5.
-                https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.affine_transform.html
-                this option is used when `resample = True`.
-            mode (`reflect|constant|nearest|mirror|wrap`):
-                The mode parameter determines how the input array is extended beyond its boundaries.
-                this option is used when `resample = True`.
-            cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
-                this option is used when `resample = True`.
+            mode: {``"bilinear"``, ``"nearest"``}
+                This option is used when ``resample = True``.
+                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+                This option is used when ``resample = True``.
+                Padding mode for outside grid values. Defaults to ``"border"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             dtype (np.dtype, optional): convert the image data to save to this data type.
                 If None, keep the original type of data.
-
         """
         self.output_dir = output_dir
         self.output_postfix = output_postfix
         self.output_ext = output_ext
         self.resample = resample
-        self.interp_order = interp_order
-        self.mode = mode
-        self.cval = cval
+        self.mode: GridSampleMode = GridSampleMode(mode)
+        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
         self.dtype = dtype
         self._data_index = 0
 
-    def save(self, data, meta_data=None):
+    def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: dict = None):
         """
         Save data into a Nifti file.
-        The metadata could optionally have the following keys:
+        The meta_data could optionally have the following keys:
 
             - ``'filename_or_obj'`` -- for output file name creation, corresponding to filename or object.
             - ``'original_affine'`` -- for data orientation handling, defaulting to an identity matrix.
             - ``'affine'`` -- for data output affine, defaulting to an identity matrix.
             - ``'spatial_shape'`` -- for data output shape.
 
-        If meta_data is None, use the default index from 0 to save data instead.
+        When meta_data is specified, the saver will try to resample batch data from the space
+        defined by "affine" to the space defined by "original_affine".
 
-        args:
+        If meta_data is None, use the default index (starting from 0) as the filename.
+
+        Args:
             data (Tensor or ndarray): target data content that to be saved as a NIfTI format file.
                 Assuming the data shape starts with a channel dimension and followed by spatial dimensions.
             meta_data (dict): the meta data information corresponding to the data.
@@ -93,6 +97,9 @@ class NiftiSaver:
             data = data.detach().cpu().numpy()
         filename = create_file_basename(self.output_postfix, filename, self.output_dir)
         filename = f"{filename}{self.output_ext}"
+        # change data shape to be (channel, h, w, d)
+        while len(data.shape) < 4:
+            data = np.expand_dims(data, -1)
         # change data to "channel last" format and write to nifti format file
         data = np.moveaxis(data, 0, -1)
         write_nifti(
@@ -101,17 +108,27 @@ class NiftiSaver:
             affine=affine,
             target_affine=original_affine,
             resample=self.resample,
-            output_shape=spatial_shape,
-            interp_order=self.interp_order,
+            output_spatial_shape=spatial_shape,
             mode=self.mode,
-            cval=self.cval,
+            padding_mode=self.padding_mode,
             dtype=self.dtype or data.dtype,
         )
 
-    def save_batch(self, batch_data, meta_data=None):
-        """Save a batch of data into Nifti format files.
+    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data=None):
+        """
+        Save a batch of data into Nifti format files.
 
-        args:
+        Spatially it supports up to three dimensions, that is, H, HW, HWD for
+        1D, 2D, 3D respectively (with resampling supports for 2D and 3D only).
+
+        When saving multiple time steps or multiple channels `batch_data`,
+        time and/or modality axes should be appended after the batch dimensions.
+        For example, the shape of a batch of 2D eight-class
+        segmentation probabilities to be saved could be `(batch, 8, 64, 64)`;
+        in this case each item in the batch will be saved as (64, 64, 1, 8)
+        NIfTI file (the third dimension is reserved as a spatial dimension).
+
+        Args:
             batch_data (Tensor or ndarray): target batch data content that save into NIfTI format.
             meta_data (dict): every key-value in the meta_data is corresponding to a batch of data.
         """
