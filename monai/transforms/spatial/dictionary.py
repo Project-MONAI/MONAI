@@ -269,6 +269,7 @@ class Resized(MapTransform):
         align_corners (optional bool): This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+            It also can be a sequence of bool or None, each element corresponds to a key in ``keys``.
     """
 
     def __init__(
@@ -280,12 +281,13 @@ class Resized(MapTransform):
     ):
         super().__init__(keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.resizer = Resize(spatial_size=spatial_size, align_corners=align_corners)
+        self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
+        self.resizer = Resize(spatial_size=spatial_size)
 
     def __call__(self, data):
         d = dict(data)
         for idx, key in enumerate(self.keys):
-            d[key] = self.resizer(d[key], mode=self.mode[idx])
+            d[key] = self.resizer(d[key], mode=self.mode[idx], align_corners=self.align_corners[idx])
         return d
 
 
@@ -766,6 +768,7 @@ class Zoomd(MapTransform):
         align_corners (optional bool): This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+            It also can be a sequence of bool or None, each element corresponds to a key in ``keys``.
         keep_size (bool): Should keep original size (pad if needed), default is True.
     """
 
@@ -778,13 +781,14 @@ class Zoomd(MapTransform):
         keep_size: bool = True,
     ):
         super().__init__(keys)
-        self.zoomer = Zoom(zoom=zoom, align_corners=align_corners, keep_size=keep_size)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
+        self.zoomer = Zoom(zoom=zoom, keep_size=keep_size)
 
     def __call__(self, data):
         d = dict(data)
         for idx, key in enumerate(self.keys):
-            d[key] = self.zoomer(d[key], mode=self.mode[idx])
+            d[key] = self.zoomer(d[key], mode=self.mode[idx], align_corners=self.align_corners[idx])
         return d
 
 
@@ -808,6 +812,7 @@ class RandZoomd(Randomizable, MapTransform):
         align_corners (optional bool): This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+            It also can be a sequence of bool or None, each element corresponds to a key in ``keys``.
         keep_size: Should keep original size (pad if needed), default is True.
     """
 
@@ -829,7 +834,7 @@ class RandZoomd(Randomizable, MapTransform):
         self.prob = prob
 
         self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.align_corners = align_corners
+        self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.keep_size = keep_size
 
         self._do_transform = False
@@ -847,9 +852,9 @@ class RandZoomd(Randomizable, MapTransform):
         d = dict(data)
         if not self._do_transform:
             return d
-        zoomer = Zoom(self._zoom, align_corners=self.align_corners, keep_size=self.keep_size)
+        zoomer = Zoom(self._zoom, keep_size=self.keep_size)
         for idx, key in enumerate(self.keys):
-            d[key] = zoomer(d[key], mode=self.mode[idx])
+            d[key] = zoomer(d[key], mode=self.mode[idx], align_corners=self.align_corners[idx])
         return d
 
 
