@@ -17,6 +17,7 @@ pip install -r https://raw.githubusercontent.com/Project-MONAI/MONAI/master/requ
 ```
 
 ### 2. List of examples
+#### [A brief guide to MONAI for PyTorch users (Colab)](https://colab.research.google.com/drive/1boqy7ENpKrqaJoxFlbHIBnIODAs1Ih1T)
 #### [classification_3d](./classification_3d)
 Training and evaluation examples of 3D classification based on DenseNet3D and [IXI dataset](https://brain-development.org/ixi-dataset).
 The examples are standard PyTorch programs and have both dictionary-based and array-based transformation versions.
