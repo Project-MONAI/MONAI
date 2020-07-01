@@ -290,12 +290,17 @@ class Resize(Transform):
         self.mode: InterpolateMode = InterpolateMode(mode)
         self.align_corners = align_corners
 
-    def __call__(self, img, mode: Optional[Union[InterpolateMode, str]] = None):
+    def __call__(
+        self, img, mode: Optional[Union[InterpolateMode, str]] = None, align_corners: Optional[bool] = None,
+    ):
         """
         Args:
-            img (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
+            img (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]).
             mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
                 The interpolation mode. Defaults to ``self.mode``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+            align_corners: This only has an effect when mode is
+                'linear', 'bilinear', 'bicubic' or 'trilinear'. Defaults to ``self.align_corners``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
 
         Raises:
@@ -317,7 +322,7 @@ class Resize(Transform):
             input=torch.as_tensor(img[None], dtype=torch.float),
             size=self.spatial_size,
             mode=self.mode.value if mode is None else InterpolateMode(mode).value,
-            align_corners=self.align_corners,
+            align_corners=self.align_corners if align_corners is None else align_corners,
         )
         resized = resized.squeeze(0).detach().cpu().numpy()
         return resized
@@ -446,18 +451,25 @@ class Zoom(Transform):
         self.keep_size = keep_size
 
     def __call__(  # type: ignore # see issue #495
-        self, img, mode: Optional[Union[InterpolateMode, str]] = None
+        self, img, mode: Optional[Union[InterpolateMode, str]] = None, align_corners: Optional[bool] = None,
     ):
         """
         Args:
-            img (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]),
+            img (ndarray): channel first array, must have shape: (num_channels, H[, W, ..., ]).
+            mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
+                The interpolation mode. Defaults to ``self.mode``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+            align_corners: This only has an effect when mode is
+                'linear', 'bilinear', 'bicubic' or 'trilinear'. Defaults to ``self.align_corners``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+
         """
         self.zoom = ensure_tuple_rep(self.zoom, img.ndim - 1)  # match the spatial image dim
         zoomed = _torch_interp(
             input=torch.as_tensor(img[None], dtype=torch.float),
             scale_factor=list(self.zoom),
             mode=self.mode.value if mode is None else InterpolateMode(mode).value,
-            align_corners=self.align_corners,
+            align_corners=self.align_corners if align_corners is None else align_corners,
         )
         zoomed = zoomed.squeeze(0).detach().cpu().numpy()
         if not self.keep_size or np.allclose(img.shape, zoomed.shape):
@@ -715,20 +727,27 @@ class RandZoom(Randomizable, Transform):
         else:
             self._zoom = self.R.uniform(self.min_zoom, self.max_zoom)
 
-    def __call__(self, img, mode: Optional[Union[InterpolateMode, str]] = None):
+    def __call__(
+        self, img, mode: Optional[Union[InterpolateMode, str]] = None, align_corners: Optional[bool] = None,
+    ):
         """
         Args:
             img (ndarray): channel first array, must have shape 2D: (nchannels, H, W), or 3D: (nchannels, H, W, D).
             mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
                 The interpolation mode. Defaults to ``self.mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+            align_corners: This only has an effect when mode is
+                'linear', 'bilinear', 'bicubic' or 'trilinear'. Defaults to ``self.align_corners``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
         """
         self.randomize()
         _dtype = np.float32
         if not self._do_transform:
             return img.astype(_dtype)
-        zoomer = Zoom(self._zoom, align_corners=self.align_corners, keep_size=self.keep_size)
-        return zoomer(img, mode=mode or self.mode).astype(_dtype)
+        zoomer = Zoom(self._zoom, keep_size=self.keep_size)
+        return zoomer(
+            img, mode=mode or self.mode, align_corners=self.align_corners if align_corners is None else align_corners,
+        ).astype(_dtype)
 
 
 class AffineGrid(Transform):
@@ -917,7 +936,7 @@ class Resample(Transform):
     def __init__(
         self,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.ZEROS,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
     ):
@@ -930,7 +949,7 @@ class Resample(Transform):
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
-                Padding mode for outside grid values. Defaults to ``"zeros"``.
+                Padding mode for outside grid values. Defaults to ``"border"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             as_tensor_output: whether to return a torch tensor. Defaults to False.
             device (torch.device): device on which the tensor will be allocated.
@@ -998,7 +1017,7 @@ class Affine(Transform):
         scale_params=None,
         spatial_size=None,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.ZEROS,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
     ):
@@ -1022,7 +1041,7 @@ class Affine(Transform):
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
-                Padding mode for outside grid values. Defaults to ``"zeros"``.
+                Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
@@ -1084,7 +1103,7 @@ class RandAffine(Randomizable, Transform):
         scale_range=None,
         spatial_size=None,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.ZEROS,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
     ):
@@ -1099,7 +1118,7 @@ class RandAffine(Randomizable, Transform):
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
-                Padding mode for outside grid values. Defaults to ``"zeros"``.
+                Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
@@ -1186,7 +1205,7 @@ class Rand2DElastic(Randomizable, Transform):
         scale_range=None,
         spatial_size=None,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.ZEROS,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
     ):
@@ -1203,7 +1222,7 @@ class Rand2DElastic(Randomizable, Transform):
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
-                Padding mode for outside grid values. Defaults to ``"zeros"``.
+                Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
@@ -1296,7 +1315,7 @@ class Rand3DElastic(Randomizable, Transform):
         scale_range=None,
         spatial_size=None,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.ZEROS,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
     ):
@@ -1314,7 +1333,7 @@ class Rand3DElastic(Randomizable, Transform):
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
-                Padding mode for outside grid values. Defaults to ``"zeros"``.
+                Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.

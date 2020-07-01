@@ -29,7 +29,14 @@ TEST_CASES = [
         np.arange(27).reshape((3, 3, 3)),
     ],
     [
-        {"spacing": (0.3, 0.3), "magnitude_range": (1.0, 2.0), "prob": 0.9, "as_tensor_output": False, "device": None},
+        {
+            "spacing": (0.3, 0.3),
+            "magnitude_range": (1.0, 2.0),
+            "prob": 0.9,
+            "as_tensor_output": False,
+            "device": None,
+            "padding_mode": "zeros",
+        },
         {"img": torch.ones((3, 3, 3)), "spatial_size": (2, 2), "mode": "bilinear"},
         np.array(
             [

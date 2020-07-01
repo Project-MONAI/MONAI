@@ -45,6 +45,7 @@ TEST_CASES = [
             shear_range=[1, 2],
             translate_range=[2, 1],
             as_tensor_output=True,
+            padding_mode="zeros",
             spatial_size=(2, 2, 2),
             device=None,
         ),

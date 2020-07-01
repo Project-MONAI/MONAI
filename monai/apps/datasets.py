@@ -15,7 +15,7 @@ import tarfile
 import numpy as np
 from typing import Any, Callable
 from monai.data import CacheDataset
-from monai.transforms import Randomizable
+from monai.transforms import Randomizable, LoadNiftid, LoadPNGd, AddChanneld, Compose
 from monai.data import load_decathalon_datalist
 from .utils import download_and_extract
 
@@ -28,7 +28,8 @@ class MedNISTDataset(Randomizable, CacheDataset):
     Args:
         root_dir: target directory to download and load MedNIST dataset.
         section: expected data section, can be: `training`, `validation` or `test`.
-        transform: transforms to execute operations on input data.
+        transform: transforms to execute operations on input data. the default transform is composed by
+            `LoadPNGd` and `AddChanneld`, which can load data into numpy array with [C, H, W] shape.
         download: whether to download and extract the MedNIST from resource link, default is False.
             if expected file already exists, skip downloading even set it to True.
             user can manually copy `MedNIST.tar.gz` file or `MedNIST` folder to root directory.
@@ -57,7 +58,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
         self,
         root_dir: str,
         section: str,
-        transform: Callable[..., Any],
+        transform: Callable[..., Any] = Compose([LoadPNGd("image"), AddChanneld("image")]),
         download: bool = False,
         seed: int = 0,
         val_frac: float = 0.1,
@@ -136,7 +137,8 @@ class DecathlonDataset(Randomizable, CacheDataset):
             "Task03_Liver", "Task04_Hippocampus", "Task05_Prostate", "Task06_Lung", "Task07_Pancreas",
             "Task08_HepaticVessel", "Task09_Spleen", "Task10_Colon").
         section: expected data section, can be: `training`, `validation` or `test`.
-        transform: transforms to execute operations on input data.
+        transform: transforms to execute operations on input data. the default transform is composed by
+            `LoadNiftid` and `AddChanneld`, which can load data into numpy array with [C, H, W, D] shape.
         download: whether to download and extract the Decathlon from resource link, default is False.
             if expected file already exists, skip downloading even set it to True.
             user can manually copy tar file or dataset folder to the root directory.
@@ -202,7 +204,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         root_dir: str,
         task: str,
         section: str,
-        transform: Callable[..., Any],
+        transform: Callable[..., Any] = Compose([LoadNiftid(["image", "label"]), AddChanneld(["image", "label"])]),
         download: bool = False,
         seed: int = 0,
         val_frac: float = 0.2,

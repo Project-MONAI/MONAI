@@ -18,7 +18,7 @@ import zipfile
 from monai.utils import progress_bar
 from monai.utils import optional_import
 
-gdown, has_gdown = optional_import("gdown", "3.11.1")
+gdown, has_gdown = optional_import("gdown", "3.6")
 
 
 def check_md5(filepath: str, md5_value: str = None):
@@ -69,6 +69,8 @@ def download_url(url: str, filepath: str, md5_value: str = None):
 
     if url.startswith("https://drive.google.com"):
         gdown.download(url, filepath, quiet=False)
+        if not os.path.exists(filepath):
+            raise RuntimeError("download failed due to network issue or permission denied.")
     else:
 
         def _process_hook(blocknum, blocksize, totalsize):
