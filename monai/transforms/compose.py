@@ -72,10 +72,21 @@ class Transform(ABC):
 
 class Randomizable(ABC):
     """
-    An interface for handling local numpy random state.
-    this is mainly for randomized data augmentation transforms.
-    """
+    An interface for handling numpy random state locally based on a class variable `R`,
+    which is an instance of `np.random.RandomState()`.
+    This is mainly for randomized data augmentation transforms. For example::
 
+        class RandShiftIntensity(Randomizable):
+            def randomize():
+                self._offset = self.R.uniform(low=0, high=100)
+            def __call__(self, img):
+                self.randomize()
+                return img + self._offset
+
+        transform = RandShiftIntensity()
+        transform.set_random_state(seed=0)
+
+    """
     R: np.random.RandomState = np.random.RandomState()
 
     def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
