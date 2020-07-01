@@ -51,6 +51,7 @@ TEST_CASES = [
             "magnitude_range": (1.0, 2.0),
             "prob": 0.9,
             "as_tensor_output": False,
+            "padding_mode": "zeros",
             "device": None,
             "spatial_size": (2, 2),
             "mode": "bilinear",
