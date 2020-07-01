@@ -306,7 +306,7 @@ class RandAffined(Randomizable, MapTransform):
         translate_range=None,
         scale_range=None,
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
-        padding_mode: GridSamplePadModeSequence = GridSamplePadMode.ZEROS,
+        padding_mode: GridSamplePadModeSequence = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
     ):
@@ -390,7 +390,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
         translate_range=None,
         scale_range=None,
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
-        padding_mode: GridSamplePadModeSequence = GridSamplePadMode.ZEROS,
+        padding_mode: GridSamplePadModeSequence = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
     ):
@@ -489,7 +489,7 @@ class Rand3DElasticd(Randomizable, MapTransform):
         translate_range=None,
         scale_range=None,
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
-        padding_mode: GridSamplePadModeSequence = GridSamplePadMode.ZEROS,
+        padding_mode: GridSamplePadModeSequence = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
     ):

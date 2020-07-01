@@ -936,7 +936,7 @@ class Resample(Transform):
     def __init__(
         self,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.ZEROS,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
     ):
@@ -1017,7 +1017,7 @@ class Affine(Transform):
         scale_params=None,
         spatial_size=None,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.ZEROS,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
     ):
@@ -1103,7 +1103,7 @@ class RandAffine(Randomizable, Transform):
         scale_range=None,
         spatial_size=None,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.ZEROS,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
     ):
@@ -1205,7 +1205,7 @@ class Rand2DElastic(Randomizable, Transform):
         scale_range=None,
         spatial_size=None,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.ZEROS,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
     ):
@@ -1315,7 +1315,7 @@ class Rand3DElastic(Randomizable, Transform):
         scale_range=None,
         spatial_size=None,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.ZEROS,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
     ):
