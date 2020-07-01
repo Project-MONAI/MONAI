@@ -87,6 +87,7 @@ class Randomizable(ABC):
         transform.set_random_state(seed=0)
 
     """
+
     R: np.random.RandomState = np.random.RandomState()
 
     def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
