@@ -15,7 +15,7 @@ from typing import Callable, Union
 import torch
 from torch.nn.modules.loss import _Loss
 
-from monai.networks.utils import one_hot
+from monai.networks import one_hot
 from monai.utils import LossReduction, Weight
 
 

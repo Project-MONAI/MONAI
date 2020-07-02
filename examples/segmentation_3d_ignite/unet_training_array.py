@@ -32,7 +32,7 @@ from monai.handlers import (
     MeanDice,
     stopping_fn_from_metric,
 )
-from monai.networks.utils import predict_segmentation
+from monai.networks import predict_segmentation
 
 
 def main():

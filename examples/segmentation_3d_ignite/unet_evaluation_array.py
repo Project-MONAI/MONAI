@@ -27,7 +27,7 @@ from monai.data import NiftiDataset, create_test_image_3d
 from monai.inferers import sliding_window_inference
 from monai.transforms import Compose, AddChannel, ScaleIntensity, ToTensor
 from monai.networks.nets import UNet
-from monai.networks.utils import predict_segmentation
+from monai.networks import predict_segmentation
 
 
 def main():

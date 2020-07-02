@@ -22,8 +22,7 @@ from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.croppad.array import CenterSpatialCrop, DivisiblePad, SpatialCrop, SpatialPad, BorderPad
 from monai.transforms.utils import generate_pos_neg_label_crop_centers, generate_spatial_bounding_box
-from monai.utils import ensure_tuple, ensure_tuple_rep, fall_back_tuple
-from monai.utils import NumpyPadMode, Method
+from monai.utils import ensure_tuple, ensure_tuple_rep, fall_back_tuple, NumpyPadMode, Method
 
 NumpyPadModeSequence = Union[Sequence[Union[NumpyPadMode, str]], NumpyPadMode, str]
 

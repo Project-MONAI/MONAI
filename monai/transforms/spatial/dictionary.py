@@ -38,8 +38,14 @@ from monai.transforms.spatial.array import (
     _torch_interp,
 )
 from monai.transforms.utils import create_grid
-from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode
-from monai.utils import ensure_tuple, ensure_tuple_rep, fall_back_tuple
+from monai.utils import (
+    GridSampleMode,
+    GridSamplePadMode,
+    InterpolateMode,
+    ensure_tuple,
+    ensure_tuple_rep,
+    fall_back_tuple,
+)
 
 GridSampleModeSequence = Union[Sequence[Union[GridSampleMode, str]], GridSampleMode, str]
 GridSamplePadModeSequence = Union[Sequence[Union[GridSamplePadMode, str]], GridSamplePadMode, str]

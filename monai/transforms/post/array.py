@@ -18,7 +18,7 @@ from typing import Optional, Callable
 import torch
 import torch.nn.functional as F
 from monai.transforms.compose import Transform
-from monai.networks.utils import one_hot
+from monai.networks import one_hot
 from monai.transforms.utils import get_largest_connected_component_mask
 from monai.utils import ensure_tuple
 
