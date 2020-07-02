@@ -17,8 +17,8 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 from typing import Optional
 
-from monai.config.type_definitions import KeysCollection
-from monai.utils.misc import ensure_tuple_rep
+from monai.config import KeysCollection
+from monai.utils import ensure_tuple_rep
 from monai.transforms.compose import MapTransform
 from monai.transforms.post.array import (
     SplitChannel,

@@ -15,7 +15,7 @@ import numpy as np
 from parameterized import parameterized
 from monai.transforms.utility.dictionary import SimulateDelayd
 from tests.utils import NumpyImageTestCase2D
-from monai.config.type_definitions import KeysCollection
+from monai.config import KeysCollection
 
 
 class TestSimulateDelay(NumpyImageTestCase2D):

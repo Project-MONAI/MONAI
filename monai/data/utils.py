@@ -18,9 +18,8 @@ from itertools import starmap, product
 import torch
 from torch.utils.data._utils.collate import default_collate
 import numpy as np
-from monai.utils import ensure_tuple_size, ensure_tuple_rep, optional_import
+from monai.utils import ensure_tuple_size, ensure_tuple_rep, optional_import, NumpyPadMode, BlendMode
 from monai.networks.layers.simplelayers import GaussianFilter
-from monai.utils.enums import NumpyPadMode, BlendMode
 
 nib, _ = optional_import("nibabel")
 

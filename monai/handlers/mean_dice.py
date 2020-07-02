@@ -14,8 +14,7 @@ from typing import Callable, Optional, Sequence, Union
 import torch
 
 from monai.metrics import DiceMetric
-from monai.utils import exact_version, optional_import
-from monai.utils.enums import MetricReduction
+from monai.utils import exact_version, optional_import, MetricReduction
 
 NotComputableError, _ = optional_import("ignite.exceptions", "0.3.0", exact_version, "NotComputableError")
 Metric, _ = optional_import("ignite.metrics", "0.3.0", exact_version, "Metric")

@@ -14,7 +14,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from monai.networks.layers.convutils import gaussian_1d, same_padding
-from monai.utils.misc import ensure_tuple_rep
+from monai.utils import ensure_tuple_rep
 
 __all__ = ["SkipConnection", "Flatten", "GaussianFilter"]
 

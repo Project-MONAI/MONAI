@@ -14,8 +14,7 @@ from typing import Callable, Union
 import torch
 import torch.nn.functional as F
 from monai.data.utils import compute_importance_map, dense_patch_slices, get_valid_patch_size
-from monai.utils.enums import BlendMode, PytorchPadMode
-from monai.utils import fall_back_tuple
+from monai.utils import BlendMode, PytorchPadMode, fall_back_tuple
 
 
 def sliding_window_inference(

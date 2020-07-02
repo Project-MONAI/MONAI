@@ -10,14 +10,14 @@
 # limitations under the License.
 
 from .csv_saver import CSVSaver
+from .dataloader import DataLoader
 from .dataset import Dataset, PersistentDataset, CacheDataset, ZipDataset, ArrayDataset
+from .decathalon_datalist import load_decathalon_datalist
 from .grid_dataset import GridPatchDataset
 from .nifti_reader import NiftiDataset
 from .nifti_saver import NiftiSaver
 from .nifti_writer import write_nifti
-from .synthetic import *
-from .utils import *
 from .png_saver import PNGSaver
 from .png_writer import write_png
-from .decathalon_datalist import load_decathalon_datalist
-from .dataloader import *
+from .synthetic import *
+from .utils import *
