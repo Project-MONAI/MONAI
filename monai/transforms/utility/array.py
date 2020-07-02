@@ -227,6 +227,8 @@ class DataStats(Transform):
     """
     Utility transform to show the statistics of data for debug or analysis.
     It can be inserted into any place of a transform chain and check results of previous transforms.
+    It support both `numpy.ndarray` and `torch.tensor` as input data,
+    so it can be used in pre-processing and post-processing.
     """
 
     def __init__(
