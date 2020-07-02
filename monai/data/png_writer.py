@@ -15,7 +15,7 @@ import numpy as np
 
 from monai.transforms import Resize
 from monai.utils import ensure_tuple_rep, min_version, optional_import
-from monai.utils.enums import InterpolateMode
+from monai.utils import InterpolateMode
 
 Image, _ = optional_import("PIL", name="Image")
 

@@ -15,7 +15,7 @@ import torch
 import warnings
 import numpy as np
 from monai.networks.utils import one_hot
-from monai.utils.enums import Average
+from monai.utils import Average
 
 
 def _calculate(y, y_pred):

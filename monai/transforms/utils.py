@@ -16,7 +16,7 @@ from typing import Optional, Callable
 import torch
 import numpy as np
 
-from monai.config.type_definitions import IndexSelection
+from monai.config import IndexSelection
 from monai.utils import ensure_tuple, ensure_tuple_size, fall_back_tuple, optional_import, min_version
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)

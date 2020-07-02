@@ -14,7 +14,7 @@ import warnings
 
 import torch
 from monai.networks.utils import one_hot
-from monai.utils.enums import MetricReduction
+from monai.utils import MetricReduction
 
 
 class DiceMetric:

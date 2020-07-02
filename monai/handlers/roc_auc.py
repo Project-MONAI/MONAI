@@ -15,7 +15,7 @@ import torch
 
 from monai.metrics import compute_roc_auc
 from monai.utils import exact_version, optional_import
-from monai.utils.enums import Average
+from monai.utils import Average
 
 Metric, _ = optional_import("ignite.metrics", "0.3.0", exact_version, "Metric")
 

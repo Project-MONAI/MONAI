@@ -16,7 +16,7 @@ import torch.nn as nn
 
 from monai.networks.utils import to_norm_affine
 from monai.utils import ensure_tuple
-from monai.utils.enums import GridSampleMode, GridSamplePadMode
+from monai.utils import GridSampleMode, GridSamplePadMode
 
 __all__ = ["AffineTransform"]
 
