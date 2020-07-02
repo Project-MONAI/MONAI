@@ -28,8 +28,9 @@ class MedNISTDataset(Randomizable, CacheDataset):
     Args:
         root_dir: target directory to download and load MedNIST dataset.
         section: expected data section, can be: `training`, `validation` or `test`.
-        transform: transforms to execute operations on input data. the default transform is composed by
-            `LoadPNGd` and `AddChanneld`, which can load data into numpy array with [C, H, W] shape.
+        transform: transforms to execute operations on input data. the default transform is `LoadPNGd`,
+            which can load data into numpy array with [H, W] shape. for further usage, use `AddChanneld`
+            to convert the shape to [C, H, W, D].
         download: whether to download and extract the MedNIST from resource link, default is False.
             if expected file already exists, skip downloading even set it to True.
             user can manually copy `MedNIST.tar.gz` file or `MedNIST` folder to root directory.
@@ -58,7 +59,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
         self,
         root_dir: str,
         section: str,
-        transform: Callable[..., Any] = Compose([LoadPNGd("image"), AddChanneld("image")]),
+        transform: Callable[..., Any] = LoadPNGd("image"),
         download: bool = False,
         seed: int = 0,
         val_frac: float = 0.1,
@@ -137,8 +138,9 @@ class DecathlonDataset(Randomizable, CacheDataset):
             "Task03_Liver", "Task04_Hippocampus", "Task05_Prostate", "Task06_Lung", "Task07_Pancreas",
             "Task08_HepaticVessel", "Task09_Spleen", "Task10_Colon").
         section: expected data section, can be: `training`, `validation` or `test`.
-        transform: transforms to execute operations on input data. the default transform is composed by
-            `LoadNiftid` and `AddChanneld`, which can load data into numpy array with [C, H, W, D] shape.
+        transform: transforms to execute operations on input data. the default transform is `LoadNiftid`,
+            which can load Nifit format data into numpy array with [H, W, D] or [H, W, D, C] shape.
+            for further usage, use `AddChanneld` or `AsChannelFirstd` to convert the shape to [C, H, W, D].
         download: whether to download and extract the Decathlon from resource link, default is False.
             if expected file already exists, skip downloading even set it to True.
             user can manually copy tar file or dataset folder to the root directory.
@@ -154,6 +156,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
             if 0 a single thread will be used. Default is 0.
 
     Example::
+
         transform = Compose(
             [
                 LoadNiftid(keys=["image", "label"]),
@@ -162,9 +165,11 @@ class DecathlonDataset(Randomizable, CacheDataset):
                 ToTensord(keys=["image", "label"]),
             ]
         )
+
         data = DecathlonDataset(
             root_dir="./", task="Task09_Spleen", transform=transform, section="validation", download=True
         )
+
         print(data[0]["image"], data[0]["label"])
 
     Raises:
@@ -204,7 +209,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         root_dir: str,
         task: str,
         section: str,
-        transform: Callable[..., Any] = Compose([LoadNiftid(["image", "label"]), AddChanneld(["image", "label"])]),
+        transform: Callable[..., Any] = LoadNiftid(["image", "label"]),
         download: bool = False,
         seed: int = 0,
         val_frac: float = 0.2,

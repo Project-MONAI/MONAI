@@ -53,6 +53,8 @@ class TestDecathlonDataset(unittest.TestCase):
             root_dir=tempdir, task="Task04_Hippocampus", transform=transform, section="validation", download=False
         )
         _test_dataset(data)
+        data = DecathlonDataset(root_dir=tempdir, task="Task04_Hippocampus", section="validation", download=False)
+        self.assertTupleEqual(data[0]["image"].shape, (33, 47, 34))
         shutil.rmtree(os.path.join(tempdir, "Task04_Hippocampus"))
         try:
             data = DecathlonDataset(
