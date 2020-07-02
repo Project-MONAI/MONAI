@@ -14,8 +14,7 @@ import torch.nn as nn
 from monai.networks.blocks.convolutions import Convolution, ResidualUnit
 from monai.networks.layers.factories import Norm, Act
 from monai.networks.layers.simplelayers import SkipConnection
-from monai.utils import export
-from monai.utils.aliases import alias
+from monai.utils import export, alias
 
 
 @export("monai.networks.nets")

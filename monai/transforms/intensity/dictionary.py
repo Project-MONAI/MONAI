@@ -19,7 +19,7 @@ from typing import Union, Optional, Tuple
 
 import numpy as np
 
-from monai.config.type_definitions import KeysCollection
+from monai.config import KeysCollection
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.intensity.array import (
     NormalizeIntensity,

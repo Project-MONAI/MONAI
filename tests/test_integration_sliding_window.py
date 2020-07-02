@@ -24,7 +24,7 @@ from monai.data import NiftiDataset, create_test_image_3d
 from monai.inferers import sliding_window_inference
 from monai.handlers import SegmentationSaver
 from monai.networks.nets import UNet
-from monai.networks.utils import predict_segmentation
+from monai.networks import predict_segmentation
 from monai.transforms import AddChannel
 from monai.utils import set_determinism
 from tests.utils import make_nifti_image

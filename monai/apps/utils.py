@@ -15,8 +15,7 @@ from urllib.error import URLError
 import hashlib
 import tarfile
 import zipfile
-from monai.utils import progress_bar
-from monai.utils import optional_import
+from monai.utils import progress_bar, optional_import
 
 gdown, has_gdown = optional_import("gdown", "3.6")
 

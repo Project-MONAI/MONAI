@@ -16,7 +16,7 @@ import torch
 from torch.utils.data import IterableDataset
 
 from monai.data.utils import iter_patch
-from monai.utils.enums import NumpyPadMode
+from monai.utils import NumpyPadMode
 
 
 class GridPatchDataset(IterableDataset):

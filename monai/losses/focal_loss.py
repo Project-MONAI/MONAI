@@ -15,7 +15,7 @@ import torch
 import torch.nn.functional as F
 from torch.nn.modules.loss import _WeightedLoss
 
-from monai.utils.enums import LossReduction
+from monai.utils import LossReduction
 
 
 class FocalLoss(_WeightedLoss):
