@@ -46,7 +46,7 @@ transformations. These currently include, for example:
 - `Rand2DElastic`: Random elastic deformation and affine in 2D
 - `Rand3DElastic`: Random elastic deformation and affine in 3D
 
-[Medical transforms tutorial](https://github.com/Project-MONAI/MONAI/blob/master/examples/notebooks/transforms_demo_2d.ipynb) shows the detailed usage of several MONAI medical specific transforms.
+[2D transforms tutorial](https://github.com/Project-MONAI/MONAI/blob/master/examples/notebooks/transforms_demo_2d.ipynb) shows the detailed usage of several MONAI medical image specific transforms.
 ![image](../images/medical_transforms.png)
 
 ### 3. Fused spatial transforms and GPU acceleration
@@ -67,7 +67,7 @@ new_img = affine(image, spatial_size=(300, 400), mode='bilinear')
 ```
 Experiments and test results are available at [Fused transforms test](https://github.com/Project-MONAI/MONAI/blob/master/examples/notebooks/transform_speed.ipynb).
 
-Currently all the geometric image transforms (Spacing, Zoom, Rotate, Resize, etc.) are designed based on the PyTorch native interfaces (instead of using scipy, scikit-image, etc.). [Geometric transforms tutorial](https://github.com/Project-MONAI/MONAI/blob/master/examples/notebooks/3d_image_transforms.ipynb) indicates the usage of affine transforms with 3D medical images.
+Currently all the geometric image transforms (Spacing, Zoom, Rotate, Resize, etc.) are designed based on the PyTorch native interfaces. [Geometric transforms tutorial](https://github.com/Project-MONAI/MONAI/blob/master/examples/notebooks/3d_image_transforms.ipynb) indicates the usage of affine transforms with 3D medical images.
 ![image](../images/affine.png)
 
 ### 4. Randomly crop out batch images based on positive/negative ratio
