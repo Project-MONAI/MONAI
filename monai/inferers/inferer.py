@@ -15,7 +15,7 @@ from typing import Union
 import torch
 
 from .utils import sliding_window_inference
-from monai.utils.enums import BlendMode
+from monai.utils import BlendMode
 
 
 class Inferer(ABC):

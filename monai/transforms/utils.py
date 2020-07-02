@@ -16,7 +16,7 @@ from typing import Optional, Callable
 import torch
 import numpy as np
 
-from monai.config.type_definitions import IndexSelection
+from monai.config import IndexSelection
 from monai.utils import ensure_tuple, ensure_tuple_size, fall_back_tuple, optional_import, min_version
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
@@ -167,17 +167,6 @@ def resize_center(img, *resize_dims, fill_value=0):
     dest[destslices] = img[srcslices]
 
     return dest
-
-
-def one_hot(labels, num_classes):
-    """
-    Converts label image `labels` to a one-hot vector with `num_classes` number of channels as last dimension.
-    """
-    labels = labels % num_classes
-    y = np.eye(num_classes)
-    onehot = y[labels.flatten()]
-
-    return onehot.reshape(tuple(labels.shape) + (num_classes,)).astype(labels.dtype)
 
 
 def generate_pos_neg_label_crop_centers(

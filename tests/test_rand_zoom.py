@@ -17,7 +17,7 @@ from scipy.ndimage import zoom as zoom_scipy
 from tests.utils import NumpyImageTestCase2D
 
 from monai.transforms import RandZoom
-from monai.utils.enums import InterpolateMode, GridSampleMode
+from monai.utils import InterpolateMode, GridSampleMode
 
 VALID_CASES = [(0.8, 1.2, "nearest", False), (0.8, 1.2, InterpolateMode.NEAREST, False)]
 

@@ -40,7 +40,7 @@ from monai.handlers import (
     stopping_fn_from_metric,
 )
 from monai.data import create_test_image_3d, list_data_collate
-from monai.networks.utils import predict_segmentation
+from monai.networks import predict_segmentation
 
 
 def main():
