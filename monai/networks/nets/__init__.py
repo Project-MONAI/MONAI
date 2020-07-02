@@ -12,3 +12,6 @@
 from .densenet import DenseNet, densenet121, densenet169, densenet201, densenet264
 from .highresnet import HighResNet, HighResBlock
 from .unet import *
+from .generator import Generator
+from .regressor import Regressor
+from .classifier import *
