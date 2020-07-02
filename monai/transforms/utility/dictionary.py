@@ -267,7 +267,7 @@ class DataStatsd(MapTransform):
         keys: KeysCollection,
         prefix="Data",
         data_shape=True,
-        intensity_range=True,
+        value_range=True,
         data_value=False,
         additional_info=None,
         logger_handler: Optional[Handler] = None,
@@ -280,7 +280,7 @@ class DataStatsd(MapTransform):
                 it also can be a sequence of string, each element corresponds to a key in ``keys``.
             data_shape (bool or list of bool): whether to show the shape of input data.
                 it also can be a sequence of bool, each element corresponds to a key in ``keys``.
-            intensity_range (bool or list of bool): whether to show the intensity value range of input data.
+            value_range (bool or list of bool): whether to show the value range of input data.
                 it also can be a sequence of bool, each element corresponds to a key in ``keys``.
             data_value (bool or list of bool): whether to show the raw value of input data.
                 it also can be a sequence of bool, each element corresponds to a key in ``keys``.
@@ -295,7 +295,7 @@ class DataStatsd(MapTransform):
         super().__init__(keys)
         self.prefix = ensure_tuple_rep(prefix, len(self.keys))
         self.data_shape = ensure_tuple_rep(data_shape, len(self.keys))
-        self.intensity_range = ensure_tuple_rep(intensity_range, len(self.keys))
+        self.value_range = ensure_tuple_rep(value_range, len(self.keys))
         self.data_value = ensure_tuple_rep(data_value, len(self.keys))
         self.additional_info = ensure_tuple_rep(additional_info, len(self.keys))
         self.logger_handler = logger_handler
@@ -308,7 +308,7 @@ class DataStatsd(MapTransform):
                 d[key],
                 self.prefix[idx],
                 self.data_shape[idx],
-                self.intensity_range[idx],
+                self.value_range[idx],
                 self.data_value[idx],
                 self.additional_info[idx],
             )
