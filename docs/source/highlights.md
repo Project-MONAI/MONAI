@@ -99,7 +99,7 @@ Typical usage is to scale the intensity of the same image into different ranges 
 ![image](../images/multi_transform_chains.png)
 
 ### 7. Debug transforms with DataStats
-When transforms are combined with the "compose" function, it's not easy to track the output of specific transform. To help debug errors in the composed transforms, MONAI provides utility transforms such as `DataStats` to print out intermediate data properties such as `data shape`, `intensity range`, `data value`. It's a self-contained transform and can be integrated into any transform chain.
+When transforms are combined with the "compose" function, it's not easy to track the output of specific transform. To help debug errors in the composed transforms, MONAI provides utility transforms such as `DataStats` to print out intermediate data properties such as `data shape`, `value range`, `data value`, `Additional information`, etc. It's a self-contained transform and can be integrated into any transform chain.
 
 ### 8. Post-processing transforms for model output
 MONAI also provides post-processing transforms for handling the model outputs. Currently, the transforms include:
