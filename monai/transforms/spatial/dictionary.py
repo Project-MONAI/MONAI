@@ -20,7 +20,7 @@ from typing import Optional, Sequence, Union
 import numpy as np
 import torch
 
-from monai.config.type_definitions import KeysCollection
+from monai.config import KeysCollection
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.croppad.array import CenterSpatialCrop
@@ -38,8 +38,14 @@ from monai.transforms.spatial.array import (
     _torch_interp,
 )
 from monai.transforms.utils import create_grid
-from monai.utils.enums import GridSampleMode, GridSamplePadMode, InterpolateMode
-from monai.utils.misc import ensure_tuple, ensure_tuple_rep, fall_back_tuple
+from monai.utils import (
+    GridSampleMode,
+    GridSamplePadMode,
+    InterpolateMode,
+    ensure_tuple,
+    ensure_tuple_rep,
+    fall_back_tuple,
+)
 
 GridSampleModeSequence = Union[Sequence[Union[GridSampleMode, str]], GridSampleMode, str]
 GridSamplePadModeSequence = Union[Sequence[Union[GridSamplePadMode, str]], GridSamplePadMode, str]
@@ -262,6 +268,7 @@ class Resized(MapTransform):
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
         spatial_size (tuple or list): expected shape of spatial dimensions after resize operation.
+            If `spatial_size` are not defined, or smaller than 1, the transform will use the spatial size of `img`.
         mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate

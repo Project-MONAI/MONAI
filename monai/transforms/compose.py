@@ -17,8 +17,8 @@ from typing import Hashable, Optional, Tuple, Any
 from abc import ABC, abstractmethod
 import numpy as np
 
-from monai.config.type_definitions import KeysCollection
-from monai.utils.misc import ensure_tuple, get_seed
+from monai.config import KeysCollection
+from monai.utils import ensure_tuple, get_seed
 from .utils import apply_transform
 
 
@@ -203,9 +203,7 @@ class Compose(Randomizable):
     def __init__(self, transforms=None) -> None:
         if transforms is None:
             transforms = []
-        if not isinstance(transforms, (list, tuple)):
-            raise ValueError("Parameters 'transforms' must be a list or tuple.")
-        self.transforms = transforms
+        self.transforms = ensure_tuple(transforms)
         self.set_random_state(seed=get_seed())
 
     def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):

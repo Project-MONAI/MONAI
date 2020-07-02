@@ -17,7 +17,7 @@ import torch
 from monai.data.png_writer import write_png
 
 from .utils import create_file_basename
-from monai.utils.enums import InterpolateMode
+from monai.utils import InterpolateMode
 
 
 class PNGSaver:

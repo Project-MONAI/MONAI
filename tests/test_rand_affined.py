@@ -16,7 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import RandAffined
-from monai.utils.enums import GridSampleMode
+from monai.utils import GridSampleMode
 
 TEST_CASES = [
     [

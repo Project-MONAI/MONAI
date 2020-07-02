@@ -11,13 +11,13 @@
 
 from typing import Optional, Callable
 
-import torch
-from monai.data import list_data_collate, worker_init_fn
+from torch.utils.data import DataLoader as _TorchDataLoader
+from monai.data.utils import list_data_collate, worker_init_fn
 
 __all__ = ["DataLoader"]
 
 
-class DataLoader(torch.utils.data.DataLoader):
+class DataLoader(_TorchDataLoader):
     """Generates images/labels for train/validation/testing from dataset.
     It inherits from PyTorch DataLoader and adds callbacks for `collate` and `worker_fn`.
 

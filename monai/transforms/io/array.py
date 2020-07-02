@@ -21,8 +21,7 @@ from torch.utils.data._utils.collate import np_str_obj_array_pattern
 
 from monai.data.utils import correct_nifti_header_if_necessary
 from monai.transforms.compose import Transform
-from monai.utils.misc import ensure_tuple
-from monai.utils import optional_import
+from monai.utils import optional_import, ensure_tuple
 
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")

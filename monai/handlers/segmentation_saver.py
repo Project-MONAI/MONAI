@@ -15,8 +15,7 @@ from typing import Callable, Optional, Union
 import numpy as np
 
 from monai.data import NiftiSaver, PNGSaver
-from monai.utils import exact_version, optional_import
-from monai.utils.enums import GridSampleMode, GridSamplePadMode, InterpolateMode
+from monai.utils import exact_version, optional_import, GridSampleMode, GridSamplePadMode, InterpolateMode
 
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
 Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")

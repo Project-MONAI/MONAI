@@ -49,6 +49,7 @@ Technical documentation is available at `docs.monai.io <https://docs.monai.io>`_
    :maxdepth: 1
    :caption: APIs
 
+   apps
    transforms
    losses
    networks

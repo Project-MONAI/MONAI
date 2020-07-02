@@ -15,7 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.networks.utils import one_hot
+from monai.networks import one_hot
 
 TEST_CASE_1 = [  # single channel 2D, batch 3, shape (2, 1, 2, 2)
     {"labels": torch.tensor([[[[0, 1], [1, 2]]], [[[2, 1], [1, 0]]]]), "num_classes": 3},

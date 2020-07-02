@@ -19,7 +19,7 @@ from typing import Optional
 
 import numpy as np
 
-from monai.config.type_definitions import KeysCollection
+from monai.config import KeysCollection
 from monai.transforms.compose import MapTransform
 from monai.transforms.io.array import LoadNifti, LoadPNG
 

@@ -14,7 +14,7 @@ from typing import Optional, Sequence, Union
 import numpy as np
 import torch
 
-from monai.transforms.utils import rescale_array
+from monai.transforms import rescale_array
 from monai.utils import optional_import
 
 PIL, _ = optional_import("PIL")

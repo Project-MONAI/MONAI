@@ -13,7 +13,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 from monai.transforms import BorderPad
-from monai.utils.enums import NumpyPadMode
+from monai.utils import NumpyPadMode
 
 TEST_CASE_1 = [
     {"spatial_border": 2, "mode": "constant"},

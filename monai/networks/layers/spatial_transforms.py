@@ -14,9 +14,8 @@ from typing import Union
 import torch
 import torch.nn as nn
 
-from monai.networks.utils import to_norm_affine
-from monai.utils import ensure_tuple
-from monai.utils.enums import GridSampleMode, GridSamplePadMode
+from monai.networks import to_norm_affine
+from monai.utils import ensure_tuple, GridSampleMode, GridSamplePadMode
 
 __all__ = ["AffineTransform"]
 

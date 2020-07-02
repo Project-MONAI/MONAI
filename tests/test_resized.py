@@ -29,12 +29,14 @@ class TestResized(NumpyImageTestCase2D):
             resize = Resized(keys="img", spatial_size=(128,), mode="order")
             resize({"img": self.imt[0]})
 
-    @parameterized.expand([((64, 64), "area"), ((32, 32, 32), "area"), ((256, 256), "bilinear")])
+    @parameterized.expand([((32, -1), "area"), ((64, 64), "area"), ((32, 32, 32), "area"), ((256, 256), "bilinear")])
     def test_correct_results(self, spatial_size, mode):
         resize = Resized("img", spatial_size, mode)
         _order = 0
         if mode.endswith("linear"):
             _order = 1
+        if spatial_size == (32, -1):
+            spatial_size = (32, 64)
         expected = list()
         for channel in self.imt[0]:
             expected.append(
