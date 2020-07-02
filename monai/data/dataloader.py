@@ -12,7 +12,7 @@
 from typing import Optional, Callable
 
 import torch
-from monai.data import list_data_collate, worker_init_fn
+from monai.data.utils import list_data_collate, worker_init_fn
 
 __all__ = ["DataLoader"]
 
