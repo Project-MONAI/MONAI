@@ -291,7 +291,7 @@ class DataStats(Transform):
             elif torch.is_tensor(img):
                 lines.append(f"Value range: ({torch.min(img)}, {torch.max(img)})")
             else:
-                raise RuntimeError(f"unsupported input data type: {type(img)}.")
+                lines.append(f"Value range: (not a PyTorch or Numpy array, type: {type(img)})")
         if self.data_value if data_value is None else data_value:
             lines.append(f"Value: {img}")
         additional_info = self.additional_info if additional_info is None else additional_info
