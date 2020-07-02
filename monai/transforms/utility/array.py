@@ -227,13 +227,15 @@ class DataStats(Transform):
     """
     Utility transform to show the statistics of data for debug or analysis.
     It can be inserted into any place of a transform chain and check results of previous transforms.
+    It support both `numpy.ndarray` and `torch.tensor` as input data,
+    so it can be used in pre-processing and post-processing.
     """
 
     def __init__(
         self,
         prefix: str = "Data",
         data_shape: bool = True,
-        intensity_range: bool = True,
+        value_range: bool = True,
         data_value: bool = False,
         additional_info: Optional[Callable] = None,
         logger_handler: Optional[logging.Handler] = None,
@@ -242,7 +244,7 @@ class DataStats(Transform):
         Args:
             prefix: will be printed in format: "{prefix} statistics".
             data_shape: whether to show the shape of input data.
-            intensity_range: whether to show the intensity value range of input data.
+            value_range: whether to show the value range of input data.
             data_value: whether to show the raw value of input data.
                 a typical example is to print some properties of Nifti image: affine, pixdim, etc.
             additional_info: user can define callable function to extract additional info from input data.
@@ -256,7 +258,7 @@ class DataStats(Transform):
         assert isinstance(prefix, str), "prefix must be a string."
         self.prefix = prefix
         self.data_shape = data_shape
-        self.intensity_range = intensity_range
+        self.value_range = value_range
         self.data_value = data_value
         if additional_info is not None and not callable(additional_info):
             raise ValueError("argument `additional_info` must be a callable.")
@@ -272,7 +274,7 @@ class DataStats(Transform):
         img,
         prefix: Optional[str] = None,
         data_shape: Optional[bool] = None,
-        intensity_range: Optional[bool] = None,
+        value_range: Optional[bool] = None,
         data_value: Optional[bool] = None,
         additional_info=None,
     ):
@@ -283,8 +285,13 @@ class DataStats(Transform):
 
         if self.data_shape if data_shape is None else data_shape:
             lines.append(f"Shape: {img.shape}")
-        if self.intensity_range if intensity_range is None else intensity_range:
-            lines.append(f"Intensity range: ({np.min(img)}, {np.max(img)})")
+        if self.value_range if value_range is None else value_range:
+            if isinstance(img, np.ndarray):
+                lines.append(f"Value range: ({np.min(img)}, {np.max(img)})")
+            elif torch.is_tensor(img):
+                lines.append(f"Value range: ({torch.min(img)}, {torch.max(img)})")
+            else:
+                lines.append(f"Value range: (not a PyTorch or Numpy array, type: {type(img)})")
         if self.data_value if data_value is None else data_value:
             lines.append(f"Value: {img}")
         additional_info = self.additional_info if additional_info is None else additional_info
