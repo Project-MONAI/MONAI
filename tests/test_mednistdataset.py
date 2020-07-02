@@ -43,6 +43,8 @@ class TestMedNISTDataset(unittest.TestCase):
         _test_dataset(data)
         data = MedNISTDataset(root_dir=tempdir, transform=transform, section="test", download=False)
         _test_dataset(data)
+        data = MedNISTDataset(root_dir=tempdir, section="test", download=False)
+        self.assertTupleEqual(data[0]["image"].shape, (64, 64))
         shutil.rmtree(os.path.join(tempdir, "MedNIST"))
         try:
             data = MedNISTDataset(root_dir=tempdir, transform=transform, section="test", download=False)
