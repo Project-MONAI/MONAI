@@ -49,6 +49,8 @@ For more details, please refer to [the installation guide](https://docs.monai.io
 
 ## Getting Started
 
+[MedNIST demo](https://colab.research.google.com/drive/1wy8XUSnNWlhDNazFdvGBHLfdkGvOHBKe) and [MONAI for PyTorch Users](https://colab.research.google.com/drive/1boqy7ENpKrqaJoxFlbHIBnIODAs1Ih1T) are available on Colab.
+
 Tutorials & examples are located at [monai/examples](https://github.com/Project-MONAI/MONAI/tree/master/examples).
 
 Technical documentation is available at [docs.monai.io](https://docs.monai.io).
