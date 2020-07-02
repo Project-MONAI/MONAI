@@ -30,6 +30,9 @@ This tutorial shows how to accelerate PyTorch medical DL program based on MONAI 
 #### [notebooks/integrate_3rd_party_transforms](./notebooks/integrate_3rd_party_transforms.ipynb)
 This tutorial shows how to integrate 3rd party transforms into MONAI program.
 Mainly shows transforms from BatchGenerator, TorchIO, Rising and ITK.
+#### [notebooks/mednist_GAN_tutorial](./notebooks/mednist_GAN_tutorial.ipynb)
+This notebook illustrates the use of MONAI for training a network to generate images from a random input tensor.
+A simple GAN is employed to do with a separate Generator and Discriminator networks.
 #### [notebooks/mednist_tutorial](./notebooks/mednist_tutorial.ipynb)
 This notebook shows how to easily integrate MONAI features into existing PyTorch programs.
 It's based on the MedNIST dataset which is very suitable for beginners as a tutorial.
