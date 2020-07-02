@@ -32,9 +32,17 @@ from monai.transforms.utils import (
     create_shear,
     create_translate,
 )
-from monai.utils import optional_import
-from monai.utils.enums import GridSampleMode, GridSamplePadMode, InterpolateMode, NumpyPadMode
-from monai.utils.misc import ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
+from monai.utils import (
+    optional_import,
+    GridSampleMode,
+    GridSamplePadMode,
+    InterpolateMode,
+    NumpyPadMode,
+    ensure_tuple,
+    ensure_tuple_rep,
+    ensure_tuple_size,
+    fall_back_tuple,
+)
 
 nib, _ = optional_import("nibabel")
 

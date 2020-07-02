@@ -17,7 +17,7 @@ import torch
 from monai.data.nifti_writer import write_nifti
 
 from .utils import create_file_basename
-from monai.utils.enums import GridSampleMode, GridSamplePadMode
+from monai.utils import GridSampleMode, GridSamplePadMode
 
 
 class NiftiSaver:

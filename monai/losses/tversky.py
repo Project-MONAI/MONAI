@@ -15,8 +15,8 @@ from typing import Union
 import torch
 from torch.nn.modules.loss import _Loss
 
-from monai.networks.utils import one_hot
-from monai.utils.enums import LossReduction
+from monai.networks import one_hot
+from monai.utils import LossReduction
 
 
 class TverskyLoss(_Loss):

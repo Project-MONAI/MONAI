@@ -21,9 +21,9 @@ import copy
 import torch
 import numpy as np
 
-from monai.config.type_definitions import KeysCollection
+from monai.config import KeysCollection
 from monai.transforms.compose import MapTransform
-from monai.utils.misc import ensure_tuple, ensure_tuple_rep
+from monai.utils import ensure_tuple, ensure_tuple_rep
 from monai.transforms.utility.array import (
     AddChannel,
     AsChannelFirst,

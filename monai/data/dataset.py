@@ -21,8 +21,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset as _TorchDataset
 
-from monai.transforms import Compose, Randomizable, Transform
-from monai.transforms.utils import apply_transform
+from monai.transforms import apply_transform, Compose, Randomizable, Transform
 from monai.utils import get_seed, progress_bar
 
 

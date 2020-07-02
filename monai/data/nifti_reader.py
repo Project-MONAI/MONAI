@@ -14,7 +14,7 @@ from typing import Optional, Callable
 import numpy as np
 from torch.utils.data import Dataset
 from monai.transforms import LoadNifti, Randomizable, apply_transform
-from monai.utils.misc import get_seed
+from monai.utils import get_seed
 
 
 class NiftiDataset(Dataset, Randomizable):

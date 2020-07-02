@@ -16,12 +16,11 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 from typing import Callable, Optional, Union, List
 
 import numpy as np
-from monai.config.type_definitions import IndexSelection
+from monai.config import IndexSelection
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.utils import generate_pos_neg_label_crop_centers, generate_spatial_bounding_box
-from monai.utils.misc import ensure_tuple, ensure_tuple_rep, fall_back_tuple
-from monai.utils.enums import NumpyPadMode, Method
+from monai.utils import ensure_tuple, ensure_tuple_rep, fall_back_tuple, NumpyPadMode, Method
 
 
 class SpatialPad(Transform):

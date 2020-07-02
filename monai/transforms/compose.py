@@ -17,8 +17,8 @@ from typing import Hashable, Optional, Tuple, Any
 from abc import ABC, abstractmethod
 import numpy as np
 
-from monai.config.type_definitions import KeysCollection
-from monai.utils.misc import ensure_tuple, get_seed
+from monai.config import KeysCollection
+from monai.utils import ensure_tuple, get_seed
 from .utils import apply_transform
 
 
