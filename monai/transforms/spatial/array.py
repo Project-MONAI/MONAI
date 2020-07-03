@@ -700,10 +700,12 @@ class RandZoom(Randomizable, Transform):
     Args:
         prob: Probability of zooming.
         min_zoom: Min zoom factor. Can be float or sequence same size as image.
-            If a float, min_zoom is the same for each spatial axis.
+            If a float, select a random factor from `[min_zoom, max_zoom]` then apply to all spatial dims
+            to keep the original spatial shape ratio.
             If a sequence, min_zoom should contain one value for each spatial axis.
         max_zoom: Max zoom factor. Can be float or sequence same size as image.
-            If a float, max_zoom is the same for each spatial axis.
+            If a float, select a random factor from `[min_zoom, max_zoom]` then apply to all spatial dims
+            to keep the original spatial shape ratio.
             If a sequence, max_zoom should contain one value for each spatial axis.
         mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
@@ -737,7 +739,13 @@ class RandZoom(Randomizable, Transform):
 
     def randomize(self) -> None:  # type: ignore # see issue #495
         self._do_transform = self.R.random_sample() < self.prob
-        self._zoom = [self.R.uniform(l, h) for l, h in zip(self._min_zoom, self._max_zoom)]
+        if isinstance(self.min_zoom, Iterable):
+            _min_zoom = ensure_tuple(self.min_zoom)
+            _max_zoom = ensure_tuple(self.max_zoom)
+            self._zoom = [self.R.uniform(l, h) for l, h in zip(_min_zoom, _max_zoom)]
+        else:
+            # to keep the spatial shape ratio, use same random zoom factor for all dims
+            self._zoom = self.R.uniform(self.min_zoom, self.max_zoom)
 
     def __call__(
         self, img, mode: Optional[Union[InterpolateMode, str]] = None, align_corners: Optional[bool] = None,
@@ -753,8 +761,6 @@ class RandZoom(Randomizable, Transform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
         """
         # match the spatial image dim
-        self._min_zoom = ensure_tuple_rep(self.min_zoom, img.ndim - 1)
-        self._max_zoom = ensure_tuple_rep(self.max_zoom, img.ndim - 1)
         self.randomize()
         _dtype = np.float32
         if not self._do_transform:
