@@ -15,7 +15,7 @@ defined in :py:class:`monai.transforms.spatial.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Optional, Sequence, Union
+from typing import Optional, Sequence, Union, Tuple, Iterable
 
 import numpy as np
 import torch
@@ -50,6 +50,7 @@ from monai.utils import (
 GridSampleModeSequence = Union[Sequence[Union[GridSampleMode, str]], GridSampleMode, str]
 GridSamplePadModeSequence = Union[Sequence[Union[GridSamplePadMode, str]], GridSamplePadMode, str]
 InterpolateModeSequence = Union[Sequence[Union[InterpolateMode, str]], InterpolateMode, str]
+AlignCornerSequence = Optional[Union[Sequence[Union[Optional[bool]]], Optional[bool]]]
 
 
 class Spacingd(MapTransform):
@@ -73,7 +74,7 @@ class Spacingd(MapTransform):
         diagonal: bool = False,
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
-        dtype: Optional[np.dtype] = None,
+        dtype: Optional[Union[Sequence[np.dtype], np.dtype]] = None,
         meta_key_postfix: str = "meta_dict",
     ):
         """
@@ -199,11 +200,11 @@ class Rotate90d(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.Rotate90`.
     """
 
-    def __init__(self, keys: KeysCollection, k: int = 1, spatial_axes=(0, 1)):
+    def __init__(self, keys: KeysCollection, k: int = 1, spatial_axes: Tuple[int, int] = (0, 1)):
         """
         Args:
             k: number of times to rotate by 90 degrees.
-            spatial_axes (2 ints): defines the plane to rotate with 2 spatial axes.
+            spatial_axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
                 Default: (0, 1), this is the first two axis in spatial dimensions.
         """
         super().__init__(keys)
@@ -223,7 +224,13 @@ class RandRotate90d(Randomizable, MapTransform):
     in the plane specified by `spatial_axes`.
     """
 
-    def __init__(self, keys: KeysCollection, prob: float = 0.1, max_k: int = 3, spatial_axes=(0, 1)):
+    def __init__(
+        self,
+        keys: KeysCollection,
+        prob: float = 0.1,
+        max_k: int = 3,
+        spatial_axes: Tuple[int, int] = (0, 1),
+    ):
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -232,7 +239,7 @@ class RandRotate90d(Randomizable, MapTransform):
                 (Default 0.1, with 10% probability it returns a rotated array.)
             max_k: number of rotations will be sampled from `np.random.randint(max_k) + 1`.
                 (Default 3)
-            spatial_axes (2 ints): defines the plane to rotate with 2 spatial axes.
+            spatial_axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
                 Default: (0, 1), this is the first two axis in spatial dimensions.
         """
         super().__init__(keys)
@@ -267,13 +274,12 @@ class Resized(MapTransform):
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
-        spatial_size (tuple or list): expected shape of spatial dimensions after resize operation.
-            If `spatial_size` are not defined, or smaller than 1, the transform will use the spatial size of `img`.
+        spatial_size: expected shape of spatial dimensions after resize operation.
         mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             It also can be a sequence of string, each element corresponds to a key in ``keys``.
-        align_corners (optional bool): This only has an effect when mode is
+        align_corners: This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             It also can be a sequence of bool or None, each element corresponds to a key in ``keys``.
@@ -282,9 +288,9 @@ class Resized(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        spatial_size,
+        spatial_size: Sequence[int],
         mode: InterpolateModeSequence = InterpolateMode.AREA,
-        align_corners: Optional[bool] = None,
+        align_corners: AlignCornerSequence = None,
     ):
         super().__init__(keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
@@ -306,12 +312,12 @@ class RandAffined(Randomizable, MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        spatial_size,
+        spatial_size: Optional[Sequence[int]] = None,
         prob: float = 0.1,
-        rotate_range=None,
-        shear_range=None,
-        translate_range=None,
-        scale_range=None,
+        rotate_range: Optional[Sequence[float]] = None,
+        shear_range: Optional[Sequence[float]] = None,
+        translate_range: Optional[Sequence[float]] = None,
+        scale_range: Optional[Sequence[float]] = None,
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = True,
@@ -327,6 +333,21 @@ class RandAffined(Randomizable, MapTransform):
                 if ``data`` component has three spatial dimensions, ``spatial_size`` should have 3 elements [h, w, d].
             prob: probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid.
+            rotate_range: angle range in radians. rotate_range[0] with be used to generate the 1st rotation
+                parameter from `uniform[-rotate_range[0], rotate_range[0])`. Similarly, `rotate_range[1]` and
+                `rotate_range[2]` are used in 3D affine for the range of 2nd and 3rd axes.
+            shear_range: shear_range[0] with be used to generate the 1st shearing parameter from
+                `uniform[-shear_range[0], shear_range[0])`. Similarly, `shear_range[1]` to
+                `shear_range[N]` controls the range of the uniform distribution used to generate the 2nd to
+                N-th parameter.
+            translate_range : translate_range[0] with be used to generate the 1st shift parameter from
+                `uniform[-translate_range[0], translate_range[0])`. Similarly, `translate_range[1]`
+                to `translate_range[N]` controls the range of the uniform distribution used to generate
+                the 2nd to N-th parameter.
+            scale_range: scaling_range[0] with be used to generate the 1st scaling factor from
+                `uniform[-scale_range[0], scale_range[0]) + 1.0`. Similarly, `scale_range[1]` to
+                `scale_range[N]` controls the range of the uniform distribution used to generate the 2nd to
+                N-th parameter.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
@@ -337,7 +358,7 @@ class RandAffined(Randomizable, MapTransform):
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
-            device (torch.device): device on which the tensor will be allocated.
+            device: device on which the tensor will be allocated.
 
         See also:
             - :py:class:`monai.transforms.compose.MapTransform`
@@ -388,14 +409,14 @@ class Rand2DElasticd(Randomizable, MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        spatial_size,
-        spacing,
-        magnitude_range,
+        spacing: Tuple[int , int],
+        magnitude_range: Tuple[int , int],
+        spatial_size: Optional[Tuple[int , int]] = None,
         prob: float = 0.1,
-        rotate_range=None,
-        shear_range=None,
-        translate_range=None,
-        scale_range=None,
+        rotate_range: Optional[Sequence[float]] = None,
+        shear_range: Optional[Sequence[float]] = None,
+        translate_range: Optional[Sequence[float]] = None,
+        scale_range: Optional[Sequence[float]] = None,
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = False,
@@ -404,15 +425,26 @@ class Rand2DElasticd(Randomizable, MapTransform):
         """
         Args:
             keys: keys of the corresponding items to be transformed.
+            spacing: 2 int numbers, distance in between the control points.
+            magnitude_range: 2 int numbers, the random offsets will be generated from
+                ``uniform[magnitude[0], magnitude[1])``.
             spatial_size (2 ints): specifying output image spatial size [h, w].
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
-            spacing (2 ints): distance in between the control points.
-            magnitude_range (2 ints): the random offsets will be generated from
-                ``uniform[magnitude[0], magnitude[1])``.
             prob: probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
+            rotate_range: angle range in radians. rotate_range[0] with be used to generate the 1st rotation
+                parameter from `uniform[-rotate_range[0], rotate_range[0])`.
+            shear_range: shear_range[0] with be used to generate the 1st shearing parameter from
+                `uniform[-shear_range[0], shear_range[0])`. Similarly, `shear_range[1]` controls
+                the range of the uniform distribution used to generate the 2nd parameter.
+            translate_range : translate_range[0] with be used to generate the 1st shift parameter from
+                `uniform[-translate_range[0], translate_range[0])`. Similarly, `translate_range[1]` controls
+                the range of the uniform distribution used to generate the 2nd parameter.
+            scale_range: scaling_range[0] with be used to generate the 1st scaling factor from
+                `uniform[-scale_range[0], scale_range[0]) + 1.0`. Similarly, `scale_range[1]` controls
+                the range of the uniform distribution used to generate the 2nd parameter.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
@@ -423,7 +455,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
-            device (torch.device): device on which the tensor will be allocated.
+            device: device on which the tensor will be allocated.
 
         See also:
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
@@ -487,14 +519,14 @@ class Rand3DElasticd(Randomizable, MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        spatial_size,
-        sigma_range,
-        magnitude_range,
+        sigma_range: Tuple[int , int],
+        magnitude_range: Tuple[int , int],
+        spatial_size: Optional[Tuple[int , int]] = None,
         prob: float = 0.1,
-        rotate_range=None,
-        shear_range=None,
-        translate_range=None,
-        scale_range=None,
+        rotate_range: Optional[Sequence[float]] = None,
+        shear_range: Optional[Sequence[float]] = None,
+        translate_range: Optional[Sequence[float]] = None,
+        scale_range: Optional[Sequence[float]] = None,
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = False,
@@ -503,16 +535,29 @@ class Rand3DElasticd(Randomizable, MapTransform):
         """
         Args:
             keys: keys of the corresponding items to be transformed.
+            sigma_range: 2 int numbers, a Gaussian kernel with standard deviation sampled
+                 from ``uniform[sigma_range[0], sigma_range[1])`` will be used to smooth the random offset grid.
+            magnitude_range:  2 int numbers, the random offsets on the grid will be generated from
+                ``uniform[magnitude[0], magnitude[1])``.
             spatial_size (3 ints): specifying output image spatial size [h, w, d].
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
-            sigma_range (2 ints): a Gaussian kernel with standard deviation sampled
-                 from ``uniform[sigma_range[0], sigma_range[1])`` will be used to smooth the random offset grid.
-            magnitude_range (2 ints): the random offsets on the grid will be generated from
-                ``uniform[magnitude[0], magnitude[1])``.
             prob: probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
+            rotate_range: angle range in radians. rotate_range[0] with be used to generate the 1st rotation
+                parameter from `uniform[-rotate_range[0], rotate_range[0])`. Similarly, `rotate_range[1]` and
+                `rotate_range[2]` are used in 3D affine for the range of 2nd and 3rd axes.
+            shear_range: shear_range[0] with be used to generate the 1st shearing parameter from
+                `uniform[-shear_range[0], shear_range[0])`. Similarly, `shear_range[1]` and `shear_range[2]`
+                controls the range of the uniform distribution used to generate the 2nd and 3rd parameters.
+            translate_range : translate_range[0] with be used to generate the 1st shift parameter from
+                `uniform[-translate_range[0], translate_range[0])`. Similarly, `translate_range[1]` and
+                `translate_range[2]` controls the range of the uniform distribution used to generate
+                the 2nd and 3rd parameters.
+            scale_range: scaling_range[0] with be used to generate the 1st scaling factor from
+                `uniform[-scale_range[0], scale_range[0]) + 1.0`. Similarly, `scale_range[1]` and `scale_range[2]`
+                controls the range of the uniform distribution used to generate the 2nd and 3rd parameters.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
@@ -523,7 +568,7 @@ class Rand3DElasticd(Randomizable, MapTransform):
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
-            device (torch.device): device on which the tensor will be allocated.
+            device: device on which the tensor will be allocated.
 
         See also:
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
@@ -582,7 +627,7 @@ class Flipd(MapTransform):
     https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
 
     Args:
-        keys (dict): Keys to pick data for transformation.
+        keys: Keys to pick data for transformation.
         spatial_axis (None, int or tuple of ints): Spatial axes along which to flip over. Default is None.
     """
 
@@ -605,11 +650,17 @@ class RandFlipd(Randomizable, MapTransform):
     https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
 
     Args:
+        keys: Keys to pick data for transformation.
         prob: Probability of flipping.
         spatial_axis (None, int or tuple of ints): Spatial axes along which to flip over. Default is None.
     """
 
-    def __init__(self, keys: KeysCollection, prob: float = 0.1, spatial_axis=None):
+    def __init__(
+        self,
+        keys: KeysCollection,
+        prob: float = 0.1,
+        spatial_axis: Optional[Union[Sequence[int], int]] = None,
+    ):
         super().__init__(keys)
         self.spatial_axis = spatial_axis
         self.prob = prob
@@ -635,9 +686,9 @@ class Rotated(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.Rotate`.
 
     Args:
-        keys (dict): Keys to pick data for transformation.
-        angle (float or sequence of float): Rotation angle(s) in degrees.
-        keep_size (bool): If it is False, the output shape is adapted so that the
+        keys: Keys to pick data for transformation.
+        angle: Rotation angle(s) in degrees.
+        keep_size: If it is False, the output shape is adapted so that the
             input array is contained completely in the output.
             If it is True, the output shape is the same as the input. Default is True.
         mode: {``"bilinear"``, ``"nearest"``}
@@ -648,29 +699,36 @@ class Rotated(MapTransform):
             Padding mode for outside grid values. Defaults to ``"border"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             It also can be a sequence of string, each element corresponds to a key in ``keys``.
-        align_corners (bool): Defaults to False.
+        align_corners: Defaults to False.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+            It also can be a sequence of bool, each element corresponds to a key in ``keys``.
     """
 
     def __init__(
         self,
         keys: KeysCollection,
-        angle,
+        angle: Union[Sequence[float], float],
         keep_size: bool = True,
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
-        align_corners: bool = False,
+        align_corners: Union[Sequence[bool], bool] = False,
     ):
         super().__init__(keys)
-        self.rotator = Rotate(angle=angle, keep_size=keep_size, align_corners=align_corners)
+        self.rotator = Rotate(angle=angle, keep_size=keep_size)
 
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
+        self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
 
     def __call__(self, data):
         d = dict(data)
         for idx, key in enumerate(self.keys):
-            d[key] = self.rotator(d[key], mode=self.mode[idx], padding_mode=self.padding_mode[idx])
+            d[key] = self.rotator(
+                d[key],
+                mode=self.mode[idx],
+                padding_mode=self.padding_mode[idx],
+                align_corners=self.align_corners[idx],
+            )
         return d
 
 
@@ -680,17 +738,15 @@ class RandRotated(Randomizable, MapTransform):
     Randomly rotates the input arrays.
 
     Args:
-        range_x (tuple of float or float): Range of rotation angle in degrees in the
-            plane defined by the first and second axes.
+        keys: Keys to pick data for transformation.
+        range_x: Range of rotation angle in degrees in the plane defined by the first and second axes.
             If single number, angle is uniformly sampled from (-range_x, range_x).
-        range_y (tuple of float or float): Range of rotation angle in degrees in the
-            plane defined by the first and third axes.
+        range_y: Range of rotation angle in degrees in the plane defined by the first and third axes.
             If single number, angle is uniformly sampled from (-range_y, range_y).
-        range_z (tuple of float or float): Range of rotation angle in degrees in the
-            plane defined by the second and third axes.
+        range_z: Range of rotation angle in degrees in the plane defined by the second and third axes.
             If single number, angle is uniformly sampled from (-range_z, range_z).
-        prob (float): Probability of rotation.
-        keep_size (bool): If it is False, the output shape is adapted so that the
+        prob: Probability of rotation.
+        keep_size: If it is False, the output shape is adapted so that the
             input array is contained completely in the output.
             If it is True, the output shape is the same as the input. Default is True.
         mode: {``"bilinear"``, ``"nearest"``}
@@ -701,21 +757,22 @@ class RandRotated(Randomizable, MapTransform):
             Padding mode for outside grid values. Defaults to ``"border"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             It also can be a sequence of string, each element corresponds to a key in ``keys``.
-        align_corners (bool): Defaults to False.
+        align_corners: Defaults to False.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+            It also can be a sequence of bool, each element corresponds to a key in ``keys``.
     """
 
     def __init__(
         self,
         keys: KeysCollection,
-        range_x=0.0,
-        range_y=0.0,
-        range_z=0.0,
+        range_x: Union[Sequence[float], float] = 0.0,
+        range_y: Union[Sequence[float], float] = 0.0,
+        range_z: Union[Sequence[float], float] = 0.0,
         prob: float = 0.1,
         keep_size: bool = True,
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
-        align_corners: bool = False,
+        align_corners: Union[Sequence[bool], bool] = False,
     ):
         super().__init__(keys)
         self.range_x = ensure_tuple(range_x)
@@ -732,7 +789,7 @@ class RandRotated(Randomizable, MapTransform):
         self.keep_size = keep_size
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
-        self.align_corners = align_corners
+        self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
 
         self._do_transform = False
         self.x = 0.0
@@ -753,10 +810,14 @@ class RandRotated(Randomizable, MapTransform):
         rotator = Rotate(
             angle=self.x if d[self.keys[0]].ndim == 3 else (self.x, self.y, self.z),
             keep_size=self.keep_size,
-            align_corners=self.align_corners,
         )
         for idx, key in enumerate(self.keys):
-            d[key] = rotator(d[key], mode=self.mode[idx], padding_mode=self.padding_mode[idx])
+            d[key] = rotator(
+                d[key],
+                mode=self.mode[idx],
+                padding_mode=self.padding_mode[idx],
+                align_corners=self.align_corners[idx],
+            )
         return d
 
 
@@ -765,26 +826,27 @@ class Zoomd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.Zoom`.
 
     Args:
-        zoom (float or sequence): The zoom factor along the spatial axes.
+        keys: Keys to pick data for transformation.
+        zoom: The zoom factor along the spatial axes.
             If a float, zoom is the same for each spatial axis.
             If a sequence, zoom should contain one value for each spatial axis.
         mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             It also can be a sequence of string, each element corresponds to a key in ``keys``.
-        align_corners (optional bool): This only has an effect when mode is
+        align_corners: This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             It also can be a sequence of bool or None, each element corresponds to a key in ``keys``.
-        keep_size (bool): Should keep original size (pad if needed), default is True.
+        keep_size: Should keep original size (pad if needed), default is True.
     """
 
     def __init__(
         self,
         keys: KeysCollection,
-        zoom,
+        zoom: Union[Sequence[float], float],
         mode: InterpolateModeSequence = InterpolateMode.AREA,
-        align_corners: Optional[bool] = None,
+        align_corners: AlignCornerSequence = None,
         keep_size: bool = True,
     ):
         super().__init__(keys)
@@ -806,17 +868,17 @@ class RandZoomd(Randomizable, MapTransform):
     Args:
         keys: Keys to pick data for transformation.
         prob: Probability of zooming.
-        min_zoom (float or sequence): Min zoom factor. Can be float or sequence same size as image.
+        min_zoom: Min zoom factor. Can be float or sequence same size as image.
             If a float, min_zoom is the same for each spatial axis.
             If a sequence, min_zoom should contain one value for each spatial axis.
-        max_zoom (float or sequence): Max zoom factor. Can be float or sequence same size as image.
+        max_zoom: Max zoom factor. Can be float or sequence same size as image.
             If a float, max_zoom is the same for each spatial axis.
             If a sequence, max_zoom should contain one value for each spatial axis.
         mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             It also can be a sequence of string, each element corresponds to a key in ``keys``.
-        align_corners (optional bool): This only has an effect when mode is
+        align_corners: This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             It also can be a sequence of bool or None, each element corresponds to a key in ``keys``.
@@ -827,14 +889,14 @@ class RandZoomd(Randomizable, MapTransform):
         self,
         keys: KeysCollection,
         prob: float = 0.1,
-        min_zoom=0.9,
-        max_zoom=1.1,
+        min_zoom: Union[Sequence[float], float] = 0.9,
+        max_zoom: Union[Sequence[float], float] = 1.1,
         mode: InterpolateModeSequence = InterpolateMode.AREA,
-        align_corners: Optional[bool] = None,
+        align_corners: AlignCornerSequence = None,
         keep_size: bool = True,
     ):
         super().__init__(keys)
-        if hasattr(min_zoom, "__iter__") and hasattr(max_zoom, "__iter__"):
+        if isinstance(min_zoom, Iterable) and isinstance(max_zoom, Iterable):
             assert len(min_zoom) == len(max_zoom), "min_zoom and max_zoom must have same length."
         self.min_zoom = min_zoom
         self.max_zoom = max_zoom
@@ -855,6 +917,8 @@ class RandZoomd(Randomizable, MapTransform):
             self._zoom = self.R.uniform(self.min_zoom, self.max_zoom)
 
     def __call__(self, data):
+        self.min_zoom = ensure_tuple_rep(self.min_zoom, data[self.keys[0]].ndim - 1)  # match the spatial dim
+        self.max_zoom = ensure_tuple_rep(self.max_zoom, data[self.keys[0]].ndim - 1)  # match the spatial dim
         self.randomize()
         d = dict(data)
         if not self._do_transform:

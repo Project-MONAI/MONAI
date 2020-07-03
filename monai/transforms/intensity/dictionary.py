@@ -96,7 +96,7 @@ class RandShiftIntensityd(Randomizable, MapTransform):
     Dictionary-based version :py:class:`monai.transforms.RandShiftIntensity`.
     """
 
-    def __init__(self, keys: KeysCollection, offsets, prob: float = 0.1):
+    def __init__(self, keys: KeysCollection, offsets: Union[Tuple[float, float], float], prob: float = 0.1):
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -161,7 +161,7 @@ class RandScaleIntensityd(Randomizable, MapTransform):
     Dictionary-based version :py:class:`monai.transforms.RandScaleIntensity`.
     """
 
-    def __init__(self, keys: KeysCollection, factors, prob: float = 0.1):
+    def __init__(self, keys: KeysCollection, factors: Union[Tuple[float, float], float], prob: float = 0.1):
         """
         Args:
             keys: keys of the corresponding items to be transformed.

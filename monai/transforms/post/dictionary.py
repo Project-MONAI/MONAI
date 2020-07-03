@@ -15,7 +15,7 @@ defined in :py:class:`monai.transforms.utility.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Optional
+from typing import Optional, Union, Sequence, Callable
 
 from monai.config import KeysCollection
 from monai.utils import ensure_tuple_rep
@@ -36,7 +36,13 @@ class SplitChanneld(MapTransform):
 
     """
 
-    def __init__(self, keys: KeysCollection, output_postfixes, to_onehot=False, num_classes=None):
+    def __init__(
+        self,
+        keys: KeysCollection,
+        output_postfixes: Sequence[str],
+        to_onehot: Union[Sequence[bool], bool] = False,
+        num_classes: Optional[Union[Sequence[int], int]] = None,
+    ):
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -78,7 +84,13 @@ class Activationsd(MapTransform):
     Add activation layers to the input data specified by `keys`.
     """
 
-    def __init__(self, keys: KeysCollection, sigmoid=False, softmax=False, other=None):
+    def __init__(
+        self,
+        keys: KeysCollection,
+        sigmoid: Union[Sequence[bool], bool] = False,
+        softmax: Union[Sequence[bool], bool] = False,
+        other: Optional[Union[Sequence[Callable], Callable]] = None,
+    ):
         """
         Args:
             keys: keys of the corresponding items to model output and label.
@@ -115,11 +127,11 @@ class AsDiscreted(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        argmax: bool = False,
-        to_onehot: bool = False,
-        n_classes: Optional[int] = None,
-        threshold_values: bool = False,
-        logit_thresh: float = 0.5,
+        argmax: Union[Sequence[bool], bool] = False,
+        to_onehot: Union[Sequence[bool], bool] = False,
+        n_classes: Optional[Union[Sequence[int], int]] = None,
+        threshold_values: Union[Sequence[bool], bool] = False,
+        logit_thresh: Union[Sequence[float], float] = 0.5,
     ):
         """
         Args:
