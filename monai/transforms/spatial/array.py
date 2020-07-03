@@ -477,10 +477,10 @@ class Zoom(Transform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
 
         """
-        self.zoom = ensure_tuple_rep(self.zoom, img.ndim - 1)  # match the spatial image dim
+        self._zoom = ensure_tuple_rep(self.zoom, img.ndim - 1)  # match the spatial image dim
         zoomed = _torch_interp(
             input=torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0),
-            scale_factor=self.zoom,
+            scale_factor=list(self._zoom),
             mode=self.mode.value if mode is None else InterpolateMode(mode).value,
             align_corners=self.align_corners if align_corners is None else align_corners,
         )
@@ -1258,7 +1258,7 @@ class Rand2DElastic(Randomizable, Transform):
         shear_range: Optional[Union[Sequence[float], float]] = None,
         translate_range: Optional[Union[Sequence[float], float]] = None,
         scale_range: Optional[Union[Sequence[float], float]] = None,
-        spatial_size: Optional[Sequence[int]] = None,
+        spatial_size: Optional[Union[Sequence[int], int]] = None,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = False,
