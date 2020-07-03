@@ -16,7 +16,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
 from logging import Handler
-from typing import Optional, Callable
+from typing import Optional, Callable, Union, Sequence
 import copy
 import torch
 import numpy as np
@@ -154,12 +154,12 @@ class CastToTyped(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.CastToType`.
     """
 
-    def __init__(self, keys: KeysCollection, dtype: np.dtype = np.float32):
+    def __init__(self, keys: KeysCollection, dtype: Union[Sequence[np.dtype], np.dtype] = np.float32):
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            dtype (np.dtype): convert image to this data type, default is `np.float32`.
+            dtype: convert image to this data type, default is `np.float32`.
                 it also can be a sequence of np.dtype, each element corresponds to a key in ``keys``.
 
         """
@@ -265,30 +265,30 @@ class DataStatsd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        prefix="Data",
-        data_shape=True,
-        value_range=True,
-        data_value=False,
-        additional_info=None,
+        prefix: Union[Sequence[str], str] = "Data",
+        data_shape: Union[Sequence[bool], bool] = True,
+        value_range: Union[Sequence[bool], bool] = True,
+        data_value: Union[Sequence[bool], bool] = False,
+        additional_info: Optional[Union[Sequence[Callable], Callable]] = None,
         logger_handler: Optional[Handler] = None,
     ):
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            prefix (string or list of string): will be printed in format: "{prefix} statistics".
+            prefix: will be printed in format: "{prefix} statistics".
                 it also can be a sequence of string, each element corresponds to a key in ``keys``.
-            data_shape (bool or list of bool): whether to show the shape of input data.
+            data_shape: whether to show the shape of input data.
                 it also can be a sequence of bool, each element corresponds to a key in ``keys``.
-            value_range (bool or list of bool): whether to show the value range of input data.
+            value_range: whether to show the value range of input data.
                 it also can be a sequence of bool, each element corresponds to a key in ``keys``.
-            data_value (bool or list of bool): whether to show the raw value of input data.
+            data_value: whether to show the raw value of input data.
                 it also can be a sequence of bool, each element corresponds to a key in ``keys``.
                 a typical example is to print some properties of Nifti image: affine, pixdim, etc.
-            additional_info (Callable or list of Callable): user can define callable function to extract
+            additional_info: user can define callable function to extract
                 additional info from input data. it also can be a sequence of string, each element
                 corresponds to a key in ``keys``.
-            logger_handler (logging.handler): add additional handler to output data: save to file, etc.
+            logger_handler: add additional handler to output data: save to file, etc.
                 add existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html
 
         """
@@ -320,14 +320,14 @@ class SimulateDelayd(MapTransform):
     Dictionary-based wrapper of :py:class:monai.transforms.utility.array.SimulateDelay.
     """
 
-    def __init__(self, keys: KeysCollection, delay_time=0.0):
+    def __init__(self, keys: KeysCollection, delay_time: Union[Sequence[float], float] = 0.0):
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            delay_time(float or list of float): The minimum amount of time, in fractions of seconds,
-                to accomplish this identity task. It also can be a sequence of string, each element
-                corresponds to a key in ``keys``.
+            delay_time: The minimum amount of time, in fractions of seconds, to accomplish this identity task.
+                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+
         """
         super().__init__(keys)
         self.delay_time = ensure_tuple_rep(delay_time, len(self.keys))
@@ -347,14 +347,14 @@ class CopyItemsd(MapTransform):
 
     """
 
-    def __init__(self, keys: KeysCollection, times: int, names):
+    def __init__(self, keys: KeysCollection, times: int, names: KeysCollection):
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             times: expected copy times, for example, if keys is "img", times is 3,
                 it will add 3 copies of "img" data to the dictionary.
-            names(str, list or tuple of str): the names coresponding to the newly copied data,
+            names: the names coresponding to the newly copied data,
                 the length should match `len(keys) x times`. for example, if keys is ["img", "seg"]
                 and times is 2, names can be: ["img_1", "seg_1", "img_2", "seg_2"].
 
