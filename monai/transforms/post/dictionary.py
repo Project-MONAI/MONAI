@@ -47,12 +47,12 @@ class SplitChanneld(MapTransform):
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            output_postfixes (list, tuple): the postfixes to construct keys to store splitted data.
+            output_postfixes: the postfixes to construct keys to store splitted data.
                 for example: if the key of input data is `pred` and split 2 classes, the output
                 data keys will be: pred_(output_postfixes[0]), pred_(output_postfixes[1])
-            to_onehot (bool or list of bool): whether to convert the data to One-Hot format, default is False.
+            to_onehot: whether to convert the data to One-Hot format, default is False.
                 it also can be a sequence of bool, each element corresponds to a key in ``keys``.
-            num_classes (int or list of int): the class number used to convert to One-Hot format
+            num_classes: the class number used to convert to One-Hot format
                 if `to_onehot` is True. it also can be a sequence of int, each element corresponds
                 to a key in ``keys``.
 
@@ -93,13 +93,11 @@ class Activationsd(MapTransform):
         Args:
             keys: keys of the corresponding items to model output and label.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            sigmoid (bool, tuple or list of bool): whether to execute sigmoid function on model
-                output before transform. it also can be a sequence of bool, each element corresponds to
-                a key in ``keys``.
-            softmax (bool, tuple or list of bool): whether to execute softmax function on model
-                output before transform. it also can be a sequence of bool, each element corresponds to
-                a key in ``keys``.
-            other (Callable, tuple or list of Callables): callable function to execute other activation layers,
+            sigmoid: whether to execute sigmoid function on model output before transform.
+                it also can be a sequence of bool, each element corresponds to a key in ``keys``.
+            softmax: whether to execute softmax function on model output before transform.
+                it also can be a sequence of bool, each element corresponds to a key in ``keys``.
+            other: callable function to execute other activation layers,
                 for example: `other = lambda x: torch.tanh(x)`. it also can be a sequence of Callable, each
                 element corresponds to a key in ``keys``.
 
@@ -175,16 +173,20 @@ class KeepLargestConnectedComponentd(MapTransform):
     """
 
     def __init__(
-        self, keys: KeysCollection, applied_labels, independent: bool = True, connectivity: Optional[int] = None,
+        self,
+        keys: KeysCollection,
+        applied_labels: Union[Sequence[int], int],
+        independent: bool = True,
+        connectivity: Optional[int] = None,
     ):
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            applied_labels (int, list or tuple of int): Labels for applying the connected component on.
+            applied_labels: Labels for applying the connected component on.
                 If only one channel. The pixel whose value is not in this list will remain unchanged.
                 If the data is in one-hot format, this is the channel indexes to apply transform.
-            independent (bool): consider several labels as a whole or independent, default is `True`.
+            independent: consider several labels as a whole or independent, default is `True`.
                 Example use case would be segment label 1 is liver and label 2 is liver tumor, in that case
                 you want this "independent" to be specified as False.
             connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
