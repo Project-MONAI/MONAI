@@ -1231,8 +1231,8 @@ class Rand2DElastic(Randomizable, Transform):
 
     def __init__(
         self,
-        spacing: Tuple[int , int],
-        magnitude_range: Tuple[int , int],
+        spacing: Tuple[int, int],
+        magnitude_range: Tuple[int, int],
         prob: float = 0.1,
         rotate_range: Optional[Sequence[float]] = None,
         shear_range: Optional[Sequence[float]] = None,
@@ -1354,8 +1354,8 @@ class Rand3DElastic(Randomizable, Transform):
 
     def __init__(
         self,
-        sigma_range: Tuple[int , int],
-        magnitude_range: Tuple[int , int],
+        sigma_range: Tuple[int, int],
+        magnitude_range: Tuple[int, int],
         prob: float = 0.1,
         rotate_range: Optional[Sequence[float]] = None,
         shear_range: Optional[Sequence[float]] = None,

@@ -225,11 +225,7 @@ class RandRotate90d(Randomizable, MapTransform):
     """
 
     def __init__(
-        self,
-        keys: KeysCollection,
-        prob: float = 0.1,
-        max_k: int = 3,
-        spatial_axes: Tuple[int, int] = (0, 1),
+        self, keys: KeysCollection, prob: float = 0.1, max_k: int = 3, spatial_axes: Tuple[int, int] = (0, 1),
     ):
         """
         Args:
@@ -409,9 +405,9 @@ class Rand2DElasticd(Randomizable, MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        spacing: Tuple[int , int],
-        magnitude_range: Tuple[int , int],
-        spatial_size: Optional[Tuple[int , int]] = None,
+        spacing: Tuple[int, int],
+        magnitude_range: Tuple[int, int],
+        spatial_size: Optional[Tuple[int, int]] = None,
         prob: float = 0.1,
         rotate_range: Optional[Sequence[float]] = None,
         shear_range: Optional[Sequence[float]] = None,
@@ -519,9 +515,9 @@ class Rand3DElasticd(Randomizable, MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        sigma_range: Tuple[int , int],
-        magnitude_range: Tuple[int , int],
-        spatial_size: Optional[Tuple[int , int]] = None,
+        sigma_range: Tuple[int, int],
+        magnitude_range: Tuple[int, int],
+        spatial_size: Optional[Tuple[int, int]] = None,
         prob: float = 0.1,
         rotate_range: Optional[Sequence[float]] = None,
         shear_range: Optional[Sequence[float]] = None,
@@ -656,10 +652,7 @@ class RandFlipd(Randomizable, MapTransform):
     """
 
     def __init__(
-        self,
-        keys: KeysCollection,
-        prob: float = 0.1,
-        spatial_axis: Optional[Union[Sequence[int], int]] = None,
+        self, keys: KeysCollection, prob: float = 0.1, spatial_axis: Optional[Union[Sequence[int], int]] = None,
     ):
         super().__init__(keys)
         self.spatial_axis = spatial_axis
@@ -724,10 +717,7 @@ class Rotated(MapTransform):
         d = dict(data)
         for idx, key in enumerate(self.keys):
             d[key] = self.rotator(
-                d[key],
-                mode=self.mode[idx],
-                padding_mode=self.padding_mode[idx],
-                align_corners=self.align_corners[idx],
+                d[key], mode=self.mode[idx], padding_mode=self.padding_mode[idx], align_corners=self.align_corners[idx],
             )
         return d
 
@@ -808,15 +798,11 @@ class RandRotated(Randomizable, MapTransform):
         if not self._do_transform:
             return d
         rotator = Rotate(
-            angle=self.x if d[self.keys[0]].ndim == 3 else (self.x, self.y, self.z),
-            keep_size=self.keep_size,
+            angle=self.x if d[self.keys[0]].ndim == 3 else (self.x, self.y, self.z), keep_size=self.keep_size,
         )
         for idx, key in enumerate(self.keys):
             d[key] = rotator(
-                d[key],
-                mode=self.mode[idx],
-                padding_mode=self.padding_mode[idx],
-                align_corners=self.align_corners[idx],
+                d[key], mode=self.mode[idx], padding_mode=self.padding_mode[idx], align_corners=self.align_corners[idx],
             )
         return d
 
