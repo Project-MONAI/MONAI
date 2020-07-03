@@ -270,7 +270,7 @@ class Resized(MapTransform):
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
         spatial_size: expected shape of spatial dimensions after resize operation.
-            if the components of the spatial_size are non-positive values, the transform will use the
+            if the components of the `spatial_size` are non-positive values, the transform will use the
             corresponding components of img size. For example, `spatial_size=(32, -1)` will be adapted
             to `(32, 64)` if the second spatial dimension size of img is `64`.
         mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
@@ -327,7 +327,7 @@ class RandAffined(Randomizable, MapTransform):
             spatial_size: output image spatial size.
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
-                if the components of the spatial_size are non-positive values, the transform will use the
+                if the components of the `spatial_size` are non-positive values, the transform will use the
                 corresponding components of img size. For example, `spatial_size=(32, -1)` will be adapted
                 to `(32, 64)` if the second spatial dimension size of img is `64`.
             prob: probability of returning a randomized affine grid.
@@ -408,7 +408,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        spacing: Union[Sequence[float], float],
+        spacing: Union[Tuple[float, float], float],
         magnitude_range: Tuple[float, float],
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         prob: float = 0.1,
@@ -430,7 +430,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
             spatial_size: specifying output image spatial size [h, w].
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
-                if the components of the spatial_size are non-positive values, the transform will use the
+                if the components of the `spatial_size` are non-positive values, the transform will use the
                 corresponding components of img size. For example, `spatial_size=(32, -1)` will be adapted
                 to `(32, 64)` if the second spatial dimension size of img is `64`.
             prob: probability of returning a randomized affine grid.
@@ -544,7 +544,7 @@ class Rand3DElasticd(Randomizable, MapTransform):
             spatial_size: specifying output image spatial size [h, w, d].
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
-                if the components of the spatial_size are non-positive values, the transform will use the
+                if the components of the `spatial_size` are non-positive values, the transform will use the
                 corresponding components of img size. For example, `spatial_size=(32, 32, -1)` will be adapted
                 to `(32, 32, 64)` if the third spatial dimension size of img is `64`.
             prob: probability of returning a randomized affine grid.

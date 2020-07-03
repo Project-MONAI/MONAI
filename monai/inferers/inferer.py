@@ -68,6 +68,9 @@ class SlidingWindowInferer(Inferer):
     Args:
         roi_size (list, tuple): the window size to execute SlidingWindow evaluation.
             If it has non-positive components, the corresponding `inputs` size will be used.
+            if the components of the `roi_size` are non-positive values, the transform will use the
+            corresponding components of img size. For example, `roi_size=(32, -1)` will be adapted
+            to `(32, 64)` if the second spatial dimension size of img is `64`.
         sw_batch_size: the batch size to run window slices.
         overlap: Amount of overlap between scans.
         mode: {``"constant"``, ``"gaussian"``}
