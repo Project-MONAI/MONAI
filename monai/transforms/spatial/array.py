@@ -1251,7 +1251,7 @@ class Rand2DElastic(Randomizable, Transform):
 
     def __init__(
         self,
-        spacing: Union[Sequence[float], float],
+        spacing: Sequence[float],
         magnitude_range: Tuple[float, float],
         prob: float = 0.1,
         rotate_range: Optional[Union[Sequence[float], float]] = None,

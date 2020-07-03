@@ -50,7 +50,6 @@ from monai.utils import (
 GridSampleModeSequence = Union[Sequence[Union[GridSampleMode, str]], GridSampleMode, str]
 GridSamplePadModeSequence = Union[Sequence[Union[GridSamplePadMode, str]], GridSamplePadMode, str]
 InterpolateModeSequence = Union[Sequence[Union[InterpolateMode, str]], InterpolateMode, str]
-AlignCornerSequence = Optional[Union[Sequence[Union[Optional[bool]]], Optional[bool]]]
 
 
 class Spacingd(MapTransform):
@@ -275,7 +274,7 @@ class Resized(MapTransform):
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             It also can be a sequence of string, each element corresponds to a key in ``keys``.
-        align_corners: This only has an effect when mode is
+        align_corners (bool, None or sequence of bool or None): This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             It also can be a sequence of bool or None, each element corresponds to a key in ``keys``.
@@ -286,7 +285,7 @@ class Resized(MapTransform):
         keys: KeysCollection,
         spatial_size: Union[Sequence[int], int],
         mode: InterpolateModeSequence = InterpolateMode.AREA,
-        align_corners: AlignCornerSequence = None,
+        align_corners=None,
     ):
         super().__init__(keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
@@ -820,7 +819,7 @@ class Zoomd(MapTransform):
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             It also can be a sequence of string, each element corresponds to a key in ``keys``.
-        align_corners: This only has an effect when mode is
+        align_corners (bool, None or sequence of bool or None): This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             It also can be a sequence of bool or None, each element corresponds to a key in ``keys``.
@@ -832,7 +831,7 @@ class Zoomd(MapTransform):
         keys: KeysCollection,
         zoom: Union[Sequence[float], float],
         mode: InterpolateModeSequence = InterpolateMode.AREA,
-        align_corners: AlignCornerSequence = None,
+        align_corners=None,
         keep_size: bool = True,
     ):
         super().__init__(keys)
@@ -864,7 +863,7 @@ class RandZoomd(Randomizable, MapTransform):
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             It also can be a sequence of string, each element corresponds to a key in ``keys``.
-        align_corners: This only has an effect when mode is
+        align_corners (bool, None or sequence of bool or None): This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             It also can be a sequence of bool or None, each element corresponds to a key in ``keys``.
@@ -878,7 +877,7 @@ class RandZoomd(Randomizable, MapTransform):
         min_zoom: Union[Sequence[float], float] = 0.9,
         max_zoom: Union[Sequence[float], float] = 1.1,
         mode: InterpolateModeSequence = InterpolateMode.AREA,
-        align_corners: AlignCornerSequence = None,
+        align_corners=None,
         keep_size: bool = True,
     ):
         super().__init__(keys)
