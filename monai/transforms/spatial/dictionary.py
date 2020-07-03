@@ -463,7 +463,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
             grid = self.rand_2d_elastic.deform_grid(spatial_size=sp_size)
             grid = self.rand_2d_elastic.rand_affine_grid(grid=grid)
             grid = _torch_interp(
-                input=grid[None],
+                input=grid.unsqueeze(0),
                 scale_factor=list(self.rand_2d_elastic.deform_grid.spacing),
                 mode=InterpolateMode.BICUBIC.value,
                 align_corners=False,
@@ -563,7 +563,7 @@ class Rand3DElasticd(Randomizable, MapTransform):
             device = self.rand_3d_elastic.device
             grid = torch.tensor(grid).to(device)
             gaussian = GaussianFilter(spatial_dims=3, sigma=self.rand_3d_elastic.sigma, truncated=3.0).to(device)
-            offset = torch.tensor(self.rand_3d_elastic.rand_offset[None], device=device)
+            offset = torch.tensor(self.rand_3d_elastic.rand_offset, device=device).unsqueeze(0)
             grid[:3] += gaussian(offset)[0] * self.rand_3d_elastic.magnitude
             grid = self.rand_3d_elastic.rand_affine_grid(grid=grid)
 

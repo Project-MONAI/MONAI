@@ -163,7 +163,7 @@ class Spacing(Transform):
             reverse_indexing=True,
         )
         output_data = affine_xform(
-            torch.from_numpy((data_array.astype(np.float64))[None]),  # AffineTransform requires a batch dim
+            torch.from_numpy((data_array.astype(np.float64))).unsqueeze(0),  # AffineTransform requires a batch dim
             torch.from_numpy(transform_.astype(np.float64)),
             spatial_size=output_shape,
         )
@@ -329,7 +329,7 @@ class Resize(Transform):
             )
         spatial_size = fall_back_tuple(self.spatial_size, img.shape[1:])
         resized = _torch_interp(
-            input=torch.as_tensor(img[None], dtype=torch.float),
+            input=torch.as_tensor(img, dtype=torch.float).unsqueeze(0),
             size=spatial_size,
             mode=self.mode.value if mode is None else InterpolateMode(mode).value,
             align_corners=self.align_corners if align_corners is None else align_corners,
@@ -419,7 +419,7 @@ class Rotate(Transform):
             reverse_indexing=True,
         )
         output = xform(
-            torch.from_numpy(img.astype(np.float64)[None]),
+            torch.from_numpy(img.astype(np.float64)).unsqueeze(0),
             torch.from_numpy(transform.astype(np.float64)),
             spatial_size=output_shape,
         )
@@ -476,7 +476,7 @@ class Zoom(Transform):
         """
         self.zoom = ensure_tuple_rep(self.zoom, img.ndim - 1)  # match the spatial image dim
         zoomed = _torch_interp(
-            input=torch.as_tensor(img[None], dtype=torch.float),
+            input=torch.as_tensor(img, dtype=torch.float).unsqueeze(0),
             scale_factor=list(self.zoom),
             mode=self.mode.value if mode is None else InterpolateMode(mode).value,
             align_corners=self.align_corners if align_corners is None else align_corners,
@@ -1003,8 +1003,8 @@ class Resample(Transform):
         grid = grid[index_ordering]
         grid = grid.permute(list(range(grid.ndim))[1:] + [0])
         out = torch.nn.functional.grid_sample(
-            img[None].float(),
-            grid[None].float(),
+            img.unsqueeze(0).float(),
+            grid.unsqueeze(0).float(),
             mode=self.mode.value if mode is None else GridSampleMode(mode).value,
             padding_mode=self.padding_mode.value if padding_mode is None else GridSamplePadMode(padding_mode).value,
             align_corners=True,
@@ -1298,7 +1298,7 @@ class Rand2DElastic(Randomizable, Transform):
             grid = self.deform_grid(spatial_size=sp_size)
             grid = self.rand_affine_grid(grid=grid)
             grid = _torch_interp(
-                input=grid[None],
+                input=grid.unsqueeze(0),
                 scale_factor=list(self.deform_grid.spacing),
                 mode=InterpolateMode.BICUBIC.value,
                 align_corners=False,
@@ -1409,7 +1409,7 @@ class Rand3DElastic(Randomizable, Transform):
             assert self.rand_offset is not None
             grid = torch.as_tensor(np.ascontiguousarray(grid), device=self.device)
             gaussian = GaussianFilter(3, self.sigma, 3.0).to(device=self.device)
-            offset = torch.as_tensor(self.rand_offset[None], device=self.device)
+            offset = torch.as_tensor(self.rand_offset, device=self.device).unsqueeze(0)
             grid[:3] += gaussian(offset)[0] * self.magnitude
             grid = self.rand_affine_grid(grid=grid)
         return self.resampler(img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode)
