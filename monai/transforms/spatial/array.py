@@ -329,7 +329,7 @@ class Resize(Transform):
             )
         spatial_size = fall_back_tuple(self.spatial_size, img.shape[1:])
         resized = _torch_interp(
-            input=torch.as_tensor(img, dtype=torch.float).unsqueeze(0),
+            input=torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0),
             size=spatial_size,
             mode=self.mode.value if mode is None else InterpolateMode(mode).value,
             align_corners=self.align_corners if align_corners is None else align_corners,
@@ -476,7 +476,7 @@ class Zoom(Transform):
         """
         self.zoom = ensure_tuple_rep(self.zoom, img.ndim - 1)  # match the spatial image dim
         zoomed = _torch_interp(
-            input=torch.as_tensor(img, dtype=torch.float).unsqueeze(0),
+            input=torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0),
             scale_factor=list(self.zoom),
             mode=self.mode.value if mode is None else InterpolateMode(mode).value,
             align_corners=self.align_corners if align_corners is None else align_corners,
