@@ -23,8 +23,8 @@ from monai.utils import first
 from torchgpipe import GPipe
 from torchgpipe.balance import balance_by_size
 
-from .unet_pipe import UNetPipe, flatten_sequential
-from .data_utils import get_filenames, load_data_and_mask
+from unet_pipe import UNetPipe, flatten_sequential
+from data_utils import get_filenames, load_data_and_mask
 
 N_CLASSES = 10
 TRAIN_PATH = "./data/HaN/train/"  # training data folder
