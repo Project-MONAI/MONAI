@@ -787,6 +787,7 @@ class AffineGrid(Transform):
         device: device to store the output grid data.
 
     """
+
     def __init__(
         self,
         rotate_params: Optional[Union[Sequence[float], float]] = None,
