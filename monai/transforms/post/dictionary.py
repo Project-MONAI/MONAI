@@ -15,7 +15,7 @@ defined in :py:class:`monai.transforms.utility.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Optional
+from typing import Optional, Union, Sequence, Callable
 
 from monai.config import KeysCollection
 from monai.utils import ensure_tuple_rep
@@ -36,17 +36,23 @@ class SplitChanneld(MapTransform):
 
     """
 
-    def __init__(self, keys: KeysCollection, output_postfixes, to_onehot=False, num_classes=None):
+    def __init__(
+        self,
+        keys: KeysCollection,
+        output_postfixes: Sequence[str],
+        to_onehot: Union[Sequence[bool], bool] = False,
+        num_classes: Optional[Union[Sequence[int], int]] = None,
+    ):
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            output_postfixes (list, tuple): the postfixes to construct keys to store splitted data.
+            output_postfixes: the postfixes to construct keys to store split data.
                 for example: if the key of input data is `pred` and split 2 classes, the output
                 data keys will be: pred_(output_postfixes[0]), pred_(output_postfixes[1])
-            to_onehot (bool or list of bool): whether to convert the data to One-Hot format, default is False.
+            to_onehot: whether to convert the data to One-Hot format, default is False.
                 it also can be a sequence of bool, each element corresponds to a key in ``keys``.
-            num_classes (int or list of int): the class number used to convert to One-Hot format
+            num_classes: the class number used to convert to One-Hot format
                 if `to_onehot` is True. it also can be a sequence of int, each element corresponds
                 to a key in ``keys``.
 
@@ -55,8 +61,6 @@ class SplitChanneld(MapTransform):
 
         """
         super().__init__(keys)
-        if not isinstance(output_postfixes, (list, tuple)):
-            raise ValueError("must specify key postfixes to store splitted data.")
         self.output_postfixes = output_postfixes
         self.to_onehot = ensure_tuple_rep(to_onehot, len(self.keys))
         self.num_classes = ensure_tuple_rep(num_classes, len(self.keys))
@@ -78,18 +82,22 @@ class Activationsd(MapTransform):
     Add activation layers to the input data specified by `keys`.
     """
 
-    def __init__(self, keys: KeysCollection, sigmoid=False, softmax=False, other=None):
+    def __init__(
+        self,
+        keys: KeysCollection,
+        sigmoid: Union[Sequence[bool], bool] = False,
+        softmax: Union[Sequence[bool], bool] = False,
+        other: Optional[Union[Sequence[Callable], Callable]] = None,
+    ):
         """
         Args:
             keys: keys of the corresponding items to model output and label.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            sigmoid (bool, tuple or list of bool): whether to execute sigmoid function on model
-                output before transform. it also can be a sequence of bool, each element corresponds to
-                a key in ``keys``.
-            softmax (bool, tuple or list of bool): whether to execute softmax function on model
-                output before transform. it also can be a sequence of bool, each element corresponds to
-                a key in ``keys``.
-            other (Callable, tuple or list of Callables): callable function to execute other activation layers,
+            sigmoid: whether to execute sigmoid function on model output before transform.
+                it also can be a sequence of bool, each element corresponds to a key in ``keys``.
+            softmax: whether to execute softmax function on model output before transform.
+                it also can be a sequence of bool, each element corresponds to a key in ``keys``.
+            other: callable function to execute other activation layers,
                 for example: `other = lambda x: torch.tanh(x)`. it also can be a sequence of Callable, each
                 element corresponds to a key in ``keys``.
 
@@ -115,11 +123,11 @@ class AsDiscreted(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        argmax: bool = False,
-        to_onehot: bool = False,
-        n_classes: Optional[int] = None,
-        threshold_values: bool = False,
-        logit_thresh: float = 0.5,
+        argmax: Union[Sequence[bool], bool] = False,
+        to_onehot: Union[Sequence[bool], bool] = False,
+        n_classes: Optional[Union[Sequence[int], int]] = None,
+        threshold_values: Union[Sequence[bool], bool] = False,
+        logit_thresh: Union[Sequence[float], float] = 0.5,
     ):
         """
         Args:
@@ -165,16 +173,20 @@ class KeepLargestConnectedComponentd(MapTransform):
     """
 
     def __init__(
-        self, keys: KeysCollection, applied_labels, independent: bool = True, connectivity: Optional[int] = None,
+        self,
+        keys: KeysCollection,
+        applied_labels: Union[Sequence[int], int],
+        independent: bool = True,
+        connectivity: Optional[int] = None,
     ):
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            applied_labels (int, list or tuple of int): Labels for applying the connected component on.
+            applied_labels: Labels for applying the connected component on.
                 If only one channel. The pixel whose value is not in this list will remain unchanged.
                 If the data is in one-hot format, this is the channel indexes to apply transform.
-            independent (bool): consider several labels as a whole or independent, default is `True`.
+            independent: consider several labels as a whole or independent, default is `True`.
                 Example use case would be segment label 1 is liver and label 2 is liver tumor, in that case
                 you want this "independent" to be specified as False.
             connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.

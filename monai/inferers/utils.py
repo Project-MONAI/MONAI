@@ -37,6 +37,9 @@ def sliding_window_inference(
         inputs: input image to be processed (assuming NCHW[D])
         roi_size (list, tuple): the spatial window size for inferences.
             When its components have None or non-positives, the corresponding inputs dimension will be used.
+            if the components of the `roi_size` are non-positive values, the transform will use the
+            corresponding components of img size. For example, `roi_size=(32, -1)` will be adapted
+            to `(32, 64)` if the second spatial dimension size of img is `64`.
         sw_batch_size: the batch size to run window slices.
         predictor: given input tensor `patch_data` in shape NCHW[D], `predictor(patch_data)`
             should return a prediction with the same spatial shape and batch_size, i.e. NMHW[D];

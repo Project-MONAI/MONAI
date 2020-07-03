@@ -141,7 +141,7 @@ class CastToType(Transform):
     def __init__(self, dtype: np.dtype = np.float32):
         """
         Args:
-            dtype (np.dtype): convert image to this data type, default is `np.float32`.
+            dtype: convert image to this data type, default is `np.float32`.
         """
         self.dtype = dtype
 
@@ -248,7 +248,7 @@ class DataStats(Transform):
             data_value: whether to show the raw value of input data.
                 a typical example is to print some properties of Nifti image: affine, pixdim, etc.
             additional_info: user can define callable function to extract additional info from input data.
-            logger_handler (logging.handler): add additional handler to output data: save to file, etc.
+            logger_handler: add additional handler to output data: save to file, etc.
                 add existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html
 
         Raises:

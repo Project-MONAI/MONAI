@@ -96,12 +96,12 @@ class RandShiftIntensityd(Randomizable, MapTransform):
     Dictionary-based version :py:class:`monai.transforms.RandShiftIntensity`.
     """
 
-    def __init__(self, keys: KeysCollection, offsets, prob: float = 0.1):
+    def __init__(self, keys: KeysCollection, offsets: Union[Tuple[float, float], float], prob: float = 0.1):
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            offsets(int, float, tuple or list): offset range to randomly shift.
+            offsets: offset range to randomly shift.
                 if single number, offset value is picked from (-offsets, offsets).
             prob: probability of rotating.
                 (Default 0.1, with 10% probability it returns a rotated array.)
@@ -161,12 +161,12 @@ class RandScaleIntensityd(Randomizable, MapTransform):
     Dictionary-based version :py:class:`monai.transforms.RandScaleIntensity`.
     """
 
-    def __init__(self, keys: KeysCollection, factors, prob: float = 0.1):
+    def __init__(self, keys: KeysCollection, factors: Union[Tuple[float, float], float], prob: float = 0.1):
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            factors(float, tuple or list): factor range to randomly scale by ``v = v * (1 + factor)``.
+            factors: factor range to randomly scale by ``v = v * (1 + factor)``.
                 if single number, factor value is picked from (-factors, factors).
             prob: probability of rotating.
                 (Default 0.1, with 10% probability it returns a rotated array.)
