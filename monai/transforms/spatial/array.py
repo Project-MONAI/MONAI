@@ -732,7 +732,7 @@ class RandZoom(Randomizable, Transform):
 
     def randomize(self) -> None:  # type: ignore # see issue #495
         self._do_transform = self.R.random_sample() < self.prob
-        if hasattr(self.min_zoom, "__iter__"):
+        if isinstance(self.min_zoom, Iterable):
             self._zoom = (self.R.uniform(l, h) for l, h in zip(self.min_zoom, self.max_zoom))
         else:
             self._zoom = self.R.uniform(self.min_zoom, self.max_zoom)
@@ -750,8 +750,6 @@ class RandZoom(Randomizable, Transform):
                 'linear', 'bilinear', 'bicubic' or 'trilinear'. Defaults to ``self.align_corners``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
         """
-        self.min_zoom = ensure_tuple_rep(self.min_zoom, img.ndim - 1)  # match the spatial image dim
-        self.max_zoom = ensure_tuple_rep(self.max_zoom, img.ndim - 1)  # match the spatial image dim
         self.randomize()
         _dtype = np.float32
         if not self._do_transform:
