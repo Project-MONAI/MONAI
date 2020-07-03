@@ -24,7 +24,7 @@ from monai.data import NiftiDataset, create_test_image_3d
 from monai.inferers import sliding_window_inference
 from monai.handlers import SegmentationSaver
 from monai.networks.nets import UNet
-from monai.networks.utils import predict_segmentation
+from monai.networks import predict_segmentation
 from monai.transforms import AddChannel
 from monai.utils import set_determinism
 from tests.utils import make_nifti_image
@@ -35,7 +35,7 @@ def run_test(batch_size, img_name, seg_name, output_dir, device=torch.device("cu
     loader = DataLoader(ds, batch_size=1, pin_memory=torch.cuda.is_available())
 
     net = UNet(
-        dimensions=3, in_channels=1, out_channels=1, channels=(4, 8, 16, 32), strides=(2, 2, 2), num_res_units=2,
+        dimensions=3, in_channels=1, out_channels=1, channels=(4, 8, 16, 32), strides=(2, 2, 2), num_res_units=2
     ).to(device)
     roi_size = (16, 32, 48)
     sw_batch_size = batch_size
@@ -82,7 +82,7 @@ class TestIntegrationSlidingWindow(unittest.TestCase):
             batch_size=2, img_name=self.img_name, seg_name=self.seg_name, output_dir=tempdir, device=self.device
         )
         output_image = nib.load(output_file).get_fdata()
-        np.testing.assert_allclose(np.sum(output_image), 34070)
+        np.testing.assert_allclose(np.sum(output_image), 33583)
         np.testing.assert_allclose(output_image.shape, (28, 25, 63, 1))
         shutil.rmtree(tempdir)
 
