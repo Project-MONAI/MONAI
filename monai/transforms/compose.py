@@ -19,7 +19,7 @@ import numpy as np
 
 from monai.config import KeysCollection
 from monai.utils import ensure_tuple, get_seed
-from .utils import apply_transform
+from monai.transforms.utils import apply_transform
 
 
 class Transform(ABC):

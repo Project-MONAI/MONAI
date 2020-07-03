@@ -15,8 +15,7 @@ import numpy as np
 import torch
 
 from monai.data.nifti_writer import write_nifti
-
-from .utils import create_file_basename
+from monai.data.utils import create_file_basename
 from monai.utils import GridSampleMode, GridSamplePadMode
 
 
