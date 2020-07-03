@@ -284,7 +284,7 @@ class Resized(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        spatial_size: Sequence[int],
+        spatial_size: Union[Sequence[int], int],
         mode: InterpolateModeSequence = InterpolateMode.AREA,
         align_corners: AlignCornerSequence = None,
     ):
@@ -308,12 +308,12 @@ class RandAffined(Randomizable, MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        spatial_size: Optional[Sequence[int]] = None,
+        spatial_size: Optional[Union[Sequence[int], int]] = None,
         prob: float = 0.1,
-        rotate_range: Optional[Sequence[float]] = None,
-        shear_range: Optional[Sequence[float]] = None,
-        translate_range: Optional[Sequence[float]] = None,
-        scale_range: Optional[Sequence[float]] = None,
+        rotate_range: Optional[Union[Sequence[float], float]] = None,
+        shear_range: Optional[Union[Sequence[float], float]] = None,
+        translate_range: Optional[Union[Sequence[float], float]] = None,
+        scale_range: Optional[Union[Sequence[float], float]] = None,
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = True,
@@ -322,7 +322,7 @@ class RandAffined(Randomizable, MapTransform):
         """
         Args:
             keys: keys of the corresponding items to be transformed.
-            spatial_size (list or tuple of int): output image spatial size.
+            spatial_size: output image spatial size.
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
                 if ``data`` component has two spatial dimensions, ``spatial_size`` should have 2 elements [h, w].
@@ -405,14 +405,14 @@ class Rand2DElasticd(Randomizable, MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        spacing: Tuple[int, int],
-        magnitude_range: Tuple[int, int],
-        spatial_size: Optional[Tuple[int, int]] = None,
+        spacing: Union[Sequence[float], float],
+        magnitude_range: Tuple[float, float],
+        spatial_size: Optional[Union[Sequence[int], int]] = None,
         prob: float = 0.1,
-        rotate_range: Optional[Sequence[float]] = None,
-        shear_range: Optional[Sequence[float]] = None,
-        translate_range: Optional[Sequence[float]] = None,
-        scale_range: Optional[Sequence[float]] = None,
+        rotate_range: Optional[Union[Sequence[float], float]] = None,
+        shear_range: Optional[Union[Sequence[float], float]] = None,
+        translate_range: Optional[Union[Sequence[float], float]] = None,
+        scale_range: Optional[Union[Sequence[float], float]] = None,
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = False,
@@ -421,10 +421,10 @@ class Rand2DElasticd(Randomizable, MapTransform):
         """
         Args:
             keys: keys of the corresponding items to be transformed.
-            spacing: 2 int numbers, distance in between the control points.
+            spacing: distance in between the control points.
             magnitude_range: 2 int numbers, the random offsets will be generated from
                 ``uniform[magnitude[0], magnitude[1])``.
-            spatial_size (2 ints): specifying output image spatial size [h, w].
+            spatial_size: specifying output image spatial size [h, w].
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
             prob: probability of returning a randomized affine grid.
@@ -515,14 +515,14 @@ class Rand3DElasticd(Randomizable, MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        sigma_range: Tuple[int, int],
-        magnitude_range: Tuple[int, int],
-        spatial_size: Optional[Tuple[int, int]] = None,
+        sigma_range: Tuple[float, float],
+        magnitude_range: Tuple[float, float],
+        spatial_size: Optional[Union[Sequence[int], int]] = None,
         prob: float = 0.1,
-        rotate_range: Optional[Sequence[float]] = None,
-        shear_range: Optional[Sequence[float]] = None,
-        translate_range: Optional[Sequence[float]] = None,
-        scale_range: Optional[Sequence[float]] = None,
+        rotate_range: Optional[Union[Sequence[float], float]] = None,
+        shear_range: Optional[Union[Sequence[float], float]] = None,
+        translate_range: Optional[Union[Sequence[float], float]] = None,
+        scale_range: Optional[Union[Sequence[float], float]] = None,
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = False,
@@ -531,11 +531,11 @@ class Rand3DElasticd(Randomizable, MapTransform):
         """
         Args:
             keys: keys of the corresponding items to be transformed.
-            sigma_range: 2 int numbers, a Gaussian kernel with standard deviation sampled
-                 from ``uniform[sigma_range[0], sigma_range[1])`` will be used to smooth the random offset grid.
-            magnitude_range:  2 int numbers, the random offsets on the grid will be generated from
+            sigma_range: a Gaussian kernel with standard deviation sampled from
+                ``uniform[sigma_range[0], sigma_range[1])`` will be used to smooth the random offset grid.
+            magnitude_range: the random offsets on the grid will be generated from
                 ``uniform[magnitude[0], magnitude[1])``.
-            spatial_size (3 ints): specifying output image spatial size [h, w, d].
+            spatial_size: specifying output image spatial size [h, w, d].
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
             prob: probability of returning a randomized affine grid.
