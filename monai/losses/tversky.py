@@ -10,11 +10,13 @@
 # limitations under the License.
 
 import warnings
+from typing import Union
 
 import torch
 from torch.nn.modules.loss import _Loss
 
-from monai.networks.utils import one_hot
+from monai.networks import one_hot
+from monai.utils import LossReduction
 
 
 class TverskyLoss(_Loss):
@@ -32,61 +34,68 @@ class TverskyLoss(_Loss):
 
     def __init__(
         self,
-        include_background=True,
-        to_onehot_y=False,
-        do_sigmoid=False,
-        do_softmax=False,
-        alpha=0.5,
-        beta=0.5,
-        reduction="mean",
+        include_background: bool = True,
+        to_onehot_y: bool = False,
+        sigmoid: bool = False,
+        softmax: bool = False,
+        alpha: float = 0.5,
+        beta: float = 0.5,
+        reduction: Union[LossReduction, str] = LossReduction.MEAN,
     ):
-
         """
         Args:
-            include_background (bool): If False channel index 0 (background category) is excluded from the calculation.
-            to_onehot_y (bool): whether to convert `y` into the one-hot format. Defaults to False.
-            do_sigmoid (bool): If True, apply a sigmoid function to the prediction.
-            do_softmax (bool): If True, apply a softmax function to the prediction.
-            alpha (float): weight of false positives
-            beta  (float): weight of false negatives
-            reduction (`none|mean|sum`): Specifies the reduction to apply to the output:
-                ``'none'``: no reduction will be applied,
-                ``'mean'``: the sum of the output will be divided by the number of elements in the output,
-                ``'sum'``: the output will be summed.
-                Default: ``'mean'``.
+            include_background: If False channel index 0 (background category) is excluded from the calculation.
+            to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
+            sigmoid: If True, apply a sigmoid function to the prediction.
+            softmax: If True, apply a softmax function to the prediction.
+            alpha: weight of false positives
+            beta: weight of false negatives
+            reduction: {``"none"``, ``"mean"``, ``"sum"``}
+                Specifies the reduction to apply to the output. Defaults to ``"mean"``.
+
+                - ``"none"``: no reduction will be applied.
+                - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
+                - ``"sum"``: the output will be summed.
+
+        Raises:
+            ValueError: sigmoid=True and softmax=True are not compatible.
 
         """
 
-        super().__init__(reduction=reduction)
+        super().__init__(reduction=LossReduction(reduction))
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
 
-        if do_sigmoid and do_softmax:
-            raise ValueError("do_sigmoid=True and do_softmax=True are not compatible.")
-        self.do_sigmoid = do_sigmoid
-        self.do_softmax = do_softmax
+        if sigmoid and softmax:
+            raise ValueError("sigmoid=True and softmax=True are not compatible.")
+        self.sigmoid = sigmoid
+        self.softmax = softmax
         self.alpha = alpha
         self.beta = beta
 
-    def forward(self, input, target, smooth=1e-5):
+    def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5):
         """
         Args:
             input (tensor): the shape should be BNH[WD].
             target (tensor): the shape should be BNH[WD].
-            smooth (float): a small constant to avoid nan.
+            smooth: a small constant to avoid nan.
+
+        Raises:
+            ValueError: reduction={self.reduction} is invalid.
+
         """
-        if self.do_sigmoid:
+        if self.sigmoid:
             input = torch.sigmoid(input)
         n_pred_ch = input.shape[1]
         if n_pred_ch == 1:
-            if self.do_softmax:
-                warnings.warn("single channel prediction, `do_softmax=True` ignored.")
+            if self.softmax:
+                warnings.warn("single channel prediction, `softmax=True` ignored.")
             if self.to_onehot_y:
                 warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
             if not self.include_background:
                 warnings.warn("single channel prediction, `include_background=False` ignored.")
         else:
-            if self.do_softmax:
+            if self.softmax:
                 input = torch.softmax(input, 1)
             if self.to_onehot_y:
                 target = one_hot(target, n_pred_ch)
@@ -115,10 +124,10 @@ class TverskyLoss(_Loss):
 
         score = 1.0 - numerator / denominator
 
-        if self.reduction == "sum":
+        if self.reduction == LossReduction.SUM:
             return score.sum()  # sum over the batch and channel dims
-        if self.reduction == "none":
+        if self.reduction == LossReduction.NONE:
             return score  # returns [N, n_classes] losses
-        if self.reduction == "mean":
+        if self.reduction == LossReduction.MEAN:
             return score.mean()
         raise ValueError(f"reduction={self.reduction} is invalid.")
