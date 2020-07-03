@@ -27,7 +27,6 @@ class CommonKeys:
     LABEL = "label"
     PRED = "pred"
     LOSS = "loss"
-    INFO = "info"
 
 
 def get_devices_spec(devices=None):
@@ -41,6 +40,10 @@ def get_devices_spec(devices=None):
 
     Returns:
         list of torch.device: list of devices.
+
+    Raises:
+        ValueError: No GPU devices available
+
     """
     if devices is None:
         devices = [torch.device(f"cuda:{d:d}") for d in range(torch.cuda.device_count())]

@@ -36,6 +36,10 @@ class TestLoadPNG(unittest.TestCase):
         result = LoadPNG()(filenames)
         self.assertTupleEqual(result[1]["spatial_shape"], meta_shape)
         self.assertTupleEqual(result[0].shape, expected_shape)
+        if result[0].shape == test_image.shape:
+            np.testing.assert_allclose(result[0], test_image)
+        else:
+            np.testing.assert_allclose(result[0], np.tile(test_image, [result[0].shape[0], 1, 1]))
         shutil.rmtree(tempdir)
 
 

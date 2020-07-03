@@ -14,13 +14,15 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from monai.networks.layers.convutils import gaussian_1d, same_padding
-from monai.utils.misc import ensure_tuple_rep
+from monai.utils import ensure_tuple_rep
 
 __all__ = ["SkipConnection", "Flatten", "GaussianFilter"]
 
 
 class SkipConnection(nn.Module):
-    """Concats the forward pass input with the result from the given submodule."""
+    """
+    Concats the forward pass input with the result from the given submodule.
+    """
 
     def __init__(self, submodule, cat_dim=1):
         super().__init__()
@@ -32,20 +34,44 @@ class SkipConnection(nn.Module):
 
 
 class Flatten(nn.Module):
-    """Flattens the given input in the forward pass to be [B,-1] in shape."""
+    """
+    Flattens the given input in the forward pass to be [B,-1] in shape.
+    """
 
     def forward(self, x):
         return x.view(x.size(0), -1)
 
 
+class Reshape(nn.Module):
+    """
+    Reshapes input tensors to the given shape (minus batch dimension), retaining original batch size.
+    """
+
+    def __init__(self, *shape):
+        """
+        Given a shape list/tuple `shape` of integers (s0, s1, ... , sn), this layer will reshape input tensors of
+        shape (batch, s0 * s1 * ... * sn) to shape (batch, s0, s1, ... , sn).
+
+        Args:
+            shape: list/tuple of integer shape dimensions
+        """
+        super().__init__()
+        self.shape = (1,) + tuple(shape)
+
+    def forward(self, x):
+        shape = list(self.shape)
+        shape[0] = x.shape[0]  # done this way for Torchscript
+        return x.reshape(shape)
+
+
 class GaussianFilter(nn.Module):
-    def __init__(self, spatial_dims, sigma, truncated=4.0):
+    def __init__(self, spatial_dims: int, sigma, truncated: float = 4.0):
         """
         Args:
-            spatial_dims (int): number of spatial dimensions of the input image.
+            spatial_dims: number of spatial dimensions of the input image.
                 must have shape (Batch, channels, H[, W, ...]).
             sigma (float or sequence of floats): std.
-            truncated (float): spreads how many stds.
+            truncated: spreads how many stds.
         """
         super().__init__()
         self.spatial_dims = int(spatial_dims)
@@ -58,10 +84,14 @@ class GaussianFilter(nn.Module):
         for idx, param in enumerate(self.kernel):
             self.register_parameter(f"kernel_{idx}", param)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         """
         Args:
             x (tensor): in shape [Batch, chns, H, W, D].
+
+        Raises:
+            TypeError: x must be a Tensor, got {type(x).__name__}.
+
         """
         if not torch.is_tensor(x):
             raise TypeError(f"x must be a Tensor, got {type(x).__name__}.")
