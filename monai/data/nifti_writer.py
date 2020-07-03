@@ -124,7 +124,7 @@ def write_nifti(
         data_ = data.reshape(list(spatial_shape) + [-1])
         data_ = np.moveaxis(data_, -1, 0)  # channel first for pytorch
         data_ = affine_xform(
-            torch.from_numpy((data_.astype(np.float64))[None]),
+            torch.from_numpy(data_.astype(np.float64)).unsqueeze(0),
             torch.from_numpy(transform.astype(np.float64)),
             spatial_size=output_spatial_shape[:3],
         )
