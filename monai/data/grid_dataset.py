@@ -15,7 +15,7 @@ from typing import Union
 import torch
 from torch.utils.data import IterableDataset
 
-from .utils import iter_patch
+from monai.data.utils import iter_patch
 from monai.utils import NumpyPadMode
 
 

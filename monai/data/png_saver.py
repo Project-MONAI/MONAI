@@ -14,8 +14,8 @@ from typing import Union
 import numpy as np
 import torch
 
-from .png_writer import write_png
-from .utils import create_file_basename
+from monai.data.png_writer import write_png
+from monai.data.utils import create_file_basename
 from monai.utils import InterpolateMode
 
 
