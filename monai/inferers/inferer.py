@@ -14,7 +14,7 @@ from typing import Union
 
 import torch
 
-from .utils import sliding_window_inference
+from monai.inferers.utils import sliding_window_inference
 from monai.utils import BlendMode
 
 

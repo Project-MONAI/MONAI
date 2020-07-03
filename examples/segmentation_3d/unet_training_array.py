@@ -26,7 +26,7 @@ from monai.data import NiftiDataset, create_test_image_3d
 from monai.inferers import sliding_window_inference
 from monai.transforms import Compose, AddChannel, ScaleIntensity, RandSpatialCrop, RandRotate90, ToTensor
 from monai.metrics import DiceMetric
-from monai.visualize.img2tensorboard import plot_2d_or_3d_image
+from monai.visualize import plot_2d_or_3d_image
 
 
 def main():
