@@ -16,7 +16,7 @@ import numpy as np
 from typing import Any, Callable
 from monai.data import CacheDataset, load_decathalon_datalist
 from monai.transforms import Randomizable, LoadNiftid, LoadPNGd, AddChanneld, Compose
-from .utils import download_and_extract
+from monai.apps.utils import download_and_extract
 
 
 class MedNISTDataset(Randomizable, CacheDataset):
