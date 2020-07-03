@@ -14,8 +14,7 @@ import torch.nn as nn
 from monai.networks.blocks.convolutions import Convolution, ResidualUnit
 from monai.networks.layers.factories import Norm, Act
 from monai.networks.layers.simplelayers import SkipConnection
-from monai.utils import export
-from monai.utils.aliases import alias
+from monai.utils import export, alias
 
 
 @export("monai.networks.nets")
@@ -36,7 +35,7 @@ class UNet(nn.Module):
         dropout=0,
     ):
         super().__init__()
-        assert len(channels) == (len(strides) + 1)
+
         self.dimensions = dimensions
         self.in_channels = in_channels
         self.out_channels = out_channels

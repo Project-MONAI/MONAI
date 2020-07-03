@@ -23,16 +23,7 @@ from torch.utils.data import DataLoader
 import monai
 from monai.metrics import compute_roc_auc
 from monai.networks.nets import densenet121
-from monai.transforms import (
-    AddChannel,
-    Compose,
-    LoadPNG,
-    RandFlip,
-    RandRotate,
-    RandZoom,
-    ScaleIntensity,
-    ToTensor,
-)
+from monai.transforms import AddChannel, Compose, LoadPNG, RandFlip, RandRotate, RandZoom, ScaleIntensity, ToTensor
 from monai.utils import set_determinism
 from tests.utils import skip_if_quick
 
@@ -61,7 +52,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device=torch.dev
             LoadPNG(image_only=True),
             AddChannel(),
             ScaleIntensity(),
-            RandRotate(degrees=15, prob=0.5, reshape=False),
+            RandRotate(range_x=15, prob=0.5, keep_size=True),
             RandFlip(spatial_axis=0, prob=0.5),
             RandZoom(min_zoom=0.9, max_zoom=1.1, prob=0.5),
             ToTensor(),
@@ -77,7 +68,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device=torch.dev
     val_ds = MedNISTDataset(val_x, val_y, val_transforms)
     val_loader = DataLoader(val_ds, batch_size=300, num_workers=10)
 
-    model = densenet121(spatial_dims=2, in_channels=1, out_channels=len(np.unique(train_y)),).to(device)
+    model = densenet121(spatial_dims=2, in_channels=1, out_channels=len(np.unique(train_y))).to(device)
     loss_function = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), 1e-5)
     epoch_num = 4
@@ -117,7 +108,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device=torch.dev
                     val_images, val_labels = val_data[0].to(device), val_data[1].to(device)
                     y_pred = torch.cat([y_pred, model(val_images)], dim=0)
                     y = torch.cat([y, val_labels], dim=0)
-                auc_metric = compute_roc_auc(y_pred, y, to_onehot_y=True, add_softmax=True)
+                auc_metric = compute_roc_auc(y_pred, y, to_onehot_y=True, softmax=True)
                 metric_values.append(auc_metric)
                 acc_value = torch.eq(y_pred.argmax(dim=1), y)
                 acc_metric = acc_value.sum().item() / len(acc_value)
@@ -140,7 +131,7 @@ def run_inference_test(root_dir, test_x, test_y, device=torch.device("cuda:0")):
     val_ds = MedNISTDataset(test_x, test_y, val_transforms)
     val_loader = DataLoader(val_ds, batch_size=300, num_workers=10)
 
-    model = densenet121(spatial_dims=2, in_channels=1, out_channels=len(np.unique(test_y)),).to(device)
+    model = densenet121(spatial_dims=2, in_channels=1, out_channels=len(np.unique(test_y))).to(device)
 
     model_filename = os.path.join(root_dir, "best_metric_model.pth")
     model.load_state_dict(torch.load(model_filename))
@@ -221,11 +212,11 @@ class IntegrationClassification2D(unittest.TestCase):
 
             # check training properties
             np.testing.assert_allclose(
-                losses, [0.8009556981788319, 0.16794362251356149, 0.07708252014912617, 0.04769148252856959], rtol=1e-3
+                losses, [0.7797081090842083, 0.16179659706392105, 0.07446704363557184, 0.045996826011568875], rtol=1e-3
             )
             repeated[i].extend(losses)
             print("best metric", best_metric)
-            np.testing.assert_allclose(best_metric, 0.9999460507942981, rtol=1e-4)
+            np.testing.assert_allclose(best_metric, 0.9999268330306007, rtol=1e-4)
             repeated[i].append(best_metric)
             np.testing.assert_allclose(best_metric_epoch, 4)
             model_file = os.path.join(self.data_dir, "best_metric_model.pth")
@@ -234,7 +225,7 @@ class IntegrationClassification2D(unittest.TestCase):
             infer_metric = run_inference_test(self.data_dir, self.test_x, self.test_y, device=self.device)
 
             # check inference properties
-            np.testing.assert_allclose(np.asarray(infer_metric), [1034, 895, 982, 1033, 961, 1047], atol=1)
+            np.testing.assert_allclose(np.asarray(infer_metric), [1031, 895, 981, 1033, 960, 1047], atol=1)
             repeated[i].extend(infer_metric)
 
         np.testing.assert_allclose(repeated[0], repeated[1])
