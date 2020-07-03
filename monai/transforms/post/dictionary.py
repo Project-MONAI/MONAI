@@ -47,7 +47,7 @@ class SplitChanneld(MapTransform):
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            output_postfixes: the postfixes to construct keys to store splitted data.
+            output_postfixes: the postfixes to construct keys to store split data.
                 for example: if the key of input data is `pred` and split 2 classes, the output
                 data keys will be: pred_(output_postfixes[0]), pred_(output_postfixes[1])
             to_onehot: whether to convert the data to One-Hot format, default is False.

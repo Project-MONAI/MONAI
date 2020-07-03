@@ -280,6 +280,9 @@ class Resize(Transform):
 
     Args:
         spatial_size: expected shape of spatial dimensions after resize operation.
+            if the components of the spatial_size are non-positive values, the transform will use the
+            corresponding components of img size. For example, `spatial_size=(32, -1)` will be adapted
+            to `(32, 64)` if the second spatial dimension size of img is `64`.
         mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
@@ -477,10 +480,10 @@ class Zoom(Transform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
 
         """
-        self._zoom = ensure_tuple_rep(self.zoom, img.ndim - 1)  # match the spatial image dim
+        _zoom = ensure_tuple_rep(self.zoom, img.ndim - 1)  # match the spatial image dim
         zoomed = _torch_interp(
             input=torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0),
-            scale_factor=list(self._zoom),
+            scale_factor=list(_zoom),
             mode=self.mode.value if mode is None else InterpolateMode(mode).value,
             align_corners=self.align_corners if align_corners is None else align_corners,
         )
@@ -592,9 +595,9 @@ class RandRotate(Randomizable, Transform):
 
     def __init__(
         self,
-        range_x: Union[Sequence[float], float] = 0.0,
-        range_y: Union[Sequence[float], float] = 0.0,
-        range_z: Union[Sequence[float], float] = 0.0,
+        range_x: Union[Tuple[float, float], float] = 0.0,
+        range_y: Union[Tuple[float, float], float] = 0.0,
+        range_z: Union[Tuple[float, float], float] = 0.0,
         prob: float = 0.1,
         keep_size: bool = True,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
@@ -730,7 +733,7 @@ class RandZoom(Randomizable, Transform):
         self.keep_size = keep_size
 
         self._do_transform = False
-        self._zoom: Union[Sequence[float], float]
+        self._zoom: Union[Sequence[float], float] = 1.0
 
     def randomize(self) -> None:  # type: ignore # see issue #495
         self._do_transform = self.R.random_sample() < self.prob
@@ -1073,8 +1076,11 @@ class Affine(Transform):
                 pixel/voxel relative to the center of the input image. Defaults to no translation.
             scale_params: a tuple of 2 floats for 2D, a tuple of 3 floats for 3D. Defaults to no scaling.
             spatial_size: output image spatial size.
-                if `img` has two spatial dimensions, `spatial_size` should have 2 elements [h, w].
-                if `img` has three spatial dimensions, `spatial_size` should have 3 elements [h, w, d].
+                if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
+                the transform will use the spatial size of `img`.
+                if the components of the spatial_size are non-positive values, the transform will use the
+                corresponding components of img size. For example, `spatial_size=(32, -1)` will be adapted
+                to `(32, 64)` if the second spatial dimension size of img is `64`.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
@@ -1167,8 +1173,9 @@ class RandAffine(Randomizable, Transform):
             spatial_size: output image spatial size.
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
-                if `img` has two spatial dimensions, `spatial_size` should have 2 elements [h, w].
-                if `img` has three spatial dimensions, `spatial_size` should have 3 elements [h, w, d].
+                if the components of the spatial_size are non-positive values, the transform will use the
+                corresponding components of img size. For example, `spatial_size=(32, -1)` will be adapted
+                to `(32, 64)` if the second spatial dimension size of img is `64`.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
@@ -1251,7 +1258,7 @@ class Rand2DElastic(Randomizable, Transform):
 
     def __init__(
         self,
-        spacing: Sequence[float],
+        spacing: Union[Tuple[float, float], float],
         magnitude_range: Tuple[float, float],
         prob: float = 0.1,
         rotate_range: Optional[Union[Sequence[float], float]] = None,
@@ -1285,6 +1292,9 @@ class Rand2DElastic(Randomizable, Transform):
             spatial_size: specifying output image spatial size [h, w].
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
+                if the components of the spatial_size are non-positive values, the transform will use the
+                corresponding components of img size. For example, `spatial_size=(32, -1)` will be adapted
+                to `(32, 64)` if the second spatial dimension size of img is `64`.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
@@ -1356,7 +1366,7 @@ class Rand2DElastic(Randomizable, Transform):
             grid = self.rand_affine_grid(grid=grid)
             grid = _torch_interp(
                 input=grid.unsqueeze(0),
-                scale_factor=list(self.deform_grid.spacing),
+                scale_factor=list(ensure_tuple(self.deform_grid.spacing)),
                 mode=InterpolateMode.BICUBIC.value,
                 align_corners=False,
             )
@@ -1411,6 +1421,9 @@ class Rand3DElastic(Randomizable, Transform):
             spatial_size: specifying output image spatial size [h, w, d].
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
+                if the components of the spatial_size are non-positive values, the transform will use the
+                corresponding components of img size. For example, `spatial_size=(32, 32, -1)` will be adapted
+                to `(32, 32, 64)` if the third spatial dimension size of img is `64`.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample

@@ -270,6 +270,9 @@ class Resized(MapTransform):
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
         spatial_size: expected shape of spatial dimensions after resize operation.
+            if the components of the spatial_size are non-positive values, the transform will use the
+            corresponding components of img size. For example, `spatial_size=(32, -1)` will be adapted
+            to `(32, 64)` if the second spatial dimension size of img is `64`.
         mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
@@ -324,8 +327,9 @@ class RandAffined(Randomizable, MapTransform):
             spatial_size: output image spatial size.
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
-                if ``data`` component has two spatial dimensions, ``spatial_size`` should have 2 elements [h, w].
-                if ``data`` component has three spatial dimensions, ``spatial_size`` should have 3 elements [h, w, d].
+                if the components of the spatial_size are non-positive values, the transform will use the
+                corresponding components of img size. For example, `spatial_size=(32, -1)` will be adapted
+                to `(32, 64)` if the second spatial dimension size of img is `64`.
             prob: probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid.
             rotate_range: angle range in radians. rotate_range[0] with be used to generate the 1st rotation
@@ -426,6 +430,9 @@ class Rand2DElasticd(Randomizable, MapTransform):
             spatial_size: specifying output image spatial size [h, w].
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
+                if the components of the spatial_size are non-positive values, the transform will use the
+                corresponding components of img size. For example, `spatial_size=(32, -1)` will be adapted
+                to `(32, 64)` if the second spatial dimension size of img is `64`.
             prob: probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
@@ -537,6 +544,9 @@ class Rand3DElasticd(Randomizable, MapTransform):
             spatial_size: specifying output image spatial size [h, w, d].
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
+                if the components of the spatial_size are non-positive values, the transform will use the
+                corresponding components of img size. For example, `spatial_size=(32, 32, -1)` will be adapted
+                to `(32, 32, 64)` if the third spatial dimension size of img is `64`.
             prob: probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
@@ -754,9 +764,9 @@ class RandRotated(Randomizable, MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        range_x: Union[Sequence[float], float] = 0.0,
-        range_y: Union[Sequence[float], float] = 0.0,
-        range_z: Union[Sequence[float], float] = 0.0,
+        range_x: Union[Tuple[float, float], float] = 0.0,
+        range_y: Union[Tuple[float, float], float] = 0.0,
+        range_z: Union[Tuple[float, float], float] = 0.0,
         prob: float = 0.1,
         keep_size: bool = True,
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,

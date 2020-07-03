@@ -347,7 +347,7 @@ class CopyItemsd(MapTransform):
 
     """
 
-    def __init__(self, keys: KeysCollection, times: int, names: Union[Sequence[str], str]):
+    def __init__(self, keys: KeysCollection, times: int, names: KeysCollection):
         """
         Args:
             keys: keys of the corresponding items to be transformed.
