@@ -375,7 +375,7 @@ class Rotate(Transform):
         img,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-        align_corners: Optional = None,
+        align_corners=None,
     ):
         """
         Args:
@@ -387,6 +387,8 @@ class Rotate(Transform):
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
                 align_corners: Defaults to ``self.align_corners``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            align_corners (bool): Defaults to ``self.align_corners``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
 
         Raises:
@@ -631,7 +633,7 @@ class RandRotate(Randomizable, Transform):
         img,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-        align_corners: Optional = None,
+        align_corners=None,
     ):
         """
         Args:
@@ -642,7 +644,7 @@ class RandRotate(Randomizable, Transform):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-            align_corners: Defaults to ``self.align_corners``.
+            align_corners (bool): Defaults to ``self.align_corners``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         """
         self.randomize()
@@ -732,10 +734,7 @@ class RandZoom(Randomizable, Transform):
 
     def randomize(self) -> None:  # type: ignore # see issue #495
         self._do_transform = self.R.random_sample() < self.prob
-        if isinstance(self.min_zoom, Iterable):
-            self._zoom = (self.R.uniform(l, h) for l, h in zip(self.min_zoom, self.max_zoom))
-        else:
-            self._zoom = self.R.uniform(self.min_zoom, self.max_zoom)
+        self._zoom = [self.R.uniform(l, h) for l, h in zip(self._min_zoom, self._max_zoom)]
 
     def __call__(
         self, img, mode: Optional[Union[InterpolateMode, str]] = None, align_corners: Optional[bool] = None,
@@ -750,6 +749,9 @@ class RandZoom(Randomizable, Transform):
                 'linear', 'bilinear', 'bicubic' or 'trilinear'. Defaults to ``self.align_corners``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
         """
+        # match the spatial image dim
+        self._min_zoom = ensure_tuple_rep(self.min_zoom, img.ndim - 1)
+        self._max_zoom = ensure_tuple_rep(self.max_zoom, img.ndim - 1)
         self.randomize()
         _dtype = np.float32
         if not self._do_transform:
