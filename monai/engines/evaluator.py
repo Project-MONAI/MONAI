@@ -12,7 +12,7 @@
 from typing import Callable, Optional
 
 import torch
-from monai.inferers.inferer import SimpleInferer
+from monai.inferers import SimpleInferer
 from monai.utils import exact_version, optional_import
 
 from .utils import CommonKeys as Keys

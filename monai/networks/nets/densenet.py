@@ -10,13 +10,12 @@
 # limitations under the License.
 
 from collections import OrderedDict
-from typing import Callable
+from typing import Callable, Any
 
 import torch
 import torch.nn as nn
 
 from monai.networks.layers.factories import Conv, Dropout, Pool, Norm
-from typing import Any
 
 
 class _DenseLayer(nn.Sequential):

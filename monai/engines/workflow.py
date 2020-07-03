@@ -10,11 +10,10 @@
 # limitations under the License.
 
 from typing import Callable, Optional
-
 import torch
+
 from monai.transforms import apply_transform
 from monai.utils import exact_version, optional_import, ensure_tuple
-
 from .utils import default_prepare_batch
 
 Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")

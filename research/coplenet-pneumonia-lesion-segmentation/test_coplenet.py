@@ -14,7 +14,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from coplenet import CopleNet
+from .coplenet import CopleNet
 
 TEST_CASES = [
     [{"spatial_dims": 2}, torch.randn(16, 1, 32, 32), (16, 2, 32, 32)],  # single channel 2D, batch 16, no residual

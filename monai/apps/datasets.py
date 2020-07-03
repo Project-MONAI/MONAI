@@ -14,9 +14,8 @@ import sys
 import tarfile
 import numpy as np
 from typing import Any, Callable
-from monai.data import CacheDataset
+from monai.data import CacheDataset, load_decathalon_datalist
 from monai.transforms import Randomizable, LoadNiftid, LoadPNGd, AddChanneld, Compose
-from monai.data import load_decathalon_datalist
 from .utils import download_and_extract
 
 

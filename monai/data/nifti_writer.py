@@ -14,7 +14,7 @@ from typing import Union
 import numpy as np
 import torch
 
-from monai.data.utils import compute_shape_offset, to_affine_nd
+from .utils import compute_shape_offset, to_affine_nd
 from monai.networks.layers import AffineTransform
 from monai.utils import optional_import, GridSampleMode, GridSamplePadMode
 

@@ -10,11 +10,9 @@
 # limitations under the License.
 
 from typing import Callable
-
 import torch
 
 from monai.utils import exact_version, optional_import
-
 from .utils import get_devices_spec
 
 create_supervised_trainer, _ = optional_import("ignite.engine", "0.3.0", exact_version, "create_supervised_trainer")
