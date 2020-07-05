@@ -17,21 +17,28 @@ MICCAI 2020 (Early Accept, paper link: https://arxiv.org/abs/2006.12575)
 ## To run the demo:
 
 ### Prerequisites
-- install the latest version of MONAI: `git clone https://github.com/Project-MONAI/MONAI` and `pip install -e .`
+- Download and switch to MONAI 0.2.0 source code:
+```bash
+git clone https://github.com/Project-MONAI/MONAI
+cd MONAI
+git checkout 0.2.0
+pip install -e .  # install from the source code
+```
 - `pip install torchgpipe`
+
+The rest of the steps assume that the current directory is the folder of this README file.
 
 ### Data
 ```bash
 mkdir ./data;
 cd ./data;
 ```
-Head and Neck CT dataset
 
-Please download and unzip the images into `./data` folder.
+Please download and unzip the Head and Neck CT dataset into `./data` folder.
 
 - `HaN.zip`: https://drive.google.com/file/d/1A2zpVlR3CkvtkJPvtAF3-MH0nr1WZ2Mn/view?usp=sharing
 ```bash
-unzip HaN.zip;  # unzip
+unzip HaN.zip;  # unzip could be done with other external tools
 ```
 
 Please find more details of the dataset at https://github.com/wentaozhu/AnatomyNet-for-anatomical-segmentation.git
