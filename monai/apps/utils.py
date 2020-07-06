@@ -9,18 +9,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional
+
 import os
 from urllib.request import urlretrieve
 from urllib.error import URLError
 import hashlib
 import tarfile
 import zipfile
+
 from monai.utils import progress_bar, optional_import
 
 gdown, has_gdown = optional_import("gdown", "3.6")
 
 
-def check_md5(filepath: str, md5_value: str = None):
+def check_md5(filepath: str, md5_value: Optional[str] = None) -> bool:
     """
     check MD5 signature of specified file.
 
@@ -42,7 +45,7 @@ def check_md5(filepath: str, md5_value: str = None):
     return True
 
 
-def download_url(url: str, filepath: str, md5_value: str = None):
+def download_url(url: str, filepath: str, md5_value: Optional[str] = None) -> None:
     """
     Download file from specified URL link, support process bar and MD5 check.
 
@@ -88,7 +91,7 @@ def download_url(url: str, filepath: str, md5_value: str = None):
         )
 
 
-def extractall(filepath: str, output_dir: str, md5_value: str = None):
+def extractall(filepath: str, output_dir: str, md5_value: Optional[str] = None) -> None:
     """
     Extract file to the output directory.
     Expected file types are: `zip`, `tar.gz` and `tar`.
@@ -123,7 +126,7 @@ def extractall(filepath: str, output_dir: str, md5_value: str = None):
         raise TypeError("unsupported compressed file type.")
 
 
-def download_and_extract(url: str, filepath: str, output_dir: str, md5_value: str = None):
+def download_and_extract(url: str, filepath: str, output_dir: str, md5_value: Optional[str] = None) -> None:
     """
     Download file from URL and extract it to the output directory.
 
