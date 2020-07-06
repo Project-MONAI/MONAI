@@ -11,15 +11,16 @@
 
 from typing import Optional, Union
 
-import torch
 import warnings
+
+import torch
 import numpy as np
 
 from monai.networks import one_hot
 from monai.utils import Average
 
 
-def _calculate(y, y_pred):
+def _calculate(y: torch.Tensor, y_pred: torch.Tensor):
     assert y.ndimension() == y_pred.ndimension() == 1 and len(y) == len(
         y_pred
     ), "y and y_pred must be 1 dimension data with same length."
@@ -30,7 +31,7 @@ def _calculate(y, y_pred):
     indexes = y_pred.argsort()
     y = y[indexes].cpu().numpy()
     y_pred = y_pred[indexes].cpu().numpy()
-    nneg = auc = tmp_pos = tmp_neg = 0
+    nneg = auc = tmp_pos = tmp_neg = 0.0
 
     for i in range(n):
         y_i = y[i]
@@ -64,9 +65,9 @@ def compute_roc_auc(
     sklearn.metrics.roc_auc_score.html#sklearn.metrics.roc_auc_score>`_.
 
     Args:
-        y_pred (torch.Tensor): input data to compute, typical classification model output.
+        y_pred: input data to compute, typical classification model output.
             it must be One-Hot format and first dim is batch, example shape: [16] or [16, 2].
-        y (torch.Tensor): ground truth to compute ROC AUC metric, the first dim is batch.
+        y: ground truth to compute ROC AUC metric, the first dim is batch.
             example shape: [16, 1] will be converted into [16, 2] (where `2` is inferred from `y_pred`).
         to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
         softmax: whether to add softmax function to `y_pred` before computation. Defaults to False.
