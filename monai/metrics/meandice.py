@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Union
+from typing import Optional, Union
 
 import warnings
 
@@ -61,7 +61,7 @@ class DiceMetric:
         self.logit_thresh = logit_thresh
         self.reduction: MetricReduction = MetricReduction(reduction)
 
-        self.not_nans = None  # keep track for valid elements in the batch
+        self.not_nans: Optional[torch.Tensor] = None  # keep track for valid elements in the batch
 
     def __call__(self, y_pred: torch.Tensor, y: torch.Tensor):
 
