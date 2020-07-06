@@ -36,7 +36,7 @@ class MeanDice(Metric):
         logit_thresh: float = 0.5,
         output_transform: Callable = lambda x: x,
         device: Optional[torch.device] = None,
-    ):
+    ) -> None:
         """
 
         Args:
@@ -49,7 +49,7 @@ class MeanDice(Metric):
                 Defaults to False.
             logit_thresh: the threshold value to round value to 0.0 and 1.0. Defaults to None (no thresholding).
             output_transform: transform the ignite.engine.state.output into [y_pred, y] pair.
-            device (torch.device): device specification in case of distributed computation usage.
+            device: device specification in case of distributed computation usage.
 
         See also:
             :py:meth:`monai.metrics.meandice.compute_meandice`
@@ -67,12 +67,12 @@ class MeanDice(Metric):
         self._num_examples = 0
 
     @reinit__is_reduced
-    def reset(self):
+    def reset(self) -> None:
         self._sum = 0
         self._num_examples = 0
 
     @reinit__is_reduced
-    def update(self, output: Sequence[Union[torch.Tensor, dict]]):
+    def update(self, output: Sequence[Union[torch.Tensor, dict]]) -> None:
         if not len(output) == 2:
             raise ValueError("MeanDice metric can only support y_pred and y.")
         y_pred, y = output
@@ -84,7 +84,7 @@ class MeanDice(Metric):
         self._num_examples += not_nans
 
     @sync_all_reduce("_sum", "_num_examples")
-    def compute(self):
+    def compute(self) -> float:
         if self._num_examples == 0:
             raise NotComputableError("MeanDice must have at least one example before it can be computed.")
         return self._sum / self._num_examples
