@@ -3,6 +3,9 @@ name: crons
 on:
   schedule:
     - cron: "0 2 * * *"  # at 02:00 UTC
+  push:
+    branches:
+      - cron-jobs
 
 jobs:
   cron-gpu:
@@ -12,7 +15,7 @@ jobs:
     runs-on: [self-hosted, linux, x64]
     strategy:
       matrix:
-        pytorch-version: [1.4.0, 1.5.1]
+        pytorch-version: [1.4.0, latest]
     steps:
     - uses: actions/checkout@v2
     - name: Install the dependencies
@@ -20,7 +23,11 @@ jobs:
         which python
         python -m pip install --upgrade pip wheel
         python -m pip uninstall -y torch torchvision
-        python -m pip install torch==${{ matrix.pytorch-version }}
+        if [ ${{ matrix.pytorch-version }} == "latest" ]; then
+          python -m pip install torch
+        else
+          python -m pip install torch==${{ matrix.pytorch-version }}
+        fi
         python -m pip install -r requirements-dev.txt
         python -m pip list
     - name: Run tests report coverage
