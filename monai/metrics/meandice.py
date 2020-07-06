@@ -10,9 +10,11 @@
 # limitations under the License.
 
 from typing import Union
+
 import warnings
 
 import torch
+
 from monai.networks import one_hot
 from monai.utils import MetricReduction
 
@@ -50,7 +52,7 @@ class DiceMetric:
         sigmoid: bool = False,
         logit_thresh: float = 0.5,
         reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
-    ):
+    ) -> None:
         super().__init__()
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
@@ -130,9 +132,9 @@ def compute_meandice(
     """Computes Dice score metric from full size Tensor and collects average.
 
     Args:
-        y_pred (torch.Tensor): input data to compute, typical segmentation model output.
+        y_pred: input data to compute, typical segmentation model output.
             it must be one-hot format and first dim is batch, example shape: [16, 3, 32, 32].
-        y (torch.Tensor): ground truth to compute mean dice metric, the first dim is batch.
+        y: ground truth to compute mean dice metric, the first dim is batch.
             example shape: [16, 1, 32, 32] will be converted into [16, 3, 32, 32].
             alternative shape: [16, 3, 32, 32] and set `to_onehot_y=False` to use 3-class labels directly.
         include_background: whether to skip Dice computation on the first channel of
