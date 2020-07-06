@@ -9,13 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Any, Callable
+
 import os
 import sys
-import tarfile
-import numpy as np
-from typing import Any, Callable
+
 from monai.data import CacheDataset, load_decathalon_datalist
-from monai.transforms import Randomizable, LoadNiftid, LoadPNGd, AddChanneld, Compose
+from monai.transforms import LoadNiftid, LoadPNGd, Randomizable
 from monai.apps.utils import download_and_extract
 
 
@@ -66,7 +66,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
         num_workers: int = 0,
-    ):
+    ) -> None:
         if not os.path.isdir(root_dir):
             raise ValueError("root_dir must be a directory.")
         self.section = section
@@ -85,10 +85,10 @@ class MedNISTDataset(Randomizable, CacheDataset):
         data = self._generate_data_list(dataset_dir)
         super().__init__(data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers)
 
-    def randomize(self):
+    def randomize(self) -> None:
         self.rann = self.R.random()
 
-    def _generate_data_list(self, dataset_dir):
+    def _generate_data_list(self, dataset_dir: str):
         class_names = sorted([x for x in os.listdir(dataset_dir) if os.path.isdir(os.path.join(dataset_dir, x))])
         num_class = len(class_names)
         image_files = [
@@ -215,7 +215,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
         num_workers: int = 0,
-    ):
+    ) -> None:
         if not os.path.isdir(root_dir):
             raise ValueError("root_dir must be a directory.")
         self.section = section
@@ -235,10 +235,10 @@ class DecathlonDataset(Randomizable, CacheDataset):
         data = self._generate_data_list(dataset_dir)
         super().__init__(data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers)
 
-    def randomize(self):
+    def randomize(self) -> None:
         self.rann = self.R.random()
 
-    def _generate_data_list(self, dataset_dir):
+    def _generate_data_list(self, dataset_dir: str):
         section = "training" if self.section in ["training", "validation"] else "test"
         datalist = load_decathalon_datalist(os.path.join(dataset_dir, "dataset.json"), True, section)
         if section == "test":
