@@ -87,7 +87,7 @@ class SegmentationSaver:
                 output_postfix=output_postfix,
                 output_ext=output_ext,
                 resample=resample,
-                mode=mode,
+                mode=GridSampleMode(mode),
                 padding_mode=padding_mode,
                 dtype=dtype,
             )
@@ -97,13 +97,13 @@ class SegmentationSaver:
                 output_postfix=output_postfix,
                 output_ext=output_ext,
                 resample=resample,
-                mode=mode,
+                mode=InterpolateMode(mode),
                 scale=scale,
             )
         self.batch_transform = batch_transform
         self.output_transform = output_transform
 
-        self.logger = None if name is None else logging.getLogger(name)
+        self.logger = logging.getLogger(name)
         self._name = name
 
     def attach(self, engine: "ignite.engine.Engine") -> None:

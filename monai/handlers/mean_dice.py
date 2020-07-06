@@ -22,7 +22,7 @@ reinit__is_reduced, _ = optional_import("ignite.metrics.metric", "0.3.0", exact_
 sync_all_reduce, _ = optional_import("ignite.metrics.metric", "0.3.0", exact_version, "sync_all_reduce")
 
 
-class MeanDice(Metric):
+class MeanDice(Metric):  # type: ignore # incorrectly typed due to optional_import
     """
     Computes Dice score metric from full size Tensor and collects average over batch, class-channels, iterations.
     """
@@ -77,6 +77,7 @@ class MeanDice(Metric):
             raise ValueError("MeanDice metric can only support y_pred and y.")
         y_pred, y = output
         score = self.dice(y_pred, y)
+        assert self.dice.not_nans is not None
         not_nans = self.dice.not_nans.item()
 
         # add all items in current batch

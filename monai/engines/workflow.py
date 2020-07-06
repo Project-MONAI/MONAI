@@ -27,7 +27,7 @@ State, _ = optional_import("ignite.engine", "0.3.0", exact_version, "State")
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
 
 
-class Workflow(Engine):
+class Workflow(Engine):  # type: ignore # incorrectly typed due to optional_import
     """
     Workflow defines the core work process inheriting from Ignite engine.
     All trainer, validator and evaluator share this same workflow as base class,
@@ -64,7 +64,7 @@ class Workflow(Engine):
         data_loader: DataLoader,
         prepare_batch: Callable = default_prepare_batch,
         iteration_update: Optional[Callable] = None,
-        post_transform: Optional[Transform] = None,
+        post_transform: Optional[Callable] = None,
         key_metric: Optional["ignite.metrics.Metric"] = None,
         additional_metrics=None,
         handlers=None,
@@ -106,6 +106,7 @@ class Workflow(Engine):
 
             @self.on(Events.ITERATION_COMPLETED)
             def run_post_transform(engine: "ignite.engine.Engine"):
+                assert post_transform is not None
                 engine.state.output = apply_transform(post_transform, engine.state.output)
 
         if key_metric is not None:

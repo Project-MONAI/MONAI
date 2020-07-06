@@ -13,6 +13,7 @@ from typing import Callable, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     import ignite.engine
+    import torch.utils.tensorboard
 
 import warnings
 
@@ -44,7 +45,7 @@ class TensorBoardStatsHandler(object):
 
     def __init__(
         self,
-        summary_writer: Optional[SummaryWriter] = None,
+        summary_writer: Optional["torch.utils.tensorboard.SummaryWriter"] = None,
         log_dir: str = "./runs",
         epoch_event_writer: Optional[Callable] = None,
         iteration_event_writer: Optional[Callable] = None,
@@ -118,7 +119,9 @@ class TensorBoardStatsHandler(object):
         else:
             self._default_iteration_writer(engine, self._writer)
 
-    def _default_epoch_writer(self, engine: "ignite.engine.Engine", writer: SummaryWriter) -> None:
+    def _default_epoch_writer(
+        self, engine: "ignite.engine.Engine", writer: "torch.utils.tensorboard.SummaryWriter"
+    ) -> None:
         """
         Execute epoch level event write operation based on Ignite engine.state data.
         Default is to write the values from Ignite state.metrics dict.
@@ -134,7 +137,9 @@ class TensorBoardStatsHandler(object):
             writer.add_scalar(name, value, current_epoch)
         writer.flush()
 
-    def _default_iteration_writer(self, engine: "ignite.engine.Engine", writer: SummaryWriter) -> None:
+    def _default_iteration_writer(
+        self, engine: "ignite.engine.Engine", writer: "torch.utils.tensorboard.SummaryWriter"
+    ) -> None:
         """
         Execute iteration level event write operation based on Ignite engine.state data.
         Default is to write the loss value of current iteration.
@@ -195,7 +200,7 @@ class TensorBoardImageHandler(object):
 
     def __init__(
         self,
-        summary_writer: Optional[SummaryWriter] = None,
+        summary_writer: Optional["torch.utils.tensorboard.SummaryWriter"] = None,
         log_dir: str = "./runs",
         interval: int = 1,
         epoch_level: bool = True,
