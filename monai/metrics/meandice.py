@@ -89,7 +89,7 @@ class DiceMetric:
             not_nans = not_nans.sum(dim=1)
             f = torch.where(not_nans > 0, f.sum(dim=1) / not_nans, t_zero)  # channel average
 
-            not_nans = not_nans.sum()
+            not_nans = (not_nans > 0).float().sum()
             f = torch.where(not_nans > 0, f.sum() / not_nans, t_zero)  # batch average
 
         elif self.reduction == MetricReduction.SUM:
