@@ -9,23 +9,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Union
+from typing import Callable, Sequence, Union
 
 import torch
 import torch.nn.functional as F
+
 from monai.data.utils import compute_importance_map, dense_patch_slices, get_valid_patch_size
 from monai.utils import BlendMode, PytorchPadMode, fall_back_tuple
 
 
 def sliding_window_inference(
     inputs: torch.Tensor,
-    roi_size,
+    roi_size: Union[Sequence[int], int],
     sw_batch_size: int,
     predictor: Callable,
     overlap: float = 0.25,
     mode: Union[BlendMode, str] = BlendMode.CONSTANT,
     padding_mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
-    cval=0,
+    cval: float = 0.0,
 ):
     """
     Sliding window inference on `inputs` with `predictor`.
@@ -35,7 +36,7 @@ def sliding_window_inference(
 
     Args:
         inputs: input image to be processed (assuming NCHW[D])
-        roi_size (list, tuple): the spatial window size for inferences.
+        roi_size: the spatial window size for inferences.
             When its components have None or non-positives, the corresponding inputs dimension will be used.
             if the components of the `roi_size` are non-positive values, the transform will use the
             corresponding components of img size. For example, `roi_size=(32, -1)` will be adapted
