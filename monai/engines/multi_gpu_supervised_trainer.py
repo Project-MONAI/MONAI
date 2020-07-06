@@ -9,7 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable
+from typing import Callable, Dict, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import ignite.metrics
+
 import torch
 
 from monai.utils import exact_version, optional_import
@@ -30,7 +34,7 @@ def _default_eval_transform(x, y, y_pred):
 
 def create_multigpu_supervised_trainer(
     net: torch.nn.Module,
-    optimizer,
+    optimizer: torch.optim.Optimizer,
     loss_fn,
     devices=None,
     non_blocking: bool = False,
@@ -43,8 +47,8 @@ def create_multigpu_supervised_trainer(
     Factory function for creating a trainer for supervised models.
 
     Args:
-        net (`torch.nn.Module`): the network to train.
-        optimizer (`torch.optim.Optimizer`): the optimizer to use.
+        net: the network to train.
+        optimizer: the optimizer to use.
         loss_fn (`torch.nn` loss function): the loss function to use.
         devices (list, optional): device(s) type specification (default: None).
             Applies to both model and batches. None is all devices used, empty list is CPU only.
@@ -73,7 +77,7 @@ def create_multigpu_supervised_trainer(
 
 def create_multigpu_supervised_evaluator(
     net: torch.nn.Module,
-    metrics=None,
+    metrics: Optional[Dict[str, "ignite.metrics.Metric"]] = None,
     devices=None,
     non_blocking: bool = False,
     prepare_batch: Callable = _prepare_batch,
@@ -85,8 +89,8 @@ def create_multigpu_supervised_evaluator(
     Factory function for creating an evaluator for supervised models.
 
     Args:
-        net (`torch.nn.Module`): the model to train.
-        metrics (dict of str - :class:`~ignite.metrics.Metric`): a map of metric names to Metrics.
+        net: the model to train.
+        metrics: a map of metric names to Metrics.
         devices (list, optional): device(s) type specification (default: None).
             Applies to both model and batches. None is all devices used, empty list is CPU only.
         non_blocking: if True and this copy is between CPU and GPU, the copy may occur asynchronously
