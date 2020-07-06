@@ -75,6 +75,20 @@ TEST_CASE_4 = [
 ]
 
 TEST_CASE_5 = [
+    {"include_background": True, "to_onehot_y": True, "reduction": "mean"},
+    {
+        "y_pred": torch.tensor(
+            [
+                [[[1.0, 1.0], [1.0, 0.0]], [[0.0, 1.0], [0.0, 0.0]], [[0.0, 1.0], [1.0, 1.0]]],
+                [[[1.0, 0.0], [1.0, 1.0]], [[0.0, 1.0], [1.0, 1.0]], [[0.0, 1.0], [1.0, 0.0]]],
+            ]
+        ),
+        "y": torch.tensor([[[[0.0, 0.0], [0.0, 0.0]]], [[[1.0, 1.0], [2.0, 0.0]]]]),
+    },
+    0.689683,
+]
+
+TEST_CASE_6 = [
     {"include_background": True, "to_onehot_y": True, "reduction": "sum_batch"},
     {
         "y_pred": torch.tensor(
@@ -88,7 +102,21 @@ TEST_CASE_5 = [
     [1.7143, 0.0000, 0.0000],
 ]
 
-TEST_CASE_6 = [
+TEST_CASE_7 = [
+    {"include_background": True, "to_onehot_y": True, "reduction": "mean"},
+    {
+        "y_pred": torch.tensor(
+            [
+                [[[1.0, 1.0], [1.0, 0.0]], [[0.0, 1.0], [0.0, 0.0]], [[0.0, 1.0], [1.0, 1.0]]],
+                [[[1.0, 0.0], [1.0, 1.0]], [[0.0, 1.0], [1.0, 1.0]], [[0.0, 1.0], [1.0, 0.0]]],
+            ]
+        ),
+        "y": torch.tensor([[[[0.0, 0.0], [0.0, 0.0]]], [[[0.0, 0.0], [0.0, 0.0]]]]),
+    },
+    0.857143,
+]
+
+TEST_CASE_8 = [
     {"to_onehot_y": True, "include_background": False, "reduction": "sum_batch"},
     {
         "y_pred": torch.tensor(
@@ -102,15 +130,14 @@ TEST_CASE_6 = [
     [0.0000, 0.0000],
 ]
 
-
-TEST_CASE_7 = [
+TEST_CASE_9 = [
     {"y": torch.from_numpy(np.ones((2, 2, 3, 3))), "y_pred": torch.from_numpy(np.ones((2, 2, 3, 3)))},
     [[1.0000, 1.0000], [1.0000, 1.0000]],
 ]
 
 
 class TestComputeMeanDice(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_7])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_9])
     def test_value(self, input_data, expected_value):
         result = compute_meandice(**input_data)
         np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
@@ -120,7 +147,6 @@ class TestComputeMeanDice(unittest.TestCase):
         result = compute_meandice(**input_data)
         self.assertTrue(np.allclose(np.isnan(result.cpu().numpy()), expected_value))
 
-    #############################################
     # DiceMetric class tests
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_value_class(self, input_data, expected_value):
@@ -133,7 +159,7 @@ class TestComputeMeanDice(unittest.TestCase):
         result = dice_metric(**vals)
         np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
 
-    @parameterized.expand([TEST_CASE_4, TEST_CASE_5, TEST_CASE_5])
+    @parameterized.expand([TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7, TEST_CASE_8])
     def test_nans_class(self, params, input_data, expected_value):
 
         dice_metric = DiceMetric(**params)
