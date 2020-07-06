@@ -9,13 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Any, Callable, Optional, Sequence, Tuple, Union
+
+import random
 import itertools
-from collections.abc import Iterable, Sequence
-from typing import Any, Tuple, Callable
+from collections.abc import Iterable
 
 import numpy as np
 import torch
-import random
 
 _seed = None
 
@@ -178,16 +179,19 @@ def get_seed():
     return _seed
 
 
-def set_determinism(seed=np.iinfo(np.int32).max, additional_settings=None) -> None:
+def set_determinism(
+    seed: Optional[int] = np.iinfo(np.int32).max,
+    additional_settings: Optional[Union[Sequence[Callable], Callable]] = None,
+) -> None:
     """
     Set random seed for modules to enable or disable deterministic training.
 
     Args:
-        seed (None, int): the random seed to use, default is np.iinfo(np.int32).max.
+        seed: the random seed to use, default is np.iinfo(np.int32).max.
             It is recommended to set a large seed, i.e. a number that has a good balance
             of 0 and 1 bits. Avoid having many 0 bits in the seed.
             if set to None, will disable deterministic training.
-        additional_settings (Callable, list or tuple of Callables): additional settings
+        additional_settings: additional settings
             that need to set random seed.
 
     """
