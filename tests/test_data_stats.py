@@ -15,6 +15,7 @@ import shutil
 import logging
 import tempfile
 import numpy as np
+import torch
 from parameterized import parameterized
 from monai.transforms import DataStats
 
@@ -22,7 +23,7 @@ TEST_CASE_1 = [
     {
         "prefix": "test data",
         "data_shape": False,
-        "intensity_range": False,
+        "value_range": False,
         "data_value": False,
         "additional_info": None,
         "logger_handler": None,
@@ -35,7 +36,7 @@ TEST_CASE_2 = [
     {
         "prefix": "test data",
         "data_shape": True,
-        "intensity_range": False,
+        "value_range": False,
         "data_value": False,
         "additional_info": None,
         "logger_handler": None,
@@ -48,55 +49,71 @@ TEST_CASE_3 = [
     {
         "prefix": "test data",
         "data_shape": True,
-        "intensity_range": True,
+        "value_range": True,
         "data_value": False,
         "additional_info": None,
         "logger_handler": None,
     },
     np.array([[0, 1], [1, 2]]),
-    "test data statistics:\nShape: (2, 2)\nIntensity range: (0, 2)",
+    "test data statistics:\nShape: (2, 2)\nValue range: (0, 2)",
 ]
 
 TEST_CASE_4 = [
     {
         "prefix": "test data",
         "data_shape": True,
-        "intensity_range": True,
+        "value_range": True,
         "data_value": True,
         "additional_info": None,
         "logger_handler": None,
     },
     np.array([[0, 1], [1, 2]]),
-    "test data statistics:\nShape: (2, 2)\nIntensity range: (0, 2)\nValue: [[0 1]\n [1 2]]",
+    "test data statistics:\nShape: (2, 2)\nValue range: (0, 2)\nValue: [[0 1]\n [1 2]]",
 ]
 
 TEST_CASE_5 = [
     {
         "prefix": "test data",
         "data_shape": True,
-        "intensity_range": True,
+        "value_range": True,
         "data_value": True,
         "additional_info": lambda x: np.mean(x),
         "logger_handler": None,
     },
     np.array([[0, 1], [1, 2]]),
-    "test data statistics:\nShape: (2, 2)\nIntensity range: (0, 2)\nValue: [[0 1]\n [1 2]]\nAdditional info: 1.0",
+    "test data statistics:\nShape: (2, 2)\nValue range: (0, 2)\nValue: [[0 1]\n [1 2]]\nAdditional info: 1.0",
 ]
 
 TEST_CASE_6 = [
+    {
+        "prefix": "test data",
+        "data_shape": True,
+        "value_range": True,
+        "data_value": True,
+        "additional_info": lambda x: torch.mean(x.float()),
+        "logger_handler": None,
+    },
+    torch.tensor([[0, 1], [1, 2]]),
+    (
+        "test data statistics:\nShape: torch.Size([2, 2])\nValue range: (0, 2)\n"
+        "Value: tensor([[0, 1],\n        [1, 2]])\nAdditional info: 1.0"
+    ),
+]
+
+TEST_CASE_7 = [
     np.array([[0, 1], [1, 2]]),
-    "test data statistics:\nShape: (2, 2)\nIntensity range: (0, 2)\nValue: [[0 1]\n [1 2]]\nAdditional info: 1.0\n",
+    "test data statistics:\nShape: (2, 2)\nValue range: (0, 2)\nValue: [[0 1]\n [1 2]]\nAdditional info: 1.0\n",
 ]
 
 
 class TestDataStats(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
     def test_value(self, input_param, input_data, expected_print):
         transform = DataStats(**input_param)
         _ = transform(input_data)
         self.assertEqual(transform.output, expected_print)
 
-    @parameterized.expand([TEST_CASE_6])
+    @parameterized.expand([TEST_CASE_7])
     def test_file(self, input_data, expected_print):
         tempdir = tempfile.mkdtemp()
         filename = os.path.join(tempdir, "test_data_stats.log")
@@ -104,7 +121,7 @@ class TestDataStats(unittest.TestCase):
         input_param = {
             "prefix": "test data",
             "data_shape": True,
-            "intensity_range": True,
+            "value_range": True,
             "data_value": True,
             "additional_info": lambda x: np.mean(x),
             "logger_handler": handler,

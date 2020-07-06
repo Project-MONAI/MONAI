@@ -12,6 +12,7 @@
 import sys
 import logging
 import numpy as np
+import os
 import torch
 from torch.utils.data import DataLoader
 
@@ -26,19 +27,20 @@ def main():
 
     # IXI dataset as a demo, downloadable from https://brain-development.org/ixi-dataset/
     images = [
-        "/workspace/data/medical/ixi/IXI-T1/IXI607-Guys-1097-T1.nii.gz",
-        "/workspace/data/medical/ixi/IXI-T1/IXI175-HH-1570-T1.nii.gz",
-        "/workspace/data/medical/ixi/IXI-T1/IXI385-HH-2078-T1.nii.gz",
-        "/workspace/data/medical/ixi/IXI-T1/IXI344-Guys-0905-T1.nii.gz",
-        "/workspace/data/medical/ixi/IXI-T1/IXI409-Guys-0960-T1.nii.gz",
-        "/workspace/data/medical/ixi/IXI-T1/IXI584-Guys-1129-T1.nii.gz",
-        "/workspace/data/medical/ixi/IXI-T1/IXI253-HH-1694-T1.nii.gz",
-        "/workspace/data/medical/ixi/IXI-T1/IXI092-HH-1436-T1.nii.gz",
-        "/workspace/data/medical/ixi/IXI-T1/IXI574-IOP-1156-T1.nii.gz",
-        "/workspace/data/medical/ixi/IXI-T1/IXI585-Guys-1130-T1.nii.gz",
+        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI607-Guys-1097-T1.nii.gz"]),
+        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI175-HH-1570-T1.nii.gz"]),
+        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI385-HH-2078-T1.nii.gz"]),
+        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI344-Guys-0905-T1.nii.gz"]),
+        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI409-Guys-0960-T1.nii.gz"]),
+        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI584-Guys-1129-T1.nii.gz"]),
+        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI253-HH-1694-T1.nii.gz"]),
+        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI092-HH-1436-T1.nii.gz"]),
+        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI574-IOP-1156-T1.nii.gz"]),
+        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI585-Guys-1130-T1.nii.gz"]),
     ]
+
     # 2 binary labels for gender classification: man and woman
-    labels = np.array([0, 0, 1, 0, 1, 0, 1, 0, 1, 0])
+    labels = np.array([0, 0, 1, 0, 1, 0, 1, 0, 1, 0], dtype=np.int64)
 
     # Define transforms for image
     val_transforms = Compose([ScaleIntensity(), AddChannel(), Resize((96, 96, 96)), ToTensor()])
@@ -50,7 +52,7 @@ def main():
 
     # Create DenseNet121
     device = torch.device("cuda:0")
-    model = monai.networks.nets.densenet.densenet121(spatial_dims=3, in_channels=1, out_channels=2,).to(device)
+    model = monai.networks.nets.densenet.densenet121(spatial_dims=3, in_channels=1, out_channels=2).to(device)
 
     model.load_state_dict(torch.load("best_metric_model.pth"))
     model.eval()
