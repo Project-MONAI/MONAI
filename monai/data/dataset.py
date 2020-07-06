@@ -9,13 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Callable, Optional, Sequence, Union
+
 import hashlib
 import json
 import sys
 import threading
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
-from typing import Callable, Optional
 
 import numpy as np
 import torch
@@ -38,7 +39,7 @@ class Dataset(_TorchDataset):
          },                           },                           }]
     """
 
-    def __init__(self, data, transform: Optional[Callable] = None):
+    def __init__(self, data, transform: Optional[Callable] = None) -> None:
         """
         Args:
             data (Iterable): input data to load and transform to generate dataset for model.
@@ -47,7 +48,7 @@ class Dataset(_TorchDataset):
         self.data = data
         self.transform = transform
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.data)
 
     def __getitem__(self, index: int):
@@ -92,12 +93,14 @@ class PersistentDataset(Dataset):
     followed by applying the random dependant parts of transform processing.
     """
 
-    def __init__(self, data, transform: Optional[Callable] = None, cache_dir=None):
+    def __init__(
+        self, data, transform: Optional[Callable] = None, cache_dir: Optional[Union[Path, str]] = None
+    ) -> None:
         """
         Args:
             data (Iterable): input data to load and transform to generate dataset for model.
             transform: transforms to execute operations on input data.
-            cache_dir (Path or str or None): If specified, this is the location for persistent storage
+            cache_dir: If specified, this is the location for persistent storage
                 of pre-computed transformed data tensors. The cache_dir is computed once, and
                 persists on disk until explicitly removed.  Different runs, programs, experiments
                 may share a common cache dir provided that the transforms pre-processing is
@@ -193,7 +196,7 @@ class PersistentDataset(Dataset):
 
         return item_transformed
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int):
         pre_random_item = self._pre_first_random_cachecheck(self.data[index])
         post_random_item = self._first_random_and_beyond_transform(pre_random_item)
         return post_random_item
@@ -235,7 +238,7 @@ class CacheDataset(Dataset):
 
     def __init__(
         self, data, transform: Callable, cache_num: int = sys.maxsize, cache_rate: float = 1.0, num_workers: int = 0
-    ):
+    ) -> None:
         """
         Args:
             data (Iterable): input data to load and transform to generate dataset for model.
@@ -266,7 +269,7 @@ class CacheDataset(Dataset):
                     self._cache[i] = self._load_cache_item(data[i], transform.transforms)
                     progress_bar(i + 1, self.cache_num, "Load and cache transformed data: ")
 
-    def _load_cache_item(self, item, transforms):
+    def _load_cache_item(self, item, transforms: Sequence[Callable]):
         for _transform in transforms:
             # execute all the deterministic transforms
             if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
@@ -274,7 +277,7 @@ class CacheDataset(Dataset):
             item = apply_transform(_transform, item)
         return item
 
-    def _load_cache_item_thread(self, args):
+    def _load_cache_item_thread(self, args) -> None:
         i, item, transforms = args
         self._cache[i] = self._load_cache_item(item, transforms)
         with self._thread_lock:
@@ -319,7 +322,7 @@ class ZipDataset(Dataset):
 
     """
 
-    def __init__(self, datasets, transform: Optional[Callable] = None):
+    def __init__(self, datasets, transform: Optional[Callable] = None) -> None:
         """
         Args:
             datasets (list or tuple): list of datasets to zip together.
@@ -327,7 +330,7 @@ class ZipDataset(Dataset):
         """
         super().__init__(list(datasets), transform=transform)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return min([len(dataset) for dataset in self.data])
 
     def __getitem__(self, index: int):
@@ -400,7 +403,7 @@ class ArrayDataset(Randomizable, _TorchDataset):
         seg_transform: Optional[Callable] = None,
         labels=None,
         label_transform: Optional[Callable] = None,
-    ):
+    ) -> None:
         """
         Initializes the dataset with the filename lists. The transform `img_transform` is applied
         to the images and `seg_transform` to the segmentations.
@@ -421,10 +424,10 @@ class ArrayDataset(Randomizable, _TorchDataset):
 
         self._seed = 0  # transform synchronization seed
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.dataset)
 
-    def randomize(self):
+    def randomize(self) -> None:
         self._seed = self.R.randint(np.iinfo(np.int32).max)
 
     def __getitem__(self, index: int):

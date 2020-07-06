@@ -9,10 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Callable
+from typing import Callable, Optional, Sequence
 
 import numpy as np
 from torch.utils.data import Dataset
+
 from monai.transforms import LoadNifti, Randomizable, apply_transform
 from monai.utils import get_seed
 
@@ -25,28 +26,28 @@ class NiftiDataset(Dataset, Randomizable):
 
     def __init__(
         self,
-        image_files,
-        seg_files=None,
+        image_files: Sequence[str],
+        seg_files: Optional[Sequence[str]] = None,
         labels=None,
         as_closest_canonical: bool = False,
         transform: Optional[Callable] = None,
         seg_transform: Optional[Callable] = None,
         image_only: bool = True,
         dtype: Optional[np.dtype] = np.float32,
-    ):
+    ) -> None:
         """
         Initializes the dataset with the image and segmentation filename lists. The transform `transform` is applied
         to the images and `seg_transform` to the segmentations.
 
         Args:
-            image_files (list of str): list of image filenames
-            seg_files (list of str): if in segmentation task, list of segmentation filenames
+            image_files: list of image filenames
+            seg_files: if in segmentation task, list of segmentation filenames
             labels (list or array): if in classification task, list of classification labels
             as_closest_canonical: if True, load the image as closest to canonical orientation
             transform: transform to apply to image arrays
             seg_transform: transform to apply to segmentation arrays
             image_only: if True return only the image volume, other return image volume and header dict
-            dtype (np.dtype, optional): if not None convert the loaded image to this data type
+            dtype: if not None convert the loaded image to this data type
 
         Raises:
             ValueError: Must have same number of image and segmentation files
@@ -68,10 +69,10 @@ class NiftiDataset(Dataset, Randomizable):
 
         self._seed = 0  # transform synchronization seed
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.image_files)
 
-    def randomize(self) -> None:  # type: ignore # see issue #495
+    def randomize(self) -> None:
         self._seed = self.R.randint(np.iinfo(np.int32).max)
 
     def __getitem__(self, index: int):
