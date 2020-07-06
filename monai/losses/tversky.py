@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
 from typing import Union
+
+import warnings
 
 import torch
 from torch.nn.modules.loss import _Loss
@@ -41,7 +42,7 @@ class TverskyLoss(_Loss):
         alpha: float = 0.5,
         beta: float = 0.5,
         reduction: Union[LossReduction, str] = LossReduction.MEAN,
-    ):
+    ) -> None:
         """
         Args:
             include_background: If False channel index 0 (background category) is excluded from the calculation.
@@ -76,8 +77,8 @@ class TverskyLoss(_Loss):
     def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5):
         """
         Args:
-            input (tensor): the shape should be BNH[WD].
-            target (tensor): the shape should be BNH[WD].
+            input: the shape should be BNH[WD].
+            target: the shape should be BNH[WD].
             smooth: a small constant to avoid nan.
 
         Raises:
