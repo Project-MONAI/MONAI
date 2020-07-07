@@ -13,17 +13,50 @@ import os
 import sys
 from collections import OrderedDict
 
+import monai
 import numpy as np
 import torch
 
-import monai
 
 try:
     import ignite
 
     ignite_version = ignite.__version__
-except ImportError:
-    ignite_version = "NOT INSTALLED"
+    del ignite
+except (ImportError, AttributeError):
+    ignite_version = "NOT INSTALLED or UNKNOWN VERSION."
+
+try:
+    import nibabel
+
+    nibabel_version = nibabel.__version__
+    del nibabel
+except (ImportError, AttributeError):
+    nibabel_version = "NOT INSTALLED or UNKNOWN VERSION."
+
+try:
+    import skimage
+
+    skimage_version = skimage.__version__
+    del skimage
+except (ImportError, AttributeError):
+    skimage_version = "NOT INSTALLED or UNKNOWN VERSION."
+
+try:
+    import PIL
+
+    PIL_version = PIL.__version__
+    del PIL
+except (ImportError, AttributeError):
+    PIL_version = "NOT INSTALLED or UNKNOWN VERSION."
+
+try:
+    import tensorboard
+
+    tensorboard_version = tensorboard.__version__
+    del tensorboard
+except (ImportError, AttributeError):
+    tensorboard_version = "NOT INSTALLED or UNKNOWN VERSION."
 
 
 def get_config_values():
@@ -32,11 +65,25 @@ def get_config_values():
     """
     output = OrderedDict()
 
-    output["MONAI version"] = monai.__version__
-    output["Python version"] = sys.version.replace("\n", " ")
-    output["Numpy version"] = np.version.full_version
-    output["Pytorch version"] = torch.__version__
-    output["Ignite version"] = ignite_version
+    output["MONAI"] = monai.__version__
+    output["Python"] = sys.version.replace("\n", " ")
+    output["Numpy"] = np.version.full_version
+    output["Pytorch"] = torch.__version__
+
+    return output
+
+
+def get_optional_config_values():
+    """
+    Read the optional package versions into a dictionary.
+    """
+    output = OrderedDict()
+
+    output["Pytorch Ignite"] = ignite_version
+    output["Nibabel"] = nibabel_version
+    output["scikit-image"] = skimage_version
+    output["Pillow"] = PIL_version
+    output["Tensorboard"] = tensorboard_version
 
     return output
 
@@ -47,8 +94,26 @@ def print_config(file=sys.stdout):
     Defaults to `sys.stdout`.
     """
     for k, v in get_config_values().items():
-        print(f"{k}: {v}", file=file, flush=True)
+        print(f"{k} version: {v}", file=file, flush=True)
+
+    print("\nOptional dependencies:", file=file, flush=True)
+    for k, v in get_optional_config_values().items():
+        print(f"{k} version: {v}", file=file, flush=True)
+    print("\nFor details about installing the optional dependencies, please visit:", file=file, flush=True)
+    print(
+        "    https://docs.monai.io/en/latest/installation.html#installing-the-recommended-dependencies\n",
+        file=file,
+        flush=True,
+    )
 
 
 def set_visible_devices(*dev_inds):
     os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, dev_inds))
+
+
+def get_torch_version_tuple():
+    """
+    Returns:
+        tuple of ints represents the pytorch major/minor version.
+    """
+    return tuple([int(x) for x in torch.__version__.split(".")[:2]])
