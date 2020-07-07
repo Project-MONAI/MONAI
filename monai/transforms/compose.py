@@ -12,9 +12,11 @@
 A collection of generic interfaces for MONAI transforms.
 """
 
-import warnings
-from typing import Hashable, Optional, Tuple, Any
+from typing import Any, Hashable, Optional, Tuple
+
 from abc import ABC, abstractmethod
+import warnings
+
 import numpy as np
 
 from monai.config import KeysCollection
@@ -98,7 +100,7 @@ class Randomizable(ABC):
 
         Args:
             seed: set the random state with an integer seed.
-            state (np.random.RandomState): set the random state with a `np.random.RandomState` object.
+            state: set the random state with a `np.random.RandomState` object.
 
         Returns:
             a Randomizable instance.
@@ -122,7 +124,7 @@ class Randomizable(ABC):
         return self
 
     @abstractmethod
-    def randomize(self):
+    def randomize(self) -> None:
         """
         Within this method, :py:attr:`self.R` should be used, instead of `np.random`, to introduce random factors.
 
@@ -212,7 +214,7 @@ class Compose(Randomizable):
                 continue
             _transform.set_random_state(seed, state)
 
-    def randomize(self):
+    def randomize(self) -> None:
         for _transform in self.transforms:
             if not isinstance(_transform, Randomizable):
                 continue
@@ -251,7 +253,7 @@ class MapTransform(Transform):
 
     """
 
-    def __init__(self, keys: KeysCollection):
+    def __init__(self, keys: KeysCollection) -> None:
         self.keys: Tuple[Any, ...] = ensure_tuple(keys)
         if not self.keys:
             raise ValueError("keys unspecified")

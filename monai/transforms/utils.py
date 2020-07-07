@@ -9,9 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Callable, Optional, Sequence, Union
+
 import random
 import warnings
-from typing import Optional, Callable
 
 import torch
 import numpy as np
@@ -38,11 +39,11 @@ def img_bounds(img):
     return np.concatenate((np.where(ax0)[0][[0, -1]], np.where(ax1)[0][[0, -1]]))
 
 
-def in_bounds(x, y, margin, maxx, maxy):
+def in_bounds(x, y, margin, maxx, maxy) -> bool:
     """
     Returns True if (x,y) is within the rectangle (margin, margin, maxx-margin, maxy-margin).
     """
-    return margin <= x < (maxx - margin) and margin <= y < (maxy - margin)
+    return bool(margin <= x < (maxx - margin) and margin <= y < (maxy - margin))
 
 
 def is_empty(img) -> bool:
@@ -171,7 +172,7 @@ def resize_center(img, *resize_dims, fill_value=0):
 
 def generate_pos_neg_label_crop_centers(
     label: np.ndarray,
-    spatial_size,
+    spatial_size: Union[Sequence[int], int],
     num_samples: int,
     pos_ratio: float,
     image: Optional[np.ndarray] = None,
@@ -182,15 +183,15 @@ def generate_pos_neg_label_crop_centers(
     Valid: samples sitting entirely within image, expected input shape: [C, H, W, D] or [C, H, W]
 
     Args:
-        label (numpy.ndarray): use the label data to get the foreground/background information.
-        spatial_size (sequence of int): spatial size of the ROIs to be sampled.
+        label: use the label data to get the foreground/background information.
+        spatial_size: spatial size of the ROIs to be sampled.
         num_samples: total sample centers to be generated.
         pos_ratio: ratio of total locations generated that have center being foreground.
-        image (numpy.ndarray): if image is not None, use ``label = 0 & image > image_threshold``
+        image: if image is not None, use ``label = 0 & image > image_threshold``
             to select background. so the crop center will only exist on valid image area.
         image_threshold: if enabled image_key, use ``image > image_threshold`` to
             determine the valid image content area.
-        rand_state (random.RandomState): numpy randomState object to align with other modules.
+        rand_state: numpy randomState object to align with other modules.
 
     Raises:
         ValueError: no sampling location available.
@@ -253,7 +254,7 @@ def generate_pos_neg_label_crop_centers(
     return centers
 
 
-def apply_transform(transform: Callable, data, map_items: bool = True):
+def apply_transform(transform: Callable, data: object, map_items: bool = True):
     """
     Transform `data` with `transform`.
     If `data` is a list or tuple and `map_data` is True, each item of `data` will be transformed
@@ -262,7 +263,7 @@ def apply_transform(transform: Callable, data, map_items: bool = True):
 
     Args:
         transform: a callable to be used to transform `data`
-        data (object): an object to be transformed.
+        data: an object to be transformed.
         map_items: whether to apply transform to each item in `data`,
             if `data` is a list or tuple. Defaults to True.
 
@@ -278,15 +279,20 @@ def apply_transform(transform: Callable, data, map_items: bool = True):
         raise type(e)(f"applying transform {transform}.").with_traceback(e.__traceback__)
 
 
-def create_grid(spatial_size, spacing=None, homogeneous: bool = True, dtype: np.dtype = float):
+def create_grid(
+    spatial_size: Sequence[int],
+    spacing: Optional[Sequence[float]] = None,
+    homogeneous: bool = True,
+    dtype: np.dtype = float,
+):
     """
     compute a `spatial_size` mesh.
 
     Args:
-        spatial_size (sequence of ints): spatial size of the grid.
-        spacing (sequence of ints): same len as ``spatial_size``, defaults to 1.0 (dense grid).
+        spatial_size: spatial size of the grid.
+        spacing: same len as ``spatial_size``, defaults to 1.0 (dense grid).
         homogeneous: whether to make homogeneous coordinates.
-        dtype (type): output grid data type.
+        dtype: output grid data type.
     """
     spacing = spacing or tuple(1.0 for _ in spatial_size)
     ranges = [np.linspace(-(d - 1.0) / 2.0 * s, (d - 1.0) / 2.0 * s, int(d)) for d, s in zip(spatial_size, spacing)]
@@ -296,7 +302,9 @@ def create_grid(spatial_size, spacing=None, homogeneous: bool = True, dtype: np.
     return np.concatenate([coords, np.ones_like(coords[:1])])
 
 
-def create_control_grid(spatial_shape, spacing, homogeneous: bool = True, dtype: Optional[np.dtype] = float):
+def create_control_grid(
+    spatial_shape: Sequence[int], spacing: Sequence[float], homogeneous: bool = True, dtype: Optional[np.dtype] = float
+):
     """
     control grid with two additional point in each direction
     """
@@ -310,13 +318,13 @@ def create_control_grid(spatial_shape, spacing, homogeneous: bool = True, dtype:
     return create_grid(grid_shape, spacing, homogeneous, dtype)
 
 
-def create_rotate(spatial_dims: int, radians):
+def create_rotate(spatial_dims: int, radians: Union[Sequence[float], float]):
     """
     create a 2D or 3D rotation matrix
 
     Args:
         spatial_dims: {``2``, ``3``} spatial rank
-        radians (float or a sequence of floats): rotation radians
+        radians: rotation radians
             when spatial_dims == 3, the `radians` sequence corresponds to
             rotation in the 1st, 2nd, and 3rd dim respectively.
 
@@ -352,13 +360,13 @@ def create_rotate(spatial_dims: int, radians):
     raise ValueError(f"create_rotate got spatial_dims={spatial_dims}, radians={radians}.")
 
 
-def create_shear(spatial_dims: int, coefs):
+def create_shear(spatial_dims: int, coefs: Union[Sequence[float], float]):
     """
     create a shearing matrix
 
     Args:
         spatial_dims: spatial rank
-        coefs (floats): shearing factors, defaults to 0.
+        coefs: shearing factors, defaults to 0.
 
     Raises:
         NotImplementedError: spatial_dims must be 2 or 3
@@ -380,25 +388,25 @@ def create_shear(spatial_dims: int, coefs):
     raise NotImplementedError("spatial_dims must be 2 or 3")
 
 
-def create_scale(spatial_dims: int, scaling_factor):
+def create_scale(spatial_dims: int, scaling_factor: Union[Sequence[float], float]):
     """
     create a scaling matrix
 
     Args:
         spatial_dims: spatial rank
-        scaling_factor (floats): scaling factors, defaults to 1.
+        scaling_factor: scaling factors, defaults to 1.
     """
     scaling_factor = ensure_tuple_size(scaling_factor, dim=spatial_dims, pad_val=1.0)
     return np.diag(scaling_factor[:spatial_dims] + (1.0,))
 
 
-def create_translate(spatial_dims: int, shift):
+def create_translate(spatial_dims: int, shift: Union[Sequence[float], float]):
     """
     create a translation matrix
 
     Args:
         spatial_dims: spatial rank
-        shift (floats): translate factors, defaults to 0.
+        shift: translate factors, defaults to 0.
     """
     shift = ensure_tuple(shift)
     affine = np.eye(spatial_dims + 1)
@@ -419,7 +427,7 @@ def generate_spatial_bounding_box(
     And it can also add margin to every dim of the bounding box.
 
     Args:
-        img (ndarrary): source image to generate bounding box from.
+        img: source image to generate bounding box from.
         select_fn: function to select expected foreground, default is to select values > 0.
         channel_indexes: if defined, select foreground only on the specified channels
             of image. if None, select foreground on the whole image.

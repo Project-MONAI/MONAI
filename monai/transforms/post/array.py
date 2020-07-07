@@ -13,7 +13,7 @@ A collection of "vanilla" transforms for the model output tensors
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Optional, Callable
+from typing import Callable, Optional, Sequence, Union
 
 import torch
 import torch.nn.functional as F
@@ -38,11 +38,11 @@ class SplitChannel(Transform):
             Defaults to ``None``.
     """
 
-    def __init__(self, to_onehot: bool = False, num_classes: Optional[int] = None):
+    def __init__(self, to_onehot: bool = False, num_classes: Optional[int] = None) -> None:
         self.to_onehot = to_onehot
         self.num_classes = num_classes
 
-    def __call__(self, img, to_onehot: Optional[bool] = None, num_classes: Optional[int] = None):
+    def __call__(self, img: torch.Tensor, to_onehot: Optional[bool] = None, num_classes: Optional[int] = None):
         """
         Args:
             to_onehot: whether to convert the data to One-Hot format first.
@@ -77,13 +77,17 @@ class Activations(Transform):
 
     """
 
-    def __init__(self, sigmoid: bool = False, softmax: bool = False, other: Optional[Callable] = None):
+    def __init__(self, sigmoid: bool = False, softmax: bool = False, other: Optional[Callable] = None) -> None:
         self.sigmoid = sigmoid
         self.softmax = softmax
         self.other = other
 
     def __call__(
-        self, img, sigmoid: Optional[bool] = None, softmax: Optional[bool] = None, other: Optional[Callable] = None
+        self,
+        img: torch.Tensor,
+        sigmoid: Optional[bool] = None,
+        softmax: Optional[bool] = None,
+        other: Optional[Callable] = None,
     ):
         """
         Args:
@@ -144,7 +148,7 @@ class AsDiscrete(Transform):
         n_classes: Optional[int] = None,
         threshold_values: bool = False,
         logit_thresh: float = 0.5,
-    ):
+    ) -> None:
         self.argmax = argmax
         self.to_onehot = to_onehot
         self.n_classes = n_classes
@@ -153,7 +157,7 @@ class AsDiscrete(Transform):
 
     def __call__(
         self,
-        img,
+        img: torch.Tensor,
         argmax: Optional[bool] = None,
         to_onehot: Optional[bool] = None,
         n_classes: Optional[int] = None,
@@ -234,13 +238,15 @@ class KeepLargestConnectedComponent(Transform):
 
     """
 
-    def __init__(self, applied_labels, independent: bool = True, connectivity: Optional[int] = None):
+    def __init__(
+        self, applied_labels: Union[Sequence[int], int], independent: bool = True, connectivity: Optional[int] = None
+    ) -> None:
         """
         Args:
-            applied_labels (int, list or tuple of int): Labels for applying the connected component on.
+            applied_labels: Labels for applying the connected component on.
                 If only one channel. The pixel whose value is not in this list will remain unchanged.
                 If the data is in one-hot format, this is used to determine what channels to apply.
-            independent (bool): consider several labels as a whole or independent, default is `True`.
+            independent: consider several labels as a whole or independent, default is `True`.
                 Example use case would be segment label 1 is liver and label 2 is liver tumor, in that case
                 you want this "independent" to be specified as False.
             connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
@@ -252,7 +258,7 @@ class KeepLargestConnectedComponent(Transform):
         self.independent = independent
         self.connectivity = connectivity
 
-    def __call__(self, img):
+    def __call__(self, img: torch.Tensor):
         """
         Args:
             img: shape must be (batch_size, C, spatial_dim1[, spatial_dim2, ...]).
@@ -307,12 +313,12 @@ class LabelToContour(Transform):
 
     """
 
-    def __init__(self, kernel_type: str = "Laplace"):
+    def __init__(self, kernel_type: str = "Laplace") -> None:
         if kernel_type != "Laplace":
             raise NotImplementedError("currently, LabelToContour only supports Laplace kernel.")
         self.kernel_type = kernel_type
 
-    def __call__(self, img):
+    def __call__(self, img: torch.Tensor):
         """
         Args:
             img: torch tensor data to extract the contour, with shape: [batch_size, channels, height, width[, depth]]
