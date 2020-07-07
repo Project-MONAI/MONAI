@@ -25,6 +25,8 @@ Training and evaluation examples of 3D classification based on DenseNet3D and [I
 The examples are PyTorch Ignite programs and have both dictionary-based and array-based transformation versions.
 #### [notebooks/3d_image_transforms](./notebooks/3d_image_transforms.ipynb)
 This notebook demonstrates the transformations on volumetric images.
+#### [notebooks/brats_segmentation_3d](./notebooks/brats_segmentation_3d.ipynb)
+This tutorial shows how to construct a training workflow of multi-labels segmentation task based on [MSD Brain Tumor dataset](http://medicaldecathlon.com).
 #### [notebooks/cache_dataset_speed](./notebooks/cache_dataset_speed.ipynb)
 This tutorial shows how to accelerate PyTorch medical DL program based on MONAI `CacheDataset`.
 #### [notebooks/integrate_3rd_party_transforms](./notebooks/integrate_3rd_party_transforms.ipynb)
