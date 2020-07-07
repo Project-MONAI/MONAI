@@ -9,16 +9,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Callable, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import ignite.engine
+
 import logging
 import warnings
-from typing import Callable, Optional
 
 import torch
 
 from monai.utils import exact_version, is_scalar, optional_import
 
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
-Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 
 DEFAULT_KEY_VAL_FORMAT = "{}: {:.4f} "
 DEFAULT_TAG = "Loss"
@@ -43,11 +46,11 @@ class StatsHandler(object):
         iteration_print_logger: Optional[Callable] = None,
         output_transform: Callable = lambda x: x,
         global_epoch_transform: Callable = lambda x: x,
-        name=None,
+        name: Optional[str] = None,
         tag_name: str = DEFAULT_TAG,
         key_var_format: str = DEFAULT_KEY_VAL_FORMAT,
-        logger_handler=None,
-    ):
+        logger_handler: Optional[logging.Handler] = None,
+    ) -> None:
         """
 
         Args:
@@ -66,7 +69,7 @@ class StatsHandler(object):
             tag_name: when iteration output is a scalar, tag_name is used to print
                 tag_name: scalar_value to logger. Defaults to ``'Loss'``.
             key_var_format: a formatting string to control the output string format of key: value.
-            logger_handler (logging.handler): add additional handler to handle the stats data: save to file, etc.
+            logger_handler: add additional handler to handle the stats data: save to file, etc.
                 add existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html
         """
 
@@ -82,7 +85,7 @@ class StatsHandler(object):
         if logger_handler is not None:
             self.logger.addHandler(logger_handler)
 
-    def attach(self, engine: Engine):
+    def attach(self, engine: "ignite.engine.Engine") -> None:
         """
         Register a set of Ignite Event-Handlers to a specified Ignite engine.
 
@@ -99,7 +102,7 @@ class StatsHandler(object):
         if not engine.has_event_handler(self.exception_raised, Events.EXCEPTION_RAISED):
             engine.add_event_handler(Events.EXCEPTION_RAISED, self.exception_raised)
 
-    def epoch_completed(self, engine: Engine):
+    def epoch_completed(self, engine: "ignite.engine.Engine") -> None:
         """
         Handler for train or validation/evaluation epoch completed Event.
         Print epoch level log, default values are from Ignite state.metrics dict.
@@ -113,7 +116,7 @@ class StatsHandler(object):
         else:
             self._default_epoch_print(engine)
 
-    def iteration_completed(self, engine: Engine):
+    def iteration_completed(self, engine: "ignite.engine.Engine") -> None:
         """
         Handler for train or validation/evaluation iteration completed Event.
         Print iteration level log, default values are from Ignite state.logs dict.
@@ -127,21 +130,21 @@ class StatsHandler(object):
         else:
             self._default_iteration_print(engine)
 
-    def exception_raised(self, engine: Engine, e):
+    def exception_raised(self, engine: "ignite.engine.Engine", e: Exception) -> None:
         """
         Handler for train or validation/evaluation exception raised Event.
         Print the exception information and traceback.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
-            e (Exception): the exception caught in Ignite during engine.run().
+            e: the exception caught in Ignite during engine.run().
 
         """
         self.logger.exception(f"Exception: {e}")
         # import traceback
         # traceback.print_exc()
 
-    def _default_epoch_print(self, engine: Engine):
+    def _default_epoch_print(self, engine: "ignite.engine.Engine") -> None:
         """
         Execute epoch level log operation based on Ignite engine.state data.
         print the values from Ignite state.metrics dict.
@@ -167,7 +170,7 @@ class StatsHandler(object):
                 out_str += f"best value: {engine.state.best_metric} at epoch: {engine.state.best_metric_epoch}"
         self.logger.info(out_str)
 
-    def _default_iteration_print(self, engine: Engine):
+    def _default_iteration_print(self, engine: "ignite.engine.Engine") -> None:
         """
         Execute iteration log operation based on Ignite engine.state data.
         Print the values from Ignite state.logs dict.

@@ -9,8 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Callable, Optional, Union, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import ignite.engine
+
 import logging
-from typing import Callable, Optional, Union
 
 import numpy as np
 
@@ -18,7 +22,6 @@ from monai.data import NiftiSaver, PNGSaver
 from monai.utils import exact_version, optional_import, GridSampleMode, GridSamplePadMode, InterpolateMode
 
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
-Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 
 
 class SegmentationSaver:
@@ -34,12 +37,12 @@ class SegmentationSaver:
         resample: bool = True,
         mode: Union[GridSampleMode, InterpolateMode, str] = "nearest",
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
-        scale=None,
+        scale: Optional[int] = None,
         dtype: Optional[np.dtype] = None,
         batch_transform: Callable = lambda x: x,
         output_transform: Callable = lambda x: x,
         name: Optional[str] = None,
-    ):
+    ) -> None:
         """
         Args:
             output_dir: output image directory.
@@ -63,10 +66,10 @@ class SegmentationSaver:
                 - PNG files
                     This option is ignored.
 
-            scale (255, 65535): postprocess data by clipping to [0, 1] and scaling
+            scale: {``255``, ``65535``} postprocess data by clipping to [0, 1] and scaling
                 [0, 255] (uint8) or [0, 65535] (uint16). Default is None to disable scaling.
                 It's used for PNG format only.
-            dtype (np.dtype, optional): convert the image data to save to this data type.
+            dtype: convert the image data to save to this data type.
                 If None, keep the original type of data. It's used for Nifti format only.
             batch_transform: a callable that is used to transform the
                 ignite.engine.batch into expected format to extract the meta_data dictionary.
@@ -84,7 +87,7 @@ class SegmentationSaver:
                 output_postfix=output_postfix,
                 output_ext=output_ext,
                 resample=resample,
-                mode=mode,
+                mode=GridSampleMode(mode),
                 padding_mode=padding_mode,
                 dtype=dtype,
             )
@@ -94,22 +97,22 @@ class SegmentationSaver:
                 output_postfix=output_postfix,
                 output_ext=output_ext,
                 resample=resample,
-                mode=mode,
+                mode=InterpolateMode(mode),
                 scale=scale,
             )
         self.batch_transform = batch_transform
         self.output_transform = output_transform
 
-        self.logger = None if name is None else logging.getLogger(name)
+        self.logger = logging.getLogger(name)
         self._name = name
 
-    def attach(self, engine: Engine):
+    def attach(self, engine: "ignite.engine.Engine") -> None:
         if self._name is None:
             self.logger = engine.logger
         if not engine.has_event_handler(self, Events.ITERATION_COMPLETED):
             engine.add_event_handler(Events.ITERATION_COMPLETED, self)
 
-    def __call__(self, engine):
+    def __call__(self, engine: "ignite.engine.Engine") -> None:
         """
         This method assumes self.batch_transform will extract metadata from the input batch.
         Output file datatype is determined from ``engine.state.output.dtype``.
