@@ -9,12 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import List, Optional, Union
+
 import os
 import json
-from typing import Optional
 
 
-def _compute_path(base_dir, element):
+def _compute_path(base_dir: str, element: Union[List[str], str]):
     if isinstance(element, str):
         return os.path.normpath(os.path.join(base_dir, element))
     elif isinstance(element, list):
@@ -26,7 +27,7 @@ def _compute_path(base_dir, element):
         raise ValueError("file path must be a string or a list of string.")
 
 
-def _append_paths(base_dir, is_segmentation, items):
+def _append_paths(base_dir: str, is_segmentation: bool, items: List[dict]):
     for item in items:
         if not isinstance(item, dict):
             raise ValueError("data item must be dict.")
