@@ -36,13 +36,13 @@ class NiftiSaver:
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         dtype: Optional[np.dtype] = None,
-    ):
+    ) -> None:
         """
         Args:
             output_dir: output image directory.
             output_postfix: a string appended to all output file names.
             output_ext: output file extension name.
-            resample (bool): whether to resample before saving the data array.
+            resample: whether to resample before saving the data array.
             mode: {``"bilinear"``, ``"nearest"``}
                 This option is used when ``resample = True``.
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
@@ -51,7 +51,7 @@ class NiftiSaver:
                 This option is used when ``resample = True``.
                 Padding mode for outside grid values. Defaults to ``"border"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-            dtype (np.dtype, optional): convert the image data to save to this data type.
+            dtype: convert the image data to save to this data type.
                 If None, keep the original type of data.
         """
         self.output_dir = output_dir
@@ -63,7 +63,7 @@ class NiftiSaver:
         self.dtype = dtype
         self._data_index = 0
 
-    def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: dict = None):
+    def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: Optional[dict] = None) -> None:
         """
         Save data into a Nifti file.
         The meta_data could optionally have the following keys:
@@ -79,9 +79,9 @@ class NiftiSaver:
         If meta_data is None, use the default index (starting from 0) as the filename.
 
         Args:
-            data (Tensor or ndarray): target data content that to be saved as a NIfTI format file.
+            data: target data content that to be saved as a NIfTI format file.
                 Assuming the data shape starts with a channel dimension and followed by spatial dimensions.
-            meta_data (dict): the meta data information corresponding to the data.
+            meta_data: the meta data information corresponding to the data.
 
         See Also
             :py:meth:`monai.data.nifti_writer.write_nifti`
@@ -113,7 +113,7 @@ class NiftiSaver:
             dtype=self.dtype or data.dtype,
         )
 
-    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data=None):
+    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[dict] = None) -> None:
         """
         Save a batch of data into Nifti format files.
 
@@ -128,8 +128,8 @@ class NiftiSaver:
         NIfTI file (the third dimension is reserved as a spatial dimension).
 
         Args:
-            batch_data (Tensor or ndarray): target batch data content that save into NIfTI format.
-            meta_data (dict): every key-value in the meta_data is corresponding to a batch of data.
+            batch_data: target batch data content that save into NIfTI format.
+            meta_data: every key-value in the meta_data is corresponding to a batch of data.
         """
         for i, data in enumerate(batch_data):  # save a batch of files
             self.save(data, {k: meta_data[k][i] for k in meta_data} if meta_data else None)

@@ -9,11 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from collections import OrderedDict
-from typing import Union
+from typing import Optional, Union
 
+from collections import OrderedDict
 import os
 import csv
+
 import numpy as np
 import torch
 
@@ -26,7 +27,7 @@ class CSVSaver:
     the cached data into CSV file. If no meta data provided, use index from 0 to save data.
     """
 
-    def __init__(self, output_dir: str = "./", filename: str = "predictions.csv", overwrite: bool = True):
+    def __init__(self, output_dir: str = "./", filename: str = "predictions.csv", overwrite: bool = True) -> None:
         """
         Args:
             output_dir: output CSV file directory.
@@ -62,14 +63,14 @@ class CSVSaver:
                     f.write("," + str(result))
                 f.write("\n")
 
-    def save(self, data: np.ndarray, meta_data=None):
+    def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: Optional[dict] = None) -> None:
         """Save data into the cache dictionary. The metadata should have the following key:
             - ``'filename_or_obj'`` -- save the data corresponding to file name or object.
         If meta_data is None, use the default index from 0 to save data instead.
 
         Args:
-            data (Tensor or ndarray): target data content that save into cache.
-            meta_data (dict): the meta data information corresponding to the data.
+            data: target data content that save into cache.
+            meta_data: the meta data information corresponding to the data.
 
         """
         save_key = meta_data["filename_or_obj"] if meta_data else str(self._data_index)
@@ -78,12 +79,12 @@ class CSVSaver:
             data = data.detach().cpu().numpy()
         self._cache_dict[save_key] = data.astype(np.float32)
 
-    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data=None):
+    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[dict] = None) -> None:
         """Save a batch of data into the cache dictionary.
 
         Args:
-            batch_data (Tensor or ndarray): target batch data content that save into cache.
-            meta_data (dict): every key-value in the meta_data is corresponding to 1 batch of data.
+            batch_data: target batch data content that save into cache.
+            meta_data: every key-value in the meta_data is corresponding to 1 batch of data.
 
         """
         for i, data in enumerate(batch_data):  # save a batch of files

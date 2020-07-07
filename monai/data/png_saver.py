@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Union
+from typing import Optional, Union
 
 import numpy as np
 import torch
@@ -34,8 +34,8 @@ class PNGSaver:
         output_ext: str = ".png",
         resample: bool = True,
         mode: Union[InterpolateMode, str] = InterpolateMode.NEAREST,
-        scale=None,
-    ):
+        scale: Optional[int] = None,
+    ) -> None:
         """
         Args:
             output_dir: output image directory.
@@ -45,7 +45,7 @@ class PNGSaver:
             mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
                 The interpolation mode. Defaults to ``"nearest"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
-            scale (255, 65535): postprocess data by clipping to [0, 1] and scaling
+            scale: {``255``, ``65535``} postprocess data by clipping to [0, 1] and scaling
                 [0, 255] (uint8) or [0, 65535] (uint16). Default is None to disable scaling.
 
         """
@@ -58,7 +58,7 @@ class PNGSaver:
 
         self._data_index = 0
 
-    def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: dict = None):
+    def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: Optional[dict] = None) -> None:
         """
         Save data into a png file.
         The meta_data could optionally have the following keys:
@@ -69,11 +69,11 @@ class PNGSaver:
         If meta_data is None, use the default index (starting from 0) as the filename.
 
         Args:
-            data (Tensor or ndarray): target data content that to be saved as a png format file.
+            data: target data content that to be saved as a png format file.
                 Assuming the data shape are spatial dimensions.
                 Shape of the spatial dimensions (C,H,W).
                 C should be 1, 3 or 4
-            meta_data (dict): the meta data information corresponding to the data.
+            meta_data: the meta data information corresponding to the data.
 
         Raises:
             ValueError: PNG image should only have 1, 3 or 4 channels.
@@ -102,12 +102,12 @@ class PNGSaver:
             data, file_name=filename, output_spatial_shape=spatial_shape, mode=self.mode, scale=self.scale,
         )
 
-    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data=None):
+    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[dict] = None) -> None:
         """Save a batch of data into png format files.
 
         Args:
-            batch_data (Tensor or ndarray): target batch data content that save into png format.
-            meta_data (dict): every key-value in the meta_data is corresponding to a batch of data.
+            batch_data: target batch data content that save into png format.
+            meta_data: every key-value in the meta_data is corresponding to a batch of data.
         """
         for i, data in enumerate(batch_data):  # save a batch of files
             self.save(data, {k: meta_data[k][i] for k in meta_data} if meta_data else None)
