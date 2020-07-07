@@ -394,6 +394,7 @@ class MaskIntensityd(MapTransform):
             by `mask_data > 0` before applying transform to input image.
 
     """
+
     def __init__(self, keys: KeysCollection, mask_data: np.ndarray):
         super().__init__(keys)
         self.converter = MaskIntensity(mask_data)
