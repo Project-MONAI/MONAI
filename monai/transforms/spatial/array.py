@@ -1039,7 +1039,7 @@ class Resample(Transform):
         for i, dim in enumerate(img.shape[1:]):
             grid[i] = 2.0 * grid[i] / (dim - 1.0)
         grid = grid[:-1] / grid[-1:]
-        index_ordering: List[int] = [x for x in range(img.ndim - 2, -1, -1)]
+        index_ordering: List[int] = list(range(img.ndim - 2, -1, -1))
         grid = grid[index_ordering]
         grid = grid.permute(list(range(grid.ndim))[1:] + [0])
         out = torch.nn.functional.grid_sample(

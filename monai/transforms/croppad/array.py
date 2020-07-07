@@ -287,7 +287,7 @@ class RandSpatialCrop(Randomizable, Transform):
     def randomize(self, img_size) -> None:  # type: ignore # see issue #495
         self._size = fall_back_tuple(self.roi_size, img_size)
         if self.random_size:
-            self._size = tuple([self.R.randint(low=self._size[i], high=img_size[i] + 1) for i in range(len(img_size))])
+            self._size = tuple((self.R.randint(low=self._size[i], high=img_size[i] + 1) for i in range(len(img_size))))
         if self.random_center:
             valid_size = get_valid_patch_size(img_size, self._size)
             self._slices = (slice(None),) + get_random_patch(img_size, valid_size, self.R)

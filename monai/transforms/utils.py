@@ -248,7 +248,7 @@ def generate_pos_neg_label_crop_centers(
         center = np.unravel_index(indices_to_use[random_int], label.shape)
         center = center[1:]
         # shift center to range of valid centers
-        center_ori = [c for c in center]
+        center_ori = list(center)
         centers.append(_correct_centers(center_ori, valid_start, valid_end))
 
     return centers
