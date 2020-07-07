@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional, Tuple, Union
+
 import torch
 import torch.nn as nn
 
@@ -21,7 +23,14 @@ class MaxAvgPool(nn.Module):
     double the channel size by concatenating the downsampled feature maps.
     """
 
-    def __init__(self, spatial_dims: int, kernel_size, stride=None, padding=0, ceil_mode: bool = False):
+    def __init__(
+        self,
+        spatial_dims: int,
+        kernel_size: Union[Tuple[int, ...], int],
+        stride: Optional[Union[Tuple[int, ...], int]] = None,
+        padding: Union[Tuple[int, ...], int] = 0,
+        ceil_mode: bool = False,
+    ) -> None:
         """
         Args:
             spatial_dims: number of spatial dimensions of the input image.

@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Union
+from typing import Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -28,11 +28,11 @@ class UpSample(nn.Module):
         spatial_dims: int,
         in_channels: int,
         out_channels: Optional[int] = None,
-        scale_factor=2,
+        scale_factor: Union[Tuple[float, ...], float] = 2,
         with_conv: bool = False,
         mode: Union[UpsampleMode, str] = UpsampleMode.LINEAR,
         align_corners: Optional[bool] = True,
-    ):
+    ) -> None:
         """
         Args:
             spatial_dims: number of spatial dimensions of the input image.
