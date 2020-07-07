@@ -9,23 +9,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Union
+from typing import Optional, Tuple, Union
 
 import numpy as np
 
 from monai.transforms import Resize
-from monai.utils import ensure_tuple_rep, min_version, optional_import, InterpolateMode
+from monai.utils import ensure_tuple_rep, optional_import, InterpolateMode
 
 Image, _ = optional_import("PIL", name="Image")
 
 
 def write_png(
-    data,
+    data: np.ndarray,
     file_name: str,
-    output_spatial_shape=None,
+    output_spatial_shape: Optional[Tuple[int, ...]] = None,
     mode: Union[InterpolateMode, str] = InterpolateMode.BICUBIC,
-    scale=None,
-):
+    scale: Optional[int] = None,
+) -> None:
     """
     Write numpy data into png files to disk.
     Spatially it supports HW for 2D.(H,W) or (H,W,3) or (H,W,4).
@@ -34,13 +34,13 @@ def write_png(
     https://pillow.readthedocs.io/en/stable/reference/Image.html
 
     Args:
-        data (numpy.ndarray): input data to write to file.
+        data: input data to write to file.
         file_name: expected file name that saved on disk.
-        output_spatial_shape (None or tuple of ints): spatial shape of the output image.
+        output_spatial_shape: spatial shape of the output image.
         mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"bicubic"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
-        scale (255, 65535): postprocess data by clipping to [0, 1] and scaling to
+        scale: {``255``, ``65535``} postprocess data by clipping to [0, 1] and scaling to
             [0, 255] (uint8) or [0, 65535] (uint16). Default is None to disable scaling.
 
     Raises:
@@ -51,10 +51,10 @@ def write_png(
     if len(data.shape) == 3 and data.shape[2] == 1:  # PIL Image can't save image with 1 channel
         data = data.squeeze(2)
     if output_spatial_shape is not None:
-        output_spatial_shape = ensure_tuple_rep(output_spatial_shape, 2)
+        output_spatial_shape_ = ensure_tuple_rep(output_spatial_shape, 2)
         mode = InterpolateMode(mode)
         align_corners = None if mode in (InterpolateMode.NEAREST, InterpolateMode.AREA) else False
-        xform = Resize(spatial_size=output_spatial_shape, mode=mode, align_corners=align_corners)
+        xform = Resize(spatial_size=output_spatial_shape_, mode=mode, align_corners=align_corners)
         _min, _max = np.min(data), np.max(data)
         if len(data.shape) == 3:
             data = np.moveaxis(data, -1, 0)  # to channel first
