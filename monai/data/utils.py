@@ -9,31 +9,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Union
+from typing import List, Optional, Sequence, Tuple, Union
 
 import os
 import warnings
 import math
 from itertools import starmap, product
+
 import torch
 from torch.utils.data._utils.collate import default_collate
 import numpy as np
+
 from monai.utils import ensure_tuple_size, ensure_tuple_rep, optional_import, NumpyPadMode, BlendMode
 from monai.networks.layers.simplelayers import GaussianFilter
 
 nib, _ = optional_import("nibabel")
 
 
-def get_random_patch(dims, patch_size, rand_state: Optional[np.random.RandomState] = None):
+def get_random_patch(
+    dims: Tuple[int, ...], patch_size, rand_state: Optional[np.random.RandomState] = None
+) -> Tuple[slice, ...]:
     """
     Returns a tuple of slices to define a random patch in an array of shape `dims` with size `patch_size` or the as
     close to it as possible within the given dimension. It is expected that `patch_size` is a valid patch for a source
     of shape `dims` as returned by `get_valid_patch_size`.
 
     Args:
-        dims (tuple of int): shape of source array
+        dims: shape of source array
         patch_size (tuple of int): shape of patch size to generate
-        rand_state (np.random.RandomState): a random state object to generate random numbers from
+        rand_state: a random state object to generate random numbers from
 
     Returns:
         (tuple of slice): a tuple of slice objects defining the patch
@@ -47,16 +51,16 @@ def get_random_patch(dims, patch_size, rand_state: Optional[np.random.RandomStat
     return tuple(slice(mc, mc + ps) for mc, ps in zip(min_corner, patch_size))
 
 
-def iter_patch_slices(dims, patch_size, start_pos=()):
+def iter_patch_slices(dims: Tuple[int, ...], patch_size, start_pos: Tuple[int, ...] = ()):
     """
     Yield successive tuples of slices defining patches of size `patch_size` from an array of dimensions `dims`. The
     iteration starts from position `start_pos` in the array, or starting at the origin if this isn't provided. Each
     patch is chosen in a contiguous grid using a first dimension as least significant ordering.
 
     Args:
-        dims (tuple of int): dimensions of array to iterate over
+        dims: dimensions of array to iterate over
         patch_size (tuple of int or None): size of patches to generate slices for, 0 or None selects whole dimension
-        start_pos (tuple of it, optional): starting position in the array, default is 0 for each dimension
+        start_pos: starting position in the array, default is 0 for each dimension
 
     Yields:
         Tuples of slice objects defining each patch
@@ -75,14 +79,16 @@ def iter_patch_slices(dims, patch_size, start_pos=()):
         yield tuple(slice(s, s + p) for s, p in zip(position[::-1], patch_size))
 
 
-def dense_patch_slices(image_size, patch_size, scan_interval):
+def dense_patch_slices(
+    image_size: Tuple[int, ...], patch_size, scan_interval: Tuple[int, ...]
+) -> List[Tuple[slice, ...]]:
     """
     Enumerate all slices defining 2D/3D patches of size `patch_size` from an `image_size` input image.
 
     Args:
-        image_size (tuple of int): dimensions of image to iterate over
+        image_size: dimensions of image to iterate over
         patch_size (tuple of int): size of patches to generate slices
-        scan_interval (tuple of int): dense patch sampling interval
+        scan_interval: dense patch sampling interval
 
     Returns:
         a list of slice objects defining each patch
@@ -101,7 +107,7 @@ def dense_patch_slices(image_size, patch_size, scan_interval):
         int(math.ceil(float(image_size[i]) / scan_interval[i])) if scan_interval[i] != 0 else 1
         for i in range(num_spatial_dims)
     ]
-    slices = []
+    slices: List[Tuple[slice, ...]] = []
     if num_spatial_dims == 3:
         for i in range(scan_num[0]):
             start_i = i * scan_interval[0]
@@ -135,10 +141,10 @@ def dense_patch_slices(image_size, patch_size, scan_interval):
 def iter_patch(
     arr: np.ndarray,
     patch_size,
-    start_pos=(),
+    start_pos: Tuple[int, ...] = (),
     copy_back: bool = True,
     mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
-    **pad_opts,
+    **pad_opts: dict,
 ):
     """
     Yield successive patches from `arr` of size `patch_size`. The iteration can start from position `start_pos` in `arr`
@@ -146,15 +152,15 @@ def iter_patch(
     to start in the padded region). If `copy_back` is True the values from each patch are written back to `arr`.
 
     Args:
-        arr (np.ndarray): array to iterate over
+        arr: array to iterate over
         patch_size (tuple of int or None): size of patches to generate slices for, 0 or None selects whole dimension
-        start_pos (tuple of it, optional): starting position in the array, default is 0 for each dimension
+        start_pos: starting position in the array, default is 0 for each dimension
         copy_back: if True data from the yielded patches is copied back to `arr` once the generator completes
         mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
             ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
             One of the listed string values or a user supplied function. Defaults to ``"wrap"``.
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
-        pad_opts (dict, optional): padding options, see `numpy.pad`
+        pad_opts: padding options, see `numpy.pad`
 
     Yields:
         Patches of array data from `arr` which are views into a padded array which can be modified, if `copy_back` is
@@ -219,13 +225,13 @@ def list_data_collate(batch):
     return default_collate(data)
 
 
-def worker_init_fn(worker_id):
+def worker_init_fn(worker_id) -> None:
     """
     Callback function for PyTorch DataLoader `worker_init_fn`.
     It can set different random seed for the transforms in different workers.
 
     """
-    worker_info = torch.utils.data.get_worker_info()  # type: ignore
+    worker_info = torch.utils.data.get_worker_info()
     if hasattr(worker_info.dataset, "transform") and hasattr(worker_info.dataset.transform, "set_random_state"):
         worker_info.dataset.transform.set_random_state(worker_info.seed % (2 ** 32))
 
@@ -286,7 +292,7 @@ def rectify_header_sform_qform(img_nii):
     return img_nii
 
 
-def zoom_affine(affine, scale, diagonal: bool = True):
+def zoom_affine(affine, scale: Sequence[float], diagonal: bool = True):
     """
     To make column norm of `affine` the same as `scale`.  If diagonal is False,
     returns an affine that combines orthogonal rotation and the new scale.
@@ -298,7 +304,7 @@ def zoom_affine(affine, scale, diagonal: bool = True):
 
     Args:
         affine (nxn matrix): a square matrix.
-        scale (sequence of floats): new scaling factor along each dimension.
+        scale: new scaling factor along each dimension.
         diagonal: whether to return a diagonal scaling matrix.
             Defaults to True.
 
@@ -313,21 +319,21 @@ def zoom_affine(affine, scale, diagonal: bool = True):
     affine = np.array(affine, dtype=float, copy=True)
     if len(affine) != len(affine[0]):
         raise ValueError("affine should be a square matrix")
-    scale = np.array(scale, dtype=float, copy=True)
-    if np.any(scale <= 0):
+    scale_ = np.array(scale, dtype=float, copy=True)
+    if np.any(scale_ <= 0):
         raise ValueError("scale must be a sequence of positive numbers.")
     d = len(affine) - 1
-    if len(scale) < d:  # defaults based on affine
+    if len(scale_) < d:  # defaults based on affine
         norm = np.sqrt(np.sum(np.square(affine), 0))[:-1]
-        scale = np.append(scale, norm[len(scale) :])
-    scale = scale[:d]
-    scale[scale == 0] = 1.0
+        scale_ = np.append(scale_, norm[len(scale_) :])
+    scale_ = scale_[:d]
+    scale_[scale_ == 0] = 1.0
     if diagonal:
-        return np.diag(np.append(scale, [1.0]))
+        return np.diag(np.append(scale_, [1.0]))
     rzs = affine[:-1, :-1]  # rotation zoom scale
     zs = np.linalg.cholesky(rzs.T @ rzs).T
     rotation = rzs @ np.linalg.inv(zs)
-    s = np.sign(np.diag(zs)) * np.abs(scale)
+    s = np.sign(np.diag(zs)) * np.abs(scale_)
     # construct new affine with rotation and zoom
     new_affine = np.eye(len(affine))
     new_affine[:-1, :-1] = rotation @ np.diag(s)
@@ -407,7 +413,7 @@ def to_affine_nd(r, affine):
     return new_affine
 
 
-def create_file_basename(postfix: str, input_file_name: str, folder_path: str, data_root_dir: str = ""):
+def create_file_basename(postfix: str, input_file_name: str, folder_path: str, data_root_dir: str = "") -> str:
     """
     Utility function to create the path to the output file based on the input
     filename (extension is added by lib level writer before writing the file)
@@ -445,7 +451,10 @@ def create_file_basename(postfix: str, input_file_name: str, folder_path: str, d
 
 
 def compute_importance_map(
-    patch_size, mode: Union[BlendMode, str] = BlendMode.CONSTANT, sigma_scale: float = 0.125, device=None
+    patch_size,
+    mode: Union[BlendMode, str] = BlendMode.CONSTANT,
+    sigma_scale: float = 0.125,
+    device: Optional[Union[torch.device, str]] = None,
 ):
     """Get importance map for different weight modes.
 
@@ -459,7 +468,7 @@ def compute_importance_map(
 
         sigma_scale: Sigma_scale to calculate sigma for each dimension
             (sigma = sigma_scale * dim_size). Used for gaussian mode only.
-        device (str of pytorch device): Device to put importance map on.
+        device: Device to put importance map on.
 
     Returns:
         Tensor of size patch_size.

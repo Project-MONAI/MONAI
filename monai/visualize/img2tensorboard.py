@@ -9,7 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Union
+from typing import Optional, Sequence, Union, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import torch.utils.tensorboard
 
 import numpy as np
 import torch
@@ -20,7 +23,6 @@ from monai.utils import optional_import
 PIL, _ = optional_import("PIL")
 GifImage, _ = optional_import("PIL.GifImagePlugin", name="Image")
 summary_pb2, _ = optional_import("tensorboard.compat.proto.summary_pb2")
-SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
 
 def _image3_animated_gif(tag: str, image: Union[np.ndarray, torch.Tensor], scale_factor: float = 1.0):
@@ -97,13 +99,13 @@ def make_animated_gif_summary(
 
 
 def add_animated_gif(
-    writer,
+    writer: "torch.utils.tensorboard.SummaryWriter",
     tag: str,
     image_tensor: Union[np.ndarray, torch.Tensor],
     max_out: int,
     scale_factor: float,
     global_step: Optional[int] = None,
-):
+) -> None:
     """Creates an animated gif out of an image tensor in 'CHWD' format and writes it with SummaryWriter.
 
     Args:
@@ -124,13 +126,13 @@ def add_animated_gif(
 
 
 def add_animated_gif_no_channels(
-    writer,
+    writer: "torch.utils.tensorboard.SummaryWriter",
     tag: str,
     image_tensor: Union[np.ndarray, torch.Tensor],
     max_out: int,
     scale_factor: float,
     global_step: Optional[int] = None,
-):
+) -> None:
     """Creates an animated gif out of an image tensor in 'HWD' format that does not have
     a channel dimension and writes it with SummaryWriter. This is similar to the "add_animated_gif"
     after inserting a channel dimension of 1.
@@ -155,28 +157,27 @@ def add_animated_gif_no_channels(
 def plot_2d_or_3d_image(
     data: Union[torch.Tensor, np.ndarray],
     step: int,
-    writer,
+    writer: "torch.utils.tensorboard.SummaryWriter",
     index: int = 0,
     max_channels: int = 1,
     max_frames: int = 64,
     tag: str = "output",
-):
+) -> None:
     """Plot 2D or 3D image on the TensorBoard, 3D image will be converted to GIF image.
 
     Note:
         Plot 3D or 2D image(with more than 3 channels) as separate images.
 
     Args:
-        data (Tensor or np.array): target data to be plotted as image on the TensorBoard.
+        data: target data to be plotted as image on the TensorBoard.
             The data is expected to have 'NCHW[D]' dimensions, and only plot the first in the batch.
         step: current step to plot in a chart.
-        writer (SummaryWriter): specify TensorBoard SummaryWriter to plot the image.
+        writer: specify TensorBoard SummaryWriter to plot the image.
         index: plot which element in the input data batch, default is the first element.
         max_channels: number of channels to plot.
         max_frames: number of frames for 2D-t plot.
         tag: tag of the plotted image on TensorBoard.
     """
-    assert isinstance(writer, SummaryWriter) is True, "must provide a TensorBoard SummaryWriter."
     d = data[index]
     if torch.is_tensor(d):
         d = d.detach().cpu().numpy()

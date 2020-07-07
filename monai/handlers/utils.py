@@ -9,24 +9,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Callable, TYPE_CHECKING
 
-def stopping_fn_from_metric(metric_name):
+if TYPE_CHECKING:
+    import ignite.engine
+
+
+def stopping_fn_from_metric(metric_name: str) -> Callable:
     """
     Returns a stopping function for ignite.handlers.EarlyStopping using the given metric name.
     """
 
-    def stopping_fn(engine):
+    def stopping_fn(engine: "ignite.engine.Engine"):
         return engine.state.metrics[metric_name]
 
     return stopping_fn
 
 
-def stopping_fn_from_loss():
+def stopping_fn_from_loss() -> Callable:
     """
     Returns a stopping function for ignite.handlers.EarlyStopping using the loss value.
     """
 
-    def stopping_fn(engine):
+    def stopping_fn(engine: "ignite.engine.Engine"):
         return -engine.state.output
 
     return stopping_fn

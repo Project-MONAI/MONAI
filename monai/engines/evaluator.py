@@ -9,18 +9,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional
+from typing import Any, Callable, Dict, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import ignite.engine
+    import ignite.metrics
 
 import torch
-from monai.inferers import SimpleInferer
-from monai.utils import exact_version, optional_import
+from torch.utils.data import DataLoader
+
+from monai.inferers import Inferer, SimpleInferer
+from monai.transforms import Transform
 
 from monai.engines.utils import CommonKeys as Keys
 from monai.engines.utils import default_prepare_batch
 from monai.engines.workflow import Workflow
-
-Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
-Metric, _ = optional_import("ignite.metrics", "0.3.0", exact_version, "Metric")
 
 
 class Evaluator(Workflow):
@@ -28,14 +31,14 @@ class Evaluator(Workflow):
     Base class for all kinds of evaluators, inherits from Workflow.
 
     Args:
-        device (torch.device): an object representing the device on which to run.
-        val_data_loader (torch.DataLoader): Ignite engine use data_loader to run, must be torch.DataLoader.
+        device: an object representing the device on which to run.
+        val_data_loader: Ignite engine use data_loader to run, must be torch.DataLoader.
         prepare_batch: function to parse image and label for current iteration.
         iteration_update: the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
-        post_transform (Transform): execute additional transformation for the model output data.
+        post_transform: execute additional transformation for the model output data.
             Typically, several Tensor based transforms composed by `Compose`.
-        key_val_metric (ignite.metric): compute metric when every iteration completed, and save average value to
+        key_val_metric: compute metric when every iteration completed, and save average value to
             engine.state.metrics when epoch completed. key_val_metric is the main metric to compare and save the
             checkpoint into files.
         additional_metrics (dict): more Ignite metrics that also attach to Ignite Engine.
@@ -47,14 +50,14 @@ class Evaluator(Workflow):
     def __init__(
         self,
         device: torch.device,
-        val_data_loader,
+        val_data_loader: DataLoader,
         prepare_batch: Callable = default_prepare_batch,
         iteration_update: Optional[Callable] = None,
-        post_transform=None,
-        key_val_metric: Optional[Metric] = None,
+        post_transform: Optional[Transform] = None,
+        key_val_metric: Optional["ignite.metrics.Metric"] = None,
         additional_metrics=None,
         val_handlers=None,
-    ):
+    ) -> None:
         super().__init__(
             device=device,
             max_epochs=1,
@@ -68,7 +71,7 @@ class Evaluator(Workflow):
             handlers=val_handlers,
         )
 
-    def run(self, global_epoch: int = 1):
+    def run(self, global_epoch: int = 1) -> None:
         """
         Execute validation/evaluation based on Ignite Engine.
 
@@ -82,7 +85,7 @@ class Evaluator(Workflow):
         self.state.iteration = 0
         super().run()
 
-    def get_validation_stats(self):
+    def get_validation_stats(self) -> Dict[str, Any]:
         return {"best_validation_metric": self.state.best_metric, "best_validation_epoch": self.state.best_metric_epoch}
 
 
@@ -91,16 +94,16 @@ class SupervisedEvaluator(Evaluator):
     Standard supervised evaluation method with image and label(optional), inherits from evaluator and Workflow.
 
     Args:
-        device (torch.device): an object representing the device on which to run.
-        val_data_loader (torch.DataLoader): Ignite engine use data_loader to run, must be torch.DataLoader.
+        device: an object representing the device on which to run.
+        val_data_loader: Ignite engine use data_loader to run, must be torch.DataLoader.
         network (Network): use the network to run model forward.
         prepare_batch: function to parse image and label for current iteration.
         iteration_update: the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
-        inferer (Inferer): inference method that execute model forward on input data, like: SlidingWindow, etc.
-        post_transform (Transform): execute additional transformation for the model output data.
+        inferer: inference method that execute model forward on input data, like: SlidingWindow, etc.
+        post_transform: execute additional transformation for the model output data.
             Typically, several Tensor based transforms composed by `Compose`.
-        key_val_metric (ignite.metric): compute metric when every iteration completed, and save average value to
+        key_val_metric: compute metric when every iteration completed, and save average value to
             engine.state.metrics when epoch completed. key_val_metric is the main metric to compare and save the
             checkpoint into files.
         additional_metrics (dict): more Ignite metrics that also attach to Ignite Engine.
@@ -112,13 +115,13 @@ class SupervisedEvaluator(Evaluator):
     def __init__(
         self,
         device: torch.device,
-        val_data_loader,
+        val_data_loader: DataLoader,
         network,
         prepare_batch: Callable = default_prepare_batch,
         iteration_update: Optional[Callable] = None,
-        inferer=SimpleInferer(),
-        post_transform=None,
-        key_val_metric=None,
+        inferer: Inferer = SimpleInferer(),
+        post_transform: Optional[Transform] = None,
+        key_val_metric: Optional["ignite.metrics.Metric"] = None,
         additional_metrics=None,
         val_handlers=None,
     ):
@@ -136,7 +139,7 @@ class SupervisedEvaluator(Evaluator):
         self.network = network
         self.inferer = inferer
 
-    def _iteration(self, engine: Engine, batchdata):
+    def _iteration(self, engine: "ignite.engine.Engine", batchdata) -> Dict[str, Any]:
         """
         callback function for the Supervised Evaluation processing logic of 1 iteration in Ignite Engine.
         Return below items in a dictionary:

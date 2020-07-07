@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Callable, Optional, Union
+
 import warnings
-from typing import Callable, Union
 
 import torch
 from torch.nn.modules.loss import _Loss
@@ -44,7 +45,7 @@ class DiceLoss(_Loss):
         squared_pred: bool = False,
         jaccard: bool = False,
         reduction: Union[LossReduction, str] = LossReduction.MEAN,
-    ):
+    ) -> None:
         """
         Args:
             include_background: If False channel index 0 (background category) is excluded from the calculation.
@@ -80,8 +81,8 @@ class DiceLoss(_Loss):
     def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5):
         """
         Args:
-            input (tensor): the shape should be BNH[WD].
-            target (tensor): the shape should be BNH[WD].
+            input: the shape should be BNH[WD].
+            target: the shape should be BNH[WD].
             smooth: a small constant to avoid nan.
 
         Raises:
@@ -149,13 +150,15 @@ class MaskedDiceLoss(DiceLoss):
     Same as DiceLoss, but accepts a binary mask ([0,1]) indicating a region over which to compute the dice.
     """
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5, mask: torch.Tensor = None):
+    def forward(
+        self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5, mask: Optional[torch.Tensor] = None
+    ):
         """
         Args:
-            input (tensor): the shape should be BNH[WD].
-            target (tensor): the shape should be BNH[WD].
+            input: the shape should be BNH[WD].
+            target: the shape should be BNH[WD].
             smooth: a small constant to avoid nan.
-            mask (tensor): (optional) the shape should B1H[WD] or 11H[WD].
+            mask: the shape should B1H[WD] or 11H[WD].
         """
         if mask is not None:
             # checking if mask is of proper shape
@@ -195,7 +198,7 @@ class GeneralizedDiceLoss(_Loss):
         softmax: bool = False,
         w_type: Union[Weight, str] = Weight.SQUARE,
         reduction: Union[LossReduction, str] = LossReduction.MEAN,
-    ):
+    ) -> None:
         """
         Args:
             include_background: If False channel index 0 (background category) is excluded from the calculation.
@@ -235,8 +238,8 @@ class GeneralizedDiceLoss(_Loss):
     def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5):
         """
         Args:
-            input (tensor): the shape should be BNH[WD].
-            target (tensor): the shape should be BNH[WD].
+            input: the shape should be BNH[WD].
+            target: the shape should be BNH[WD].
             smooth: a small constant to avoid nan.
 
         Raises:

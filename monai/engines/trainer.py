@@ -9,18 +9,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional
+from typing import Any, Callable, Dict, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import ignite.engine
+    import ignite.metrics
 
 import torch
+from torch.utils.data import DataLoader
 
-from monai.inferers import SimpleInferer
-from monai.utils import exact_version, optional_import
+from monai.inferers import Inferer, SimpleInferer
+from monai.transforms import Transform
 from monai.engines.utils import CommonKeys as Keys
 from monai.engines.utils import default_prepare_batch
 from monai.engines.workflow import Workflow
-
-Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
-Metric, _ = optional_import("ignite.metrics", "0.3.0", exact_version, "Metric")
 
 
 class Trainer(Workflow):
@@ -39,7 +41,7 @@ class Trainer(Workflow):
             self.state.iteration = 0  # to avoid creating new State instance in ignite Engine.run
         super().run()
 
-    def get_train_stats(self):
+    def get_train_stats(self) -> Dict[str, Any]:
         return {"total_epochs": self.state.max_epochs, "total_iterations": self.state.epoch_length}
 
 
@@ -48,20 +50,20 @@ class SupervisedTrainer(Trainer):
     Standard supervised training method with image and label, inherits from trainer and Workflow.
 
     Args:
-        device (torch.device): an object representing the device on which to run.
+        device: an object representing the device on which to run.
         max_epochs: the total epoch number for engine to run, validator and evaluator have only 1 epoch.
-        train_data_loader (torch.DataLoader): Ignite engine use data_loader to run, must be torch.DataLoader.
+        train_data_loader: Ignite engine use data_loader to run, must be torch.DataLoader.
         network (Network): to train with this network.
-        optimizer (Optimizer): the optimizer associated to the network.
+        optimizer: the optimizer associated to the network.
         loss_function (Loss): the loss function associated to the optimizer.
         prepare_batch: function to parse image and label for current iteration.
         iteration_update: the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
-        inferer (Inferer): inference method that execute model forward on input data, like: SlidingWindow, etc.
+        inferer: inference method that execute model forward on input data, like: SlidingWindow, etc.
         amp: whether to enable auto-mixed-precision training, reserved.
-        post_transform (Transform): execute additional transformation for the model output data.
+        post_transform: execute additional transformation for the model output data.
             Typically, several Tensor based transforms composed by `Compose`.
-        key_train_metric (ignite.metric): compute metric when every iteration completed, and save average value to
+        key_train_metric: compute metric when every iteration completed, and save average value to
             engine.state.metrics when epoch completed. key_train_metric is the main metric to compare and save the
             checkpoint into files.
         additional_metrics (dict): more Ignite metrics that also attach to Ignite Engine.
@@ -74,16 +76,16 @@ class SupervisedTrainer(Trainer):
         self,
         device: torch.device,
         max_epochs: int,
-        train_data_loader,
+        train_data_loader: DataLoader,
         network,
-        optimizer,
+        optimizer: torch.optim.Optimizer,
         loss_function,
         prepare_batch: Callable = default_prepare_batch,
         iteration_update: Optional[Callable] = None,
-        inferer=SimpleInferer(),
+        inferer: Inferer = SimpleInferer(),
         amp: bool = True,
-        post_transform=None,
-        key_train_metric: Optional[Metric] = None,
+        post_transform: Optional[Transform] = None,
+        key_train_metric: Optional["ignite.metrics.Metric"] = None,
         additional_metrics=None,
         train_handlers=None,
     ):
@@ -106,7 +108,7 @@ class SupervisedTrainer(Trainer):
         self.loss_function = loss_function
         self.inferer = inferer
 
-    def _iteration(self, engine: Engine, batchdata):
+    def _iteration(self, engine: "ignite.engine.Engine", batchdata) -> Dict[str, Any]:
         """
         Callback function for the Supervised Training processing logic of 1 iteration in Ignite Engine.
         Return below items in a dictionary:

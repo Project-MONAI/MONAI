@@ -32,11 +32,11 @@ class FocalLoss(_WeightedLoss):
         gamma: float = 2.0,
         weight: Optional[torch.Tensor] = None,
         reduction: Union[LossReduction, str] = LossReduction.MEAN,
-    ):
+    ) -> None:
         """
         Args:
             gamma: value of the exponent gamma in the definition of the Focal loss.
-            weight (tensor): weights to apply to the voxels of each class. If None no weights are applied.
+            weight: weights to apply to the voxels of each class. If None no weights are applied.
                 This corresponds to the weights `\alpha` in [1].
             reduction: {``"none"``, ``"mean"``, ``"sum"``}
                 Specifies the reduction to apply to the output. Defaults to ``"mean"``.
@@ -59,13 +59,14 @@ class FocalLoss(_WeightedLoss):
         """
         super(FocalLoss, self).__init__(weight=weight, reduction=LossReduction(reduction))
         self.gamma = gamma
+        self.weight: Optional[torch.Tensor]
 
-    def forward(self, input, target):
+    def forward(self, input: torch.Tensor, target: torch.Tensor):
         """
         Args:
-            input: (tensor): the shape should be BCH[WD].
+            input: the shape should be BCH[WD].
                 where C is the number of classes.
-            target: (tensor): the shape should be B1H[WD] or BCH[WD].
+            target: the shape should be B1H[WD] or BCH[WD].
                 If the target's shape is B1H[WD], the target that this loss expects should be a class index
                 in the range [0, C-1] where C is the number of classes.
 
