@@ -9,13 +9,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Callable, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import ignite.engine
+
+import torch
+
 import logging
-from typing import Callable, Optional
 
 from monai.utils import ensure_tuple, exact_version, optional_import
 
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
-Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 
 
 class LrScheduleHandler:
@@ -25,15 +30,15 @@ class LrScheduleHandler:
 
     def __init__(
         self,
-        lr_scheduler,
+        lr_scheduler: torch.optim.lr_scheduler,
         print_lr: bool = True,
         name: Optional[str] = None,
         epoch_level: bool = True,
         step_transform: Callable = lambda engine: (),
-    ):
+    ) -> None:
         """
         Args:
-            lr_scheduler (torch.optim.lr_scheduler): typically, lr_scheduler should be PyTorch
+            lr_scheduler: typically, lr_scheduler should be PyTorch
                 lr_scheduler object. If customized version, must have `step` and `get_last_lr` methods.
             print_lr: whether to print out the latest learning rate with logging.
             name: identifier of logging.logger to use, if None, defaulting to ``engine.logger``.
@@ -56,7 +61,7 @@ class LrScheduleHandler:
 
         self._name = name
 
-    def attach(self, engine: Engine):
+    def attach(self, engine: "ignite.engine.Engine") -> None:
         if self._name is None:
             self.logger = engine.logger
         if self.epoch_level:
@@ -64,7 +69,7 @@ class LrScheduleHandler:
         else:
             engine.add_event_handler(Events.ITERATION_COMPLETED, self)
 
-    def __call__(self, engine):
+    def __call__(self, engine: "ignite.engine.Engine") -> None:
         args = ensure_tuple(self.step_transform(engine))
         self.lr_scheduler.step(*args)
         if self.print_lr:
