@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from collections import OrderedDict
-from typing import Callable, Sequence, Tuple
+from typing import Callable, Sequence
 
 import torch
 import torch.nn as nn
