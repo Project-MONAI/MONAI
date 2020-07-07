@@ -162,6 +162,12 @@ Intensity
     :members:
     :special-members: __call__
 
+`MaskIntensity`
+"""""""""""""""
+.. autoclass:: MaskIntensity
+    :members:
+    :special-members: __call__
+
 IO
 ^^
 
@@ -534,6 +540,12 @@ Instensity (Dict)
 `RandAdjustContrastd`
 """""""""""""""""""""
 .. autoclass:: RandAdjustContrastd
+    :members:
+    :special-members: __call__
+
+`MaskIntensityd`
+""""""""""""""""
+.. autoclass:: MaskIntensityd
     :members:
     :special-members: __call__
 
