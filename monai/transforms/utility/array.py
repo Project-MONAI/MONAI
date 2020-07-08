@@ -13,10 +13,11 @@ A collection of "vanilla" transforms for utility functions
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-import time
-
 from typing import Callable, Optional
+
+import time
 import logging
+
 import numpy as np
 import torch
 
@@ -54,7 +55,7 @@ class AsChannelFirst(Transform):
         channel_dim: which dimension of input image is the channel, default is the last dimension.
     """
 
-    def __init__(self, channel_dim: int = -1):
+    def __init__(self, channel_dim: int = -1) -> None:
         assert isinstance(channel_dim, int) and channel_dim >= -1, "invalid channel dimension."
         self.channel_dim = channel_dim
 
@@ -80,7 +81,7 @@ class AsChannelLast(Transform):
         channel_dim: which dimension of input image is the channel, default is the first dimension.
     """
 
-    def __init__(self, channel_dim: int = 0):
+    def __init__(self, channel_dim: int = 0) -> None:
         assert isinstance(channel_dim, int) and channel_dim >= -1, "invalid channel dimension."
         self.channel_dim = channel_dim
 
@@ -122,7 +123,7 @@ class RepeatChannel(Transform):
         repeats: the number of repetitions for each element.
     """
 
-    def __init__(self, repeats: int):
+    def __init__(self, repeats: int) -> None:
         assert repeats > 0, "repeats count must be greater than 0."
         self.repeats = repeats
 
@@ -138,14 +139,14 @@ class CastToType(Transform):
     Cast the image data to specified numpy data type.
     """
 
-    def __init__(self, dtype: np.dtype = np.float32):
+    def __init__(self, dtype: np.dtype = np.float32) -> None:
         """
         Args:
             dtype: convert image to this data type, default is `np.float32`.
         """
         self.dtype = dtype
 
-    def __call__(self, img: np.ndarray, dtype=None):
+    def __call__(self, img: np.ndarray, dtype: Optional[np.dtype] = None):
         """
         Apply the transform to `img`, assuming `img` is a numpy array.
         """
@@ -201,7 +202,7 @@ class SqueezeDim(Transform):
     Squeeze a unitary dimension.
     """
 
-    def __init__(self, dim: Optional[int] = 0):
+    def __init__(self, dim: Optional[int] = 0) -> None:
         """
         Args:
             dim: dimension to be squeezed. Default = 0
@@ -215,10 +216,10 @@ class SqueezeDim(Transform):
             raise ValueError(f"Invalid channel dimension {dim}")
         self.dim = dim
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray):
         """
         Args:
-            img (ndarray): numpy arrays with required dimension `dim` removed
+            img: numpy arrays with required dimension `dim` removed
         """
         return img.squeeze(self.dim)
 
@@ -239,7 +240,7 @@ class DataStats(Transform):
         data_value: bool = False,
         additional_info: Optional[Callable] = None,
         logger_handler: Optional[logging.Handler] = None,
-    ):
+    ) -> None:
         """
         Args:
             prefix: will be printed in format: "{prefix} statistics".
@@ -316,7 +317,7 @@ class SimulateDelay(Transform):
     to sub-optimal design choices.
     """
 
-    def __init__(self, delay_time: float = 0.0):
+    def __init__(self, delay_time: float = 0.0) -> None:
         """
         Args:
             delay_time: The minimum amount of time, in fractions of seconds,
@@ -325,7 +326,7 @@ class SimulateDelay(Transform):
         super().__init__()
         self.delay_time: float = delay_time
 
-    def __call__(self, img, delay_time=None):
+    def __call__(self, img, delay_time: Optional[float] = None):
         """
         Args:
             img: data remain unchanged throughout this transform.
@@ -359,7 +360,7 @@ class Lambda(Transform):
             raise ValueError("func must be callable.")
         self.func = func
 
-    def __call__(self, img, func=None):
+    def __call__(self, img, func: Optional[Callable] = None):
         """
         Apply `self.func` to `img`.
         """

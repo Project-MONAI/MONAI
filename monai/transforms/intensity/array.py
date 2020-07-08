@@ -13,7 +13,8 @@ A collection of "vanilla" transforms for intensity adjustment
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Optional, Tuple
+from typing import Optional, Sequence, Tuple, Union
+
 from warnings import warn
 
 import numpy as np
@@ -28,11 +29,11 @@ class RandGaussianNoise(Randomizable, Transform):
 
     Args:
         prob: Probability to add Gaussian noise.
-        mean (float or array of floats): Mean or “centre” of the distribution.
+        mean: Mean or “centre” of the distribution.
         std: Standard deviation (spread) of distribution.
     """
 
-    def __init__(self, prob: float = 0.1, mean=0.0, std: float = 0.1):
+    def __init__(self, prob: float = 0.1, mean: Union[Sequence[float], float] = 0.0, std: float = 0.1) -> None:
         self.prob = prob
         self.mean = mean
         self.std = std
@@ -74,19 +75,23 @@ class RandShiftIntensity(Randomizable, Transform):
     Randomly shift intensity with randomly picked offset.
     """
 
-    def __init__(self, offsets, prob: float = 0.1):
+    def __init__(self, offsets: Union[Tuple[float, float], float], prob: float = 0.1):
         """
         Args:
-            offsets(int, float, tuple or list): offset range to randomly shift.
+            offsets: offset range to randomly shift.
                 if single number, offset value is picked from (-offsets, offsets).
             prob: probability of shift.
         """
-        self.offsets = (-offsets, offsets) if not isinstance(offsets, (list, tuple)) else offsets
-        assert len(self.offsets) == 2, "offsets should be a number or pair of numbers."
+        if isinstance(offsets, (int, float)):
+            self.offsets = (min(-offsets, offsets), max(-offsets, offsets))
+        else:
+            assert len(offsets) == 2, "offsets should be a number or pair of numbers."
+            self.offsets = (min(offsets), max(offsets))
+
         self.prob = prob
         self._do_transform = False
 
-    def randomize(self) -> None:  # type: ignore # see issue #495
+    def randomize(self) -> None:
         self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
         self._do_transform = self.R.random() < self.prob
 
@@ -136,20 +141,24 @@ class RandScaleIntensity(Randomizable, Transform):
     is randomly picked from (factors[0], factors[0]).
     """
 
-    def __init__(self, factors, prob: float = 0.1):
+    def __init__(self, factors: Union[Tuple[float, float], float], prob: float = 0.1) -> None:
         """
         Args:
-            factors(float, tuple or list): factor range to randomly scale by ``v = v * (1 + factor)``.
+            factors: factor range to randomly scale by ``v = v * (1 + factor)``.
                 if single number, factor value is picked from (-factors, factors).
             prob: probability of scale.
 
         """
-        self.factors = (-factors, factors) if not isinstance(factors, (list, tuple)) else factors
-        assert len(self.factors) == 2, "factors should be a number or pair of numbers."
+        if isinstance(factors, (int, float)):
+            self.factors = (min(-factors, factors), max(-factors, factors))
+        else:
+            assert len(factors) == 2, "factors should be a number or pair of numbers."
+            self.factors = (min(factors), max(factors))
+
         self.prob = prob
         self._do_transform = False
 
-    def randomize(self) -> None:  # type: ignore # see issue #495
+    def randomize(self) -> None:
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
         self._do_transform = self.R.random() < self.prob
 
@@ -173,8 +182,8 @@ class NormalizeIntensity(Transform):
     mean and std on each channel separately.
 
     Args:
-        subtrahend (ndarray): the amount to subtract by (usually the mean).
-        divisor (ndarray): the amount to divide by (usually the standard deviation).
+        subtrahend: the amount to subtract by (usually the mean).
+        divisor: the amount to divide by (usually the standard deviation).
         nonzero: whether only normalize non-zero values.
         channel_wise: if using calculated mean and std, calculate on each channel separately
             or calculate on the entire image directly.
@@ -186,7 +195,7 @@ class NormalizeIntensity(Transform):
         divisor: Optional[np.ndarray] = None,
         nonzero: bool = False,
         channel_wise: bool = False,
-    ):
+    ) -> None:
         if subtrahend is not None or divisor is not None:
             assert isinstance(subtrahend, np.ndarray) and isinstance(
                 divisor, np.ndarray
@@ -230,11 +239,10 @@ class ThresholdIntensity(Transform):
     """
 
     def __init__(self, threshold: float, above: bool = True, cval: float = 0.0) -> None:
-        threshold = float(threshold)
-        assert isinstance(threshold, float), "must set the threshold to filter intensity."
-        self.threshold: float = threshold
-        self.above: bool = above
-        self.cval: float = cval
+        assert isinstance(threshold, (int, float)), "threshold must be a float or int number."
+        self.threshold = threshold
+        self.above = above
+        self.cval = cval
 
     def __call__(self, img):
         """
@@ -290,7 +298,7 @@ class AdjustContrast(Transform):
     """
 
     def __init__(self, gamma: float) -> None:
-        assert isinstance(gamma, float), "gamma must be a float number."
+        assert isinstance(gamma, (int, float)), "gamma must be a float or int number."
         self.gamma = gamma
 
     def __call__(self, img):
@@ -311,25 +319,24 @@ class RandAdjustContrast(Randomizable, Transform):
 
     Args:
         prob: Probability of adjustment.
-        gamma (tuple of float or float): Range of gamma values.
+        gamma: Range of gamma values.
             If single number, value is picked from (0.5, gamma), default is (0.5, 4.5).
     """
 
-    def __init__(self, prob: float = 0.1, gamma=(0.5, 4.5)):
+    def __init__(self, prob: float = 0.1, gamma: Union[Sequence[float], float] = (0.5, 4.5)) -> None:
         self.prob = prob
-        self.gamma: Tuple[float, float]
 
-        if not isinstance(gamma, (tuple, list)):
+        if isinstance(gamma, (int, float)):
             assert gamma > 0.5, "if gamma is single number, must greater than 0.5 and value is picked from (0.5, gamma)"
             self.gamma = (0.5, gamma)
         else:
             assert len(gamma) == 2, "gamma should be a number or pair of numbers."
-            self.gamma = (gamma[0], gamma[1])
+            self.gamma = (min(gamma), max(gamma))
 
         self._do_transform = False
         self.gamma_value = None
 
-    def randomize(self) -> None:  # type: ignore # see issue #495
+    def randomize(self) -> None:
         self._do_transform = self.R.random_sample() < self.prob
         self.gamma_value = self.R.uniform(low=self.gamma[0], high=self.gamma[1])
 
