@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Sequence, Union
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -24,7 +26,7 @@ class SkipConnection(nn.Module):
     Concats the forward pass input with the result from the given submodule.
     """
 
-    def __init__(self, submodule, cat_dim=1):
+    def __init__(self, submodule, cat_dim: int = 1) -> None:
         super().__init__()
         self.submodule = submodule
         self.cat_dim = cat_dim
@@ -47,7 +49,7 @@ class Reshape(nn.Module):
     Reshapes input tensors to the given shape (minus batch dimension), retaining original batch size.
     """
 
-    def __init__(self, *shape):
+    def __init__(self, *shape) -> None:
         """
         Given a shape list/tuple `shape` of integers (s0, s1, ... , sn), this layer will reshape input tensors of
         shape (batch, s0 * s1 * ... * sn) to shape (batch, s0, s1, ... , sn).
@@ -65,12 +67,12 @@ class Reshape(nn.Module):
 
 
 class GaussianFilter(nn.Module):
-    def __init__(self, spatial_dims: int, sigma, truncated: float = 4.0):
+    def __init__(self, spatial_dims: int, sigma: Union[Sequence[float], float], truncated: float = 4.0) -> None:
         """
         Args:
             spatial_dims: number of spatial dimensions of the input image.
                 must have shape (Batch, channels, H[, W, ...]).
-            sigma (float or sequence of floats): std.
+            sigma: std.
             truncated: spreads how many stds.
         """
         super().__init__()
@@ -87,7 +89,7 @@ class GaussianFilter(nn.Module):
     def forward(self, x: torch.Tensor):
         """
         Args:
-            x (tensor): in shape [Batch, chns, H, W, D].
+            x: in shape [Batch, chns, H, W, D].
 
         Raises:
             TypeError: x must be a Tensor, got {type(x).__name__}.

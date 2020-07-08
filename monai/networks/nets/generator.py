@@ -9,12 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional, Sequence, Tuple, Union
+
 import numpy as np
 import torch.nn as nn
 
 from monai.networks.layers.factories import Norm, Act
 from monai.networks.blocks import Convolution, ResidualUnit
 from monai.networks.layers.simplelayers import Reshape
+from monai.utils import ensure_tuple, ensure_tuple_rep
 
 
 class Generator(nn.Module):
@@ -32,17 +35,17 @@ class Generator(nn.Module):
 
     def __init__(
         self,
-        latent_shape,
-        start_shape,
-        channels,
-        strides,
-        kernel_size=3,
-        num_res_units=2,
+        latent_shape: Sequence[int],
+        start_shape: Sequence[int],
+        channels: Sequence[int],
+        strides: Sequence[int],
+        kernel_size: Union[Sequence[int], int] = 3,
+        num_res_units: int = 2,
         act=Act.PRELU,
         norm=Norm.INSTANCE,
-        dropout=None,
-        bias=True,
-    ):
+        dropout: Optional[float] = None,
+        bias: bool = True,
+    ) -> None:
         """
         Construct the generator network with the number of layers defined by `channels` and `strides`. In the
         forward pass a `nn.Linear` layer relates the input latent vector to a tensor of dimensions `start_shape`,
@@ -65,13 +68,13 @@ class Generator(nn.Module):
         """
         super().__init__()
 
-        self.in_channels, *self.start_shape = start_shape
+        self.in_channels, *self.start_shape = ensure_tuple(start_shape)
         self.dimensions = len(self.start_shape)
 
-        self.latent_shape = latent_shape
-        self.channels = channels
-        self.strides = strides
-        self.kernel_size = kernel_size
+        self.latent_shape = ensure_tuple(latent_shape)
+        self.channels = ensure_tuple(channels)
+        self.strides = ensure_tuple(strides)
+        self.kernel_size = ensure_tuple_rep(kernel_size, self.dimensions)
         self.num_res_units = num_res_units
         self.act = act
         self.norm = norm
@@ -92,13 +95,18 @@ class Generator(nn.Module):
             self.conv.add_module("layer_%i" % i, layer)
             echannel = c
 
-    def _get_layer(self, in_channels, out_channels, strides, is_last):
+    def _get_layer(self, in_channels: int, out_channels: int, strides, is_last: bool):
         """
         Returns a layer accepting inputs with `in_channels` number of channels and producing outputs of `out_channels`
         number of channels. The `strides` indicates upsampling factor, ie. transpose convolutional stride. If `is_last`
         is True this is the final layer and is not expected to include activation and normalization layers.
         """
-        common_kwargs = dict(
+
+        layer = Convolution(
+            in_channels=in_channels,
+            strides=strides,
+            is_transposed=True,
+            conv_only=is_last or self.num_res_units > 0,
             dimensions=self.dimensions,
             out_channels=out_channels,
             kernel_size=self.kernel_size,
@@ -108,17 +116,18 @@ class Generator(nn.Module):
             bias=self.bias,
         )
 
-        layer = Convolution(
-            in_channels=in_channels,
-            strides=strides,
-            is_transposed=True,
-            conv_only=is_last or self.num_res_units > 0,
-            **common_kwargs,
-        )
-
         if self.num_res_units > 0:
             ru = ResidualUnit(
-                in_channels=out_channels, subunits=self.num_res_units, last_conv_only=is_last, **common_kwargs
+                in_channels=out_channels,
+                subunits=self.num_res_units,
+                last_conv_only=is_last,
+                dimensions=self.dimensions,
+                out_channels=out_channels,
+                kernel_size=self.kernel_size,
+                act=self.act,
+                norm=self.norm,
+                dropout=self.dropout,
+                bias=self.bias,
             )
 
             layer = nn.Sequential(layer, ru)

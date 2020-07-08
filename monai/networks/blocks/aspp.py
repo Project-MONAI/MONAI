@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Sequence, Tuple
+
 import torch
 import torch.nn as nn
 
@@ -37,7 +39,7 @@ class SimpleASPP(nn.Module):
         dilations=(1, 2, 4, 6),
         norm_type=Norm.BATCH,
         acti_type=Act.LEAKYRELU,
-    ):
+    ) -> None:
         """
         Args:
             spatial_dims: number of spatial dimensions, could be 1, 2, or 3.

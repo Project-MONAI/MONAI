@@ -9,13 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Union
+from typing import Optional, Sequence, Union
 
 import torch
 import torch.nn as nn
 
 from monai.networks.layers.factories import Conv
-from monai.utils import UpsampleMode
+from monai.utils import ensure_tuple_rep, UpsampleMode
 
 
 class UpSample(nn.Module):
@@ -28,11 +28,11 @@ class UpSample(nn.Module):
         spatial_dims: int,
         in_channels: int,
         out_channels: Optional[int] = None,
-        scale_factor=2,
+        scale_factor: Union[Sequence[float], float] = 2,
         with_conv: bool = False,
         mode: Union[UpsampleMode, str] = UpsampleMode.LINEAR,
         align_corners: Optional[bool] = True,
-    ):
+    ) -> None:
         """
         Args:
             spatial_dims: number of spatial dimensions of the input image.
@@ -48,6 +48,7 @@ class UpSample(nn.Module):
             align_corners: set the align_corners parameter of `torch.nn.Upsample`. Defaults to True.
         """
         super().__init__()
+        scale_factor = ensure_tuple_rep(scale_factor, spatial_dims)
         if not out_channels:
             out_channels = in_channels
         if not with_conv:

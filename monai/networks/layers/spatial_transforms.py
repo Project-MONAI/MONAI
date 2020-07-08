@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Union
+from typing import Optional, Sequence, Union
 
 import torch
 import torch.nn as nn
@@ -23,13 +23,13 @@ __all__ = ["AffineTransform"]
 class AffineTransform(nn.Module):
     def __init__(
         self,
-        spatial_size=None,
+        spatial_size: Optional[Union[Sequence[int], int]] = None,
         normalized: bool = False,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.ZEROS,
         align_corners: bool = False,
         reverse_indexing: bool = True,
-    ):
+    ) -> None:
         """
         Apply affine transformations with a batch of affine matrices.
 
@@ -47,7 +47,7 @@ class AffineTransform(nn.Module):
         See also: https://pytorch.org/tutorials/intermediate/spatial_transformer_tutorial.html
 
         Args:
-            spatial_size (list or tuple of int): output spatial shape, the full output shape will be
+            spatial_size: output spatial shape, the full output shape will be
                 `[N, C, *spatial_size]` where N and C are inferred from the `src` input of `self.forward`.
             normalized: indicating whether the provided affine matrix `theta` is defined
                 for the normalized coordinates. If `normalized=False`, `theta` will be converted
@@ -72,7 +72,7 @@ class AffineTransform(nn.Module):
         self.align_corners = align_corners
         self.reverse_indexing = reverse_indexing
 
-    def forward(self, src, theta, spatial_size=None):
+    def forward(self, src, theta, spatial_size: Optional[Union[Sequence[int], int]] = None):
         """
         ``theta`` must be an affine transformation matrix with shape
         3x3 or Nx3x3 or Nx2x3 or 2x3 for spatial 2D transforms,
@@ -85,7 +85,7 @@ class AffineTransform(nn.Module):
             theta (array_like): Nx3x3, Nx2x3, 3x3, 2x3 for spatial 2D inputs,
                 Nx4x4, Nx3x4, 3x4, 4x4 for spatial 3D inputs. When the batch dimension is omitted,
                 `theta` will be repeated N times, N is the batch dim of `src`.
-            spatial_size (list or tuple of int): output spatial shape, the full output shape will be
+            spatial_size: output spatial shape, the full output shape will be
                 `[N, C, *spatial_size]` where N and C are inferred from the `src`.
 
         Raises:
