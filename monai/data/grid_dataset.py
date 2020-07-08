@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Tuple, Union
+from typing import Sequence, Union
 
 import math
 
@@ -17,7 +17,7 @@ import torch
 from torch.utils.data import Dataset, IterableDataset
 
 from monai.data.utils import iter_patch
-from monai.utils import NumpyPadMode
+from monai.utils import ensure_tuple, NumpyPadMode
 
 
 class GridPatchDataset(IterableDataset):
@@ -29,7 +29,7 @@ class GridPatchDataset(IterableDataset):
         self,
         dataset: Dataset,
         patch_size,
-        start_pos: Tuple[int, ...] = (),
+        start_pos: Sequence[int] = (),
         mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
         **pad_opts: dict,
     ) -> None:
@@ -53,7 +53,7 @@ class GridPatchDataset(IterableDataset):
 
         self.dataset = dataset
         self.patch_size = (None,) + tuple(patch_size)
-        self.start_pos = start_pos
+        self.start_pos = ensure_tuple(start_pos)
         self.mode: NumpyPadMode = NumpyPadMode(mode)
         self.pad_opts = pad_opts
 
