@@ -9,11 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Tuple, Optional, Union
+from typing import Optional, Sequence, Tuple, Union
 
 import torch.nn as nn
 from monai.networks.layers.factories import Norm, Act, split_args
 from monai.networks.nets.regressor import Regressor
+from monai.utils import ensure_tuple
 
 
 class Classifier(Regressor):
@@ -25,11 +26,11 @@ class Classifier(Regressor):
 
     def __init__(
         self,
-        in_shape: Tuple[int, ...],
+        in_shape: Sequence[int],
         classes: int,
-        channels: Tuple[int, ...],
-        strides: Tuple[int, ...],
-        kernel_size: Union[Tuple[int, ...], int] = 3,
+        channels: Sequence[int],
+        strides: Sequence[int],
+        kernel_size: Union[Sequence[int], int] = 3,
         num_res_units: int = 2,
         act=Act.PRELU,
         norm=Norm.INSTANCE,
@@ -54,10 +55,10 @@ class Discriminator(Classifier):
 
     def __init__(
         self,
-        in_shape: Tuple[int, ...],
-        channels: Tuple[int, ...],
-        strides: Tuple[int, ...],
-        kernel_size: Union[Tuple[int, ...], int] = 3,
+        in_shape: Sequence[int],
+        channels: Sequence[int],
+        strides: Sequence[int],
+        kernel_size: Union[Sequence[int], int] = 3,
         num_res_units: int = 2,
         act=Act.PRELU,
         norm=Norm.INSTANCE,
@@ -77,10 +78,10 @@ class Critic(Classifier):
 
     def __init__(
         self,
-        in_shape: Tuple[int, ...],
-        channels: Tuple[int, ...],
-        strides: Tuple[int, ...],
-        kernel_size: Union[Tuple[int, ...], int] = 3,
+        in_shape: Sequence[int],
+        channels: Sequence[int],
+        strides: Sequence[int],
+        kernel_size: Union[Sequence[int], int] = 3,
         num_res_units: int = 2,
         act=Act.PRELU,
         norm=Norm.INSTANCE,

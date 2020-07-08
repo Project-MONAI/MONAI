@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Tuple, Union
+from typing import Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch.nn as nn
@@ -18,6 +18,7 @@ from monai.networks.layers.factories import Norm, Act
 from monai.networks.blocks import Convolution, ResidualUnit
 from monai.networks.layers.simplelayers import Reshape
 from monai.networks.layers.convutils import same_padding, calculate_out_shape
+from monai.utils import ensure_tuple, ensure_tuple_rep
 
 
 class Regressor(nn.Module):
@@ -29,11 +30,11 @@ class Regressor(nn.Module):
 
     def __init__(
         self,
-        in_shape: Tuple[int, ...],
-        out_shape: Tuple[int, ...],
-        channels: Tuple[int, ...],
-        strides: Tuple[int, ...],
-        kernel_size: Union[Tuple[int, ...], int] = 3,
+        in_shape: Sequence[int],
+        out_shape: Sequence[int],
+        channels: Sequence[int],
+        strides: Sequence[int],
+        kernel_size: Union[Sequence[int], int] = 3,
         num_res_units: int = 2,
         act=Act.PRELU,
         norm=Norm.INSTANCE,
@@ -59,12 +60,12 @@ class Regressor(nn.Module):
         """
         super().__init__()
 
-        self.in_channels, *self.in_shape = in_shape
+        self.in_channels, *self.in_shape = ensure_tuple(in_shape)
         self.dimensions = len(self.in_shape)
-        self.channels = channels
-        self.strides = strides
-        self.out_shape = out_shape
-        self.kernel_size = kernel_size
+        self.channels = ensure_tuple(channels)
+        self.strides = ensure_tuple(strides)
+        self.out_shape = ensure_tuple(out_shape)
+        self.kernel_size = ensure_tuple_rep(kernel_size, self.dimensions)
         self.num_res_units = num_res_units
         self.act = act
         self.norm = norm
