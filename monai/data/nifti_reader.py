@@ -9,11 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Callable, Optional, Sequence
+
 import numpy as np
 from torch.utils.data import Dataset
-from monai.transforms import LoadNifti
-from monai.transforms import Randomizable
-from monai.utils.misc import get_seed
+
+from monai.transforms import LoadNifti, Randomizable, apply_transform
+from monai.utils import get_seed
 
 
 class NiftiDataset(Dataset, Randomizable):
@@ -24,28 +26,32 @@ class NiftiDataset(Dataset, Randomizable):
 
     def __init__(
         self,
-        image_files,
-        seg_files=None,
+        image_files: Sequence[str],
+        seg_files: Optional[Sequence[str]] = None,
         labels=None,
-        as_closest_canonical=False,
-        transform=None,
-        seg_transform=None,
-        image_only=True,
-        dtype=np.float32,
-    ):
+        as_closest_canonical: bool = False,
+        transform: Optional[Callable] = None,
+        seg_transform: Optional[Callable] = None,
+        image_only: bool = True,
+        dtype: Optional[np.dtype] = np.float32,
+    ) -> None:
         """
         Initializes the dataset with the image and segmentation filename lists. The transform `transform` is applied
         to the images and `seg_transform` to the segmentations.
 
         Args:
-            image_files (list of str): list of image filenames
-            seg_files (list of str): if in segmentation task, list of segmentation filenames
+            image_files: list of image filenames
+            seg_files: if in segmentation task, list of segmentation filenames
             labels (list or array): if in classification task, list of classification labels
-            as_closest_canonical (bool): if True, load the image as closest to canonical orientation
-            transform (Callable, optional): transform to apply to image arrays
-            seg_transform (Callable, optional): transform to apply to segmentation arrays
-            image_only (bool): if True return only the image volume, other return image volume and header dict
-            dtype (np.dtype, optional): if not None convert the loaded image to this data type
+            as_closest_canonical: if True, load the image as closest to canonical orientation
+            transform: transform to apply to image arrays
+            seg_transform: transform to apply to segmentation arrays
+            image_only: if True return only the image volume, other return image volume and header dict
+            dtype: if not None convert the loaded image to this data type
+
+        Raises:
+            ValueError: Must have same number of image and segmentation files
+
         """
 
         if seg_files is not None and len(image_files) != len(seg_files):
@@ -61,13 +67,15 @@ class NiftiDataset(Dataset, Randomizable):
         self.dtype = dtype
         self.set_random_state(seed=get_seed())
 
-    def __len__(self):
+        self._seed = 0  # transform synchronization seed
+
+    def __len__(self) -> int:
         return len(self.image_files)
 
-    def randomize(self):
-        self.seed = self.R.randint(np.iinfo(np.int32).max)
+    def randomize(self) -> None:
+        self._seed = self.R.randint(np.iinfo(np.int32).max)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int):
         self.randomize()
         meta_data = None
         img_loader = LoadNifti(
@@ -87,15 +95,15 @@ class NiftiDataset(Dataset, Randomizable):
 
         if self.transform is not None:
             if isinstance(self.transform, Randomizable):
-                self.transform.set_random_state(seed=self.seed)
-            img = self.transform(img)
+                self.transform.set_random_state(seed=self._seed)
+            img = apply_transform(self.transform, img)
 
         data = [img]
 
         if self.seg_transform is not None:
             if isinstance(self.seg_transform, Randomizable):
-                self.seg_transform.set_random_state(seed=self.seed)
-            seg = self.seg_transform(seg)
+                self.seg_transform.set_random_state(seed=self._seed)
+            seg = apply_transform(self.seg_transform, seg)
 
         if seg is not None:
             data.append(seg)
@@ -103,5 +111,6 @@ class NiftiDataset(Dataset, Randomizable):
             data.append(label)
         if not self.image_only and meta_data is not None:
             data.append(meta_data)
-
+        if len(data) == 1:
+            return data[0]
         return data

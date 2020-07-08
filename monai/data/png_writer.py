@@ -9,51 +9,72 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional, Tuple, Union
+
 import numpy as np
-from skimage import io, transform
+
+from monai.transforms import Resize
+from monai.utils import ensure_tuple_rep, optional_import, InterpolateMode
+
+Image, _ = optional_import("PIL", name="Image")
 
 
 def write_png(
-    data, file_name, output_shape=None, interp_order=3, mode="constant", cval=0, scale=False, plugin=None, **plugin_args
-):
+    data: np.ndarray,
+    file_name: str,
+    output_spatial_shape: Optional[Tuple[int, ...]] = None,
+    mode: Union[InterpolateMode, str] = InterpolateMode.BICUBIC,
+    scale: Optional[int] = None,
+) -> None:
     """
-    Write numpy data into png files to disk.  
-    Spatially It supports HW for 2D.(H,W) or (H,W,3) or (H,W,4)
-    It's based on skimage library: https://scikit-image.org/docs/dev/api/skimage
+    Write numpy data into png files to disk.
+    Spatially it supports HW for 2D.(H,W) or (H,W,3) or (H,W,4).
+    If `scale` is None, expect the input data in `np.uint8` or `np.uint16` type.
+    It's based on the Image module in PIL library:
+    https://pillow.readthedocs.io/en/stable/reference/Image.html
 
     Args:
-        data (numpy.ndarray): input data to write to file.
-        file_name (string): expected file name that saved on disk.
-        output_shape (None or tuple of ints): output image shape.
-        interp_order (int): the order of the spline interpolation, default is InterpolationCode.SPLINE3.
-            The order has to be in the range 0 - 5.
-            this option is used when `output_shape != None`.
-        mode (`reflect|constant|nearest|mirror|wrap`):
-            The mode parameter determines how the input array is extended beyond its boundaries.
-            this option is used when `output_shape != None`.
-        cval (scalar): Value to fill past edges of input if mode is "constant". Default is 0.0.
-            this option is used when `output_shape != None`.
-        scale (bool): whether to scale data with 255 and convert to uint8 for data in range [0, 1].
-        plugin (string): name of plugin to use in `imsave`. By default, the different plugins
-            are tried(starting with imageio) until a suitable candidate is found.
-        plugin_args (keywords): arguments passed to the given plugin.
+        data: input data to write to file.
+        file_name: expected file name that saved on disk.
+        output_spatial_shape: spatial shape of the output image.
+        mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
+            The interpolation mode. Defaults to ``"bicubic"``.
+            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+        scale: {``255``, ``65535``} postprocess data by clipping to [0, 1] and scaling to
+            [0, 255] (uint8) or [0, 65535] (uint16). Default is None to disable scaling.
+
+    Raises:
+        ValueError: unsupported scale value: {scale}.
 
     """
     assert isinstance(data, np.ndarray), "input data must be numpy array."
-
-    if output_shape is not None:
-        assert (
-            isinstance(output_shape, (list, tuple)) and len(output_shape) == 2
-        ), "output_shape must be a list of 2 values (H, W)."
-
+    if len(data.shape) == 3 and data.shape[2] == 1:  # PIL Image can't save image with 1 channel
+        data = data.squeeze(2)
+    if output_spatial_shape is not None:
+        output_spatial_shape_ = ensure_tuple_rep(output_spatial_shape, 2)
+        mode = InterpolateMode(mode)
+        align_corners = None if mode in (InterpolateMode.NEAREST, InterpolateMode.AREA) else False
+        xform = Resize(spatial_size=output_spatial_shape_, mode=mode, align_corners=align_corners)
+        _min, _max = np.min(data), np.max(data)
         if len(data.shape) == 3:
-            output_shape += (data.shape[2],)
+            data = np.moveaxis(data, -1, 0)  # to channel first
+            data = xform(data)
+            data = np.moveaxis(data, 0, -1)
+        else:  # (H, W)
+            data = np.expand_dims(data, 0)  # make a channel
+            data = xform(data)[0]  # first channel
+        if mode != InterpolateMode.NEAREST:
+            data = np.clip(data, _min, _max)
 
-        data = transform.resize(data, output_shape, order=interp_order, mode=mode, cval=cval, preserve_range=True)
+    if scale is not None:
+        data = np.clip(data, 0.0, 1.0)  # png writer only can scale data in range [0, 1]
+        if scale == np.iinfo(np.uint8).max:
+            data = (scale * data).astype(np.uint8)
+        elif scale == np.iinfo(np.uint16).max:
+            data = (scale * data).astype(np.uint16)
+        else:
+            raise ValueError(f"unsupported scale value: {scale}.")
 
-    if scale:
-        assert np.min(data) >= 0 and np.max(data) <= 1, "png writer only can scale data in range [0, 1]."
-        data = 255 * data
-    data = data.astype(np.uint8)
-    io.imsave(file_name, data, plugin=plugin, **plugin_args)
+    img = Image.fromarray(data)
+    img.save(file_name, "PNG")
     return

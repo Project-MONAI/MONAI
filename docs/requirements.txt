@@ -4,7 +4,6 @@ pytorch-ignite==0.3.0
 numpy>=1.17
 nibabel
 parameterized
-scipy
 scikit-image>=0.14.2
 tensorboard
 commonmark==0.9.1
@@ -17,3 +16,4 @@ sphinxcontrib-htmlhelp==1.0.2
 sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==1.0.2
 sphinxcontrib-serializinghtml==1.1.3
+sphinx-autodoc-typehints==1.10.3
