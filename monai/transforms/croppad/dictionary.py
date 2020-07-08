@@ -15,7 +15,7 @@ defined in :py:class:`monai.transforms.croppad.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Callable, Optional, Sequence, Union
+from typing import Callable, Optional, Sequence, Tuple, Union
 
 from monai.config import IndexSelection, KeysCollection
 from monai.data.utils import get_random_patch, get_valid_patch_size
@@ -36,15 +36,15 @@ class SpatialPadd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        spatial_size,
+        spatial_size: Union[Sequence[int], int],
         method: Union[Method, str] = Method.SYMMETRIC,
         mode: NumpyPadModeSequence = NumpyPadMode.CONSTANT,
-    ):
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            spatial_size (list): the spatial size of output data after padding.
+            spatial_size: the spatial size of output data after padding.
                 If its components have non-positive values, the corresponding size of input image will be used.
             method: {``"symmetric"``, ``"end"``}
                 Pad image symmetric on every side or only pad at the end sides. Defaults to ``"symmetric"``.
@@ -73,13 +73,16 @@ class BorderPadd(MapTransform):
     """
 
     def __init__(
-        self, keys: KeysCollection, spatial_border, mode: NumpyPadModeSequence = NumpyPadMode.CONSTANT,
-    ):
+        self,
+        keys: KeysCollection,
+        spatial_border: Union[Sequence[int], int],
+        mode: NumpyPadModeSequence = NumpyPadMode.CONSTANT,
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            spatial_border (int or sequence of int): specified size for every spatial border. it can be 3 shapes:
+            spatial_border: specified size for every spatial border. it can be 3 shapes:
 
                 - single int number, pad all the borders with the same size.
                 - length equals the length of image shape, pad every spatial dimension separately.
@@ -114,12 +117,14 @@ class DivisiblePadd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.DivisiblePad`.
     """
 
-    def __init__(self, keys: KeysCollection, k, mode: NumpyPadModeSequence = NumpyPadMode.CONSTANT):
+    def __init__(
+        self, keys: KeysCollection, k: Union[Sequence[int], int], mode: NumpyPadModeSequence = NumpyPadMode.CONSTANT
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            k (int or sequence of int): the target k for each spatial dimension.
+            k: the target k for each spatial dimension.
                 if `k` is negative or 0, the original size is preserved.
                 if `k` is an int, the same `k` be applied to all the input spatial dimensions.
             mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
@@ -149,15 +154,22 @@ class SpatialCropd(MapTransform):
     are not provided, the start and end coordinates of the ROI must be provided.
     """
 
-    def __init__(self, keys: KeysCollection, roi_center=None, roi_size=None, roi_start=None, roi_end=None):
+    def __init__(
+        self,
+        keys: KeysCollection,
+        roi_center: Optional[Sequence[int]] = None,
+        roi_size: Optional[Sequence[int]] = None,
+        roi_start: Optional[Sequence[int]] = None,
+        roi_end: Optional[Sequence[int]] = None,
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            roi_center (list or tuple): voxel coordinates for center of the crop ROI.
-            roi_size (list or tuple): size of the crop ROI.
-            roi_start (list or tuple): voxel coordinates for start of the crop ROI.
-            roi_end (list or tuple): voxel coordinates for end of the crop ROI.
+            roi_center: voxel coordinates for center of the crop ROI.
+            roi_size: size of the crop ROI.
+            roi_start: voxel coordinates for start of the crop ROI.
+            roi_end: voxel coordinates for end of the crop ROI.
         """
         super().__init__(keys)
         self.cropper = SpatialCrop(roi_center, roi_size, roi_start, roi_end)
@@ -176,11 +188,11 @@ class CenterSpatialCropd(MapTransform):
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
-        roi_size (list, tuple): the size of the crop region e.g. [224,224,128]
+        roi_size: the size of the crop region e.g. [224,224,128]
             If its components have non-positive values, the corresponding size of input image will be used.
     """
 
-    def __init__(self, keys: KeysCollection, roi_size):
+    def __init__(self, keys: KeysCollection, roi_size: Union[Sequence[int], int]) -> None:
         super().__init__(keys)
         self.cropper = CenterSpatialCrop(roi_size)
 
@@ -201,7 +213,7 @@ class RandSpatialCropd(Randomizable, MapTransform):
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
-        roi_size (list, tuple): if `random_size` is True, it specifies the minimum crop region.
+        roi_size: if `random_size` is True, it specifies the minimum crop region.
             if `random_size` is False, it specifies the expected ROI size to crop. e.g. [224, 224, 128]
             If its components have non-positive values, the corresponding size of input image will be used.
         random_center: crop at random position as center or the image center.
@@ -209,15 +221,21 @@ class RandSpatialCropd(Randomizable, MapTransform):
             The actual size is sampled from `randint(roi_size, img_size)`.
     """
 
-    def __init__(self, keys: KeysCollection, roi_size, random_center: bool = True, random_size: bool = True):
+    def __init__(
+        self,
+        keys: KeysCollection,
+        roi_size: Union[Sequence[int], int],
+        random_center: bool = True,
+        random_size: bool = True,
+    ) -> None:
         super().__init__(keys)
         self.roi_size = roi_size
         self.random_center = random_center
         self.random_size = random_size
-        self._slices = None
-        self._size = None
+        self._slices: Optional[Tuple[slice, ...]] = None
+        self._size: Optional[Sequence[int]] = None
 
-    def randomize(self, img_size):
+    def randomize(self, img_size) -> None:  # type: ignore # see issue #495
         self._size = fall_back_tuple(self.roi_size, img_size)
         if self.random_size:
             self._size = [self.R.randint(low=self._size[i], high=img_size[i] + 1) for i in range(len(img_size))]
@@ -249,7 +267,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
-        roi_size (list, tuple): if `random_size` is True, the spatial size of the minimum crop region.
+        roi_size: if `random_size` is True, the spatial size of the minimum crop region.
             if `random_size` is False, specify the expected ROI size to crop. e.g. [224, 224, 128]
         num_samples: number of samples (crop regions) to take in the returned list.
         random_center: crop at random position as center or the image center.
@@ -258,15 +276,20 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
     """
 
     def __init__(
-        self, keys: KeysCollection, roi_size, num_samples: int, random_center: bool = True, random_size: bool = True
-    ):
+        self,
+        keys: KeysCollection,
+        roi_size: Union[Sequence[int], int],
+        num_samples: int,
+        random_center: bool = True,
+        random_size: bool = True,
+    ) -> None:
         super().__init__(keys)
         if num_samples < 1:
             raise ValueError("number of samples must be greater than 0.")
         self.num_samples = num_samples
         self.cropper = RandSpatialCropd(keys, roi_size, random_center, random_size)
 
-    def randomize(self):
+    def randomize(self) -> None:
         pass
 
     def __call__(self, data):
@@ -293,7 +316,7 @@ class CropForegroundd(MapTransform):
         select_fn: Callable = lambda x: x > 0,
         channel_indexes: Optional[IndexSelection] = None,
         margin: int = 0,
-    ):
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -332,7 +355,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
         label_key: name of key for label image, this will be used for finding foreground/background.
-        spatial_size (sequence of int): the spatial size of the crop region e.g. [224, 224, 128].
+        spatial_size: the spatial size of the crop region e.g. [224, 224, 128].
             If its components have non-positive values, the corresponding size of `data[label_key]` will be used.
         pos: used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
             foreground voxel as a center rather than a background voxel.
@@ -354,13 +377,13 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         self,
         keys: KeysCollection,
         label_key: str,
-        spatial_size,
+        spatial_size: Union[Sequence[int], int],
         pos: float = 1.0,
         neg: float = 1.0,
         num_samples: int = 1,
         image_key: Optional[str] = None,
         image_threshold: float = 0.0,
-    ):
+    ) -> None:
         super().__init__(keys)
         self.label_key = label_key
         self.spatial_size = spatial_size
@@ -374,7 +397,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         self.image_threshold = image_threshold
         self.centers = None
 
-    def randomize(self, label, image):
+    def randomize(self, label, image) -> None:  # type: ignore # see issue #495
         self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
         self.centers = generate_pos_neg_label_crop_centers(
             label, self.spatial_size, self.num_samples, self.pos_ratio, image, self.image_threshold, self.R

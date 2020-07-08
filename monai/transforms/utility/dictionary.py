@@ -15,9 +15,11 @@ defined in :py:class:`monai.transforms.utility.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from logging import Handler
 from typing import Optional, Callable, Union, Sequence
+
+import logging
 import copy
+
 import torch
 import numpy as np
 
@@ -45,7 +47,7 @@ class Identityd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.Identity`.
     """
 
-    def __init__(self, keys: KeysCollection):
+    def __init__(self, keys: KeysCollection) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -67,7 +69,7 @@ class AsChannelFirstd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.AsChannelFirst`.
     """
 
-    def __init__(self, keys: KeysCollection, channel_dim: int = -1):
+    def __init__(self, keys: KeysCollection, channel_dim: int = -1) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -89,7 +91,7 @@ class AsChannelLastd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.AsChannelLast`.
     """
 
-    def __init__(self, keys: KeysCollection, channel_dim: int = 0):
+    def __init__(self, keys: KeysCollection, channel_dim: int = 0) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -111,7 +113,7 @@ class AddChanneld(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.AddChannel`.
     """
 
-    def __init__(self, keys: KeysCollection):
+    def __init__(self, keys: KeysCollection) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -132,7 +134,7 @@ class RepeatChanneld(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.RepeatChannel`.
     """
 
-    def __init__(self, keys: KeysCollection, repeats: int):
+    def __init__(self, keys: KeysCollection, repeats: int) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -180,7 +182,7 @@ class ToTensord(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.ToTensor`.
     """
 
-    def __init__(self, keys: KeysCollection):
+    def __init__(self, keys: KeysCollection) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -201,7 +203,7 @@ class ToNumpyd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.ToNumpy`.
     """
 
-    def __init__(self, keys: KeysCollection):
+    def __init__(self, keys: KeysCollection) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -223,7 +225,7 @@ class DeleteItemsd(MapTransform):
     It will remove the key-values and copy the others to construct a new dictionary.
     """
 
-    def __init__(self, keys: KeysCollection):
+    def __init__(self, keys: KeysCollection) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -240,7 +242,7 @@ class SqueezeDimd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.SqueezeDim`.
     """
 
-    def __init__(self, keys: KeysCollection, dim: int = 0):
+    def __init__(self, keys: KeysCollection, dim: int = 0) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -270,8 +272,8 @@ class DataStatsd(MapTransform):
         value_range: Union[Sequence[bool], bool] = True,
         data_value: Union[Sequence[bool], bool] = False,
         additional_info: Optional[Union[Sequence[Callable], Callable]] = None,
-        logger_handler: Optional[Handler] = None,
-    ):
+        logger_handler: Optional[logging.Handler] = None,
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -388,7 +390,7 @@ class ConcatItemsd(MapTransform):
 
     """
 
-    def __init__(self, keys: KeysCollection, name: str, dim: int = 0):
+    def __init__(self, keys: KeysCollection, name: str, dim: int = 0) -> None:
         """
         Args:
             keys: keys of the corresponding items to be concatenated together.
@@ -446,7 +448,7 @@ class Lambdad(MapTransform):
             each element corresponds to a key in ``keys``.
     """
 
-    def __init__(self, keys: KeysCollection, func: Callable) -> None:
+    def __init__(self, keys: KeysCollection, func: Union[Sequence[Callable], Callable]) -> None:
         super().__init__(keys)
         self.func = ensure_tuple_rep(func, len(self.keys))
         self.lambd = Lambda()

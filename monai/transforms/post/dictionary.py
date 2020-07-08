@@ -42,7 +42,7 @@ class SplitChanneld(MapTransform):
         output_postfixes: Sequence[str],
         to_onehot: Union[Sequence[bool], bool] = False,
         num_classes: Optional[Union[Sequence[int], int]] = None,
-    ):
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -88,7 +88,7 @@ class Activationsd(MapTransform):
         sigmoid: Union[Sequence[bool], bool] = False,
         softmax: Union[Sequence[bool], bool] = False,
         other: Optional[Union[Sequence[Callable], Callable]] = None,
-    ):
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to model output and label.
@@ -128,7 +128,7 @@ class AsDiscreted(MapTransform):
         n_classes: Optional[Union[Sequence[int], int]] = None,
         threshold_values: Union[Sequence[bool], bool] = False,
         logit_thresh: Union[Sequence[float], float] = 0.5,
-    ):
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to model output and label.
@@ -178,7 +178,7 @@ class KeepLargestConnectedComponentd(MapTransform):
         applied_labels: Union[Sequence[int], int],
         independent: bool = True,
         connectivity: Optional[int] = None,
-    ):
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -209,7 +209,7 @@ class LabelToContourd(MapTransform):
     Dictionary-based wrapper of :py:class:monai.transforms.LabelToContour.
     """
 
-    def __init__(self, keys: KeysCollection, kernel_type: str = "Laplace"):
+    def __init__(self, keys: KeysCollection, kernel_type: str = "Laplace") -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
