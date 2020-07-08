@@ -453,12 +453,7 @@ class MaskIntensity(Transform):
 
     def __call__(self, img, mask_data: Optional[np.ndarray] = None):
         mask_data_ = self.mask_data > 0 if mask_data is None else mask_data > 0
-        if mask_data_.shape[0] == 1:
-            for i in range(img.shape[0]):
-                img[i : i + 1] *= mask_data_
-        else:
-            if mask_data_.shape[0] != img.shape[0]:
-                raise RuntimeError("mask data channels do not match channels of input data.")
-            img *= mask_data_
+        if mask_data_.shape[0] != 1 and mask_data_.shape[0] != img.shape[0]:
+            raise RuntimeError("mask data has more than 1 channel and do not match channels of input data.")
 
-        return img
+        return img * mask_data_
