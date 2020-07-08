@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     import ignite.metrics
 
 import torch
+from torch.optim.optimizer import Optimizer
 
 from monai.utils import exact_version, optional_import
 from monai.engines.utils import get_devices_spec
@@ -34,7 +35,7 @@ def _default_eval_transform(x, y, y_pred):
 
 def create_multigpu_supervised_trainer(
     net: torch.nn.Module,
-    optimizer: torch.optim.Optimizer,
+    optimizer: Optimizer,
     loss_fn,
     devices=None,
     non_blocking: bool = False,

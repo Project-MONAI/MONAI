@@ -144,7 +144,7 @@ class DenseNet(nn.Module):
                 [
                     ("relu", nn.ReLU(inplace=True)),
                     ("norm", avg_pool_type(1)),
-                    ("flatten", nn.Flatten(1)),
+                    ("flatten", nn.Flatten(1)),  # type: ignore # Module has no attribute
                     ("class", nn.Linear(in_channels, out_channels)),
                 ]
             )

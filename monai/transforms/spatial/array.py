@@ -13,7 +13,7 @@ A collection of "vanilla" transforms for spatial operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import List, Optional, Sequence, Tuple, Union
+from typing import Callable, List, Optional, Sequence, Tuple, Union
 
 import warnings
 
@@ -46,6 +46,8 @@ from monai.utils import (
 )
 
 nib, _ = optional_import("nibabel")
+
+_torch_interp: Callable
 
 if get_torch_version_tuple() >= (1, 5):
     # additional argument since torch 1.5 (to avoid warnings)

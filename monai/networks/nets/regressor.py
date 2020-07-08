@@ -96,6 +96,8 @@ class Regressor(nn.Module):
         is True this is the final layer and is not expected to include activation and normalization layers.
         """
 
+        layer: Union[ResidualUnit, Convolution]
+
         if self.num_res_units > 0:
             layer = ResidualUnit(
                 subunits=self.num_res_units,

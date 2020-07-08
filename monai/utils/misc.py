@@ -197,9 +197,9 @@ def set_determinism(
     """
     if seed is None:
         # cast to 32 bit seed for CUDA
-        seed_ = torch.default_generator.seed() % (np.iinfo(np.int32).max + 1)
-        if not torch.cuda._is_in_bad_fork():
-            torch.cuda.manual_seed_all(seed_)
+        seed_ = torch.default_generator.seed() % (np.iinfo(np.int32).max + 1)  # type: ignore # Module has no attribute
+        if not torch.cuda._is_in_bad_fork():  # type: ignore # Module has no attribute
+            torch.cuda.manual_seed_all(seed_)  # type: ignore # Module has no attribute
     else:
         torch.manual_seed(seed)
 
@@ -214,7 +214,7 @@ def set_determinism(
             func(seed)
 
     if seed is not None:
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
+        torch.backends.cudnn.deterministic = True  # type: ignore # Module has no attribute
+        torch.backends.cudnn.benchmark = False  # type: ignore # Module has no attribute
     else:
-        torch.backends.cudnn.deterministic = False
+        torch.backends.cudnn.deterministic = False  # type: ignore # Module has no attribute
