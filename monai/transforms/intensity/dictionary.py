@@ -15,7 +15,7 @@ defined in :py:class:`monai.transforms.intensity.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Union, Optional, Tuple
+from typing import Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -42,11 +42,13 @@ class RandGaussianNoised(Randomizable, MapTransform):
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
         prob: Probability to add Gaussian noise.
-        mean (float or array of floats): Mean or “centre” of the distribution.
+        mean: Mean or “centre” of the distribution.
         std: Standard deviation (spread) of distribution.
     """
 
-    def __init__(self, keys: KeysCollection, prob: float = 0.1, mean: float = 0.0, std: float = 0.1):
+    def __init__(
+        self, keys: KeysCollection, prob: float = 0.1, mean: Union[Sequence[float], float] = 0.0, std: float = 0.1
+    ) -> None:
         super().__init__(keys)
         self.prob = prob
         self.mean = mean
@@ -75,7 +77,7 @@ class ShiftIntensityd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.ShiftIntensity`.
     """
 
-    def __init__(self, keys: KeysCollection, offset: float):
+    def __init__(self, keys: KeysCollection, offset: float) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -97,7 +99,7 @@ class RandShiftIntensityd(Randomizable, MapTransform):
     Dictionary-based version :py:class:`monai.transforms.RandShiftIntensity`.
     """
 
-    def __init__(self, keys: KeysCollection, offsets: Union[Tuple[float, float], float], prob: float = 0.1):
+    def __init__(self, keys: KeysCollection, offsets: Union[Tuple[float, float], float], prob: float = 0.1) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -108,12 +110,17 @@ class RandShiftIntensityd(Randomizable, MapTransform):
                 (Default 0.1, with 10% probability it returns a rotated array.)
         """
         super().__init__(keys)
-        self.offsets = (-offsets, offsets) if not isinstance(offsets, (list, tuple)) else offsets
-        assert len(self.offsets) == 2, "offsets should be a number or pair of numbers."
+
+        if isinstance(offsets, (int, float)):
+            self.offsets = (min(-offsets, offsets), max(-offsets, offsets))
+        else:
+            assert len(offsets) == 2, "offsets should be a number or pair of numbers."
+            self.offsets = (min(offsets), max(offsets))
+
         self.prob = prob
         self._do_transform = False
 
-    def randomize(self) -> None:  # type: ignore # see issue #495
+    def randomize(self) -> None:
         self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
         self._do_transform = self.R.random() < self.prob
 
@@ -162,7 +169,7 @@ class RandScaleIntensityd(Randomizable, MapTransform):
     Dictionary-based version :py:class:`monai.transforms.RandScaleIntensity`.
     """
 
-    def __init__(self, keys: KeysCollection, factors: Union[Tuple[float, float], float], prob: float = 0.1):
+    def __init__(self, keys: KeysCollection, factors: Union[Tuple[float, float], float], prob: float = 0.1) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -174,12 +181,17 @@ class RandScaleIntensityd(Randomizable, MapTransform):
 
         """
         super().__init__(keys)
-        self.factors = (-factors, factors) if not isinstance(factors, (list, tuple)) else factors
-        assert len(self.factors) == 2, "factors should be a number or pair of numbers."
+
+        if isinstance(factors, (int, float)):
+            self.factors = (min(-factors, factors), max(-factors, factors))
+        else:
+            assert len(factors) == 2, "factors should be a number or pair of numbers."
+            self.factors = (min(factors), max(factors))
+
         self.prob = prob
         self._do_transform = False
 
-    def randomize(self) -> None:  # type: ignore # see issue #495
+    def randomize(self) -> None:
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
         self._do_transform = self.R.random() < self.prob
 
@@ -203,8 +215,8 @@ class NormalizeIntensityd(MapTransform):
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
-        subtrahend (ndarray): the amount to subtract by (usually the mean)
-        divisor (ndarray): the amount to divide by (usually the standard deviation)
+        subtrahend: the amount to subtract by (usually the mean)
+        divisor: the amount to divide by (usually the standard deviation)
         nonzero: whether only normalize non-zero values.
         channel_wise: if using calculated mean and std, calculate on each channel separately
             or calculate on the entire image directly.
@@ -217,7 +229,7 @@ class NormalizeIntensityd(MapTransform):
         divisor: Optional[np.ndarray] = None,
         nonzero: bool = False,
         channel_wise: bool = False,
-    ):
+    ) -> None:
         super().__init__(keys)
         self.normalizer = NormalizeIntensity(subtrahend, divisor, nonzero, channel_wise)
 
@@ -289,7 +301,7 @@ class AdjustContrastd(MapTransform):
         gamma: gamma value to adjust the contrast as function.
     """
 
-    def __init__(self, keys: KeysCollection, gamma: float):
+    def __init__(self, keys: KeysCollection, gamma: float) -> None:
         super().__init__(keys)
         self.adjuster = AdjustContrast(gamma)
 
@@ -311,27 +323,27 @@ class RandAdjustContrastd(Randomizable, MapTransform):
         keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
         prob: Probability of adjustment.
-        gamma (tuple of float or float): Range of gamma values.
+        gamma: Range of gamma values.
             If single number, value is picked from (0.5, gamma), default is (0.5, 4.5).
     """
 
-    def __init__(self, keys: KeysCollection, prob: float = 0.1, gamma: Union[Tuple[float, float], float] = (0.5, 4.5)):
+    def __init__(
+        self, keys: KeysCollection, prob: float = 0.1, gamma: Union[Tuple[float, float], float] = (0.5, 4.5)
+    ) -> None:
         super().__init__(keys)
         self.prob: float = prob
-        self.gamma: Tuple[float, float]
 
-        if not isinstance(gamma, (tuple, list)):
+        if isinstance(gamma, (int, float)):
             assert gamma > 0.5, "if gamma is single number, must greater than 0.5 and value is picked from (0.5, gamma)"
             self.gamma = (0.5, gamma)
         else:
             assert len(gamma) == 2, "gamma should be a number or pair of numbers."
-            self.gamma = gamma
-        assert len(self.gamma) == 2, "gamma should be a number or pair of numbers."
+            self.gamma = (min(gamma), max(gamma))
 
         self._do_transform = False
         self.gamma_value = None
 
-    def randomize(self) -> None:  # type: ignore # see issue #495
+    def randomize(self) -> None:
         self._do_transform = self.R.random_sample() < self.prob
         self.gamma_value = self.R.uniform(low=self.gamma[0], high=self.gamma[1])
 
