@@ -33,5 +33,5 @@ The rest of the steps assume that the current directory is the folder of this RE
 - download the adapted pretrained model from [google drive folder](https://drive.google.com/drive/folders/1HXlYJGvTF3gNGOL0UFBeHVoA6Vh_GqEw) to `./model`.
 - run `python run_inference.py` and segmentation results will be saved at `./output`.
 
-("To segment COVID-19 pneumonia lesions from your own data, make sure that the images have been cropped into the lung region,
- and the intensity has been normalized into [0, 1] using window/level of 1500/-650.")
+_(To segment COVID-19 pneumonia lesions from your own images, make sure that the images have been cropped into the lung region,
+ and the intensity has been normalized into [0, 1] using window width/level of 1500/-650.)_
