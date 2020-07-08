@@ -431,3 +431,29 @@ class ScaleIntensityRangePercentiles(Transform):
             img = np.clip(img, self.b_min, self.b_max)
 
         return img
+
+
+class MaskIntensity(Transform):
+    """
+    Mask the intensity values of input image with the specified mask data.
+    Mask data must have the same spatial size as the input image, and all
+    the intensity values of input image corresponding to `0` in the mask
+    data will be set to `0`, others will keep the original value.
+
+    Args:
+        mask_data: if mask data is single channel, apply to evey channel
+            of input image. if multiple channels, the channel number must
+            match input data. mask_data will be converted to `bool` values
+            by `mask_data > 0` before applying transform to input image.
+
+    """
+
+    def __init__(self, mask_data: np.ndarray):
+        self.mask_data = mask_data
+
+    def __call__(self, img, mask_data: Optional[np.ndarray] = None):
+        mask_data_ = self.mask_data > 0 if mask_data is None else mask_data > 0
+        if mask_data_.shape[0] != 1 and mask_data_.shape[0] != img.shape[0]:
+            raise RuntimeError("mask data has more than 1 channel and do not match channels of input data.")
+
+        return img * mask_data_
