@@ -23,7 +23,7 @@ class ChannelSELayer(nn.Module):
 
     def __init__(
         self, spatial_dims: int, in_channels: int, r: int = 2, acti_type_1: str = "relu", acti_type_2: str = "sigmoid"
-    ):
+    ) -> None:
         """
         Args:
             spatial_dims: number of spatial dimensions, could be 1, 2, or 3.
@@ -69,7 +69,7 @@ class ResidualSELayer(ChannelSELayer):
 
     def __init__(
         self, spatial_dims: int, in_channels: int, r: int = 2, acti_type_1: str = "leakyrelu", acti_type_2: str = "relu"
-    ):
+    ) -> None:
         """
         Args:
             spatial_dims: number of spatial dimensions, could be 1, 2, or 3.

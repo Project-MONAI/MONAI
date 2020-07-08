@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Union
+from typing import Optional, Sequence, Union
 
 import torch.nn as nn
 import torch.nn.functional as F
@@ -46,7 +46,7 @@ class ConvNormActi(nn.Module):
         norm_type: Optional[Union[Normalisation, str]] = None,
         acti_type: Optional[Union[Activation, str]] = None,
         dropout_prob: Optional[float] = None,
-    ):
+    ) -> None:
 
         super(ConvNormActi, self).__init__()
 
@@ -78,15 +78,15 @@ class HighResBlock(nn.Module):
         spatial_dims: int,
         in_channels: int,
         out_channels: int,
-        kernels=(3, 3),
+        kernels: Sequence[int] = (3, 3),
         dilation=1,
         norm_type: Union[Normalisation, str] = Normalisation.INSTANCE,
         acti_type: Union[Activation, str] = Activation.RELU,
         channel_matching: Union[ChannelMatching, str] = ChannelMatching.PAD,
-    ):
+    ) -> None:
         """
         Args:
-            kernels (list of int): each integer k in `kernels` corresponds to a convolution layer with kernel size k.
+            kernels: each integer k in `kernels` corresponds to a convolution layer with kernel size k.
             norm_type: {``"batch"``, ``"instance"``}
                 Feature normalisation with batchnorm or instancenorm. Defaults to ``"instance"``.
             acti_type: {``"relu"``, ``"prelu"``, ``"relu6"``}
@@ -174,7 +174,7 @@ class HighResNet(nn.Module):
         acti_type: Union[Activation, str] = Activation.RELU,
         dropout_prob: Optional[float] = None,
         layer_params=DEFAULT_LAYER_PARAMS_3D,
-    ):
+    ) -> None:
 
         super(HighResNet, self).__init__()
         blocks = nn.ModuleList()

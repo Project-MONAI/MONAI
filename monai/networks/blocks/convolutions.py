@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Tuple, Union
+
 import numpy as np
 import torch.nn as nn
 
@@ -23,18 +25,18 @@ class Convolution(nn.Sequential):
 
     def __init__(
         self,
-        dimensions,
-        in_channels,
-        out_channels,
+        dimensions: int,
+        in_channels: int,
+        out_channels: int,
         strides=1,
         kernel_size=3,
         act=Act.PRELU,
         norm=Norm.INSTANCE,
         dropout=None,
         dilation=1,
-        bias=True,
-        conv_only=False,
-        is_transposed=False,
+        bias: bool = True,
+        conv_only: bool = False,
+        is_transposed: bool = False,
     ) -> None:
         super().__init__()
         self.dimensions = dimensions
@@ -81,18 +83,18 @@ class Convolution(nn.Sequential):
 class ResidualUnit(nn.Module):
     def __init__(
         self,
-        dimensions,
-        in_channels,
-        out_channels,
+        dimensions: int,
+        in_channels: int,
+        out_channels: int,
         strides=1,
         kernel_size=3,
-        subunits=2,
+        subunits: int = 2,
         act=Act.PRELU,
         norm=Norm.INSTANCE,
         dropout=None,
         dilation=1,
-        bias=True,
-        last_conv_only=False,
+        bias: bool = True,
+        last_conv_only: bool = False,
     ) -> None:
         super().__init__()
         self.dimensions = dimensions

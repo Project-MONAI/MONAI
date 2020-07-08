@@ -84,25 +84,25 @@ class LayerFactory:
 
         return tuple(self.factories)
 
-    def add_factory_callable(self, name, func):
+    def add_factory_callable(self, name: str, func: Callable):
         """
         Add the factory function to this object under the given name.
         """
 
         self.factories[name.upper()] = func
 
-    def factory_function(self, name):
+    def factory_function(self, name: str):
         """
         Decorator for adding a factory function with the given name.
         """
 
-        def _add(func):
+        def _add(func: Callable):
             self.add_factory_callable(name, func)
             return func
 
         return _add
 
-    def get_constructor(self, factory_name, *args) -> Any:
+    def get_constructor(self, factory_name: str, *args) -> Any:
         """
         Get the constructor for the given factory name and arguments.
 
@@ -178,19 +178,19 @@ Pool = LayerFactory()
 
 
 @Dropout.factory_function("dropout")
-def dropout_factory(dim):
+def dropout_factory(dim: int):
     types = [nn.Dropout, nn.Dropout2d, nn.Dropout3d]
     return types[dim - 1]
 
 
 @Norm.factory_function("instance")
-def instance_factory(dim):
+def instance_factory(dim: int):
     types = [nn.InstanceNorm1d, nn.InstanceNorm2d, nn.InstanceNorm3d]
     return types[dim - 1]
 
 
 @Norm.factory_function("batch")
-def batch_factory(dim):
+def batch_factory(dim: int):
     types = [nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d]
     return types[dim - 1]
 
@@ -209,36 +209,36 @@ Act.add_factory_callable("logsoftmax", lambda: nn.modules.LogSoftMax)
 
 
 @Conv.factory_function("conv")
-def conv_factory(dim):
+def conv_factory(dim: int):
     types = [nn.Conv1d, nn.Conv2d, nn.Conv3d]
     return types[dim - 1]
 
 
 @Conv.factory_function("convtrans")
-def convtrans_factory(dim):
+def convtrans_factory(dim: int):
     types = [nn.ConvTranspose1d, nn.ConvTranspose2d, nn.ConvTranspose3d]
     return types[dim - 1]
 
 
 @Pool.factory_function("max")
-def maxpooling_factory(dim):
+def maxpooling_factory(dim: int):
     types = [nn.MaxPool1d, nn.MaxPool2d, nn.MaxPool3d]
     return types[dim - 1]
 
 
 @Pool.factory_function("adaptivemax")
-def adaptive_maxpooling_factory(dim):
+def adaptive_maxpooling_factory(dim: int):
     types = [nn.AdaptiveMaxPool1d, nn.AdaptiveMaxPool2d, nn.AdaptiveMaxPool3d]
     return types[dim - 1]
 
 
 @Pool.factory_function("avg")
-def avgpooling_factory(dim):
+def avgpooling_factory(dim: int):
     types = [nn.AvgPool1d, nn.AvgPool2d, nn.AvgPool3d]
     return types[dim - 1]
 
 
 @Pool.factory_function("adaptiveavg")
-def adaptive_avgpooling_factory(dim):
+def adaptive_avgpooling_factory(dim: int):
     types = [nn.AdaptiveAvgPool1d, nn.AdaptiveAvgPool2d, nn.AdaptiveAvgPool3d]
     return types[dim - 1]

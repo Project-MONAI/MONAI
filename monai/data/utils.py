@@ -27,7 +27,7 @@ nib, _ = optional_import("nibabel")
 
 
 def get_random_patch(
-    dims: Tuple[int, ...], patch_size, rand_state: Optional[np.random.RandomState] = None
+    dims: Sequence[int], patch_size, rand_state: Optional[np.random.RandomState] = None
 ) -> Tuple[slice, ...]:
     """
     Returns a tuple of slices to define a random patch in an array of shape `dims` with size `patch_size` or the as
@@ -51,7 +51,7 @@ def get_random_patch(
     return tuple(slice(mc, mc + ps) for mc, ps in zip(min_corner, patch_size))
 
 
-def iter_patch_slices(dims: Tuple[int, ...], patch_size, start_pos: Tuple[int, ...] = ()):
+def iter_patch_slices(dims: Sequence[int], patch_size, start_pos: Sequence[int] = ()):
     """
     Yield successive tuples of slices defining patches of size `patch_size` from an array of dimensions `dims`. The
     iteration starts from position `start_pos` in the array, or starting at the origin if this isn't provided. Each
@@ -79,9 +79,7 @@ def iter_patch_slices(dims: Tuple[int, ...], patch_size, start_pos: Tuple[int, .
         yield tuple(slice(s, s + p) for s, p in zip(position[::-1], patch_size))
 
 
-def dense_patch_slices(
-    image_size: Tuple[int, ...], patch_size, scan_interval: Tuple[int, ...]
-) -> List[Tuple[slice, ...]]:
+def dense_patch_slices(image_size: Sequence[int], patch_size, scan_interval: Sequence[int]) -> List[Tuple[slice, ...]]:
     """
     Enumerate all slices defining 2D/3D patches of size `patch_size` from an `image_size` input image.
 
@@ -141,7 +139,7 @@ def dense_patch_slices(
 def iter_patch(
     arr: np.ndarray,
     patch_size,
-    start_pos: Tuple[int, ...] = (),
+    start_pos: Sequence[int] = (),
     copy_back: bool = True,
     mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
     **pad_opts: dict,
