@@ -9,10 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional, Sequence, Tuple, Union
 
 import torch.nn as nn
 from monai.networks.layers.factories import Norm, Act, split_args
 from monai.networks.nets.regressor import Regressor
+from monai.utils import ensure_tuple
 
 
 class Classifier(Regressor):
@@ -24,18 +26,18 @@ class Classifier(Regressor):
 
     def __init__(
         self,
-        in_shape,
-        classes,
-        channels,
-        strides,
-        kernel_size=3,
-        num_res_units=2,
+        in_shape: Sequence[int],
+        classes: int,
+        channels: Sequence[int],
+        strides: Sequence[int],
+        kernel_size: Union[Sequence[int], int] = 3,
+        num_res_units: int = 2,
         act=Act.PRELU,
         norm=Norm.INSTANCE,
-        dropout=None,
-        bias=True,
-        last_act=None,
-    ):
+        dropout: Optional[float] = None,
+        bias: bool = True,
+        last_act: Optional[bool] = None,
+    ) -> None:
         super().__init__(in_shape, (classes,), channels, strides, kernel_size, num_res_units, act, norm, dropout, bias)
 
         if last_act is not None:
@@ -53,17 +55,17 @@ class Discriminator(Classifier):
 
     def __init__(
         self,
-        in_shape,
-        channels,
-        strides,
-        kernel_size=3,
-        num_res_units=2,
+        in_shape: Sequence[int],
+        channels: Sequence[int],
+        strides: Sequence[int],
+        kernel_size: Union[Sequence[int], int] = 3,
+        num_res_units: int = 2,
         act=Act.PRELU,
         norm=Norm.INSTANCE,
-        dropout=0.25,
-        bias=True,
+        dropout: Optional[float] = 0.25,
+        bias: bool = True,
         last_act=Act.SIGMOID,
-    ):
+    ) -> None:
         super().__init__(in_shape, 1, channels, strides, kernel_size, num_res_units, act, norm, dropout, bias, last_act)
 
 
@@ -76,16 +78,16 @@ class Critic(Classifier):
 
     def __init__(
         self,
-        in_shape,
-        channels,
-        strides,
-        kernel_size=3,
-        num_res_units=2,
+        in_shape: Sequence[int],
+        channels: Sequence[int],
+        strides: Sequence[int],
+        kernel_size: Union[Sequence[int], int] = 3,
+        num_res_units: int = 2,
         act=Act.PRELU,
         norm=Norm.INSTANCE,
-        dropout=0.25,
-        bias=True,
-    ):
+        dropout: Optional[float] = 0.25,
+        bias: bool = True,
+    ) -> None:
         super().__init__(in_shape, 1, channels, strides, kernel_size, num_res_units, act, norm, dropout, bias, None)
 
     def _get_final_layer(self, in_shape):

@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from collections import OrderedDict
-from typing import Callable, Any
+from typing import Callable, Sequence, Tuple
 
 import torch
 import torch.nn as nn
@@ -19,7 +19,9 @@ from monai.networks.layers.factories import Conv, Dropout, Pool, Norm
 
 
 class _DenseLayer(nn.Sequential):
-    def __init__(self, spatial_dims, in_channels, growth_rate, bn_size, dropout_prob) -> None:
+    def __init__(
+        self, spatial_dims: int, in_channels: int, growth_rate: int, bn_size: int, dropout_prob: float
+    ) -> None:
         super(_DenseLayer, self).__init__()
 
         out_channels = bn_size * growth_rate
@@ -38,13 +40,15 @@ class _DenseLayer(nn.Sequential):
         if dropout_prob > 0:
             self.add_module("dropout", dropout_type(dropout_prob))
 
-    def forward(self, x) -> Any:
+    def forward(self, x):
         new_features = super(_DenseLayer, self).forward(x)
         return torch.cat([x, new_features], 1)
 
 
 class _DenseBlock(nn.Sequential):
-    def __init__(self, spatial_dims, layers: int, in_channels, bn_size, growth_rate, dropout_prob) -> None:
+    def __init__(
+        self, spatial_dims: int, layers: int, in_channels: int, bn_size: int, growth_rate: int, dropout_prob: float
+    ) -> None:
         super(_DenseBlock, self).__init__()
         for i in range(layers):
             layer = _DenseLayer(spatial_dims, in_channels, growth_rate, bn_size, dropout_prob)
@@ -53,7 +57,7 @@ class _DenseBlock(nn.Sequential):
 
 
 class _Transition(nn.Sequential):
-    def __init__(self, spatial_dims, in_channels, out_channels) -> None:
+    def __init__(self, spatial_dims: int, in_channels: int, out_channels: int) -> None:
         super(_Transition, self).__init__()
 
         conv_type: Callable = Conv[Conv.CONV, spatial_dims]
@@ -78,7 +82,7 @@ class DenseNet(nn.Module):
         out_channels: number of the output classes.
         init_features: number of filters in the first convolution layer.
         growth_rate: how many filters to add each layer (k in paper).
-        block_config (tuple): how many layers in each pooling block.
+        block_config: how many layers in each pooling block.
         bn_size: multiplicative factor for number of bottle neck layers.
                       (i.e. bn_size * k features in the bottleneck layer)
         dropout_prob: dropout rate after each dense layer.
@@ -91,10 +95,10 @@ class DenseNet(nn.Module):
         out_channels: int,
         init_features: int = 64,
         growth_rate: int = 32,
-        block_config=(6, 12, 24, 16),
+        block_config: Sequence[int] = (6, 12, 24, 16),
         bn_size: int = 4,
         dropout_prob: float = 0.0,
-    ):
+    ) -> None:
 
         super(DenseNet, self).__init__()
 
@@ -154,7 +158,7 @@ class DenseNet(nn.Module):
             elif isinstance(m, norm_type):  # type: ignore
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.Linear):  # type: ignore
+            elif isinstance(m, nn.Linear):
                 nn.init.constant_(m.bias, 0)
         # pytype: enable=wrong-arg-types
 

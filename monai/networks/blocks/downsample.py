@@ -9,10 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional, Sequence, Union
+
 import torch
 import torch.nn as nn
 
 from monai.networks.layers.factories import Pool
+from monai.utils import ensure_tuple_rep
 
 
 class MaxAvgPool(nn.Module):
@@ -21,7 +24,14 @@ class MaxAvgPool(nn.Module):
     double the channel size by concatenating the downsampled feature maps.
     """
 
-    def __init__(self, spatial_dims: int, kernel_size, stride=None, padding=0, ceil_mode: bool = False):
+    def __init__(
+        self,
+        spatial_dims: int,
+        kernel_size: Union[Sequence[int], int],
+        stride: Optional[Union[Sequence[int], int]] = None,
+        padding: Union[Sequence[int], int] = 0,
+        ceil_mode: bool = False,
+    ) -> None:
         """
         Args:
             spatial_dims: number of spatial dimensions of the input image.
@@ -31,7 +41,12 @@ class MaxAvgPool(nn.Module):
             ceil_mode: when True, will use ceil instead of floor to compute the output shape.
         """
         super().__init__()
-        _params = {"kernel_size": kernel_size, "stride": stride, "padding": padding, "ceil_mode": ceil_mode}
+        _params = {
+            "kernel_size": ensure_tuple_rep(kernel_size, spatial_dims),
+            "stride": None if stride is None else ensure_tuple_rep(stride, spatial_dims),
+            "padding": ensure_tuple_rep(padding, spatial_dims),
+            "ceil_mode": ceil_mode,
+        }
         self.max_pool = Pool[Pool.MAX, spatial_dims](**_params)
         self.avg_pool = Pool[Pool.AVG, spatial_dims](**_params)
 
