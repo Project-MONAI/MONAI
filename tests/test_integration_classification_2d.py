@@ -172,7 +172,7 @@ class IntegrationClassification2D(unittest.TestCase):
             for class_name in class_names
         ]
         image_file_list, image_classes = [], []
-        for i, class_name in enumerate(class_names):
+        for i, _ in enumerate(class_names):
             image_file_list.extend(image_files[i])
             image_classes.extend([i] * len(image_files[i]))
 

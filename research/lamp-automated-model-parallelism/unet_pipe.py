@@ -112,7 +112,7 @@ class UNetPipe(nn.Sequential):
         """
         super(UNetPipe, self).__init__()
         n_enc_filter: List[int] = [n_feat]
-        for i in range(1, depth + 1):
+        for _ in range(depth):
             n_enc_filter.append(min(n_enc_filter[-1] * 2, 1024))
         namespaces = [Namespace() for _ in range(depth)]
 
