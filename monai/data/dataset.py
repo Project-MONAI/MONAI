@@ -244,7 +244,7 @@ class CacheDataset(Dataset):
         transform: Optional[Callable] = None,
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
-        num_workers: int = 0
+        num_workers: int = 0,
     ) -> None:
         """
         Args:
@@ -268,8 +268,7 @@ class CacheDataset(Dataset):
                 self._thread_lock = threading.Lock()
                 with ThreadPool(num_workers) as p:
                     p.map(
-                        self._load_cache_item_thread,
-                        [(i, data[i], transform) for i in range(self.cache_num)],
+                        self._load_cache_item_thread, [(i, data[i], transform) for i in range(self.cache_num)],
                     )
             else:
                 for i in range(self.cache_num):

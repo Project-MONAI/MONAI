@@ -26,7 +26,7 @@ TEST_CASE_1 = [
             SimulateDelayd(keys=["image", "label", "extra"], delay_time=[1e-7, 1e-6, 1e-5]),
         ]
     ),
-    (128, 128, 128)
+    (128, 128, 128),
 ]
 
 TEST_CASE_2 = [
@@ -34,13 +34,10 @@ TEST_CASE_2 = [
         LoadNiftid(keys=["image", "label", "extra"]),
         SimulateDelayd(keys=["image", "label", "extra"], delay_time=[1e-7, 1e-6, 1e-5]),
     ],
-    (128, 128, 128)
+    (128, 128, 128),
 ]
 
-TEST_CASE_3 = [
-    None,
-    (128, 128, 128)
-]
+TEST_CASE_3 = [None, (128, 128, 128)]
 
 
 class TestDataset(unittest.TestCase):

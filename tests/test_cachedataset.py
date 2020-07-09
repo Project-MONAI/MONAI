@@ -19,15 +19,9 @@ from parameterized import parameterized
 from monai.data import CacheDataset
 from monai.transforms import Compose, LoadNiftid
 
-TEST_CASE_1 = [
-    Compose([LoadNiftid(keys=["image", "label", "extra"])]),
-    (128, 128, 128)
-]
+TEST_CASE_1 = [Compose([LoadNiftid(keys=["image", "label", "extra"])]), (128, 128, 128)]
 
-TEST_CASE_2 = [
-    None,
-    (128, 128, 128)
-]
+TEST_CASE_2 = [None, (128, 128, 128)]
 
 
 class TestCacheDataset(unittest.TestCase):
@@ -53,9 +47,7 @@ class TestCacheDataset(unittest.TestCase):
                 "extra": os.path.join(tempdir, "test_extra2.nii.gz"),
             },
         ]
-        dataset = CacheDataset(
-            data=test_data, transform=transform, cache_rate=0.5
-        )
+        dataset = CacheDataset(data=test_data, transform=transform, cache_rate=0.5)
         data1 = dataset[0]
         data2 = dataset[1]
         shutil.rmtree(tempdir)
