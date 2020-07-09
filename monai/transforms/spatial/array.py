@@ -1342,7 +1342,7 @@ class Rand2DElastic(Randomizable, Transform):
         super().set_random_state(seed, state)
         return self
 
-    def randomize(self, spatial_size) -> None:  # type: ignore # see issue #495
+    def randomize(self, spatial_size) -> None:  # type: ignore # see issue #729
         self.do_transform = self.R.rand() < self.prob
         self.deform_grid.randomize(spatial_size)
         self.rand_affine_grid.randomize()
@@ -1467,7 +1467,7 @@ class Rand3DElastic(Randomizable, Transform):
         super().set_random_state(seed, state)
         return self
 
-    def randomize(self, grid_size) -> None:  # type: ignore # see issue #495
+    def randomize(self, grid_size) -> None:  # type: ignore # see issue #729
         self.do_transform = self.R.rand() < self.prob
         if self.do_transform:
             self.rand_offset = self.R.uniform(-1.0, 1.0, [3] + list(grid_size)).astype(np.float32)

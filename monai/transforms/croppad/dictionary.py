@@ -235,7 +235,7 @@ class RandSpatialCropd(Randomizable, MapTransform):
         self._slices: Optional[Tuple[slice, ...]] = None
         self._size: Optional[Sequence[int]] = None
 
-    def randomize(self, img_size) -> None:  # type: ignore # see issue #495
+    def randomize(self, img_size) -> None:  # type: ignore # see issue #729
         self._size = fall_back_tuple(self.roi_size, img_size)
         if self.random_size:
             self._size = [self.R.randint(low=self._size[i], high=img_size[i] + 1) for i in range(len(img_size))]
@@ -397,7 +397,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         self.image_threshold = image_threshold
         self.centers = None
 
-    def randomize(self, label, image) -> None:  # type: ignore # see issue #495
+    def randomize(self, label, image) -> None:  # type: ignore # see issue #729
         self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
         self.centers = generate_pos_neg_label_crop_centers(
             label, self.spatial_size, self.num_samples, self.pos_ratio, image, self.image_threshold, self.R
