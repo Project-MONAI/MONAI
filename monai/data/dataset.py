@@ -94,7 +94,7 @@ class PersistentDataset(Dataset):
     """
 
     def __init__(
-        self, data, transform: Optional[Callable] = None, cache_dir: Optional[Union[Path, str]] = None
+        self, data, transform: Union[Sequence[Callable], Callable], cache_dir: Optional[Union[Path, str]] = None
     ) -> None:
         """
         Args:
@@ -237,7 +237,12 @@ class CacheDataset(Dataset):
     """
 
     def __init__(
-        self, data, transform: Callable, cache_num: int = sys.maxsize, cache_rate: float = 1.0, num_workers: int = 0
+        self,
+        data,
+        transform: Union[Sequence[Callable], Callable],
+        cache_num: int = sys.maxsize,
+        cache_rate: float = 1.0,
+        num_workers: int = 0,
     ) -> None:
         """
         Args:
