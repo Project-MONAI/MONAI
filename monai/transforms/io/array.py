@@ -89,13 +89,11 @@ class LoadNifti(Transform):
             if not compatible_meta:
                 for meta_key in header:
                     meta_datum = header[meta_key]
-                    # pytype: disable=attribute-error
                     if (
-                        type(meta_datum).__name__ == "ndarray"
+                        isinstance(meta_datum, np.ndarray)
                         and np_str_obj_array_pattern.search(meta_datum.dtype.str) is not None
                     ):
                         continue
-                    # pytype: enable=attribute-error
                     compatible_meta[meta_key] = meta_datum
             else:
                 assert np.allclose(
