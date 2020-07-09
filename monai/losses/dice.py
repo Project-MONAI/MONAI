@@ -66,7 +66,7 @@ class DiceLoss(_Loss):
             ValueError: sigmoid=True and softmax=True are not compatible.
 
         """
-        super().__init__(reduction=LossReduction(reduction))
+        super().__init__(reduction=LossReduction(reduction).value)
 
         if sigmoid and softmax:
             raise ValueError("sigmoid=True and softmax=True are not compatible.")
@@ -133,11 +133,11 @@ class DiceLoss(_Loss):
 
         f = 1.0 - (2.0 * intersection + smooth) / (denominator + smooth)
 
-        if self.reduction == LossReduction.MEAN:
+        if self.reduction == LossReduction.MEAN.value:
             f = torch.mean(f)  # the batch and channel average
-        elif self.reduction == LossReduction.SUM:
+        elif self.reduction == LossReduction.SUM.value:
             f = torch.sum(f)  # sum over the batch and channel dims
-        elif self.reduction == LossReduction.NONE:
+        elif self.reduction == LossReduction.NONE.value:
             pass  # returns [N, n_classes] losses
         else:
             raise ValueError(f"reduction={self.reduction} is invalid.")
@@ -219,7 +219,7 @@ class GeneralizedDiceLoss(_Loss):
             ValueError: sigmoid=True and softmax=True are not compatible.
 
         """
-        super().__init__(reduction=LossReduction(reduction))
+        super().__init__(reduction=LossReduction(reduction).value)
 
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
@@ -286,11 +286,11 @@ class GeneralizedDiceLoss(_Loss):
 
         f = 1.0 - (2.0 * (intersection * w).sum(1) + smooth) / ((denominator * w).sum(1) + smooth)
 
-        if self.reduction == LossReduction.MEAN:
+        if self.reduction == LossReduction.MEAN.value:
             f = torch.mean(f)  # the batch and channel average
-        elif self.reduction == LossReduction.SUM:
+        elif self.reduction == LossReduction.SUM.value:
             f = torch.sum(f)  # sum over the batch and channel dims
-        elif self.reduction == LossReduction.NONE:
+        elif self.reduction == LossReduction.NONE.value:
             pass  # returns [N, n_classes] losses
         else:
             raise ValueError(f"reduction={self.reduction} is invalid.")

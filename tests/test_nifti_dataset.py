@@ -54,7 +54,7 @@ class TestNiftiDataset(unittest.TestCase):
 
         # loading no meta, int
         dataset = NiftiDataset(full_names, dtype=np.float16)
-        for d, ref in zip(dataset, ref_data):
+        for d, _ in zip(dataset, ref_data):
             self.assertEqual(d.dtype, np.float16)
 
         # loading with meta, no transform

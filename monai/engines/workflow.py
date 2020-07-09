@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 import torch
 from torch.utils.data import DataLoader
 
-from monai.transforms import apply_transform, Transform
+from monai.transforms import apply_transform
 from monai.utils import exact_version, optional_import, ensure_tuple
 from monai.engines.utils import default_prepare_batch
 

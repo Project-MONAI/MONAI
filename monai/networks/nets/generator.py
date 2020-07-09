@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Tuple, Union
+from typing import Optional, Sequence, Union
 
 import numpy as np
 import torch.nn as nn
@@ -81,7 +81,7 @@ class Generator(nn.Module):
         self.dropout = dropout
         self.bias = bias
 
-        self.flatten = nn.Flatten()
+        self.flatten = nn.Flatten()  # type: ignore # Module has no attribute
         self.linear = nn.Linear(int(np.prod(self.latent_shape)), int(np.prod(start_shape)))
         self.reshape = Reshape(*start_shape)
         self.conv = nn.Sequential()
@@ -101,6 +101,8 @@ class Generator(nn.Module):
         number of channels. The `strides` indicates upsampling factor, ie. transpose convolutional stride. If `is_last`
         is True this is the final layer and is not expected to include activation and normalization layers.
         """
+
+        layer: Union[Convolution, nn.Sequential]
 
         layer = Convolution(
             in_channels=in_channels,

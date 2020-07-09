@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Tuple, Union
+from typing import Optional, Sequence, Union
 
 import numpy as np
 import torch.nn as nn
@@ -95,6 +95,8 @@ class Regressor(nn.Module):
         number of channels. The `strides` indicates downsampling factor, ie. convolutional stride. If `is_last`
         is True this is the final layer and is not expected to include activation and normalization layers.
         """
+
+        layer: Union[ResidualUnit, Convolution]
 
         if self.num_res_units > 0:
             layer = ResidualUnit(

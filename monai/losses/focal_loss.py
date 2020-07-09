@@ -57,7 +57,7 @@ class FocalLoss(_WeightedLoss):
                 fl(pred, grnd)
 
         """
-        super(FocalLoss, self).__init__(weight=weight, reduction=LossReduction(reduction))
+        super(FocalLoss, self).__init__(weight=weight, reduction=LossReduction(reduction).value)
         self.gamma = gamma
         self.weight: Optional[torch.Tensor]
 
@@ -129,10 +129,10 @@ class FocalLoss(_WeightedLoss):
         else:
             loss = torch.mean(-weight * t * logpt, dim=-1)  # N,C
 
-        if self.reduction == LossReduction.SUM:
+        if self.reduction == LossReduction.SUM.value:
             return loss.sum()
-        if self.reduction == LossReduction.NONE:
+        if self.reduction == LossReduction.NONE.value:
             return loss
-        if self.reduction == LossReduction.MEAN:
+        if self.reduction == LossReduction.MEAN.value:
             return loss.mean()
         raise ValueError(f"reduction={self.reduction} is invalid.")

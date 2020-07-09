@@ -63,7 +63,7 @@ class DataLoader(_TorchDataLoader):
         timeout: float = 0.0,
         multiprocessing_context: Optional[Callable] = None,
     ) -> None:
-        super().__init__(
+        super().__init__(  # type: ignore # No overload variant matches argument types
             dataset=dataset,
             batch_size=batch_size,
             shuffle=shuffle,

@@ -204,8 +204,8 @@ Act.add_factory_callable("celu", lambda: nn.modules.CELU)
 Act.add_factory_callable("gelu", lambda: nn.modules.GELU)
 Act.add_factory_callable("sigmoid", lambda: nn.modules.Sigmoid)
 Act.add_factory_callable("tanh", lambda: nn.modules.Tanh)
-Act.add_factory_callable("softmax", lambda: nn.modules.SoftMax)
-Act.add_factory_callable("logsoftmax", lambda: nn.modules.LogSoftMax)
+Act.add_factory_callable("softmax", lambda: nn.modules.Softmax)
+Act.add_factory_callable("logsoftmax", lambda: nn.modules.LogSoftmax)
 
 
 @Conv.factory_function("conv")

@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Sequence, Union
+from typing import Callable, Optional, Sequence
 
 import torch
 
@@ -72,13 +72,13 @@ class MeanDice(Metric):  # type: ignore # incorrectly typed due to optional_impo
         self._num_examples = 0
 
     @reinit__is_reduced
-    def update(self, output: Sequence[Union[torch.Tensor, dict]]) -> None:
+    def update(self, output: Sequence[torch.Tensor]) -> None:
         if not len(output) == 2:
             raise ValueError("MeanDice metric can only support y_pred and y.")
         y_pred, y = output
         score = self.dice(y_pred, y)
         assert self.dice.not_nans is not None
-        not_nans = self.dice.not_nans.item()
+        not_nans = int(self.dice.not_nans.item())
 
         # add all items in current batch
         self._sum += score.item() * not_nans
