@@ -452,7 +452,7 @@ def compute_importance_map(
     patch_size,
     mode: Union[BlendMode, str] = BlendMode.CONSTANT,
     sigma_scale: float = 0.125,
-    device: Optional[Union[torch.device, str]] = None,
+    device: Optional[torch.device] = None,
 ):
     """Get importance map for different weight modes.
 

@@ -56,7 +56,7 @@ class RandGaussianNoised(Randomizable, MapTransform):
         self._do_transform = False
         self._noise = None
 
-    def randomize(self, im_shape) -> None:  # type: ignore # see issue #495
+    def randomize(self, im_shape) -> None:  # type: ignore # see issue #729
         self._do_transform = self.R.random() < self.prob
         self._noise = self.R.normal(self.mean, self.R.uniform(0, self.std), size=im_shape)
 

@@ -63,8 +63,8 @@ class ROCAUC(Metric):  # type: ignore # incorrectly typed due to optional_import
         self.average: Average = Average(average)
 
     def reset(self) -> None:
-        self._predictions: List[float] = []
-        self._targets: List[float] = []
+        self._predictions: List[torch.Tensor] = []
+        self._targets: List[torch.Tensor] = []
 
     def update(self, output: Sequence[torch.Tensor]) -> None:
         y_pred, y = output

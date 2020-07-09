@@ -48,7 +48,7 @@ class UpSample(nn.Module):
             align_corners: set the align_corners parameter of `torch.nn.Upsample`. Defaults to True.
         """
         super().__init__()
-        scale_factor = ensure_tuple_rep(scale_factor, spatial_dims)
+        scale_factor_ = ensure_tuple_rep(scale_factor, spatial_dims)
         if not out_channels:
             out_channels = in_channels
         if not with_conv:
@@ -58,11 +58,11 @@ class UpSample(nn.Module):
                 mode = linear_mode[spatial_dims - 1]
             self.upsample = nn.Sequential(
                 Conv[Conv.CONV, spatial_dims](in_channels=in_channels, out_channels=out_channels, kernel_size=1),
-                nn.Upsample(scale_factor=scale_factor, mode=mode.value, align_corners=align_corners),
+                nn.Upsample(scale_factor=scale_factor_, mode=mode.value, align_corners=align_corners),
             )
         else:
             self.upsample = Conv[Conv.CONVTRANS, spatial_dims](
-                in_channels=in_channels, out_channels=out_channels, kernel_size=scale_factor, stride=scale_factor
+                in_channels=in_channels, out_channels=out_channels, kernel_size=scale_factor_, stride=scale_factor_
             )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

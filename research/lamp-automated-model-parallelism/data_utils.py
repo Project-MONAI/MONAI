@@ -53,7 +53,7 @@ def load_data_and_mask(data, mask_data):
     img = np.load(data)  # z y x
     img = pad_xform(img[None])[0]
     item = dict(image=img, label=[])
-    for idx, maskfnm in enumerate(mask_data):
+    for maskfnm in mask_data:
         if maskfnm is None:
             ms = np.zeros(img.shape, np.uint8)
         else:

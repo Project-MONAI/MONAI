@@ -15,7 +15,7 @@ defined in :py:class:`monai.transforms.spatial.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Iterable, Optional, Sequence, Tuple, Union
+from typing import Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -484,7 +484,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
         super().set_random_state(seed, state)
         return self
 
-    def randomize(self, spatial_size) -> None:  # type: ignore # see issue #495
+    def randomize(self, spatial_size) -> None:  # type: ignore # see issue #729
         self.rand_2d_elastic.randomize(spatial_size)
 
     def __call__(self, data):
@@ -600,7 +600,7 @@ class Rand3DElasticd(Randomizable, MapTransform):
         super().set_random_state(seed, state)
         return self
 
-    def randomize(self, grid_size) -> None:  # type: ignore # see issue #495
+    def randomize(self, grid_size) -> None:  # type: ignore # see issue #729
         self.rand_3d_elastic.randomize(grid_size)
 
     def __call__(self, data):

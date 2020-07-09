@@ -13,7 +13,7 @@ A collection of "vanilla" transforms for spatial operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Callable, List, Optional, Sequence, Tuple, Union
 
 import warnings
 
@@ -46,6 +46,8 @@ from monai.utils import (
 )
 
 nib, _ = optional_import("nibabel")
+
+_torch_interp: Callable
 
 if get_torch_version_tuple() >= (1, 5):
     # additional argument since torch 1.5 (to avoid warnings)
@@ -1039,7 +1041,7 @@ class Resample(Transform):
         for i, dim in enumerate(img.shape[1:]):
             grid[i] = 2.0 * grid[i] / (dim - 1.0)
         grid = grid[:-1] / grid[-1:]
-        index_ordering: List[int] = [x for x in range(img.ndim - 2, -1, -1)]
+        index_ordering: List[int] = list(range(img.ndim - 2, -1, -1))
         grid = grid[index_ordering]
         grid = grid.permute(list(range(grid.ndim))[1:] + [0])
         out = torch.nn.functional.grid_sample(
@@ -1340,7 +1342,7 @@ class Rand2DElastic(Randomizable, Transform):
         super().set_random_state(seed, state)
         return self
 
-    def randomize(self, spatial_size) -> None:  # type: ignore # see issue #495
+    def randomize(self, spatial_size) -> None:  # type: ignore # see issue #729
         self.do_transform = self.R.rand() < self.prob
         self.deform_grid.randomize(spatial_size)
         self.rand_affine_grid.randomize()
@@ -1465,7 +1467,7 @@ class Rand3DElastic(Randomizable, Transform):
         super().set_random_state(seed, state)
         return self
 
-    def randomize(self, grid_size) -> None:  # type: ignore # see issue #495
+    def randomize(self, grid_size) -> None:  # type: ignore # see issue #729
         self.do_transform = self.R.rand() < self.prob
         if self.do_transform:
             self.rand_offset = self.R.uniform(-1.0, 1.0, [3] + list(grid_size)).astype(np.float32)
