@@ -39,6 +39,7 @@ from monai.transforms.utility.array import (
     SimulateDelay,
     Identity,
     Lambda,
+    LabelToMask,
 )
 
 
@@ -461,6 +462,35 @@ class Lambdad(MapTransform):
         return d
 
 
+class LabelToMaskd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.LabelToMask`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        select_labels: labels to generate mask from. for 1 channel label, the `select_labels`
+            is the expected label values, like: [1, 2, 3]. for One-Hot format label, the
+            `select_labels` is the expected channel indexes.
+        merge_channels: whether to use `np.any()` to merge the result on channel dim.
+            if yes, will return a single channel mask with binary data.
+
+    """
+
+    def __init__(
+        self, keys: KeysCollection, select_labels: Union[Sequence[int], int], merge_channels: bool = False
+    ) -> None:
+        super().__init__(keys)
+        self.converter = LabelToMask(select_labels, merge_channels)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.converter(d[key])
+
+        return d
+
+
 IdentityD = IdentityDict = Identityd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
@@ -475,3 +505,4 @@ SimulateDelayD = SimulateDelayDict = SimulateDelayd
 CopyItemsD = CopyItemsDict = CopyItemsd
 ConcatItemsD = ConcatItemsDict = ConcatItemsd
 LambdaD = LambdaDict = Lambdad
+LabelToMaskD = LabelToMaskDict = LabelToMaskd
