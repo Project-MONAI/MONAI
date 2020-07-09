@@ -242,7 +242,7 @@ class CacheDataset(Dataset):
         transform: Union[Sequence[Callable], Callable],
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
-        num_workers: int = 0
+        num_workers: int = 0,
     ) -> None:
         """
         Args:
