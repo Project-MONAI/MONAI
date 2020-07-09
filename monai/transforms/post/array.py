@@ -344,5 +344,5 @@ class LabelToContour(Transform):
         else:
             raise RuntimeError("the dimensions of img should be 4 or 5.")
 
-        torch.clamp_(contour_img, min=0.0, max=1.0)
+        contour_img.clamp_(min=0.0, max=1.0)
         return contour_img

@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     import ignite.metrics
 
 import torch
+from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 
 from monai.inferers import Inferer, SimpleInferer
@@ -78,7 +79,7 @@ class SupervisedTrainer(Trainer):
         max_epochs: int,
         train_data_loader: DataLoader,
         network,
-        optimizer: torch.optim.Optimizer,
+        optimizer: Optimizer,
         loss_function,
         prepare_batch: Callable = default_prepare_batch,
         iteration_update: Optional[Callable] = None,

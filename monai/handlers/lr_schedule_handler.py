@@ -9,14 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, TYPE_CHECKING
+from typing import Callable, Optional, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
     import ignite.engine
 
-import torch
-
 import logging
+
+from torch.optim.lr_scheduler import _LRScheduler, ReduceLROnPlateau
 
 from monai.utils import ensure_tuple, exact_version, optional_import
 
@@ -30,7 +30,7 @@ class LrScheduleHandler:
 
     def __init__(
         self,
-        lr_scheduler: torch.optim.lr_scheduler,
+        lr_scheduler: Union[_LRScheduler, ReduceLROnPlateau],
         print_lr: bool = True,
         name: Optional[str] = None,
         epoch_level: bool = True,
@@ -73,4 +73,6 @@ class LrScheduleHandler:
         args = ensure_tuple(self.step_transform(engine))
         self.lr_scheduler.step(*args)
         if self.print_lr:
-            self.logger.info(f"Current learning rate: {self.lr_scheduler._last_lr[0]}")
+            self.logger.info(
+                f"Current learning rate: {self.lr_scheduler._last_lr[0]}"  # type: ignore # Module has no attribute
+            )

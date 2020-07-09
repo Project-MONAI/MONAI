@@ -10,8 +10,6 @@
 # limitations under the License.
 
 import unittest
-import time
-import sys
 import torch
 import numpy as np
 from parameterized import parameterized

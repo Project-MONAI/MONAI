@@ -9,12 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Tuple, Union
+from typing import Optional, Sequence, Union
 
 import torch.nn as nn
 from monai.networks.layers.factories import Norm, Act, split_args
 from monai.networks.nets.regressor import Regressor
-from monai.utils import ensure_tuple
 
 
 class Classifier(Regressor):

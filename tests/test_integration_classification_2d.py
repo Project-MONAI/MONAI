@@ -166,13 +166,13 @@ class IntegrationClassification2D(unittest.TestCase):
 
         # find image files and labels
         data_dir = os.path.join(self.data_dir, "MedNIST")
-        class_names = sorted([x for x in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, x))])
+        class_names = sorted((x for x in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, x))))
         image_files = [
             [os.path.join(data_dir, class_name, x) for x in sorted(os.listdir(os.path.join(data_dir, class_name)))]
             for class_name in class_names
         ]
         image_file_list, image_classes = [], []
-        for i, class_name in enumerate(class_names):
+        for i, _ in enumerate(class_names):
             image_file_list.extend(image_files[i])
             image_classes.extend([i] * len(image_files[i]))
 

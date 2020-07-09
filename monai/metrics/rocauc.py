@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Union
+from typing import cast, Union
 
 import warnings
 
@@ -34,7 +34,7 @@ def _calculate(y: torch.Tensor, y_pred: torch.Tensor):
     nneg = auc = tmp_pos = tmp_neg = 0.0
 
     for i in range(n):
-        y_i = y[i]
+        y_i = cast(float, y[i])
         if i + 1 < n and y_pred[i] == y_pred[i + 1]:
             tmp_pos += y_i
             tmp_neg += 1 - y_i

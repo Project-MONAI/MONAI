@@ -89,7 +89,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
         self.rann = self.R.random()
 
     def _generate_data_list(self, dataset_dir: str):
-        class_names = sorted([x for x in os.listdir(dataset_dir) if os.path.isdir(os.path.join(dataset_dir, x))])
+        class_names = sorted((x for x in os.listdir(dataset_dir) if os.path.isdir(os.path.join(dataset_dir, x))))
         num_class = len(class_names)
         image_files = [
             [
