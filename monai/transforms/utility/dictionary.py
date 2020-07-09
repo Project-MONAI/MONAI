@@ -472,16 +472,16 @@ class LabelToMaskd(MapTransform):
         select_labels: labels to generate mask from. for 1 channel label, the `select_labels`
             is the expected label values, like: [1, 2, 3]. for One-Hot format label, the
             `select_labels` is the expected channel indexes.
-        compose_channels: whether to use `np.any()` to compose the result on channel dim.
+        merge_channels: whether to use `np.any()` to merge the result on channel dim.
             if yes, will return a single channel mask with binary data.
 
     """
 
     def __init__(
-        self, keys: KeysCollection, select_labels: Union[Sequence[int], int], compose_channels: bool = False
+        self, keys: KeysCollection, select_labels: Union[Sequence[int], int], merge_channels: bool = False
     ) -> None:
         super().__init__(keys)
-        self.converter = LabelToMask(select_labels, compose_channels)
+        self.converter = LabelToMask(select_labels, merge_channels)
 
     def __call__(self, data):
         d = dict(data)

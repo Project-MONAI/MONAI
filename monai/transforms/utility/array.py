@@ -377,35 +377,40 @@ class Lambda(Transform):
 
 class LabelToMask(Transform):
     """
-    Convert label to mask for other tasks.
-    It can support single channel label or One-Hot label with specified `applied_labels`.
+    Convert labels to mask for other tasks. A typical usage is to convert segmentation labels
+    to mask data to pre-process images and then feed the images into classification network.
+    It can support single channel labels or One-Hot labels with specified `select_labels`.
+    For example, users can select `label value = [2, 3]` to construct mask data, or select the
+    second and the third channels of labels to construct mask data.
+    The output mask data can be a multiple channels binary data or a single channel binary
+    data that merges all the channels.
 
     Args:
         select_labels: labels to generate mask from. for 1 channel label, the `select_labels`
             is the expected label values, like: [1, 2, 3]. for One-Hot format label, the
             `select_labels` is the expected channel indexes.
-        compose_channels: whether to use `np.any()` to compose the result on channel dim.
-            if yes, will return a single channel mask with binary data.
+        merge_channels: whether to use `np.any()` to merge the result on channel dim. if yes,
+            will return a single channel mask with binary data.
 
     """
 
-    def __init__(self, select_labels: Union[Sequence[int], int], compose_channels: bool = False):
+    def __init__(self, select_labels: Union[Sequence[int], int], merge_channels: bool = False):
         self.select_labels = ensure_tuple(select_labels)
-        self.compose_channels = compose_channels
+        self.merge_channels = merge_channels
 
     def __call__(
-        self, img, select_labels: Optional[Union[Sequence[int], int]] = None, compose_channels: Optional[bool] = None
+        self, img, select_labels: Optional[Union[Sequence[int], int]] = None, merge_channels: Optional[bool] = None
     ):
         if select_labels is None:
             select_labels = self.select_labels
         else:
             select_labels = ensure_tuple(select_labels)
-        if compose_channels is None:
-            compose_channels = self.compose_channels
+        if merge_channels is None:
+            merge_channels = self.merge_channels
 
         if img.shape[0] > 1:
             data = img[[*(select_labels)]]
         else:
             data = np.where(np.in1d(img, select_labels), True, False).reshape(img.shape)
 
-        return np.any(data, axis=0, keepdims=True) if compose_channels else data
+        return np.any(data, axis=0, keepdims=True) if merge_channels else data

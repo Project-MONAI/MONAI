@@ -16,31 +16,31 @@ from parameterized import parameterized
 from monai.transforms import LabelToMaskd
 
 TEST_CASE_1 = [
-    {"keys": "img", "select_labels": [2, 3], "compose_channels": False},
+    {"keys": "img", "select_labels": [2, 3], "merge_channels": False},
     {"img": np.array([[[1, 1, 1], [2, 2, 2], [3, 3, 3], [4, 4, 4], [5, 5, 5], [6, 6, 6]]])},
     np.array([[[0, 0, 0], [1, 1, 1], [1, 1, 1], [0, 0, 0], [0, 0, 0], [0, 0, 0]]]),
 ]
 
 TEST_CASE_2 = [
-    {"keys": "img", "select_labels": 2, "compose_channels": False},
+    {"keys": "img", "select_labels": 2, "merge_channels": False},
     {"img": np.array([[[1, 1, 1], [2, 2, 2], [3, 3, 3], [4, 4, 4], [5, 5, 5], [6, 6, 6]]])},
     np.array([[[0, 0, 0], [1, 1, 1], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]]),
 ]
 
 TEST_CASE_3 = [
-    {"keys": "img", "select_labels": [1, 2], "compose_channels": False},
+    {"keys": "img", "select_labels": [1, 2], "merge_channels": False},
     {"img": np.array([[[0, 0, 1], [0, 1, 0]], [[1, 0, 0], [0, 1, 1]], [[1, 0, 1], [1, 1, 0]]])},
     np.array([[[1, 0, 0], [0, 1, 1]], [[1, 0, 1], [1, 1, 0]]]),
 ]
 
 TEST_CASE_4 = [
-    {"keys": "img", "select_labels": 2, "compose_channels": False},
+    {"keys": "img", "select_labels": 2, "merge_channels": False},
     {"img": np.array([[[0, 0, 1], [0, 1, 0]], [[1, 0, 0], [0, 1, 1]], [[1, 0, 1], [1, 1, 0]]])},
     np.array([[[1, 0, 1], [1, 1, 0]]]),
 ]
 
 TEST_CASE_5 = [
-    {"keys": "img", "select_labels": [1, 2], "compose_channels": True},
+    {"keys": "img", "select_labels": [1, 2], "merge_channels": True},
     {"img": np.array([[[0, 0, 1], [0, 1, 0]], [[1, 0, 0], [0, 1, 1]], [[1, 0, 1], [1, 1, 0]]])},
     np.array([[[1, 0, 1], [1, 1, 1]]]),
 ]

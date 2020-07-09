@@ -16,31 +16,31 @@ from parameterized import parameterized
 from monai.transforms import LabelToMask
 
 TEST_CASE_1 = [
-    {"select_labels": [2, 3], "compose_channels": False},
+    {"select_labels": [2, 3], "merge_channels": False},
     np.array([[[1, 1, 1], [2, 2, 2], [3, 3, 3], [4, 4, 4], [5, 5, 5], [6, 6, 6]]]),
     np.array([[[0, 0, 0], [1, 1, 1], [1, 1, 1], [0, 0, 0], [0, 0, 0], [0, 0, 0]]]),
 ]
 
 TEST_CASE_2 = [
-    {"select_labels": 2, "compose_channels": False},
+    {"select_labels": 2, "merge_channels": False},
     np.array([[[1, 1, 1], [2, 2, 2], [3, 3, 3], [4, 4, 4], [5, 5, 5], [6, 6, 6]]]),
     np.array([[[0, 0, 0], [1, 1, 1], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]]),
 ]
 
 TEST_CASE_3 = [
-    {"select_labels": [1, 2], "compose_channels": False},
+    {"select_labels": [1, 2], "merge_channels": False},
     np.array([[[0, 0, 1], [0, 1, 0]], [[1, 0, 0], [0, 1, 1]], [[1, 0, 1], [1, 1, 0]]]),
     np.array([[[1, 0, 0], [0, 1, 1]], [[1, 0, 1], [1, 1, 0]]]),
 ]
 
 TEST_CASE_4 = [
-    {"select_labels": 2, "compose_channels": False},
+    {"select_labels": 2, "merge_channels": False},
     np.array([[[0, 0, 1], [0, 1, 0]], [[1, 0, 0], [0, 1, 1]], [[1, 0, 1], [1, 1, 0]]]),
     np.array([[[1, 0, 1], [1, 1, 0]]]),
 ]
 
 TEST_CASE_5 = [
-    {"select_labels": [1, 2], "compose_channels": True},
+    {"select_labels": [1, 2], "merge_channels": True},
     np.array([[[0, 0, 1], [0, 1, 0]], [[1, 0, 0], [0, 1, 1]], [[1, 0, 1], [1, 1, 0]]]),
     np.array([[[1, 0, 1], [1, 1, 1]]]),
 ]
