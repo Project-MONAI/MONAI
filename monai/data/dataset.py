@@ -275,7 +275,7 @@ class CacheDataset(Dataset):
                     self._cache[i] = self._load_cache_item(data[i], transform)
                     progress_bar(i + 1, self.cache_num, "Load and cache transformed data: ")
 
-    def _load_cache_item(self, item, transform: Callable):
+    def _load_cache_item(self, item, transform: Optional[Compose]):
         if transform is not None:
             for _transform in transform.transforms:
                 # execute all the deterministic transforms
