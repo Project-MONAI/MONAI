@@ -476,11 +476,9 @@ class LabelToMaskd(MapTransform):
             if yes, will return a single channel mask with binary data.
 
     """
+
     def __init__(
-        self,
-        keys: KeysCollection,
-        select_labels: Union[Sequence[int], int],
-        compose_channels: bool = False
+        self, keys: KeysCollection, select_labels: Union[Sequence[int], int], compose_channels: bool = False
     ) -> None:
         super().__init__(keys)
         self.converter = LabelToMask(select_labels, compose_channels)

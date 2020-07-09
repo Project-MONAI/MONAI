@@ -388,19 +388,13 @@ class LabelToMask(Transform):
             if yes, will return a single channel mask with binary data.
 
     """
-    def __init__(
-        self,
-        select_labels: Union[Sequence[int], int],
-        compose_channels: bool = False
-    ):
+
+    def __init__(self, select_labels: Union[Sequence[int], int], compose_channels: bool = False):
         self.select_labels = ensure_tuple(select_labels)
         self.compose_channels = compose_channels
 
     def __call__(
-        self,
-        img,
-        select_labels: Optional[Union[Sequence[int], int]] = None,
-        compose_channels: Optional[bool] = None
+        self, img, select_labels: Optional[Union[Sequence[int], int]] = None, compose_channels: Optional[bool] = None
     ):
         if select_labels is None:
             select_labels = self.select_labels
