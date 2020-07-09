@@ -64,6 +64,8 @@ The example shows the flexibility of MONAI modules in a PyTorch-based program:
 - Deterministic training for reproducibility.
 #### [notebooks/spleen_segmentation_3d_lightning](./notebooks/spleen_segmentation_3d_lightning.ipynb)
 This notebook shows how MONAI may be used in conjunction with the [PyTorch Lightning](https://github.com/PyTorchLightning/pytorch-lightning) framework.
+#### [notebooks/unet_segmentation_3d_catalyst](./notebooks/unet_segmentation_3d_catalyst.ipynb)
+This notebook shows how MONAI may be used in conjunction with the [Catalyst](https://github.com/catalyst-team/catalyst) framework.
 #### [notebooks/transform_speed](./notebooks/transform_speed.ipynb)
 Illustrate reading NIfTI files and test speed of different transforms on different devices.
 #### [notebooks/transforms_demo_2d](./notebooks/transforms_demo_2d.ipynb)
