@@ -15,40 +15,27 @@ from parameterized import parameterized
 from monai.transforms import Activationsd
 
 TEST_CASE_1 = [
-    {"keys": ["pred", "label"], "output_postfix": "act", "sigmoid": False, "softmax": [True, False], "other": None},
+    {"keys": ["pred", "label"], "sigmoid": False, "softmax": [True, False], "other": None},
     {"pred": torch.tensor([[[[0.0, 1.0]], [[2.0, 3.0]]]]), "label": torch.tensor([[[[0.0, 1.0]], [[2.0, 3.0]]]])},
     {
-        "pred_act": torch.tensor([[[[0.1192, 0.1192]], [[0.8808, 0.8808]]]]),
-        "label_act": torch.tensor([[[[0.0, 1.0]], [[2.0, 3.0]]]]),
+        "pred": torch.tensor([[[[0.1192, 0.1192]], [[0.8808, 0.8808]]]]),
+        "label": torch.tensor([[[[0.0, 1.0]], [[2.0, 3.0]]]]),
     },
     (1, 2, 1, 2),
 ]
 
 TEST_CASE_2 = [
-    {
-        "keys": ["pred", "label"],
-        "output_postfix": "act",
-        "sigmoid": False,
-        "softmax": False,
-        "other": [lambda x: torch.tanh(x), None],
-    },
+    {"keys": ["pred", "label"], "sigmoid": False, "softmax": False, "other": [lambda x: torch.tanh(x), None]},
     {"pred": torch.tensor([[[[0.0, 1.0], [2.0, 3.0]]]]), "label": torch.tensor([[[[0.0, 1.0], [2.0, 3.0]]]])},
     {
-        "pred_act": torch.tensor([[[[0.0000, 0.7616], [0.9640, 0.9951]]]]),
-        "label_act": torch.tensor([[[[0.0, 1.0], [2.0, 3.0]]]]),
+        "pred": torch.tensor([[[[0.0000, 0.7616], [0.9640, 0.9951]]]]),
+        "label": torch.tensor([[[[0.0, 1.0], [2.0, 3.0]]]]),
     },
     (1, 1, 2, 2),
 ]
 
 TEST_CASE_3 = [
-    {"keys": "pred", "output_postfix": "act", "sigmoid": False, "softmax": False, "other": lambda x: torch.tanh(x)},
-    {"pred": torch.tensor([[[[0.0, 1.0], [2.0, 3.0]]]])},
-    {"pred_act": torch.tensor([[[[0.0000, 0.7616], [0.9640, 0.9951]]]])},
-    (1, 1, 2, 2),
-]
-
-TEST_CASE_4 = [
-    {"keys": "pred", "output_postfix": None, "sigmoid": False, "softmax": False, "other": lambda x: torch.tanh(x)},
+    {"keys": "pred", "sigmoid": False, "softmax": False, "other": lambda x: torch.tanh(x)},
     {"pred": torch.tensor([[[[0.0, 1.0], [2.0, 3.0]]]])},
     {"pred": torch.tensor([[[[0.0000, 0.7616], [0.9640, 0.9951]]]])},
     (1, 1, 2, 2),
@@ -59,17 +46,11 @@ class TestActivationsd(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_value_shape(self, input_param, test_input, output, expected_shape):
         result = Activationsd(**input_param)(test_input)
-        torch.testing.assert_allclose(result["pred_act"], output["pred_act"])
-        self.assertTupleEqual(result["pred_act"].shape, expected_shape)
-        if "label_act" in result:
-            torch.testing.assert_allclose(result["label_act"], output["label_act"])
-            self.assertTupleEqual(result["label_act"].shape, expected_shape)
-
-    @parameterized.expand([TEST_CASE_4])
-    def test_none_postfix(self, input_param, test_input, output, expected_shape):
-        result = Activationsd(**input_param)(test_input)
         torch.testing.assert_allclose(result["pred"], output["pred"])
         self.assertTupleEqual(result["pred"].shape, expected_shape)
+        if "label" in result:
+            torch.testing.assert_allclose(result["label"], output["label"])
+            self.assertTupleEqual(result["label"].shape, expected_shape)
 
 
 if __name__ == "__main__":

@@ -10,3 +10,4 @@
 # limitations under the License.
 
 from .deviceconfig import *
+from .type_definitions import *
