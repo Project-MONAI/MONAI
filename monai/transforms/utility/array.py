@@ -22,7 +22,7 @@ import numpy as np
 import torch
 
 from monai.transforms.compose import Transform
-from monai.utils import ensure_tuple, ensure_tuple_rep
+from monai.utils import ensure_tuple
 
 
 class Identity(Transform):
@@ -404,6 +404,8 @@ class LabelToMask(Transform):
     ):
         if select_labels is None:
             select_labels = self.select_labels
+        else:
+            select_labels = ensure_tuple(select_labels)
         if compose_channels is None:
             compose_channels = self.compose_channels
 
