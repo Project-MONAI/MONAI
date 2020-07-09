@@ -96,7 +96,7 @@ class TestCompose(unittest.TestCase):
 
     def test_err_msg(self):
         transforms = Compose([abs, AddChannel(), round])
-        with self.assertRaisesRegexp(Exception, "AddChannel"):
+        with self.assertRaisesRegex(Exception, "AddChannel"):
             transforms(42.1)
 
 

@@ -9,13 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Union
+
 import torch.nn as nn
 
 from monai.networks.blocks.convolutions import Convolution, ResidualUnit
 from monai.networks.layers.factories import Norm, Act
 from monai.networks.layers.simplelayers import SkipConnection
-from monai.utils import export
-from monai.utils.aliases import alias
+from monai.utils import export, alias
 
 
 @export("monai.networks.nets")
@@ -24,8 +25,8 @@ class UNet(nn.Module):
     def __init__(
         self,
         dimensions,
-        in_channels,
-        out_channels,
+        in_channels: int,
+        out_channels: int,
         channels,
         strides,
         kernel_size=3,
@@ -34,9 +35,9 @@ class UNet(nn.Module):
         act=Act.PRELU,
         norm=Norm.INSTANCE,
         dropout=0,
-    ):
+    ) -> None:
         super().__init__()
-        assert len(channels) == (len(strides) + 1)
+
         self.dimensions = dimensions
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -49,7 +50,7 @@ class UNet(nn.Module):
         self.norm = norm
         self.dropout = dropout
 
-        def _create_block(inc, outc, channels, strides, is_top):
+        def _create_block(inc: int, outc: int, channels, strides, is_top: bool):
             """
             Builds the UNet structure from the bottom up by recursing down to the bottom block, then creating sequential
             blocks containing the downsample path, a skip connection around the previous block, and the upsample path.
@@ -72,7 +73,7 @@ class UNet(nn.Module):
 
         self.model = _create_block(in_channels, out_channels, self.channels, self.strides, True)
 
-    def _get_down_layer(self, in_channels, out_channels, strides, is_top):
+    def _get_down_layer(self, in_channels: int, out_channels: int, strides, is_top: bool):
         if self.num_res_units > 0:
             return ResidualUnit(
                 self.dimensions,
@@ -90,10 +91,10 @@ class UNet(nn.Module):
                 self.dimensions, in_channels, out_channels, strides, self.kernel_size, self.act, self.norm, self.dropout
             )
 
-    def _get_bottom_layer(self, in_channels, out_channels):
+    def _get_bottom_layer(self, in_channels: int, out_channels: int):
         return self._get_down_layer(in_channels, out_channels, 1, False)
 
-    def _get_up_layer(self, in_channels, out_channels, strides, is_top):
+    def _get_up_layer(self, in_channels: int, out_channels: int, strides, is_top: bool):
         conv = Convolution(
             self.dimensions,
             in_channels,
