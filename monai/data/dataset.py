@@ -106,7 +106,7 @@ class PersistentDataset(Dataset):
                 may share a common cache dir provided that the transforms pre-processing is
                 consistent.
         """
-        if not isinstance(transform, Compose):
+        if transform is not None and not isinstance(transform, Compose):
             transform = Compose(transform)
         super().__init__(data=data, transform=transform)
         self.cache_dir = Path(cache_dir) if cache_dir is not None else None
@@ -122,11 +122,12 @@ class PersistentDataset(Dataset):
             the transformed element up to the first identified
             random transform object
         """
-        for _transform in self.transform.transforms:  # pytype: disable=attribute-error
-            # execute all the deterministic transforms
-            if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
-                break
-            item_transformed = apply_transform(_transform, item_transformed)
+        if self.transform is not None:
+            for _transform in self.transform.transforms:  # pytype: disable=attribute-error
+                # execute all the deterministic transforms
+                if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
+                    break
+                item_transformed = apply_transform(_transform, item_transformed)
         return item_transformed
 
     def _first_random_and_beyond_transform(self, item_transformed):
@@ -140,14 +141,15 @@ class PersistentDataset(Dataset):
             the transformed element through the random transforms
         """
         start_post_randomize_run = False
-        for _transform in self.transform.transforms:  # pytype: disable=attribute-error
-            if (
-                start_post_randomize_run
-                or isinstance(_transform, Randomizable)
-                or not isinstance(_transform, Transform)
-            ):
-                start_post_randomize_run = True
-                item_transformed = apply_transform(_transform, item_transformed)
+        if self.transform is not None:
+            for _transform in self.transform.transforms:  # pytype: disable=attribute-error
+                if (
+                    start_post_randomize_run
+                    or isinstance(_transform, Randomizable)
+                    or not isinstance(_transform, Transform)
+                ):
+                    start_post_randomize_run = True
+                    item_transformed = apply_transform(_transform, item_transformed)
         return item_transformed
 
     def _pre_first_random_cachecheck(self, item_transformed):
@@ -237,7 +239,12 @@ class CacheDataset(Dataset):
     """
 
     def __init__(
-        self, data, transform: Callable, cache_num: int = sys.maxsize, cache_rate: float = 1.0, num_workers: int = 0
+        self,
+        data,
+        transform: Optional[Callable] = None,
+        cache_num: int = sys.maxsize,
+        cache_rate: float = 1.0,
+        num_workers: int = 0
     ) -> None:
         """
         Args:
@@ -250,7 +257,7 @@ class CacheDataset(Dataset):
             num_workers: the number of worker threads to use.
                 If 0 a single thread will be used. Default is 0.
         """
-        if not isinstance(transform, Compose):
+        if transform is not None and not isinstance(transform, Compose):
             transform = Compose(transform)
         super().__init__(data, transform)
         self.cache_num = min(cache_num, int(len(self) * cache_rate), len(self))
@@ -262,24 +269,25 @@ class CacheDataset(Dataset):
                 with ThreadPool(num_workers) as p:
                     p.map(
                         self._load_cache_item_thread,
-                        [(i, data[i], transform.transforms) for i in range(self.cache_num)],
+                        [(i, data[i], transform) for i in range(self.cache_num)],
                     )
             else:
                 for i in range(self.cache_num):
-                    self._cache[i] = self._load_cache_item(data[i], transform.transforms)
+                    self._cache[i] = self._load_cache_item(data[i], transform)
                     progress_bar(i + 1, self.cache_num, "Load and cache transformed data: ")
 
-    def _load_cache_item(self, item, transforms: Sequence[Callable]):
-        for _transform in transforms:
-            # execute all the deterministic transforms
-            if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
-                break
-            item = apply_transform(_transform, item)
+    def _load_cache_item(self, item, transform: Callable):
+        if transform is not None:
+            for _transform in transform.transforms:
+                # execute all the deterministic transforms
+                if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
+                    break
+                item = apply_transform(_transform, item)
         return item
 
     def _load_cache_item_thread(self, args) -> None:
-        i, item, transforms = args
-        self._cache[i] = self._load_cache_item(item, transforms)
+        i, item, transform = args
+        self._cache[i] = self._load_cache_item(item, transform)
         with self._thread_lock:
             self._item_processed += 1
             progress_bar(self._item_processed, self.cache_num, "Load and cache transformed data: ")
@@ -287,14 +295,15 @@ class CacheDataset(Dataset):
     def __getitem__(self, index):
         if index < self.cache_num:
             # load data from cache and execute from the first random transform
-            start_run = False
+            start = False
             data = self._cache[index]
-            for _transform in self.transform.transforms:  # pytype: disable=attribute-error
-                if not start_run and not isinstance(_transform, Randomizable) and isinstance(_transform, Transform):
-                    continue
-                else:
-                    start_run = True
-                data = apply_transform(_transform, data)
+            if self.transform is not None:
+                for _transform in self.transform.transforms:  # pytype: disable=attribute-error
+                    if not start and not isinstance(_transform, Randomizable) and isinstance(_transform, Transform):
+                        continue
+                    else:
+                        start = True
+                    data = apply_transform(_transform, data)
         else:
             # no cache for this data, execute all the transforms directly
             data = super(CacheDataset, self).__getitem__(index)

@@ -19,14 +19,16 @@ from parameterized import parameterized
 from monai.data import CacheDataset
 from monai.transforms import Compose, LoadNiftid
 
-TEST_CASE_1 = [0, 100]
+TEST_CASE_1 = [0, 100, Compose([LoadNiftid(keys=["image", "label", "extra"])])]
 
-TEST_CASE_2 = [4, 100]
+TEST_CASE_2 = [4, 100, Compose([LoadNiftid(keys=["image", "label", "extra"])])]
+
+TEST_CASE_3 = [4, 100, None]
 
 
 class TestCacheDatasetParallel(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
-    def test_shape(self, num_workers, dataset_size):
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
+    def test_shape(self, num_workers, dataset_size, transform):
         test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]), np.eye(4))
         tempdir = tempfile.mkdtemp()
         nib.save(test_image, os.path.join(tempdir, "test_image1.nii.gz"))
@@ -41,7 +43,7 @@ class TestCacheDatasetParallel(unittest.TestCase):
         ] * dataset_size
         dataset = CacheDataset(
             data=test_data,
-            transform=Compose([LoadNiftid(keys=["image", "label", "extra"])]),
+            transform=transform,
             cache_rate=1,
             num_workers=num_workers,
         )
