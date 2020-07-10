@@ -80,9 +80,7 @@ def iter_patch_slices(dims: Sequence[int], patch_size: Optional[Sequence[int]], 
 
 
 def dense_patch_slices(
-    image_size: Sequence[int],
-    patch_size: Sequence[int],
-    scan_interval: Sequence[int],
+    image_size: Sequence[int], patch_size: Sequence[int], scan_interval: Sequence[int],
 ) -> List[Tuple[slice, ...]]:
     """
     Enumerate all slices defining 2D/3D patches of size `patch_size` from an `image_size` input image.
