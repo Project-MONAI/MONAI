@@ -88,11 +88,11 @@ def train(n_feat, crop_size, bs, ep, optimizer="rmsprop", lr=5e-4, pretrain=None
                     keys=("image", "label"),
                     spatial_size=crop_size,
                     sigma_range=(10, 50),  # 30
-                    magnitude_range=[600, 1200],  # 1000
+                    magnitude_range=(600, 1200),  # 1000
                     prob=0.8,
                     rotate_range=(np.pi / 12, np.pi / 12, np.pi / 12),
                     shear_range=(np.pi / 18, np.pi / 18, np.pi / 18),
-                    translate_range=(sz * 0.05 for sz in crop_size),
+                    translate_range=tuple(sz * 0.05 for sz in crop_size),
                     scale_range=(0.2, 0.2, 0.2),
                     mode=("bilinear", "nearest"),
                     padding_mode=("border", "zeros"),
@@ -115,11 +115,11 @@ def train(n_feat, crop_size, bs, ep, optimizer="rmsprop", lr=5e-4, pretrain=None
                     keys=("image", "label"),
                     spatial_size=crop_size,
                     sigma_range=(10, 50),  # 30
-                    magnitude_range=[600, 1200],  # 1000
+                    magnitude_range=(600, 1200),  # 1000
                     prob=0.8,
                     rotate_range=(np.pi / 12, np.pi / 12, np.pi / 12),
                     shear_range=(np.pi / 18, np.pi / 18, np.pi / 18),
-                    translate_range=(sz * 0.05 for sz in crop_size),
+                    translate_range=tuple(sz * 0.05 for sz in crop_size),
                     scale_range=(0.2, 0.2, 0.2),
                     mode=("bilinear", "nearest"),
                     padding_mode=("border", "zeros"),
@@ -176,7 +176,6 @@ def train(n_feat, crop_size, bs, ep, optimizer="rmsprop", lr=5e-4, pretrain=None
 
     b_time = time.time()
     best_val_loss = [0] * (N_CLASSES - 1)  # foreground
-    best_ave = -1
     for epoch in range(ep):
         model.train()
         trainloss = 0

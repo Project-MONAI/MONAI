@@ -15,7 +15,7 @@ import torch
 import torch.nn as nn
 
 from monai.networks.blocks import Convolution
-from monai.networks.layers.factories import Act, Conv, Norm, Pool
+from monai.networks.layers.factories import Act, Conv, Norm, Pool, split_args
 
 
 class ChannelSELayer(nn.Module):
@@ -25,15 +25,24 @@ class ChannelSELayer(nn.Module):
     """
 
     def __init__(
-        self, spatial_dims: int, in_channels: int, r: int = 2, acti_type_1: str = "relu", acti_type_2: str = "sigmoid"
+        self,
+        spatial_dims: int,
+        in_channels: int,
+        r: int = 2,
+        acti_type_1=("relu", {"inplace": True}),
+        acti_type_2="sigmoid",
     ) -> None:
         """
         Args:
             spatial_dims: number of spatial dimensions, could be 1, 2, or 3.
             in_channels: number of input channels.
             r: the reduction ratio r in the paper. Defaults to 2.
-            acti_type_1: activation type of the hidden squeeze layer. Defaults to "relu".
+            acti_type_1: activation type of the hidden squeeze layer. Defaults to ``("relu", {"inplace": True})``.
             acti_type_2: activation type of the output squeeze layer. Defaults to "sigmoid".
+
+        See also:
+
+            :py:class:`monai.networks.layers.Act`
 
         Raises:
             ValueError: r must be a positive number smaller than `in_channels`.
@@ -47,11 +56,14 @@ class ChannelSELayer(nn.Module):
         channels = int(in_channels // r)
         if channels <= 0:
             raise ValueError("r must be a positive number smaller than `in_channels`.")
+
+        act_1, act_1_args = split_args(acti_type_1)
+        act_2, act_2_args = split_args(acti_type_2)
         self.fc = nn.Sequential(
             nn.Linear(in_channels, channels, bias=True),
-            Act[acti_type_1](inplace=True),
+            Act[act_1](**act_1_args),
             nn.Linear(channels, in_channels, bias=True),
-            Act[acti_type_2](),
+            Act[act_2](**act_2_args),
         )
 
     def forward(self, x: torch.Tensor):
@@ -76,7 +88,7 @@ class ResidualSELayer(ChannelSELayer):
     """
 
     def __init__(
-        self, spatial_dims: int, in_channels: int, r: int = 2, acti_type_1: str = "leakyrelu", acti_type_2: str = "relu"
+        self, spatial_dims: int, in_channels: int, r: int = 2, acti_type_1="leakyrelu", acti_type_2="relu"
     ) -> None:
         """
         Args:
@@ -86,7 +98,10 @@ class ResidualSELayer(ChannelSELayer):
             acti_type_1: defaults to "leakyrelu".
             acti_type_2: defaults to "relu".
 
-        See also ::py:class:`monai.networks.blocks.ChannelSELayer`.
+        See also:
+
+            :py:class:`monai.networks.blocks.ChannelSELayer`
+
         """
         super().__init__(
             spatial_dims=spatial_dims, in_channels=in_channels, r=r, acti_type_1=acti_type_1, acti_type_2=acti_type_2
@@ -123,8 +138,8 @@ class SEBlock(nn.Module):
         conv_param_2: Optional[dict] = None,
         conv_param_3: Optional[dict] = None,
         r: int = 2,
-        acti_type_1: str = "relu",
-        acti_type_2: str = "sigmoid",
+        acti_type_1="relu",
+        acti_type_2="sigmoid",
     ):
         """
         Args:
@@ -142,6 +157,11 @@ class SEBlock(nn.Module):
             r: the reduction ratio r in the paper. Defaults to 2.
             acti_type_1: activation type of the hidden squeeze layer. Defaults to "relu".
             acti_type_2: activation type of the output squeeze layer. Defaults to "sigmoid".
+
+        See also:
+
+            :py:class:`monai.networks.blocks.ChannelSELayer`
+
         """
         super(SEBlock, self).__init__()
 
