@@ -9,7 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ignite.engine import Engine
 
 import logging
 
@@ -17,7 +20,6 @@ from monai.utils import exact_version, optional_import
 
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
 ModelCheckpoint, _ = optional_import("ignite.handlers", "0.3.0", exact_version, "ModelCheckpoint")
-Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 
 
 class CheckpointSaver:

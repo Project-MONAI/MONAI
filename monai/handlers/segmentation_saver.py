@@ -9,7 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Union
+from typing import Callable, Optional, Union, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ignite.engine import Engine
 
 import logging
 
@@ -19,7 +22,6 @@ from monai.data import NiftiSaver, PNGSaver
 from monai.utils import exact_version, optional_import, GridSampleMode, GridSamplePadMode, InterpolateMode
 
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
-Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 
 
 class SegmentationSaver:

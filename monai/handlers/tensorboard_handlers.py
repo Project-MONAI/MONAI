@@ -9,7 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional
+from typing import Callable, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ignite.engine import Engine
 
 import warnings
 
@@ -21,7 +24,6 @@ from monai.utils import exact_version, optional_import, is_scalar
 from monai.visualize import plot_2d_or_3d_image
 
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
-Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 
 DEFAULT_TAG = "Loss"
 

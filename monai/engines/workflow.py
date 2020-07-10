@@ -9,7 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional
+from typing import Callable, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ignite.engine import Engine
+    from ignite.metrics import Metric
 
 import torch
 from torch.utils.data import DataLoader
@@ -18,13 +22,12 @@ from monai.transforms import apply_transform
 from monai.utils import exact_version, optional_import, ensure_tuple
 from monai.engines.utils import default_prepare_batch
 
-Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
+IgniteEngine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 State, _ = optional_import("ignite.engine", "0.3.0", exact_version, "State")
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
-Metric, _ = optional_import("ignite.metrics", "0.3.0", exact_version, "Metric")
 
 
-class Workflow(Engine):  # type: ignore # incorrectly typed due to optional_import
+class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optional_import
     """
     Workflow defines the core work process inheriting from Ignite engine.
     All trainer, validator and evaluator share this same workflow as base class,
