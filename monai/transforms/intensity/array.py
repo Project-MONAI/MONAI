@@ -13,7 +13,7 @@ A collection of "vanilla" transforms for intensity adjustment
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Optional, Sequence, Tuple, Union
+from typing import Optional, Sequence, Tuple, Union, Any
 
 from warnings import warn
 
@@ -40,7 +40,7 @@ class RandGaussianNoise(Randomizable, Transform):
         self._do_transform = False
         self._noise = None
 
-    def randomize(self, im_shape) -> None:  # type: ignore # see issue #729
+    def randomize(self, im_shape: Sequence[int]) -> None:
         self._do_transform = self.R.random() < self.prob
         self._noise = self.R.normal(self.mean, self.R.uniform(0, self.std), size=im_shape)
 
@@ -91,7 +91,7 @@ class RandShiftIntensity(Randomizable, Transform):
         self.prob = prob
         self._do_transform = False
 
-    def randomize(self) -> None:
+    def randomize(self, data: Optional[Any] = None) -> None:
         self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
         self._do_transform = self.R.random() < self.prob
 
@@ -158,7 +158,7 @@ class RandScaleIntensity(Randomizable, Transform):
         self.prob = prob
         self._do_transform = False
 
-    def randomize(self) -> None:
+    def randomize(self, data: Optional[Any] = None) -> None:
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
         self._do_transform = self.R.random() < self.prob
 
@@ -336,7 +336,7 @@ class RandAdjustContrast(Randomizable, Transform):
         self._do_transform = False
         self.gamma_value = None
 
-    def randomize(self) -> None:
+    def randomize(self, data: Optional[Any] = None) -> None:
         self._do_transform = self.R.random_sample() < self.prob
         self.gamma_value = self.R.uniform(low=self.gamma[0], high=self.gamma[1])
 

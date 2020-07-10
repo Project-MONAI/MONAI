@@ -13,7 +13,7 @@ A collection of "vanilla" transforms for crop and pad operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Callable, List, Optional, Sequence, Tuple, Union
+from typing import Callable, List, Optional, Sequence, Tuple, Union, Any
 
 import numpy as np
 
@@ -284,7 +284,7 @@ class RandSpatialCrop(Randomizable, Transform):
         self._size: Optional[Sequence[int]] = None
         self._slices: Optional[Tuple[slice, ...]] = None
 
-    def randomize(self, img_size) -> None:  # type: ignore # see issue #729
+    def randomize(self, img_size: Sequence[int]) -> None:
         self._size = fall_back_tuple(self.roi_size, img_size)
         if self.random_size:
             self._size = tuple((self.R.randint(low=self._size[i], high=img_size[i] + 1) for i in range(len(img_size))))
@@ -333,7 +333,7 @@ class RandSpatialCropSamples(Randomizable, Transform):
         self.num_samples = num_samples
         self.cropper = RandSpatialCrop(roi_size, random_center, random_size)
 
-    def randomize(self) -> None:
+    def randomize(self, data: Optional[Any] = None) -> None:
         pass
 
     def __call__(self, img):
@@ -445,7 +445,7 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         self.image_threshold = image_threshold
         self.centers = None
 
-    def randomize(self, label, image) -> None:  # type: ignore # see issue #729
+    def randomize(self, label: np.ndarray, image: Optional[np.ndarray] = None) -> None:
         self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
         self.centers = generate_pos_neg_label_crop_centers(
             label, self.spatial_size, self.num_samples, self.pos_ratio, image, self.image_threshold, self.R

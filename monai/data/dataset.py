@@ -435,7 +435,7 @@ class ArrayDataset(Randomizable, _TorchDataset):
     def __len__(self) -> int:
         return len(self.dataset)
 
-    def randomize(self) -> None:
+    def randomize(self, data: Optional[Any] = None) -> None:
         self._seed = self.R.randint(np.iinfo(np.int32).max)
 
     def __getitem__(self, index: int):
