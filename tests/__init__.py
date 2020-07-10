@@ -31,6 +31,7 @@ def _enter_pr_4800(self):
 
 # workaround for https://bugs.python.org/issue29620
 try:
-    unittest.case._AssertWarnsContext.__enter__ = _enter_pr_4800
+    # Suppression for issue #494:  tests/__init__.py:34: error: Cannot assign to a method
+    unittest.case._AssertWarnsContext.__enter__ = _enter_pr_4800  # type: ignore
 except AttributeError:
     pass
