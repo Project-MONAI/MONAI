@@ -18,7 +18,14 @@ from monai.networks.layers.convutils import same_padding
 
 class Convolution(nn.Sequential):
     """
-    Constructs a convolution with optional dropout, normalization, and activation layers.
+    Constructs a convolution with normalization, optional dropout, and optional activation layers::
+
+        -- (Conv|ConvTrans) -- Norm -- (Dropout) -- (Acti) --
+
+    if ``conv_only`` set to ``True``::
+
+        -- (Conv|ConvTrans) --
+
     """
 
     def __init__(
@@ -50,8 +57,11 @@ class Convolution(nn.Sequential):
         norm_type = Norm[norm_name, dimensions]
 
         # define the activation type and the arguments to the constructor
-        act_name, act_args = split_args(act)
-        act_type = Act[act_name]
+        if act is not None:
+            act_name, act_args = split_args(act)
+            act_type = Act[act_name]
+        else:
+            act_type = act_args = None
 
         if dropout:
             # if dropout was specified simply as a p value, use default name and make a keyword map with the value
@@ -74,8 +84,8 @@ class Convolution(nn.Sequential):
             self.add_module("norm", norm_type(out_channels, **norm_args))
             if dropout:
                 self.add_module("dropout", drop_type(**drop_args))
-
-            self.add_module("act", act_type(**act_args))
+            if act is not None:
+                self.add_module("act", act_type(**act_args))
 
 
 class ResidualUnit(nn.Module):
