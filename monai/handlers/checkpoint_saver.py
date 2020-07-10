@@ -11,15 +11,16 @@
 
 from typing import Any, Dict, Optional, TYPE_CHECKING
 
-if TYPE_CHECKING:
-    import ignite.engine
-
 import logging
 
 from monai.utils import exact_version, optional_import
 
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
 ModelCheckpoint, _ = optional_import("ignite.handlers", "0.3.0", exact_version, "ModelCheckpoint")
+if TYPE_CHECKING:
+    from ignite.engine import Engine
+else:
+    Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 
 
 class CheckpointSaver:
@@ -90,7 +91,7 @@ class CheckpointSaver:
 
         if save_final:
 
-            def _final_func(engine: "ignite.engine.Engine"):
+            def _final_func(engine: Engine):
                 return engine.state.iteration
 
             self._final_checkpoint = ModelCheckpoint(
@@ -102,7 +103,7 @@ class CheckpointSaver:
             )
         if save_key_metric:
 
-            def _score_func(engine: "ignite.engine.Engine"):
+            def _score_func(engine: Engine):
                 if isinstance(key_metric_name, str):
                     metric_name = key_metric_name
                 elif hasattr(engine.state, "key_metric_name") and isinstance(engine.state.key_metric_name, str):
@@ -121,7 +122,7 @@ class CheckpointSaver:
             )
         if save_interval > 0:
 
-            def _interval_func(engine: "ignite.engine.Engine"):
+            def _interval_func(engine: Engine):
                 return engine.state.epoch if self.epoch_level else engine.state.iteration
 
             self._interval_checkpoint = ModelCheckpoint(
@@ -133,7 +134,7 @@ class CheckpointSaver:
                 require_empty=False,
             )
 
-    def attach(self, engine: "ignite.engine.Engine") -> None:
+    def attach(self, engine: Engine) -> None:
         if self._name is None:
             self.logger = engine.logger
         if self._final_checkpoint is not None:
@@ -147,7 +148,7 @@ class CheckpointSaver:
             else:
                 engine.add_event_handler(Events.ITERATION_COMPLETED(every=self.save_interval), self.interval_completed)
 
-    def completed(self, engine: "ignite.engine.Engine") -> None:
+    def completed(self, engine: Engine) -> None:
         """Callback for train or validation/evaluation completed Event.
         Save final checkpoint if configure save_final is True.
 
@@ -158,7 +159,7 @@ class CheckpointSaver:
         assert hasattr(self.logger, "info"), "Error, provided logger has not info attribute."
         self.logger.info(f"Train completed, saved final checkpoint: {self._final_checkpoint.last_checkpoint}")
 
-    def exception_raised(self, engine: "ignite.engine.Engine", e: Exception) -> None:
+    def exception_raised(self, engine: Engine, e: Exception) -> None:
         """Callback for train or validation/evaluation exception raised Event.
         Save current data as final checkpoint if configure save_final is True.
 
@@ -169,14 +170,14 @@ class CheckpointSaver:
         assert hasattr(self.logger, "info"), "Error, provided logger has not info attribute."
         self.logger.info(f"Exception_raised, saved exception checkpoint: {self._final_checkpoint.last_checkpoint}")
 
-    def metrics_completed(self, engine: "ignite.engine.Engine") -> None:
+    def metrics_completed(self, engine: Engine) -> None:
         """Callback to compare metrics and save models in train or validation when epoch completed.
 
         """
         assert callable(self._key_metric_checkpoint), "Error: _key_metric_checkpoint function not specified."
         self._key_metric_checkpoint(engine, self.save_dict)
 
-    def interval_completed(self, engine: "ignite.engine.Engine") -> None:
+    def interval_completed(self, engine: Engine) -> None:
         """Callback for train epoch/iteration completed Event.
         Save checkpoint if configure save_interval = N
 
