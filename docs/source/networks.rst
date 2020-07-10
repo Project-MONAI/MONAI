@@ -30,6 +30,11 @@ Blocks
 .. autoclass:: ResidualSELayer
     :members:
 
+`Squeeze-and-Excitation Block`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: SEBlock
+    :members:
+
 `Simple ASPP`
 ~~~~~~~~~~~~~
 .. autoclass:: SimpleASPP
