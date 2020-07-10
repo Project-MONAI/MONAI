@@ -124,15 +124,14 @@ class Randomizable(ABC):
         return self
 
     @abstractmethod
-    def randomize(self) -> None:
+    def randomize(self, data: Any) -> None:
         """
         Within this method, :py:attr:`self.R` should be used, instead of `np.random`, to introduce random factors.
 
         all :py:attr:`self.R` calls happen here so that we have a better chance to
         identify errors of sync the random state.
 
-        This method can optionally take additional arguments so that the random factors are generated based on
-        properties of the input data.
+        This method can generate the random factors based on properties of the input data.
 
         Raises:
             NotImplementedError: Subclass {self.__class__.__name__} must implement the compute method
@@ -214,12 +213,12 @@ class Compose(Randomizable):
                 continue
             _transform.set_random_state(seed, state)
 
-    def randomize(self) -> None:
+    def randomize(self, data: Optional[Any] = None) -> None:
         for _transform in self.transforms:
             if not isinstance(_transform, Randomizable):
                 continue
             try:
-                _transform.randomize()
+                _transform.randomize(data)
             except TypeError as type_error:
                 tfm_name: str = type(_transform).__name__
                 warnings.warn(

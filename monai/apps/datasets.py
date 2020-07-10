@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 import os
 import sys
@@ -85,7 +85,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
         data = self._generate_data_list(dataset_dir)
         super().__init__(data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers)
 
-    def randomize(self) -> None:
+    def randomize(self, data: Optional[Any] = None) -> None:
         self.rann = self.R.random()
 
     def _generate_data_list(self, dataset_dir: str):
@@ -235,7 +235,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         data = self._generate_data_list(dataset_dir)
         super().__init__(data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers)
 
-    def randomize(self) -> None:
+    def randomize(self, data: Optional[Any] = None) -> None:
         self.rann = self.R.random()
 
     def _generate_data_list(self, dataset_dir: str):

@@ -70,7 +70,7 @@ class TestCompose(unittest.TestCase):
         class _Acc(Randomizable):
             self.rand = 0.0
 
-            def randomize(self):
+            def randomize(self, data=None):
                 self.rand = self.R.rand()
 
             def __call__(self, data):
