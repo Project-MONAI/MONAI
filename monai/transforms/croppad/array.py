@@ -290,7 +290,8 @@ class RandSpatialCrop(Randomizable, Transform):
             self._size = tuple((self.R.randint(low=self._size[i], high=img_size[i] + 1) for i in range(len(img_size))))
         if self.random_center:
             valid_size = get_valid_patch_size(img_size, self._size)
-            self._slices = (slice(None),) + get_random_patch(img_size, valid_size, self.R)
+            self._slices = [slice(None)]
+            self._slices.extend(get_random_patch(img_size, valid_size, self.R))
 
     def __call__(self, img):
         """
@@ -299,7 +300,7 @@ class RandSpatialCrop(Randomizable, Transform):
         """
         self.randomize(img.shape[1:])
         if self.random_center:
-            return img[self._slices]
+            return img[tuple(self._slices)]
         else:
             cropper = CenterSpatialCrop(self._size)
             return cropper(img)

@@ -241,14 +241,15 @@ class RandSpatialCropd(Randomizable, MapTransform):
             self._size = [self.R.randint(low=self._size[i], high=img_size[i] + 1) for i in range(len(img_size))]
         if self.random_center:
             valid_size = get_valid_patch_size(img_size, self._size)
-            self._slices = (slice(None),) + get_random_patch(img_size, valid_size, self.R)
+            self._slices = [slice(None)]
+            self._slices.extend(get_random_patch(img_size, valid_size, self.R))
 
     def __call__(self, data):
         d = dict(data)
         self.randomize(d[self.keys[0]].shape[1:])  # image shape from the first data key
         for key in self.keys:
             if self.random_center:
-                d[key] = d[key][self._slices]
+                d[key] = d[key][tuple(self._slices)]
             else:
                 cropper = CenterSpatialCrop(self._size)
                 d[key] = cropper(d[key])
