@@ -64,7 +64,7 @@ from typing import Any, Callable, Dict
 
 import torch.nn as nn
 
-__all__ = ["LayerFactory", "Dropout", "Norm", "Act", "Conv", "Pool"]
+__all__ = ["LayerFactory", "Dropout", "Norm", "Act", "Conv", "Pool", "split_args"]
 
 
 class LayerFactory:
@@ -90,6 +90,12 @@ class LayerFactory:
         """
 
         self.factories[name.upper()] = func
+        self.__doc__ = (
+            "The supported member"
+            + ("s are: " if len(self.names) > 1 else " is: ")
+            + ", ".join(f"``{name}``" for name in self.names)
+            + ".\nPlease see :py:class:`monai.networks.layers.split_args` for additional args parsing."
+        )
 
     def factory_function(self, name: str):
         """
@@ -149,7 +155,21 @@ class LayerFactory:
 
 def split_args(args):
     """
-    Split arguments in a way to be suitable for using with the factory types. If `args` is a name it's interpreted
+    Split arguments in a way to be suitable for using with the factory types. If `args` is a string it's interpreted as
+    the type name.
+
+    Args:
+        args (str or a tuple of object name and kwarg dict): input arguments to be parsed.
+
+    Examples::
+
+        >>> act_type, args = split_args("PRELU")
+        >>> monai.networks.layers.Act[act_type]
+        <class 'torch.nn.modules.activation.PReLU'>
+
+        >>> act_type, args = split_args(("PRELU", {"num_parameters": 1, "init": 0.25}))
+        >>> monai.networks.layers.Act[act_type](**args)
+        PReLU(num_parameters=1)
 
     Raises:
         ValueError: Layer specifiers must be single strings or pairs of the form (name/object-types, argument dict)
@@ -159,13 +179,13 @@ def split_args(args):
     if isinstance(args, str):
         return args, {}
     else:
-        name_obj, args = args
+        name_obj, name_args = args
 
-        if not isinstance(name_obj, (str, Callable)) or not isinstance(args, dict):
+        if not isinstance(name_obj, (str, Callable)) or not isinstance(name_args, dict):
             msg = "Layer specifiers must be single strings or pairs of the form (name/object-types, argument dict)"
             raise ValueError(msg)
 
-        return name_obj, args
+        return name_obj, name_args
 
 
 # Define factories for these layer types

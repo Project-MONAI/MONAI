@@ -35,7 +35,7 @@ class Classifier(Regressor):
         norm=Norm.INSTANCE,
         dropout: Optional[float] = None,
         bias: bool = True,
-        last_act: Optional[bool] = None,
+        last_act: Optional[str] = None,
     ) -> None:
         super().__init__(in_shape, (classes,), channels, strides, kernel_size, num_res_units, act, norm, dropout, bias)
 
