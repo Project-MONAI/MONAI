@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Sequence, Union
+from typing import Callable, Optional, Sequence, Union, Any
 
 import hashlib
 import json
@@ -432,7 +432,7 @@ class ArrayDataset(Randomizable, _TorchDataset):
     def __len__(self) -> int:
         return len(self.dataset)
 
-    def randomize(self) -> None:
+    def randomize(self, data: Optional[Any] = None) -> None:
         self._seed = self.R.randint(np.iinfo(np.int32).max)
 
     def __getitem__(self, index: int):
