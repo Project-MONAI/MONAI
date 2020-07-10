@@ -11,9 +11,6 @@
 
 from typing import Callable, Optional, TYPE_CHECKING
 
-if TYPE_CHECKING:
-    import ignite.engine
-
 import logging
 import warnings
 
@@ -22,6 +19,10 @@ import torch
 from monai.utils import exact_version, is_scalar, optional_import
 
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
+if TYPE_CHECKING:
+    from ignite.engine import Engine
+else:
+    Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 
 DEFAULT_KEY_VAL_FORMAT = "{}: {:.4f} "
 DEFAULT_TAG = "Loss"
@@ -85,7 +86,7 @@ class StatsHandler(object):
         if logger_handler is not None:
             self.logger.addHandler(logger_handler)
 
-    def attach(self, engine: "ignite.engine.Engine") -> None:
+    def attach(self, engine: Engine) -> None:
         """
         Register a set of Ignite Event-Handlers to a specified Ignite engine.
 
@@ -102,7 +103,7 @@ class StatsHandler(object):
         if not engine.has_event_handler(self.exception_raised, Events.EXCEPTION_RAISED):
             engine.add_event_handler(Events.EXCEPTION_RAISED, self.exception_raised)
 
-    def epoch_completed(self, engine: "ignite.engine.Engine") -> None:
+    def epoch_completed(self, engine: Engine) -> None:
         """
         Handler for train or validation/evaluation epoch completed Event.
         Print epoch level log, default values are from Ignite state.metrics dict.
@@ -116,7 +117,7 @@ class StatsHandler(object):
         else:
             self._default_epoch_print(engine)
 
-    def iteration_completed(self, engine: "ignite.engine.Engine") -> None:
+    def iteration_completed(self, engine: Engine) -> None:
         """
         Handler for train or validation/evaluation iteration completed Event.
         Print iteration level log, default values are from Ignite state.logs dict.
@@ -130,7 +131,7 @@ class StatsHandler(object):
         else:
             self._default_iteration_print(engine)
 
-    def exception_raised(self, engine: "ignite.engine.Engine", e: Exception) -> None:
+    def exception_raised(self, engine: Engine, e: Exception) -> None:
         """
         Handler for train or validation/evaluation exception raised Event.
         Print the exception information and traceback.
@@ -144,7 +145,7 @@ class StatsHandler(object):
         # import traceback
         # traceback.print_exc()
 
-    def _default_epoch_print(self, engine: "ignite.engine.Engine") -> None:
+    def _default_epoch_print(self, engine: Engine) -> None:
         """
         Execute epoch level log operation based on Ignite engine.state data.
         print the values from Ignite state.metrics dict.
@@ -170,7 +171,7 @@ class StatsHandler(object):
                 out_str += f"best value: {engine.state.best_metric} at epoch: {engine.state.best_metric_epoch}"
         self.logger.info(out_str)
 
-    def _default_iteration_print(self, engine: "ignite.engine.Engine") -> None:
+    def _default_iteration_print(self, engine: Engine) -> None:
         """
         Execute iteration log operation based on Ignite engine.state data.
         Print the values from Ignite state.logs dict.

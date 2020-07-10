@@ -11,10 +11,6 @@
 
 from typing import Callable, Optional, TYPE_CHECKING
 
-if TYPE_CHECKING:
-    import ignite.engine
-    import ignite.metrics
-
 import torch
 from torch.utils.data import DataLoader
 
@@ -22,12 +18,18 @@ from monai.transforms import apply_transform
 from monai.utils import exact_version, optional_import, ensure_tuple
 from monai.engines.utils import default_prepare_batch
 
-Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
+IgniteEngine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 State, _ = optional_import("ignite.engine", "0.3.0", exact_version, "State")
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
+if TYPE_CHECKING:
+    from ignite.engine import Engine
+    from ignite.metrics import Metric
+else:
+    Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
+    Metric, _ = optional_import("ignite.metrics", "0.3.0", exact_version, "Metric")
 
 
-class Workflow(Engine):  # type: ignore # incorrectly typed due to optional_import
+class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optional_import
     """
     Workflow defines the core work process inheriting from Ignite engine.
     All trainer, validator and evaluator share this same workflow as base class,
@@ -65,7 +67,7 @@ class Workflow(Engine):  # type: ignore # incorrectly typed due to optional_impo
         prepare_batch: Callable = default_prepare_batch,
         iteration_update: Optional[Callable] = None,
         post_transform: Optional[Callable] = None,
-        key_metric: Optional["ignite.metrics.Metric"] = None,
+        key_metric: Optional[Metric] = None,
         additional_metrics=None,
         handlers=None,
     ) -> None:
@@ -105,7 +107,7 @@ class Workflow(Engine):  # type: ignore # incorrectly typed due to optional_impo
         if post_transform is not None:
 
             @self.on(Events.ITERATION_COMPLETED)
-            def run_post_transform(engine: "ignite.engine.Engine"):
+            def run_post_transform(engine: Engine):
                 assert post_transform is not None
                 engine.state.output = apply_transform(post_transform, engine.state.output)
 
@@ -123,7 +125,7 @@ class Workflow(Engine):  # type: ignore # incorrectly typed due to optional_impo
                 metric.attach(self, name)
 
             @self.on(Events.EPOCH_COMPLETED)
-            def _compare_metrics(engine: "ignite.engine.Engine"):
+            def _compare_metrics(engine: Engine):
                 if engine.state.key_metric_name is not None:
                     current_val_metric = engine.state.metrics[engine.state.key_metric_name]
                     if current_val_metric > engine.state.best_metric:
@@ -143,7 +145,7 @@ class Workflow(Engine):  # type: ignore # incorrectly typed due to optional_impo
         """
         super().run(data=self.data_loader, epoch_length=len(self.data_loader))
 
-    def _iteration(self, engine: "ignite.engine.Engine", batchdata):
+    def _iteration(self, engine: Engine, batchdata):
         """
         Abstract callback function for the processing logic of 1 iteration in Ignite Engine.
         Need subclass to implement different logics, like SupervisedTrainer/Evaluator, GANTrainer, etc.
