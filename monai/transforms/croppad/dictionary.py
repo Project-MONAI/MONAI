@@ -15,7 +15,7 @@ defined in :py:class:`monai.transforms.croppad.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Callable, Optional, Sequence, Tuple, Union
+from typing import Callable, Optional, Sequence, Union
 
 from monai.config import IndexSelection, KeysCollection
 from monai.data.utils import get_random_patch, get_valid_patch_size
@@ -232,7 +232,7 @@ class RandSpatialCropd(Randomizable, MapTransform):
         self.roi_size = roi_size
         self.random_center = random_center
         self.random_size = random_size
-        self._slices: Optional[Tuple[slice, ...]] = None
+        self._slices: Optional[Sequence[slice]] = None
         self._size: Optional[Sequence[int]] = None
 
     def randomize(self, img_size) -> None:  # type: ignore # see issue #729

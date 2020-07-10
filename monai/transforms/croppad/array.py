@@ -13,7 +13,7 @@ A collection of "vanilla" transforms for crop and pad operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Callable, List, Optional, Sequence, Tuple, Union
+from typing import Callable, List, Optional, Sequence, Union
 
 import numpy as np
 
@@ -282,7 +282,7 @@ class RandSpatialCrop(Randomizable, Transform):
         self.random_center = random_center
         self.random_size = random_size
         self._size: Optional[Sequence[int]] = None
-        self._slices: Optional[Tuple[slice, ...]] = None
+        self._slices: Optional[Sequence[slice]] = None
 
     def randomize(self, img_size) -> None:  # type: ignore # see issue #729
         self._size = fall_back_tuple(self.roi_size, img_size)

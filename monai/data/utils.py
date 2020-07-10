@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Optional, Sequence, Tuple, Union
+from typing import List, Optional, Sequence, Union
 
 import os
 import warnings
@@ -28,7 +28,7 @@ nib, _ = optional_import("nibabel")
 
 def get_random_patch(
     dims: Sequence[int], patch_size, rand_state: Optional[np.random.RandomState] = None
-) -> Tuple[slice, ...]:
+) -> Sequence[slice]:
     """
     Returns a tuple of slices to define a random patch in an array of shape `dims` with size `patch_size` or the as
     close to it as possible within the given dimension. It is expected that `patch_size` is a valid patch for a source
@@ -40,7 +40,7 @@ def get_random_patch(
         rand_state: a random state object to generate random numbers from
 
     Returns:
-        (tuple of slice): a tuple of slice objects defining the patch
+        (sequence of slice): a sequence of slice objects defining the patch
     """
 
     # choose the minimal corner of the patch
@@ -79,7 +79,7 @@ def iter_patch_slices(dims: Sequence[int], patch_size, start_pos: Sequence[int] 
         yield tuple(slice(s, s + p) for s, p in zip(position[::-1], patch_size))
 
 
-def dense_patch_slices(image_size: Sequence[int], patch_size, scan_interval: Sequence[int]) -> List[Tuple[slice, ...]]:
+def dense_patch_slices(image_size: Sequence[int], patch_size, scan_interval: Sequence[int]) -> List[Sequence[slice]]:
     """
     Enumerate all slices defining 2D/3D patches of size `patch_size` from an `image_size` input image.
 
@@ -105,7 +105,7 @@ def dense_patch_slices(image_size: Sequence[int], patch_size, scan_interval: Seq
         int(math.ceil(float(image_size[i]) / scan_interval[i])) if scan_interval[i] != 0 else 1
         for i in range(num_spatial_dims)
     ]
-    slices: List[Tuple[slice, ...]] = []
+    slices: List[Sequence[slice]] = []
     if num_spatial_dims == 3:
         for i in range(scan_num[0]):
             start_i = i * scan_interval[0]
