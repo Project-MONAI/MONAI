@@ -9,11 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional, Sequence, Union
+
 import torch
 import torch.nn as nn
 
-from monai.networks.utils import to_norm_affine
-from monai.utils import ensure_tuple
+from monai.networks import to_norm_affine
+from monai.utils import ensure_tuple, GridSampleMode, GridSamplePadMode
 
 __all__ = ["AffineTransform"]
 
@@ -21,13 +23,13 @@ __all__ = ["AffineTransform"]
 class AffineTransform(nn.Module):
     def __init__(
         self,
-        spatial_size=None,
-        normalized=False,
-        mode="bilinear",
-        padding_mode="zeros",
-        align_corners=False,
-        reverse_indexing=True,
-    ):
+        spatial_size: Optional[Union[Sequence[int], int]] = None,
+        normalized: bool = False,
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.ZEROS,
+        align_corners: bool = False,
+        reverse_indexing: bool = True,
+    ) -> None:
         """
         Apply affine transformations with a batch of affine matrices.
 
@@ -45,29 +47,32 @@ class AffineTransform(nn.Module):
         See also: https://pytorch.org/tutorials/intermediate/spatial_transformer_tutorial.html
 
         Args:
-            spatial_size (list or tuple of int): output spatial shape, the full output shape will be
+            spatial_size: output spatial shape, the full output shape will be
                 `[N, C, *spatial_size]` where N and C are inferred from the `src` input of `self.forward`.
-            normalized (bool): indicating whether the provided affine matrix `theta` is defined
+            normalized: indicating whether the provided affine matrix `theta` is defined
                 for the normalized coordinates. If `normalized=False`, `theta` will be converted
                 to operate on normalized coordinates as pytorch affine_grid works with the normalized
                 coordinates.
-            mode (`nearest|bilinear`): interpolation mode.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample.
-            padding_mode (`zeros|border|reflection`): padding mode for outside grid values.
-            align_corners (bool): see also https://pytorch.org/docs/stable/nn.functional.html#grid-sample.
-            reverse_indexing (bool): whether to reverse the spatial indexing of image and coordinates.
+            mode: {``"bilinear"``, ``"nearest"``}
+                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+                Padding mode for outside grid values. Defaults to ``"zeros"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            align_corners: see also https://pytorch.org/docs/stable/nn.functional.html#grid-sample.
+            reverse_indexing: whether to reverse the spatial indexing of image and coordinates.
                 set to `False` if `theta` follows pytorch's default "D, H, W" convention.
                 set to `True` if `theta` follows `scipy.ndimage` default "i, j, k" convention.
         """
         super().__init__()
         self.spatial_size = ensure_tuple(spatial_size) if spatial_size is not None else None
         self.normalized = normalized
-        self.mode = mode
-        self.padding_mode = padding_mode
+        self.mode: GridSampleMode = GridSampleMode(mode)
+        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
         self.align_corners = align_corners
         self.reverse_indexing = reverse_indexing
 
-    def forward(self, src, theta, spatial_size=None):
+    def forward(self, src, theta, spatial_size: Optional[Union[Sequence[int], int]] = None):
         """
         ``theta`` must be an affine transformation matrix with shape
         3x3 or Nx3x3 or Nx2x3 or 2x3 for spatial 2D transforms,
@@ -80,8 +85,16 @@ class AffineTransform(nn.Module):
             theta (array_like): Nx3x3, Nx2x3, 3x3, 2x3 for spatial 2D inputs,
                 Nx4x4, Nx3x4, 3x4, 4x4 for spatial 3D inputs. When the batch dimension is omitted,
                 `theta` will be repeated N times, N is the batch dim of `src`.
-            spatial_size (list or tuple of int): output spatial shape, the full output shape will be
+            spatial_size: output spatial shape, the full output shape will be
                 `[N, C, *spatial_size]` where N and C are inferred from the `src`.
+
+        Raises:
+            TypeError: both src and theta must be torch Tensor, got {type(src).__name__}, {type(theta).__name__}.
+            ValueError: affine must be Nxdxd or dxd.
+            ValueError: affine must be Nx3x3 or Nx4x4, got: {theta.shape}.
+            ValueError: src must be spatially 2D or 3D.
+            ValueError: batch dimension of affine and image does not match, got affine: {} and image: {}.
+
         """
         # validate `theta`
         if not torch.is_tensor(theta) or not torch.is_tensor(src):
@@ -92,7 +105,7 @@ class AffineTransform(nn.Module):
             raise ValueError("affine must be Nxdxd or dxd.")
         if theta.ndim == 2:
             theta = theta[None]  # adds a batch dim.
-        theta = theta.clone().float()  # no in-place change of theta
+        theta = theta.clone()  # no in-place change of theta
         theta_shape = tuple(theta.shape[1:])
         if theta_shape in ((2, 3), (3, 4)):  # needs padding to dxd
             pad_affine = torch.tensor([0, 0, 1] if theta_shape[0] == 2 else [0, 0, 0, 1])
@@ -103,7 +116,6 @@ class AffineTransform(nn.Module):
             raise ValueError(f"affine must be Nx3x3 or Nx4x4, got: {theta.shape}.")
 
         # validate `src`
-        src = src.float()  # always use float for compatibility
         sr = src.ndim - 2  # input spatial rank
         if sr not in (2, 3):
             raise ValueError("src must be spatially 2D or 3D.")
@@ -117,15 +129,14 @@ class AffineTransform(nn.Module):
             dst_size = src_size[:2] + ensure_tuple(spatial_size)
 
         # reverse and normalise theta if needed
-        theta = theta.to(src)
-        if self.reverse_indexing:
-            rev_idx = torch.as_tensor(range(sr - 1, -1, -1), device=src.device)
-            theta[:, :sr] = theta[:, rev_idx]
-            theta[:, :, :sr] = theta[:, :, rev_idx]
         if not self.normalized:
             theta = to_norm_affine(
                 affine=theta, src_size=src_size[2:], dst_size=dst_size[2:], align_corners=self.align_corners
             )
+        if self.reverse_indexing:
+            rev_idx = torch.as_tensor(range(sr - 1, -1, -1), device=src.device)
+            theta[:, :sr] = theta[:, rev_idx]
+            theta[:, :, :sr] = theta[:, :, rev_idx]
         if (theta.shape[0] == 1) and src_size[0] > 1:
             # adds a batch dim to `theta` in order to match `src`
             theta = theta.repeat(src_size[0], 1, 1)
@@ -136,12 +147,12 @@ class AffineTransform(nn.Module):
                 )
             )
 
-        grid = nn.functional.affine_grid(theta=theta[:, :sr], size=dst_size, align_corners=self.align_corners)
+        grid = nn.functional.affine_grid(theta=theta[:, :sr], size=list(dst_size), align_corners=self.align_corners)
         dst = nn.functional.grid_sample(
             input=src.contiguous(),
             grid=grid,
-            mode=self.mode,
-            padding_mode=self.padding_mode,
+            mode=self.mode.value,
+            padding_mode=self.padding_mode.value,
             align_corners=self.align_corners,
         )
         return dst
