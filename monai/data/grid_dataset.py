@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence, Union
+from typing import Sequence, Union, Optional, Tuple
 
 import math
 
@@ -28,7 +28,7 @@ class GridPatchDataset(IterableDataset):
     def __init__(
         self,
         dataset: Dataset,
-        patch_size,
+        patch_size: Optional[Tuple[int, ...]],
         start_pos: Sequence[int] = (),
         mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
         **pad_opts: dict,
@@ -42,7 +42,7 @@ class GridPatchDataset(IterableDataset):
 
         Args:
             dataset: the dataset to read array data from
-            patch_size (tuple of int or None): size of patches to generate slices for, 0/None selects whole dimension
+            patch_size: size of patches to generate slices for, 0/None selects whole dimension
             start_pos: starting position in the array, default is 0 for each dimension
             mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
                 ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
