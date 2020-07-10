@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import importlib
 from importlib import import_module
 from pkgutil import walk_packages
 from re import match
@@ -148,7 +147,7 @@ def optional_import(
         actual_cmd = f"import {module}"
     try:
         pkg = __import__(module)  # top level module
-        the_module = importlib.import_module(module)
+        the_module = import_module(module)
         if not allow_namespace_pkg:
             is_namespace = getattr(the_module, "__file__", None) is None and hasattr(the_module, "__path__")
             assert not is_namespace

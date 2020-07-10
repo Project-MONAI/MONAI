@@ -13,7 +13,7 @@ from typing import Optional
 
 import os
 from urllib.request import urlretrieve
-from urllib.error import URLError
+from urllib.error import URLError, ContentTooShortError, HTTPError
 import hashlib
 import tarfile
 import zipfile
@@ -58,6 +58,8 @@ def download_url(url: str, filepath: str, md5_value: Optional[str] = None) -> No
     Raises:
         RuntimeError: MD5 check of existing file {filepath} failed, please delete it and try again.
         URLError: See urllib.request.urlopen
+        HTTPError: See urllib.request.urlopen
+        ContentTooShortError: See urllib.request.urlopen
         IOError: See urllib.request.urlopen
         RuntimeError: MD5 check of downloaded file failed, URL={url}, filepath={filepath}, expected MD5={md5_value}.
 
@@ -81,7 +83,8 @@ def download_url(url: str, filepath: str, md5_value: Optional[str] = None) -> No
         try:
             urlretrieve(url, filepath, reporthook=_process_hook)
             print(f"\ndownloaded file: {filepath}.")
-        except (URLError, IOError) as e:
+        except (URLError, HTTPError, ContentTooShortError, IOError) as e:
+            print(f"download failed from {url} to {filepath}.")
             raise e
 
     if not check_md5(filepath, md5_value):
