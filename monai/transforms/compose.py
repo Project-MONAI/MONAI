@@ -12,9 +12,11 @@
 A collection of generic interfaces for MONAI transforms.
 """
 
-import warnings
-from typing import Hashable, Optional, Tuple, Any
+from typing import Any, Hashable, Optional, Tuple
+
 from abc import ABC, abstractmethod
+import warnings
+
 import numpy as np
 
 from monai.config import KeysCollection
@@ -98,7 +100,7 @@ class Randomizable(ABC):
 
         Args:
             seed: set the random state with an integer seed.
-            state (np.random.RandomState): set the random state with a `np.random.RandomState` object.
+            state: set the random state with a `np.random.RandomState` object.
 
         Returns:
             a Randomizable instance.
@@ -122,15 +124,14 @@ class Randomizable(ABC):
         return self
 
     @abstractmethod
-    def randomize(self):
+    def randomize(self, data: Any) -> None:
         """
         Within this method, :py:attr:`self.R` should be used, instead of `np.random`, to introduce random factors.
 
         all :py:attr:`self.R` calls happen here so that we have a better chance to
         identify errors of sync the random state.
 
-        This method can optionally take additional arguments so that the random factors are generated based on
-        properties of the input data.
+        This method can generate the random factors based on properties of the input data.
 
         Raises:
             NotImplementedError: Subclass {self.__class__.__name__} must implement the compute method
@@ -212,12 +213,12 @@ class Compose(Randomizable):
                 continue
             _transform.set_random_state(seed, state)
 
-    def randomize(self):
+    def randomize(self, data: Optional[Any] = None) -> None:
         for _transform in self.transforms:
             if not isinstance(_transform, Randomizable):
                 continue
             try:
-                _transform.randomize()
+                _transform.randomize(data)
             except TypeError as type_error:
                 tfm_name: str = type(_transform).__name__
                 warnings.warn(
@@ -251,7 +252,7 @@ class MapTransform(Transform):
 
     """
 
-    def __init__(self, keys: KeysCollection):
+    def __init__(self, keys: KeysCollection) -> None:
         self.keys: Tuple[Any, ...] = ensure_tuple(keys)
         if not self.keys:
             raise ValueError("keys unspecified")

@@ -11,19 +11,22 @@
 
 from typing import Any, Callable, Dict, Optional, TYPE_CHECKING
 
-if TYPE_CHECKING:
-    import ignite.engine
-    import ignite.metrics
-
 import torch
 from torch.utils.data import DataLoader
 
 from monai.inferers import Inferer, SimpleInferer
 from monai.transforms import Transform
-
 from monai.engines.utils import CommonKeys as Keys
 from monai.engines.utils import default_prepare_batch
 from monai.engines.workflow import Workflow
+from monai.utils import exact_version, optional_import
+
+if TYPE_CHECKING:
+    from ignite.engine import Engine
+    from ignite.metrics import Metric
+else:
+    Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
+    Metric, _ = optional_import("ignite.metrics", "0.3.0", exact_version, "Metric")
 
 
 class Evaluator(Workflow):
@@ -54,7 +57,7 @@ class Evaluator(Workflow):
         prepare_batch: Callable = default_prepare_batch,
         iteration_update: Optional[Callable] = None,
         post_transform: Optional[Transform] = None,
-        key_val_metric: Optional["ignite.metrics.Metric"] = None,
+        key_val_metric: Optional[Metric] = None,
         additional_metrics=None,
         val_handlers=None,
     ) -> None:
@@ -121,7 +124,7 @@ class SupervisedEvaluator(Evaluator):
         iteration_update: Optional[Callable] = None,
         inferer: Inferer = SimpleInferer(),
         post_transform: Optional[Transform] = None,
-        key_val_metric: Optional["ignite.metrics.Metric"] = None,
+        key_val_metric: Optional[Metric] = None,
         additional_metrics=None,
         val_handlers=None,
     ):
@@ -139,7 +142,7 @@ class SupervisedEvaluator(Evaluator):
         self.network = network
         self.inferer = inferer
 
-    def _iteration(self, engine: "ignite.engine.Engine", batchdata) -> Dict[str, Any]:
+    def _iteration(self, engine: Engine, batchdata) -> Dict[str, Any]:
         """
         callback function for the Supervised Evaluation processing logic of 1 iteration in Ignite Engine.
         Return below items in a dictionary:

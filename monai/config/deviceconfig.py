@@ -116,4 +116,4 @@ def get_torch_version_tuple():
     Returns:
         tuple of ints represents the pytorch major/minor version.
     """
-    return tuple([int(x) for x in torch.__version__.split(".")[:2]])
+    return tuple((int(x) for x in torch.__version__.split(".")[:2]))

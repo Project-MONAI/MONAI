@@ -11,9 +11,6 @@
 
 from typing import Optional, Sequence, Union, TYPE_CHECKING
 
-if TYPE_CHECKING:
-    import torch.utils.tensorboard
-
 import numpy as np
 import torch
 
@@ -23,6 +20,10 @@ from monai.utils import optional_import
 PIL, _ = optional_import("PIL")
 GifImage, _ = optional_import("PIL.GifImagePlugin", name="Image")
 summary_pb2, _ = optional_import("tensorboard.compat.proto.summary_pb2")
+if TYPE_CHECKING:
+    from torch.utils.tensorboard import SummaryWriter
+else:
+    SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
 
 def _image3_animated_gif(tag: str, image: Union[np.ndarray, torch.Tensor], scale_factor: float = 1.0):
@@ -99,7 +100,7 @@ def make_animated_gif_summary(
 
 
 def add_animated_gif(
-    writer: "torch.utils.tensorboard.SummaryWriter",
+    writer: SummaryWriter,
     tag: str,
     image_tensor: Union[np.ndarray, torch.Tensor],
     max_out: int,
@@ -126,7 +127,7 @@ def add_animated_gif(
 
 
 def add_animated_gif_no_channels(
-    writer: "torch.utils.tensorboard.SummaryWriter",
+    writer: SummaryWriter,
     tag: str,
     image_tensor: Union[np.ndarray, torch.Tensor],
     max_out: int,
@@ -157,7 +158,7 @@ def add_animated_gif_no_channels(
 def plot_2d_or_3d_image(
     data: Union[torch.Tensor, np.ndarray],
     step: int,
-    writer: "torch.utils.tensorboard.SummaryWriter",
+    writer: SummaryWriter,
     index: int = 0,
     max_channels: int = 1,
     max_frames: int = 64,

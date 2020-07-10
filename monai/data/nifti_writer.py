@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Tuple, Union
+from typing import Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -27,7 +27,7 @@ def write_nifti(
     affine: Optional[np.ndarray] = None,
     target_affine: Optional[np.ndarray] = None,
     resample: bool = True,
-    output_spatial_shape: Optional[Tuple[int, ...]] = None,
+    output_spatial_shape: Optional[Sequence[int]] = None,
     mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
     padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
     dtype: Optional[np.dtype] = None,

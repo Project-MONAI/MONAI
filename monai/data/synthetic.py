@@ -38,7 +38,7 @@ def create_test_image_2d(
     image = np.zeros((width, height))
     rs = np.random if random_state is None else random_state
 
-    for i in range(num_objs):
+    for _ in range(num_objs):
         x = rs.randint(rad_max, width - rad_max)
         y = rs.randint(rad_max, height - rad_max)
         rad = rs.randint(5, rad_max)
@@ -85,7 +85,7 @@ def create_test_image_3d(
     image = np.zeros((width, height, depth))
     rs = np.random if random_state is None else random_state
 
-    for i in range(num_objs):
+    for _ in range(num_objs):
         x = rs.randint(rad_max, width - rad_max)
         y = rs.randint(rad_max, height - rad_max)
         z = rs.randint(rad_max, depth - rad_max)

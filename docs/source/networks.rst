@@ -30,6 +30,11 @@ Blocks
 .. autoclass:: ResidualSELayer
     :members:
 
+`Squeeze-and-Excitation Block`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: SEBlock
+    :members:
+
 `Simple ASPP`
 ~~~~~~~~~~~~~
 .. autoclass:: SimpleASPP
@@ -52,7 +57,41 @@ Layers
 `Factories`
 ~~~~~~~~~~~
 .. automodule:: monai.networks.layers.factories
+
+.. autoclass:: monai.networks.layers.LayerFactory
   :members:
+
+.. currentmodule:: monai.networks.layers
+
+`split_args`
+~~~~~~~~~~~~
+.. autofunction:: monai.networks.layers.split_args
+
+`Dropout`
+~~~~~~~~~
+.. automodule:: monai.networks.layers.Dropout
+  :members:
+
+`Act`
+~~~~~
+.. automodule:: monai.networks.layers.Act
+  :members:
+
+`Norm`
+~~~~~~
+.. automodule:: monai.networks.layers.factories.Norm
+  :members:
+
+`Conv`
+~~~~~~
+.. automodule:: monai.networks.layers.factories.Conv
+  :members:
+
+`Pool`
+~~~~~~
+.. automodule:: monai.networks.layers.factories.Pool
+  :members:
+
 .. currentmodule:: monai.networks.layers
 
 `SkipConnection`

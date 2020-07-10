@@ -414,6 +414,12 @@ Utility
     :members:
     :special-members: __call__
 
+`LabelToMask`
+"""""""""""""
+.. autoclass:: LabelToMask
+    :members:
+    :special-members: __call__
+
 Dictionary Transforms
 ---------------------
 
@@ -774,6 +780,12 @@ Utility (Dict)
 `Lambdad`
 """""""""
 .. autoclass:: Lambdad
+    :members:
+    :special-members: __call__
+
+`LabelToMaskd`
+""""""""""""""
+.. autoclass:: LabelToMaskd
     :members:
     :special-members: __call__
 

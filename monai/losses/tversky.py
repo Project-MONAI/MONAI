@@ -63,7 +63,7 @@ class TverskyLoss(_Loss):
 
         """
 
-        super().__init__(reduction=LossReduction(reduction))
+        super().__init__(reduction=LossReduction(reduction).value)
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
 
@@ -125,10 +125,10 @@ class TverskyLoss(_Loss):
 
         score = 1.0 - numerator / denominator
 
-        if self.reduction == LossReduction.SUM:
+        if self.reduction == LossReduction.SUM.value:
             return score.sum()  # sum over the batch and channel dims
-        if self.reduction == LossReduction.NONE:
+        if self.reduction == LossReduction.NONE.value:
             return score  # returns [N, n_classes] losses
-        if self.reduction == LossReduction.MEAN:
+        if self.reduction == LossReduction.MEAN.value:
             return score.mean()
         raise ValueError(f"reduction={self.reduction} is invalid.")

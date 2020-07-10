@@ -11,10 +11,8 @@
 
 from typing import Callable, Dict, Optional, TYPE_CHECKING
 
-if TYPE_CHECKING:
-    import ignite.metrics
-
 import torch
+from torch.optim.optimizer import Optimizer
 
 from monai.utils import exact_version, optional_import
 from monai.engines.utils import get_devices_spec
@@ -22,6 +20,10 @@ from monai.engines.utils import get_devices_spec
 create_supervised_trainer, _ = optional_import("ignite.engine", "0.3.0", exact_version, "create_supervised_trainer")
 create_supervised_evaluator, _ = optional_import("ignite.engine", "0.3.0", exact_version, "create_supervised_evaluator")
 _prepare_batch, _ = optional_import("ignite.engine", "0.3.0", exact_version, "_prepare_batch")
+if TYPE_CHECKING:
+    from ignite.metrics import Metric
+else:
+    Metric, _ = optional_import("ignite.metrics", "0.3.0", exact_version, "Metric")
 
 
 def _default_transform(_x, _y, _y_pred, loss):
@@ -34,7 +36,7 @@ def _default_eval_transform(x, y, y_pred):
 
 def create_multigpu_supervised_trainer(
     net: torch.nn.Module,
-    optimizer: torch.optim.Optimizer,
+    optimizer: Optimizer,
     loss_fn,
     devices=None,
     non_blocking: bool = False,
@@ -77,7 +79,7 @@ def create_multigpu_supervised_trainer(
 
 def create_multigpu_supervised_evaluator(
     net: torch.nn.Module,
-    metrics: Optional[Dict[str, "ignite.metrics.Metric"]] = None,
+    metrics: Optional[Dict[str, Metric]] = None,
     devices=None,
     non_blocking: bool = False,
     prepare_batch: Callable = _prepare_batch,

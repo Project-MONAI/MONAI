@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Sequence, Union
+from typing import Callable, Optional, Sequence, Union, Any
 
 import hashlib
 import json
@@ -94,7 +94,7 @@ class PersistentDataset(Dataset):
     """
 
     def __init__(
-        self, data, transform: Optional[Callable] = None, cache_dir: Optional[Union[Path, str]] = None
+        self, data, transform: Union[Sequence[Callable], Callable], cache_dir: Optional[Union[Path, str]] = None
     ) -> None:
         """
         Args:
@@ -237,7 +237,12 @@ class CacheDataset(Dataset):
     """
 
     def __init__(
-        self, data, transform: Callable, cache_num: int = sys.maxsize, cache_rate: float = 1.0, num_workers: int = 0
+        self,
+        data,
+        transform: Union[Sequence[Callable], Callable],
+        cache_num: int = sys.maxsize,
+        cache_rate: float = 1.0,
+        num_workers: int = 0,
     ) -> None:
         """
         Args:
@@ -331,7 +336,7 @@ class ZipDataset(Dataset):
         super().__init__(list(datasets), transform=transform)
 
     def __len__(self) -> int:
-        return min([len(dataset) for dataset in self.data])
+        return min((len(dataset) for dataset in self.data))
 
     def __getitem__(self, index: int):
         def to_list(x):
@@ -427,7 +432,7 @@ class ArrayDataset(Randomizable, _TorchDataset):
     def __len__(self) -> int:
         return len(self.dataset)
 
-    def randomize(self) -> None:
+    def randomize(self, data: Optional[Any] = None) -> None:
         self._seed = self.R.randint(np.iinfo(np.int32).max)
 
     def __getitem__(self, index: int):

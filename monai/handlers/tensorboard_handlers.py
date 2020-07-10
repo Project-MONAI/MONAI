@@ -11,10 +11,6 @@
 
 from typing import Callable, Optional, TYPE_CHECKING
 
-if TYPE_CHECKING:
-    import ignite.engine
-    import torch.utils.tensorboard
-
 import warnings
 
 import numpy as np
@@ -24,7 +20,12 @@ from monai.utils import exact_version, optional_import, is_scalar
 from monai.visualize import plot_2d_or_3d_image
 
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
-SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
+if TYPE_CHECKING:
+    from ignite.engine import Engine
+    from torch.utils.tensorboard import SummaryWriter
+else:
+    Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
+    SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
 DEFAULT_TAG = "Loss"
 
@@ -45,7 +46,7 @@ class TensorBoardStatsHandler(object):
 
     def __init__(
         self,
-        summary_writer: Optional["torch.utils.tensorboard.SummaryWriter"] = None,
+        summary_writer: Optional[SummaryWriter] = None,
         log_dir: str = "./runs",
         epoch_event_writer: Optional[Callable] = None,
         iteration_event_writer: Optional[Callable] = None,
@@ -78,7 +79,7 @@ class TensorBoardStatsHandler(object):
         self.global_epoch_transform = global_epoch_transform
         self.tag_name = tag_name
 
-    def attach(self, engine: "ignite.engine.Engine") -> None:
+    def attach(self, engine: Engine) -> None:
         """
         Register a set of Ignite Event-Handlers to a specified Ignite engine.
 
@@ -91,7 +92,7 @@ class TensorBoardStatsHandler(object):
         if not engine.has_event_handler(self.epoch_completed, Events.EPOCH_COMPLETED):
             engine.add_event_handler(Events.EPOCH_COMPLETED, self.epoch_completed)
 
-    def epoch_completed(self, engine: "ignite.engine.Engine") -> None:
+    def epoch_completed(self, engine: Engine) -> None:
         """
         Handler for train or validation/evaluation epoch completed Event.
         Write epoch level events, default values are from Ignite state.metrics dict.
@@ -105,7 +106,7 @@ class TensorBoardStatsHandler(object):
         else:
             self._default_epoch_writer(engine, self._writer)
 
-    def iteration_completed(self, engine: "ignite.engine.Engine") -> None:
+    def iteration_completed(self, engine: Engine) -> None:
         """
         Handler for train or validation/evaluation iteration completed Event.
         Write iteration level events, default values are from Ignite state.logs dict.
@@ -119,9 +120,7 @@ class TensorBoardStatsHandler(object):
         else:
             self._default_iteration_writer(engine, self._writer)
 
-    def _default_epoch_writer(
-        self, engine: "ignite.engine.Engine", writer: "torch.utils.tensorboard.SummaryWriter"
-    ) -> None:
+    def _default_epoch_writer(self, engine: Engine, writer: SummaryWriter) -> None:
         """
         Execute epoch level event write operation based on Ignite engine.state data.
         Default is to write the values from Ignite state.metrics dict.
@@ -137,9 +136,7 @@ class TensorBoardStatsHandler(object):
             writer.add_scalar(name, value, current_epoch)
         writer.flush()
 
-    def _default_iteration_writer(
-        self, engine: "ignite.engine.Engine", writer: "torch.utils.tensorboard.SummaryWriter"
-    ) -> None:
+    def _default_iteration_writer(self, engine: Engine, writer: SummaryWriter) -> None:
         """
         Execute iteration level event write operation based on Ignite engine.state data.
         Default is to write the loss value of current iteration.
@@ -200,7 +197,7 @@ class TensorBoardImageHandler(object):
 
     def __init__(
         self,
-        summary_writer: Optional["torch.utils.tensorboard.SummaryWriter"] = None,
+        summary_writer: Optional[SummaryWriter] = None,
         log_dir: str = "./runs",
         interval: int = 1,
         epoch_level: bool = True,
@@ -239,13 +236,13 @@ class TensorBoardImageHandler(object):
         self.max_frames = max_frames
         self.max_channels = max_channels
 
-    def attach(self, engine: "ignite.engine.Engine") -> None:
+    def attach(self, engine: Engine) -> None:
         if self.epoch_level:
             engine.add_event_handler(Events.EPOCH_COMPLETED(every=self.interval), self)
         else:
             engine.add_event_handler(Events.ITERATION_COMPLETED(every=self.interval), self)
 
-    def __call__(self, engine: "ignite.engine.Engine") -> None:
+    def __call__(self, engine: Engine) -> None:
         step = self.global_iter_transform(engine.state.epoch if self.epoch_level else engine.state.iteration)
         show_images = self.batch_transform(engine.state.batch)[0]
         if torch.is_tensor(show_images):

@@ -158,7 +158,7 @@ def adaptor(function, outputs, inputs=None):
         else:
             # no **kwargs
             # select only items from the method signature
-            dinputs = dict((k, v) for k, v in ditems.items() if k in sig.non_var_parameters)
+            dinputs = {k: v for k, v in ditems.items() if k in sig.non_var_parameters}
             must_be_types_or_none("inputs", inputs, (str, list, tuple, dict))
             if inputs is None:
                 pass
@@ -167,7 +167,7 @@ def adaptor(function, outputs, inputs=None):
                     raise ValueError("if 'inputs' is a string, function may only have a single non-variadic parameter")
                 dinputs = {inputs: ditems[inputs]}
             elif isinstance(inputs, (list, tuple)):
-                dinputs = dict((k, dinputs[k]) for k in inputs)
+                dinputs = {k: dinputs[k] for k in inputs}
             else:
                 # dict
                 dinputs = map_only_names(ditems, inputs)
@@ -192,7 +192,7 @@ def adaptor(function, outputs, inputs=None):
             if len(ret) != len(outputs):
                 raise ValueError("'outputs' must have the same length as the number of elements that were returned")
 
-            ret = dict((k, v) for k, v in zip(op, ret))
+            ret = {k: v for k, v in zip(op, ret)}
         else:
             must_be_types("outputs", op, (str, list, tuple))
             if isinstance(op, (list, tuple)):
