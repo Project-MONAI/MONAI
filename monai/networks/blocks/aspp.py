@@ -56,6 +56,12 @@ class SimpleASPP(nn.Module):
         Raises:
             ValueError: len(kernel_sizes) and len(dilations) must be the same.
 
+        See also:
+
+            :py:class:`monai.networks.layers.Act`
+            :py:class:`monai.networks.layers.Conv`
+            :py:class:`monai.networks.layers.Norm`
+
         """
         super().__init__()
         if len(kernel_sizes) != len(dilations):

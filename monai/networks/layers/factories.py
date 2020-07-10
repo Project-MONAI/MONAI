@@ -94,7 +94,7 @@ class LayerFactory:
             "The supported member"
             + ("s are: " if len(self.names) > 1 else " is: ")
             + ", ".join(f"``{name}``" for name in self.names)
-            + "."
+            + ".\nPlease see :py:class:`monai.networks.layers.split_args` for additional args parsing."
         )
 
     def factory_function(self, name: str):

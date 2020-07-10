@@ -12,8 +12,8 @@
 import numpy as np
 import torch.nn as nn
 
-from monai.networks.layers.factories import Dropout, Norm, Act, Conv, split_args
 from monai.networks.layers.convutils import same_padding
+from monai.networks.layers.factories import Act, Conv, Dropout, Norm, split_args
 
 
 class Convolution(nn.Sequential):
@@ -25,6 +25,28 @@ class Convolution(nn.Sequential):
     if ``conv_only`` set to ``True``::
 
         -- (Conv|ConvTrans) --
+
+    Args:
+        dimensions: number of spatial dimensions.
+        in_channels: number of input channels.
+        out_channels: number of output channels.
+        strides: convolution stride. Defaults to 1.
+        kernel_size: convolution kernel size. Defaults to 3.
+        act: activation type and arguments. Defaults to PReLU.
+        norm: feature normalization type and arguments. Defaults to instance norm.
+        dropout: dropout ratio. Defaults to no dropout.
+        dilation: dilation rate. Defaults to 1.
+        bias: whether to have a bias term. Defaults to True.
+        conv_only:  whether to use the convolutional layer only. Defaults to False.
+        is_transposed: if True uses ConvTrans instead of Conv. Defaults to False.
+
+    See also:
+
+        :py:class:`monai.networks.layers.Conv`
+        :py:class:`monai.networks.layers.Dropout`
+        :py:class:`monai.networks.layers.Act`
+        :py:class:`monai.networks.layers.Norm`
+        :py:class:`monai.networks.layers.split_args`
 
     """
 
@@ -89,6 +111,15 @@ class Convolution(nn.Sequential):
 
 
 class ResidualUnit(nn.Module):
+    """
+    Residual module with multiple convolutions and a residual connection.
+
+    See also:
+
+        :py:class:`monai.networks.blocks.Convolution`
+
+    """
+
     def __init__(
         self,
         dimensions: int,
