@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence, Union, Optional, Tuple
+from typing import Sequence, Union
 
 import math
 
@@ -28,7 +28,7 @@ class GridPatchDataset(IterableDataset):
     def __init__(
         self,
         dataset: Dataset,
-        patch_size: Optional[Tuple[int, ...]],
+        patch_size: Sequence[int],
         start_pos: Sequence[int] = (),
         mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
         **pad_opts: dict,

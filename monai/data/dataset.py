@@ -173,7 +173,7 @@ class PersistentDataset(Dataset):
             cache is ONLY dependant on the input filename paths.
         """
         if item_transformed.get("cached", False) is False:
-            hashfile = None
+            hashfile: Optional[Path] = None
             if self.cache_dir is not None:
                 cache_dir_path: Path = Path(self.cache_dir)
                 if cache_dir_path.is_dir():
@@ -181,7 +181,7 @@ class PersistentDataset(Dataset):
                     data_item_md5 = hashlib.md5(
                         json.dumps(item_transformed, sort_keys=True).encode("utf-8")
                     ).hexdigest()
-                    hashfile: Path = Path(cache_dir_path) / f"{data_item_md5}.pt"
+                    hashfile = Path(cache_dir_path) / f"{data_item_md5}.pt"
 
             if hashfile is not None and hashfile.is_file():
                 item_transformed = torch.load(hashfile)
