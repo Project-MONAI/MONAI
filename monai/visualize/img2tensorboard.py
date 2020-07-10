@@ -9,13 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Union, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    import torch.utils.tensorboard
+from typing import Optional, Sequence, Union
 
 import numpy as np
 import torch
+from torch.utils.tensorboard import SummaryWriter
 
 from monai.transforms import rescale_array
 from monai.utils import optional_import
@@ -99,7 +97,7 @@ def make_animated_gif_summary(
 
 
 def add_animated_gif(
-    writer: "torch.utils.tensorboard.SummaryWriter",
+    writer: SummaryWriter,
     tag: str,
     image_tensor: Union[np.ndarray, torch.Tensor],
     max_out: int,
@@ -126,7 +124,7 @@ def add_animated_gif(
 
 
 def add_animated_gif_no_channels(
-    writer: "torch.utils.tensorboard.SummaryWriter",
+    writer: SummaryWriter,
     tag: str,
     image_tensor: Union[np.ndarray, torch.Tensor],
     max_out: int,
@@ -157,7 +155,7 @@ def add_animated_gif_no_channels(
 def plot_2d_or_3d_image(
     data: Union[torch.Tensor, np.ndarray],
     step: int,
-    writer: "torch.utils.tensorboard.SummaryWriter",
+    writer: SummaryWriter,
     index: int = 0,
     max_channels: int = 1,
     max_frames: int = 64,

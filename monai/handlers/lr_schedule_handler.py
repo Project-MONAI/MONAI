@@ -9,10 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Union, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    import ignite.engine
+from typing import Callable, Optional, Union
 
 import logging
 
@@ -21,6 +18,7 @@ from torch.optim.lr_scheduler import _LRScheduler, ReduceLROnPlateau
 from monai.utils import ensure_tuple, exact_version, optional_import
 
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
+Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 
 
 class LrScheduleHandler:
@@ -61,7 +59,7 @@ class LrScheduleHandler:
 
         self._name = name
 
-    def attach(self, engine: "ignite.engine.Engine") -> None:
+    def attach(self, engine: Engine) -> None:
         if self._name is None:
             self.logger = engine.logger
         if self.epoch_level:
@@ -69,7 +67,7 @@ class LrScheduleHandler:
         else:
             engine.add_event_handler(Events.ITERATION_COMPLETED, self)
 
-    def __call__(self, engine: "ignite.engine.Engine") -> None:
+    def __call__(self, engine: Engine) -> None:
         args = ensure_tuple(self.step_transform(engine))
         self.lr_scheduler.step(*args)
         if self.print_lr:

@@ -9,15 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    import ignite.engine
-
 from monai.engines import Evaluator
 from monai.utils import exact_version, optional_import
 
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
+Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 
 
 class ValidationHandler:
@@ -45,11 +41,11 @@ class ValidationHandler:
         self.interval = interval
         self.epoch_level = epoch_level
 
-    def attach(self, engine: "ignite.engine.Engine") -> None:
+    def attach(self, engine: Engine) -> None:
         if self.epoch_level:
             engine.add_event_handler(Events.EPOCH_COMPLETED(every=self.interval), self)
         else:
             engine.add_event_handler(Events.ITERATION_COMPLETED(every=self.interval), self)
 
-    def __call__(self, engine: "ignite.engine.Engine") -> None:
+    def __call__(self, engine: Engine) -> None:
         self.validator.run(engine.state.epoch)

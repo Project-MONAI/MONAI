@@ -9,21 +9,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Callable, Dict, Optional, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    import ignite.engine
-    import ignite.metrics
+from typing import Any, Callable, Dict, Optional
 
 import torch
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 
+from monai.utils import exact_version, optional_import
 from monai.inferers import Inferer, SimpleInferer
 from monai.transforms import Transform
 from monai.engines.utils import CommonKeys as Keys
 from monai.engines.utils import default_prepare_batch
 from monai.engines.workflow import Workflow
+
+Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
+Metric, _ = optional_import("ignite.metrics", "0.3.0", exact_version, "Metric")
 
 
 class Trainer(Workflow):
@@ -86,7 +86,7 @@ class SupervisedTrainer(Trainer):
         inferer: Inferer = SimpleInferer(),
         amp: bool = True,
         post_transform: Optional[Transform] = None,
-        key_train_metric: Optional["ignite.metrics.Metric"] = None,
+        key_train_metric: Optional[Metric] = None,
         additional_metrics=None,
         train_handlers=None,
     ):
@@ -109,7 +109,7 @@ class SupervisedTrainer(Trainer):
         self.loss_function = loss_function
         self.inferer = inferer
 
-    def _iteration(self, engine: "ignite.engine.Engine", batchdata) -> Dict[str, Any]:
+    def _iteration(self, engine: Engine, batchdata) -> Dict[str, Any]:
         """
         Callback function for the Supervised Training processing logic of 1 iteration in Ignite Engine.
         Return below items in a dictionary:

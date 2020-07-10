@@ -9,10 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    import ignite.engine
+from typing import Callable, Optional
 
 import logging
 
@@ -20,6 +17,7 @@ from monai.data import CSVSaver
 from monai.utils import exact_version, optional_import
 
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
+Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 
 
 class ClassificationSaver:
@@ -58,7 +56,7 @@ class ClassificationSaver:
         self.logger = None if name is None else logging.getLogger(name)
         self._name = name
 
-    def attach(self, engine: "ignite.engine.Engine") -> None:
+    def attach(self, engine: Engine) -> None:
         if self._name is None:
             self.logger = engine.logger
         if not engine.has_event_handler(self, Events.ITERATION_COMPLETED):
@@ -66,7 +64,7 @@ class ClassificationSaver:
         if not engine.has_event_handler(self.saver.finalize, Events.COMPLETED):
             engine.add_event_handler(Events.COMPLETED, lambda engine: self.saver.finalize())
 
-    def __call__(self, engine: "ignite.engine.Engine") -> None:
+    def __call__(self, engine: Engine) -> None:
         """
         This method assumes self.batch_transform will extract metadata from the input batch.
 
