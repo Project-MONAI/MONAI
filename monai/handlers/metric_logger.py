@@ -11,14 +11,15 @@
 
 from typing import Callable, TYPE_CHECKING
 
-if TYPE_CHECKING:
-    import ignite.engine
-
 from collections import defaultdict
 
 from monai.utils import exact_version, optional_import
 
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
+if TYPE_CHECKING:
+    from ignite.engine import Engine
+else:
+    Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 
 
 class MetricLogger:
@@ -28,10 +29,10 @@ class MetricLogger:
         self.loss: list = []
         self.metrics: defaultdict = defaultdict(list)
 
-    def attach(self, engine: "ignite.engine.Engine"):
+    def attach(self, engine: Engine):
         return engine.add_event_handler(Events.ITERATION_COMPLETED, self)
 
-    def __call__(self, engine: "ignite.engine.Engine") -> None:
+    def __call__(self, engine: Engine) -> None:
         self.loss.append(self.loss_transform(engine.state.output))
 
         for m, v in engine.state.metrics.items():
