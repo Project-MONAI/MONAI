@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Optional, Sequence, Union
+from typing import List, Optional, Sequence, Union, Tuple
 
 import os
 import warnings
@@ -28,7 +28,7 @@ nib, _ = optional_import("nibabel")
 
 def get_random_patch(
     dims: Sequence[int], patch_size, rand_state: Optional[np.random.RandomState] = None
-) -> Sequence[slice]:
+) -> Tuple[slice, ...]:
     """
     Returns a tuple of slices to define a random patch in an array of shape `dims` with size `patch_size` or the as
     close to it as possible within the given dimension. It is expected that `patch_size` is a valid patch for a source
@@ -40,7 +40,7 @@ def get_random_patch(
         rand_state: a random state object to generate random numbers from
 
     Returns:
-        (sequence of slice): a sequence of slice objects defining the patch
+        (tuple of slice): a tuple of slice objects defining the patch
     """
 
     # choose the minimal corner of the patch

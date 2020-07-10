@@ -12,7 +12,7 @@
 A collection of generic interfaces for MONAI transforms.
 """
 
-from typing import Any, Hashable, Optional, Sequence
+from typing import Any, Hashable, Optional, Tuple
 
 from abc import ABC, abstractmethod
 import warnings
@@ -254,7 +254,7 @@ class MapTransform(Transform):
     """
 
     def __init__(self, keys: KeysCollection) -> None:
-        self.keys: Sequence[Any] = ensure_tuple(keys)
+        self.keys: Tuple[Any, ...] = ensure_tuple(keys)
         if not self.keys:
             raise ValueError("keys unspecified")
         for key in self.keys:

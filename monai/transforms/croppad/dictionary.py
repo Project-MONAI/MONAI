@@ -15,7 +15,7 @@ defined in :py:class:`monai.transforms.croppad.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Callable, Optional, Sequence, Union
+from typing import Callable, Optional, Sequence, Union, Tuple
 
 from monai.config import IndexSelection, KeysCollection
 from monai.data.utils import get_random_patch, get_valid_patch_size
@@ -232,7 +232,7 @@ class RandSpatialCropd(Randomizable, MapTransform):
         self.roi_size = roi_size
         self.random_center = random_center
         self.random_size = random_size
-        self._slices: Optional[Sequence[slice]] = None
+        self._slices: Optional[Tuple[slice, ...]] = None
         self._size: Optional[Sequence[int]] = None
 
     def randomize(self, img_size) -> None:  # type: ignore # see issue #729
@@ -241,15 +241,14 @@ class RandSpatialCropd(Randomizable, MapTransform):
             self._size = [self.R.randint(low=self._size[i], high=img_size[i] + 1) for i in range(len(img_size))]
         if self.random_center:
             valid_size = get_valid_patch_size(img_size, self._size)
-            self._slices = [slice(None)]
-            self._slices.extend(get_random_patch(img_size, valid_size, self.R))
+            self._slices = (slice(None),) + get_random_patch(img_size, valid_size, self.R)
 
     def __call__(self, data):
         d = dict(data)
         self.randomize(d[self.keys[0]].shape[1:])  # image shape from the first data key
         for key in self.keys:
             if self.random_center:
-                d[key] = d[key][tuple(self._slices)]
+                d[key] = d[key][self._slices]
             else:
                 cropper = CenterSpatialCrop(self._size)
                 d[key] = cropper(d[key])

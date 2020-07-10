@@ -13,7 +13,7 @@ A collection of "vanilla" transforms for crop and pad operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Callable, List, Optional, Sequence, Union
+from typing import Callable, List, Optional, Sequence, Union, Tuple
 
 import numpy as np
 
@@ -282,7 +282,7 @@ class RandSpatialCrop(Randomizable, Transform):
         self.random_center = random_center
         self.random_size = random_size
         self._size: Optional[Sequence[int]] = None
-        self._slices: Optional[Sequence[slice]] = None
+        self._slices: Optional[Tuple[slice, ...]] = None
 
     def randomize(self, img_size) -> None:  # type: ignore # see issue #729
         self._size = fall_back_tuple(self.roi_size, img_size)
@@ -290,8 +290,7 @@ class RandSpatialCrop(Randomizable, Transform):
             self._size = tuple((self.R.randint(low=self._size[i], high=img_size[i] + 1) for i in range(len(img_size))))
         if self.random_center:
             valid_size = get_valid_patch_size(img_size, self._size)
-            self._slices = [slice(None)]
-            self._slices.extend(get_random_patch(img_size, valid_size, self.R))
+            self._slices = (slice(None),) + get_random_patch(img_size, valid_size, self.R)
 
     def __call__(self, img):
         """
@@ -300,7 +299,7 @@ class RandSpatialCrop(Randomizable, Transform):
         """
         self.randomize(img.shape[1:])
         if self.random_center:
-            return img[tuple(self._slices)]
+            return img[self._slices]
         else:
             cropper = CenterSpatialCrop(self._size)
             return cropper(img)
