@@ -20,7 +20,7 @@ import torch
 from torch.utils.data._utils.collate import default_collate
 import numpy as np
 
-from monai.utils import ensure_tuple_size, ensure_tuple_rep, optional_import, NumpyPadMode, BlendMode
+from monai.utils import ensure_tuple_size, optional_import, NumpyPadMode, BlendMode
 from monai.networks.layers.simplelayers import GaussianFilter
 
 nib, _ = optional_import("nibabel")
@@ -197,14 +197,7 @@ def get_valid_patch_size(image_size: Sequence[int], patch_size: Union[Sequence[i
     patch of the same dimensionality of `image_size` with that size in each dimension.
     """
     ndim = len(image_size)
-
-    try:
-        # if a single value was given as patch size, treat this as the size of the patch over all dimensions
-        single_patch_size = int(patch_size)
-        patch_size_ = ensure_tuple_rep(single_patch_size, ndim)
-    except TypeError:  # raised if the patch size is multiple values
-        # ensure patch size is at least as long as number of dimensions
-        patch_size_ = ensure_tuple_size(patch_size, ndim)
+    patch_size_ = ensure_tuple_size(patch_size, ndim)
 
     # ensure patch size dimensions are not larger than image dimension, if a dimension is None or 0 use whole dimension
     return tuple(min(ms, ps or ms) for ms, ps in zip(image_size, patch_size_))
@@ -451,7 +444,7 @@ def create_file_basename(postfix: str, input_file_name: str, folder_path: str, d
 
 
 def compute_importance_map(
-    patch_size: Sequence[int],
+    patch_size: Tuple[int, ...],
     mode: Union[BlendMode, str] = BlendMode.CONSTANT,
     sigma_scale: float = 0.125,
     device: Optional[torch.device] = None,
@@ -479,12 +472,12 @@ def compute_importance_map(
     """
     mode = BlendMode(mode)
     if mode == BlendMode.CONSTANT:
-        importance_map = torch.ones(size=patch_size, device=device).float()
+        importance_map = torch.ones(patch_size, device=device).float()
     elif mode == BlendMode.GAUSSIAN:
         center_coords = [i // 2 for i in patch_size]
         sigmas = [i * sigma_scale for i in patch_size]
 
-        importance_map = torch.zeros(size=patch_size, device=device)
+        importance_map = torch.zeros(patch_size, device=device)
         importance_map[tuple(center_coords)] = 1
         pt_gaussian = GaussianFilter(len(patch_size), sigmas).to(device=device, dtype=torch.float)
         importance_map = pt_gaussian(importance_map.unsqueeze(0).unsqueeze(0))

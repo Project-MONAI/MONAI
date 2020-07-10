@@ -114,7 +114,7 @@ class PersistentDataset(Dataset):
         super().__init__(data=data, transform=transform)
         self.cache_dir = Path(cache_dir) if cache_dir is not None else None
 
-    def _pre_first_random_transform(self, item_transformed: Any):
+    def _pre_first_random_transform(self, item_transformed):
         """
         Process the data from original state up to the first random element.
 
@@ -132,7 +132,7 @@ class PersistentDataset(Dataset):
             item_transformed = apply_transform(_transform, item_transformed)
         return item_transformed
 
-    def _first_random_and_beyond_transform(self, item_transformed: Any):
+    def _first_random_and_beyond_transform(self, item_transformed):
         """
         Process the data from before the first random transform to the final state ready for evaluation.
 
@@ -153,7 +153,7 @@ class PersistentDataset(Dataset):
                 item_transformed = apply_transform(_transform, item_transformed)
         return item_transformed
 
-    def _pre_first_random_cachecheck(self, item_transformed: Any):
+    def _pre_first_random_cachecheck(self, item_transformed):
         """
         A function to cache the expensive input data transform operations
         so that huge data sets (larger than computer memory) can be processed
@@ -292,7 +292,7 @@ class CacheDataset(Dataset):
             self._item_processed += 1
             progress_bar(self._item_processed, self.cache_num, "Load and cache transformed data: ")
 
-    def __getitem__(self, index: int):
+    def __getitem__(self, index):
         if index < self.cache_num:
             # load data from cache and execute from the first random transform
             start_run = False
