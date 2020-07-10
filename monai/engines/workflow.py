@@ -11,10 +11,6 @@
 
 from typing import Callable, Optional, TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from ignite.engine import Engine
-    from ignite.metrics import Metric
-
 import torch
 from torch.utils.data import DataLoader
 
@@ -25,6 +21,12 @@ from monai.engines.utils import default_prepare_batch
 IgniteEngine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 State, _ = optional_import("ignite.engine", "0.3.0", exact_version, "State")
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
+if TYPE_CHECKING:
+    from ignite.engine import Engine
+    from ignite.metrics import Metric
+else:
+    Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
+    Metric, _ = optional_import("ignite.metrics", "0.3.0", exact_version, "Metric")
 
 
 class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optional_import

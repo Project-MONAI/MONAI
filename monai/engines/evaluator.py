@@ -11,10 +11,6 @@
 
 from typing import Any, Callable, Dict, Optional, TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from ignite.engine import Engine
-    from ignite.metrics import Metric
-
 import torch
 from torch.utils.data import DataLoader
 
@@ -23,6 +19,14 @@ from monai.transforms import Transform
 from monai.engines.utils import CommonKeys as Keys
 from monai.engines.utils import default_prepare_batch
 from monai.engines.workflow import Workflow
+from monai.utils import exact_version, optional_import
+
+if TYPE_CHECKING:
+    from ignite.engine import Engine
+    from ignite.metrics import Metric
+else:
+    Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
+    Metric, _ = optional_import("ignite.metrics", "0.3.0", exact_version, "Metric")
 
 
 class Evaluator(Workflow):

@@ -10,9 +10,12 @@
 # limitations under the License.
 
 from typing import Callable, TYPE_CHECKING
+from monai.utils import exact_version, optional_import
 
 if TYPE_CHECKING:
     from ignite.engine import Engine
+else:
+    Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 
 
 def stopping_fn_from_metric(metric_name: str) -> Callable:

@@ -11,9 +11,6 @@
 
 from typing import Callable, Optional, Union, TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from ignite.engine import Engine
-
 import logging
 
 from torch.optim.lr_scheduler import _LRScheduler, ReduceLROnPlateau
@@ -21,6 +18,10 @@ from torch.optim.lr_scheduler import _LRScheduler, ReduceLROnPlateau
 from monai.utils import ensure_tuple, exact_version, optional_import
 
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
+if TYPE_CHECKING:
+    from ignite.engine import Engine
+else:
+    Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 
 
 class LrScheduleHandler:

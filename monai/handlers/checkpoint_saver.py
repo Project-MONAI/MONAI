@@ -11,15 +11,16 @@
 
 from typing import Any, Dict, Optional, TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from ignite.engine import Engine
-
 import logging
 
 from monai.utils import exact_version, optional_import
 
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
 ModelCheckpoint, _ = optional_import("ignite.handlers", "0.3.0", exact_version, "ModelCheckpoint")
+if TYPE_CHECKING:
+    from ignite.engine import Engine
+else:
+    Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 
 
 class CheckpointSaver:
