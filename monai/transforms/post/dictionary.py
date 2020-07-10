@@ -15,9 +15,18 @@ defined in :py:class:`monai.transforms.utility.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from monai.utils.misc import ensure_tuple_rep
+from typing import Optional, Union, Sequence, Callable
+
+from monai.config import KeysCollection
+from monai.utils import ensure_tuple_rep
 from monai.transforms.compose import MapTransform
-from monai.transforms.post.array import SplitChannel, Activations, AsDiscrete, KeepLargestConnectedComponent
+from monai.transforms.post.array import (
+    SplitChannel,
+    Activations,
+    AsDiscrete,
+    KeepLargestConnectedComponent,
+    LabelToContour,
+)
 
 
 class SplitChanneld(MapTransform):
@@ -27,21 +36,31 @@ class SplitChanneld(MapTransform):
 
     """
 
-    def __init__(self, keys, output_postfixes, to_onehot=False, num_classes=None):
+    def __init__(
+        self,
+        keys: KeysCollection,
+        output_postfixes: Sequence[str],
+        to_onehot: Union[Sequence[bool], bool] = False,
+        num_classes: Optional[Union[Sequence[int], int]] = None,
+    ) -> None:
         """
         Args:
-            keys (hashable items): keys of the corresponding items to be transformed.
+            keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            output_postfixes (list, tuple): the postfixes to construct keys to store splitted data.
+            output_postfixes: the postfixes to construct keys to store split data.
                 for example: if the key of input data is `pred` and split 2 classes, the output
                 data keys will be: pred_(output_postfixes[0]), pred_(output_postfixes[1])
-            to_onehot (bool or list of bool): whether to convert the data to One-Hot format, default is False.
-            num_classes (int or list of int): the class number used to convert to One-Hot format
-                if `to_onehot` is True.
+            to_onehot: whether to convert the data to One-Hot format, default is False.
+                it also can be a sequence of bool, each element corresponds to a key in ``keys``.
+            num_classes: the class number used to convert to One-Hot format
+                if `to_onehot` is True. it also can be a sequence of int, each element corresponds
+                to a key in ``keys``.
+
+        Raises:
+            ValueError: must specify key postfixes to store splitted data.
+
         """
         super().__init__(keys)
-        if not isinstance(output_postfixes, (list, tuple)):
-            raise ValueError("must specify key postfixes to store splitted data.")
         self.output_postfixes = output_postfixes
         self.to_onehot = ensure_tuple_rep(to_onehot, len(self.keys))
         self.num_classes = ensure_tuple_rep(num_classes, len(self.keys))
@@ -51,7 +70,7 @@ class SplitChanneld(MapTransform):
         d = dict(data)
         for idx, key in enumerate(self.keys):
             rets = self.splitter(d[key], self.to_onehot[idx], self.num_classes[idx])
-            assert len(self.output_postfixes) == len(rets), "count of splitted results must match output_postfixes."
+            assert len(self.output_postfixes) == len(rets), "count of split results must match output_postfixes."
             for i, r in enumerate(rets):
                 d[f"{key}_{self.output_postfixes[i]}"] = r
         return d
@@ -63,26 +82,27 @@ class Activationsd(MapTransform):
     Add activation layers to the input data specified by `keys`.
     """
 
-    def __init__(self, keys, output_postfix="act", sigmoid=False, softmax=False, other=None):
+    def __init__(
+        self,
+        keys: KeysCollection,
+        sigmoid: Union[Sequence[bool], bool] = False,
+        softmax: Union[Sequence[bool], bool] = False,
+        other: Optional[Union[Sequence[Callable], Callable]] = None,
+    ) -> None:
         """
         Args:
-            keys (hashable items): keys of the corresponding items to model output and label.
+            keys: keys of the corresponding items to model output and label.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            output_postfix (str): the postfix string to construct keys to store converted data.
-                for example: if the keys of input data is `pred` and `label`, output_postfix is `act`,
-                the output data keys will be: `pred_act`, `label_act`.
-                if set to None, will replace the original data with the same key.
-            sigmoid (bool, tuple or list of bool): whether to execute sigmoid function on model
-                output before transform.
-            softmax (bool, tuple or list of bool): whether to execute softmax function on model
-                output before transform.
-            other (Callable, tuple or list of Callables): callable function to execute other activation layers,
-                for example: `other = lambda x: torch.tanh(x)`
+            sigmoid: whether to execute sigmoid function on model output before transform.
+                it also can be a sequence of bool, each element corresponds to a key in ``keys``.
+            softmax: whether to execute softmax function on model output before transform.
+                it also can be a sequence of bool, each element corresponds to a key in ``keys``.
+            other: callable function to execute other activation layers,
+                for example: `other = lambda x: torch.tanh(x)`. it also can be a sequence of Callable, each
+                element corresponds to a key in ``keys``.
+
         """
         super().__init__(keys)
-        if output_postfix is not None and not isinstance(output_postfix, str):
-            raise ValueError("output_postfix must be a string.")
-        self.output_postfix = output_postfix
         self.sigmoid = ensure_tuple_rep(sigmoid, len(self.keys))
         self.softmax = ensure_tuple_rep(softmax, len(self.keys))
         self.other = ensure_tuple_rep(other, len(self.keys))
@@ -91,9 +111,7 @@ class Activationsd(MapTransform):
     def __call__(self, data):
         d = dict(data)
         for idx, key in enumerate(self.keys):
-            ret = self.converter(d[key], self.sigmoid[idx], self.softmax[idx], self.other[idx])
-            output_key = key if self.output_postfix is None else f"{key}_{self.output_postfix}"
-            d[output_key] = ret
+            d[key] = self.converter(d[key], self.sigmoid[idx], self.softmax[idx], self.other[idx])
         return d
 
 
@@ -104,32 +122,30 @@ class AsDiscreted(MapTransform):
 
     def __init__(
         self,
-        keys,
-        output_postfix="discreted",
-        argmax=False,
-        to_onehot=False,
-        n_classes=None,
-        threshold_values=False,
-        logit_thresh=0.5,
-    ):
+        keys: KeysCollection,
+        argmax: Union[Sequence[bool], bool] = False,
+        to_onehot: Union[Sequence[bool], bool] = False,
+        n_classes: Optional[Union[Sequence[int], int]] = None,
+        threshold_values: Union[Sequence[bool], bool] = False,
+        logit_thresh: Union[Sequence[float], float] = 0.5,
+    ) -> None:
         """
         Args:
-            keys (hashable items): keys of the corresponding items to model output and label.
+            keys: keys of the corresponding items to model output and label.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            output_postfix (str): the postfix string to construct keys to store converted data.
-                for example: if the keys of input data is `pred` and `label`, output_postfix is `discreted`,
-                the output data keys will be: `pred_discreted`, `label_discreted`.
-                if set to None, will replace the original data with the same key.
-            argmax (bool): whether to execute argmax function on input data before transform.
-            to_onehot (bool): whether to convert input data into the one-hot format. Defaults to False.
-            n_classes (bool): the number of classes to convert to One-Hot format.
-            threshold_values (bool): whether threshold the float value to int number 0 or 1, default is False.
-            logit_thresh (float): the threshold value for thresholding operation, default is 0.5.
+            argmax: whether to execute argmax function on input data before transform.
+                it also can be a sequence of bool, each element corresponds to a key in ``keys``.
+            to_onehot: whether to convert input data into the one-hot format. Defaults to False.
+                it also can be a sequence of bool, each element corresponds to a key in ``keys``.
+            n_classes: the number of classes to convert to One-Hot format. it also can be a
+                sequence of int, each element corresponds to a key in ``keys``.
+            threshold_values: whether threshold the float value to int number 0 or 1, default is False.
+                it also can be a sequence of bool, each element corresponds to a key in ``keys``.
+            logit_thresh: the threshold value for thresholding operation, default is 0.5.
+                it also can be a sequence of float, each element corresponds to a key in ``keys``.
+
         """
         super().__init__(keys)
-        if output_postfix is not None and not isinstance(output_postfix, str):
-            raise ValueError("output_postfix must be a string.")
-        self.output_postfix = output_postfix
         self.argmax = ensure_tuple_rep(argmax, len(self.keys))
         self.to_onehot = ensure_tuple_rep(to_onehot, len(self.keys))
         self.n_classes = ensure_tuple_rep(n_classes, len(self.keys))
@@ -140,8 +156,7 @@ class AsDiscreted(MapTransform):
     def __call__(self, data):
         d = dict(data)
         for idx, key in enumerate(self.keys):
-            output_key = key if self.output_postfix is None else f"{key}_{self.output_postfix}"
-            d[output_key] = self.converter(
+            d[key] = self.converter(
                 d[key],
                 self.argmax[idx],
                 self.to_onehot[idx],
@@ -154,41 +169,61 @@ class AsDiscreted(MapTransform):
 
 class KeepLargestConnectedComponentd(MapTransform):
     """
-    dictionary-based wrapper of :py:class:monai.transforms.utility.array.KeepLargestConnectedComponent.
+    Dictionary-based wrapper of :py:class:monai.transforms.KeepLargestConnectedComponent.
     """
 
     def __init__(
-        self, keys, applied_values, independent=True, background=0, connectivity=None, output_postfix="largestcc",
-    ):
+        self,
+        keys: KeysCollection,
+        applied_labels: Union[Sequence[int], int],
+        independent: bool = True,
+        connectivity: Optional[int] = None,
+    ) -> None:
         """
         Args:
-            keys (hashable items): keys of the corresponding items to be transformed.
+            keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            applied_values (list or tuple of int): number list for applying the connected component on.
-                The pixel whose value is not in this list will remain unchanged.
-            independent (bool): consider several labels as a whole or independent, default is `True`.
+            applied_labels: Labels for applying the connected component on.
+                If only one channel. The pixel whose value is not in this list will remain unchanged.
+                If the data is in one-hot format, this is the channel indexes to apply transform.
+            independent: consider several labels as a whole or independent, default is `True`.
                 Example use case would be segment label 1 is liver and label 2 is liver tumor, in that case
                 you want this "independent" to be specified as False.
-            background (int): Background pixel value. The over-segmented pixels will be set as this value.
-            connectivity (int): Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
+            connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
                 Accepted values are ranging from  1 to input.ndim. If ``None``, a full
                 connectivity of ``input.ndim`` is used.
-            output_postfix (str): the postfix string to construct keys to store converted data.
-                for example: if the keys of input data is `label`, output_postfix is `largestcc`,
-                the output data keys will be: `label_largestcc`.
-                if set to None, will replace the original data with the same key.
+
         """
         super().__init__(keys)
-        if output_postfix is not None and not isinstance(output_postfix, str):
-            raise ValueError("output_postfix must be a string.")
-        self.output_postfix = output_postfix
-        self.converter = KeepLargestConnectedComponent(applied_values, independent, background, connectivity)
+        self.converter = KeepLargestConnectedComponent(applied_labels, independent, connectivity)
 
     def __call__(self, data):
         d = dict(data)
-        for idx, key in enumerate(self.keys):
-            output_key = key if self.output_postfix is None else f"{key}_{self.output_postfix}"
-            d[output_key] = self.converter(d[key])
+        for key in self.keys:
+            d[key] = self.converter(d[key])
+        return d
+
+
+class LabelToContourd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:monai.transforms.LabelToContour.
+    """
+
+    def __init__(self, keys: KeysCollection, kernel_type: str = "Laplace") -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            kernel_type: the method applied to do edge detection, default is "Laplace".
+
+        """
+        super().__init__(keys)
+        self.converter = LabelToContour(kernel_type=kernel_type)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.converter(d[key])
         return d
 
 
@@ -196,3 +231,4 @@ SplitChannelD = SplitChannelDict = SplitChanneld
 ActivationsD = ActivationsDict = Activationsd
 AsDiscreteD = AsDiscreteDict = AsDiscreted
 KeepLargestConnectedComponentD = KeepLargestConnectedComponentDict = KeepLargestConnectedComponentd
+LabelToContourD = LabelToContourDict = LabelToContourd
