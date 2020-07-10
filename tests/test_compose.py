@@ -87,7 +87,7 @@ class TestCompose(unittest.TestCase):
 
     def test_randomize_warn(self):
         class _RandomClass(Randomizable):
-            def randomize(self, foo):
+            def randomize(self, foo1, foo2):
                 pass
 
         c = Compose([_RandomClass(), _RandomClass()])
