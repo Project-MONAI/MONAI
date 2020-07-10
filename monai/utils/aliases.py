@@ -47,6 +47,13 @@ def resolve_name(name):
     Search for the declaration (function or class) with the given name. This will first search the list of aliases to
     see if it was declared with this aliased name, then search treating `name` as a fully qualified name, then search
     the loaded modules for one having a declaration with the given name. If no declaration is found, raise ValueError.
+
+    Raises:
+        ValueError: Module {modname!r} not found
+        ValueError: Module {modname!r} does not have member {declname!r}
+        ValueError: Multiple modules (%r) with declaration name %r found, resolution is ambiguous
+        ValueError: No module with member {name!r} found
+
     """
     # attempt to resolve an alias
     with alias_lock:

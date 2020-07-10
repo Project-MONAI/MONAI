@@ -64,21 +64,47 @@ used to chain transform calls.
 .. code-block:: python
 
     class MyTransform1:
-        ...
-        def __call__(image):
-            return '''do stuff to image'''
+        def __call__(self, image):
+            # do stuff to image
+            return image + 1
+
 
     class MyTransform2:
-        ...
-        def __call__(img):
-            return '''do stuff to image'''
+        def __call__(self, img_dict):
+            # do stuff to image
+            img_dict["image"] += 1
+            return img_dict
 
-    d = {'image': i}
 
-    Compose([
-        adaptor(MyTransform1(), 'image'),
-        adaptor(MyTransform2(), 'image', {'img':'image'})
-    ])
+    xform = Compose([adaptor(MyTransform1(), "image"), MyTransform2()])
+    d = {"image": 1}
+    print(xform(d))
+
+    >>> {'image': 3}
+
+.. code-block:: python
+
+    class MyTransform3:
+        def __call__(self, img_dict):
+            # do stuff to image
+            img_dict["image"] -= 1
+            img_dict["segment"] = img_dict["image"]
+            return img_dict
+
+
+    class MyTransform4:
+        def __call__(self, img, seg):
+            # do stuff to image
+            img -= 1
+            seg -= 1
+            return img, seg
+
+
+    xform = Compose([MyTransform3(), adaptor(MyTransform4(), ["img", "seg"], {"image": "img", "segment": "seg"})])
+    d = {"image": 1}
+    print(xform(d))
+
+    >>> {'image': 0, 'segment': 0, 'img': -1, 'seg': -1}
 
 Inputs:
 
@@ -96,10 +122,10 @@ Outputs:
 
 """
 
-import monai
+from monai.utils import export as _monai_export
 
 
-@monai.utils.export("monai.transforms")
+@_monai_export("monai.transforms")
 def adaptor(function, outputs, inputs=None):
     def must_be_types_or_none(variable_name, variable, types):
         if variable is not None:
@@ -132,7 +158,7 @@ def adaptor(function, outputs, inputs=None):
         else:
             # no **kwargs
             # select only items from the method signature
-            dinputs = dict((k, v) for k, v in ditems.items() if k in sig.non_var_parameters)
+            dinputs = {k: v for k, v in ditems.items() if k in sig.non_var_parameters}
             must_be_types_or_none("inputs", inputs, (str, list, tuple, dict))
             if inputs is None:
                 pass
@@ -141,7 +167,7 @@ def adaptor(function, outputs, inputs=None):
                     raise ValueError("if 'inputs' is a string, function may only have a single non-variadic parameter")
                 dinputs = {inputs: ditems[inputs]}
             elif isinstance(inputs, (list, tuple)):
-                dinputs = dict((k, dinputs[k]) for k in inputs)
+                dinputs = {k: dinputs[k] for k in inputs}
             else:
                 # dict
                 dinputs = map_only_names(ditems, inputs)
@@ -166,7 +192,7 @@ def adaptor(function, outputs, inputs=None):
             if len(ret) != len(outputs):
                 raise ValueError("'outputs' must have the same length as the number of elements that were returned")
 
-            ret = dict((k, v) for k, v in zip(op, ret))
+            ret = {k: v for k, v in zip(op, ret)}
         else:
             must_be_types("outputs", op, (str, list, tuple))
             if isinstance(op, (list, tuple)):
@@ -184,7 +210,7 @@ def adaptor(function, outputs, inputs=None):
     return _inner
 
 
-@monai.utils.export("monai.transforms")
+@_monai_export("monai.transforms")
 def apply_alias(fn, name_map):
     def _inner(data):
 
@@ -205,7 +231,7 @@ def apply_alias(fn, name_map):
     return _inner
 
 
-@monai.utils.export("monai.transforms")
+@_monai_export("monai.transforms")
 def to_kwargs(fn):
     def _inner(data):
         return fn(**data)
@@ -214,7 +240,7 @@ def to_kwargs(fn):
 
 
 class FunctionSignature:
-    def __init__(self, function):
+    def __init__(self, function) -> None:
         import inspect
 
         sfn = inspect.signature(function)

@@ -9,9 +9,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Callable, Optional, Union, TYPE_CHECKING
+
 import logging
-from ignite.engine import Events
-from monai.utils import ensure_tuple
+
+from torch.optim.lr_scheduler import _LRScheduler, ReduceLROnPlateau
+
+from monai.utils import ensure_tuple, exact_version, optional_import
+
+Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
+if TYPE_CHECKING:
+    from ignite.engine import Engine
+else:
+    Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 
 
 class LrScheduleHandler:
@@ -19,37 +29,51 @@ class LrScheduleHandler:
     Ignite handler to update the Learning Rate based on PyTorch LR scheduler.
     """
 
-    def __init__(self, lr_scheduler, print_lr=True, name=None, epoch_level=True, step_transform=lambda engine: ()):
+    def __init__(
+        self,
+        lr_scheduler: Union[_LRScheduler, ReduceLROnPlateau],
+        print_lr: bool = True,
+        name: Optional[str] = None,
+        epoch_level: bool = True,
+        step_transform: Callable = lambda engine: (),
+    ) -> None:
         """
         Args:
-            lr_scheduler (torch.optim.lr_scheduler): typically, lr_scheduler should be PyTorch
-                lr_scheduler object. if customized version, must have `step` and `get_last_lr` methods.
-            print_lr (bool): whether to print out the latest learning rate with logging.
-            name (str): identifier of logging.logger to use, if None, defaulting to ``engine.logger``.
-            epoch_level (bool): execute lr_scheduler.step() after every epoch or every iteration.
+            lr_scheduler: typically, lr_scheduler should be PyTorch
+                lr_scheduler object. If customized version, must have `step` and `get_last_lr` methods.
+            print_lr: whether to print out the latest learning rate with logging.
+            name: identifier of logging.logger to use, if None, defaulting to ``engine.logger``.
+            epoch_level: execute lr_scheduler.step() after every epoch or every iteration.
                 `True` is epoch level, `False` is iteration level.
-            step_transform (Callable): a callable that is used to transform the information from `engine`
-                to expected input data of lr_scheduler.step() function if neccessary.
+            step_transform: a callable that is used to transform the information from `engine`
+                to expected input data of lr_scheduler.step() function if necessary.
+
+        Raises:
+            ValueError: argument `step_transform` must be a callable.
 
         """
         self.lr_scheduler = lr_scheduler
         self.print_lr = print_lr
-        self.logger = None if name is None else logging.getLogger(name)
+        self.logger = logging.getLogger(name)
         self.epoch_level = epoch_level
         if not callable(step_transform):
             raise ValueError("argument `step_transform` must be a callable.")
         self.step_transform = step_transform
 
-    def attach(self, engine):
-        if self.logger is None:
+        self._name = name
+
+    def attach(self, engine: Engine) -> None:
+        if self._name is None:
             self.logger = engine.logger
         if self.epoch_level:
             engine.add_event_handler(Events.EPOCH_COMPLETED, self)
         else:
             engine.add_event_handler(Events.ITERATION_COMPLETED, self)
 
-    def __call__(self, engine):
+    def __call__(self, engine: Engine) -> None:
         args = ensure_tuple(self.step_transform(engine))
         self.lr_scheduler.step(*args)
         if self.print_lr:
-            self.logger.info(f"Current learning rate: {self.lr_scheduler._last_lr[0]}")
+            self.logger.info(
+                f"Current learning rate: {self.lr_scheduler._last_lr[0]}"  # type: ignore # Module has no attribute
+            )
