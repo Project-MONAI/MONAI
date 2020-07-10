@@ -15,8 +15,8 @@ defined in :py:class:`monai.transforms.croppad.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Callable, Optional, Sequence, Tuple, Union
-
+from typing import Callable, Optional, Sequence, Tuple, Union, Any
+import numpy as np
 from monai.config import IndexSelection, KeysCollection
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.compose import MapTransform, Randomizable
@@ -235,7 +235,7 @@ class RandSpatialCropd(Randomizable, MapTransform):
         self._slices: Optional[Tuple[slice, ...]] = None
         self._size: Optional[Sequence[int]] = None
 
-    def randomize(self, img_size) -> None:  # type: ignore # see issue #729
+    def randomize(self, img_size: Sequence[int]) -> None:
         self._size = fall_back_tuple(self.roi_size, img_size)
         if self.random_size:
             self._size = [self.R.randint(low=self._size[i], high=img_size[i] + 1) for i in range(len(img_size))]
@@ -289,7 +289,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
         self.num_samples = num_samples
         self.cropper = RandSpatialCropd(keys, roi_size, random_center, random_size)
 
-    def randomize(self) -> None:
+    def randomize(self, data: Optional[Any] = None) -> None:
         pass
 
     def __call__(self, data):
@@ -397,7 +397,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         self.image_threshold = image_threshold
         self.centers = None
 
-    def randomize(self, label, image) -> None:  # type: ignore # see issue #729
+    def randomize(self, label: np.ndarray, image: Optional[np.ndarray] = None) -> None:
         self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
         self.centers = generate_pos_neg_label_crop_centers(
             label, self.spatial_size, self.num_samples, self.pos_ratio, image, self.image_threshold, self.R

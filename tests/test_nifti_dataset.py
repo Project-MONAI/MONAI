@@ -28,7 +28,7 @@ class RandTest(Randomizable):
     randomisable transform for testing.
     """
 
-    def randomize(self):
+    def randomize(self, data=None):
         self._a = self.R.random()
 
     def __call__(self, data):
