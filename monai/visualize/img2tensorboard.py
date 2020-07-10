@@ -9,11 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Union
+from typing import Optional, Sequence, Union, TYPE_CHECKING
 
 import numpy as np
 import torch
-from torch.utils.tensorboard import SummaryWriter
 
 from monai.transforms import rescale_array
 from monai.utils import optional_import
@@ -21,6 +20,10 @@ from monai.utils import optional_import
 PIL, _ = optional_import("PIL")
 GifImage, _ = optional_import("PIL.GifImagePlugin", name="Image")
 summary_pb2, _ = optional_import("tensorboard.compat.proto.summary_pb2")
+if TYPE_CHECKING:
+    from torch.utils.tensorboard import SummaryWriter
+else:
+    SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
 
 def _image3_animated_gif(tag: str, image: Union[np.ndarray, torch.Tensor], scale_factor: float = 1.0):
