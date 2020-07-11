@@ -34,9 +34,13 @@ def check_md5(filepath: str, md5_value: Optional[str] = None) -> bool:
     """
     if md5_value is not None:
         md5 = hashlib.md5()
-        with open(filepath, "rb") as f:
-            for chunk in iter(lambda: f.read(1024 * 1024), b""):
-                md5.update(chunk)
+        try:
+            with open(filepath, "rb") as f:
+                for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                    md5.update(chunk)
+        except Exception as e:
+            print(f"Exception in check_md5: {e}")
+            return False
         if md5_value != md5.hexdigest():
             return False
     else:
