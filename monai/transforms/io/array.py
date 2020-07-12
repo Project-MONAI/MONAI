@@ -174,11 +174,9 @@ class LoadNumpy(Transform):
     https://numpy.org/doc/stable/reference/generated/numpy.load.html
 
     """
+
     def __init__(
-        self,
-        data_only: bool = False,
-        dtype: Optional[np.dtype] = np.float32,
-        npz_keys: Optional[KeysCollection] = None
+        self, data_only: bool = False, dtype: Optional[np.dtype] = np.float32, npz_keys: Optional[KeysCollection] = None
     ) -> None:
         """
         Args:
