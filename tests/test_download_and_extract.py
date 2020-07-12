@@ -39,8 +39,10 @@ class TestDownloadAndExtract(unittest.TestCase):
             download_url(url, filepath, wrong_md5)
         except RuntimeError as e:
             self.assertTrue(str(e).startswith("MD5 check"))
+            shutil.rmtree(os.path.join(tempdir, "MedNIST"))
+        except (ContentTooShortError, HTTPError):
+            pass  # ignore remote errors in this test
 
-        shutil.rmtree(os.path.join(tempdir, "MedNIST"))
         try:
             extractall(filepath, output_dir, wrong_md5)
         except RuntimeError as e:
