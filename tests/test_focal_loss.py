@@ -34,8 +34,8 @@ class TestFocalLoss(unittest.TestCase):
             if torch.cuda.is_available():
                 x = x.cuda()
                 l = l.cuda()
-            output0 = focal_loss.forward(x, l)
-            output1 = ce.forward(x, l[:, 0])
+            output0 = focal_loss(x, l)
+            output1 = ce(x, l[:, 0])
             a = float(output0.cpu().detach())
             b = float(output1.cpu().detach())
             if abs(a - b) > max_error:
@@ -58,8 +58,8 @@ class TestFocalLoss(unittest.TestCase):
             if torch.cuda.is_available():
                 x = x.cuda()
                 l = l.cuda()
-            output0 = focal_loss.forward(x, l)
-            output1 = ce.forward(x, l[:, 0])
+            output0 = focal_loss(x, l)
+            output1 = ce(x, l[:, 0])
             a = float(output0.cpu().detach())
             b = float(output1.cpu().detach())
             if abs(a - b) > max_error:
@@ -78,7 +78,7 @@ class TestFocalLoss(unittest.TestCase):
 
         # focal loss for pred_very_good should be close to 0
         target = target.unsqueeze(1)  # shape (1, 1, H, W)
-        focal_loss_good = float(loss.forward(pred_very_good, target).cpu())
+        focal_loss_good = float(loss(pred_very_good, target).cpu())
         self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
 
     def test_empty_class_2d(self):
@@ -94,7 +94,7 @@ class TestFocalLoss(unittest.TestCase):
 
         # focal loss for pred_very_good should be close to 0
         target = target.unsqueeze(1)  # shape (1, 1, H, W)
-        focal_loss_good = float(loss.forward(pred_very_good, target).cpu())
+        focal_loss_good = float(loss(pred_very_good, target).cpu())
         self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
 
     def test_multi_class_seg_2d(self):
@@ -104,17 +104,22 @@ class TestFocalLoss(unittest.TestCase):
         # add another dimension corresponding to the batch (batch size = 1 here)
         target = target.unsqueeze(0)  # shape (1, H, W)
         pred_very_good = 1000 * F.one_hot(target, num_classes=num_classes).permute(0, 3, 1, 2).float()
-
         # initialize the mean dice loss
         loss = FocalLoss()
 
         # focal loss for pred_very_good should be close to 0
+        target_one_hot = F.one_hot(target, num_classes=num_classes).permute(0, 3, 1, 2)  # test one hot
         target = target.unsqueeze(1)  # shape (1, 1, H, W)
-        focal_loss_good = float(loss.forward(pred_very_good, target).cpu())
+
+        focal_loss_good = float(loss(pred_very_good, target).cpu())
+        self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
+
+        focal_loss_good = float(loss(pred_very_good, target_one_hot).cpu())
         self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
 
     def test_bin_seg_3d(self):
-        # define 2d examples
+        num_classes = 2  # labels 0, 1
+        # define 3d examples
         target = torch.tensor(
             [
                 # raw 0
@@ -127,14 +132,18 @@ class TestFocalLoss(unittest.TestCase):
         )
         # add another dimension corresponding to the batch (batch size = 1 here)
         target = target.unsqueeze(0)  # shape (1, H, W, D)
-        pred_very_good = 1000 * F.one_hot(target, num_classes=2).permute(0, 4, 1, 2, 3).float()
+        target_one_hot = F.one_hot(target, num_classes=num_classes).permute(0, 4, 1, 2, 3)  # test one hot
+        pred_very_good = 1000 * F.one_hot(target, num_classes=num_classes).permute(0, 4, 1, 2, 3).float()
 
         # initialize the mean dice loss
         loss = FocalLoss()
 
         # focal loss for pred_very_good should be close to 0
         target = target.unsqueeze(1)  # shape (1, 1, H, W)
-        focal_loss_good = float(loss.forward(pred_very_good, target).cpu())
+        focal_loss_good = float(loss(pred_very_good, target).cpu())
+        self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
+
+        focal_loss_good = float(loss(pred_very_good, target_one_hot).cpu())
         self.assertAlmostEqual(focal_loss_good, 0.0, places=3)
 
     def test_ill_opts(self):
@@ -148,9 +157,6 @@ class TestFocalLoss(unittest.TestCase):
     def test_ill_shape(self):
         chn_input = torch.ones((1, 2, 3))
         chn_target = torch.ones((1, 3))
-        with self.assertRaisesRegex(ValueError, ""):
-            FocalLoss(reduction="mean")(chn_input, chn_target)
-        chn_target = torch.ones((1, 2, 3))
         with self.assertRaisesRegex(ValueError, ""):
             FocalLoss(reduction="mean")(chn_input, chn_target)
 

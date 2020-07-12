@@ -35,13 +35,15 @@ Features
 Getting started
 ---------------
 
+`MedNIST demo <https://colab.research.google.com/drive/1wy8XUSnNWlhDNazFdvGBHLfdkGvOHBKe>`_ and `MONAI for PyTorch Users <https://colab.research.google.com/drive/1boqy7ENpKrqaJoxFlbHIBnIODAs1Ih1T>`_ are available on Colab.
+
 Tutorials & examples are located at `monai/examples <https://github.com/Project-MONAI/MONAI/tree/master/examples>`_.
 
-Technical documentation is available via `Read the Docs <https://monai.readthedocs.io/en/latest/>`_.
+Technical documentation is available at `docs.monai.io <https://docs.monai.io>`_.
 
 .. toctree::
    :maxdepth: 1
-   :caption: Technical highlights
+   :caption: Feature highlights
 
    highlights.md
 
@@ -49,6 +51,7 @@ Technical documentation is available via `Read the Docs <https://monai.readthedo
    :maxdepth: 1
    :caption: APIs
 
+   apps
    transforms
    losses
    networks
@@ -59,6 +62,12 @@ Technical documentation is available via `Read the Docs <https://monai.readthedo
    handlers
    visualize
    utils
+
+.. toctree::
+  :maxdepth: 1
+  :caption: Installation
+
+  installation
 
 
 Contributing
@@ -72,7 +81,7 @@ Links
 -----
 
 - Website: https://monai.io/
-- API documentation: https://monai.readthedocs.io/en/latest/
+- API documentation: https://docs.monai.io
 - Code: https://github.com/Project-MONAI/MONAI
 - Project tracker: https://github.com/Project-MONAI/MONAI/projects
 - Issue tracker: https://github.com/Project-MONAI/MONAI/issues
