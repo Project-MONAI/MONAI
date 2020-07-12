@@ -79,17 +79,17 @@ Layers
 
 `Norm`
 ~~~~~~
-.. automodule:: monai.networks.layers.factories.Norm
+.. automodule:: monai.networks.layers.Norm
   :members:
 
 `Conv`
 ~~~~~~
-.. automodule:: monai.networks.layers.factories.Conv
+.. automodule:: monai.networks.layers.Conv
   :members:
 
 `Pool`
 ~~~~~~
-.. automodule:: monai.networks.layers.factories.Pool
+.. automodule:: monai.networks.layers.Pool
   :members:
 
 .. currentmodule:: monai.networks.layers
