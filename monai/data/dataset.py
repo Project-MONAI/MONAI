@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Sequence, Union, Any
+from typing import Callable, Optional, Sequence, Union, Tuple, Any
 
 import hashlib
 import json
@@ -39,10 +39,10 @@ class Dataset(_TorchDataset):
          },                           },                           }]
     """
 
-    def __init__(self, data, transform: Optional[Callable] = None) -> None:
+    def __init__(self, data: Sequence, transform: Optional[Callable] = None) -> None:
         """
         Args:
-            data (Iterable): input data to load and transform to generate dataset for model.
+            data: input data to load and transform to generate dataset for model.
             transform: a callable data transform on input data.
         """
         self.data = data
@@ -94,11 +94,14 @@ class PersistentDataset(Dataset):
     """
 
     def __init__(
-        self, data, transform: Union[Sequence[Callable], Callable], cache_dir: Optional[Union[Path, str]] = None
+        self,
+        data: Sequence,
+        transform: Union[Sequence[Callable], Callable],
+        cache_dir: Optional[Union[Path, str]] = None,
     ) -> None:
         """
         Args:
-            data (Iterable): input data to load and transform to generate dataset for model.
+            data: input data to load and transform to generate dataset for model.
             transform: transforms to execute operations on input data.
             cache_dir: If specified, this is the location for persistent storage
                 of pre-computed transformed data tensors. The cache_dir is computed once, and
@@ -170,7 +173,7 @@ class PersistentDataset(Dataset):
             cache is ONLY dependant on the input filename paths.
         """
         if item_transformed.get("cached", False) is False:
-            hashfile = None
+            hashfile: Optional[Path] = None
             if self.cache_dir is not None:
                 cache_dir_path: Path = Path(self.cache_dir)
                 if cache_dir_path.is_dir():
@@ -178,7 +181,7 @@ class PersistentDataset(Dataset):
                     data_item_md5 = hashlib.md5(
                         json.dumps(item_transformed, sort_keys=True).encode("utf-8")
                     ).hexdigest()
-                    hashfile: Path = Path(cache_dir_path) / f"{data_item_md5}.pt"
+                    hashfile = Path(cache_dir_path) / f"{data_item_md5}.pt"
 
             if hashfile is not None and hashfile.is_file():
                 item_transformed = torch.load(hashfile)
@@ -238,7 +241,7 @@ class CacheDataset(Dataset):
 
     def __init__(
         self,
-        data,
+        data: Sequence,
         transform: Union[Sequence[Callable], Callable],
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
@@ -246,7 +249,7 @@ class CacheDataset(Dataset):
     ) -> None:
         """
         Args:
-            data (Iterable): input data to load and transform to generate dataset for model.
+            data: input data to load and transform to generate dataset for model.
             transform: transforms to execute operations on input data.
             cache_num: number of items to be cached. Default is `sys.maxsize`.
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
@@ -274,7 +277,7 @@ class CacheDataset(Dataset):
                     self._cache[i] = self._load_cache_item(data[i], transform.transforms)
                     progress_bar(i + 1, self.cache_num, "Load and cache transformed data: ")
 
-    def _load_cache_item(self, item, transforms: Sequence[Callable]):
+    def _load_cache_item(self, item: Any, transforms: Sequence[Callable]):
         for _transform in transforms:
             # execute all the deterministic transforms
             if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
@@ -282,7 +285,7 @@ class CacheDataset(Dataset):
             item = apply_transform(_transform, item)
         return item
 
-    def _load_cache_item_thread(self, args) -> None:
+    def _load_cache_item_thread(self, args: Tuple) -> None:
         i, item, transforms = args
         self._cache[i] = self._load_cache_item(item, transforms)
         with self._thread_lock:
@@ -327,7 +330,7 @@ class ZipDataset(Dataset):
 
     """
 
-    def __init__(self, datasets, transform: Optional[Callable] = None) -> None:
+    def __init__(self, datasets: Sequence, transform: Optional[Callable] = None) -> None:
         """
         Args:
             datasets (list or tuple): list of datasets to zip together.
@@ -402,11 +405,11 @@ class ArrayDataset(Randomizable, _TorchDataset):
 
     def __init__(
         self,
-        img,
+        img: Sequence,
         img_transform: Optional[Callable] = None,
-        seg=None,
+        seg: Optional[Sequence] = None,
         seg_transform: Optional[Callable] = None,
-        labels=None,
+        labels: Optional[Sequence] = None,
         label_transform: Optional[Callable] = None,
     ) -> None:
         """
@@ -414,11 +417,11 @@ class ArrayDataset(Randomizable, _TorchDataset):
         to the images and `seg_transform` to the segmentations.
 
         Args:
-            img (Sequence): sequence of images.
+            img: sequence of images.
             img_transform: transform to apply to each element in `img`.
-            seg (Sequence, optional): sequence of segmentations.
+            seg: sequence of segmentations.
             seg_transform: transform to apply to each element in `seg`.
-            labels (Sequence, optional): sequence of labels.
+            labels: sequence of labels.
             label_transform: transform to apply to each element in `labels`.
 
         """
