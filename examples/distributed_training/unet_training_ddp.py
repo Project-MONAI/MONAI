@@ -9,6 +9,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+This example shows how to execute distributed training based on PyTorch native `DistributedDataParallel` module.
+It can run on several nodes with multiple GPU devices on every node.
+Main steps to set up the distributed training:
+
+- `node` is the node index, `gpus` is GPU count of every node, `gpu` is index of current GPU in 1 node.
+- Use `init_process_group` to initialize every process, every GPU runs in a separate process with unique rank.
+  Here we use `NVIDIA NCCL` as the backend and get information from environment `env://`.
+- Set the IP and PORT for master node.
+- Wrap the model with `DistributedDataParallel` after moving to expected device.
+- Wrap Dataset with `DistributedSampler`, and disable the `shuffle` and `num_worker=0` in DataLoader.
+  Instead, shuffle data by `train_sampler.set_epoch(epoch)` before every epoch.
+- Execute the program with `mp.spawn(train, nprocs=args.gpus, args=(args,))` on every node.
+  Instead of running the train function once, we will spawn `args.gpus` processes, each of which runs `train(i, args)`,
+  where i goes from `0` to `args.gpus - 1`. We run the `main()` function on each node, so that in total there will be
+  `args.nodes x args.gpus = args.world_size` processes.
+- Every node runs the program with different node index, a typical example for 2 nodes with 1 GPU for every node:
+  `python unet_training_ddp.py -n 2 -g 1 -i <i>` (i in [0 - (n - 1)])
+
+Note:
+    Every node must has exactly the same software environment, especially `PyTorch`, `nccl`, etc.
+    Suggest using the same docker image for all nodes directly.
+
+Referring to: https://pytorch.org/tutorials/intermediate/ddp_tutorial.html
+
+"""
+
 import os
 import sys
 from glob import glob
@@ -20,7 +47,7 @@ import argparse
 from torch.utils.data import DataLoader
 import torch.multiprocessing as mp
 import torch.distributed as dist
-from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data.distributed import DistributedSampler
 
 import monai
@@ -38,8 +65,12 @@ from monai.data import create_test_image_3d, list_data_collate
 
 
 def train(gpu, args):
-    # initialize the distributed training process
-    rank = args.ranking * args.gpus + gpu
+    def _log_print(data, gpu=gpu):
+        print(data) if gpu == 0 else None
+
+    # initialize the distributed training process, every GPU runs in a process,
+    # so the process rank is (node index x GPU count of 1 node + GPU index)
+    rank = args.node * args.gpus + gpu
     dist.init_process_group(backend="nccl", init_method="env://", world_size=args.world_size, rank=rank)
 
     images = sorted(glob(os.path.join(args.dir, "img*.nii.gz")))
@@ -88,14 +119,13 @@ def train(gpu, args):
     loss_function = monai.losses.DiceLoss(sigmoid=True).to(device)
     optimizer = torch.optim.Adam(model.parameters(), 1e-3)
     # wrap the model with DistributedDataParallel module
-    model = DDP(model, device_ids=[gpu])
+    model = DistributedDataParallel(model, device_ids=[gpu])
 
     # start a typical PyTorch training
     epoch_loss_values = list()
     for epoch in range(5):
-        if gpu == 0:
-            print("-" * 10)
-            print(f"epoch {epoch + 1}/{5}")
+        _log_print("-" * 10)
+        _log_print(f"epoch {epoch + 1}/{5}")
         model.train()
         epoch_loss = 0
         step = 0
@@ -110,15 +140,14 @@ def train(gpu, args):
             optimizer.step()
             epoch_loss += loss.item()
             epoch_len = len(train_ds) // train_loader.batch_size
-            if gpu == 0:
-                print(f"{step}/{epoch_len}, train_loss: {loss.item():.4f}")
+            _log_print(f"{step}/{epoch_len}, train_loss: {loss.item():.4f}")
         epoch_loss /= step
         epoch_loss_values.append(epoch_loss)
-        if gpu == 0:
-            print(f"epoch {epoch + 1} average loss: {epoch_loss:.4f}")
-
-    if gpu == 0:
-        print(f"train completed, epoch losses: {epoch_loss_values}")
+        _log_print(f"epoch {epoch + 1} average loss: {epoch_loss:.4f}")
+    _log_print(f"train completed, epoch losses: {epoch_loss_values}")
+    if rank == 0:
+        torch.save(model.state_dict(), "final_model.pth")
+    dist.destroy_process_group()
 
 
 def main():
@@ -126,26 +155,25 @@ def main():
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
     set_determinism(seed=0)
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-n", "--nodes", default=1, type=int, help="number of nodes in total")
+    parser.add_argument("-g", "--gpus", default=1, type=int, help="number of gpus per node")
+    parser.add_argument("-i", "--node", default=0, type=int, help="node index within all the nodes")
+    parser.add_argument("-d", "--dir", default="./testdata", type=str, help="directory to create random data")
+    args = parser.parse_args()
+
     # create 40 random image, mask paris for training
-    data_dir = "./testdata"
-    if not os.path.exists(data_dir):
-        print(f"generating synthetic data to {data_dir} (this may take a while)")
-        os.makedirs(data_dir)
+    if not os.path.exists(args.dir):
+        print(f"generating synthetic data to {args.dir} (this may take a while)")
+        os.makedirs(args.dir)
         for i in range(40):
             im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1, channel_dim=-1)
 
             n = nib.Nifti1Image(im, np.eye(4))
-            nib.save(n, os.path.join(data_dir, f"img{i:d}.nii.gz"))
+            nib.save(n, os.path.join(args.dir, f"img{i:d}.nii.gz"))
 
             n = nib.Nifti1Image(seg, np.eye(4))
-            nib.save(n, os.path.join(data_dir, f"seg{i:d}.nii.gz"))
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-n", "--nodes", default=1, type=int, metavar="N")
-    parser.add_argument("-g", "--gpus", default=1, type=int, help="number of gpus per node")
-    parser.add_argument("-r", "--ranking", default=0, type=int, help="node ranking within all the nodes")
-    parser.add_argument("-d", "--dir", default="./testdata", type=str, help="directory to create random data")
-    args = parser.parse_args()
+            nib.save(n, os.path.join(args.dir, f"seg{i:d}.nii.gz"))
 
     args.world_size = args.gpus * args.nodes
     os.environ["MASTER_ADDR"] = "10.23.137.29"
@@ -153,6 +181,6 @@ def main():
     mp.spawn(train, nprocs=args.gpus, args=(args,))
 
 
-# usage: python unet_training_ddp.py -n 2 -g 1 -r <i>  (i in [0 - (n - 1)])
+# usage: "python unet_training_ddp.py -n 2 -g 1 -i <i>"  (i in [0 - (n - 1)])
 if __name__ == "__main__":
     main()
