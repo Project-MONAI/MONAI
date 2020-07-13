@@ -339,7 +339,9 @@ class GeneralizedWassersteinDiceLoss(_Loss):
     def __init__(self, dist_matrix, reduction="mean"):
         """
         Args:
-            param dist_matrix: 2d tensor or 2d numpy array; matrix of distances between the classes. It must have dimension C x C where C is the   number of classes.
+            param dist_matrix: 2d tensor or 2d numpy array; matrix of distances 
+            between the classes. It must have dimension C x C where C is the   
+            number of classes.
             param reduction: str; reduction mode.
 
         Raises:
@@ -404,23 +406,23 @@ class GeneralizedWassersteinDiceLoss(_Loss):
             flat_target: the target tensor.
         """
         # Turn the distance matrix to a map of identical matrix
-        M_extended = torch.unsqueeze(self.M, dim=0)
-        M_extended = torch.unsqueeze(M_extended, dim=3)
-        M_extended = M_extended.expand((flat_proba.size(0), M_extended.size(1), M_extended.size(2), flat_proba.size(2)))
+        m_extended = torch.unsqueeze(self.M, dim=0)
+        m_extended = torch.unsqueeze(m_extended, dim=3)
+        m_extended = m_extended.expand((flat_proba.size(0), m_extended.size(1), m_extended.size(2), flat_proba.size(2)))
 
         # Expand the feature dimensions of the target
         flat_target_extended = torch.unsqueeze(flat_target, dim=1)
         flat_target_extended = flat_target_extended.expand(
-            (flat_target.size(0), M_extended.size(1), flat_target.size(1))
+            (flat_target.size(0), m_extended.size(1), flat_target.size(1))
         )
         flat_target_extended = torch.unsqueeze(flat_target_extended, dim=1)
 
         # Extract the vector of class distances for the ground-truth label at each voxel
-        M_extended = torch.gather(M_extended, dim=1, index=flat_target_extended)
-        M_extended = torch.squeeze(M_extended, dim=1)
+        m_extended = torch.gather(m_extended, dim=1, index=flat_target_extended)
+        m_extended = torch.squeeze(m_extended, dim=1)
 
         # Compute the wasserstein distance map
-        wasserstein_map = M_extended * flat_proba
+        wasserstein_map = m_extended * flat_proba
 
         # Sum over the classes
         wasserstein_map = torch.sum(wasserstein_map, dim=1)
