@@ -17,7 +17,7 @@ from typing import Optional
 
 import numpy as np
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
-
+from monai.config import KeysCollection
 from monai.data.utils import correct_nifti_header_if_necessary
 from monai.transforms.compose import Transform
 from monai.utils import optional_import, ensure_tuple
@@ -111,6 +111,8 @@ class LoadNifti(Transform):
 class LoadPNG(Transform):
     """
     Load common 2D image format (PNG, JPG, etc. using PIL) file or files from provided path.
+    If loading a list of files, stack them together and add a new dimension as first dimension,
+    and use the meta data of the first image to represent the stacked result.
     It's based on the Image module in PIL library:
     https://pillow.readthedocs.io/en/stable/reference/Image.html
     """
@@ -138,6 +140,10 @@ class LoadPNG(Transform):
             if self.dtype:
                 data = data.astype(self.dtype)
             img_array.append(data)
+
+            if self.image_only:
+                continue
+
             meta = dict()
             meta["filename_or_obj"] = name
             meta["spatial_shape"] = data.shape[:2]
@@ -146,10 +152,6 @@ class LoadPNG(Transform):
             meta["width"] = img.width
             meta["height"] = img.height
             meta["info"] = img.info
-
-            if self.image_only:
-                continue
-
             if not compatible_meta:
                 compatible_meta = meta
             else:
@@ -159,3 +161,73 @@ class LoadPNG(Transform):
 
         img_array = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
         return img_array if self.image_only else (img_array, compatible_meta)
+
+
+class LoadNumpy(Transform):
+    """
+    Load arrays or pickled objects from .npy, .npz or pickled files, file or files are from provided path.
+    A typical usage is to load the `mask` data for classification task.
+    If loading a list of files or laoding npz file, stack results together and add a new dimension as first dimension,
+    and use the meta data of the first file to represent the stacked result.
+    It can load part of the npz file with specified `npz_keys`.
+    It's based on the Numpy load/read API:
+    https://numpy.org/doc/stable/reference/generated/numpy.load.html
+
+    """
+
+    def __init__(
+        self, data_only: bool = False, dtype: Optional[np.dtype] = np.float32, npz_keys: Optional[KeysCollection] = None
+    ) -> None:
+        """
+        Args:
+            data_only: if True return only the data array, otherwise return data array and metadata.
+            dtype: if not None convert the loaded data to this data type.
+            npz_keys: if loading npz file, only load the specified keys, if None, load all the items.
+                stack the loaded items together to construct a new first dimension.
+
+        """
+        self.data_only = data_only
+        self.dtype = dtype
+        if npz_keys is not None:
+            npz_keys = ensure_tuple(npz_keys)
+        self.npz_keys = npz_keys
+
+    def __call__(self, filename):
+        """
+        Args:
+            filename (str, list, tuple, file): path file or file-like object or a list of files.
+        """
+        if isinstance(filename, (tuple, list)):
+            for name in filename:
+                if name.endswith(".npz"):
+                    raise TypeError("can not load a list of npz file.")
+        filename = ensure_tuple(filename)
+        data_array = list()
+        compatible_meta = None
+
+        def _save_data_meta(data_array, name, data, compatible_meta):
+            data_array.append(data if self.dtype is None else data.astype(self.dtype))
+            if not self.data_only:
+                meta = dict()
+                meta["filename_or_obj"] = name
+                meta["spatial_shape"] = data.shape
+                if not compatible_meta:
+                    compatible_meta = meta
+                else:
+                    assert np.allclose(
+                        meta["spatial_shape"], compatible_meta["spatial_shape"]
+                    ), "all the data in the list should have same shape."
+            return compatible_meta
+
+        for name in filename:
+            data = np.load(name, allow_pickle=True)
+            if name.endswith(".npz"):
+                # load expected items from NPZ file
+                npz_keys = [f"arr_{i}" for i in range(len(data))] if self.npz_keys is None else self.npz_keys
+                for k in npz_keys:
+                    compatible_meta = _save_data_meta(data_array, name, data[k], compatible_meta)
+            else:
+                compatible_meta = _save_data_meta(data_array, name, data, compatible_meta)
+
+        data_array = np.stack(data_array, axis=0) if len(data_array) > 1 else data_array[0]
+        return data_array if self.data_only else (data_array, compatible_meta)
