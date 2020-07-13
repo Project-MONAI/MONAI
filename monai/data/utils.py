@@ -20,14 +20,14 @@ import torch
 from torch.utils.data._utils.collate import default_collate
 import numpy as np
 
-from monai.utils import ensure_tuple_size, ensure_tuple_rep, optional_import, NumpyPadMode, BlendMode
+from monai.utils import ensure_tuple_size, optional_import, NumpyPadMode, BlendMode
 from monai.networks.layers.simplelayers import GaussianFilter
 
 nib, _ = optional_import("nibabel")
 
 
 def get_random_patch(
-    dims: Sequence[int], patch_size, rand_state: Optional[np.random.RandomState] = None
+    dims: Sequence[int], patch_size: Sequence[int], rand_state: Optional[np.random.RandomState] = None
 ) -> Tuple[slice, ...]:
     """
     Returns a tuple of slices to define a random patch in an array of shape `dims` with size `patch_size` or the as
@@ -36,7 +36,7 @@ def get_random_patch(
 
     Args:
         dims: shape of source array
-        patch_size (tuple of int): shape of patch size to generate
+        patch_size: shape of patch size to generate
         rand_state: a random state object to generate random numbers from
 
     Returns:
@@ -51,7 +51,7 @@ def get_random_patch(
     return tuple(slice(mc, mc + ps) for mc, ps in zip(min_corner, patch_size))
 
 
-def iter_patch_slices(dims: Sequence[int], patch_size, start_pos: Sequence[int] = ()):
+def iter_patch_slices(dims: Sequence[int], patch_size: Union[Sequence[int], int], start_pos: Sequence[int] = ()):
     """
     Yield successive tuples of slices defining patches of size `patch_size` from an array of dimensions `dims`. The
     iteration starts from position `start_pos` in the array, or starting at the origin if this isn't provided. Each
@@ -59,7 +59,7 @@ def iter_patch_slices(dims: Sequence[int], patch_size, start_pos: Sequence[int] 
 
     Args:
         dims: dimensions of array to iterate over
-        patch_size (tuple of int or None): size of patches to generate slices for, 0 or None selects whole dimension
+        patch_size: size of patches to generate slices for, 0 or None selects whole dimension
         start_pos: starting position in the array, default is 0 for each dimension
 
     Yields:
@@ -68,24 +68,26 @@ def iter_patch_slices(dims: Sequence[int], patch_size, start_pos: Sequence[int] 
 
     # ensure patchSize and startPos are the right length
     ndim = len(dims)
-    patch_size = get_valid_patch_size(dims, patch_size)
+    patch_size_ = get_valid_patch_size(dims, patch_size)
     start_pos = ensure_tuple_size(start_pos, ndim)
 
     # collect the ranges to step over each dimension
-    ranges = tuple(starmap(range, zip(start_pos, dims, patch_size)))
+    ranges = tuple(starmap(range, zip(start_pos, dims, patch_size_)))
 
     # choose patches by applying product to the ranges
     for position in product(*ranges[::-1]):  # reverse ranges order to iterate in index order
-        yield tuple(slice(s, s + p) for s, p in zip(position[::-1], patch_size))
+        yield tuple(slice(s, s + p) for s, p in zip(position[::-1], patch_size_))
 
 
-def dense_patch_slices(image_size: Sequence[int], patch_size, scan_interval: Sequence[int]) -> List[Tuple[slice, ...]]:
+def dense_patch_slices(
+    image_size: Sequence[int], patch_size: Sequence[int], scan_interval: Sequence[int],
+) -> List[Tuple[slice, ...]]:
     """
     Enumerate all slices defining 2D/3D patches of size `patch_size` from an `image_size` input image.
 
     Args:
         image_size: dimensions of image to iterate over
-        patch_size (tuple of int): size of patches to generate slices
+        patch_size: size of patches to generate slices
         scan_interval: dense patch sampling interval
 
     Returns:
@@ -138,7 +140,7 @@ def dense_patch_slices(image_size: Sequence[int], patch_size, scan_interval: Seq
 
 def iter_patch(
     arr: np.ndarray,
-    patch_size,
+    patch_size: Union[Sequence[int], int] = 0,
     start_pos: Sequence[int] = (),
     copy_back: bool = True,
     mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
@@ -151,7 +153,7 @@ def iter_patch(
 
     Args:
         arr: array to iterate over
-        patch_size (tuple of int or None): size of patches to generate slices for, 0 or None selects whole dimension
+        patch_size: size of patches to generate slices for, 0 or None selects whole dimension
         start_pos: starting position in the array, default is 0 for each dimension
         copy_back: if True data from the yielded patches is copied back to `arr` once the generator completes
         mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
@@ -165,29 +167,29 @@ def iter_patch(
         True these changes will be reflected in `arr` once the iteration completes.
     """
     # ensure patchSize and startPos are the right length
-    patch_size = get_valid_patch_size(arr.shape, patch_size)
+    patch_size_ = get_valid_patch_size(arr.shape, patch_size)
     start_pos = ensure_tuple_size(start_pos, arr.ndim)
 
     # pad image by maximum values needed to ensure patches are taken from inside an image
-    arrpad = np.pad(arr, tuple((p, p) for p in patch_size), NumpyPadMode(mode).value, **pad_opts)
+    arrpad = np.pad(arr, tuple((p, p) for p in patch_size_), NumpyPadMode(mode).value, **pad_opts)
 
     # choose a start position in the padded image
-    start_pos_padded = tuple(s + p for s, p in zip(start_pos, patch_size))
+    start_pos_padded = tuple(s + p for s, p in zip(start_pos, patch_size_))
 
     # choose a size to iterate over which is smaller than the actual padded image to prevent producing
     # patches which are only in the padded regions
-    iter_size = tuple(s + p for s, p in zip(arr.shape, patch_size))
+    iter_size = tuple(s + p for s, p in zip(arr.shape, patch_size_))
 
-    for slices in iter_patch_slices(iter_size, patch_size, start_pos_padded):
+    for slices in iter_patch_slices(iter_size, patch_size_, start_pos_padded):
         yield arrpad[slices]
 
     # copy back data from the padded image if required
     if copy_back:
-        slices = tuple(slice(p, p + s) for p, s in zip(patch_size, arr.shape))
+        slices = tuple(slice(p, p + s) for p, s in zip(patch_size_, arr.shape))
         arr[...] = arrpad[slices]
 
 
-def get_valid_patch_size(image_size, patch_size):
+def get_valid_patch_size(image_size: Sequence[int], patch_size: Union[Sequence[int], int]):
     """
     Given an image of dimensions `image_size`, return a patch size tuple taking the dimension from `patch_size` if this is
     not 0/None. Otherwise, or if `patch_size` is shorter than `image_size`, the dimension from `image_size` is taken. This ensures
@@ -195,20 +197,13 @@ def get_valid_patch_size(image_size, patch_size):
     patch of the same dimensionality of `image_size` with that size in each dimension.
     """
     ndim = len(image_size)
-
-    try:
-        # if a single value was given as patch size, treat this as the size of the patch over all dimensions
-        single_patch_size = int(patch_size)
-        patch_size = ensure_tuple_rep(single_patch_size, ndim)
-    except TypeError:  # raised if the patch size is multiple values
-        # ensure patch size is at least as long as number of dimensions
-        patch_size = ensure_tuple_size(patch_size, ndim)
+    patch_size_ = ensure_tuple_size(patch_size, ndim)
 
     # ensure patch size dimensions are not larger than image dimension, if a dimension is None or 0 use whole dimension
-    return tuple(min(ms, ps or ms) for ms, ps in zip(image_size, patch_size))
+    return tuple(min(ms, ps or ms) for ms, ps in zip(image_size, patch_size_))
 
 
-def list_data_collate(batch):
+def list_data_collate(batch: Sequence):
     """
     Enhancement for PyTorch DataLoader default collate.
     If dataset already returns a list of batch data that generated in transforms, need to merge all data to 1 list.
@@ -223,7 +218,7 @@ def list_data_collate(batch):
     return default_collate(data)
 
 
-def worker_init_fn(worker_id) -> None:
+def worker_init_fn(worker_id: int) -> None:
     """
     Callback function for PyTorch DataLoader `worker_init_fn`.
     It can set different random seed for the transforms in different workers.
@@ -449,7 +444,7 @@ def create_file_basename(postfix: str, input_file_name: str, folder_path: str, d
 
 
 def compute_importance_map(
-    patch_size,
+    patch_size: Tuple[int, ...],
     mode: Union[BlendMode, str] = BlendMode.CONSTANT,
     sigma_scale: float = 0.125,
     device: Optional[torch.device] = None,
@@ -457,7 +452,7 @@ def compute_importance_map(
     """Get importance map for different weight modes.
 
     Args:
-        patch_size (tuple): Size of the required importance map. This should be either H, W [,D].
+        patch_size: Size of the required importance map. This should be either H, W [,D].
         mode: {``"constant"``, ``"gaussian"``}
             How to blend output of overlapping windows. Defaults to ``"constant"``.
 

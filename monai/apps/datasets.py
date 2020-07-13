@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Callable, Optional
+from typing import Callable, Union, Sequence, Any, Optional
 
 import os
 import sys
@@ -58,7 +58,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
         self,
         root_dir: str,
         section: str,
-        transform: Callable[..., Any] = LoadPNGd("image"),
+        transform: Union[Sequence[Callable], Callable] = LoadPNGd("image"),
         download: bool = False,
         seed: int = 0,
         val_frac: float = 0.1,
@@ -208,7 +208,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         root_dir: str,
         task: str,
         section: str,
-        transform: Callable[..., Any] = LoadNiftid(["image", "label"]),
+        transform: Union[Sequence[Callable], Callable] = LoadNiftid(["image", "label"]),
         download: bool = False,
         seed: int = 0,
         val_frac: float = 0.2,
