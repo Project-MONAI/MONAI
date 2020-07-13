@@ -339,8 +339,8 @@ class GeneralizedWassersteinDiceLoss(_Loss):
     def __init__(self, dist_matrix, reduction="mean"):
         """
         Args:
-            param dist_matrix: 2d tensor or 2d numpy array; matrix of distances 
-            between the classes. It must have dimension C x C where C is the   
+            param dist_matrix: 2d tensor or 2d numpy array; matrix of distances
+            between the classes. It must have dimension C x C where C is the
             number of classes.
             param reduction: str; reduction mode.
 
@@ -425,7 +425,9 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         wasserstein_map = torch.sum(wasserstein_map, dim=1)
         return wasserstein_map
 
-    def compute_generalized_true_positive(self, alpha: torch.Tensor, flat_target: torch.Tensor, wasserstein_distance_map):
+    def compute_generalized_true_positive(
+        self, alpha: torch.Tensor, flat_target: torch.Tensor, wasserstein_distance_map
+    ):
         """
         Args:
             alpha: generalised number of true positives of target class.
