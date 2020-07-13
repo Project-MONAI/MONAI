@@ -57,7 +57,7 @@ jobs:
         python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
         python -c 'import torch; print(torch.rand(5,3, device=torch.device("cuda:0")))'
         ngc --version
-        ./runtests.sh --coverage --codeformat
+        ./runtests.sh --coverage --pytype
         coverage xml
     - name: Upload coverage
       uses: codecov/codecov-action@v1
