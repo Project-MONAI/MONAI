@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from collections import OrderedDict
-from typing import Callable, Sequence
+from typing import Callable, Sequence, Type, Union
 
 import torch
 import torch.nn as nn
@@ -102,10 +102,12 @@ class DenseNet(nn.Module):
 
         super(DenseNet, self).__init__()
 
-        conv_type: Callable = Conv[Conv.CONV, spatial_dims]
-        norm_type: Callable = Norm[Norm.BATCH, spatial_dims]
-        pool_type: Callable = Pool[Pool.MAX, spatial_dims]
-        avg_pool_type: Callable = Pool[Pool.ADAPTIVEAVG, spatial_dims]
+        conv_type: Type[Union[nn.Conv1d, nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]
+        norm_type: Type[Union[nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d]] = Norm[Norm.BATCH, spatial_dims]
+        pool_type: Type[Union[nn.MaxPool1d, nn.MaxPool2d, nn.MaxPool3d]] = Pool[Pool.MAX, spatial_dims]
+        avg_pool_type: Type[Union[nn.AdaptiveAvgPool1d, nn.AdaptiveAvgPool2d, nn.AdaptiveAvgPool3d]] = Pool[
+            Pool.ADAPTIVEAVG, spatial_dims
+        ]
 
         self.features = nn.Sequential(
             OrderedDict(
@@ -128,14 +130,14 @@ class DenseNet(nn.Module):
                 growth_rate=growth_rate,
                 dropout_prob=dropout_prob,
             )
-            self.features.add_module("denseblock%d" % (i + 1), block)
+            self.features.add_module(f"denseblock{i + 1}", block)
             in_channels += num_layers * growth_rate
             if i == len(block_config) - 1:
                 self.features.add_module("norm5", norm_type(in_channels))
             else:
                 _out_channels = in_channels // 2
                 trans = _Transition(spatial_dims, in_channels=in_channels, out_channels=_out_channels)
-                self.features.add_module("transition%d" % (i + 1), trans)
+                self.features.add_module(f"transition{i + 1}", trans)
                 in_channels = _out_channels
 
         # pooling and classification
@@ -150,17 +152,14 @@ class DenseNet(nn.Module):
             )
         )
 
-        # Avoid Built-in function isinstance was called with the wrong arguments warning
-        # pytype: disable=wrong-arg-types
         for m in self.modules():
-            if isinstance(m, conv_type):  # type: ignore
+            if isinstance(m, conv_type):
                 nn.init.kaiming_normal_(m.weight)
-            elif isinstance(m, norm_type):  # type: ignore
+            elif isinstance(m, norm_type):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
             elif isinstance(m, nn.Linear):
                 nn.init.constant_(m.bias, 0)
-        # pytype: enable=wrong-arg-types
 
     def forward(self, x):
         x = self.features(x)
