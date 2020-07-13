@@ -183,6 +183,12 @@ IO
     :members:
     :special-members: __call__
 
+`LoadNumpy`
+"""""""""""
+.. autoclass:: LoadNumpy
+    :members:
+    :special-members: __call__
+
 Post-processing
 ^^^^^^^^^^^^^^^
 
@@ -567,6 +573,12 @@ IO (Dict)
 `LoadPNGd`
 """"""""""
 .. autoclass:: LoadPNGd
+    :members:
+    :special-members: __call__
+
+`LoadNumpyd`
+""""""""""""
+.. autoclass:: LoadNumpyd
     :members:
     :special-members: __call__
 

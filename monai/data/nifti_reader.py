@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Sequence, Any
+from typing import Callable, Optional, Sequence, Union, Any
 
 import numpy as np
 from torch.utils.data import Dataset
@@ -28,7 +28,7 @@ class NiftiDataset(Dataset, Randomizable):
         self,
         image_files: Sequence[str],
         seg_files: Optional[Sequence[str]] = None,
-        labels=None,
+        labels: Optional[Sequence[Union[int, float]]] = None,
         as_closest_canonical: bool = False,
         transform: Optional[Callable] = None,
         seg_transform: Optional[Callable] = None,
