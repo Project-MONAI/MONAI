@@ -356,8 +356,6 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         self.M = dist_matrix
         if isinstance(self.M, np.ndarray):
             self.M = torch.from_numpy(self.M)
-        if torch.cuda.is_available():
-            self.M = self.M.cuda()
         if torch.max(self.M) != 1:
             self.M = self.M / torch.max(self.M)
         self.num_classes = self.M.size(0)
@@ -403,7 +401,8 @@ class GeneralizedWassersteinDiceLoss(_Loss):
             flat_target: the target tensor.
         """
         # Turn the distance matrix to a map of identical matrix
-        m_extended = torch.unsqueeze(self.M, dim=0)
+        M = torch.clone(self.M).to(flat_proba.get_device())
+        m_extended = torch.unsqueeze(M, dim=0)
         m_extended = torch.unsqueeze(m_extended, dim=3)
         m_extended = m_extended.expand((flat_proba.size(0), m_extended.size(1), m_extended.size(2), flat_proba.size(2)))
 
@@ -474,3 +473,4 @@ class GeneralizedWassersteinDiceLoss(_Loss):
 
 dice = Dice = DiceLoss
 generalized_dice = GeneralizedDiceLoss
+generalized_wasserstein_dice = GeneralizedWassersteinDiceLoss
