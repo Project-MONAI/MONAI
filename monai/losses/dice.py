@@ -371,9 +371,6 @@ class GeneralizedWassersteinDiceLoss(_Loss):
             smooth: a small constant to avoid nan.
 
         """
-        if not (target.type() in [torch.LongTensor, torch.cuda.LongTensor]):
-            target = target.long()
-
         # Aggregate spatial dimensions
         flat_input = input.view(input.size(0), input.size(1), -1)
         flat_target = target.view(target.size(0), -1)
@@ -428,7 +425,7 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         wasserstein_map = torch.sum(wasserstein_map, dim=1)
         return wasserstein_map
 
-    def compute_generalized_true_positive(self, alpha: float, flat_target: torch.Tensor, wasserstein_distance_map):
+    def compute_generalized_true_positive(self, alpha: torch.Tensor, flat_target: torch.Tensor, wasserstein_distance_map):
         """
         Args:
             alpha: generalised number of true positives of target class.
@@ -445,7 +442,7 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         generalized_true_pos = torch.sum(alpha_extended * (1.0 - wasserstein_distance_map), dim=[1, 2],)
         return generalized_true_pos
 
-    def compute_denominator(self, alpha: float, flat_target: torch.Tensor, wasserstein_distance_map):
+    def compute_denominator(self, alpha: torch.Tensor, flat_target: torch.Tensor, wasserstein_distance_map):
         """
         Args:
             alpha: generalised number of true positives of target class.
