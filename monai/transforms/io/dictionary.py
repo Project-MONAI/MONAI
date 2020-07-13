@@ -21,7 +21,7 @@ import numpy as np
 
 from monai.config import KeysCollection
 from monai.transforms.compose import MapTransform
-from monai.transforms.io.array import LoadNifti, LoadPNG
+from monai.transforms.io.array import LoadNifti, LoadPNG, LoadNumpy
 
 
 class LoadNiftid(MapTransform):
@@ -47,8 +47,8 @@ class LoadNiftid(MapTransform):
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             as_closest_canonical: if True, load the image as closest to canonical axis format.
-            dtype: if not None convert the loaded image to this data type.
-            meta_key_postfix: use `key_{postfix}` to to store meta data of the nifti image,
+            dtype: if not None convert the loaded image data to this data type.
+            meta_key_postfix: use `key_{postfix}` to store the metadata of the nifti image,
                 default is `meta_dict`. The meta data is a dictionary object.
                 For example, load nifti file for `image`, store the metadata into `image_meta_dict`.
             overwriting: whether allow to overwrite existing meta data of same key.
@@ -95,10 +95,10 @@ class LoadPNGd(MapTransform):
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            dtype: if not None convert the loaded image to this data type.
-            meta_key_postfix: use `key_{postfix}` to to store meta data of the nifti image,
+            dtype: if not None convert the loaded image data to this data type.
+            meta_key_postfix: use `key_{postfix}` to store the metadata of the PNG image,
                 default is `meta_dict`. The meta data is a dictionary object.
-                For example, load nifti file for `image`, store the metadata into `image_meta_dict`.
+                For example, load PNG file for `image`, store the metadata into `image_meta_dict`.
             overwriting: whether allow to overwrite existing meta data of same key.
                 default is False, which will raise exception if encountering existing key.
 
@@ -127,5 +127,57 @@ class LoadPNGd(MapTransform):
         return d
 
 
+class LoadNumpyd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.LoadNumpy`.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        dtype: Optional[np.dtype] = np.float32,
+        npz_keys: Optional[KeysCollection] = None,
+        meta_key_postfix: str = "meta_dict",
+        overwriting: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            dtype: if not None convert the loaded data to this data type.
+            npz_keys: if loading npz file, only load the specified keys, if None, load all the items.
+                stack the loaded items together to construct a new first dimension.
+            meta_key_postfix: use `key_{postfix}` to store the metadata of the Numpy data,
+                default is `meta_dict`. The meta data is a dictionary object.
+                For example, load Numpy file for `mask`, store the metadata into `mask_meta_dict`.
+            overwriting: whether allow to overwrite existing meta data of same key.
+                default is False, which will raise exception if encountering existing key.
+
+        Raises:
+            ValueError: meta_key_postfix must be a string.
+
+        """
+        super().__init__(keys)
+        self.loader = LoadNumpy(data_only=False, dtype=dtype, npz_keys=npz_keys)
+        if not isinstance(meta_key_postfix, str):
+            raise ValueError("meta_key_postfix must be a string.")
+        self.meta_key_postfix = meta_key_postfix
+        self.overwriting = overwriting
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            data = self.loader(d[key])
+            assert isinstance(data, (tuple, list)), "loader must return a tuple or list."
+            d[key] = data[0]
+            assert isinstance(data[1], dict), "metadata must be a dict."
+            key_to_add = f"{key}_{self.meta_key_postfix}"
+            if key_to_add in d and not self.overwriting:
+                raise KeyError(f"meta data with key {key_to_add} already exists.")
+            d[key_to_add] = data[1]
+        return d
+
+
 LoadNiftiD = LoadNiftiDict = LoadNiftid
 LoadPNGD = LoadPNGDict = LoadPNGd
+LoadNumpyD = LoadNumpyDict = LoadNumpyd
