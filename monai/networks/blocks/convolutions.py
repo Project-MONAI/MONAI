@@ -12,30 +12,59 @@
 import numpy as np
 import torch.nn as nn
 
-from monai.networks.layers.factories import Dropout, Norm, Act, Conv, split_args
 from monai.networks.layers.convutils import same_padding
+from monai.networks.layers.factories import Act, Conv, Dropout, Norm, split_args
 
 
 class Convolution(nn.Sequential):
     """
-    Constructs a convolution with optional dropout, normalization, and activation layers.
+    Constructs a convolution with normalization, optional dropout, and optional activation layers::
+
+        -- (Conv|ConvTrans) -- Norm -- (Dropout) -- (Acti) --
+
+    if ``conv_only`` set to ``True``::
+
+        -- (Conv|ConvTrans) --
+
+    Args:
+        dimensions: number of spatial dimensions.
+        in_channels: number of input channels.
+        out_channels: number of output channels.
+        strides: convolution stride. Defaults to 1.
+        kernel_size: convolution kernel size. Defaults to 3.
+        act: activation type and arguments. Defaults to PReLU.
+        norm: feature normalization type and arguments. Defaults to instance norm.
+        dropout: dropout ratio. Defaults to no dropout.
+        dilation: dilation rate. Defaults to 1.
+        bias: whether to have a bias term. Defaults to True.
+        conv_only:  whether to use the convolutional layer only. Defaults to False.
+        is_transposed: if True uses ConvTrans instead of Conv. Defaults to False.
+
+    See also:
+
+        :py:class:`monai.networks.layers.Conv`
+        :py:class:`monai.networks.layers.Dropout`
+        :py:class:`monai.networks.layers.Act`
+        :py:class:`monai.networks.layers.Norm`
+        :py:class:`monai.networks.layers.split_args`
+
     """
 
     def __init__(
         self,
-        dimensions,
-        in_channels,
-        out_channels,
+        dimensions: int,
+        in_channels: int,
+        out_channels: int,
         strides=1,
         kernel_size=3,
         act=Act.PRELU,
         norm=Norm.INSTANCE,
         dropout=None,
         dilation=1,
-        bias=True,
-        conv_only=False,
-        is_transposed=False,
-    ):
+        bias: bool = True,
+        conv_only: bool = False,
+        is_transposed: bool = False,
+    ) -> None:
         super().__init__()
         self.dimensions = dimensions
         self.in_channels = in_channels
@@ -50,8 +79,11 @@ class Convolution(nn.Sequential):
         norm_type = Norm[norm_name, dimensions]
 
         # define the activation type and the arguments to the constructor
-        act_name, act_args = split_args(act)
-        act_type = Act[act_name]
+        if act is not None:
+            act_name, act_args = split_args(act)
+            act_type = Act[act_name]
+        else:
+            act_type = act_args = None
 
         if dropout:
             # if dropout was specified simply as a p value, use default name and make a keyword map with the value
@@ -74,26 +106,35 @@ class Convolution(nn.Sequential):
             self.add_module("norm", norm_type(out_channels, **norm_args))
             if dropout:
                 self.add_module("dropout", drop_type(**drop_args))
-
-            self.add_module("act", act_type(**act_args))
+            if act is not None:
+                self.add_module("act", act_type(**act_args))
 
 
 class ResidualUnit(nn.Module):
+    """
+    Residual module with multiple convolutions and a residual connection.
+
+    See also:
+
+        :py:class:`monai.networks.blocks.Convolution`
+
+    """
+
     def __init__(
         self,
-        dimensions,
-        in_channels,
-        out_channels,
+        dimensions: int,
+        in_channels: int,
+        out_channels: int,
         strides=1,
         kernel_size=3,
-        subunits=2,
+        subunits: int = 2,
         act=Act.PRELU,
         norm=Norm.INSTANCE,
         dropout=None,
         dilation=1,
-        bias=True,
-        last_conv_only=False,
-    ):
+        bias: bool = True,
+        last_conv_only: bool = False,
+    ) -> None:
         super().__init__()
         self.dimensions = dimensions
         self.in_channels = in_channels
