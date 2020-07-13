@@ -40,7 +40,7 @@ from monai.data import create_test_image_3d, list_data_collate
 def train(gpu, args):
     # initialize the distributed training process
     rank = args.ranking * args.gpus + gpu
-    dist.init_process_group(backend='nccl', init_method='env://', world_size=args.world_size, rank=rank)
+    dist.init_process_group(backend="nccl", init_method="env://", world_size=args.world_size, rank=rank)
 
     images = sorted(glob(os.path.join(args.dir, "img*.nii.gz")))
     segs = sorted(glob(os.path.join(args.dir, "seg*.nii.gz")))
@@ -141,20 +141,17 @@ def main():
             nib.save(n, os.path.join(data_dir, f"seg{i:d}.nii.gz"))
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-n", "--nodes", default=1,
-                        type=int, metavar="N")
-    parser.add_argument("-g", "--gpus", default=1, type=int,
-                        help="number of gpus per node")
-    parser.add_argument("-r", "--ranking", default=0, type=int,
-                        help="node ranking within all the nodes")
-    parser.add_argument("-d", "--dir", default="./testdata", type=str,
-                        help="directory to create random data")
+    parser.add_argument("-n", "--nodes", default=1, type=int, metavar="N")
+    parser.add_argument("-g", "--gpus", default=1, type=int, help="number of gpus per node")
+    parser.add_argument("-r", "--ranking", default=0, type=int, help="node ranking within all the nodes")
+    parser.add_argument("-d", "--dir", default="./testdata", type=str, help="directory to create random data")
     args = parser.parse_args()
 
     args.world_size = args.gpus * args.nodes
     os.environ["MASTER_ADDR"] = "10.23.137.29"
     os.environ["MASTER_PORT"] = "8888"
     mp.spawn(train, nprocs=args.gpus, args=(args,))
+
 
 # usage: python unet_training_ddp.py -n 2 -g 1 -r <i>  (i in [0 - (n - 1)])
 if __name__ == "__main__":
