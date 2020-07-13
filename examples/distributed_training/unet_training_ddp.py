@@ -64,7 +64,7 @@ from monai.data import create_test_image_3d, Dataset, DataLoader
 def train(gpu, args):
     # disable logging for processes execpt 0 on every node
     if gpu != 0:
-        f = open(os.devnull, 'w')
+        f = open(os.devnull, "w")
         sys.stdout = sys.stderr = f
     # initialize the distributed training process, every GPU runs in a process,
     # so the process rank is (node index x GPU count of 1 node + GPU index)
