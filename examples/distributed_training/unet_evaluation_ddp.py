@@ -10,23 +10,24 @@
 # limitations under the License.
 
 """
-This example shows how to execute distributed training based on PyTorch native `DistributedDataParallel` module.
+This example shows how to execute distributed evaluation based on PyTorch native `DistributedDataParallel` module.
 It can run on several nodes with multiple GPU devices on every node.
-Main steps to set up the distributed training:
+Main steps to set up the distributed evaluation:
 
 - `node` is the node index, `gpus` is GPU count of every node, `gpu` is index of current GPU in 1 node.
 - Use `init_process_group` to initialize every process, every GPU runs in a separate process with unique rank.
   Here we use `NVIDIA NCCL` as the backend and get information from environment `env://`.
 - Set the IP and PORT for master node.
 - Wrap the model with `DistributedDataParallel` after moving to expected device.
-- Wrap Dataset with `DistributedSampler`, and disable the `shuffle` and `num_worker=0` in DataLoader.
-  Instead, shuffle data by `train_sampler.set_epoch(epoch)` before every epoch.
-- Execute the program with `mp.spawn(train, nprocs=args.gpus, args=(args,))` on every node.
-  Instead of running the `train` function once, we will spawn `args.gpus` processes,
-  each of which runs `train(i, args)`, where i goes from `0` to `args.gpus - 1`. We run the `main()`
+- Load model parameters from local file and map to expected GPU device in every process.
+- Wrap Dataset with `DistributedSampler`, set `num_worker=0` in DataLoader.
+- Compute `Dice Metric` on every process, reduce the results after synchronization.
+- Execute the program with `mp.spawn(evaluate, nprocs=args.gpus, args=(args,))` on every node.
+  Instead of running the `evaluate` function once, we will spawn `args.gpus` processes,
+  each of which runs `evaluate(i, args)`, where i goes from `0` to `args.gpus - 1`. We run the `main()`
   function on each node, so that in total there will be `args.nodes x args.gpus = args.world_size` processes.
 - Every node runs the program with different node index, a typical example for 2 nodes with 1 GPU for every node:
-  `python unet_training_ddp.py -mi 10.23.137.29 -mp 8888 -n 2 -g 1 -i <i>` (i in [0 ~ (n - 1)])
+  `python unet_evaluation_ddp.py -mi 10.23.137.29 -mp 8888 -n 2 -g 1 -i <i>` (i in [0 ~ (n - 1)])
 
 Note:
     Suggest setting exactly the same software environment for every node, especially `PyTorch`, `nccl`, etc.
@@ -37,7 +38,6 @@ Referring to: https://pytorch.org/tutorials/intermediate/ddp_tutorial.html
 """
 
 import os
-import sys
 from glob import glob
 import nibabel as nib
 import numpy as np
@@ -54,54 +54,42 @@ from monai.transforms import (
     LoadNiftid,
     AsChannelFirstd,
     ScaleIntensityd,
-    RandCropByPosNegLabeld,
-    RandRotate90d,
     ToTensord,
 )
 from monai.data import create_test_image_3d, Dataset, DataLoader
+from monai.inferers import sliding_window_inference
+from monai.metrics import DiceMetric
 
 
-def train(gpu, args):
-    # disable logging for processes execpt 0 on every node
-    if gpu != 0:
-        f = open(os.devnull, "w")
-        sys.stdout = sys.stderr = f
-    # initialize the distributed training process, every GPU runs in a process,
+def evaluate(gpu, args):
+    # initialize the distributed evaluation process, every GPU runs in a process,
     # so the process rank is (node index x GPU count of 1 node + GPU index)
     rank = args.node * args.gpus + gpu
     dist.init_process_group(backend="nccl", init_method="env://", world_size=args.world_size, rank=rank)
 
     images = sorted(glob(os.path.join(args.dir, "img*.nii.gz")))
     segs = sorted(glob(os.path.join(args.dir, "seg*.nii.gz")))
-    train_files = [{"img": img, "seg": seg} for img, seg in zip(images, segs)]
+    val_files = [{"img": img, "seg": seg} for img, seg in zip(images, segs)]
 
     # define transforms for image and segmentation
-    train_transforms = Compose(
+    val_transforms = Compose(
         [
             LoadNiftid(keys=["img", "seg"]),
             AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
             ScaleIntensityd(keys=["img", "seg"]),
-            RandCropByPosNegLabeld(
-                keys=["img", "seg"], label_key="seg", spatial_size=[96, 96, 96], pos=1, neg=1, num_samples=4
-            ),
-            RandRotate90d(keys=["img", "seg"], prob=0.5, spatial_axes=[0, 2]),
             ToTensord(keys=["img", "seg"]),
         ]
     )
 
-    # create a training data loader
-    train_ds = Dataset(data=train_files, transform=train_transforms)
-    # create a training data sampler
-    train_sampler = DistributedSampler(train_ds, num_replicas=args.world_size, rank=rank)
-    # use batch_size=2 to load images and use RandCropByPosNegLabeld to generate 2 x 4 images for network training
-    train_loader = DataLoader(
-        train_ds,
-        batch_size=2,
-        shuffle=False,
-        num_workers=0,
-        pin_memory=torch.cuda.is_available(),
-        sampler=train_sampler,
+    # create a evaluation data loader
+    val_ds = Dataset(data=val_files, transform=val_transforms)
+    # create a evaluation data sampler
+    val_sampler = DistributedSampler(val_ds, num_replicas=args.world_size, rank=rank)
+    # sliding window inference need to input 1 image in every iteration
+    val_loader = DataLoader(
+        val_ds, batch_size=1, shuffle=False, num_workers=0, pin_memory=torch.cuda.is_available(), sampler=val_sampler,
     )
+    dice_metric = DiceMetric(include_background=True, to_onehot_y=False, sigmoid=True, reduction="mean")
 
     # create UNet, DiceLoss and Adam optimizer
     device = torch.device(f"cuda:{gpu}")
@@ -113,38 +101,34 @@ def train(gpu, args):
         strides=(2, 2, 2, 2),
         num_res_units=2,
     ).to(device)
-    loss_function = monai.losses.DiceLoss(sigmoid=True).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), 1e-3)
     # wrap the model with DistributedDataParallel module
     model = DistributedDataParallel(model, device_ids=[gpu])
+    # config mapping to expected GPU device
+    map_location = {"cuda:0": f"cuda:{gpu}"}
+    # load model parameters to GPU device
+    model.load_state_dict(torch.load("final_model.pth", map_location=map_location))
 
-    # start a typical PyTorch training
-    epoch_loss_values = list()
-    for epoch in range(5):
-        print("-" * 10)
-        print(f"epoch {epoch + 1}/{5}")
-        model.train()
-        epoch_loss = 0
-        step = 0
-        train_sampler.set_epoch(epoch)
-        for batch_data in train_loader:
-            step += 1
-            inputs, labels = batch_data["img"].to(device), batch_data["seg"].to(device)
-            optimizer.zero_grad()
-            outputs = model(inputs)
-            loss = loss_function(outputs, labels)
-            loss.backward()
-            optimizer.step()
-            epoch_loss += loss.item()
-            epoch_len = len(train_ds) // train_loader.batch_size
-            print(f"{step}/{epoch_len}, train_loss: {loss.item():.4f}")
-        epoch_loss /= step
-        epoch_loss_values.append(epoch_loss)
-        print(f"epoch {epoch + 1} average loss: {epoch_loss:.4f}")
-    print(f"train completed, epoch losses: {epoch_loss_values}")
-    if rank == 0:
-        torch.save(model.state_dict(), "final_model.pth")
-    dist.destroy_process_group()
+    model.eval()
+    with torch.no_grad():
+        # define PyTorch Tensor to record metrics result at each GPU
+        # the first value is `sum` of all dice metric, the second value is `count` of not_nan items
+        metric = torch.zeros(2, dtype=torch.float, device=device)
+        for val_data in val_loader:
+            val_images, val_labels = val_data["img"].to(device), val_data["seg"].to(device)
+            # define sliding window size and batch size for windows inference
+            roi_size = (96, 96, 96)
+            sw_batch_size = 4
+            val_outputs = sliding_window_inference(val_images, roi_size, sw_batch_size, model)
+            value = dice_metric(y_pred=val_outputs, y=val_labels).squeeze()
+            metric[0] += value * dice_metric.not_nans
+            metric[1] += dice_metric.not_nans
+        # synchronizes all processes and reduce results
+        dist.barrier()
+        dist.all_reduce(metric, op=torch.distributed.ReduceOp.SUM)
+        metric = metric.tolist()
+        if rank == 0:
+            print("evaluation metric:", metric[0] / metric[1])
+        dist.destroy_process_group()
 
 
 def main():
@@ -157,13 +141,13 @@ def main():
     parser.add_argument("-d", "--dir", default="./testdata", type=str, help="directory to create random data")
     args = parser.parse_args()
 
-    # create 40 random image, mask paris for training
+    # create 16 random image, mask paris for evaluation
     if not os.path.exists(args.dir):
         print(f"generating synthetic data to {args.dir} (this may take a while)")
         os.makedirs(args.dir)
         # set random seed to generate same random data for every node
         np.random.seed(seed=0)
-        for i in range(40):
+        for i in range(16):
             im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1, channel_dim=-1)
             n = nib.Nifti1Image(im, np.eye(4))
             nib.save(n, os.path.join(args.dir, f"img{i:d}.nii.gz"))
@@ -173,9 +157,9 @@ def main():
     args.world_size = args.gpus * args.nodes
     os.environ["MASTER_ADDR"] = args.master_ip
     os.environ["MASTER_PORT"] = args.master_port
-    mp.spawn(train, nprocs=args.gpus, args=(args,))
+    mp.spawn(evaluate, nprocs=args.gpus, args=(args,))
 
 
-# usage: "python unet_training_ddp.py -mi 10.23.137.29 -mp 8888 -n 2 -g 1 -i <i>"  (i in [0 - (n - 1)])
+# usage: "python unet_evaluation_ddp.py -mi 10.23.137.29 -mp 8888 -n 2 -g 1 -i <i>"  (i in [0 - (n - 1)])
 if __name__ == "__main__":
     main()

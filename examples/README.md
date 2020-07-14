@@ -24,8 +24,8 @@ The examples are standard PyTorch programs and have both dictionary-based and ar
 Training and evaluation examples of 3D classification based on DenseNet3D and [IXI dataset](https://brain-development.org/ixi-dataset).
 The examples are PyTorch Ignite programs and have both dictionary-based and array-based transformation versions.
 #### [distributed_training](./distributed_training)
-This example shows how to execute distributed training based on PyTorch native `DistributedDataParallel` module.
-It can run on several nodes with multiple GPU devices on every node.
+The examples show how to execute distributed training and evaluation based on PyTorch native `DistributedDataParallel` module.
+They can run on several distributed nodes with multiple GPU devices on every node.
 #### [notebooks/3d_image_transforms](./notebooks/3d_image_transforms.ipynb)
 This notebook demonstrates the transformations on volumetric images.
 #### [notebooks/brats_segmentation_3d](./notebooks/brats_segmentation_3d.ipynb)
