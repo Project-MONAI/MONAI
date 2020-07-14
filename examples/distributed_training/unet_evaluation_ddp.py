@@ -27,7 +27,7 @@ Main steps to set up the distributed evaluation:
   each of which runs `evaluate(i, args)`, where i goes from `0` to `args.gpus - 1`. We run the `main()`
   function on each node, so that in total there will be `args.nodes x args.gpus = args.world_size` processes.
 - Every node runs the program with different node index, a typical example for 2 nodes with 1 GPU for every node:
-  `python unet_evaluation_ddp.py -mi 10.23.137.29 -mp 8888 -n 2 -g 1 -i <i>` (i in [0 - (n - 1)])
+  `python unet_evaluation_ddp.py -mi 10.23.137.29 -mp 8888 -n 2 -g 1 -i <i>` (i in [0 ~ (n - 1)])
 
 Note:
     Suggest setting exactly the same software environment for every node, especially `PyTorch`, `nccl`, etc.
