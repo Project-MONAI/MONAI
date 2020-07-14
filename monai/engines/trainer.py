@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Callable, Dict, Optional, TYPE_CHECKING
+from typing import Callable, Dict, Optional, Union, Sequence, TYPE_CHECKING
 
 import torch
 from torch.optim.optimizer import Optimizer
@@ -46,7 +46,7 @@ class Trainer(Workflow):
             self.state.iteration = 0  # to avoid creating new State instance in ignite Engine.run
         super().run()
 
-    def get_train_stats(self) -> Dict[str, Any]:
+    def get_train_stats(self) -> Dict[str, Union[int, float]]:
         return {"total_epochs": self.state.max_epochs, "total_iterations": self.state.epoch_length}
 
 
@@ -58,9 +58,9 @@ class SupervisedTrainer(Trainer):
         device: an object representing the device on which to run.
         max_epochs: the total epoch number for engine to run, validator and evaluator have only 1 epoch.
         train_data_loader: Ignite engine use data_loader to run, must be torch.DataLoader.
-        network (Network): to train with this network.
+        network: to train with this network.
         optimizer: the optimizer associated to the network.
-        loss_function (Loss): the loss function associated to the optimizer.
+        loss_function: the loss function associated to the optimizer.
         prepare_batch: function to parse image and label for current iteration.
         iteration_update: the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
@@ -71,8 +71,8 @@ class SupervisedTrainer(Trainer):
         key_train_metric: compute metric when every iteration completed, and save average value to
             engine.state.metrics when epoch completed. key_train_metric is the main metric to compare and save the
             checkpoint into files.
-        additional_metrics (dict): more Ignite metrics that also attach to Ignite Engine.
-        train_handlers (list): every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
+        additional_metrics: more Ignite metrics that also attach to Ignite Engine.
+        train_handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
             CheckpointHandler, StatsHandler, SegmentationSaver, etc.
 
     """
@@ -82,17 +82,17 @@ class SupervisedTrainer(Trainer):
         device: torch.device,
         max_epochs: int,
         train_data_loader: DataLoader,
-        network,
+        network: torch.nn.Module,
         optimizer: Optimizer,
-        loss_function,
+        loss_function: Callable,
         prepare_batch: Callable = default_prepare_batch,
         iteration_update: Optional[Callable] = None,
         inferer: Inferer = SimpleInferer(),
         amp: bool = True,
         post_transform: Optional[Transform] = None,
-        key_train_metric: Optional[Metric] = None,
-        additional_metrics=None,
-        train_handlers=None,
+        key_train_metric: Optional[Dict[str, Metric]] = None,
+        additional_metrics: Optional[Dict[str, Metric]] = None,
+        train_handlers: Optional[Sequence] = None,
     ):
         # set up Ignite engine and environments
         super().__init__(
@@ -113,7 +113,7 @@ class SupervisedTrainer(Trainer):
         self.loss_function = loss_function
         self.inferer = inferer
 
-    def _iteration(self, engine: Engine, batchdata) -> Dict[str, Any]:
+    def _iteration(self, engine: Engine, batchdata: Union[Dict, Sequence]) -> Dict[str, torch.Tensor]:
         """
         Callback function for the Supervised Training processing logic of 1 iteration in Ignite Engine.
         Return below items in a dictionary:
@@ -124,7 +124,7 @@ class SupervisedTrainer(Trainer):
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
-            batchdata (dict or array of tensor): input data for this iteration.
+            batchdata: input data for this iteration, usually can be dictionary or tuple of Tensor data.
 
         Raises:
             ValueError: must provide batch data for current iteration.

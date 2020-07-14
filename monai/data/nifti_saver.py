@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Union
+from typing import Optional, Union, Dict
 
 import numpy as np
 import torch
@@ -63,7 +63,7 @@ class NiftiSaver:
         self.dtype = dtype
         self._data_index = 0
 
-    def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: Optional[dict] = None) -> None:
+    def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
         """
         Save data into a Nifti file.
         The meta_data could optionally have the following keys:
@@ -113,7 +113,7 @@ class NiftiSaver:
             dtype=self.dtype or data.dtype,
         )
 
-    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[dict] = None) -> None:
+    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
         """
         Save a batch of data into Nifti format files.
 

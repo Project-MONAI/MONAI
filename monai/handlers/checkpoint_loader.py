@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, Dict, TYPE_CHECKING
 
 import logging
 
@@ -42,7 +42,7 @@ class CheckpointLoader:
 
     """
 
-    def __init__(self, load_path: str, load_dict: dict, name: Optional[str] = None) -> None:
+    def __init__(self, load_path: str, load_dict: Dict, name: Optional[str] = None) -> None:
         assert load_path is not None, "must provide clear path to load checkpoint."
         self.load_path = load_path
         assert load_dict is not None and len(load_dict) > 0, "must provide target objects to load."
