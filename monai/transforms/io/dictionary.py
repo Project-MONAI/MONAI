@@ -23,6 +23,7 @@ from monai.config import KeysCollection
 from monai.transforms.compose import MapTransform
 from monai.transforms.io.array import LoadNifti, LoadPNG, LoadNumpy
 
+
 class LoadDatad(MapTransform):
     """
     Base class for dictionary-based wrapper of IO loader transforms.
@@ -32,12 +33,9 @@ class LoadDatad(MapTransform):
     transform of all the stacked images should be same. The output metadata field will
     be created as ``key_{meta_key_postfix}``.
     """
+
     def __init__(
-        self,
-        keys: KeysCollection,
-        loader: Callable,
-        meta_key_postfix: str = "meta_dict",
-        overwriting: bool = False,
+        self, keys: KeysCollection, loader: Callable, meta_key_postfix: str = "meta_dict", overwriting: bool = False,
     ) -> None:
         """
         Args:
