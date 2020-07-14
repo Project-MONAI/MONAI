@@ -30,7 +30,7 @@ Main steps to set up the distributed evaluation:
   `python unet_evaluation_ddp.py -mi 10.23.137.29 -mp 8888 -n 2 -g 1 -i <i>` (i in [0 - (n - 1)])
 
 Note:
-    Suggest exactly the same software environment for every node, especially `PyTorch`, `nccl`, etc.
+    Suggest setting exactly the same software environment for every node, especially `PyTorch`, `nccl`, etc.
     A good practice is to use the same docker image for all nodes directly.
 
 Referring to: https://pytorch.org/tutorials/intermediate/ddp_tutorial.html
