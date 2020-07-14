@@ -74,8 +74,9 @@ def create_multigpu_supervised_trainer(
     if len(devices_) > 1:
         net = torch.nn.parallel.DataParallel(net)
 
-    return create_supervised_trainer(net, optimizer, loss_fn, devices_[0], non_blocking,
-                                     prepare_batch, output_transform)
+    return create_supervised_trainer(
+        net, optimizer, loss_fn, devices_[0], non_blocking, prepare_batch, output_transform
+    )
 
 
 def create_multigpu_supervised_evaluator(
