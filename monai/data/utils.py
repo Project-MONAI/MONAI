@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Optional, Sequence, Tuple, Union
+from typing import List, Optional, Sequence, Tuple, Union, Dict
 
 import os
 import warnings
@@ -144,7 +144,7 @@ def iter_patch(
     start_pos: Sequence[int] = (),
     copy_back: bool = True,
     mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
-    **pad_opts: dict,
+    **pad_opts: Dict,
 ):
     """
     Yield successive patches from `arr` of size `patch_size`. The iteration can start from position `start_pos` in `arr`

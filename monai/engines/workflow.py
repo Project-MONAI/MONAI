@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, TYPE_CHECKING
+from typing import Callable, Optional, Dict, Sequence, Union, TYPE_CHECKING
 
 import torch
 from torch.utils.data import DataLoader
@@ -52,8 +52,8 @@ class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optiona
         key_metric: compute metric when every iteration completed, and save average value to
             engine.state.metrics when epoch completed. key_metric is the main metric to compare and save the
             checkpoint into files.
-        additional_metrics (dict): more Ignite metrics that also attach to Ignite Engine.
-        handlers (list): every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
+        additional_metrics: more Ignite metrics that also attach to Ignite Engine.
+        handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
             CheckpointHandler, StatsHandler, SegmentationSaver, etc.
 
     """
@@ -67,15 +67,14 @@ class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optiona
         prepare_batch: Callable = default_prepare_batch,
         iteration_update: Optional[Callable] = None,
         post_transform: Optional[Callable] = None,
-        key_metric: Optional[Metric] = None,
-        additional_metrics=None,
-        handlers=None,
+        key_metric: Optional[Dict[str, Metric]] = None,
+        additional_metrics: Optional[Dict[str, Metric]] = None,
+        handlers: Optional[Sequence] = None,
     ) -> None:
-        # pytype: disable=invalid-directive
-        # pytype: disable=wrong-arg-count
-        super().__init__(iteration_update if iteration_update is not None else self._iteration)
-        # pytype: enable=invalid-directive
-        # pytype: enable=wrong-arg-count
+        if iteration_update is not None:
+            super().__init__(iteration_update)
+        else:
+            super().__init__(self._iteration)
         # FIXME:
         if amp:
             self.logger.info("Will add AMP support when PyTorch v1.6 released.")
@@ -145,14 +144,14 @@ class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optiona
         """
         super().run(data=self.data_loader, epoch_length=len(self.data_loader))
 
-    def _iteration(self, engine: Engine, batchdata):
+    def _iteration(self, engine: Engine, batchdata: Union[Dict, Sequence]):
         """
         Abstract callback function for the processing logic of 1 iteration in Ignite Engine.
         Need subclass to implement different logics, like SupervisedTrainer/Evaluator, GANTrainer, etc.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
-            batchdata (TransformContext, ndarray): input data for this iteration.
+            batchdata: input data for this iteration, usually can be dictionary or tuple of Tensor data.
 
         Raises:
             NotImplementedError: Subclass {self.__class__.__name__} must implement the compute method

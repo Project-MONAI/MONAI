@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence, Union
+from typing import Sequence, Union, Dict
 
 import math
 
@@ -31,7 +31,7 @@ class GridPatchDataset(IterableDataset):
         patch_size: Sequence[int],
         start_pos: Sequence[int] = (),
         mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
-        **pad_opts: dict,
+        **pad_opts: Dict,
     ) -> None:
         """
         Initializes this dataset in terms of the input dataset and patch size. The `patch_size` is the size of the
