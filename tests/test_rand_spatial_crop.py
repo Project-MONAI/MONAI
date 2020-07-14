@@ -14,6 +14,12 @@ import numpy as np
 from parameterized import parameterized
 from monai.transforms import RandSpatialCrop
 
+TEST_CASE_0 = [
+    {"roi_size": [3, 3, -1], "random_center": True},
+    np.random.randint(0, 2, size=[3, 3, 3, 4]),
+    (3, 3, 3, 4),
+]
+
 TEST_CASE_1 = [{"roi_size": [3, 3, 3], "random_center": True}, np.random.randint(0, 2, size=[3, 3, 3, 3]), (3, 3, 3, 3)]
 
 TEST_CASE_2 = [
@@ -29,7 +35,7 @@ TEST_CASE_3 = [
 
 
 class TestRandSpatialCrop(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2])
     def test_shape(self, input_param, input_data, expected_shape):
         result = RandSpatialCrop(**input_param)(input_data)
         self.assertTupleEqual(result.shape, expected_shape)

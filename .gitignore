@@ -100,6 +100,9 @@ venv.bak/
 # mkdocs documentation
 /site
 
+# pytype cache
+.pytype/
+
 # mypy
 .mypy_cache/
 examples/scd_lvsegs.npz
@@ -107,3 +110,13 @@ temp/
 .idea/
 
 *~
+
+# Remove .pyre temporary config files
+.pyre
+.pyre_configuration
+
+# temporary editor files that should not be in git
+*.orig
+*.bak
+*.swp
+.DS_Store
