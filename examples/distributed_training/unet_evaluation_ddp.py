@@ -87,12 +87,7 @@ def evaluate(gpu, args):
     val_sampler = DistributedSampler(val_ds, num_replicas=args.world_size, rank=rank)
     # sliding window inference need to input 1 image in every iteration
     val_loader = DataLoader(
-        val_ds,
-        batch_size=1,
-        shuffle=False,
-        num_workers=0,
-        pin_memory=torch.cuda.is_available(),
-        sampler=val_sampler,
+        val_ds, batch_size=1, shuffle=False, num_workers=0, pin_memory=torch.cuda.is_available(), sampler=val_sampler,
     )
     dice_metric = DiceMetric(include_background=True, to_onehot_y=False, sigmoid=True, reduction="mean")
 
