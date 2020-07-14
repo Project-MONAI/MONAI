@@ -31,7 +31,7 @@ Main steps to set up the distributed evaluation:
 
 Note:
     Suggest setting exactly the same software environment for every node, especially `PyTorch`, `nccl`, etc.
-    A good practice is to use the same docker image for all nodes directly.
+    A good practice is to use the same MONAI docker image for all nodes directly.
 
 Referring to: https://pytorch.org/tutorials/intermediate/ddp_tutorial.html
 
