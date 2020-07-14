@@ -71,11 +71,10 @@ class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optiona
         additional_metrics: Optional[Dict[str, Metric]] = None,
         handlers: Optional[Sequence] = None,
     ) -> None:
-        # pytype: disable=invalid-directive
-        # pytype: disable=wrong-arg-count
-        super().__init__(iteration_update if iteration_update is not None else self._iteration)
-        # pytype: enable=invalid-directive
-        # pytype: enable=wrong-arg-count
+        if iteration_update is not None:
+            super().__init__(iteration_update)
+        else:
+            super().__init__(self._iteration)
         # FIXME:
         if amp:
             self.logger.info("Will add AMP support when PyTorch v1.6 released.")
