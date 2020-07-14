@@ -9,13 +9,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from abc import ABC, abstractmethod
+from typing import Callable, Optional, TYPE_CHECKING
+
 import torch
-from ignite.engine import Engine, State, Events
-from .utils import default_prepare_batch
+from torch.utils.data import DataLoader
+
+from monai.transforms import apply_transform
+from monai.utils import exact_version, optional_import, ensure_tuple
+from monai.engines.utils import default_prepare_batch
+
+IgniteEngine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
+State, _ = optional_import("ignite.engine", "0.3.0", exact_version, "State")
+Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
+if TYPE_CHECKING:
+    from ignite.engine import Engine
+    from ignite.metrics import Metric
+else:
+    Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
+    Metric, _ = optional_import("ignite.metrics", "0.3.0", exact_version, "Metric")
 
 
-class Workflow(ABC, Engine):
+class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optional_import
     """
     Workflow defines the core work process inheriting from Ignite engine.
     All trainer, validator and evaluator share this same workflow as base class,
@@ -26,14 +40,16 @@ class Workflow(ABC, Engine):
     Users should consider to inherit from `trainer` or `evaluator` to develop more trainers or evaluators.
 
     Args:
-        device (torch.device): an object representing the device on which to run.
-        max_epochs (int): the total epoch number for engine to run, validator and evaluator have only 1 epoch.
-        amp (bool): whether to enable auto-mixed-precision training, reserved.
-        data_loader (torch.DataLoader): Ignite engine use data_loader to run, must be torch.DataLoader.
-        prepare_batch (Callable): function to parse image and label for every iteration.
-        iteration_update (Callable): the callable function for every iteration, expect to accept `engine`
+        device: an object representing the device on which to run.
+        max_epochs: the total epoch number for engine to run, validator and evaluator have only 1 epoch.
+        amp: whether to enable auto-mixed-precision training, reserved.
+        data_loader: Ignite engine use data_loader to run, must be torch.DataLoader.
+        prepare_batch: function to parse image and label for every iteration.
+        iteration_update: the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
-        key_metric (ignite.metric): compute metric when every iteration completed, and save average value to
+        post_transform: execute additional transformation for the model output data.
+            Typically, several Tensor based transforms composed by `Compose`.
+        key_metric: compute metric when every iteration completed, and save average value to
             engine.state.metrics when epoch completed. key_metric is the main metric to compare and save the
             checkpoint into files.
         additional_metrics (dict): more Ignite metrics that also attach to Ignite Engine.
@@ -44,23 +60,28 @@ class Workflow(ABC, Engine):
 
     def __init__(
         self,
-        device,
-        max_epochs,
-        amp,
-        data_loader,
-        prepare_batch=default_prepare_batch,
-        iteration_update=None,
-        key_metric=None,
+        device: torch.device,
+        max_epochs: int,
+        amp: bool,
+        data_loader: DataLoader,
+        prepare_batch: Callable = default_prepare_batch,
+        iteration_update: Optional[Callable] = None,
+        post_transform: Optional[Callable] = None,
+        key_metric: Optional[Metric] = None,
         additional_metrics=None,
         handlers=None,
-    ):
+    ) -> None:
+        # pytype: disable=invalid-directive
+        # pytype: disable=wrong-arg-count
         super().__init__(iteration_update if iteration_update is not None else self._iteration)
+        # pytype: enable=invalid-directive
+        # pytype: enable=wrong-arg-count
         # FIXME:
         if amp:
             self.logger.info("Will add AMP support when PyTorch v1.6 released.")
         if not isinstance(device, torch.device):
             raise ValueError("device must be PyTorch device object.")
-        if not isinstance(data_loader, torch.utils.data.DataLoader):
+        if not isinstance(data_loader, DataLoader):
             raise ValueError("data_loader must be PyTorch DataLoader.")
 
         # set all sharable data for the workflow based on Ignite engine.state
@@ -83,7 +104,13 @@ class Workflow(ABC, Engine):
         self.data_loader = data_loader
         self.prepare_batch = prepare_batch
 
-        metrics = None
+        if post_transform is not None:
+
+            @self.on(Events.ITERATION_COMPLETED)
+            def run_post_transform(engine: Engine):
+                assert post_transform is not None
+                engine.state.output = apply_transform(post_transform, engine.state.output)
+
         if key_metric is not None:
 
             if not isinstance(key_metric, dict):
@@ -98,7 +125,7 @@ class Workflow(ABC, Engine):
                 metric.attach(self, name)
 
             @self.on(Events.EPOCH_COMPLETED)
-            def _compare_metrics(engine):
+            def _compare_metrics(engine: Engine):
                 if engine.state.key_metric_name is not None:
                     current_val_metric = engine.state.metrics[engine.state.key_metric_name]
                     if current_val_metric > engine.state.best_metric:
@@ -106,26 +133,29 @@ class Workflow(ABC, Engine):
                         engine.state.best_metric = current_val_metric
                         engine.state.best_metric_epoch = engine.state.epoch
 
-        if handlers is not None and len(handlers) > 0:
+        if handlers is not None:
+            handlers = ensure_tuple(handlers)
             for handler in handlers:
                 handler.attach(self)
 
-    def run(self):
+    def run(self) -> None:
         """
         Execute training, validation or evaluation based on Ignite Engine.
 
         """
         super().run(data=self.data_loader, epoch_length=len(self.data_loader))
 
-    @abstractmethod
-    def _iteration(self, engine, batchdata):
+    def _iteration(self, engine: Engine, batchdata):
         """
         Abstract callback function for the processing logic of 1 iteration in Ignite Engine.
         Need subclass to implement different logics, like SupervisedTrainer/Evaluator, GANTrainer, etc.
 
         Args:
-            engine (ignite.engine): Ignite Engine, it can be a trainer, validator or evaluator.
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
             batchdata (TransformContext, ndarray): input data for this iteration.
+
+        Raises:
+            NotImplementedError: Subclass {self.__class__.__name__} must implement the compute method
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement the compute method")
