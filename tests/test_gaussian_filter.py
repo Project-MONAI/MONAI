@@ -35,7 +35,7 @@ class GaussianFilterTestCase(unittest.TestCase):
                         0.7939224,
                         0.6910876,
                         0.56658804,
-                    ],
+                    ]
                 ]
             ]
         )
@@ -91,7 +91,7 @@ class GaussianFilterTestCase(unittest.TestCase):
                         ],
                     ]
                 ]
-            ],
+            ]
         )
         np.testing.assert_allclose(g(a).cpu().numpy(), expected, rtol=1e-5)
 
