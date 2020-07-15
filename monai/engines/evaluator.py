@@ -19,7 +19,7 @@ from monai.transforms import Transform
 from monai.engines.utils import CommonKeys as Keys
 from monai.engines.utils import default_prepare_batch
 from monai.engines.workflow import Workflow
-from monai.utils import exact_version, optional_import
+from monai.utils import exact_version, optional_import, ensure_tuple
 
 if TYPE_CHECKING:
     from ignite.engine import Engine
@@ -171,3 +171,94 @@ class SupervisedEvaluator(Evaluator):
             predictions = self.inferer(inputs, self.network)
 
         return {Keys.IMAGE: inputs, Keys.LABEL: targets, Keys.PRED: predictions}
+
+
+class EnsembleEvaluator(Evaluator):
+    """
+    Ensemble evaluation for multiple models, inherits from evaluator and Workflow.
+    It accepts a list of models for inference and outputs a list of predictions for further operations.
+
+    Args:
+        device: an object representing the device on which to run.
+        val_data_loader: Ignite engine use data_loader to run, must be torch.DataLoader.
+        networks: use the networks to run model forward in order.
+        pred_keys: the keys to store every prediction data.
+            the length must exactly match the number of networks.
+        prepare_batch: function to parse image and label for current iteration.
+        iteration_update: the callable function for every iteration, expect to accept `engine`
+            and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
+        inferer: inference method that execute model forward on input data, like: SlidingWindow, etc.
+        post_transform: execute additional transformation for the model output data.
+            Typically, several Tensor based transforms composed by `Compose`.
+        key_val_metric: compute metric when every iteration completed, and save average value to
+            engine.state.metrics when epoch completed. key_val_metric is the main metric to compare and save the
+            checkpoint into files.
+        additional_metrics: more Ignite metrics that also attach to Ignite Engine.
+        val_handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
+            CheckpointHandler, StatsHandler, SegmentationSaver, etc.
+
+    """
+
+    def __init__(
+        self,
+        device: torch.device,
+        val_data_loader: DataLoader,
+        networks: Sequence[torch.nn.Module],
+        pred_keys: Sequence[str],
+        prepare_batch: Callable = default_prepare_batch,
+        iteration_update: Optional[Callable] = None,
+        inferer: Inferer = SimpleInferer(),
+        post_transform: Optional[Transform] = None,
+        key_val_metric: Optional[Dict[str, Metric]] = None,
+        additional_metrics: Optional[Dict[str, Metric]] = None,
+        val_handlers: Optional[Sequence] = None,
+    ):
+        super().__init__(
+            device=device,
+            val_data_loader=val_data_loader,
+            prepare_batch=prepare_batch,
+            iteration_update=iteration_update,
+            post_transform=post_transform,
+            key_val_metric=key_val_metric,
+            additional_metrics=additional_metrics,
+            val_handlers=val_handlers,
+        )
+
+        self.networks = ensure_tuple(networks)
+        self.pred_keys = ensure_tuple(pred_keys)
+        self.inferer = inferer
+
+    def _iteration(self, engine: Engine, batchdata: Union[Dict, Sequence]) -> Dict[str, torch.Tensor]:
+        """
+        callback function for the Supervised Evaluation processing logic of 1 iteration in Ignite Engine.
+        Return below items in a dictionary:
+            - IMAGE: image Tensor data for model input, already moved to device.
+            - LABEL: label Tensor data corresponding to the image, already moved to device.
+            - pred_keys[0]: prediction result of network 0.
+            - pred_keys[1]: prediction result of network 1.
+            - ... ...
+            - pred_keys[N]: prediction result of network N.
+
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+            batchdata: input data for this iteration, usually can be dictionary or tuple of Tensor data.
+
+        Raises:
+            ValueError: must provide batch data for current iteration.
+
+        """
+        if batchdata is None:
+            raise ValueError("must provide batch data for current iteration.")
+        inputs, targets = self.prepare_batch(batchdata)
+        inputs = inputs.to(engine.state.device)
+        if targets is not None:
+            targets = targets.to(engine.state.device)
+
+        # execute forward computation
+        predictions: Dict[str, torch.Tensor] = {Keys.IMAGE: inputs, Keys.LABEL: targets}
+        for idx, network in enumerate(self.networks):
+            network.eval()
+            with torch.no_grad():
+                predictions.update({self.pred_keys[idx]: self.inferer(inputs, network)})
+
+        return predictions
