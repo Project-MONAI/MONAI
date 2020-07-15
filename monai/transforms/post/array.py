@@ -359,14 +359,14 @@ class MeanEnsemble(Transform):
     Args:
         weights: can be a list or tuple of numbers for input data with shape: [E, B, C, H, W[, D]].
             or a Numpy ndarray or a PyTorch Tensor data.
-            `weights` will be added to input data from highest dimension, for example:
-                1. if the `weights` only has 1 dimension, it will be added to the `E` dimension of input data.
-                2. if the `weights` has 3 dimensions, it will be added to `E`, `B` and `C` dimensions.
-                   it's a typical practice to add weights for different classes:
-                   to ensemble 3 segmentation model outputs, every output has 4 channels(classes),
-                   so the input data shape can be: [3, B, 4, H, W, D].
-                   and add different `weights` for different classes, so the `weights` shape can be: [3, 1, 4].
-                   for example: `weights = [[[1, 2, 3, 4]], [[4, 3, 2, 1]], [[1, 1, 1, 1]]]`.
+            the `weights` will be added to input data from highest dimension, for example:
+            1. if the `weights` only has 1 dimension, it will be added to the `E` dimension of input data.
+            2. if the `weights` has 3 dimensions, it will be added to `E`, `B` and `C` dimensions.
+            it's a typical practice to add weights for different classes:
+            to ensemble 3 segmentation model outputs, every output has 4 channels(classes),
+            so the input data shape can be: [3, B, 4, H, W, D].
+            and add different `weights` for different classes, so the `weights` shape can be: [3, 1, 4].
+            for example: `weights = [[[1, 2, 3, 4]], [[4, 3, 2, 1]], [[1, 1, 1, 1]]]`.
 
     """
     def __init__(self, weights: Optional[Union[Sequence[float], torch.Tensor, np.ndarray]] = None):
