@@ -374,9 +374,7 @@ class MeanEnsemble(Transform):
         self.weights = torch.as_tensor(weights, dtype=torch.float) if weights is not None else None
 
     def __call__(self, img: Union[Sequence[torch.Tensor], torch.Tensor]):
-        img_ = torch.stack(img) if isinstance(img, (tuple, list)) else img
-        if not torch.is_tensor(img_):
-            raise TypeError("img should be PyTorch Tensor or list of PyTorch Tensor.")
+        img_: torch.Tensor = torch.stack(img) if isinstance(img, (tuple, list)) else torch.as_tensor(img)
         if self.weights is not None:
             self.weights = self.weights.to(img_.device)
             shape = tuple(self.weights.shape)
