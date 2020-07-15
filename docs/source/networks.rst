@@ -20,6 +20,36 @@ Blocks
 .. autoclass:: ResidualUnit
     :members:
 
+`Squeeze-and-Excitation`
+~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: ChannelSELayer
+    :members:
+
+`Residual Squeeze-and-Excitation`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: ResidualSELayer
+    :members:
+
+`Squeeze-and-Excitation Block`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: SEBlock
+    :members:
+
+`Simple ASPP`
+~~~~~~~~~~~~~
+.. autoclass:: SimpleASPP
+    :members:
+
+`MaxAvgPooling`
+~~~~~~~~~~~~~~~
+.. autoclass:: MaxAvgPool
+    :members:
+
+`Upsampling`
+~~~~~~~~~~~~
+.. autoclass:: UpSample
+    :members:
+
 
 Layers
 ------
@@ -27,11 +57,42 @@ Layers
 `Factories`
 ~~~~~~~~~~~
 .. automodule:: monai.networks.layers.factories
+
+.. autoclass:: monai.networks.layers.LayerFactory
+  :members:
+
 .. currentmodule:: monai.networks.layers
 
-`LayerFactory`
-##############
-.. autoclass:: LayerFactory
+`split_args`
+~~~~~~~~~~~~
+.. autofunction:: monai.networks.layers.split_args
+
+`Dropout`
+~~~~~~~~~
+.. automodule:: monai.networks.layers.Dropout
+  :members:
+
+`Act`
+~~~~~
+.. automodule:: monai.networks.layers.Act
+  :members:
+
+`Norm`
+~~~~~~
+.. automodule:: monai.networks.layers.Norm
+  :members:
+
+`Conv`
+~~~~~~
+.. automodule:: monai.networks.layers.Conv
+  :members:
+
+`Pool`
+~~~~~~
+.. automodule:: monai.networks.layers.Pool
+  :members:
+
+.. currentmodule:: monai.networks.layers
 
 `SkipConnection`
 ~~~~~~~~~~~~~~~~
@@ -85,6 +146,31 @@ Nets
   :members:
 .. autoclass:: Unet
 .. autoclass:: unet
+
+`Generator`
+~~~~~~~~~~~
+.. autoclass:: Generator
+  :members:
+
+`Regressor`
+~~~~~~~~~~~
+.. autoclass:: Regressor
+  :members:
+
+`Classifier`
+~~~~~~~~~~~~
+.. autoclass:: Classifier
+  :members:
+
+`Discriminator`
+~~~~~~~~~~~~~~~
+.. autoclass:: Discriminator
+  :members:
+
+`Critic`
+~~~~~~~~
+.. autoclass:: Critic
+  :members:
 
 Utilities
 ---------
