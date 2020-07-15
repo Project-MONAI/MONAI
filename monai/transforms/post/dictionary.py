@@ -238,7 +238,7 @@ class MeanEnsembled(MapTransform):
         self,
         keys: KeysCollection,
         output_key: Optional[str] = None,
-        weights: Optional[Union[Sequence[float], torch.Tensor, np.ndarray]] = None
+        weights: Optional[Union[Sequence[float], torch.Tensor, np.ndarray]] = None,
     ) -> None:
         """
         Args:

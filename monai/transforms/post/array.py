@@ -369,6 +369,7 @@ class MeanEnsemble(Transform):
             for example: `weights = [[[1, 2, 3, 4]], [[4, 3, 2, 1]], [[1, 1, 1, 1]]]`.
 
     """
+
     def __init__(self, weights: Optional[Union[Sequence[float], torch.Tensor, np.ndarray]] = None):
         self.weights = torch.as_tensor(weights, dtype=torch.float) if weights is not None else None
 
