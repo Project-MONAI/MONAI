@@ -20,7 +20,6 @@ from monai.engines.utils import CommonKeys as Keys
 from monai.engines.utils import default_prepare_batch
 from monai.engines.workflow import Workflow
 from monai.utils import exact_version, optional_import, ensure_tuple
-from monai.config import KeysCollection
 
 if TYPE_CHECKING:
     from ignite.engine import Engine
@@ -205,7 +204,7 @@ class EnsembleEvaluator(Evaluator):
         device: torch.device,
         val_data_loader: DataLoader,
         networks: Sequence[torch.nn.Module],
-        pred_keys: KeysCollection,
+        pred_keys: Sequence[str],
         prepare_batch: Callable = default_prepare_batch,
         iteration_update: Optional[Callable] = None,
         inferer: Inferer = SimpleInferer(),
