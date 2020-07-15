@@ -19,7 +19,7 @@ from monai.transforms import Transform
 from monai.engines.utils import CommonKeys as Keys
 from monai.engines.utils import default_prepare_batch
 from monai.engines.workflow import Workflow
-from monai.utils import exact_version, optional_import
+from monai.utils import exact_version, optional_import, ensure_tuple
 from monai.config import KeysCollection
 
 if TYPE_CHECKING:
@@ -225,8 +225,8 @@ class EnsembleEvaluator(Evaluator):
             val_handlers=val_handlers,
         )
 
-        self.networks = networks
-        self.pred_keys = pred_keys
+        self.networks = ensure_tuple(networks)
+        self.pred_keys = ensure_tuple(pred_keys)
         self.inferer = inferer
 
     def _iteration(self, engine: Engine, batchdata: Union[Dict, Sequence]) -> Dict[str, torch.Tensor]:
