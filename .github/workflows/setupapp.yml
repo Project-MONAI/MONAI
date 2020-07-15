@@ -5,6 +5,8 @@ on:
   push:
     branches:
       - master
+      # add for temp test
+      - 761-fix-dense-slices-issue
 
 jobs:
   coverage-py3:
