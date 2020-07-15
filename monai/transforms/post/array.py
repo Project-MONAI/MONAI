@@ -14,7 +14,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 from typing import Callable, Optional, Sequence, Union
-
+import numpy as np
 import torch
 import torch.nn.functional as F
 
@@ -346,3 +346,42 @@ class LabelToContour(Transform):
 
         contour_img.clamp_(min=0.0, max=1.0)
         return contour_img
+
+
+class MeanEnsemble(Transform):
+    """
+    Execute mean ensemble on the input data.
+    The input data can be a list or tuple of PyTorch Tensor with shape: [B, C, H, W[, D]],
+    Or a single PyTorch Tensor with shape: [E, B, C, H, W[, D]], the `E` dimension represents
+    the output data from different models.
+    And it also can support to add `weights` for the input data.
+
+    Args:
+        weights: can be a list or tuple of numbers for input data with shape: [E, B, C, H, W[, D]].
+            or a Numpy ndarray or a PyTorch Tensor data.
+            the `weights` will be added to input data from highest dimension, for example:
+            1. if the `weights` only has 1 dimension, it will be added to the `E` dimension of input data.
+            2. if the `weights` has 3 dimensions, it will be added to `E`, `B` and `C` dimensions.
+            it's a typical practice to add weights for different classes:
+            to ensemble 3 segmentation model outputs, every output has 4 channels(classes),
+            so the input data shape can be: [3, B, 4, H, W, D].
+            and add different `weights` for different classes, so the `weights` shape can be: [3, 1, 4].
+            for example: `weights = [[[1, 2, 3, 4]], [[4, 3, 2, 1]], [[1, 1, 1, 1]]]`.
+
+    """
+
+    def __init__(self, weights: Optional[Union[Sequence[float], torch.Tensor, np.ndarray]] = None):
+        self.weights = torch.as_tensor(weights, dtype=torch.float) if weights is not None else None
+
+    def __call__(self, img: Union[Sequence[torch.Tensor], torch.Tensor]):
+        img_: torch.Tensor = torch.stack(img) if isinstance(img, (tuple, list)) else torch.as_tensor(img)
+        if self.weights is not None:
+            self.weights = self.weights.to(img_.device)
+            shape = tuple(self.weights.shape)
+            for _ in range(img_.ndim - self.weights.ndim):
+                shape += (1,)
+            weights = self.weights.reshape(*shape)
+
+            img_ = img_ * weights / weights.mean(dim=0, keepdim=True)
+
+        return torch.mean(img_, dim=0)
