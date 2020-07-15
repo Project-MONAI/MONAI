@@ -17,7 +17,7 @@ from monai.transforms import Randomizable
 
 
 class RandTest(Randomizable):
-    def randomize(self):
+    def randomize(self, data=None):
         pass
 
 

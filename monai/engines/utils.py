@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Sequence, Dict, Optional
 import torch
 
 
@@ -27,20 +28,23 @@ class CommonKeys:
     LABEL = "label"
     PRED = "pred"
     LOSS = "loss"
-    INFO = "info"
 
 
-def get_devices_spec(devices=None):
+def get_devices_spec(devices: Optional[Sequence[torch.device]] = None):
     """
     Get a valid specification for one or more devices. If `devices` is None get devices for all CUDA devices available.
     If `devices` is and zero-length structure a single CPU compute device is returned. In any other cases `devices` is
     returned unchanged.
 
     Args:
-        devices (list, optional): list of devices to request, None for all GPU devices, [] for CPU.
+        devices: list of devices to request, None for all GPU devices, [] for CPU.
 
     Returns:
         list of torch.device: list of devices.
+
+    Raises:
+        ValueError: No GPU devices available
+
     """
     if devices is None:
         devices = [torch.device(f"cuda:{d:d}") for d in range(torch.cuda.device_count())]
@@ -54,7 +58,7 @@ def get_devices_spec(devices=None):
     return devices
 
 
-def default_prepare_batch(batchdata):
+def default_prepare_batch(batchdata: Dict):
     assert isinstance(batchdata, dict), "default prepare_batch expects dictionary input data."
     return (
         (batchdata[CommonKeys.IMAGE], batchdata[CommonKeys.LABEL])
