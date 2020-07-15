@@ -16,7 +16,8 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
 from typing import Optional, Union, Sequence, Callable
-
+import numpy as np
+import torch
 from monai.config import KeysCollection
 from monai.utils import ensure_tuple_rep
 from monai.transforms.compose import MapTransform
@@ -26,6 +27,7 @@ from monai.transforms.post.array import (
     AsDiscrete,
     KeepLargestConnectedComponent,
     LabelToContour,
+    MeanEnsemble,
 )
 
 
@@ -227,8 +229,55 @@ class LabelToContourd(MapTransform):
         return d
 
 
+class MeanEnsembled(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:monai.transforms.MeanEnsemble.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        output_key: Optional[str] = None,
+        weights: Optional[Union[Sequence[float], torch.Tensor, np.ndarray]] = None,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be stack and execute ensemble.
+                if only 1 key provided, suppose it's a PyTorch Tensor with data stacked on dimension `E`.
+            output_key: the key to store ensemble result in the dictionary.
+                if only 1 key provided in `keys`, `output_key` can be None and use `keys` as default.
+            weights: can be a list or tuple of numbers for input data with shape: [E, B, C, H, W[, D]].
+                or a Numpy ndarray or a PyTorch Tensor data.
+                the `weights` will be added to input data from highest dimension, for example:
+                1. if the `weights` only has 1 dimension, it will be added to the `E` dimension of input data.
+                2. if the `weights` has 3 dimensions, it will be added to `E`, `B` and `C` dimensions.
+                it's a typical practice to add weights for different classes:
+                to ensemble 3 segmentation model outputs, every output has 4 channels(classes),
+                so the input data shape can be: [3, B, 4, H, W, D].
+                and add different `weights` for different classes, so the `weights` shape can be: [3, 1, 4].
+                for example: `weights = [[[1, 2, 3, 4]], [[4, 3, 2, 1]], [[1, 1, 1, 1]]]`.
+
+        """
+        super().__init__(keys)
+        if len(self.keys) > 1 and output_key is None:
+            raise ValueError("must provide expected key to store the output data.")
+        self.output_key = output_key if output_key is not None else self.keys[0]
+        self.ensemble = MeanEnsemble(weights=weights)
+
+    def __call__(self, data):
+        d = dict(data)
+        if len(self.keys) == 1:
+            items = d[self.keys[0]]
+        else:
+            items = [d[key] for key in self.keys]
+        d[self.output_key] = self.ensemble(items)
+
+        return d
+
+
 SplitChannelD = SplitChannelDict = SplitChanneld
 ActivationsD = ActivationsDict = Activationsd
 AsDiscreteD = AsDiscreteDict = AsDiscreted
 KeepLargestConnectedComponentD = KeepLargestConnectedComponentDict = KeepLargestConnectedComponentd
 LabelToContourD = LabelToContourDict = LabelToContourd
+MeanEnsembleD = MeanEnsembleDict = MeanEnsembled

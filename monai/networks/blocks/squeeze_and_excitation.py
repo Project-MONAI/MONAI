@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional
+from typing import Dict, Optional
 
 import torch
 import torch.nn as nn
@@ -134,9 +134,9 @@ class SEBlock(nn.Module):
         n_chns_1: int,
         n_chns_2: int,
         n_chns_3: int,
-        conv_param_1: Optional[dict] = None,
-        conv_param_2: Optional[dict] = None,
-        conv_param_3: Optional[dict] = None,
+        conv_param_1: Optional[Dict] = None,
+        conv_param_2: Optional[Dict] = None,
+        conv_param_3: Optional[Dict] = None,
         r: int = 2,
         acti_type_1="relu",
         acti_type_2="sigmoid",

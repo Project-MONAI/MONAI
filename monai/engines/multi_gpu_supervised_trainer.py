@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Dict, Optional, TYPE_CHECKING
+from typing import Callable, Dict, Optional, Sequence, TYPE_CHECKING
 
 import torch
 from torch.optim.optimizer import Optimizer
@@ -37,8 +37,8 @@ def _default_eval_transform(x, y, y_pred):
 def create_multigpu_supervised_trainer(
     net: torch.nn.Module,
     optimizer: Optimizer,
-    loss_fn,
-    devices=None,
+    loss_fn: Callable,
+    devices: Optional[Sequence[torch.device]] = None,
     non_blocking: bool = False,
     prepare_batch: Callable = _prepare_batch,
     output_transform: Callable = _default_transform,
@@ -51,8 +51,8 @@ def create_multigpu_supervised_trainer(
     Args:
         net: the network to train.
         optimizer: the optimizer to use.
-        loss_fn (`torch.nn` loss function): the loss function to use.
-        devices (list, optional): device(s) type specification (default: None).
+        loss_fn: the loss function to use.
+        devices: device(s) type specification (default: None).
             Applies to both model and batches. None is all devices used, empty list is CPU only.
         non_blocking: if True and this copy is between CPU and GPU, the copy may occur asynchronously
             with respect to the host. For other cases, this argument has no effect.
@@ -69,18 +69,20 @@ def create_multigpu_supervised_trainer(
         of the processed batch by default.
     """
 
-    devices = get_devices_spec(devices)
+    devices_ = get_devices_spec(devices)
 
-    if len(devices) > 1:
+    if len(devices_) > 1:
         net = torch.nn.parallel.DataParallel(net)
 
-    return create_supervised_trainer(net, optimizer, loss_fn, devices[0], non_blocking, prepare_batch, output_transform)
+    return create_supervised_trainer(
+        net, optimizer, loss_fn, devices_[0], non_blocking, prepare_batch, output_transform
+    )
 
 
 def create_multigpu_supervised_evaluator(
     net: torch.nn.Module,
     metrics: Optional[Dict[str, Metric]] = None,
-    devices=None,
+    devices: Optional[Sequence[torch.device]] = None,
     non_blocking: bool = False,
     prepare_batch: Callable = _prepare_batch,
     output_transform: Callable = _default_eval_transform,
@@ -93,7 +95,7 @@ def create_multigpu_supervised_evaluator(
     Args:
         net: the model to train.
         metrics: a map of metric names to Metrics.
-        devices (list, optional): device(s) type specification (default: None).
+        devices: device(s) type specification (default: None).
             Applies to both model and batches. None is all devices used, empty list is CPU only.
         non_blocking: if True and this copy is between CPU and GPU, the copy may occur asynchronously
             with respect to the host. For other cases, this argument has no effect.
@@ -111,9 +113,9 @@ def create_multigpu_supervised_evaluator(
         Engine: an evaluator engine with supervised inference function.
     """
 
-    devices = get_devices_spec(devices)
+    devices_ = get_devices_spec(devices)
 
-    if len(devices) > 1:
+    if len(devices_) > 1:
         net = torch.nn.parallel.DataParallel(net)
 
-    return create_supervised_evaluator(net, metrics, devices[0], non_blocking, prepare_batch, output_transform)
+    return create_supervised_evaluator(net, metrics, devices_[0], non_blocking, prepare_batch, output_transform)

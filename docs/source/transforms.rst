@@ -222,6 +222,12 @@ Post-processing
     :members:
     :special-members: __call__
 
+`MeanEnsemble`
+""""""""""""""
+.. autoclass:: MeanEnsemble
+    :members:
+    :special-members: __call__
+
 Spatial
 ^^^^^^^
 
@@ -612,6 +618,12 @@ Post-processing (Dict)
 `LabelToContourd`
 """""""""""""""""
 .. autoclass:: LabelToContourd
+    :members:
+    :special-members: __call__
+
+`MeanEnsembled`
+"""""""""""""""
+.. autoclass:: MeanEnsembled
     :members:
     :special-members: __call__
 
