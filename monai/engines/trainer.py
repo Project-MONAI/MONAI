@@ -14,6 +14,7 @@ from typing import Callable, Dict, Optional, Union, Sequence, TYPE_CHECKING
 import torch
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
+from torch.utils.data.distributed import DistributedSampler
 
 from monai.inferers import Inferer, SimpleInferer
 from monai.transforms import Transform
@@ -23,10 +24,11 @@ from monai.engines.workflow import Workflow
 from monai.utils import exact_version, optional_import
 
 if TYPE_CHECKING:
-    from ignite.engine import Engine
+    from ignite.engine import Engine, Events
     from ignite.metrics import Metric
 else:
     Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
+    Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
     Metric, _ = optional_import("ignite.metrics", "0.3.0", exact_version, "Metric")
 
 
@@ -34,7 +36,55 @@ class Trainer(Workflow):
     """
     Base class for all kinds of trainers, inherits from Workflow.
 
+    Args:
+        device: an object representing the device on which to run.
+        max_epochs: the total epoch number for trainer to run.
+        amp: whether to enable auto-mixed-precision training, reserved.
+        train_data_loader: Ignite engine use data_loader to run, must be torch.DataLoader.
+        prepare_batch: function to parse image and label for current iteration.
+        iteration_update: the callable function for every iteration, expect to accept `engine`
+            and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
+        post_transform: execute additional transformation for the model output data.
+            Typically, several Tensor based transforms composed by `Compose`.
+        key_train_metric: compute metric when every iteration completed, and save average value to
+            engine.state.metrics when epoch completed. key_train_metric is the main metric to compare and save the
+            checkpoint into files.
+        additional_metrics: more Ignite metrics that also attach to Ignite Engine.
+        train_handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
+            CheckpointHandler, StatsHandler, SegmentationSaver, etc.
+
     """
+
+    def __init__(
+        self,
+        device: torch.device,
+        max_epochs: int,
+        amp: bool,
+        train_data_loader: DataLoader,
+        prepare_batch: Callable = default_prepare_batch,
+        iteration_update: Optional[Callable] = None,
+        post_transform: Optional[Transform] = None,
+        key_train_metric: Optional[Dict[str, Metric]] = None,
+        additional_metrics: Optional[Dict[str, Metric]] = None,
+        train_handlers: Optional[Sequence] = None,
+    ) -> None:
+        super().__init__(
+            device=device,
+            max_epochs=max_epochs,
+            amp=amp,
+            data_loader=train_data_loader,
+            prepare_batch=prepare_batch,
+            iteration_update=iteration_update,
+            post_transform=post_transform,
+            key_metric=key_train_metric,
+            additional_metrics=additional_metrics,
+            handlers=train_handlers,
+        )
+        if isinstance(train_data_loader.sampler, DistributedSampler):
+
+            @self.on(Events.EPOCH_STARTED)
+            def init_sampling(engine: Engine):
+                train_data_loader.sampler.set_epoch(engine.state.epoch)
 
     def run(self) -> None:
         """
@@ -99,13 +149,13 @@ class SupervisedTrainer(Trainer):
             device=device,
             max_epochs=max_epochs,
             amp=amp,
-            data_loader=train_data_loader,
+            train_data_loader=train_data_loader,
             prepare_batch=prepare_batch,
             iteration_update=iteration_update,
-            key_metric=key_train_metric,
-            additional_metrics=additional_metrics,
-            handlers=train_handlers,
             post_transform=post_transform,
+            key_train_metric=key_train_metric,
+            additional_metrics=additional_metrics,
+            train_handlers=train_handlers,
         )
 
         self.network = network
