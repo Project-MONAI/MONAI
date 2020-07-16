@@ -15,9 +15,10 @@ Utilities and types for defining networks, these depend on PyTorch.
 import warnings
 import torch
 import torch.nn as nn
+from monai.utils import ensure_tuple_size
 
 
-def one_hot(labels, num_classes: int, dtype: torch.dtype = torch.float):
+def one_hot(labels, num_classes: int, dtype: torch.dtype = torch.float, dim: int = 1):
     """
     For a tensor `labels` of dimensions B1[spatial_dims], return a tensor of dimensions `BN[spatial_dims]`
     for `num_classes` N number of classes.
@@ -29,17 +30,18 @@ def one_hot(labels, num_classes: int, dtype: torch.dtype = torch.float):
     """
     assert labels.dim() > 0, "labels should have dim of 1 or more."
 
-    # if 1D, add singelton dim at the end
-    if labels.dim() == 1:
-        labels = labels.view(-1, 1)
+    # if `dim` is bigger, add singelton dim at the end
+    if labels.ndim < dim + 1:
+        shape = ensure_tuple_size(labels.shape, dim + 1, 1)
+        labels = labels.reshape(*shape)
 
     sh = list(labels.shape)
 
-    assert sh[1] == 1, "labels should have a channel with length equals to one."
-    sh[1] = num_classes
+    assert sh[dim] == 1, "labels should have a channel with length equals to one."
+    sh[dim] = num_classes
 
     o = torch.zeros(size=sh, dtype=dtype, device=labels.device)
-    labels = o.scatter_(dim=1, index=labels.long(), value=1)
+    labels = o.scatter_(dim=dim, index=labels.long(), value=1)
 
     return labels
 

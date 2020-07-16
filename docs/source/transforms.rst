@@ -228,6 +228,12 @@ Post-processing
     :members:
     :special-members: __call__
 
+`VoteEnsemble`
+""""""""""""""
+.. autoclass:: VoteEnsemble
+    :members:
+    :special-members: __call__
+
 Spatial
 ^^^^^^^
 
@@ -624,6 +630,12 @@ Post-processing (Dict)
 `MeanEnsembled`
 """""""""""""""
 .. autoclass:: MeanEnsembled
+    :members:
+    :special-members: __call__
+
+`VoteEnsembled`
+"""""""""""""""
+.. autoclass:: VoteEnsembled
     :members:
     :special-members: __call__
 
