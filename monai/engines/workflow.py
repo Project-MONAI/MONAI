@@ -69,7 +69,7 @@ class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optiona
         post_transform: Optional[Callable] = None,
         key_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
-        handlers: Optional[Sequence] = None,
+        handlers: Optional[Sequence[Metric]] = None,
     ) -> None:
         if iteration_update is not None:
             super().__init__(iteration_update)
@@ -133,8 +133,8 @@ class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optiona
                         engine.state.best_metric_epoch = engine.state.epoch
 
         if handlers is not None:
-            handlers = ensure_tuple(handlers)
-            for handler in handlers:
+            handlers_ = ensure_tuple(handlers)
+            for handler in handlers_:
                 handler.attach(self)
 
     def run(self) -> None:

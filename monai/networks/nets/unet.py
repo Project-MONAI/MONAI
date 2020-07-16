@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Sequence, Union
+
 import torch.nn as nn
 
 from monai.networks.blocks.convolutions import Convolution, ResidualUnit
@@ -22,14 +24,14 @@ from monai.utils import export, alias
 class UNet(nn.Module):
     def __init__(
         self,
-        dimensions,
+        dimensions: int,
         in_channels: int,
         out_channels: int,
-        channels,
-        strides,
-        kernel_size=3,
-        up_kernel_size=3,
-        num_res_units=0,
+        channels: Sequence[int],
+        strides: Sequence[int],
+        kernel_size: Union[Sequence[int], int] = 3,
+        up_kernel_size: Union[Sequence[int], int] = 3,
+        num_res_units: int = 0,
         act=Act.PRELU,
         norm=Norm.INSTANCE,
         dropout=0,
@@ -48,7 +50,7 @@ class UNet(nn.Module):
         self.norm = norm
         self.dropout = dropout
 
-        def _create_block(inc: int, outc: int, channels, strides, is_top: bool):
+        def _create_block(inc: int, outc: int, channels: Sequence[int], strides: Sequence[int], is_top: bool):
             """
             Builds the UNet structure from the bottom up by recursing down to the bottom block, then creating sequential
             blocks containing the downsample path, a skip connection around the previous block, and the upsample path.
@@ -71,7 +73,7 @@ class UNet(nn.Module):
 
         self.model = _create_block(in_channels, out_channels, self.channels, self.strides, True)
 
-    def _get_down_layer(self, in_channels: int, out_channels: int, strides, is_top: bool):
+    def _get_down_layer(self, in_channels: int, out_channels: int, strides: int, is_top: bool):
         if self.num_res_units > 0:
             return ResidualUnit(
                 self.dimensions,
@@ -92,7 +94,7 @@ class UNet(nn.Module):
     def _get_bottom_layer(self, in_channels: int, out_channels: int):
         return self._get_down_layer(in_channels, out_channels, 1, False)
 
-    def _get_up_layer(self, in_channels: int, out_channels: int, strides, is_top: bool):
+    def _get_up_layer(self, in_channels: int, out_channels: int, strides: int, is_top: bool):
         conv = Convolution(
             self.dimensions,
             in_channels,

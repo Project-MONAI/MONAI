@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Union
+from typing import Any, Dict, Optional, Sequence, Union
 
 import torch.nn as nn
 import torch.nn.functional as F
@@ -79,7 +79,7 @@ class HighResBlock(nn.Module):
         in_channels: int,
         out_channels: int,
         kernels: Sequence[int] = (3, 3),
-        dilation=1,
+        dilation: Union[Sequence[int], int] = 1,
         norm_type: Union[Normalisation, str] = Normalisation.INSTANCE,
         acti_type: Union[Activation, str] = Activation.RELU,
         channel_matching: Union[ChannelMatching, str] = ChannelMatching.PAD,
@@ -162,7 +162,7 @@ class HighResNet(nn.Module):
             Non-linear activation using ReLU or PReLU. Defaults to ``"relu"``.
         dropout_prob: probability of the feature map to be zeroed
             (only applies to the penultimate conv layer).
-        layer_params (a list of dictionaries): specifying key parameters of each layer/block.
+        layer_params: specifying key parameters of each layer/block.
     """
 
     def __init__(
@@ -173,7 +173,7 @@ class HighResNet(nn.Module):
         norm_type: Union[Normalisation, str] = Normalisation.BATCH,
         acti_type: Union[Activation, str] = Activation.RELU,
         dropout_prob: Optional[float] = None,
-        layer_params=DEFAULT_LAYER_PARAMS_3D,
+        layer_params: Sequence[Dict[str, Any]] = DEFAULT_LAYER_PARAMS_3D,
     ) -> None:
 
         super(HighResNet, self).__init__()

@@ -59,7 +59,7 @@ class Evaluator(Workflow):
         post_transform: Optional[Transform] = None,
         key_val_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
-        val_handlers: Optional[Sequence] = None,
+        val_handlers: Optional[Sequence[Metric]] = None,
     ) -> None:
         super().__init__(
             device=device,
@@ -88,7 +88,7 @@ class Evaluator(Workflow):
         self.state.iteration = 0
         super().run()
 
-    def get_validation_stats(self) -> Dict[str, Union[int, float]]:
+    def get_validation_stats(self) -> Dict[str, float]:
         return {"best_validation_metric": self.state.best_metric, "best_validation_epoch": self.state.best_metric_epoch}
 
 
@@ -126,7 +126,7 @@ class SupervisedEvaluator(Evaluator):
         post_transform: Optional[Transform] = None,
         key_val_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
-        val_handlers: Optional[Sequence] = None,
+        val_handlers: Optional[Sequence[Metric]] = None,
     ):
         super().__init__(
             device=device,

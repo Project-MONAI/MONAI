@@ -46,7 +46,7 @@ class Trainer(Workflow):
             self.state.iteration = 0  # to avoid creating new State instance in ignite Engine.run
         super().run()
 
-    def get_train_stats(self) -> Dict[str, Union[int, float]]:
+    def get_train_stats(self) -> Dict[str, float]:
         return {"total_epochs": self.state.max_epochs, "total_iterations": self.state.epoch_length}
 
 
@@ -84,7 +84,7 @@ class SupervisedTrainer(Trainer):
         train_data_loader: DataLoader,
         network: torch.nn.Module,
         optimizer: Optimizer,
-        loss_function: Callable,
+        loss_function: torch.nn.modules.loss._Loss,
         prepare_batch: Callable = default_prepare_batch,
         iteration_update: Optional[Callable] = None,
         inferer: Inferer = SimpleInferer(),
@@ -92,7 +92,7 @@ class SupervisedTrainer(Trainer):
         post_transform: Optional[Transform] = None,
         key_train_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
-        train_handlers: Optional[Sequence] = None,
+        train_handlers: Optional[Sequence[Metric]] = None,
     ):
         # set up Ignite engine and environments
         super().__init__(

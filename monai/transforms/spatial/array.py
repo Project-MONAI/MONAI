@@ -384,7 +384,7 @@ class Rotate(Transform):
         img: np.ndarray,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-        align_corners=None,
+        align_corners: Optional[bool] = None,
     ):
         """
         Args:
@@ -397,7 +397,7 @@ class Rotate(Transform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
                 align_corners: Defaults to ``self.align_corners``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-            align_corners (bool): Defaults to ``self.align_corners``.
+            align_corners: Defaults to ``self.align_corners``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
 
         Raises:
@@ -642,7 +642,7 @@ class RandRotate(Randomizable, Transform):
         img: np.ndarray,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-        align_corners=None,
+        align_corners: Optional[bool] = None,
     ):
         """
         Args:
@@ -653,7 +653,7 @@ class RandRotate(Randomizable, Transform):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-            align_corners (bool): Defaults to ``self.align_corners``.
+            align_corners: Defaults to ``self.align_corners``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         """
         self.randomize()
