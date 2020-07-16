@@ -18,7 +18,7 @@ from monai.transforms import generate_pos_neg_label_crop_centers
 TEST_CASE_1 = [
     {
         "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
-        "size": [2, 2, 2],
+        "spatial_size": [2, 2, 2],
         "num_samples": 2,
         "pos_ratio": 1.0,
         "image": None,

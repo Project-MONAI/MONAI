@@ -9,13 +9,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import torch
+from typing import cast, Union
+
 import warnings
+
+import torch
 import numpy as np
-from monai.networks.utils import one_hot
+
+from monai.networks import one_hot
+from monai.utils import Average
 
 
-def _calculate(y, y_pred):
+def _calculate(y: torch.Tensor, y_pred: torch.Tensor):
     assert y.ndimension() == y_pred.ndimension() == 1 and len(y) == len(
         y_pred
     ), "y and y_pred must be 1 dimension data with same length."
@@ -26,10 +31,10 @@ def _calculate(y, y_pred):
     indexes = y_pred.argsort()
     y = y[indexes].cpu().numpy()
     y_pred = y_pred[indexes].cpu().numpy()
-    nneg = auc = tmp_pos = tmp_neg = 0
+    nneg = auc = tmp_pos = tmp_neg = 0.0
 
     for i in range(n):
-        y_i = y[i]
+        y_i = cast(float, y[i])
         if i + 1 < n and y_pred[i] == y_pred[i + 1]:
             tmp_pos += y_i
             tmp_neg += 1 - y_i
@@ -48,28 +53,40 @@ def _calculate(y, y_pred):
     return auc / (nneg * (n - nneg))
 
 
-def compute_roc_auc(y_pred, y, to_onehot_y=False, add_softmax=False, average="macro"):
+def compute_roc_auc(
+    y_pred: torch.Tensor,
+    y: torch.Tensor,
+    to_onehot_y: bool = False,
+    softmax: bool = False,
+    average: Union[Average, str] = Average.MACRO,
+):
     """Computes Area Under the Receiver Operating Characteristic Curve (ROC AUC). Referring to:
     `sklearn.metrics.roc_auc_score <https://scikit-learn.org/stable/modules/generated/
     sklearn.metrics.roc_auc_score.html#sklearn.metrics.roc_auc_score>`_.
 
     Args:
-        y_pred (torch.Tensor): input data to compute, typical classification model output.
+        y_pred: input data to compute, typical classification model output.
             it must be One-Hot format and first dim is batch, example shape: [16] or [16, 2].
-        y (torch.Tensor): ground truth to compute ROC AUC metric, the first dim is batch.
+        y: ground truth to compute ROC AUC metric, the first dim is batch.
             example shape: [16, 1] will be converted into [16, 2] (where `2` is inferred from `y_pred`).
-        to_onehot_y (bool): whether to convert `y` into the one-hot format. Defaults to False.
-        add_softmax (bool): whether to add softmax function to `y_pred` before computation. Defaults to False.
-        average (`macro|weighted|micro|None`): type of averaging performed if not binary
-            classification. Default is 'macro'.
+        to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
+        softmax: whether to add softmax function to `y_pred` before computation. Defaults to False.
+        average: {``"macro"``, ``"weighted"``, ``"micro"``, ``"none"``}
+            Type of averaging performed if not binary classification.
+            Defaults to ``"macro"``.
 
-            - 'macro': calculate metrics for each label, and find their unweighted mean.
-              this does not take label imbalance into account.
-            - 'weighted': calculate metrics for each label, and find their average,
-              weighted by support (the number of true instances for each label).
-            - 'micro': calculate metrics globally by considering each element of the label
-              indicator matrix as a label.
-            - None: the scores for each class are returned.
+            - ``"macro"``: calculate metrics for each label, and find their unweighted mean.
+                This does not take label imbalance into account.
+            - ``"weighted"``: calculate metrics for each label, and find their average,
+                weighted by support (the number of true instances for each label).
+            - ``"micro"``: calculate metrics globally by considering each element of the label
+                indicator matrix as a label.
+            - ``"none"``: the scores for each class are returned.
+
+    Raises:
+        ValueError: predictions should be of shape (batch_size, n_classes) or (batch_size, ).
+        ValueError: targets should be of shape (batch_size, n_classes) or (batch_size, ).
+        ValueError: unsupported average method.
 
     Note:
         ROCAUC expects y to be comprised of 0's and 1's. `y_pred` must be either prob. estimates or confidence values.
@@ -90,28 +107,29 @@ def compute_roc_auc(y_pred, y, to_onehot_y=False, add_softmax=False, average="ma
     if y_pred_ndim == 1:
         if to_onehot_y:
             warnings.warn("y_pred has only one channel, to_onehot_y=True ignored.")
-        if add_softmax:
-            warnings.warn("y_pred has only one channel, add_softmax=True ignored.")
+        if softmax:
+            warnings.warn("y_pred has only one channel, softmax=True ignored.")
         return _calculate(y, y_pred)
     else:
         n_classes = y_pred.shape[1]
         if to_onehot_y:
             y = one_hot(y, n_classes)
-        if add_softmax:
+        if softmax:
             y_pred = y_pred.float().softmax(dim=1)
 
         assert y.shape == y_pred.shape, "data shapes of y_pred and y do not match."
 
-        if average == "micro":
+        average = Average(average)
+        if average == Average.MICRO:
             return _calculate(y.flatten(), y_pred.flatten())
         else:
             y, y_pred = y.transpose(0, 1), y_pred.transpose(0, 1)
             auc_values = [_calculate(y_, y_pred_) for y_, y_pred_ in zip(y, y_pred)]
-            if average is None:
+            if average == Average.NONE:
                 return auc_values
-            if average == "macro":
+            if average == Average.MACRO:
                 return np.mean(auc_values)
-            if average == "weighted":
+            if average == Average.WEIGHTED:
                 weights = [sum(y_) for y_ in y]
                 return np.average(auc_values, weights=weights)
             raise ValueError("unsupported average method.")

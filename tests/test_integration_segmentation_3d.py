@@ -24,7 +24,7 @@ from torch.utils.tensorboard import SummaryWriter
 import monai
 from monai.data import create_test_image_3d, NiftiSaver, list_data_collate
 from monai.inferers import sliding_window_inference
-from monai.metrics import compute_meandice
+from monai.metrics import DiceMetric
 from monai.networks.nets import UNet
 from monai.transforms import (
     Compose,
@@ -33,6 +33,7 @@ from monai.transforms import (
     RandCropByPosNegLabeld,
     RandRotate90d,
     ScaleIntensityd,
+    Spacingd,
     ToTensord,
 )
 from monai.visualize import plot_2d_or_3d_image
@@ -52,9 +53,10 @@ def run_training_test(root_dir, device=torch.device("cuda:0"), cachedataset=Fals
         [
             LoadNiftid(keys=["img", "seg"]),
             AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
+            Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"]),
             ScaleIntensityd(keys=["img", "seg"]),
             RandCropByPosNegLabeld(
-                keys=["img", "seg"], label_key="seg", size=[96, 96, 96], pos=1, neg=1, num_samples=4
+                keys=["img", "seg"], label_key="seg", spatial_size=[96, 96, 96], pos=1, neg=1, num_samples=4
             ),
             RandRotate90d(keys=["img", "seg"], prob=0.8, spatial_axes=[0, 2]),
             ToTensord(keys=["img", "seg"]),
@@ -65,6 +67,7 @@ def run_training_test(root_dir, device=torch.device("cuda:0"), cachedataset=Fals
         [
             LoadNiftid(keys=["img", "seg"]),
             AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
+            Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"]),
             ScaleIntensityd(keys=["img", "seg"]),
             ToTensord(keys=["img", "seg"]),
         ]
@@ -76,19 +79,11 @@ def run_training_test(root_dir, device=torch.device("cuda:0"), cachedataset=Fals
     else:
         train_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
     # use batch_size=2 to load images and use RandCropByPosNegLabeld to generate 2 x 4 images for network training
-    train_loader = DataLoader(
-        train_ds,
-        batch_size=2,
-        shuffle=True,
-        num_workers=4,
-        collate_fn=list_data_collate,
-        pin_memory=torch.cuda.is_available(),
-    )
+    train_loader = DataLoader(train_ds, batch_size=2, shuffle=True, num_workers=4, collate_fn=list_data_collate)
     # create a validation data loader
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
-    val_loader = DataLoader(
-        val_ds, batch_size=1, num_workers=4, collate_fn=list_data_collate, pin_memory=torch.cuda.is_available()
-    )
+    val_loader = DataLoader(val_ds, batch_size=1, num_workers=4, collate_fn=list_data_collate)
+    dice_metric = DiceMetric(include_background=True, to_onehot_y=False, sigmoid=True, reduction="mean")
 
     # create UNet, DiceLoss and Adam optimizer
     model = monai.networks.nets.UNet(
@@ -99,7 +94,7 @@ def run_training_test(root_dir, device=torch.device("cuda:0"), cachedataset=Fals
         strides=(2, 2, 2, 2),
         num_res_units=2,
     ).to(device)
-    loss_function = monai.losses.DiceLoss(do_sigmoid=True)
+    loss_function = monai.losses.DiceLoss(sigmoid=True)
     optimizer = torch.optim.Adam(model.parameters(), 5e-4)
 
     # start a typical PyTorch training
@@ -143,11 +138,10 @@ def run_training_test(root_dir, device=torch.device("cuda:0"), cachedataset=Fals
                     val_images, val_labels = val_data["img"].to(device), val_data["seg"].to(device)
                     sw_batch_size, roi_size = 4, (96, 96, 96)
                     val_outputs = sliding_window_inference(val_images, roi_size, sw_batch_size, model)
-                    value = compute_meandice(
-                        y_pred=val_outputs, y=val_labels, include_background=True, to_onehot_y=False, add_sigmoid=True
-                    )
-                    metric_count += len(value)
-                    metric_sum += value.sum().item()
+                    value = dice_metric(y_pred=val_outputs, y=val_labels)
+                    not_nans = dice_metric.not_nans.item()
+                    metric_count += not_nans
+                    metric_sum += value.item() * not_nans
                 metric = metric_sum / metric_count
                 metric_values.append(metric)
                 if metric > best_metric:
@@ -179,15 +173,15 @@ def run_inference_test(root_dir, device=torch.device("cuda:0")):
         [
             LoadNiftid(keys=["img", "seg"]),
             AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
+            Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"]),
             ScaleIntensityd(keys=["img", "seg"]),
             ToTensord(keys=["img", "seg"]),
         ]
     )
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
     # sliding window inferene need to input 1 image in every iteration
-    val_loader = DataLoader(
-        val_ds, batch_size=1, num_workers=4, collate_fn=list_data_collate, pin_memory=torch.cuda.is_available()
-    )
+    val_loader = DataLoader(val_ds, batch_size=1, num_workers=4, collate_fn=list_data_collate)
+    dice_metric = DiceMetric(include_background=True, to_onehot_y=False, sigmoid=True, reduction="mean")
 
     model = UNet(
         dimensions=3,
@@ -210,15 +204,12 @@ def run_inference_test(root_dir, device=torch.device("cuda:0")):
             # define sliding window size and batch size for windows inference
             sw_batch_size, roi_size = 4, (96, 96, 96)
             val_outputs = sliding_window_inference(val_images, roi_size, sw_batch_size, model)
-            value = compute_meandice(
-                y_pred=val_outputs, y=val_labels, include_background=True, to_onehot_y=False, add_sigmoid=True
-            )
-            metric_count += len(value)
-            metric_sum += value.sum().item()
+            value = dice_metric(y_pred=val_outputs, y=val_labels)
+            not_nans = dice_metric.not_nans.item()
+            metric_count += not_nans
+            metric_sum += value.item() * not_nans
             val_outputs = (val_outputs.sigmoid() >= 0.5).float()
-            saver.save_batch(
-                val_outputs, {"filename_or_obj": val_data["img.filename_or_obj"], "affine": val_data["img.affine"]}
-            )
+            saver.save_batch(val_outputs, val_data["img_meta_dict"])
         metric = metric_sum / metric_count
     return metric
 
@@ -256,18 +247,18 @@ class IntegrationSegmentation3D(unittest.TestCase):
             np.testing.assert_allclose(
                 losses,
                 [
-                    0.5241468191146851,
-                    0.4485286593437195,
-                    0.42851402163505553,
-                    0.4130884766578674,
-                    0.39990419149398804,
-                    0.38985557556152345,
+                    0.5446726709604264,
+                    0.4751088947057724,
+                    0.4449631154537201,
+                    0.42703594267368317,
+                    0.4333809733390808,
+                    0.42501968443393706,
                 ],
-                rtol=1e-4,
+                rtol=1e-3,
             )
             repeated[i].extend(losses)
             print("best metric", best_metric)
-            np.testing.assert_allclose(best_metric, 0.936915835738182, rtol=1e-4)
+            np.testing.assert_allclose(best_metric, 0.9315427839756012, rtol=1e-3)
             repeated[i].append(best_metric)
             np.testing.assert_allclose(best_metric_epoch, 6)
             self.assertTrue(len(glob(os.path.join(self.data_dir, "runs"))) > 0)
@@ -277,54 +268,55 @@ class IntegrationSegmentation3D(unittest.TestCase):
             infer_metric = run_inference_test(self.data_dir, device=self.device)
 
             # check inference properties
-            np.testing.assert_allclose(infer_metric, 0.9382847994565964, rtol=1e-4)
+            print("infer metric", infer_metric)
+            np.testing.assert_allclose(infer_metric, 0.9317556858062744, rtol=1e-3)
             repeated[i].append(infer_metric)
             output_files = sorted(glob(os.path.join(self.data_dir, "output", "img*", "*.nii.gz")))
             sums = [
-                0.14089012145996094,
-                0.15014171600341797,
-                0.14881277084350586,
-                0.1385650634765625,
-                0.1845254898071289,
-                0.16743040084838867,
-                0.14531803131103516,
-                0.16558170318603516,
-                0.15594959259033203,
-                0.17697954177856445,
-                0.1602783203125,
-                0.16418695449829102,
-                0.14412164688110352,
-                0.11254501342773438,
-                0.1596541404724121,
-                0.19611215591430664,
-                0.17372655868530273,
-                0.09818077087402344,
-                0.19010257720947266,
-                0.19887447357177734,
-                0.19475173950195312,
-                0.2032027244567871,
-                0.15918874740600586,
-                0.1304488182067871,
-                0.1496739387512207,
-                0.1408066749572754,
-                0.22757959365844727,
-                0.1601700782775879,
-                0.14635848999023438,
-                0.10335826873779297,
-                0.11824846267700195,
-                0.12940073013305664,
-                0.11342906951904297,
-                0.15047359466552734,
-                0.16041946411132812,
-                0.18996095657348633,
-                0.21734333038330078,
-                0.17714214324951172,
-                0.1853632926940918,
-                0.079422,
+                0.12219095230102539,
+                0.13068485260009766,
+                0.13124942779541016,
+                0.12073802947998047,
+                0.16392803192138672,
+                0.14664554595947266,
+                0.12586545944213867,
+                0.14537811279296875,
+                0.13469552993774414,
+                0.1546192169189453,
+                0.13963079452514648,
+                0.14705324172973633,
+                0.12376976013183594,
+                0.0970311164855957,
+                0.13933563232421875,
+                0.17511940002441406,
+                0.1516733169555664,
+                0.08219337463378906,
+                0.16858196258544922,
+                0.17458581924438477,
+                0.17008686065673828,
+                0.18051767349243164,
+                0.14070510864257812,
+                0.1136326789855957,
+                0.12689924240112305,
+                0.12335014343261719,
+                0.20095491409301758,
+                0.13935327529907227,
+                0.12905502319335938,
+                0.08764886856079102,
+                0.10255098342895508,
+                0.11131525039672852,
+                0.09727668762207031,
+                0.13176202774047852,
+                0.14140892028808594,
+                0.16825628280639648,
+                0.19260501861572266,
+                0.15650701522827148,
+                0.16521501541137695,
+                0.0629119873046875,
             ]
             for (output, s) in zip(output_files, sums):
                 ave = np.mean(nib.load(output).get_fdata())
-                np.testing.assert_allclose(ave, s, rtol=1e-3)
+                np.testing.assert_allclose(ave, s, rtol=5e-3)
                 repeated[i].append(ave)
         np.testing.assert_allclose(repeated[0], repeated[1])
         np.testing.assert_allclose(repeated[0], repeated[2])
