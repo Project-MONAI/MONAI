@@ -38,7 +38,7 @@ class TestGeneralizedWassersteinDiceLoss(unittest.TestCase):
             [[0,0,0,0],
              [0,1,1,0],
              [0,1,1,0],
-             [0,0,0,0]]
+             [0,0,0,0]], device=1
         )
 
         # add another dimension corresponding to the batch (batch size = 1 here)
@@ -54,7 +54,7 @@ class TestGeneralizedWassersteinDiceLoss(unittest.TestCase):
         self.assertAlmostEqual(loss_good, 0., places=3)
 
         # same test, but with target with a class dimension
-        target_4dim = target.unsqueeze(1)  # shape (1, 1, H, W)
+        target_4dim = target.unsqueeze(1)
         loss_good = float(loss.forward(pred_very_good, target_4dim))
         self.assertAlmostEqual(loss_good, 0., places=3)
 
@@ -73,7 +73,7 @@ class TestGeneralizedWassersteinDiceLoss(unittest.TestCase):
             [[0,0,0,0],
              [0,0,0,0],
              [0,0,0,0],
-             [0,0,0,0]]
+             [0,0,0,0]], device=1
         )
 
         # add another dimension corresponding to the batch (batch size = 1 here)
