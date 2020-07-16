@@ -25,7 +25,7 @@ class TestSimulateDelay(NumpyImageTestCase2D):
         result = resize(self.imt[0])
         stop: float = time.time()
         measured_approximate: float = stop - start
-        np.testing.assert_array_less(delay_test_time, measured_approximate)
+        np.testing.assert_allclose(delay_test_time, measured_approximate, rtol=0.5)
 
 
 if __name__ == "__main__":

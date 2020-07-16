@@ -55,7 +55,9 @@ class MethodReplacer(object):
         self.meth = meth
 
     def replace_method(self, meth):
-        """Return a new method to replace `meth` in the instantiated object, or `meth` to do nothing."""
+        """
+        Return a new method to replace `meth` in the instantiated object, or `meth` to do nothing.
+        """
         return meth
 
     def __set_name__(self, owner, name):

@@ -15,17 +15,9 @@ from parameterized import parameterized
 
 from monai.transforms import MapTransform
 
-TEST_CASES = [
-    ["item", ("item",)],
-    [None, (None,)],
-    [["item1", "item2"], ("item1", "item2")],
-]
+TEST_CASES = [["item", ("item",)], [None, (None,)], [["item1", "item2"], ("item1", "item2")]]
 
-TEST_ILL_CASES = [
-    [list()],
-    [tuple()],
-    [[list()]],
-]
+TEST_ILL_CASES = [[list()], [tuple()], [[list()]]]
 
 
 class MapTest(MapTransform):
