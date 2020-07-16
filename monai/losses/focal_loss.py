@@ -61,7 +61,7 @@ class FocalLoss(_WeightedLoss):
         self.gamma = gamma
         self.weight: Optional[torch.Tensor]
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor):
+    def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
         Args:
             input: the shape should be BCH[WD].
