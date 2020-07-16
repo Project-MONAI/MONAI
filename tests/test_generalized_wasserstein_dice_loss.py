@@ -38,7 +38,7 @@ class TestGeneralizedWassersteinDiceLoss(unittest.TestCase):
             [[0,0,0,0],
              [0,1,1,0],
              [0,1,1,0],
-             [0,0,0,0]], device=1
+             [0,0,0,0]]
         )
 
         # add another dimension corresponding to the batch (batch size = 1 here)
@@ -73,7 +73,7 @@ class TestGeneralizedWassersteinDiceLoss(unittest.TestCase):
             [[0,0,0,0],
              [0,0,0,0],
              [0,0,0,0],
-             [0,0,0,0]], device=1
+             [0,0,0,0]]
         )
 
         # add another dimension corresponding to the batch (batch size = 1 here)

@@ -401,7 +401,7 @@ class GeneralizedWassersteinDiceLoss(_Loss):
             flat_target: the target tensor.
         """
         # Turn the distance matrix to a map of identical matrix
-        M = torch.clone(self.M).to(flat_proba.get_device())
+        M = torch.clone(self.M).to(flat_proba.device)
         m_extended = torch.unsqueeze(M, dim=0)
         m_extended = torch.unsqueeze(m_extended, dim=3)
         m_extended = m_extended.expand((flat_proba.size(0), m_extended.size(1), m_extended.size(2), flat_proba.size(2)))
