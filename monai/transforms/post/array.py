@@ -408,6 +408,7 @@ class VoteEnsemble(Transform):
             from channel, need to explicitly specify the number of classes to vote.
 
     """
+
     def __init__(self, num_classes: Optional[int] = None):
         self.num_classes = num_classes
 

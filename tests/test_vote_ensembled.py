@@ -20,21 +20,20 @@ TEST_CASE_1 = [
     {
         "pred0": torch.tensor([[[[1]], [[0]]]]),
         "pred1": torch.tensor([[[[1]], [[0]]]]),
-        "pred2": torch.tensor([[[[0]], [[1]]]])
+        "pred2": torch.tensor([[[[0]], [[1]]]]),
     },
-    torch.tensor([[[[1.]], [[0.]]]]),
+    torch.tensor([[[[1.0]], [[0.0]]]]),
 ]
 
 # shape: [1, 2, 1, 1]
 TEST_CASE_2 = [
     {"keys": "output", "output_key": "output", "num_classes": None},
     {
-        "output": torch.stack([
-            torch.tensor([[[[1]], [[0]]]]),
-            torch.tensor([[[[1]], [[0]]]]),
-            torch.tensor([[[[0]], [[1]]]])])
+        "output": torch.stack(
+            [torch.tensor([[[[1]], [[0]]]]), torch.tensor([[[[1]], [[0]]]]), torch.tensor([[[[0]], [[1]]]])]
+        )
     },
-    torch.tensor([[[[1.]], [[0.]]]]),
+    torch.tensor([[[[1.0]], [[0.0]]]]),
 ]
 
 # shape: [1, 1, 2, 1]
@@ -43,7 +42,7 @@ TEST_CASE_3 = [
     {
         "pred0": torch.tensor([[[[0], [2]]]]),
         "pred1": torch.tensor([[[[0], [2]]]]),
-        "pred2": torch.tensor([[[[1], [1]]]])
+        "pred2": torch.tensor([[[[1], [1]]]]),
     },
     torch.tensor([[[[0], [2]]]]),
 ]
@@ -54,7 +53,7 @@ TEST_CASE_4 = [
     {
         "pred0": torch.tensor([[[[0], [2]]]]),
         "pred1": torch.tensor([[[[0], [2]]]]),
-        "pred2": torch.tensor([[[[1], [1]]]])
+        "pred2": torch.tensor([[[[1], [1]]]]),
     },
     torch.tensor([[[[0], [2]]]]),
 ]
@@ -62,11 +61,7 @@ TEST_CASE_4 = [
 # shape: [2]
 TEST_CASE_5 = [
     {"keys": ["pred0", "pred1", "pred2"], "output_key": "output", "num_classes": 3},
-    {
-        "pred0": torch.tensor([0, 2]),
-        "pred1": torch.tensor([0, 2]),
-        "pred2": torch.tensor([1, 1])
-    },
+    {"pred0": torch.tensor([0, 2]), "pred1": torch.tensor([0, 2]), "pred2": torch.tensor([1, 1])},
     torch.tensor([0, 2]),
 ]
 
@@ -81,7 +76,7 @@ class TestVoteEnsembled(unittest.TestCase):
         img = torch.stack(
             [torch.tensor([[[[1]], [[0]]]]), torch.tensor([[[[1]], [[0]]]]), torch.tensor([[[[0]], [[1]]]])]
         )
-        expected_value = torch.tensor([[[[1.]], [[0.]]]])
+        expected_value = torch.tensor([[[[1.0]], [[0.0]]]])
         if torch.cuda.is_available():
             img = img.to(torch.device("cuda:0"))
             expected_value = expected_value.to(torch.device("cuda:0"))

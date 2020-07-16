@@ -18,14 +18,14 @@ from monai.transforms import VoteEnsemble
 TEST_CASE_1 = [
     {"num_classes": None},
     [torch.tensor([[[[1]], [[0]]]]), torch.tensor([[[[1]], [[0]]]]), torch.tensor([[[[0]], [[1]]]])],
-    torch.tensor([[[[1.]], [[0.]]]]),
+    torch.tensor([[[[1.0]], [[0.0]]]]),
 ]
 
 # shape: [1, 2, 1, 1]
 TEST_CASE_2 = [
     {"num_classes": None},
     torch.stack([torch.tensor([[[[1]], [[0]]]]), torch.tensor([[[[1]], [[0]]]]), torch.tensor([[[[0]], [[1]]]])]),
-    torch.tensor([[[[1.]], [[0.]]]]),
+    torch.tensor([[[[1.0]], [[0.0]]]]),
 ]
 
 # shape: [1, 1, 2, 1]
@@ -60,7 +60,7 @@ class TestVoteEnsemble(unittest.TestCase):
         img = torch.stack(
             [torch.tensor([[[[1]], [[0]]]]), torch.tensor([[[[1]], [[0]]]]), torch.tensor([[[[0]], [[1]]]])]
         )
-        expected_value = torch.tensor([[[[1.]], [[0.]]]])
+        expected_value = torch.tensor([[[[1.0]], [[0.0]]]])
         if torch.cuda.is_available():
             img = img.to(torch.device("cuda:0"))
             expected_value = expected_value.to(torch.device("cuda:0"))

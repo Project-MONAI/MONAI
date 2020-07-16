@@ -235,12 +235,8 @@ class Ensembled(MapTransform):
     Base class of dictionary-based ensemble transforms.
 
     """
-    def __init__(
-        self,
-        keys: KeysCollection,
-        ensemble: Callable,
-        output_key: Optional[str] = None,
-    ) -> None:
+
+    def __init__(self, keys: KeysCollection, ensemble: Callable, output_key: Optional[str] = None,) -> None:
         """
         Args:
             keys: keys of the corresponding items to be stack and execute ensemble.
@@ -301,16 +297,14 @@ class MeanEnsembled(Ensembled):
         ensemble = MeanEnsemble(weights=weights)
         super().__init__(keys, ensemble, output_key)
 
+
 class VoteEnsembled(Ensembled):
     """
     Dictionary-based wrapper of :py:class:monai.transforms.VoteEnsemble.
     """
 
     def __init__(
-        self,
-        keys: KeysCollection,
-        output_key: Optional[str] = None,
-        num_classes: Optional[int] = None
+        self, keys: KeysCollection, output_key: Optional[str] = None, num_classes: Optional[int] = None
     ) -> None:
         """
         Args:
