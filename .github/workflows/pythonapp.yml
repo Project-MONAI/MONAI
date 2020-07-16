@@ -20,13 +20,21 @@ jobs:
       run: |
         python -m pip install --upgrade pip wheel
         pip install -r requirements-dev.txt
-    - name: Lint with flake8
+    - name: Lint with black formater
       run: |
-        flake8 --version
-        python -c 'import monai; monai.config.print_config()'
-        MYPYPATH=$(pwd)/monai flake8 $(pwd) --count --statistics
+        $(pwd)/runtests.sh --nounittests --black
+    - name: Lint with flake8 code checker
+      run: |
+        $(pwd)/runtests.sh --nounittests --flake8
+    - name: Type check with mypy static analysis
+      run: |
+        $(pwd)/runtests.sh --nounittests --mypy
+    - name: Type check with Pytype static analysis
+      run: |
+        # Git hub actions have 2 cores, so parallize pytype
+        $(pwd)/runtests.sh --nounittests --pytype -j 2
 
-  quick-py3:
+  quick-py3:  # full dependencies installed
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -47,9 +55,12 @@ jobs:
       name: Install torch cpu from pytorch.org (Windows only)
       run: |
         python -m pip install torch==1.4 -f https://download.pytorch.org/whl/cpu/torch_stable.html
+        # min. requirements for windows instances
+        python -c "f=open('requirements-dev.txt', 'r'); txt=f.readlines(); f.close(); print(txt); f=open('requirements-dev.txt', 'w'); f.writelines(txt[1:11]); f.close()"
     - name: Install the dependencies
       run: |
         python -m pip install torch==1.4
+        cat "requirements-dev.txt"
         python -m pip install -r requirements-dev.txt
         python -m pip list
     - name: Run quick tests (CPU ${{ runner.os }})
@@ -59,7 +70,7 @@ jobs:
       env:
         QUICKTEST: True
 
-  GPU-quick-py3:
+  GPU-quick-py3:  # GPU with full dependencies
     container:
       image: nvcr.io/nvidia/pytorch:20.03-py3
       options: --gpus all
