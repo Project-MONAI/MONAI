@@ -28,6 +28,7 @@ from monai.transforms.post.array import (
     KeepLargestConnectedComponent,
     LabelToContour,
     MeanEnsemble,
+    VoteEnsemble,
 )
 
 
@@ -229,7 +230,42 @@ class LabelToContourd(MapTransform):
         return d
 
 
-class MeanEnsembled(MapTransform):
+class Ensembled(MapTransform):
+    """
+    Base class of dictionary-based ensemble transforms.
+
+    """
+
+    def __init__(self, keys: KeysCollection, ensemble: Callable, output_key: Optional[str] = None,) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be stack and execute ensemble.
+                if only 1 key provided, suppose it's a PyTorch Tensor with data stacked on dimension `E`.
+            output_key: the key to store ensemble result in the dictionary.
+            ensemble: callable method to execute ensemble on specified data.
+                if only 1 key provided in `keys`, `output_key` can be None and use `keys` as default.
+
+        """
+        super().__init__(keys)
+        if not callable(ensemble):
+            raise ValueError("ensemble must be a Callable function or object.")
+        self.ensemble = ensemble
+        if len(self.keys) > 1 and output_key is None:
+            raise ValueError("must provide expected key to store the output data.")
+        self.output_key = output_key if output_key is not None else self.keys[0]
+
+    def __call__(self, data):
+        d = dict(data)
+        if len(self.keys) == 1:
+            items = d[self.keys[0]]
+        else:
+            items = [d[key] for key in self.keys]
+        d[self.output_key] = self.ensemble(items)
+
+        return d
+
+
+class MeanEnsembled(Ensembled):
     """
     Dictionary-based wrapper of :py:class:monai.transforms.MeanEnsemble.
     """
@@ -258,21 +294,30 @@ class MeanEnsembled(MapTransform):
                 for example: `weights = [[[1, 2, 3, 4]], [[4, 3, 2, 1]], [[1, 1, 1, 1]]]`.
 
         """
-        super().__init__(keys)
-        if len(self.keys) > 1 and output_key is None:
-            raise ValueError("must provide expected key to store the output data.")
-        self.output_key = output_key if output_key is not None else self.keys[0]
-        self.ensemble = MeanEnsemble(weights=weights)
+        ensemble = MeanEnsemble(weights=weights)
+        super().__init__(keys, ensemble, output_key)
 
-    def __call__(self, data):
-        d = dict(data)
-        if len(self.keys) == 1:
-            items = d[self.keys[0]]
-        else:
-            items = [d[key] for key in self.keys]
-        d[self.output_key] = self.ensemble(items)
 
-        return d
+class VoteEnsembled(Ensembled):
+    """
+    Dictionary-based wrapper of :py:class:monai.transforms.VoteEnsemble.
+    """
+
+    def __init__(
+        self, keys: KeysCollection, output_key: Optional[str] = None, num_classes: Optional[int] = None
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be stack and execute ensemble.
+                if only 1 key provided, suppose it's a PyTorch Tensor with data stacked on dimension `E`.
+            output_key: the key to store ensemble result in the dictionary.
+                if only 1 key provided in `keys`, `output_key` can be None and use `keys` as default.
+            num_classes: if the input is single channel data instead of One-Hot, we can't get class number
+                from channel, need to explicitly specify the number of classes to vote.
+
+        """
+        ensemble = VoteEnsemble(num_classes=num_classes)
+        super().__init__(keys, ensemble, output_key)
 
 
 SplitChannelD = SplitChannelDict = SplitChanneld
@@ -281,3 +326,4 @@ AsDiscreteD = AsDiscreteDict = AsDiscreted
 KeepLargestConnectedComponentD = KeepLargestConnectedComponentDict = KeepLargestConnectedComponentd
 LabelToContourD = LabelToContourDict = LabelToContourd
 MeanEnsembleD = MeanEnsembleDict = MeanEnsembled
+VoteEnsembleD = VoteEnsembleDict = VoteEnsembled
