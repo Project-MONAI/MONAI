@@ -19,12 +19,14 @@ from parameterized import parameterized
 from monai.data import CacheDataset
 from monai.transforms import Compose, LoadNiftid
 
-TEST_CASE_1 = [(128, 128, 128)]
+TEST_CASE_1 = [Compose([LoadNiftid(keys=["image", "label", "extra"])]), (128, 128, 128)]
+
+TEST_CASE_2 = [None, (128, 128, 128)]
 
 
 class TestCacheDataset(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1])
-    def test_shape(self, expected_shape):
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    def test_shape(self, transform, expected_shape):
         test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]), np.eye(4))
         tempdir = tempfile.mkdtemp()
         nib.save(test_image, os.path.join(tempdir, "test_image1.nii.gz"))
@@ -45,18 +47,20 @@ class TestCacheDataset(unittest.TestCase):
                 "extra": os.path.join(tempdir, "test_extra2.nii.gz"),
             },
         ]
-        dataset = CacheDataset(
-            data=test_data, transform=Compose([LoadNiftid(keys=["image", "label", "extra"])]), cache_rate=0.5
-        )
+        dataset = CacheDataset(data=test_data, transform=transform, cache_rate=0.5)
         data1 = dataset[0]
         data2 = dataset[1]
         shutil.rmtree(tempdir)
-        self.assertTupleEqual(data1["image"].shape, expected_shape)
-        self.assertTupleEqual(data1["label"].shape, expected_shape)
-        self.assertTupleEqual(data1["extra"].shape, expected_shape)
-        self.assertTupleEqual(data2["image"].shape, expected_shape)
-        self.assertTupleEqual(data2["label"].shape, expected_shape)
-        self.assertTupleEqual(data2["extra"].shape, expected_shape)
+        if transform is None:
+            self.assertEqual(data1["image"], os.path.join(tempdir, "test_image1.nii.gz"))
+            self.assertEqual(data2["label"], os.path.join(tempdir, "test_label2.nii.gz"))
+        else:
+            self.assertTupleEqual(data1["image"].shape, expected_shape)
+            self.assertTupleEqual(data1["label"].shape, expected_shape)
+            self.assertTupleEqual(data1["extra"].shape, expected_shape)
+            self.assertTupleEqual(data2["image"].shape, expected_shape)
+            self.assertTupleEqual(data2["label"].shape, expected_shape)
+            self.assertTupleEqual(data2["extra"].shape, expected_shape)
 
 
 if __name__ == "__main__":

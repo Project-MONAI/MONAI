@@ -21,6 +21,12 @@ class TestConvolution2D(TorchImageTestCase2D):
         expected_shape = (1, self.output_channels, self.im_shape[0], self.im_shape[1])
         self.assertEqual(out.shape, expected_shape)
 
+    def test_conv1_no_acti(self):
+        conv = Convolution(2, self.input_channels, self.output_channels, act=None)
+        out = conv(self.imt)
+        expected_shape = (1, self.output_channels, self.im_shape[0], self.im_shape[1])
+        self.assertEqual(out.shape, expected_shape)
+
     def test_conv_only1(self):
         conv = Convolution(2, self.input_channels, self.output_channels, conv_only=True)
         out = conv(self.imt)
