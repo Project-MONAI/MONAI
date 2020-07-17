@@ -9,22 +9,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Callable, TYPE_CHECKING
+
 from collections import defaultdict
 
-from ignite.engine import Events
+from monai.utils import exact_version, optional_import
+
+Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
+if TYPE_CHECKING:
+    from ignite.engine import Engine
+else:
+    Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 
 
 class MetricLogger:
-    def __init__(self, loss_transform=lambda x: x, metric_transform=lambda x: x):
+    def __init__(self, loss_transform: Callable = lambda x: x, metric_transform: Callable = lambda x: x) -> None:
         self.loss_transform = loss_transform
         self.metric_transform = metric_transform
-        self.loss = []
-        self.metrics = defaultdict(list)
+        self.loss: list = []
+        self.metrics: defaultdict = defaultdict(list)
 
-    def attach(self, engine):
+    def attach(self, engine: Engine):
         return engine.add_event_handler(Events.ITERATION_COMPLETED, self)
 
-    def __call__(self, engine):
+    def __call__(self, engine: Engine) -> None:
         self.loss.append(self.loss_transform(engine.state.output))
 
         for m, v in engine.state.metrics.items():

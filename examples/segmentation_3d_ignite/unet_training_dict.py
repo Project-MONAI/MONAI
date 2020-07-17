@@ -40,7 +40,7 @@ from monai.handlers import (
     stopping_fn_from_metric,
 )
 from monai.data import create_test_image_3d, list_data_collate
-from monai.networks.utils import predict_segmentation
+from monai.networks import predict_segmentation
 
 
 def main():
@@ -71,7 +71,7 @@ def main():
             AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
             ScaleIntensityd(keys=["img", "seg"]),
             RandCropByPosNegLabeld(
-                keys=["img", "seg"], label_key="seg", size=[96, 96, 96], pos=1, neg=1, num_samples=4
+                keys=["img", "seg"], label_key="seg", spatial_size=[96, 96, 96], pos=1, neg=1, num_samples=4
             ),
             RandRotate90d(keys=["img", "seg"], prob=0.5, spatial_axes=[0, 2]),
             ToTensord(keys=["img", "seg"]),
@@ -121,7 +121,7 @@ def main():
         strides=(2, 2, 2, 2),
         num_res_units=2,
     )
-    loss = monai.losses.DiceLoss(do_sigmoid=True)
+    loss = monai.losses.DiceLoss(sigmoid=True)
     lr = 1e-3
     opt = torch.optim.Adam(net.parameters(), lr)
     device = torch.device("cuda:0")
@@ -153,7 +153,7 @@ def main():
     # set parameters for validation
     metric_name = "Mean_Dice"
     # add evaluation metric to the evaluator engine
-    val_metrics = {metric_name: MeanDice(add_sigmoid=True, to_onehot_y=False)}
+    val_metrics = {metric_name: MeanDice(sigmoid=True, to_onehot_y=False)}
 
     # Ignite evaluator expects batch=(img, seg) and returns output=(y_pred, y) at every iteration,
     # user can add output_transform to return other values
