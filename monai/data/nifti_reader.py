@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Sequence, Union, Any
+from typing import Callable, Optional, Sequence, Any
 
 import numpy as np
 from torch.utils.data import Dataset
@@ -28,7 +28,7 @@ class NiftiDataset(Dataset, Randomizable):
         self,
         image_files: Sequence[str],
         seg_files: Optional[Sequence[str]] = None,
-        labels: Optional[Sequence[Union[int, float]]] = None,
+        labels: Optional[Sequence[float]] = None,
         as_closest_canonical: bool = False,
         transform: Optional[Callable] = None,
         seg_transform: Optional[Callable] = None,
@@ -42,7 +42,7 @@ class NiftiDataset(Dataset, Randomizable):
         Args:
             image_files: list of image filenames
             seg_files: if in segmentation task, list of segmentation filenames
-            labels (list or array): if in classification task, list of classification labels
+            labels: if in classification task, list of classification labels
             as_closest_canonical: if True, load the image as closest to canonical orientation
             transform: transform to apply to image arrays
             seg_transform: transform to apply to segmentation arrays

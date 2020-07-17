@@ -26,13 +26,13 @@ class Inferer(ABC):
     """
 
     @abstractmethod
-    def __call__(self, inputs: torch.Tensor, network):
+    def __call__(self, inputs: torch.Tensor, network: torch.nn.Module):
         """
         Run inference on `inputs` with the `network` model.
 
         Args:
             inputs: input of the model inference.
-            network (Network): model for inference.
+            network: model for inference.
 
         Raises:
             NotImplementedError: subclass will implement the operations.
@@ -50,12 +50,12 @@ class SimpleInferer(Inferer):
     def __init__(self) -> None:
         Inferer.__init__(self)
 
-    def __call__(self, inputs: torch.Tensor, network):
+    def __call__(self, inputs: torch.Tensor, network: torch.nn.Module):
         """Unified callable function API of Inferers.
 
         Args:
             inputs: model input data for inference.
-            network (Network): target model to execute inference.
+            network: target model to execute inference.
 
         """
         return network(inputs)
@@ -99,13 +99,13 @@ class SlidingWindowInferer(Inferer):
         self.overlap = overlap
         self.mode: BlendMode = BlendMode(mode)
 
-    def __call__(self, inputs: torch.Tensor, network):
+    def __call__(self, inputs: torch.Tensor, network: torch.nn.Module):
         """
         Unified callable function API of Inferers.
 
         Args:
             inputs: model input data for inference.
-            network (Network): target model to execute inference.
+            network: target model to execute inference.
 
         """
         return sliding_window_inference(inputs, self.roi_size, self.sw_batch_size, network, self.overlap, self.mode)

@@ -89,7 +89,7 @@ class Regressor(nn.Module):
 
         self.final = self._get_final_layer((echannel,) + self.final_size)
 
-    def _get_layer(self, in_channels: int, out_channels: int, strides, is_last: bool):
+    def _get_layer(self, in_channels: int, out_channels: int, strides: int, is_last: bool):
         """
         Returns a layer accepting inputs with `in_channels` number of channels and producing outputs of `out_channels`
         number of channels. The `strides` indicates downsampling factor, ie. convolutional stride. If `is_last`
