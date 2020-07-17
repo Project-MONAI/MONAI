@@ -60,11 +60,11 @@ can be parameterized with the factory name and the arguments to pass to the crea
     layer = use_factory( (fact.TEST, kwargs) )
 """
 
-from typing import Callable
+from typing import Any, Callable, Dict
 
 import torch.nn as nn
 
-__all__ = ["LayerFactory", "Dropout", "Norm", "Act", "Conv", "Pool"]
+__all__ = ["LayerFactory", "Dropout", "Norm", "Act", "Conv", "Pool", "split_args"]
 
 
 class LayerFactory:
@@ -73,8 +73,8 @@ class LayerFactory:
     callables. These functions are referred to by name and can be added at any time.
     """
 
-    def __init__(self):
-        self.factories = {}
+    def __init__(self) -> None:
+        self.factories: Dict[str, Callable] = {}
 
     @property
     def names(self):
@@ -84,27 +84,37 @@ class LayerFactory:
 
         return tuple(self.factories)
 
-    def add_factory_callable(self, name, func):
+    def add_factory_callable(self, name: str, func: Callable):
         """
         Add the factory function to this object under the given name.
         """
 
         self.factories[name.upper()] = func
+        self.__doc__ = (
+            "The supported member"
+            + ("s are: " if len(self.names) > 1 else " is: ")
+            + ", ".join(f"``{name}``" for name in self.names)
+            + ".\nPlease see :py:class:`monai.networks.layers.split_args` for additional args parsing."
+        )
 
-    def factory_function(self, name):
+    def factory_function(self, name: str):
         """
         Decorator for adding a factory function with the given name.
         """
 
-        def _add(func):
+        def _add(func: Callable):
             self.add_factory_callable(name, func)
             return func
 
         return _add
 
-    def get_constructor(self, factory_name, *args):
+    def get_constructor(self, factory_name: str, *args) -> Any:
         """
         Get the constructor for the given factory name and arguments.
+
+        Raises:
+            ValueError: Factories must be selected by name
+
         """
 
         if not isinstance(factory_name, str):
@@ -113,7 +123,7 @@ class LayerFactory:
         fact = self.factories[factory_name.upper()]
         return fact(*args)
 
-    def __getitem__(self, args):
+    def __getitem__(self, args) -> Any:
         """
         Get the given name or name/arguments pair. If `args` is a callable it is assumed to be the constructor
         itself and is returned, otherwise it should be the factory name or a pair containing the name and arguments.
@@ -145,19 +155,37 @@ class LayerFactory:
 
 def split_args(args):
     """
-    Split arguments in a way to be suitable for using with the factory types. If `args` is a name it's interpreted
+    Split arguments in a way to be suitable for using with the factory types. If `args` is a string it's interpreted as
+    the type name.
+
+    Args:
+        args (str or a tuple of object name and kwarg dict): input arguments to be parsed.
+
+    Examples::
+
+        >>> act_type, args = split_args("PRELU")
+        >>> monai.networks.layers.Act[act_type]
+        <class 'torch.nn.modules.activation.PReLU'>
+
+        >>> act_type, args = split_args(("PRELU", {"num_parameters": 1, "init": 0.25}))
+        >>> monai.networks.layers.Act[act_type](**args)
+        PReLU(num_parameters=1)
+
+    Raises:
+        ValueError: Layer specifiers must be single strings or pairs of the form (name/object-types, argument dict)
+
     """
 
     if isinstance(args, str):
         return args, {}
     else:
-        name_obj, args = args
+        name_obj, name_args = args
 
-        if not isinstance(name_obj, (str, Callable)) or not isinstance(args, dict):
+        if not isinstance(name_obj, (str, Callable)) or not isinstance(name_args, dict):
             msg = "Layer specifiers must be single strings or pairs of the form (name/object-types, argument dict)"
             raise ValueError(msg)
 
-        return name_obj, args
+        return name_obj, name_args
 
 
 # Define factories for these layer types
@@ -170,19 +198,19 @@ Pool = LayerFactory()
 
 
 @Dropout.factory_function("dropout")
-def dropout_factory(dim):
+def dropout_factory(dim: int):
     types = [nn.Dropout, nn.Dropout2d, nn.Dropout3d]
     return types[dim - 1]
 
 
 @Norm.factory_function("instance")
-def instance_factory(dim):
+def instance_factory(dim: int):
     types = [nn.InstanceNorm1d, nn.InstanceNorm2d, nn.InstanceNorm3d]
     return types[dim - 1]
 
 
 @Norm.factory_function("batch")
-def batch_factory(dim):
+def batch_factory(dim: int):
     types = [nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d]
     return types[dim - 1]
 
@@ -190,39 +218,47 @@ def batch_factory(dim):
 Act.add_factory_callable("relu", lambda: nn.modules.ReLU)
 Act.add_factory_callable("leakyrelu", lambda: nn.modules.LeakyReLU)
 Act.add_factory_callable("prelu", lambda: nn.modules.PReLU)
+Act.add_factory_callable("relu6", lambda: nn.modules.ReLU6)
+Act.add_factory_callable("selu", lambda: nn.modules.SELU)
+Act.add_factory_callable("celu", lambda: nn.modules.CELU)
+Act.add_factory_callable("gelu", lambda: nn.modules.GELU)
+Act.add_factory_callable("sigmoid", lambda: nn.modules.Sigmoid)
+Act.add_factory_callable("tanh", lambda: nn.modules.Tanh)
+Act.add_factory_callable("softmax", lambda: nn.modules.Softmax)
+Act.add_factory_callable("logsoftmax", lambda: nn.modules.LogSoftmax)
 
 
 @Conv.factory_function("conv")
-def conv_factory(dim):
+def conv_factory(dim: int):
     types = [nn.Conv1d, nn.Conv2d, nn.Conv3d]
     return types[dim - 1]
 
 
 @Conv.factory_function("convtrans")
-def convtrans_factory(dim):
+def convtrans_factory(dim: int):
     types = [nn.ConvTranspose1d, nn.ConvTranspose2d, nn.ConvTranspose3d]
     return types[dim - 1]
 
 
 @Pool.factory_function("max")
-def maxpooling_factory(dim):
+def maxpooling_factory(dim: int):
     types = [nn.MaxPool1d, nn.MaxPool2d, nn.MaxPool3d]
     return types[dim - 1]
 
 
 @Pool.factory_function("adaptivemax")
-def adaptive_maxpooling_factory(dim):
+def adaptive_maxpooling_factory(dim: int):
     types = [nn.AdaptiveMaxPool1d, nn.AdaptiveMaxPool2d, nn.AdaptiveMaxPool3d]
     return types[dim - 1]
 
 
 @Pool.factory_function("avg")
-def avgpooling_factory(dim):
+def avgpooling_factory(dim: int):
     types = [nn.AvgPool1d, nn.AvgPool2d, nn.AvgPool3d]
     return types[dim - 1]
 
 
 @Pool.factory_function("adaptiveavg")
-def adaptive_avgpooling_factory(dim):
+def adaptive_avgpooling_factory(dim: int):
     types = [nn.AdaptiveAvgPool1d, nn.AdaptiveAvgPool2d, nn.AdaptiveAvgPool3d]
     return types[dim - 1]
