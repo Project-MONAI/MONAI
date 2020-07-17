@@ -44,3 +44,8 @@ Workflows
 ~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: SupervisedEvaluator
     :members:
+
+`EnsembleEvaluator`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: EnsembleEvaluator
+    :members:
