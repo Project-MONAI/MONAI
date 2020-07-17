@@ -9,12 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Union
+from typing import Optional, Sequence, Union
 
 import torch
 import torch.nn as nn
+
 from monai.networks.layers.factories import Conv
-from monai.utils.enums import UpsampleMode
+from monai.utils import ensure_tuple_rep, UpsampleMode
 
 
 class UpSample(nn.Module):
@@ -27,11 +28,11 @@ class UpSample(nn.Module):
         spatial_dims: int,
         in_channels: int,
         out_channels: Optional[int] = None,
-        scale_factor=2,
+        scale_factor: Union[Sequence[float], float] = 2,
         with_conv: bool = False,
         mode: Union[UpsampleMode, str] = UpsampleMode.LINEAR,
         align_corners: Optional[bool] = True,
-    ):
+    ) -> None:
         """
         Args:
             spatial_dims: number of spatial dimensions of the input image.
@@ -47,6 +48,7 @@ class UpSample(nn.Module):
             align_corners: set the align_corners parameter of `torch.nn.Upsample`. Defaults to True.
         """
         super().__init__()
+        scale_factor_ = ensure_tuple_rep(scale_factor, spatial_dims)
         if not out_channels:
             out_channels = in_channels
         if not with_conv:
@@ -56,11 +58,11 @@ class UpSample(nn.Module):
                 mode = linear_mode[spatial_dims - 1]
             self.upsample = nn.Sequential(
                 Conv[Conv.CONV, spatial_dims](in_channels=in_channels, out_channels=out_channels, kernel_size=1),
-                nn.Upsample(scale_factor=scale_factor, mode=mode.value, align_corners=align_corners),
+                nn.Upsample(scale_factor=scale_factor_, mode=mode.value, align_corners=align_corners),
             )
         else:
             self.upsample = Conv[Conv.CONVTRANS, spatial_dims](
-                in_channels=in_channels, out_channels=out_channels, kernel_size=scale_factor, stride=scale_factor
+                in_channels=in_channels, out_channels=out_channels, kernel_size=scale_factor_, stride=scale_factor_
             )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

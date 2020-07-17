@@ -9,11 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from monai.engines import Evaluator
+from typing import TYPE_CHECKING
+
+from monai.engines.evaluator import Evaluator
 from monai.utils import exact_version, optional_import
 
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
-Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
+if TYPE_CHECKING:
+    from ignite.engine import Engine
+else:
+    Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 
 
 class ValidationHandler:
@@ -23,10 +28,10 @@ class ValidationHandler:
 
     """
 
-    def __init__(self, validator: Evaluator, interval: int, epoch_level: bool = True) -> None:  # type: ignore
+    def __init__(self, validator: Evaluator, interval: int, epoch_level: bool = True) -> None:
         """
         Args:
-            validator (Evaluator): run the validator when trigger validation, suppose to be Evaluator.
+            validator: run the validator when trigger validation, suppose to be Evaluator.
             interval: do validation every N epochs or every N iterations during training.
             epoch_level: execute validation every N epochs or N iterations.
                 `True` is epoch level, `False` is iteration level.
@@ -35,17 +40,17 @@ class ValidationHandler:
             ValueError: validator must be Evaluator ignite engine.
 
         """
-        if not isinstance(validator, Evaluator):  # type: ignore
+        if not isinstance(validator, Evaluator):
             raise ValueError("validator must be Evaluator ignite engine.")
         self.validator = validator
         self.interval = interval
         self.epoch_level = epoch_level
 
-    def attach(self, engine: Engine):
+    def attach(self, engine: Engine) -> None:
         if self.epoch_level:
             engine.add_event_handler(Events.EPOCH_COMPLETED(every=self.interval), self)
         else:
             engine.add_event_handler(Events.ITERATION_COMPLETED(every=self.interval), self)
 
-    def __call__(self, engine: Engine):
+    def __call__(self, engine: Engine) -> None:
         self.validator.run(engine.state.epoch)

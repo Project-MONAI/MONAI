@@ -9,14 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Sequence, Union, Dict
+
 import math
-from typing import Union
 
 import torch
-from torch.utils.data import IterableDataset
+from torch.utils.data import Dataset, IterableDataset
 
 from monai.data.utils import iter_patch
-from monai.utils.enums import NumpyPadMode
+from monai.utils import ensure_tuple, NumpyPadMode
 
 
 class GridPatchDataset(IterableDataset):
@@ -25,8 +26,13 @@ class GridPatchDataset(IterableDataset):
     """
 
     def __init__(
-        self, dataset, patch_size, start_pos=(), mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP, **pad_opts
-    ):
+        self,
+        dataset: Dataset,
+        patch_size: Sequence[int],
+        start_pos: Sequence[int] = (),
+        mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
+        **pad_opts: Dict,
+    ) -> None:
         """
         Initializes this dataset in terms of the input dataset and patch size. The `patch_size` is the size of the
         patch to sample from the input arrays. It is assumed the arrays first dimension is the channel dimension which
@@ -35,19 +41,19 @@ class GridPatchDataset(IterableDataset):
         specified by a `patch_size` of (10, 10, 10).
 
         Args:
-            dataset (Dataset): the dataset to read array data from
-            patch_size (tuple of int or None): size of patches to generate slices for, 0/None selects whole dimension
-            start_pos (tuple of it, optional): starting position in the array, default is 0 for each dimension
+            dataset: the dataset to read array data from
+            patch_size: size of patches to generate slices for, 0/None selects whole dimension
+            start_pos: starting position in the array, default is 0 for each dimension
             mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
                 ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
                 One of the listed string values or a user supplied function. Defaults to ``"wrap"``.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
-            pad_opts (dict, optional): padding options, see numpy.pad
+            pad_opts: padding options, see numpy.pad
         """
 
         self.dataset = dataset
         self.patch_size = (None,) + tuple(patch_size)
-        self.start_pos = start_pos
+        self.start_pos = ensure_tuple(start_pos)
         self.mode: NumpyPadMode = NumpyPadMode(mode)
         self.pad_opts = pad_opts
 

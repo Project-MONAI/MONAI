@@ -9,14 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Callable, Optional, Union
+
 import warnings
-from typing import Callable, Union
 
 import torch
 from torch.nn.modules.loss import _Loss
 
-from monai.networks.utils import one_hot
-from monai.utils.enums import LossReduction, Weight
+from monai.networks import one_hot
+from monai.utils import LossReduction, Weight
 
 
 class DiceLoss(_Loss):
@@ -44,7 +45,7 @@ class DiceLoss(_Loss):
         squared_pred: bool = False,
         jaccard: bool = False,
         reduction: Union[LossReduction, str] = LossReduction.MEAN,
-    ):
+    ) -> None:
         """
         Args:
             include_background: If False channel index 0 (background category) is excluded from the calculation.
@@ -65,7 +66,7 @@ class DiceLoss(_Loss):
             ValueError: sigmoid=True and softmax=True are not compatible.
 
         """
-        super().__init__(reduction=LossReduction(reduction))
+        super().__init__(reduction=LossReduction(reduction).value)
 
         if sigmoid and softmax:
             raise ValueError("sigmoid=True and softmax=True are not compatible.")
@@ -80,8 +81,8 @@ class DiceLoss(_Loss):
     def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5):
         """
         Args:
-            input (tensor): the shape should be BNH[WD].
-            target (tensor): the shape should be BNH[WD].
+            input: the shape should be BNH[WD].
+            target: the shape should be BNH[WD].
             smooth: a small constant to avoid nan.
 
         Raises:
@@ -132,11 +133,11 @@ class DiceLoss(_Loss):
 
         f = 1.0 - (2.0 * intersection + smooth) / (denominator + smooth)
 
-        if self.reduction == LossReduction.MEAN:
+        if self.reduction == LossReduction.MEAN.value:
             f = torch.mean(f)  # the batch and channel average
-        elif self.reduction == LossReduction.SUM:
+        elif self.reduction == LossReduction.SUM.value:
             f = torch.sum(f)  # sum over the batch and channel dims
-        elif self.reduction == LossReduction.NONE:
+        elif self.reduction == LossReduction.NONE.value:
             pass  # returns [N, n_classes] losses
         else:
             raise ValueError(f"Reduction={self.reduction} is invalid.")
@@ -149,19 +150,15 @@ class MaskedDiceLoss(DiceLoss):
     Same as DiceLoss, but accepts a binary mask ([0,1]) indicating a region over which to compute the dice.
     """
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5, mask: torch.Tensor = None):
+    def forward(
+        self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5, mask: Optional[torch.Tensor] = None
+    ):
         """
         Args:
-            input (tensor): the shape should be BNH[WD].
-            target (tensor): the shape should be BNH[WD].
+            input: the shape should be BNH[WD].
+            target: the shape should be BNH[WD].
             smooth: a small constant to avoid nan.
-            mask (tensor): (optional) the shape should B1H[WD] or 11H[WD].
-            
-        Raises:
-            ValueError: input and mask shape do not match
-            ValurError: mask dimension 0 is not 1 nor the same as input dimension 0
-            ValueError: mask has more than 1 channel when target is multidimensional
-            ValueError: spatial size of input and mask do not match
+            mask: the shape should B1H[WD] or 11H[WD].
         """
         if mask is not None:
             # checking if mask is of proper shape
@@ -204,7 +201,7 @@ class GeneralizedDiceLoss(_Loss):
         softmax: bool = False,
         w_type: Union[Weight, str] = Weight.SQUARE,
         reduction: Union[LossReduction, str] = LossReduction.MEAN,
-    ):
+    ) -> None:
         """
         Args:
             include_background: If False channel index 0 (background category) is excluded from the calculation.
@@ -225,10 +222,7 @@ class GeneralizedDiceLoss(_Loss):
             ValueError: sigmoid=True and softmax=True are not compatible.
 
         """
-        super().__init__(reduction=LossReduction(reduction))
-        
-        if sigmoid and softmax:
-            raise ValueError("sigmoid=True and softmax=True are not compatible.")
+        super().__init__(reduction=LossReduction(reduction).value)
 
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
@@ -245,8 +239,8 @@ class GeneralizedDiceLoss(_Loss):
     def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5):
         """
         Args:
-            input (tensor): the shape should be BNH[WD].
-            target (tensor): the shape should be BNH[WD].
+            input: the shape should be BNH[WD].
+            target: the shape should be BNH[WD].
             smooth: a small constant to avoid nan.
 
         Raises:
@@ -295,11 +289,11 @@ class GeneralizedDiceLoss(_Loss):
 
         f = 1.0 - (2.0 * (intersection * w).sum(1) + smooth) / ((denominator * w).sum(1) + smooth)
 
-        if self.reduction == LossReduction.MEAN:
+        if self.reduction == LossReduction.MEAN.value:
             f = torch.mean(f)  # the batch and channel average
-        elif self.reduction == LossReduction.SUM:
+        elif self.reduction == LossReduction.SUM.value:
             f = torch.sum(f)  # sum over the batch and channel dims
-        elif self.reduction == LossReduction.NONE:
+        elif self.reduction == LossReduction.NONE.value:
             pass  # returns [N, n_classes] losses
         else:
             raise ValueError(f"Reduction={self.reduction} is invalid.")

@@ -23,13 +23,21 @@ The examples are standard PyTorch programs and have both dictionary-based and ar
 #### [classification_3d_ignite](./classification_3d_ignite)
 Training and evaluation examples of 3D classification based on DenseNet3D and [IXI dataset](https://brain-development.org/ixi-dataset).
 The examples are PyTorch Ignite programs and have both dictionary-based and array-based transformation versions.
+#### [distributed_training](./distributed_training)
+The examples show how to execute distributed training and evaluation based on PyTorch native `DistributedDataParallel` module.
+They can run on several distributed nodes with multiple GPU devices on every node.
 #### [notebooks/3d_image_transforms](./notebooks/3d_image_transforms.ipynb)
 This notebook demonstrates the transformations on volumetric images.
+#### [notebooks/brats_segmentation_3d](./notebooks/brats_segmentation_3d.ipynb)
+This tutorial shows how to construct a training workflow of multi-labels segmentation task based on [MSD Brain Tumor dataset](http://medicaldecathlon.com).
 #### [notebooks/cache_dataset_speed](./notebooks/cache_dataset_speed.ipynb)
 This tutorial shows how to accelerate PyTorch medical DL program based on MONAI `CacheDataset`.
 #### [notebooks/integrate_3rd_party_transforms](./notebooks/integrate_3rd_party_transforms.ipynb)
 This tutorial shows how to integrate 3rd party transforms into MONAI program.
 Mainly shows transforms from BatchGenerator, TorchIO, Rising and ITK.
+#### [notebooks/mednist_GAN_tutorial](./notebooks/mednist_GAN_tutorial.ipynb)
+This notebook illustrates the use of MONAI for training a network to generate images from a random input tensor.
+A simple GAN is employed to do with a separate Generator and Discriminator networks.
 #### [notebooks/mednist_tutorial](./notebooks/mednist_tutorial.ipynb)
 This notebook shows how to easily integrate MONAI features into existing PyTorch programs.
 It's based on the MedNIST dataset which is very suitable for beginners as a tutorial.
@@ -44,6 +52,8 @@ And stores these intermediate tensor values to an on-disk persistence representa
 The intermediate processed tensors are loaded from disk on each use for processing by the random-transforms for each analysis request.
 #### [notebooks/post_transforms](./notebooks/post_transforms.ipynb)
 This notebook shows the usage of several post transforms based on the model output of spleen segmentation task.
+#### [notebooks/public_datasets](./notebooks/public_datasets.ipynb)
+This notebook shows how to quickly set up training workflow based on `MedNISTDataset` and `DecathlonDataset`, and how to create a new dataset.
 #### [notebooks/spleen_segmentation_3d](./notebooks/spleen_segmentation_3d.ipynb)
 This notebook is an end-to-end training and evaluation example of 3D segmentation based on [MSD Spleen dataset](http://medicaldecathlon.com).
 The example shows the flexibility of MONAI modules in a PyTorch-based program:
@@ -57,6 +67,8 @@ The example shows the flexibility of MONAI modules in a PyTorch-based program:
 - Deterministic training for reproducibility.
 #### [notebooks/spleen_segmentation_3d_lightning](./notebooks/spleen_segmentation_3d_lightning.ipynb)
 This notebook shows how MONAI may be used in conjunction with the [PyTorch Lightning](https://github.com/PyTorchLightning/pytorch-lightning) framework.
+#### [notebooks/unet_segmentation_3d_catalyst](./notebooks/unet_segmentation_3d_catalyst.ipynb)
+This notebook shows how MONAI may be used in conjunction with the [Catalyst](https://github.com/catalyst-team/catalyst) framework.
 #### [notebooks/transform_speed](./notebooks/transform_speed.ipynb)
 Illustrate reading NIfTI files and test speed of different transforms on different devices.
 #### [notebooks/transforms_demo_2d](./notebooks/transforms_demo_2d.ipynb)

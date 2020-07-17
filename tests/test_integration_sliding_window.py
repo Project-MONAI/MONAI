@@ -24,7 +24,7 @@ from monai.data import NiftiDataset, create_test_image_3d
 from monai.inferers import sliding_window_inference
 from monai.handlers import SegmentationSaver
 from monai.networks.nets import UNet
-from monai.networks.utils import predict_segmentation
+from monai.networks import predict_segmentation
 from monai.transforms import AddChannel
 from monai.utils import set_determinism
 from tests.utils import make_nifti_image
@@ -82,7 +82,7 @@ class TestIntegrationSlidingWindow(unittest.TestCase):
             batch_size=2, img_name=self.img_name, seg_name=self.seg_name, output_dir=tempdir, device=self.device
         )
         output_image = nib.load(output_file).get_fdata()
-        np.testing.assert_allclose(np.sum(output_image), 33583)
+        np.testing.assert_allclose(np.sum(output_image), 33621)
         np.testing.assert_allclose(output_image.shape, (28, 25, 63, 1))
         shutil.rmtree(tempdir)
 

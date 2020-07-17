@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional
+
 import numpy as np
 
 from monai.transforms.utils import rescale_array
@@ -17,7 +19,14 @@ __all__ = ["create_test_image_2d", "create_test_image_3d"]
 
 
 def create_test_image_2d(
-    width, height, num_objs=12, rad_max=30, noise_max=0.0, num_seg_classes=5, channel_dim=None, random_state=None
+    width: int,
+    height: int,
+    num_objs: int = 12,
+    rad_max: int = 30,
+    noise_max: float = 0.0,
+    num_seg_classes: int = 5,
+    channel_dim: Optional[int] = None,
+    random_state: Optional[np.random.RandomState] = None,
 ):
     """
     Return a noisy 2D image with `num_objs` circles and a 2D mask image. The maximum radius of the circles is given as
@@ -29,7 +38,7 @@ def create_test_image_2d(
     image = np.zeros((width, height))
     rs = np.random if random_state is None else random_state
 
-    for i in range(num_objs):
+    for _ in range(num_objs):
         x = rs.randint(rad_max, width - rad_max)
         y = rs.randint(rad_max, height - rad_max)
         rad = rs.randint(5, rad_max)
@@ -57,7 +66,15 @@ def create_test_image_2d(
 
 
 def create_test_image_3d(
-    height, width, depth, num_objs=12, rad_max=30, noise_max=0.0, num_seg_classes=5, channel_dim=None, random_state=None
+    height: int,
+    width: int,
+    depth: int,
+    num_objs: int = 12,
+    rad_max: int = 30,
+    noise_max: float = 0.0,
+    num_seg_classes: int = 5,
+    channel_dim: Optional[int] = None,
+    random_state: Optional[np.random.RandomState] = None,
 ):
     """
     Return a noisy 3D image and segmentation.
@@ -68,7 +85,7 @@ def create_test_image_3d(
     image = np.zeros((width, height, depth))
     rs = np.random if random_state is None else random_state
 
-    for i in range(num_objs):
+    for _ in range(num_objs):
         x = rs.randint(rad_max, width - rad_max)
         y = rs.randint(rad_max, height - rad_max)
         z = rs.randint(rad_max, depth - rad_max)

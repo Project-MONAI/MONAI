@@ -9,16 +9,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional, Dict, TYPE_CHECKING
+
 import logging
-from typing import Optional
 
 import torch
 
 from monai.utils import exact_version, optional_import
 
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
-Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 Checkpoint, _ = optional_import("ignite.handlers", "0.3.0", exact_version, "Checkpoint")
+if TYPE_CHECKING:
+    from ignite.engine import Engine
+else:
+    Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 
 
 class CheckpointLoader:
@@ -30,7 +34,7 @@ class CheckpointLoader:
 
     Args:
         load_path: the file path of checkpoint, it should be a PyTorch `pth` file.
-        load_dict (dict): target objects that load checkpoint to. examples::
+        load_dict: target objects that load checkpoint to. examples::
 
             {'network': net, 'optimizer': optimizer, 'lr_scheduler': lr_scheduler}
 
@@ -38,7 +42,7 @@ class CheckpointLoader:
 
     """
 
-    def __init__(self, load_path: str, load_dict, name: Optional[str] = None):
+    def __init__(self, load_path: str, load_dict: Dict, name: Optional[str] = None) -> None:
         assert load_path is not None, "must provide clear path to load checkpoint."
         self.load_path = load_path
         assert load_dict is not None and len(load_dict) > 0, "must provide target objects to load."
@@ -55,7 +59,7 @@ class CheckpointLoader:
             self.logger = engine.logger
         return engine.add_event_handler(Events.STARTED, self)
 
-    def __call__(self, engine):
+    def __call__(self, engine: Engine) -> None:
         checkpoint = torch.load(self.load_path)
         if len(self.load_dict) == 1:
             key = list(self.load_dict.keys())[0]

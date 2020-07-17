@@ -9,13 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Sequence, Union
+
 from abc import ABC, abstractmethod
-from typing import Union
 
 import torch
 
-from .utils import sliding_window_inference
-from monai.utils.enums import BlendMode
+from monai.inferers.utils import sliding_window_inference
+from monai.utils import BlendMode
 
 
 class Inferer(ABC):
@@ -30,7 +31,7 @@ class Inferer(ABC):
         Run inference on `inputs` with the `network` model.
 
         Args:
-            inputs (torch.tensor): input of the model inference.
+            inputs: input of the model inference.
             network (Network): model for inference.
 
         Raises:
@@ -53,7 +54,7 @@ class SimpleInferer(Inferer):
         """Unified callable function API of Inferers.
 
         Args:
-            inputs (torch.tensor): model input data for inference.
+            inputs: model input data for inference.
             network (Network): target model to execute inference.
 
         """
@@ -66,7 +67,11 @@ class SlidingWindowInferer(Inferer):
     with `sw_batch_size` windows for every model.forward().
 
     Args:
-        roi_size (list, tuple): the window size to execute SlidingWindow evaluation.
+        roi_size: the window size to execute SlidingWindow evaluation.
+            If it has non-positive components, the corresponding `inputs` size will be used.
+            if the components of the `roi_size` are non-positive values, the transform will use the
+            corresponding components of img size. For example, `roi_size=(32, -1)` will be adapted
+            to `(32, 64)` if the second spatial dimension size of img is `64`.
         sw_batch_size: the batch size to run window slices.
         overlap: Amount of overlap between scans.
         mode: {``"constant"``, ``"gaussian"``}
@@ -82,11 +87,13 @@ class SlidingWindowInferer(Inferer):
     """
 
     def __init__(
-        self, roi_size, sw_batch_size: int = 1, overlap: float = 0.25, mode: Union[BlendMode, str] = BlendMode.CONSTANT
-    ):
+        self,
+        roi_size: Union[Sequence[int], int],
+        sw_batch_size: int = 1,
+        overlap: float = 0.25,
+        mode: Union[BlendMode, str] = BlendMode.CONSTANT,
+    ) -> None:
         Inferer.__init__(self)
-        if not isinstance(roi_size, (list, tuple)):
-            raise ValueError("must specify the roi size in a list or tuple for SlidingWindow.")
         self.roi_size = roi_size
         self.sw_batch_size = sw_batch_size
         self.overlap = overlap
@@ -97,7 +104,7 @@ class SlidingWindowInferer(Inferer):
         Unified callable function API of Inferers.
 
         Args:
-            inputs (torch.tensor): model input data for inference.
+            inputs: model input data for inference.
             network (Network): target model to execute inference.
 
         """

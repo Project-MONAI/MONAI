@@ -15,10 +15,11 @@ defined in :py:class:`monai.transforms.utility.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Optional
-
-from monai.config.type_definitions import KeysCollection
-from monai.utils.misc import ensure_tuple_rep
+from typing import Optional, Union, Sequence, Callable
+import numpy as np
+import torch
+from monai.config import KeysCollection
+from monai.utils import ensure_tuple_rep
 from monai.transforms.compose import MapTransform
 from monai.transforms.post.array import (
     SplitChannel,
@@ -26,6 +27,8 @@ from monai.transforms.post.array import (
     AsDiscrete,
     KeepLargestConnectedComponent,
     LabelToContour,
+    MeanEnsemble,
+    VoteEnsemble,
 )
 
 
@@ -36,25 +39,31 @@ class SplitChanneld(MapTransform):
 
     """
 
-    def __init__(self, keys: KeysCollection, output_postfixes, to_onehot=False, num_classes=None):
+    def __init__(
+        self,
+        keys: KeysCollection,
+        output_postfixes: Sequence[str],
+        to_onehot: Union[Sequence[bool], bool] = False,
+        num_classes: Optional[Union[Sequence[int], int]] = None,
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            output_postfixes (list, tuple): the postfixes to construct keys to store splitted data.
+            output_postfixes: the postfixes to construct keys to store split data.
                 for example: if the key of input data is `pred` and split 2 classes, the output
                 data keys will be: pred_(output_postfixes[0]), pred_(output_postfixes[1])
-            to_onehot (bool or list of bool): whether to convert the data to One-Hot format, default is False.
-            num_classes (int or list of int): the class number used to convert to One-Hot format
-                if `to_onehot` is True.
+            to_onehot: whether to convert the data to One-Hot format, default is False.
+                it also can be a sequence of bool, each element corresponds to a key in ``keys``.
+            num_classes: the class number used to convert to One-Hot format
+                if `to_onehot` is True. it also can be a sequence of int, each element corresponds
+                to a key in ``keys``.
 
         Raises:
             ValueError: must specify key postfixes to store splitted data.
 
         """
         super().__init__(keys)
-        if not isinstance(output_postfixes, (list, tuple)):
-            raise ValueError("must specify key postfixes to store splitted data.")
         self.output_postfixes = output_postfixes
         self.to_onehot = ensure_tuple_rep(to_onehot, len(self.keys))
         self.num_classes = ensure_tuple_rep(num_classes, len(self.keys))
@@ -64,7 +73,7 @@ class SplitChanneld(MapTransform):
         d = dict(data)
         for idx, key in enumerate(self.keys):
             rets = self.splitter(d[key], self.to_onehot[idx], self.num_classes[idx])
-            assert len(self.output_postfixes) == len(rets), "count of splitted results must match output_postfixes."
+            assert len(self.output_postfixes) == len(rets), "count of split results must match output_postfixes."
             for i, r in enumerate(rets):
                 d[f"{key}_{self.output_postfixes[i]}"] = r
         return d
@@ -76,17 +85,24 @@ class Activationsd(MapTransform):
     Add activation layers to the input data specified by `keys`.
     """
 
-    def __init__(self, keys: KeysCollection, sigmoid=False, softmax=False, other=None):
+    def __init__(
+        self,
+        keys: KeysCollection,
+        sigmoid: Union[Sequence[bool], bool] = False,
+        softmax: Union[Sequence[bool], bool] = False,
+        other: Optional[Union[Sequence[Callable], Callable]] = None,
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to model output and label.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            sigmoid (bool, tuple or list of bool): whether to execute sigmoid function on model
-                output before transform.
-            softmax (bool, tuple or list of bool): whether to execute softmax function on model
-                output before transform.
-            other (Callable, tuple or list of Callables): callable function to execute other activation layers,
-                for example: `other = lambda x: torch.tanh(x)`
+            sigmoid: whether to execute sigmoid function on model output before transform.
+                it also can be a sequence of bool, each element corresponds to a key in ``keys``.
+            softmax: whether to execute softmax function on model output before transform.
+                it also can be a sequence of bool, each element corresponds to a key in ``keys``.
+            other: callable function to execute other activation layers,
+                for example: `other = lambda x: torch.tanh(x)`. it also can be a sequence of Callable, each
+                element corresponds to a key in ``keys``.
 
         """
         super().__init__(keys)
@@ -110,21 +126,26 @@ class AsDiscreted(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        argmax: bool = False,
-        to_onehot: bool = False,
-        n_classes: Optional[int] = None,
-        threshold_values: bool = False,
-        logit_thresh: float = 0.5,
-    ):
+        argmax: Union[Sequence[bool], bool] = False,
+        to_onehot: Union[Sequence[bool], bool] = False,
+        n_classes: Optional[Union[Sequence[int], int]] = None,
+        threshold_values: Union[Sequence[bool], bool] = False,
+        logit_thresh: Union[Sequence[float], float] = 0.5,
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to model output and label.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             argmax: whether to execute argmax function on input data before transform.
+                it also can be a sequence of bool, each element corresponds to a key in ``keys``.
             to_onehot: whether to convert input data into the one-hot format. Defaults to False.
-            n_classes: the number of classes to convert to One-Hot format.
+                it also can be a sequence of bool, each element corresponds to a key in ``keys``.
+            n_classes: the number of classes to convert to One-Hot format. it also can be a
+                sequence of int, each element corresponds to a key in ``keys``.
             threshold_values: whether threshold the float value to int number 0 or 1, default is False.
+                it also can be a sequence of bool, each element corresponds to a key in ``keys``.
             logit_thresh: the threshold value for thresholding operation, default is 0.5.
+                it also can be a sequence of float, each element corresponds to a key in ``keys``.
 
         """
         super().__init__(keys)
@@ -151,25 +172,24 @@ class AsDiscreted(MapTransform):
 
 class KeepLargestConnectedComponentd(MapTransform):
     """
-    dictionary-based wrapper of :py:class:monai.transforms.KeepLargestConnectedComponent.
+    Dictionary-based wrapper of :py:class:monai.transforms.KeepLargestConnectedComponent.
     """
 
     def __init__(
         self,
         keys: KeysCollection,
-        applied_labels,
+        applied_labels: Union[Sequence[int], int],
         independent: bool = True,
         connectivity: Optional[int] = None,
-        output_postfix: str = "largestcc",
-    ):
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            applied_labels (int, list or tuple of int): Labels for applying the connected component on.
+            applied_labels: Labels for applying the connected component on.
                 If only one channel. The pixel whose value is not in this list will remain unchanged.
-                If the data is in one-hot format, this is used to determine what channels to apply.
-            independent (bool): consider several labels as a whole or independent, default is `True`.
+                If the data is in one-hot format, this is the channel indexes to apply transform.
+            independent: consider several labels as a whole or independent, default is `True`.
                 Example use case would be segment label 1 is liver and label 2 is liver tumor, in that case
                 you want this "independent" to be specified as False.
             connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
@@ -189,10 +209,10 @@ class KeepLargestConnectedComponentd(MapTransform):
 
 class LabelToContourd(MapTransform):
     """
-    dictionary-based wrapper of :py:class:monai.transforms.LabelToContour.
+    Dictionary-based wrapper of :py:class:monai.transforms.LabelToContour.
     """
 
-    def __init__(self, keys: KeysCollection, kernel_type: str = "Laplace"):
+    def __init__(self, keys: KeysCollection, kernel_type: str = "Laplace") -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -210,8 +230,100 @@ class LabelToContourd(MapTransform):
         return d
 
 
+class Ensembled(MapTransform):
+    """
+    Base class of dictionary-based ensemble transforms.
+
+    """
+
+    def __init__(self, keys: KeysCollection, ensemble: Callable, output_key: Optional[str] = None,) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be stack and execute ensemble.
+                if only 1 key provided, suppose it's a PyTorch Tensor with data stacked on dimension `E`.
+            output_key: the key to store ensemble result in the dictionary.
+            ensemble: callable method to execute ensemble on specified data.
+                if only 1 key provided in `keys`, `output_key` can be None and use `keys` as default.
+
+        """
+        super().__init__(keys)
+        if not callable(ensemble):
+            raise ValueError("ensemble must be a Callable function or object.")
+        self.ensemble = ensemble
+        if len(self.keys) > 1 and output_key is None:
+            raise ValueError("must provide expected key to store the output data.")
+        self.output_key = output_key if output_key is not None else self.keys[0]
+
+    def __call__(self, data):
+        d = dict(data)
+        if len(self.keys) == 1:
+            items = d[self.keys[0]]
+        else:
+            items = [d[key] for key in self.keys]
+        d[self.output_key] = self.ensemble(items)
+
+        return d
+
+
+class MeanEnsembled(Ensembled):
+    """
+    Dictionary-based wrapper of :py:class:monai.transforms.MeanEnsemble.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        output_key: Optional[str] = None,
+        weights: Optional[Union[Sequence[float], torch.Tensor, np.ndarray]] = None,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be stack and execute ensemble.
+                if only 1 key provided, suppose it's a PyTorch Tensor with data stacked on dimension `E`.
+            output_key: the key to store ensemble result in the dictionary.
+                if only 1 key provided in `keys`, `output_key` can be None and use `keys` as default.
+            weights: can be a list or tuple of numbers for input data with shape: [E, B, C, H, W[, D]].
+                or a Numpy ndarray or a PyTorch Tensor data.
+                the `weights` will be added to input data from highest dimension, for example:
+                1. if the `weights` only has 1 dimension, it will be added to the `E` dimension of input data.
+                2. if the `weights` has 3 dimensions, it will be added to `E`, `B` and `C` dimensions.
+                it's a typical practice to add weights for different classes:
+                to ensemble 3 segmentation model outputs, every output has 4 channels(classes),
+                so the input data shape can be: [3, B, 4, H, W, D].
+                and add different `weights` for different classes, so the `weights` shape can be: [3, 1, 4].
+                for example: `weights = [[[1, 2, 3, 4]], [[4, 3, 2, 1]], [[1, 1, 1, 1]]]`.
+
+        """
+        ensemble = MeanEnsemble(weights=weights)
+        super().__init__(keys, ensemble, output_key)
+
+
+class VoteEnsembled(Ensembled):
+    """
+    Dictionary-based wrapper of :py:class:monai.transforms.VoteEnsemble.
+    """
+
+    def __init__(
+        self, keys: KeysCollection, output_key: Optional[str] = None, num_classes: Optional[int] = None
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be stack and execute ensemble.
+                if only 1 key provided, suppose it's a PyTorch Tensor with data stacked on dimension `E`.
+            output_key: the key to store ensemble result in the dictionary.
+                if only 1 key provided in `keys`, `output_key` can be None and use `keys` as default.
+            num_classes: if the input is single channel data instead of One-Hot, we can't get class number
+                from channel, need to explicitly specify the number of classes to vote.
+
+        """
+        ensemble = VoteEnsemble(num_classes=num_classes)
+        super().__init__(keys, ensemble, output_key)
+
+
 SplitChannelD = SplitChannelDict = SplitChanneld
 ActivationsD = ActivationsDict = Activationsd
 AsDiscreteD = AsDiscreteDict = AsDiscreted
 KeepLargestConnectedComponentD = KeepLargestConnectedComponentDict = KeepLargestConnectedComponentd
 LabelToContourD = LabelToContourDict = LabelToContourd
+MeanEnsembleD = MeanEnsembleDict = MeanEnsembled
+VoteEnsembleD = VoteEnsembleDict = VoteEnsembled

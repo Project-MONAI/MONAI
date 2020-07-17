@@ -39,7 +39,7 @@ exclude_patterns = [
     "metrics",
     "engines",
     "data",
-    "application",
+    "apps",
     "config",
     "handlers",
     "losses",
@@ -95,6 +95,7 @@ autoclass_content = "both"
 add_module_names = True
 autosectionlabel_prefix_document = True
 napoleon_use_param = True
+set_type_checking_flag = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]

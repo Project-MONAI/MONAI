@@ -9,18 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Sequence, Union, List
+from typing import Callable, List, Optional, Sequence, Union
 
 import torch
 
 from monai.metrics import compute_roc_auc
-from monai.utils import exact_version, optional_import
-from monai.utils.enums import Average
+from monai.utils import exact_version, optional_import, Average
 
 Metric, _ = optional_import("ignite.metrics", "0.3.0", exact_version, "Metric")
 
 
-class ROCAUC(Metric):
+class ROCAUC(Metric):  # type: ignore # incorrectly typed due to optional_import
     """
     Computes Area Under the Receiver Operating Characteristic Curve (ROC AUC).
     accumulating predictions and the ground-truth during an epoch and applying `compute_roc_auc`.
@@ -57,17 +56,17 @@ class ROCAUC(Metric):
         average: Union[Average, str] = Average.MACRO,
         output_transform: Callable = lambda x: x,
         device: Optional[Union[str, torch.device]] = None,
-    ):
+    ) -> None:
         super().__init__(output_transform, device=device)
         self.to_onehot_y = to_onehot_y
         self.softmax = softmax
         self.average: Average = Average(average)
 
     def reset(self) -> None:
-        self._predictions: List[float] = []
-        self._targets: List[float] = []
+        self._predictions: List[torch.Tensor] = []
+        self._targets: List[torch.Tensor] = []
 
-    def update(self, output: Sequence[torch.Tensor]):
+    def update(self, output: Sequence[torch.Tensor]) -> None:
         y_pred, y = output
         if y_pred.ndimension() not in (1, 2):
             raise ValueError("predictions should be of shape (batch_size, n_classes) or (batch_size, ).")

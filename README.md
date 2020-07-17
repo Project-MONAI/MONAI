@@ -19,12 +19,14 @@ Its ambitions are:
 
 ## Features
 > _The codebase is currently under active development._
+> _Please see [the technical highlights](https://docs.monai.io/en/latest/highlights.html) of the current milestone release._
 
 - flexible pre-processing for multi-dimensional medical imaging data;
 - compositional & portable APIs for ease of integration in existing workflows;
 - domain-specific implementations for networks, losses, evaluation metrics and more;
 - customizable design for varying user expertise;
 - multi-GPU data parallelism support.
+
 
 ## Installation
 To install [the current release](https://pypi.org/project/monai/):
@@ -46,6 +48,8 @@ Alternatively, pre-built Docker image is available via [DockerHub](https://hub.d
 For more details, please refer to [the installation guide](https://docs.monai.io/en/latest/installation.html).
 
 ## Getting Started
+
+[MedNIST demo](https://colab.research.google.com/drive/1wy8XUSnNWlhDNazFdvGBHLfdkGvOHBKe) and [MONAI for PyTorch Users](https://colab.research.google.com/drive/1boqy7ENpKrqaJoxFlbHIBnIODAs1Ih1T) are available on Colab.
 
 Tutorials & examples are located at [monai/examples](https://github.com/Project-MONAI/MONAI/tree/master/examples).
 

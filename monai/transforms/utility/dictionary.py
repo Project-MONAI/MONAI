@@ -15,15 +15,17 @@ defined in :py:class:`monai.transforms.utility.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from logging import Handler
-from typing import Optional, Callable
+from typing import Optional, Callable, Union, Sequence
+
+import logging
 import copy
+
 import torch
 import numpy as np
 
-from monai.config.type_definitions import KeysCollection
+from monai.config import KeysCollection
 from monai.transforms.compose import MapTransform
-from monai.utils.misc import ensure_tuple, ensure_tuple_rep
+from monai.utils import ensure_tuple, ensure_tuple_rep
 from monai.transforms.utility.array import (
     AddChannel,
     AsChannelFirst,
@@ -37,14 +39,16 @@ from monai.transforms.utility.array import (
     SimulateDelay,
     Identity,
     Lambda,
+    LabelToMask,
 )
 
 
 class Identityd(MapTransform):
-    """Dictionary-based wrapper of :py:class:`monai.transforms.Identity`.
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.Identity`.
     """
 
-    def __init__(self, keys: KeysCollection):
+    def __init__(self, keys: KeysCollection) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -66,7 +70,7 @@ class AsChannelFirstd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.AsChannelFirst`.
     """
 
-    def __init__(self, keys: KeysCollection, channel_dim: int = -1):
+    def __init__(self, keys: KeysCollection, channel_dim: int = -1) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -88,7 +92,7 @@ class AsChannelLastd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.AsChannelLast`.
     """
 
-    def __init__(self, keys: KeysCollection, channel_dim: int = 0):
+    def __init__(self, keys: KeysCollection, channel_dim: int = 0) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -110,7 +114,7 @@ class AddChanneld(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.AddChannel`.
     """
 
-    def __init__(self, keys: KeysCollection):
+    def __init__(self, keys: KeysCollection) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -128,10 +132,10 @@ class AddChanneld(MapTransform):
 
 class RepeatChanneld(MapTransform):
     """
-    dictionary-based wrapper of :py:class:`monai.transforms.RepeatChannel`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.RepeatChannel`.
     """
 
-    def __init__(self, keys: KeysCollection, repeats: int):
+    def __init__(self, keys: KeysCollection, repeats: int) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -153,20 +157,29 @@ class CastToTyped(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.CastToType`.
     """
 
-    def __init__(self, keys: KeysCollection, dtype: np.dtype = np.float32):
+    def __init__(
+        self,
+        keys: KeysCollection,
+        dtype: Union[Sequence[Union[np.dtype, torch.dtype]], np.dtype, torch.dtype] = np.float32,
+    ):
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            dtype (np.dtype): convert image to this data type, default is `np.float32`.
+            dtype: convert image to this data type, default is `np.float32`.
+                it also can be a sequence of np.dtype or torch.dtype,
+                each element corresponds to a key in ``keys``.
+
         """
         MapTransform.__init__(self, keys)
-        self.converter = CastToType(dtype)
+        self.dtype = ensure_tuple_rep(dtype, len(self.keys))
+        self.converter = CastToType()
 
     def __call__(self, data):
         d = dict(data)
-        for key in self.keys:
-            d[key] = self.converter(d[key])
+        for idx, key in enumerate(self.keys):
+            d[key] = self.converter(d[key], dtype=self.dtype[idx])
+
         return d
 
 
@@ -175,7 +188,7 @@ class ToTensord(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.ToTensor`.
     """
 
-    def __init__(self, keys: KeysCollection):
+    def __init__(self, keys: KeysCollection) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -196,7 +209,7 @@ class ToNumpyd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.ToNumpy`.
     """
 
-    def __init__(self, keys: KeysCollection):
+    def __init__(self, keys: KeysCollection) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -218,7 +231,7 @@ class DeleteItemsd(MapTransform):
     It will remove the key-values and copy the others to construct a new dictionary.
     """
 
-    def __init__(self, keys: KeysCollection):
+    def __init__(self, keys: KeysCollection) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -235,7 +248,7 @@ class SqueezeDimd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.SqueezeDim`.
     """
 
-    def __init__(self, keys: KeysCollection, dim: int = 0):
+    def __init__(self, keys: KeysCollection, dim: int = 0) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -260,31 +273,37 @@ class DataStatsd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        prefix="Data",
-        data_shape=True,
-        intensity_range=True,
-        data_value=False,
-        additional_info=None,
-        logger_handler: Optional[Handler] = None,
-    ):
+        prefix: Union[Sequence[str], str] = "Data",
+        data_shape: Union[Sequence[bool], bool] = True,
+        value_range: Union[Sequence[bool], bool] = True,
+        data_value: Union[Sequence[bool], bool] = False,
+        additional_info: Optional[Union[Sequence[Callable], Callable]] = None,
+        logger_handler: Optional[logging.Handler] = None,
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            prefix (string or list of string): will be printed in format: "{prefix} statistics".
-            data_shape (bool or list of bool): whether to show the shape of input data.
-            intensity_range (bool or list of bool): whether to show the intensity value range of input data.
-            data_value (bool or list of bool): whether to show the raw value of input data.
+            prefix: will be printed in format: "{prefix} statistics".
+                it also can be a sequence of string, each element corresponds to a key in ``keys``.
+            data_shape: whether to show the shape of input data.
+                it also can be a sequence of bool, each element corresponds to a key in ``keys``.
+            value_range: whether to show the value range of input data.
+                it also can be a sequence of bool, each element corresponds to a key in ``keys``.
+            data_value: whether to show the raw value of input data.
+                it also can be a sequence of bool, each element corresponds to a key in ``keys``.
                 a typical example is to print some properties of Nifti image: affine, pixdim, etc.
-            additional_info (Callable or list of Callable): user can define callable function to extract
-                additional info from input data.
-            logger_handler (logging.handler): add additional handler to output data: save to file, etc.
+            additional_info: user can define callable function to extract
+                additional info from input data. it also can be a sequence of string, each element
+                corresponds to a key in ``keys``.
+            logger_handler: add additional handler to output data: save to file, etc.
                 add existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html
+
         """
         super().__init__(keys)
         self.prefix = ensure_tuple_rep(prefix, len(self.keys))
         self.data_shape = ensure_tuple_rep(data_shape, len(self.keys))
-        self.intensity_range = ensure_tuple_rep(intensity_range, len(self.keys))
+        self.value_range = ensure_tuple_rep(value_range, len(self.keys))
         self.data_value = ensure_tuple_rep(data_value, len(self.keys))
         self.additional_info = ensure_tuple_rep(additional_info, len(self.keys))
         self.logger_handler = logger_handler
@@ -297,7 +316,7 @@ class DataStatsd(MapTransform):
                 d[key],
                 self.prefix[idx],
                 self.data_shape[idx],
-                self.intensity_range[idx],
+                self.value_range[idx],
                 self.data_value[idx],
                 self.additional_info[idx],
             )
@@ -306,17 +325,17 @@ class DataStatsd(MapTransform):
 
 class SimulateDelayd(MapTransform):
     """
-    dictionary-based wrapper of :py:class:monai.transforms.utility.array.SimulateDelay.
+    Dictionary-based wrapper of :py:class:monai.transforms.utility.array.SimulateDelay.
     """
 
-    def __init__(self, keys: KeysCollection, delay_time=0.0):
+    def __init__(self, keys: KeysCollection, delay_time: Union[Sequence[float], float] = 0.0):
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            delay_time(float or list of float): The minimum amount of time, in fractions of seconds,
-                to accomplish this identity task. If a list is provided, it must be of length equal
-                to the keys representing the delay for each key element.
+            delay_time: The minimum amount of time, in fractions of seconds, to accomplish this identity task.
+                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+
         """
         super().__init__(keys)
         self.delay_time = ensure_tuple_rep(delay_time, len(self.keys))
@@ -336,14 +355,14 @@ class CopyItemsd(MapTransform):
 
     """
 
-    def __init__(self, keys: KeysCollection, times: int, names):
+    def __init__(self, keys: KeysCollection, times: int, names: KeysCollection):
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             times: expected copy times, for example, if keys is "img", times is 3,
                 it will add 3 copies of "img" data to the dictionary.
-            names(str, list or tuple of str): the names coresponding to the newly copied data,
+            names: the names coresponding to the newly copied data,
                 the length should match `len(keys) x times`. for example, if keys is ["img", "seg"]
                 and times is 2, names can be: ["img_1", "seg_1", "img_2", "seg_2"].
 
@@ -377,7 +396,7 @@ class ConcatItemsd(MapTransform):
 
     """
 
-    def __init__(self, keys: KeysCollection, name: str, dim: int = 0):
+    def __init__(self, keys: KeysCollection, name: str, dim: int = 0) -> None:
         """
         Args:
             keys: keys of the corresponding items to be concatenated together.
@@ -431,17 +450,49 @@ class Lambdad(MapTransform):
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
-        func: Lambda/function to be applied.
+        func: Lambda/function to be applied. It also can be a sequence of Callable,
+            each element corresponds to a key in ``keys``.
     """
 
-    def __init__(self, keys: KeysCollection, func: Callable) -> None:
+    def __init__(self, keys: KeysCollection, func: Union[Sequence[Callable], Callable]) -> None:
         super().__init__(keys)
-        self.lambd = Lambda(func)
+        self.func = ensure_tuple_rep(func, len(self.keys))
+        self.lambd = Lambda()
+
+    def __call__(self, data):
+        d = dict(data)
+        for idx, key in enumerate(self.keys):
+            d[key] = self.lambd(d[key], func=self.func[idx])
+
+        return d
+
+
+class LabelToMaskd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.LabelToMask`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        select_labels: labels to generate mask from. for 1 channel label, the `select_labels`
+            is the expected label values, like: [1, 2, 3]. for One-Hot format label, the
+            `select_labels` is the expected channel indexes.
+        merge_channels: whether to use `np.any()` to merge the result on channel dim.
+            if yes, will return a single channel mask with binary data.
+
+    """
+
+    def __init__(
+        self, keys: KeysCollection, select_labels: Union[Sequence[int], int], merge_channels: bool = False
+    ) -> None:
+        super().__init__(keys)
+        self.converter = LabelToMask(select_labels, merge_channels)
 
     def __call__(self, data):
         d = dict(data)
         for key in self.keys:
-            d[key] = self.lambd(d[key])
+            d[key] = self.converter(d[key])
+
         return d
 
 
@@ -459,3 +510,4 @@ SimulateDelayD = SimulateDelayDict = SimulateDelayd
 CopyItemsD = CopyItemsDict = CopyItemsd
 ConcatItemsD = ConcatItemsDict = ConcatItemsd
 LambdaD = LambdaDict = Lambdad
+LabelToMaskD = LabelToMaskDict = LabelToMaskd

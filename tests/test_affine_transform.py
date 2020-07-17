@@ -16,7 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.layers import AffineTransform
-from monai.networks.utils import normalize_transform, to_norm_affine
+from monai.networks import normalize_transform, to_norm_affine
 
 TEST_NORM_CASES = [
     [(4, 5), True, [[[0.666667, 0, -1], [0, 0.5, -1], [0, 0, 1]]]],

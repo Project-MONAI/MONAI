@@ -11,6 +11,7 @@
 
 import torch
 import torch.nn as nn
+
 from monai.networks.blocks.convolutions import Convolution
 from monai.networks.layers import same_padding
 from monai.networks.layers.factories import Act, Conv, Norm
@@ -36,7 +37,7 @@ class SimpleASPP(nn.Module):
         dilations=(1, 2, 4, 6),
         norm_type=Norm.BATCH,
         acti_type=Act.LEAKYRELU,
-    ):
+    ) -> None:
         """
         Args:
             spatial_dims: number of spatial dimensions, could be 1, 2, or 3.
@@ -54,6 +55,12 @@ class SimpleASPP(nn.Module):
 
         Raises:
             ValueError: len(kernel_sizes) and len(dilations) must be the same.
+
+        See also:
+
+            :py:class:`monai.networks.layers.Act`
+            :py:class:`monai.networks.layers.Conv`
+            :py:class:`monai.networks.layers.Norm`
 
         """
         super().__init__()

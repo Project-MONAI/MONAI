@@ -9,16 +9,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional
+
 import os
 from urllib.request import urlretrieve
-from urllib.error import URLError
+from urllib.error import URLError, ContentTooShortError, HTTPError
 import hashlib
 import tarfile
 import zipfile
-from monai.utils import progress_bar
+
+from monai.utils import progress_bar, optional_import
+
+gdown, has_gdown = optional_import("gdown", "3.6")
 
 
-def check_md5(filepath: str, md5_value: str = None):
+def check_md5(filepath: str, md5_value: Optional[str] = None) -> bool:
     """
     check MD5 signature of specified file.
 
@@ -29,9 +34,13 @@ def check_md5(filepath: str, md5_value: str = None):
     """
     if md5_value is not None:
         md5 = hashlib.md5()
-        with open(filepath, "rb") as f:
-            for chunk in iter(lambda: f.read(1024 * 1024), b""):
-                md5.update(chunk)
+        try:
+            with open(filepath, "rb") as f:
+                for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                    md5.update(chunk)
+        except Exception as e:
+            print(f"Exception in check_md5: {e}")
+            return False
         if md5_value != md5.hexdigest():
             return False
     else:
@@ -40,7 +49,7 @@ def check_md5(filepath: str, md5_value: str = None):
     return True
 
 
-def download_url(url: str, filepath: str, md5_value: str = None):
+def download_url(url: str, filepath: str, md5_value: Optional[str] = None) -> None:
     """
     Download file from specified URL link, support process bar and MD5 check.
 
@@ -53,6 +62,8 @@ def download_url(url: str, filepath: str, md5_value: str = None):
     Raises:
         RuntimeError: MD5 check of existing file {filepath} failed, please delete it and try again.
         URLError: See urllib.request.urlopen
+        HTTPError: See urllib.request.urlopen
+        ContentTooShortError: See urllib.request.urlopen
         IOError: See urllib.request.urlopen
         RuntimeError: MD5 check of downloaded file failed, URL={url}, filepath={filepath}, expected MD5={md5_value}.
 
@@ -64,14 +75,21 @@ def download_url(url: str, filepath: str, md5_value: str = None):
         return
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
-    def _process_hook(blocknum, blocksize, totalsize):
-        progress_bar(blocknum * blocksize, totalsize, f"Downloading {filepath.split('/')[-1]}:")
+    if url.startswith("https://drive.google.com"):
+        gdown.download(url, filepath, quiet=False)
+        if not os.path.exists(filepath):
+            raise RuntimeError("download failed due to network issue or permission denied.")
+    else:
 
-    try:
-        urlretrieve(url, filepath, reporthook=_process_hook)
-        print(f"\ndownloaded file: {filepath}.")
-    except (URLError, IOError) as e:
-        raise e
+        def _process_hook(blocknum, blocksize, totalsize):
+            progress_bar(blocknum * blocksize, totalsize, f"Downloading {filepath.split('/')[-1]}:")
+
+        try:
+            urlretrieve(url, filepath, reporthook=_process_hook)
+            print(f"\ndownloaded file: {filepath}.")
+        except (URLError, HTTPError, ContentTooShortError, IOError) as e:
+            print(f"download failed from {url} to {filepath}.")
+            raise e
 
     if not check_md5(filepath, md5_value):
         raise RuntimeError(
@@ -80,7 +98,7 @@ def download_url(url: str, filepath: str, md5_value: str = None):
         )
 
 
-def extractall(filepath: str, output_dir: str, md5_value: str = None):
+def extractall(filepath: str, output_dir: str, md5_value: Optional[str] = None) -> None:
     """
     Extract file to the output directory.
     Expected file types are: `zip`, `tar.gz` and `tar`.
@@ -115,7 +133,7 @@ def extractall(filepath: str, output_dir: str, md5_value: str = None):
         raise TypeError("unsupported compressed file type.")
 
 
-def download_and_extract(url: str, filepath: str, output_dir: str, md5_value: str = None):
+def download_and_extract(url: str, filepath: str, output_dir: str, md5_value: Optional[str] = None) -> None:
     """
     Download file from URL and extract it to the output directory.
 

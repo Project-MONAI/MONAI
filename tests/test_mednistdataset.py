@@ -14,8 +14,7 @@ import os
 import shutil
 import tempfile
 
-from monai.application import MedNISTDataset
-from tests.utils import NumpyImageTestCase2D
+from monai.apps import MedNISTDataset
 from monai.transforms import LoadPNGd, AddChanneld, ScaleIntensityd, ToTensord, Compose
 from tests.utils import skip_if_quick
 
@@ -44,10 +43,13 @@ class TestMedNISTDataset(unittest.TestCase):
         _test_dataset(data)
         data = MedNISTDataset(root_dir=tempdir, transform=transform, section="test", download=False)
         _test_dataset(data)
+        data = MedNISTDataset(root_dir=tempdir, section="test", download=False)
+        self.assertTupleEqual(data[0]["image"].shape, (64, 64))
         shutil.rmtree(os.path.join(tempdir, "MedNIST"))
         try:
             data = MedNISTDataset(root_dir=tempdir, transform=transform, section="test", download=False)
         except RuntimeError as e:
+            print(str(e))
             self.assertTrue(str(e).startswith("can not find dataset directory"))
 
         shutil.rmtree(tempdir)

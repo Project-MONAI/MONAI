@@ -9,14 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
 from typing import Union
+
+import warnings
 
 import torch
 from torch.nn.modules.loss import _Loss
 
-from monai.networks.utils import one_hot
-from monai.utils.enums import LossReduction
+from monai.networks import one_hot
+from monai.utils import LossReduction
 
 
 class TverskyLoss(_Loss):
@@ -41,7 +42,7 @@ class TverskyLoss(_Loss):
         alpha: float = 0.5,
         beta: float = 0.5,
         reduction: Union[LossReduction, str] = LossReduction.MEAN,
-    ):
+    ) -> None:
         """
         Args:
             include_background: If False channel index 0 (background category) is excluded from the calculation.
@@ -62,7 +63,7 @@ class TverskyLoss(_Loss):
 
         """
 
-        super().__init__(reduction=LossReduction(reduction))
+        super().__init__(reduction=LossReduction(reduction).value)
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
 
@@ -76,8 +77,8 @@ class TverskyLoss(_Loss):
     def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5):
         """
         Args:
-            input (tensor): the shape should be BNH[WD].
-            target (tensor): the shape should be BNH[WD].
+            input: the shape should be BNH[WD].
+            target: the shape should be BNH[WD].
             smooth: a small constant to avoid nan.
 
         Raises:
@@ -124,10 +125,10 @@ class TverskyLoss(_Loss):
 
         score = 1.0 - numerator / denominator
 
-        if self.reduction == LossReduction.SUM:
+        if self.reduction == LossReduction.SUM.value:
             return score.sum()  # sum over the batch and channel dims
-        if self.reduction == LossReduction.NONE:
+        if self.reduction == LossReduction.NONE.value:
             return score  # returns [N, n_classes] losses
-        if self.reduction == LossReduction.MEAN:
+        if self.reduction == LossReduction.MEAN.value:
             return score.mean()
         raise ValueError(f"reduction={self.reduction} is invalid.")

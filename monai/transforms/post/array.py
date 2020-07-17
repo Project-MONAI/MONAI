@@ -13,14 +13,16 @@ A collection of "vanilla" transforms for the model output tensors
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Optional, Callable
-
+from typing import Callable, Optional, Sequence, Union
+import warnings
+import numpy as np
 import torch
 import torch.nn.functional as F
+
 from monai.transforms.compose import Transform
-from monai.networks.utils import one_hot
+from monai.networks import one_hot
 from monai.transforms.utils import get_largest_connected_component_mask
-from monai.utils.misc import ensure_tuple
+from monai.utils import ensure_tuple
 
 
 class SplitChannel(Transform):
@@ -28,7 +30,7 @@ class SplitChannel(Transform):
     Split PyTorch Tensor data according to the channel dim, if only 1 channel, convert to One-Hot
     format first based on the class number. Users can use this transform to compute metrics on every
     single class to get more details of validation/evaluation. Expected input shape:
-    (batch_size, num_channels, spatial_dim_1[, spatial_dim_2, ...])
+    ``(batch_size, num_channels, [spatial_dim_1, spatial_dim_2, ...])``
 
     Args:
         to_onehot: whether to convert the data to One-Hot format first.
@@ -37,11 +39,11 @@ class SplitChannel(Transform):
             Defaults to ``None``.
     """
 
-    def __init__(self, to_onehot: bool = False, num_classes: Optional[int] = None):
+    def __init__(self, to_onehot: bool = False, num_classes: Optional[int] = None) -> None:
         self.to_onehot = to_onehot
         self.num_classes = num_classes
 
-    def __call__(self, img, to_onehot: Optional[bool] = None, num_classes: Optional[int] = None):
+    def __call__(self, img: torch.Tensor, to_onehot: Optional[bool] = None, num_classes: Optional[int] = None):
         """
         Args:
             to_onehot: whether to convert the data to One-Hot format first.
@@ -76,13 +78,17 @@ class Activations(Transform):
 
     """
 
-    def __init__(self, sigmoid: bool = False, softmax: bool = False, other: Optional[Callable] = None):
+    def __init__(self, sigmoid: bool = False, softmax: bool = False, other: Optional[Callable] = None) -> None:
         self.sigmoid = sigmoid
         self.softmax = softmax
         self.other = other
 
     def __call__(
-        self, img, sigmoid: Optional[bool] = None, softmax: Optional[bool] = None, other: Optional[Callable] = None
+        self,
+        img: torch.Tensor,
+        sigmoid: Optional[bool] = None,
+        softmax: Optional[bool] = None,
+        other: Optional[Callable] = None,
     ):
         """
         Args:
@@ -114,7 +120,8 @@ class Activations(Transform):
 
 
 class AsDiscrete(Transform):
-    """Execute after model forward to transform model output to discrete values.
+    """
+    Execute after model forward to transform model output to discrete values.
     It can complete below operations:
 
         -  execute `argmax` for input logits values.
@@ -142,7 +149,7 @@ class AsDiscrete(Transform):
         n_classes: Optional[int] = None,
         threshold_values: bool = False,
         logit_thresh: float = 0.5,
-    ):
+    ) -> None:
         self.argmax = argmax
         self.to_onehot = to_onehot
         self.n_classes = n_classes
@@ -151,7 +158,7 @@ class AsDiscrete(Transform):
 
     def __call__(
         self,
-        img,
+        img: torch.Tensor,
         argmax: Optional[bool] = None,
         to_onehot: Optional[bool] = None,
         n_classes: Optional[int] = None,
@@ -200,13 +207,13 @@ class KeepLargestConnectedComponent(Transform):
         For one-hot data, the over-segment pixels will be set to 0 in its channel.
 
     For example:
-    Use KeepLargestConnectedComponent with applied_labels=[1], connectivity=1
+    Use KeepLargestConnectedComponent with applied_labels=[1], connectivity=1::
 
        [1, 0, 0]         [0, 0, 0]
        [0, 1, 1]    =>   [0, 1 ,1]
        [0, 1, 1]         [0, 1, 1]
 
-    Use KeepLargestConnectedComponent with applied_labels[1, 2], independent=False, connectivity=1
+    Use KeepLargestConnectedComponent with applied_labels[1, 2], independent=False, connectivity=1::
 
       [0, 0, 1, 0 ,0]           [0, 0, 1, 0 ,0]
       [0, 2, 1, 1 ,1]           [0, 2, 1, 1 ,1]
@@ -214,7 +221,7 @@ class KeepLargestConnectedComponent(Transform):
       [1, 2, 0, 1 ,0]           [1, 2, 0, 0 ,0]
       [2, 2, 0, 0 ,2]           [2, 2, 0, 0 ,0]
 
-    Use KeepLargestConnectedComponent with applied_labels[1, 2], independent=True, connectivity=1
+    Use KeepLargestConnectedComponent with applied_labels[1, 2], independent=True, connectivity=1::
 
       [0, 0, 1, 0 ,0]           [0, 0, 1, 0 ,0]
       [0, 2, 1, 1 ,1]           [0, 2, 1, 1 ,1]
@@ -222,7 +229,7 @@ class KeepLargestConnectedComponent(Transform):
       [1, 2, 0, 1 ,0]           [0, 2, 0, 0 ,0]
       [2, 2, 0, 0 ,2]           [2, 2, 0, 0 ,0]
 
-    Use KeepLargestConnectedComponent with applied_labels[1, 2], independent=False, connectivity=2
+    Use KeepLargestConnectedComponent with applied_labels[1, 2], independent=False, connectivity=2::
 
       [0, 0, 1, 0 ,0]           [0, 0, 1, 0 ,0]
       [0, 2, 1, 1 ,1]           [0, 2, 1, 1 ,1]
@@ -232,13 +239,15 @@ class KeepLargestConnectedComponent(Transform):
 
     """
 
-    def __init__(self, applied_labels, independent: bool = True, connectivity: Optional[int] = None):
+    def __init__(
+        self, applied_labels: Union[Sequence[int], int], independent: bool = True, connectivity: Optional[int] = None
+    ) -> None:
         """
         Args:
-            applied_labels (int, list or tuple of int): Labels for applying the connected component on.
+            applied_labels: Labels for applying the connected component on.
                 If only one channel. The pixel whose value is not in this list will remain unchanged.
                 If the data is in one-hot format, this is used to determine what channels to apply.
-            independent (bool): consider several labels as a whole or independent, default is `True`.
+            independent: consider several labels as a whole or independent, default is `True`.
                 Example use case would be segment label 1 is liver and label 2 is liver tumor, in that case
                 you want this "independent" to be specified as False.
             connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
@@ -250,7 +259,7 @@ class KeepLargestConnectedComponent(Transform):
         self.independent = independent
         self.connectivity = connectivity
 
-    def __call__(self, img):
+    def __call__(self, img: torch.Tensor):
         """
         Args:
             img: shape must be (batch_size, C, spatial_dim1[, spatial_dim2, ...]).
@@ -305,12 +314,12 @@ class LabelToContour(Transform):
 
     """
 
-    def __init__(self, kernel_type: str = "Laplace"):
+    def __init__(self, kernel_type: str = "Laplace") -> None:
         if kernel_type != "Laplace":
             raise NotImplementedError("currently, LabelToContour only supports Laplace kernel.")
         self.kernel_type = kernel_type
 
-    def __call__(self, img):
+    def __call__(self, img: torch.Tensor):
         """
         Args:
             img: torch tensor data to extract the contour, with shape: [batch_size, channels, height, width[, depth]]
@@ -336,5 +345,90 @@ class LabelToContour(Transform):
         else:
             raise RuntimeError("the dimensions of img should be 4 or 5.")
 
-        torch.clamp_(contour_img, min=0.0, max=1.0)
+        contour_img.clamp_(min=0.0, max=1.0)
         return contour_img
+
+
+class MeanEnsemble(Transform):
+    """
+    Execute mean ensemble on the input data.
+    The input data can be a list or tuple of PyTorch Tensor with shape: [B, C[, H, W, D]],
+    Or a single PyTorch Tensor with shape: [E, B, C[, H, W, D]], the `E` dimension represents
+    the output data from different models.
+    Typcally, the input data is model output of segmentation task or classificaiton task.
+    And it also can support to add `weights` for the input data.
+
+    Args:
+        weights: can be a list or tuple of numbers for input data with shape: [E, B, C, H, W[, D]].
+            or a Numpy ndarray or a PyTorch Tensor data.
+            the `weights` will be added to input data from highest dimension, for example:
+            1. if the `weights` only has 1 dimension, it will be added to the `E` dimension of input data.
+            2. if the `weights` has 3 dimensions, it will be added to `E`, `B` and `C` dimensions.
+            it's a typical practice to add weights for different classes:
+            to ensemble 3 segmentation model outputs, every output has 4 channels(classes),
+            so the input data shape can be: [3, B, 4, H, W, D].
+            and add different `weights` for different classes, so the `weights` shape can be: [3, 1, 4].
+            for example: `weights = [[[1, 2, 3, 4]], [[4, 3, 2, 1]], [[1, 1, 1, 1]]]`.
+
+    """
+
+    def __init__(self, weights: Optional[Union[Sequence[float], torch.Tensor, np.ndarray]] = None):
+        self.weights = torch.as_tensor(weights, dtype=torch.float) if weights is not None else None
+
+    def __call__(self, img: Union[Sequence[torch.Tensor], torch.Tensor]):
+        img_: torch.Tensor = torch.stack(img) if isinstance(img, (tuple, list)) else torch.as_tensor(img)
+        if self.weights is not None:
+            self.weights = self.weights.to(img_.device)
+            shape = tuple(self.weights.shape)
+            for _ in range(img_.ndim - self.weights.ndim):
+                shape += (1,)
+            weights = self.weights.reshape(*shape)
+
+            img_ = img_ * weights / weights.mean(dim=0, keepdim=True)
+
+        return torch.mean(img_, dim=0)
+
+
+class VoteEnsemble(Transform):
+    """
+    Execute vote ensemble on the input data.
+    The input data can be a list or tuple of PyTorch Tensor with shape: [B[, C, H, W, D]],
+    Or a single PyTorch Tensor with shape: [E, B[, C, H, W, D]], the `E` dimension represents
+    the output data from different models.
+    Typcally, the input data is model output of segmentation task or classificaiton task.
+
+    Note:
+        This vote transform expects the input data is discrete values. It can be multiple channels
+        data in One-Hot format or single channel data. It will vote to select the most common data
+        between items.
+        The output data has the same shape as every item of the input data.
+
+    Args:
+        num_classes: if the input is single channel data instead of One-Hot, we can't get class number
+            from channel, need to explicitly specify the number of classes to vote.
+
+    """
+
+    def __init__(self, num_classes: Optional[int] = None):
+        self.num_classes = num_classes
+
+    def __call__(self, img: Union[Sequence[torch.Tensor], torch.Tensor]):
+        img_: torch.Tensor = torch.stack(img) if isinstance(img, (tuple, list)) else torch.as_tensor(img)
+        if self.num_classes is not None:
+            has_ch_dim = True
+            if img_.ndim > 2 and img_.shape[2] > 1:
+                warnings.warn("no need to specify num_classes for One-Hot format data.")
+            else:
+                if img_.ndim == 2:
+                    # if no channel dim, need to remove channel dim after voting
+                    has_ch_dim = False
+                img_ = one_hot(img_, self.num_classes, dim=2)
+
+        img_ = torch.mean(img_.float(), dim=0)
+
+        if self.num_classes is not None:
+            # if not One-Hot, use "argmax" to vote the most common class
+            return torch.argmax(img_, dim=1, keepdim=has_ch_dim)
+        else:
+            # for One-Hot data, round the float number to 0 or 1
+            return torch.round(img_)
