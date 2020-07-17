@@ -52,7 +52,6 @@ import nibabel as nib
 import numpy as np
 import torch
 import argparse
-import torch.multiprocessing as mp
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data.distributed import DistributedSampler
