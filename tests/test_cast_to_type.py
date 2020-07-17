@@ -21,7 +21,7 @@ TEST_CASE_2 = [{"dtype": torch.float64}, torch.tensor([[0, 1], [1, 2]], dtype=to
 
 
 class TestCastToType(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_1])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_type(self, input_param, input_data, expected_type):
         result = CastToType(**input_param)(input_data)
         self.assertEqual(result.dtype, expected_type)
