@@ -14,23 +14,32 @@ This example shows how to execute distributed training based on PyTorch native `
 It can run on several nodes with multiple GPU devices on every node.
 Main steps to set up the distributed training:
 
-- `node` is the node index, `gpus` is GPU count of every node, `gpu` is index of current GPU in 1 node.
+- Execute `torch.distributed.launch` to create processes on every node for every GPU.
+  It receives parameters as below:
+  `--nproc_per_node=NUM_GPUS_PER_NODE`
+  `--nnodes=NUM_NODES`
+  `--node_rank=INDEX_CURRENT_NODE`
+  `--master_addr="192.168.1.1"`
+  `--master_port=1234`
+  For more details, refer to https://github.com/pytorch/pytorch/blob/master/torch/distributed/launch.py.
+  Alternatively, we can also use `torch.multiprocessing.spawn` to start program, but it that case, need to handle
+  all the above parameters and compute `rank` manually, then set to `init_process_group`, etc.
+  `torch.distributed.launch` is even more efficient than `torch.multiprocessing.spawn` during training.
 - Use `init_process_group` to initialize every process, every GPU runs in a separate process with unique rank.
-  Here we use `NVIDIA NCCL` as the backend and get information from environment `env://`.
-- Set the IP and PORT for master node.
+  Here we use `NVIDIA NCCL` as the backend and must set `init_method="env://"` if use `torch.distributed.launch`.
 - Wrap the model with `DistributedDataParallel` after moving to expected device.
 - Wrap Dataset with `DistributedSampler`, and disable the `shuffle` and `num_worker=0` in DataLoader.
   Instead, shuffle data by `train_sampler.set_epoch(epoch)` before every epoch.
-- Execute the program with `mp.spawn(train, nprocs=args.gpus, args=(args,))` on every node.
-  Instead of running the `train` function once, we will spawn `args.gpus` processes,
-  each of which runs `train(i, args)`, where i goes from `0` to `args.gpus - 1`. We run the `main()`
-  function on each node, so that in total there will be `args.nodes x args.gpus = args.world_size` processes.
-- Every node runs the program with different node index, a typical example for 2 nodes with 1 GPU for every node:
-  `python unet_training_ddp.py -mi 10.23.137.29 -mp 8888 -n 2 -g 1 -i <i>` (i in [0 ~ (n - 1)])
 
 Note:
+    `torch.distributed.launch` will launch `nnodes * nproc_per_node = world_size` processes in total.
     Suggest setting exactly the same software environment for every node, especially `PyTorch`, `nccl`, etc.
     A good practice is to use the same MONAI docker image for all nodes directly.
+    Example script to execute this program on every node:
+    python -m torch.distributed.launch --nproc_per_node=NUM_GPUS_PER_NODE
+           --nnodes=NUM_NODES --node_rank=INDEX_CURRENT_NODE
+           --master_addr="192.168.1.1" --master_port=1234
+           unet_training_ddp.py -d DIR_OF_TESTDATA
 
 Referring to: https://pytorch.org/tutorials/intermediate/ddp_tutorial.html
 
@@ -43,7 +52,6 @@ import nibabel as nib
 import numpy as np
 import torch
 import argparse
-import torch.multiprocessing as mp
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data.distributed import DistributedSampler
@@ -61,15 +69,13 @@ from monai.transforms import (
 from monai.data import create_test_image_3d, Dataset, DataLoader
 
 
-def train(gpu, args):
+def train(args):
     # disable logging for processes execpt 0 on every node
-    if gpu != 0:
+    if args.local_rank != 0:
         f = open(os.devnull, "w")
         sys.stdout = sys.stderr = f
-    # initialize the distributed training process, every GPU runs in a process,
-    # so the process rank is (node index x GPU count of 1 node + GPU index)
-    rank = args.node * args.gpus + gpu
-    dist.init_process_group(backend="nccl", init_method="env://", world_size=args.world_size, rank=rank)
+    # initialize the distributed training process, every GPU runs in a process
+    dist.init_process_group(backend="nccl", init_method="env://")
 
     images = sorted(glob(os.path.join(args.dir, "img*.nii.gz")))
     segs = sorted(glob(os.path.join(args.dir, "seg*.nii.gz")))
@@ -92,7 +98,7 @@ def train(gpu, args):
     # create a training data loader
     train_ds = Dataset(data=train_files, transform=train_transforms)
     # create a training data sampler
-    train_sampler = DistributedSampler(train_ds, num_replicas=args.world_size, rank=rank)
+    train_sampler = DistributedSampler(train_ds)
     # use batch_size=2 to load images and use RandCropByPosNegLabeld to generate 2 x 4 images for network training
     train_loader = DataLoader(
         train_ds,
@@ -104,7 +110,7 @@ def train(gpu, args):
     )
 
     # create UNet, DiceLoss and Adam optimizer
-    device = torch.device(f"cuda:{gpu}")
+    device = torch.device(f"cuda:{args.local_rank}")
     model = monai.networks.nets.UNet(
         dimensions=3,
         in_channels=1,
@@ -116,7 +122,7 @@ def train(gpu, args):
     loss_function = monai.losses.DiceLoss(sigmoid=True).to(device)
     optimizer = torch.optim.Adam(model.parameters(), 1e-3)
     # wrap the model with DistributedDataParallel module
-    model = DistributedDataParallel(model, device_ids=[gpu])
+    model = DistributedDataParallel(model, device_ids=[args.local_rank])
 
     # start a typical PyTorch training
     epoch_loss_values = list()
@@ -142,19 +148,19 @@ def train(gpu, args):
         epoch_loss_values.append(epoch_loss)
         print(f"epoch {epoch + 1} average loss: {epoch_loss:.4f}")
     print(f"train completed, epoch losses: {epoch_loss_values}")
-    if rank == 0:
+    if dist.get_rank() == 0:
+        # all processes should see same parameters as they all start from same
+        # random parameters and gradients are synchronized in backward passes,
+        # therefore, saving it in one process is sufficient
         torch.save(model.state_dict(), "final_model.pth")
     dist.destroy_process_group()
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-mi", "--master_ip", default="localhost", type=str, help="IP address of the master node")
-    parser.add_argument("-mp", "--master_port", default="8888", type=str, help="PORT of the master node")
-    parser.add_argument("-n", "--nodes", default=1, type=int, help="number of nodes in total")
-    parser.add_argument("-g", "--gpus", default=1, type=int, help="number of gpus per node")
-    parser.add_argument("-i", "--node", default=0, type=int, help="node index within all the nodes")
     parser.add_argument("-d", "--dir", default="./testdata", type=str, help="directory to create random data")
+    # must parse the command-line argument: ``--local_rank=LOCAL_PROCESS_RANK``, which will be provided by DDP
+    parser.add_argument("--local_rank", type=int)
     args = parser.parse_args()
 
     # create 40 random image, mask paris for training
@@ -170,12 +176,15 @@ def main():
             n = nib.Nifti1Image(seg, np.eye(4))
             nib.save(n, os.path.join(args.dir, f"seg{i:d}.nii.gz"))
 
-    args.world_size = args.gpus * args.nodes
-    os.environ["MASTER_ADDR"] = args.master_ip
-    os.environ["MASTER_PORT"] = args.master_port
-    mp.spawn(train, nprocs=args.gpus, args=(args,))
+    train(args=args)
 
 
-# usage: "python unet_training_ddp.py -mi 10.23.137.29 -mp 8888 -n 2 -g 1 -i <i>"  (i in [0 - (n - 1)])
+# usage example(refer to https://github.com/pytorch/pytorch/blob/master/torch/distributed/launch.py):
+
+# python -m torch.distributed.launch --nproc_per_node=NUM_GPUS_PER_NODE
+#        --nnodes=NUM_NODES --node_rank=INDEX_CURRENT_NODE
+#        --master_addr="192.168.1.1" --master_port=1234
+#        unet_training_ddp.py -d DIR_OF_TESTDATA
+
 if __name__ == "__main__":
     main()
