@@ -69,7 +69,7 @@ class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optiona
         post_transform: Optional[Callable] = None,
         key_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
-        handlers: Optional[Sequence[Metric]] = None,
+        handlers: Optional[Sequence] = None,
     ) -> None:
         if iteration_update is not None:
             super().__init__(iteration_update)

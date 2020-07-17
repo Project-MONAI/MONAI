@@ -37,7 +37,7 @@ def _default_eval_transform(x, y, y_pred):
 def create_multigpu_supervised_trainer(
     net: torch.nn.Module,
     optimizer: Optimizer,
-    loss_fn: torch.nn.modules.loss._Loss,
+    loss_fn: Callable,
     devices: Optional[Sequence[torch.device]] = None,
     non_blocking: bool = False,
     prepare_batch: Callable = _prepare_batch,

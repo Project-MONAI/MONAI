@@ -59,7 +59,7 @@ class Evaluator(Workflow):
         post_transform: Optional[Transform] = None,
         key_val_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
-        val_handlers: Optional[Sequence[Metric]] = None,
+        val_handlers: Optional[Sequence] = None,
     ) -> None:
         super().__init__(
             device=device,
@@ -126,7 +126,7 @@ class SupervisedEvaluator(Evaluator):
         post_transform: Optional[Transform] = None,
         key_val_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
-        val_handlers: Optional[Sequence[Metric]] = None,
+        val_handlers: Optional[Sequence] = None,
     ):
         super().__init__(
             device=device,

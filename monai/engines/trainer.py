@@ -84,7 +84,7 @@ class SupervisedTrainer(Trainer):
         train_data_loader: DataLoader,
         network: torch.nn.Module,
         optimizer: Optimizer,
-        loss_function: torch.nn.modules.loss._Loss,
+        loss_function: Callable,
         prepare_batch: Callable = default_prepare_batch,
         iteration_update: Optional[Callable] = None,
         inferer: Inferer = SimpleInferer(),
@@ -92,7 +92,7 @@ class SupervisedTrainer(Trainer):
         post_transform: Optional[Transform] = None,
         key_train_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
-        train_handlers: Optional[Sequence[Metric]] = None,
+        train_handlers: Optional[Sequence] = None,
     ):
         # set up Ignite engine and environments
         super().__init__(
