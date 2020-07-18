@@ -303,7 +303,7 @@ def create_grid(
 
 
 def create_control_grid(
-    spatial_shape: Sequence[int], spacing: Sequence[float], homogeneous: bool = True, dtype: Optional[np.dtype] = float
+    spatial_shape: Sequence[int], spacing: Sequence[float], homogeneous: bool = True, dtype: np.dtype = float
 ):
     """
     control grid with two additional point in each direction

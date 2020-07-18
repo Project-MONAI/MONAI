@@ -137,22 +137,27 @@ class RepeatChannel(Transform):
 
 class CastToType(Transform):
     """
-    Cast the image data to specified numpy data type.
+    Cast the Numpy data to specified numpy data type, or cast the PyTorch Tensor to
+    specified PyTorch data type.
     """
 
-    def __init__(self, dtype: np.dtype = np.float32) -> None:
+    def __init__(self, dtype: Union[np.dtype, torch.dtype] = np.float32) -> None:
         """
         Args:
             dtype: convert image to this data type, default is `np.float32`.
         """
         self.dtype = dtype
 
-    def __call__(self, img: np.ndarray, dtype: Optional[np.dtype] = None):
+    def __call__(self, img: Union[np.ndarray, torch.Tensor], dtype: Optional[Union[np.dtype, torch.dtype]] = None):
         """
-        Apply the transform to `img`, assuming `img` is a numpy array.
+        Apply the transform to `img`, assuming `img` is a numpy array or PyTorch Tensor.
         """
-        assert isinstance(img, np.ndarray), "image must be numpy array."
-        return img.astype(self.dtype if dtype is None else dtype)
+        if isinstance(img, np.ndarray):
+            return img.astype(self.dtype if dtype is None else dtype)
+        elif torch.is_tensor(img):
+            return torch.as_tensor(img, dtype=self.dtype if dtype is None else dtype)
+        else:
+            raise TypeError("img is not Numpy array or PyTorch Tensor.")
 
 
 class ToTensor(Transform):

@@ -46,7 +46,7 @@ class Trainer(Workflow):
             self.state.iteration = 0  # to avoid creating new State instance in ignite Engine.run
         super().run()
 
-    def get_train_stats(self) -> Dict[str, Union[int, float]]:
+    def get_train_stats(self) -> Dict[str, float]:
         return {"total_epochs": self.state.max_epochs, "total_iterations": self.state.epoch_length}
 
 
