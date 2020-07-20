@@ -51,7 +51,7 @@ class SpatialPad(Transform):
         self.method: Method = Method(method)
         self.mode: NumpyPadMode = NumpyPadMode(mode)
 
-    def _determine_data_pad_width(self, data_shape):
+    def _determine_data_pad_width(self, data_shape: Sequence[int]):
         self.spatial_size = fall_back_tuple(self.spatial_size, data_shape)
         if self.method == Method.SYMMETRIC:
             pad_width = list()

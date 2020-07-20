@@ -12,7 +12,7 @@
 A collection of generic interfaces for MONAI transforms.
 """
 
-from typing import Any, Hashable, Optional, Tuple
+from typing import Any, Callable, Hashable, Optional, Sequence, Tuple, Union
 
 from abc import ABC, abstractmethod
 import warnings
@@ -201,7 +201,7 @@ class Compose(Randomizable):
         them are called on the labels.
     """
 
-    def __init__(self, transforms=None) -> None:
+    def __init__(self, transforms: Optional[Union[Sequence[Callable], Callable]] = None) -> None:
         if transforms is None:
             transforms = []
         self.transforms = ensure_tuple(transforms)

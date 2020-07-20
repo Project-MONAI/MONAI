@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Sequence, Union
+
 import numpy as np
 import torch.nn as nn
 
@@ -55,12 +57,12 @@ class Convolution(nn.Sequential):
         dimensions: int,
         in_channels: int,
         out_channels: int,
-        strides=1,
-        kernel_size=3,
+        strides: int = 1,
+        kernel_size: Union[Sequence[int], int] = 3,
         act=Act.PRELU,
         norm=Norm.INSTANCE,
         dropout=None,
-        dilation=1,
+        dilation: Union[Sequence[int], int] = 1,
         bias: bool = True,
         conv_only: bool = False,
         is_transposed: bool = False,
@@ -125,13 +127,13 @@ class ResidualUnit(nn.Module):
         dimensions: int,
         in_channels: int,
         out_channels: int,
-        strides=1,
-        kernel_size=3,
+        strides: int = 1,
+        kernel_size: Union[Sequence[int], int] = 3,
         subunits: int = 2,
         act=Act.PRELU,
         norm=Norm.INSTANCE,
         dropout=None,
-        dilation=1,
+        dilation: Union[Sequence[int], int] = 1,
         bias: bool = True,
         last_conv_only: bool = False,
     ) -> None:
