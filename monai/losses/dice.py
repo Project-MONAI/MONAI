@@ -147,7 +147,9 @@ class DiceLoss(_Loss):
 
 class MaskedDiceLoss(DiceLoss):
     """
-    Same as DiceLoss, but accepts a binary mask ([0,1]) indicating a region over which to compute the dice.
+    Add an additional `masking` progress before `DiceLoss`, accept a binary mask ([0, 1]) indicating a region,
+    `input` and `target` will be masked by the region: region with mask `1` will keep the original value,
+    region with `0` mask will be converted to `0`. Then feed `input` and `target` to normal `DiceLoss` computation.
     """
 
     def forward(
@@ -175,6 +177,8 @@ class MaskedDiceLoss(DiceLoss):
 
             input = input * mask
             target = target * mask
+        else:
+            warnings.warn("no mask value specified for the MaskedDiceLoss.")
 
         return super().forward(input=input, target=target, smooth=smooth)
 
