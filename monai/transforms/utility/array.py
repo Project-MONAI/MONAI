@@ -152,7 +152,9 @@ class CastToType(Transform):
         """
         self.dtype = dtype
 
-    def __call__(self, img: NdarrayTensor, dtype: Optional[Union[np.dtype, torch.dtype]] = None) -> NdarrayTensor:
+    def __call__(
+        self, img: Union[np.ndarray, torch.Tensor], dtype: Optional[Union[np.dtype, torch.dtype]] = None
+    ) -> Union[np.ndarray, torch.Tensor]:
         """
         Apply the transform to `img`, assuming `img` is a numpy array or PyTorch Tensor.
         """
