@@ -150,6 +150,9 @@ class MaskedDiceLoss(DiceLoss):
     Add an additional `masking` process before `DiceLoss`, accept a binary mask ([0, 1]) indicating a region,
     `input` and `target` will be masked by the region: region with mask `1` will keep the original value,
     region with `0` mask will be converted to `0`. Then feed `input` and `target` to normal `DiceLoss` computation.
+    This has the effect of ensuring only the masked region contributes to the loss computation and
+    hence gradient calculation.
+
     """
 
     def forward(
