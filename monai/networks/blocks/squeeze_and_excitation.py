@@ -137,6 +137,7 @@ class SEBlock(nn.Module):
         conv_param_1: Optional[Dict[str, Any]] = None,
         conv_param_2: Optional[Dict[str, Any]] = None,
         conv_param_3: Optional[Dict[str, Any]] = None,
+        project: Optional[Convolution] = None,
         r: int = 2,
         acti_type_1="relu",
         acti_type_2="sigmoid",
@@ -154,6 +155,10 @@ class SEBlock(nn.Module):
                 Defaults to ``{"kernel_size": 3, "norm": Norm.BATCH, "act": Act.RELU}``
             conv_param_3: additional parameters to the 3rd convolution.
                 Defaults to ``{"kernel_size": 1, "norm": Norm.BATCH, "act": None}``
+            project: in the case of residual chns and output chns doesn't match, a project
+                (Conv) layer/block is used to adjust the number of chns. In SENET, it is
+                consisted with a Conv layer as well as a Norm layer.
+                Defaults to None (chns are matchable) or a Conv layer with kernel size 1.
             r: the reduction ratio r in the paper. Defaults to 2.
             acti_type_1: activation type of the hidden squeeze layer. Defaults to "relu".
             acti_type_2: activation type of the output squeeze layer. Defaults to "sigmoid".
@@ -183,10 +188,9 @@ class SEBlock(nn.Module):
             spatial_dims=spatial_dims, in_channels=n_chns_3, r=r, acti_type_1=acti_type_1, acti_type_2=acti_type_2
         )
 
-        if in_channels != n_chns_3:  # in the case of residual chns and output chns doesn't match
+        self.project = project
+        if self.project is None and in_channels != n_chns_3:
             self.project = Conv[Conv.CONV, spatial_dims](in_channels, n_chns_3, kernel_size=1)
-        else:
-            self.project = None
 
     def forward(self, x: torch.Tensor):
         """
