@@ -12,6 +12,7 @@
 from typing import Sequence, Union
 
 import numpy as np
+import torch
 import torch.nn as nn
 
 from monai.networks.layers.convutils import same_padding
@@ -183,7 +184,7 @@ class ResidualUnit(nn.Module):
             conv_type = Conv[Conv.CONV, dimensions]
             self.residual = conv_type(in_channels, out_channels, rkernel_size, strides, rpadding, bias=bias)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         res = self.residual(x)  # create the additive residual from x
         cx = self.conv(x)  # apply x to sequence of operations
         return cx + res  # add the residual to the output
