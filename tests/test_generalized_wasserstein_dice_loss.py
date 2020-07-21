@@ -10,8 +10,10 @@
 # limitations under the License.
 
 # @inproceedings{fidon2017generalised,
-#  title={Generalised {W}asserstein dice score for imbalanced multi-class segmentation using holistic convolutional networks},
-#  author={Fidon, Lucas and Li, Wenqi and Garcia-Peraza-Herrera, Luis C and Ekanayake, Jinendra and Kitchen, Neil and Ourselin, S{\'e}bastien and #Vercauteren, Tom},
+#  title={Generalised {W}asserstein dice score for imbalanced multi-class 
+#         segmentation using holistic convolutional networks},
+#  author={Fidon, Lucas and Li, Wenqi and Garcia-Peraza-Herrera, Luis C and Ekanayake, 
+#          Jinendra and Kitchen, Neil and Ourselin, S{\'e}bastien and #Vercauteren, Tom},
 #  booktitle={International MICCAI Brainlesion Workshop},
 #  pages={64--76},
 #  year={2017},
@@ -22,14 +24,12 @@ import unittest
 import numpy as np
 import torch
 import torch.nn.functional as F
-import torch.nn as nn
-import torch.optim as optim
 from monai.losses import GeneralizedWassersteinDiceLoss
 
 
 class TestGeneralizedWassersteinDiceLoss(unittest.TestCase):
     def test_bin_seg_2d(self):
-        M = np.array([[0.0, 1.0], [1.0, 0.0]])
+        m = np.array([[0.0, 1.0], [1.0, 0.0]])
 
         target = torch.tensor([[0, 0, 0, 0], [0, 1, 1, 0], [0, 1, 1, 0], [0, 0, 0, 0]])
 
@@ -39,7 +39,7 @@ class TestGeneralizedWassersteinDiceLoss(unittest.TestCase):
         pred_very_poor = 1000 * F.one_hot(1 - target, num_classes=2).permute(0, 3, 1, 2).float()
 
         # initialize the loss
-        loss = GeneralizedWassersteinDiceLoss(dist_matrix=M)
+        loss = GeneralizedWassersteinDiceLoss(dist_matrix=m)
 
         # the loss for pred_very_good should be close to 0
         loss_good = float(loss.forward(pred_very_good, target))
@@ -56,7 +56,7 @@ class TestGeneralizedWassersteinDiceLoss(unittest.TestCase):
 
     def test_empty_class_2d(self):
         num_classes = 2
-        M = np.array([[0.0, 1.0], [1.0, 0.0]])
+        m = np.array([[0.0, 1.0], [1.0, 0.0]])
 
         target = torch.tensor([[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]])
 
@@ -66,7 +66,7 @@ class TestGeneralizedWassersteinDiceLoss(unittest.TestCase):
         pred_very_poor = 1000 * F.one_hot(1 - target, num_classes=num_classes).permute(0, 3, 1, 2).float()
 
         # initialize the loss
-        loss = GeneralizedWassersteinDiceLoss(dist_matrix=M)
+        loss = GeneralizedWassersteinDiceLoss(dist_matrix=m)
 
         # loss for pred_very_good should be close to 0
         loss_good = float(loss.forward(pred_very_good, target))

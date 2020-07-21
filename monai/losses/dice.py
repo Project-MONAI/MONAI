@@ -353,12 +353,12 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         if dist_matrix.shape[0] != dist_matrix.shape[1]:
             raise ValueError("Dist Matrix is invalid.")
 
-        self.M = dist_matrix
-        if isinstance(self.M, np.ndarray):
-            self.M = torch.from_numpy(self.M)
-        if torch.max(self.M) != 1:
-            self.M = self.M / torch.max(self.M)
-        self.num_classes = self.M.size(0)
+        self.m = dist_matrix
+        if isinstance(self.m, np.ndarray):
+            self.m = torch.from_numpy(self.m)
+        if torch.max(self.m) != 1:
+            self.m = self.m / torch.max(self.m)
+        self.num_classes = self.m.size(0)
         self.reduction = reduction
 
     def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5):
@@ -401,8 +401,8 @@ class GeneralizedWassersteinDiceLoss(_Loss):
             flat_target: the target tensor.
         """
         # Turn the distance matrix to a map of identical matrix
-        M = torch.clone(self.M).to(flat_proba.device)
-        m_extended = torch.unsqueeze(M, dim=0)
+        m = torch.clone(self.m).to(flat_proba.device)
+        m_extended = torch.unsqueeze(m, dim=0)
         m_extended = torch.unsqueeze(m_extended, dim=3)
         m_extended = m_extended.expand((flat_proba.size(0), m_extended.size(1), m_extended.size(2), flat_proba.size(2)))
 
