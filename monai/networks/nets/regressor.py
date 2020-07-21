@@ -12,6 +12,7 @@
 from typing import Optional, Sequence, Union
 
 import numpy as np
+import torch
 import torch.nn as nn
 
 from monai.networks.layers.factories import Norm, Act
@@ -132,7 +133,7 @@ class Regressor(nn.Module):
         linear = nn.Linear(int(np.product(in_shape)), int(np.product(self.out_shape)))
         return nn.Sequential(nn.Flatten(), linear)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.net(x)
         x = self.final(x)
         x = self.reshape(x)
