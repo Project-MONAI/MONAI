@@ -12,6 +12,7 @@
 from typing import Optional, Sequence, Union
 
 import numpy as np
+import torch
 import torch.nn as nn
 
 from monai.networks.layers.factories import Norm, Act
@@ -136,7 +137,7 @@ class Generator(nn.Module):
 
         return layer
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.flatten(x)
         x = self.linear(x)
         x = self.reshape(x)
