@@ -20,7 +20,7 @@ import torch.nn as nn
 from monai.utils import ensure_tuple_size
 
 
-def one_hot(labels, num_classes: int, dtype: torch.dtype = torch.float, dim: int = 1):
+def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.float, dim: int = 1):
     """
     For a tensor `labels` of dimensions B1[spatial_dims], return a tensor of dimensions `BN[spatial_dims]`
     for `num_classes` N number of classes.

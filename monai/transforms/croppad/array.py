@@ -62,7 +62,7 @@ class SpatialPad(Transform):
         else:
             return [(0, max(self.spatial_size[i] - data_shape[i], 0)) for i in range(len(self.spatial_size))]
 
-    def __call__(self, img, mode: Optional[Union[NumpyPadMode, str]] = None):
+    def __call__(self, img: np.ndarray, mode: Optional[Union[NumpyPadMode, str]] = None) -> np.ndarray:
         """
         Args:
             img: data to be transformed, assuming `img` is channel-first and
@@ -110,7 +110,7 @@ class BorderPad(Transform):
         self.spatial_border = spatial_border
         self.mode: NumpyPadMode = NumpyPadMode(mode)
 
-    def __call__(self, img, mode: Optional[Union[NumpyPadMode, str]] = None):
+    def __call__(self, img: np.ndarray, mode: Optional[Union[NumpyPadMode, str]] = None) -> np.ndarray:
         """
         Args:
             img: data to be transformed, assuming `img` is channel-first and
@@ -165,7 +165,7 @@ class DivisiblePad(Transform):
         self.k = k
         self.mode: NumpyPadMode = NumpyPadMode(mode)
 
-    def __call__(self, img, mode: Optional[Union[NumpyPadMode, str]] = None):
+    def __call__(self, img: np.ndarray, mode: Optional[Union[NumpyPadMode, str]] = None) -> np.ndarray:
         """
         Args:
             img: data to be transformed, assuming `img` is channel-first
@@ -224,7 +224,7 @@ class SpatialCrop(Transform):
         assert np.all(self.roi_end > 0), "all elements of roi_end must be positive."
         assert np.all(self.roi_end >= self.roi_start), "invalid roi range."
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
@@ -250,7 +250,7 @@ class CenterSpatialCrop(Transform):
     def __init__(self, roi_size: Union[Sequence[int], int]) -> None:
         self.roi_size = roi_size
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
@@ -292,12 +292,13 @@ class RandSpatialCrop(Randomizable, Transform):
             valid_size = get_valid_patch_size(img_size, self._size)
             self._slices = (slice(None),) + get_random_patch(img_size, valid_size, self.R)
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
         """
         self.randomize(img.shape[1:])
+        assert self._size is not None
         if self.random_center:
             return img[self._slices]
         else:
@@ -336,7 +337,7 @@ class RandSpatialCropSamples(Randomizable, Transform):
     def randomize(self, data: Optional[Any] = None) -> None:
         pass
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> List[np.ndarray]:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         cropping doesn't change the channel dim.
@@ -383,7 +384,7 @@ class CropForeground(Transform):
         self.channel_indexes = ensure_tuple(channel_indexes) if channel_indexes is not None else None
         self.margin = margin
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't change the channel dim.
@@ -451,7 +452,9 @@ class RandCropByPosNegLabel(Randomizable, Transform):
             label, self.spatial_size, self.num_samples, self.pos_ratio, image, self.image_threshold, self.R
         )
 
-    def __call__(self, img: np.ndarray, label: Optional[np.ndarray] = None, image: Optional[np.ndarray] = None):
+    def __call__(
+        self, img: np.ndarray, label: Optional[np.ndarray] = None, image: Optional[np.ndarray] = None,
+    ) -> List[np.ndarray]:
         """
         Args:
             img: input data to crop samples from based on the pos/neg ratio of `label` and `image`.

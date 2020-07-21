@@ -44,11 +44,12 @@ class RandGaussianNoise(Randomizable, Transform):
         self._do_transform = self.R.random() < self.prob
         self._noise = self.R.normal(self.mean, self.R.uniform(0, self.std), size=im_shape)
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Apply the transform to `img`.
         """
         self.randomize(img.shape)
+        assert self._noise is not None
         return img + self._noise.astype(img.dtype) if self._do_transform else img
 
 
@@ -63,7 +64,7 @@ class ShiftIntensity(Transform):
     def __init__(self, offset: float) -> None:
         self.offset = offset
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Apply the transform to `img`.
         """
@@ -95,7 +96,7 @@ class RandShiftIntensity(Randomizable, Transform):
         self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
         self._do_transform = self.R.random() < self.prob
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Apply the transform to `img`.
         """
@@ -120,19 +121,24 @@ class ScaleIntensity(Transform):
             minv: minimum value of output data.
             maxv: maximum value of output data.
             factor: factor scale by ``v = v * (1 + factor)``.
+
+        Raises:
+            ValueError: When `minv` and `maxv` are None and `factor` is not specified.
         """
         self.minv = minv
         self.maxv = maxv
         self.factor = factor
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Apply the transform to `img`.
         """
         if self.minv is not None and self.maxv is not None:
             return rescale_array(img, self.minv, self.maxv, img.dtype)
-        else:
+        elif self.factor is not None:
             return (img * (1 + self.factor)).astype(img.dtype)
+        else:
+            raise ValueError("If `minv` and `maxv` are None `factor` must be non None.")
 
 
 class RandScaleIntensity(Randomizable, Transform):
@@ -162,7 +168,7 @@ class RandScaleIntensity(Randomizable, Transform):
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
         self._do_transform = self.R.random() < self.prob
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Apply the transform to `img`.
         """
@@ -205,7 +211,7 @@ class NormalizeIntensity(Transform):
         self.nonzero = nonzero
         self.channel_wise = channel_wise
 
-    def _normalize(self, img):
+    def _normalize(self, img: np.ndarray):
         slices = (img != 0) if self.nonzero else np.ones(img.shape, dtype=np.bool_)
         if np.any(slices):
             if self.subtrahend is not None and self.divisor is not None:
@@ -214,7 +220,7 @@ class NormalizeIntensity(Transform):
                 img[slices] = (img[slices] - np.mean(img[slices])) / np.std(img[slices])
         return img
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Apply the transform to `img`, assuming `img` is a channel-first array if `self.channel_wise` is True,
         """
@@ -244,7 +250,7 @@ class ThresholdIntensity(Transform):
         self.above = above
         self.cval = cval
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Apply the transform to `img`.
         """
@@ -271,7 +277,7 @@ class ScaleIntensityRange(Transform):
         self.b_max = b_max
         self.clip = clip
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Apply the transform to `img`.
         """
@@ -301,7 +307,7 @@ class AdjustContrast(Transform):
         assert isinstance(gamma, (int, float)), "gamma must be a float or int number."
         self.gamma = gamma
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Apply the transform to `img`.
         """
@@ -340,11 +346,12 @@ class RandAdjustContrast(Randomizable, Transform):
         self._do_transform = self.R.random_sample() < self.prob
         self.gamma_value = self.R.uniform(low=self.gamma[0], high=self.gamma[1])
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Apply the transform to `img`.
         """
         self.randomize()
+        assert self.gamma_value is not None
         if not self._do_transform:
             return img
         adjuster = AdjustContrast(self.gamma_value)
@@ -418,7 +425,7 @@ class ScaleIntensityRangePercentiles(Transform):
         self.clip = clip
         self.relative = relative
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Apply the transform to `img`.
         """
@@ -458,7 +465,7 @@ class MaskIntensity(Transform):
     def __init__(self, mask_data: np.ndarray):
         self.mask_data = mask_data
 
-    def __call__(self, img, mask_data: Optional[np.ndarray] = None):
+    def __call__(self, img: np.ndarray, mask_data: Optional[np.ndarray] = None) -> np.ndarray:
         mask_data_ = self.mask_data > 0 if mask_data is None else mask_data > 0
         if mask_data_.shape[0] != 1 and mask_data_.shape[0] != img.shape[0]:
             raise RuntimeError("mask data has more than 1 channel and do not match channels of input data.")
