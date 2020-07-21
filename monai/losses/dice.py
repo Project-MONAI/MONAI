@@ -336,7 +336,7 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         MICCAI DLMIA 2017.
     """
 
-    def __init__(self, dist_matrix, reduction=Union[LossReduction, str] = LossReduction.MEAN):
+    def __init__(self, dist_matrix, reduction: Union[LossReduction, str] = LossReduction.MEAN):
         """
         Args:
             param dist_matrix: 2d tensor or 2d numpy array; matrix of distances
