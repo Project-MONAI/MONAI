@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence, Union
+from typing import Sequence, Union, Optional
 
 import numpy as np
 import torch
@@ -61,9 +61,9 @@ class Convolution(nn.Sequential):
         out_channels: int,
         strides: int = 1,
         kernel_size: Union[Sequence[int], int] = 3,
-        act=Act.PRELU,
-        norm=Norm.INSTANCE,
-        dropout=None,
+        act: Optional[Union[tuple, str]] = Act.PRELU,
+        norm: Optional[Union[tuple, str]] = Norm.INSTANCE,
+        dropout: Optional[Union[int, float, tuple, str]] = None,
         dilation: Union[Sequence[int], int] = 1,
         groups: int = 1,
         bias: bool = True,

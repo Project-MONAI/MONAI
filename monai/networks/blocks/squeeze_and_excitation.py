@@ -215,21 +215,29 @@ class SEBottleneck(SEBlock):
     """
     Bottleneck for SENet154.
     """
+
     expansion = 4
 
     def __init__(
-        self, 
+        self,
         spatial_dims: int,
-        inplanes: int, 
-        planes: int, 
-        groups: int, 
-        reduction: int, 
+        inplanes: int,
+        planes: int,
+        groups: int,
+        reduction: int,
         stride: int = 1,
-        downsample: Optional[Convolution] = None
+        downsample: Optional[Convolution] = None,
     ) -> None:
 
         conv_param_1 = {"strides": 1, "kernel_size": 1, "act": Act.RELU, "norm": Norm.BATCH, "bias": False}
-        conv_param_2 = {"strides": stride, "kernel_size": 3, "act": Act.RELU, "norm": Norm.BATCH, "groups": groups, "bias": False}
+        conv_param_2 = {
+            "strides": stride,
+            "kernel_size": 3,
+            "act": Act.RELU,
+            "norm": Norm.BATCH,
+            "groups": groups,
+            "bias": False,
+        }
         conv_param_3 = {"strides": 1, "kernel_size": 1, "act": None, "norm": Norm.BATCH, "bias": False}
 
         super(SEBottleneck, self).__init__(
@@ -242,7 +250,7 @@ class SEBottleneck(SEBlock):
             conv_param_2=conv_param_2,
             conv_param_3=conv_param_3,
             project=downsample,
-            r=reduction
+            r=reduction,
         )
 
 
@@ -252,21 +260,29 @@ class SEResNetBottleneck(SEBlock):
     implementation and uses `strides=stride` in `conv1` and not in `conv2`
     (the latter is used in the torchvision implementation of ResNet).
     """
+
     expansion = 4
 
     def __init__(
-        self, 
+        self,
         spatial_dims: int,
-        inplanes: int, 
-        planes: int, 
-        groups: int, 
-        reduction: int, 
+        inplanes: int,
+        planes: int,
+        groups: int,
+        reduction: int,
         stride: int = 1,
-        downsample: Optional[Convolution] = None
+        downsample: Optional[Convolution] = None,
     ) -> None:
 
         conv_param_1 = {"strides": stride, "kernel_size": 1, "act": Act.RELU, "norm": Norm.BATCH, "bias": False}
-        conv_param_2 = {"strides": 1, "kernel_size": 3, "act": Act.RELU, "norm": Norm.BATCH, "groups": groups, "bias": False}
+        conv_param_2 = {
+            "strides": 1,
+            "kernel_size": 3,
+            "act": Act.RELU,
+            "norm": Norm.BATCH,
+            "groups": groups,
+            "bias": False,
+        }
         conv_param_3 = {"strides": 1, "kernel_size": 1, "act": None, "norm": Norm.BATCH, "bias": False}
 
         super(SEResNetBottleneck, self).__init__(
@@ -279,7 +295,7 @@ class SEResNetBottleneck(SEBlock):
             conv_param_2=conv_param_2,
             conv_param_3=conv_param_3,
             project=downsample,
-            r=reduction
+            r=reduction,
         )
 
 
@@ -287,22 +303,30 @@ class SEResNeXtBottleneck(SEBlock):
     """
     ResNeXt bottleneck type C with a Squeeze-and-Excitation module.
     """
+
     expansion = 4
 
     def __init__(
-        self, 
+        self,
         spatial_dims: int,
-        inplanes: int, 
-        planes: int, 
-        groups: int, 
-        reduction: int, 
+        inplanes: int,
+        planes: int,
+        groups: int,
+        reduction: int,
         stride: int = 1,
         downsample: Optional[Convolution] = None,
-        base_width: int = 4
+        base_width: int = 4,
     ) -> None:
 
         conv_param_1 = {"strides": 1, "kernel_size": 1, "act": Act.RELU, "norm": Norm.BATCH, "bias": False}
-        conv_param_2 = {"strides": stride, "kernel_size": 3, "act": Act.RELU, "norm": Norm.BATCH, "groups": groups, "bias": False}
+        conv_param_2 = {
+            "strides": stride,
+            "kernel_size": 3,
+            "act": Act.RELU,
+            "norm": Norm.BATCH,
+            "groups": groups,
+            "bias": False,
+        }
         conv_param_3 = {"strides": 1, "kernel_size": 1, "act": None, "norm": Norm.BATCH, "bias": False}
         width = math.floor(planes * (base_width / 64)) * groups
 
@@ -316,5 +340,5 @@ class SEResNeXtBottleneck(SEBlock):
             conv_param_2=conv_param_2,
             conv_param_3=conv_param_3,
             project=downsample,
-            r=reduction
+            r=reduction,
         )
