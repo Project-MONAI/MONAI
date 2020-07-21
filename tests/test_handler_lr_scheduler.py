@@ -9,13 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import torch
-import unittest
-import numpy as np
-from ignite.engine import Engine, Events
-from monai.handlers import LrScheduleHandler
 import logging
 import sys
+import unittest
+
+import numpy as np
+import torch
+from ignite.engine import Engine, Events
+
+from monai.handlers import LrScheduleHandler
 
 
 class TestHandlerLrSchedule(unittest.TestCase):

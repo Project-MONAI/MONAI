@@ -10,9 +10,11 @@
 # limitations under the License.
 
 import unittest
-import torch
+
 import numpy as np
+import torch
 from parameterized import parameterized
+
 from monai.transforms import CastToType
 
 TEST_CASE_1 = [{"dtype": np.float64}, np.array([[0, 1], [1, 2]], dtype=np.float32), np.float64]

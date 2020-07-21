@@ -9,14 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Union, TYPE_CHECKING
-
 import logging
+from typing import TYPE_CHECKING, Callable, Optional, Union
 
 import numpy as np
 
 from monai.data import NiftiSaver, PNGSaver
-from monai.utils import exact_version, optional_import, GridSampleMode, GridSamplePadMode, InterpolateMode
+from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, exact_version, optional_import
 
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
 if TYPE_CHECKING:

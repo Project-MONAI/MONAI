@@ -9,13 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
 import os
 import shutil
 import tempfile
+import unittest
 
 from monai.apps import DecathlonDataset
-from monai.transforms import LoadNiftid, AddChanneld, ScaleIntensityd, ToTensord, Compose
+from monai.transforms import AddChanneld, Compose, LoadNiftid, ScaleIntensityd, ToTensord
 from tests.utils import skip_if_quick
 
 

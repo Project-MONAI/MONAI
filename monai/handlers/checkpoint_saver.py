@@ -9,9 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, Optional, TYPE_CHECKING
-
 import logging
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from monai.utils import exact_version, optional_import
 

@@ -9,9 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Union
-
 import warnings
+from typing import Callable, Optional, Union
 
 import torch
 from torch.nn.modules.loss import _Loss
