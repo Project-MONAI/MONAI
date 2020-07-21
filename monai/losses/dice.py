@@ -78,7 +78,7 @@ class DiceLoss(_Loss):
         self.squared_pred = squared_pred
         self.jaccard = jaccard
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5):
+    def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5) -> torch.Tensor:
         """
         Args:
             input: the shape should be BNH[WD].

@@ -576,6 +576,12 @@ Instensity (Dict)
 IO (Dict)
 ^^^^^^^^^
 
+`LoadDatad`
+"""""""""""
+.. autoclass:: LoadDatad
+    :members:
+    :special-members: __call__
+
 `LoadNiftid`
 """"""""""""
 .. autoclass:: LoadNiftid
@@ -624,6 +630,12 @@ Post-processing (Dict)
 `LabelToContourd`
 """""""""""""""""
 .. autoclass:: LabelToContourd
+    :members:
+    :special-members: __call__
+
+`Ensembled`
+"""""""""""
+.. autoclass:: Ensembled
     :members:
     :special-members: __call__
 

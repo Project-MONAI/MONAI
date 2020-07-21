@@ -333,7 +333,7 @@ class ZipDataset(Dataset):
     def __init__(self, datasets: Sequence, transform: Optional[Callable] = None) -> None:
         """
         Args:
-            datasets (list or tuple): list of datasets to zip together.
+            datasets: list of datasets to zip together.
             transform: a callable data transform operates on the zipped item from `datasets`.
         """
         super().__init__(list(datasets), transform=transform)
