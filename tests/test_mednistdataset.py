@@ -12,17 +12,17 @@
 import unittest
 import os
 import shutil
-import tempfile
+from urllib.error import ContentTooShortError, HTTPError
 
 from monai.apps import MedNISTDataset
-from monai.transforms import LoadPNGd, AddChanneld, ScaleIntensityd, ToTensord, Compose
+from monai.transforms import AddChanneld, Compose, LoadPNGd, ScaleIntensityd, ToTensord
 from tests.utils import skip_if_quick
 
 
 class TestMedNISTDataset(unittest.TestCase):
     @skip_if_quick
     def test_values(self):
-        tempdir = tempfile.mkdtemp()
+        testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
         transform = Compose(
             [
                 LoadPNGd(keys="image"),
@@ -39,20 +39,25 @@ class TestMedNISTDataset(unittest.TestCase):
             self.assertTrue("image_meta_dict" in dataset[0])
             self.assertTupleEqual(dataset[0]["image"].shape, (1, 64, 64))
 
-        data = MedNISTDataset(root_dir=tempdir, transform=transform, section="test", download=True)
+        try:  # will start downloading if testing_dir doesn't have the MedNIST files.
+            data = MedNISTDataset(root_dir=testing_dir, transform=transform, section="test", download=True)
+        except (ContentTooShortError, HTTPError) as e:
+            print(str(e))
+            return  # skipping this test due the network connection errors
+
         _test_dataset(data)
-        data = MedNISTDataset(root_dir=tempdir, transform=transform, section="test", download=False)
+
+        # testing from
+        data = MedNISTDataset(root_dir=testing_dir, transform=transform, section="test", download=False)
         _test_dataset(data)
-        data = MedNISTDataset(root_dir=tempdir, section="test", download=False)
+        data = MedNISTDataset(root_dir=testing_dir, section="test", download=False)
         self.assertTupleEqual(data[0]["image"].shape, (64, 64))
-        shutil.rmtree(os.path.join(tempdir, "MedNIST"))
+        shutil.rmtree(os.path.join(testing_dir, "MedNIST"))
         try:
-            data = MedNISTDataset(root_dir=tempdir, transform=transform, section="test", download=False)
+            data = MedNISTDataset(root_dir=testing_dir, transform=transform, section="test", download=False)
         except RuntimeError as e:
             print(str(e))
             self.assertTrue(str(e).startswith("can not find dataset directory"))
-
-        shutil.rmtree(tempdir)
 
 
 if __name__ == "__main__":
