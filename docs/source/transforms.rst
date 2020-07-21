@@ -228,6 +228,12 @@ Post-processing
     :members:
     :special-members: __call__
 
+`VoteEnsemble`
+""""""""""""""
+.. autoclass:: VoteEnsemble
+    :members:
+    :special-members: __call__
+
 Spatial
 ^^^^^^^
 
@@ -570,6 +576,12 @@ Instensity (Dict)
 IO (Dict)
 ^^^^^^^^^
 
+`LoadDatad`
+"""""""""""
+.. autoclass:: LoadDatad
+    :members:
+    :special-members: __call__
+
 `LoadNiftid`
 """"""""""""
 .. autoclass:: LoadNiftid
@@ -621,9 +633,21 @@ Post-processing (Dict)
     :members:
     :special-members: __call__
 
+`Ensembled`
+"""""""""""
+.. autoclass:: Ensembled
+    :members:
+    :special-members: __call__
+
 `MeanEnsembled`
 """""""""""""""
 .. autoclass:: MeanEnsembled
+    :members:
+    :special-members: __call__
+
+`VoteEnsembled`
+"""""""""""""""
+.. autoclass:: VoteEnsembled
     :members:
     :special-members: __call__
 

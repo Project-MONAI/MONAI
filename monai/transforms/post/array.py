@@ -14,6 +14,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 from typing import Callable, Optional, Sequence, Union
+import warnings
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -351,9 +352,10 @@ class LabelToContour(Transform):
 class MeanEnsemble(Transform):
     """
     Execute mean ensemble on the input data.
-    The input data can be a list or tuple of PyTorch Tensor with shape: [B, C, H, W[, D]],
-    Or a single PyTorch Tensor with shape: [E, B, C, H, W[, D]], the `E` dimension represents
+    The input data can be a list or tuple of PyTorch Tensor with shape: [B, C[, H, W, D]],
+    Or a single PyTorch Tensor with shape: [E, B, C[, H, W, D]], the `E` dimension represents
     the output data from different models.
+    Typcally, the input data is model output of segmentation task or classificaiton task.
     And it also can support to add `weights` for the input data.
 
     Args:
@@ -385,3 +387,48 @@ class MeanEnsemble(Transform):
             img_ = img_ * weights / weights.mean(dim=0, keepdim=True)
 
         return torch.mean(img_, dim=0)
+
+
+class VoteEnsemble(Transform):
+    """
+    Execute vote ensemble on the input data.
+    The input data can be a list or tuple of PyTorch Tensor with shape: [B[, C, H, W, D]],
+    Or a single PyTorch Tensor with shape: [E, B[, C, H, W, D]], the `E` dimension represents
+    the output data from different models.
+    Typcally, the input data is model output of segmentation task or classificaiton task.
+
+    Note:
+        This vote transform expects the input data is discrete values. It can be multiple channels
+        data in One-Hot format or single channel data. It will vote to select the most common data
+        between items.
+        The output data has the same shape as every item of the input data.
+
+    Args:
+        num_classes: if the input is single channel data instead of One-Hot, we can't get class number
+            from channel, need to explicitly specify the number of classes to vote.
+
+    """
+
+    def __init__(self, num_classes: Optional[int] = None):
+        self.num_classes = num_classes
+
+    def __call__(self, img: Union[Sequence[torch.Tensor], torch.Tensor]):
+        img_: torch.Tensor = torch.stack(img) if isinstance(img, (tuple, list)) else torch.as_tensor(img)
+        if self.num_classes is not None:
+            has_ch_dim = True
+            if img_.ndim > 2 and img_.shape[2] > 1:
+                warnings.warn("no need to specify num_classes for One-Hot format data.")
+            else:
+                if img_.ndim == 2:
+                    # if no channel dim, need to remove channel dim after voting
+                    has_ch_dim = False
+                img_ = one_hot(img_, self.num_classes, dim=2)
+
+        img_ = torch.mean(img_.float(), dim=0)
+
+        if self.num_classes is not None:
+            # if not One-Hot, use "argmax" to vote the most common class
+            return torch.argmax(img_, dim=1, keepdim=has_ch_dim)
+        else:
+            # for One-Hot data, round the float number to 0 or 1
+            return torch.round(img_)

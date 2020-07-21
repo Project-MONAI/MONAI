@@ -51,7 +51,7 @@ class SpatialPad(Transform):
         self.method: Method = Method(method)
         self.mode: NumpyPadMode = NumpyPadMode(mode)
 
-    def _determine_data_pad_width(self, data_shape):
+    def _determine_data_pad_width(self, data_shape: Sequence[int]):
         self.spatial_size = fall_back_tuple(self.spatial_size, data_shape)
         if self.method == Method.SYMMETRIC:
             pad_width = list()
@@ -411,10 +411,10 @@ class RandCropByPosNegLabel(Randomizable, Transform):
             If its components have non-positive values, the corresponding size of `label` will be used.
         label: the label image that is used for finding foreground/background, if None, must set at
             `self.__call__`.  Non-zero indicates foreground, zero indicates background.
-        pos: used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
-            foreground voxel as a center rather than a background voxel.
-        neg: used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
-            foreground voxel as a center rather than a background voxel.
+        pos: used with `neg` together to calculate the ratio ``pos / (pos + neg)`` for the probability
+            to pick a foreground voxel as a center rather than a background voxel.
+        neg: used with `pos` together to calculate the ratio ``pos / (pos + neg)`` for the probability
+            to pick a foreground voxel as a center rather than a background voxel.
         num_samples: number of samples (crop regions) to take in each list.
         image: optional image data to help select valid area, can be same as `img` or another image array.
             if not None, use ``label == 0 & image > image_threshold`` to select the negative

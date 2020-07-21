@@ -357,10 +357,10 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         label_key: name of key for label image, this will be used for finding foreground/background.
         spatial_size: the spatial size of the crop region e.g. [224, 224, 128].
             If its components have non-positive values, the corresponding size of `data[label_key]` will be used.
-        pos: used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
-            foreground voxel as a center rather than a background voxel.
-        neg: used to calculate the ratio ``pos / (pos + neg)`` for the probability to pick a
-            foreground voxel as a center rather than a background voxel.
+        pos: used with `neg` together to calculate the ratio ``pos / (pos + neg)`` for the probability
+            to pick a foreground voxel as a center rather than a background voxel.
+        neg: used with `pos` together to calculate the ratio ``pos / (pos + neg)`` for the probability
+            to pick a foreground voxel as a center rather than a background voxel.
         num_samples: number of samples (crop regions) to take in each list.
         image_key: if image_key is not None, use ``label == 0 & image > image_threshold`` to select
             the negative sample(background) center. so the crop center will only exist on valid image area.

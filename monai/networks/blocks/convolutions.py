@@ -9,7 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Sequence, Union
+
 import numpy as np
+import torch
 import torch.nn as nn
 
 from monai.networks.layers.convutils import same_padding
@@ -55,12 +58,12 @@ class Convolution(nn.Sequential):
         dimensions: int,
         in_channels: int,
         out_channels: int,
-        strides=1,
-        kernel_size=3,
+        strides: int = 1,
+        kernel_size: Union[Sequence[int], int] = 3,
         act=Act.PRELU,
         norm=Norm.INSTANCE,
         dropout=None,
-        dilation=1,
+        dilation: Union[Sequence[int], int] = 1,
         bias: bool = True,
         conv_only: bool = False,
         is_transposed: bool = False,
@@ -125,13 +128,13 @@ class ResidualUnit(nn.Module):
         dimensions: int,
         in_channels: int,
         out_channels: int,
-        strides=1,
-        kernel_size=3,
+        strides: int = 1,
+        kernel_size: Union[Sequence[int], int] = 3,
         subunits: int = 2,
         act=Act.PRELU,
         norm=Norm.INSTANCE,
         dropout=None,
-        dilation=1,
+        dilation: Union[Sequence[int], int] = 1,
         bias: bool = True,
         last_conv_only: bool = False,
     ) -> None:
@@ -181,7 +184,7 @@ class ResidualUnit(nn.Module):
             conv_type = Conv[Conv.CONV, dimensions]
             self.residual = conv_type(in_channels, out_channels, rkernel_size, strides, rpadding, bias=bias)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         res = self.residual(x)  # create the additive residual from x
         cx = self.conv(x)  # apply x to sequence of operations
         return cx + res  # add the residual to the output

@@ -12,12 +12,15 @@
 Utilities and types for defining networks, these depend on PyTorch.
 """
 
+from typing import Callable, Optional, Sequence
+
 import warnings
 import torch
 import torch.nn as nn
+from monai.utils import ensure_tuple_size
 
 
-def one_hot(labels, num_classes: int, dtype: torch.dtype = torch.float):
+def one_hot(labels, num_classes: int, dtype: torch.dtype = torch.float, dim: int = 1):
     """
     For a tensor `labels` of dimensions B1[spatial_dims], return a tensor of dimensions `BN[spatial_dims]`
     for `num_classes` N number of classes.
@@ -29,17 +32,18 @@ def one_hot(labels, num_classes: int, dtype: torch.dtype = torch.float):
     """
     assert labels.dim() > 0, "labels should have dim of 1 or more."
 
-    # if 1D, add singelton dim at the end
-    if labels.dim() == 1:
-        labels = labels.view(-1, 1)
+    # if `dim` is bigger, add singelton dim at the end
+    if labels.ndim < dim + 1:
+        shape = ensure_tuple_size(labels.shape, dim + 1, 1)
+        labels = labels.reshape(*shape)
 
     sh = list(labels.shape)
 
-    assert sh[1] == 1, "labels should have a channel with length equals to one."
-    sh[1] = num_classes
+    assert sh[dim] == 1, "labels should have a channel with length equals to one."
+    sh[dim] = num_classes
 
     o = torch.zeros(size=sh, dtype=dtype, device=labels.device)
-    labels = o.scatter_(dim=1, index=labels.long(), value=1)
+    labels = o.scatter_(dim=dim, index=labels.long(), value=1)
 
     return labels
 
@@ -58,7 +62,7 @@ def predict_segmentation(logits: torch.Tensor, mutually_exclusive: bool = False,
     logits has shape `BCHW[D]`.
 
     Args:
-        logits (Tensor): raw data of model output.
+        logits: raw data of model output.
         mutually_exclusive: if True, `logits` will be converted into a binary matrix using
             a combination of argmax, which is suitable for multi-classes task. Defaults to False.
         threshold: thresholding the prediction values if multi-labels task.
@@ -72,16 +76,21 @@ def predict_segmentation(logits: torch.Tensor, mutually_exclusive: bool = False,
         return logits.argmax(1, keepdim=True)
 
 
-def normalize_transform(shape, device=None, dtype=None, align_corners: bool = False):
+def normalize_transform(
+    shape: Sequence[int],
+    device: Optional[torch.device] = None,
+    dtype: Optional[torch.dtype] = None,
+    align_corners: bool = False,
+):
     """
     Compute an affine matrix according to the input shape.
     The transform normalizes the homogeneous image coordinates to the
     range of `[-1, 1]`.
 
     Args:
-        shape (sequence of int): input spatial shape
-        device (torch device): device on which the returned affine will be allocated.
-        dtype (torch dtype): data type of the returned affine
+        shape: input spatial shape
+        device: device on which the returned affine will be allocated.
+        dtype: data type of the returned affine
         align_corners: if True, consider -1 and 1 to refer to the centers of the
             corner pixels rather than the image corners.
             See also: https://pytorch.org/docs/stable/nn.functional.html#torch.nn.functional.grid_sample
@@ -102,15 +111,15 @@ def normalize_transform(shape, device=None, dtype=None, align_corners: bool = Fa
     return norm
 
 
-def to_norm_affine(affine, src_size, dst_size, align_corners: bool = False):
+def to_norm_affine(affine: torch.Tensor, src_size: Sequence[int], dst_size: Sequence[int], align_corners: bool = False):
     """
     Given ``affine`` defined for coordinates in the pixel space, compute the corresponding affine
     for the normalized coordinates.
 
     Args:
-        affine (torch Tensor): Nxdxd batched square matrix
-        src_size (sequence of int): source image spatial shape
-        dst_size (sequence of int): target image spatial shape
+        affine: Nxdxd batched square matrix
+        src_size: source image spatial shape
+        dst_size: target image spatial shape
         align_corners: if True, consider -1 and 1 to refer to the centers of the
             corner pixels rather than the image corners.
             See also: https://pytorch.org/docs/stable/nn.functional.html#torch.nn.functional.grid_sample
@@ -137,7 +146,7 @@ def to_norm_affine(affine, src_size, dst_size, align_corners: bool = False):
     return new_affine
 
 
-def normal_init(m, std=0.02, normal_func=torch.nn.init.normal_):
+def normal_init(m, std=0.02, normal_func: Callable = torch.nn.init.normal_) -> None:
     """
     Initialize the weight and bias tensors of `m' and its submodules to values from a normal distribution with a
     stddev of `std'. Weight tensors of convolution and linear modules are initialized with a mean of 0, batch
