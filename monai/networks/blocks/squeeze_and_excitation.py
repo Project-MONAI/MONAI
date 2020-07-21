@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, Optional
+from typing import Type, Any, Dict, Optional
 
+import math
 import torch
 import torch.nn as nn
 
@@ -192,6 +193,9 @@ class SEBlock(nn.Module):
         if self.project is None and in_channels != n_chns_3:
             self.project = Conv[Conv.CONV, spatial_dims](in_channels, n_chns_3, kernel_size=1)
 
+        relu_type: Type[nn.ReLU] = Act[Act.RELU]
+        self.relu = relu_type(inplace=True)
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Args:
@@ -203,4 +207,114 @@ class SEBlock(nn.Module):
         x = self.conv3(x)
         x = self.se_layer(x)
         x += residual
+        x = self.relu(x)
         return x
+
+
+class SEBottleneck(SEBlock):
+    """
+    Bottleneck for SENet154.
+    """
+    expansion = 4
+
+    def __init__(
+        self, 
+        spatial_dims: int,
+        inplanes: int, 
+        planes: int, 
+        groups: int, 
+        reduction: int, 
+        stride: int = 1,
+        downsample: Optional[Convolution] = None
+    ) -> None:
+
+        conv_param_1 = {"strides": 1, "kernel_size": 1, "act": Act.RELU, "norm": Norm.BATCH, "bias": False}
+        conv_param_2 = {"strides": stride, "kernel_size": 3, "act": Act.RELU, "norm": Norm.BATCH, "groups": groups, "bias": False}
+        conv_param_3 = {"strides": 1, "kernel_size": 1, "act": None, "norm": Norm.BATCH, "bias": False}
+
+        super(SEBottleneck, self).__init__(
+            spatial_dims=spatial_dims,
+            in_channels=inplanes,
+            n_chns_1=planes * 2,
+            n_chns_2=planes * 4,
+            n_chns_3=planes * 4,
+            conv_param_1=conv_param_1,
+            conv_param_2=conv_param_2,
+            conv_param_3=conv_param_3,
+            project=downsample,
+            r=reduction
+        )
+
+
+class SEResNetBottleneck(SEBlock):
+    """
+    ResNet bottleneck with a Squeeze-and-Excitation module. It follows Caffe
+    implementation and uses `strides=stride` in `conv1` and not in `conv2`
+    (the latter is used in the torchvision implementation of ResNet).
+    """
+    expansion = 4
+
+    def __init__(
+        self, 
+        spatial_dims: int,
+        inplanes: int, 
+        planes: int, 
+        groups: int, 
+        reduction: int, 
+        stride: int = 1,
+        downsample: Optional[Convolution] = None
+    ) -> None:
+
+        conv_param_1 = {"strides": stride, "kernel_size": 1, "act": Act.RELU, "norm": Norm.BATCH, "bias": False}
+        conv_param_2 = {"strides": 1, "kernel_size": 3, "act": Act.RELU, "norm": Norm.BATCH, "groups": groups, "bias": False}
+        conv_param_3 = {"strides": 1, "kernel_size": 1, "act": None, "norm": Norm.BATCH, "bias": False}
+
+        super(SEResNetBottleneck, self).__init__(
+            spatial_dims=spatial_dims,
+            in_channels=inplanes,
+            n_chns_1=planes,
+            n_chns_2=planes,
+            n_chns_3=planes * 4,
+            conv_param_1=conv_param_1,
+            conv_param_2=conv_param_2,
+            conv_param_3=conv_param_3,
+            project=downsample,
+            r=reduction
+        )
+
+
+class SEResNeXtBottleneck(SEBlock):
+    """
+    ResNeXt bottleneck type C with a Squeeze-and-Excitation module.
+    """
+    expansion = 4
+
+    def __init__(
+        self, 
+        spatial_dims: int,
+        inplanes: int, 
+        planes: int, 
+        groups: int, 
+        reduction: int, 
+        stride: int = 1,
+        downsample: Optional[Convolution] = None,
+        base_width: int = 4
+    ) -> None:
+
+        conv_param_1 = {"strides": 1, "kernel_size": 1, "act": Act.RELU, "norm": Norm.BATCH, "bias": False}
+        conv_param_2 = {"strides": stride, "kernel_size": 3, "act": Act.RELU, "norm": Norm.BATCH, "groups": groups, "bias": False}
+        conv_param_3 = {"strides": 1, "kernel_size": 1, "act": None, "norm": Norm.BATCH, "bias": False}
+        width = math.floor(planes * (base_width / 64)) * groups
+
+        super(SEResNeXtBottleneck, self).__init__(
+            spatial_dims=spatial_dims,
+            in_channels=inplanes,
+            n_chns_1=width,
+            n_chns_2=width,
+            n_chns_3=planes * 4,
+            conv_param_1=conv_param_1,
+            conv_param_2=conv_param_2,
+            conv_param_3=conv_param_3,
+            project=downsample,
+            r=reduction
+        )
