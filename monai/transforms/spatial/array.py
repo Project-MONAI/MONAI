@@ -13,7 +13,7 @@ A collection of "vanilla" transforms for spatial operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Callable, List, Optional, Sequence, Tuple, Union, Any
+from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 
 import warnings
 
@@ -268,7 +268,7 @@ class Flip(Transform):
     def __init__(self, spatial_axis: Optional[Union[Sequence[int], int]]) -> None:
         self.spatial_axis = spatial_axis
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
@@ -309,7 +309,7 @@ class Resize(Transform):
 
     def __call__(
         self, img: np.ndarray, mode: Optional[Union[InterpolateMode, str]] = None, align_corners: Optional[bool] = None,
-    ):
+    ) -> np.ndarray:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]).
@@ -385,7 +385,7 @@ class Rotate(Transform):
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
-    ):
+    ) -> np.ndarray:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
@@ -474,7 +474,7 @@ class Zoom(Transform):
 
     def __call__(
         self, img: np.ndarray, mode: Optional[Union[InterpolateMode, str]] = None, align_corners: Optional[bool] = None,
-    ):
+    ) -> np.ndarray:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]).
@@ -525,7 +525,7 @@ class Rotate90(Transform):
         self.k = k
         self.spatial_axes = spatial_axes
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
@@ -562,7 +562,7 @@ class RandRotate90(Randomizable, Transform):
         self._rand_k = self.R.randint(self.max_k) + 1
         self._do_transform = self.R.random() < self.prob
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
@@ -643,7 +643,7 @@ class RandRotate(Randomizable, Transform):
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
-    ):
+    ) -> np.ndarray:
         """
         Args:
             img: channel first array, must have shape 2D: (nchannels, H, W), or 3D: (nchannels, H, W, D).
@@ -688,7 +688,7 @@ class RandFlip(Randomizable, Transform):
     def randomize(self, data: Optional[Any] = None) -> None:
         self._do_transform = self.R.random_sample() < self.prob
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
@@ -751,7 +751,7 @@ class RandZoom(Randomizable, Transform):
 
     def __call__(
         self, img: np.ndarray, mode: Optional[Union[InterpolateMode, str]] = None, align_corners: Optional[bool] = None,
-    ):
+    ) -> np.ndarray:
         """
         Args:
             img: channel first array, must have shape 2D: (nchannels, H, W), or 3D: (nchannels, H, W, D).
@@ -816,7 +816,9 @@ class AffineGrid(Transform):
         self.as_tensor_output = as_tensor_output
         self.device = device
 
-    def __call__(self, spatial_size: Optional[Sequence[int]] = None, grid: Optional[np.ndarray] = None):
+    def __call__(
+        self, spatial_size: Optional[Sequence[int]] = None, grid: Optional[Union[np.ndarray, torch.Tensor]] = None
+    ) -> Union[np.ndarray, torch.Tensor]:
         """
         Args:
             spatial_size: output grid size.
@@ -917,7 +919,9 @@ class RandAffineGrid(Randomizable, Transform):
         if self.scale_range:
             self.scale_params = [self.R.uniform(-f, f) + 1.0 for f in self.scale_range if f is not None]
 
-    def __call__(self, spatial_size: Optional[Sequence[int]] = None, grid: Optional[np.ndarray] = None):
+    def __call__(
+        self, spatial_size: Optional[Sequence[int]] = None, grid: Optional[Union[np.ndarray, torch.Tensor]] = None
+    ) -> Union[np.ndarray, torch.Tensor]:
         """
         Returns:
             a 2D (3xHxW) or 3D (4xHxWxD) grid.
@@ -970,7 +974,7 @@ class RandDeformGrid(Randomizable, Transform):
         self.random_offset = self.R.normal(size=([len(grid_size)] + list(grid_size))).astype(np.float32)
         self.rand_mag = self.R.uniform(self.magnitude[0], self.magnitude[1])
 
-    def __call__(self, spatial_size: Sequence[int]):
+    def __call__(self, spatial_size: Sequence[int]) -> Union[np.ndarray, torch.Tensor]:
         """
         Args:
             spatial_size: spatial size of the grid.
@@ -1017,7 +1021,7 @@ class Resample(Transform):
         grid: Optional[Union[np.ndarray, torch.Tensor]] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-    ):
+    ) -> Union[np.ndarray, torch.Tensor]:
         """
         Args:
             img: shape must be (num_channels, H, W[, D]).
@@ -1118,7 +1122,7 @@ class Affine(Transform):
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-    ):
+    ) -> Union[np.ndarray, torch.Tensor]:
         """
         Args:
             img: shape must be (num_channels, H, W[, D]),
@@ -1231,7 +1235,7 @@ class RandAffine(Randomizable, Transform):
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-    ):
+    ) -> Union[np.ndarray, torch.Tensor]:
         """
         Args:
             img: shape must be (num_channels, H, W[, D]),
@@ -1353,7 +1357,7 @@ class Rand2DElastic(Randomizable, Transform):
         spatial_size: Optional[Union[Tuple[int, int], int]] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-    ):
+    ) -> Union[np.ndarray, torch.Tensor]:
         """
         Args:
             img: shape must be (num_channels, H, W),
@@ -1481,7 +1485,7 @@ class Rand3DElastic(Randomizable, Transform):
         spatial_size: Optional[Union[Tuple[int, int, int], int]] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-    ):
+    ) -> Union[np.ndarray, torch.Tensor]:
         """
         Args:
             img: shape must be (num_channels, H, W, D),
