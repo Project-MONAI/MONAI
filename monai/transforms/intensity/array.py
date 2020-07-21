@@ -123,7 +123,7 @@ class ScaleIntensity(Transform):
             factor: factor scale by ``v = v * (1 + factor)``.
 
         Raises:
-            ValueError: if `minv` and `maxv` are None `factor` must be non None
+            ValueError: When `minv` and `maxv` are None and `factor` is not specified.
         """
         self.minv = minv
         self.maxv = maxv
@@ -138,7 +138,7 @@ class ScaleIntensity(Transform):
         elif self.factor is not None:
             return (img * (1 + self.factor)).astype(img.dtype)
         else:
-            raise ValueError("if `minv` and `maxv` are None `factor` must be non None")
+            raise ValueError("If `minv` and `maxv` are None `factor` must be non None.")
 
 
 class RandScaleIntensity(Randomizable, Transform):

@@ -454,7 +454,7 @@ class RandCropByPosNegLabel(Randomizable, Transform):
 
     def __call__(
         self, img: np.ndarray, label: Optional[np.ndarray] = None, image: Optional[np.ndarray] = None,
-    ) -> np.ndarray:
+    ) -> List[np.ndarray]:
         """
         Args:
             img: input data to crop samples from based on the pos/neg ratio of `label` and `image`.
