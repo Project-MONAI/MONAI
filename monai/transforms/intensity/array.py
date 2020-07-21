@@ -18,9 +18,11 @@ from typing import Optional, Sequence, Tuple, Union, Any
 from warnings import warn
 
 import numpy as np
+import torch
 
 from monai.transforms.compose import Transform, Randomizable
 from monai.transforms.utils import rescale_array
+from monai.networks.layers import GaussianFilter
 
 
 class RandGaussianNoise(Randomizable, Transform):
@@ -471,3 +473,23 @@ class MaskIntensity(Transform):
             raise RuntimeError("mask data has more than 1 channel and do not match channels of input data.")
 
         return img * mask_data_
+
+
+class GaussianSmooth(Transform):
+    """
+    Apply Gaussian smooth to the input data based on specified `sigma` parameter.
+
+    Args:
+        sigma: if a list of values, must match the count of spatial dimensions of input data,
+            and apply every value in the list to 1 spatial dimension. if only 1 value provided,
+            use it for all spatial dimensions.
+
+    """
+
+    def __init__(self, sigma: Union[Sequence[float], float]) -> None:
+        self.sigma = sigma
+
+    def __call__(self, img: np.ndarray) -> np.ndarray:
+        gaussian_filter = GaussianFilter(img.ndim - 1, self.sigma)
+        input_data = torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0)
+        return gaussian_filter(input_data).squeeze(0).detach().numpy()
