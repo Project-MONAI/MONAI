@@ -16,7 +16,7 @@
 #  pages={64--76},
 #  year={2017},
 #  organization={Springer}
-#}
+# }
 
 import unittest
 import numpy as np
@@ -29,17 +29,9 @@ from monai.losses import GeneralizedWassersteinDiceLoss
 
 class TestGeneralizedWassersteinDiceLoss(unittest.TestCase):
     def test_bin_seg_2d(self):
-        M = np.array(
-            [[0.,1.],
-             [1.,0.]]
-        )
-        
-        target = torch.tensor(
-            [[0,0,0,0],
-             [0,1,1,0],
-             [0,1,1,0],
-             [0,0,0,0]]
-        )
+        M = np.array([[0.0, 1.0], [1.0, 0.0]])
+
+        target = torch.tensor([[0, 0, 0, 0], [0, 1, 1, 0], [0, 1, 1, 0], [0, 0, 0, 0]])
 
         # add another dimension corresponding to the batch (batch size = 1 here)
         target = target.unsqueeze(0)
@@ -51,30 +43,22 @@ class TestGeneralizedWassersteinDiceLoss(unittest.TestCase):
 
         # the loss for pred_very_good should be close to 0
         loss_good = float(loss.forward(pred_very_good, target))
-        self.assertAlmostEqual(loss_good, 0., places=3)
+        self.assertAlmostEqual(loss_good, 0.0, places=3)
 
         # same test, but with target with a class dimension
         target_4dim = target.unsqueeze(1)
         loss_good = float(loss.forward(pred_very_good, target_4dim))
-        self.assertAlmostEqual(loss_good, 0., places=3)
+        self.assertAlmostEqual(loss_good, 0.0, places=3)
 
         # the loss for pred_very_poor should be close to 1
         loss_poor = float(loss.forward(pred_very_poor, target))
-        self.assertAlmostEqual(loss_poor, 1., places=3)
+        self.assertAlmostEqual(loss_poor, 1.0, places=3)
 
     def test_empty_class_2d(self):
         num_classes = 2
-        M = np.array(
-            [[0.,1.],
-             [1.,0.]]
-        )
-        
-        target = torch.tensor(
-            [[0,0,0,0],
-             [0,0,0,0],
-             [0,0,0,0],
-             [0,0,0,0]]
-        )
+        M = np.array([[0.0, 1.0], [1.0, 0.0]])
+
+        target = torch.tensor([[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]])
 
         # add another dimension corresponding to the batch (batch size = 1 here)
         target = target.unsqueeze(0)
@@ -86,12 +70,12 @@ class TestGeneralizedWassersteinDiceLoss(unittest.TestCase):
 
         # loss for pred_very_good should be close to 0
         loss_good = float(loss.forward(pred_very_good, target))
-        self.assertAlmostEqual(loss_good, 0., places=3)
+        self.assertAlmostEqual(loss_good, 0.0, places=3)
 
         # loss for pred_very_poor should be close to 1
         loss_poor = float(loss.forward(pred_very_poor, target))
-        self.assertAlmostEqual(loss_poor, 1., places=3)
+        self.assertAlmostEqual(loss_poor, 1.0, places=3)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
