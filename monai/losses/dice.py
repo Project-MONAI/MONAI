@@ -336,7 +336,7 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         MICCAI DLMIA 2017.
     """
 
-    def __init__(self, dist_matrix, reduction="mean"):
+    def __init__(self, dist_matrix, reduction=Union[LossReduction, str] = LossReduction.MEAN):
         """
         Args:
             param dist_matrix: 2d tensor or 2d numpy array; matrix of distances
@@ -348,7 +348,7 @@ class GeneralizedWassersteinDiceLoss(_Loss):
             ValueError: dist_matrix.shape[0] != dist_matrix.shape[1] is invalid.
 
         """
-        super(GeneralizedWassersteinDiceLoss, self).__init__(reduction=reduction)
+        super(GeneralizedWassersteinDiceLoss, self).__init__(reduction=LossReduction(reduction).value)
 
         if dist_matrix.shape[0] != dist_matrix.shape[1]:
             raise ValueError("Dist Matrix is invalid.")
@@ -359,7 +359,6 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         if torch.max(self.m) != 1:
             self.m = self.m / torch.max(self.m)
         self.num_classes = self.m.size(0)
-        self.reduction = reduction
 
     def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5):
         """
@@ -387,12 +386,7 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         # Compute and return the final loss
         wass_dice = (2.0 * true_pos + smooth) / (denom + smooth)
         wass_dice_loss = 1.0 - wass_dice
-        if self.reduction == "sum":
-            return wass_dice_loss.sum()
-        elif self.reduction == "none":
-            return wass_dice_loss
-        else:
-            return wass_dice_loss.mean()
+        return wass_dice_loss.mean()
 
     def wasserstein_distance_map(self, flat_proba: torch.Tensor, flat_target: torch.Tensor):
         """
