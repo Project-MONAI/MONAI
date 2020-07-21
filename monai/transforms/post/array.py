@@ -13,7 +13,7 @@ A collection of "vanilla" transforms for the model output tensors
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Callable, Optional, Sequence, Union
+from typing import Callable, List, Optional, Sequence, Union
 import warnings
 import numpy as np
 import torch
@@ -43,7 +43,9 @@ class SplitChannel(Transform):
         self.to_onehot = to_onehot
         self.num_classes = num_classes
 
-    def __call__(self, img: torch.Tensor, to_onehot: Optional[bool] = None, num_classes: Optional[int] = None):
+    def __call__(
+        self, img: torch.Tensor, to_onehot: Optional[bool] = None, num_classes: Optional[int] = None
+    ) -> List[torch.Tensor]:
         """
         Args:
             to_onehot: whether to convert the data to One-Hot format first.
@@ -89,7 +91,7 @@ class Activations(Transform):
         sigmoid: Optional[bool] = None,
         softmax: Optional[bool] = None,
         other: Optional[Callable] = None,
-    ):
+    ) -> torch.Tensor:
         """
         Args:
             sigmoid: whether to execute sigmoid function on model output before transform.
@@ -164,7 +166,7 @@ class AsDiscrete(Transform):
         n_classes: Optional[int] = None,
         threshold_values: Optional[bool] = None,
         logit_thresh: Optional[float] = None,
-    ):
+    ) -> torch.Tensor:
         """
         Args:
             argmax: whether to execute argmax function on input data before transform.
@@ -259,7 +261,7 @@ class KeepLargestConnectedComponent(Transform):
         self.independent = independent
         self.connectivity = connectivity
 
-    def __call__(self, img: torch.Tensor):
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:
         """
         Args:
             img: shape must be (batch_size, C, spatial_dim1[, spatial_dim2, ...]).
@@ -319,7 +321,7 @@ class LabelToContour(Transform):
             raise NotImplementedError("currently, LabelToContour only supports Laplace kernel.")
         self.kernel_type = kernel_type
 
-    def __call__(self, img: torch.Tensor):
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:
         """
         Args:
             img: torch tensor data to extract the contour, with shape: [batch_size, channels, height, width[, depth]]
@@ -375,7 +377,7 @@ class MeanEnsemble(Transform):
     def __init__(self, weights: Optional[Union[Sequence[float], torch.Tensor, np.ndarray]] = None):
         self.weights = torch.as_tensor(weights, dtype=torch.float) if weights is not None else None
 
-    def __call__(self, img: Union[Sequence[torch.Tensor], torch.Tensor]):
+    def __call__(self, img: Union[Sequence[torch.Tensor], torch.Tensor]) -> torch.Tensor:
         img_: torch.Tensor = torch.stack(img) if isinstance(img, (tuple, list)) else torch.as_tensor(img)
         if self.weights is not None:
             self.weights = self.weights.to(img_.device)
