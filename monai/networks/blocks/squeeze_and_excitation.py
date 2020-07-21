@@ -188,7 +188,7 @@ class SEBlock(nn.Module):
         else:
             self.project = None
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Args:
             x: in shape (batch, in_channels, spatial_1[, spatial_2, ...]).

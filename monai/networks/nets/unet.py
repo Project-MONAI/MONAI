@@ -11,6 +11,7 @@
 
 from typing import Sequence, Union
 
+import torch
 import torch.nn as nn
 
 from monai.networks.blocks.convolutions import Convolution, ResidualUnit
@@ -125,7 +126,7 @@ class UNet(nn.Module):
         else:
             return conv
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.model(x)
         return x
 

@@ -11,6 +11,7 @@
 
 from typing import Any, Dict, Optional, Sequence, Union
 
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -68,7 +69,7 @@ class ConvNormActi(nn.Module):
             layers.append(dropout_type(p=dropout_prob))
         self.layers = nn.Sequential(*layers)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.layers(x)
 
 
@@ -133,7 +134,7 @@ class HighResBlock(nn.Module):
             _in_chns = _out_chns
         self.layers = nn.Sequential(*layers)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         x_conv = self.layers(x)
         if self.project is not None:
             return x_conv + self.project(x)
@@ -243,5 +244,5 @@ class HighResNet(nn.Module):
 
         self.blocks = nn.Sequential(*blocks)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.blocks(x)
