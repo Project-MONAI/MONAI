@@ -11,6 +11,7 @@
 
 from typing import Optional, Sequence, Union
 
+import torch
 import torch.nn as nn
 from monai.networks.layers.factories import Norm, Act, split_args
 from monai.networks.nets.regressor import Regressor
@@ -92,7 +93,7 @@ class Critic(Classifier):
     def _get_final_layer(self, in_shape):
         return nn.Flatten()
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.net(x)
         x = self.final(x)
         x = x.mean(1)
