@@ -18,6 +18,7 @@ from typing import Optional, Sequence, Tuple, Union, Any
 from warnings import warn
 
 import numpy as np
+import torch
 
 from monai.transforms.compose import Transform, Randomizable
 from monai.transforms.utils import rescale_array
@@ -481,7 +482,7 @@ class GaussianSmooth(Transform):
     def __init__(self, sigma: Union[Sequence[float], float]) -> None:
         self.sigma = sigma
 
-    def __call__(self, img: np.ndrray) -> np.ndarray:
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         gaussian_filter = GaussianFilter(img.ndim - 1, self.sigma)
         input_data = torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0)
         return gaussian_filter(input_data).squeeze(0).detach().numpy()
