@@ -192,7 +192,7 @@ class SEBlock(nn.Module):
         if self.project is None and in_channels != n_chns_3:
             self.project = Conv[Conv.CONV, spatial_dims](in_channels, n_chns_3, kernel_size=1)
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Args:
             x: in shape (batch, in_channels, spatial_1[, spatial_2, ...]).
