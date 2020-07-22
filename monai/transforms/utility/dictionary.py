@@ -157,13 +157,18 @@ class CastToTyped(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.CastToType`.
     """
 
-    def __init__(self, keys: KeysCollection, dtype: Union[Sequence[np.dtype], np.dtype] = np.float32):
+    def __init__(
+        self,
+        keys: KeysCollection,
+        dtype: Union[Sequence[Union[np.dtype, torch.dtype]], np.dtype, torch.dtype] = np.float32,
+    ):
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             dtype: convert image to this data type, default is `np.float32`.
-                it also can be a sequence of np.dtype, each element corresponds to a key in ``keys``.
+                it also can be a sequence of np.dtype or torch.dtype,
+                each element corresponds to a key in ``keys``.
 
         """
         MapTransform.__init__(self, keys)

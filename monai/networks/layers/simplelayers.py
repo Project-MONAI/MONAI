@@ -31,7 +31,7 @@ class SkipConnection(nn.Module):
         self.submodule = submodule
         self.cat_dim = cat_dim
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return torch.cat([x, self.submodule(x)], self.cat_dim)
 
 
@@ -40,7 +40,7 @@ class Flatten(nn.Module):
     Flattens the given input in the forward pass to be [B,-1] in shape.
     """
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return x.view(x.size(0), -1)
 
 
@@ -60,7 +60,7 @@ class Reshape(nn.Module):
         super().__init__()
         self.shape = (1,) + tuple(shape)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         shape = list(self.shape)
         shape[0] = x.shape[0]  # done this way for Torchscript
         return x.reshape(shape)
@@ -86,7 +86,7 @@ class GaussianFilter(nn.Module):
         for idx, param in enumerate(self.kernel):
             self.register_parameter(f"kernel_{idx}", param)
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Args:
             x: in shape [Batch, chns, H, W, D].
@@ -101,7 +101,7 @@ class GaussianFilter(nn.Module):
         sp_dim = self.spatial_dims
         x = x.clone()  # no inplace change of x
 
-        def _conv(input_, d):
+        def _conv(input_: torch.Tensor, d: int) -> torch.Tensor:
             if d < 0:
                 return input_
             s = [1] * (sp_dim + 2)
