@@ -9,20 +9,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Sequence, Union, Tuple, Any
-
 import hashlib
 import json
 import sys
 import threading
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
+from typing import Any, Callable, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 from torch.utils.data import Dataset as _TorchDataset
 
-from monai.transforms import apply_transform, Compose, Randomizable, Transform
+from monai.transforms import Compose, Randomizable, Transform, apply_transform
 from monai.utils import get_seed, progress_bar
 
 

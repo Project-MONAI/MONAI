@@ -9,13 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
 import os
 import shutil
-import numpy as np
 import tempfile
-from PIL import Image
+import unittest
+
+import numpy as np
 from parameterized import parameterized
+from PIL import Image
+
 from monai.apps import check_md5
 
 TEST_CASE_1 = ["f38e9e043c8e902321e827b24ce2e5ec", True]

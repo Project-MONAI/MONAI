@@ -12,11 +12,12 @@
 Utilities and types for defining networks, these depend on PyTorch.
 """
 
+import warnings
 from typing import Callable, Optional, Sequence
 
-import warnings
 import torch
 import torch.nn as nn
+
 from monai.utils import ensure_tuple_size
 
 

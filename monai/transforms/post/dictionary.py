@@ -15,21 +15,23 @@ defined in :py:class:`monai.transforms.utility.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Optional, Union, Sequence, Callable
+from typing import Callable, Optional, Sequence, Union
+
 import numpy as np
 import torch
+
 from monai.config import KeysCollection
-from monai.utils import ensure_tuple_rep
 from monai.transforms.compose import MapTransform
 from monai.transforms.post.array import (
-    SplitChannel,
     Activations,
     AsDiscrete,
     KeepLargestConnectedComponent,
     LabelToContour,
     MeanEnsemble,
+    SplitChannel,
     VoteEnsemble,
 )
+from monai.utils import ensure_tuple_rep
 
 
 class SplitChanneld(MapTransform):

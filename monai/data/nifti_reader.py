@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Sequence, Any
+from typing import Any, Callable, Optional, Sequence
 
 import numpy as np
 from torch.utils.data import Dataset
