@@ -300,6 +300,8 @@ class AdjustContrastd(MapTransform):
         `x = ((x - min) / intensity_range) ^ gamma * intensity_range + min`
 
     Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: monai.transforms.MapTransform
         gamma: gamma value to adjust the contrast as function.
     """
 

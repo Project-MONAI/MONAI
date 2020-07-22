@@ -277,6 +277,11 @@ class CacheDataset(Dataset):
                     progress_bar(i + 1, self.cache_num, "Load and cache transformed data: ")
 
     def _load_cache_item(self, item: Any, transforms: Sequence[Callable]):
+        """
+        Args:
+            item: input item to load and transform to generate dataset for model.
+            transforms: transforms to execute operations on input item.
+        """
         for _transform in transforms:
             # execute all the deterministic transforms
             if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
@@ -285,6 +290,13 @@ class CacheDataset(Dataset):
         return item
 
     def _load_cache_item_thread(self, args: Tuple) -> None:
+        """
+        Args:
+            args: tuple with contents (i, item, transforms).
+                i: the index to load the cached item to.
+                item: input item to load and transform to generate dataset for model.
+                transforms: transforms to execute operations on input item.
+        """
         i, item, transforms = args
         self._cache[i] = self._load_cache_item(item, transforms)
         with self._thread_lock:
