@@ -77,8 +77,13 @@ class MeanDice(Metric):  # type: ignore # incorrectly typed due to optional_impo
 
     @reinit__is_reduced
     def update(self, output: Sequence[torch.Tensor]) -> None:
-        if not len(output) == 2:
-            raise ValueError("MeanDice metric can only support y_pred and y.")
+        """
+        Raises:
+            ValueError: When ``output`` length is not 2. MeanDice metric can only support y_pred and y.
+
+        """
+        if len(output) != 2:
+            raise ValueError(f"output must have length 2, got {len(output)}.")
         y_pred, y = output
         score = self.dice(y_pred, y)
         assert self.dice.not_nans is not None
@@ -90,6 +95,11 @@ class MeanDice(Metric):  # type: ignore # incorrectly typed due to optional_impo
 
     @sync_all_reduce("_sum", "_num_examples")
     def compute(self) -> float:
+        """
+        Raises:
+            NotComputableError: When ``compute`` is called before an ``update`` occurs.
+
+        """
         if self._num_examples == 0:
             raise NotComputableError("MeanDice must have at least one example before it can be computed.")
         return self._sum / self._num_examples

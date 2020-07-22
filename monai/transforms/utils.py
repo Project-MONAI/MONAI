@@ -193,13 +193,14 @@ def generate_pos_neg_label_crop_centers(
         rand_state: numpy randomState object to align with other modules.
 
     Raises:
-        ValueError: no sampling location available.
+        ValueError: When the proposed roi is larger than the image.
+        ValueError: When the foreground and background indices lengths are 0.
 
     """
     max_size = label.shape[1:]
     spatial_size = fall_back_tuple(spatial_size, default=max_size)
     if not (np.subtract(max_size, spatial_size) >= 0).all():
-        raise ValueError("proposed roi is larger than image itself.")
+        raise ValueError("The proposed roi is larger than the image.")
 
     # Select subregion to assure valid roi
     valid_start = np.floor_divide(spatial_size, 2)
@@ -234,7 +235,7 @@ def generate_pos_neg_label_crop_centers(
 
     if not len(fg_indices) or not len(bg_indices):
         if not len(fg_indices) and not len(bg_indices):
-            raise ValueError("no sampling location available.")
+            raise ValueError("No sampling location available.")
         warnings.warn(
             f"N foreground {len(fg_indices)}, N  background {len(bg_indices)},"
             "unable to generate class balanced samples."
@@ -267,7 +268,7 @@ def apply_transform(transform: Callable, data: object, map_items: bool = True):
             if `data` is a list or tuple. Defaults to True.
 
     Raises:
-        with_traceback: applying transform {transform}.
+        Exception: When ``transform`` raises an exception.
 
     """
     try:
@@ -275,7 +276,7 @@ def apply_transform(transform: Callable, data: object, map_items: bool = True):
             return [transform(item) for item in data]
         return transform(data)
     except Exception as e:
-        raise type(e)(f"applying transform {transform}.").with_traceback(e.__traceback__)
+        raise type(e)(f"Applying transform {transform}.").with_traceback(e.__traceback__)
 
 
 def create_grid(
@@ -328,7 +329,8 @@ def create_rotate(spatial_dims: int, radians: Union[Sequence[float], float]):
             rotation in the 1st, 2nd, and 3rd dim respectively.
 
     Raises:
-        ValueError: create_rotate got spatial_dims={spatial_dims}, radians={radians}.
+        ValueError: When ``radians`` is empty.
+        ValueError: When ``spatial_dims`` is not one of [2, 3].
 
     """
     radians = ensure_tuple(radians)
@@ -336,6 +338,7 @@ def create_rotate(spatial_dims: int, radians: Union[Sequence[float], float]):
         if len(radians) >= 1:
             sin_, cos_ = np.sin(radians[0]), np.cos(radians[0])
             return np.array([[cos_, -sin_, 0.0], [sin_, cos_, 0.0], [0.0, 0.0, 1.0]])
+        raise ValueError("radians must be non empty.")
 
     if spatial_dims == 3:
         affine = None
@@ -356,7 +359,7 @@ def create_rotate(spatial_dims: int, radians: Union[Sequence[float], float]):
             )
         return affine
 
-    raise ValueError(f"create_rotate got spatial_dims={spatial_dims}, radians={radians}.")
+    raise ValueError(f"Unsupported spatial_dims: {spatial_dims}, available options are [2, 3].")
 
 
 def create_shear(spatial_dims: int, coefs: Union[Sequence[float], float]):
@@ -368,7 +371,7 @@ def create_shear(spatial_dims: int, coefs: Union[Sequence[float], float]):
         coefs: shearing factors, defaults to 0.
 
     Raises:
-        NotImplementedError: spatial_dims must be 2 or 3
+        NotImplementedError: When ``spatial_dims`` is not one of [2, 3].
 
     """
     if spatial_dims == 2:
@@ -384,7 +387,7 @@ def create_shear(spatial_dims: int, coefs: Union[Sequence[float], float]):
                 [0.0, 0.0, 0.0, 1.0],
             ]
         )
-    raise NotImplementedError("spatial_dims must be 2 or 3")
+    raise NotImplementedError("Currently only spatial_dims in [2, 3] are supported.")
 
 
 def create_scale(spatial_dims: int, scaling_factor: Union[Sequence[float], float]):

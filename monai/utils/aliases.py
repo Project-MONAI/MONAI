@@ -48,10 +48,10 @@ def resolve_name(name):
     the loaded modules for one having a declaration with the given name. If no declaration is found, raise ValueError.
 
     Raises:
-        ValueError: Module {modname!r} not found
-        ValueError: Module {modname!r} does not have member {declname!r}
-        ValueError: Multiple modules (%r) with declaration name %r found, resolution is ambiguous
-        ValueError: No module with member {name!r} found
+        ValueError: When the module is not found.
+        ValueError: When the module does not have the specified member.
+        ValueError: When multiple modules with the declaration name are found.
+        ValueError: When no module with the specified member is found.
 
     """
     # attempt to resolve an alias
@@ -68,10 +68,10 @@ def resolve_name(name):
             mod = importlib.import_module(modname)
             obj = getattr(mod, declname, None)
         except ModuleNotFoundError:
-            raise ValueError(f"Module {modname!r} not found")
+            raise ValueError(f"Module {modname!r} not found.")
 
         if obj is None:
-            raise ValueError(f"Module {modname!r} does not have member {declname!r}")
+            raise ValueError(f"Module {modname!r} does not have member {declname!r}.")
 
     # attempt to resolve a simple name
     if obj is None:
@@ -87,10 +87,7 @@ def resolve_name(name):
 
                 if len(foundmods) > 1:  # found multiple declarations with the same name
                     modnames = [m.__name__ for m in foundmods]
-                    msg = "Multiple modules (%r) with declaration name %r found, resolution is ambiguous" % (
-                        modnames,
-                        name,
-                    )
+                    msg = f"Multiple modules ({modnames!r}) with declaration name {name!r} found, resolution is ambiguous."
                     raise ValueError(msg)
                 else:
                     mods = list(foundmods)
@@ -98,6 +95,6 @@ def resolve_name(name):
             obj = getattr(mods[0], name)
 
         if obj is None:
-            raise ValueError(f"No module with member {name!r} found")
+            raise ValueError(f"No module with member {name!r} found.")
 
     return obj

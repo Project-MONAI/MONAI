@@ -366,24 +366,32 @@ class CopyItemsd(MapTransform):
                 and times is 2, names can be: ["img_1", "seg_1", "img_2", "seg_2"].
 
         Raises:
-            ValueError: times must be greater than 0.
-            ValueError: length of names does not match `len(keys) x times`.
+            ValueError: When ``times`` is nonpositive.
+            ValueError: When ``len(names)`` is not ``len(keys) * times``. Incompatible values.
 
         """
         super().__init__(keys)
         if times < 1:
-            raise ValueError("times must be greater than 0.")
+            raise ValueError(f"times must be positive, got {times}.")
         self.times = times
         names = ensure_tuple(names)
         if len(names) != (len(self.keys) * times):
-            raise ValueError("length of names does not match `len(keys) x times`.")
+            raise ValueError(
+                "len(names) must match len(keys) * times, "
+                f"got len(names)={len(names)} len(keys) * times={len(self.keys) * times}."
+            )
         self.names = names
 
     def __call__(self, data):
+        """
+        Raises:
+            KeyError: When a key in ``self.names`` already exists in ``data``.
+
+        """
         d = dict(data)
         for key, new_key in zip(self.keys * self.times, self.names):
             if new_key in d:
-                raise KeyError(f"key {new_key} already exists in dictionary.")
+                raise KeyError(f"Key {new_key} already exists in data.")
             d[new_key] = copy.deepcopy(d[key])
         return d
 
@@ -404,16 +412,22 @@ class ConcatItemsd(MapTransform):
             dim: on which dimension to concatenate the items, default is 0.
 
         Raises:
-            ValueError: must provide must than 1 items to concat.
+            ValueError: When insufficient keys are given (``len(self.keys) < 2``).
 
         """
         super().__init__(keys)
         if len(self.keys) < 2:
-            raise ValueError("must provide must than 1 items to concat.")
+            raise ValueError("Concatenation requires at least 2 keys.")
         self.name = name
         self.dim = dim
 
     def __call__(self, data):
+        """
+        Raises:
+            TypeError: When items in ``data`` differ in type.
+            TypeError: When the item type is not in ``Union[numpy.ndarray, torch.Tensor]``.
+
+        """
         d = dict(data)
         output = list()
         data_type = None
@@ -421,14 +435,14 @@ class ConcatItemsd(MapTransform):
             if data_type is None:
                 data_type = type(d[key])
             elif not isinstance(d[key], data_type):
-                raise TypeError("not all the items are with same data type.")
+                raise TypeError("All items in data must have the same type.")
             output.append(d[key])
         if data_type == np.ndarray:
             d[self.name] = np.concatenate(output, axis=self.dim)
         elif data_type == torch.Tensor:
             d[self.name] = torch.cat(output, dim=self.dim)
         else:
-            raise TypeError(f"unsupported data type to concat: {data_type}.")
+            raise TypeError(f"Unsupported data type: {data_type}, available options are (numpy.ndarray, torch.Tensor).")
         return d
 
 

@@ -59,17 +59,19 @@ def download_url(url: str, filepath: str, md5_value: Optional[str] = None) -> No
             if None, skip MD5 validation.
 
     Raises:
-        RuntimeError: MD5 check of existing file {filepath} failed, please delete it and try again.
-        URLError: See urllib.request.urlopen
-        HTTPError: See urllib.request.urlopen
-        ContentTooShortError: See urllib.request.urlopen
-        IOError: See urllib.request.urlopen
-        RuntimeError: MD5 check of downloaded file failed, URL={url}, filepath={filepath}, expected MD5={md5_value}.
+        RuntimeError: When the MD5 validation of the ``filepath`` existing file fails.
+        RuntimeError: When a network issue or denied permission prevents the
+            file download from ``url`` to ``filepath``.
+        URLError: See urllib.request.urlretrieve.
+        HTTPError: See urllib.request.urlretrieve.
+        ContentTooShortError: See urllib.request.urlretrieve.
+        IOError: See urllib.request.urlretrieve.
+        RuntimeError: When the MD5 validation of the ``url`` downloaded file fails.
 
     """
     if os.path.exists(filepath):
         if not check_md5(filepath, md5_value):
-            raise RuntimeError(f"MD5 check of existing file {filepath} failed, please delete it and try again.")
+            raise RuntimeError(f"MD5 check of existing file failed: filepath={filepath}, expected MD5={md5_value}.")
         print(f"file {filepath} exists, skip downloading.")
         return
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
@@ -77,7 +79,9 @@ def download_url(url: str, filepath: str, md5_value: Optional[str] = None) -> No
     if url.startswith("https://drive.google.com"):
         gdown.download(url, filepath, quiet=False)
         if not os.path.exists(filepath):
-            raise RuntimeError("download failed due to network issue or permission denied.")
+            raise RuntimeError(
+                f"Download of file from {url} to {filepath} failed due to network issue or denied permission."
+            )
     else:
 
         def _process_hook(blocknum, blocksize, totalsize):
@@ -92,8 +96,7 @@ def download_url(url: str, filepath: str, md5_value: Optional[str] = None) -> No
 
     if not check_md5(filepath, md5_value):
         raise RuntimeError(
-            f"MD5 check of downloaded file failed, \
-            URL={url}, filepath={filepath}, expected MD5={md5_value}."
+            f"MD5 check of downloaded file failed: URL={url}, filepath={filepath}, expected MD5={md5_value}."
         )
 
 
@@ -109,8 +112,8 @@ def extractall(filepath: str, output_dir: str, md5_value: Optional[str] = None) 
             if None, skip MD5 validation.
 
     Raises:
-        RuntimeError: MD5 check of compressed file {filepath} failed.
-        TypeError: unsupported compressed file type.
+        RuntimeError: When the MD5 validation of the ``filepath`` compressed file fails.
+        ValueError: When the ``filepath`` file extension is not one of [zip", "tar.gz", "tar"].
 
     """
     target_file = os.path.join(output_dir, os.path.basename(filepath).split(".")[0])
@@ -118,7 +121,7 @@ def extractall(filepath: str, output_dir: str, md5_value: Optional[str] = None) 
         print(f"extracted file {target_file} exists, skip extracting.")
         return
     if not check_md5(filepath, md5_value):
-        raise RuntimeError(f"MD5 check of compressed file {filepath} failed.")
+        raise RuntimeError(f"MD5 check of compressed file failed: filepath={filepath}, expected MD5={md5_value}.")
 
     if filepath.endswith("zip"):
         zip_file = zipfile.ZipFile(filepath)
@@ -129,7 +132,7 @@ def extractall(filepath: str, output_dir: str, md5_value: Optional[str] = None) 
         tar_file.extractall(output_dir)
         tar_file.close()
     else:
-        raise TypeError("unsupported compressed file type.")
+        raise ValueError('Unsupported file extension, available options are: ["zip", "tar.gz", "tar"].')
 
 
 def download_and_extract(url: str, filepath: str, output_dir: str, md5_value: Optional[str] = None) -> None:

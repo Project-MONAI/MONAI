@@ -62,15 +62,17 @@ class TverskyLoss(_Loss):
                 - ``"sum"``: the output will be summed.
 
         Raises:
-            ValueError: sigmoid=True and softmax=True are not compatible.
+            TypeError: When ``other_act`` is not an ``Optional[Callable]``.
+            ValueError: When more than 1 of [``sigmoid=True``, ``softmax=True``, ``other_act is not None``].
+                Incompatible values.
 
         """
 
         super().__init__(reduction=LossReduction(reduction).value)
         if other_act is not None and not callable(other_act):
-            raise ValueError("other_act must be a Callable function.")
+            raise TypeError(f"other_act must be None or callable but is {type(other_act).__name__}.")
         if int(sigmoid) + int(softmax) + int(other_act is not None) > 1:
-            raise ValueError("can only enable 1 of sigmoid, softmax and other_act.")
+            raise ValueError("Incompatible values: more than 1 of [sigmoid=True, softmax=True, other_act is not None].")
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         self.sigmoid = sigmoid
@@ -87,7 +89,7 @@ class TverskyLoss(_Loss):
             smooth: a small constant to avoid nan.
 
         Raises:
-            ValueError: reduction={self.reduction} is invalid.
+            ValueError: When ``self.reduction`` is not one of ["mean", "sum", "none"].
 
         """
         if self.sigmoid:
@@ -144,4 +146,4 @@ class TverskyLoss(_Loss):
             return score  # returns [N, n_classes] losses
         if self.reduction == LossReduction.MEAN.value:
             return score.mean()
-        raise ValueError(f"reduction={self.reduction} is invalid.")
+        raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')

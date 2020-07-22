@@ -50,12 +50,15 @@ class NiftiDataset(Dataset, Randomizable):
             dtype: if not None convert the loaded image to this data type
 
         Raises:
-            ValueError: Must have same number of image and segmentation files
+            ValueError: When ``seg_files`` length differs from ``image_files``.
 
         """
 
         if seg_files is not None and len(image_files) != len(seg_files):
-            raise ValueError("Must have same number of image and segmentation files")
+            raise ValueError(
+                "Must have same the number of segmentation as image files: "
+                f"images={len(image_files)}, segmentations={len(seg_files)}."
+            )
 
         self.image_files = image_files
         self.seg_files = seg_files

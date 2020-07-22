@@ -89,20 +89,19 @@ class AffineTransform(nn.Module):
                 `[N, C, *spatial_size]` where N and C are inferred from the `src`.
 
         Raises:
-            TypeError: both src and theta must be torch Tensor, got {type(src).__name__}, {type(theta).__name__}.
-            ValueError: affine must be Nxdxd or dxd.
-            ValueError: affine must be Nx3x3 or Nx4x4, got: {theta.shape}.
-            ValueError: src must be spatially 2D or 3D.
-            ValueError: batch dimension of affine and image does not match, got affine: {} and image: {}.
+            TypeError: When ``theta`` is not a ``torch.Tensor``.
+            ValueError: When ``theta`` is not one of [Nxdxd, dxd].
+            ValueError: When ``theta`` is not one of [Nx3x3, Nx4x4].
+            TypeError: When ``src`` is not a ``torch.Tensor``.
+            ValueError: When ``src`` spatially is not one of [2D, 3D].
+            ValueError: When affine and image batch dimension differ.
 
         """
         # validate `theta`
-        if not torch.is_tensor(theta) or not torch.is_tensor(src):
-            raise TypeError(
-                f"both src and theta must be torch Tensor, got {type(src).__name__}, {type(theta).__name__}."
-            )
+        if not torch.is_tensor(theta):
+            raise TypeError(f"theta must be torch.Tensor but is {type(theta).__name__}.")
         if theta.ndim not in (2, 3):
-            raise ValueError("affine must be Nxdxd or dxd.")
+            raise ValueError(f"theta must be Nxdxd or dxd, got {theta.shape}.")
         if theta.ndim == 2:
             theta = theta[None]  # adds a batch dim.
         theta = theta.clone()  # no in-place change of theta
@@ -113,12 +112,14 @@ class AffineTransform(nn.Module):
             pad_affine.requires_grad = False
             theta = torch.cat([theta, pad_affine], dim=1)
         if tuple(theta.shape[1:]) not in ((3, 3), (4, 4)):
-            raise ValueError(f"affine must be Nx3x3 or Nx4x4, got: {theta.shape}.")
+            raise ValueError(f"theta must be Nx3x3 or Nx4x4, got {theta.shape}.")
 
         # validate `src`
+        if not torch.is_tensor(src):
+            raise TypeError(f"src must be torch.Tensor but is {type(src).__name__}.")
         sr = src.ndim - 2  # input spatial rank
         if sr not in (2, 3):
-            raise ValueError("src must be spatially 2D or 3D.")
+            raise ValueError(f"Unsupported src dimension: {sr}, available options are [2, 3].")
 
         # set output shape
         src_size = tuple(src.shape)
@@ -142,9 +143,7 @@ class AffineTransform(nn.Module):
             theta = theta.repeat(src_size[0], 1, 1)
         if theta.shape[0] != src_size[0]:
             raise ValueError(
-                "batch dimension of affine and image does not match, got affine: {} and image: {}.".format(
-                    theta.shape[0], src_size[0]
-                )
+                f"affine and image batch dimension must match, got affine={theta.shape[0]} image={src_size[0]}."
             )
 
         grid = nn.functional.affine_grid(theta=theta[:, :sr], size=list(dst_size), align_corners=self.align_corners)

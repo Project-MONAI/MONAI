@@ -56,6 +56,12 @@ class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optiona
         handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
             CheckpointHandler, StatsHandler, SegmentationSaver, etc.
 
+    Raises:
+        TypeError: When ``device`` is not a ``torch.Device``.
+        TypeError: When ``data_loader`` is not a ``torch.utils.data.DataLoader``.
+        TypeError: When ``key_metric`` is not a ``Optional[dict]``.
+        TypeError: When ``additional_metrics`` is not a ``Optional[dict]``.
+
     """
 
     def __init__(
@@ -79,9 +85,9 @@ class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optiona
         if amp:
             self.logger.info("Will add AMP support when PyTorch v1.6 released.")
         if not isinstance(device, torch.device):
-            raise ValueError("device must be PyTorch device object.")
+            raise TypeError(f"device must be a torch.device but is {type(device).__name__}.")
         if not isinstance(data_loader, DataLoader):
-            raise ValueError("data_loader must be PyTorch DataLoader.")
+            raise TypeError(f"data_loader must be a torch.utils.data.DataLoader but is {type(data_loader).__name__}.")
 
         # set all sharable data for the workflow based on Ignite engine.state
         self.state = State(
@@ -113,12 +119,14 @@ class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optiona
         if key_metric is not None:
 
             if not isinstance(key_metric, dict):
-                raise ValueError("key_metric must be a dict object.")
+                raise TypeError(f"key_metric must be None or a dict but is {type(key_metric).__name__}.")
             self.state.key_metric_name = list(key_metric.keys())[0]
             metrics = key_metric
             if additional_metrics is not None and len(additional_metrics) > 0:
                 if not isinstance(additional_metrics, dict):
-                    raise ValueError("additional_metrics must be a dict object.")
+                    raise TypeError(
+                        f"additional_metrics must be None or a dict but is {type(additional_metrics).__name__}."
+                    )
                 metrics.update(additional_metrics)
             for name, metric in metrics.items():
                 metric.attach(self, name)
@@ -154,7 +162,7 @@ class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optiona
             batchdata: input data for this iteration, usually can be dictionary or tuple of Tensor data.
 
         Raises:
-            NotImplementedError: Subclass {self.__class__.__name__} must implement the compute method
+            NotImplementedError: When the subclass does not override this method.
 
         """
-        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement the compute method")
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")

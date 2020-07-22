@@ -37,11 +37,11 @@ class ValidationHandler:
                 `True` is epoch level, `False` is iteration level.
 
         Raises:
-            ValueError: validator must be Evaluator ignite engine.
+            TypeError: When ``validator`` is not a ``monai.engines.evaluator.Evaluator``.
 
         """
         if not isinstance(validator, Evaluator):
-            raise ValueError("validator must be Evaluator ignite engine.")
+            raise TypeError(f"validator must be a monai.engines.evaluator.Evaluator but is {type(validator).__name__}.")
         self.validator = validator
         self.interval = interval
         self.epoch_level = epoch_level

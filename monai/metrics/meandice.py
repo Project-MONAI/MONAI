@@ -44,6 +44,9 @@ class DiceMetric:
             ``"mean_channel"``, ``"sum_channel"``}
             Define the mode to reduce computation result of 1 batch data. Defaults to ``"mean"``.
 
+    Raises:
+        ValueError: When ``sigmoid=True`` and ``other_act is not None``. Incompatible values.
+
     """
 
     def __init__(
@@ -58,7 +61,7 @@ class DiceMetric:
     ) -> None:
         super().__init__()
         if sigmoid and other_act is not None:
-            raise ValueError("can not enable sigmoid and other activation together.")
+            raise ValueError("Incompatible values: ``sigmoid=True`` and ``other_act is not None``.")
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         self.mutually_exclusive = mutually_exclusive
@@ -70,6 +73,12 @@ class DiceMetric:
         self.not_nans: Optional[torch.Tensor] = None  # keep track for valid elements in the batch
 
     def __call__(self, y_pred: torch.Tensor, y: torch.Tensor):
+        """
+        Raises:
+            ValueError: When ``self.reduction`` is not one of
+                ["mean", "sum", "mean_batch", "sum_batch", "mean_channel", "sum_channel" "none"].
+
+        """
 
         # compute dice (BxC) for each channel for each batch
         f = compute_meandice(
@@ -119,7 +128,10 @@ class DiceMetric:
         elif self.reduction == MetricReduction.NONE:
             pass
         else:
-            raise ValueError(f"reduction={self.reduction} is invalid.")
+            raise ValueError(
+                f"Unsupported reduction: {self.reduction}, available options are "
+                '["mean", "sum", "mean_batch", "sum_batch", "mean_channel", "sum_channel" "none"].'
+            )
 
         # save not_nans since we may need it later to know how many elements were valid
         self.not_nans = not_nans
@@ -156,11 +168,13 @@ def compute_meandice(
         logit_thresh: the threshold value used to convert (for example, after sigmoid if `sigmoid=True`)
             `y_pred` into a binary matrix. Defaults to 0.5.
 
+    Raises:
+        ValueError: When ``sigmoid=True`` and ``other_act is not None``. Incompatible values.
+        TypeError: When ``other_act`` is not an ``Optional[Callable]``.
+        ValueError: When ``sigmoid=True`` and ``mutually_exclusive=True``. Incompatible values.
+
     Returns:
         Dice scores per batch and per class, (shape [batch_size, n_classes]).
-
-    Raises:
-        ValueError: can not enable sigmoid and other activation together.
 
     Note:
         This method provides two options to convert `y_pred` into a binary matrix
@@ -172,13 +186,13 @@ def compute_meandice(
     n_classes = y_pred.shape[1]
     n_len = len(y_pred.shape)
     if sigmoid and other_act is not None:
-        raise ValueError("can not enable sigmoid and other activation together.")
+        raise ValueError("Incompatible values: sigmoid=True and other_act is not None.")
     if sigmoid:
         y_pred = y_pred.float().sigmoid()
 
     if other_act is not None:
         if not callable(other_act):
-            raise ValueError("other_act must be a Callable function.")
+            raise TypeError(f"other_act must be None or callable but is {type(other_act).__name__}.")
         y_pred = other_act(y_pred)
 
     if n_classes == 1:
@@ -195,7 +209,7 @@ def compute_meandice(
         # make both y and y_pred binary
         if mutually_exclusive:
             if sigmoid:
-                raise ValueError("sigmoid=True is incompatible with mutually_exclusive=True.")
+                raise ValueError("Incompatible values: sigmoid=True and mutually_exclusive=True.")
             y_pred = torch.argmax(y_pred, dim=1, keepdim=True)
             y_pred = one_hot(y_pred, num_classes=n_classes)
         else:

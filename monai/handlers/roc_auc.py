@@ -72,11 +72,20 @@ class ROCAUC(Metric):  # type: ignore # incorrectly typed due to optional_import
         self._targets: List[torch.Tensor] = []
 
     def update(self, output: Sequence[torch.Tensor]) -> None:
+        """
+        Raises:
+            ValueError: When ``output`` length is not 2. ROCAUC metric can only support y_pred and y.
+            ValueError: When ``y_pred`` dimension is not one of [1, 2].
+            ValueError: When ``y`` dimension is not one of [1, 2].
+
+        """
+        if len(output) != 2:
+            raise ValueError(f"output must have length 2, got {len(output)}.")
         y_pred, y = output
         if y_pred.ndimension() not in (1, 2):
-            raise ValueError("predictions should be of shape (batch_size, n_classes) or (batch_size, ).")
+            raise ValueError("Predictions should be of shape (batch_size, n_classes) or (batch_size, ).")
         if y.ndimension() not in (1, 2):
-            raise ValueError("targets should be of shape (batch_size, n_classes) or (batch_size, ).")
+            raise ValueError("Targets should be of shape (batch_size, n_classes) or (batch_size, ).")
 
         self._predictions.append(y_pred.clone())
         self._targets.append(y.clone())
