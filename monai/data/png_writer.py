@@ -14,7 +14,7 @@ from typing import Optional, Sequence, Union
 import numpy as np
 
 from monai.transforms import Resize
-from monai.utils import ensure_tuple_rep, optional_import, InterpolateMode
+from monai.utils import InterpolateMode, ensure_tuple_rep, optional_import
 
 Image, _ = optional_import("PIL", name="Image")
 

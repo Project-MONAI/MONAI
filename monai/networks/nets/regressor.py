@@ -15,10 +15,10 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from monai.networks.layers.factories import Norm, Act
 from monai.networks.blocks import Convolution, ResidualUnit
+from monai.networks.layers.convutils import calculate_out_shape, same_padding
+from monai.networks.layers.factories import Act, Norm
 from monai.networks.layers.simplelayers import Reshape
-from monai.networks.layers.convutils import same_padding, calculate_out_shape
 from monai.utils import ensure_tuple, ensure_tuple_rep
 
 

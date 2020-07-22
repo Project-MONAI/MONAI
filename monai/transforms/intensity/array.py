@@ -13,16 +13,15 @@ A collection of "vanilla" transforms for intensity adjustment
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Optional, Sequence, Tuple, Union, Any
-
+from typing import Any, Optional, Sequence, Tuple, Union
 from warnings import warn
 
 import numpy as np
 import torch
 
-from monai.transforms.compose import Transform, Randomizable
-from monai.transforms.utils import rescale_array
 from monai.networks.layers import GaussianFilter
+from monai.transforms.compose import Randomizable, Transform
+from monai.transforms.utils import rescale_array
 
 
 class RandGaussianNoise(Randomizable, Transform):

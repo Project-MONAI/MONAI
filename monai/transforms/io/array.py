@@ -17,10 +17,11 @@ from typing import Optional
 
 import numpy as np
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
+
 from monai.config import KeysCollection
 from monai.data.utils import correct_nifti_header_if_necessary
 from monai.transforms.compose import Transform
-from monai.utils import optional_import, ensure_tuple
+from monai.utils import ensure_tuple, optional_import
 
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")

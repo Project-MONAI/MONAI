@@ -9,18 +9,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ignite.metrics import Accuracy
-import sys
 import logging
-import numpy as np
 import os
+import sys
+
+import numpy as np
 import torch
-from ignite.engine import create_supervised_evaluator, _prepare_batch
+from ignite.engine import _prepare_batch, create_supervised_evaluator
+from ignite.metrics import Accuracy
 from torch.utils.data import DataLoader
 
 import monai
-from monai.handlers import StatsHandler, CheckpointLoader, ClassificationSaver
-from monai.transforms import Compose, LoadNiftid, AddChanneld, ScaleIntensityd, Resized, ToTensord
+from monai.handlers import CheckpointLoader, ClassificationSaver, StatsHandler
+from monai.transforms import AddChanneld, Compose, LoadNiftid, Resized, ScaleIntensityd, ToTensord
 
 
 def main():

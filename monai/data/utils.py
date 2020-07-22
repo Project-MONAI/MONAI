@@ -9,19 +9,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Optional, Sequence, Tuple, Union, Dict
-
+import math
 import os
 import warnings
-import math
-from itertools import starmap, product
+from itertools import product, starmap
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
+import numpy as np
 import torch
 from torch.utils.data._utils.collate import default_collate
-import numpy as np
 
-from monai.utils import ensure_tuple_size, optional_import, NumpyPadMode, BlendMode, first
 from monai.networks.layers.simplelayers import GaussianFilter
+from monai.utils import BlendMode, NumpyPadMode, ensure_tuple_size, first, optional_import
 
 nib, _ = optional_import("nibabel")
 
