@@ -45,7 +45,7 @@ Blocks
 .. autoclass:: SEResNetBottleneck
     :members:
 
-`Squeeze-and-Excitation Resnext Bottleneck`
+`Squeeze-and-Excitation ResneXt Bottleneck`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: SEResNeXtBottleneck
     :members:
@@ -149,7 +149,7 @@ Nets
 .. autofunction:: densenet264
 
 `Senet`
-~~~~~~~~~~~~
+~~~~~~~
 .. autoclass:: SENet
   :members:
 .. autofunction:: senet154

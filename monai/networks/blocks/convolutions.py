@@ -62,7 +62,7 @@ class Convolution(nn.Sequential):
         strides: int = 1,
         kernel_size: Union[Sequence[int], int] = 3,
         act: Optional[Union[tuple, str]] = Act.PRELU,
-        norm: Optional[Union[tuple, str]] = Norm.INSTANCE,
+        norm: Union[tuple, str] = Norm.INSTANCE,
         dropout: Optional[Union[int, float, tuple, str]] = None,
         dilation: Union[Sequence[int], int] = 1,
         groups: int = 1,

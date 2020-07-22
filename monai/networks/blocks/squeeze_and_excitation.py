@@ -30,8 +30,8 @@ class ChannelSELayer(nn.Module):
         spatial_dims: int,
         in_channels: int,
         r: int = 2,
-        acti_type_1=("relu", {"inplace": True}),
-        acti_type_2="sigmoid",
+        acti_type_1: Union[str, tuple] = ("relu", {"inplace": True}),
+        acti_type_2: Union[str, tuple] = "sigmoid",
     ) -> None:
         """
         Args:
@@ -140,8 +140,9 @@ class SEBlock(nn.Module):
         conv_param_3: Optional[Dict[str, Any]] = None,
         project: Optional[Convolution] = None,
         r: int = 2,
-        acti_type_1="relu",
-        acti_type_2="sigmoid",
+        acti_type_1: Union[str, tuple] = "relu",
+        acti_type_2: Union[str, tuple] = "sigmoid",
+        acti_type_final: Optional[Union[str, tuple]] = 'relu',
     ):
         """
         Args:
@@ -163,6 +164,7 @@ class SEBlock(nn.Module):
             r: the reduction ratio r in the paper. Defaults to 2.
             acti_type_1: activation type of the hidden squeeze layer. Defaults to "relu".
             acti_type_2: activation type of the output squeeze layer. Defaults to "sigmoid".
+            acti_type_final: activation type of the end of the block. Defaults to "relu".
 
         See also:
 
@@ -193,8 +195,10 @@ class SEBlock(nn.Module):
         if self.project is None and in_channels != n_chns_3:
             self.project = Conv[Conv.CONV, spatial_dims](in_channels, n_chns_3, kernel_size=1)
 
-        relu_type: Type[nn.ReLU] = Act[Act.RELU]
-        self.relu = relu_type(inplace=True)
+        self.act = None
+        if acti_type_final is not None:
+            act_final, act_final_args = split_args(acti_type_final)
+            self.act = Act[act_final](**act_final_args)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -207,7 +211,8 @@ class SEBlock(nn.Module):
         x = self.conv3(x)
         x = self.se_layer(x)
         x += residual
-        x = self.relu(x)
+        if self.act is not None:
+            x = self.act(x)
         return x
 
 

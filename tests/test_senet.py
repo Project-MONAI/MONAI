@@ -23,58 +23,20 @@ from monai.networks.nets import (
     se_resnext101_32x4d,
 )
 
+input_param = {"spatial_dims": 3, "in_ch": 2, "num_classes": 10}
 
-TEST_CASE_1 = [  # batch size: 5, channels: 2
-    {"spatial_dims": 3, "in_ch": 2, "num_classes": 10},
-    torch.randn(5, 2, 64, 64, 64),
-    (5, 3),
-]
-
+TEST_CASE_1 = [senet154(**input_param)]
+TEST_CASE_2 = [se_resnet50(**input_param)]
+TEST_CASE_3 = [se_resnet101(**input_param)]
+TEST_CASE_4 = [se_resnet152(**input_param)]
+TEST_CASE_5 = [se_resnext50_32x4d(**input_param)]
+TEST_CASE_6 = [se_resnext101_32x4d(**input_param)]
 
 class TestSENET(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1])
-    def test_senet154_shape(self, input_param, input_data, expected_shape):
-        net = senet154(**input_param)
-        net.eval()
-        with torch.no_grad():
-            result = net.forward(input_data)
-            self.assertEqual(result.shape, expected_shape)
-
-    @parameterized.expand([TEST_CASE_1])
-    def test_se_resnet50_shape(self, input_param, input_data, expected_shape):
-        net = se_resnet50(**input_param)
-        net.eval()
-        with torch.no_grad():
-            result = net.forward(input_data)
-            self.assertEqual(result.shape, expected_shape)
-
-    @parameterized.expand([TEST_CASE_1])
-    def test_se_resnet101_shape(self, input_param, input_data, expected_shape):
-        net = se_resnet101(**input_param)
-        net.eval()
-        with torch.no_grad():
-            result = net.forward(input_data)
-            self.assertEqual(result.shape, expected_shape)
-
-    @parameterized.expand([TEST_CASE_1])
-    def test_se_resnet152_shape(self, input_param, input_data, expected_shape):
-        net = se_resnet152(**input_param)
-        net.eval()
-        with torch.no_grad():
-            result = net.forward(input_data)
-            self.assertEqual(result.shape, expected_shape)
-
-    @parameterized.expand([TEST_CASE_1])
-    def test_se_resnext50_32x4d_shape(self, input_param, input_data, expected_shape):
-        net = se_resnext50_32x4d(**input_param)
-        net.eval()
-        with torch.no_grad():
-            result = net.forward(input_data)
-            self.assertEqual(result.shape, expected_shape)
-
-    @parameterized.expand([TEST_CASE_1])
-    def test_se_resnext101_32x4d_shape(self, input_param, input_data, expected_shape):
-        net = se_resnext101_32x4d(**input_param)
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
+    def test_senet154_shape(self, net):
+        input_data = torch.randn(5, 2, 64, 64, 64)
+        expected_shape = (5, 10)
         net.eval()
         with torch.no_grad():
             result = net.forward(input_data)
