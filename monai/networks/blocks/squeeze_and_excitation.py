@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Type, Any, Dict, Union, Optional
+from typing import Any, Dict, Union, Optional
 
 import math
 import torch
@@ -142,7 +142,7 @@ class SEBlock(nn.Module):
         r: int = 2,
         acti_type_1: Union[str, tuple] = "relu",
         acti_type_2: Union[str, tuple] = "sigmoid",
-        acti_type_final: Optional[Union[str, tuple]] = 'relu',
+        acti_type_final: Optional[Union[str, tuple]] = "relu",
     ):
         """
         Args:

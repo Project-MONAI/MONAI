@@ -32,6 +32,7 @@ TEST_CASE_4 = [se_resnet152(**input_param)]
 TEST_CASE_5 = [se_resnext50_32x4d(**input_param)]
 TEST_CASE_6 = [se_resnext101_32x4d(**input_param)]
 
+
 class TestSENET(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
     def test_senet154_shape(self, net):
