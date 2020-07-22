@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence, Tuple, Union
 
 import torch
 from torch.utils.data import DataLoader
@@ -224,8 +224,8 @@ class EnsembleEvaluator(Evaluator):
             val_handlers=val_handlers,
         )
 
-        self.networks = ensure_tuple(networks)
-        self.pred_keys = ensure_tuple(pred_keys)
+        self.networks: Tuple[torch.nn.Module, ...] = ensure_tuple(networks)
+        self.pred_keys: Tuple[str, ...] = ensure_tuple(pred_keys)
         self.inferer = inferer
 
     def _iteration(self, engine: Engine, batchdata: Union[Dict, Sequence]) -> Dict[str, torch.Tensor]:

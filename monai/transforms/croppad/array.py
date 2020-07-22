@@ -125,7 +125,7 @@ class BorderPad(Transform):
             ValueError: unsupported length of spatial_border definition.
         """
         spatial_shape = img.shape[1:]
-        spatial_border = ensure_tuple(self.spatial_border)
+        spatial_border: Tuple[int, ...] = ensure_tuple(self.spatial_border)
         for b in spatial_border:
             if b < 0 or not isinstance(b, int):
                 raise ValueError("spatial_border must be int number and can not be less than 0.")
@@ -176,7 +176,7 @@ class DivisiblePad(Transform):
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
         """
         spatial_shape = img.shape[1:]
-        k = fall_back_tuple(self.k, (1,) * len(spatial_shape))
+        k: Tuple[int, ...] = fall_back_tuple(self.k, (1,) * len(spatial_shape))
         new_size = []
         for k_d, dim in zip(k, spatial_shape):
             new_dim = int(np.ceil(dim / k_d) * k_d) if k_d > 0 else dim
@@ -281,7 +281,7 @@ class RandSpatialCrop(Randomizable, Transform):
         self.roi_size = roi_size
         self.random_center = random_center
         self.random_size = random_size
-        self._size: Optional[Sequence[int]] = None
+        self._size: Optional[Tuple[int, ...]] = None
         self._slices: Optional[Tuple[slice, ...]] = None
 
     def randomize(self, img_size: Sequence[int]) -> None:
@@ -381,7 +381,9 @@ class CropForeground(Transform):
             margin: add margin to all dims of the bounding box.
         """
         self.select_fn = select_fn
-        self.channel_indexes = ensure_tuple(channel_indexes) if channel_indexes is not None else None
+        self.channel_indexes: Optional[Tuple[int, ...]] = None if channel_indexes is None else ensure_tuple(
+            channel_indexes
+        )
         self.margin = margin
 
     def __call__(self, img: np.ndarray) -> np.ndarray:

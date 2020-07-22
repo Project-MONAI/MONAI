@@ -302,7 +302,7 @@ class Resize(Transform):
         mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
     ) -> None:
-        self.spatial_size = ensure_tuple(spatial_size)
+        self.spatial_size: Tuple[int, ...] = ensure_tuple(spatial_size)
         self.mode: InterpolateMode = InterpolateMode(mode)
         self.align_corners = align_corners
 
@@ -327,14 +327,14 @@ class Resize(Transform):
         input_ndim = img.ndim - 1  # spatial ndim
         output_ndim = len(self.spatial_size)
         if output_ndim > input_ndim:
-            input_shape = ensure_tuple_size(img.shape, output_ndim + 1, 1)
+            input_shape: Tuple[int, ...] = ensure_tuple_size(img.shape, output_ndim + 1, 1)
             img = img.reshape(input_shape)
         elif output_ndim < input_ndim:
             raise ValueError(
                 "len(spatial_size) cannot be smaller than the image spatial dimensions, "
                 f"got {output_ndim} and {input_ndim}."
             )
-        spatial_size = fall_back_tuple(self.spatial_size, img.shape[1:])
+        spatial_size: Tuple[int, ...] = fall_back_tuple(self.spatial_size, img.shape[1:])
         resized = _torch_interp(
             input=torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0),
             size=spatial_size,
@@ -407,7 +407,7 @@ class Rotate(Transform):
         input_ndim = len(im_shape)
         if input_ndim not in (2, 3):
             raise ValueError("Rotate only supports 2D and 3D: [chns, H, W] and [chns, H, W, D].")
-        _angle = ensure_tuple_rep(self.angle, 1 if input_ndim == 2 else 3)
+        _angle: Tuple[float, ...] = ensure_tuple_rep(self.angle, 1 if input_ndim == 2 else 3)
         _rad = np.deg2rad(_angle)
         transform = create_rotate(input_ndim, _rad)
         shift = create_translate(input_ndim, (im_shape - 1) / 2)
@@ -485,7 +485,7 @@ class Zoom(Transform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
 
         """
-        _zoom = ensure_tuple_rep(self.zoom, img.ndim - 1)  # match the spatial image dim
+        _zoom: Tuple[float, ...] = ensure_tuple_rep(self.zoom, img.ndim - 1)  # match the spatial image dim
         zoomed = _torch_interp(
             input=torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0),
             scale_factor=list(_zoom),
@@ -609,13 +609,13 @@ class RandRotate(Randomizable, Transform):
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         align_corners: bool = False,
     ) -> None:
-        self.range_x = ensure_tuple(range_x)
+        self.range_x: Tuple[float, ...] = ensure_tuple(range_x)
         if len(self.range_x) == 1:
             self.range_x = tuple(sorted([-self.range_x[0], self.range_x[0]]))
-        self.range_y = ensure_tuple(range_y)
+        self.range_y: Tuple[float, ...] = ensure_tuple(range_y)
         if len(self.range_y) == 1:
             self.range_y = tuple(sorted([-self.range_y[0], self.range_y[0]]))
-        self.range_z = ensure_tuple(range_z)
+        self.range_z: Tuple[float, ...] = ensure_tuple(range_z)
         if len(self.range_z) == 1:
             self.range_z = tuple(sorted([-self.range_z[0], self.range_z[0]]))
 
@@ -730,8 +730,8 @@ class RandZoom(Randomizable, Transform):
         align_corners: Optional[bool] = None,
         keep_size: bool = True,
     ) -> None:
-        self.min_zoom = ensure_tuple(min_zoom)
-        self.max_zoom = ensure_tuple(max_zoom)
+        self.min_zoom: Tuple[float, ...] = ensure_tuple(min_zoom)
+        self.max_zoom: Tuple[float, ...] = ensure_tuple(max_zoom)
         assert len(self.min_zoom) == len(self.max_zoom), "min_zoom and max_zoom must have same length."
         self.prob = prob
         self.mode: InterpolateMode = InterpolateMode(mode)
@@ -895,10 +895,12 @@ class RandAffineGrid(Randomizable, Transform):
             - :py:meth:`monai.transforms.utils.create_translate`
             - :py:meth:`monai.transforms.utils.create_scale`
         """
-        self.rotate_range = ensure_tuple(rotate_range)
-        self.shear_range = ensure_tuple(shear_range)
-        self.translate_range = ensure_tuple(translate_range)
-        self.scale_range = ensure_tuple(scale_range)
+        self.rotate_range: Optional[Tuple[float, ...]] = None if rotate_range is None else ensure_tuple(rotate_range)
+        self.shear_range: Optional[Tuple[float, ...]] = None if shear_range is None else ensure_tuple(shear_range)
+        self.translate_range: Optional[Tuple[float, ...]] = None if translate_range is None else ensure_tuple(
+            translate_range
+        )
+        self.scale_range: Optional[Tuple[float, ...]] = None if scale_range is None else ensure_tuple(scale_range)
 
         self.rotate_params: Optional[List[float]] = None
         self.shear_params: Optional[List[float]] = None
@@ -1137,7 +1139,7 @@ class Affine(Transform):
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         """
-        sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
+        sp_size: Tuple[int, ...] = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
         grid = self.affine_grid(spatial_size=sp_size)
         return self.resampler(
             img=img, grid=grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode
@@ -1252,7 +1254,7 @@ class RandAffine(Randomizable, Transform):
         """
         self.randomize()
 
-        sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
+        sp_size: Tuple[int, ...] = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
         if self.do_transform:
             grid = self.rand_affine_grid(spatial_size=sp_size)
         else:
@@ -1370,7 +1372,7 @@ class Rand2DElastic(Randomizable, Transform):
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         """
-        sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
+        sp_size: Tuple[int, ...] = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
         self.randomize(spatial_size=sp_size)
         if self.do_transform:
             grid = self.deform_grid(spatial_size=sp_size)
@@ -1498,7 +1500,7 @@ class Rand3DElastic(Randomizable, Transform):
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         """
-        sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
+        sp_size: Tuple[int, ...] = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
         self.randomize(grid_size=sp_size)
         grid = create_grid(spatial_size=sp_size)
         if self.do_transform:

@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Union
+from typing import List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -61,12 +61,16 @@ class Regressor(nn.Module):
         """
         super().__init__()
 
+        self.in_channels: int
+        self.in_shape: List[int]
+
         self.in_channels, *self.in_shape = ensure_tuple(in_shape)
         self.dimensions = len(self.in_shape)
-        self.channels = ensure_tuple(channels)
-        self.strides = ensure_tuple(strides)
-        self.out_shape = ensure_tuple(out_shape)
-        self.kernel_size = ensure_tuple_rep(kernel_size, self.dimensions)
+
+        self.channels: Tuple[int, ...] = ensure_tuple(channels)
+        self.strides: Tuple[int, ...] = ensure_tuple(strides)
+        self.out_shape: Tuple[int, ...] = ensure_tuple(out_shape)
+        self.kernel_size: Tuple[int, ...] = ensure_tuple_rep(kernel_size, self.dimensions)
         self.num_res_units = num_res_units
         self.act = act
         self.norm = norm

@@ -113,9 +113,9 @@ class Spacingd(MapTransform):
         """
         super().__init__(keys)
         self.spacing_transform = Spacing(pixdim, diagonal=diagonal)
-        self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
-        self.dtype = ensure_tuple_rep(dtype, len(self.keys))
+        self.mode: Tuple[Union[GridSampleMode, str], ...] = ensure_tuple_rep(mode, len(self.keys))
+        self.padding_mode: Tuple[Union[GridSamplePadMode, str], ...] = ensure_tuple_rep(padding_mode, len(self.keys))
+        self.dtype: Tuple[np.dtype, ...] = ensure_tuple_rep(dtype, len(self.keys))
         if not isinstance(meta_key_postfix, str):
             raise ValueError("meta_key_postfix must be a string.")
         self.meta_key_postfix = meta_key_postfix
@@ -291,8 +291,8 @@ class Resized(MapTransform):
         align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
     ) -> None:
         super().__init__(keys)
-        self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
+        self.mode: Tuple[Union[InterpolateMode, str], ...] = ensure_tuple_rep(mode, len(self.keys))
+        self.align_corners: Tuple[Optional[bool], ...] = ensure_tuple_rep(align_corners, len(self.keys))
         self.resizer = Resize(spatial_size=spatial_size)
 
     def __call__(self, data):
@@ -374,8 +374,8 @@ class RandAffined(Randomizable, MapTransform):
             as_tensor_output=as_tensor_output,
             device=device,
         )
-        self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
+        self.mode: Tuple[Union[GridSampleMode, str], ...] = ensure_tuple_rep(mode, len(self.keys))
+        self.padding_mode: Tuple[Union[GridSamplePadMode, str], ...] = ensure_tuple_rep(padding_mode, len(self.keys))
 
     def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
         self.rand_affine.set_random_state(seed, state)
@@ -389,7 +389,7 @@ class RandAffined(Randomizable, MapTransform):
         d = dict(data)
         self.randomize()
 
-        sp_size = fall_back_tuple(self.rand_affine.spatial_size, data[self.keys[0]].shape[1:])
+        sp_size: Tuple[int, ...] = fall_back_tuple(self.rand_affine.spatial_size, data[self.keys[0]].shape[1:])
         if self.rand_affine.do_transform:
             grid = self.rand_affine.rand_affine_grid(spatial_size=sp_size)
         else:
@@ -476,8 +476,8 @@ class Rand2DElasticd(Randomizable, MapTransform):
             as_tensor_output=as_tensor_output,
             device=device,
         )
-        self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
+        self.mode: Tuple[Union[GridSampleMode, str], ...] = ensure_tuple_rep(mode, len(self.keys))
+        self.padding_mode: Tuple[Union[GridSamplePadMode, str], ...] = ensure_tuple_rep(padding_mode, len(self.keys))
 
     def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
         self.rand_2d_elastic.set_random_state(seed, state)
@@ -490,7 +490,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
     def __call__(self, data):
         d = dict(data)
 
-        sp_size = fall_back_tuple(self.rand_2d_elastic.spatial_size, data[self.keys[0]].shape[1:])
+        sp_size: Tuple[int, ...] = fall_back_tuple(self.rand_2d_elastic.spatial_size, data[self.keys[0]].shape[1:])
         self.randomize(spatial_size=sp_size)
 
         if self.rand_2d_elastic.do_transform:
@@ -592,8 +592,8 @@ class Rand3DElasticd(Randomizable, MapTransform):
             as_tensor_output=as_tensor_output,
             device=device,
         )
-        self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
+        self.mode: Tuple[Union[GridSampleMode, str], ...] = ensure_tuple_rep(mode, len(self.keys))
+        self.padding_mode: Tuple[Union[GridSamplePadMode, str], ...] = ensure_tuple_rep(padding_mode, len(self.keys))
 
     def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
         self.rand_3d_elastic.set_random_state(seed, state)
@@ -605,7 +605,7 @@ class Rand3DElasticd(Randomizable, MapTransform):
 
     def __call__(self, data):
         d = dict(data)
-        sp_size = fall_back_tuple(self.rand_3d_elastic.spatial_size, data[self.keys[0]].shape[1:])
+        sp_size: Tuple[int, ...] = fall_back_tuple(self.rand_3d_elastic.spatial_size, data[self.keys[0]].shape[1:])
 
         self.randomize(grid_size=sp_size)
         grid = create_grid(spatial_size=sp_size)
@@ -718,9 +718,9 @@ class Rotated(MapTransform):
         super().__init__(keys)
         self.rotator = Rotate(angle=angle, keep_size=keep_size)
 
-        self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
-        self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
+        self.mode: Tuple[Union[GridSampleMode, str], ...] = ensure_tuple_rep(mode, len(self.keys))
+        self.padding_mode: Tuple[Union[GridSamplePadMode, str], ...] = ensure_tuple_rep(padding_mode, len(self.keys))
+        self.align_corners: Tuple[bool, ...] = ensure_tuple_rep(align_corners, len(self.keys))
 
     def __call__(self, data):
         d = dict(data)
@@ -774,21 +774,21 @@ class RandRotated(Randomizable, MapTransform):
         align_corners: Union[Sequence[bool], bool] = False,
     ) -> None:
         super().__init__(keys)
-        self.range_x = ensure_tuple(range_x)
+        self.range_x: Tuple[float, ...] = ensure_tuple(range_x)
         if len(self.range_x) == 1:
             self.range_x = tuple(sorted([-self.range_x[0], self.range_x[0]]))
-        self.range_y = ensure_tuple(range_y)
+        self.range_y: Tuple[float, ...] = ensure_tuple(range_y)
         if len(self.range_y) == 1:
             self.range_y = tuple(sorted([-self.range_y[0], self.range_y[0]]))
-        self.range_z = ensure_tuple(range_z)
+        self.range_z: Tuple[float, ...] = ensure_tuple(range_z)
         if len(self.range_z) == 1:
             self.range_z = tuple(sorted([-self.range_z[0], self.range_z[0]]))
 
         self.prob = prob
         self.keep_size = keep_size
-        self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
-        self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
+        self.mode: Tuple[Union[GridSampleMode, str], ...] = ensure_tuple_rep(mode, len(self.keys))
+        self.padding_mode: Tuple[Union[GridSamplePadMode, str], ...] = ensure_tuple_rep(padding_mode, len(self.keys))
+        self.align_corners: Tuple[bool, ...] = ensure_tuple_rep(align_corners, len(self.keys))
 
         self._do_transform = False
         self.x = 0.0
@@ -845,8 +845,8 @@ class Zoomd(MapTransform):
         keep_size: bool = True,
     ) -> None:
         super().__init__(keys)
-        self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
+        self.mode: Tuple[Union[InterpolateMode, str], ...] = ensure_tuple_rep(mode, len(self.keys))
+        self.align_corners: Tuple[Optional[bool], ...] = ensure_tuple_rep(align_corners, len(self.keys))
         self.zoomer = Zoom(zoom=zoom, keep_size=keep_size)
 
     def __call__(self, data):
@@ -893,13 +893,13 @@ class RandZoomd(Randomizable, MapTransform):
         keep_size: bool = True,
     ) -> None:
         super().__init__(keys)
-        self.min_zoom = ensure_tuple(min_zoom)
-        self.max_zoom = ensure_tuple(max_zoom)
+        self.min_zoom: Tuple[float, ...] = ensure_tuple(min_zoom)
+        self.max_zoom: Tuple[float, ...] = ensure_tuple(max_zoom)
         assert len(self.min_zoom) == len(self.max_zoom), "min_zoom and max_zoom must have same length."
         self.prob = prob
 
-        self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
+        self.mode: Tuple[Union[InterpolateMode, str], ...] = ensure_tuple_rep(mode, len(self.keys))
+        self.align_corners: Tuple[Optional[bool], ...] = ensure_tuple_rep(align_corners, len(self.keys))
         self.keep_size = keep_size
 
         self._do_transform = False

@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import math
-from typing import Dict, Sequence, Union
+from typing import Dict, Sequence, Tuple, Union
 
 import torch
 from torch.utils.data import Dataset, IterableDataset
@@ -52,7 +52,7 @@ class GridPatchDataset(IterableDataset):
 
         self.dataset = dataset
         self.patch_size = (None,) + tuple(patch_size)
-        self.start_pos = ensure_tuple(start_pos)
+        self.start_pos: Tuple[int, ...] = ensure_tuple(start_pos)
         self.mode: NumpyPadMode = NumpyPadMode(mode)
         self.pad_opts = pad_opts
 

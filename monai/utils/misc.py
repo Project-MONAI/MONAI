@@ -68,7 +68,7 @@ def ensure_tuple_size(tup, dim: int, pad_val=0) -> Tuple:
     return tuple(tup[:dim])
 
 
-def ensure_tuple_rep(tup: Any, dim: int):
+def ensure_tuple_rep(tup: Any, dim: int) -> Tuple:
     """
     Returns a copy of `tup` with `dim` values by either shortened or duplicated input.
 

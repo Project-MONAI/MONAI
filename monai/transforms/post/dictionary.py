@@ -15,7 +15,7 @@ defined in :py:class:`monai.transforms.utility.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Callable, Optional, Sequence, Union
+from typing import Callable, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -67,8 +67,8 @@ class SplitChanneld(MapTransform):
         """
         super().__init__(keys)
         self.output_postfixes = output_postfixes
-        self.to_onehot = ensure_tuple_rep(to_onehot, len(self.keys))
-        self.num_classes = ensure_tuple_rep(num_classes, len(self.keys))
+        self.to_onehot: Tuple[bool, ...] = ensure_tuple_rep(to_onehot, len(self.keys))
+        self.num_classes: Tuple[int, ...] = ensure_tuple_rep(num_classes, len(self.keys))
         self.splitter = SplitChannel()
 
     def __call__(self, data):
@@ -108,9 +108,9 @@ class Activationsd(MapTransform):
 
         """
         super().__init__(keys)
-        self.sigmoid = ensure_tuple_rep(sigmoid, len(self.keys))
-        self.softmax = ensure_tuple_rep(softmax, len(self.keys))
-        self.other = ensure_tuple_rep(other, len(self.keys))
+        self.sigmoid: Tuple[bool, ...] = ensure_tuple_rep(sigmoid, len(self.keys))
+        self.softmax: Tuple[bool, ...] = ensure_tuple_rep(softmax, len(self.keys))
+        self.other: Tuple[Callable, ...] = ensure_tuple_rep(other, len(self.keys))
         self.converter = Activations()
 
     def __call__(self, data):
@@ -151,11 +151,11 @@ class AsDiscreted(MapTransform):
 
         """
         super().__init__(keys)
-        self.argmax = ensure_tuple_rep(argmax, len(self.keys))
-        self.to_onehot = ensure_tuple_rep(to_onehot, len(self.keys))
-        self.n_classes = ensure_tuple_rep(n_classes, len(self.keys))
-        self.threshold_values = ensure_tuple_rep(threshold_values, len(self.keys))
-        self.logit_thresh = ensure_tuple_rep(logit_thresh, len(self.keys))
+        self.argmax: Tuple[bool, ...] = ensure_tuple_rep(argmax, len(self.keys))
+        self.to_onehot: Tuple[bool, ...] = ensure_tuple_rep(to_onehot, len(self.keys))
+        self.n_classes: Tuple[int, ...] = ensure_tuple_rep(n_classes, len(self.keys))
+        self.threshold_values: Tuple[bool, ...] = ensure_tuple_rep(threshold_values, len(self.keys))
+        self.logit_thresh: Tuple[float, ...] = ensure_tuple_rep(logit_thresh, len(self.keys))
         self.converter = AsDiscrete()
 
     def __call__(self, data):

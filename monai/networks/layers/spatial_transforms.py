@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Union
+from typing import Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -65,7 +65,7 @@ class AffineTransform(nn.Module):
                 set to `True` if `theta` follows `scipy.ndimage` default "i, j, k" convention.
         """
         super().__init__()
-        self.spatial_size = ensure_tuple(spatial_size) if spatial_size is not None else None
+        self.spatial_size: Optional[Tuple[int, ...]] = ensure_tuple(spatial_size) if spatial_size is not None else None
         self.normalized = normalized
         self.mode: GridSampleMode = GridSampleMode(mode)
         self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)

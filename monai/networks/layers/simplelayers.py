@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence, Union
+from typing import Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -77,9 +77,9 @@ class GaussianFilter(nn.Module):
         """
         super().__init__()
         self.spatial_dims = int(spatial_dims)
-        _sigma = ensure_tuple_rep(sigma, self.spatial_dims)
+        sigma_: Tuple[float, ...] = ensure_tuple_rep(sigma, self.spatial_dims)
         self.kernel = [
-            torch.nn.Parameter(torch.as_tensor(gaussian_1d(s, truncated), dtype=torch.float), False) for s in _sigma
+            torch.nn.Parameter(torch.as_tensor(gaussian_1d(s, truncated), dtype=torch.float), False) for s in sigma_
         ]
         self.padding = [same_padding(k.size()[0]) for k in self.kernel]
         self.conv_n = [F.conv1d, F.conv2d, F.conv3d][spatial_dims - 1]

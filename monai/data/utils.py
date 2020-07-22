@@ -68,10 +68,10 @@ def iter_patch_slices(dims: Sequence[int], patch_size: Union[Sequence[int], int]
     # ensure patchSize and startPos are the right length
     ndim = len(dims)
     patch_size_ = get_valid_patch_size(dims, patch_size)
-    start_pos = ensure_tuple_size(start_pos, ndim)
+    start_pos_: Tuple[int, ...] = ensure_tuple_size(start_pos, ndim)
 
     # collect the ranges to step over each dimension
-    ranges = tuple(starmap(range, zip(start_pos, dims, patch_size_)))
+    ranges = tuple(starmap(range, zip(start_pos_, dims, patch_size_)))
 
     # choose patches by applying product to the ranges
     for position in product(*ranges[::-1]):  # reverse ranges order to iterate in index order
@@ -100,42 +100,42 @@ def dense_patch_slices(
     if num_spatial_dims not in (2, 3):
         raise ValueError("image_size should have 2 or 3 elements")
     patch_size = get_valid_patch_size(image_size, patch_size)
-    scan_interval = ensure_tuple_size(scan_interval, num_spatial_dims)
+    scan_interval_: Tuple[int, ...] = ensure_tuple_size(scan_interval, num_spatial_dims)
 
     scan_num = list()
     for i in range(num_spatial_dims):
-        if scan_interval[i] == 0:
+        if scan_interval_[i] == 0:
             scan_num.append(1)
         else:
-            num = int(math.ceil(float(image_size[i]) / scan_interval[i]))
-            scan_dim = first(d for d in range(num) if d * scan_interval[i] + patch_size[i] >= image_size[i])
+            num = int(math.ceil(float(image_size[i]) / scan_interval_[i]))
+            scan_dim = first(d for d in range(num) if d * scan_interval_[i] + patch_size[i] >= image_size[i])
             scan_num.append(scan_dim + 1)
 
     slices: List[Tuple[slice, ...]] = []
     if num_spatial_dims == 3:
         for i in range(scan_num[0]):
-            start_i = i * scan_interval[0]
+            start_i = i * scan_interval_[0]
             start_i -= max(start_i + patch_size[0] - image_size[0], 0)
             slice_i = slice(start_i, start_i + patch_size[0])
 
             for j in range(scan_num[1]):
-                start_j = j * scan_interval[1]
+                start_j = j * scan_interval_[1]
                 start_j -= max(start_j + patch_size[1] - image_size[1], 0)
                 slice_j = slice(start_j, start_j + patch_size[1])
 
                 for k in range(0, scan_num[2]):
-                    start_k = k * scan_interval[2]
+                    start_k = k * scan_interval_[2]
                     start_k -= max(start_k + patch_size[2] - image_size[2], 0)
                     slice_k = slice(start_k, start_k + patch_size[2])
                     slices.append((slice_i, slice_j, slice_k))
     else:
         for i in range(scan_num[0]):
-            start_i = i * scan_interval[0]
+            start_i = i * scan_interval_[0]
             start_i -= max(start_i + patch_size[0] - image_size[0], 0)
             slice_i = slice(start_i, start_i + patch_size[0])
 
             for j in range(scan_num[1]):
-                start_j = j * scan_interval[1]
+                start_j = j * scan_interval_[1]
                 start_j -= max(start_j + patch_size[1] - image_size[1], 0)
                 slice_j = slice(start_j, start_j + patch_size[1])
                 slices.append((slice_i, slice_j))
@@ -172,13 +172,13 @@ def iter_patch(
     """
     # ensure patchSize and startPos are the right length
     patch_size_ = get_valid_patch_size(arr.shape, patch_size)
-    start_pos = ensure_tuple_size(start_pos, arr.ndim)
+    start_pos_: Tuple[int, ...] = ensure_tuple_size(start_pos, arr.ndim)
 
     # pad image by maximum values needed to ensure patches are taken from inside an image
     arrpad = np.pad(arr, tuple((p, p) for p in patch_size_), NumpyPadMode(mode).value, **pad_opts)
 
     # choose a start position in the padded image
-    start_pos_padded = tuple(s + p for s, p in zip(start_pos, patch_size_))
+    start_pos_padded = tuple(s + p for s, p in zip(start_pos_, patch_size_))
 
     # choose a size to iterate over which is smaller than the actual padded image to prevent producing
     # patches which are only in the padded regions
@@ -201,7 +201,7 @@ def get_valid_patch_size(image_size: Sequence[int], patch_size: Union[Sequence[i
     patch of the same dimensionality of `image_size` with that size in each dimension.
     """
     ndim = len(image_size)
-    patch_size_ = ensure_tuple_size(patch_size, ndim)
+    patch_size_: Tuple[int, ...] = ensure_tuple_size(patch_size, ndim)
 
     # ensure patch size dimensions are not larger than image dimension, if a dimension is None or 0 use whole dimension
     return tuple(min(ms, ps or ms) for ms, ps in zip(image_size, patch_size_))

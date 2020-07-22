@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Union
+from typing import Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -48,7 +48,7 @@ class UpSample(nn.Module):
             align_corners: set the align_corners parameter of `torch.nn.Upsample`. Defaults to True.
         """
         super().__init__()
-        scale_factor_ = ensure_tuple_rep(scale_factor, spatial_dims)
+        scale_factor_: Tuple[int, ...] = ensure_tuple_rep(scale_factor, spatial_dims)
         if not out_channels:
             out_channels = in_channels
         if not with_conv:

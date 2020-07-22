@@ -17,7 +17,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 import copy
 import logging
-from typing import Callable, Optional, Sequence, Union
+from typing import Callable, Hashable, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -171,7 +171,7 @@ class CastToTyped(MapTransform):
 
         """
         MapTransform.__init__(self, keys)
-        self.dtype = ensure_tuple_rep(dtype, len(self.keys))
+        self.dtype: Tuple[np.dtype, ...] = ensure_tuple_rep(dtype, len(self.keys))
         self.converter = CastToType()
 
     def __call__(self, data):
@@ -300,11 +300,11 @@ class DataStatsd(MapTransform):
 
         """
         super().__init__(keys)
-        self.prefix = ensure_tuple_rep(prefix, len(self.keys))
-        self.data_shape = ensure_tuple_rep(data_shape, len(self.keys))
-        self.value_range = ensure_tuple_rep(value_range, len(self.keys))
-        self.data_value = ensure_tuple_rep(data_value, len(self.keys))
-        self.additional_info = ensure_tuple_rep(additional_info, len(self.keys))
+        self.prefix: Tuple[str, ...] = ensure_tuple_rep(prefix, len(self.keys))
+        self.data_shape: Tuple[bool, ...] = ensure_tuple_rep(data_shape, len(self.keys))
+        self.value_range: Tuple[bool, ...] = ensure_tuple_rep(value_range, len(self.keys))
+        self.data_value: Tuple[bool, ...] = ensure_tuple_rep(data_value, len(self.keys))
+        self.additional_info: Tuple[Callable, ...] = ensure_tuple_rep(additional_info, len(self.keys))
         self.logger_handler = logger_handler
         self.printer = DataStats(logger_handler=logger_handler)
 
@@ -337,7 +337,7 @@ class SimulateDelayd(MapTransform):
 
         """
         super().__init__(keys)
-        self.delay_time = ensure_tuple_rep(delay_time, len(self.keys))
+        self.delay_time: Tuple[float, ...] = ensure_tuple_rep(delay_time, len(self.keys))
         self.delayer = SimulateDelay()
 
     def __call__(self, data):
@@ -374,10 +374,9 @@ class CopyItemsd(MapTransform):
         if times < 1:
             raise ValueError("times must be greater than 0.")
         self.times = times
-        names = ensure_tuple(names)
-        if len(names) != (len(self.keys) * times):
+        self.names: Tuple[Hashable, ...] = ensure_tuple(names)
+        if len(self.names) != (len(self.keys) * self.times):
             raise ValueError("length of names does not match `len(keys) x times`.")
-        self.names = names
 
     def __call__(self, data):
         d = dict(data)
@@ -455,7 +454,7 @@ class Lambdad(MapTransform):
 
     def __init__(self, keys: KeysCollection, func: Union[Sequence[Callable], Callable]) -> None:
         super().__init__(keys)
-        self.func = ensure_tuple_rep(func, len(self.keys))
+        self.func: Tuple[Callable, ...] = ensure_tuple_rep(func, len(self.keys))
         self.lambd = Lambda()
 
     def __call__(self, data):

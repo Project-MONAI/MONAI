@@ -15,7 +15,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 import logging
 import time
-from typing import Callable, Optional, Sequence, TypeVar, Union
+from typing import Callable, Optional, Sequence, Tuple, TypeVar, Union
 
 import numpy as np
 import torch
@@ -405,7 +405,7 @@ class LabelToMask(Transform):
     """
 
     def __init__(self, select_labels: Union[Sequence[int], int], merge_channels: bool = False):
-        self.select_labels = ensure_tuple(select_labels)
+        self.select_labels: Tuple[int, ...] = ensure_tuple(select_labels)
         self.merge_channels = merge_channels
 
     def __call__(
@@ -414,16 +414,13 @@ class LabelToMask(Transform):
         select_labels: Optional[Union[Sequence[int], int]] = None,
         merge_channels: Optional[bool] = None,
     ) -> np.ndarray:
-        if select_labels is None:
-            select_labels = self.select_labels
-        else:
-            select_labels = ensure_tuple(select_labels)
+        select_labels_: Tuple[int, ...] = self.select_labels if select_labels is None else ensure_tuple(select_labels)
         if merge_channels is None:
             merge_channels = self.merge_channels
 
         if img.shape[0] > 1:
-            data = img[[*(select_labels)]]
+            data = img[[*(select_labels_)]]
         else:
-            data = np.where(np.in1d(img, select_labels), True, False).reshape(img.shape)
+            data = np.where(np.in1d(img, select_labels_), True, False).reshape(img.shape)
 
         return np.any(data, axis=0, keepdims=True) if merge_channels else data

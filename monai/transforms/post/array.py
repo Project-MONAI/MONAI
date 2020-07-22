@@ -14,7 +14,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 import warnings
-from typing import Callable, List, Optional, Sequence, Union
+from typing import Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -258,7 +258,7 @@ class KeepLargestConnectedComponent(Transform):
                 connectivity of ``input.ndim`` is used.
         """
         super().__init__()
-        self.applied_labels = ensure_tuple(applied_labels)
+        self.applied_labels: Tuple[int, ...] = ensure_tuple(applied_labels)
         self.independent = independent
         self.connectivity = connectivity
 

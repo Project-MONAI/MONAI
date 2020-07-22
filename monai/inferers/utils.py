@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Sequence, Union
+from typing import Callable, Sequence, Tuple, Union
 
 import torch
 import torch.nn.functional as F
@@ -76,20 +76,20 @@ def sliding_window_inference(
     if batch_size > 1:
         raise NotImplementedError("inputs must have batch_size=1.")
 
-    roi_size = fall_back_tuple(roi_size, image_size_)
+    roi_size_: Tuple[int, ...] = fall_back_tuple(roi_size, image_size_)
     # in case that image size is smaller than roi size
-    image_size = tuple(max(image_size_[i], roi_size[i]) for i in range(num_spatial_dims))
+    image_size = tuple(max(image_size_[i], roi_size_[i]) for i in range(num_spatial_dims))
     pad_size = []
     for k in range(len(inputs.shape) - 1, 1, -1):
-        diff = max(roi_size[k - 2] - inputs.shape[k], 0)
+        diff = max(roi_size_[k - 2] - inputs.shape[k], 0)
         half = diff // 2
         pad_size.extend([half, diff - half])
     inputs = F.pad(inputs, pad=pad_size, mode=PytorchPadMode(padding_mode).value, value=cval)
 
-    scan_interval = _get_scan_interval(image_size, roi_size, num_spatial_dims, overlap)
+    scan_interval = _get_scan_interval(image_size, roi_size_, num_spatial_dims, overlap)
 
     # Store all slices in list
-    slices = dense_patch_slices(image_size, roi_size, scan_interval)
+    slices = dense_patch_slices(image_size, roi_size_, scan_interval)
 
     slice_batches = []
     for slice_index in range(0, len(slices), sw_batch_size):
@@ -114,7 +114,9 @@ def sliding_window_inference(
     output_shape = [batch_size, output_classes] + list(image_size)
 
     # Create importance map
-    importance_map = compute_importance_map(get_valid_patch_size(image_size, roi_size), mode=mode, device=inputs.device)
+    importance_map = compute_importance_map(
+        get_valid_patch_size(image_size, roi_size_), mode=mode, device=inputs.device
+    )
 
     # allocate memory to store the full output and the count for overlapping parts
     output_image = torch.zeros(output_shape, dtype=torch.float32, device=inputs.device)

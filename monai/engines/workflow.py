@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence, Tuple, Union
 
 import torch
 from torch.utils.data import DataLoader
@@ -133,7 +133,7 @@ class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optiona
                         engine.state.best_metric_epoch = engine.state.epoch
 
         if handlers is not None:
-            handlers_ = ensure_tuple(handlers)
+            handlers_: Tuple = ensure_tuple(handlers)
             for handler in handlers_:
                 handler.attach(self)
 

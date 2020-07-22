@@ -13,7 +13,7 @@ Utilities and types for defining networks, these depend on PyTorch.
 """
 
 import warnings
-from typing import Callable, Optional, Sequence
+from typing import Callable, Optional, Sequence, Tuple
 
 import torch
 import torch.nn as nn
@@ -35,7 +35,7 @@ def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.f
 
     # if `dim` is bigger, add singelton dim at the end
     if labels.ndim < dim + 1:
-        shape = ensure_tuple_size(labels.shape, dim + 1, 1)
+        shape: Tuple[int, ...] = ensure_tuple_size(labels.shape, dim + 1, 1)
         labels = labels.reshape(*shape)
 
     sh = list(labels.shape)

@@ -58,7 +58,7 @@ class SpatialPadd(MapTransform):
 
         """
         super().__init__(keys)
-        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.mode: Tuple[Union[NumpyPadMode, str], ...] = ensure_tuple_rep(mode, len(self.keys))
         self.padder = SpatialPad(spatial_size, method)
 
     def __call__(self, data):
@@ -103,7 +103,7 @@ class BorderPadd(MapTransform):
 
         """
         super().__init__(keys)
-        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.mode: Tuple[Union[NumpyPadMode, str], ...] = ensure_tuple_rep(mode, len(self.keys))
         self.padder = BorderPad(spatial_border=spatial_border)
 
     def __call__(self, data):
@@ -139,7 +139,7 @@ class DivisiblePadd(MapTransform):
 
         """
         super().__init__(keys)
-        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.mode: Tuple[Union[NumpyPadMode, str], ...] = ensure_tuple_rep(mode, len(self.keys))
         self.padder = DivisiblePad(k=k)
 
     def __call__(self, data):
@@ -235,12 +235,12 @@ class RandSpatialCropd(Randomizable, MapTransform):
         self.random_center = random_center
         self.random_size = random_size
         self._slices: Optional[Tuple[slice, ...]] = None
-        self._size: Optional[Sequence[int]] = None
+        self._size: Optional[Tuple[int, ...]] = None
 
     def randomize(self, img_size: Sequence[int]) -> None:
         self._size = fall_back_tuple(self.roi_size, img_size)
         if self.random_size:
-            self._size = [self.R.randint(low=self._size[i], high=img_size[i] + 1) for i in range(len(img_size))]
+            self._size = tuple((self.R.randint(low=self._size[i], high=img_size[i] + 1) for i in range(len(img_size))))
         if self.random_center:
             valid_size = get_valid_patch_size(img_size, self._size)
             self._slices = (slice(None),) + get_random_patch(img_size, valid_size, self.R)
@@ -332,7 +332,9 @@ class CropForegroundd(MapTransform):
         super().__init__(keys)
         self.source_key = source_key
         self.select_fn = select_fn
-        self.channel_indexes = ensure_tuple(channel_indexes) if channel_indexes is not None else None
+        self.channel_indexes: Optional[Tuple[int, ...]] = None if channel_indexes is None else ensure_tuple(
+            channel_indexes
+        )
         self.margin = margin
 
     def __call__(self, data):

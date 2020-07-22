@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Union
+from typing import Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -51,7 +51,7 @@ def write_png(
     if len(data.shape) == 3 and data.shape[2] == 1:  # PIL Image can't save image with 1 channel
         data = data.squeeze(2)
     if output_spatial_shape is not None:
-        output_spatial_shape_ = ensure_tuple_rep(output_spatial_shape, 2)
+        output_spatial_shape_: Tuple[int, ...] = ensure_tuple_rep(output_spatial_shape, 2)
         mode = InterpolateMode(mode)
         align_corners = None if mode in (InterpolateMode.NEAREST, InterpolateMode.AREA) else False
         xform = Resize(spatial_size=output_spatial_shape_, mode=mode, align_corners=align_corners)

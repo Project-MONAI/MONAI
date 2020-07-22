@@ -11,7 +11,7 @@
 
 import random
 import warnings
-from typing import Callable, Optional, Sequence, Union
+from typing import Callable, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -197,13 +197,13 @@ def generate_pos_neg_label_crop_centers(
 
     """
     max_size = label.shape[1:]
-    spatial_size = fall_back_tuple(spatial_size, default=max_size)
-    if not (np.subtract(max_size, spatial_size) >= 0).all():
+    spatial_size_: Tuple[int, ...] = fall_back_tuple(spatial_size, default=max_size)
+    if not (np.subtract(max_size, spatial_size_) >= 0).all():
         raise ValueError("proposed roi is larger than image itself.")
 
     # Select subregion to assure valid roi
-    valid_start = np.floor_divide(spatial_size, 2)
-    valid_end = np.subtract(max_size + np.array(1), spatial_size / np.array(2)).astype(np.uint16)  # add 1 for random
+    valid_start = np.floor_divide(spatial_size_, 2)
+    valid_end = np.subtract(max_size + np.array(1), spatial_size_ / np.array(2)).astype(np.uint16)  # add 1 for random
     # int generation to have full range on upper side, but subtract unfloored size/2 to prevent rounded range
     # from being too high
     for i in range(len(valid_start)):  # need this because np.random.randint does not work with same start and end
@@ -331,26 +331,26 @@ def create_rotate(spatial_dims: int, radians: Union[Sequence[float], float]):
         ValueError: create_rotate got spatial_dims={spatial_dims}, radians={radians}.
 
     """
-    radians = ensure_tuple(radians)
+    radians_: Tuple[float, ...] = ensure_tuple(radians)
     if spatial_dims == 2:
-        if len(radians) >= 1:
-            sin_, cos_ = np.sin(radians[0]), np.cos(radians[0])
+        if len(radians_) >= 1:
+            sin_, cos_ = np.sin(radians_[0]), np.cos(radians_[0])
             return np.array([[cos_, -sin_, 0.0], [sin_, cos_, 0.0], [0.0, 0.0, 1.0]])
 
     if spatial_dims == 3:
         affine = None
-        if len(radians) >= 1:
-            sin_, cos_ = np.sin(radians[0]), np.cos(radians[0])
+        if len(radians_) >= 1:
+            sin_, cos_ = np.sin(radians_[0]), np.cos(radians_[0])
             affine = np.array(
                 [[1.0, 0.0, 0.0, 0.0], [0.0, cos_, -sin_, 0.0], [0.0, sin_, cos_, 0.0], [0.0, 0.0, 0.0, 1.0]]
             )
-        if len(radians) >= 2:
-            sin_, cos_ = np.sin(radians[1]), np.cos(radians[1])
+        if len(radians_) >= 2:
+            sin_, cos_ = np.sin(radians_[1]), np.cos(radians_[1])
             affine = affine @ np.array(
                 [[cos_, 0.0, sin_, 0.0], [0.0, 1.0, 0.0, 0.0], [-sin_, 0.0, cos_, 0.0], [0.0, 0.0, 0.0, 1.0]]
             )
-        if len(radians) >= 3:
-            sin_, cos_ = np.sin(radians[2]), np.cos(radians[2])
+        if len(radians_) >= 3:
+            sin_, cos_ = np.sin(radians_[2]), np.cos(radians_[2])
             affine = affine @ np.array(
                 [[cos_, -sin_, 0.0, 0.0], [sin_, cos_, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
             )
@@ -371,16 +371,17 @@ def create_shear(spatial_dims: int, coefs: Union[Sequence[float], float]):
         NotImplementedError: spatial_dims must be 2 or 3
 
     """
+    coefs_: Tuple[float, ...]
     if spatial_dims == 2:
-        coefs = ensure_tuple_size(coefs, dim=2, pad_val=0.0)
-        return np.array([[1, coefs[0], 0.0], [coefs[1], 1.0, 0.0], [0.0, 0.0, 1.0]])
+        coefs_ = ensure_tuple_size(coefs, dim=2, pad_val=0.0)
+        return np.array([[1, coefs_[0], 0.0], [coefs_[1], 1.0, 0.0], [0.0, 0.0, 1.0]])
     if spatial_dims == 3:
-        coefs = ensure_tuple_size(coefs, dim=6, pad_val=0.0)
+        coefs_ = ensure_tuple_size(coefs, dim=6, pad_val=0.0)
         return np.array(
             [
-                [1.0, coefs[0], coefs[1], 0.0],
-                [coefs[2], 1.0, coefs[3], 0.0],
-                [coefs[4], coefs[5], 1.0, 0.0],
+                [1.0, coefs_[0], coefs_[1], 0.0],
+                [coefs_[2], 1.0, coefs_[3], 0.0],
+                [coefs_[4], coefs_[5], 1.0, 0.0],
                 [0.0, 0.0, 0.0, 1.0],
             ]
         )
@@ -395,8 +396,8 @@ def create_scale(spatial_dims: int, scaling_factor: Union[Sequence[float], float
         spatial_dims: spatial rank
         scaling_factor: scaling factors, defaults to 1.
     """
-    scaling_factor = ensure_tuple_size(scaling_factor, dim=spatial_dims, pad_val=1.0)
-    return np.diag(scaling_factor[:spatial_dims] + (1.0,))
+    scaling_factor_: Tuple[float, ...] = ensure_tuple_size(scaling_factor, dim=spatial_dims, pad_val=1.0)
+    return np.diag(scaling_factor_[:spatial_dims] + (1.0,))
 
 
 def create_translate(spatial_dims: int, shift: Union[Sequence[float], float]):
@@ -407,9 +408,9 @@ def create_translate(spatial_dims: int, shift: Union[Sequence[float], float]):
         spatial_dims: spatial rank
         shift: translate factors, defaults to 0.
     """
-    shift = ensure_tuple(shift)
+    shift_: Tuple[float, ...] = ensure_tuple(shift)
     affine = np.eye(spatial_dims + 1)
-    for i, a in enumerate(shift[:spatial_dims]):
+    for i, a in enumerate(shift_[:spatial_dims]):
         affine[i, spatial_dims] = a
     return affine
 

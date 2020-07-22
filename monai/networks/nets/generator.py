@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Union
+from typing import List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -69,13 +69,16 @@ class Generator(nn.Module):
         """
         super().__init__()
 
+        self.in_channels: int
+        self.start_shape: List[int]
+
         self.in_channels, *self.start_shape = ensure_tuple(start_shape)
         self.dimensions = len(self.start_shape)
 
-        self.latent_shape = ensure_tuple(latent_shape)
-        self.channels = ensure_tuple(channels)
-        self.strides = ensure_tuple(strides)
-        self.kernel_size = ensure_tuple_rep(kernel_size, self.dimensions)
+        self.latent_shape: Tuple[int, ...] = ensure_tuple(latent_shape)
+        self.channels: Tuple[int, ...] = ensure_tuple(channels)
+        self.strides: Tuple[int, ...] = ensure_tuple(strides)
+        self.kernel_size: Tuple[int, ...] = ensure_tuple_rep(kernel_size, self.dimensions)
         self.num_res_units = num_res_units
         self.act = act
         self.norm = norm

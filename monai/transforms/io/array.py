@@ -13,7 +13,7 @@ A collection of "vanilla" transforms for IO functions
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Optional
+from typing import Hashable, Optional, Tuple
 
 import numpy as np
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
@@ -62,10 +62,10 @@ class LoadNifti(Transform):
         Args:
             filename (str, list, tuple, file): path file or file-like object or a list of files.
         """
-        filename = ensure_tuple(filename)
+        filename_: Tuple = ensure_tuple(filename)
         img_array = list()
         compatible_meta = dict()
-        for name in filename:
+        for name in filename_:
             img = nib.load(name)
             img = correct_nifti_header_if_necessary(img)
             header = dict(img.header)
@@ -130,10 +130,10 @@ class LoadPNG(Transform):
         Args:
             filename (str, list, tuple, file): path file or file-like object or a list of files.
         """
-        filename = ensure_tuple(filename)
+        filename_: Tuple = ensure_tuple(filename)
         img_array = list()
         compatible_meta = None
-        for name in filename:
+        for name in filename_:
             img = Image.open(name)
             data = np.asarray(img)
             if self.dtype:
@@ -187,9 +187,7 @@ class LoadNumpy(Transform):
         """
         self.data_only = data_only
         self.dtype = dtype
-        if npz_keys is not None:
-            npz_keys = ensure_tuple(npz_keys)
-        self.npz_keys = npz_keys
+        self.npz_keys: Optional[Tuple[Hashable, ...]] = None if npz_keys is None else ensure_tuple(npz_keys)
 
     def __call__(self, filename):
         """
@@ -200,7 +198,7 @@ class LoadNumpy(Transform):
             for name in filename:
                 if name.endswith(".npz"):
                     raise TypeError("can not load a list of npz file.")
-        filename = ensure_tuple(filename)
+        filename_: Tuple = ensure_tuple(filename)
         data_array = list()
         compatible_meta = None
 
@@ -218,7 +216,7 @@ class LoadNumpy(Transform):
                     ), "all the data in the list should have same shape."
             return compatible_meta
 
-        for name in filename:
+        for name in filename_:
             data = np.load(name, allow_pickle=True)
             if name.endswith(".npz"):
                 # load expected items from NPZ file
