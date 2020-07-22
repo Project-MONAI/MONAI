@@ -15,32 +15,31 @@ defined in :py:class:`monai.transforms.utility.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Optional, Callable, Union, Sequence
-
-import logging
 import copy
+import logging
+from typing import Callable, Optional, Sequence, Union
 
-import torch
 import numpy as np
+import torch
 
 from monai.config import KeysCollection
 from monai.transforms.compose import MapTransform
-from monai.utils import ensure_tuple, ensure_tuple_rep
 from monai.transforms.utility.array import (
     AddChannel,
     AsChannelFirst,
-    ToTensor,
-    ToNumpy,
     AsChannelLast,
     CastToType,
-    RepeatChannel,
-    SqueezeDim,
     DataStats,
-    SimulateDelay,
     Identity,
-    Lambda,
     LabelToMask,
+    Lambda,
+    RepeatChannel,
+    SimulateDelay,
+    SqueezeDim,
+    ToNumpy,
+    ToTensor,
 )
+from monai.utils import ensure_tuple, ensure_tuple_rep
 
 
 class Identityd(MapTransform):

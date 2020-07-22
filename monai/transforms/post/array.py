@@ -13,14 +13,15 @@ A collection of "vanilla" transforms for the model output tensors
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Callable, List, Optional, Sequence, Union
 import warnings
+from typing import Callable, List, Optional, Sequence, Union
+
 import numpy as np
 import torch
 import torch.nn.functional as F
 
-from monai.transforms.compose import Transform
 from monai.networks import one_hot
+from monai.transforms.compose import Transform
 from monai.transforms.utils import get_largest_connected_component_mask
 from monai.utils import ensure_tuple
 

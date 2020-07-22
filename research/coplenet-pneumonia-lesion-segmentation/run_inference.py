@@ -12,14 +12,14 @@
 import os
 from glob import glob
 
-import monai
 import numpy as np
 import torch
+from coplenet import CopleNet
+
+import monai
 from monai.data import NiftiSaver
 from monai.inferers import sliding_window_inference
 from monai.transforms import AddChanneld, Compose, LoadNiftid, Orientationd, ToTensord
-
-from coplenet import CopleNet
 
 IMAGE_FOLDER = os.path.join(".", "images")
 MODEL_FILE = os.path.join(".", "model", "coplenet_pretrained_monai_dict.pt")

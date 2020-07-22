@@ -9,6 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .dice import Dice, DiceLoss, GeneralizedDiceLoss, dice, generalized_dice, MaskedDiceLoss
+from .dice import Dice, DiceLoss, GeneralizedDiceLoss, MaskedDiceLoss, dice, generalized_dice
 from .focal_loss import FocalLoss
 from .tversky import TverskyLoss

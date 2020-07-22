@@ -15,7 +15,7 @@ from typing import Callable, Sequence, Type, Union
 import torch
 import torch.nn as nn
 
-from monai.networks.layers.factories import Conv, Dropout, Pool, Norm
+from monai.networks.layers.factories import Conv, Dropout, Norm, Pool
 
 
 class _DenseLayer(nn.Sequential):

@@ -13,11 +13,10 @@
 This module is written for configurable workflow, not currently in use.
 """
 
-import threading
-import sys
-import inspect
 import importlib
-
+import inspect
+import sys
+import threading
 
 alias_lock = threading.RLock()
 GlobalAliases = {}
