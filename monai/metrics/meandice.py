@@ -36,12 +36,12 @@ class DiceMetric:
         mutually_exclusive: if True, `y_pred` will be converted into a binary matrix using
             a combination of argmax and to_onehot.  Defaults to False.
         sigmoid: whether to add sigmoid function to y_pred before computation. Defaults to False.
-        other_act: if don't want to use `sigmoid`, use other callable function to execute
-            other activation layers, Defaults to ``None``. for example:
-            `other_act = lambda x: torch.tanh(x)`.
+        other_act: callable function to replace `sigmoid` as activation layer if needed, Defaults to ``None``.
+            for example: `other_act = torch.tanh`.
         logit_thresh: the threshold value used to convert (for example, after sigmoid if `sigmoid=True`)
             `y_pred` into a binary matrix. Defaults to 0.5.
-        reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``, ``"mean_channel"``, ``"sum_channel"``}
+        reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+            ``"mean_channel"``, ``"sum_channel"``}
             Define the mode to reduce computation result of 1 batch data. Defaults to ``"mean"``.
 
     """
@@ -151,9 +151,8 @@ def compute_meandice(
         mutually_exclusive: if True, `y_pred` will be converted into a binary matrix using
             a combination of argmax and to_onehot.  Defaults to False.
         sigmoid: whether to add sigmoid function to y_pred before computation. Defaults to False.
-        other_act: if don't want to use `sigmoid`, use other callable function to execute
-            other activation layers, Defaults to ``None``. for example:
-            `other_act = lambda x: torch.tanh(x)`.
+        other_act: callable function to replace `sigmoid` as activation layer if needed, Defaults to ``None``.
+            for example: `other_act = torch.tanh`.
         logit_thresh: the threshold value used to convert (for example, after sigmoid if `sigmoid=True`)
             `y_pred` into a binary matrix. Defaults to 0.5.
 

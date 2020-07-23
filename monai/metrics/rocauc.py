@@ -71,9 +71,8 @@ def compute_roc_auc(
             example shape: [16, 1] will be converted into [16, 2] (where `2` is inferred from `y_pred`).
         to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
         softmax: whether to add softmax function to `y_pred` before computation. Defaults to False.
-        other_act: if don't want to use `softmax`, use other callable function to execute
-            other activation layers, Defaults to ``None``. for example:
-            `other_act = lambda x: torch.log_softmax(x)`.
+        other_act: callable function to replace `softmax` as activation layer if needed, Defaults to ``None``.
+            for example: `other_act = lambda x: torch.log_softmax(x)`.
         average: {``"macro"``, ``"weighted"``, ``"micro"``, ``"none"``}
             Type of averaging performed if not binary classification.
             Defaults to ``"macro"``.

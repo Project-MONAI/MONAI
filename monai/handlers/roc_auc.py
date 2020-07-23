@@ -27,9 +27,8 @@ class ROCAUC(Metric):  # type: ignore # incorrectly typed due to optional_import
     Args:
         to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
         softmax: whether to add softmax function to `y_pred` before computation. Defaults to False.
-        other_act: if don't want to use `softmax`, use other callable function to execute
-            other activation layers, Defaults to ``None``. for example:
-            `other_act = lambda x: torch.log_softmax(x)`.
+        other_act: callable function to replace `softmax` as activation layer if needed, Defaults to ``None``.
+            for example: `other_act = lambda x: torch.log_softmax(x)`.
         average: {``"macro"``, ``"weighted"``, ``"micro"``, ``"none"``}
             Type of averaging performed if not binary classification. Defaults to ``"macro"``.
 
@@ -48,7 +47,8 @@ class ROCAUC(Metric):  # type: ignore # incorrectly typed due to optional_import
         device: device specification in case of distributed computation usage.
 
     Note:
-        ROCAUC expects y to be comprised of 0's and 1's.  y_pred must either be probability estimates or confidence values.
+        ROCAUC expects y to be comprised of 0's and 1's.
+        y_pred must either be probability estimates or confidence values.
 
     """
 

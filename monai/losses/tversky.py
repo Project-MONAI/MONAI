@@ -51,7 +51,7 @@ class TverskyLoss(_Loss):
             softmax: If True, apply a softmax function to the prediction.
             other_act: if don't want to use `sigmoid` or `softmax`, use other callable function to execute
                 other activation layers, Defaults to ``None``. for example:
-                `other_act = lambda x: torch.tanh(x)`.
+                `other_act = torch.tanh`.
             alpha: weight of false positives
             beta: weight of false negatives
             reduction: {``"none"``, ``"mean"``, ``"sum"``}
@@ -67,7 +67,8 @@ class TverskyLoss(_Loss):
         """
 
         super().__init__(reduction=LossReduction(reduction).value)
-
+        if other_act is not None and not callable(other_act):
+            raise ValueError("other_act must be a Callable function.")
         if int(sigmoid) + int(softmax) + int(other_act is not None) > 1:
             raise ValueError("can only enable 1 of sigmoid, softmax and other_act.")
         self.include_background = include_background
@@ -100,8 +101,6 @@ class TverskyLoss(_Loss):
                 input = torch.softmax(input, 1)
 
         if self.other_act is not None:
-            if not callable(self.other_act):
-                raise ValueError("other_act must be a Callable function.")
             input = self.other_act(input)
 
         if self.to_onehot_y:

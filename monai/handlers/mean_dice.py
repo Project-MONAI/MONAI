@@ -48,9 +48,8 @@ class MeanDice(Metric):  # type: ignore # incorrectly typed due to optional_impo
                 a combination of argmax and to_onehot. Defaults to False.
             sigmoid: whether to add sigmoid function to the output prediction before computing Dice.
                 Defaults to False.
-            other_act: if don't want to use `sigmoid`, use other callable function to execute
-                other activation layers, Defaults to ``None``. for example:
-                `other_act = lambda x: torch.tanh(x)`.
+            other_act: callable function to replace `sigmoid` as activation layer if needed, Defaults to ``None``.
+                for example: `other_act = torch.tanh`.
             logit_thresh: the threshold value to round value to 0.0 and 1.0. Defaults to None (no thresholding).
             output_transform: transform the ignite.engine.state.output into [y_pred, y] pair.
             device: device specification in case of distributed computation usage.

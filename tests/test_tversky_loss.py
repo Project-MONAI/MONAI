@@ -100,7 +100,7 @@ TEST_CASES = [
         0.247366,
     ],
     [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
-        {"include_background": True, "other_act": lambda x: torch.tanh(x)},
+        {"include_background": True, "other_act": torch.tanh},
         {
             "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]], [[[1.0, -1.0], [-1.0, 1.0]]]]),
             "target": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]]], [[[1.0, 0.0], [1.0, 0.0]]]]),

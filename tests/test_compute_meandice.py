@@ -143,7 +143,7 @@ TEST_CASE_10 = [  # y (1, 1, 2, 2), y_pred (1, 1, 2, 2), expected out (1, 1)
         "to_onehot_y": False,
         "mutually_exclusive": False,
         "logit_thresh": 0.0,
-        "other_act": lambda x: torch.tanh(x),
+        "other_act": torch.tanh,
     },
     [[0.8]],
 ]

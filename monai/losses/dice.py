@@ -56,7 +56,7 @@ class DiceLoss(_Loss):
             softmax: if True, apply a softmax function to the prediction.
             other_act: if don't want to use `sigmoid` or `softmax`, use other callable function to execute
                 other activation layers, Defaults to ``None``. for example:
-                `other_act = lambda x: torch.tanh(x)`.
+                `other_act = torch.tanh`.
             squared_pred: use squared versions of targets and predictions in the denominator or not.
             jaccard: compute Jaccard Index (soft IoU) instead of dice or not.
             reduction: {``"none"``, ``"mean"``, ``"sum"``}
@@ -69,10 +69,12 @@ class DiceLoss(_Loss):
         Raises:
             ValueError: reduction={reduction} is invalid. Valid options are: none, mean or sum.
             ValueError: can only enable 1 of sigmoid, softmax and other_act.
+            ValueError: other_act must be a Callable function.
 
         """
         super().__init__(reduction=LossReduction(reduction).value)
-
+        if other_act is not None and not callable(other_act):
+            raise ValueError("other_act must be a Callable function.")
         if int(sigmoid) + int(softmax) + int(other_act is not None) > 1:
             raise ValueError("can only enable 1 of sigmoid, softmax and other_act.")
         self.include_background = include_background
@@ -105,8 +107,6 @@ class DiceLoss(_Loss):
                 input = torch.softmax(input, 1)
 
         if self.other_act is not None:
-            if not callable(self.other_act):
-                raise ValueError("other_act must be a Callable function.")
             input = self.other_act(input)
 
         if self.to_onehot_y:
@@ -220,7 +220,7 @@ class GeneralizedDiceLoss(_Loss):
             softmax: If True, apply a softmax function to the prediction.
             other_act: if don't want to use `sigmoid` or `softmax`, use other callable function to execute
                 other activation layers, Defaults to ``None``. for example:
-                `other_act = lambda x: torch.tanh(x)`.
+                `other_act = torch.tanh`.
             squared_pred: use squared versions of targets and predictions in the denominator or not.
             w_type: {``"square"``, ``"simple"``, ``"uniform"``}
                 Type of function to transform ground truth volume to a weight factor. Defaults to ``"square"``.
@@ -237,7 +237,8 @@ class GeneralizedDiceLoss(_Loss):
 
         """
         super().__init__(reduction=LossReduction(reduction).value)
-
+        if other_act is not None and not callable(other_act):
+            raise ValueError("other_act must be a Callable function.")
         if int(sigmoid) + int(softmax) + int(other_act is not None) > 1:
             raise ValueError("can only enable 1 of sigmoid, softmax and other_act.")
         self.include_background = include_background
@@ -274,8 +275,6 @@ class GeneralizedDiceLoss(_Loss):
                 input = torch.softmax(input, 1)
 
         if self.other_act is not None:
-            if not callable(self.other_act):
-                raise ValueError("other_act must be a Callable function.")
             input = self.other_act(input)
 
         if self.to_onehot_y:
