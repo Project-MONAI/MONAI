@@ -444,7 +444,7 @@ class GaussianSmoothd(MapTransform):
         return d
 
 
-class RandGaussianSmoothd(MapTransform):
+class RandGaussianSmoothd(Randomizable, MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.GaussianSmooth`.
 
@@ -470,6 +470,7 @@ class RandGaussianSmoothd(MapTransform):
         self.sigma_x = sigma_x
         self.sigma_y = sigma_y
         self.sigma_z = sigma_z
+        self.prob = prob
         self._do_transform = False
 
     def randomize(self, data: Optional[Any] = None) -> None:

@@ -495,7 +495,7 @@ class GaussianSmooth(Transform):
         return gaussian_filter(input_data).squeeze(0).detach().numpy()
 
 
-class RandGaussianSmooth(Transform):
+class RandGaussianSmooth(Randomizable, Transform):
     """
     Apply Gaussian smooth to the input data based on randomly selected `sigma` parameters.
 
@@ -517,6 +517,7 @@ class RandGaussianSmooth(Transform):
         self.sigma_x = sigma_x
         self.sigma_y = sigma_y
         self.sigma_z = sigma_z
+        self.prob = prob
         self._do_transform = False
 
     def randomize(self, data: Optional[Any] = None) -> None:
