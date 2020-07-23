@@ -27,6 +27,9 @@ class ROCAUC(Metric):  # type: ignore # incorrectly typed due to optional_import
     Args:
         to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
         softmax: whether to add softmax function to `y_pred` before computation. Defaults to False.
+        other_act: if don't want to use `softmax`, use other callable function to execute
+            other activation layers, Defaults to ``None``. for example:
+            `other_act = lambda x: torch.log_softmax(x)`.
         average: {``"macro"``, ``"weighted"``, ``"micro"``, ``"none"``}
             Type of averaging performed if not binary classification. Defaults to ``"macro"``.
 
@@ -53,6 +56,7 @@ class ROCAUC(Metric):  # type: ignore # incorrectly typed due to optional_import
         self,
         to_onehot_y: bool = False,
         softmax: bool = False,
+        other_act: Optional[Callable] = None,
         average: Union[Average, str] = Average.MACRO,
         output_transform: Callable = lambda x: x,
         device: Optional[Union[str, torch.device]] = None,
@@ -60,6 +64,7 @@ class ROCAUC(Metric):  # type: ignore # incorrectly typed due to optional_import
         super().__init__(output_transform, device=device)
         self.to_onehot_y = to_onehot_y
         self.softmax = softmax
+        self.other_act = other_act
         self.average: Average = Average(average)
 
     def reset(self) -> None:
@@ -79,4 +84,11 @@ class ROCAUC(Metric):  # type: ignore # incorrectly typed due to optional_import
     def compute(self):
         _prediction_tensor = torch.cat(self._predictions, dim=0)
         _target_tensor = torch.cat(self._targets, dim=0)
-        return compute_roc_auc(_prediction_tensor, _target_tensor, self.to_onehot_y, self.softmax, self.average)
+        return compute_roc_auc(
+            y_pred=_prediction_tensor,
+            y=_target_tensor,
+            to_onehot_y=self.to_onehot_y,
+            softmax=self.softmax,
+            other_act=self.other_act,
+            average=self.average,
+        )

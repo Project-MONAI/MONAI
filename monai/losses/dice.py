@@ -233,7 +233,7 @@ class GeneralizedDiceLoss(_Loss):
 
         Raises:
             ValueError: reduction={reduction} is invalid. Valid options are: none, mean or sum.
-            ValueError: sigmoid=True and softmax=True are not compatible.
+            ValueError: can only enable 1 of sigmoid, softmax and other_act.
 
         """
         super().__init__(reduction=LossReduction(reduction).value)
