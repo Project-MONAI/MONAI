@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import Union, cast
+from typing import Union, cast, Callable, Optional
 
 import numpy as np
 import torch
@@ -57,6 +57,7 @@ def compute_roc_auc(
     y: torch.Tensor,
     to_onehot_y: bool = False,
     softmax: bool = False,
+    other_act: Optional[Callable] = None,
     average: Union[Average, str] = Average.MACRO,
 ):
     """Computes Area Under the Receiver Operating Characteristic Curve (ROC AUC). Referring to:
@@ -70,6 +71,8 @@ def compute_roc_auc(
             example shape: [16, 1] will be converted into [16, 2] (where `2` is inferred from `y_pred`).
         to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
         softmax: whether to add softmax function to `y_pred` before computation. Defaults to False.
+        other_act: callable function to replace `softmax` as activation layer if needed, Defaults to ``None``.
+            for example: `other_act = lambda x: torch.log_softmax(x)`.
         average: {``"macro"``, ``"weighted"``, ``"micro"``, ``"none"``}
             Type of averaging performed if not binary classification.
             Defaults to ``"macro"``.
@@ -86,6 +89,7 @@ def compute_roc_auc(
         ValueError: predictions should be of shape (batch_size, n_classes) or (batch_size, ).
         ValueError: targets should be of shape (batch_size, n_classes) or (batch_size, ).
         ValueError: unsupported average method.
+        ValueError: can not enable softmax and other activation together.
 
     Note:
         ROCAUC expects y to be comprised of 0's and 1's. `y_pred` must be either prob. estimates or confidence values.
@@ -113,8 +117,14 @@ def compute_roc_auc(
         n_classes = y_pred.shape[1]
         if to_onehot_y:
             y = one_hot(y, n_classes)
+        if softmax and other_act is not None:
+            raise ValueError("can not enable softmax and other activation together.")
         if softmax:
             y_pred = y_pred.float().softmax(dim=1)
+        if other_act is not None:
+            if not callable(other_act):
+                raise ValueError("other_act must be a Callable function.")
+            y_pred = other_act(y_pred)
 
         assert y.shape == y_pred.shape, "data shapes of y_pred and y do not match."
 
