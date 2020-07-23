@@ -13,16 +13,19 @@ A collection of "vanilla" transforms for utility functions
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Callable, Optional, Union, Sequence
-
-import time
 import logging
+import time
+from typing import Callable, Optional, Sequence, TypeVar, Union
 
 import numpy as np
 import torch
 
 from monai.transforms.compose import Transform
 from monai.utils import ensure_tuple
+
+# Generic type which can represent either a numpy.ndarray or a torch.Tensor
+# Unlike Union can create a dependence between parameter(s) / return(s)
+NdarrayTensor = TypeVar("NdarrayTensor", np.ndarray, torch.Tensor)
 
 
 class Identity(Transform):
@@ -33,7 +36,7 @@ class Identity(Transform):
 
     """
 
-    def __call__(self, img):
+    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> np.ndarray:
         """
         Apply the transform to `img`.
         """
@@ -60,7 +63,7 @@ class AsChannelFirst(Transform):
         assert isinstance(channel_dim, int) and channel_dim >= -1, "invalid channel dimension."
         self.channel_dim = channel_dim
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Apply the transform to `img`.
         """
@@ -86,7 +89,7 @@ class AsChannelLast(Transform):
         assert isinstance(channel_dim, int) and channel_dim >= -1, "invalid channel dimension."
         self.channel_dim = channel_dim
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Apply the transform to `img`.
         """
@@ -107,7 +110,7 @@ class AddChannel(Transform):
     transforms.
     """
 
-    def __call__(self, img):
+    def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
         """
         Apply the transform to `img`.
         """
@@ -128,7 +131,7 @@ class RepeatChannel(Transform):
         assert repeats > 0, "repeats count must be greater than 0."
         self.repeats = repeats
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Apply the transform to `img`, assuming `img` is a "channel-first" array.
         """
@@ -137,22 +140,29 @@ class RepeatChannel(Transform):
 
 class CastToType(Transform):
     """
-    Cast the image data to specified numpy data type.
+    Cast the Numpy data to specified numpy data type, or cast the PyTorch Tensor to
+    specified PyTorch data type.
     """
 
-    def __init__(self, dtype: np.dtype = np.float32) -> None:
+    def __init__(self, dtype: Union[np.dtype, torch.dtype] = np.float32) -> None:
         """
         Args:
             dtype: convert image to this data type, default is `np.float32`.
         """
         self.dtype = dtype
 
-    def __call__(self, img: np.ndarray, dtype: Optional[np.dtype] = None):
+    def __call__(
+        self, img: Union[np.ndarray, torch.Tensor], dtype: Optional[Union[np.dtype, torch.dtype]] = None
+    ) -> Union[np.ndarray, torch.Tensor]:
         """
-        Apply the transform to `img`, assuming `img` is a numpy array.
+        Apply the transform to `img`, assuming `img` is a numpy array or PyTorch Tensor.
         """
-        assert isinstance(img, np.ndarray), "image must be numpy array."
-        return img.astype(self.dtype if dtype is None else dtype)
+        if isinstance(img, np.ndarray):
+            return img.astype(self.dtype if dtype is None else dtype)
+        elif torch.is_tensor(img):
+            return torch.as_tensor(img, dtype=self.dtype if dtype is None else dtype)
+        else:
+            raise TypeError("img is not Numpy array or PyTorch Tensor.")
 
 
 class ToTensor(Transform):
@@ -160,7 +170,7 @@ class ToTensor(Transform):
     Converts the input image to a tensor without applying any other transformations.
     """
 
-    def __call__(self, img):
+    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> torch.Tensor:
         """
         Apply the transform to `img` and make it contiguous.
         """
@@ -174,7 +184,7 @@ class ToNumpy(Transform):
     Converts the input Tensor data to numpy array.
     """
 
-    def __call__(self, img):
+    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> np.ndarray:
         """
         Apply the transform to `img` and make it contiguous.
         """
@@ -191,7 +201,7 @@ class Transpose(Transform):
     def __init__(self, indices) -> None:
         self.indices = indices
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Apply the transform to `img`.
         """
@@ -217,7 +227,7 @@ class SqueezeDim(Transform):
             raise ValueError(f"Invalid channel dimension {dim}")
         self.dim = dim
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
         """
         Args:
             img: numpy arrays with required dimension `dim` removed
@@ -273,13 +283,13 @@ class DataStats(Transform):
 
     def __call__(
         self,
-        img,
+        img: NdarrayTensor,
         prefix: Optional[str] = None,
         data_shape: Optional[bool] = None,
         value_range: Optional[bool] = None,
         data_value: Optional[bool] = None,
         additional_info=None,
-    ):
+    ) -> NdarrayTensor:
         """
         Apply the transform to `img`, optionally take arguments similar to the class constructor.
         """
@@ -327,7 +337,7 @@ class SimulateDelay(Transform):
         super().__init__()
         self.delay_time: float = delay_time
 
-    def __call__(self, img, delay_time: Optional[float] = None):
+    def __call__(self, img: NdarrayTensor, delay_time: Optional[float] = None) -> NdarrayTensor:
         """
         Args:
             img: data remain unchanged throughout this transform.
@@ -361,7 +371,7 @@ class Lambda(Transform):
             raise ValueError("func must be callable.")
         self.func = func
 
-    def __call__(self, img, func: Optional[Callable] = None):
+    def __call__(self, img: Union[np.ndarray, torch.Tensor], func: Optional[Callable] = None):
         """
         Apply `self.func` to `img`.
         """
@@ -399,8 +409,11 @@ class LabelToMask(Transform):
         self.merge_channels = merge_channels
 
     def __call__(
-        self, img, select_labels: Optional[Union[Sequence[int], int]] = None, merge_channels: Optional[bool] = None
-    ):
+        self,
+        img: np.ndarray,
+        select_labels: Optional[Union[Sequence[int], int]] = None,
+        merge_channels: Optional[bool] = None,
+    ) -> np.ndarray:
         if select_labels is None:
             select_labels = self.select_labels
         else:

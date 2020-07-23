@@ -9,9 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Union
-
 import warnings
+from typing import Union
 
 import torch
 from torch.nn.modules.loss import _Loss
@@ -74,7 +73,7 @@ class TverskyLoss(_Loss):
         self.alpha = alpha
         self.beta = beta
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5):
+    def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5) -> torch.Tensor:
         """
         Args:
             input: the shape should be BNH[WD].

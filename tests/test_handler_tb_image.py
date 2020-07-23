@@ -12,8 +12,9 @@
 import glob
 import os
 import shutil
-import unittest
 import tempfile
+import unittest
+
 import numpy as np
 import torch
 from ignite.engine import Engine, Events

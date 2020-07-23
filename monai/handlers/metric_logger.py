@@ -9,9 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, TYPE_CHECKING
-
 from collections import defaultdict
+from typing import TYPE_CHECKING, Callable
 
 from monai.utils import exact_version, optional_import
 

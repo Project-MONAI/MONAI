@@ -9,14 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Dict, Sequence, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence, Union
 
 import torch
 from torch.utils.data import DataLoader
 
-from monai.transforms import apply_transform
-from monai.utils import exact_version, optional_import, ensure_tuple
 from monai.engines.utils import default_prepare_batch
+from monai.transforms import apply_transform
+from monai.utils import ensure_tuple, exact_version, optional_import
 
 IgniteEngine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 State, _ = optional_import("ignite.engine", "0.3.0", exact_version, "State")
@@ -133,8 +133,8 @@ class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optiona
                         engine.state.best_metric_epoch = engine.state.epoch
 
         if handlers is not None:
-            handlers = ensure_tuple(handlers)
-            for handler in handlers:
+            handlers_ = ensure_tuple(handlers)
+            for handler in handlers_:
                 handler.attach(self)
 
     def run(self) -> None:

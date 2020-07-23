@@ -12,12 +12,13 @@
 from typing import Optional, Sequence, Union
 
 import numpy as np
+import torch
 import torch.nn as nn
 
-from monai.networks.layers.factories import Norm, Act
 from monai.networks.blocks import Convolution, ResidualUnit
+from monai.networks.layers.convutils import calculate_out_shape, same_padding
+from monai.networks.layers.factories import Act, Norm
 from monai.networks.layers.simplelayers import Reshape
-from monai.networks.layers.convutils import same_padding, calculate_out_shape
 from monai.utils import ensure_tuple, ensure_tuple_rep
 
 
@@ -89,7 +90,7 @@ class Regressor(nn.Module):
 
         self.final = self._get_final_layer((echannel,) + self.final_size)
 
-    def _get_layer(self, in_channels: int, out_channels: int, strides, is_last: bool):
+    def _get_layer(self, in_channels: int, out_channels: int, strides: int, is_last: bool):
         """
         Returns a layer accepting inputs with `in_channels` number of channels and producing outputs of `out_channels`
         number of channels. The `strides` indicates downsampling factor, ie. convolutional stride. If `is_last`
@@ -132,7 +133,7 @@ class Regressor(nn.Module):
         linear = nn.Linear(int(np.product(in_shape)), int(np.product(self.out_shape)))
         return nn.Sequential(nn.Flatten(), linear)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.net(x)
         x = self.final(x)
         x = self.reshape(x)

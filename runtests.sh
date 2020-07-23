@@ -27,8 +27,10 @@ doZooTests=false
 
 doUnitTests=true
 
-doCodeFormatFix=false
 doBlackFormat=false
+doBlackFix=false
+doIsortFormat=false
+doIsortFix=false
 doFlake8Format=false
 doPytypeFormat=false
 doMypyFormat=false
@@ -37,8 +39,8 @@ doCleanup=false
 NUM_PARALLEL=1
 
 function print_usage {
-    echo "runtests.sh [--codeformat] [--black] [--black-fix] [--flake8] [--pytype] [--mypy] [--nounittests]"
-    echo "            [--coverage] [--quick] [--net] [--dryrun] [-j number] [--clean] [--help] [--version]"
+    echo "runtests.sh [--codeformat] [--black] [--black-fix] [--isort] [--isort-fix] [--flake8] [--pytype] [--mypy]"
+    echo "            [--nounittests] [--coverage] [--quick] [--net] [--dryrun] [-j number] [--clean] [--help] [--version]"
     echo ""
     echo "MONAI unit testing utilities."
     echo ""
@@ -51,6 +53,8 @@ function print_usage {
     echo "Code style check options:"
     echo "    --black           : perform \"black\" code format checks"
     echo "    --black-fix       : format code using \"black\""
+    echo "    --isort           : perform \"isort\" import sort checks"
+    echo "    --isort-fix       : sort imports using \"isort\""
     echo "    --flake8          : perform \"flake8\" code format checks"
     echo ""
     echo "Python type check options:"
@@ -123,6 +127,7 @@ do
         ;;
         -f|--codeformat)
             doBlackFormat=true
+            doIsortFormat=true
             doFlake8Format=true
             doPytypeFormat=true
             doMypyFormat=true
@@ -131,8 +136,15 @@ do
             doBlackFormat=true
         ;;
         --black-fix)
-            doCodeFormatFix=true
+            doBlackFix=true
             doBlackFormat=true
+        ;;
+        --isort)
+            doIsortFormat=true
+        ;;
+        --isort-fix)
+            doIsortFix=true
+            doIsortFormat=true
         ;;
         --flake8)
             doFlake8Format=true
@@ -225,7 +237,7 @@ fi
 if [ $doBlackFormat = true ]
 then
     set +e  # disable exit on failure so that diagnostics can be given on failure
-    if [ $doCodeFormatFix = true ]
+    if [ $doBlackFix = true ]
     then
         echo "${separator}${blue}black-fix${noColor}"
     else
@@ -239,10 +251,9 @@ then
     fi
     ${cmdPrefix}black --version
 
-    if [ $doCodeFormatFix = true ]
+    if [ $doBlackFix = true ]
     then
         ${cmdPrefix}black "$(pwd)"
-        exit
     else
         ${cmdPrefix}black --check "$(pwd)"
     fi
@@ -252,6 +263,42 @@ then
     then
         echo "${red}failed!${noColor}"
         exit ${black_status}
+    else
+        echo "${green}passed!${noColor}"
+    fi
+    set -e # enable exit on failure
+fi
+
+
+if [ $doIsortFormat = true ]
+then
+    set +e  # disable exit on failure so that diagnostics can be given on failure
+    if [ $doIsortFix = true ]
+    then
+        echo "${separator}${blue}isort-fix${noColor}"
+    else
+        echo "${separator}${blue}isort${noColor}"
+    fi
+
+    # ensure that the necessary packages for code format testing are installed
+    if [[ ! -f "$(which isort)" ]]
+    then
+        install_deps
+    fi
+    ${cmdPrefix}isort --version
+
+    if [ $doIsortFix = true ]
+    then
+        ${cmdPrefix}isort "$(pwd)"
+    else
+        ${cmdPrefix}isort --check "$(pwd)"
+    fi
+
+    isort_status=$?
+    if [ ${isort_status} -ne 0 ]
+    then
+        echo "${red}failed!${noColor}"
+        exit ${isort_status}
     else
         echo "${green}passed!${noColor}"
     fi

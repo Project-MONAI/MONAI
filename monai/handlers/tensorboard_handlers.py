@@ -9,14 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, TYPE_CHECKING
-
 import warnings
+from typing import TYPE_CHECKING, Callable, Optional
 
 import numpy as np
 import torch
 
-from monai.utils import exact_version, optional_import, is_scalar
+from monai.utils import exact_version, is_scalar, optional_import
 from monai.visualize import plot_2d_or_3d_image
 
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")

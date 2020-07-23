@@ -12,16 +12,15 @@
 A collection of generic interfaces for MONAI transforms.
 """
 
-from typing import Any, Hashable, Optional, Tuple
-
-from abc import ABC, abstractmethod
 import warnings
+from abc import ABC, abstractmethod
+from typing import Any, Callable, Hashable, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
 from monai.config import KeysCollection
-from monai.utils import ensure_tuple, get_seed
 from monai.transforms.utils import apply_transform
+from monai.utils import ensure_tuple, get_seed
 
 
 class Transform(ABC):
@@ -201,7 +200,7 @@ class Compose(Randomizable):
         them are called on the labels.
     """
 
-    def __init__(self, transforms=None) -> None:
+    def __init__(self, transforms: Optional[Union[Sequence[Callable], Callable]] = None) -> None:
         if transforms is None:
             transforms = []
         self.transforms = ensure_tuple(transforms)
