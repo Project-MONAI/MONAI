@@ -18,6 +18,8 @@ Main steps to set up the distributed training:
   If using MONAI docker, which already has NCCL and MPI, can quickly install Horovod with command:
   `HOROVOD_NCCL_INCLUDE=/usr/include HOROVOD_NCCL_LIB=/usr/lib/x86_64-linux-gnu HOROVOD_GPU_OPERATIONS=NCCL \
   pip install --no-cache-dir horovod`
+- Set SSH permissions for root login without password at all nodes except master, referring to:
+  http://www.linuxproblem.org/art_9.html
 - Run `hvd.init()` to initialize Horovod.
 - Pin each GPU to a single process to avoid resource contention, use `hvd.local_rank()` to get GPU index.
   And use `hvd.rank()` to get the overall rank index.
@@ -30,9 +32,12 @@ Main steps to set up the distributed training:
 
 Note:
     Suggest setting exactly the same software environment for every node, especially `mpi`, `nccl`, etc.
-    A good practice is to use the same MONAI docker image for all nodes directly.
-    Example script to execute this program only on the master node:
-    horovodrun -np 16 -H server1:4,server2:4,server3:4,server4:4 python unet_training_horovod.py
+    A good practice is to use the same MONAI docker image for all nodes directly, if using docker, need
+    to set SSH permissions both at the node and in docker, referring to Horovod guide for more details:
+    https://github.com/horovod/horovod/blob/master/docs/docker.rst
+
+    Example script to execute this program, only need to run on the master node:
+    `horovodrun -np 16 -H server1:4,server2:4,server3:4,server4:4 python unet_training_horovod.py -d "./testdata"`
 
 Referring to: https://github.com/horovod/horovod/blob/master/examples/pytorch_mnist.py
 
@@ -70,6 +75,19 @@ def train(args):
     if hvd.local_rank() != 0:
         f = open(os.devnull, "w")
         sys.stdout = sys.stderr = f
+
+    # create 40 random image, mask paris on master node for training
+    if hvd.rank() == 0 and not os.path.exists(args.dir):
+        print(f"generating synthetic data to {args.dir} (this may take a while)")
+        os.makedirs(args.dir)
+        # set random seed to generate same random data for every node
+        np.random.seed(seed=0)
+        for i in range(40):
+            im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1, channel_dim=-1)
+            n = nib.Nifti1Image(im, np.eye(4))
+            nib.save(n, os.path.join(args.dir, f"img{i:d}.nii.gz"))
+            n = nib.Nifti1Image(seg, np.eye(4))
+            nib.save(n, os.path.join(args.dir, f"seg{i:d}.nii.gz"))
 
     images = sorted(glob(os.path.join(args.dir, "img*.nii.gz")))
     segs = sorted(glob(os.path.join(args.dir, "seg*.nii.gz")))
@@ -157,23 +175,13 @@ def main():
     parser.add_argument("-d", "--dir", default="./testdata", type=str, help="directory to create random data")
     args = parser.parse_args()
 
-    # create 40 random image, mask paris for training
-    if not os.path.exists(args.dir):
-        print(f"generating synthetic data to {args.dir} (this may take a while)")
-        os.makedirs(args.dir)
-        # set random seed to generate same random data for every node
-        np.random.seed(seed=0)
-        for i in range(40):
-            im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1, channel_dim=-1)
-            n = nib.Nifti1Image(im, np.eye(4))
-            nib.save(n, os.path.join(args.dir, f"img{i:d}.nii.gz"))
-            n = nib.Nifti1Image(seg, np.eye(4))
-            nib.save(n, os.path.join(args.dir, f"seg{i:d}.nii.gz"))
-
+    import time
+    start_time = time.time()
     train(args=args)
+    print("total time: ", time.time() - start_time)
 
 
 # Example script to execute this program only on the master node:
-# horovodrun -np 16 -H server1:4,server2:4,server3:4,server4:4 python unet_training_horovod.py
+# horovodrun -np 16 -H server1:4,server2:4,server3:4,server4:4 python unet_training_horovod.py -d "./testdata"
 if __name__ == "__main__":
     main()

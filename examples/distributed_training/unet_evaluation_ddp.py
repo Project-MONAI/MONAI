@@ -70,6 +70,19 @@ from monai.metrics import DiceMetric
 
 
 def evaluate(args):
+    if args.local_rank == 0 and not os.path.exists(args.dir):
+        # create 16 random image, mask paris for evaluation
+        print(f"generating synthetic data to {args.dir} (this may take a while)")
+        os.makedirs(args.dir)
+        # set random seed to generate same random data for every node
+        np.random.seed(seed=0)
+        for i in range(16):
+            im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1, channel_dim=-1)
+            n = nib.Nifti1Image(im, np.eye(4))
+            nib.save(n, os.path.join(args.dir, f"img{i:d}.nii.gz"))
+            n = nib.Nifti1Image(seg, np.eye(4))
+            nib.save(n, os.path.join(args.dir, f"seg{i:d}.nii.gz"))
+
     # initialize the distributed evaluation process, every GPU runs in a process
     dist.init_process_group(backend="nccl", init_method="env://")
 
@@ -143,19 +156,6 @@ def main():
     # must parse the command-line argument: ``--local_rank=LOCAL_PROCESS_RANK``, which will be provided by DDP
     parser.add_argument("--local_rank", type=int)
     args = parser.parse_args()
-
-    # create 16 random image, mask paris for evaluation
-    if not os.path.exists(args.dir):
-        print(f"generating synthetic data to {args.dir} (this may take a while)")
-        os.makedirs(args.dir)
-        # set random seed to generate same random data for every node
-        np.random.seed(seed=0)
-        for i in range(16):
-            im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1, channel_dim=-1)
-            n = nib.Nifti1Image(im, np.eye(4))
-            nib.save(n, os.path.join(args.dir, f"img{i:d}.nii.gz"))
-            n = nib.Nifti1Image(seg, np.eye(4))
-            nib.save(n, os.path.join(args.dir, f"seg{i:d}.nii.gz"))
 
     evaluate(args=args)
 
