@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import Optional, Union
+from typing import Optional, Union, Callable
 
 import torch
 
@@ -36,9 +36,12 @@ class DiceMetric:
         mutually_exclusive: if True, `y_pred` will be converted into a binary matrix using
             a combination of argmax and to_onehot.  Defaults to False.
         sigmoid: whether to add sigmoid function to y_pred before computation. Defaults to False.
-        logit_thresh: the threshold value used to convert (after sigmoid if `sigmoid=True`)
+        other_act: callable function to replace `sigmoid` as activation layer if needed, Defaults to ``None``.
+            for example: `other_act = torch.tanh`.
+        logit_thresh: the threshold value used to convert (for example, after sigmoid if `sigmoid=True`)
             `y_pred` into a binary matrix. Defaults to 0.5.
-        reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``, ``"mean_channel"``, ``"sum_channel"``}
+        reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+            ``"mean_channel"``, ``"sum_channel"``}
             Define the mode to reduce computation result of 1 batch data. Defaults to ``"mean"``.
 
     """
@@ -49,14 +52,18 @@ class DiceMetric:
         to_onehot_y: bool = False,
         mutually_exclusive: bool = False,
         sigmoid: bool = False,
+        other_act: Optional[Callable] = None,
         logit_thresh: float = 0.5,
         reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
     ) -> None:
         super().__init__()
+        if sigmoid and other_act is not None:
+            raise ValueError("can not enable sigmoid and other activation together.")
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         self.mutually_exclusive = mutually_exclusive
         self.sigmoid = sigmoid
+        self.other_act = other_act
         self.logit_thresh = logit_thresh
         self.reduction: MetricReduction = MetricReduction(reduction)
 
@@ -72,6 +79,7 @@ class DiceMetric:
             to_onehot_y=self.to_onehot_y,
             mutually_exclusive=self.mutually_exclusive,
             sigmoid=self.sigmoid,
+            other_act=self.other_act,
             logit_thresh=self.logit_thresh,
         )
 
@@ -126,6 +134,7 @@ def compute_meandice(
     to_onehot_y: bool = False,
     mutually_exclusive: bool = False,
     sigmoid: bool = False,
+    other_act: Optional[Callable] = None,
     logit_thresh: float = 0.5,
 ):
     """Computes Dice score metric from full size Tensor and collects average.
@@ -142,14 +151,16 @@ def compute_meandice(
         mutually_exclusive: if True, `y_pred` will be converted into a binary matrix using
             a combination of argmax and to_onehot.  Defaults to False.
         sigmoid: whether to add sigmoid function to y_pred before computation. Defaults to False.
-        logit_thresh: the threshold value used to convert (after sigmoid if `sigmoid=True`)
+        other_act: callable function to replace `sigmoid` as activation layer if needed, Defaults to ``None``.
+            for example: `other_act = torch.tanh`.
+        logit_thresh: the threshold value used to convert (for example, after sigmoid if `sigmoid=True`)
             `y_pred` into a binary matrix. Defaults to 0.5.
 
     Returns:
         Dice scores per batch and per class, (shape [batch_size, n_classes]).
 
     Raises:
-        ValueError: sigmoid=True is incompatible with mutually_exclusive=True.
+        ValueError: can not enable sigmoid and other activation together.
 
     Note:
         This method provides two options to convert `y_pred` into a binary matrix
@@ -160,9 +171,15 @@ def compute_meandice(
     """
     n_classes = y_pred.shape[1]
     n_len = len(y_pred.shape)
-
+    if sigmoid and other_act is not None:
+        raise ValueError("can not enable sigmoid and other activation together.")
     if sigmoid:
         y_pred = y_pred.float().sigmoid()
+
+    if other_act is not None:
+        if not callable(other_act):
+            raise ValueError("other_act must be a Callable function.")
+        y_pred = other_act(y_pred)
 
     if n_classes == 1:
         if mutually_exclusive:
