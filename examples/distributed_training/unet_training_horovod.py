@@ -176,6 +176,7 @@ def main():
     args = parser.parse_args()
 
     import time
+
     start_time = time.time()
     train(args=args)
     print("total time: ", time.time() - start_time)
