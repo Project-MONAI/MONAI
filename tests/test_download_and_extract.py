@@ -15,9 +15,8 @@ import tempfile
 import unittest
 from urllib.error import ContentTooShortError, HTTPError
 
-from tests.utils import skip_if_quick
-
 from monai.apps import download_and_extract, download_url, extractall
+from tests.utils import skip_if_quick
 
 
 class TestDownloadAndExtract(unittest.TestCase):

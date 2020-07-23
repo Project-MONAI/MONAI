@@ -9,17 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Dict, Optional, Union, Sequence, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence, Union
 
 import torch
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 
-from monai.inferers import Inferer, SimpleInferer
-from monai.transforms import Transform
 from monai.engines.utils import CommonKeys as Keys
 from monai.engines.utils import default_prepare_batch
 from monai.engines.workflow import Workflow
+from monai.inferers import Inferer, SimpleInferer
+from monai.transforms import Transform
 from monai.utils import exact_version, optional_import
 
 if TYPE_CHECKING:
@@ -127,11 +127,11 @@ class SupervisedTrainer(Trainer):
             batchdata: input data for this iteration, usually can be dictionary or tuple of Tensor data.
 
         Raises:
-            ValueError: must provide batch data for current iteration.
+            ValueError: When ``batchdata`` is None.
 
         """
         if batchdata is None:
-            raise ValueError("must provide batch data for current iteration.")
+            raise ValueError("Must provide batch data for current iteration.")
         inputs, targets = self.prepare_batch(batchdata)
         inputs, targets = inputs.to(engine.state.device), targets.to(engine.state.device)
 

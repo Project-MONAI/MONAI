@@ -22,13 +22,13 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 import monai
-from monai.data import create_test_image_3d, NiftiSaver, list_data_collate
+from monai.data import NiftiSaver, create_test_image_3d, list_data_collate
 from monai.inferers import sliding_window_inference
 from monai.metrics import DiceMetric
 from monai.networks.nets import UNet
 from monai.transforms import (
-    Compose,
     AsChannelFirstd,
+    Compose,
     LoadNiftid,
     RandCropByPosNegLabeld,
     RandRotate90d,
@@ -36,8 +36,8 @@ from monai.transforms import (
     Spacingd,
     ToTensord,
 )
-from monai.visualize import plot_2d_or_3d_image
 from monai.utils import set_determinism
+from monai.visualize import plot_2d_or_3d_image
 from tests.utils import skip_if_quick
 
 

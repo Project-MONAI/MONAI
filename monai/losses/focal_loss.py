@@ -71,18 +71,16 @@ class FocalLoss(_WeightedLoss):
                 in the range [0, C-1] where C is the number of classes.
 
         Raises:
-            ValueError: input and target must have the same number of dimensions, got {i.ndim} and {t.ndim}
-            ValueError: target must have one channel or have the same shape as the input.
-                If it has one channel, it should be a class index in the range [0, C-1]
-                where C is the number of classes inferred from 'input': C={i.shape[1]}.
-            ValueError: reduction={self.reduction} is invalid.
+            ValueError: When ``target`` ndim differs from ``input``.
+            ValueError: When ``target`` channel is not 1 and ``target`` shape differs from ``input``.
+            ValueError: When ``self.reduction`` is not one of ["mean", "sum", "none"].
 
         """
         i = input
         t = target
 
         if i.ndim != t.ndim:
-            raise ValueError(f"input and target must have the same number of dimensions, got {i.ndim} and {t.ndim}")
+            raise ValueError(f"input and target ndim must match, got input={i.ndim} target={t.ndim}.")
 
         if target.shape[1] != 1 and target.shape[1] != i.shape[1]:
             raise ValueError(
@@ -135,4 +133,4 @@ class FocalLoss(_WeightedLoss):
             return loss
         if self.reduction == LossReduction.MEAN.value:
             return loss.mean()
-        raise ValueError(f"reduction={self.reduction} is invalid.")
+        raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')

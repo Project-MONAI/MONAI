@@ -10,10 +10,10 @@
 # limitations under the License.
 
 import os
+import shutil
 import tempfile
 import unittest
 
-import shutil
 import nibabel as nib
 import numpy as np
 from parameterized import parameterized
