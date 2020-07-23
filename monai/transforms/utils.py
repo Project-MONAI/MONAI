@@ -9,16 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Sequence, Union
-
 import random
 import warnings
+from typing import Callable, Optional, Sequence, Union
 
-import torch
 import numpy as np
+import torch
 
 from monai.config import IndexSelection
-from monai.utils import ensure_tuple, ensure_tuple_size, fall_back_tuple, optional_import, min_version
+from monai.utils import ensure_tuple, ensure_tuple_size, fall_back_tuple, min_version, optional_import
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 

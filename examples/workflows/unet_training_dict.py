@@ -9,42 +9,43 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 import os
+import shutil
 import sys
 import tempfile
-import shutil
 from glob import glob
-import logging
+
 import nibabel as nib
 import numpy as np
 import torch
 from ignite.metrics import Accuracy
 
 import monai
+from monai.data import create_test_image_3d
+from monai.engines import SupervisedEvaluator, SupervisedTrainer
+from monai.handlers import (
+    CheckpointSaver,
+    LrScheduleHandler,
+    MeanDice,
+    StatsHandler,
+    TensorBoardImageHandler,
+    TensorBoardStatsHandler,
+    ValidationHandler,
+)
+from monai.inferers import SimpleInferer, SlidingWindowInferer
 from monai.transforms import (
-    Compose,
-    LoadNiftid,
+    Activationsd,
     AsChannelFirstd,
-    ScaleIntensityd,
+    AsDiscreted,
+    Compose,
+    KeepLargestConnectedComponentd,
+    LoadNiftid,
     RandCropByPosNegLabeld,
     RandRotate90d,
+    ScaleIntensityd,
     ToTensord,
-    Activationsd,
-    AsDiscreted,
-    KeepLargestConnectedComponentd,
 )
-from monai.handlers import (
-    StatsHandler,
-    TensorBoardStatsHandler,
-    TensorBoardImageHandler,
-    ValidationHandler,
-    LrScheduleHandler,
-    CheckpointSaver,
-    MeanDice,
-)
-from monai.data import create_test_image_3d
-from monai.engines import SupervisedTrainer, SupervisedEvaluator
-from monai.inferers import SimpleInferer, SlidingWindowInferer
 
 
 def main():

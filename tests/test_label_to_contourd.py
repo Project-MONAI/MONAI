@@ -10,8 +10,10 @@
 # limitations under the License.
 
 import unittest
-import torch
+
 import numpy as np
+import torch
+
 from monai.transforms import LabelToContourd
 
 expected_output_for_cube = np.array(

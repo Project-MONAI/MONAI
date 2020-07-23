@@ -9,14 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Union, Sequence, Any, Optional
-
 import os
 import sys
+from typing import Any, Callable, Optional, Sequence, Union
 
+from monai.apps.utils import download_and_extract
 from monai.data import CacheDataset, load_decathalon_datalist
 from monai.transforms import LoadNiftid, LoadPNGd, Randomizable
-from monai.apps.utils import download_and_extract
 
 
 class MedNISTDataset(Randomizable, CacheDataset):

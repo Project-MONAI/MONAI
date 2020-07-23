@@ -16,7 +16,6 @@ from parameterized import parameterized
 
 from monai.networks.nets import Discriminator
 
-
 TEST_CASE_0 = [
     {"in_shape": (1, 64, 64), "channels": (2, 4, 8), "strides": (2, 2, 2), "num_res_units": 0},
     torch.rand(16, 1, 64, 64),

@@ -14,7 +14,7 @@ from typing import Callable, List, Optional, Sequence, Union
 import torch
 
 from monai.metrics import compute_roc_auc
-from monai.utils import exact_version, optional_import, Average
+from monai.utils import Average, exact_version, optional_import
 
 Metric, _ = optional_import("ignite.metrics", "0.3.0", exact_version, "Metric")
 
