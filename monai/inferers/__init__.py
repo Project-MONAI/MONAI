@@ -9,5 +9,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .utils import sliding_window_inference
 from .inferer import *
+from .utils import sliding_window_inference

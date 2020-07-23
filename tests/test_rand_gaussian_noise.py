@@ -12,8 +12,9 @@
 import unittest
 
 import numpy as np
-from monai.transforms import RandGaussianNoise
 from parameterized import parameterized
+
+from monai.transforms import RandGaussianNoise
 from tests.utils import NumpyImageTestCase2D
 
 

@@ -10,8 +10,10 @@
 # limitations under the License.
 
 import unittest
+
 import numpy as np
 from parameterized import parameterized
+
 from monai.transforms import CenterSpatialCrop
 
 TEST_CASE_0 = [{"roi_size": [2, 2, -1]}, np.random.randint(0, 2, size=[3, 3, 3, 3]), (3, 2, 2, 3)]
