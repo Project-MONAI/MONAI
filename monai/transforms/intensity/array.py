@@ -22,6 +22,7 @@ import torch
 from monai.networks.layers import GaussianFilter
 from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.utils import rescale_array
+from monai.utils import ensure_tuple_size
 
 
 class RandGaussianNoise(Randomizable, Transform):
@@ -492,3 +493,42 @@ class GaussianSmooth(Transform):
         gaussian_filter = GaussianFilter(img.ndim - 1, self.sigma)
         input_data = torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0)
         return gaussian_filter(input_data).squeeze(0).detach().numpy()
+
+
+class RandGaussianSmooth(Randomizable, Transform):
+    """
+    Apply Gaussian smooth to the input data based on randomly selected `sigma` parameters.
+
+    Args:
+        sigma_x: randomly select sigma value for the first spatial dimension.
+        sigma_y: randomly select sigma value for the second spatial dimension if have.
+        sigma_z: randomly select sigma value for the third spatial dimension if have.
+        prob: probability of Gaussian smooth.
+
+    """
+
+    def __init__(
+        self,
+        sigma_x: Sequence[float] = (0.25, 1.5),
+        sigma_y: Sequence[float] = (0.25, 1.5),
+        sigma_z: Sequence[float] = (0.25, 1.5),
+        prob: float = 0.1,
+    ) -> None:
+        self.sigma_x = sigma_x
+        self.sigma_y = sigma_y
+        self.sigma_z = sigma_z
+        self.prob = prob
+        self._do_transform = False
+
+    def randomize(self, data: Optional[Any] = None) -> None:
+        self._do_transform = self.R.random_sample() < self.prob
+        self.x = self.R.uniform(low=self.sigma_x[0], high=self.sigma_x[1])
+        self.y = self.R.uniform(low=self.sigma_y[0], high=self.sigma_y[1])
+        self.z = self.R.uniform(low=self.sigma_z[0], high=self.sigma_z[1])
+
+    def __call__(self, img: np.ndarray) -> np.ndarray:
+        self.randomize()
+        if not self._do_transform:
+            return img
+        sigma = ensure_tuple_size(tup=(self.x, self.y, self.z), dim=img.ndim - 1)
+        return GaussianSmooth(sigma=sigma)(img)
