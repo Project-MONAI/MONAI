@@ -80,16 +80,23 @@ class UNet(nn.Module):
                 self.dimensions,
                 in_channels,
                 out_channels,
-                strides,
-                self.kernel_size,
-                self.num_res_units,
-                self.act,
-                self.norm,
-                self.dropout,
+                strides=strides,
+                kernel_size=self.kernel_size,
+                subunits=self.num_res_units,
+                act=self.act,
+                norm=self.norm,
+                dropout=self.dropout,
             )
         else:
             return Convolution(
-                self.dimensions, in_channels, out_channels, strides, self.kernel_size, self.act, self.norm, self.dropout
+                self.dimensions,
+                in_channels,
+                out_channels,
+                strides=strides,
+                kernel_size=self.kernel_size,
+                act=self.act,
+                norm=self.norm,
+                dropout=self.dropout,
             )
 
     def _get_bottom_layer(self, in_channels: int, out_channels: int):
@@ -100,11 +107,11 @@ class UNet(nn.Module):
             self.dimensions,
             in_channels,
             out_channels,
-            strides,
-            self.up_kernel_size,
-            self.act,
-            self.norm,
-            self.dropout,
+            strides=strides,
+            kernel_size=self.up_kernel_size,
+            act=self.act,
+            norm=self.norm,
+            dropout=self.dropout,
             conv_only=is_top and self.num_res_units == 0,
             is_transposed=True,
         )
@@ -114,12 +121,12 @@ class UNet(nn.Module):
                 self.dimensions,
                 out_channels,
                 out_channels,
-                1,
-                self.kernel_size,
-                1,
-                self.act,
-                self.norm,
-                self.dropout,
+                strides=1,
+                kernel_size=self.kernel_size,
+                subunits=1,
+                act=self.act,
+                norm=self.norm,
+                dropout=self.dropout,
                 last_conv_only=is_top,
             )
             return nn.Sequential(conv, ru)
