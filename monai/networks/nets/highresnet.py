@@ -17,7 +17,7 @@ import torch.nn.functional as F
 
 from monai.networks.layers.convutils import same_padding
 from monai.networks.layers.factories import Conv, Dropout, Norm
-from monai.utils import Normalisation, Activation, ChannelMatching
+from monai.utils import Activation, ChannelMatching, Normalisation
 
 SUPPORTED_NORM = {
     Normalisation.BATCH: lambda spatial_dims: Norm[Norm.BATCH, spatial_dims],

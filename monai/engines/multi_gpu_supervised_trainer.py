@@ -9,13 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Dict, Optional, Sequence, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence
 
 import torch
 from torch.optim.optimizer import Optimizer
 
-from monai.utils import exact_version, optional_import
 from monai.engines.utils import get_devices_spec
+from monai.utils import exact_version, optional_import
 
 create_supervised_trainer, _ = optional_import("ignite.engine", "0.3.0", exact_version, "create_supervised_trainer")
 create_supervised_evaluator, _ = optional_import("ignite.engine", "0.3.0", exact_version, "create_supervised_evaluator")

@@ -13,10 +13,9 @@ A collection of "vanilla" transforms for utility functions
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Callable, Optional, Sequence, TypeVar, Union
-
-import time
 import logging
+import time
+from typing import Callable, Optional, Sequence, TypeVar, Union
 
 import numpy as np
 import torch

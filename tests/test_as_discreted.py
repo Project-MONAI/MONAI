@@ -10,8 +10,10 @@
 # limitations under the License.
 
 import unittest
+
 import torch
 from parameterized import parameterized
+
 from monai.transforms import AsDiscreted
 
 TEST_CASE_1 = [

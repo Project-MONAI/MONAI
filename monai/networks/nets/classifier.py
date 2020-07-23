@@ -13,7 +13,8 @@ from typing import Optional, Sequence, Union
 
 import torch
 import torch.nn as nn
-from monai.networks.layers.factories import Norm, Act, split_args
+
+from monai.networks.layers.factories import Act, Norm, split_args
 from monai.networks.nets.regressor import Regressor
 
 
