@@ -9,45 +9,46 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 import os
-import sys
 import shutil
+import sys
 import tempfile
 import unittest
 from glob import glob
-import logging
+
 import nibabel as nib
 import numpy as np
 import torch
 from ignite.metrics import Accuracy
 
 import monai
+from monai.data import create_test_image_3d
+from monai.engines import SupervisedEvaluator, SupervisedTrainer
+from monai.handlers import (
+    CheckpointLoader,
+    CheckpointSaver,
+    LrScheduleHandler,
+    MeanDice,
+    SegmentationSaver,
+    StatsHandler,
+    TensorBoardImageHandler,
+    TensorBoardStatsHandler,
+    ValidationHandler,
+)
+from monai.inferers import SimpleInferer, SlidingWindowInferer
 from monai.transforms import (
-    Compose,
-    LoadNiftid,
+    Activationsd,
     AsChannelFirstd,
-    ScaleIntensityd,
+    AsDiscreted,
+    Compose,
+    KeepLargestConnectedComponentd,
+    LoadNiftid,
     RandCropByPosNegLabeld,
     RandRotate90d,
+    ScaleIntensityd,
     ToTensord,
-    Activationsd,
-    AsDiscreted,
-    KeepLargestConnectedComponentd,
 )
-from monai.handlers import (
-    StatsHandler,
-    TensorBoardStatsHandler,
-    TensorBoardImageHandler,
-    ValidationHandler,
-    LrScheduleHandler,
-    CheckpointSaver,
-    CheckpointLoader,
-    SegmentationSaver,
-    MeanDice,
-)
-from monai.data import create_test_image_3d
-from monai.engines import SupervisedTrainer, SupervisedEvaluator
-from monai.inferers import SimpleInferer, SlidingWindowInferer
 from monai.utils import set_determinism
 from tests.utils import skip_if_quick
 

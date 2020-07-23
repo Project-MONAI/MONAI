@@ -10,9 +10,11 @@
 # limitations under the License.
 
 import unittest
+
 import numpy as np
 import torch
 from parameterized import parameterized
+
 from monai.transforms import MeanEnsemble
 
 TEST_CASE_1 = [

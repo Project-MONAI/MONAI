@@ -15,13 +15,13 @@ defined in :py:class:`monai.transforms.io.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Optional, Callable
+from typing import Callable, Optional
 
 import numpy as np
 
 from monai.config import KeysCollection
 from monai.transforms.compose import MapTransform
-from monai.transforms.io.array import LoadNifti, LoadPNG, LoadNumpy
+from monai.transforms.io.array import LoadNifti, LoadNumpy, LoadPNG
 
 
 class LoadDatad(MapTransform):

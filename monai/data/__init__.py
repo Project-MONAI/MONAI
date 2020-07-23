@@ -11,7 +11,7 @@
 
 from .csv_saver import CSVSaver
 from .dataloader import DataLoader
-from .dataset import Dataset, PersistentDataset, CacheDataset, ZipDataset, ArrayDataset
+from .dataset import ArrayDataset, CacheDataset, Dataset, PersistentDataset, ZipDataset
 from .decathalon_datalist import load_decathalon_datalist
 from .grid_dataset import GridPatchDataset
 from .nifti_reader import NiftiDataset

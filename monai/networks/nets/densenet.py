@@ -15,7 +15,7 @@ from typing import Callable, Sequence, Type, Union
 import torch
 import torch.nn as nn
 
-from monai.networks.layers.factories import Conv, Dropout, Pool, Norm
+from monai.networks.layers.factories import Conv, Dropout, Norm, Pool
 
 
 class _DenseLayer(nn.Sequential):
@@ -40,7 +40,7 @@ class _DenseLayer(nn.Sequential):
         if dropout_prob > 0:
             self.add_module("dropout", dropout_type(dropout_prob))
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         new_features = super(_DenseLayer, self).forward(x)
         return torch.cat([x, new_features], 1)
 
@@ -161,7 +161,7 @@ class DenseNet(nn.Module):
             elif isinstance(m, nn.Linear):
                 nn.init.constant_(m.bias, 0)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.features(x)
         x = self.class_layers(x)
         return x

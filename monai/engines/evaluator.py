@@ -9,17 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Dict, Optional, Sequence, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence, Union
 
 import torch
 from torch.utils.data import DataLoader
 
-from monai.inferers import Inferer, SimpleInferer
-from monai.transforms import Transform
 from monai.engines.utils import CommonKeys as Keys
 from monai.engines.utils import default_prepare_batch
 from monai.engines.workflow import Workflow
-from monai.utils import exact_version, optional_import, ensure_tuple
+from monai.inferers import Inferer, SimpleInferer
+from monai.transforms import Transform
+from monai.utils import ensure_tuple, exact_version, optional_import
 
 if TYPE_CHECKING:
     from ignite.engine import Engine
@@ -88,7 +88,7 @@ class Evaluator(Workflow):
         self.state.iteration = 0
         super().run()
 
-    def get_validation_stats(self) -> Dict[str, Union[int, float]]:
+    def get_validation_stats(self) -> Dict[str, float]:
         return {"best_validation_metric": self.state.best_metric, "best_validation_epoch": self.state.best_metric_epoch}
 
 

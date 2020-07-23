@@ -9,16 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Sequence, Union
-
 import random
 import warnings
+from typing import Callable, Optional, Sequence, Union
 
-import torch
 import numpy as np
+import torch
 
 from monai.config import IndexSelection
-from monai.utils import ensure_tuple, ensure_tuple_size, fall_back_tuple, optional_import, min_version
+from monai.utils import ensure_tuple, ensure_tuple_size, fall_back_tuple, min_version, optional_import
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 
@@ -66,7 +65,7 @@ def zero_margins(img, margin) -> bool:
     return True
 
 
-def rescale_array(arr, minv=0.0, maxv=1.0, dtype: Optional[np.dtype] = np.float32):
+def rescale_array(arr: np.ndarray, minv=0.0, maxv=1.0, dtype: Optional[np.dtype] = np.float32) -> np.ndarray:
     """
     Rescale the values of numpy array `arr` to be from `minv` to `maxv`.
     """
@@ -284,7 +283,7 @@ def create_grid(
     spacing: Optional[Sequence[float]] = None,
     homogeneous: bool = True,
     dtype: np.dtype = float,
-):
+) -> np.ndarray:
     """
     compute a `spatial_size` mesh.
 
@@ -303,7 +302,7 @@ def create_grid(
 
 
 def create_control_grid(
-    spatial_shape: Sequence[int], spacing: Sequence[float], homogeneous: bool = True, dtype: Optional[np.dtype] = float
+    spatial_shape: Sequence[int], spacing: Sequence[float], homogeneous: bool = True, dtype: np.dtype = float
 ):
     """
     control grid with two additional point in each direction

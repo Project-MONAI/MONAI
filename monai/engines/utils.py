@@ -9,7 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence, Dict, Optional
+from typing import Any, Dict, List, Optional, Sequence, Tuple
+
 import torch
 
 
@@ -30,7 +31,7 @@ class CommonKeys:
     LOSS = "loss"
 
 
-def get_devices_spec(devices: Optional[Sequence[torch.device]] = None):
+def get_devices_spec(devices: Optional[Sequence[torch.device]] = None) -> List[torch.device]:
     """
     Get a valid specification for one or more devices. If `devices` is None get devices for all CUDA devices available.
     If `devices` is and zero-length structure a single CPU compute device is returned. In any other cases `devices` is
@@ -55,10 +56,13 @@ def get_devices_spec(devices: Optional[Sequence[torch.device]] = None):
     elif len(devices) == 0:
         devices = [torch.device("cpu")]
 
+    else:
+        devices = list(devices)
+
     return devices
 
 
-def default_prepare_batch(batchdata: Dict):
+def default_prepare_batch(batchdata: Dict[str, Any]) -> Tuple[Any, Any]:
     assert isinstance(batchdata, dict), "default prepare_batch expects dictionary input data."
     return (
         (batchdata[CommonKeys.IMAGE], batchdata[CommonKeys.LABEL])

@@ -9,11 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Union, TYPE_CHECKING
-
 import logging
+from typing import TYPE_CHECKING, Callable, Optional, Union
 
-from torch.optim.lr_scheduler import _LRScheduler, ReduceLROnPlateau
+from torch.optim.lr_scheduler import ReduceLROnPlateau, _LRScheduler
 
 from monai.utils import ensure_tuple, exact_version, optional_import
 

@@ -15,21 +15,22 @@ defined in :py:class:`monai.transforms.intensity.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Optional, Sequence, Tuple, Union, Any
+from typing import Any, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
 from monai.config import KeysCollection
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.intensity.array import (
-    NormalizeIntensity,
-    ScaleIntensityRange,
-    ThresholdIntensity,
     AdjustContrast,
-    ShiftIntensity,
-    ScaleIntensity,
-    ScaleIntensityRangePercentiles,
+    GaussianSmooth,
     MaskIntensity,
+    NormalizeIntensity,
+    ScaleIntensity,
+    ScaleIntensityRange,
+    ScaleIntensityRangePercentiles,
+    ShiftIntensity,
+    ThresholdIntensity,
 )
 
 
@@ -418,6 +419,30 @@ class MaskIntensityd(MapTransform):
         return d
 
 
+class GaussianSmoothd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.GaussianSmooth`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        sigma: if a list of values, must match the count of spatial dimensions of input data,
+            and apply every value in the list to 1 spatial dimension. if only 1 value provided,
+            use it for all spatial dimensions.
+
+    """
+
+    def __init__(self, keys: KeysCollection, sigma: Union[Sequence[float], float]):
+        super().__init__(keys)
+        self.converter = GaussianSmooth(sigma)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.converter(d[key])
+        return d
+
+
 RandGaussianNoiseD = RandGaussianNoiseDict = RandGaussianNoised
 ShiftIntensityD = ShiftIntensityDict = ShiftIntensityd
 RandShiftIntensityD = RandShiftIntensityDict = RandShiftIntensityd
@@ -430,3 +455,4 @@ AdjustContrastD = AdjustContrastDict = AdjustContrastd
 RandAdjustContrastD = RandAdjustContrastDict = RandAdjustContrastd
 ScaleIntensityRangePercentilesD = ScaleIntensityRangePercentilesDict = ScaleIntensityRangePercentilesd
 MaskIntensityD = MaskIntensityDict = MaskIntensityd
+GaussianSmoothD = GaussianSmoothDict = GaussianSmoothd
