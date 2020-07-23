@@ -123,9 +123,6 @@ class ScaleIntensity(Transform):
             minv: minimum value of output data.
             maxv: maximum value of output data.
             factor: factor scale by ``v = v * (1 + factor)``.
-
-        Raises:
-            ValueError: When `minv` and `maxv` are None and `factor` is not specified.
         """
         self.minv = minv
         self.maxv = maxv
@@ -134,13 +131,17 @@ class ScaleIntensity(Transform):
     def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Apply the transform to `img`.
+
+        Raises:
+            ValueError: When ``self.minv=None`` or ``self.maxv=None`` and ``self.factor=None``. Incompatible values.
+
         """
         if self.minv is not None and self.maxv is not None:
             return rescale_array(img, self.minv, self.maxv, img.dtype)
         elif self.factor is not None:
             return (img * (1 + self.factor)).astype(img.dtype)
         else:
-            raise ValueError("If `minv` and `maxv` are None `factor` must be non None.")
+            raise ValueError("Incompatible values: minv=None or maxv=None and factor=None.")
 
 
 class RandScaleIntensity(Randomizable, Transform):
@@ -468,9 +469,17 @@ class MaskIntensity(Transform):
         self.mask_data = mask_data
 
     def __call__(self, img: np.ndarray, mask_data: Optional[np.ndarray] = None) -> np.ndarray:
+        """
+        Raises:
+            ValueError: When ``mask_data`` and ``img`` channels differ and ``mask_data`` is not single channel.
+
+        """
         mask_data_ = self.mask_data > 0 if mask_data is None else mask_data > 0
         if mask_data_.shape[0] != 1 and mask_data_.shape[0] != img.shape[0]:
-            raise RuntimeError("mask data has more than 1 channel and do not match channels of input data.")
+            raise ValueError(
+                "When mask_data is not single channel, mask_data channels must match img, "
+                f"got img={img.shape[0]} mask_data={mask_data_.shape[0]}."
+            )
 
         return img * mask_data_
 

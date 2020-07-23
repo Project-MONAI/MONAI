@@ -111,9 +111,6 @@ def optional_import(
     Returns:
         The imported module and a boolean flag indicating whether the import is successful.
 
-    Raises:
-        _exception: Optional import: {msg}.
-
     Examples::
 
         >>> torch, flag = optional_import('torch', '1.1')
@@ -182,9 +179,17 @@ def optional_import(
                 self._exception = AttributeError(_default_msg).with_traceback(tb)
 
         def __getattr__(self, name):
+            """
+            Raises:
+                AttributeError: When you call this method.
+            """
             raise self._exception
 
         def __call__(self, *_args, **_kwargs):
+            """
+            Raises:
+                AttributeError: When you call this method.
+            """
             raise self._exception
 
     return _LazyRaise(), False

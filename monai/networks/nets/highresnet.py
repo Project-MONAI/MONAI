@@ -99,8 +99,7 @@ class HighResBlock(nn.Module):
                 - ``"project"``: with a trainable conv with kernel size.
 
         Raises:
-            ValueError: channel matching must be pad or project, got {channel_matching}.
-            ValueError: in_channels > out_channels is incompatible with `channel_matching=pad`.
+            ValueError: When ``channel_matching=pad`` and ``in_channels > out_channels``. Incompatible values.
 
         """
         super(HighResBlock, self).__init__()
@@ -115,7 +114,7 @@ class HighResBlock(nn.Module):
                 self.project = conv_type(in_channels, out_channels, kernel_size=1)
             if channel_matching == ChannelMatching.PAD:
                 if in_channels > out_channels:
-                    raise ValueError("in_channels > out_channels is incompatible with `channel_matching=pad`.")
+                    raise ValueError('Incompatible values: channel_matching="pad" and in_channels > out_channels.')
                 pad_1 = (out_channels - in_channels) // 2
                 pad_2 = out_channels - in_channels - pad_1
                 pad = [0, 0] * spatial_dims + [pad_1, pad_2] + [0, 0]

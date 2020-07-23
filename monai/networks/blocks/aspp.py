@@ -56,7 +56,7 @@ class SimpleASPP(nn.Module):
                 Defaults to leaky ReLU.
 
         Raises:
-            ValueError: len(kernel_sizes) and len(dilations) must be the same.
+            ValueError: When ``kernel_sizes`` length differs from ``dilations``.
 
         See also:
 
@@ -67,7 +67,10 @@ class SimpleASPP(nn.Module):
         """
         super().__init__()
         if len(kernel_sizes) != len(dilations):
-            raise ValueError("len(kernel_sizes) and len(dilations) must be the same.")
+            raise ValueError(
+                "kernel_sizes and dilations length must match, "
+                f"got kernel_sizes={len(kernel_sizes)} dilations={len(dilations)}."
+            )
         pads = tuple(same_padding(k, d) for k, d in zip(kernel_sizes, dilations))
 
         self.convs = nn.ModuleList()

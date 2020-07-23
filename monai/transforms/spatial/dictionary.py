@@ -108,7 +108,7 @@ class Spacingd(MapTransform):
                 metadata `image_meta_dict` dictionary's `affine` field.
 
         Raises:
-            ValueError: meta_key_postfix must be a string.
+            TypeError: When ``meta_key_postfix`` is not a ``str``.
 
         """
         super().__init__(keys)
@@ -117,7 +117,7 @@ class Spacingd(MapTransform):
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         if not isinstance(meta_key_postfix, str):
-            raise ValueError("meta_key_postfix must be a string.")
+            raise TypeError(f"meta_key_postfix must be a str but is {type(meta_key_postfix).__name__}.")
         self.meta_key_postfix = meta_key_postfix
 
     def __call__(self, data):
@@ -174,15 +174,16 @@ class Orientationd(MapTransform):
                 metadata `image_meta_dict` dictionary's `affine` field.
 
         Raises:
-            ValueError: meta_key_postfix must be a string.
+            TypeError: When ``meta_key_postfix`` is not a ``str``.
 
         See Also:
             `nibabel.orientations.ornt2axcodes`.
+
         """
         super().__init__(keys)
         self.ornt_transform = Orientation(axcodes=axcodes, as_closest_canonical=as_closest_canonical, labels=labels)
         if not isinstance(meta_key_postfix, str):
-            raise ValueError("meta_key_postfix must be a string.")
+            raise TypeError(f"meta_key_postfix must be a str but is {type(meta_key_postfix).__name__}.")
         self.meta_key_postfix = meta_key_postfix
 
     def __call__(self, data):
