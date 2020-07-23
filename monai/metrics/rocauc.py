@@ -86,10 +86,11 @@ def compute_roc_auc(
             - ``"none"``: the scores for each class are returned.
 
     Raises:
-        ValueError: predictions should be of shape (batch_size, n_classes) or (batch_size, ).
-        ValueError: targets should be of shape (batch_size, n_classes) or (batch_size, ).
-        ValueError: unsupported average method.
-        ValueError: can not enable softmax and other activation together.
+        ValueError: When ``y_pred`` dimension is not one of [1, 2].
+        ValueError: When ``y`` dimension is not one of [1, 2].
+        ValueError: When ``softmax=True`` and ``other_act is not None``. Incompatible values.
+        TypeError: When ``other_act`` is not an ``Optional[Callable]``.
+        ValueError: When ``average`` is not one of ["macro", "weighted", "micro", "none"].
 
     Note:
         ROCAUC expects y to be comprised of 0's and 1's. `y_pred` must be either prob. estimates or confidence values.
@@ -98,9 +99,9 @@ def compute_roc_auc(
     y_pred_ndim = y_pred.ndimension()
     y_ndim = y.ndimension()
     if y_pred_ndim not in (1, 2):
-        raise ValueError("predictions should be of shape (batch_size, n_classes) or (batch_size, ).")
+        raise ValueError("Predictions should be of shape (batch_size, n_classes) or (batch_size, ).")
     if y_ndim not in (1, 2):
-        raise ValueError("targets should be of shape (batch_size, n_classes) or (batch_size, ).")
+        raise ValueError("Targets should be of shape (batch_size, n_classes) or (batch_size, ).")
     if y_pred_ndim == 2 and y_pred.shape[1] == 1:
         y_pred = y_pred.squeeze(dim=-1)
         y_pred_ndim = 1
@@ -118,12 +119,12 @@ def compute_roc_auc(
         if to_onehot_y:
             y = one_hot(y, n_classes)
         if softmax and other_act is not None:
-            raise ValueError("can not enable softmax and other activation together.")
+            raise ValueError("Incompatible values: softmax=True and other_act is not None.")
         if softmax:
             y_pred = y_pred.float().softmax(dim=1)
         if other_act is not None:
             if not callable(other_act):
-                raise ValueError("other_act must be a Callable function.")
+                raise TypeError(f"other_act must be None or callable but is {type(other_act).__name__}.")
             y_pred = other_act(y_pred)
 
         assert y.shape == y_pred.shape, "data shapes of y_pred and y do not match."
@@ -141,4 +142,6 @@ def compute_roc_auc(
             if average == Average.WEIGHTED:
                 weights = [sum(y_) for y_ in y]
                 return np.average(auc_values, weights=weights)
-            raise ValueError("unsupported average method.")
+            raise ValueError(
+                f'Unsupported average: {average}, available options are ["macro", "weighted", "micro", "none"].'
+            )

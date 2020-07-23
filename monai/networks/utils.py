@@ -126,20 +126,18 @@ def to_norm_affine(affine: torch.Tensor, src_size: Sequence[int], dst_size: Sequ
             See also: https://pytorch.org/docs/stable/nn.functional.html#torch.nn.functional.grid_sample
 
     Raises:
-        ValueError: affine must be a tensor
-        ValueError: affine must be Nxdxd, got {tuple(affine.shape)}
-        ValueError: affine suggests a {sr}-D transform, but the sizes are src_size={src_size}, dst_size={dst_size}
+        TypeError: When ``affine`` is not a ``torch.Tensor``.
+        ValueError: When ``affine`` is not Nxdxd.
+        ValueError: When ``src_size`` or ``dst_size`` dimensions differ from ``affine``.
 
     """
     if not torch.is_tensor(affine):
-        raise ValueError("affine must be a tensor")
+        raise TypeError(f"affine must be a torch.Tensor but is {type(affine).__name__}.")
     if affine.ndim != 3 or affine.shape[1] != affine.shape[2]:
-        raise ValueError(f"affine must be Nxdxd, got {tuple(affine.shape)}")
+        raise ValueError(f"affine must be Nxdxd, got {tuple(affine.shape)}.")
     sr = affine.shape[1] - 1
     if sr != len(src_size) or sr != len(dst_size):
-        raise ValueError(
-            f"affine suggests a {sr}-D transform, but the sizes are src_size={src_size}, dst_size={dst_size}"
-        )
+        raise ValueError(f"affine suggests {sr}D, got src={len(src_size)}D, dst={len(dst_size)}D.")
 
     src_xform = normalize_transform(src_size, affine.device, affine.dtype, align_corners)
     dst_xform = normalize_transform(dst_size, affine.device, affine.dtype, align_corners)

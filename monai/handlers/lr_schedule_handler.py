@@ -48,7 +48,7 @@ class LrScheduleHandler:
                 to expected input data of lr_scheduler.step() function if necessary.
 
         Raises:
-            ValueError: argument `step_transform` must be a callable.
+            TypeError: When ``step_transform`` is not ``callable``.
 
         """
         self.lr_scheduler = lr_scheduler
@@ -56,7 +56,7 @@ class LrScheduleHandler:
         self.logger = logging.getLogger(name)
         self.epoch_level = epoch_level
         if not callable(step_transform):
-            raise ValueError("argument `step_transform` must be a callable.")
+            raise TypeError(f"step_transform must be callable but is {type(step_transform).__name__}.")
         self.step_transform = step_transform
 
         self._name = name

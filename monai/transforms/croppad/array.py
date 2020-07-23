@@ -121,14 +121,16 @@ class BorderPad(Transform):
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
 
         Raises:
-            ValueError: spatial_border must be int number and can not be less than 0.
-            ValueError: unsupported length of spatial_border definition.
+            ValueError: When ``self.spatial_border`` contains a nonnegative int.
+            ValueError: When ``self.spatial_border`` length is not one of
+                [1, len(spatial_shape), 2*len(spatial_shape)].
+
         """
         spatial_shape = img.shape[1:]
         spatial_border = ensure_tuple(self.spatial_border)
         for b in spatial_border:
-            if b < 0 or not isinstance(b, int):
-                raise ValueError("spatial_border must be int number and can not be less than 0.")
+            if not isinstance(b, int) or b < 0:
+                raise ValueError(f"self.spatial_border must contain only nonnegative ints, got {spatial_border}.")
 
         if len(spatial_border) == 1:
             data_pad_width = [(spatial_border[0], spatial_border[0]) for _ in range(len(spatial_shape))]
@@ -137,7 +139,10 @@ class BorderPad(Transform):
         elif len(spatial_border) == len(spatial_shape) * 2:
             data_pad_width = [(spatial_border[2 * i], spatial_border[2 * i + 1]) for i in range(len(spatial_shape))]
         else:
-            raise ValueError("unsupported length of spatial_border definition.")
+            raise ValueError(
+                f"Unsupported spatial_border length: {len(spatial_border)}, available options are "
+                f"[1, len(spatial_shape)={len(spatial_shape)}, 2*len(spatial_shape)={2*len(spatial_shape)}]."
+            )
 
         return np.pad(
             img, [(0, 0)] + data_pad_width, mode=self.mode.value if mode is None else NumpyPadMode(mode).value
@@ -320,6 +325,10 @@ class RandSpatialCropSamples(Randomizable, Transform):
         random_center: crop at random position as center or the image center.
         random_size: crop with random size or specific size ROI.
             The actual size is sampled from `randint(roi_size, img_size)`.
+
+    Raises:
+        ValueError: When ``num_samples`` is nonpositive.
+
     """
 
     def __init__(
@@ -330,7 +339,7 @@ class RandSpatialCropSamples(Randomizable, Transform):
         random_size: bool = True,
     ) -> None:
         if num_samples < 1:
-            raise ValueError("number of samples must be greater than 0.")
+            raise ValueError(f"num_samples must be positive, got {num_samples}.")
         self.num_samples = num_samples
         self.cropper = RandSpatialCrop(roi_size, random_center, random_size)
 
@@ -422,6 +431,11 @@ class RandCropByPosNegLabel(Randomizable, Transform):
             sample (background) center. So the crop center will only come from the valid image areas.
         image_threshold: if enabled `image`, use ``image > image_threshold`` to determine
             the valid image content areas.
+
+    Raises:
+        ValueError: When ``pos`` or ``neg`` are negative.
+        ValueError: When ``pos=0`` and ``neg=0``. Incompatible values.
+
     """
 
     def __init__(
@@ -437,9 +451,9 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         self.spatial_size = spatial_size
         self.label = label
         if pos < 0 or neg < 0:
-            raise ValueError("pos and neg must be greater than or equal to 0.")
+            raise ValueError(f"pos and neg must be nonnegative, got pos={pos} neg={neg}.")
         if pos + neg == 0:
-            raise ValueError("pos and neg cannot both be 0.")
+            raise ValueError("Incompatible values: pos=0 and neg=0.")
         self.pos_ratio = pos / (pos + neg)
         self.num_samples = num_samples
         self.image = image

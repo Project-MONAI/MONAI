@@ -156,13 +156,17 @@ class CastToType(Transform):
     ) -> Union[np.ndarray, torch.Tensor]:
         """
         Apply the transform to `img`, assuming `img` is a numpy array or PyTorch Tensor.
+
+        Raises:
+            TypeError: When ``img`` type is not in ``Union[numpy.ndarray, torch.Tensor]``.
+
         """
         if isinstance(img, np.ndarray):
             return img.astype(self.dtype if dtype is None else dtype)
         elif torch.is_tensor(img):
             return torch.as_tensor(img, dtype=self.dtype if dtype is None else dtype)
         else:
-            raise TypeError("img is not Numpy array or PyTorch Tensor.")
+            raise TypeError(f"img must be one of (numpy.ndarray, torch.Tensor) but is {type(img).__name__}.")
 
 
 class ToTensor(Transform):
@@ -220,11 +224,11 @@ class SqueezeDim(Transform):
                 "None" works when the input is numpy array.
 
         Raises:
-            ValueError: Invalid channel dimension {dim}
+            TypeError: When ``dim`` is not an ``Optional[int]``.
 
         """
         if dim is not None and not isinstance(dim, int):
-            raise ValueError(f"Invalid channel dimension {dim}")
+            raise TypeError(f"dim must be None or a int but is {type(dim).__name__}.")
         self.dim = dim
 
     def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
@@ -264,7 +268,7 @@ class DataStats(Transform):
                 add existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html
 
         Raises:
-            ValueError: argument `additional_info` must be a callable.
+            TypeError: When ``additional_info`` is not an ``Optional[Callable]``.
 
         """
         assert isinstance(prefix, str), "prefix must be a string."
@@ -273,7 +277,7 @@ class DataStats(Transform):
         self.value_range = value_range
         self.data_value = data_value
         if additional_info is not None and not callable(additional_info):
-            raise ValueError("argument `additional_info` must be a callable.")
+            raise TypeError(f"additional_info must be None or callable but is {type(additional_info).__name__}.")
         self.additional_info = additional_info
         self.output: Optional[str] = None
         logging.basicConfig(level=logging.NOTSET)
@@ -364,25 +368,34 @@ class Lambda(Transform):
 
     Args:
         func: Lambda/function to be applied.
+
+    Raises:
+        TypeError: When ``func`` is not an ``Optional[Callable]``.
+
     """
 
     def __init__(self, func: Optional[Callable] = None) -> None:
         if func is not None and not callable(func):
-            raise ValueError("func must be callable.")
+            raise TypeError(f"func must be None or callable but is {type(func).__name__}.")
         self.func = func
 
     def __call__(self, img: Union[np.ndarray, torch.Tensor], func: Optional[Callable] = None):
         """
         Apply `self.func` to `img`.
+
+        Raises:
+            TypeError: When ``func`` is not an ``Optional[Callable]``.
+            ValueError: When ``func=None`` and ``self.func=None``. Incompatible values.
+
         """
         if func is not None:
             if not callable(func):
-                raise ValueError("func must be callable.")
+                raise TypeError(f"func must be None or callable but is {type(func).__name__}.")
             return func(img)
         if self.func is not None:
             return self.func(img)
         else:
-            raise RuntimeError("neither func or self.func is callable.")
+            raise ValueError("Incompatible values: func=None and self.func=None.")
 
 
 class LabelToMask(Transform):

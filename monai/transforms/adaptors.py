@@ -130,11 +130,11 @@ def adaptor(function, outputs, inputs=None):
     def must_be_types_or_none(variable_name, variable, types):
         if variable is not None:
             if not isinstance(variable, types):
-                raise ValueError(f"'{variable_name}' must be None or {types} but is {type(variable)}")
+                raise TypeError(f"'{variable_name}' must be None or one of {types} but is {type(variable)}")
 
     def must_be_types(variable_name, variable, types):
         if not isinstance(variable, types):
-            raise ValueError(f"'{variable_name}' must be one of {types} but is {type(variable)}")
+            raise TypeError(f"'{variable_name}' must be one of {types} but is {type(variable)}")
 
     def map_names(ditems, input_map):
         return {input_map(k, k): v for k, v in ditems.items()}

@@ -119,17 +119,17 @@ class Spacing(Transform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             dtype: output array data type. Defaults to ``self.dtype``.
 
+        Raises:
+            ValueError: When ``data_array`` has no spatial dimensions.
+            ValueError: When ``pixdim`` is nonpositive.
+
         Returns:
             data_array (resampled into `self.pixdim`), original pixdim, current pixdim.
-
-        Raises:
-            ValueError: the array should have at least one spatial dimension.
-            ValueError: pixdim must be positive, got {out_d}
 
         """
         sr = data_array.ndim - 1
         if sr <= 0:
-            raise ValueError("the array should have at least one spatial dimension.")
+            raise ValueError("data_array must have at least one spatial dimension.")
         if affine is None:
             # default to identity
             affine = np.eye(sr + 1, dtype=np.float64)
@@ -140,7 +140,7 @@ class Spacing(Transform):
         if out_d.size < sr:
             out_d = np.append(out_d, [1.0] * (out_d.size - sr))
         if np.any(out_d <= 0):
-            raise ValueError(f"pixdim must be positive, got {out_d}")
+            raise ValueError(f"pixdim must be positive, got {out_d}.")
         # compute output affine, shape and offset
         new_affine = zoom_affine(affine_, out_d, diagonal=self.diagonal)
         output_shape, offset = compute_shape_offset(data_array.shape[1:], affine_, new_affine)
@@ -195,12 +195,13 @@ class Orientation(Transform):
                 Defaults to ``(('L', 'R'), ('P', 'A'), ('I', 'S'))``.
 
         Raises:
-            ValueError: provide either `axcodes` or `as_closest_canonical=True`.
+            ValueError: When ``axcodes=None`` and ``as_closest_canonical=True``. Incompatible values.
 
         See Also: `nibabel.orientations.ornt2axcodes`.
+
         """
         if axcodes is None and not as_closest_canonical:
-            raise ValueError("provide either `axcodes` or `as_closest_canonical=True`.")
+            raise ValueError("Incompatible values: axcodes=None and as_closest_canonical=True.")
         if axcodes is not None and as_closest_canonical:
             warnings.warn("using as_closest_canonical=True, axcodes ignored.")
         self.axcodes = axcodes
@@ -215,18 +216,17 @@ class Orientation(Transform):
             data_array: in shape (num_channels, H[, W, ...]).
             affine (matrix): (N+1)x(N+1) original affine matrix for spatially ND `data_array`. Defaults to identity.
 
+        Raises:
+            ValueError: When ``data_array`` has no spatial dimensions.
+            ValueError: When ``axcodes`` spatiality differs from ``data_array``.
+
         Returns:
             data_array (reoriented in `self.axcodes`), original axcodes, current axcodes.
-
-        Raises:
-            ValueError: the array should have at least one spatial dimension.
-            ValueError: `self.axcodes` should have at least {sr} elements
-                given the data array is in spatial {sr}D, got "{self.axcodes}"
 
         """
         sr = data_array.ndim - 1
         if sr <= 0:
-            raise ValueError("the array should have at least one spatial dimension.")
+            raise ValueError("data_array must have at least one spatial dimension.")
         if affine is None:
             affine = np.eye(sr + 1, dtype=np.float64)
             affine_ = np.eye(sr + 1, dtype=np.float64)
@@ -240,8 +240,7 @@ class Orientation(Transform):
             dst = nib.orientations.axcodes2ornt(self.axcodes[:sr], labels=self.labels)
             if len(dst) < sr:
                 raise ValueError(
-                    f"`self.axcodes` should have at least {sr} elements"
-                    f' given the data array is in spatial {sr}D, got "{self.axcodes}"'
+                    f"axcodes must match data_array spatially, got axcodes={len(self.axcodes)}D data_array={sr}D"
                 )
             spatial_ornt = nib.orientations.ornt_transform(src, dst)
         ornt = spatial_ornt.copy()
@@ -320,8 +319,7 @@ class Resize(Transform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
 
         Raises:
-            ValueError: len(spatial_size) cannot be smaller than the image spatial dimensions,
-                got {output_ndim} and {input_ndim}.
+            ValueError: When ``self.spatial_size`` length is less than ``img`` spatial dimensions.
 
         """
         input_ndim = img.ndim - 1  # spatial ndim
@@ -331,8 +329,8 @@ class Resize(Transform):
             img = img.reshape(input_shape)
         elif output_ndim < input_ndim:
             raise ValueError(
-                "len(spatial_size) cannot be smaller than the image spatial dimensions, "
-                f"got {output_ndim} and {input_ndim}."
+                "len(spatial_size) must be greater or equal to img spatial dimensions, "
+                f"got spatial_size={output_ndim} img={input_ndim}."
             )
         spatial_size = fall_back_tuple(self.spatial_size, img.shape[1:])
         resized = _torch_interp(
@@ -387,7 +385,7 @@ class Rotate(Transform):
     ) -> np.ndarray:
         """
         Args:
-            img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
+            img: channel first array, must have shape: [chns, H, W] or [chns, H, W, D].
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``self.mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
@@ -400,13 +398,13 @@ class Rotate(Transform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
 
         Raises:
-            ValueError: Rotate only supports 2D and 3D: [chns, H, W] and [chns, H, W, D].
+            ValueError: When ``img`` spatially is not one of [2D, 3D].
 
         """
         im_shape = np.asarray(img.shape[1:])  # spatial dimensions
         input_ndim = len(im_shape)
         if input_ndim not in (2, 3):
-            raise ValueError("Rotate only supports 2D and 3D: [chns, H, W] and [chns, H, W, D].")
+            raise ValueError(f"Unsupported img dimension: {input_ndim}, available options are [2, 3].")
         _angle = ensure_tuple_rep(self.angle, 1 if input_ndim == 2 else 3)
         _rad = np.deg2rad(_angle)
         transform = create_rotate(input_ndim, _rad)
@@ -824,14 +822,14 @@ class AffineGrid(Transform):
             grid: grid to be transformed. Shape must be (3, H, W) for 2D or (4, H, W, D) for 3D.
 
         Raises:
-            ValueError: Either specify a grid or a spatial size to create a grid from.
+            ValueError: When ``grid=None`` and ``spatial_size=None``. Incompatible values.
 
         """
         if grid is None:
             if spatial_size is not None:
                 grid = create_grid(spatial_size)
             else:
-                raise ValueError("Either specify a grid or a spatial size to create a grid from.")
+                raise ValueError("Incompatible values: grid=None and spatial_size=None.")
 
         spatial_dims = len(grid.shape) - 1
         affine = np.eye(spatial_dims + 1)
