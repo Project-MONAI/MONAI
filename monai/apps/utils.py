@@ -9,16 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional
-
-import os
-from urllib.request import urlretrieve
-from urllib.error import URLError, ContentTooShortError, HTTPError
 import hashlib
+import os
 import tarfile
 import zipfile
+from typing import Optional
+from urllib.error import ContentTooShortError, HTTPError, URLError
+from urllib.request import urlretrieve
 
-from monai.utils import progress_bar, optional_import
+from monai.utils import optional_import, progress_bar
 
 gdown, has_gdown = optional_import("gdown", "3.6")
 

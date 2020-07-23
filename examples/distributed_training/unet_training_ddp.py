@@ -45,28 +45,29 @@ Referring to: https://pytorch.org/tutorials/intermediate/ddp_tutorial.html
 
 """
 
+import argparse
 import os
 import sys
 from glob import glob
+
 import nibabel as nib
 import numpy as np
 import torch
-import argparse
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data.distributed import DistributedSampler
 
 import monai
+from monai.data import DataLoader, Dataset, create_test_image_3d
 from monai.transforms import (
+    AsChannelFirstd,
     Compose,
     LoadNiftid,
-    AsChannelFirstd,
-    ScaleIntensityd,
     RandCropByPosNegLabeld,
     RandRotate90d,
+    ScaleIntensityd,
     ToTensord,
 )
-from monai.data import create_test_image_3d, Dataset, DataLoader
 
 
 def train(args):

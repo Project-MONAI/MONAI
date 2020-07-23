@@ -12,8 +12,9 @@
 import unittest
 
 import torch
-from monai.networks.blocks import UpSample
 from parameterized import parameterized
+
+from monai.networks.blocks import UpSample
 
 TEST_CASES = [
     [{"spatial_dims": 2, "in_channels": 4}, torch.randn(7, 4, 32, 48), (7, 4, 64, 96)],  # 4-channel 2D, batch 7

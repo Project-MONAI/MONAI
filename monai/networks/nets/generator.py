@@ -15,8 +15,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from monai.networks.layers.factories import Norm, Act
 from monai.networks.blocks import Convolution, ResidualUnit
+from monai.networks.layers.factories import Act, Norm
 from monai.networks.layers.simplelayers import Reshape
 from monai.utils import ensure_tuple, ensure_tuple_rep
 

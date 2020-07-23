@@ -14,9 +14,9 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 from scipy.ndimage import zoom as zoom_scipy
-from tests.utils import NumpyImageTestCase2D
 
 from monai.transforms import Zoom
+from tests.utils import NumpyImageTestCase2D
 
 VALID_CASES = [(1.5, "nearest"), (1.5, "nearest"), (0.8, "bilinear"), (0.8, "area")]
 

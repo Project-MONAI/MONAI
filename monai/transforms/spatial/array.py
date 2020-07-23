@@ -13,9 +13,8 @@ A collection of "vanilla" transforms for spatial operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
-
 import warnings
+from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -34,7 +33,6 @@ from monai.transforms.utils import (
     create_translate,
 )
 from monai.utils import (
-    optional_import,
     GridSampleMode,
     GridSamplePadMode,
     InterpolateMode,
@@ -43,6 +41,7 @@ from monai.utils import (
     ensure_tuple_rep,
     ensure_tuple_size,
     fall_back_tuple,
+    optional_import,
 )
 
 nib, _ = optional_import("nibabel")

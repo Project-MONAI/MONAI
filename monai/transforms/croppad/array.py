@@ -13,7 +13,7 @@ A collection of "vanilla" transforms for crop and pad operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Callable, List, Optional, Sequence, Tuple, Union, Any
+from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -21,7 +21,7 @@ from monai.config import IndexSelection
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.utils import generate_pos_neg_label_crop_centers, generate_spatial_bounding_box
-from monai.utils import ensure_tuple, fall_back_tuple, NumpyPadMode, Method
+from monai.utils import Method, NumpyPadMode, ensure_tuple, fall_back_tuple
 
 
 class SpatialPad(Transform):

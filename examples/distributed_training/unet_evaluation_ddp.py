@@ -46,27 +46,22 @@ Referring to: https://pytorch.org/tutorials/intermediate/ddp_tutorial.html
 
 """
 
+import argparse
 import os
 from glob import glob
+
 import nibabel as nib
 import numpy as np
 import torch
-import argparse
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data.distributed import DistributedSampler
 
 import monai
-from monai.transforms import (
-    Compose,
-    LoadNiftid,
-    AsChannelFirstd,
-    ScaleIntensityd,
-    ToTensord,
-)
-from monai.data import create_test_image_3d, Dataset, DataLoader
+from monai.data import DataLoader, Dataset, create_test_image_3d
 from monai.inferers import sliding_window_inference
 from monai.metrics import DiceMetric
+from monai.transforms import AsChannelFirstd, Compose, LoadNiftid, ScaleIntensityd, ToTensord
 
 
 def evaluate(args):
