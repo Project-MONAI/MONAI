@@ -41,12 +41,12 @@ class ChannelSELayer(nn.Module):
             acti_type_1: activation type of the hidden squeeze layer. Defaults to ``("relu", {"inplace": True})``.
             acti_type_2: activation type of the output squeeze layer. Defaults to "sigmoid".
 
+        Raises:
+            ValueError: When ``r`` is nonpositive or larger than ``in_channels``.
+
         See also:
 
             :py:class:`monai.networks.layers.Act`
-
-        Raises:
-            ValueError: r must be a positive number smaller than `in_channels`.
 
         """
         super(ChannelSELayer, self).__init__()
@@ -56,7 +56,7 @@ class ChannelSELayer(nn.Module):
 
         channels = int(in_channels // r)
         if channels <= 0:
-            raise ValueError("r must be a positive number smaller than `in_channels`.")
+            raise ValueError(f"r must be positive and smaller than in_channels, got r={r} in_channels={in_channels}.")
 
         act_1, act_1_args = split_args(acti_type_1)
         act_2, act_2_args = split_args(acti_type_2)

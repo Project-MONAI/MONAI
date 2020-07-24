@@ -195,11 +195,15 @@ class LoadNumpy(Transform):
         """
         Args:
             filename (str, list, tuple, file): path file or file-like object or a list of files.
+
+        Raises:
+            ValueError: When ``filename`` is a sequence and contains a "npz" file extension.
+
         """
         if isinstance(filename, (tuple, list)):
             for name in filename:
                 if name.endswith(".npz"):
-                    raise TypeError("can not load a list of npz file.")
+                    raise ValueError("Cannot load a sequence of npz files.")
         filename = ensure_tuple(filename)
         data_array = list()
         compatible_meta = None

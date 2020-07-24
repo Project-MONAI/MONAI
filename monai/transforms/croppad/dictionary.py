@@ -275,6 +275,10 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
         random_center: crop at random position as center or the image center.
         random_size: crop with random size or specific size ROI.
             The actual size is sampled from `randint(roi_size, img_size)`.
+
+    Raises:
+        ValueError: When ``num_samples`` is nonpositive.
+
     """
 
     def __init__(
@@ -287,7 +291,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
     ) -> None:
         super().__init__(keys)
         if num_samples < 1:
-            raise ValueError("number of samples must be greater than 0.")
+            raise ValueError(f"num_samples must be positive, got {num_samples}.")
         self.num_samples = num_samples
         self.cropper = RandSpatialCropd(keys, roi_size, random_center, random_size)
 
@@ -370,8 +374,8 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
             the valid image content area.
 
     Raises:
-        ValueError: pos and neg must be greater than or equal to 0.
-        ValueError: pos and neg cannot both be 0.
+        ValueError: When ``pos`` or ``neg`` are negative.
+        ValueError: When ``pos=0`` and ``neg=0``. Incompatible values.
 
     """
 
@@ -390,9 +394,9 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         self.label_key = label_key
         self.spatial_size = spatial_size
         if pos < 0 or neg < 0:
-            raise ValueError("pos and neg must be greater than or equal to 0.")
+            raise ValueError(f"pos and neg must be nonnegative, got pos={pos} neg={neg}.")
         if pos + neg == 0:
-            raise ValueError("pos and neg cannot both be 0.")
+            raise ValueError("Incompatible values: pos=0 and neg=0.")
         self.pos_ratio = pos / (pos + neg)
         self.num_samples = num_samples
         self.image_key = image_key

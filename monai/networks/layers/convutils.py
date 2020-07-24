@@ -22,7 +22,7 @@ def same_padding(kernel_size: Union[Sequence[int], int], dilation: Union[Sequenc
     shape as the input for a stride of 1, otherwise ensure a shape of the input divided by the stride rounded down.
 
     Raises:
-        NotImplementedError: same padding not available for k={kernel_size} and d={dilation}.
+        NotImplementedError: When ``np.any((kernel_size - 1) * dilation % 2 == 1)``.
 
     """
 
@@ -30,7 +30,9 @@ def same_padding(kernel_size: Union[Sequence[int], int], dilation: Union[Sequenc
     dilation_ = np.atleast_1d(dilation)
 
     if np.any((kernel_size_ - 1) * dilation_ % 2 == 1):
-        raise NotImplementedError(f"Same padding not available for k={kernel_size_} and d={dilation_}.")
+        raise NotImplementedError(
+            f"Same padding not available for kernel_size={kernel_size_} and dilation={dilation_}."
+        )
 
     padding = (kernel_size_ - 1) / 2 * dilation_
     padding = tuple(int(p) for p in padding)
@@ -59,15 +61,15 @@ def gaussian_1d(sigma, truncated=4.0):
         sigma: std of the kernel
         truncated: tail length
 
+    Raises:
+        ValueError: When ``sigma`` is nonpositive.
+
     Returns:
         1D numpy array
 
-    Raises:
-        ValueError: sigma must be positive
-
     """
     if sigma <= 0:
-        raise ValueError("sigma must be positive")
+        raise ValueError(f"sigma must be positive, got {sigma}.")
 
     tail = int(sigma * truncated + 0.5)
     sigma2 = sigma * sigma

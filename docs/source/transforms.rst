@@ -174,6 +174,12 @@ Intensity
     :members:
     :special-members: __call__
 
+`RandGaussianSmooth`
+""""""""""""""""""""
+.. autoclass:: RandGaussianSmooth
+    :members:
+    :special-members: __call__
+
 IO
 ^^
 
@@ -582,6 +588,12 @@ Instensity (Dict)
 `GaussianSmoothd`
 """""""""""""""""
 .. autoclass:: GaussianSmoothd
+    :members:
+    :special-members: __call__
+
+`RandGaussianSmoothd`
+"""""""""""""""""""""
+.. autoclass:: RandGaussianSmoothd
     :members:
     :special-members: __call__
 

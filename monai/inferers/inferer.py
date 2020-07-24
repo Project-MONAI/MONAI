@@ -34,10 +34,10 @@ class Inferer(ABC):
             network: model for inference.
 
         Raises:
-            NotImplementedError: subclass will implement the operations.
+            NotImplementedError: When the subclass does not override this method.
 
         """
-        raise NotImplementedError("subclass will implement the operations.")
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
 class SimpleInferer(Inferer):
