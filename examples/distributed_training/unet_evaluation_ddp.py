@@ -42,6 +42,8 @@ Note:
            --master_addr="192.168.1.1" --master_port=1234
            unet_evaluation_ddp.py -d DIR_OF_TESTDATA
 
+    This example was tested with [Ubuntu 16.04/20.04], [NCCL 2.6.3]
+
 Referring to: https://pytorch.org/tutorials/intermediate/ddp_tutorial.html
 
 """
