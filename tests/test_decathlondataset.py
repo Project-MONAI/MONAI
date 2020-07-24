@@ -59,11 +59,11 @@ class TestDecathlonDataset(unittest.TestCase):
         shutil.rmtree(os.path.join(tempdir, "Task04_Hippocampus"))
         try:
             data = DecathlonDataset(
-                root_dir=tempdir, task="Task04_Hippocampus", transform=transform, section="validation", download=True
+                root_dir=tempdir, task="Task04_Hippocampus", transform=transform, section="validation", download=False
             )
         except RuntimeError as e:
             print(str(e))
-            self.assertTrue(str(e).startswith("can not find dataset directory"))
+            self.assertTrue(str(e).startswith("Cannot find dataset directory"))
 
         shutil.rmtree(tempdir)
 

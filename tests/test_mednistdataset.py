@@ -55,10 +55,10 @@ class TestMedNISTDataset(unittest.TestCase):
         self.assertTupleEqual(data[0]["image"].shape, (64, 64))
         shutil.rmtree(os.path.join(testing_dir, "MedNIST"))
         try:
-            data = MedNISTDataset(root_dir=testing_dir, transform=transform, section="test", download=True)
+            data = MedNISTDataset(root_dir=testing_dir, transform=transform, section="test", download=False)
         except RuntimeError as e:
             print(str(e))
-            self.assertTrue(str(e).startswith("can not find dataset directory"))
+            self.assertTrue(str(e).startswith("Cannot find dataset directory"))
 
 
 if __name__ == "__main__":
