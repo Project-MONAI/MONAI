@@ -17,11 +17,11 @@ import unittest
 from monai.apps import DecathlonDataset
 from monai.transforms import AddChanneld, Compose, LoadNiftid, ScaleIntensityd, ToTensord
 
-# from tests.utils import skip_if_quick
+from tests.utils import skip_if_quick
 
 
 class TestDecathlonDataset(unittest.TestCase):
-    # @skip_if_quick
+    @skip_if_quick
     def test_values(self):
         tempdir = tempfile.mkdtemp()
         transform = Compose(

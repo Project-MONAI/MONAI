@@ -17,11 +17,11 @@ from urllib.error import ContentTooShortError, HTTPError
 from monai.apps import MedNISTDataset
 from monai.transforms import AddChanneld, Compose, LoadPNGd, ScaleIntensityd, ToTensord
 
-# from tests.utils import skip_if_quick
+from tests.utils import skip_if_quick
 
 
 class TestMedNISTDataset(unittest.TestCase):
-    # @skip_if_quick
+    @skip_if_quick
     def test_values(self):
         testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
         transform = Compose(
