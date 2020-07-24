@@ -18,7 +18,7 @@ mccabe
 pep8-naming
 pycodestyle
 pyflakes
-torchvision==0.6.0
+torchvision==0.5.0
 black
 isort
 pytype>=2020.6.1
