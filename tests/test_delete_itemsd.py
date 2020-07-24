@@ -9,10 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
-import time
 import sys
+import time
+import unittest
+
 from parameterized import parameterized
+
 from monai.transforms import DeleteItemsd
 
 TEST_CASE_1 = [{"keys": [str(i) for i in range(30)]}, 20]

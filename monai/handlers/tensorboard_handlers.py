@@ -9,14 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, TYPE_CHECKING
-
 import warnings
+from typing import TYPE_CHECKING, Callable, Optional
 
 import numpy as np
 import torch
 
-from monai.utils import exact_version, optional_import, is_scalar
+from monai.utils import exact_version, is_scalar, optional_import
 from monai.visualize import plot_2d_or_3d_image
 
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
@@ -243,13 +242,26 @@ class TensorBoardImageHandler(object):
             engine.add_event_handler(Events.ITERATION_COMPLETED(every=self.interval), self)
 
     def __call__(self, engine: Engine) -> None:
+        """
+        Raises:
+            TypeError: When ``output_transform(engine.state.output)[0]`` type is not in
+                ``Optional[Union[numpy.ndarray, torch.Tensor]]``.
+            TypeError: When ``batch_transform(engine.state.batch)[1]`` type is not in
+                ``Optional[Union[numpy.ndarray, torch.Tensor]]``.
+            TypeError: When ``output_transform(engine.state.output)`` type is not in
+                ``Optional[Union[numpy.ndarray, torch.Tensor]]``.
+
+        """
         step = self.global_iter_transform(engine.state.epoch if self.epoch_level else engine.state.iteration)
         show_images = self.batch_transform(engine.state.batch)[0]
         if torch.is_tensor(show_images):
             show_images = show_images.detach().cpu().numpy()
         if show_images is not None:
             if not isinstance(show_images, np.ndarray):
-                raise ValueError("output_transform(engine.state.output)[0] must be an ndarray or tensor.")
+                raise TypeError(
+                    "output_transform(engine.state.output)[0] must be None or one of "
+                    f"(numpy.ndarray, torch.Tensor) but is {type(show_images).__name__}."
+                )
             plot_2d_or_3d_image(
                 show_images, step, self._writer, self.index, self.max_channels, self.max_frames, "input_0"
             )
@@ -259,7 +271,10 @@ class TensorBoardImageHandler(object):
             show_labels = show_labels.detach().cpu().numpy()
         if show_labels is not None:
             if not isinstance(show_labels, np.ndarray):
-                raise ValueError("batch_transform(engine.state.batch)[1] must be an ndarray or tensor.")
+                raise TypeError(
+                    "batch_transform(engine.state.batch)[1] must be None or one of "
+                    f"(numpy.ndarray, torch.Tensor) but is {type(show_labels).__name__}."
+                )
             plot_2d_or_3d_image(
                 show_labels, step, self._writer, self.index, self.max_channels, self.max_frames, "input_1"
             )
@@ -269,7 +284,10 @@ class TensorBoardImageHandler(object):
             show_outputs = show_outputs.detach().cpu().numpy()
         if show_outputs is not None:
             if not isinstance(show_outputs, np.ndarray):
-                raise ValueError("output_transform(engine.state.output) must be an ndarray or tensor.")
+                raise TypeError(
+                    "output_transform(engine.state.output) must be None or one of "
+                    f"(numpy.ndarray, torch.Tensor) but is {type(show_outputs).__name__}."
+                )
             plot_2d_or_3d_image(
                 show_outputs, step, self._writer, self.index, self.max_channels, self.max_frames, "output"
             )

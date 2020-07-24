@@ -9,7 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Sequence, Union, Optional
+
 import numpy as np
+import torch
 import torch.nn as nn
 
 from monai.networks.layers.convutils import same_padding
@@ -36,6 +39,7 @@ class Convolution(nn.Sequential):
         norm: feature normalization type and arguments. Defaults to instance norm.
         dropout: dropout ratio. Defaults to no dropout.
         dilation: dilation rate. Defaults to 1.
+        groups: controls the connections between inputs and outputs. Defaults to 1.
         bias: whether to have a bias term. Defaults to True.
         conv_only:  whether to use the convolutional layer only. Defaults to False.
         is_transposed: if True uses ConvTrans instead of Conv. Defaults to False.
@@ -55,12 +59,13 @@ class Convolution(nn.Sequential):
         dimensions: int,
         in_channels: int,
         out_channels: int,
-        strides=1,
-        kernel_size=3,
-        act=Act.PRELU,
-        norm=Norm.INSTANCE,
-        dropout=None,
-        dilation=1,
+        strides: int = 1,
+        kernel_size: Union[Sequence[int], int] = 3,
+        act: Optional[Union[tuple, str]] = Act.PRELU,
+        norm: Union[tuple, str] = Norm.INSTANCE,
+        dropout: Optional[Union[int, float, tuple, str]] = None,
+        dilation: Union[Sequence[int], int] = 1,
+        groups: int = 1,
         bias: bool = True,
         conv_only: bool = False,
         is_transposed: bool = False,
@@ -96,9 +101,28 @@ class Convolution(nn.Sequential):
             drop_type = Dropout[drop_name, dimensions]
 
         if is_transposed:
-            conv = conv_type(in_channels, out_channels, kernel_size, strides, padding, strides - 1, 1, bias, dilation)
+            conv = conv_type(
+                in_channels,
+                out_channels,
+                kernel_size=kernel_size,
+                stride=strides,
+                padding=padding,
+                output_padding=strides - 1,
+                groups=groups,
+                bias=bias,
+                dilation=dilation,
+            )
         else:
-            conv = conv_type(in_channels, out_channels, kernel_size, strides, padding, dilation, bias=bias)
+            conv = conv_type(
+                in_channels,
+                out_channels,
+                kernel_size=kernel_size,
+                stride=strides,
+                padding=padding,
+                dilation=dilation,
+                groups=groups,
+                bias=bias,
+            )
 
         self.add_module("conv", conv)
 
@@ -125,13 +149,13 @@ class ResidualUnit(nn.Module):
         dimensions: int,
         in_channels: int,
         out_channels: int,
-        strides=1,
-        kernel_size=3,
+        strides: int = 1,
+        kernel_size: Union[Sequence[int], int] = 3,
         subunits: int = 2,
         act=Act.PRELU,
         norm=Norm.INSTANCE,
         dropout=None,
-        dilation=1,
+        dilation: Union[Sequence[int], int] = 1,
         bias: bool = True,
         last_conv_only: bool = False,
     ) -> None:
@@ -153,14 +177,14 @@ class ResidualUnit(nn.Module):
                 dimensions,
                 schannels,
                 out_channels,
-                sstrides,
-                kernel_size,
-                act,
-                norm,
-                dropout,
-                dilation,
-                bias,
-                conv_only,
+                strides=sstrides,
+                kernel_size=kernel_size,
+                act=act,
+                norm=norm,
+                dropout=dropout,
+                dilation=dilation,
+                bias=bias,
+                conv_only=conv_only,
             )
 
             self.conv.add_module(f"unit{su:d}", unit)
@@ -181,7 +205,7 @@ class ResidualUnit(nn.Module):
             conv_type = Conv[Conv.CONV, dimensions]
             self.residual = conv_type(in_channels, out_channels, rkernel_size, strides, rpadding, bias=bias)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         res = self.residual(x)  # create the additive residual from x
         cx = self.conv(x)  # apply x to sequence of operations
         return cx + res  # add the residual to the output

@@ -9,9 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, Optional, TYPE_CHECKING
-
 import logging
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from monai.utils import exact_version, optional_import
 
@@ -109,7 +108,9 @@ class CheckpointSaver:
                 elif hasattr(engine.state, "key_metric_name") and isinstance(engine.state.key_metric_name, str):
                     metric_name = engine.state.key_metric_name
                 else:
-                    raise ValueError("must provde key_metric_name to save best validation model.")
+                    raise ValueError(
+                        f"Incompatible values: save_key_metric=True and key_metric_name={key_metric_name}."
+                    )
                 return round(engine.state.metrics[metric_name], 4)
 
             self._key_metric_checkpoint = ModelCheckpoint(

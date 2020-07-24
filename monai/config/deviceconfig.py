@@ -13,10 +13,10 @@ import os
 import sys
 from collections import OrderedDict
 
-import monai
 import numpy as np
 import torch
 
+import monai
 
 try:
     import ignite

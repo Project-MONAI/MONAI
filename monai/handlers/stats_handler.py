@@ -9,10 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, TYPE_CHECKING
-
 import logging
 import warnings
+from typing import TYPE_CHECKING, Callable, Optional
 
 import torch
 
