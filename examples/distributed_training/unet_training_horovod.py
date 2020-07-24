@@ -76,9 +76,8 @@ def train(args):
     if hvd.local_rank() != 0:
         f = open(os.devnull, "w")
         sys.stdout = sys.stderr = f
-
-    # create 40 random image, mask paris on master node for training
-    if hvd.rank() == 0 and not os.path.exists(args.dir):
+    elif not os.path.exists(args.dir):
+        # create 40 random image, mask paris on master node for training
         print(f"generating synthetic data to {args.dir} (this may take a while)")
         os.makedirs(args.dir)
         # set random seed to generate same random data for every node
@@ -123,7 +122,7 @@ def train(args):
         batch_size=2,
         shuffle=False,
         num_workers=1,
-        pin_memory=torch.cuda.is_available(),
+        pin_memory=True,
         sampler=train_sampler,
         multiprocessing_context=multiprocessing_context,
     )
@@ -182,11 +181,7 @@ def main():
     parser.add_argument("-d", "--dir", default="./testdata", type=str, help="directory to create random data")
     args = parser.parse_args()
 
-    import time
-
-    start_time = time.time()
     train(args=args)
-    print("total time: ", time.time() - start_time)
 
 
 # Example script to execute this program only on the master node:

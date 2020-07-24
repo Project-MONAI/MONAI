@@ -75,19 +75,18 @@ def train(args):
     if args.local_rank != 0:
         f = open(os.devnull, "w")
         sys.stdout = sys.stderr = f
-    else:
+    elif not os.path.exists(args.dir):
         # create 40 random image, mask paris for training
-        if not os.path.exists(args.dir):
-            print(f"generating synthetic data to {args.dir} (this may take a while)")
-            os.makedirs(args.dir)
-            # set random seed to generate same random data for every node
-            np.random.seed(seed=0)
-            for i in range(40):
-                im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1, channel_dim=-1)
-                n = nib.Nifti1Image(im, np.eye(4))
-                nib.save(n, os.path.join(args.dir, f"img{i:d}.nii.gz"))
-                n = nib.Nifti1Image(seg, np.eye(4))
-                nib.save(n, os.path.join(args.dir, f"seg{i:d}.nii.gz"))
+        print(f"generating synthetic data to {args.dir} (this may take a while)")
+        os.makedirs(args.dir)
+        # set random seed to generate same random data for every node
+        np.random.seed(seed=0)
+        for i in range(40):
+            im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1, channel_dim=-1)
+            n = nib.Nifti1Image(im, np.eye(4))
+            nib.save(n, os.path.join(args.dir, f"img{i:d}.nii.gz"))
+            n = nib.Nifti1Image(seg, np.eye(4))
+            nib.save(n, os.path.join(args.dir, f"seg{i:d}.nii.gz"))
 
     # initialize the distributed training process, every GPU runs in a process
     dist.init_process_group(backend="nccl", init_method="env://")
