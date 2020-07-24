@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import Union, cast, Callable, Optional
+from typing import Callable, Optional, Union, cast
 
 import numpy as np
 import torch

@@ -45,28 +45,29 @@ Referring to: https://github.com/horovod/horovod/blob/master/examples/pytorch_mn
 
 """
 
+import argparse
 import os
 import sys
 from glob import glob
+
+import horovod.torch as hvd
 import nibabel as nib
 import numpy as np
 import torch
 import torch.multiprocessing as mp
-import argparse
 from torch.utils.data.distributed import DistributedSampler
-import horovod.torch as hvd
 
 import monai
+from monai.data import DataLoader, Dataset, create_test_image_3d
 from monai.transforms import (
+    AsChannelFirstd,
     Compose,
     LoadNiftid,
-    AsChannelFirstd,
-    ScaleIntensityd,
     RandCropByPosNegLabeld,
     RandRotate90d,
+    ScaleIntensityd,
     ToTensord,
 )
-from monai.data import create_test_image_3d, Dataset, DataLoader
 
 
 def train(args):

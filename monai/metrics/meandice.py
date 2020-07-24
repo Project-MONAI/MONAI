@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import Optional, Union, Callable
+from typing import Callable, Optional, Union
 
 import torch
 
