@@ -160,7 +160,7 @@ class FCN(nn.Module):
             self.conv2d_type(inplanes // 2, self.nout, kernel_size=1),
         )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor):
         """
         Args:
             x: in shape (batch, 3, spatial_1, spatial_2).
@@ -217,7 +217,7 @@ class MCFCN(FCN):
             conv2d_type(nin, 3, kernel_size=1, padding=0, bias=False), norm2d_type(3), relu_type(inplace=True)
         )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor):
         """
         Args:
             x: in shape (batch, nin, spatial_1, spatial_2).
