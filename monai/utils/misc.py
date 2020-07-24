@@ -72,6 +72,9 @@ def ensure_tuple_rep(tup: Any, dim: int):
     """
     Returns a copy of `tup` with `dim` values by either shortened or duplicated input.
 
+    Raises:
+        ValueError: When ``tup`` is a sequence and ``tup`` length is not ``dim``.
+
     Examples::
 
         >>> ensure_tuple_rep(1, 3)
@@ -85,10 +88,7 @@ def ensure_tuple_rep(tup: Any, dim: int):
         >>> ensure_tuple_rep(range(3), 3)
         (0, 1, 2)
         >>> ensure_tuple_rep([1, 2], 3)
-        ValueError: sequence must have length 3, got length 2.
-
-    Raises:
-        ValueError: sequence must have length {dim}, got length {len(tup)}.
+        ValueError: Sequence must have length 3, got length 2.
 
     """
     if not issequenceiterable(tup):
@@ -96,7 +96,7 @@ def ensure_tuple_rep(tup: Any, dim: int):
     elif len(tup) == dim:
         return tuple(tup)
 
-    raise ValueError(f"sequence must have length {dim}, got length {len(tup)}.")
+    raise ValueError(f"Sequence must have length {dim}, got {len(tup)}.")
 
 
 def fall_back_tuple(user_provided: Any, default: Sequence, func: Callable = lambda x: x and x > 0) -> Tuple:
@@ -133,7 +133,7 @@ def fall_back_tuple(user_provided: Any, default: Sequence, func: Callable = lamb
         >>> fall_back_tuple(range(3), (32, 64, 48))
         (32, 1, 2)
         >>> fall_back_tuple([0], (32, 32))
-        ValueError: sequence must have length 2, got length 1.
+        ValueError: Sequence must have length 2, got length 1.
 
     """
     ndim = len(default)

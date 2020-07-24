@@ -99,7 +99,7 @@ class TestToNormAffine(unittest.TestCase):
 
     @parameterized.expand(TEST_ILL_TO_NORM_AFFINE_CASES)
     def test_to_norm_affine_ill(self, affine, src_size, dst_size, align_corners):
-        with self.assertRaises(ValueError):
+        with self.assertRaises(TypeError):
             to_norm_affine(affine, src_size, dst_size, align_corners)
         with self.assertRaises(ValueError):
             affine = torch.as_tensor(affine, device=torch.device("cpu:0"), dtype=torch.float32)

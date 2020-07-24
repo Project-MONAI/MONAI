@@ -79,11 +79,16 @@ class Activations(Transform):
         other: callable function to execute other activation layers, for example:
             `other = lambda x: torch.tanh(x)`. Defaults to ``None``.
 
+    Raises:
+        TypeError: When ``other`` is not an ``Optional[Callable]``.
+
     """
 
     def __init__(self, sigmoid: bool = False, softmax: bool = False, other: Optional[Callable] = None) -> None:
         self.sigmoid = sigmoid
         self.softmax = softmax
+        if other is not None and not callable(other):
+            raise TypeError(f"other must be None or callable but is {type(other).__name__}.")
         self.other = other
 
     def __call__(
@@ -103,20 +108,23 @@ class Activations(Transform):
                 `other = lambda x: torch.tanh(x)`. Defaults to ``self.other``.
 
         Raises:
-            ValueError: sigmoid=True and softmax=True are not compatible.
-            ValueError: act_func must be a Callable function.
+            ValueError: When ``sigmoid=True`` and ``softmax=True``. Incompatible values.
+            TypeError: When ``other`` is not an ``Optional[Callable]``.
+            ValueError: When ``self.other=None`` and ``other=None``. Incompatible values.
 
         """
-        if sigmoid is True and softmax is True:
-            raise ValueError("sigmoid=True and softmax=True are not compatible.")
+        if sigmoid and softmax:
+            raise ValueError("Incompatible values: sigmoid=True and softmax=True.")
+        if other is not None and not callable(other):
+            raise TypeError(f"other must be None or callable but is {type(other).__name__}.")
+
         if sigmoid or self.sigmoid:
             img = torch.sigmoid(img)
         if softmax or self.softmax:
             img = torch.softmax(img, dim=1)
+
         act_func = self.other if other is None else other
         if act_func is not None:
-            if not callable(act_func):
-                raise ValueError("act_func must be a Callable function.")
             img = act_func(img)
 
         return img
@@ -315,17 +323,23 @@ class LabelToContour(Transform):
     Args:
         kernel_type: the method applied to do edge detection, default is "Laplace".
 
+    Raises:
+        NotImplementedError: When ``kernel_type`` is not "Laplace".
+
     """
 
     def __init__(self, kernel_type: str = "Laplace") -> None:
         if kernel_type != "Laplace":
-            raise NotImplementedError("currently, LabelToContour only supports Laplace kernel.")
+            raise NotImplementedError('Currently only kernel_type="Laplace" is supported.')
         self.kernel_type = kernel_type
 
     def __call__(self, img: torch.Tensor) -> torch.Tensor:
         """
         Args:
             img: torch tensor data to extract the contour, with shape: [batch_size, channels, height, width[, depth]]
+
+        Raises:
+            ValueError: When ``image`` ndim is not one of [4, 5].
 
         Returns:
             A torch tensor with the same shape as img, note:
@@ -346,7 +360,7 @@ class LabelToContour(Transform):
             kernel = kernel.repeat(channels, 1, 1, 1, 1)
             contour_img = F.conv3d(img, kernel, bias=None, stride=1, padding=1, dilation=1, groups=channels)
         else:
-            raise RuntimeError("the dimensions of img should be 4 or 5.")
+            raise ValueError(f"Unsupported img dimension: {img.ndim}, available options are [4, 5].")
 
         contour_img.clamp_(min=0.0, max=1.0)
         return contour_img

@@ -43,16 +43,20 @@ class DiceLoss(_Loss):
         to_onehot_y: bool = False,
         sigmoid: bool = False,
         softmax: bool = False,
+        other_act: Optional[Callable] = None,
         squared_pred: bool = False,
         jaccard: bool = False,
         reduction: Union[LossReduction, str] = LossReduction.MEAN,
     ) -> None:
         """
         Args:
-            include_background: If False channel index 0 (background category) is excluded from the calculation.
+            include_background: if False channel index 0 (background category) is excluded from the calculation.
             to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
-            sigmoid: If True, apply a sigmoid function to the prediction.
-            softmax: If True, apply a softmax function to the prediction.
+            sigmoid: if True, apply a sigmoid function to the prediction.
+            softmax: if True, apply a softmax function to the prediction.
+            other_act: if don't want to use `sigmoid` or `softmax`, use other callable function to execute
+                other activation layers, Defaults to ``None``. for example:
+                `other_act = torch.tanh`.
             squared_pred: use squared versions of targets and predictions in the denominator or not.
             jaccard: compute Jaccard Index (soft IoU) instead of dice or not.
             reduction: {``"none"``, ``"mean"``, ``"sum"``}
@@ -63,19 +67,21 @@ class DiceLoss(_Loss):
                 - ``"sum"``: the output will be summed.
 
         Raises:
-            ValueError: reduction={reduction} is invalid. Valid options are: none, mean or sum.
-            ValueError: sigmoid=True and softmax=True are not compatible.
+            TypeError: When ``other_act`` is not an ``Optional[Callable]``.
+            ValueError: When more than 1 of [``sigmoid=True``, ``softmax=True``, ``other_act is not None``].
+                Incompatible values.
 
         """
         super().__init__(reduction=LossReduction(reduction).value)
-
-        if sigmoid and softmax:
-            raise ValueError("sigmoid=True and softmax=True are not compatible.")
-
+        if other_act is not None and not callable(other_act):
+            raise TypeError(f"other_act must be None or callable but is {type(other_act).__name__}.")
+        if int(sigmoid) + int(softmax) + int(other_act is not None) > 1:
+            raise ValueError("Incompatible values: more than 1 of [sigmoid=True, softmax=True, other_act is not None].")
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         self.sigmoid = sigmoid
         self.softmax = softmax
+        self.other_act = other_act
         self.squared_pred = squared_pred
         self.jaccard = jaccard
 
@@ -87,27 +93,32 @@ class DiceLoss(_Loss):
             smooth: a small constant to avoid nan.
 
         Raises:
-            ValueError: reduction={self.reduction} is invalid.
+            ValueError: When ``self.reduction`` is not one of ["mean", "sum", "none"].
 
         """
         if self.sigmoid:
             input = torch.sigmoid(input)
 
         n_pred_ch = input.shape[1]
-        if n_pred_ch == 1:
-            if self.softmax:
+        if self.softmax:
+            if n_pred_ch == 1:
                 warnings.warn("single channel prediction, `softmax=True` ignored.")
-            if self.to_onehot_y:
-                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
-            if not self.include_background:
-                warnings.warn("single channel prediction, `include_background=False` ignored.")
-        else:
-            if self.softmax:
+            else:
                 input = torch.softmax(input, 1)
 
-            if self.to_onehot_y:
+        if self.other_act is not None:
+            input = self.other_act(input)
+
+        if self.to_onehot_y:
+            if n_pred_ch == 1:
+                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
+            else:
                 target = one_hot(target, num_classes=n_pred_ch)
-            if not self.include_background:
+
+        if not self.include_background:
+            if n_pred_ch == 1:
+                warnings.warn("single channel prediction, `include_background=False` ignored.")
+            else:
                 # if skipping background, removing first channel
                 target = target[:, 1:]
                 input = input[:, 1:]
@@ -141,7 +152,7 @@ class DiceLoss(_Loss):
         elif self.reduction == LossReduction.NONE.value:
             pass  # returns [N, n_classes] losses
         else:
-            raise ValueError(f"reduction={self.reduction} is invalid.")
+            raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
 
         return f
 
@@ -197,6 +208,7 @@ class GeneralizedDiceLoss(_Loss):
         to_onehot_y: bool = False,
         sigmoid: bool = False,
         softmax: bool = False,
+        other_act: Optional[Callable] = None,
         w_type: Union[Weight, str] = Weight.SQUARE,
         reduction: Union[LossReduction, str] = LossReduction.MEAN,
     ) -> None:
@@ -206,6 +218,10 @@ class GeneralizedDiceLoss(_Loss):
             to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
             sigmoid: If True, apply a sigmoid function to the prediction.
             softmax: If True, apply a softmax function to the prediction.
+            other_act: if don't want to use `sigmoid` or `softmax`, use other callable function to execute
+                other activation layers, Defaults to ``None``. for example:
+                `other_act = torch.tanh`.
+            squared_pred: use squared versions of targets and predictions in the denominator or not.
             w_type: {``"square"``, ``"simple"``, ``"uniform"``}
                 Type of function to transform ground truth volume to a weight factor. Defaults to ``"square"``.
             reduction: {``"none"``, ``"mean"``, ``"sum"``}
@@ -216,18 +232,21 @@ class GeneralizedDiceLoss(_Loss):
                 - ``"sum"``: the output will be summed.
 
         Raises:
-            ValueError: reduction={reduction} is invalid. Valid options are: none, mean or sum.
-            ValueError: sigmoid=True and softmax=True are not compatible.
+            TypeError: When ``other_act`` is not an ``Optional[Callable]``.
+            ValueError: When more than 1 of [``sigmoid=True``, ``softmax=True``, ``other_act is not None``].
+                Incompatible values.
 
         """
         super().__init__(reduction=LossReduction(reduction).value)
-
+        if other_act is not None and not callable(other_act):
+            raise TypeError(f"other_act must be None or callable but is {type(other_act).__name__}.")
+        if int(sigmoid) + int(softmax) + int(other_act is not None) > 1:
+            raise ValueError("Incompatible values: more than 1 of [sigmoid=True, softmax=True, other_act is not None].")
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
-        if sigmoid and softmax:
-            raise ValueError("sigmoid=True and softmax=True are not compatible.")
         self.sigmoid = sigmoid
         self.softmax = softmax
+        self.other_act = other_act
 
         w_type = Weight(w_type)
         self.w_func: Callable = torch.ones_like
@@ -244,28 +263,35 @@ class GeneralizedDiceLoss(_Loss):
             smooth: a small constant to avoid nan.
 
         Raises:
-            ValueError: reduction={self.reduction} is invalid.
+            ValueError: When ``self.reduction`` is not one of ["mean", "sum", "none"].
 
         """
         if self.sigmoid:
             input = torch.sigmoid(input)
         n_pred_ch = input.shape[1]
-        if n_pred_ch == 1:
-            if self.softmax:
+        if self.softmax:
+            if n_pred_ch == 1:
                 warnings.warn("single channel prediction, `softmax=True` ignored.")
-            if self.to_onehot_y:
-                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
-            if not self.include_background:
-                warnings.warn("single channel prediction, `include_background=False` ignored.")
-        else:
-            if self.softmax:
+            else:
                 input = torch.softmax(input, 1)
-            if self.to_onehot_y:
-                target = one_hot(target, n_pred_ch)
-            if not self.include_background:
+
+        if self.other_act is not None:
+            input = self.other_act(input)
+
+        if self.to_onehot_y:
+            if n_pred_ch == 1:
+                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
+            else:
+                target = one_hot(target, num_classes=n_pred_ch)
+
+        if not self.include_background:
+            if n_pred_ch == 1:
+                warnings.warn("single channel prediction, `include_background=False` ignored.")
+            else:
                 # if skipping background, removing first channel
                 target = target[:, 1:]
                 input = input[:, 1:]
+
         assert (
             target.shape == input.shape
         ), f"ground truth has differing shape ({target.shape}) from input ({input.shape})"
@@ -294,7 +320,7 @@ class GeneralizedDiceLoss(_Loss):
         elif self.reduction == LossReduction.NONE.value:
             pass  # returns [N, n_classes] losses
         else:
-            raise ValueError(f"reduction={self.reduction} is invalid.")
+            raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
 
         return f
 
@@ -338,19 +364,19 @@ class GeneralizedWassersteinDiceLoss(_Loss):
     def __init__(self, dist_matrix, reduction: Union[LossReduction, str] = LossReduction.MEAN):
         """
         Args:
-            param dist_matrix: 2d tensor or 2d numpy array; matrix of distances
-            between the classes. It must have dimension C x C where C is the
-            number of classes.
-            param reduction: str; reduction mode.
+            dist_matrix: 2d tensor or 2d numpy array; matrix of distances
+                between the classes. It must have dimension C x C where C is the
+                number of classes.
+            reduction: str; reduction mode.
 
         Raises:
-            ValueError: dist_matrix.shape[0] != dist_matrix.shape[1] is invalid.
+            ValueError: When ``dist_matrix`` is not a square matrix.
 
         """
         super(GeneralizedWassersteinDiceLoss, self).__init__(reduction=LossReduction(reduction).value)
 
         if dist_matrix.shape[0] != dist_matrix.shape[1]:
-            raise ValueError("Dist Matrix is invalid.")
+            raise ValueError(f"dist_matrix must be C x C, got {dist_matrix.shape[0]} x {dist_matrix.shape[1]}.")
 
         self.m = dist_matrix
         if isinstance(self.m, np.ndarray):

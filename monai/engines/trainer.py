@@ -127,11 +127,11 @@ class SupervisedTrainer(Trainer):
             batchdata: input data for this iteration, usually can be dictionary or tuple of Tensor data.
 
         Raises:
-            ValueError: must provide batch data for current iteration.
+            ValueError: When ``batchdata`` is None.
 
         """
         if batchdata is None:
-            raise ValueError("must provide batch data for current iteration.")
+            raise ValueError("Must provide batch data for current iteration.")
         inputs, targets = self.prepare_batch(batchdata)
         inputs, targets = inputs.to(engine.state.device), targets.to(engine.state.device)
 

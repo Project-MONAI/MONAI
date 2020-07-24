@@ -92,11 +92,11 @@ class GaussianFilter(nn.Module):
             x: in shape [Batch, chns, H, W, D].
 
         Raises:
-            TypeError: x must be a Tensor, got {type(x).__name__}.
+            TypeError: When ``x`` is not a ``torch.Tensor``.
 
         """
         if not torch.is_tensor(x):
-            raise TypeError(f"x must be a Tensor, got {type(x).__name__}.")
+            raise TypeError(f"x must be a torch.Tensor but is {type(x).__name__}.")
         chns = x.shape[1]
         sp_dim = self.spatial_dims
         x = x.clone()  # no inplace change of x

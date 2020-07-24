@@ -51,19 +51,25 @@ class LoadDatad(MapTransform):
                 default is False, which will raise exception if encountering existing key.
 
         Raises:
-            ValueError: meta_key_postfix must be a string.
+            TypeError: When ``loader`` is not ``callable``.
+            TypeError: When ``meta_key_postfix`` is not a ``str``.
 
         """
         super().__init__(keys)
         if not callable(loader):
-            raise ValueError("loader must be a Callable function or object.")
+            raise TypeError(f"loader must be callable but is {type(loader).__name__}.")
         self.loader = loader
         if not isinstance(meta_key_postfix, str):
-            raise ValueError("meta_key_postfix must be a string.")
+            raise TypeError(f"meta_key_postfix must be a str but is {type(meta_key_postfix).__name__}.")
         self.meta_key_postfix = meta_key_postfix
         self.overwriting = overwriting
 
     def __call__(self, data):
+        """
+        Raises:
+            KeyError: When not ``self.overwriting`` and key already exists in ``data``.
+
+        """
         d = dict(data)
         for key in self.keys:
             data = self.loader(d[key])
@@ -72,7 +78,7 @@ class LoadDatad(MapTransform):
             assert isinstance(data[1], dict), "metadata must be a dict."
             key_to_add = f"{key}_{self.meta_key_postfix}"
             if key_to_add in d and not self.overwriting:
-                raise KeyError(f"meta data with key {key_to_add} already exists.")
+                raise KeyError(f"Meta data with key {key_to_add} already exists and overwriting=False.")
             d[key_to_add] = data[1]
         return d
 
@@ -106,10 +112,6 @@ class LoadNiftid(LoadDatad):
                 For example, load nifti file for `image`, store the metadata into `image_meta_dict`.
             overwriting: whether allow to overwrite existing meta data of same key.
                 default is False, which will raise exception if encountering existing key.
-
-        Raises:
-            ValueError: meta_key_postfix must be a string.
-
         """
         loader = LoadNifti(as_closest_canonical, False, dtype)
         super().__init__(keys, loader, meta_key_postfix, overwriting)
@@ -137,10 +139,6 @@ class LoadPNGd(LoadDatad):
                 For example, load PNG file for `image`, store the metadata into `image_meta_dict`.
             overwriting: whether allow to overwrite existing meta data of same key.
                 default is False, which will raise exception if encountering existing key.
-
-        Raises:
-            ValueError: meta_key_postfix must be a string.
-
         """
         loader = LoadPNG(False, dtype)
         super().__init__(keys, loader, meta_key_postfix, overwriting)
@@ -171,10 +169,6 @@ class LoadNumpyd(LoadDatad):
                 For example, load Numpy file for `mask`, store the metadata into `mask_meta_dict`.
             overwriting: whether allow to overwrite existing meta data of same key.
                 default is False, which will raise exception if encountering existing key.
-
-        Raises:
-            ValueError: meta_key_postfix must be a string.
-
         """
         loader = LoadNumpy(data_only=False, dtype=dtype, npz_keys=npz_keys)
         super().__init__(keys, loader, meta_key_postfix, overwriting)

@@ -44,7 +44,7 @@ def write_png(
             [0, 255] (uint8) or [0, 65535] (uint16). Default is None to disable scaling.
 
     Raises:
-        ValueError: unsupported scale value: {scale}.
+        ValueError: When ``scale`` is not one of [255, 65535].
 
     """
     assert isinstance(data, np.ndarray), "input data must be numpy array."
@@ -73,7 +73,7 @@ def write_png(
         elif scale == np.iinfo(np.uint16).max:
             data = (scale * data).astype(np.uint16)
         else:
-            raise ValueError(f"unsupported scale value: {scale}.")
+            raise ValueError(f"Unsupported scale: {scale}, available options are [255, 65535]")
 
     img = Image.fromarray(data)
     img.save(file_name, "PNG")

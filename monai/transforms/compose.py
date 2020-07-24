@@ -65,10 +65,10 @@ class Transform(ABC):
         This method can optionally take additional arguments to help execute transformation operation.
 
         Raises:
-            NotImplementedError: Subclass {self.__class__.__name__} must implement the compute method
+            NotImplementedError: When the subclass does not override this method.
 
         """
-        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement the compute method")
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
 class Randomizable(ABC):
@@ -101,11 +101,11 @@ class Randomizable(ABC):
             seed: set the random state with an integer seed.
             state: set the random state with a `np.random.RandomState` object.
 
+        Raises:
+            TypeError: When ``state`` is not an ``Optional[np.random.RandomState]``.
+
         Returns:
             a Randomizable instance.
-
-        Raises:
-            ValueError: `state` must be a `np.random.RandomState`, got {type(state)}
 
         """
         if seed is not None:
@@ -115,7 +115,7 @@ class Randomizable(ABC):
 
         if state is not None:
             if not isinstance(state, np.random.RandomState):
-                raise ValueError(f"`state` must be a `np.random.RandomState`, got {type(state)}")
+                raise TypeError(f"state must be None or a np.random.RandomState but is {type(state).__name__}.")
             self.R = state
             return self
 
@@ -133,10 +133,10 @@ class Randomizable(ABC):
         This method can generate the random factors based on properties of the input data.
 
         Raises:
-            NotImplementedError: Subclass {self.__class__.__name__} must implement the compute method
+            NotImplementedError: When the subclass does not override this method.
 
         """
-        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement the compute method")
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
 class Compose(Randomizable):
@@ -249,15 +249,19 @@ class MapTransform(Transform):
                         # do nothing or some exceptions handling.
                 return data
 
+    Raises:
+        ValueError: When ``keys`` is an empty iterable.
+        TypeError: When ``keys`` type is not in ``Union[Hashable, Iterable[Hashable]]``.
+
     """
 
     def __init__(self, keys: KeysCollection) -> None:
         self.keys: Tuple[Any, ...] = ensure_tuple(keys)
         if not self.keys:
-            raise ValueError("keys unspecified")
+            raise ValueError("keys must be non empty.")
         for key in self.keys:
             if not isinstance(key, Hashable):
-                raise ValueError(f"keys should be a hashable or a sequence of hashables, got {type(key)}")
+                raise TypeError(f"keys must be one of (Hashable, Iterable[Hashable]) but is {type(keys).__name__}.")
 
     @abstractmethod
     def __call__(self, data):
@@ -280,7 +284,11 @@ class MapTransform(Transform):
 
         - the channel dimension is not omitted even if number of channels is one
 
+        Raises:
+            NotImplementedError: When the subclass does not override this method.
+
         returns:
             An updated dictionary version of ``data`` by applying the transform.
+
         """
-        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement the compute method")
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")

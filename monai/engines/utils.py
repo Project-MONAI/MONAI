@@ -40,18 +40,18 @@ def get_devices_spec(devices: Optional[Sequence[torch.device]] = None) -> List[t
     Args:
         devices: list of devices to request, None for all GPU devices, [] for CPU.
 
+    Raises:
+        RuntimeError: When all GPUs are selected (``devices=None``) but no GPUs are available.
+
     Returns:
         list of torch.device: list of devices.
-
-    Raises:
-        ValueError: No GPU devices available
 
     """
     if devices is None:
         devices = [torch.device(f"cuda:{d:d}") for d in range(torch.cuda.device_count())]
 
         if len(devices) == 0:
-            raise ValueError("No GPU devices available")
+            raise RuntimeError("No GPU devices available.")
 
     elif len(devices) == 0:
         devices = [torch.device("cpu")]

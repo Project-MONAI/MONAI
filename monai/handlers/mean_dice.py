@@ -33,6 +33,7 @@ class MeanDice(Metric):  # type: ignore # incorrectly typed due to optional_impo
         to_onehot_y: bool = False,
         mutually_exclusive: bool = False,
         sigmoid: bool = False,
+        other_act: Optional[Callable] = None,
         logit_thresh: float = 0.5,
         output_transform: Callable = lambda x: x,
         device: Optional[torch.device] = None,
@@ -47,6 +48,8 @@ class MeanDice(Metric):  # type: ignore # incorrectly typed due to optional_impo
                 a combination of argmax and to_onehot. Defaults to False.
             sigmoid: whether to add sigmoid function to the output prediction before computing Dice.
                 Defaults to False.
+            other_act: callable function to replace `sigmoid` as activation layer if needed, Defaults to ``None``.
+                for example: `other_act = torch.tanh`.
             logit_thresh: the threshold value to round value to 0.0 and 1.0. Defaults to None (no thresholding).
             output_transform: transform the ignite.engine.state.output into [y_pred, y] pair.
             device: device specification in case of distributed computation usage.
@@ -60,6 +63,7 @@ class MeanDice(Metric):  # type: ignore # incorrectly typed due to optional_impo
             to_onehot_y=to_onehot_y,
             mutually_exclusive=mutually_exclusive,
             sigmoid=sigmoid,
+            other_act=other_act,
             logit_thresh=logit_thresh,
             reduction=MetricReduction.MEAN,
         )
@@ -73,8 +77,13 @@ class MeanDice(Metric):  # type: ignore # incorrectly typed due to optional_impo
 
     @reinit__is_reduced
     def update(self, output: Sequence[torch.Tensor]) -> None:
-        if not len(output) == 2:
-            raise ValueError("MeanDice metric can only support y_pred and y.")
+        """
+        Raises:
+            ValueError: When ``output`` length is not 2. MeanDice metric can only support y_pred and y.
+
+        """
+        if len(output) != 2:
+            raise ValueError(f"output must have length 2, got {len(output)}.")
         y_pred, y = output
         score = self.dice(y_pred, y)
         assert self.dice.not_nans is not None
@@ -86,6 +95,11 @@ class MeanDice(Metric):  # type: ignore # incorrectly typed due to optional_impo
 
     @sync_all_reduce("_sum", "_num_examples")
     def compute(self) -> float:
+        """
+        Raises:
+            NotComputableError: When ``compute`` is called before an ``update`` occurs.
+
+        """
         if self._num_examples == 0:
             raise NotComputableError("MeanDice must have at least one example before it can be computed.")
         return self._sum / self._num_examples
