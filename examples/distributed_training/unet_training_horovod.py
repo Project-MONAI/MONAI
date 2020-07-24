@@ -39,7 +39,7 @@ Note:
     Example script to execute this program, only need to run on the master node:
     `horovodrun -np 16 -H server1:4,server2:4,server3:4,server4:4 python unet_training_horovod.py -d "./testdata"`
 
-    This example was tested with [Ubuntu 16.04/20.04], [NCCL 2.6.3], [horovod 0.19.5]
+    This example was tested with [Ubuntu 16.04/20.04], [NCCL 2.6.3], [horovod 0.19.5].
 
 Referring to: https://github.com/horovod/horovod/blob/master/examples/pytorch_mnist.py
 
