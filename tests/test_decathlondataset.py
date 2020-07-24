@@ -11,18 +11,19 @@
 
 import os
 import shutil
-import tempfile
 import unittest
+from urllib.error import ContentTooShortError, HTTPError
 
 from monai.apps import DecathlonDataset
 from monai.transforms import AddChanneld, Compose, LoadNiftid, ScaleIntensityd, ToTensord
+
 from tests.utils import skip_if_quick
 
 
 class TestDecathlonDataset(unittest.TestCase):
     @skip_if_quick
     def test_values(self):
-        tempdir = tempfile.mkdtemp()
+        testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
         transform = Compose(
             [
                 LoadNiftid(keys=["image", "label"]),
@@ -39,32 +40,40 @@ class TestDecathlonDataset(unittest.TestCase):
             self.assertTrue("image_meta_dict" in dataset[0])
             self.assertTupleEqual(dataset[0]["image"].shape, (1, 33, 47, 34))
 
-        try:
+        try:  # will start downloading if testing_dir doesn't have the Decathlon files
             data = DecathlonDataset(
-                root_dir=tempdir, task="Task04_Hippocampus", transform=transform, section="validation", download=True
+                root_dir=testing_dir,
+                task="Task04_Hippocampus",
+                transform=transform,
+                section="validation",
+                download=True,
             )
-        except RuntimeError as e:
-            if str(e).startswith("download failed due to network issue or permission denied."):
-                shutil.rmtree(tempdir)
-                return
+        except (ContentTooShortError, HTTPError, RuntimeError) as e:
+            print(str(e))
+            if isinstance(e, RuntimeError):
+                # FIXME: skip MD5 check as current downloading method may fail
+                self.assertTrue(str(e).startswith("MD5 check"))
+            return  # skipping this test due the network connection errors
 
         _test_dataset(data)
         data = DecathlonDataset(
-            root_dir=tempdir, task="Task04_Hippocampus", transform=transform, section="validation", download=False
+            root_dir=testing_dir, task="Task04_Hippocampus", transform=transform, section="validation", download=False
         )
         _test_dataset(data)
-        data = DecathlonDataset(root_dir=tempdir, task="Task04_Hippocampus", section="validation", download=False)
+        data = DecathlonDataset(root_dir=testing_dir, task="Task04_Hippocampus", section="validation", download=False)
         self.assertTupleEqual(data[0]["image"].shape, (33, 47, 34))
-        shutil.rmtree(os.path.join(tempdir, "Task04_Hippocampus"))
+        shutil.rmtree(os.path.join(testing_dir, "Task04_Hippocampus"))
         try:
             data = DecathlonDataset(
-                root_dir=tempdir, task="Task04_Hippocampus", transform=transform, section="validation", download=False
+                root_dir=testing_dir,
+                task="Task04_Hippocampus",
+                transform=transform,
+                section="validation",
+                download=False,
             )
         except RuntimeError as e:
             print(str(e))
-            self.assertTrue(str(e).startswith("can not find dataset directory"))
-
-        shutil.rmtree(tempdir)
+            self.assertTrue(str(e).startswith("Cannot find dataset directory"))
 
 
 if __name__ == "__main__":
