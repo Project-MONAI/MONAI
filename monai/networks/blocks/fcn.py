@@ -11,6 +11,7 @@
 
 from typing import Type
 
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import models
@@ -27,6 +28,12 @@ class GCN(nn.Module):
     """
 
     def __init__(self, inplanes: int, planes: int, ks: int = 7):
+        """
+        Args:
+            inplanes: number of input channels.
+            planes： number of output channels.
+            ks: kernel size for one dimension. Defaults to 7.
+        """
         super(GCN, self).__init__()
 
         conv2d_type: Type[nn.Conv2d] = Conv[Conv.CONV, 2]
@@ -35,7 +42,11 @@ class GCN(nn.Module):
         self.conv_r1 = conv2d_type(in_channels=inplanes, out_channels=planes, kernel_size=(1, ks), padding=(0, ks // 2))
         self.conv_r2 = conv2d_type(in_channels=planes, out_channels=planes, kernel_size=(ks, 1), padding=(ks // 2, 0))
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            x: in shape (batch, inplanes, spatial_1, spatial_2).
+        """
         x_l = self.conv_l1(x)
         x_l = self.conv_l2(x_l)
         x_r = self.conv_r1(x)
@@ -52,6 +63,10 @@ class Refine(nn.Module):
     """
 
     def __init__(self, planes: int):
+        """
+        Args:
+            planes: number of input channels.
+        """
         super(Refine, self).__init__()
 
         relu_type: Type[nn.ReLU] = Act[Act.RELU]
@@ -63,7 +78,11 @@ class Refine(nn.Module):
         self.conv1 = conv2d_type(in_channels=planes, out_channels=planes, kernel_size=3, padding=1)
         self.conv2 = conv2d_type(in_channels=planes, out_channels=planes, kernel_size=3, padding=1)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            x: in shape (batch, planes, spatial_1, spatial_2).
+        """
         residual = x
         x = self.bn(x)
         x = self.relu(x)
@@ -85,6 +104,10 @@ class FCN(nn.Module):
     """
 
     def __init__(self, nout: int = 1):
+        """
+        Args:
+            nout: number of output channels. Defaults to 1.
+        """
         super(FCN, self).__init__()
 
         relu_type: Type[nn.ReLU] = Act[Act.RELU]
@@ -127,7 +150,7 @@ class FCN(nn.Module):
         self.refine10 = Refine(self.nout)
         self.transformer = self.conv2d_type(in_channels=256, out_channels=64, kernel_size=1)
 
-    def _regresser(self, inplanes: int):
+    def _regresser(self, inplanes: int) -> nn.Sequential:
 
         return nn.Sequential(
             self.conv2d_type(inplanes, inplanes, kernel_size=3, padding=1, bias=False),
@@ -137,7 +160,11 @@ class FCN(nn.Module):
             self.conv2d_type(inplanes // 2, self.nout, kernel_size=1),
         )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            x: in shape (batch, 3, spatial_1, spatial_2).
+        """
         org_input = x
         x = self.conv1(x)
         x = self.bn0(x)
@@ -175,6 +202,11 @@ class MCFCN(FCN):
     """
 
     def __init__(self, nin=3, nout=1):
+        """
+        Args:
+            nin: number of input channels. Defaults to 3.
+            nout: number of output channels. Defaults to 1.
+        """
         super(MCFCN, self).__init__(nout)
 
         relu_type: Type[nn.ReLU] = Act[Act.RELU]
@@ -185,7 +217,11 @@ class MCFCN(FCN):
             conv2d_type(nin, 3, kernel_size=1, padding=0, bias=False), norm2d_type(3), relu_type(inplace=True)
         )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            x: in shape (batch, nin, spatial_1, spatial_2).
+        """
         x = self.init_proj(x)
         out = super(MCFCN, self).forward(x)
         return out

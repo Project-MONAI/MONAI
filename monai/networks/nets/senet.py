@@ -221,7 +221,7 @@ class SENet(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def features(self, x):
+    def features(self, x: torch.Tensor) -> torch.Tensor:
         x = self.layer0(x)
         x = self.layer1(x)
         x = self.layer2(x)
@@ -229,7 +229,7 @@ class SENet(nn.Module):
         x = self.layer4(x)
         return x
 
-    def logits(self, x):
+    def logits(self, x: torch.Tensor) -> torch.Tensor:
         x = self.adaptive_avg_pool(x)
         if self.dropout is not None:
             x = self.dropout(x)
@@ -237,13 +237,13 @@ class SENet(nn.Module):
         x = self.last_linear(x)
         return x
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.features(x)
         x = self.logits(x)
         return x
 
 
-def senet154(spatial_dims, in_ch, num_classes):
+def senet154(spatial_dims: int, in_ch: int, num_classes: int) -> SENet:
     model = SENet(
         spatial_dims=spatial_dims,
         in_ch=in_ch,
@@ -258,7 +258,7 @@ def senet154(spatial_dims, in_ch, num_classes):
     return model
 
 
-def se_resnet50(spatial_dims, in_ch, num_classes):
+def se_resnet50(spatial_dims: int, in_ch: int, num_classes: int) -> SENet:
     model = SENet(
         spatial_dims=spatial_dims,
         in_ch=in_ch,
@@ -275,7 +275,7 @@ def se_resnet50(spatial_dims, in_ch, num_classes):
     return model
 
 
-def se_resnet101(spatial_dims, in_ch, num_classes):
+def se_resnet101(spatial_dims: int, in_ch: int, num_classes: int) -> SENet:
     model = SENet(
         spatial_dims=spatial_dims,
         in_ch=in_ch,
@@ -293,7 +293,7 @@ def se_resnet101(spatial_dims, in_ch, num_classes):
     return model
 
 
-def se_resnet152(spatial_dims, in_ch, num_classes):
+def se_resnet152(spatial_dims: int, in_ch: int, num_classes: int) -> SENet:
     model = SENet(
         spatial_dims=spatial_dims,
         in_ch=in_ch,
@@ -311,7 +311,7 @@ def se_resnet152(spatial_dims, in_ch, num_classes):
     return model
 
 
-def se_resnext50_32x4d(spatial_dims, in_ch, num_classes):
+def se_resnext50_32x4d(spatial_dims: int, in_ch: int, num_classes: int) -> SENet:
     model = SENet(
         spatial_dims=spatial_dims,
         in_ch=in_ch,
@@ -328,7 +328,7 @@ def se_resnext50_32x4d(spatial_dims, in_ch, num_classes):
     return model
 
 
-def se_resnext101_32x4d(spatial_dims, in_ch, num_classes):
+def se_resnext101_32x4d(spatial_dims: int, in_ch: int, num_classes: int) -> SENet:
     model = SENet(
         spatial_dims=spatial_dims,
         in_ch=in_ch,

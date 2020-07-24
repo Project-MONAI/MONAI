@@ -14,7 +14,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.networks.nets import FCN, MCFCN
+from monai.networks.blocks import FCN, MCFCN
 
 TEST_CASE_FCN_1 = [{"nout": 3}, torch.randn(5, 3, 64, 64), (5, 3, 64, 64)]
 TEST_CASE_FCN_2 = [{"nout": 2}, torch.randn(5, 3, 64, 64), (5, 2, 64, 64)]
