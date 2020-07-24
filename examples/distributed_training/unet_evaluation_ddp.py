@@ -42,6 +42,8 @@ Note:
            --master_addr="192.168.1.1" --master_port=1234
            unet_evaluation_ddp.py -d DIR_OF_TESTDATA
 
+    This example was tested with [Ubuntu 16.04/20.04], [NCCL 2.6.3].
+
 Referring to: https://pytorch.org/tutorials/intermediate/ddp_tutorial.html
 
 """
@@ -65,6 +67,19 @@ from monai.transforms import AsChannelFirstd, Compose, LoadNiftid, ScaleIntensit
 
 
 def evaluate(args):
+    if args.local_rank == 0 and not os.path.exists(args.dir):
+        # create 16 random image, mask paris for evaluation
+        print(f"generating synthetic data to {args.dir} (this may take a while)")
+        os.makedirs(args.dir)
+        # set random seed to generate same random data for every node
+        np.random.seed(seed=0)
+        for i in range(16):
+            im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1, channel_dim=-1)
+            n = nib.Nifti1Image(im, np.eye(4))
+            nib.save(n, os.path.join(args.dir, f"img{i:d}.nii.gz"))
+            n = nib.Nifti1Image(seg, np.eye(4))
+            nib.save(n, os.path.join(args.dir, f"seg{i:d}.nii.gz"))
+
     # initialize the distributed evaluation process, every GPU runs in a process
     dist.init_process_group(backend="nccl", init_method="env://")
 
@@ -87,9 +102,7 @@ def evaluate(args):
     # create a evaluation data sampler
     val_sampler = DistributedSampler(val_ds)
     # sliding window inference need to input 1 image in every iteration
-    val_loader = DataLoader(
-        val_ds, batch_size=1, shuffle=False, num_workers=0, pin_memory=torch.cuda.is_available(), sampler=val_sampler,
-    )
+    val_loader = DataLoader(val_ds, batch_size=1, shuffle=False, num_workers=0, pin_memory=True, sampler=val_sampler)
     dice_metric = DiceMetric(include_background=True, to_onehot_y=False, sigmoid=True, reduction="mean")
 
     # create UNet, DiceLoss and Adam optimizer
@@ -138,19 +151,6 @@ def main():
     # must parse the command-line argument: ``--local_rank=LOCAL_PROCESS_RANK``, which will be provided by DDP
     parser.add_argument("--local_rank", type=int)
     args = parser.parse_args()
-
-    # create 16 random image, mask paris for evaluation
-    if not os.path.exists(args.dir):
-        print(f"generating synthetic data to {args.dir} (this may take a while)")
-        os.makedirs(args.dir)
-        # set random seed to generate same random data for every node
-        np.random.seed(seed=0)
-        for i in range(16):
-            im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1, channel_dim=-1)
-            n = nib.Nifti1Image(im, np.eye(4))
-            nib.save(n, os.path.join(args.dir, f"img{i:d}.nii.gz"))
-            n = nib.Nifti1Image(seg, np.eye(4))
-            nib.save(n, os.path.join(args.dir, f"seg{i:d}.nii.gz"))
 
     evaluate(args=args)
 
