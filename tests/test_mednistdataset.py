@@ -16,6 +16,7 @@ from urllib.error import ContentTooShortError, HTTPError
 
 from monai.apps import MedNISTDataset
 from monai.transforms import AddChanneld, Compose, LoadPNGd, ScaleIntensityd, ToTensord
+
 # from tests.utils import skip_if_quick
 
 
