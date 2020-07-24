@@ -49,6 +49,7 @@ from glob import glob
 import nibabel as nib
 import numpy as np
 import torch
+import torch.multiprocessing as mp
 import argparse
 from torch.utils.data.distributed import DistributedSampler
 import horovod.torch as hvd
@@ -111,14 +112,20 @@ def train(args):
     train_ds = Dataset(data=train_files, transform=train_transforms)
     # create a training data sampler
     train_sampler = DistributedSampler(train_ds, num_replicas=hvd.size(), rank=hvd.rank())
+    # when supported, use "forkserver" to spawn dataloader workers instead of "fork" to prevent
+    # issues with Infiniband implementations that are not fork-safe
+    multiprocessing_context = None
+    if hasattr(mp, "_supports_context") and mp._supports_context and "forkserver" in mp.get_all_start_methods():
+        multiprocessing_context = "forkserver"
     # use batch_size=2 to load images and use RandCropByPosNegLabeld to generate 2 x 4 images for network training
     train_loader = DataLoader(
         train_ds,
         batch_size=2,
         shuffle=False,
-        num_workers=0,
+        num_workers=1,
         pin_memory=torch.cuda.is_available(),
         sampler=train_sampler,
+        multiprocessing_context=multiprocessing_context,
     )
 
     # create UNet, DiceLoss and Adam optimizer

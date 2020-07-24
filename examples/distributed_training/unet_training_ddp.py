@@ -120,7 +120,7 @@ def train(args):
         batch_size=2,
         shuffle=False,
         num_workers=0,
-        pin_memory=torch.cuda.is_available(),
+        pin_memory=True,
         sampler=train_sampler,
     )
 
