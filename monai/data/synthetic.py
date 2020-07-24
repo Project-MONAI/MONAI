@@ -34,6 +34,18 @@ def create_test_image_2d(
     background class represented as 0. If `noise_max` is greater than 0 then noise will be added to the image taken from
     the uniform distribution on range `[0,noise_max)`. If `channel_dim` is None, will create an image without channel
     dimension, otherwise create an image with channel dimension as first dim or last dim.
+
+    Args:
+        width: width of the image.
+        height: height of the image.
+        num_objs: number of circles to generate. Defaults to `12`.
+        rad_max: maximum circle radius. Defaults to `30`.
+        noise_max: if greater than 0 then noise will be added to the image taken from
+            the uniform distribution on range `[0,noise_max)`. Defaults to `0`.
+        num_seg_classes: number of classes for segmentations. Defaults to `5`.
+        channel_dim: if None, create an image without channel dimension, otherwise create
+            an image with channel dimension as first dim or last dim. Defaults to `None`.
+        random_state: the random generator to use. Defaults to `np.random`.
     """
     image = np.zeros((width, height))
     rs = np.random if random_state is None else random_state
@@ -78,6 +90,19 @@ def create_test_image_3d(
 ):
     """
     Return a noisy 3D image and segmentation.
+
+    Args:
+        height: height of the image.
+        width: width of the image.
+        depth: depth of the image.
+        num_objs: number of circles to generate. Defaults to `12`.
+        rad_max: maximum circle radius. Defaults to `30`.
+        noise_max: if greater than 0 then noise will be added to the image taken from
+            the uniform distribution on range `[0,noise_max)`. Defaults to `0`.
+        num_seg_classes: number of classes for segmentations. Defaults to `5`.
+        channel_dim: if None, create an image without channel dimension, otherwise create
+            an image with channel dimension as first dim or last dim. Defaults to `None`.
+        random_state: the random generator to use. Defaults to `np.random`.
 
     See also:
         :py:meth:`~create_test_image_2d`

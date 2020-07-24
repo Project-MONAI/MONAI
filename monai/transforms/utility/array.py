@@ -157,6 +157,9 @@ class CastToType(Transform):
         """
         Apply the transform to `img`, assuming `img` is a numpy array or PyTorch Tensor.
 
+        Args:
+            dtype: convert image to this data type, default is `self.dtype`.
+
         Raises:
             TypeError: When ``img`` type is not in ``Union[numpy.ndarray, torch.Tensor]``.
 
@@ -383,6 +386,9 @@ class Lambda(Transform):
         """
         Apply `self.func` to `img`.
 
+        Args:
+            func: Lambda/function to be applied. Defaults to `self.func`.
+
         Raises:
             TypeError: When ``func`` is not an ``Optional[Callable]``.
             ValueError: When ``func=None`` and ``self.func=None``. Incompatible values.
@@ -427,6 +433,14 @@ class LabelToMask(Transform):
         select_labels: Optional[Union[Sequence[int], int]] = None,
         merge_channels: Optional[bool] = None,
     ) -> np.ndarray:
+        """
+        Args:
+            select_labels: labels to generate mask from. for 1 channel label, the `select_labels`
+                is the expected label values, like: [1, 2, 3]. for One-Hot format label, the
+                `select_labels` is the expected channel indexes.
+            merge_channels: whether to use `np.any()` to merge the result on channel dim. if yes,
+                will return a single channel mask with binary data.
+        """
         if select_labels is None:
             select_labels = self.select_labels
         else:
