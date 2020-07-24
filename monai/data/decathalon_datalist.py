@@ -16,6 +16,10 @@ from typing import Dict, List, Optional, Union
 
 def _compute_path(base_dir: str, element: Union[List[str], str]):
     """
+    Args:
+        base_dir: the base directory of the dataset.
+        element: file path(s) to append to directory.
+
     Raises:
         TypeError: When ``element`` contains a non ``str``.
         TypeError: When ``element`` type is not in ``Union[list, str]``.
@@ -34,6 +38,11 @@ def _compute_path(base_dir: str, element: Union[List[str], str]):
 
 def _append_paths(base_dir: str, is_segmentation: bool, items: List[Dict]):
     """
+    Args:
+        base_dir: the base directory of the dataset.
+        is_segmentation: whether the datalist is for segmentation task.
+        items: list of data items, each of which is a dict keyed by element names.
+
     Raises:
         TypeError: When ``items`` contains a non ``dict``.
 

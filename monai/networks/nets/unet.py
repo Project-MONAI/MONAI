@@ -37,6 +37,20 @@ class UNet(nn.Module):
         norm=Norm.INSTANCE,
         dropout=0,
     ) -> None:
+        """
+        Args:
+            dimensions: number of spatial dimensions.
+            in_channels: number of input channels.
+            out_channels: number of output channels.
+            channels: sequence of channels. Top block first.
+            strides: convolution stride.
+            kernel_size: convolution kernel size. Defaults to 3.
+            up_kernel_size: upsampling convolution kernel size. Defaults to 3.
+            num_res_units: number of residual units. Defaults to 0.
+            act: activation type and arguments. Defaults to PReLU.
+            norm: feature normalization type and arguments. Defaults to instance norm.
+            dropout: dropout ratio. Defaults to no dropout.
+        """
         super().__init__()
 
         self.dimensions = dimensions
@@ -55,6 +69,13 @@ class UNet(nn.Module):
             """
             Builds the UNet structure from the bottom up by recursing down to the bottom block, then creating sequential
             blocks containing the downsample path, a skip connection around the previous block, and the upsample path.
+
+            Args:
+                inc: number of input channels.
+                outc: number of output channels.
+                channels: sequence of channels. Top block first.
+                strides: convolution stride.
+                is_top: True if this is the top block.
             """
             c = channels[0]
             s = strides[0]
@@ -75,6 +96,13 @@ class UNet(nn.Module):
         self.model = _create_block(in_channels, out_channels, self.channels, self.strides, True)
 
     def _get_down_layer(self, in_channels: int, out_channels: int, strides: int, is_top: bool):
+        """
+        Args:
+            in_channels: number of input channels.
+            out_channels: number of output channels.
+            strides: convolution stride.
+            is_top: True if this is the top block.
+        """
         if self.num_res_units > 0:
             return ResidualUnit(
                 self.dimensions,
@@ -100,9 +128,21 @@ class UNet(nn.Module):
             )
 
     def _get_bottom_layer(self, in_channels: int, out_channels: int):
+        """
+        Args:
+            in_channels: number of input channels.
+            out_channels: number of output channels.
+        """
         return self._get_down_layer(in_channels, out_channels, 1, False)
 
     def _get_up_layer(self, in_channels: int, out_channels: int, strides: int, is_top: bool):
+        """
+        Args:
+            in_channels: number of input channels.
+            out_channels: number of output channels.
+            strides: convolution stride.
+            is_top: True if this is the top block.
+        """
         conv = Convolution(
             self.dimensions,
             in_channels,
