@@ -16,11 +16,11 @@ from urllib.error import ContentTooShortError, HTTPError
 
 from monai.apps import MedNISTDataset
 from monai.transforms import AddChanneld, Compose, LoadPNGd, ScaleIntensityd, ToTensord
-from tests.utils import skip_if_quick
+# from tests.utils import skip_if_quick
 
 
 class TestMedNISTDataset(unittest.TestCase):
-    @skip_if_quick
+    # @skip_if_quick
     def test_values(self):
         testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
         transform = Compose(
@@ -54,7 +54,7 @@ class TestMedNISTDataset(unittest.TestCase):
         self.assertTupleEqual(data[0]["image"].shape, (64, 64))
         shutil.rmtree(os.path.join(testing_dir, "MedNIST"))
         try:
-            data = MedNISTDataset(root_dir=testing_dir, transform=transform, section="test", download=False)
+            data = MedNISTDataset(root_dir=testing_dir, transform=transform, section="test", download=True)
         except RuntimeError as e:
             print(str(e))
             self.assertTrue(str(e).startswith("can not find dataset directory"))

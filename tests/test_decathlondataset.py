@@ -16,11 +16,11 @@ import unittest
 
 from monai.apps import DecathlonDataset
 from monai.transforms import AddChanneld, Compose, LoadNiftid, ScaleIntensityd, ToTensord
-from tests.utils import skip_if_quick
+# from tests.utils import skip_if_quick
 
 
 class TestDecathlonDataset(unittest.TestCase):
-    @skip_if_quick
+    # @skip_if_quick
     def test_values(self):
         tempdir = tempfile.mkdtemp()
         transform = Compose(
@@ -58,7 +58,7 @@ class TestDecathlonDataset(unittest.TestCase):
         shutil.rmtree(os.path.join(tempdir, "Task04_Hippocampus"))
         try:
             data = DecathlonDataset(
-                root_dir=tempdir, task="Task04_Hippocampus", transform=transform, section="validation", download=False
+                root_dir=tempdir, task="Task04_Hippocampus", transform=transform, section="validation", download=True
             )
         except RuntimeError as e:
             print(str(e))
