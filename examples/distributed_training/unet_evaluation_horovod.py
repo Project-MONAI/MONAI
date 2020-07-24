@@ -143,9 +143,11 @@ def evaluate(args):
             metric[0] += value * dice_metric.not_nans
             metric[1] += dice_metric.not_nans
         # synchronizes all processes and reduce results
+        print(f"metric in rank {hvd.rank()}: sum={metric[0].item()}, count={metric[1].item()}")
         avg_metric = hvd.allreduce(metric, name="mean_dice")
         if hvd.rank() == 0:
-            print("evaluation metric:", metric[0] / metric[1])
+            print(f"average metric: sum={avg_metric[0].item()}, count={avg_metric[1].item()}")
+            print("evaluation metric:", (avg_metric[0] / avg_metric[1]).item())
 
 
 def main():
