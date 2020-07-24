@@ -52,14 +52,10 @@ from torch.utils.data.distributed import DistributedSampler
 import horovod.torch as hvd
 
 import monai
-from monai.transforms import (
-    Compose,
-    LoadNiftid,
-    AsChannelFirstd,
-    ScaleIntensityd,
-    ToTensord,
-)
 from monai.data import create_test_image_3d, Dataset, DataLoader
+from monai.inferers import sliding_window_inference
+from monai.metrics import DiceMetric
+from monai.transforms import Compose, LoadNiftid, AsChannelFirstd, ScaleIntensityd, ToTensord
 
 
 def evaluate(args):
