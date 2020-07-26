@@ -91,7 +91,9 @@ def get_optional_config_values():
 def print_config(file=sys.stdout):
     """
     Print the package versions to `file`.
-    Defaults to `sys.stdout`.
+
+    Args:
+        file: `print()` text stream file. Defaults to `sys.stdout`.
     """
     for k, v in get_config_values().items():
         print(f"{k} version: {v}", file=file, flush=True)

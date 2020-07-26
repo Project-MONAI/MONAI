@@ -74,6 +74,11 @@ class DiceMetric:
 
     def __call__(self, y_pred: torch.Tensor, y: torch.Tensor):
         """
+        Args:
+            y_pred: input data to compute, typical segmentation model output.
+                it must be one-hot format and first dim is batch.
+            y: ground truth to compute mean dice metric, the first dim is batch.
+
         Raises:
             ValueError: When ``self.reduction`` is not one of
                 ["mean", "sum", "mean_batch", "sum_batch", "mean_channel", "sum_channel" "none"].

@@ -920,6 +920,10 @@ class RandAffineGrid(Randomizable, Transform):
         self, spatial_size: Optional[Sequence[int]] = None, grid: Optional[Union[np.ndarray, torch.Tensor]] = None
     ) -> Union[np.ndarray, torch.Tensor]:
         """
+        Args:
+            spatial_size: output grid size.
+            grid: grid to be transformed. Shape must be (3, H, W) for 2D or (4, H, W, D) for 3D.
+
         Returns:
             a 2D (3xHxW) or 3D (4xHxWxD) grid.
         """

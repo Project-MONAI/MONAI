@@ -59,6 +59,10 @@ class ClassificationSaver:
         self._name = name
 
     def attach(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
         if self._name is None:
             self.logger = engine.logger
         if not engine.has_event_handler(self, Events.ITERATION_COMPLETED):
@@ -70,6 +74,8 @@ class ClassificationSaver:
         """
         This method assumes self.batch_transform will extract metadata from the input batch.
 
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
         meta_data = self.batch_transform(engine.state.batch)
         engine_output = self.output_transform(engine.state.output)

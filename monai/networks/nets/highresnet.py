@@ -48,6 +48,19 @@ class ConvNormActi(nn.Module):
         acti_type: Optional[Union[Activation, str]] = None,
         dropout_prob: Optional[float] = None,
     ) -> None:
+        """
+        Args:
+            spatial_dims: number of spatial dimensions of the input image.
+            in_channels: number of input channels.
+            out_channels: number of output channels.
+            kernel_size: size of the convolving kernel.
+            norm_type: {``"batch"``, ``"instance"``}
+                Feature normalisation with batchnorm or instancenorm. Defaults to ``"batch"``.
+            acti_type: {``"relu"``, ``"prelu"``, ``"relu6"``}
+                Non-linear activation using ReLU or PReLU. Defaults to ``"relu"``.
+            dropout_prob: probability of the feature map to be zeroed
+                (only applies to the penultimate conv layer).
+        """
 
         super(ConvNormActi, self).__init__()
 
@@ -87,7 +100,11 @@ class HighResBlock(nn.Module):
     ) -> None:
         """
         Args:
+            spatial_dims: number of spatial dimensions of the input image.
+            in_channels: number of input channels.
+            out_channels: number of output channels.
             kernels: each integer k in `kernels` corresponds to a convolution layer with kernel size k.
+            dilation: spacing between kernel elements.
             norm_type: {``"batch"``, ``"instance"``}
                 Feature normalisation with batchnorm or instancenorm. Defaults to ``"instance"``.
             acti_type: {``"relu"``, ``"prelu"``, ``"relu6"``}

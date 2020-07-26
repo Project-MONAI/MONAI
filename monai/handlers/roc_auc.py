@@ -73,6 +73,9 @@ class ROCAUC(Metric):  # type: ignore # incorrectly typed due to optional_import
 
     def update(self, output: Sequence[torch.Tensor]) -> None:
         """
+        Args:
+            output: sequence with contents [y_pred, y].
+
         Raises:
             ValueError: When ``output`` length is not 2. ROCAUC metric can only support y_pred and y.
             ValueError: When ``y_pred`` dimension is not one of [1, 2].
