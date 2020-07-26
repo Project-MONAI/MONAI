@@ -239,7 +239,7 @@ def correct_nifti_header_if_necessary(img_nii):
     In the updated image pixdim matches the affine.
 
     Args:
-        img_nii (nifti image object)
+        img_nii: nifti image object
     """
     dim = img_nii.header["dim"][0]
     if dim >= 5:
@@ -260,6 +260,9 @@ def rectify_header_sform_qform(img_nii):
     incompatibilities with pixel dimensions
 
     Adapted from https://github.com/NifTK/NiftyNet/blob/v0.6.0/niftynet/io/misc_io.py
+
+    Args:
+        img_nii: nifti image object
     """
     d = img_nii.header["dim"][0]
     pixdim = np.asarray(img_nii.header.get_zooms())[:d]
@@ -344,6 +347,11 @@ def compute_shape_offset(spatial_shape, in_affine, out_affine):
     in the output space based on the input array's shape.
     This function also returns the offset to put the shape
     in a good position with respect to the world coordinate system.
+
+    Args:
+        spatial_shape: input array's shape
+        in_affine (matrix): 2D affine matrix
+        out_affine (matrix): 2D affine matrix
     """
     shape = np.array(spatial_shape, copy=True, dtype=float)
     sr = len(shape)

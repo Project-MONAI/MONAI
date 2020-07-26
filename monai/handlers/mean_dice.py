@@ -78,6 +78,9 @@ class MeanDice(Metric):  # type: ignore # incorrectly typed due to optional_impo
     @reinit__is_reduced
     def update(self, output: Sequence[torch.Tensor]) -> None:
         """
+        Args:
+            output: sequence with contents [y_pred, y].
+
         Raises:
             ValueError: When ``output`` length is not 2. MeanDice metric can only support y_pred and y.
 

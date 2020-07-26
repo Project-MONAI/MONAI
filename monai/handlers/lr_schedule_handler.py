@@ -62,6 +62,10 @@ class LrScheduleHandler:
         self._name = name
 
     def attach(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
         if self._name is None:
             self.logger = engine.logger
         if self.epoch_level:
@@ -70,6 +74,10 @@ class LrScheduleHandler:
             engine.add_event_handler(Events.ITERATION_COMPLETED, self)
 
     def __call__(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
         args = ensure_tuple(self.step_transform(engine))
         self.lr_scheduler.step(*args)
         if self.print_lr:

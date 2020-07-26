@@ -236,6 +236,10 @@ class TensorBoardImageHandler(object):
         self.max_channels = max_channels
 
     def attach(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
         if self.epoch_level:
             engine.add_event_handler(Events.EPOCH_COMPLETED(every=self.interval), self)
         else:
@@ -243,6 +247,9 @@ class TensorBoardImageHandler(object):
 
     def __call__(self, engine: Engine) -> None:
         """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+
         Raises:
             TypeError: When ``output_transform(engine.state.output)[0]`` type is not in
                 ``Optional[Union[numpy.ndarray, torch.Tensor]]``.

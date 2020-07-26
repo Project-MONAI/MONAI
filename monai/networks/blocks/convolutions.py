@@ -41,7 +41,7 @@ class Convolution(nn.Sequential):
         dilation: dilation rate. Defaults to 1.
         groups: controls the connections between inputs and outputs. Defaults to 1.
         bias: whether to have a bias term. Defaults to True.
-        conv_only:  whether to use the convolutional layer only. Defaults to False.
+        conv_only: whether to use the convolutional layer only. Defaults to False.
         is_transposed: if True uses ConvTrans instead of Conv. Defaults to False.
 
     See also:
@@ -137,6 +137,21 @@ class Convolution(nn.Sequential):
 class ResidualUnit(nn.Module):
     """
     Residual module with multiple convolutions and a residual connection.
+
+    Args:
+        dimensions: number of spatial dimensions.
+        in_channels: number of input channels.
+        out_channels: number of output channels.
+        strides: convolution stride. Defaults to 1.
+        kernel_size: convolution kernel size. Defaults to 3.
+        subunits: number of convolutions. Defaults to 2.
+        act: activation type and arguments. Defaults to PReLU.
+        norm: feature normalization type and arguments. Defaults to instance norm.
+        dropout: dropout ratio. Defaults to no dropout.
+        dilation: dilation rate. Defaults to 1.
+        bias: whether to have a bias term. Defaults to True.
+        last_conv_only: for the last subunit, whether to use the convolutional layer only.
+            Defaults to False.
 
     See also:
 
