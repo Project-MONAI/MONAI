@@ -22,6 +22,15 @@ class _DenseLayer(nn.Sequential):
     def __init__(
         self, spatial_dims: int, in_channels: int, growth_rate: int, bn_size: int, dropout_prob: float
     ) -> None:
+        """
+        Args:
+            spatial_dims: number of spatial dimensions of the input image.
+            in_channels: number of the input channel.
+            growth_rate: how many filters to add each layer (k in paper).
+            bn_size: multiplicative factor for number of bottle neck layers.
+                (i.e. bn_size * k features in the bottleneck layer)
+            dropout_prob: dropout rate after each dense layer.
+        """
         super(_DenseLayer, self).__init__()
 
         out_channels = bn_size * growth_rate
@@ -49,6 +58,16 @@ class _DenseBlock(nn.Sequential):
     def __init__(
         self, spatial_dims: int, layers: int, in_channels: int, bn_size: int, growth_rate: int, dropout_prob: float
     ) -> None:
+        """
+        Args:
+            spatial_dims: number of spatial dimensions of the input image.
+            layers: number of layers in the block.
+            in_channels: number of the input channel.
+            bn_size: multiplicative factor for number of bottle neck layers.
+                (i.e. bn_size * k features in the bottleneck layer)
+            growth_rate: how many filters to add each layer (k in paper).
+            dropout_prob: dropout rate after each dense layer.
+        """
         super(_DenseBlock, self).__init__()
         for i in range(layers):
             layer = _DenseLayer(spatial_dims, in_channels, growth_rate, bn_size, dropout_prob)
@@ -58,6 +77,12 @@ class _DenseBlock(nn.Sequential):
 
 class _Transition(nn.Sequential):
     def __init__(self, spatial_dims: int, in_channels: int, out_channels: int) -> None:
+        """
+        Args:
+            spatial_dims: number of spatial dimensions of the input image.
+            in_channels: number of the input channel.
+            out_channels: number of the output classes.
+        """
         super(_Transition, self).__init__()
 
         conv_type: Callable = Conv[Conv.CONV, spatial_dims]
@@ -84,7 +109,7 @@ class DenseNet(nn.Module):
         growth_rate: how many filters to add each layer (k in paper).
         block_config: how many layers in each pooling block.
         bn_size: multiplicative factor for number of bottle neck layers.
-                      (i.e. bn_size * k features in the bottleneck layer)
+            (i.e. bn_size * k features in the bottleneck layer)
         dropout_prob: dropout rate after each dense layer.
     """
 

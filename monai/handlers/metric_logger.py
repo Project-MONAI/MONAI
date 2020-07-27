@@ -29,9 +29,17 @@ class MetricLogger:
         self.metrics: defaultdict = defaultdict(list)
 
     def attach(self, engine: Engine):
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
         return engine.add_event_handler(Events.ITERATION_COMPLETED, self)
 
     def __call__(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
         self.loss.append(self.loss_transform(engine.state.output))
 
         for m, v in engine.state.metrics.items():
