@@ -15,9 +15,6 @@ from torch.utils.cpp_extension import BuildExtension, CppExtension
 
 setup(
     name="lltm_cpp",
-    ext_modules=[
-        CppExtension("lltm_cpp", ["monai/networks/extensions/lltm/lltm.cpp"]),
-    ],
-    cmdclass={
-        "build_ext": BuildExtension
-    })
+    ext_modules=[CppExtension("lltm_cpp", ["monai/networks/extensions/lltm/lltm.cpp"]),],
+    cmdclass={"build_ext": BuildExtension},
+)
