@@ -14,7 +14,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.networks.extensions import LLTM
+from monai.networks.layers import LLTM
 
 TEST_CASE_1 = [
     {"input_features": 32, "state_size": 2},

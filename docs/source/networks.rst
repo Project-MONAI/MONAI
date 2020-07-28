@@ -66,17 +66,6 @@ Blocks
     :members:
 
 
-Extensions
-----------
-.. automodule:: monai.networks.extensions
-.. currentmodule:: monai.networks.extensions
-
-`LLTM`
-~~~~~~
-.. autoclass:: LLTM
-    :members:
-
-
 Layers
 ------
 
@@ -138,6 +127,11 @@ Layers
 `Affine Transform`
 ~~~~~~~~~~~~~~~~~~
 .. autoclass:: monai.networks.layers.AffineTransform
+    :members:
+
+`LLTM`
+~~~~~~
+.. autoclass:: LLTM
     :members:
 
 `Utilities`
