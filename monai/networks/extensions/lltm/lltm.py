@@ -62,8 +62,8 @@ class LLTM(nn.Module):
         super(LLTM, self).__init__()
         self.input_features = input_features
         self.state_size = state_size
-        self.weights = nn.Parameter(torch.Tensor(3 * state_size, input_features + state_size))
-        self.bias = nn.Parameter(torch.Tensor(1, 3 * state_size))
+        self.weights = nn.Parameter(torch.empty(3 * state_size, input_features + state_size))
+        self.bias = nn.Parameter(torch.empty(1, 3 * state_size))
         self.reset_parameters()
 
     def reset_parameters(self):
