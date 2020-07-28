@@ -44,7 +44,20 @@ class LLTMFunction(Function):
 
 
 class LLTM(nn.Module):
-    def __init__(self, input_features, state_size):
+    """
+    This recurrent unit is similar to an LSTM, but differs in that it lacks a forget
+    gate and uses an Exponential Linear Unit (ELU) as its internal activation function.
+    Because this unit never forgets, call it LLTM, or Long-Long-Term-Memory unit.
+    It has both C++ and CUDA implementation, automatically switch according to the
+    target device where put this module to.
+
+    Args:
+        input_features: size of input feature data
+        state_size: size of the state of recurrent unit
+
+    Referring to: https://pytorch.org/tutorials/advanced/cpp_extension.html
+    """
+    def __init__(self, input_features: int, state_size: int):
         super(LLTM, self).__init__()
         self.input_features = input_features
         self.state_size = state_size
