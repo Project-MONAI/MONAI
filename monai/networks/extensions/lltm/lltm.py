@@ -57,6 +57,7 @@ class LLTM(nn.Module):
 
     Referring to: https://pytorch.org/tutorials/advanced/cpp_extension.html
     """
+
     def __init__(self, input_features: int, state_size: int):
         super(LLTM, self).__init__()
         self.input_features = input_features
