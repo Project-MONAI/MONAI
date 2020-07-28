@@ -17,22 +17,12 @@ import versioneer
 if __name__ == "__main__":
     cmds = versioneer.get_cmdclass()
     cmds.update({"build_ext": BuildExtension})
-    ext_modules = [
-        CppExtension(
-            "monai._C",
-            [
-                "monai/networks/extensions/lltm/lltm.cpp"
-            ]
-        )
-    ]
+    ext_modules = [CppExtension("monai._C", ["monai/networks/extensions/lltm/lltm.cpp"])]
     if torch.cuda.is_available():
         ext_modules.append(
             CUDAExtension(
                 "monai._C_CUDA",
-                [
-                    "monai/networks/extensions/lltm/lltm_cuda.cpp",
-                    "monai/networks/extensions/lltm/lltm_cuda_kernel.cu"
-                ],
+                ["monai/networks/extensions/lltm/lltm_cuda.cpp", "monai/networks/extensions/lltm/lltm_cuda_kernel.cu"],
             )
         )
     setup(
