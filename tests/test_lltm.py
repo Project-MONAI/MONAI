@@ -25,30 +25,30 @@ TEST_CASE_1 = [
 
 class TestLLTM(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1])
-    def test_value(self, input_param, expected_h, expected_C):
+    def test_value(self, input_param, expected_h, expected_c):
         torch.manual_seed(0)
-        X = torch.randn(4, 32)
+        x = torch.randn(4, 32)
         h = torch.randn(4, 2)
-        C = torch.randn(4, 2)
-        new_h, new_C = LLTM(**input_param)(X, (h, C))
-        (new_h.sum() + new_C.sum()).backward()
+        c = torch.randn(4, 2)
+        new_h, new_c = LLTM(**input_param)(x, (h, c))
+        (new_h.sum() + new_c.sum()).backward()
 
         torch.testing.assert_allclose(new_h, expected_h, rtol=0.0001, atol=1e-04)
-        torch.testing.assert_allclose(new_C, expected_C, rtol=0.0001, atol=1e-04)
+        torch.testing.assert_allclose(new_c, expected_c, rtol=0.0001, atol=1e-04)
 
     @parameterized.expand([TEST_CASE_1])
-    def test_value_cuda(self, input_param, expected_h, expected_C):
+    def test_value_cuda(self, input_param, expected_h, expected_c):
         device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu:0")
         torch.manual_seed(0)
-        X = torch.randn(4, 32).to(device)
+        x = torch.randn(4, 32).to(device)
         h = torch.randn(4, 2).to(device)
-        C = torch.randn(4, 2).to(device)
+        c = torch.randn(4, 2).to(device)
         lltm = LLTM(**input_param).to(device)
-        new_h, new_C = lltm(X, (h, C))
-        (new_h.sum() + new_C.sum()).backward()
+        new_h, new_c = lltm(x, (h, c))
+        (new_h.sum() + new_c.sum()).backward()
 
         torch.testing.assert_allclose(new_h, expected_h.to(device), rtol=0.0001, atol=1e-04)
-        torch.testing.assert_allclose(new_C, expected_C.to(device), rtol=0.0001, atol=1e-04)
+        torch.testing.assert_allclose(new_c, expected_c.to(device), rtol=0.0001, atol=1e-04)
 
 
 if __name__ == "__main__":

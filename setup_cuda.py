@@ -17,7 +17,7 @@ setup(
     ext_modules=[
         CUDAExtension(
             "lltm_cuda",
-            ["monai/networks/extensions/lltm/lltm_cuda.cpp", "monai/networks/extensions/lltm/lltm_cuda_kernel.cu",],
+            ["monai/networks/extensions/lltm/lltm_cuda.cpp", "monai/networks/extensions/lltm/lltm_cuda_kernel.cu"],
         ),
     ],
     cmdclass={"build_ext": BuildExtension},
