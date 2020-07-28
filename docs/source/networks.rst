@@ -66,6 +66,17 @@ Blocks
     :members:
 
 
+Extensions
+----------
+.. automodule:: monai.networks.extensions
+.. currentmodule:: monai.networks.extensions
+
+`LLTM`
+~~~~~~~~~~~~~
+.. autoclass:: LLTM
+    :members:
+
+
 Layers
 ------
 
