@@ -89,6 +89,6 @@ std::vector<torch::Tensor> lltm_backward(
 }
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-  m.def("forward", &lltm_forward, "LLTM forward (CUDA)");
-  m.def("backward", &lltm_backward, "LLTM backward (CUDA)");
+  m.def("lltm_forward", &lltm_forward, "LLTM forward (CUDA)");
+  m.def("lltm_backward", &lltm_backward, "LLTM backward (CUDA)");
 }

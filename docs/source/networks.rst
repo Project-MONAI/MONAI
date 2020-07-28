@@ -72,7 +72,7 @@ Extensions
 .. currentmodule:: monai.networks.extensions
 
 `LLTM`
-~~~~~~~~~~~~~
+~~~~~~
 .. autoclass:: LLTM
     :members:
 
