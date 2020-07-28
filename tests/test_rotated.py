@@ -14,9 +14,9 @@ import unittest
 import numpy as np
 import scipy.ndimage
 from parameterized import parameterized
-from tests.utils import NumpyImageTestCase2D, NumpyImageTestCase3D
 
 from monai.transforms import Rotated
+from tests.utils import NumpyImageTestCase2D, NumpyImageTestCase3D
 
 TEST_CASES_2D = [
     (-30, False, "bilinear", "border", False),

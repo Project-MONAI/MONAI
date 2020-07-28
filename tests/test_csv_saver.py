@@ -9,13 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import csv
+import os
 import shutil
 import unittest
+
 import numpy as np
 import torch
-
 
 from monai.data import CSVSaver
 
