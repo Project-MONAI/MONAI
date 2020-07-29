@@ -138,12 +138,12 @@ class TverskyLoss(_Loss):
         numerator = tp + smooth
         denominator = tp + fp + fn + smooth
 
-        score = 1.0 - numerator / denominator
+        score: torch.Tensor = 1.0 - numerator / denominator
 
         if self.reduction == LossReduction.SUM.value:
-            return score.sum()  # sum over the batch and channel dims
+            return torch.sum(score)  # sum over the batch and channel dims
         if self.reduction == LossReduction.NONE.value:
             return score  # returns [N, n_classes] losses
         if self.reduction == LossReduction.MEAN.value:
-            return score.mean()
+            return torch.mean(score)
         raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')

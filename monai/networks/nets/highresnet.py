@@ -83,7 +83,7 @@ class ConvNormActi(nn.Module):
         self.layers = nn.Sequential(*layers)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.layers(x)
+        return torch.as_tensor(self.layers(x))
 
 
 class HighResBlock(nn.Module):
@@ -150,12 +150,12 @@ class HighResBlock(nn.Module):
             _in_chns = _out_chns
         self.layers = nn.Sequential(*layers)
 
-    def forward(self, x: torch.Tensor):
-        x_conv = self.layers(x)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x_conv: torch.Tensor = self.layers(x)
         if self.project is not None:
-            return x_conv + self.project(x)
+            return x_conv + torch.as_tensor(self.project(x))
         if self.pad is not None:
-            return x_conv + self.pad(x)
+            return x_conv + torch.as_tensor(self.pad(x))
         return x_conv + x
 
 
@@ -261,4 +261,4 @@ class HighResNet(nn.Module):
         self.blocks = nn.Sequential(*blocks)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.blocks(x)
+        return torch.as_tensor(self.blocks(x))

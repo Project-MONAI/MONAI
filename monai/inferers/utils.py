@@ -27,7 +27,7 @@ def sliding_window_inference(
     mode: Union[BlendMode, str] = BlendMode.CONSTANT,
     padding_mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
     cval: float = 0.0,
-):
+) -> torch.Tensor:
     """
     Sliding window inference on `inputs` with `predictor`.
 
@@ -139,7 +139,7 @@ def sliding_window_inference(
                 count_map[0, :, curr_slice[0], curr_slice[1]] += importance_map
 
     # account for any overlapping sections
-    output_image /= count_map
+    output_image = output_image / count_map
 
     if num_spatial_dims == 3:
         return output_image[
