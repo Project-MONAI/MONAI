@@ -493,6 +493,7 @@ class MaskIntensity(Transform):
 class GaussianSmooth(Transform):
     """
     Apply Gaussian smooth to the input data based on specified `sigma` parameter.
+    A default value `sigma=1.0` is provided for reference.
 
     Args:
         sigma: if a list of values, must match the count of spatial dimensions of input data,
@@ -501,7 +502,7 @@ class GaussianSmooth(Transform):
 
     """
 
-    def __init__(self, sigma: Union[Sequence[float], float]) -> None:
+    def __init__(self, sigma: Union[Sequence[float], float] = 1.0) -> None:
         self.sigma = sigma
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
@@ -547,3 +548,47 @@ class RandGaussianSmooth(Randomizable, Transform):
             return img
         sigma = ensure_tuple_size(tup=(self.x, self.y, self.z), dim=img.ndim - 1)
         return GaussianSmooth(sigma=sigma)(img)
+
+
+class GaussianSharpen(Transform):
+    """
+    Sharpen images using the Gaussian Blur filter.
+    Referring to: http://scipy-lectures.org/advanced/image_processing/auto_examples/plot_sharpen.html.
+    The algorithm is shown as below
+
+    .. code-block:: python
+
+        blurred_f = gaussian_filter(img, sigma1)
+        filter_blurred_f = gaussian_filter(blurred_f, sigma2)
+        img = blurred_f + alpha * (blurred_f - filter_blurred_f)
+
+    A set of default values `sigma1=3.0`, `sigma2=1.0` and `alpha=30.0` is provide for reference.
+
+    Args:
+        sigma1: sigma parameter for the first gaussian kernel. if a list of values, must match the count
+            of spatial dimensions of input data, and apply every value in the list to 1 spatial dimension.
+            if only 1 value provided, use it for all spatial dimensions.
+        sigma2: sigma parameter for the second gaussian kernel. if a list of values, must match the count
+            of spatial dimensions of input data, and apply every value in the list to 1 spatial dimension.
+            if only 1 value provided, use it for all spatial dimensions.
+        alpha: weight parameter to compute the final result.
+
+    """
+
+    def __init__(
+        self,
+        sigma1: Union[Sequence[float], float] = 3.0,
+        sigma2: Union[Sequence[float], float] = 1.0,
+        alpha: float = 30.0,
+    ) -> None:
+        self.sigma1 = sigma1
+        self.sigma2 = sigma2
+        self.alpha = alpha
+
+    def __call__(self, img: np.ndarray) -> np.ndarray:
+        gaussian_filter1 = GaussianFilter(img.ndim - 1, self.sigma1)
+        gaussian_filter2 = GaussianFilter(img.ndim - 1, self.sigma2)
+        input_data = torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0)
+        blurred_f = gaussian_filter1(input_data)
+        filter_blurred_f = gaussian_filter2(blurred_f)
+        return (blurred_f + self.alpha * (blurred_f - filter_blurred_f)).squeeze(0).detach().numpy()
