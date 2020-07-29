@@ -9,20 +9,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Sequence, Union, Tuple, Any
-
 import hashlib
 import json
 import sys
 import threading
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
+from typing import Any, Callable, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 from torch.utils.data import Dataset as _TorchDataset
 
-from monai.transforms import apply_transform, Compose, Randomizable, Transform
+from monai.transforms import Compose, Randomizable, Transform, apply_transform
 from monai.utils import get_seed, progress_bar
 
 
@@ -278,6 +277,11 @@ class CacheDataset(Dataset):
                     progress_bar(i + 1, self.cache_num, "Load and cache transformed data: ")
 
     def _load_cache_item(self, item: Any, transforms: Sequence[Callable]):
+        """
+        Args:
+            item: input item to load and transform to generate dataset for model.
+            transforms: transforms to execute operations on input item.
+        """
         for _transform in transforms:
             # execute all the deterministic transforms
             if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
@@ -286,6 +290,13 @@ class CacheDataset(Dataset):
         return item
 
     def _load_cache_item_thread(self, args: Tuple) -> None:
+        """
+        Args:
+            args: tuple with contents (i, item, transforms).
+                i: the index to load the cached item to.
+                item: input item to load and transform to generate dataset for model.
+                transforms: transforms to execute operations on input item.
+        """
         i, item, transforms = args
         self._cache[i] = self._load_cache_item(item, transforms)
         with self._thread_lock:
@@ -333,7 +344,7 @@ class ZipDataset(Dataset):
     def __init__(self, datasets: Sequence, transform: Optional[Callable] = None) -> None:
         """
         Args:
-            datasets (list or tuple): list of datasets to zip together.
+            datasets: list of datasets to zip together.
             transform: a callable data transform operates on the zipped item from `datasets`.
         """
         super().__init__(list(datasets), transform=transform)

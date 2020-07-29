@@ -13,14 +13,15 @@ A collection of "vanilla" transforms for the model output tensors
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Callable, Optional, Sequence, Union
 import warnings
+from typing import Callable, List, Optional, Sequence, Union
+
 import numpy as np
 import torch
 import torch.nn.functional as F
 
-from monai.transforms.compose import Transform
 from monai.networks import one_hot
+from monai.transforms.compose import Transform
 from monai.transforms.utils import get_largest_connected_component_mask
 from monai.utils import ensure_tuple
 
@@ -43,7 +44,9 @@ class SplitChannel(Transform):
         self.to_onehot = to_onehot
         self.num_classes = num_classes
 
-    def __call__(self, img: torch.Tensor, to_onehot: Optional[bool] = None, num_classes: Optional[int] = None):
+    def __call__(
+        self, img: torch.Tensor, to_onehot: Optional[bool] = None, num_classes: Optional[int] = None
+    ) -> List[torch.Tensor]:
         """
         Args:
             to_onehot: whether to convert the data to One-Hot format first.
@@ -76,11 +79,16 @@ class Activations(Transform):
         other: callable function to execute other activation layers, for example:
             `other = lambda x: torch.tanh(x)`. Defaults to ``None``.
 
+    Raises:
+        TypeError: When ``other`` is not an ``Optional[Callable]``.
+
     """
 
     def __init__(self, sigmoid: bool = False, softmax: bool = False, other: Optional[Callable] = None) -> None:
         self.sigmoid = sigmoid
         self.softmax = softmax
+        if other is not None and not callable(other):
+            raise TypeError(f"other must be None or callable but is {type(other).__name__}.")
         self.other = other
 
     def __call__(
@@ -89,7 +97,7 @@ class Activations(Transform):
         sigmoid: Optional[bool] = None,
         softmax: Optional[bool] = None,
         other: Optional[Callable] = None,
-    ):
+    ) -> torch.Tensor:
         """
         Args:
             sigmoid: whether to execute sigmoid function on model output before transform.
@@ -100,20 +108,23 @@ class Activations(Transform):
                 `other = lambda x: torch.tanh(x)`. Defaults to ``self.other``.
 
         Raises:
-            ValueError: sigmoid=True and softmax=True are not compatible.
-            ValueError: act_func must be a Callable function.
+            ValueError: When ``sigmoid=True`` and ``softmax=True``. Incompatible values.
+            TypeError: When ``other`` is not an ``Optional[Callable]``.
+            ValueError: When ``self.other=None`` and ``other=None``. Incompatible values.
 
         """
-        if sigmoid is True and softmax is True:
-            raise ValueError("sigmoid=True and softmax=True are not compatible.")
+        if sigmoid and softmax:
+            raise ValueError("Incompatible values: sigmoid=True and softmax=True.")
+        if other is not None and not callable(other):
+            raise TypeError(f"other must be None or callable but is {type(other).__name__}.")
+
         if sigmoid or self.sigmoid:
             img = torch.sigmoid(img)
         if softmax or self.softmax:
             img = torch.softmax(img, dim=1)
+
         act_func = self.other if other is None else other
         if act_func is not None:
-            if not callable(act_func):
-                raise ValueError("act_func must be a Callable function.")
             img = act_func(img)
 
         return img
@@ -164,7 +175,7 @@ class AsDiscrete(Transform):
         n_classes: Optional[int] = None,
         threshold_values: Optional[bool] = None,
         logit_thresh: Optional[float] = None,
-    ):
+    ) -> torch.Tensor:
         """
         Args:
             argmax: whether to execute argmax function on input data before transform.
@@ -259,7 +270,7 @@ class KeepLargestConnectedComponent(Transform):
         self.independent = independent
         self.connectivity = connectivity
 
-    def __call__(self, img: torch.Tensor):
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:
         """
         Args:
             img: shape must be (batch_size, C, spatial_dim1[, spatial_dim2, ...]).
@@ -312,17 +323,23 @@ class LabelToContour(Transform):
     Args:
         kernel_type: the method applied to do edge detection, default is "Laplace".
 
+    Raises:
+        NotImplementedError: When ``kernel_type`` is not "Laplace".
+
     """
 
     def __init__(self, kernel_type: str = "Laplace") -> None:
         if kernel_type != "Laplace":
-            raise NotImplementedError("currently, LabelToContour only supports Laplace kernel.")
+            raise NotImplementedError('Currently only kernel_type="Laplace" is supported.')
         self.kernel_type = kernel_type
 
-    def __call__(self, img: torch.Tensor):
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:
         """
         Args:
             img: torch tensor data to extract the contour, with shape: [batch_size, channels, height, width[, depth]]
+
+        Raises:
+            ValueError: When ``image`` ndim is not one of [4, 5].
 
         Returns:
             A torch tensor with the same shape as img, note:
@@ -343,7 +360,7 @@ class LabelToContour(Transform):
             kernel = kernel.repeat(channels, 1, 1, 1, 1)
             contour_img = F.conv3d(img, kernel, bias=None, stride=1, padding=1, dilation=1, groups=channels)
         else:
-            raise RuntimeError("the dimensions of img should be 4 or 5.")
+            raise ValueError(f"Unsupported img dimension: {img.ndim}, available options are [4, 5].")
 
         contour_img.clamp_(min=0.0, max=1.0)
         return contour_img
@@ -375,7 +392,7 @@ class MeanEnsemble(Transform):
     def __init__(self, weights: Optional[Union[Sequence[float], torch.Tensor, np.ndarray]] = None):
         self.weights = torch.as_tensor(weights, dtype=torch.float) if weights is not None else None
 
-    def __call__(self, img: Union[Sequence[torch.Tensor], torch.Tensor]):
+    def __call__(self, img: Union[Sequence[torch.Tensor], torch.Tensor]) -> torch.Tensor:
         img_: torch.Tensor = torch.stack(img) if isinstance(img, (tuple, list)) else torch.as_tensor(img)
         if self.weights is not None:
             self.weights = self.weights.to(img_.device)

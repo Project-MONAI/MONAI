@@ -9,15 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import tempfile
-import shutil
-import torch
-import unittest
-from ignite.engine import Engine
-import torch.optim as optim
-from monai.handlers import CheckpointSaver, CheckpointLoader
 import logging
+import shutil
 import sys
+import tempfile
+import unittest
+
+import torch
+import torch.optim as optim
+from ignite.engine import Engine
+
+from monai.handlers import CheckpointLoader, CheckpointSaver
 
 
 class TestHandlerCheckpointLoader(unittest.TestCase):

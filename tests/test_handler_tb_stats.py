@@ -9,11 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import glob
 import os
 import shutil
 import tempfile
 import unittest
-import glob
 
 from ignite.engine import Engine, Events
 from torch.utils.tensorboard import SummaryWriter

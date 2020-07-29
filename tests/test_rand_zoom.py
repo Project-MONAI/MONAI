@@ -14,10 +14,10 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 from scipy.ndimage import zoom as zoom_scipy
-from tests.utils import NumpyImageTestCase2D
 
 from monai.transforms import RandZoom
-from monai.utils import InterpolateMode, GridSampleMode
+from monai.utils import GridSampleMode, InterpolateMode
+from tests.utils import NumpyImageTestCase2D
 
 VALID_CASES = [(0.8, 1.2, "nearest", False), (0.8, 1.2, InterpolateMode.NEAREST, False)]
 

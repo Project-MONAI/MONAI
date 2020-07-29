@@ -13,9 +13,8 @@ A collection of "vanilla" transforms for spatial operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Callable, List, Optional, Sequence, Tuple, Union, Any
-
 import warnings
+from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -34,7 +33,6 @@ from monai.transforms.utils import (
     create_translate,
 )
 from monai.utils import (
-    optional_import,
     GridSampleMode,
     GridSamplePadMode,
     InterpolateMode,
@@ -43,6 +41,7 @@ from monai.utils import (
     ensure_tuple_rep,
     ensure_tuple_size,
     fall_back_tuple,
+    optional_import,
 )
 
 nib, _ = optional_import("nibabel")
@@ -120,17 +119,17 @@ class Spacing(Transform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             dtype: output array data type. Defaults to ``self.dtype``.
 
+        Raises:
+            ValueError: When ``data_array`` has no spatial dimensions.
+            ValueError: When ``pixdim`` is nonpositive.
+
         Returns:
             data_array (resampled into `self.pixdim`), original pixdim, current pixdim.
-
-        Raises:
-            ValueError: the array should have at least one spatial dimension.
-            ValueError: pixdim must be positive, got {out_d}
 
         """
         sr = data_array.ndim - 1
         if sr <= 0:
-            raise ValueError("the array should have at least one spatial dimension.")
+            raise ValueError("data_array must have at least one spatial dimension.")
         if affine is None:
             # default to identity
             affine = np.eye(sr + 1, dtype=np.float64)
@@ -141,7 +140,7 @@ class Spacing(Transform):
         if out_d.size < sr:
             out_d = np.append(out_d, [1.0] * (out_d.size - sr))
         if np.any(out_d <= 0):
-            raise ValueError(f"pixdim must be positive, got {out_d}")
+            raise ValueError(f"pixdim must be positive, got {out_d}.")
         # compute output affine, shape and offset
         new_affine = zoom_affine(affine_, out_d, diagonal=self.diagonal)
         output_shape, offset = compute_shape_offset(data_array.shape[1:], affine_, new_affine)
@@ -196,12 +195,13 @@ class Orientation(Transform):
                 Defaults to ``(('L', 'R'), ('P', 'A'), ('I', 'S'))``.
 
         Raises:
-            ValueError: provide either `axcodes` or `as_closest_canonical=True`.
+            ValueError: When ``axcodes=None`` and ``as_closest_canonical=True``. Incompatible values.
 
         See Also: `nibabel.orientations.ornt2axcodes`.
+
         """
         if axcodes is None and not as_closest_canonical:
-            raise ValueError("provide either `axcodes` or `as_closest_canonical=True`.")
+            raise ValueError("Incompatible values: axcodes=None and as_closest_canonical=True.")
         if axcodes is not None and as_closest_canonical:
             warnings.warn("using as_closest_canonical=True, axcodes ignored.")
         self.axcodes = axcodes
@@ -216,18 +216,17 @@ class Orientation(Transform):
             data_array: in shape (num_channels, H[, W, ...]).
             affine (matrix): (N+1)x(N+1) original affine matrix for spatially ND `data_array`. Defaults to identity.
 
+        Raises:
+            ValueError: When ``data_array`` has no spatial dimensions.
+            ValueError: When ``axcodes`` spatiality differs from ``data_array``.
+
         Returns:
             data_array (reoriented in `self.axcodes`), original axcodes, current axcodes.
-
-        Raises:
-            ValueError: the array should have at least one spatial dimension.
-            ValueError: `self.axcodes` should have at least {sr} elements
-                given the data array is in spatial {sr}D, got "{self.axcodes}"
 
         """
         sr = data_array.ndim - 1
         if sr <= 0:
-            raise ValueError("the array should have at least one spatial dimension.")
+            raise ValueError("data_array must have at least one spatial dimension.")
         if affine is None:
             affine = np.eye(sr + 1, dtype=np.float64)
             affine_ = np.eye(sr + 1, dtype=np.float64)
@@ -241,8 +240,7 @@ class Orientation(Transform):
             dst = nib.orientations.axcodes2ornt(self.axcodes[:sr], labels=self.labels)
             if len(dst) < sr:
                 raise ValueError(
-                    f"`self.axcodes` should have at least {sr} elements"
-                    f' given the data array is in spatial {sr}D, got "{self.axcodes}"'
+                    f"axcodes must match data_array spatially, got axcodes={len(self.axcodes)}D data_array={sr}D"
                 )
             spatial_ornt = nib.orientations.ornt_transform(src, dst)
         ornt = spatial_ornt.copy()
@@ -268,7 +266,7 @@ class Flip(Transform):
     def __init__(self, spatial_axis: Optional[Union[Sequence[int], int]]) -> None:
         self.spatial_axis = spatial_axis
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
@@ -309,7 +307,7 @@ class Resize(Transform):
 
     def __call__(
         self, img: np.ndarray, mode: Optional[Union[InterpolateMode, str]] = None, align_corners: Optional[bool] = None,
-    ):
+    ) -> np.ndarray:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]).
@@ -321,8 +319,7 @@ class Resize(Transform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
 
         Raises:
-            ValueError: len(spatial_size) cannot be smaller than the image spatial dimensions,
-                got {output_ndim} and {input_ndim}.
+            ValueError: When ``self.spatial_size`` length is less than ``img`` spatial dimensions.
 
         """
         input_ndim = img.ndim - 1  # spatial ndim
@@ -332,8 +329,8 @@ class Resize(Transform):
             img = img.reshape(input_shape)
         elif output_ndim < input_ndim:
             raise ValueError(
-                "len(spatial_size) cannot be smaller than the image spatial dimensions, "
-                f"got {output_ndim} and {input_ndim}."
+                "len(spatial_size) must be greater or equal to img spatial dimensions, "
+                f"got spatial_size={output_ndim} img={input_ndim}."
             )
         spatial_size = fall_back_tuple(self.spatial_size, img.shape[1:])
         resized = _torch_interp(
@@ -384,11 +381,11 @@ class Rotate(Transform):
         img: np.ndarray,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-        align_corners=None,
-    ):
+        align_corners: Optional[bool] = None,
+    ) -> np.ndarray:
         """
         Args:
-            img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
+            img: channel first array, must have shape: [chns, H, W] or [chns, H, W, D].
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``self.mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
@@ -397,17 +394,17 @@ class Rotate(Transform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
                 align_corners: Defaults to ``self.align_corners``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-            align_corners (bool): Defaults to ``self.align_corners``.
+            align_corners: Defaults to ``self.align_corners``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
 
         Raises:
-            ValueError: Rotate only supports 2D and 3D: [chns, H, W] and [chns, H, W, D].
+            ValueError: When ``img`` spatially is not one of [2D, 3D].
 
         """
         im_shape = np.asarray(img.shape[1:])  # spatial dimensions
         input_ndim = len(im_shape)
         if input_ndim not in (2, 3):
-            raise ValueError("Rotate only supports 2D and 3D: [chns, H, W] and [chns, H, W, D].")
+            raise ValueError(f"Unsupported img dimension: {input_ndim}, available options are [2, 3].")
         _angle = ensure_tuple_rep(self.angle, 1 if input_ndim == 2 else 3)
         _rad = np.deg2rad(_angle)
         transform = create_rotate(input_ndim, _rad)
@@ -474,7 +471,7 @@ class Zoom(Transform):
 
     def __call__(
         self, img: np.ndarray, mode: Optional[Union[InterpolateMode, str]] = None, align_corners: Optional[bool] = None,
-    ):
+    ) -> np.ndarray:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]).
@@ -525,7 +522,7 @@ class Rotate90(Transform):
         self.k = k
         self.spatial_axes = spatial_axes
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
@@ -562,7 +559,7 @@ class RandRotate90(Randomizable, Transform):
         self._rand_k = self.R.randint(self.max_k) + 1
         self._do_transform = self.R.random() < self.prob
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
@@ -642,8 +639,8 @@ class RandRotate(Randomizable, Transform):
         img: np.ndarray,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-        align_corners=None,
-    ):
+        align_corners: Optional[bool] = None,
+    ) -> np.ndarray:
         """
         Args:
             img: channel first array, must have shape 2D: (nchannels, H, W), or 3D: (nchannels, H, W, D).
@@ -653,7 +650,7 @@ class RandRotate(Randomizable, Transform):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-            align_corners (bool): Defaults to ``self.align_corners``.
+            align_corners: Defaults to ``self.align_corners``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         """
         self.randomize()
@@ -688,7 +685,7 @@ class RandFlip(Randomizable, Transform):
     def randomize(self, data: Optional[Any] = None) -> None:
         self._do_transform = self.R.random_sample() < self.prob
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
@@ -751,7 +748,7 @@ class RandZoom(Randomizable, Transform):
 
     def __call__(
         self, img: np.ndarray, mode: Optional[Union[InterpolateMode, str]] = None, align_corners: Optional[bool] = None,
-    ):
+    ) -> np.ndarray:
         """
         Args:
             img: channel first array, must have shape 2D: (nchannels, H, W), or 3D: (nchannels, H, W, D).
@@ -816,21 +813,23 @@ class AffineGrid(Transform):
         self.as_tensor_output = as_tensor_output
         self.device = device
 
-    def __call__(self, spatial_size: Optional[Sequence[int]] = None, grid: Optional[np.ndarray] = None):
+    def __call__(
+        self, spatial_size: Optional[Sequence[int]] = None, grid: Optional[Union[np.ndarray, torch.Tensor]] = None
+    ) -> Union[np.ndarray, torch.Tensor]:
         """
         Args:
             spatial_size: output grid size.
             grid: grid to be transformed. Shape must be (3, H, W) for 2D or (4, H, W, D) for 3D.
 
         Raises:
-            ValueError: Either specify a grid or a spatial size to create a grid from.
+            ValueError: When ``grid=None`` and ``spatial_size=None``. Incompatible values.
 
         """
         if grid is None:
             if spatial_size is not None:
                 grid = create_grid(spatial_size)
             else:
-                raise ValueError("Either specify a grid or a spatial size to create a grid from.")
+                raise ValueError("Incompatible values: grid=None and spatial_size=None.")
 
         spatial_dims = len(grid.shape) - 1
         affine = np.eye(spatial_dims + 1)
@@ -917,8 +916,14 @@ class RandAffineGrid(Randomizable, Transform):
         if self.scale_range:
             self.scale_params = [self.R.uniform(-f, f) + 1.0 for f in self.scale_range if f is not None]
 
-    def __call__(self, spatial_size: Optional[Sequence[int]] = None, grid: Optional[np.ndarray] = None):
+    def __call__(
+        self, spatial_size: Optional[Sequence[int]] = None, grid: Optional[Union[np.ndarray, torch.Tensor]] = None
+    ) -> Union[np.ndarray, torch.Tensor]:
         """
+        Args:
+            spatial_size: output grid size.
+            grid: grid to be transformed. Shape must be (3, H, W) for 2D or (4, H, W, D) for 3D.
+
         Returns:
             a 2D (3xHxW) or 3D (4xHxWxD) grid.
         """
@@ -970,7 +975,7 @@ class RandDeformGrid(Randomizable, Transform):
         self.random_offset = self.R.normal(size=([len(grid_size)] + list(grid_size))).astype(np.float32)
         self.rand_mag = self.R.uniform(self.magnitude[0], self.magnitude[1])
 
-    def __call__(self, spatial_size: Sequence[int]):
+    def __call__(self, spatial_size: Sequence[int]) -> Union[np.ndarray, torch.Tensor]:
         """
         Args:
             spatial_size: spatial size of the grid.
@@ -1017,7 +1022,7 @@ class Resample(Transform):
         grid: Optional[Union[np.ndarray, torch.Tensor]] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-    ):
+    ) -> Union[np.ndarray, torch.Tensor]:
         """
         Args:
             img: shape must be (num_channels, H, W[, D]).
@@ -1118,7 +1123,7 @@ class Affine(Transform):
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-    ):
+    ) -> Union[np.ndarray, torch.Tensor]:
         """
         Args:
             img: shape must be (num_channels, H, W[, D]),
@@ -1231,7 +1236,7 @@ class RandAffine(Randomizable, Transform):
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-    ):
+    ) -> Union[np.ndarray, torch.Tensor]:
         """
         Args:
             img: shape must be (num_channels, H, W[, D]),
@@ -1353,7 +1358,7 @@ class Rand2DElastic(Randomizable, Transform):
         spatial_size: Optional[Union[Tuple[int, int], int]] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-    ):
+    ) -> Union[np.ndarray, torch.Tensor]:
         """
         Args:
             img: shape must be (num_channels, H, W),
@@ -1481,7 +1486,7 @@ class Rand3DElastic(Randomizable, Transform):
         spatial_size: Optional[Union[Tuple[int, int, int], int]] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-    ):
+    ) -> Union[np.ndarray, torch.Tensor]:
         """
         Args:
             img: shape must be (num_channels, H, W, D),
