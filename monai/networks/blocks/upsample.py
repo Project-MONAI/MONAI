@@ -70,4 +70,4 @@ class UpSample(nn.Module):
         Args:
             x: Tensor in shape (batch, channel, spatial_1[, spatial_2, ...).
         """
-        return self.upsample(x)
+        return torch.as_tensor(self.upsample(x))
