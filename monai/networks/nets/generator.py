@@ -82,7 +82,7 @@ class Generator(nn.Module):
         self.dropout = dropout
         self.bias = bias
 
-        self.flatten = nn.Flatten()  # type: ignore # Module has no attribute
+        self.flatten = nn.Flatten()
         self.linear = nn.Linear(int(np.prod(self.latent_shape)), int(np.prod(start_shape)))
         self.reshape = Reshape(*start_shape)
         self.conv = nn.Sequential()

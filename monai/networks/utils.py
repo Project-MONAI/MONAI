@@ -34,7 +34,7 @@ def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.f
     assert labels.dim() > 0, "labels should have dim of 1 or more."
 
     # if `dim` is bigger, add singelton dim at the end
-    if labels.ndim < dim + 1:
+    if labels.ndimension() < dim + 1:
         shape = ensure_tuple_size(labels.shape, dim + 1, 1)
         labels = labels.reshape(*shape)
 
@@ -133,7 +133,7 @@ def to_norm_affine(affine: torch.Tensor, src_size: Sequence[int], dst_size: Sequ
     """
     if not torch.is_tensor(affine):
         raise TypeError(f"affine must be a torch.Tensor but is {type(affine).__name__}.")
-    if affine.ndim != 3 or affine.shape[1] != affine.shape[2]:
+    if affine.ndimension() != 3 or affine.shape[1] != affine.shape[2]:
         raise ValueError(f"affine must be Nxdxd, got {tuple(affine.shape)}.")
     sr = affine.shape[1] - 1
     if sr != len(src_size) or sr != len(dst_size):
