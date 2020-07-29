@@ -143,7 +143,7 @@ class DiceLoss(_Loss):
         if self.jaccard:
             denominator = 2.0 * (denominator - intersection)
 
-        f = 1.0 - (2.0 * intersection + smooth) / (denominator + smooth)
+        f: torch.Tensor = 1.0 - (2.0 * intersection + smooth) / (denominator + smooth)
 
         if self.reduction == LossReduction.MEAN.value:
             f = torch.mean(f)  # the batch and channel average

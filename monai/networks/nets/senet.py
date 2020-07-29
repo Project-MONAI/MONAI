@@ -159,12 +159,12 @@ class SENet(nn.Module):
 
         for m in self.modules():
             if isinstance(m, conv_type):
-                nn.init.kaiming_normal_(m.weight)
+                nn.init.kaiming_normal_(torch.as_tensor(m.weight))
             elif isinstance(m, norm_type):
-                nn.init.constant_(m.weight, 1)
-                nn.init.constant_(m.bias, 0)
+                nn.init.constant_(torch.as_tensor(m.weight), 1)
+                nn.init.constant_(torch.as_tensor(m.bias), 0)
             elif isinstance(m, nn.Linear):
-                nn.init.constant_(m.bias, 0)
+                nn.init.constant_(torch.as_tensor(m.bias), 0)
 
     def _make_layer(
         self,

@@ -350,17 +350,17 @@ class LabelToContour(Transform):
 
         """
         channels = img.shape[1]
-        if img.ndim == 4:
+        if img.ndimension() == 4:
             kernel = torch.tensor([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]], dtype=torch.float32, device=img.device)
             kernel = kernel.repeat(channels, 1, 1, 1)
             contour_img = F.conv2d(img, kernel, bias=None, stride=1, padding=1, dilation=1, groups=channels)
-        elif img.ndim == 5:
+        elif img.ndimension() == 5:
             kernel = -1 * torch.ones(3, 3, 3, dtype=torch.float32, device=img.device)
             kernel[1, 1, 1] = 26
             kernel = kernel.repeat(channels, 1, 1, 1, 1)
             contour_img = F.conv3d(img, kernel, bias=None, stride=1, padding=1, dilation=1, groups=channels)
         else:
-            raise ValueError(f"Unsupported img dimension: {img.ndim}, available options are [4, 5].")
+            raise ValueError(f"Unsupported img dimension: {img.ndimension()}, available options are [4, 5].")
 
         contour_img.clamp_(min=0.0, max=1.0)
         return contour_img
@@ -397,7 +397,7 @@ class MeanEnsemble(Transform):
         if self.weights is not None:
             self.weights = self.weights.to(img_.device)
             shape = tuple(self.weights.shape)
-            for _ in range(img_.ndim - self.weights.ndim):
+            for _ in range(img_.ndimension() - self.weights.ndimension()):
                 shape += (1,)
             weights = self.weights.reshape(*shape)
 
@@ -433,10 +433,10 @@ class VoteEnsemble(Transform):
         img_: torch.Tensor = torch.stack(img) if isinstance(img, (tuple, list)) else torch.as_tensor(img)
         if self.num_classes is not None:
             has_ch_dim = True
-            if img_.ndim > 2 and img_.shape[2] > 1:
+            if img_.ndimension() > 2 and img_.shape[2] > 1:
                 warnings.warn("no need to specify num_classes for One-Hot format data.")
             else:
-                if img_.ndim == 2:
+                if img_.ndimension() == 2:
                     # if no channel dim, need to remove channel dim after voting
                     has_ch_dim = False
                 img_ = one_hot(img_, self.num_classes, dim=2)
