@@ -24,6 +24,7 @@ from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.intensity.array import (
     AdjustContrast,
     GaussianSmooth,
+    GaussianSharpen,
     MaskIntensity,
     NormalizeIntensity,
     ScaleIntensity,
@@ -492,6 +493,40 @@ class RandGaussianSmoothd(Randomizable, MapTransform):
         return d
 
 
+class GaussianSharpend(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.GaussianSharpen`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        sigma1: sigma parameter for the first gaussian kernel. if a list of values, must match the count
+            of spatial dimensions of input data, and apply every value in the list to 1 spatial dimension.
+            if only 1 value provided, use it for all spatial dimensions.
+        sigma2: sigma parameter for the second gaussian kernel. if a list of values, must match the count
+            of spatial dimensions of input data, and apply every value in the list to 1 spatial dimension.
+            if only 1 value provided, use it for all spatial dimensions.
+        alpha: weight parameter to compute the final result.
+
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        sigma1: Union[Sequence[float], float] = 3.0,
+        sigma2: Union[Sequence[float], float] = 1.0,
+        alpha: float = 30.0,
+    ):
+        super().__init__(keys)
+        self.converter = GaussianSharpen(sigma1, sigma2, alpha)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.converter(d[key])
+        return d
+
+
 RandGaussianNoiseD = RandGaussianNoiseDict = RandGaussianNoised
 ShiftIntensityD = ShiftIntensityDict = ShiftIntensityd
 RandShiftIntensityD = RandShiftIntensityDict = RandShiftIntensityd
@@ -506,3 +541,4 @@ ScaleIntensityRangePercentilesD = ScaleIntensityRangePercentilesDict = ScaleInte
 MaskIntensityD = MaskIntensityDict = MaskIntensityd
 GaussianSmoothD = GaussianSmoothDict = GaussianSmoothd
 RandGaussianSmoothD = RandGaussianSmoothDict = RandGaussianSmoothd
+GaussianSharpenD = GaussianSharpenDict = GaussianSharpend
