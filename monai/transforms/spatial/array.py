@@ -920,6 +920,10 @@ class RandAffineGrid(Randomizable, Transform):
         self, spatial_size: Optional[Sequence[int]] = None, grid: Optional[Union[np.ndarray, torch.Tensor]] = None
     ) -> Union[np.ndarray, torch.Tensor]:
         """
+        Args:
+            spatial_size: output grid size.
+            grid: grid to be transformed. Shape must be (3, H, W) for 2D or (4, H, W, D) for 3D.
+
         Returns:
             a 2D (3xHxW) or 3D (4xHxWxD) grid.
         """
@@ -1042,9 +1046,9 @@ class Resample(Transform):
         for i, dim in enumerate(img.shape[1:]):
             grid[i] = 2.0 * grid[i] / (dim - 1.0)
         grid = grid[:-1] / grid[-1:]
-        index_ordering: List[int] = list(range(img.ndim - 2, -1, -1))
+        index_ordering: List[int] = list(range(img.ndimension() - 2, -1, -1))
         grid = grid[index_ordering]
-        grid = grid.permute(list(range(grid.ndim))[1:] + [0])
+        grid = grid.permute(list(range(grid.ndimension()))[1:] + [0])
         out = torch.nn.functional.grid_sample(
             img.unsqueeze(0).float(),
             grid.unsqueeze(0).float(),

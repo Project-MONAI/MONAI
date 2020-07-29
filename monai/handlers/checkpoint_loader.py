@@ -54,11 +54,19 @@ class CheckpointLoader:
         self._name = name
 
     def attach(self, engine: Engine):
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
         if self._name is None:
             self.logger = engine.logger
         return engine.add_event_handler(Events.STARTED, self)
 
     def __call__(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
         checkpoint = torch.load(self.load_path)
         if len(self.load_dict) == 1:
             key = list(self.load_dict.keys())[0]
