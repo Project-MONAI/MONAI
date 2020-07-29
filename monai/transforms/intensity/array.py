@@ -574,6 +574,7 @@ class GaussianSharpen(Transform):
         alpha: weight parameter to compute the final result.
 
     """
+
     def __init__(
         self,
         sigma1: Union[Sequence[float], float] = 3.0,
