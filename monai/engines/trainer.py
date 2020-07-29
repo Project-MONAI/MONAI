@@ -16,7 +16,7 @@ from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 
 from monai.engines.utils import CommonKeys as Keys
-from monai.engines.utils import AdversarialKeys as GKeys
+from monai.engines.utils import GanKeys
 from monai.engines.utils import default_prepare_batch
 from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
@@ -173,7 +173,7 @@ class AdversarialTrainer(Trainer):
         d_inferer: inference method to execute D model forward
         d_train_steps: number of times to update D with real data minibatch. 
         latent_shape: size of G random input latent code
-        prepare_batch: #FIXME use this?
+        prepare_batch: function to parse real data for current iteration.
         iteration_update: the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
         amp: whether to enable auto-mixed-precision training, reserved.
@@ -250,8 +250,8 @@ class AdversarialTrainer(Trainer):
         if batchdata is None:
             raise ValueError("must provide batch data for current iteration.")
         
-        # inputs = self.prepare_batch(batchdata)
-        real_data = batchdata.to(engine.state.device)
+        real_data = self.prepare_batch(batchdata)
+        real_data = real_data.to(engine.state.device)
 
         # Generate Fakes
         batch_size = real_data.shape[0]
@@ -276,6 +276,6 @@ class AdversarialTrainer(Trainer):
         self.g_optimizer.step()
         g_loss = g_loss.item()
 
-        return {GKeys.GLOSS: g_loss, GKeys.DLOSS: d_total_loss}
+        return {GanKeys.GLOSS: g_loss, GanKeys.DLOSS: d_total_loss}
         # return {Keys.REALS: real_data, Keys.FAKES: fake_data, Keys.GLOSS: g_loss, Keys.DLOSS: d_total_loss}
      

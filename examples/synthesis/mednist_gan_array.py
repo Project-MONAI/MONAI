@@ -10,7 +10,7 @@
 # limitations under the License.
 """
 MONAI Generative Adversarial Networks GAN Example
-    Sample script using MONAI library to train generator with MedNIST CT Hands Dataset
+    Sample script using MONAI library to train a generator network to synthesize images from a latent code.
 
 ## Get the dataset
     https://www.dropbox.com/s/5wwskxctvcxiuea/MedNIST.tar.gz
@@ -33,14 +33,14 @@ from monai.networks import normal_init
 from monai.engines import AdversarialTrainer
 from monai.handlers import StatsHandler, CheckpointSaver
 from monai.transforms import (
-    LoadPNG,
     Compose,
-    AddChannel,
-    ScaleIntensity,
-    ToTensor,
-    RandRotate,
-    RandFlip,
-    RandZoom,
+    LoadPNGD,
+    AddChannelD,
+    ScaleIntensityD,
+    RandRotateD,
+    RandFlipD,
+    RandZoomD,
+    ToTensorD,
 )
 
 
@@ -62,26 +62,30 @@ def main():
     device = torch.device("cuda:0")
 
     # load real data
-    MedNIST_Hand_Dir = "/shahinaaz/nvdata/MedNIST/Hand"
-    hands = [os.path.join(MedNIST_Hand_Dir, filename) for filename in os.listdir(MedNIST_Hand_Dir)]
+    input_dir = "/shahinaaz/nvdata/MedNIST/Hand"
+    real_data = [{"hand": os.path.join(input_dir, filename)} for filename in os.listdir(input_dir)]
 
     # define real data transforms
     train_transforms = Compose(
         [
-            LoadPNG(image_only=True),
-            AddChannel(),
-            ScaleIntensity(),
-            RandRotate(range_x=15, prob=0.5, keep_size=True),
-            RandFlip(spatial_axis=0, prob=0.5),
-            RandZoom(min_zoom=0.9, max_zoom=1.1, prob=0.5),
-            ToTensor(),
+            LoadPNGD(keys=["hand"]),
+            AddChannelD(keys=["hand"]),
+            ScaleIntensityD(keys=["hand"]),
+            RandRotateD(keys=["hand"], range_x=15, prob=0.5, keep_size=True),
+            RandFlipD(keys=["hand"], spatial_axis=0, prob=0.5),
+            RandZoomD(keys=["hand"], min_zoom=0.9, max_zoom=1.1, prob=0.5),
+            ToTensorD(keys=["hand"]),
         ]
     )
 
     # create dataset and dataloader
-    train_ds = CacheDataset(hands, train_transforms)
+    train_ds = CacheDataset(real_data, train_transforms)
     batch_size = 300
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=10)
+
+    # define data prepare_batch func to pass real image into generator
+    def prepare_batch(batchdata):
+        return batchdata["hand"]
 
     # define networks
     disc_net = Discriminator(
@@ -167,8 +171,9 @@ def main():
         disc_net,
         disc_opt,
         discriminator_loss,
-        latent_shape=latent_size,
         d_train_steps=disc_train_steps,
+        latent_shape=latent_size,
+        prepare_batch=prepare_batch,
         key_train_metric=key_train_metric,
         train_handlers=handlers,
     )

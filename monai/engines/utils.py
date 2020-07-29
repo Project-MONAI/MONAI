@@ -31,7 +31,7 @@ class CommonKeys:
     LOSS = "loss"
 
 
-class AdversarialKeys:
+class GanKeys:
     """
     A set of common keys for generative adversarial networks.
     """
