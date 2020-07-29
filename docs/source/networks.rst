@@ -35,6 +35,21 @@ Blocks
 .. autoclass:: SEBlock
     :members:
 
+`Squeeze-and-Excitation Bottleneck`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: SEBottleneck
+    :members:
+
+`Squeeze-and-Excitation Resnet Bottleneck`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: SEResNetBottleneck
+    :members:
+
+`Squeeze-and-Excitation ResneXt Bottleneck`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: SEResNeXtBottleneck
+    :members:
+
 `Simple ASPP`
 ~~~~~~~~~~~~~
 .. autoclass:: SimpleASPP
@@ -132,6 +147,17 @@ Nets
 .. autofunction:: densenet169
 .. autofunction:: densenet201
 .. autofunction:: densenet264
+
+`Senet`
+~~~~~~~
+.. autoclass:: SENet
+  :members:
+.. autofunction:: senet154
+.. autofunction:: se_resnet50
+.. autofunction:: se_resnet101
+.. autofunction:: se_resnet152
+.. autofunction:: se_resnext50_32x4d
+.. autofunction:: se_resnext101_32x4d
 
 `Highresnet`
 ~~~~~~~~~~~~

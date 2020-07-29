@@ -17,7 +17,7 @@ from monai.transforms import MapTransform
 
 TEST_CASES = [["item", ("item",)], [None, (None,)], [["item1", "item2"], ("item1", "item2")]]
 
-TEST_ILL_CASES = [[list()], [tuple()], [[list()]]]
+TEST_ILL_CASES = [[ValueError, list()], [ValueError, tuple()], [TypeError, [list()]]]
 
 
 class MapTest(MapTransform):
@@ -32,8 +32,8 @@ class TestRandomizable(unittest.TestCase):
         self.assertEqual(transform.keys, expected)
 
     @parameterized.expand(TEST_ILL_CASES)
-    def test_wrong_keys(self, keys):
-        with self.assertRaisesRegex(ValueError, ""):
+    def test_wrong_keys(self, exception, keys):
+        with self.assertRaisesRegex(exception, ""):
             MapTest(keys=keys)
 
 

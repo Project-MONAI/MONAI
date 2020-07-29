@@ -9,15 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import torch
-import os
-import shutil
 import logging
-import tempfile
+import os
 import re
+import shutil
+import tempfile
 import unittest
 from io import StringIO
 
+import torch
 from ignite.engine import Engine, Events
 
 from monai.handlers import StatsHandler

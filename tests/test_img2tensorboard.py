@@ -12,10 +12,11 @@
 import tempfile
 import unittest
 
-from monai.visualize import make_animated_gif_summary
 import numpy as np
 import tensorboard
 import torch
+
+from monai.visualize import make_animated_gif_summary
 
 
 class TestImg2Tensorboard(unittest.TestCase):
