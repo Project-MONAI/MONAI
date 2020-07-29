@@ -74,7 +74,7 @@ class ChannelSELayer(nn.Module):
         """
         b, c = x.shape[:2]
         y = self.avg_pool(x).view(b, c)
-        y = self.fc(y).view([b, c] + [1] * (x.ndim - 2))
+        y = self.fc(y).view([b, c] + [1] * (x.ndimension() - 2))
         return x * y
 
 

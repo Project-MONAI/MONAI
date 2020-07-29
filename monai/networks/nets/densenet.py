@@ -171,7 +171,7 @@ class DenseNet(nn.Module):
                 [
                     ("relu", nn.ReLU(inplace=True)),
                     ("norm", avg_pool_type(1)),
-                    ("flatten", nn.Flatten(1)),  # type: ignore # Module has no attribute
+                    ("flatten", nn.Flatten(1)),
                     ("class", nn.Linear(in_channels, out_channels)),
                 ]
             )
@@ -179,12 +179,12 @@ class DenseNet(nn.Module):
 
         for m in self.modules():
             if isinstance(m, conv_type):
-                nn.init.kaiming_normal_(m.weight)
+                nn.init.kaiming_normal_(torch.as_tensor(m.weight))
             elif isinstance(m, norm_type):
-                nn.init.constant_(m.weight, 1)
-                nn.init.constant_(m.bias, 0)
+                nn.init.constant_(torch.as_tensor(m.weight), 1)
+                nn.init.constant_(torch.as_tensor(m.bias), 0)
             elif isinstance(m, nn.Linear):
-                nn.init.constant_(m.bias, 0)
+                nn.init.constant_(torch.as_tensor(m.bias), 0)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.features(x)
