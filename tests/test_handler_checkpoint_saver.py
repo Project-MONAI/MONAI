@@ -9,17 +9,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-import tempfile
-import shutil
-import torch
-import unittest
-from ignite.engine import Engine
-from monai.handlers import CheckpointSaver
-import torch.optim as optim
-from parameterized import parameterized
 import logging
+import os
+import shutil
 import sys
+import tempfile
+import unittest
+
+import torch
+import torch.optim as optim
+from ignite.engine import Engine
+from parameterized import parameterized
+
+from monai.handlers import CheckpointSaver
 
 TEST_CASE_1 = [True, False, None, 1, True, 0, None, ["test_checkpoint_final_iteration=40.pth"]]
 

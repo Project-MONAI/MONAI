@@ -13,7 +13,6 @@ import os
 import shutil
 import subprocess
 import tarfile
-import tempfile
 import unittest
 
 import numpy as np
@@ -152,11 +151,12 @@ def run_inference_test(root_dir, test_x, test_y, device=torch.device("cuda:0")):
 class IntegrationClassification2D(unittest.TestCase):
     def setUp(self):
         set_determinism(seed=0)
-        self.data_dir = tempfile.mkdtemp()
+        self.data_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
 
         # download
-        subprocess.call(["wget", "-nv", "-P", self.data_dir, TEST_DATA_URL])
         dataset_file = os.path.join(self.data_dir, "MedNIST.tar.gz")
+        if not os.path.exists(dataset_file):
+            subprocess.call(["wget", "-nv", "-P", self.data_dir, TEST_DATA_URL])
         assert os.path.exists(dataset_file)
 
         # extract tarfile
@@ -197,7 +197,7 @@ class IntegrationClassification2D(unittest.TestCase):
 
     def tearDown(self):
         set_determinism(seed=None)
-        shutil.rmtree(self.data_dir)
+        shutil.rmtree(os.path.join(self.data_dir, "MedNIST"))
 
     @skip_if_quick
     def test_training(self):

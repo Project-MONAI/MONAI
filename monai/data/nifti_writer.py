@@ -16,7 +16,7 @@ import torch
 
 from monai.data.utils import compute_shape_offset, to_affine_nd
 from monai.networks.layers import AffineTransform
-from monai.utils import optional_import, GridSampleMode, GridSamplePadMode
+from monai.utils import GridSampleMode, GridSamplePadMode, optional_import
 
 nib, _ = optional_import("nibabel")
 

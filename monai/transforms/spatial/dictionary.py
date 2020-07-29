@@ -15,7 +15,7 @@ defined in :py:class:`monai.transforms.spatial.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Optional, Sequence, Tuple, Union, Any
+from typing import Any, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -108,7 +108,7 @@ class Spacingd(MapTransform):
                 metadata `image_meta_dict` dictionary's `affine` field.
 
         Raises:
-            ValueError: meta_key_postfix must be a string.
+            TypeError: When ``meta_key_postfix`` is not a ``str``.
 
         """
         super().__init__(keys)
@@ -117,7 +117,7 @@ class Spacingd(MapTransform):
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         if not isinstance(meta_key_postfix, str):
-            raise ValueError("meta_key_postfix must be a string.")
+            raise TypeError(f"meta_key_postfix must be a str but is {type(meta_key_postfix).__name__}.")
         self.meta_key_postfix = meta_key_postfix
 
     def __call__(self, data):
@@ -174,15 +174,16 @@ class Orientationd(MapTransform):
                 metadata `image_meta_dict` dictionary's `affine` field.
 
         Raises:
-            ValueError: meta_key_postfix must be a string.
+            TypeError: When ``meta_key_postfix`` is not a ``str``.
 
         See Also:
             `nibabel.orientations.ornt2axcodes`.
+
         """
         super().__init__(keys)
         self.ornt_transform = Orientation(axcodes=axcodes, as_closest_canonical=as_closest_canonical, labels=labels)
         if not isinstance(meta_key_postfix, str):
-            raise ValueError("meta_key_postfix must be a string.")
+            raise TypeError(f"meta_key_postfix must be a str but is {type(meta_key_postfix).__name__}.")
         self.meta_key_postfix = meta_key_postfix
 
     def __call__(self, data):
@@ -277,7 +278,7 @@ class Resized(MapTransform):
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             It also can be a sequence of string, each element corresponds to a key in ``keys``.
-        align_corners (bool, None or sequence of bool or None): This only has an effect when mode is
+        align_corners: This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             It also can be a sequence of bool or None, each element corresponds to a key in ``keys``.
@@ -288,7 +289,7 @@ class Resized(MapTransform):
         keys: KeysCollection,
         spatial_size: Union[Sequence[int], int],
         mode: InterpolateModeSequence = InterpolateMode.AREA,
-        align_corners=None,
+        align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
     ) -> None:
         super().__init__(keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
@@ -829,7 +830,7 @@ class Zoomd(MapTransform):
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             It also can be a sequence of string, each element corresponds to a key in ``keys``.
-        align_corners (bool, None or sequence of bool or None): This only has an effect when mode is
+        align_corners: This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             It also can be a sequence of bool or None, each element corresponds to a key in ``keys``.
@@ -841,7 +842,7 @@ class Zoomd(MapTransform):
         keys: KeysCollection,
         zoom: Union[Sequence[float], float],
         mode: InterpolateModeSequence = InterpolateMode.AREA,
-        align_corners=None,
+        align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
         keep_size: bool = True,
     ) -> None:
         super().__init__(keys)
@@ -875,7 +876,7 @@ class RandZoomd(Randomizable, MapTransform):
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             It also can be a sequence of string, each element corresponds to a key in ``keys``.
-        align_corners (bool, None or sequence of bool or None): This only has an effect when mode is
+        align_corners: This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             It also can be a sequence of bool or None, each element corresponds to a key in ``keys``.
@@ -889,7 +890,7 @@ class RandZoomd(Randomizable, MapTransform):
         min_zoom: Union[Sequence[float], float] = 0.9,
         max_zoom: Union[Sequence[float], float] = 1.1,
         mode: InterpolateModeSequence = InterpolateMode.AREA,
-        align_corners=None,
+        align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
         keep_size: bool = True,
     ) -> None:
         super().__init__(keys)

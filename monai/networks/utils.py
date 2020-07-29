@@ -13,12 +13,15 @@ Utilities and types for defining networks, these depend on PyTorch.
 """
 
 import warnings
+from typing import Callable, Optional, Sequence
+
 import torch
 import torch.nn as nn
+
 from monai.utils import ensure_tuple_size
 
 
-def one_hot(labels, num_classes: int, dtype: torch.dtype = torch.float, dim: int = 1):
+def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.float, dim: int = 1):
     """
     For a tensor `labels` of dimensions B1[spatial_dims], return a tensor of dimensions `BN[spatial_dims]`
     for `num_classes` N number of classes.
@@ -60,7 +63,7 @@ def predict_segmentation(logits: torch.Tensor, mutually_exclusive: bool = False,
     logits has shape `BCHW[D]`.
 
     Args:
-        logits (Tensor): raw data of model output.
+        logits: raw data of model output.
         mutually_exclusive: if True, `logits` will be converted into a binary matrix using
             a combination of argmax, which is suitable for multi-classes task. Defaults to False.
         threshold: thresholding the prediction values if multi-labels task.
@@ -74,16 +77,21 @@ def predict_segmentation(logits: torch.Tensor, mutually_exclusive: bool = False,
         return logits.argmax(1, keepdim=True)
 
 
-def normalize_transform(shape, device=None, dtype=None, align_corners: bool = False):
+def normalize_transform(
+    shape: Sequence[int],
+    device: Optional[torch.device] = None,
+    dtype: Optional[torch.dtype] = None,
+    align_corners: bool = False,
+):
     """
     Compute an affine matrix according to the input shape.
     The transform normalizes the homogeneous image coordinates to the
     range of `[-1, 1]`.
 
     Args:
-        shape (sequence of int): input spatial shape
-        device (torch device): device on which the returned affine will be allocated.
-        dtype (torch dtype): data type of the returned affine
+        shape: input spatial shape
+        device: device on which the returned affine will be allocated.
+        dtype: data type of the returned affine
         align_corners: if True, consider -1 and 1 to refer to the centers of the
             corner pixels rather than the image corners.
             See also: https://pytorch.org/docs/stable/nn.functional.html#torch.nn.functional.grid_sample
@@ -104,34 +112,32 @@ def normalize_transform(shape, device=None, dtype=None, align_corners: bool = Fa
     return norm
 
 
-def to_norm_affine(affine, src_size, dst_size, align_corners: bool = False):
+def to_norm_affine(affine: torch.Tensor, src_size: Sequence[int], dst_size: Sequence[int], align_corners: bool = False):
     """
     Given ``affine`` defined for coordinates in the pixel space, compute the corresponding affine
     for the normalized coordinates.
 
     Args:
-        affine (torch Tensor): Nxdxd batched square matrix
-        src_size (sequence of int): source image spatial shape
-        dst_size (sequence of int): target image spatial shape
+        affine: Nxdxd batched square matrix
+        src_size: source image spatial shape
+        dst_size: target image spatial shape
         align_corners: if True, consider -1 and 1 to refer to the centers of the
             corner pixels rather than the image corners.
             See also: https://pytorch.org/docs/stable/nn.functional.html#torch.nn.functional.grid_sample
 
     Raises:
-        ValueError: affine must be a tensor
-        ValueError: affine must be Nxdxd, got {tuple(affine.shape)}
-        ValueError: affine suggests a {sr}-D transform, but the sizes are src_size={src_size}, dst_size={dst_size}
+        TypeError: When ``affine`` is not a ``torch.Tensor``.
+        ValueError: When ``affine`` is not Nxdxd.
+        ValueError: When ``src_size`` or ``dst_size`` dimensions differ from ``affine``.
 
     """
     if not torch.is_tensor(affine):
-        raise ValueError("affine must be a tensor")
+        raise TypeError(f"affine must be a torch.Tensor but is {type(affine).__name__}.")
     if affine.ndim != 3 or affine.shape[1] != affine.shape[2]:
-        raise ValueError(f"affine must be Nxdxd, got {tuple(affine.shape)}")
+        raise ValueError(f"affine must be Nxdxd, got {tuple(affine.shape)}.")
     sr = affine.shape[1] - 1
     if sr != len(src_size) or sr != len(dst_size):
-        raise ValueError(
-            f"affine suggests a {sr}-D transform, but the sizes are src_size={src_size}, dst_size={dst_size}"
-        )
+        raise ValueError(f"affine suggests {sr}D, got src={len(src_size)}D, dst={len(dst_size)}D.")
 
     src_xform = normalize_transform(src_size, affine.device, affine.dtype, align_corners)
     dst_xform = normalize_transform(dst_size, affine.device, affine.dtype, align_corners)
@@ -139,7 +145,7 @@ def to_norm_affine(affine, src_size, dst_size, align_corners: bool = False):
     return new_affine
 
 
-def normal_init(m, std=0.02, normal_func=torch.nn.init.normal_):
+def normal_init(m, std=0.02, normal_func: Callable = torch.nn.init.normal_) -> None:
     """
     Initialize the weight and bias tensors of `m' and its submodules to values from a normal distribution with a
     stddev of `std'. Weight tensors of convolution and linear modules are initialized with a mean of 0, batch
