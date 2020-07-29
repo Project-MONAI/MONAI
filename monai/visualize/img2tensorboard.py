@@ -183,13 +183,13 @@ def plot_2d_or_3d_image(
     if torch.is_tensor(d):
         d = d.detach().cpu().numpy()
 
-    if d.ndim == 2:
+    if d.ndimension() == 2:
         d = rescale_array(d, 0, 1)
         dataformats = "HW"
         writer.add_image(f"{tag}_{dataformats}", d, step, dataformats=dataformats)
         return
 
-    if d.ndim == 3:
+    if d.ndimension() == 3:
         if d.shape[0] == 3 and max_channels == 3:  # RGB
             dataformats = "CHW"
             writer.add_image(f"{tag}_{dataformats}", d, step, dataformats=dataformats)
@@ -200,7 +200,7 @@ def plot_2d_or_3d_image(
             writer.add_image(f"{tag}_{dataformats}_{j}", d2, step, dataformats=dataformats)
         return
 
-    if d.ndim >= 4:
+    if d.ndimension() >= 4:
         spatial = d.shape[-3:]
         for j, d3 in enumerate(d.reshape([-1] + list(spatial))[:max_channels]):
             d3 = rescale_array(d3, 0, 255)
