@@ -16,6 +16,7 @@ from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 
 from monai.engines.utils import CommonKeys as Keys
+from monai.engines.utils import AdversarialKeys as GKeys
 from monai.engines.utils import default_prepare_batch
 from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
@@ -152,3 +153,129 @@ class SupervisedTrainer(Trainer):
             self.optimizer.step()
 
         return {Keys.IMAGE: inputs, Keys.LABEL: targets, Keys.PRED: predictions, Keys.LOSS: loss.item()}
+
+class AdversarialTrainer(Trainer):
+    """
+    Standard GAN adversarial training,  inherits from trainer and Workflow. 
+    Based on [Goodfellow 2014] https://arxiv.org/abs/1406.2661
+
+    Args:
+        device: an object representing the device on which to run.
+        max_epochs: the total epoch number for engine to run
+        train_data_loader: Real data DataLoader to update discriminator
+        g_network: generator (G) network architecture
+        g_optimizer: G optimizer function
+        g_loss_function: G loss function for optimizer
+        d_network: discriminator (D) network architecture
+        d_optimizer: D optimizer function
+        d_loss_function: D loss function for optimizer
+        g_inferer: inference method to execute G model forward on latent code
+        d_inferer: inference method to execute D model forward
+        d_train_steps: number of times to update D with real data minibatch. 
+        latent_shape: size of G random input latent code
+        prepare_batch: #FIXME use this?
+        iteration_update: the callable function for every iteration, expect to accept `engine`
+            and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
+        amp: whether to enable auto-mixed-precision training, reserved.
+        post_transform: execute additional transformation for the model output data.
+            Typically, several Tensor based transforms composed by `Compose`.
+        key_train_metric: compute metric when every iteration completed, and save average value to
+            engine.state.metrics when epoch completed. key_train_metric is the main metric to compare and save the
+            checkpoint into files.
+        additional_metrics: more Ignite metrics that also attach to Ignite Engine.
+        train_handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
+            CheckpointHandler, StatsHandler, SegmentationSaver, etc.
+
+    """
+
+    def __init__(
+        self,
+        device: torch.device,
+        max_epochs: int,
+        train_data_loader: DataLoader,
+        g_network: torch.nn.Module,
+        g_optimizer: Optimizer,
+        g_loss_function: Callable,
+        d_network: torch.nn.Module,
+        d_optimizer: Optimizer,
+        d_loss_function: Callable,
+        g_inferer: Inferer = SimpleInferer(),
+        d_inferer: Inferer = SimpleInferer(),
+        d_train_steps: int = 1,
+        latent_shape: int = 64,
+        prepare_batch: Callable = default_prepare_batch,
+        iteration_update: Optional[Callable] = None,
+        amp: bool = True,
+        post_transform: Optional[Transform] = None,
+        key_train_metric: Optional[Dict[str, Metric]] = None,
+        additional_metrics: Optional[Dict[str, Metric]] = None,
+        train_handlers: Optional[Sequence] = None,
+    ):
+        # set up Ignite engine and environments
+        super().__init__(
+            device=device,
+            max_epochs=max_epochs,
+            amp=amp,
+            data_loader=train_data_loader,
+            prepare_batch=prepare_batch,
+            iteration_update=iteration_update,
+            key_metric=key_train_metric,
+            additional_metrics=additional_metrics,
+            handlers=train_handlers,
+            post_transform=post_transform,
+        )
+        self.g_network = g_network
+        self.g_optimizer = g_optimizer
+        self.g_loss_function = g_loss_function
+        self.g_inferer = g_inferer
+        self.d_network = d_network
+        self.d_optimizer = d_optimizer
+        self.d_loss_function = d_loss_function
+        self.d_inferer = d_inferer
+        self.d_train_steps = d_train_steps
+        self.latent_shape = latent_shape
+
+    def _iteration(self, engine: Engine, batchdata: Union[Dict, Sequence]) -> Dict[str, torch.Tensor]:
+        """
+        Callback function for Adversarial Training processing logic of 1 iteration in Ignite Engine.
+
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+            batchdata: input data for this iteration, usually can be dictionary or tuple of Tensor data.
+
+        Raises:
+            ValueError: must provide batch data for current iteration.
+
+        """
+        if batchdata is None:
+            raise ValueError("must provide batch data for current iteration.")
+        
+        # inputs = self.prepare_batch(batchdata)
+        real_data = batchdata.to(engine.state.device)
+
+        # Generate Fakes
+        batch_size = real_data.shape[0]
+        fake_latents = torch.randn(batch_size, self.latent_shape).to(engine.state.device)
+        fake_data = self.g_inferer(fake_latents, self.g_network)
+
+        # Train Discriminator
+        d_total_loss = 0
+        for _ in range(self.d_train_steps):
+            self.d_optimizer.zero_grad()
+            dloss = self.d_loss_function(fake_data, real_data)
+            dloss.backward()
+            self.d_optimizer.step()
+            d_total_loss += dloss.item()
+
+        # Train Generator
+        fake_latents = torch.randn(batch_size, self.latent_shape).to(engine.state.device)
+        fake_data = self.g_inferer(fake_latents, self.g_network)
+        self.g_optimizer.zero_grad()
+        g_loss = self.g_loss_function(fake_data)
+        g_loss.backward()
+        self.g_optimizer.step()
+        g_loss = g_loss.item()
+
+        return {GKeys.GLOSS: g_loss, GKeys.DLOSS: d_total_loss}
+        # return {Keys.REALS: real_data, Keys.FAKES: fake_data, Keys.GLOSS: g_loss, Keys.DLOSS: d_total_loss}
+     

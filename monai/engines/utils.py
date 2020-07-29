@@ -31,6 +31,18 @@ class CommonKeys:
     LOSS = "loss"
 
 
+class AdversarialKeys:
+    """
+    A set of common keys for generative adversarial networks.
+    """
+
+    REALS = "reals"
+    FAKES = "fakes"
+    PRED = "pred"
+    GLOSS = "g_loss"
+    DLOSS = "d_loss"
+
+
 def get_devices_spec(devices: Optional[Sequence[torch.device]] = None) -> List[torch.device]:
     """
     Get a valid specification for one or more devices. If `devices` is None get devices for all CUDA devices available.
