@@ -221,12 +221,10 @@ def set_determinism(
 
 def create_run_dir(path, prefix: str = "model", time: datetime = None, time_format: str = "%Y_%m_%d_%H_%M_%S") -> str:
     """
-    Creates run folder in output directory with current datestamp and name. Returns run folder filepath.
+    Creates run folder in output directory with current datestamp and name. If output directory does not exist, it is created. Returns filepath to run_dir.
 
-    Run folder uses syntax "prefix_timestring"
-            e.g. model_2020_07_29_03_33_25
-    
-    Output directory and current run folders are created if they do not exist.
+    run_dir foldername formula is "{prefix}_{timestring}"
+        e.g. model_2020_07_29_03_33_25 
 
     Args:
         path: Output directory

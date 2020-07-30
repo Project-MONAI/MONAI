@@ -9,13 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-MONAI Generative Adversarial Networks GAN Example
-    Sample script using MONAI library to train a generator network to synthesize images from a latent code.
+MONAI Generative Adversarial Networks Workflow Example
+    Sample script using MONAI to train a GAN to synthesize images from a latent code.
 
 ## Get the dataset
-    https://www.dropbox.com/s/5wwskxctvcxiuea/MedNIST.tar.gz
+    MedNIST.tar.gz link: https://www.dropbox.com/s/5wwskxctvcxiuea/MedNIST.tar.gz
+    Extract tarball and set input_dir variable. GAN script trains using hand CT scan jpg images.
 
-    Description: 
+    Dataset information available in MedNIST Tutorial
     https://github.com/Project-MONAI/MONAI/blob/master/examples/notebooks/mednist_tutorial.ipynb.
 """
 
@@ -23,11 +24,10 @@ import os
 import sys
 import logging
 import torch
-import matplotlib.pyplot as plt
 
 import monai
 from monai.utils.misc import set_determinism, create_run_dir
-from monai.data import CacheDataset, DataLoader
+from monai.data import CacheDataset, DataLoader, png_writer
 from monai.networks.nets import Generator, Discriminator
 from monai.networks import normal_init
 from monai.engines import AdversarialTrainer
@@ -44,14 +44,12 @@ from monai.transforms import (
 )
 
 
-def save_images(run_folder, checkpoint, images):
-    for i, image in enumerate(images):
-        # img = Image.fromarray(image[0].cpu().data.numpy())
-        savepath = os.path.join(run_folder, "output_%s_%d" % (checkpoint, i))
-        # img.save(savepath, "TIFF")
-        plt.figure()
-        plt.imshow(image[0].cpu().data.numpy(), cmap="gray")
-        plt.savefig(savepath)
+def save_generator_fakes(run_folder, checkpoint, g_output_tensor):
+    for i, image in enumerate(g_output_tensor):
+        filename = "gen-fake-%s-%d.png" % (checkpoint, i)
+        save_path = os.path.join(run_folder, filename)
+        img_array = image[0].cpu().data.numpy()
+        png_writer.write_png(img_array, save_path, scale=255)
 
 
 def main():
@@ -79,11 +77,11 @@ def main():
     )
 
     # create dataset and dataloader
-    train_ds = CacheDataset(real_data, train_transforms)
+    real_dataset = CacheDataset(real_data, train_transforms)
     batch_size = 300
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=10)
+    real_dataloader = DataLoader(real_dataset, batch_size=batch_size, shuffle=True, num_workers=10)
 
-    # define data prepare_batch func to pass real image into generator
+    # define function to process batchdata for input into generator
     def prepare_batch(batchdata):
         return batchdata["hand"]
 
@@ -144,6 +142,7 @@ def main():
     run_dir = create_run_dir("./ModelOut")
     print("Saving model output to: %s " % run_dir)
 
+    # create workflow handlers
     handlers = [
         StatsHandler(name="train_loss"),
         CheckpointSaver(
@@ -155,16 +154,15 @@ def main():
         ),
     ]
 
+    # create adversarial trainer
     key_train_metric = None  # TODO: Make FID Monai Metric to evaluate generator performance
-
-    # Create Adversarial Trainer
     disc_train_steps = 5
     num_epochs = 50
 
     trainer = AdversarialTrainer(
         device,
         num_epochs,
-        train_loader,
+        real_dataloader,
         gen_net,
         gen_opt,
         generator_loss,
@@ -181,24 +179,13 @@ def main():
     # Run Training
     trainer.run()
 
-    # The separate loss values for the generator and discriminator can be graphed together. These should reach an equilibrium as the generator's ability to fool the discriminator balances with that networks ability to discriminate accurately between real and fake images.
-    # TODO: replicate graph printout with trainers output
-    # plt.figure(figsize=(12, 5))
-    # plt.semilogy(*zip(*gen_step_loss), label="Generator Loss")
-    # plt.semilogy(*zip(*disc_step_loss), label="Discriminator Loss")
-    # plt.grid(True, "both", "both")
-    # plt.legend()
-    # plt.savefig("GAN_LOSS_PLOT.png")
-
     # Save a few randomly generated images. Hopefully most images will have four fingers and a thumb as expected
     # (assuming polydactyl examples were not present in large numbers in the dataset).
-
-    print("Saving trained generator data samples.")
+    print("Saving trained generator sample output.")
     # TODO: turn into gan_save_fakes handler
     test_img_count = 10
-    test_latent = torch.randn(test_img_count, latent_size).to(device)
-    test_images = gen_net(test_latent)
-    save_images(run_dir, "final", test_images)
+    test_latents = torch.randn(test_img_count, latent_size).to(device)
+    save_generator_fakes(run_dir, "final", gen_net(test_latents))
 
 
 if __name__ == "__main__":

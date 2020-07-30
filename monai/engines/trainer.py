@@ -154,10 +154,18 @@ class SupervisedTrainer(Trainer):
 
         return {Keys.IMAGE: inputs, Keys.LABEL: targets, Keys.PRED: predictions, Keys.LOSS: loss.item()}
 
+
 class AdversarialTrainer(Trainer):
     """
-    Standard GAN adversarial training,  inherits from trainer and Workflow. 
+    Standard generative adversarial network training, inherits from trainer and Workflow. 
+
     Based on [Goodfellow 2014] https://arxiv.org/abs/1406.2661
+
+        Training Loop, for each batch of data size m
+            1. Generate m fakes from new latent codes.
+            2. Update D with these fakes and current batch reals, repeated d_train_steps times.
+            3. Generate m fakes from new latent codes.
+            4. Update generator with these fakes using discriminator feedback.
 
     Args:
         device: an object representing the device on which to run.
@@ -249,7 +257,7 @@ class AdversarialTrainer(Trainer):
         """
         if batchdata is None:
             raise ValueError("must provide batch data for current iteration.")
-        
+
         real_data = self.prepare_batch(batchdata)
         real_data = real_data.to(engine.state.device)
 
@@ -278,4 +286,3 @@ class AdversarialTrainer(Trainer):
 
         return {GanKeys.GLOSS: g_loss, GanKeys.DLOSS: d_total_loss}
         # return {Keys.REALS: real_data, Keys.FAKES: fake_data, Keys.GLOSS: g_loss, Keys.DLOSS: d_total_loss}
-     
