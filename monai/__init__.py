@@ -23,7 +23,7 @@ __copyright__ = "(c) 2020 MONAI Consortium"
 __basedir__ = os.path.dirname(__file__)
 
 # handlers_* have some external decorators the users may not have installed
-# *.so files and folder "_C" may not exists when the cpp extensions are not compiled
+# *.so files and folder "_C" may not exist when the cpp extensions are not compiled
 excludes = "(^(handlers))|((\\.so)$)|(_C)"
 
 # load directory modules only, skip loading individual files
