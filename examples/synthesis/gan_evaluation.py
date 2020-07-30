@@ -10,7 +10,7 @@
 # limitations under the License.
 """
 MONAI GAN Evaluation Example
-    Generate fake images from trained generator file. 
+    Generate fake images from trained generator file.
 
 """
 
@@ -21,15 +21,18 @@ import torch
 
 import monai
 from monai.utils.misc import set_determinism, create_run_dir
+from monai.engines.utils import make_rand_latent_code
 from monai.networks.nets import Generator
 from monai.data import png_writer
 
-def save_generator_fakes(run_folder, checkpoint, g_output_tensor):
+
+def save_generator_fakes(run_folder, g_output_tensor):
     for i, image in enumerate(g_output_tensor):
-        filename = "gen-fake-%s-%d.png" % (checkpoint, i)
+        filename = "gen-fake-%d.png" % (i)
         save_path = os.path.join(run_folder, filename)
         img_array = image[0].cpu().data.numpy()
         png_writer.write_png(img_array, save_path, scale=255)
+
 
 def main():
     monai.config.print_config()
@@ -38,7 +41,7 @@ def main():
     device = torch.device("cuda:0")
 
     # load generator
-    network_filepath = './network_final.pth'
+    network_filepath = "./network_final.pth"
     data = torch.load(network_filepath)
     latent_size = 64
     gen_net = Generator(
@@ -52,8 +55,9 @@ def main():
     run_dir = create_run_dir("./GeneratedImages")
     num_fakes = 10
     print("Generating %d fakes and saving in %s" % (num_fakes, run_dir))
-    fake_latents = torch.randn(num_fakes, latent_size).to(device)
-    save_generator_fakes(run_dir, "eval", gen_net(fake_latents))
+    fake_latents = make_rand_latent_code(num_fakes, latent_size).to(device)
+    save_generator_fakes(run_dir, gen_net(fake_latents))
+
 
 if __name__ == "__main__":
     main()

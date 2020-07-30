@@ -38,7 +38,7 @@ class GanKeys:
 
     REALS = "reals"
     FAKES = "fakes"
-    PRED = "pred"
+    LATENTS = "latents"
     GLOSS = "g_loss"
     DLOSS = "d_loss"
 
@@ -81,3 +81,7 @@ def default_prepare_batch(batchdata: Dict[str, torch.Tensor]) -> Tuple[torch.Ten
         if CommonKeys.LABEL in batchdata
         else (batchdata[CommonKeys.IMAGE], None)
     )
+
+
+def make_rand_latent_code(num_latents: int, latent_size: int) -> torch.Tensor:
+    return torch.randn(num_latents, latent_size)

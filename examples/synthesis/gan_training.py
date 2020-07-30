@@ -24,15 +24,15 @@ import os
 import sys
 import logging
 import torch
-from ignite.metrics import RunningAverage
 
 import monai
 from monai.utils.misc import set_determinism, create_run_dir
 from monai.data import CacheDataset, DataLoader, png_writer
 from monai.networks.nets import Generator, Discriminator
 from monai.networks import normal_init
-from monai.engines import AdversarialTrainer
-from monai.engines.utils import GanKeys
+from monai.engines import GanTrainer
+from monai.engines.utils import GanKeys as Keys
+from monai.engines.utils import make_rand_latent_code
 from monai.handlers import StatsHandler, CheckpointSaver
 from monai.transforms import (
     Compose,
@@ -46,14 +46,6 @@ from monai.transforms import (
 )
 
 
-def save_generator_fakes(run_folder, checkpoint, g_output_tensor):
-    for i, image in enumerate(g_output_tensor):
-        filename = "gen-fake-%s-%d.png" % (checkpoint, i)
-        save_path = os.path.join(run_folder, filename)
-        img_array = image[0].cpu().data.numpy()
-        png_writer.write_png(img_array, save_path, scale=255)
-
-
 def main():
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -61,7 +53,7 @@ def main():
     device = torch.device("cuda:0")
 
     # load real data
-    input_dir = "/shahinaaz/nvdata/MedNIST/Hand"
+    input_dir = "./MedNIST/Hand"
     real_data = [{"hand": os.path.join(input_dir, filename)} for filename in os.listdir(input_dir)]
 
     # define real data transforms
@@ -84,6 +76,9 @@ def main():
 
     # define function to process batchdata dict object for input into discriminator
     def prepare_batch(batchdata):
+        """
+        Process Dataloader batchdata dict object and return image tensors for D Inferer
+        """
         return batchdata["hand"]
 
     # define networks
@@ -104,7 +99,7 @@ def main():
     gen_net.conv.add_module("activation", torch.nn.Sigmoid())
     gen_net = gen_net.to(device)
 
-    # Loss and Optimizers
+    # create optimizers and loss functions
     learning_rate = 2e-4
     betas = (0.5, 0.999)
     disc_opt = torch.optim.Adam(disc_net.parameters(), learning_rate, betas=betas)
@@ -117,7 +112,7 @@ def main():
 
     def discriminator_loss(gen_images, real_images):
         """
-        The discriminator loss if calculated by comparing its
+        The discriminator loss is calculated by comparing D
         prediction for real and generated images.
 
         """
@@ -127,25 +122,28 @@ def main():
         realloss = disc_loss_criterion(disc_net(real_images), real)
         genloss = disc_loss_criterion(disc_net(gen_images.detach()), gen)
 
-        return (realloss + genloss) / 2
+        return torch.div(torch.add(realloss, genloss), 2)
 
-    def generator_loss(input):
+    def generator_loss(gen_images):
         """
-        The generator loss is calculated by determining how well
-        the discriminator was fooled by the generated images.
+        The generator loss is calculated by determining how realistic
+        the discriminator classifies the generated images.
 
         """
-        output = disc_net(input)
+        output = disc_net(gen_images)
         cats = output.new_full(output.shape, real_label)
         return gen_loss_criterion(output, cats)
 
     # initialize current run dir
-    run_dir = create_run_dir("./ModelOut")
+    run_dir = create_run_dir("./ModelOut", "hand-gan")
     print("Saving model output to: %s " % run_dir)
 
     # create workflow handlers
     handlers = [
-        StatsHandler(name="train_loss"),
+        StatsHandler(
+            name="batch_training_loss",
+            output_transform=lambda x: {Keys.GLOSS: x[Keys.GLOSS], Keys.DLOSS: x[Keys.DLOSS]},
+        ),
         CheckpointSaver(
             save_dir=run_dir,
             save_dict={"g_net": gen_net, "d_net": disc_net},
@@ -155,16 +153,14 @@ def main():
         ),
     ]
 
+    # define key metric
+    key_train_metric = None
+
     # create adversarial trainer
-    key_train_metric = {
-        GanKeys.GLOSS: RunningAverage(output_transform=lambda x: x[GanKeys.GLOSS]),
-        GanKeys.DLOSS: RunningAverage(output_transform=lambda x: x[GanKeys.DLOSS]),
-    }
-    # TODO: Make FID Monai Metric to evaluate generator performance
     disc_train_steps = 5
     num_epochs = 50
 
-    trainer = AdversarialTrainer(
+    trainer = GanTrainer(
         device,
         num_epochs,
         real_dataloader,
@@ -181,16 +177,20 @@ def main():
         train_handlers=handlers,
     )
 
-    # Run Training
+    # run GAN training
     trainer.run()
 
-    # Save a few randomly generated images. Hopefully most images will have four fingers and a thumb as expected
-    # (assuming polydactyl examples were not present in large numbers in the dataset).
+    # Training completed, save a few random generated images.
     print("Saving trained generator sample output.")
-    # TODO: turn into gan_save_fakes handler
     test_img_count = 10
-    test_latents = torch.randn(test_img_count, latent_size).to(device)
-    save_generator_fakes(run_dir, "final", gen_net(test_latents))
+    test_latents = make_rand_latent_code(test_img_count, latent_size).to(device)
+    fakes = gen_net(test_latents)
+    for i, image in enumerate(fakes):
+        filename = "gen-fake-final-%d.png" % (i)
+        save_path = os.path.join(run_dir, filename)
+        img_array = image[0].cpu().data.numpy()
+        png_writer.write_png(img_array, save_path, scale=255)
+
 
 if __name__ == "__main__":
     main()

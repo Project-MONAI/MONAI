@@ -216,31 +216,35 @@ def set_determinism(
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
     else:
-        torch.backends.cudnn.deterministic = False  # type: ignore # Module has no attribute
+        torch.backends.cudnn.deterministic = False
 
 
-def create_run_dir(output_directory, prefix: str = "model", time: datetime = None, time_format: str = "%Y_%m_%d_%H_%M_%S") -> str:
+def create_run_dir(
+    save_dir, prefix: str = "model", time_format: str = "%Y_%m_%d_%H_%M_%S", time: datetime.datetime = None
+) -> str:
     """
-    Creates run folder in output directory with current datestamp and name. If output directory does not exist, it is created. Returns run_dir filepath.
+    Creates run folder for model output in save dir. If save dir does not exist, it is created.
 
-    run_dir foldername formula is "{prefix}_{timestring}"
-        e.g. model_2020_07_29_03_33_25 
+    run folder name follows formula "{prefix}_{timestring}"
+        e.g. for prefix="model", the run folder is "model_2020_07_29_03_33_25"
 
     Args:
-        path: Output directory
-        prefix: prefix for output foldername (Default: 'model')
-        time: override datetime for output foldername. (Default: None)
-        time_format: time format string (Default: '%Y_%m_%d_%H_%M_%S')
+        save_dir: Location of model run folders.
+        prefix: Prefix for run dir name (Default: 'model')
+        time_format: timestring format (Default: '%Y_%m_%d_%H_%M_%S')
+        time: Override current timestamp in run dir name.
 
+    Returns:
+        filepath to created run_dir folder.
     """
     if time is None:
         time = datetime.datetime.now()
 
-    foldername = "%s_%s" % (prefix, (time.strftime(time_format)))
-    output_data_dir = os.path.join(output_directory, foldername)
+    run_dir_name = "%s_%s" % (prefix, (time.strftime(time_format)))
+    run_dir_fullpath = os.path.join(save_dir, run_dir_name)
 
-    if not os.path.isdir(output_directory):
-        os.mkdir(output_directory)
-    if not os.path.isdir(output_data_dir):
-        os.mkdir(output_data_dir)
-    return output_data_dir
+    if not os.path.isdir(save_dir):
+        os.mkdir(save_dir)
+    if not os.path.isdir(run_dir_fullpath):
+        os.mkdir(run_dir_fullpath)
+    return run_dir_fullpath
