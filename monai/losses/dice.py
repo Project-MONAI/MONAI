@@ -143,7 +143,7 @@ class DiceLoss(_Loss):
         if self.jaccard:
             denominator = 2.0 * (denominator - intersection)
 
-        f = 1.0 - (2.0 * intersection + smooth) / (denominator + smooth)
+        f: torch.Tensor = 1.0 - (2.0 * intersection + smooth) / (denominator + smooth)
 
         if self.reduction == LossReduction.MEAN.value:
             f = torch.mean(f)  # the batch and channel average
@@ -402,7 +402,7 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         """
         # Aggregate spatial dimensions
         flat_input = input.view(input.size(0), input.size(1), -1)
-        flat_target = target.view(target.size(0), -1)
+        flat_target = target.view(target.size(0), -1).long()
 
         # Apply the softmax to the input scores map
         probs = F.softmax(flat_input, dim=1)
