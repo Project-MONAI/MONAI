@@ -9,27 +9,49 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
+
 from setuptools import find_packages, setup
-import torch
-from torch.utils.cpp_extension import BuildExtension, CppExtension, CUDAExtension
+
 import versioneer
 
-if __name__ == "__main__":
-    cmds = versioneer.get_cmdclass()
-    cmds.update({"build_ext": BuildExtension})
+
+def get_extensions():
+
+    try:
+        import torch
+        from torch.utils.cpp_extension import CUDA_HOME, CppExtension, CUDAExtension
+    except ImportError:
+        warnings.warn("torch cpp/cuda building skipped.")
+        return []
+
     ext_modules = [CppExtension("monai._C", ["monai/networks/extensions/lltm/lltm.cpp"])]
-    if torch.cuda.is_available():
+    if torch.cuda.is_available() and (CUDA_HOME is not None):
         ext_modules.append(
             CUDAExtension(
                 "monai._C_CUDA",
                 ["monai/networks/extensions/lltm/lltm_cuda.cpp", "monai/networks/extensions/lltm/lltm_cuda_kernel.cu"],
             )
         )
-    setup(
-        version=versioneer.get_version(),
-        cmdclass=cmds,
-        packages=find_packages(exclude=("docs", "examples", "tests", "research")),
-        zip_safe=False,
-        package_data={"monai": ["py.typed"]},
-        ext_modules=ext_modules,
-    )
+    return ext_modules
+
+
+def get_cmds():
+    cmds = versioneer.get_cmdclass()
+    try:
+        from torch.utils.cpp_extension import BuildExtension
+
+        cmds.update({"build_ext": BuildExtension})
+    except ImportError:
+        warnings.warn("torch cpp_extension module not found.")
+    return cmds
+
+
+setup(
+    version=versioneer.get_version(),
+    cmdclass=get_cmds(),
+    packages=find_packages(exclude=("docs", "examples", "tests", "research")),
+    zip_safe=False,
+    package_data={"monai": ["py.typed"]},
+    ext_modules=get_extensions(),
+)
