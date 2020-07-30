@@ -104,9 +104,11 @@ function compile_cpp {
 
 function clean_py() {
     # uninstall the development package
+    echo "Uninstalling MONAI development files..."
     ${cmdPrefix}python setup.py -v develop --uninstall
 
     # remove temporary files
+    echo "Removing temporary files..."
     TO_CLEAN=${*:-'.'}
     find ${TO_CLEAN} -type f -name "*.py[co]" -delete
     find ${TO_CLEAN} -type f -name ".coverage" -delete
@@ -115,6 +117,7 @@ function clean_py() {
     find ${TO_CLEAN} -depth -type d -name ".eggs" -exec rm -r "{}" +
     find ${TO_CLEAN} -depth -type d -name "monai.egg-info" -exec rm -r "{}" +
     find ${TO_CLEAN} -depth -type d -name "build" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -type d -name "dist" -exec rm -r "{}" +
     find ${TO_CLEAN} -depth -type d -name ".mypy_cache" -exec rm -r "{}" +
     find ${TO_CLEAN} -depth -type d -name ".pytype" -exec rm -r "{}" +
     find ${TO_CLEAN} -depth -type d -name ".coverage" -exec rm -r "{}" +
@@ -227,9 +230,6 @@ then
     function dryrun { echo "    " "$@"; }
 fi
 
-# unconditionally report on the state of monai
-print_version
-
 if [ $doCleanup = true ]
 then
     echo "${separator}${blue}clean${noColor}"
@@ -242,6 +242,9 @@ fi
 
 # try to compile MONAI cpp
 compile_cpp
+
+# unconditionally report on the state of monai
+print_version
 
 if [ $doBlackFormat = true ]
 then
