@@ -172,9 +172,8 @@ class Spacing(Transform):
             reverse_indexing=True,
         )
         output_data = affine_xform(
-            # AffineTransform requires a batch dim
-            torch.as_tensor(np.ascontiguousarray(data_array), dtype=torch.float).unsqueeze(0),
-            torch.as_tensor(np.ascontiguousarray(transform_), dtype=torch.float),
+            torch.from_numpy((data_array.astype(np.float64))).unsqueeze(0),  # AffineTransform requires a batch dim
+            torch.from_numpy(transform_.astype(np.float64)),
             spatial_size=output_shape,
         )
         output_data = output_data.squeeze(0).detach().cpu().numpy().astype(_dtype)
