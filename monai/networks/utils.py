@@ -80,7 +80,7 @@ def predict_segmentation(logits: torch.Tensor, mutually_exclusive: bool = False,
 def normalize_transform(
     shape: Sequence[int],
     device: Optional[torch.device] = None,
-    dtype: Optional[torch.dtype] = None,
+    dtype: Optional[torch.dtype] = torch.float64,
     align_corners: bool = False,
 ):
     """
@@ -91,23 +91,23 @@ def normalize_transform(
     Args:
         shape: input spatial shape
         device: device on which the returned affine will be allocated.
-        dtype: data type of the returned affine
+        dtype: data type for the computation, default is torch.float64.
         align_corners: if True, consider -1 and 1 to refer to the centers of the
             corner pixels rather than the image corners.
             See also: https://pytorch.org/docs/stable/nn.functional.html#torch.nn.functional.grid_sample
     """
-    norm = torch.tensor(shape, dtype=torch.float64, device=device)  # no in-place change
+    norm = torch.tensor(shape, dtype=dtype, device=device)  # no in-place change
     if align_corners:
         norm[norm <= 1.0] = 2.0
         norm = 2.0 / (norm - 1.0)
-        norm = torch.diag(torch.cat((norm, torch.ones((1,), dtype=torch.float64, device=device))))
+        norm = torch.diag(torch.cat((norm, torch.ones((1,), dtype=dtype, device=device))))
         norm[:-1, -1] = -1.0
     else:
         norm[norm <= 0.0] = 2.0
         norm = 2.0 / norm
-        norm = torch.diag(torch.cat((norm, torch.ones((1,), dtype=torch.float64, device=device))))
-        norm[:-1, -1] = 1.0 / torch.tensor(shape, dtype=torch.float64, device=device) - 1.0
-    norm = norm.unsqueeze(0).to(dtype=dtype)
+        norm = torch.diag(torch.cat((norm, torch.ones((1,), dtype=dtype, device=device))))
+        norm[:-1, -1] = 1.0 / torch.tensor(shape, dtype=dtype, device=device) - 1.0
+    norm = norm.unsqueeze(0)
     norm.requires_grad = False
     return norm
 
