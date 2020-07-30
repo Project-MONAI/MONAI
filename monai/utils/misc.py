@@ -9,9 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import collections.abc
 import itertools
 import random
-from collections.abc import Iterable
 from typing import Any, Callable, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -43,14 +43,14 @@ def first(iterable, default=None):
     return default
 
 
-def issequenceiterable(obj) -> bool:
+def issequenceiterable(obj: Any) -> bool:
     """
     Determine if the object is an iterable sequence and is not a string.
     """
-    return isinstance(obj, Iterable) and not isinstance(obj, str)
+    return isinstance(obj, collections.abc.Iterable) and not isinstance(obj, str)
 
 
-def ensure_tuple(vals: Any) -> Tuple:
+def ensure_tuple(vals: Any) -> Tuple[Any, ...]:
     """
     Returns a tuple of `vals`.
     """
@@ -60,7 +60,7 @@ def ensure_tuple(vals: Any) -> Tuple:
     return tuple(vals)
 
 
-def ensure_tuple_size(tup, dim: int, pad_val=0) -> Tuple:
+def ensure_tuple_size(tup: Any, dim: int, pad_val: Any = 0) -> Tuple[Any, ...]:
     """
     Returns a copy of `tup` with `dim` values by either shortened or padded with `pad_val` as necessary.
     """
@@ -68,7 +68,7 @@ def ensure_tuple_size(tup, dim: int, pad_val=0) -> Tuple:
     return tuple(tup[:dim])
 
 
-def ensure_tuple_rep(tup: Any, dim: int):
+def ensure_tuple_rep(tup: Any, dim: int) -> Tuple[Any, ...]:
     """
     Returns a copy of `tup` with `dim` values by either shortened or duplicated input.
 
@@ -99,7 +99,7 @@ def ensure_tuple_rep(tup: Any, dim: int):
     raise ValueError(f"Sequence must have length {dim}, got {len(tup)}.")
 
 
-def fall_back_tuple(user_provided: Any, default: Sequence, func: Callable = lambda x: x and x > 0) -> Tuple:
+def fall_back_tuple(user_provided: Any, default: Sequence, func: Callable = lambda x: x and x > 0) -> Tuple[Any, ...]:
     """
     Refine `user_provided` according to the `default`, and returns as a validated tuple.
 
@@ -143,19 +143,19 @@ def fall_back_tuple(user_provided: Any, default: Sequence, func: Callable = lamb
     )
 
 
-def is_scalar_tensor(val) -> bool:
+def is_scalar_tensor(val: Any) -> bool:
     if torch.is_tensor(val) and val.ndim == 0:
         return True
     return False
 
 
-def is_scalar(val) -> bool:
+def is_scalar(val: Any) -> bool:
     if torch.is_tensor(val) and val.ndim == 0:
         return True
     return bool(np.isscalar(val))
 
 
-def progress_bar(index: int, count: int, desc: str = None, bar_len: int = 30, newline: bool = False) -> None:
+def progress_bar(index: int, count: int, desc: Optional[str] = None, bar_len: int = 30, newline: bool = False) -> None:
     """print a progress bar to track some time consuming task.
 
     Args:
@@ -174,13 +174,13 @@ def progress_bar(index: int, count: int, desc: str = None, bar_len: int = 30, ne
         print("")
 
 
-def get_seed():
+def get_seed() -> Optional[int]:
     return _seed
 
 
 def set_determinism(
     seed: Optional[int] = np.iinfo(np.int32).max,
-    additional_settings: Optional[Union[Sequence[Callable], Callable]] = None,
+    additional_settings: Optional[Union[Sequence[Callable[[int], Any]], Callable[[int], Any]]] = None,
 ) -> None:
     """
     Set random seed for modules to enable or disable deterministic training.

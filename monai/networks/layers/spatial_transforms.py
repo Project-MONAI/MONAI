@@ -72,7 +72,9 @@ class AffineTransform(nn.Module):
         self.align_corners = align_corners
         self.reverse_indexing = reverse_indexing
 
-    def forward(self, src, theta, spatial_size: Optional[Union[Sequence[int], int]] = None):
+    def forward(
+        self, src: torch.Tensor, theta: torch.Tensor, spatial_size: Optional[Union[Sequence[int], int]] = None
+    ) -> torch.Tensor:
         """
         ``theta`` must be an affine transformation matrix with shape
         3x3 or Nx3x3 or Nx2x3 or 2x3 for spatial 2D transforms,
@@ -100,9 +102,9 @@ class AffineTransform(nn.Module):
         # validate `theta`
         if not torch.is_tensor(theta):
             raise TypeError(f"theta must be torch.Tensor but is {type(theta).__name__}.")
-        if theta.ndim not in (2, 3):
+        if theta.dim() not in (2, 3):
             raise ValueError(f"theta must be Nxdxd or dxd, got {theta.shape}.")
-        if theta.ndim == 2:
+        if theta.dim() == 2:
             theta = theta[None]  # adds a batch dim.
         theta = theta.clone()  # no in-place change of theta
         theta_shape = tuple(theta.shape[1:])
@@ -117,7 +119,7 @@ class AffineTransform(nn.Module):
         # validate `src`
         if not torch.is_tensor(src):
             raise TypeError(f"src must be torch.Tensor but is {type(src).__name__}.")
-        sr = src.ndim - 2  # input spatial rank
+        sr = src.dim() - 2  # input spatial rank
         if sr not in (2, 3):
             raise ValueError(f"Unsupported src dimension: {sr}, available options are [2, 3].")
 

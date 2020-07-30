@@ -13,7 +13,7 @@ Utilities and types for defining networks, these depend on PyTorch.
 """
 
 import warnings
-from typing import Callable, Optional, Sequence
+from typing import Any, Callable, Optional, Sequence, cast
 
 import torch
 import torch.nn as nn
@@ -21,7 +21,7 @@ import torch.nn as nn
 from monai.utils import ensure_tuple_size
 
 
-def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.float, dim: int = 1):
+def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.float, dim: int = 1) -> torch.Tensor:
     """
     For a tensor `labels` of dimensions B1[spatial_dims], return a tensor of dimensions `BN[spatial_dims]`
     for `num_classes` N number of classes.
@@ -49,14 +49,16 @@ def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.f
     return labels
 
 
-def slice_channels(tensor: torch.Tensor, *slicevals):
+def slice_channels(tensor: torch.Tensor, *slicevals: Optional[int]) -> torch.Tensor:
     slices = [slice(None)] * len(tensor.shape)
     slices[1] = slice(*slicevals)
 
     return tensor[slices]
 
 
-def predict_segmentation(logits: torch.Tensor, mutually_exclusive: bool = False, threshold: float = 0.0):
+def predict_segmentation(
+    logits: torch.Tensor, mutually_exclusive: bool = False, threshold: float = 0.0
+) -> torch.Tensor:
     """
     Given the logits from a network, computing the segmentation by thresholding all values above 0
     if multi-labels task, computing the `argmax` along the channel axis if multi-classes task,
@@ -69,11 +71,11 @@ def predict_segmentation(logits: torch.Tensor, mutually_exclusive: bool = False,
         threshold: thresholding the prediction values if multi-labels task.
     """
     if not mutually_exclusive:
-        return (logits >= threshold).int()
+        return (cast(torch.Tensor, logits >= threshold)).int()
     else:
         if logits.shape[1] == 1:
             warnings.warn("single channel prediction, `mutually_exclusive=True` ignored, use threshold instead.")
-            return (logits >= threshold).int()
+            return (cast(torch.Tensor, logits >= threshold)).int()
         return logits.argmax(1, keepdim=True)
 
 
@@ -82,7 +84,7 @@ def normalize_transform(
     device: Optional[torch.device] = None,
     dtype: Optional[torch.dtype] = None,
     align_corners: bool = False,
-):
+) -> torch.Tensor:
     """
     Compute an affine matrix according to the input shape.
     The transform normalizes the homogeneous image coordinates to the
@@ -112,7 +114,9 @@ def normalize_transform(
     return norm
 
 
-def to_norm_affine(affine: torch.Tensor, src_size: Sequence[int], dst_size: Sequence[int], align_corners: bool = False):
+def to_norm_affine(
+    affine: torch.Tensor, src_size: Sequence[int], dst_size: Sequence[int], align_corners: bool = False
+) -> torch.Tensor:
     """
     Given ``affine`` defined for coordinates in the pixel space, compute the corresponding affine
     for the normalized coordinates.
@@ -145,7 +149,9 @@ def to_norm_affine(affine: torch.Tensor, src_size: Sequence[int], dst_size: Sequ
     return new_affine
 
 
-def normal_init(m, std=0.02, normal_func: Callable = torch.nn.init.normal_) -> None:
+def normal_init(
+    m, std: float = 0.02, normal_func: Callable[[torch.Tensor, float, float], Any] = torch.nn.init.normal_
+) -> None:
     """
     Initialize the weight and bias tensors of `m' and its submodules to values from a normal distribution with a
     stddev of `std'. Weight tensors of convolution and linear modules are initialized with a mean of 0, batch

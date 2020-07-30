@@ -17,7 +17,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 import copy
 import logging
-from typing import Callable, Optional, Sequence, Union
+from typing import Callable, Dict, Hashable, Mapping, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -57,7 +57,7 @@ class Identityd(MapTransform):
         super().__init__(keys)
         self.identity = Identity()
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.identity(d[key])
@@ -79,7 +79,7 @@ class AsChannelFirstd(MapTransform):
         super().__init__(keys)
         self.converter = AsChannelFirst(channel_dim=channel_dim)
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.converter(d[key])
@@ -101,7 +101,7 @@ class AsChannelLastd(MapTransform):
         super().__init__(keys)
         self.converter = AsChannelLast(channel_dim=channel_dim)
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.converter(d[key])
@@ -122,7 +122,9 @@ class AddChanneld(MapTransform):
         super().__init__(keys)
         self.adder = AddChannel()
 
-    def __call__(self, data):
+    def __call__(
+        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
+    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.adder(d[key])
@@ -144,7 +146,7 @@ class RepeatChanneld(MapTransform):
         super().__init__(keys)
         self.repeater = RepeatChannel(repeats)
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.repeater(d[key])
@@ -160,7 +162,7 @@ class CastToTyped(MapTransform):
         self,
         keys: KeysCollection,
         dtype: Union[Sequence[Union[np.dtype, torch.dtype]], np.dtype, torch.dtype] = np.float32,
-    ):
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -174,7 +176,9 @@ class CastToTyped(MapTransform):
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.converter = CastToType()
 
-    def __call__(self, data):
+    def __call__(
+        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
+    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
         d = dict(data)
         for idx, key in enumerate(self.keys):
             d[key] = self.converter(d[key], dtype=self.dtype[idx])
@@ -196,7 +200,7 @@ class ToTensord(MapTransform):
         super().__init__(keys)
         self.converter = ToTensor()
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.converter(d[key])
@@ -217,7 +221,7 @@ class ToNumpyd(MapTransform):
         super().__init__(keys)
         self.converter = ToNumpy()
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.converter(d[key])
@@ -257,7 +261,9 @@ class SqueezeDimd(MapTransform):
         super().__init__(keys)
         self.converter = SqueezeDim(dim=dim)
 
-    def __call__(self, data):
+    def __call__(
+        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
+    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.converter(d[key])
@@ -308,7 +314,9 @@ class DataStatsd(MapTransform):
         self.logger_handler = logger_handler
         self.printer = DataStats(logger_handler=logger_handler)
 
-    def __call__(self, data):
+    def __call__(
+        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
+    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
         d = dict(data)
         for idx, key in enumerate(self.keys):
             d[key] = self.printer(
@@ -327,7 +335,7 @@ class SimulateDelayd(MapTransform):
     Dictionary-based wrapper of :py:class:monai.transforms.utility.array.SimulateDelay.
     """
 
-    def __init__(self, keys: KeysCollection, delay_time: Union[Sequence[float], float] = 0.0):
+    def __init__(self, keys: KeysCollection, delay_time: Union[Sequence[float], float] = 0.0) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -340,7 +348,9 @@ class SimulateDelayd(MapTransform):
         self.delay_time = ensure_tuple_rep(delay_time, len(self.keys))
         self.delayer = SimulateDelay()
 
-    def __call__(self, data):
+    def __call__(
+        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
+    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
         d = dict(data)
         for idx, key in enumerate(self.keys):
             d[key] = self.delayer(d[key], delay_time=self.delay_time[idx])
@@ -354,7 +364,7 @@ class CopyItemsd(MapTransform):
 
     """
 
-    def __init__(self, keys: KeysCollection, times: int, names: KeysCollection):
+    def __init__(self, keys: KeysCollection, times: int, names: KeysCollection) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -496,12 +506,12 @@ class LabelToMaskd(MapTransform):
     """
 
     def __init__(
-        self, keys: KeysCollection, select_labels: Union[Sequence[int], int], merge_channels: bool = False
-    ) -> None:
+        self, keys: KeysCollection, select_labels: Union[Sequence[int], int], merge_channels: bool = False,
+    ) -> None:  # pytype: disable=annotation-type-mismatch # pytype bug with bool
         super().__init__(keys)
         self.converter = LabelToMask(select_labels, merge_channels)
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.converter(d[key])

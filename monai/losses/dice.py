@@ -169,7 +169,7 @@ class MaskedDiceLoss(DiceLoss):
 
     def forward(
         self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5, mask: Optional[torch.Tensor] = None
-    ):
+    ) -> torch.Tensor:
         """
         Args:
             input: the shape should be BNH[WD].
@@ -262,7 +262,7 @@ class GeneralizedDiceLoss(_Loss):
         elif w_type == Weight.SQUARE:
             self.w_func = lambda x: torch.reciprocal(x * x)
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5):
+    def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5) -> torch.Tensor:
         """
         Args:
             input: the shape should be BNH[WD].
@@ -318,7 +318,7 @@ class GeneralizedDiceLoss(_Loss):
             b[infs] = 0.0
             b[infs] = torch.max(b)
 
-        f = 1.0 - (2.0 * (intersection * w).sum(1) + smooth) / ((denominator * w).sum(1) + smooth)
+        f: torch.Tensor = 1.0 - (2.0 * (intersection * w).sum(1) + smooth) / ((denominator * w).sum(1) + smooth)
 
         if self.reduction == LossReduction.MEAN.value:
             f = torch.mean(f)  # the batch and channel average
@@ -368,7 +368,9 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         MICCAI DLMIA 2017.
     """
 
-    def __init__(self, dist_matrix, reduction: Union[LossReduction, str] = LossReduction.MEAN):
+    def __init__(
+        self, dist_matrix: Union[np.ndarray, torch.Tensor], reduction: Union[LossReduction, str] = LossReduction.MEAN
+    ) -> None:
         """
         Args:
             dist_matrix: 2d tensor or 2d numpy array; matrix of distances
@@ -392,7 +394,7 @@ class GeneralizedWassersteinDiceLoss(_Loss):
             self.m = self.m / torch.max(self.m)
         self.num_classes = self.m.size(0)
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5):
+    def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5) -> torch.Tensor:
         """
         Args:
             input: the shape should be BNH[WD].
@@ -416,11 +418,11 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         denom = self.compute_denominator(alpha, flat_target, wass_dist_map)
 
         # Compute and return the final loss
-        wass_dice = (2.0 * true_pos + smooth) / (denom + smooth)
-        wass_dice_loss = 1.0 - wass_dice
+        wass_dice: torch.Tensor = (2.0 * true_pos + smooth) / (denom + smooth)
+        wass_dice_loss: torch.Tensor = 1.0 - wass_dice
         return wass_dice_loss.mean()
 
-    def wasserstein_distance_map(self, flat_proba: torch.Tensor, flat_target: torch.Tensor):
+    def wasserstein_distance_map(self, flat_proba: torch.Tensor, flat_target: torch.Tensor) -> torch.Tensor:
         """
         Args:
             flat_proba: the probabilities of input(predicted) tensor.
@@ -451,8 +453,8 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         return wasserstein_map
 
     def compute_generalized_true_positive(
-        self, alpha: torch.Tensor, flat_target: torch.Tensor, wasserstein_distance_map
-    ):
+        self, alpha: torch.Tensor, flat_target: torch.Tensor, wasserstein_distance_map: torch.Tensor
+    ) -> torch.Tensor:
         """
         Args:
             alpha: generalised number of true positives of target class.
@@ -469,7 +471,9 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         generalized_true_pos = torch.sum(alpha_extended * (1.0 - wasserstein_distance_map), dim=[1, 2],)
         return generalized_true_pos
 
-    def compute_denominator(self, alpha: torch.Tensor, flat_target: torch.Tensor, wasserstein_distance_map):
+    def compute_denominator(
+        self, alpha: torch.Tensor, flat_target: torch.Tensor, wasserstein_distance_map: torch.Tensor
+    ) -> torch.Tensor:
         """
         Args:
             alpha: generalised number of true positives of target class.
@@ -486,14 +490,14 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         generalized_true_pos = torch.sum(alpha_extended * (2.0 - wasserstein_distance_map), dim=[1, 2],)
         return generalized_true_pos
 
-    def compute_weights_generalized_true_positives(self, flat_target: torch.Tensor):
+    def compute_weights_generalized_true_positives(self, flat_target: torch.Tensor) -> torch.Tensor:
         """
         Args:
             flat_target: the target tensor.
         """
         one_hot = F.one_hot(flat_target, num_classes=self.num_classes).permute(0, 2, 1).float()
         volumes = torch.sum(one_hot, dim=2)
-        alpha = 1.0 / (volumes + 1.0)
+        alpha: torch.Tensor = 1.0 / (volumes + 1.0)
         return alpha
 
 

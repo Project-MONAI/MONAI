@@ -15,7 +15,7 @@ defined in :py:class:`monai.transforms.utility.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Callable, Optional, Sequence, Union
+from typing import Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -68,7 +68,7 @@ class SplitChanneld(MapTransform):
         self.num_classes = ensure_tuple_rep(num_classes, len(self.keys))
         self.splitter = SplitChannel()
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         for idx, key in enumerate(self.keys):
             rets = self.splitter(d[key], self.to_onehot[idx], self.num_classes[idx])
@@ -110,7 +110,7 @@ class Activationsd(MapTransform):
         self.other = ensure_tuple_rep(other, len(self.keys))
         self.converter = Activations()
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         for idx, key in enumerate(self.keys):
             d[key] = self.converter(d[key], self.sigmoid[idx], self.softmax[idx], self.other[idx])
@@ -155,7 +155,7 @@ class AsDiscreted(MapTransform):
         self.logit_thresh = ensure_tuple_rep(logit_thresh, len(self.keys))
         self.converter = AsDiscrete()
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         for idx, key in enumerate(self.keys):
             d[key] = self.converter(
@@ -199,7 +199,7 @@ class KeepLargestConnectedComponentd(MapTransform):
         super().__init__(keys)
         self.converter = KeepLargestConnectedComponent(applied_labels, independent, connectivity)
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.converter(d[key])
@@ -222,7 +222,7 @@ class LabelToContourd(MapTransform):
         super().__init__(keys)
         self.converter = LabelToContour(kernel_type=kernel_type)
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.converter(d[key])
@@ -235,7 +235,12 @@ class Ensembled(MapTransform):
 
     """
 
-    def __init__(self, keys: KeysCollection, ensemble: Callable, output_key: Optional[str] = None,) -> None:
+    def __init__(
+        self,
+        keys: KeysCollection,
+        ensemble: Callable[[Union[Sequence[torch.Tensor], torch.Tensor]], torch.Tensor],
+        output_key: Optional[str] = None,
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be stack and execute ensemble.
@@ -257,8 +262,9 @@ class Ensembled(MapTransform):
             raise ValueError("Incompatible values: len(self.keys) > 1 and output_key=None.")
         self.output_key = output_key if output_key is not None else self.keys[0]
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
+        items: Union[List[torch.Tensor], torch.Tensor]
         if len(self.keys) == 1:
             items = d[self.keys[0]]
         else:
