@@ -53,7 +53,7 @@ def run_training_test(root_dir, device=torch.device("cuda:0"), cachedataset=Fals
         [
             LoadNiftid(keys=["img", "seg"]),
             AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
-            Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"]),
+            Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"], align_corners=False),
             ScaleIntensityd(keys=["img", "seg"]),
             RandCropByPosNegLabeld(
                 keys=["img", "seg"], label_key="seg", spatial_size=[96, 96, 96], pos=1, neg=1, num_samples=4
@@ -67,7 +67,7 @@ def run_training_test(root_dir, device=torch.device("cuda:0"), cachedataset=Fals
         [
             LoadNiftid(keys=["img", "seg"]),
             AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
-            Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"]),
+            Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"], align_corners=False),
             ScaleIntensityd(keys=["img", "seg"]),
             ToTensord(keys=["img", "seg"]),
         ]
@@ -173,7 +173,7 @@ def run_inference_test(root_dir, device=torch.device("cuda:0")):
         [
             LoadNiftid(keys=["img", "seg"]),
             AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
-            Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"]),
+            Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"], align_corners=False),
             ScaleIntensityd(keys=["img", "seg"]),
             ToTensord(keys=["img", "seg"]),
         ]
@@ -247,18 +247,18 @@ class IntegrationSegmentation3D(unittest.TestCase):
             np.testing.assert_allclose(
                 losses,
                 [
-                    0.5446726709604264,
-                    0.4751088947057724,
-                    0.4449631154537201,
-                    0.42703594267368317,
-                    0.4333809733390808,
-                    0.42501968443393706,
+                    0.5458276271820068,
+                    0.4730583667755127,
+                    0.44791859686374663,
+                    0.44546922147274015,
+                    0.42982161045074463,
+                    0.4139336168766022,
                 ],
                 rtol=1e-3,
             )
             repeated[i].extend(losses)
             print("best metric", best_metric)
-            np.testing.assert_allclose(best_metric, 0.9315427839756012, rtol=1e-3)
+            np.testing.assert_allclose(best_metric, 0.9322547912597656, rtol=1e-3)
             repeated[i].append(best_metric)
             np.testing.assert_allclose(best_metric_epoch, 6)
             self.assertTrue(len(glob(os.path.join(self.data_dir, "runs"))) > 0)
@@ -269,50 +269,50 @@ class IntegrationSegmentation3D(unittest.TestCase):
 
             # check inference properties
             print("infer metric", infer_metric)
-            np.testing.assert_allclose(infer_metric, 0.9317556858062744, rtol=1e-3)
+            np.testing.assert_allclose(infer_metric, 0.9324330165982246, rtol=1e-3)
             repeated[i].append(infer_metric)
             output_files = sorted(glob(os.path.join(self.data_dir, "output", "img*", "*.nii.gz")))
             sums = [
-                0.12219095230102539,
-                0.13068485260009766,
-                0.13124942779541016,
-                0.12073802947998047,
-                0.16392803192138672,
-                0.14664554595947266,
-                0.12586545944213867,
-                0.14537811279296875,
-                0.13469552993774414,
-                0.1546192169189453,
-                0.13963079452514648,
-                0.14705324172973633,
-                0.12376976013183594,
-                0.0970311164855957,
-                0.13933563232421875,
-                0.17511940002441406,
-                0.1516733169555664,
-                0.08219337463378906,
-                0.16858196258544922,
-                0.17458581924438477,
-                0.17008686065673828,
-                0.18051767349243164,
-                0.14070510864257812,
-                0.1136326789855957,
-                0.12689924240112305,
-                0.12335014343261719,
-                0.20095491409301758,
-                0.13935327529907227,
-                0.12905502319335938,
-                0.08764886856079102,
-                0.10255098342895508,
-                0.11131525039672852,
-                0.09727668762207031,
-                0.13176202774047852,
-                0.14140892028808594,
-                0.16825628280639648,
-                0.19260501861572266,
-                0.15650701522827148,
-                0.16521501541137695,
-                0.0629119873046875,
+                0.12314748764038086,
+                0.13164854049682617,
+                0.13254690170288086,
+                0.12122488021850586,
+                0.1647815704345703,
+                0.14769887924194336,
+                0.1271677017211914,
+                0.14619684219360352,
+                0.13566160202026367,
+                0.1559009552001953,
+                0.14039325714111328,
+                0.14815521240234375,
+                0.12481880187988281,
+                0.09748649597167969,
+                0.14023780822753906,
+                0.17661428451538086,
+                0.1525425910949707,
+                0.08268213272094727,
+                0.1692352294921875,
+                0.17554616928100586,
+                0.17126846313476562,
+                0.18162918090820312,
+                0.14189815521240234,
+                0.11405420303344727,
+                0.1274280548095703,
+                0.12445974349975586,
+                0.20227718353271484,
+                0.14072418212890625,
+                0.1297140121459961,
+                0.088409423828125,
+                0.1032552719116211,
+                0.11186981201171875,
+                0.09769296646118164,
+                0.1327042579650879,
+                0.1424264907836914,
+                0.1697993278503418,
+                0.19417142868041992,
+                0.15748023986816406,
+                0.16621875762939453,
+                0.0633702278137207,
             ]
             for (output, s) in zip(output_files, sums):
                 ave = np.mean(nib.load(output).get_fdata())

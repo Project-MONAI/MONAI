@@ -69,6 +69,7 @@ class Spacing(Transform):
         diagonal: bool = False,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        align_corners: bool = True,
         dtype: Optional[np.dtype] = None,
     ) -> None:
         """
@@ -91,12 +92,15 @@ class Spacing(Transform):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"border"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             dtype: output array data type. Defaults to ``np.float32``.
         """
         self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
         self.diagonal = diagonal
         self.mode: GridSampleMode = GridSampleMode(mode)
         self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
+        self.align_corners = align_corners
         self.dtype = dtype
 
     def __call__(
@@ -105,6 +109,7 @@ class Spacing(Transform):
         affine=None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
+        align_corners: Optional[bool] = None,
         dtype: Optional[np.dtype] = None,
     ):
         """
@@ -116,6 +121,8 @@ class Spacing(Transform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             dtype: output array data type. Defaults to ``self.dtype``.
 
@@ -161,12 +168,13 @@ class Spacing(Transform):
             normalized=False,
             mode=mode or self.mode,
             padding_mode=padding_mode or self.padding_mode,
-            align_corners=True,
+            align_corners=self.align_corners if align_corners is None else align_corners,
             reverse_indexing=True,
         )
         output_data = affine_xform(
-            torch.from_numpy((data_array.astype(np.float64))).unsqueeze(0),  # AffineTransform requires a batch dim
-            torch.from_numpy(transform_.astype(np.float64)),
+            # AffineTransform requires a batch dim
+            torch.as_tensor(np.ascontiguousarray(data_array), dtype=torch.float).unsqueeze(0),
+            torch.as_tensor(np.ascontiguousarray(transform_), dtype=torch.float),
             spatial_size=output_shape,
         )
         output_data = output_data.squeeze(0).detach().cpu().numpy().astype(_dtype)

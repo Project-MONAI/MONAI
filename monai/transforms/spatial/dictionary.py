@@ -73,6 +73,7 @@ class Spacingd(MapTransform):
         diagonal: bool = False,
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
+        align_corners: Union[Sequence[bool], bool] = True,
         dtype: Optional[Union[Sequence[np.dtype], np.dtype]] = None,
         meta_key_postfix: str = "meta_dict",
     ) -> None:
@@ -99,6 +100,9 @@ class Spacingd(MapTransform):
                 Padding mode for outside grid values. Defaults to ``"border"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
+            align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                It also can be a sequence of bool, each element corresponds to a key in ``keys``.
             dtype: output array data type.
                 Defaults to None to use input data's dtype. It also can be a sequence of np.dtype,
                 each element corresponds to a key in ``keys``.
@@ -115,6 +119,7 @@ class Spacingd(MapTransform):
         self.spacing_transform = Spacing(pixdim, diagonal=diagonal)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
+        self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         if not isinstance(meta_key_postfix, str):
             raise TypeError(f"meta_key_postfix must be a str but is {type(meta_key_postfix).__name__}.")
@@ -131,6 +136,7 @@ class Spacingd(MapTransform):
                 affine=meta_data["affine"],
                 mode=self.mode[idx],
                 padding_mode=self.padding_mode[idx],
+                align_corners=self.align_corners[idx],
                 dtype=self.dtype[idx],
             )
             # set the 'affine' key
