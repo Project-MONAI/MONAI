@@ -96,7 +96,7 @@ class Spacing(Transform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             dtype: data type for all the computation. Defaults to ``np.float64`` for best precision.
         """
-        self.pixdim = np.array(ensure_tuple(pixdim), dtype=dtype)
+        self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
         self.diagonal = diagonal
         self.mode: GridSampleMode = GridSampleMode(mode)
         self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
@@ -140,8 +140,8 @@ class Spacing(Transform):
             raise ValueError("data_array must have at least one spatial dimension.")
         if affine is None:
             # default to identity
-            affine = np.eye(sr + 1, dtype=_dtype)
-            affine_ = np.eye(sr + 1, dtype=_dtype)
+            affine = np.eye(sr + 1, dtype=np.float64)
+            affine_ = np.eye(sr + 1, dtype=np.float64)
         else:
             affine_ = to_affine_nd(sr, affine)
         out_d = self.pixdim[:sr]
