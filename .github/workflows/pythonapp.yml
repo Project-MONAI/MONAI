@@ -63,7 +63,7 @@ jobs:
         cat "requirements-dev.txt"
         python -m pip install -r requirements-dev.txt
         python -m pip list
-        python setup.py develop
+        python setup.py develop  # compile the cpp extensions
     - name: Run quick tests (CPU ${{ runner.os }})
       run: |
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
@@ -85,7 +85,6 @@ jobs:
         python -m pip uninstall -y torch torchvision
         python -m pip install torch==1.4
         python -m pip install -r requirements-dev.txt
-        python setup.py develop
     - name: Run quick tests (GPU)
       run: |
         python -m pip list

@@ -86,10 +86,20 @@ function print_version {
     ${cmdPrefix}python -c 'import monai; monai.config.print_config()'
 }
 
-function install_compile_deps {
-    echo "Pip installing MONAI development dependencies..."
-    ${cmdPrefix}python setup.py -v develop
+function install_deps {
+    echo "Pip installing MONAI development dependencies and compile MONAI cpp extensions..."
     ${cmdPrefix}pip install -r requirements-dev.txt
+}
+
+function compile_cpp {
+    echo "Compiling and installing MONAI cpp extensions..."
+    ${cmdPrefix}python setup.py -v develop --uninstall
+    if [[ "$OSTYPE" == "darwin"* ]];
+    then  # clang for mac os
+        CC=clang CXX=clang++ ${cmdPrefix}python setup.py -v develop
+    else
+        ${cmdPrefix}python setup.py -v develop
+    fi
 }
 
 function clean_py() {
@@ -101,6 +111,10 @@ function clean_py() {
     find ${TO_CLEAN} -type f -name "*.py[co]" -delete
     find ${TO_CLEAN} -type f -name ".coverage" -delete
     find ${TO_CLEAN} -type d -name "__pycache__" -delete
+
+    find ${TO_CLEAN} -depth -type d -name ".eggs" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -type d -name "monai.egg-info" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -type d -name "build" -exec rm -r "{}" +
     find ${TO_CLEAN} -depth -type d -name ".mypy_cache" -exec rm -r "{}" +
     find ${TO_CLEAN} -depth -type d -name ".pytype" -exec rm -r "{}" +
     find ${TO_CLEAN} -depth -type d -name ".coverage" -exec rm -r "{}" +
@@ -216,7 +230,6 @@ fi
 # unconditionally report on the state of monai
 print_version
 
-
 if [ $doCleanup = true ]
 then
     echo "${separator}${blue}clean${noColor}"
@@ -227,6 +240,8 @@ then
     exit
 fi
 
+# try to compile MONAI cpp
+compile_cpp
 
 if [ $doBlackFormat = true ]
 then
@@ -241,7 +256,7 @@ then
     # ensure that the necessary packages for code format testing are installed
     if [[ ! -f "$(which black)" ]]
     then
-        install_compile_deps
+        install_deps
     fi
     ${cmdPrefix}black --version
 
@@ -277,7 +292,7 @@ then
     # ensure that the necessary packages for code format testing are installed
     if [[ ! -f "$(which isort)" ]]
     then
-        install_compile_deps
+        install_deps
     fi
     ${cmdPrefix}isort --version
 
@@ -308,7 +323,7 @@ then
     # ensure that the necessary packages for code format testing are installed
     if [[ ! -f "$(which flake8)" ]]
     then
-        install_compile_deps
+        install_deps
     fi
     ${cmdPrefix}flake8 --version
 
@@ -334,7 +349,7 @@ then
     # ensure that the necessary packages for code format testing are installed
     if [[ ! -f "$(which pytype)" ]]
     then
-        install_compile_deps
+        install_deps
     fi
     ${cmdPrefix}pytype --version
 
@@ -360,7 +375,7 @@ then
     # ensure that the necessary packages for code format testing are installed
     if [[ ! -f "$(which mypy)" ]]
     then
-        install_compile_deps
+        install_deps
     fi
     ${cmdPrefix}mypy --version
 
