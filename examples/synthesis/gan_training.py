@@ -24,6 +24,7 @@ import os
 import sys
 import logging
 import torch
+from ignite.metrics import RunningAverage
 
 import monai
 from monai.utils.misc import set_determinism, create_run_dir
@@ -31,6 +32,7 @@ from monai.data import CacheDataset, DataLoader, png_writer
 from monai.networks.nets import Generator, Discriminator
 from monai.networks import normal_init
 from monai.engines import AdversarialTrainer
+from monai.engines.utils import GanKeys
 from monai.handlers import StatsHandler, CheckpointSaver
 from monai.transforms import (
     Compose,
@@ -55,7 +57,6 @@ def save_generator_fakes(run_folder, checkpoint, g_output_tensor):
 def main():
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-
     set_determinism(12345)
     device = torch.device("cuda:0")
 
@@ -81,7 +82,7 @@ def main():
     batch_size = 300
     real_dataloader = DataLoader(real_dataset, batch_size=batch_size, shuffle=True, num_workers=10)
 
-    # define function to process batchdata for input into generator
+    # define function to process batchdata dict object for input into discriminator
     def prepare_batch(batchdata):
         return batchdata["hand"]
 
@@ -109,8 +110,8 @@ def main():
     disc_opt = torch.optim.Adam(disc_net.parameters(), learning_rate, betas=betas)
     gen_opt = torch.optim.Adam(gen_net.parameters(), learning_rate, betas=betas)
 
-    disc_loss = torch.nn.BCELoss()
-    gen_loss = torch.nn.BCELoss()
+    disc_loss_criterion = torch.nn.BCELoss()
+    gen_loss_criterion = torch.nn.BCELoss()
     real_label = 1
     fake_label = 0
 
@@ -123,8 +124,8 @@ def main():
         real = real_images.new_full((real_images.shape[0], 1), real_label)
         gen = gen_images.new_full((gen_images.shape[0], 1), fake_label)
 
-        realloss = disc_loss(disc_net(real_images), real)
-        genloss = disc_loss(disc_net(gen_images.detach()), gen)
+        realloss = disc_loss_criterion(disc_net(real_images), real)
+        genloss = disc_loss_criterion(disc_net(gen_images.detach()), gen)
 
         return (realloss + genloss) / 2
 
@@ -136,7 +137,7 @@ def main():
         """
         output = disc_net(input)
         cats = output.new_full(output.shape, real_label)
-        return gen_loss(output, cats)
+        return gen_loss_criterion(output, cats)
 
     # initialize current run dir
     run_dir = create_run_dir("./ModelOut")
@@ -155,7 +156,11 @@ def main():
     ]
 
     # create adversarial trainer
-    key_train_metric = None  # TODO: Make FID Monai Metric to evaluate generator performance
+    key_train_metric = {
+        GanKeys.GLOSS: RunningAverage(output_transform=lambda x: x[GanKeys.GLOSS]),
+        GanKeys.DLOSS: RunningAverage(output_transform=lambda x: x[GanKeys.DLOSS]),
+    }
+    # TODO: Make FID Monai Metric to evaluate generator performance
     disc_train_steps = 5
     num_epochs = 50
 
@@ -186,7 +191,6 @@ def main():
     test_img_count = 10
     test_latents = torch.randn(test_img_count, latent_size).to(device)
     save_generator_fakes(run_dir, "final", gen_net(test_latents))
-
 
 if __name__ == "__main__":
     main()

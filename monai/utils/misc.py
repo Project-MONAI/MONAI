@@ -219,9 +219,9 @@ def set_determinism(
         torch.backends.cudnn.deterministic = False  # type: ignore # Module has no attribute
 
 
-def create_run_dir(path, prefix: str = "model", time: datetime = None, time_format: str = "%Y_%m_%d_%H_%M_%S") -> str:
+def create_run_dir(output_directory, prefix: str = "model", time: datetime = None, time_format: str = "%Y_%m_%d_%H_%M_%S") -> str:
     """
-    Creates run folder in output directory with current datestamp and name. If output directory does not exist, it is created. Returns filepath to run_dir.
+    Creates run folder in output directory with current datestamp and name. If output directory does not exist, it is created. Returns run_dir filepath.
 
     run_dir foldername formula is "{prefix}_{timestring}"
         e.g. model_2020_07_29_03_33_25 
@@ -237,10 +237,10 @@ def create_run_dir(path, prefix: str = "model", time: datetime = None, time_form
         time = datetime.datetime.now()
 
     foldername = "%s_%s" % (prefix, (time.strftime(time_format)))
-    output_data_dir = os.path.join(path, foldername)
+    output_data_dir = os.path.join(output_directory, foldername)
 
-    if not os.path.isdir(path):
-        os.mkdir(path)
+    if not os.path.isdir(output_directory):
+        os.mkdir(output_directory)
     if not os.path.isdir(output_data_dir):
         os.mkdir(output_data_dir)
     return output_data_dir
