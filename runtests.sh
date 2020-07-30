@@ -45,10 +45,11 @@ function print_usage {
     echo "MONAI unit testing utilities."
     echo ""
     echo "Examples:"
-    echo "./runtests.sh --codeformat --coverage     # runs full tests (${green}recommended before making pull requests${noColor})."
-    echo "./runtests.sh --codeformat --nounittests  # runs coding style and static type checking."
-    echo "./runtests.sh --quick                     # runs minimal unit tests, for quick verification during code developments."
-    echo "./runtests.sh --black-fix                 # runs automatic code formatting using \"black\"."
+    echo "./runtests.sh --codeformat --coverage     # run full tests (${green}recommended before making pull requests${noColor})."
+    echo "./runtests.sh --codeformat --nounittests  # run coding style and static type checking."
+    echo "./runtests.sh --quick                     # run minimal unit tests, for quick verification during code developments."
+    echo "./runtests.sh --black-fix                 # run automatic code formatting using \"black\"."
+    echo "./runtests.sh --clean                     # clean up temporary files and run \"python setup.py develop --uninstall\"."
     echo ""
     echo "Code style check options:"
     echo "    --black           : perform \"black\" code format checks"
@@ -85,9 +86,24 @@ function print_version {
     ${cmdPrefix}python -c 'import monai; monai.config.print_config()'
 }
 
-function install_deps {
+function install_compile_deps {
     echo "Pip installing MONAI development dependencies..."
+    ${cmdPrefix}python setup.py -v develop
     ${cmdPrefix}pip install -r requirements-dev.txt
+}
+
+function clean_py() {
+    # uninstall the development package
+    ${cmdPrefix}python setup.py -v develop --uninstall
+
+    # remove temporary files
+    TO_CLEAN=${*:-'.'}
+    find ${TO_CLEAN} -type f -name "*.py[co]" -delete
+    find ${TO_CLEAN} -type f -name ".coverage" -delete
+    find ${TO_CLEAN} -type d -name "__pycache__" -delete
+    find ${TO_CLEAN} -depth -type d -name ".mypy_cache" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -type d -name ".pytype" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -type d -name ".coverage" -exec rm -r "{}" +
 }
 
 function torch_validate {
@@ -205,29 +221,7 @@ if [ $doCleanup = true ]
 then
     echo "${separator}${blue}clean${noColor}"
 
-    if [ -d .mypy_cache ]
-    then
-        ${cmdPrefix}rm -r .mypy_cache
-    elif [ -f .mypy_cache ]
-    then
-        ${cmdPrefix}rm .mypy_cache
-    fi
-
-    if [ -d .pytype ]
-    then
-        ${cmdPrefix}rm -r .pytype
-    elif [ -f .pytype ]
-    then
-        ${cmdPrefix}rm .pytype
-    fi
-
-    if [ -d .coverage ]
-    then
-        ${cmdPrefix}rm -r .coverage
-    elif [ -f .coverage ]
-    then
-        ${cmdPrefix}rm .coverage
-    fi
+    clean_py
 
     echo "${green}done!${noColor}"
     exit
@@ -247,7 +241,7 @@ then
     # ensure that the necessary packages for code format testing are installed
     if [[ ! -f "$(which black)" ]]
     then
-        install_deps
+        install_compile_deps
     fi
     ${cmdPrefix}black --version
 
@@ -283,7 +277,7 @@ then
     # ensure that the necessary packages for code format testing are installed
     if [[ ! -f "$(which isort)" ]]
     then
-        install_deps
+        install_compile_deps
     fi
     ${cmdPrefix}isort --version
 
@@ -314,7 +308,7 @@ then
     # ensure that the necessary packages for code format testing are installed
     if [[ ! -f "$(which flake8)" ]]
     then
-        install_deps
+        install_compile_deps
     fi
     ${cmdPrefix}flake8 --version
 
@@ -340,7 +334,7 @@ then
     # ensure that the necessary packages for code format testing are installed
     if [[ ! -f "$(which pytype)" ]]
     then
-        install_deps
+        install_compile_deps
     fi
     ${cmdPrefix}pytype --version
 
@@ -366,7 +360,7 @@ then
     # ensure that the necessary packages for code format testing are installed
     if [[ ! -f "$(which mypy)" ]]
     then
-        install_deps
+        install_compile_deps
     fi
     ${cmdPrefix}mypy --version
 
