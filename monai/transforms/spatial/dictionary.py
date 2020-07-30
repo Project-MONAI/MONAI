@@ -74,7 +74,7 @@ class Spacingd(MapTransform):
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
         align_corners: Union[Sequence[bool], bool] = True,
-        dtype: Optional[Union[Sequence[np.dtype], np.dtype]] = None,
+        dtype: Optional[Union[Sequence[np.dtype], np.dtype]] = np.float64,
         meta_key_postfix: str = "meta_dict",
     ) -> None:
         """
@@ -103,8 +103,8 @@ class Spacingd(MapTransform):
             align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
                 It also can be a sequence of bool, each element corresponds to a key in ``keys``.
-            dtype: output array data type.
-                Defaults to None to use input data's dtype. It also can be a sequence of np.dtype,
+            dtype: data type for all the computation. Defaults to ``np.float64`` for best precision.
+                It also can be a sequence of np.dtype,
                 each element corresponds to a key in ``keys``.
             meta_key_postfix: use `key_{postfix}` to to fetch the meta data according to the key data,
                 default is `meta_dict`, the meta data is a dictionary object.

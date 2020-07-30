@@ -70,7 +70,7 @@ class Spacing(Transform):
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         align_corners: bool = True,
-        dtype: Optional[np.dtype] = None,
+        dtype: Optional[np.dtype] = np.float64,
     ) -> None:
         """
         Args:
@@ -94,9 +94,9 @@ class Spacing(Transform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-            dtype: output array data type. Defaults to ``np.float32``.
+            dtype: data type for all the computation. Defaults to ``np.float64`` for best precision.
         """
-        self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
+        self.pixdim = np.array(ensure_tuple(pixdim), dtype=dtype)
         self.diagonal = diagonal
         self.mode: GridSampleMode = GridSampleMode(mode)
         self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
@@ -124,7 +124,7 @@ class Spacing(Transform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-            dtype: output array data type. Defaults to ``self.dtype``.
+            dtype: data type for all the computation. Defaults to ``self.dtype``.
 
         Raises:
             ValueError: When ``data_array`` has no spatial dimensions.
@@ -134,13 +134,14 @@ class Spacing(Transform):
             data_array (resampled into `self.pixdim`), original pixdim, current pixdim.
 
         """
+        _dtype = dtype or self.dtype or np.float64
         sr = data_array.ndim - 1
         if sr <= 0:
             raise ValueError("data_array must have at least one spatial dimension.")
         if affine is None:
             # default to identity
-            affine = np.eye(sr + 1, dtype=np.float64)
-            affine_ = np.eye(sr + 1, dtype=np.float64)
+            affine = np.eye(sr + 1, dtype=_dtype)
+            affine_ = np.eye(sr + 1, dtype=_dtype)
         else:
             affine_ = to_affine_nd(sr, affine)
         out_d = self.pixdim[:sr]
@@ -155,7 +156,6 @@ class Spacing(Transform):
         transform = np.linalg.inv(affine_) @ new_affine
         # adapt to the actual rank
         transform_ = to_affine_nd(sr, transform)
-        _dtype = dtype or self.dtype or np.float32
 
         # no resampling if it's identity transform
         if np.allclose(transform_, np.diag(np.ones(len(transform_))), atol=1e-3):
@@ -173,11 +173,11 @@ class Spacing(Transform):
         )
         output_data = affine_xform(
             # AffineTransform requires a batch dim
-            torch.as_tensor(np.ascontiguousarray(data_array), dtype=torch.float).unsqueeze(0),
-            torch.as_tensor(np.ascontiguousarray(transform_), dtype=torch.float),
+            torch.as_tensor(np.ascontiguousarray(data_array).astype(_dtype)).unsqueeze(0),
+            torch.as_tensor(np.ascontiguousarray(transform_).astype(_dtype)),
             spatial_size=output_shape,
         )
-        output_data = output_data.squeeze(0).detach().cpu().numpy().astype(_dtype)
+        output_data = output_data.squeeze(0).detach().cpu().numpy()
         new_affine = to_affine_nd(affine, new_affine)
         return output_data, affine, new_affine
 
