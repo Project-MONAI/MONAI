@@ -79,10 +79,10 @@ def run_training_test(root_dir, device=torch.device("cuda:0"), cachedataset=Fals
     else:
         train_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
     # use batch_size=2 to load images and use RandCropByPosNegLabeld to generate 2 x 4 images for network training
-    train_loader = DataLoader(train_ds, batch_size=2, shuffle=True, num_workers=4, collate_fn=list_data_collate)
+    train_loader = monai.data.DataLoader(train_ds, batch_size=2, shuffle=True, num_workers=4)
     # create a validation data loader
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
-    val_loader = DataLoader(val_ds, batch_size=1, num_workers=4, collate_fn=list_data_collate)
+    val_loader = monai.data.DataLoader(val_ds, batch_size=1, num_workers=4)
     dice_metric = DiceMetric(include_background=True, to_onehot_y=False, sigmoid=True, reduction="mean")
 
     # create UNet, DiceLoss and Adam optimizer
@@ -180,7 +180,7 @@ def run_inference_test(root_dir, device=torch.device("cuda:0")):
     )
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
     # sliding window inferene need to input 1 image in every iteration
-    val_loader = DataLoader(val_ds, batch_size=1, num_workers=4, collate_fn=list_data_collate)
+    val_loader = monai.data.DataLoader(val_ds, batch_size=1, num_workers=4)
     dice_metric = DiceMetric(include_background=True, to_onehot_y=False, sigmoid=True, reduction="mean")
 
     model = UNet(
@@ -247,18 +247,18 @@ class IntegrationSegmentation3D(unittest.TestCase):
             np.testing.assert_allclose(
                 losses,
                 [
-                    0.5458276271820068,
-                    0.4730583667755127,
-                    0.44791859686374663,
-                    0.44546922147274015,
-                    0.42982161045074463,
-                    0.4139336168766022,
+                    0.5469526141881943,
+                    0.48241865634918213,
+                    0.4494174599647522,
+                    0.44529161751270296,
+                    0.4375701665878296,
+                    0.4191529631614685,
                 ],
                 rtol=1e-3,
             )
             repeated[i].extend(losses)
             print("best metric", best_metric)
-            np.testing.assert_allclose(best_metric, 0.9322547912597656, rtol=1e-3)
+            np.testing.assert_allclose(best_metric, 0.9310397356748581, rtol=1e-3)
             repeated[i].append(best_metric)
             np.testing.assert_allclose(best_metric_epoch, 6)
             self.assertTrue(len(glob(os.path.join(self.data_dir, "runs"))) > 0)
@@ -269,50 +269,50 @@ class IntegrationSegmentation3D(unittest.TestCase):
 
             # check inference properties
             print("infer metric", infer_metric)
-            np.testing.assert_allclose(infer_metric, 0.9324330165982246, rtol=1e-3)
+            np.testing.assert_allclose(infer_metric, 0.9311131909489632, rtol=1e-3)
             repeated[i].append(infer_metric)
             output_files = sorted(glob(os.path.join(self.data_dir, "output", "img*", "*.nii.gz")))
             sums = [
-                0.12314748764038086,
-                0.13164854049682617,
-                0.13254690170288086,
-                0.12122488021850586,
-                0.1647815704345703,
-                0.14769887924194336,
-                0.1271677017211914,
-                0.14619684219360352,
-                0.13566160202026367,
-                0.1559009552001953,
-                0.14039325714111328,
-                0.14815521240234375,
-                0.12481880187988281,
-                0.09748649597167969,
-                0.14023780822753906,
-                0.17661428451538086,
-                0.1525425910949707,
-                0.08268213272094727,
-                0.1692352294921875,
-                0.17554616928100586,
-                0.17126846313476562,
-                0.18162918090820312,
-                0.14189815521240234,
-                0.11405420303344727,
-                0.1274280548095703,
-                0.12445974349975586,
-                0.20227718353271484,
-                0.14072418212890625,
-                0.1297140121459961,
-                0.088409423828125,
-                0.1032552719116211,
-                0.11186981201171875,
-                0.09769296646118164,
-                0.1327042579650879,
-                0.1424264907836914,
-                0.1697993278503418,
-                0.19417142868041992,
-                0.15748023986816406,
-                0.16621875762939453,
-                0.0633702278137207,
+                0.11005258560180664,                                                                                                                                                                                                                                          
+                0.11694574356079102,                                                                                                                                                                                                                                          
+                0.11699199676513672,                                                                                                                                                                                                                                          
+                0.10727214813232422,                                                                                                                                                                                                                                          
+                0.1473097801208496,                                                                                                                                                                                                                                           
+                0.13164377212524414,                                                                                                                                                                                                                                          
+                0.1125335693359375,                                                                                                                                                                                                                                           
+                0.12982177734375,                                                                                                                                                                                                                                             
+                0.12039756774902344,                                                                                                                                                                                                                                          
+                0.13856887817382812,                                                                                                                                                                                                                                          
+                0.1252913475036621,                                                                                                                                                                                                                                           
+                0.1311030387878418,                                                                                                                                                                                                                                           
+                0.1106419563293457,                                                                                                                                                                                                                                           
+                0.08632135391235352,                                                                                                                                                                                                                                          
+                0.12488174438476562,                                                                                                                                                                                                                                          
+                0.1568131446838379,                                                                                                                                                                                                                                           
+                0.13608694076538086,                                                                                                                                                                                                                                          
+                0.07289934158325195,                                                                                                                                                                                                                                          
+                0.15056228637695312,                                                                                                                                                                                                                                          
+                0.15686273574829102,                                                                                                                                                                                                                                          
+                0.15283489227294922,                                                                                                                                                                                                                                          
+                0.16201496124267578,                                                                                                                                                                                                                                          
+                0.1256422996520996,                                                                                                                                                                                                                                           
+                0.10121679306030273,                                                                                                                                                                                                                                          
+                0.11332178115844727,                                                                                                                                                                                                                                          
+                0.10945606231689453,                                                                                                                                                                                                                                          
+                0.1804819107055664,                                                                                                                                                                                                                                           
+                0.12473344802856445,                                                                                                                                                                                                                                          
+                0.11565685272216797,                                                                                                                                                                                                                                          
+                0.07773780822753906,                                                                                                                                                                                                                                          
+                0.09123706817626953,                                                                                                                                                                                                                                          
+                0.09968996047973633,                                                                                                                                                                                                                                          
+                0.08687496185302734,                                                                                                                                                                                                                                          
+                0.11712026596069336,                                                                                                                                                                                                                                          
+                0.12665796279907227,                                                                                                                                                                                                                                          
+                0.1505904197692871,                                                                                                                                                                                                                                           
+                0.172607421875,                                                                                                                                                                                                                                               
+                0.1394972801208496,                                                                                                                                                                                                                                           
+                0.14840412139892578,                                                                                                                                                                                                                                          
+                0.05542564392089844,
             ]
             for (output, s) in zip(output_files, sums):
                 ave = np.mean(nib.load(output).get_fdata())
