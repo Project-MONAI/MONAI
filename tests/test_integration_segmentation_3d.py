@@ -18,11 +18,10 @@ from glob import glob
 import nibabel as nib
 import numpy as np
 import torch
-from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 import monai
-from monai.data import NiftiSaver, create_test_image_3d, list_data_collate
+from monai.data import NiftiSaver, create_test_image_3d
 from monai.inferers import sliding_window_inference
 from monai.metrics import DiceMetric
 from monai.networks.nets import UNet

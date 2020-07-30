@@ -43,7 +43,7 @@ class TestLoadSpacingOrientation(unittest.TestCase):
         self.assertTrue(t2 >= t1)
         np.testing.assert_allclose(res_dict["image_meta_dict"]["affine"], ref.affine)
         np.testing.assert_allclose(res_dict["image"].shape[1:], ref.shape)
-        np.testing.assert_allclose(ref.get_fdata(), res_dict["image"][0], atol=0.05)
+        np.testing.assert_allclose(ref.get_fdata(), res_dict["image"][0], rtol=1e-04, atol=0.05)
 
     @parameterized.expand(FILES)
     def test_load_spacingd_rotate(self, filename):
