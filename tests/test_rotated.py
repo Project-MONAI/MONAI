@@ -78,7 +78,7 @@ class TestRotated3D(NumpyImageTestCase3D):
         expected = scipy.ndimage.rotate(
             self.imt[0, 0], angle, (0, 2), not keep_size, order=_order, mode=_mode, prefilter=False
         )
-        np.testing.assert_allclose(expected, rotated["img"][0], atol=1e-3)
+        np.testing.assert_allclose(expected.astype(np.float32), rotated["img"][0], atol=1e-3)
 
         expected = scipy.ndimage.rotate(
             self.segn[0, 0], angle, (0, 2), not keep_size, order=0, mode=_mode, prefilter=False
