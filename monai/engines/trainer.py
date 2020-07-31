@@ -246,7 +246,9 @@ class GanTrainer(Trainer):
         self.latent_shape = latent_shape
         self.make_latent = make_latent
 
-    def _iteration(self, engine: Engine, batchdata: Union[Dict, Sequence]) -> Dict[str, torch.Tensor]:
+    def _iteration(
+        self, engine: Engine, batchdata: Union[Dict, Sequence]
+    ) -> Dict[str, Union[torch.Tensor, int, float, bool]]:
         """
         Callback function for Adversarial Training processing logic of 1 iteration in Ignite Engine.
 
@@ -276,8 +278,7 @@ class GanTrainer(Trainer):
             dloss = self.d_loss_function(fake_data, real_data)
             dloss.backward()
             self.d_optimizer.step()
-            d_total_loss = torch.add(d_total_loss, dloss.item())
-        d_total_loss = d_total_loss.item()
+            d_total_loss += dloss.item()
 
         # Train Generator
         fake_latents = self.make_latent(batch_size, self.latent_shape).to(engine.state.device)
@@ -286,12 +287,11 @@ class GanTrainer(Trainer):
         g_loss = self.g_loss_function(fake_data)
         g_loss.backward()
         self.g_optimizer.step()
-        g_loss = g_loss.item()
 
         return {
             GanKeys.REALS: real_data,
             GanKeys.FAKES: fake_data,
             GanKeys.LATENTS: fake_latents,
-            GanKeys.GLOSS: g_loss,
-            GanKeys.DLOSS: d_total_loss,
+            GanKeys.GLOSS: g_loss.item(),
+            GanKeys.DLOSS: d_total_loss.item(),
         }
