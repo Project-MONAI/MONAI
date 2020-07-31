@@ -52,6 +52,8 @@ def run_training_test(root_dir, device=torch.device("cuda:0"), cachedataset=Fals
         [
             LoadNiftid(keys=["img", "seg"]),
             AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
+            # resampling with align_corners=True or dtype=float64 will generate
+            # slight different results between PyTorch 1.5 an 1.6
             Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"], dtype=np.float32),
             ScaleIntensityd(keys=["img", "seg"]),
             RandCropByPosNegLabeld(
@@ -66,6 +68,8 @@ def run_training_test(root_dir, device=torch.device("cuda:0"), cachedataset=Fals
         [
             LoadNiftid(keys=["img", "seg"]),
             AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
+            # resampling with align_corners=True or dtype=float64 will generate
+            # slight different results between PyTorch 1.5 an 1.6
             Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"], dtype=np.float32),
             ScaleIntensityd(keys=["img", "seg"]),
             ToTensord(keys=["img", "seg"]),
@@ -172,6 +176,8 @@ def run_inference_test(root_dir, device=torch.device("cuda:0")):
         [
             LoadNiftid(keys=["img", "seg"]),
             AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
+            # resampling with align_corners=True or dtype=float64 will generate
+            # slight different results between PyTorch 1.5 an 1.6
             Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"], dtype=np.float32),
             ScaleIntensityd(keys=["img", "seg"]),
             ToTensord(keys=["img", "seg"]),
@@ -197,6 +203,8 @@ def run_inference_test(root_dir, device=torch.device("cuda:0")):
     with torch.no_grad():
         metric_sum = 0.0
         metric_count = 0
+        # resampling with align_corners=True or dtype=float64 will generate
+        # slight different results between PyTorch 1.5 an 1.6
         saver = NiftiSaver(output_dir=os.path.join(root_dir, "output"), dtype=np.float32)
         for val_data in val_loader:
             val_images, val_labels = val_data["img"].to(device), val_data["seg"].to(device)
@@ -272,46 +280,46 @@ class IntegrationSegmentation3D(unittest.TestCase):
             repeated[i].append(infer_metric)
             output_files = sorted(glob(os.path.join(self.data_dir, "output", "img*", "*.nii.gz")))
             sums = [
-                0.12336349487304688,
-                0.13206148147583008,
-                0.13308095932006836,
-                0.12144947052001953,
-                0.16551685333251953,
-                0.14838314056396484,
-                0.12742090225219727,
-                0.14656400680541992,
-                0.1361546516418457,
-                0.1563725471496582,
-                0.1406416893005371,
-                0.14858484268188477,
-                0.12518072128295898,
-                0.09787416458129883,
-                0.14049768447875977,
-                0.17739439010620117,
-                0.1531052589416504,
-                0.08342742919921875,
-                0.17009639739990234,
-                0.17636537551879883,
-                0.17191743850708008,
-                0.18233776092529297,
-                0.14233875274658203,
-                0.11428642272949219,
-                0.12795257568359375,
-                0.12465047836303711,
-                0.20317840576171875,
-                0.14147615432739258,
-                0.13007879257202148,
-                0.08860254287719727,
-                0.10342979431152344,
-                0.11205673217773438,
-                0.09766292572021484,
-                0.13333654403686523,
-                0.14294099807739258,
-                0.17041444778442383,
-                0.19504404067993164,
-                0.15809106826782227,
-                0.16690874099731445,
-                0.06385278701782227,
+                0.1424753292588007,
+                0.1526987837377587,
+                0.1522260782081298,
+                0.14019321331952597,
+                0.1889864339514267,
+                0.1701282966371258,
+                0.14722480298056123,
+                0.16880386820665885,
+                0.15761801809458714,
+                0.17966934735315532,
+                0.16294827907125564,
+                0.16845101446685762,
+                0.1449689105633501,
+                0.11433514172116171,
+                0.16221140044365004,
+                0.20167776688188802,
+                0.17651101148068069,
+                0.09850290784203589,
+                0.19442294509584152,
+                0.20366986799489217,
+                0.19687920603828438,
+                0.20891339578342968,
+                0.16267399855187073,
+                0.13240519812867665,
+                0.14902747106846712,
+                0.14290015447893328,
+                0.23212359931942977,
+                0.16157145267490547,
+                0.14873448049959515,
+                0.10324549379352314,
+                0.11922617331906066,
+                0.13010115069670078,
+                0.1142811082302379,
+                0.15300297514849476,
+                0.1636881807980574,
+                0.1943394302416328,
+                0.22336282196225676,
+                0.1813985200502387,
+                0.19082037882616065,
+                0.07541222674515398,
             ]
             for (output, s) in zip(output_files, sums):
                 ave = np.mean(nib.load(output).get_fdata())
