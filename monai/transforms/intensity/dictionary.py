@@ -23,8 +23,8 @@ from monai.config import KeysCollection
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.intensity.array import (
     AdjustContrast,
-    GaussianSmooth,
     GaussianSharpen,
+    GaussianSmooth,
     MaskIntensity,
     NormalizeIntensity,
     ScaleIntensity,

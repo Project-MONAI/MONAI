@@ -159,6 +159,11 @@ Nets
 ----
 .. currentmodule:: monai.networks.nets
 
+`Ahnet`
+~~~~~~~
+.. autoclass:: AHNet
+  :members:
+
 `Densenet3D`
 ~~~~~~~~~~~~
 .. autoclass:: DenseNet

@@ -14,9 +14,7 @@ from typing import Type
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from monai.utils import exact_version, optional_import
-
-models, _ = optional_import("torchvision", "0.5.0", exact_version, "models")
+from torchvision import models
 
 from monai.networks.layers.factories import Act, Conv, Dropout, Norm
 
@@ -32,9 +30,9 @@ class GCN(nn.Module):
     def __init__(self, inplanes: int, planes: int, ks: int = 7):
         """
         Args:
-            inplanes: number of input channels.
-            planes： number of output channels.
-            ks: kernel size for one dimension. Defaults to 7.
+            inplanes (int): number of input channels.
+            planes (int)： number of output channels.
+            ks (int): kernel size for one dimension. Defaults to 7.
         """
         super(GCN, self).__init__()
 
@@ -47,7 +45,7 @@ class GCN(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            x: in shape (batch, inplanes, spatial_1, spatial_2).
+            x (torch.Tensor): in shape (batch, inplanes, spatial_1, spatial_2).
         """
         x_l = self.conv_l1(x)
         x_l = self.conv_l2(x_l)
@@ -67,7 +65,7 @@ class Refine(nn.Module):
     def __init__(self, planes: int):
         """
         Args:
-            planes: number of input channels.
+            planes (int): number of input channels.
         """
         super(Refine, self).__init__()
 
@@ -83,7 +81,7 @@ class Refine(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            x: in shape (batch, planes, spatial_1, spatial_2).
+            x (torch.Tensor): in shape (batch, planes, spatial_1, spatial_2).
         """
         residual = x
         x = self.bn(x)
@@ -103,13 +101,13 @@ class FCN(nn.Module):
     with the GCN and Refine modules.
     The code is adapted from lsqshr's original version:
     https://github.com/lsqshr/AH-Net/blob/master/net2d.py
+
+    Args:
+        nout (int): number of output channels. Defaults to 1.
+        deter_flag (bool): let deter_flag=True if needs to make the training process deterministic.
     """
 
-    def __init__(self, nout: int = 1):
-        """
-        Args:
-            nout: number of output channels. Defaults to 1.
-        """
+    def __init__(self, nout: int = 1, deter_flag: bool = False):
         super(FCN, self).__init__()
 
         relu_type: Type[nn.ReLU] = Act[Act.RELU]
@@ -117,6 +115,7 @@ class FCN(nn.Module):
         norm2d_type: Type[nn.BatchNorm2d] = Norm[Norm.BATCH, 2]
         dropout_type: Type[nn.Dropout] = Dropout[Dropout.DROPOUT, 1]
 
+        self.deter_flag = deter_flag
         self.relu_type = relu_type
         self.norm2d_type = norm2d_type
         self.conv2d_type = conv2d_type
@@ -152,8 +151,17 @@ class FCN(nn.Module):
         self.refine10 = Refine(self.nout)
         self.transformer = self.conv2d_type(in_channels=256, out_channels=64, kernel_size=1)
 
-    def _regresser(self, inplanes: int) -> nn.Sequential:
+        if self.deter_flag:
+            conv2d_trans_type: Type[nn.ConvTranspose2d] = Conv[Conv.CONVTRANS, 2]
+            self.up_conv = conv2d_trans_type(
+                in_channels=self.nout, out_channels=self.nout, kernel_size=2, stride=2, bias=False,
+            )
 
+    def _regresser(self, inplanes: int) -> nn.Sequential:
+        """
+        Args:
+            inplanes (int): number of input channels.
+        """
         return nn.Sequential(
             self.conv2d_type(inplanes, inplanes, kernel_size=3, padding=1, bias=False),
             self.norm2d_type(inplanes // 2),
@@ -165,7 +173,7 @@ class FCN(nn.Module):
     def forward(self, x: torch.Tensor):
         """
         Args:
-            x: in shape (batch, 3, spatial_1, spatial_2).
+            x (torch.Tensor): in shape (batch, 3, spatial_1, spatial_2).
         """
         org_input = x
         x = self.conv1(x)
@@ -186,11 +194,18 @@ class FCN(nn.Module):
         gcfm4 = self.refine4(self.gcn4(pool_x))
         gcfm5 = self.refine5(self.gcn5(conv_x))
 
-        fs1 = self.refine6(F.interpolate(gcfm1, fm3.size()[2:], mode="bilinear", align_corners=True) + gcfm2)
-        fs2 = self.refine7(F.interpolate(fs1, fm2.size()[2:], mode="bilinear", align_corners=True) + gcfm3)
-        fs3 = self.refine8(F.interpolate(fs2, pool_x.size()[2:], mode="bilinear", align_corners=True) + gcfm4)
-        fs4 = self.refine9(F.interpolate(fs3, conv_x.size()[2:], mode="bilinear", align_corners=True) + gcfm5)
-        out = self.refine10(F.interpolate(fs4, org_input.size()[2:], mode="bilinear", align_corners=True))
+        if self.deter_flag:
+            fs1 = self.refine6(self.up_conv(gcfm1) + gcfm2)
+            fs2 = self.refine7(self.up_conv(fs1) + gcfm3)
+            fs3 = self.refine8(self.up_conv(fs2) + gcfm4)
+            fs4 = self.refine9(self.up_conv(fs3) + gcfm5)
+            out = self.refine10(self.up_conv(fs4))
+        else:
+            fs1 = self.refine6(F.interpolate(gcfm1, fm3.size()[2:], mode="bilinear", align_corners=True) + gcfm2)
+            fs2 = self.refine7(F.interpolate(fs1, fm2.size()[2:], mode="bilinear", align_corners=True) + gcfm3)
+            fs3 = self.refine8(F.interpolate(fs2, pool_x.size()[2:], mode="bilinear", align_corners=True) + gcfm4)
+            fs4 = self.refine9(F.interpolate(fs3, conv_x.size()[2:], mode="bilinear", align_corners=True) + gcfm5)
+            out = self.refine10(F.interpolate(fs4, org_input.size()[2:], mode="bilinear", align_corners=True))
 
         return out
 
@@ -201,20 +216,20 @@ class MCFCN(FCN):
     Adds a projection layer to take arbitrary number of inputs.
     The code is adapted from lsqshr's original version:
     https://github.com/lsqshr/AH-Net/blob/master/net2d.py
+    Args:
+        nin (int): number of input channels. Defaults to 3.
+        nout (int): number of output channels. Defaults to 1.
+        deter_flag (bool): let deter_flag=True if needs to make the training process deterministic.
     """
 
-    def __init__(self, nin=3, nout=1):
-        """
-        Args:
-            nin: number of input channels. Defaults to 3.
-            nout: number of output channels. Defaults to 1.
-        """
+    def __init__(self, nin: int = 3, nout: int = 1, deter_flag: bool = False):
         super(MCFCN, self).__init__(nout)
 
         relu_type: Type[nn.ReLU] = Act[Act.RELU]
         conv2d_type: Type[nn.Conv2d] = Conv[Conv.CONV, 2]
         norm2d_type: Type[nn.BatchNorm2d] = Norm[Norm.BATCH, 2]
 
+        self.deter_flag = deter_flag
         self.init_proj = nn.Sequential(
             conv2d_type(nin, 3, kernel_size=1, padding=0, bias=False), norm2d_type(3), relu_type(inplace=True)
         )
@@ -222,7 +237,7 @@ class MCFCN(FCN):
     def forward(self, x: torch.Tensor):
         """
         Args:
-            x: in shape (batch, nin, spatial_1, spatial_2).
+            x (torch.Tensor): in shape (batch, nin, spatial_1, spatial_2).
         """
         x = self.init_proj(x)
         out = super(MCFCN, self).forward(x)
