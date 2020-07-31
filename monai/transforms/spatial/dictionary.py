@@ -736,7 +736,6 @@ class Rotated(MapTransform):
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
 
-
     def __call__(self, data):
         d = dict(data)
         for idx, key in enumerate(self.keys):
