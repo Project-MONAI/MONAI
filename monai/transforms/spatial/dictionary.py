@@ -73,7 +73,8 @@ class Spacingd(MapTransform):
         diagonal: bool = False,
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
-        dtype: Optional[Union[Sequence[np.dtype], np.dtype]] = None,
+        align_corners: Union[Sequence[bool], bool] = False,
+        dtype: Optional[Union[Sequence[np.dtype], np.dtype]] = np.float64,
         meta_key_postfix: str = "meta_dict",
     ) -> None:
         """
@@ -99,9 +100,13 @@ class Spacingd(MapTransform):
                 Padding mode for outside grid values. Defaults to ``"border"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
-            dtype: output array data type.
-                Defaults to None to use input data's dtype. It also can be a sequence of np.dtype,
-                each element corresponds to a key in ``keys``.
+            align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                It also can be a sequence of bool, each element corresponds to a key in ``keys``.
+            dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
+                If None, use the data type of input data. To be compatible with other modules,
+                the output data type is always ``np.float32``.
+                It also can be a sequence of np.dtype, each element corresponds to a key in ``keys``.
             meta_key_postfix: use `key_{postfix}` to to fetch the meta data according to the key data,
                 default is `meta_dict`, the meta data is a dictionary object.
                 For example, to handle key `image`,  read/write affine matrices from the
@@ -115,6 +120,7 @@ class Spacingd(MapTransform):
         self.spacing_transform = Spacing(pixdim, diagonal=diagonal)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
+        self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         if not isinstance(meta_key_postfix, str):
             raise TypeError(f"meta_key_postfix must be a str but is {type(meta_key_postfix).__name__}.")
@@ -131,6 +137,7 @@ class Spacingd(MapTransform):
                 affine=meta_data["affine"],
                 mode=self.mode[idx],
                 padding_mode=self.padding_mode[idx],
+                align_corners=self.align_corners[idx],
                 dtype=self.dtype[idx],
             )
             # set the 'affine' key
@@ -703,8 +710,12 @@ class Rotated(MapTransform):
             See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             It also can be a sequence of string, each element corresponds to a key in ``keys``.
         align_corners: Defaults to False.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             It also can be a sequence of bool, each element corresponds to a key in ``keys``.
+        dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
+            If None, use the data type of input data. To be compatible with other modules,
+            the output data type is always ``np.float32``.
+            It also can be a sequence of dtype or None, each element corresponds to a key in ``keys``.
     """
 
     def __init__(
@@ -715,6 +726,7 @@ class Rotated(MapTransform):
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
         align_corners: Union[Sequence[bool], bool] = False,
+        dtype: Union[Sequence[Optional[np.dtype]], Optional[np.dtype]] = np.float64,
     ) -> None:
         super().__init__(keys)
         self.rotator = Rotate(angle=angle, keep_size=keep_size)
@@ -722,12 +734,17 @@ class Rotated(MapTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
+        self.dtype = ensure_tuple_rep(dtype, len(self.keys))
 
     def __call__(self, data):
         d = dict(data)
         for idx, key in enumerate(self.keys):
             d[key] = self.rotator(
-                d[key], mode=self.mode[idx], padding_mode=self.padding_mode[idx], align_corners=self.align_corners[idx],
+                d[key],
+                mode=self.mode[idx],
+                padding_mode=self.padding_mode[idx],
+                align_corners=self.align_corners[idx],
+                dtype=self.dtype[idx],
             )
         return d
 
@@ -760,6 +777,10 @@ class RandRotated(Randomizable, MapTransform):
         align_corners: Defaults to False.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             It also can be a sequence of bool, each element corresponds to a key in ``keys``.
+        dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
+            If None, use the data type of input data. To be compatible with other modules,
+            the output data type is always ``np.float32``.
+            It also can be a sequence of dtype or None, each element corresponds to a key in ``keys``.
     """
 
     def __init__(
@@ -773,6 +794,7 @@ class RandRotated(Randomizable, MapTransform):
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
         align_corners: Union[Sequence[bool], bool] = False,
+        dtype: Union[Sequence[Optional[np.dtype]], Optional[np.dtype]] = np.float64,
     ) -> None:
         super().__init__(keys)
         self.range_x = ensure_tuple(range_x)
@@ -790,6 +812,7 @@ class RandRotated(Randomizable, MapTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
+        self.dtype = ensure_tuple_rep(dtype, len(self.keys))
 
         self._do_transform = False
         self.x = 0.0
@@ -812,7 +835,11 @@ class RandRotated(Randomizable, MapTransform):
         )
         for idx, key in enumerate(self.keys):
             d[key] = rotator(
-                d[key], mode=self.mode[idx], padding_mode=self.padding_mode[idx], align_corners=self.align_corners[idx],
+                d[key],
+                mode=self.mode[idx],
+                padding_mode=self.padding_mode[idx],
+                align_corners=self.align_corners[idx],
+                dtype=self.dtype[idx],
             )
         return d
 

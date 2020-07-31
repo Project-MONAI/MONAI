@@ -30,7 +30,8 @@ def write_nifti(
     output_spatial_shape: Optional[Sequence[int]] = None,
     mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
     padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
-    dtype: Optional[np.dtype] = None,
+    align_corners: bool = False,
+    dtype: Optional[np.dtype] = np.float64,
 ) -> None:
     """
     Write numpy data into NIfTI files to disk.  This function converts data
@@ -80,9 +81,14 @@ def write_nifti(
             This option is used when ``resample = True``.
             Padding mode for outside grid values. Defaults to ``"border"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-        dtype: convert the image to save to this data type.
+        align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
+            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+        dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
+            If None, use the data type of input data. To be compatible with other modules,
+            the output data type is always ``np.float32``.
     """
     assert isinstance(data, np.ndarray), "input data must be numpy array."
+    dtype = dtype or data.dtype
     sr = min(data.ndim, 3)
     if affine is None:
         affine = np.eye(4, dtype=np.float64)
@@ -94,7 +100,7 @@ def write_nifti(
 
     if np.allclose(affine, target_affine, atol=1e-3):
         # no affine changes, save (data, affine)
-        results_img = nib.Nifti1Image(data.astype(dtype), to_affine_nd(3, target_affine))
+        results_img = nib.Nifti1Image(data.astype(np.float32), to_affine_nd(3, target_affine))
         nib.save(results_img, file_name)
         return
 
@@ -106,13 +112,13 @@ def write_nifti(
     data = nib.orientations.apply_orientation(data, ornt_transform)
     _affine = affine @ nib.orientations.inv_ornt_aff(ornt_transform, data_shape)
     if np.allclose(_affine, target_affine, atol=1e-3) or not resample:
-        results_img = nib.Nifti1Image(data.astype(dtype), to_affine_nd(3, target_affine))
+        results_img = nib.Nifti1Image(data.astype(np.float32), to_affine_nd(3, target_affine))
         nib.save(results_img, file_name)
         return
 
     # need resampling
     affine_xform = AffineTransform(
-        normalized=False, mode=mode, padding_mode=padding_mode, align_corners=True, reverse_indexing=True
+        normalized=False, mode=mode, padding_mode=padding_mode, align_corners=align_corners, reverse_indexing=True
     )
     transform = np.linalg.inv(_affine) @ target_affine
     if output_spatial_shape is None:
@@ -125,8 +131,8 @@ def write_nifti(
         data_ = data.reshape(list(spatial_shape) + [-1])
         data_ = np.moveaxis(data_, -1, 0)  # channel first for pytorch
         data_ = affine_xform(
-            torch.from_numpy(data_.astype(np.float64)).unsqueeze(0),
-            torch.from_numpy(transform.astype(np.float64)),
+            torch.as_tensor(np.ascontiguousarray(data_).astype(dtype)).unsqueeze(0),
+            torch.as_tensor(np.ascontiguousarray(transform).astype(dtype)),
             spatial_size=output_spatial_shape_[:3],
         )
         data_ = data_.squeeze(0).detach().cpu().numpy()
@@ -136,12 +142,12 @@ def write_nifti(
         while len(output_spatial_shape_) < len(data.shape):
             output_spatial_shape_ = output_spatial_shape_ + [1]
         data_ = affine_xform(
-            torch.from_numpy((data.astype(np.float64))[None, None]),
-            torch.from_numpy(transform.astype(np.float64)),
+            torch.as_tensor(np.ascontiguousarray(data).astype(dtype)[None, None]),
+            torch.as_tensor(np.ascontiguousarray(transform).astype(dtype)),
             spatial_size=output_spatial_shape_[: len(data.shape)],
         )
         data_ = data_.squeeze(0).squeeze(0).detach().cpu().numpy()
-    dtype = dtype or data.dtype
-    results_img = nib.Nifti1Image(data_.astype(dtype), to_affine_nd(3, target_affine))
+
+    results_img = nib.Nifti1Image(data_.astype(np.float32), to_affine_nd(3, target_affine))
     nib.save(results_img, file_name)
     return
