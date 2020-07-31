@@ -5,8 +5,6 @@ on:
   push:
     branches:
       - master
-      # add for temp test
-      - fix-pytorch-1.6-integration-test
 
 jobs:
   coverage-py3:

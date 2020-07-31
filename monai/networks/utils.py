@@ -80,7 +80,7 @@ def predict_segmentation(logits: torch.Tensor, mutually_exclusive: bool = False,
 def normalize_transform(
     shape: Sequence[int],
     device: Optional[torch.device] = None,
-    dtype: Optional[torch.dtype] = torch.float64,
+    dtype: Optional[torch.dtype] = None,
     align_corners: bool = False,
 ):
     """
