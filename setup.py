@@ -21,6 +21,8 @@ def get_extensions():
     try:
         import torch
         from torch.utils.cpp_extension import CUDA_HOME, CppExtension, CUDAExtension
+
+        print(f"setup.py with torch {torch.__version__}")
     except ImportError:
         warnings.warn("torch cpp/cuda building skipped.")
         return []
