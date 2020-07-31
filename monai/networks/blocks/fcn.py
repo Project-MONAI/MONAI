@@ -225,13 +225,12 @@ class MCFCN(FCN):
     """
 
     def __init__(self, nin: int = 3, nout: int = 1, deter_flag: bool = False):
-        super(MCFCN, self).__init__(nout)
+        super(MCFCN, self).__init__(nout=nout, deter_flag=deter_flag)
 
         relu_type: Type[nn.ReLU] = Act[Act.RELU]
         conv2d_type: Type[nn.Conv2d] = Conv[Conv.CONV, 2]
         norm2d_type: Type[nn.BatchNorm2d] = Norm[Norm.BATCH, 2]
 
-        self.deter_flag = deter_flag
         self.init_proj = nn.Sequential(
             conv2d_type(nin, 3, kernel_size=1, padding=0, bias=False), norm2d_type(3), relu_type(inplace=True)
         )
