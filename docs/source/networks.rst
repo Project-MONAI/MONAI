@@ -129,6 +129,11 @@ Layers
 .. autoclass:: monai.networks.layers.AffineTransform
     :members:
 
+`LLTM`
+~~~~~~
+.. autoclass:: LLTM
+    :members:
+
 `Utilities`
 ~~~~~~~~~~~
 .. automodule:: monai.networks.layers.convutils
