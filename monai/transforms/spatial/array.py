@@ -69,7 +69,7 @@ class Spacing(Transform):
         diagonal: bool = False,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
-        align_corners: bool = True,
+        align_corners: bool = False,
         dtype: Optional[np.dtype] = np.float64,
     ) -> None:
         """
@@ -94,7 +94,9 @@ class Spacing(Transform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-            dtype: data type for all the computation. Defaults to ``np.float64`` for best precision.
+            dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
+                If None, use the data type of input data. To be compatible with other modules,
+                the output data type is always ``np.float32``.
         """
         self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
         self.diagonal = diagonal
@@ -124,7 +126,9 @@ class Spacing(Transform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-            dtype: data type for all the computation. Defaults to ``self.dtype``.
+            dtype: data type for resampling computation. Defaults to ``self.dtype``.
+                If None, use the data type of input data. To be compatible with other modules,
+                the output data type is always ``np.float32``.
 
         Raises:
             ValueError: When ``data_array`` has no spatial dimensions.
@@ -134,7 +138,7 @@ class Spacing(Transform):
             data_array (resampled into `self.pixdim`), original pixdim, current pixdim.
 
         """
-        _dtype = dtype or self.dtype or np.float64
+        _dtype = dtype or self.dtype or data_array.dtype
         sr = data_array.ndim - 1
         if sr <= 0:
             raise ValueError("data_array must have at least one spatial dimension.")
@@ -159,7 +163,7 @@ class Spacing(Transform):
 
         # no resampling if it's identity transform
         if np.allclose(transform_, np.diag(np.ones(len(transform_))), atol=1e-3):
-            output_data = data_array.copy().astype(_dtype)
+            output_data = data_array.copy().astype(np.float32)
             new_affine = to_affine_nd(affine, new_affine)
             return output_data, affine, new_affine
 
@@ -177,7 +181,7 @@ class Spacing(Transform):
             torch.as_tensor(np.ascontiguousarray(transform_).astype(_dtype)),
             spatial_size=output_shape,
         )
-        output_data = output_data.squeeze(0).detach().cpu().numpy()
+        output_data = output_data.squeeze(0).detach().cpu().numpy().astype(np.float32)
         new_affine = to_affine_nd(affine, new_affine)
         return output_data, affine, new_affine
 
@@ -367,7 +371,10 @@ class Rotate(Transform):
             Padding mode for outside grid values. Defaults to ``"border"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         align_corners: Defaults to False.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+        dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
+            If None, use the data type of input data. To be compatible with other modules,
+            the output data type is always ``np.float32``.
     """
 
     def __init__(
@@ -377,12 +384,14 @@ class Rotate(Transform):
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         align_corners: bool = False,
+        dtype: Optional[np.dtype] = np.float64,
     ) -> None:
         self.angle = angle
         self.keep_size = keep_size
         self.mode: GridSampleMode = GridSampleMode(mode)
         self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
         self.align_corners = align_corners
+        self.dtype = dtype
 
     def __call__(
         self,
@@ -390,6 +399,7 @@ class Rotate(Transform):
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
+        dtype: Optional[np.dtype] = None,
     ) -> np.ndarray:
         """
         Args:
@@ -404,11 +414,15 @@ class Rotate(Transform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             align_corners: Defaults to ``self.align_corners``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            dtype: data type for resampling computation. Defaults to ``self.dtype``.
+                If None, use the data type of input data. To be compatible with other modules,
+                the output data type is always ``np.float32``.
 
         Raises:
             ValueError: When ``img`` spatially is not one of [2D, 3D].
 
         """
+        _dtype = dtype or self.dtype or img.dtype
         im_shape = np.asarray(img.shape[1:])  # spatial dimensions
         input_ndim = len(im_shape)
         if input_ndim not in (2, 3):
@@ -427,7 +441,7 @@ class Rotate(Transform):
             output_shape = (corners.ptp(axis=1) + 0.5).astype(int)
         shift_1 = create_translate(input_ndim, -(output_shape - 1) / 2)
         transform = shift @ transform @ shift_1
-        _dtype = img.dtype
+
         xform = AffineTransform(
             normalized=False,
             mode=mode or self.mode,
@@ -436,11 +450,11 @@ class Rotate(Transform):
             reverse_indexing=True,
         )
         output = xform(
-            torch.from_numpy(img.astype(np.float64)).unsqueeze(0),
-            torch.from_numpy(transform.astype(np.float64)),
+            torch.as_tensor(np.ascontiguousarray(img).astype(_dtype)).unsqueeze(0),
+            torch.as_tensor(np.ascontiguousarray(transform).astype(_dtype)),
             spatial_size=output_shape,
         )
-        output = output.squeeze(0).detach().cpu().numpy().astype(_dtype)
+        output = output.squeeze(0).detach().cpu().numpy().astype(np.float32)
         return output
 
 
@@ -601,7 +615,10 @@ class RandRotate(Randomizable, Transform):
             Padding mode for outside grid values. Defaults to ``"border"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         align_corners: Defaults to False.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+        dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
+            If None, use the data type of input data. To be compatible with other modules,
+            the output data type is always ``np.float32``.
     """
 
     def __init__(
@@ -614,6 +631,7 @@ class RandRotate(Randomizable, Transform):
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         align_corners: bool = False,
+        dtype: Optional[np.dtype] = np.float64,
     ) -> None:
         self.range_x = ensure_tuple(range_x)
         if len(self.range_x) == 1:
@@ -630,6 +648,7 @@ class RandRotate(Randomizable, Transform):
         self.mode: GridSampleMode = GridSampleMode(mode)
         self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
         self.align_corners = align_corners
+        self.dtype = dtype
 
         self._do_transform = False
         self.x = 0.0
@@ -648,6 +667,7 @@ class RandRotate(Randomizable, Transform):
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
+        dtype: Optional[np.dtype] = None,
     ) -> np.ndarray:
         """
         Args:
@@ -660,6 +680,9 @@ class RandRotate(Randomizable, Transform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             align_corners: Defaults to ``self.align_corners``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            dtype: data type for resampling computation. Defaults to ``self.dtype``.
+                If None, use the data type of input data. To be compatible with other modules,
+                the output data type is always ``np.float32``.
         """
         self.randomize()
         if not self._do_transform:
@@ -670,6 +693,7 @@ class RandRotate(Randomizable, Transform):
             mode=mode or self.mode,
             padding_mode=padding_mode or self.padding_mode,
             align_corners=self.align_corners if align_corners is None else align_corners,
+            dtype=dtype or self.dtype or img.dtype,
         )
         return rotator(img)
 

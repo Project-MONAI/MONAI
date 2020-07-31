@@ -35,7 +35,7 @@ class NiftiSaver:
         resample: bool = True,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
-        dtype: Optional[np.dtype] = None,
+        dtype: Optional[np.dtype] = np.float64,
     ) -> None:
         """
         Args:
@@ -51,8 +51,9 @@ class NiftiSaver:
                 This option is used when ``resample = True``.
                 Padding mode for outside grid values. Defaults to ``"border"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-            dtype: convert the image data to save to this data type.
-                If None, keep the original type of data.
+            dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
+                If None, use the data type of input data. To be compatible with other modules,
+                the output data type is always ``np.float32``.
         """
         self.output_dir = output_dir
         self.output_postfix = output_postfix
@@ -110,7 +111,7 @@ class NiftiSaver:
             output_spatial_shape=spatial_shape,
             mode=self.mode,
             padding_mode=self.padding_mode,
-            dtype=self.dtype or data.dtype,
+            dtype=self.dtype,
         )
 
     def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
