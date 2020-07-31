@@ -35,6 +35,7 @@ class NiftiSaver:
         resample: bool = True,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        align_corners: bool = False,
         dtype: Optional[np.dtype] = np.float64,
     ) -> None:
         """
@@ -51,6 +52,8 @@ class NiftiSaver:
                 This option is used when ``resample = True``.
                 Padding mode for outside grid values. Defaults to ``"border"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
@@ -61,6 +64,7 @@ class NiftiSaver:
         self.resample = resample
         self.mode: GridSampleMode = GridSampleMode(mode)
         self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
+        self.align_corners = align_corners
         self.dtype = dtype
         self._data_index = 0
 
@@ -111,6 +115,7 @@ class NiftiSaver:
             output_spatial_shape=spatial_shape,
             mode=self.mode,
             padding_mode=self.padding_mode,
+            align_corners=self.align_corners,
             dtype=self.dtype,
         )
 

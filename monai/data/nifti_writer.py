@@ -30,6 +30,7 @@ def write_nifti(
     output_spatial_shape: Optional[Sequence[int]] = None,
     mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
     padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+    align_corners: bool = False,
     dtype: Optional[np.dtype] = np.float64,
 ) -> None:
     """
@@ -80,6 +81,8 @@ def write_nifti(
             This option is used when ``resample = True``.
             Padding mode for outside grid values. Defaults to ``"border"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+        align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
+            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
             If None, use the data type of input data. To be compatible with other modules,
             the output data type is always ``np.float32``.
@@ -115,7 +118,7 @@ def write_nifti(
 
     # need resampling
     affine_xform = AffineTransform(
-        normalized=False, mode=mode, padding_mode=padding_mode, align_corners=True, reverse_indexing=True
+        normalized=False, mode=mode, padding_mode=padding_mode, align_corners=align_corners, reverse_indexing=True
     )
     transform = np.linalg.inv(_affine) @ target_affine
     if output_spatial_shape is None:

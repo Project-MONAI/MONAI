@@ -52,8 +52,7 @@ def run_training_test(root_dir, device=torch.device("cuda:0"), cachedataset=Fals
         [
             LoadNiftid(keys=["img", "seg"]),
             AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
-            Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"],
-                     align_corners=False, dtype=np.float32),
+            Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"], dtype=np.float32),
             ScaleIntensityd(keys=["img", "seg"]),
             RandCropByPosNegLabeld(
                 keys=["img", "seg"], label_key="seg", spatial_size=[96, 96, 96], pos=1, neg=1, num_samples=4
@@ -67,8 +66,7 @@ def run_training_test(root_dir, device=torch.device("cuda:0"), cachedataset=Fals
         [
             LoadNiftid(keys=["img", "seg"]),
             AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
-            Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"],
-                     align_corners=False, dtype=np.float32),
+            Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"], dtype=np.float32),
             ScaleIntensityd(keys=["img", "seg"]),
             ToTensord(keys=["img", "seg"]),
         ]
@@ -174,8 +172,7 @@ def run_inference_test(root_dir, device=torch.device("cuda:0")):
         [
             LoadNiftid(keys=["img", "seg"]),
             AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
-            Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"],
-                     align_corners=False, dtype=np.float32),
+            Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"], dtype=np.float32),
             ScaleIntensityd(keys=["img", "seg"]),
             ToTensord(keys=["img", "seg"]),
         ]
@@ -200,7 +197,7 @@ def run_inference_test(root_dir, device=torch.device("cuda:0")):
     with torch.no_grad():
         metric_sum = 0.0
         metric_count = 0
-        saver = NiftiSaver(output_dir=os.path.join(root_dir, "output"), dtype=int)
+        saver = NiftiSaver(output_dir=os.path.join(root_dir, "output"), dtype=np.float32)
         for val_data in val_loader:
             val_images, val_labels = val_data["img"].to(device), val_data["seg"].to(device)
             # define sliding window size and batch size for windows inference
