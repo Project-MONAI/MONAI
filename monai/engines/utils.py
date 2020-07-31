@@ -76,11 +76,12 @@ def get_devices_spec(devices: Optional[Sequence[torch.device]] = None) -> List[t
 
 def default_prepare_batch(batchdata: Dict[str, torch.Tensor]) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
     assert isinstance(batchdata, dict), "default prepare_batch expects dictionary input data."
-    return (
-        (batchdata[CommonKeys.IMAGE], batchdata[CommonKeys.LABEL])
-        if CommonKeys.LABEL in batchdata
-        else (batchdata[CommonKeys.IMAGE], None)
-    )
+    if CommonKeys.LABEL in batchdata:
+        return (batchdata[CommonKeys.IMAGE], batchdata[CommonKeys.LABEL])
+    elif GanKeys.REALS in batchdata:
+        return batchdata[GanKeys.REALS]
+    else:
+        return (batchdata[CommonKeys.IMAGE], None)
 
 
 def make_rand_latent_code(num_latents: int, latent_size: int) -> torch.Tensor:
