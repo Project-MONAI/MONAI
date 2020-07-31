@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -179,9 +179,7 @@ def plot_2d_or_3d_image(
         max_frames: number of frames for 2D-t plot.
         tag: tag of the plotted image on TensorBoard.
     """
-    d = data[index]
-    if torch.is_tensor(d):
-        d = d.detach().cpu().numpy()
+    d = data[index].detach().cpu().numpy() if torch.is_tensor(data) else data[index]
 
     if d.ndim == 2:
         d = rescale_array(d, 0, 1)

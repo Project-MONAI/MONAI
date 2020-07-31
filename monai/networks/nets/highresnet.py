@@ -9,14 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Union
+from typing import Any, Dict, Optional, Sequence, Union
 
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from monai.networks.layers.convutils import same_padding
 from monai.networks.layers.factories import Conv, Dropout, Norm
-from monai.utils import Normalisation, Activation, ChannelMatching
+from monai.utils import Activation, ChannelMatching, Normalisation
 
 SUPPORTED_NORM = {
     Normalisation.BATCH: lambda spatial_dims: Norm[Norm.BATCH, spatial_dims],
@@ -47,6 +48,19 @@ class ConvNormActi(nn.Module):
         acti_type: Optional[Union[Activation, str]] = None,
         dropout_prob: Optional[float] = None,
     ) -> None:
+        """
+        Args:
+            spatial_dims: number of spatial dimensions of the input image.
+            in_channels: number of input channels.
+            out_channels: number of output channels.
+            kernel_size: size of the convolving kernel.
+            norm_type: {``"batch"``, ``"instance"``}
+                Feature normalisation with batchnorm or instancenorm. Defaults to ``"batch"``.
+            acti_type: {``"relu"``, ``"prelu"``, ``"relu6"``}
+                Non-linear activation using ReLU or PReLU. Defaults to ``"relu"``.
+            dropout_prob: probability of the feature map to be zeroed
+                (only applies to the penultimate conv layer).
+        """
 
         super(ConvNormActi, self).__init__()
 
@@ -68,8 +82,8 @@ class ConvNormActi(nn.Module):
             layers.append(dropout_type(p=dropout_prob))
         self.layers = nn.Sequential(*layers)
 
-    def forward(self, x):
-        return self.layers(x)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return torch.as_tensor(self.layers(x))
 
 
 class HighResBlock(nn.Module):
@@ -79,14 +93,18 @@ class HighResBlock(nn.Module):
         in_channels: int,
         out_channels: int,
         kernels: Sequence[int] = (3, 3),
-        dilation=1,
+        dilation: Union[Sequence[int], int] = 1,
         norm_type: Union[Normalisation, str] = Normalisation.INSTANCE,
         acti_type: Union[Activation, str] = Activation.RELU,
         channel_matching: Union[ChannelMatching, str] = ChannelMatching.PAD,
     ) -> None:
         """
         Args:
+            spatial_dims: number of spatial dimensions of the input image.
+            in_channels: number of input channels.
+            out_channels: number of output channels.
             kernels: each integer k in `kernels` corresponds to a convolution layer with kernel size k.
+            dilation: spacing between kernel elements.
             norm_type: {``"batch"``, ``"instance"``}
                 Feature normalisation with batchnorm or instancenorm. Defaults to ``"instance"``.
             acti_type: {``"relu"``, ``"prelu"``, ``"relu6"``}
@@ -98,8 +116,7 @@ class HighResBlock(nn.Module):
                 - ``"project"``: with a trainable conv with kernel size.
 
         Raises:
-            ValueError: channel matching must be pad or project, got {channel_matching}.
-            ValueError: in_channels > out_channels is incompatible with `channel_matching=pad`.
+            ValueError: When ``channel_matching=pad`` and ``in_channels > out_channels``. Incompatible values.
 
         """
         super(HighResBlock, self).__init__()
@@ -114,7 +131,7 @@ class HighResBlock(nn.Module):
                 self.project = conv_type(in_channels, out_channels, kernel_size=1)
             if channel_matching == ChannelMatching.PAD:
                 if in_channels > out_channels:
-                    raise ValueError("in_channels > out_channels is incompatible with `channel_matching=pad`.")
+                    raise ValueError('Incompatible values: channel_matching="pad" and in_channels > out_channels.')
                 pad_1 = (out_channels - in_channels) // 2
                 pad_2 = out_channels - in_channels - pad_1
                 pad = [0, 0] * spatial_dims + [pad_1, pad_2] + [0, 0]
@@ -133,12 +150,12 @@ class HighResBlock(nn.Module):
             _in_chns = _out_chns
         self.layers = nn.Sequential(*layers)
 
-    def forward(self, x):
-        x_conv = self.layers(x)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x_conv: torch.Tensor = self.layers(x)
         if self.project is not None:
-            return x_conv + self.project(x)
+            return x_conv + torch.as_tensor(self.project(x))
         if self.pad is not None:
-            return x_conv + self.pad(x)
+            return x_conv + torch.as_tensor(self.pad(x))
         return x_conv + x
 
 
@@ -162,7 +179,7 @@ class HighResNet(nn.Module):
             Non-linear activation using ReLU or PReLU. Defaults to ``"relu"``.
         dropout_prob: probability of the feature map to be zeroed
             (only applies to the penultimate conv layer).
-        layer_params (a list of dictionaries): specifying key parameters of each layer/block.
+        layer_params: specifying key parameters of each layer/block.
     """
 
     def __init__(
@@ -173,7 +190,7 @@ class HighResNet(nn.Module):
         norm_type: Union[Normalisation, str] = Normalisation.BATCH,
         acti_type: Union[Activation, str] = Activation.RELU,
         dropout_prob: Optional[float] = None,
-        layer_params=DEFAULT_LAYER_PARAMS_3D,
+        layer_params: Sequence[Dict[str, Any]] = DEFAULT_LAYER_PARAMS_3D,
     ) -> None:
 
         super(HighResNet, self).__init__()
@@ -243,5 +260,5 @@ class HighResNet(nn.Module):
 
         self.blocks = nn.Sequential(*blocks)
 
-    def forward(self, x):
-        return self.blocks(x)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return torch.as_tensor(self.blocks(x))

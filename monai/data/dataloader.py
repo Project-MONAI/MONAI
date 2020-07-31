@@ -11,7 +11,8 @@
 
 from typing import Callable, Optional
 
-from torch.utils.data import Dataset, Sampler, DataLoader as _TorchDataLoader
+from torch.utils.data import DataLoader as _TorchDataLoader
+from torch.utils.data import Dataset, Sampler
 
 from monai.data.utils import list_data_collate, worker_init_fn
 

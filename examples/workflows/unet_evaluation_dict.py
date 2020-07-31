@@ -9,32 +9,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 import os
+import shutil
 import sys
 import tempfile
-import shutil
 from glob import glob
-import logging
+
 import nibabel as nib
 import numpy as np
 import torch
 from ignite.metrics import Accuracy
 
 import monai
-from monai.transforms import (
-    Compose,
-    LoadNiftid,
-    AsChannelFirstd,
-    ScaleIntensityd,
-    ToTensord,
-    Activationsd,
-    AsDiscreted,
-    KeepLargestConnectedComponentd,
-)
-from monai.handlers import StatsHandler, CheckpointLoader, SegmentationSaver, MeanDice
 from monai.data import create_test_image_3d
 from monai.engines import SupervisedEvaluator
+from monai.handlers import CheckpointLoader, MeanDice, SegmentationSaver, StatsHandler
 from monai.inferers import SlidingWindowInferer
+from monai.transforms import (
+    Activationsd,
+    AsChannelFirstd,
+    AsDiscreted,
+    Compose,
+    KeepLargestConnectedComponentd,
+    LoadNiftid,
+    ScaleIntensityd,
+    ToTensord,
+)
 
 
 def main():
