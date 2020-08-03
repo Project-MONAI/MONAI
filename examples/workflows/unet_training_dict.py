@@ -163,7 +163,7 @@ def main():
         optimizer=opt,
         loss_function=loss,
         inferer=SimpleInferer(),
-        amp=True,  # if no FP16 support in GPU or PyTorch version < 1.6, change to False
+        amp=True if monai.config.get_torch_version_tuple() >= (1, 6) else False,
         post_transform=train_post_transforms,
         key_train_metric={"train_acc": Accuracy(output_transform=lambda x: (x["pred"], x["label"]))},
         train_handlers=train_handlers,

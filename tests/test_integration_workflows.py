@@ -53,7 +53,7 @@ from monai.utils import set_determinism
 from tests.utils import skip_if_quick
 
 
-def run_training_test(root_dir, device=torch.device("cuda:0")):
+def run_training_test(root_dir, device=torch.device("cuda:0"), amp=False):
     images = sorted(glob(os.path.join(root_dir, "img*.nii.gz")))
     segs = sorted(glob(os.path.join(root_dir, "seg*.nii.gz")))
     train_files = [{"image": img, "label": seg} for img, seg in zip(images[:20], segs[:20])]
@@ -154,7 +154,7 @@ def run_training_test(root_dir, device=torch.device("cuda:0")):
         optimizer=opt,
         loss_function=loss,
         inferer=SimpleInferer(),
-        amp=False,
+        amp=True if amp and monai.config.get_torch_version_tuple() >= (1, 6) else False,
         post_transform=train_post_transforms,
         key_train_metric={"train_acc": Accuracy(output_transform=lambda x: (x["pred"], x["label"]))},
         train_handlers=train_handlers,
@@ -250,13 +250,15 @@ class IntegrationWorkflows(unittest.TestCase):
     @skip_if_quick
     def test_training(self):
         repeated = []
-        for i in range(2):
+        for i in range(3):
             torch.manual_seed(0)
 
             repeated.append([])
-            best_metric = run_training_test(self.data_dir, device=self.device)
+            best_metric = run_training_test(self.data_dir, device=self.device, amp=(i == 2))
             print("best metric", best_metric)
             np.testing.assert_allclose(best_metric, 0.9232678800821305, rtol=1e-3)
+            if i == 2:
+                break
             repeated[i].append(best_metric)
 
             model_file = sorted(glob(os.path.join(self.data_dir, "net_key_metric*.pth")))[-1]
