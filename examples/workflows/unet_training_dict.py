@@ -162,7 +162,7 @@ def main():
         optimizer=opt,
         loss_function=loss,
         inferer=SimpleInferer(),
-        amp=False,
+        amp=True,  # if no FP16 support in GPU or PyTorch version < 1.6, change to False
         post_transform=train_post_transforms,
         key_train_metric={"train_acc": Accuracy(output_transform=lambda x: (x["pred"], x["label"]))},
         train_handlers=train_handlers,

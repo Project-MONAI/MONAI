@@ -64,7 +64,6 @@ class Evaluator(Workflow):
         super().__init__(
             device=device,
             max_epochs=1,
-            amp=False,
             data_loader=val_data_loader,
             prepare_batch=prepare_batch,
             iteration_update=iteration_update,
