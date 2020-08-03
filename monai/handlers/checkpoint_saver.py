@@ -9,9 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, Optional, TYPE_CHECKING
-
 import logging
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from monai.utils import exact_version, optional_import
 
@@ -109,7 +108,9 @@ class CheckpointSaver:
                 elif hasattr(engine.state, "key_metric_name") and isinstance(engine.state.key_metric_name, str):
                     metric_name = engine.state.key_metric_name
                 else:
-                    raise ValueError("must provde key_metric_name to save best validation model.")
+                    raise ValueError(
+                        f"Incompatible values: save_key_metric=True and key_metric_name={key_metric_name}."
+                    )
                 return round(engine.state.metrics[metric_name], 4)
 
             self._key_metric_checkpoint = ModelCheckpoint(
@@ -135,6 +136,10 @@ class CheckpointSaver:
             )
 
     def attach(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
         if self._name is None:
             self.logger = engine.logger
         if self._final_checkpoint is not None:
@@ -152,6 +157,8 @@ class CheckpointSaver:
         """Callback for train or validation/evaluation completed Event.
         Save final checkpoint if configure save_final is True.
 
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
         assert callable(self._final_checkpoint), "Error: _final_checkpoint function not specified."
         self._final_checkpoint(engine, self.save_dict)
@@ -163,6 +170,9 @@ class CheckpointSaver:
         """Callback for train or validation/evaluation exception raised Event.
         Save current data as final checkpoint if configure save_final is True.
 
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+            e: the exception caught in Ignite during engine.run().
         """
         assert callable(self._final_checkpoint), "Error: _final_checkpoint function not specified."
         self._final_checkpoint(engine, self.save_dict)
@@ -173,6 +183,8 @@ class CheckpointSaver:
     def metrics_completed(self, engine: Engine) -> None:
         """Callback to compare metrics and save models in train or validation when epoch completed.
 
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
         assert callable(self._key_metric_checkpoint), "Error: _key_metric_checkpoint function not specified."
         self._key_metric_checkpoint(engine, self.save_dict)
@@ -181,6 +193,8 @@ class CheckpointSaver:
         """Callback for train epoch/iteration completed Event.
         Save checkpoint if configure save_interval = N
 
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
         assert callable(self._interval_checkpoint), "Error: _interval_checkpoint function not specified."
         self._interval_checkpoint(engine, self.save_dict)

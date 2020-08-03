@@ -15,7 +15,7 @@ defined in :py:class:`monai.transforms.spatial.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Optional, Sequence, Tuple, Union, Any
+from typing import Any, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -73,7 +73,8 @@ class Spacingd(MapTransform):
         diagonal: bool = False,
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
-        dtype: Optional[Union[Sequence[np.dtype], np.dtype]] = None,
+        align_corners: Union[Sequence[bool], bool] = False,
+        dtype: Optional[Union[Sequence[np.dtype], np.dtype]] = np.float64,
         meta_key_postfix: str = "meta_dict",
     ) -> None:
         """
@@ -99,25 +100,30 @@ class Spacingd(MapTransform):
                 Padding mode for outside grid values. Defaults to ``"border"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
-            dtype: output array data type.
-                Defaults to None to use input data's dtype. It also can be a sequence of np.dtype,
-                each element corresponds to a key in ``keys``.
+            align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                It also can be a sequence of bool, each element corresponds to a key in ``keys``.
+            dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
+                If None, use the data type of input data. To be compatible with other modules,
+                the output data type is always ``np.float32``.
+                It also can be a sequence of np.dtype, each element corresponds to a key in ``keys``.
             meta_key_postfix: use `key_{postfix}` to to fetch the meta data according to the key data,
                 default is `meta_dict`, the meta data is a dictionary object.
                 For example, to handle key `image`,  read/write affine matrices from the
                 metadata `image_meta_dict` dictionary's `affine` field.
 
         Raises:
-            ValueError: meta_key_postfix must be a string.
+            TypeError: When ``meta_key_postfix`` is not a ``str``.
 
         """
         super().__init__(keys)
         self.spacing_transform = Spacing(pixdim, diagonal=diagonal)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
+        self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         if not isinstance(meta_key_postfix, str):
-            raise ValueError("meta_key_postfix must be a string.")
+            raise TypeError(f"meta_key_postfix must be a str but is {type(meta_key_postfix).__name__}.")
         self.meta_key_postfix = meta_key_postfix
 
     def __call__(self, data):
@@ -131,6 +137,7 @@ class Spacingd(MapTransform):
                 affine=meta_data["affine"],
                 mode=self.mode[idx],
                 padding_mode=self.padding_mode[idx],
+                align_corners=self.align_corners[idx],
                 dtype=self.dtype[idx],
             )
             # set the 'affine' key
@@ -174,15 +181,16 @@ class Orientationd(MapTransform):
                 metadata `image_meta_dict` dictionary's `affine` field.
 
         Raises:
-            ValueError: meta_key_postfix must be a string.
+            TypeError: When ``meta_key_postfix`` is not a ``str``.
 
         See Also:
             `nibabel.orientations.ornt2axcodes`.
+
         """
         super().__init__(keys)
         self.ornt_transform = Orientation(axcodes=axcodes, as_closest_canonical=as_closest_canonical, labels=labels)
         if not isinstance(meta_key_postfix, str):
-            raise ValueError("meta_key_postfix must be a string.")
+            raise TypeError(f"meta_key_postfix must be a str but is {type(meta_key_postfix).__name__}.")
         self.meta_key_postfix = meta_key_postfix
 
     def __call__(self, data):
@@ -277,7 +285,7 @@ class Resized(MapTransform):
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             It also can be a sequence of string, each element corresponds to a key in ``keys``.
-        align_corners (bool, None or sequence of bool or None): This only has an effect when mode is
+        align_corners: This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             It also can be a sequence of bool or None, each element corresponds to a key in ``keys``.
@@ -288,7 +296,7 @@ class Resized(MapTransform):
         keys: KeysCollection,
         spatial_size: Union[Sequence[int], int],
         mode: InterpolateModeSequence = InterpolateMode.AREA,
-        align_corners=None,
+        align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
     ) -> None:
         super().__init__(keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
@@ -702,8 +710,12 @@ class Rotated(MapTransform):
             See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             It also can be a sequence of string, each element corresponds to a key in ``keys``.
         align_corners: Defaults to False.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             It also can be a sequence of bool, each element corresponds to a key in ``keys``.
+        dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
+            If None, use the data type of input data. To be compatible with other modules,
+            the output data type is always ``np.float32``.
+            It also can be a sequence of dtype or None, each element corresponds to a key in ``keys``.
     """
 
     def __init__(
@@ -714,6 +726,7 @@ class Rotated(MapTransform):
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
         align_corners: Union[Sequence[bool], bool] = False,
+        dtype: Union[Sequence[Optional[np.dtype]], Optional[np.dtype]] = np.float64,
     ) -> None:
         super().__init__(keys)
         self.rotator = Rotate(angle=angle, keep_size=keep_size)
@@ -721,12 +734,17 @@ class Rotated(MapTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
+        self.dtype = ensure_tuple_rep(dtype, len(self.keys))
 
     def __call__(self, data):
         d = dict(data)
         for idx, key in enumerate(self.keys):
             d[key] = self.rotator(
-                d[key], mode=self.mode[idx], padding_mode=self.padding_mode[idx], align_corners=self.align_corners[idx],
+                d[key],
+                mode=self.mode[idx],
+                padding_mode=self.padding_mode[idx],
+                align_corners=self.align_corners[idx],
+                dtype=self.dtype[idx],
             )
         return d
 
@@ -759,6 +777,10 @@ class RandRotated(Randomizable, MapTransform):
         align_corners: Defaults to False.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             It also can be a sequence of bool, each element corresponds to a key in ``keys``.
+        dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
+            If None, use the data type of input data. To be compatible with other modules,
+            the output data type is always ``np.float32``.
+            It also can be a sequence of dtype or None, each element corresponds to a key in ``keys``.
     """
 
     def __init__(
@@ -772,6 +794,7 @@ class RandRotated(Randomizable, MapTransform):
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
         align_corners: Union[Sequence[bool], bool] = False,
+        dtype: Union[Sequence[Optional[np.dtype]], Optional[np.dtype]] = np.float64,
     ) -> None:
         super().__init__(keys)
         self.range_x = ensure_tuple(range_x)
@@ -789,6 +812,7 @@ class RandRotated(Randomizable, MapTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
+        self.dtype = ensure_tuple_rep(dtype, len(self.keys))
 
         self._do_transform = False
         self.x = 0.0
@@ -811,7 +835,11 @@ class RandRotated(Randomizable, MapTransform):
         )
         for idx, key in enumerate(self.keys):
             d[key] = rotator(
-                d[key], mode=self.mode[idx], padding_mode=self.padding_mode[idx], align_corners=self.align_corners[idx],
+                d[key],
+                mode=self.mode[idx],
+                padding_mode=self.padding_mode[idx],
+                align_corners=self.align_corners[idx],
+                dtype=self.dtype[idx],
             )
         return d
 
@@ -829,7 +857,7 @@ class Zoomd(MapTransform):
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             It also can be a sequence of string, each element corresponds to a key in ``keys``.
-        align_corners (bool, None or sequence of bool or None): This only has an effect when mode is
+        align_corners: This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             It also can be a sequence of bool or None, each element corresponds to a key in ``keys``.
@@ -841,7 +869,7 @@ class Zoomd(MapTransform):
         keys: KeysCollection,
         zoom: Union[Sequence[float], float],
         mode: InterpolateModeSequence = InterpolateMode.AREA,
-        align_corners=None,
+        align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
         keep_size: bool = True,
     ) -> None:
         super().__init__(keys)
@@ -875,7 +903,7 @@ class RandZoomd(Randomizable, MapTransform):
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             It also can be a sequence of string, each element corresponds to a key in ``keys``.
-        align_corners (bool, None or sequence of bool or None): This only has an effect when mode is
+        align_corners: This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             It also can be a sequence of bool or None, each element corresponds to a key in ``keys``.
@@ -889,7 +917,7 @@ class RandZoomd(Randomizable, MapTransform):
         min_zoom: Union[Sequence[float], float] = 0.9,
         max_zoom: Union[Sequence[float], float] = 1.1,
         mode: InterpolateModeSequence = InterpolateMode.AREA,
-        align_corners=None,
+        align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
         keep_size: bool = True,
     ) -> None:
         super().__init__(keys)

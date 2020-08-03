@@ -113,12 +113,12 @@ class LayerFactory:
         Get the constructor for the given factory name and arguments.
 
         Raises:
-            ValueError: Factories must be selected by name
+            TypeError: When ``factory_name`` is not a ``str``.
 
         """
 
         if not isinstance(factory_name, str):
-            raise ValueError("Factories must be selected by name")
+            raise TypeError(f"factory_name must a str but is {type(factory_name).__name__}.")
 
         fact = self.factories[factory_name.upper()]
         return fact(*args)
@@ -161,6 +161,9 @@ def split_args(args):
     Args:
         args (str or a tuple of object name and kwarg dict): input arguments to be parsed.
 
+    Raises:
+        TypeError: When ``args`` type is not in ``Union[str, Tuple[Union[str, Callable], dict]]``.
+
     Examples::
 
         >>> act_type, args = split_args("PRELU")
@@ -171,9 +174,6 @@ def split_args(args):
         >>> monai.networks.layers.Act[act_type](**args)
         PReLU(num_parameters=1)
 
-    Raises:
-        ValueError: Layer specifiers must be single strings or pairs of the form (name/object-types, argument dict)
-
     """
 
     if isinstance(args, str):
@@ -183,7 +183,7 @@ def split_args(args):
 
         if not isinstance(name_obj, (str, Callable)) or not isinstance(name_args, dict):
             msg = "Layer specifiers must be single strings or pairs of the form (name/object-types, argument dict)"
-            raise ValueError(msg)
+            raise TypeError(msg)
 
         return name_obj, name_args
 

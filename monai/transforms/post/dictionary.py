@@ -15,21 +15,23 @@ defined in :py:class:`monai.transforms.utility.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Optional, Union, Sequence, Callable
+from typing import Callable, Optional, Sequence, Union
+
 import numpy as np
 import torch
+
 from monai.config import KeysCollection
-from monai.utils import ensure_tuple_rep
 from monai.transforms.compose import MapTransform
 from monai.transforms.post.array import (
-    SplitChannel,
     Activations,
     AsDiscrete,
     KeepLargestConnectedComponent,
     LabelToContour,
     MeanEnsemble,
+    SplitChannel,
     VoteEnsemble,
 )
+from monai.utils import ensure_tuple_rep
 
 
 class SplitChanneld(MapTransform):
@@ -58,9 +60,6 @@ class SplitChanneld(MapTransform):
             num_classes: the class number used to convert to One-Hot format
                 if `to_onehot` is True. it also can be a sequence of int, each element corresponds
                 to a key in ``keys``.
-
-        Raises:
-            ValueError: must specify key postfixes to store splitted data.
 
         """
         super().__init__(keys)
@@ -245,13 +244,17 @@ class Ensembled(MapTransform):
             ensemble: callable method to execute ensemble on specified data.
                 if only 1 key provided in `keys`, `output_key` can be None and use `keys` as default.
 
+        Raises:
+            TypeError: When ``ensemble`` is not ``callable``.
+            ValueError: When ``len(keys) > 1`` and ``output_key=None``. Incompatible values.
+
         """
         super().__init__(keys)
         if not callable(ensemble):
-            raise ValueError("ensemble must be a Callable function or object.")
+            raise TypeError(f"ensemble must be callable but is {type(ensemble).__name__}.")
         self.ensemble = ensemble
         if len(self.keys) > 1 and output_key is None:
-            raise ValueError("must provide expected key to store the output data.")
+            raise ValueError("Incompatible values: len(self.keys) > 1 and output_key=None.")
         self.output_key = output_key if output_key is not None else self.keys[0]
 
     def __call__(self, data):
