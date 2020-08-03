@@ -525,9 +525,9 @@ class RandGaussianSmooth(Randomizable, Transform):
 
     def __init__(
         self,
-        sigma_x: Sequence[float] = (0.25, 1.5),
-        sigma_y: Sequence[float] = (0.25, 1.5),
-        sigma_z: Sequence[float] = (0.25, 1.5),
+        sigma_x: Tuple[float] = (0.25, 1.5),
+        sigma_y: Tuple[float] = (0.25, 1.5),
+        sigma_z: Tuple[float] = (0.25, 1.5),
         prob: float = 0.1,
     ) -> None:
         self.sigma_x = sigma_x
@@ -594,7 +594,7 @@ class GaussianSharpen(Transform):
         return (blurred_f + self.alpha * (blurred_f - filter_blurred_f)).squeeze(0).detach().numpy()
 
 
-class RandGaussianSharpen(Transform):
+class RandGaussianSharpen(Randomizable, Transform):
     """
     Sharpen images using the Gaussian Blur filter based on randomly selected `sigma1`, `sigma2` and `alpha`.
     The algorithm is :py:class:`monai.transforms.GaussianSharpen`.
@@ -616,13 +616,13 @@ class RandGaussianSharpen(Transform):
 
     def __init__(
         self,
-        sigma1_x: Sequence[float] = (0.5, 1.0),
-        sigma1_y: Sequence[float] = (0.5, 1.0),
-        sigma1_z: Sequence[float] = (0.5, 1.0),
-        sigma2_x: Union[Sequence[float], float] = 0.5,
-        sigma2_y: Union[Sequence[float], float] = 0.5,
-        sigma2_z: Union[Sequence[float], float] = 0.5,
-        alpha: float = (10.0, 30.0),
+        sigma1_x: Tuple[float] = (0.5, 1.0),
+        sigma1_y: Tuple[float] = (0.5, 1.0),
+        sigma1_z: Tuple[float] = (0.5, 1.0),
+        sigma2_x: Union[Tuple[float], float] = 0.5,
+        sigma2_y: Union[Tuple[float], float] = 0.5,
+        sigma2_z: Union[Tuple[float], float] = 0.5,
+        alpha: Tuple[float] = (10.0, 30.0),
         prob: float = 0.1,
     ) -> None:
         self.sigma1_x = sigma1_x
@@ -637,9 +637,9 @@ class RandGaussianSharpen(Transform):
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self._do_transform = self.R.random_sample() < self.prob
-        self.x1 = self.R.uniform(low=self.sigma_x1[0], high=self.sigma_x1[1])
-        self.y1 = self.R.uniform(low=self.sigma_y1[0], high=self.sigma_y1[1])
-        self.z1 = self.R.uniform(low=self.sigma_z1[0], high=self.sigma_z1[1])
+        self.x1 = self.R.uniform(low=self.sigma1_x[0], high=self.sigma1_x[1])
+        self.y1 = self.R.uniform(low=self.sigma1_y[0], high=self.sigma1_y[1])
+        self.z1 = self.R.uniform(low=self.sigma1_z[0], high=self.sigma1_z[1])
         if not isinstance(self.sigma2_x, Iterable):
             self.sigma2_x = (self.sigma2_x, self.x1)
         if not isinstance(self.sigma2_y, Iterable):
