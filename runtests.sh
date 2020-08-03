@@ -48,7 +48,7 @@ function print_usage {
     echo "./runtests.sh --codeformat --coverage     # run full tests (${green}recommended before making pull requests${noColor})."
     echo "./runtests.sh --codeformat --nounittests  # run coding style and static type checking."
     echo "./runtests.sh --quick                     # run minimal unit tests, for quick verification during code developments."
-    echo "./runtests.sh --autofix --nounittests    # run automatic code formatting using \"isort\" and \"black\"."
+    echo "./runtests.sh --autofix --nounittests     # run automatic code formatting using \"isort\" and \"black\"."
     echo "./runtests.sh --clean                     # clean up temporary files and run \"python setup.py develop --uninstall\"."
     echo ""
     echo "Code style check options:"
@@ -101,14 +101,15 @@ function compile_cpp {
     fi
 }
 
-function clean_py() {
+function clean_py {
     # uninstall the development package
     echo "Uninstalling MONAI development files..."
     ${cmdPrefix}python setup.py -v develop --uninstall
 
-    # remove temporary files
-    echo "Removing temporary files..."
-    TO_CLEAN=${*:-'.'}
+    # remove temporary files (in the directory of this script)
+    TO_CLEAN="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+    echo "Removing temporary files in ${TO_CLEAN}"
+
     find ${TO_CLEAN} -type f -name "*.py[co]" -delete
     find ${TO_CLEAN} -type f -name ".coverage" -delete
     find ${TO_CLEAN} -type d -name "__pycache__" -delete
