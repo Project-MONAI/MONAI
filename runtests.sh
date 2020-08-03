@@ -39,7 +39,7 @@ doCleanup=false
 NUM_PARALLEL=1
 
 function print_usage {
-    echo "runtests.sh [--codeformat] [--black] [--black-fix] [--isort] [--isort-fix] [--flake8] [--pytype] [--mypy]"
+    echo "runtests.sh [--codeformat] [--autofix] [--black] [--isort] [--flake8] [--pytype] [--mypy]"
     echo "            [--nounittests] [--coverage] [--quick] [--net] [--dryrun] [-j number] [--clean] [--help] [--version]"
     echo ""
     echo "MONAI unit testing utilities."
@@ -48,14 +48,13 @@ function print_usage {
     echo "./runtests.sh --codeformat --coverage     # run full tests (${green}recommended before making pull requests${noColor})."
     echo "./runtests.sh --codeformat --nounittests  # run coding style and static type checking."
     echo "./runtests.sh --quick                     # run minimal unit tests, for quick verification during code developments."
-    echo "./runtests.sh --black-fix                 # run automatic code formatting using \"black\"."
+    echo "./runtests.sh --autofix --nounittests    # run automatic code formatting using \"isort\" and \"black\"."
     echo "./runtests.sh --clean                     # clean up temporary files and run \"python setup.py develop --uninstall\"."
     echo ""
     echo "Code style check options:"
     echo "    --black           : perform \"black\" code format checks"
-    echo "    --black-fix       : format code using \"black\""
+    echo "    --autofix         : format code using \"isort\" and \"black\""
     echo "    --isort           : perform \"isort\" import sort checks"
-    echo "    --isort-fix       : sort imports using \"isort\""
     echo "    --flake8          : perform \"flake8\" code format checks"
     echo ""
     echo "Python type check options:"
@@ -132,6 +131,11 @@ function print_error_msg() {
     echo ""
 }
 
+function print_style_fail_msg() {
+    echo "${red}Check failed!${noColor}"
+    echo "Please run auto style fixes: ${green}./runtests.sh --autofix --nounittests${noColor}"
+}
+
 if [ -z "$1" ]
 then
     print_error_msg "Too few arguments to $0"
@@ -168,15 +172,13 @@ do
         --black)
             doBlackFormat=true
         ;;
-        --black-fix)
+        --autofix)
+            doIsortFix=true
             doBlackFix=true
+            doIsortFormat=true
             doBlackFormat=true
         ;;
         --isort)
-            doIsortFormat=true
-        ;;
-        --isort-fix)
-            doIsortFix=true
             doIsortFormat=true
         ;;
         --flake8)
@@ -246,41 +248,6 @@ compile_cpp
 # unconditionally report on the state of monai
 print_version
 
-if [ $doBlackFormat = true ]
-then
-    set +e  # disable exit on failure so that diagnostics can be given on failure
-    if [ $doBlackFix = true ]
-    then
-        echo "${separator}${blue}black-fix${noColor}"
-    else
-        echo "${separator}${blue}black${noColor}"
-    fi
-
-    # ensure that the necessary packages for code format testing are installed
-    if [[ ! -f "$(which black)" ]]
-    then
-        install_deps
-    fi
-    ${cmdPrefix}black --version
-
-    if [ $doBlackFix = true ]
-    then
-        ${cmdPrefix}black "$(pwd)"
-    else
-        ${cmdPrefix}black --check "$(pwd)"
-    fi
-
-    black_status=$?
-    if [ ${black_status} -ne 0 ]
-    then
-        echo "${red}failed!${noColor}"
-        exit ${black_status}
-    else
-        echo "${green}passed!${noColor}"
-    fi
-    set -e # enable exit on failure
-fi
-
 
 if [ $doIsortFormat = true ]
 then
@@ -309,8 +276,44 @@ then
     isort_status=$?
     if [ ${isort_status} -ne 0 ]
     then
-        echo "${red}failed!${noColor}"
+        print_style_fail_msg
         exit ${isort_status}
+    else
+        echo "${green}passed!${noColor}"
+    fi
+    set -e # enable exit on failure
+fi
+
+
+if [ $doBlackFormat = true ]
+then
+    set +e  # disable exit on failure so that diagnostics can be given on failure
+    if [ $doBlackFix = true ]
+    then
+        echo "${separator}${blue}black-fix${noColor}"
+    else
+        echo "${separator}${blue}black${noColor}"
+    fi
+
+    # ensure that the necessary packages for code format testing are installed
+    if [[ ! -f "$(which black)" ]]
+    then
+        install_deps
+    fi
+    ${cmdPrefix}black --version
+
+    if [ $doBlackFix = true ]
+    then
+        ${cmdPrefix}black "$(pwd)"
+    else
+        ${cmdPrefix}black --check "$(pwd)"
+    fi
+
+    black_status=$?
+    if [ ${black_status} -ne 0 ]
+    then
+        print_style_fail_msg
+        exit ${black_status}
     else
         echo "${green}passed!${noColor}"
     fi
@@ -335,7 +338,7 @@ then
     flake8_status=$?
     if [ ${flake8_status} -ne 0 ]
     then
-        echo "${red}failed!${noColor}"
+        print_style_fail_msg
         exit ${flake8_status}
     else
         echo "${green}passed!${noColor}"
