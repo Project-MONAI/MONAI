@@ -15,7 +15,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 from typing import Any, Optional, Sequence, Tuple, Union
 from warnings import warn
-
+from collections.abc import Iterable
 import numpy as np
 import torch
 
@@ -525,9 +525,9 @@ class RandGaussianSmooth(Randomizable, Transform):
 
     def __init__(
         self,
-        sigma_x: Sequence[float] = (0.25, 1.5),
-        sigma_y: Sequence[float] = (0.25, 1.5),
-        sigma_z: Sequence[float] = (0.25, 1.5),
+        sigma_x: Tuple[float, float] = (0.25, 1.5),
+        sigma_y: Tuple[float, float] = (0.25, 1.5),
+        sigma_z: Tuple[float, float] = (0.25, 1.5),
         prob: float = 0.1,
     ) -> None:
         self.sigma_x = sigma_x
@@ -592,3 +592,66 @@ class GaussianSharpen(Transform):
         blurred_f = gaussian_filter1(input_data)
         filter_blurred_f = gaussian_filter2(blurred_f)
         return (blurred_f + self.alpha * (blurred_f - filter_blurred_f)).squeeze(0).detach().numpy()
+
+
+class RandGaussianSharpen(Randomizable, Transform):
+    """
+    Sharpen images using the Gaussian Blur filter based on randomly selected `sigma1`, `sigma2` and `alpha`.
+    The algorithm is :py:class:`monai.transforms.GaussianSharpen`.
+
+    Args:
+        sigma1_x: randomly select sigma value for the first spatial dimension of first gaussian kernel.
+        sigma1_y: randomly select sigma value for the second spatial dimension(if have) of first gaussian kernel.
+        sigma1_z: randomly select sigma value for the third spatial dimension(if have) of first gaussian kernel.
+        sigma2_x: randomly select sigma value for the first spatial dimension of second gaussian kernel.
+            if only 1 value `X` provided, it must be smaller than `sigma1_x` and randomly select from [X, sigma1_x].
+        sigma2_y: randomly select sigma value for the second spatial dimension(if have) of second gaussian kernel.
+            if only 1 value `Y` provided, it must be smaller than `sigma1_y` and randomly select from [Y, sigma1_y].
+        sigma2_z: randomly select sigma value for the third spatial dimension(if have) of second gaussian kernel.
+            if only 1 value `Z` provided, it must be smaller than `sigma1_z` and randomly select from [Z, sigma1_z].
+        alpha: randomly select weight parameter to compute the final result.
+        prob: probability of Gaussian sharpen.
+
+    """
+
+    def __init__(
+        self,
+        sigma1_x: Tuple[float, float] = (0.5, 1.0),
+        sigma1_y: Tuple[float, float] = (0.5, 1.0),
+        sigma1_z: Tuple[float, float] = (0.5, 1.0),
+        sigma2_x: Union[Tuple[float, float], float] = 0.5,
+        sigma2_y: Union[Tuple[float, float], float] = 0.5,
+        sigma2_z: Union[Tuple[float, float], float] = 0.5,
+        alpha: Tuple[float, float] = (10.0, 30.0),
+        prob: float = 0.1,
+    ) -> None:
+        self.sigma1_x = sigma1_x
+        self.sigma1_y = sigma1_y
+        self.sigma1_z = sigma1_z
+        self.sigma2_x = sigma2_x
+        self.sigma2_y = sigma2_y
+        self.sigma2_z = sigma2_z
+        self.alpha = alpha
+        self.prob = prob
+        self._do_transform = False
+
+    def randomize(self, data: Optional[Any] = None) -> None:
+        self._do_transform = self.R.random_sample() < self.prob
+        self.x1 = self.R.uniform(low=self.sigma1_x[0], high=self.sigma1_x[1])
+        self.y1 = self.R.uniform(low=self.sigma1_y[0], high=self.sigma1_y[1])
+        self.z1 = self.R.uniform(low=self.sigma1_z[0], high=self.sigma1_z[1])
+        sigma2_x = (self.sigma2_x, self.x1) if not isinstance(self.sigma2_x, Iterable) else self.sigma2_x
+        sigma2_y = (self.sigma2_y, self.y1) if not isinstance(self.sigma2_y, Iterable) else self.sigma2_y
+        sigma2_z = (self.sigma2_z, self.z1) if not isinstance(self.sigma2_z, Iterable) else self.sigma2_z
+        self.x2 = self.R.uniform(low=sigma2_x[0], high=sigma2_x[1])
+        self.y2 = self.R.uniform(low=sigma2_y[0], high=sigma2_y[1])
+        self.z2 = self.R.uniform(low=sigma2_z[0], high=sigma2_z[1])
+        self.a = self.R.uniform(low=self.alpha[0], high=self.alpha[1])
+
+    def __call__(self, img: np.ndarray) -> np.ndarray:
+        self.randomize()
+        if not self._do_transform:
+            return img
+        sigma1 = ensure_tuple_size(tup=(self.x1, self.y1, self.z1), dim=img.ndim - 1)
+        sigma2 = ensure_tuple_size(tup=(self.x2, self.y2, self.z2), dim=img.ndim - 1)
+        return GaussianSharpen(sigma1=sigma1, sigma2=sigma2, alpha=self.a)(img)
