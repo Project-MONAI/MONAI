@@ -525,9 +525,9 @@ class RandGaussianSmooth(Randomizable, Transform):
 
     def __init__(
         self,
-        sigma_x: Tuple[float] = (0.25, 1.5),
-        sigma_y: Tuple[float] = (0.25, 1.5),
-        sigma_z: Tuple[float] = (0.25, 1.5),
+        sigma_x: Tuple[float, float] = (0.25, 1.5),
+        sigma_y: Tuple[float, float] = (0.25, 1.5),
+        sigma_z: Tuple[float, float] = (0.25, 1.5),
         prob: float = 0.1,
     ) -> None:
         self.sigma_x = sigma_x
@@ -616,13 +616,13 @@ class RandGaussianSharpen(Randomizable, Transform):
 
     def __init__(
         self,
-        sigma1_x: Tuple[float] = (0.5, 1.0),
-        sigma1_y: Tuple[float] = (0.5, 1.0),
-        sigma1_z: Tuple[float] = (0.5, 1.0),
-        sigma2_x: Union[Tuple[float], float] = 0.5,
-        sigma2_y: Union[Tuple[float], float] = 0.5,
-        sigma2_z: Union[Tuple[float], float] = 0.5,
-        alpha: Tuple[float] = (10.0, 30.0),
+        sigma1_x: Tuple[float, float] = (0.5, 1.0),
+        sigma1_y: Tuple[float, float] = (0.5, 1.0),
+        sigma1_z: Tuple[float, float] = (0.5, 1.0),
+        sigma2_x: Union[Tuple[float, float], float] = 0.5,
+        sigma2_y: Union[Tuple[float, float], float] = 0.5,
+        sigma2_z: Union[Tuple[float, float], float] = 0.5,
+        alpha: Tuple[float, float] = (10.0, 30.0),
         prob: float = 0.1,
     ) -> None:
         self.sigma1_x = sigma1_x
@@ -640,15 +640,12 @@ class RandGaussianSharpen(Randomizable, Transform):
         self.x1 = self.R.uniform(low=self.sigma1_x[0], high=self.sigma1_x[1])
         self.y1 = self.R.uniform(low=self.sigma1_y[0], high=self.sigma1_y[1])
         self.z1 = self.R.uniform(low=self.sigma1_z[0], high=self.sigma1_z[1])
-        if not isinstance(self.sigma2_x, Iterable):
-            self.sigma2_x = (self.sigma2_x, self.x1)
-        if not isinstance(self.sigma2_y, Iterable):
-            self.sigma2_y = (self.sigma2_y, self.y1)
-        if not isinstance(self.sigma2_z, Iterable):
-            self.sigma2_z = (self.sigma2_z, self.z1)
-        self.x2 = self.R.uniform(low=self.sigma2_x[0], high=self.sigma2_x[1])
-        self.y2 = self.R.uniform(low=self.sigma2_y[0], high=self.sigma2_y[1])
-        self.z2 = self.R.uniform(low=self.sigma2_z[0], high=self.sigma2_z[1])
+        sigma2_x = (self.sigma2_x, self.x1) if not isinstance(self.sigma2_x, Iterable) else self.sigma2_x
+        sigma2_y = (self.sigma2_y, self.y1) if not isinstance(self.sigma2_y, Iterable) else self.sigma2_y
+        sigma2_z = (self.sigma2_z, self.z1) if not isinstance(self.sigma2_z, Iterable) else self.sigma2_z
+        self.x2 = self.R.uniform(low=sigma2_x[0], high=sigma2_x[1])
+        self.y2 = self.R.uniform(low=sigma2_y[0], high=sigma2_y[1])
+        self.z2 = self.R.uniform(low=sigma2_z[0], high=sigma2_z[1])
         self.a = self.R.uniform(low=self.alpha[0], high=self.alpha[1])
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
