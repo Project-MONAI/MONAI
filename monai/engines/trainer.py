@@ -181,7 +181,7 @@ class SupervisedTrainer(Trainer):
 
         self.network.train()
         self.optimizer.zero_grad()
-        if self.amp:
+        if self.amp and self.scaler is not None:
             with torch.cuda.amp.autocast():
                 predictions = self.inferer(inputs, self.network)
                 loss = self.loss_function(predictions, targets).mean()
