@@ -464,9 +464,9 @@ class RandGaussianSmoothd(Randomizable, MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        sigma_x: Tuple[float] = (0.25, 1.5),
-        sigma_y: Tuple[float] = (0.25, 1.5),
-        sigma_z: Tuple[float] = (0.25, 1.5),
+        sigma_x: Tuple[float, float] = (0.25, 1.5),
+        sigma_y: Tuple[float, float] = (0.25, 1.5),
+        sigma_z: Tuple[float, float] = (0.25, 1.5),
         prob: float = 0.1,
     ):
         super().__init__(keys)
