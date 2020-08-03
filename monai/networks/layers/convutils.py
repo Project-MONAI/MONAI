@@ -28,14 +28,16 @@ def same_padding(
 
     """
 
-    kernel_size = np.atleast_1d(kernel_size)
-    dilation = np.atleast_1d(dilation)
+    kernel_size_np = np.atleast_1d(kernel_size)
+    dilation_np = np.atleast_1d(dilation)
 
-    if np.any((kernel_size - 1) * dilation % 2 == 1):
-        raise NotImplementedError(f"Same padding not available for kernel_size={kernel_size} and dilation={dilation}.")
+    if np.any((kernel_size_np - 1) * dilation % 2 == 1):
+        raise NotImplementedError(
+            f"Same padding not available for kernel_size={kernel_size_np} and dilation={dilation_np}."
+        )
 
-    padding = (kernel_size - 1) / 2 * dilation
-    padding = tuple(int(p) for p in padding)
+    padding_np = (kernel_size_np - 1) / 2 * dilation_np
+    padding = tuple(int(p) for p in padding_np)
 
     return padding if len(padding) > 1 else padding[0]
 
@@ -51,12 +53,13 @@ def calculate_out_shape(
     `kernel_size`, stride value `stride`, and input padding value `padding`. All arguments can be scalars or multiple
     values, return value is a scalar if all inputs are scalars.
     """
-    in_shape = np.atleast_1d(in_shape)
-    kernel_size = np.atleast_1d(kernel_size)
-    stride = np.atleast_1d(stride)
-    padding = np.atleast_1d(padding)
-    out_shape = ((in_shape - kernel_size + padding + padding) // stride) + 1
-    out_shape = tuple(int(s) for s in out_shape)
+    in_shape_np = np.atleast_1d(in_shape)
+    kernel_size_np = np.atleast_1d(kernel_size)
+    stride_np = np.atleast_1d(stride)
+    padding_np = np.atleast_1d(padding)
+
+    out_shape_np = ((in_shape_np - kernel_size_np + padding_np + padding_np) // stride_np) + 1
+    out_shape = tuple(int(s) for s in out_shape_np)
 
     return out_shape if len(out_shape) > 1 else out_shape[0]
 

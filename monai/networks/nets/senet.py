@@ -233,7 +233,7 @@ class SENet(nn.Module):
         x = self.last_linear(x)
         return x
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.features(x)
         x = self.logits(x)
         return x

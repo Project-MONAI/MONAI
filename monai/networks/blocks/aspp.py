@@ -90,7 +90,7 @@ class SimpleASPP(nn.Module):
             norm=norm_type,
         )
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Args:
             x: in shape (batch, channel, spatial_1[, spatial_2, ...]).

@@ -73,8 +73,8 @@ class ChannelSELayer(nn.Module):
             x: in shape (batch, in_channels, spatial_1[, spatial_2, ...]).
         """
         b, c = x.shape[:2]
-        y = self.avg_pool(x).view(b, c)
-        y: torch.Tensor = self.fc(y).view([b, c] + [1] * (x.ndimension() - 2))
+        y: torch.Tensor = self.avg_pool(x).view(b, c)
+        y = self.fc(y).view([b, c] + [1] * (x.ndimension() - 2))
         return x * y
 
 
@@ -205,7 +205,7 @@ class SEBlock(nn.Module):
             act_final, act_final_args = split_args(acti_type_final)
             self.act = Act[act_final](**act_final_args)
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Args:
             x: in shape (batch, in_channels, spatial_1[, spatial_2, ...]).

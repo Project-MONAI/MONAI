@@ -322,21 +322,21 @@ def zoom_affine(affine: np.ndarray, scale: Sequence[float], diagonal: bool = Tru
     affine = np.array(affine, dtype=float, copy=True)
     if len(affine) != len(affine[0]):
         raise ValueError(f"affine must be n x n, got {len(affine)} x {len(affine[0])}.")
-    scale = np.array(scale, dtype=float, copy=True)
-    if np.any(scale <= 0):
+    scale_np = np.array(scale, dtype=float, copy=True)
+    if np.any(scale_np <= 0):
         raise ValueError("scale must contain only positive numbers.")
     d = len(affine) - 1
-    if len(scale) < d:  # defaults based on affine
+    if len(scale_np) < d:  # defaults based on affine
         norm = np.sqrt(np.sum(np.square(affine), 0))[:-1]
-        scale = np.append(scale, norm[len(scale) :])
-    scale = scale[:d]
-    scale[scale == 0] = 1.0
+        scale_np = np.append(scale_np, norm[len(scale_np) :])
+    scale_np = scale_np[:d]
+    scale_np[scale_np == 0] = 1.0
     if diagonal:
-        return np.diag(np.append(scale, [1.0]))
+        return np.diag(np.append(scale_np, [1.0]))
     rzs = affine[:-1, :-1]  # rotation zoom scale
     zs = np.linalg.cholesky(rzs.T @ rzs).T
     rotation = rzs @ np.linalg.inv(zs)
-    s = np.sign(np.diag(zs)) * np.abs(scale)
+    s = np.sign(np.diag(zs)) * np.abs(scale_np)
     # construct new affine with rotation and zoom
     new_affine = np.eye(len(affine))
     new_affine[:-1, :-1] = rotation @ np.diag(s)
@@ -406,19 +406,19 @@ def to_affine_nd(r: Union[np.ndarray, int], affine: np.ndarray) -> np.ndarray:
         an (r+1) x (r+1) matrix
 
     """
-    affine = np.array(affine, dtype=np.float64)
-    if affine.ndim != 2:
-        raise ValueError(f"affine must have 2 dimensions, got {affine.ndim}.")
+    affine_np = np.array(affine, dtype=np.float64)
+    if affine_np.ndim != 2:
+        raise ValueError(f"affine must have 2 dimensions, got {affine_np.ndim}.")
     new_affine = np.array(r, dtype=np.float64, copy=True)
     if new_affine.ndim == 0:
         sr = new_affine.astype(int)
         if not np.isfinite(sr) or sr < 0:
             raise ValueError(f"r must be positive, got {sr}.")
         new_affine = np.eye(sr + 1, dtype=np.float64)
-    d = max(min(len(new_affine) - 1, len(affine) - 1), 1)
-    new_affine[:d, :d] = affine[:d, :d]
+    d = max(min(len(new_affine) - 1, len(affine_np) - 1), 1)
+    new_affine[:d, :d] = affine_np[:d, :d]
     if d > 1:
-        new_affine[:d, -1] = affine[:d, -1]
+        new_affine[:d, -1] = affine_np[:d, -1]
     return new_affine
 
 

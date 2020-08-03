@@ -136,5 +136,5 @@ class Critic(Classifier):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.net(x)
         x = self.final(x)
-        x: torch.Tensor = x.mean(1)
+        x = x.mean(1)
         return x.view((x.shape[0], -1))

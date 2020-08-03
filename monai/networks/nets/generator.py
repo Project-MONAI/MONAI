@@ -139,7 +139,7 @@ class Generator(nn.Module):
 
         return layer
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.flatten(x)
         x = self.linear(x)
         x = self.reshape(x)
