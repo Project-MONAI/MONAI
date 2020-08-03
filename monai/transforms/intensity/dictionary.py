@@ -527,6 +527,78 @@ class GaussianSharpend(MapTransform):
         return d
 
 
+class RandGaussianSharpend(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.GaussianSharpen`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        sigma1_x: randomly select sigma value for the first spatial dimension of first gaussian kernel.
+        sigma1_y: randomly select sigma value for the second spatial dimension(if have) of first gaussian kernel.
+        sigma1_z: randomly select sigma value for the third spatial dimension(if have) of first gaussian kernel.
+        sigma2_x: randomly select sigma value for the first spatial dimension of second gaussian kernel.
+            if only 1 value `X` provided, it must be smaller than `sigma1_x` and randomly select from [X, sigma1_x].
+        sigma2_y: randomly select sigma value for the second spatial dimension(if have) of second gaussian kernel.
+            if only 1 value `Y` provided, it must be smaller than `sigma1_y` and randomly select from [Y, sigma1_y].
+        sigma2_z: randomly select sigma value for the third spatial dimension(if have) of second gaussian kernel.
+            if only 1 value `Z` provided, it must be smaller than `sigma1_z` and randomly select from [Z, sigma1_z].
+        alpha: randomly select weight parameter to compute the final result.
+        prob: probability of Gaussian sharpen.
+
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        sigma1_x: Sequence[float] = (0.5, 1.0),
+        sigma1_y: Sequence[float] = (0.5, 1.0),
+        sigma1_z: Sequence[float] = (0.5, 1.0),
+        sigma2_x: Union[Sequence[float], float] = 0.5,
+        sigma2_y: Union[Sequence[float], float] = 0.5,
+        sigma2_z: Union[Sequence[float], float] = 0.5,
+        alpha: float = (10.0, 30.0),
+        prob: float = 0.1,
+    ):
+        super().__init__(keys)
+        self.sigma1_x = sigma1_x
+        self.sigma1_y = sigma1_y
+        self.sigma1_z = sigma1_z
+        self.sigma2_x = sigma2_x
+        self.sigma2_y = sigma2_y
+        self.sigma2_z = sigma2_z
+        self.alpha = alpha
+        self.prob = prob
+        self._do_transform = False
+
+    def randomize(self, data: Optional[Any] = None) -> None:
+        self._do_transform = self.R.random_sample() < self.prob
+        self.x1 = self.R.uniform(low=self.sigma_x1[0], high=self.sigma_x1[1])
+        self.y1 = self.R.uniform(low=self.sigma_y1[0], high=self.sigma_y1[1])
+        self.z1 = self.R.uniform(low=self.sigma_z1[0], high=self.sigma_z1[1])
+        if not isinstance(self.sigma2_x, Iterable):
+            self.sigma2_x = (self.sigma2_x, self.x1)
+        if not isinstance(self.sigma2_y, Iterable):
+            self.sigma2_y = (self.sigma2_y, self.y1)
+        if not isinstance(self.sigma2_z, Iterable):
+            self.sigma2_z = (self.sigma2_z, self.z1)
+        self.x2 = self.R.uniform(low=self.sigma2_x[0], high=self.sigma2_x[1])
+        self.y2 = self.R.uniform(low=self.sigma2_y[0], high=self.sigma2_y[1])
+        self.z2 = self.R.uniform(low=self.sigma2_z[0], high=self.sigma2_z[1])
+        self.a = self.R.uniform(low=self.alpha[0], high=self.alpha[1])
+
+    def __call__(self, data):
+        d = dict(data)
+        self.randomize()
+        if not self._do_transform:
+            return d
+        for key in self.keys:
+            sigma1 = ensure_tuple_size(tup=(self.x1, self.y1, self.z1), dim=d[key].ndim - 1)
+            sigma2 = ensure_tuple_size(tup=(self.x2, self.y2, self.z2), dim=d[key].ndim - 1)
+            d[key] = GaussianSharpen(sigma1=sigma1, sigma2=sigma2, alpha=self.a)(d[key])
+        return d
+
+
 RandGaussianNoiseD = RandGaussianNoiseDict = RandGaussianNoised
 ShiftIntensityD = ShiftIntensityDict = ShiftIntensityd
 RandShiftIntensityD = RandShiftIntensityDict = RandShiftIntensityd
@@ -542,3 +614,4 @@ MaskIntensityD = MaskIntensityDict = MaskIntensityd
 GaussianSmoothD = GaussianSmoothDict = GaussianSmoothd
 RandGaussianSmoothD = RandGaussianSmoothDict = RandGaussianSmoothd
 GaussianSharpenD = GaussianSharpenDict = GaussianSharpend
+RandGaussianSharpenD = RandGaussianSharpenDict = RandGaussianSharpend
