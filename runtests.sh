@@ -45,10 +45,11 @@ function print_usage {
     echo "MONAI unit testing utilities."
     echo ""
     echo "Examples:"
-    echo "./runtests.sh --codeformat --coverage     # runs full tests (${green}recommended before making pull requests${noColor})."
-    echo "./runtests.sh --codeformat --nounittests  # runs coding style and static type checking."
-    echo "./runtests.sh --quick                     # runs minimal unit tests, for quick verification during code developments."
-    echo "./runtests.sh --black-fix                 # runs automatic code formatting using \"black\"."
+    echo "./runtests.sh --codeformat --coverage     # run full tests (${green}recommended before making pull requests${noColor})."
+    echo "./runtests.sh --codeformat --nounittests  # run coding style and static type checking."
+    echo "./runtests.sh --quick                     # run minimal unit tests, for quick verification during code developments."
+    echo "./runtests.sh --black-fix                 # run automatic code formatting using \"black\"."
+    echo "./runtests.sh --clean                     # clean up temporary files and run \"python setup.py develop --uninstall\"."
     echo ""
     echo "Code style check options:"
     echo "    --black           : perform \"black\" code format checks"
@@ -86,8 +87,40 @@ function print_version {
 }
 
 function install_deps {
-    echo "Pip installing MONAI development dependencies..."
-    ${cmdPrefix}pip install -r requirements-dev.txt
+    echo "Pip installing MONAI development dependencies and compile MONAI cpp extensions..."
+    ${cmdPrefix}python -m pip install -r requirements-dev.txt
+}
+
+function compile_cpp {
+    echo "Compiling and installing MONAI cpp extensions..."
+    ${cmdPrefix}python setup.py -v develop --uninstall
+    if [[ "$OSTYPE" == "darwin"* ]];
+    then  # clang for mac os
+        CC=clang CXX=clang++ ${cmdPrefix}python setup.py -v develop
+    else
+        ${cmdPrefix}python setup.py -v develop
+    fi
+}
+
+function clean_py() {
+    # uninstall the development package
+    echo "Uninstalling MONAI development files..."
+    ${cmdPrefix}python setup.py -v develop --uninstall
+
+    # remove temporary files
+    echo "Removing temporary files..."
+    TO_CLEAN=${*:-'.'}
+    find ${TO_CLEAN} -type f -name "*.py[co]" -delete
+    find ${TO_CLEAN} -type f -name ".coverage" -delete
+    find ${TO_CLEAN} -type d -name "__pycache__" -delete
+
+    find ${TO_CLEAN} -depth -type d -name ".eggs" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -type d -name "monai.egg-info" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -type d -name "build" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -type d -name "dist" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -type d -name ".mypy_cache" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -type d -name ".pytype" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -type d -name ".coverage" -exec rm -r "{}" +
 }
 
 function torch_validate {
@@ -197,42 +230,21 @@ then
     function dryrun { echo "    " "$@"; }
 fi
 
-# unconditionally report on the state of monai
-print_version
-
-
 if [ $doCleanup = true ]
 then
     echo "${separator}${blue}clean${noColor}"
 
-    if [ -d .mypy_cache ]
-    then
-        ${cmdPrefix}rm -r .mypy_cache
-    elif [ -f .mypy_cache ]
-    then
-        ${cmdPrefix}rm .mypy_cache
-    fi
-
-    if [ -d .pytype ]
-    then
-        ${cmdPrefix}rm -r .pytype
-    elif [ -f .pytype ]
-    then
-        ${cmdPrefix}rm .pytype
-    fi
-
-    if [ -d .coverage ]
-    then
-        ${cmdPrefix}rm -r .coverage
-    elif [ -f .coverage ]
-    then
-        ${cmdPrefix}rm .coverage
-    fi
+    clean_py
 
     echo "${green}done!${noColor}"
     exit
 fi
 
+# try to compile MONAI cpp
+compile_cpp
+
+# unconditionally report on the state of monai
+print_version
 
 if [ $doBlackFormat = true ]
 then

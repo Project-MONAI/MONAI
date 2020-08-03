@@ -54,10 +54,13 @@ This command will create a ``MONAI/`` folder in your current directory.
 You can install it by running:
 ```bash
 cd MONAI/
-pip install -e .
+python setup.py develop
+
+# to uninstall the package please run:
+python setup.py develop --uninstall
 ```
 or simply adding the root directory of the cloned source code (e.g., ``/workspace/Documents/MONAI``) to your ``$PYTHONPATH``
-and the codebase is ready to use.
+and the codebase is ready to use (without the additional features of MONAI C++/CUDA extensions).
 
 
 ## Validating the install
@@ -128,7 +131,7 @@ Since MONAI v0.2.0, the extras syntax such as `pip install 'monai[nibabel]'` is 
 ```
 [nibabel, skimage, pillow, tensorboard, gdown, ignite]
 ```
-which correspond to `nibabel`, `scikit-image`, `pillow`, `tensorboard`, 
+which correspond to `nibabel`, `scikit-image`, `pillow`, `tensorboard`,
 `gdown`, and `pytorch-ignite` respectively.
 
 - `pip install 'monai[all]'` installs all the optional dependencies.
