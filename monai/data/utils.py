@@ -9,19 +9,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Optional, Sequence, Tuple, Union, Dict
-
+import math
 import os
 import warnings
-import math
-from itertools import starmap, product
+from itertools import product, starmap
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
+import numpy as np
 import torch
 from torch.utils.data._utils.collate import default_collate
-import numpy as np
 
-from monai.utils import ensure_tuple_size, optional_import, NumpyPadMode, BlendMode, first
 from monai.networks.layers.simplelayers import GaussianFilter
+from monai.utils import BlendMode, NumpyPadMode, ensure_tuple_size, first, optional_import
 
 nib, _ = optional_import("nibabel")
 
@@ -90,16 +89,16 @@ def dense_patch_slices(
         patch_size: size of patches to generate slices
         scan_interval: dense patch sampling interval
 
+    Raises:
+        ValueError: When ``image_size`` length is not one of [2, 3].
+
     Returns:
         a list of slice objects defining each patch
-
-    Raises:
-        ValueError: image_size should have 2 or 3 elements
 
     """
     num_spatial_dims = len(image_size)
     if num_spatial_dims not in (2, 3):
-        raise ValueError("image_size should have 2 or 3 elements")
+        raise ValueError(f"Unsupported image_size length: {len(image_size)}, available options are [2, 3]")
     patch_size = get_valid_patch_size(image_size, patch_size)
     scan_interval = ensure_tuple_size(scan_interval, num_spatial_dims)
 
@@ -240,7 +239,7 @@ def correct_nifti_header_if_necessary(img_nii):
     In the updated image pixdim matches the affine.
 
     Args:
-        img_nii (nifti image object)
+        img_nii: nifti image object
     """
     dim = img_nii.header["dim"][0]
     if dim >= 5:
@@ -261,6 +260,9 @@ def rectify_header_sform_qform(img_nii):
     incompatibilities with pixel dimensions
 
     Adapted from https://github.com/NifTK/NiftyNet/blob/v0.6.0/niftynet/io/misc_io.py
+
+    Args:
+        img_nii: nifti image object
     """
     d = img_nii.header["dim"][0]
     pixdim = np.asarray(img_nii.header.get_zooms())[:d]
@@ -306,20 +308,21 @@ def zoom_affine(affine, scale: Sequence[float], diagonal: bool = True):
         diagonal: whether to return a diagonal scaling matrix.
             Defaults to True.
 
+    Raises:
+        ValueError: When ``affine`` is not a square matrix.
+        ValueError: When ``scale`` contains a nonpositive scalar.
+
     Returns:
         the updated `n x n` affine.
 
-    Raises:
-        ValueError: affine should be a square matrix
-        ValueError: scale must be a sequence of positive numbers.
-
     """
+
     affine = np.array(affine, dtype=float, copy=True)
     if len(affine) != len(affine[0]):
-        raise ValueError("affine should be a square matrix")
+        raise ValueError(f"affine must be n x n, got {len(affine)} x {len(affine[0])}.")
     scale_ = np.array(scale, dtype=float, copy=True)
     if np.any(scale_ <= 0):
-        raise ValueError("scale must be a sequence of positive numbers.")
+        raise ValueError("scale must contain only positive numbers.")
     d = len(affine) - 1
     if len(scale_) < d:  # defaults based on affine
         norm = np.sqrt(np.sum(np.square(affine), 0))[:-1]
@@ -344,6 +347,11 @@ def compute_shape_offset(spatial_shape, in_affine, out_affine):
     in the output space based on the input array's shape.
     This function also returns the offset to put the shape
     in a good position with respect to the world coordinate system.
+
+    Args:
+        spatial_shape: input array's shape
+        in_affine (matrix): 2D affine matrix
+        out_affine (matrix): 2D affine matrix
     """
     shape = np.array(spatial_shape, copy=True, dtype=float)
     sr = len(shape)
@@ -382,22 +390,21 @@ def to_affine_nd(r, affine):
     the last column of the output affine is copied from ``affine``'s last column.
     `k` is determined by `min(len(r) - 1, len(affine) - 1)`.
 
-
     Args:
         r (int or matrix): number of spatial dimensions or an output affine to be filled.
         affine (matrix): 2D affine matrix
 
+    Raises:
+        ValueError: When ``affine`` dimensions is not 2.
+        ValueError: When ``r`` is nonpositive.
+
     Returns:
         an (r+1) x (r+1) matrix
-
-    Raises:
-        ValueError: input affine matrix must have two dimensions, got {affine.ndim}.
-        ValueError: r must be positive, got {sr}.
 
     """
     affine_ = np.array(affine, dtype=np.float64)
     if affine_.ndim != 2:
-        raise ValueError(f"input affine matrix must have two dimensions, got {affine_.ndim}.")
+        raise ValueError(f"affine must have 2 dimensions, got {affine_.ndim}.")
     new_affine = np.array(r, dtype=np.float64, copy=True)
     if new_affine.ndim == 0:
         sr = new_affine.astype(int)
@@ -468,11 +475,11 @@ def compute_importance_map(
             (sigma = sigma_scale * dim_size). Used for gaussian mode only.
         device: Device to put importance map on.
 
+    Raises:
+        ValueError: When ``mode`` is not one of ["constant", "gaussian"].
+
     Returns:
         Tensor of size patch_size.
-
-    Raises:
-        ValueError: mode must be "constant" or "gaussian".
 
     """
     mode = BlendMode(mode)
@@ -493,6 +500,6 @@ def compute_importance_map(
         # importance_map cannot be 0, otherwise we may end up with nans!
         importance_map[importance_map == 0] = torch.min(importance_map[importance_map != 0])
     else:
-        raise ValueError('mode must be "constant" or "gaussian".')
+        raise ValueError(f'Unsupported mode: {mode}, available options are ["constant", "gaussian"].')
 
     return importance_map
