@@ -24,7 +24,7 @@ import torch
 from torch.utils.data import DataLoader
 
 import monai
-from monai.utils.misc import set_determinism, build_save_dir
+from monai.utils.misc import set_determinism, create_run_dir
 
 from monai.transforms import (
     LoadPNG,
@@ -74,6 +74,11 @@ def main():
             ToTensor(),
         ]
     )
+
+    # initialize run dir
+    output_dir = './ModelOut'
+    run_dir = create_run_dir(output_dir)
+    print("Saving model output to: %s " % run_dir)
 
     train_ds = monai.data.CacheDataset(hands, train_transforms)
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=10)
@@ -125,13 +130,11 @@ def main():
         return gen_loss(output, cats)
 
     # Training Event Handlers
-
-    output_dir = build_save_dir("./ModelOut")
-    print("Saving model output to: %s " % output_dir)
+    
     handlers = [
         StatsHandler(name="trainer"),
         CheckpointSaver(
-            save_dir=output_dir,
+            save_dir=run_dir,
             save_dict={"g_net": gen_net, "d_net": disc_net},
             save_interval=10,
             save_final=True,
