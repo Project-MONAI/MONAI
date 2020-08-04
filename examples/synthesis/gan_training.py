@@ -26,6 +26,7 @@ import logging
 import torch
 
 import monai
+from monai.apps.utils import download_and_extract
 from monai.utils.misc import set_determinism
 from monai.data import CacheDataset, DataLoader, png_writer
 from monai.networks.nets import Generator, Discriminator
@@ -53,8 +54,13 @@ def main():
     device = torch.device("cuda:0")
 
     # load real data
-    input_dir = "./MedNIST/Hand"
-    real_data = [{"hand": os.path.join(input_dir, filename)} for filename in os.listdir(input_dir)]
+    mednist_url = "https://www.dropbox.com/s/5wwskxctvcxiuea/MedNIST.tar.gz?dl=1"
+    md5_value = "0bc7306e7427e00ad1c5526a6677552d"
+    extract_dir = "data"
+    tar_save_path = os.path.join(extract_dir, "MedNIST.tar.gz")
+    download_and_extract(mednist_url, tar_save_path, extract_dir, md5_value)
+    hand_dir = os.path.join(extract_dir, "MedNIST", "Hand")
+    real_data = [{"hand": os.path.join(hand_dir, filename)} for filename in os.listdir(hand_dir)]
 
     # define real data transforms
     train_transforms = Compose(
@@ -135,7 +141,7 @@ def main():
         return gen_loss_criterion(output, cats)
 
     # initialize current run dir
-    run_dir = "hand-gan"
+    run_dir = "model_out"
     print("Saving model output to: %s " % run_dir)
 
     # create workflow handlers

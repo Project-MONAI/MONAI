@@ -54,7 +54,7 @@ def main():
     # create fakes
     output_dir = "./generated_images"
     if not os.path.isdir(output_dir):
-        os.path.mkdir(output_dir)
+        os.mkdir(output_dir)
     num_fakes = 10
     print("Generating %d fakes and saving in %s" % (num_fakes, output_dir))
     fake_latents = make_latent(num_fakes, latent_size).to(device)
