@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import math
-from typing import Any, Dict, Optional, Union
+from typing import Dict, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -30,8 +30,8 @@ class ChannelSELayer(nn.Module):
         spatial_dims: int,
         in_channels: int,
         r: int = 2,
-        acti_type_1: Union[str, tuple] = ("relu", {"inplace": True}),
-        acti_type_2: Union[str, tuple] = "sigmoid",
+        acti_type_1: Union[Tuple[str, Dict], str] = ("relu", {"inplace": True}),
+        acti_type_2: Union[Tuple[str, Dict], str] = "sigmoid",
     ) -> None:
         """
         Args:
@@ -67,13 +67,13 @@ class ChannelSELayer(nn.Module):
             Act[act_2](**act_2_args),
         )
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Args:
             x: in shape (batch, in_channels, spatial_1[, spatial_2, ...]).
         """
         b, c = x.shape[:2]
-        y = self.avg_pool(x).view(b, c)
+        y: torch.Tensor = self.avg_pool(x).view(b, c)
         y = self.fc(y).view([b, c] + [1] * (x.ndimension() - 2))
         return x * y
 
@@ -89,7 +89,12 @@ class ResidualSELayer(ChannelSELayer):
     """
 
     def __init__(
-        self, spatial_dims: int, in_channels: int, r: int = 2, acti_type_1="leakyrelu", acti_type_2="relu"
+        self,
+        spatial_dims: int,
+        in_channels: int,
+        r: int = 2,
+        acti_type_1: Union[Tuple[str, Dict], str] = "leakyrelu",
+        acti_type_2: Union[Tuple[str, Dict], str] = "relu",
     ) -> None:
         """
         Args:
@@ -108,7 +113,7 @@ class ResidualSELayer(ChannelSELayer):
             spatial_dims=spatial_dims, in_channels=in_channels, r=r, acti_type_1=acti_type_1, acti_type_2=acti_type_2
         )
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Args:
             x: in shape (batch, in_channels, spatial_1[, spatial_2, ...]).
@@ -135,15 +140,15 @@ class SEBlock(nn.Module):
         n_chns_1: int,
         n_chns_2: int,
         n_chns_3: int,
-        conv_param_1: Optional[Dict[str, Any]] = None,
-        conv_param_2: Optional[Dict[str, Any]] = None,
-        conv_param_3: Optional[Dict[str, Any]] = None,
+        conv_param_1: Optional[Dict] = None,
+        conv_param_2: Optional[Dict] = None,
+        conv_param_3: Optional[Dict] = None,
         project: Optional[Convolution] = None,
         r: int = 2,
-        acti_type_1: Union[str, tuple] = "relu",
-        acti_type_2: Union[str, tuple] = "sigmoid",
-        acti_type_final: Optional[Union[str, tuple]] = "relu",
-    ):
+        acti_type_1: Union[Tuple[str, Dict], str] = "relu",
+        acti_type_2: Union[Tuple[str, Dict], str] = "sigmoid",
+        acti_type_final: Optional[Union[Tuple[str, Dict], str]] = "relu",
+    ) -> None:
         """
         Args:
             spatial_dims: number of spatial dimensions, could be 1, 2, or 3.

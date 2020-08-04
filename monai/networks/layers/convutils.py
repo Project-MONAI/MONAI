@@ -9,14 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence, Union
+from typing import Sequence, Tuple, Union
 
 import numpy as np
 
 __all__ = ["same_padding", "calculate_out_shape", "gaussian_1d"]
 
 
-def same_padding(kernel_size: Union[Sequence[int], int], dilation: Union[Sequence[int], int] = 1):
+def same_padding(
+    kernel_size: Union[Sequence[int], int], dilation: Union[Sequence[int], int] = 1
+) -> Union[Tuple[int, ...], int]:
     """
     Return the padding value needed to ensure a convolution using the given kernel size produces an output of the same
     shape as the input for a stride of 1, otherwise ensure a shape of the input divided by the stride rounded down.
@@ -26,34 +28,43 @@ def same_padding(kernel_size: Union[Sequence[int], int], dilation: Union[Sequenc
 
     """
 
-    kernel_size_ = np.atleast_1d(kernel_size)
-    dilation_ = np.atleast_1d(dilation)
+    kernel_size_np = np.atleast_1d(kernel_size)
+    dilation_np = np.atleast_1d(dilation)
 
-    if np.any((kernel_size_ - 1) * dilation_ % 2 == 1):
+    if np.any((kernel_size_np - 1) * dilation % 2 == 1):
         raise NotImplementedError(
-            f"Same padding not available for kernel_size={kernel_size_} and dilation={dilation_}."
+            f"Same padding not available for kernel_size={kernel_size_np} and dilation={dilation_np}."
         )
 
-    padding = (kernel_size_ - 1) / 2 * dilation_
-    padding = tuple(int(p) for p in padding)
+    padding_np = (kernel_size_np - 1) / 2 * dilation_np
+    padding = tuple(int(p) for p in padding_np)
 
-    return tuple(padding) if len(padding) > 1 else padding[0]
+    return padding if len(padding) > 1 else padding[0]
 
 
-def calculate_out_shape(in_shape, kernel_size, stride, padding):
+def calculate_out_shape(
+    in_shape: Union[Sequence[int], int],
+    kernel_size: Union[Sequence[int], int],
+    stride: Union[Sequence[int], int],
+    padding: Union[Sequence[int], int],
+) -> Union[Tuple[int, ...], int]:
     """
     Calculate the output tensor shape when applying a convolution to a tensor of shape `inShape` with kernel size
     `kernel_size`, stride value `stride`, and input padding value `padding`. All arguments can be scalars or multiple
     values, return value is a scalar if all inputs are scalars.
     """
-    in_shape = np.atleast_1d(in_shape)
-    out_shape = ((in_shape - kernel_size + padding + padding) // stride) + 1
-    out_shape = tuple(int(s) for s in out_shape)
+    in_shape_np = np.atleast_1d(in_shape)
+    kernel_size_np = np.atleast_1d(kernel_size)
+    stride_np = np.atleast_1d(stride)
+    padding_np = np.atleast_1d(padding)
 
-    return tuple(out_shape) if len(out_shape) > 1 else out_shape[0]
+    out_shape_np = ((in_shape_np - kernel_size_np + padding_np + padding_np) // stride_np) + 1
+    out_shape = tuple(int(s) for s in out_shape_np)
+
+    return out_shape if len(out_shape) > 1 else out_shape[0]
 
 
-def gaussian_1d(sigma, truncated=4.0):
+def gaussian_1d(sigma: float, truncated: float = 4.0) -> np.ndarray:
     """
     one dimensional gaussian kernel.
 

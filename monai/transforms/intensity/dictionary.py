@@ -16,7 +16,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
 from collections.abc import Iterable
-from typing import Any, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Hashable, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -55,20 +55,21 @@ class RandGaussianNoised(Randomizable, MapTransform):
     ) -> None:
         super().__init__(keys)
         self.prob = prob
-        self.mean = mean
+        self.mean = ensure_tuple_size(mean, len(self.keys))
         self.std = std
         self._do_transform = False
-        self._noise = None
+        self._noise: Optional[np.ndarray] = None
 
     def randomize(self, im_shape: Sequence[int]) -> None:
         self._do_transform = self.R.random() < self.prob
         self._noise = self.R.normal(self.mean, self.R.uniform(0, self.std), size=im_shape)
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
 
         image_shape = d[self.keys[0]].shape  # image shape from the first data key
         self.randomize(image_shape)
+        assert self._noise is not None
         if not self._do_transform:
             return d
         for key in self.keys:
@@ -91,7 +92,7 @@ class ShiftIntensityd(MapTransform):
         super().__init__(keys)
         self.shifter = ShiftIntensity(offset)
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.shifter(d[key])
@@ -128,7 +129,7 @@ class RandShiftIntensityd(Randomizable, MapTransform):
         self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
         self._do_transform = self.R.random() < self.prob
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         self.randomize()
         if not self._do_transform:
@@ -161,7 +162,7 @@ class ScaleIntensityd(MapTransform):
         super().__init__(keys)
         self.scaler = ScaleIntensity(minv, maxv, factor)
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.scaler(d[key])
@@ -199,7 +200,7 @@ class RandScaleIntensityd(Randomizable, MapTransform):
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
         self._do_transform = self.R.random() < self.prob
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         self.randomize()
         if not self._do_transform:
@@ -237,7 +238,7 @@ class NormalizeIntensityd(MapTransform):
         super().__init__(keys)
         self.normalizer = NormalizeIntensity(subtrahend, divisor, nonzero, channel_wise)
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.normalizer(d[key])
@@ -260,7 +261,7 @@ class ThresholdIntensityd(MapTransform):
         super().__init__(keys)
         self.filter = ThresholdIntensity(threshold, above, cval)
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.filter(d[key])
@@ -287,7 +288,7 @@ class ScaleIntensityRanged(MapTransform):
         super().__init__(keys)
         self.scaler = ScaleIntensityRange(a_min, a_max, b_min, b_max, clip)
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.scaler(d[key])
@@ -311,7 +312,7 @@ class AdjustContrastd(MapTransform):
         super().__init__(keys)
         self.adjuster = AdjustContrast(gamma)
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.adjuster(d[key])
@@ -347,15 +348,16 @@ class RandAdjustContrastd(Randomizable, MapTransform):
             self.gamma = (min(gamma), max(gamma))
 
         self._do_transform = False
-        self.gamma_value = None
+        self.gamma_value: Optional[float] = None
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self._do_transform = self.R.random_sample() < self.prob
         self.gamma_value = self.R.uniform(low=self.gamma[0], high=self.gamma[1])
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         self.randomize()
+        assert self.gamma_value is not None
         if not self._do_transform:
             return d
         adjuster = AdjustContrast(self.gamma_value)
@@ -392,7 +394,7 @@ class ScaleIntensityRangePercentilesd(MapTransform):
         super().__init__(keys)
         self.scaler = ScaleIntensityRangePercentiles(lower, upper, b_min, b_max, clip, relative)
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.scaler(d[key])
@@ -413,11 +415,11 @@ class MaskIntensityd(MapTransform):
 
     """
 
-    def __init__(self, keys: KeysCollection, mask_data: np.ndarray):
+    def __init__(self, keys: KeysCollection, mask_data: np.ndarray) -> None:
         super().__init__(keys)
         self.converter = MaskIntensity(mask_data)
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.converter(d[key])
@@ -437,11 +439,11 @@ class GaussianSmoothd(MapTransform):
 
     """
 
-    def __init__(self, keys: KeysCollection, sigma: Union[Sequence[float], float]):
+    def __init__(self, keys: KeysCollection, sigma: Union[Sequence[float], float]) -> None:
         super().__init__(keys)
         self.converter = GaussianSmooth(sigma)
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.converter(d[key])
@@ -469,7 +471,7 @@ class RandGaussianSmoothd(Randomizable, MapTransform):
         sigma_y: Tuple[float, float] = (0.25, 1.5),
         sigma_z: Tuple[float, float] = (0.25, 1.5),
         prob: float = 0.1,
-    ):
+    ) -> None:
         super().__init__(keys)
         self.sigma_x = sigma_x
         self.sigma_y = sigma_y
@@ -483,7 +485,7 @@ class RandGaussianSmoothd(Randomizable, MapTransform):
         self.y = self.R.uniform(low=self.sigma_y[0], high=self.sigma_y[1])
         self.z = self.R.uniform(low=self.sigma_z[0], high=self.sigma_z[1])
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         self.randomize()
         if not self._do_transform:
@@ -517,11 +519,11 @@ class GaussianSharpend(MapTransform):
         sigma1: Union[Sequence[float], float] = 3.0,
         sigma2: Union[Sequence[float], float] = 1.0,
         alpha: float = 30.0,
-    ):
+    ) -> None:
         super().__init__(keys)
         self.converter = GaussianSharpen(sigma1, sigma2, alpha)
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.converter(d[key])

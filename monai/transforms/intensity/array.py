@@ -79,7 +79,7 @@ class RandShiftIntensity(Randomizable, Transform):
     Randomly shift intensity with randomly picked offset.
     """
 
-    def __init__(self, offsets: Union[Tuple[float, float], float], prob: float = 0.1):
+    def __init__(self, offsets: Union[Tuple[float, float], float], prob: float = 0.1) -> None:
         """
         Args:
             offsets: offset range to randomly shift.
@@ -215,7 +215,7 @@ class NormalizeIntensity(Transform):
         self.nonzero = nonzero
         self.channel_wise = channel_wise
 
-    def _normalize(self, img: np.ndarray):
+    def _normalize(self, img: np.ndarray) -> np.ndarray:
         slices = (img != 0) if self.nonzero else np.ones(img.shape, dtype=np.bool_)
         if np.any(slices):
             if self.subtrahend is not None and self.divisor is not None:
@@ -466,7 +466,7 @@ class MaskIntensity(Transform):
 
     """
 
-    def __init__(self, mask_data: np.ndarray):
+    def __init__(self, mask_data: np.ndarray) -> None:
         self.mask_data = mask_data
 
     def __call__(self, img: np.ndarray, mask_data: Optional[np.ndarray] = None) -> np.ndarray:

@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -19,14 +19,16 @@ from monai.utils import optional_import
 
 PIL, _ = optional_import("PIL")
 GifImage, _ = optional_import("PIL.GifImagePlugin", name="Image")
-summary_pb2, _ = optional_import("tensorboard.compat.proto.summary_pb2")
+
 if TYPE_CHECKING:
+    from tensorboard.compat.proto.summary_pb2 import Summary
     from torch.utils.tensorboard import SummaryWriter
 else:
+    Summary, _ = optional_import("tensorboard.compat.proto.summary_pb2", name="Summary")
     SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
 
-def _image3_animated_gif(tag: str, image: Union[np.ndarray, torch.Tensor], scale_factor: float = 1.0):
+def _image3_animated_gif(tag: str, image: Union[np.ndarray, torch.Tensor], scale_factor: float = 1.0) -> Summary:
     """Function to actually create the animated gif.
 
     Args:
@@ -47,9 +49,9 @@ def _image3_animated_gif(tag: str, image: Union[np.ndarray, torch.Tensor], scale
         for b_data in PIL.GifImagePlugin.getdata(i):
             img_str += b_data
     img_str += b"\x3B"
-    summary_image_str = summary_pb2.Summary.Image(height=10, width=10, colorspace=1, encoded_image_string=img_str)
-    image_summary = summary_pb2.Summary.Value(tag=tag, image=summary_image_str)
-    return summary_pb2.Summary(value=[image_summary])
+    summary_image_str = Summary.Image(height=10, width=10, colorspace=1, encoded_image_string=img_str)
+    image_summary = Summary.Value(tag=tag, image=summary_image_str)
+    return Summary(value=[image_summary])
 
 
 def make_animated_gif_summary(
@@ -58,9 +60,9 @@ def make_animated_gif_summary(
     max_out: int = 3,
     animation_axes: Sequence[int] = (3,),
     image_axes: Sequence[int] = (1, 2),
-    other_indices=None,
+    other_indices: Optional[Dict] = None,
     scale_factor: float = 1.0,
-):
+) -> Summary:
     """Creates an animated gif out of an image tensor in 'CHWD' format and returns Summary.
 
     Args:

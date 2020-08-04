@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import logging
-from typing import TYPE_CHECKING, Callable, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
 from torch.optim.lr_scheduler import ReduceLROnPlateau, _LRScheduler
 
@@ -34,7 +34,7 @@ class LrScheduleHandler:
         print_lr: bool = True,
         name: Optional[str] = None,
         epoch_level: bool = True,
-        step_transform: Callable = lambda engine: (),
+        step_transform: Callable[[Engine], Any] = lambda engine: (),
     ) -> None:
         """
         Args:
@@ -81,6 +81,4 @@ class LrScheduleHandler:
         args = ensure_tuple(self.step_transform(engine))
         self.lr_scheduler.step(*args)
         if self.print_lr:
-            self.logger.info(
-                f"Current learning rate: {self.lr_scheduler._last_lr[0]}"  # type: ignore # Module has no attribute
-            )
+            self.logger.info(f"Current learning rate: {self.lr_scheduler._last_lr[0]}")  # type: ignore[union-attr]

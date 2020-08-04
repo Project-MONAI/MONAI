@@ -130,7 +130,7 @@ class Critic(Classifier):
         """
         super().__init__(in_shape, 1, channels, strides, kernel_size, num_res_units, act, norm, dropout, bias, None)
 
-    def _get_final_layer(self, in_shape):
+    def _get_final_layer(self, in_shape: Sequence[int]):
         return nn.Flatten()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

@@ -11,10 +11,20 @@
 
 import json
 import os
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, overload
 
 
-def _compute_path(base_dir: str, element: Union[List[str], str]):
+@overload
+def _compute_path(base_dir: str, element: str) -> str:
+    ...
+
+
+@overload
+def _compute_path(base_dir: str, element: List[str]) -> List[str]:
+    ...
+
+
+def _compute_path(base_dir, element):
     """
     Args:
         base_dir: the base directory of the dataset.
@@ -36,7 +46,7 @@ def _compute_path(base_dir: str, element: Union[List[str], str]):
         raise TypeError(f"element must be one of (str, list) but is {type(element).__name__}.")
 
 
-def _append_paths(base_dir: str, is_segmentation: bool, items: List[Dict]):
+def _append_paths(base_dir: str, is_segmentation: bool, items: List[Dict]) -> List[Dict]:
     """
     Args:
         base_dir: the base directory of the dataset.
@@ -63,7 +73,7 @@ def load_decathalon_datalist(
     is_segmentation: bool = True,
     data_list_key: str = "training",
     base_dir: Optional[str] = None,
-):
+) -> List[Dict]:
     """Load image/label paths of decathalon challenge from JSON file
 
     Json file is similar to what you get from http://medicaldecathlon.com/

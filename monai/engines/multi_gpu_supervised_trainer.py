@@ -9,9 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence
+from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence, Tuple
 
 import torch
+import torch.nn
 from torch.optim.optimizer import Optimizer
 
 from monai.engines.utils import get_devices_spec
@@ -21,16 +22,20 @@ create_supervised_trainer, _ = optional_import("ignite.engine", "0.3.0", exact_v
 create_supervised_evaluator, _ = optional_import("ignite.engine", "0.3.0", exact_version, "create_supervised_evaluator")
 _prepare_batch, _ = optional_import("ignite.engine", "0.3.0", exact_version, "_prepare_batch")
 if TYPE_CHECKING:
+    from ignite.engine import Engine
     from ignite.metrics import Metric
 else:
+    Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
     Metric, _ = optional_import("ignite.metrics", "0.3.0", exact_version, "Metric")
 
 
-def _default_transform(_x, _y, _y_pred, loss):
+def _default_transform(_x: torch.Tensor, _y: torch.Tensor, _y_pred: torch.Tensor, loss: torch.Tensor) -> float:
     return loss.item()
 
 
-def _default_eval_transform(x, y, y_pred):
+def _default_eval_transform(
+    x: torch.Tensor, y: torch.Tensor, y_pred: torch.Tensor
+) -> Tuple[torch.Tensor, torch.Tensor]:
     return y_pred, y
 
 
@@ -42,7 +47,7 @@ def create_multigpu_supervised_trainer(
     non_blocking: bool = False,
     prepare_batch: Callable = _prepare_batch,
     output_transform: Callable = _default_transform,
-):
+) -> Engine:
     """
     Derived from `create_supervised_trainer` in Ignite.
 
@@ -86,7 +91,7 @@ def create_multigpu_supervised_evaluator(
     non_blocking: bool = False,
     prepare_batch: Callable = _prepare_batch,
     output_transform: Callable = _default_eval_transform,
-):
+) -> Engine:
     """
     Derived from `create_supervised_evaluator` in Ignite.
 

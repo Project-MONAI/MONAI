@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence
 
 import torch
 from torch.optim.optimizer import Optimizer
@@ -94,7 +94,7 @@ class SupervisedTrainer(Trainer):
         additional_metrics: Optional[Dict[str, Metric]] = None,
         train_handlers: Optional[Sequence] = None,
         amp: bool = False,
-    ):
+    ) -> None:
         # set up Ignite engine and environments
         super().__init__(
             device=device,
@@ -114,7 +114,7 @@ class SupervisedTrainer(Trainer):
         self.loss_function = loss_function
         self.inferer = inferer
 
-    def _iteration(self, engine: Engine, batchdata: Union[Dict, Sequence]) -> Dict[str, torch.Tensor]:
+    def _iteration(self, engine: Engine, batchdata: Dict[str, torch.Tensor]):
         """
         Callback function for the Supervised Training processing logic of 1 iteration in Ignite Engine.
         Return below items in a dictionary:

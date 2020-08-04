@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence
 
 import torch
 from torch.utils.data import DataLoader
@@ -29,7 +29,7 @@ else:
     Metric, _ = optional_import("ignite.metrics", "0.3.0", exact_version, "Metric")
 
 
-class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optional_import
+class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optional_import
     """
     Workflow defines the core work process inheriting from Ignite engine.
     All trainer, validator and evaluator share this same workflow as base class,
@@ -108,7 +108,7 @@ class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optiona
         if post_transform is not None:
 
             @self.on(Events.ITERATION_COMPLETED)
-            def run_post_transform(engine: Engine):
+            def run_post_transform(engine: Engine) -> None:
                 assert post_transform is not None
                 engine.state.output = apply_transform(post_transform, engine.state.output)
 
@@ -128,7 +128,7 @@ class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optiona
                 metric.attach(self, name)
 
             @self.on(Events.EPOCH_COMPLETED)
-            def _compare_metrics(engine: Engine):
+            def _compare_metrics(engine: Engine) -> None:
                 if engine.state.key_metric_name is not None:
                     current_val_metric = engine.state.metrics[engine.state.key_metric_name]
                     if current_val_metric > engine.state.best_metric:
@@ -149,7 +149,7 @@ class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optiona
         """
         super().run(data=self.data_loader, epoch_length=len(self.data_loader))
 
-    def _iteration(self, engine: Engine, batchdata: Union[Dict, Sequence]):
+    def _iteration(self, engine: Engine, batchdata: Dict[str, torch.Tensor]):
         """
         Abstract callback function for the processing logic of 1 iteration in Ignite Engine.
         Need subclass to implement different logics, like SupervisedTrainer/Evaluator, GANTrainer, etc.
