@@ -138,6 +138,8 @@ def main():
         },
         additional_metrics={"val_acc": Accuracy(output_transform=lambda x: (x["pred"], x["label"]))},
         val_handlers=val_handlers,
+        # if no FP16 support in GPU or PyTorch version < 1.6, will not enable AMP evaluation
+        amp=True if monai.config.get_torch_version_tuple() >= (1, 6) else False,
     )
 
     train_post_transforms = Compose(
@@ -163,10 +165,11 @@ def main():
         optimizer=opt,
         loss_function=loss,
         inferer=SimpleInferer(),
-        amp=False,
         post_transform=train_post_transforms,
         key_train_metric={"train_acc": Accuracy(output_transform=lambda x: (x["pred"], x["label"]))},
         train_handlers=train_handlers,
+        # if no FP16 support in GPU or PyTorch version < 1.6, will not enable AMP training
+        amp=True if monai.config.get_torch_version_tuple() >= (1, 6) else False,
     )
     trainer.run()
 

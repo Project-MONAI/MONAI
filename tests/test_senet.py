@@ -15,12 +15,12 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.nets import (
-    senet154,
     se_resnet50,
     se_resnet101,
     se_resnet152,
     se_resnext50_32x4d,
     se_resnext101_32x4d,
+    senet154,
 )
 
 input_param = {"spatial_dims": 3, "in_ch": 2, "num_classes": 10}

@@ -15,16 +15,17 @@ defined in :py:class:`monai.transforms.intensity.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Any, Optional, Sequence, Tuple, Union
 from collections.abc import Iterable
+from typing import Any, Optional, Sequence, Tuple, Union
+
 import numpy as np
 
 from monai.config import KeysCollection
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.intensity.array import (
     AdjustContrast,
-    GaussianSmooth,
     GaussianSharpen,
+    GaussianSmooth,
     MaskIntensity,
     NormalizeIntensity,
     ScaleIntensity,

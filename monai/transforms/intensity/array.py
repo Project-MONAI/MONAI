@@ -13,9 +13,10 @@ A collection of "vanilla" transforms for intensity adjustment
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
+from collections.abc import Iterable
 from typing import Any, Optional, Sequence, Tuple, Union
 from warnings import warn
-from collections.abc import Iterable
+
 import numpy as np
 import torch
 
