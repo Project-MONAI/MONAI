@@ -17,7 +17,7 @@ import torch.nn.functional as F
 
 from monai.networks.blocks.convolutions import Convolution
 from monai.networks.layers.factories import Act, Conv, Norm
-from monai.utils import exact_version, optional_import
+from monai.utils import optional_import
 
 models, _ = optional_import("torchvision", "0.5.0", name="models")
 
