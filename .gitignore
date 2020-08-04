@@ -123,3 +123,4 @@ temp/
 
 # temporary testing data MedNIST
 tests/testing_data/MedNIST*
+tests/testing_data/*Hippocampus*
