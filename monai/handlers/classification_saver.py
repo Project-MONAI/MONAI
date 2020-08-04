@@ -55,7 +55,7 @@ class ClassificationSaver:
         self.batch_transform = batch_transform
         self.output_transform = output_transform
 
-        self.logger = None if name is None else logging.getLogger(name)
+        self.logger = logging.getLogger(name)
         self._name = name
 
     def attach(self, engine: Engine) -> None:

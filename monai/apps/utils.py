@@ -84,7 +84,7 @@ def download_url(url: str, filepath: str, md5_value: Optional[str] = None) -> No
             )
     else:
 
-        def _process_hook(blocknum, blocksize, totalsize):
+        def _process_hook(blocknum: int, blocksize: int, totalsize: int):
             progress_bar(blocknum * blocksize, totalsize, f"Downloading {filepath.split('/')[-1]}:")
 
         try:

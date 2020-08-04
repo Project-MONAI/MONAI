@@ -172,9 +172,9 @@ class PersistentDataset(Dataset):
             cache is ONLY dependant on the input filename paths.
         """
         if item_transformed.get("cached", False) is False:
-            hashfile: Optional[Path] = None
+            hashfile = None
             if self.cache_dir is not None:
-                cache_dir_path: Path = Path(self.cache_dir)
+                cache_dir_path = Path(self.cache_dir)
                 if cache_dir_path.is_dir():
                     # TODO: Find way to hash transforms content as part of the cache
                     data_item_md5 = hashlib.md5(
@@ -192,7 +192,7 @@ class PersistentDataset(Dataset):
                     # NOTE: Writing to ".temp_write_cache" and then using a nearly atomic rename operation
                     #       to make the cache more robust to manual killing of parent process
                     #       which may leave partially written cache files in an incomplete state
-                    temp_hash_file: Path = hashfile.with_suffix(".temp_write_cache")
+                    temp_hash_file = hashfile.with_suffix(".temp_write_cache")
                     torch.save(item_transformed, temp_hash_file)
                     temp_hash_file.rename(hashfile)
 
@@ -289,7 +289,7 @@ class CacheDataset(Dataset):
             item = apply_transform(_transform, item)
         return item
 
-    def _load_cache_item_thread(self, args: Tuple) -> None:
+    def _load_cache_item_thread(self, args: Tuple[int, Any, Sequence[Callable]]) -> None:
         """
         Args:
             args: tuple with contents (i, item, transforms).

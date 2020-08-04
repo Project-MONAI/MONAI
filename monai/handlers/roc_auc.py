@@ -19,7 +19,7 @@ from monai.utils import Average, exact_version, optional_import
 Metric, _ = optional_import("ignite.metrics", "0.3.0", exact_version, "Metric")
 
 
-class ROCAUC(Metric):  # type: ignore # incorrectly typed due to optional_import
+class ROCAUC(Metric):  # type: ignore[valid-type, misc]  # due to optional_import
     """
     Computes Area Under the Receiver Operating Characteristic Curve (ROC AUC).
     accumulating predictions and the ground-truth during an epoch and applying `compute_roc_auc`.
