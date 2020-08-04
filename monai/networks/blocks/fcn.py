@@ -14,10 +14,12 @@ from typing import Type
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torchvision import models
 
 from monai.networks.blocks.convolutions import Convolution
 from monai.networks.layers.factories import Act, Conv, Norm
+from monai.utils import exact_version, optional_import
+
+models, _ = optional_import("torchvision", "0.5.0", name="models")
 
 
 class GCN(nn.Module):
