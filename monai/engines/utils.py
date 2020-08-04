@@ -86,5 +86,5 @@ def default_prepare_batch(
         return (batchdata[CommonKeys.IMAGE], None)
 
 
-def default_make_latent(num_latents: int, latent_size: int, real_data: torch.Tensor = None) -> torch.Tensor:
+def default_make_latent(num_latents: int, latent_size: int, real_data: Optional[torch.Tensor] = None) -> torch.Tensor:
     return torch.randn(num_latents, latent_size)
