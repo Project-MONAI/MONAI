@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from collections import OrderedDict
-from typing import List, Optional, Type, Union
+from typing import Any, List, Optional, Tuple, Type, Union
 
 import torch
 import torch.nn as nn
@@ -28,19 +28,19 @@ class SENet(nn.Module):
 
     Args:
         spatial_dims: spatial dimension of the input data.
-        in_ch (int): channel number of the input data.
-        block (SEBlock): SEBlock class.
+        in_ch: channel number of the input data.
+        block: SEBlock class.
             for SENet154: SEBottleneck
             for SE-ResNet models: SEResNetBottleneck
             for SE-ResNeXt models:  SEResNeXtBottleneck
-        layers (list): number of residual blocks for 4 layers of the network (layer1...layer4).
-        groups (int): number of groups for the 3x3 convolution in each bottleneck block.
+        layers: number of residual blocks for 4 layers of the network (layer1...layer4).
+        groups: number of groups for the 3x3 convolution in each bottleneck block.
             for SENet154: 64
             for SE-ResNet models: 1
             for SE-ResNeXt models:  32
-        reduction (int): reduction ratio for Squeeze-and-Excitation modules.
+        reduction: reduction ratio for Squeeze-and-Excitation modules.
             for all models: 16
-        dropout_p (float or None): drop probability for the Dropout layer.
+        dropout_p: drop probability for the Dropout layer.
             if `None` the Dropout layer is not used.
             for SENet154: 0.2
             for SE-ResNet models: None
@@ -49,20 +49,20 @@ class SENet(nn.Module):
             When dropout_dim = 1, randomly zeroes some of the elements for each channel.
             When dropout_dim = 2, Randomly zero out entire channels (a channel is a 2D feature map).
             When dropout_dim = 3, Randomly zero out entire channels (a channel is a 3D feature map).
-        inplanes (int):  number of input channels for layer1.
+        inplanes:  number of input channels for layer1.
             for SENet154: 128
             for SE-ResNet models: 64
             for SE-ResNeXt models: 64
-        input_3x3 (bool): If `True`, use three 3x3 convolutions instead of
+        downsample_kernel_size: kernel size for downsampling convolutions in layer2, layer3 and layer4.
+            for SENet154: 3
+            for SE-ResNet models: 1
+            for SE-ResNeXt models: 1
+        input_3x3: If `True`, use three 3x3 convolutions instead of
             a single 7x7 convolution in layer0.
             - For SENet154: True
             - For SE-ResNet models: False
             - For SE-ResNeXt models: False
-        downsample_kernel_size (int): kernel size for downsampling convolutions in layer2, layer3 and layer4.
-            for SENet154: 3
-            for SE-ResNet models: 1
-            for SE-ResNeXt models: 1
-        num_classes (int): number of outputs in `last_linear` layer.
+        num_classes: number of outputs in `last_linear` layer.
             for all models: 1000
 
     """
@@ -97,7 +97,8 @@ class SENet(nn.Module):
         self.inplanes = inplanes
         self.spatial_dims = spatial_dims
 
-        layer0_modules: Optional[List] = None
+        layer0_modules: List[Tuple[str, Any]]
+
         if input_3x3:
             layer0_modules = [
                 (
@@ -221,7 +222,7 @@ class SENet(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def features(self, x: torch.Tensor) -> torch.Tensor:
+    def features(self, x: torch.Tensor):
         x = self.layer0(x)
         x = self.layer1(x)
         x = self.layer2(x)
@@ -229,7 +230,7 @@ class SENet(nn.Module):
         x = self.layer4(x)
         return x
 
-    def logits(self, x: torch.Tensor) -> torch.Tensor:
+    def logits(self, x: torch.Tensor):
         x = self.adaptive_avg_pool(x)
         if self.dropout is not None:
             x = self.dropout(x)

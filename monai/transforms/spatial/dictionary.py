@@ -15,7 +15,7 @@ defined in :py:class:`monai.transforms.spatial.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Any, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Hashable, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -126,7 +126,9 @@ class Spacingd(MapTransform):
             raise TypeError(f"meta_key_postfix must be a str but is {type(meta_key_postfix).__name__}.")
         self.meta_key_postfix = meta_key_postfix
 
-    def __call__(self, data):
+    def __call__(
+        self, data: Mapping[Union[Hashable, str], Dict[str, np.ndarray]]
+    ) -> Dict[Union[Hashable, str], Union[np.ndarray, Dict[str, np.ndarray]]]:
         d = dict(data)
         for idx, key in enumerate(self.keys):
             meta_data = d[f"{key}_{self.meta_key_postfix}"]
@@ -161,7 +163,7 @@ class Orientationd(MapTransform):
         keys: KeysCollection,
         axcodes: Optional[str] = None,
         as_closest_canonical: bool = False,
-        labels=tuple(zip("LPI", "RAS")),
+        labels: Optional[Sequence[Tuple[str, str]]] = tuple(zip("LPI", "RAS")),
         meta_key_postfix: str = "meta_dict",
     ) -> None:
         """
@@ -193,7 +195,9 @@ class Orientationd(MapTransform):
             raise TypeError(f"meta_key_postfix must be a str but is {type(meta_key_postfix).__name__}.")
         self.meta_key_postfix = meta_key_postfix
 
-    def __call__(self, data):
+    def __call__(
+        self, data: Mapping[Union[Hashable, str], Dict[str, np.ndarray]]
+    ) -> Dict[Union[Hashable, str], Union[np.ndarray, Dict[str, np.ndarray]]]:
         d = dict(data)
         for key in self.keys:
             meta_data = d[f"{key}_{self.meta_key_postfix}"]
@@ -217,7 +221,7 @@ class Rotate90d(MapTransform):
         super().__init__(keys)
         self.rotator = Rotate90(k, spatial_axes)
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.rotator(d[key])
@@ -258,7 +262,7 @@ class RandRotate90d(Randomizable, MapTransform):
         self._rand_k = self.R.randint(self.max_k) + 1
         self._do_transform = self.R.random() < self.prob
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Mapping[Hashable, np.ndarray]:
         self.randomize()
         if not self._do_transform:
             return data
@@ -303,7 +307,7 @@ class Resized(MapTransform):
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.resizer = Resize(spatial_size=spatial_size)
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for idx, key in enumerate(self.keys):
             d[key] = self.resizer(d[key], mode=self.mode[idx], align_corners=self.align_corners[idx])
@@ -385,7 +389,9 @@ class RandAffined(Randomizable, MapTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
-    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandAffined":
         self.rand_affine.set_random_state(seed, state)
         super().set_random_state(seed, state)
         return self
@@ -393,7 +399,9 @@ class RandAffined(Randomizable, MapTransform):
     def randomize(self, data: Optional[Any] = None) -> None:
         self.rand_affine.randomize()
 
-    def __call__(self, data):
+    def __call__(
+        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
+    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
         d = dict(data)
         self.randomize()
 
@@ -487,7 +495,9 @@ class Rand2DElasticd(Randomizable, MapTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
-    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "Rand2DElasticd":
         self.rand_2d_elastic.set_random_state(seed, state)
         super().set_random_state(seed, state)
         return self
@@ -495,7 +505,9 @@ class Rand2DElasticd(Randomizable, MapTransform):
     def randomize(self, spatial_size: Sequence[int]) -> None:
         self.rand_2d_elastic.randomize(spatial_size)
 
-    def __call__(self, data):
+    def __call__(
+        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
+    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
         d = dict(data)
 
         sp_size = fall_back_tuple(self.rand_2d_elastic.spatial_size, data[self.keys[0]].shape[1:])
@@ -506,7 +518,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
             grid = self.rand_2d_elastic.rand_affine_grid(grid=grid)
             grid = _torch_interp(
                 input=grid.unsqueeze(0),
-                scale_factor=list(self.rand_2d_elastic.deform_grid.spacing),
+                scale_factor=ensure_tuple_rep(self.rand_2d_elastic.deform_grid.spacing, 2),
                 mode=InterpolateMode.BICUBIC.value,
                 align_corners=False,
             )
@@ -603,7 +615,9 @@ class Rand3DElasticd(Randomizable, MapTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
-    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "Rand3DElasticd":
         self.rand_3d_elastic.set_random_state(seed, state)
         super().set_random_state(seed, state)
         return self
@@ -611,7 +625,9 @@ class Rand3DElasticd(Randomizable, MapTransform):
     def randomize(self, grid_size: Sequence[int]) -> None:
         self.rand_3d_elastic.randomize(grid_size)
 
-    def __call__(self, data):
+    def __call__(
+        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
+    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
         d = dict(data)
         sp_size = fall_back_tuple(self.rand_3d_elastic.spatial_size, data[self.keys[0]].shape[1:])
 
@@ -648,7 +664,7 @@ class Flipd(MapTransform):
         super().__init__(keys)
         self.flipper = Flip(spatial_axis=spatial_axis)
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.flipper(d[key])
@@ -681,7 +697,7 @@ class RandFlipd(Randomizable, MapTransform):
     def randomize(self, data: Optional[Any] = None) -> None:
         self._do_transform = self.R.random_sample() < self.prob
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         self.randomize()
         d = dict(data)
         if not self._do_transform:
@@ -736,7 +752,7 @@ class Rotated(MapTransform):
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for idx, key in enumerate(self.keys):
             d[key] = self.rotator(
@@ -825,7 +841,7 @@ class RandRotated(Randomizable, MapTransform):
         self.y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
         self.z = self.R.uniform(low=self.range_z[0], high=self.range_z[1])
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         self.randomize()
         d = dict(data)
         if not self._do_transform:
@@ -877,7 +893,7 @@ class Zoomd(MapTransform):
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.zoomer = Zoom(zoom=zoom, keep_size=keep_size)
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for idx, key in enumerate(self.keys):
             d[key] = self.zoomer(d[key], mode=self.mode[idx], align_corners=self.align_corners[idx])
@@ -940,7 +956,7 @@ class RandZoomd(Randomizable, MapTransform):
             # to keep the spatial shape ratio, use same random zoom factor for all dims
             self._zoom = self._zoom[0]
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         # match the spatial dim of first item
         self.randomize()
         d = dict(data)

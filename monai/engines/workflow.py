@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence
 
 import torch
 from torch.utils.data import DataLoader
@@ -29,7 +29,7 @@ else:
     Metric, _ = optional_import("ignite.metrics", "0.3.0", exact_version, "Metric")
 
 
-class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optional_import
+class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optional_import
     """
     Workflow defines the core work process inheriting from Ignite engine.
     All trainer, validator and evaluator share this same workflow as base class,
@@ -42,7 +42,6 @@ class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optiona
     Args:
         device: an object representing the device on which to run.
         max_epochs: the total epoch number for engine to run, validator and evaluator have only 1 epoch.
-        amp: whether to enable auto-mixed-precision training, reserved.
         data_loader: Ignite engine use data_loader to run, must be torch.DataLoader.
         prepare_batch: function to parse image and label for every iteration.
         iteration_update: the callable function for every iteration, expect to accept `engine`
@@ -55,6 +54,7 @@ class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optiona
         additional_metrics: more Ignite metrics that also attach to Ignite Engine.
         handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
             CheckpointHandler, StatsHandler, SegmentationSaver, etc.
+        amp: whether to enable auto-mixed-precision training or inference, default is False.
 
     Raises:
         TypeError: When ``device`` is not a ``torch.Device``.
@@ -68,7 +68,6 @@ class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optiona
         self,
         device: torch.device,
         max_epochs: int,
-        amp: bool,
         data_loader: DataLoader,
         prepare_batch: Callable = default_prepare_batch,
         iteration_update: Optional[Callable] = None,
@@ -76,14 +75,12 @@ class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optiona
         key_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
         handlers: Optional[Sequence] = None,
+        amp: bool = False,
     ) -> None:
         if iteration_update is not None:
             super().__init__(iteration_update)
         else:
             super().__init__(self._iteration)
-        # FIXME:
-        if amp:
-            self.logger.info("Will add AMP support when PyTorch v1.6 released.")
         if not isinstance(device, torch.device):
             raise TypeError(f"device must be a torch.device but is {type(device).__name__}.")
         if not isinstance(data_loader, DataLoader):
@@ -101,7 +98,6 @@ class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optiona
             metrics={},
             dataloader=None,
             device=device,
-            amp=amp,
             key_metric_name=None,  # we can set many metrics, only use key_metric to compare and save the best model
             best_metric=-1,
             best_metric_epoch=-1,
@@ -112,7 +108,7 @@ class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optiona
         if post_transform is not None:
 
             @self.on(Events.ITERATION_COMPLETED)
-            def run_post_transform(engine: Engine):
+            def run_post_transform(engine: Engine) -> None:
                 assert post_transform is not None
                 engine.state.output = apply_transform(post_transform, engine.state.output)
 
@@ -132,7 +128,7 @@ class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optiona
                 metric.attach(self, name)
 
             @self.on(Events.EPOCH_COMPLETED)
-            def _compare_metrics(engine: Engine):
+            def _compare_metrics(engine: Engine) -> None:
                 if engine.state.key_metric_name is not None:
                     current_val_metric = engine.state.metrics[engine.state.key_metric_name]
                     if current_val_metric > engine.state.best_metric:
@@ -144,6 +140,7 @@ class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optiona
             handlers_ = ensure_tuple(handlers)
             for handler in handlers_:
                 handler.attach(self)
+        self.amp = amp
 
     def run(self) -> None:
         """
@@ -152,7 +149,7 @@ class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optiona
         """
         super().run(data=self.data_loader, epoch_length=len(self.data_loader))
 
-    def _iteration(self, engine: Engine, batchdata: Union[Dict, Sequence]):
+    def _iteration(self, engine: Engine, batchdata: Dict[str, torch.Tensor]):
         """
         Abstract callback function for the processing logic of 1 iteration in Ignite Engine.
         Need subclass to implement different logics, like SupervisedTrainer/Evaluator, GANTrainer, etc.

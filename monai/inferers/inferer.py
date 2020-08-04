@@ -98,7 +98,7 @@ class SlidingWindowInferer(Inferer):
         self.overlap = overlap
         self.mode: BlendMode = BlendMode(mode)
 
-    def __call__(self, inputs: torch.Tensor, network: torch.nn.Module):
+    def __call__(self, inputs: torch.Tensor, network: torch.nn.Module) -> torch.Tensor:
         """
         Unified callable function API of Inferers.
 

@@ -72,7 +72,7 @@ class DiceMetric:
 
         self.not_nans: Optional[torch.Tensor] = None  # keep track for valid elements in the batch
 
-    def __call__(self, y_pred: torch.Tensor, y: torch.Tensor):
+    def __call__(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         """
         Args:
             y_pred: input data to compute, typical segmentation model output.
@@ -153,7 +153,7 @@ def compute_meandice(
     sigmoid: bool = False,
     other_act: Optional[Callable] = None,
     logit_thresh: float = 0.5,
-):
+) -> torch.Tensor:
     """Computes Dice score metric from full size Tensor and collects average.
 
     Args:

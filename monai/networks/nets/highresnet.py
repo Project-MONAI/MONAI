@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, Optional, Sequence, Union
+from typing import Dict, Optional, Sequence, Union
 
 import torch
 import torch.nn as nn
@@ -190,7 +190,7 @@ class HighResNet(nn.Module):
         norm_type: Union[Normalisation, str] = Normalisation.BATCH,
         acti_type: Union[Activation, str] = Activation.RELU,
         dropout_prob: Optional[float] = None,
-        layer_params: Sequence[Dict[str, Any]] = DEFAULT_LAYER_PARAMS_3D,
+        layer_params: Sequence[Dict] = DEFAULT_LAYER_PARAMS_3D,
     ) -> None:
 
         super(HighResNet, self).__init__()

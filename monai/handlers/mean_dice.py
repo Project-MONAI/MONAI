@@ -22,7 +22,7 @@ reinit__is_reduced, _ = optional_import("ignite.metrics.metric", "0.3.0", exact_
 sync_all_reduce, _ = optional_import("ignite.metrics.metric", "0.3.0", exact_version, "sync_all_reduce")
 
 
-class MeanDice(Metric):  # type: ignore # incorrectly typed due to optional_import
+class MeanDice(Metric):  # type: ignore[valid-type, misc] # due to optional_import
     """
     Computes Dice score metric from full size Tensor and collects average over batch, class-channels, iterations.
     """
@@ -67,12 +67,12 @@ class MeanDice(Metric):  # type: ignore # incorrectly typed due to optional_impo
             logit_thresh=logit_thresh,
             reduction=MetricReduction.MEAN,
         )
-        self._sum = 0
+        self._sum = 0.0
         self._num_examples = 0
 
     @reinit__is_reduced
     def reset(self) -> None:
-        self._sum = 0
+        self._sum = 0.0
         self._num_examples = 0
 
     @reinit__is_reduced

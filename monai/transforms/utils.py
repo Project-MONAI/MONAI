@@ -11,7 +11,7 @@
 
 import random
 import warnings
-from typing import Callable, Optional, Sequence, Union
+from typing import Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -29,7 +29,7 @@ def rand_choice(prob: float = 0.5) -> bool:
     return bool(random.random() <= prob)
 
 
-def img_bounds(img):
+def img_bounds(img: np.ndarray) -> np.ndarray:
     """
     Returns the minimum and maximum indices of non-zero lines in axis 0 of `img`, followed by that for axis 1.
     """
@@ -38,21 +38,21 @@ def img_bounds(img):
     return np.concatenate((np.where(ax0)[0][[0, -1]], np.where(ax1)[0][[0, -1]]))
 
 
-def in_bounds(x, y, margin, maxx, maxy) -> bool:
+def in_bounds(x: float, y: float, margin: float, maxx: float, maxy: float) -> bool:
     """
     Returns True if (x,y) is within the rectangle (margin, margin, maxx-margin, maxy-margin).
     """
     return bool(margin <= x < (maxx - margin) and margin <= y < (maxy - margin))
 
 
-def is_empty(img) -> bool:
+def is_empty(img: Union[np.ndarray, torch.Tensor]) -> bool:
     """
     Returns True if `img` is empty, that is its maximum value is not greater than its minimum.
     """
     return not (img.max() > img.min())  # use > instead of <= so that an image full of NaNs will result in True
 
 
-def zero_margins(img, margin) -> bool:
+def zero_margins(img: np.ndarray, margin: int) -> bool:
     """
     Returns True if the values within `margin` indices of the edges of `img` in dimensions 1 and 2 are 0.
     """
@@ -65,7 +65,9 @@ def zero_margins(img, margin) -> bool:
     return True
 
 
-def rescale_array(arr: np.ndarray, minv=0.0, maxv=1.0, dtype: Optional[np.dtype] = np.float32) -> np.ndarray:
+def rescale_array(
+    arr: np.ndarray, minv: float = 0.0, maxv: float = 1.0, dtype: Optional[np.dtype] = np.float32
+) -> np.ndarray:
     """
     Rescale the values of numpy array `arr` to be from `minv` to `maxv`.
     """
@@ -82,7 +84,9 @@ def rescale_array(arr: np.ndarray, minv=0.0, maxv=1.0, dtype: Optional[np.dtype]
     return (norm * (maxv - minv)) + minv  # rescale by minv and maxv, which is the normalized array by default
 
 
-def rescale_instance_array(arr: np.ndarray, minv: float = 0.0, maxv: float = 1.0, dtype: np.dtype = np.float32):
+def rescale_instance_array(
+    arr: np.ndarray, minv: float = 0.0, maxv: float = 1.0, dtype: np.dtype = np.float32
+) -> np.ndarray:
     """
     Rescale each array slice along the first dimension of `arr` independently.
     """
@@ -93,7 +97,7 @@ def rescale_instance_array(arr: np.ndarray, minv: float = 0.0, maxv: float = 1.0
     return out
 
 
-def rescale_array_int_max(arr: np.ndarray, dtype: np.dtype = np.uint16):
+def rescale_array_int_max(arr: np.ndarray, dtype: np.dtype = np.uint16) -> np.ndarray:
     """
     Rescale the array `arr` to be between the minimum and maximum values of the type `dtype`.
     """
@@ -101,7 +105,13 @@ def rescale_array_int_max(arr: np.ndarray, dtype: np.dtype = np.uint16):
     return rescale_array(arr, info.min, info.max).astype(dtype)
 
 
-def copypaste_arrays(src, dest, srccenter, destcenter, dims):
+def copypaste_arrays(
+    src: np.ndarray,
+    dest: np.ndarray,
+    srccenter: Sequence[int],
+    destcenter: Sequence[int],
+    dims: Sequence[Optional[int]],
+) -> Tuple[Tuple[slice, ...], Tuple[slice, ...]]:
     """
     Calculate the slices to copy a sliced area of array `src` into array `dest`. The area has dimensions `dims` (use 0
     or None to copy everything in that dimension), the source area is centered at `srccenter` index in `src` and copied
@@ -150,7 +160,7 @@ def copypaste_arrays(src, dest, srccenter, destcenter, dims):
     return tuple(srcslices), tuple(destslices)
 
 
-def resize_center(img, *resize_dims, fill_value=0):
+def resize_center(img: np.ndarray, *resize_dims: Optional[int], fill_value: float = 0.0) -> np.ndarray:
     """
     Resize `img` by cropping or expanding the image from the center. The `resize_dims` values are the output dimensions
     (or None to use original dimension of `img`). If a dimension is smaller than that of `img` then the result will be
@@ -177,7 +187,7 @@ def generate_pos_neg_label_crop_centers(
     image: Optional[np.ndarray] = None,
     image_threshold: float = 0.0,
     rand_state: np.random.RandomState = np.random,
-):
+) -> List[List[np.ndarray]]:
     """Generate valid sample locations based on image with option for specifying foreground ratio
     Valid: samples sitting entirely within image, expected input shape: [C, H, W, D] or [C, H, W]
 
@@ -211,7 +221,9 @@ def generate_pos_neg_label_crop_centers(
         if valid_start[i] == valid_end[i]:
             valid_end[i] += 1
 
-    def _correct_centers(center_ori, valid_start, valid_end):
+    def _correct_centers(
+        center_ori: List[np.ndarray], valid_start: np.ndarray, valid_end: np.ndarray
+    ) -> List[np.ndarray]:
         for i, c in enumerate(center_ori):
             center_i = c
             if c < valid_start[i]:
@@ -254,7 +266,7 @@ def generate_pos_neg_label_crop_centers(
     return centers
 
 
-def apply_transform(transform: Callable, data: object, map_items: bool = True):
+def apply_transform(transform: Callable, data, map_items: bool = True):
     """
     Transform `data` with `transform`.
     If `data` is a list or tuple and `map_data` is True, each item of `data` will be transformed
@@ -304,7 +316,7 @@ def create_grid(
 
 def create_control_grid(
     spatial_shape: Sequence[int], spacing: Sequence[float], homogeneous: bool = True, dtype: np.dtype = float
-):
+) -> np.ndarray:
     """
     control grid with two additional point in each direction
     """
@@ -318,7 +330,7 @@ def create_control_grid(
     return create_grid(grid_shape, spacing, homogeneous, dtype)
 
 
-def create_rotate(spatial_dims: int, radians: Union[Sequence[float], float]):
+def create_rotate(spatial_dims: int, radians: Union[Sequence[float], float]) -> np.ndarray:
     """
     create a 2D or 3D rotation matrix
 
@@ -357,12 +369,14 @@ def create_rotate(spatial_dims: int, radians: Union[Sequence[float], float]):
             affine = affine @ np.array(
                 [[cos_, -sin_, 0.0, 0.0], [sin_, cos_, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
             )
+        if affine is None:
+            raise ValueError("radians must be non empty.")
         return affine
 
     raise ValueError(f"Unsupported spatial_dims: {spatial_dims}, available options are [2, 3].")
 
 
-def create_shear(spatial_dims: int, coefs: Union[Sequence[float], float]):
+def create_shear(spatial_dims: int, coefs: Union[Sequence[float], float]) -> np.ndarray:
     """
     create a shearing matrix
 
@@ -390,7 +404,7 @@ def create_shear(spatial_dims: int, coefs: Union[Sequence[float], float]):
     raise NotImplementedError("Currently only spatial_dims in [2, 3] are supported.")
 
 
-def create_scale(spatial_dims: int, scaling_factor: Union[Sequence[float], float]):
+def create_scale(spatial_dims: int, scaling_factor: Union[Sequence[float], float]) -> np.ndarray:
     """
     create a scaling matrix
 
@@ -402,7 +416,7 @@ def create_scale(spatial_dims: int, scaling_factor: Union[Sequence[float], float
     return np.diag(scaling_factor[:spatial_dims] + (1.0,))
 
 
-def create_translate(spatial_dims: int, shift: Union[Sequence[float], float]):
+def create_translate(spatial_dims: int, shift: Union[Sequence[float], float]) -> np.ndarray:
     """
     create a translation matrix
 
@@ -422,7 +436,7 @@ def generate_spatial_bounding_box(
     select_fn: Callable = lambda x: x > 0,
     channel_indexes: Optional[IndexSelection] = None,
     margin: int = 0,
-):
+) -> Tuple[List[int], List[int]]:
     """
     generate the spatial bounding box of foreground in the image with start-end positions.
     Users can define arbitrary function to select expected foreground from the whole image or specified channels.
@@ -449,7 +463,7 @@ def generate_spatial_bounding_box(
     return box_start, box_end
 
 
-def get_largest_connected_component_mask(img, connectivity: Optional[int] = None):
+def get_largest_connected_component_mask(img: torch.Tensor, connectivity: Optional[int] = None) -> torch.Tensor:
     """
     Gets the largest connected component mask of an image.
 

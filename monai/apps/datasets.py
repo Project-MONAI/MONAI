@@ -11,7 +11,7 @@
 
 import os
 import sys
-from typing import Any, Callable, Optional, Sequence, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
 from monai.apps.utils import download_and_extract
 from monai.data import CacheDataset, load_decathalon_datalist
@@ -87,7 +87,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
     def randomize(self, data: Optional[Any] = None) -> None:
         self.rann = self.R.random()
 
-    def _generate_data_list(self, dataset_dir: str):
+    def _generate_data_list(self, dataset_dir: str) -> List[Dict]:
         """
         Raises:
             ValueError: When ``section`` is not one of ["training", "validation", "test"].
@@ -246,7 +246,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
     def randomize(self, data: Optional[Any] = None) -> None:
         self.rann = self.R.random()
 
-    def _generate_data_list(self, dataset_dir: str):
+    def _generate_data_list(self, dataset_dir: str) -> List[Dict]:
         section = "training" if self.section in ["training", "validation"] else "test"
         datalist = load_decathalon_datalist(os.path.join(dataset_dir, "dataset.json"), True, section)
         if section == "test":
