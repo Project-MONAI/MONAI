@@ -278,9 +278,9 @@ class AHNet(nn.Module):
 
     Args:
         layers (list): number of residual blocks for 4 layers of the network (layer1...layer4).
-        upsample_mode (str): The mode of upsampling manipulations, there are two choices: 
+        upsample_mode (str): The mode of upsampling manipulations, there are two choices:
             1) "transpose", uses transposed convolution layers.
-            2) "interpolate", uses standard interpolate way. 
+            2) "interpolate", uses standard interpolate way.
             Using the second mode cannot guarantee the model's reproducibility. Defaults to "transpose".
     """
 
