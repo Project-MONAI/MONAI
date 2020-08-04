@@ -22,6 +22,7 @@ def run_testsuit():
         "test_cachedataset_parallel",
         "test_check_md5",
         "test_dataset",
+        "test_ahnet",
         "test_handler_checkpoint_loader",
         "test_handler_checkpoint_saver",
         "test_handler_classification_saver",

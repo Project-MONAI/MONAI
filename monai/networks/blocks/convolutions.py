@@ -38,6 +38,11 @@ class Convolution(nn.Sequential):
         act: activation type and arguments. Defaults to PReLU.
         norm: feature normalization type and arguments. Defaults to instance norm.
         dropout: dropout ratio. Defaults to no dropout.
+        dropout_dim: determine the dimensions of dropout. Defaults to 1.
+            When dropout_dim = 1, randomly zeroes some of the elements for each channel.
+            When dropout_dim = 2, Randomly zero out entire channels (a channel is a 2D feature map).
+            When dropout_dim = 3, Randomly zero out entire channels (a channel is a 3D feature map).
+            The value of dropout_dim should be no no larger than the value of dimensions.
         dilation: dilation rate. Defaults to 1.
         groups: controls the connections between inputs and outputs. Defaults to 1.
         bias: whether to have a bias term. Defaults to True.
@@ -64,6 +69,7 @@ class Convolution(nn.Sequential):
         act: Optional[Union[Tuple, str]] = Act.PRELU,
         norm: Union[Tuple, str] = Norm.INSTANCE,
         dropout: Optional[Union[Tuple, str, float]] = None,
+        dropout_dim: int = 1,
         dilation: Union[Sequence[int], int] = 1,
         groups: int = 1,
         bias: bool = True,
@@ -98,7 +104,11 @@ class Convolution(nn.Sequential):
             else:
                 drop_name, drop_args = split_args(dropout)
 
-            drop_type = Dropout[drop_name, dimensions]
+            if dropout_dim > dimensions:
+                raise ValueError(
+                    f"dropout_dim should be no larger than dimensions, got dropout_dim={dropout_dim} and dimensions={dimensions}."
+                )
+            drop_type = Dropout[drop_name, dropout_dim]
 
         if is_transposed:
             conv = conv_type(
@@ -148,6 +158,11 @@ class ResidualUnit(nn.Module):
         act: activation type and arguments. Defaults to PReLU.
         norm: feature normalization type and arguments. Defaults to instance norm.
         dropout: dropout ratio. Defaults to no dropout.
+        dropout_dim: determine the dimensions of dropout. Defaults to 1.
+            When dropout_dim = 1, randomly zeroes some of the elements for each channel.
+            When dropout_dim = 2, Randomly zero out entire channels (a channel is a 2D feature map).
+            When dropout_dim = 3, Randomly zero out entire channels (a channel is a 3D feature map).
+            The value of dropout_dim should be no no larger than the value of dimensions.
         dilation: dilation rate. Defaults to 1.
         bias: whether to have a bias term. Defaults to True.
         last_conv_only: for the last subunit, whether to use the convolutional layer only.
@@ -167,9 +182,10 @@ class ResidualUnit(nn.Module):
         strides: int = 1,
         kernel_size: Union[Sequence[int], int] = 3,
         subunits: int = 2,
-        act=Act.PRELU,
-        norm=Norm.INSTANCE,
-        dropout=None,
+        act: Optional[Union[tuple, str]] = Act.PRELU,
+        norm: Union[tuple, str] = Norm.INSTANCE,
+        dropout: Optional[Union[int, float, tuple, str]] = None,
+        dropout_dim: int = 1,
         dilation: Union[Sequence[int], int] = 1,
         bias: bool = True,
         last_conv_only: bool = False,
@@ -197,6 +213,7 @@ class ResidualUnit(nn.Module):
                 act=act,
                 norm=norm,
                 dropout=dropout,
+                dropout_dim=dropout_dim,
                 dilation=dilation,
                 bias=bias,
                 conv_only=conv_only,
