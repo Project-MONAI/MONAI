@@ -54,6 +54,7 @@ class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optiona
         additional_metrics: more Ignite metrics that also attach to Ignite Engine.
         handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
             CheckpointHandler, StatsHandler, SegmentationSaver, etc.
+        amp: whether to enable auto-mixed-precision training or inference, default is False.
 
     Raises:
         TypeError: When ``device`` is not a ``torch.Device``.
@@ -74,6 +75,7 @@ class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optiona
         key_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
         handlers: Optional[Sequence] = None,
+        amp: bool = False,
     ) -> None:
         if iteration_update is not None:
             super().__init__(iteration_update)
@@ -138,6 +140,7 @@ class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optiona
             handlers_ = ensure_tuple(handlers)
             for handler in handlers_:
                 handler.attach(self)
+        self.amp = amp
 
     def run(self) -> None:
         """

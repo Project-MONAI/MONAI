@@ -34,51 +34,7 @@ class Trainer(Workflow):
     """
     Base class for all kinds of trainers, inherits from Workflow.
 
-    Args:
-        device: an object representing the device on which to run.
-        max_epochs: the total epoch number for trainer to run.
-        train_data_loader: Ignite engine use data_loader to run, must be torch.DataLoader.
-        prepare_batch: function to parse image and label for current iteration.
-        iteration_update: the callable function for every iteration, expect to accept `engine`
-            and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
-        post_transform: execute additional transformation for the model output data.
-            Typically, several Tensor based transforms composed by `Compose`.
-        key_train_metric: compute metric when every iteration completed, and save average value to
-            engine.state.metrics when epoch completed. key_train_metric is the main metric to compare and save the
-            checkpoint into files.
-        additional_metrics: more Ignite metrics that also attach to Ignite Engine.
-        train_handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
-            CheckpointHandler, StatsHandler, SegmentationSaver, etc.
-        amp: whether to enable auto-mixed-precision training, default is False.
-
     """
-
-    def __init__(
-        self,
-        device: torch.device,
-        max_epochs: int,
-        train_data_loader: DataLoader,
-        prepare_batch: Callable = default_prepare_batch,
-        iteration_update: Optional[Callable] = None,
-        post_transform: Optional[Transform] = None,
-        key_train_metric: Optional[Dict[str, Metric]] = None,
-        additional_metrics: Optional[Dict[str, Metric]] = None,
-        train_handlers: Optional[Sequence] = None,
-        amp: bool = False,
-    ):
-        # set up Ignite engine and environments
-        super().__init__(
-            device=device,
-            max_epochs=max_epochs,
-            data_loader=train_data_loader,
-            prepare_batch=prepare_batch,
-            iteration_update=iteration_update,
-            post_transform=post_transform,
-            key_metric=key_train_metric,
-            additional_metrics=additional_metrics,
-            handlers=train_handlers,
-        )
-        self.amp = amp
 
     def run(self) -> None:
         """
@@ -139,16 +95,17 @@ class SupervisedTrainer(Trainer):
         train_handlers: Optional[Sequence] = None,
         amp: bool = False,
     ):
+        # set up Ignite engine and environments
         super().__init__(
             device=device,
             max_epochs=max_epochs,
-            train_data_loader=train_data_loader,
+            data_loader=train_data_loader,
             prepare_batch=prepare_batch,
             iteration_update=iteration_update,
             post_transform=post_transform,
-            key_train_metric=key_train_metric,
+            key_metric=key_train_metric,
             additional_metrics=additional_metrics,
-            train_handlers=train_handlers,
+            handlers=train_handlers,
             amp=amp,
         )
 
