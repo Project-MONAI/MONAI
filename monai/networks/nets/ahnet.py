@@ -116,7 +116,7 @@ class UpTransition(nn.Sequential):
         elif upsample_mode == "interpolate":
             self.add_module("pool", nn.Upsample(scale_factor=2, mode="trilinear", align_corners=True))
         else:
-            raise NotImplementedError(f"Currently only 'transpose' and 'interpolate' modes are supported.")
+            raise NotImplementedError(f"Currently only 'transpose' and 'interpolate' modes are supported, got {upsample_mode}.")
 
 
 class Final(nn.Sequential):
@@ -143,7 +143,7 @@ class Final(nn.Sequential):
         elif upsample_mode == "interpolate":
             self.add_module("up", nn.Upsample(scale_factor=2, mode="trilinear", align_corners=True))
         else:
-            raise NotImplementedError(f"Currently only 'transpose' and 'interpolate' modes are supported.")
+            raise NotImplementedError(f"Currently only 'transpose' and 'interpolate' modes are supported, got {upsample_mode}.")
 
 
 class Pseudo3DLayer(nn.Module):
@@ -256,7 +256,7 @@ class PSP(nn.Module):
                 self.proj8(self.pool8(x)), size=(x.size(2), x.size(3), x.size(4)), mode="trilinear", align_corners=True
             )
         else:
-            raise NotImplementedError(f"Currently only 'transpose' and 'interpolate' modes are supported.")
+            raise NotImplementedError(f"Currently only 'transpose' and 'interpolate' modes are supported, got {self.upsample_mode}.")
         x = torch.cat((x64, x32, x16, x8), dim=1)
         return x
 
@@ -306,7 +306,7 @@ class AHNet(nn.Module):
         elif upsample_mode == "interpolate":
             self.maxpool = pool3d_type(kernel_size=(3, 3, 3), stride=2, padding=1)
         else:
-            raise NotImplementedError(f"Currently only 'transpose' and 'interpolate' modes are supported.")
+            raise NotImplementedError(f"Currently only 'transpose' and 'interpolate' modes are supported, got {upsample_mode}.")
 
         self.layer1 = self._make_layer(Bottleneck3x3x1, 64, layers[0], stride=1)
         self.layer2 = self._make_layer(Bottleneck3x3x1, 128, layers[1], stride=2)
