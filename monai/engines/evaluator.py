@@ -47,6 +47,7 @@ class Evaluator(Workflow):
         additional_metrics: more Ignite metrics that also attach to Ignite Engine.
         val_handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
             CheckpointHandler, StatsHandler, SegmentationSaver, etc.
+        amp: whether to enable auto-mixed-precision evaluation, default is False.
 
     """
 
@@ -60,11 +61,11 @@ class Evaluator(Workflow):
         key_val_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
         val_handlers: Optional[Sequence] = None,
+        amp: bool = False,
     ) -> None:
         super().__init__(
             device=device,
             max_epochs=1,
-            amp=False,
             data_loader=val_data_loader,
             prepare_batch=prepare_batch,
             iteration_update=iteration_update,
@@ -72,6 +73,7 @@ class Evaluator(Workflow):
             key_metric=key_val_metric,
             additional_metrics=additional_metrics,
             handlers=val_handlers,
+            amp=amp,
         )
 
     def run(self, global_epoch: int = 1) -> None:
@@ -112,6 +114,7 @@ class SupervisedEvaluator(Evaluator):
         additional_metrics: more Ignite metrics that also attach to Ignite Engine.
         val_handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
             CheckpointHandler, StatsHandler, SegmentationSaver, etc.
+        amp: whether to enable auto-mixed-precision evaluation, default is False.
 
     """
 
@@ -127,6 +130,7 @@ class SupervisedEvaluator(Evaluator):
         key_val_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
         val_handlers: Optional[Sequence] = None,
+        amp: bool = False,
     ):
         super().__init__(
             device=device,
@@ -137,6 +141,7 @@ class SupervisedEvaluator(Evaluator):
             key_val_metric=key_val_metric,
             additional_metrics=additional_metrics,
             val_handlers=val_handlers,
+            amp=amp,
         )
 
         self.network = network
@@ -168,7 +173,11 @@ class SupervisedEvaluator(Evaluator):
         # execute forward computation
         self.network.eval()
         with torch.no_grad():
-            predictions = self.inferer(inputs, self.network)
+            if self.amp:
+                with torch.cuda.amp.autocast():
+                    predictions = self.inferer(inputs, self.network)
+            else:
+                predictions = self.inferer(inputs, self.network)
 
         return {Keys.IMAGE: inputs, Keys.LABEL: targets, Keys.PRED: predictions}
 
@@ -196,6 +205,7 @@ class EnsembleEvaluator(Evaluator):
         additional_metrics: more Ignite metrics that also attach to Ignite Engine.
         val_handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
             CheckpointHandler, StatsHandler, SegmentationSaver, etc.
+        amp: whether to enable auto-mixed-precision evaluation, default is False.
 
     """
 
@@ -212,6 +222,7 @@ class EnsembleEvaluator(Evaluator):
         key_val_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
         val_handlers: Optional[Sequence] = None,
+        amp: bool = False,
     ):
         super().__init__(
             device=device,
@@ -222,6 +233,7 @@ class EnsembleEvaluator(Evaluator):
             key_val_metric=key_val_metric,
             additional_metrics=additional_metrics,
             val_handlers=val_handlers,
+            amp=amp,
         )
 
         self.networks = ensure_tuple(networks)
@@ -259,6 +271,10 @@ class EnsembleEvaluator(Evaluator):
         for idx, network in enumerate(self.networks):
             network.eval()
             with torch.no_grad():
-                predictions.update({self.pred_keys[idx]: self.inferer(inputs, network)})
+                if self.amp:
+                    with torch.cuda.amp.autocast():
+                        predictions.update({self.pred_keys[idx]: self.inferer(inputs, network)})
+                else:
+                    predictions.update({self.pred_keys[idx]: self.inferer(inputs, network)})
 
         return predictions

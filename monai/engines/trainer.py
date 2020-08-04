@@ -44,6 +44,7 @@ class Trainer(Workflow):
         """
         if self._is_done(self.state):
             self.state.iteration = 0  # to avoid creating new State instance in ignite Engine.run
+        self.scaler = torch.cuda.amp.GradScaler() if self.amp else None
         super().run()
 
     def get_train_stats(self) -> Dict[str, float]:
@@ -56,7 +57,7 @@ class SupervisedTrainer(Trainer):
 
     Args:
         device: an object representing the device on which to run.
-        max_epochs: the total epoch number for engine to run, validator and evaluator have only 1 epoch.
+        max_epochs: the total epoch number for trainer to run.
         train_data_loader: Ignite engine use data_loader to run, must be torch.DataLoader.
         network: to train with this network.
         optimizer: the optimizer associated to the network.
@@ -65,7 +66,6 @@ class SupervisedTrainer(Trainer):
         iteration_update: the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
         inferer: inference method that execute model forward on input data, like: SlidingWindow, etc.
-        amp: whether to enable auto-mixed-precision training, reserved.
         post_transform: execute additional transformation for the model output data.
             Typically, several Tensor based transforms composed by `Compose`.
         key_train_metric: compute metric when every iteration completed, and save average value to
@@ -74,6 +74,7 @@ class SupervisedTrainer(Trainer):
         additional_metrics: more Ignite metrics that also attach to Ignite Engine.
         train_handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
             CheckpointHandler, StatsHandler, SegmentationSaver, etc.
+        amp: whether to enable auto-mixed-precision training, default is False.
 
     """
 
@@ -88,24 +89,24 @@ class SupervisedTrainer(Trainer):
         prepare_batch: Callable = default_prepare_batch,
         iteration_update: Optional[Callable] = None,
         inferer: Inferer = SimpleInferer(),
-        amp: bool = True,
         post_transform: Optional[Transform] = None,
         key_train_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
         train_handlers: Optional[Sequence] = None,
+        amp: bool = False,
     ):
         # set up Ignite engine and environments
         super().__init__(
             device=device,
             max_epochs=max_epochs,
-            amp=amp,
             data_loader=train_data_loader,
             prepare_batch=prepare_batch,
             iteration_update=iteration_update,
+            post_transform=post_transform,
             key_metric=key_train_metric,
             additional_metrics=additional_metrics,
             handlers=train_handlers,
-            post_transform=post_transform,
+            amp=amp,
         )
 
         self.network = network
@@ -137,11 +138,17 @@ class SupervisedTrainer(Trainer):
 
         self.network.train()
         self.optimizer.zero_grad()
-        # execute forward computation
-        predictions = self.inferer(inputs, self.network)
-        # compute loss
-        loss = self.loss_function(predictions, targets).mean()
-        loss.backward()
-        self.optimizer.step()
+        if self.amp and self.scaler is not None:
+            with torch.cuda.amp.autocast():
+                predictions = self.inferer(inputs, self.network)
+                loss = self.loss_function(predictions, targets).mean()
+            self.scaler.scale(loss).backward()
+            self.scaler.step(self.optimizer)
+            self.scaler.update()
+        else:
+            predictions = self.inferer(inputs, self.network)
+            loss = self.loss_function(predictions, targets).mean()
+            loss.backward()
+            self.optimizer.step()
 
         return {Keys.IMAGE: inputs, Keys.LABEL: targets, Keys.PRED: predictions, Keys.LOSS: loss.item()}

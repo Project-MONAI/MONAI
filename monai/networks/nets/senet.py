@@ -10,14 +10,14 @@
 # limitations under the License.
 
 from collections import OrderedDict
-from typing import Type, List, Optional, Union
+from typing import List, Optional, Type, Union
 
 import torch
 import torch.nn as nn
 
 from monai.networks.blocks.convolutions import Convolution
 from monai.networks.blocks.squeeze_and_excitation import SEBottleneck, SEResNetBottleneck, SEResNeXtBottleneck
-from monai.networks.layers.factories import Act, Conv, Dropout, Pool, Norm
+from monai.networks.layers.factories import Act, Conv, Dropout, Norm, Pool
 
 
 class SENet(nn.Module):

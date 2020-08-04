@@ -42,7 +42,6 @@ class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optiona
     Args:
         device: an object representing the device on which to run.
         max_epochs: the total epoch number for engine to run, validator and evaluator have only 1 epoch.
-        amp: whether to enable auto-mixed-precision training, reserved.
         data_loader: Ignite engine use data_loader to run, must be torch.DataLoader.
         prepare_batch: function to parse image and label for every iteration.
         iteration_update: the callable function for every iteration, expect to accept `engine`
@@ -55,6 +54,7 @@ class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optiona
         additional_metrics: more Ignite metrics that also attach to Ignite Engine.
         handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
             CheckpointHandler, StatsHandler, SegmentationSaver, etc.
+        amp: whether to enable auto-mixed-precision training or inference, default is False.
 
     Raises:
         TypeError: When ``device`` is not a ``torch.Device``.
@@ -68,7 +68,6 @@ class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optiona
         self,
         device: torch.device,
         max_epochs: int,
-        amp: bool,
         data_loader: DataLoader,
         prepare_batch: Callable = default_prepare_batch,
         iteration_update: Optional[Callable] = None,
@@ -76,14 +75,12 @@ class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optiona
         key_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
         handlers: Optional[Sequence] = None,
+        amp: bool = False,
     ) -> None:
         if iteration_update is not None:
             super().__init__(iteration_update)
         else:
             super().__init__(self._iteration)
-        # FIXME:
-        if amp:
-            self.logger.info("Will add AMP support when PyTorch v1.6 released.")
         if not isinstance(device, torch.device):
             raise TypeError(f"device must be a torch.device but is {type(device).__name__}.")
         if not isinstance(data_loader, DataLoader):
@@ -101,7 +98,6 @@ class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optiona
             metrics={},
             dataloader=None,
             device=device,
-            amp=amp,
             key_metric_name=None,  # we can set many metrics, only use key_metric to compare and save the best model
             best_metric=-1,
             best_metric_epoch=-1,
@@ -144,6 +140,7 @@ class Workflow(IgniteEngine):  # type: ignore # incorrectly typed due to optiona
             handlers_ = ensure_tuple(handlers)
             for handler in handlers_:
                 handler.attach(self)
+        self.amp = amp
 
     def run(self) -> None:
         """
