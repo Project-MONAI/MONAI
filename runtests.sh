@@ -39,22 +39,22 @@ doCleanup=false
 NUM_PARALLEL=1
 
 function print_usage {
-    echo "runtests.sh [--codeformat] [--black] [--black-fix] [--isort] [--isort-fix] [--flake8] [--pytype] [--mypy]"
+    echo "runtests.sh [--codeformat] [--autofix] [--black] [--isort] [--flake8] [--pytype] [--mypy]"
     echo "            [--nounittests] [--coverage] [--quick] [--net] [--dryrun] [-j number] [--clean] [--help] [--version]"
     echo ""
     echo "MONAI unit testing utilities."
     echo ""
     echo "Examples:"
-    echo "./runtests.sh --codeformat --coverage     # runs full tests (${green}recommended before making pull requests${noColor})."
-    echo "./runtests.sh --codeformat --nounittests  # runs coding style and static type checking."
-    echo "./runtests.sh --quick                     # runs minimal unit tests, for quick verification during code developments."
-    echo "./runtests.sh --black-fix                 # runs automatic code formatting using \"black\"."
+    echo "./runtests.sh --codeformat --coverage     # run full tests (${green}recommended before making pull requests${noColor})."
+    echo "./runtests.sh --codeformat --nounittests  # run coding style and static type checking."
+    echo "./runtests.sh --quick                     # run minimal unit tests, for quick verification during code developments."
+    echo "./runtests.sh --autofix --nounittests     # run automatic code formatting using \"isort\" and \"black\"."
+    echo "./runtests.sh --clean                     # clean up temporary files and run \"python setup.py develop --uninstall\"."
     echo ""
     echo "Code style check options:"
     echo "    --black           : perform \"black\" code format checks"
-    echo "    --black-fix       : format code using \"black\""
+    echo "    --autofix         : format code using \"isort\" and \"black\""
     echo "    --isort           : perform \"isort\" import sort checks"
-    echo "    --isort-fix       : sort imports using \"isort\""
     echo "    --flake8          : perform \"flake8\" code format checks"
     echo ""
     echo "Python type check options:"
@@ -86,8 +86,41 @@ function print_version {
 }
 
 function install_deps {
-    echo "Pip installing MONAI development dependencies..."
-    ${cmdPrefix}pip install -r requirements-dev.txt
+    echo "Pip installing MONAI development dependencies and compile MONAI cpp extensions..."
+    ${cmdPrefix}python -m pip install -r requirements-dev.txt
+}
+
+function compile_cpp {
+    echo "Compiling and installing MONAI cpp extensions..."
+    ${cmdPrefix}python setup.py -v develop --uninstall
+    if [[ "$OSTYPE" == "darwin"* ]];
+    then  # clang for mac os
+        CC=clang CXX=clang++ ${cmdPrefix}python setup.py -v develop
+    else
+        ${cmdPrefix}python setup.py -v develop
+    fi
+}
+
+function clean_py {
+    # uninstall the development package
+    echo "Uninstalling MONAI development files..."
+    ${cmdPrefix}python setup.py -v develop --uninstall
+
+    # remove temporary files (in the directory of this script)
+    TO_CLEAN="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+    echo "Removing temporary files in ${TO_CLEAN}"
+
+    find ${TO_CLEAN} -type f -name "*.py[co]" -delete
+    find ${TO_CLEAN} -type f -name ".coverage" -delete
+    find ${TO_CLEAN} -type d -name "__pycache__" -delete
+
+    find ${TO_CLEAN} -depth -type d -name ".eggs" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -type d -name "monai.egg-info" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -type d -name "build" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -type d -name "dist" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -type d -name ".mypy_cache" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -type d -name ".pytype" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -type d -name ".coverage" -exec rm -r "{}" +
 }
 
 function torch_validate {
@@ -97,6 +130,11 @@ function torch_validate {
 function print_error_msg() {
     echo "${red}Error: $1.${noColor}"
     echo ""
+}
+
+function print_style_fail_msg() {
+    echo "${red}Check failed!${noColor}"
+    echo "Please run auto style fixes: ${green}./runtests.sh --autofix --nounittests${noColor}"
 }
 
 if [ -z "$1" ]
@@ -135,15 +173,13 @@ do
         --black)
             doBlackFormat=true
         ;;
-        --black-fix)
+        --autofix)
+            doIsortFix=true
             doBlackFix=true
+            doIsortFormat=true
             doBlackFormat=true
         ;;
         --isort)
-            doIsortFormat=true
-        ;;
-        --isort-fix)
-            doIsortFix=true
             doIsortFormat=true
         ;;
         --flake8)
@@ -197,40 +233,56 @@ then
     function dryrun { echo "    " "$@"; }
 fi
 
-# unconditionally report on the state of monai
-print_version
-
-
 if [ $doCleanup = true ]
 then
     echo "${separator}${blue}clean${noColor}"
 
-    if [ -d .mypy_cache ]
-    then
-        ${cmdPrefix}rm -r .mypy_cache
-    elif [ -f .mypy_cache ]
-    then
-        ${cmdPrefix}rm .mypy_cache
-    fi
-
-    if [ -d .pytype ]
-    then
-        ${cmdPrefix}rm -r .pytype
-    elif [ -f .pytype ]
-    then
-        ${cmdPrefix}rm .pytype
-    fi
-
-    if [ -d .coverage ]
-    then
-        ${cmdPrefix}rm -r .coverage
-    elif [ -f .coverage ]
-    then
-        ${cmdPrefix}rm .coverage
-    fi
+    clean_py
 
     echo "${green}done!${noColor}"
     exit
+fi
+
+# try to compile MONAI cpp
+compile_cpp
+
+# unconditionally report on the state of monai
+print_version
+
+
+if [ $doIsortFormat = true ]
+then
+    set +e  # disable exit on failure so that diagnostics can be given on failure
+    if [ $doIsortFix = true ]
+    then
+        echo "${separator}${blue}isort-fix${noColor}"
+    else
+        echo "${separator}${blue}isort${noColor}"
+    fi
+
+    # ensure that the necessary packages for code format testing are installed
+    if [[ ! -f "$(which isort)" ]]
+    then
+        install_deps
+    fi
+    ${cmdPrefix}isort --version
+
+    if [ $doIsortFix = true ]
+    then
+        ${cmdPrefix}isort "$(pwd)"
+    else
+        ${cmdPrefix}isort --check "$(pwd)"
+    fi
+
+    isort_status=$?
+    if [ ${isort_status} -ne 0 ]
+    then
+        print_style_fail_msg
+        exit ${isort_status}
+    else
+        echo "${green}passed!${noColor}"
+    fi
+    set -e # enable exit on failure
 fi
 
 
@@ -261,44 +313,8 @@ then
     black_status=$?
     if [ ${black_status} -ne 0 ]
     then
-        echo "${red}failed!${noColor}"
+        print_style_fail_msg
         exit ${black_status}
-    else
-        echo "${green}passed!${noColor}"
-    fi
-    set -e # enable exit on failure
-fi
-
-
-if [ $doIsortFormat = true ]
-then
-    set +e  # disable exit on failure so that diagnostics can be given on failure
-    if [ $doIsortFix = true ]
-    then
-        echo "${separator}${blue}isort-fix${noColor}"
-    else
-        echo "${separator}${blue}isort${noColor}"
-    fi
-
-    # ensure that the necessary packages for code format testing are installed
-    if [[ ! -f "$(which isort)" ]]
-    then
-        install_deps
-    fi
-    ${cmdPrefix}isort --version
-
-    if [ $doIsortFix = true ]
-    then
-        ${cmdPrefix}isort "$(pwd)"
-    else
-        ${cmdPrefix}isort --check "$(pwd)"
-    fi
-
-    isort_status=$?
-    if [ ${isort_status} -ne 0 ]
-    then
-        echo "${red}failed!${noColor}"
-        exit ${isort_status}
     else
         echo "${green}passed!${noColor}"
     fi
@@ -323,7 +339,7 @@ then
     flake8_status=$?
     if [ ${flake8_status} -ne 0 ]
     then
-        echo "${red}failed!${noColor}"
+        print_style_fail_msg
         exit ${flake8_status}
     else
         echo "${green}passed!${noColor}"

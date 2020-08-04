@@ -143,7 +143,7 @@ class DiceLoss(_Loss):
         if self.jaccard:
             denominator = 2.0 * (denominator - intersection)
 
-        f = 1.0 - (2.0 * intersection + smooth) / (denominator + smooth)
+        f: torch.Tensor = 1.0 - (2.0 * intersection + smooth) / (denominator + smooth)
 
         if self.reduction == LossReduction.MEAN.value:
             f = torch.mean(f)  # the batch and channel average
@@ -159,7 +159,12 @@ class DiceLoss(_Loss):
 
 class MaskedDiceLoss(DiceLoss):
     """
-    Same as DiceLoss, but accepts a binary mask ([0,1]) indicating a region over which to compute the dice.
+    Add an additional `masking` process before `DiceLoss`, accept a binary mask ([0, 1]) indicating a region,
+    `input` and `target` will be masked by the region: region with mask `1` will keep the original value,
+    region with `0` mask will be converted to `0`. Then feed `input` and `target` to normal `DiceLoss` computation.
+    This has the effect of ensuring only the masked region contributes to the loss computation and
+    hence gradient calculation.
+
     """
 
     def forward(
@@ -187,6 +192,8 @@ class MaskedDiceLoss(DiceLoss):
 
             input = input * mask
             target = target * mask
+        else:
+            warnings.warn("no mask value specified for the MaskedDiceLoss.")
 
         return super().forward(input=input, target=target, smooth=smooth)
 
@@ -395,7 +402,7 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         """
         # Aggregate spatial dimensions
         flat_input = input.view(input.size(0), input.size(1), -1)
-        flat_target = target.view(target.size(0), -1)
+        flat_target = target.view(target.size(0), -1).long()
 
         # Apply the softmax to the input scores map
         probs = F.softmax(flat_input, dim=1)

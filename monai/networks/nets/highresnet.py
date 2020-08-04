@@ -48,6 +48,19 @@ class ConvNormActi(nn.Module):
         acti_type: Optional[Union[Activation, str]] = None,
         dropout_prob: Optional[float] = None,
     ) -> None:
+        """
+        Args:
+            spatial_dims: number of spatial dimensions of the input image.
+            in_channels: number of input channels.
+            out_channels: number of output channels.
+            kernel_size: size of the convolving kernel.
+            norm_type: {``"batch"``, ``"instance"``}
+                Feature normalisation with batchnorm or instancenorm. Defaults to ``"batch"``.
+            acti_type: {``"relu"``, ``"prelu"``, ``"relu6"``}
+                Non-linear activation using ReLU or PReLU. Defaults to ``"relu"``.
+            dropout_prob: probability of the feature map to be zeroed
+                (only applies to the penultimate conv layer).
+        """
 
         super(ConvNormActi, self).__init__()
 
@@ -70,7 +83,7 @@ class ConvNormActi(nn.Module):
         self.layers = nn.Sequential(*layers)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.layers(x)
+        return torch.as_tensor(self.layers(x))
 
 
 class HighResBlock(nn.Module):
@@ -87,7 +100,11 @@ class HighResBlock(nn.Module):
     ) -> None:
         """
         Args:
+            spatial_dims: number of spatial dimensions of the input image.
+            in_channels: number of input channels.
+            out_channels: number of output channels.
             kernels: each integer k in `kernels` corresponds to a convolution layer with kernel size k.
+            dilation: spacing between kernel elements.
             norm_type: {``"batch"``, ``"instance"``}
                 Feature normalisation with batchnorm or instancenorm. Defaults to ``"instance"``.
             acti_type: {``"relu"``, ``"prelu"``, ``"relu6"``}
@@ -133,12 +150,12 @@ class HighResBlock(nn.Module):
             _in_chns = _out_chns
         self.layers = nn.Sequential(*layers)
 
-    def forward(self, x: torch.Tensor):
-        x_conv = self.layers(x)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x_conv: torch.Tensor = self.layers(x)
         if self.project is not None:
-            return x_conv + self.project(x)
+            return x_conv + torch.as_tensor(self.project(x))
         if self.pad is not None:
-            return x_conv + self.pad(x)
+            return x_conv + torch.as_tensor(self.pad(x))
         return x_conv + x
 
 
@@ -244,4 +261,4 @@ class HighResNet(nn.Module):
         self.blocks = nn.Sequential(*blocks)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.blocks(x)
+        return torch.as_tensor(self.blocks(x))

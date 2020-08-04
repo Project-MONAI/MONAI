@@ -180,6 +180,18 @@ Intensity
     :members:
     :special-members: __call__
 
+`GaussianSharpen`
+"""""""""""""""""
+.. autoclass:: GaussianSharpen
+    :members:
+    :special-members: __call__
+
+`RandGaussianSharpen`
+"""""""""""""""""""""
+.. autoclass:: RandGaussianSharpen
+    :members:
+    :special-members: __call__
+
 IO
 ^^
 
@@ -594,6 +606,18 @@ Instensity (Dict)
 `RandGaussianSmoothd`
 """""""""""""""""""""
 .. autoclass:: RandGaussianSmoothd
+    :members:
+    :special-members: __call__
+
+`GaussianSharpend`
+""""""""""""""""""
+.. autoclass:: GaussianSharpend
+    :members:
+    :special-members: __call__
+
+`RandGaussianSharpend`
+""""""""""""""""""""""
+.. autoclass:: RandGaussianSharpend
     :members:
     :special-members: __call__
 
