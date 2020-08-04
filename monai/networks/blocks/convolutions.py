@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence, Union, Optional
+from typing import Optional, Sequence, Union
 
 import numpy as np
 import torch

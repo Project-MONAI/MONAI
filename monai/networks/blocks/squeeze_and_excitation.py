@@ -9,9 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, Union, Optional
-
 import math
+from typing import Any, Dict, Optional, Union
+
 import torch
 import torch.nn as nn
 

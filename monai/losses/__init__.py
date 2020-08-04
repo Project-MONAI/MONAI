@@ -13,11 +13,10 @@ from .dice import (
     Dice,
     DiceLoss,
     GeneralizedDiceLoss,
+    GeneralizedWassersteinDiceLoss,
+    MaskedDiceLoss,
     dice,
     generalized_dice,
-    MaskedDiceLoss,
-    GeneralizedWassersteinDiceLoss,
 )
-
 from .focal_loss import FocalLoss
 from .tversky import TverskyLoss
