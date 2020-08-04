@@ -157,12 +157,12 @@ class SupervisedTrainer(Trainer):
 class GanTrainer(Trainer):
     """
     Generative adversarial network training based on Goodfellow et al. 2014 https://arxiv.org/abs/1406.266,
-    inherits from trainer and Workflow. 
+    inherits from trainer and Workflow.
 
     Training Loop: for each batch of data size `m`
         1. Generate `m` fakes from random latent codes.
-        2. Update D with these fakes and current batch reals, repeated d_train_steps times.
-        3. Generate `m` fakes from new random latent codes.
+        2. Update discriminator with these fakes and current batch reals, repeated d_train_steps times.
+        3. If g_update_latents, generate `m` fakes from new random latent codes.
         4. Update generator with these fakes using discriminator feedback.
 
     Args:
