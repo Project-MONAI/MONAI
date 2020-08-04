@@ -389,11 +389,11 @@ class MeanEnsemble(Transform):
 
     """
 
-    def __init__(self, weights: Optional[Union[Sequence[float], torch.Tensor, np.ndarray]] = None):
+    def __init__(self, weights: Optional[Union[Sequence[float], torch.Tensor, np.ndarray]] = None) -> None:
         self.weights = torch.as_tensor(weights, dtype=torch.float) if weights is not None else None
 
     def __call__(self, img: Union[Sequence[torch.Tensor], torch.Tensor]) -> torch.Tensor:
-        img_: torch.Tensor = torch.stack(img) if isinstance(img, (tuple, list)) else torch.as_tensor(img)
+        img_ = torch.stack(img) if isinstance(img, (tuple, list)) else torch.as_tensor(img)
         if self.weights is not None:
             self.weights = self.weights.to(img_.device)
             shape = tuple(self.weights.shape)
@@ -426,11 +426,11 @@ class VoteEnsemble(Transform):
 
     """
 
-    def __init__(self, num_classes: Optional[int] = None):
+    def __init__(self, num_classes: Optional[int] = None) -> None:
         self.num_classes = num_classes
 
-    def __call__(self, img: Union[Sequence[torch.Tensor], torch.Tensor]):
-        img_: torch.Tensor = torch.stack(img) if isinstance(img, (tuple, list)) else torch.as_tensor(img)
+    def __call__(self, img: Union[Sequence[torch.Tensor], torch.Tensor]) -> torch.Tensor:
+        img_ = torch.stack(img) if isinstance(img, (tuple, list)) else torch.as_tensor(img)
         if self.num_classes is not None:
             has_ch_dim = True
             if img_.ndimension() > 2 and img_.shape[2] > 1:

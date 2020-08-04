@@ -96,7 +96,9 @@ class Generator(nn.Module):
             self.conv.add_module("layer_%i" % i, layer)
             echannel = c
 
-    def _get_layer(self, in_channels: int, out_channels: int, strides: int, is_last: bool):
+    def _get_layer(
+        self, in_channels: int, out_channels: int, strides: int, is_last: bool
+    ) -> Union[Convolution, nn.Sequential]:
         """
         Returns a layer accepting inputs with `in_channels` number of channels and producing outputs of `out_channels`
         number of channels. The `strides` indicates upsampling factor, ie. transpose convolutional stride. If `is_last`

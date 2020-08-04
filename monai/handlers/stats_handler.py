@@ -11,7 +11,7 @@
 
 import logging
 import warnings
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 import torch
 
@@ -42,8 +42,8 @@ class StatsHandler(object):
 
     def __init__(
         self,
-        epoch_print_logger: Optional[Callable] = None,
-        iteration_print_logger: Optional[Callable] = None,
+        epoch_print_logger: Optional[Callable[[Engine], Any]] = None,
+        iteration_print_logger: Optional[Callable[[Engine], Any]] = None,
         output_transform: Callable = lambda x: x,
         global_epoch_transform: Callable = lambda x: x,
         name: Optional[str] = None,

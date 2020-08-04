@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 import numpy as np
 import torch
@@ -47,8 +47,8 @@ class TensorBoardStatsHandler(object):
         self,
         summary_writer: Optional[SummaryWriter] = None,
         log_dir: str = "./runs",
-        epoch_event_writer: Optional[Callable] = None,
-        iteration_event_writer: Optional[Callable] = None,
+        epoch_event_writer: Optional[Callable[[Engine, SummaryWriter], Any]] = None,
+        iteration_event_writer: Optional[Callable[[Engine, SummaryWriter], Any]] = None,
         output_transform: Callable = lambda x: x,
         global_epoch_transform: Callable = lambda x: x,
         tag_name: str = DEFAULT_TAG,

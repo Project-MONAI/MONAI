@@ -34,19 +34,12 @@ jobs:
       run: |
         python -m pip install --upgrade pip wheel
         python -m pip install -r requirements-dev.txt
-    - name: Lint with black formater
+    - name: Lint and type check
       run: |
-        $(pwd)/runtests.sh --nounittests --black
-    - name: Lint with flake8 code checker
-      run: |
-        $(pwd)/runtests.sh --nounittests --flake8
-    - name: Type check with mypy static analysis
-      run: |
-        $(pwd)/runtests.sh --nounittests --mypy
-    - name: Type check with Pytype static analysis
-      run: |
+        # clean up temporary files
+        $(pwd)/runtests.sh --clean
         # Git hub actions have 2 cores, so parallize pytype
-        $(pwd)/runtests.sh --nounittests --pytype -j 2
+        $(pwd)/runtests.sh --nounittests --codeformat -j 2
 
   quick-py3:  # full dependencies installed
     runs-on: ${{ matrix.os }}

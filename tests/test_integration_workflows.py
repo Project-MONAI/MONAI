@@ -53,7 +53,7 @@ from monai.utils import set_determinism
 from tests.utils import skip_if_quick
 
 
-def run_training_test(root_dir, device=torch.device("cuda:0")):
+def run_training_test(root_dir, device=torch.device("cuda:0"), amp=False):
     images = sorted(glob(os.path.join(root_dir, "img*.nii.gz")))
     segs = sorted(glob(os.path.join(root_dir, "seg*.nii.gz")))
     train_files = [{"image": img, "label": seg} for img, seg in zip(images[:20], segs[:20])]
@@ -129,6 +129,7 @@ def run_training_test(root_dir, device=torch.device("cuda:0")):
         },
         additional_metrics={"val_acc": Accuracy(output_transform=lambda x: (x["pred"], x["label"]))},
         val_handlers=val_handlers,
+        amp=True if amp else False,
     )
 
     train_post_transforms = Compose(
@@ -154,17 +155,17 @@ def run_training_test(root_dir, device=torch.device("cuda:0")):
         optimizer=opt,
         loss_function=loss,
         inferer=SimpleInferer(),
-        amp=False,
         post_transform=train_post_transforms,
         key_train_metric={"train_acc": Accuracy(output_transform=lambda x: (x["pred"], x["label"]))},
         train_handlers=train_handlers,
+        amp=True if amp else False,
     )
     trainer.run()
 
     return evaluator.state.best_metric
 
 
-def run_inference_test(root_dir, model_file, device=torch.device("cuda:0")):
+def run_inference_test(root_dir, model_file, device=torch.device("cuda:0"), amp=False):
     images = sorted(glob(os.path.join(root_dir, "im*.nii.gz")))
     segs = sorted(glob(os.path.join(root_dir, "seg*.nii.gz")))
     val_files = [{"image": img, "label": seg} for img, seg in zip(images, segs)]
@@ -221,6 +222,7 @@ def run_inference_test(root_dir, model_file, device=torch.device("cuda:0")):
         },
         additional_metrics={"val_acc": Accuracy(output_transform=lambda x: (x["pred"], x["label"]))},
         val_handlers=val_handlers,
+        amp=True if amp else False,
     )
     evaluator.run()
 
@@ -250,64 +252,115 @@ class IntegrationWorkflows(unittest.TestCase):
     @skip_if_quick
     def test_training(self):
         repeated = []
-        for i in range(2):
+        test_rounds = 3 if monai.config.get_torch_version_tuple() >= (1, 6) else 2
+        for i in range(test_rounds):
             torch.manual_seed(0)
 
             repeated.append([])
-            best_metric = run_training_test(self.data_dir, device=self.device)
+            best_metric = run_training_test(self.data_dir, device=self.device, amp=(i == 2))
             print("best metric", best_metric)
-            np.testing.assert_allclose(best_metric, 0.9232678800821305, rtol=1e-3)
+            if i == 2:
+                np.testing.assert_allclose(best_metric, 0.9241043657064438, rtol=1e-3)
+            else:
+                np.testing.assert_allclose(best_metric, 0.9232678800821305, rtol=1e-3)
             repeated[i].append(best_metric)
 
             model_file = sorted(glob(os.path.join(self.data_dir, "net_key_metric*.pth")))[-1]
-            infer_metric = run_inference_test(self.data_dir, model_file, device=self.device)
+            infer_metric = run_inference_test(self.data_dir, model_file, device=self.device, amp=(i == 2))
             print("infer metric", infer_metric)
             # check inference properties
-            np.testing.assert_allclose(infer_metric, 0.9224808603525162, rtol=1e-3)
+            if i == 2:
+                np.testing.assert_allclose(infer_metric, 0.9236116781830788, rtol=1e-3)
+            else:
+                np.testing.assert_allclose(infer_metric, 0.9224808603525162, rtol=1e-3)
             repeated[i].append(infer_metric)
             output_files = sorted(glob(os.path.join(self.data_dir, "img*", "*.nii.gz")))
-            sums = [
-                0.14212512969970703,
-                0.1506481170654297,
-                0.1368846893310547,
-                0.13330554962158203,
-                0.18573999404907227,
-                0.1647019386291504,
-                0.1408066749572754,
-                0.16658973693847656,
-                0.15639686584472656,
-                0.17746448516845703,
-                0.16197776794433594,
-                0.16469907760620117,
-                0.14304876327514648,
-                0.10998392105102539,
-                0.16064167022705078,
-                0.1962604522705078,
-                0.17453575134277344,
-                0.052756309509277344,
-                0.19060277938842773,
-                0.20035600662231445,
-                0.19619369506835938,
-                0.20325279235839844,
-                0.15996408462524414,
-                0.13104581832885742,
-                0.14955568313598633,
-                0.135528564453125,
-                0.2252669334411621,
-                0.16170835494995117,
-                0.14747190475463867,
-                0.10289239883422852,
-                0.11845922470092773,
-                0.13117074966430664,
-                0.11201333999633789,
-                0.15172672271728516,
-                0.15926742553710938,
-                0.18946075439453125,
-                0.21686124801635742,
-                0.1773381233215332,
-                0.1864323616027832,
-                0.035613059997558594,
-            ]
+            if i == 2:
+                sums = [
+                    0.14142131805419922,
+                    0.1509075164794922,
+                    0.13735723495483398,
+                    0.1331934928894043,
+                    0.18468952178955078,
+                    0.16349554061889648,
+                    0.14034032821655273,
+                    0.16618776321411133,
+                    0.15580987930297852,
+                    0.1762104034423828,
+                    0.16085290908813477,
+                    0.1645350456237793,
+                    0.14300870895385742,
+                    0.1095418930053711,
+                    0.16037845611572266,
+                    0.1964101791381836,
+                    0.1740407943725586,
+                    0.05246734619140625,
+                    0.19054365158081055,
+                    0.19893646240234375,
+                    0.1951923370361328,
+                    0.20318841934204102,
+                    0.159881591796875,
+                    0.1309795379638672,
+                    0.1499776840209961,
+                    0.1361088752746582,
+                    0.2268390655517578,
+                    0.1607356071472168,
+                    0.1469106674194336,
+                    0.1029515266418457,
+                    0.11846733093261719,
+                    0.1298527717590332,
+                    0.11112213134765625,
+                    0.15118646621704102,
+                    0.1595325469970703,
+                    0.18976068496704102,
+                    0.21662378311157227,
+                    0.17733526229858398,
+                    0.1854104995727539,
+                    0.035239219665527344,
+                ]
+            else:
+                sums = [
+                    0.14212512969970703,
+                    0.1506481170654297,
+                    0.1368846893310547,
+                    0.13330554962158203,
+                    0.18573999404907227,
+                    0.1647019386291504,
+                    0.1408066749572754,
+                    0.16658973693847656,
+                    0.15639686584472656,
+                    0.17746448516845703,
+                    0.16197776794433594,
+                    0.16469907760620117,
+                    0.14304876327514648,
+                    0.10998392105102539,
+                    0.16064167022705078,
+                    0.1962604522705078,
+                    0.17453575134277344,
+                    0.052756309509277344,
+                    0.19060277938842773,
+                    0.20035600662231445,
+                    0.19619369506835938,
+                    0.20325279235839844,
+                    0.15996408462524414,
+                    0.13104581832885742,
+                    0.14955568313598633,
+                    0.135528564453125,
+                    0.2252669334411621,
+                    0.16170835494995117,
+                    0.14747190475463867,
+                    0.10289239883422852,
+                    0.11845922470092773,
+                    0.13117074966430664,
+                    0.11201333999633789,
+                    0.15172672271728516,
+                    0.15926742553710938,
+                    0.18946075439453125,
+                    0.21686124801635742,
+                    0.1773381233215332,
+                    0.1864323616027832,
+                    0.035613059997558594,
+                ]
             for (output, s) in zip(output_files, sums):
                 ave = np.mean(nib.load(output).get_fdata())
                 np.testing.assert_allclose(ave, s, rtol=1e-2)

@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Dict, Optional
 
 from monai.utils import exact_version, optional_import
 
@@ -64,7 +64,7 @@ class CheckpointSaver:
     def __init__(
         self,
         save_dir: str,
-        save_dict: Dict[str, Any],
+        save_dict: Dict,
         name: Optional[str] = None,
         file_prefix: str = "",
         save_final: bool = False,

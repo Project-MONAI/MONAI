@@ -205,8 +205,8 @@ class Transpose(Transform):
     Transposes the input image based on the given `indices` dimension ordering.
     """
 
-    def __init__(self, indices) -> None:
-        self.indices = indices
+    def __init__(self, indices: Optional[Sequence[int]]) -> None:
+        self.indices = None if indices is None else tuple(indices)
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
         """
@@ -295,7 +295,7 @@ class DataStats(Transform):
         data_shape: Optional[bool] = None,
         value_range: Optional[bool] = None,
         data_value: Optional[bool] = None,
-        additional_info=None,
+        additional_info: Optional[Callable] = None,
     ) -> NdarrayTensor:
         """
         Apply the transform to `img`, optionally take arguments similar to the class constructor.
@@ -423,7 +423,9 @@ class LabelToMask(Transform):
 
     """
 
-    def __init__(self, select_labels: Union[Sequence[int], int], merge_channels: bool = False):
+    def __init__(
+        self, select_labels: Union[Sequence[int], int], merge_channels: bool = False,
+    ) -> None:  # pytype: disable=annotation-type-mismatch # pytype bug with bool
         self.select_labels = ensure_tuple(select_labels)
         self.merge_channels = merge_channels
 

@@ -128,26 +128,26 @@ def write_nifti(
         while len(output_spatial_shape_) < 3:
             output_spatial_shape_ = output_spatial_shape_ + [1]
         spatial_shape, channel_shape = data.shape[:3], data.shape[3:]
-        data_ = data.reshape(list(spatial_shape) + [-1])
-        data_ = np.moveaxis(data_, -1, 0)  # channel first for pytorch
-        data_ = affine_xform(
-            torch.as_tensor(np.ascontiguousarray(data_).astype(dtype)).unsqueeze(0),
+        data_np = data.reshape(list(spatial_shape) + [-1])
+        data_np = np.moveaxis(data_np, -1, 0)  # channel first for pytorch
+        data_torch = affine_xform(
+            torch.as_tensor(np.ascontiguousarray(data_np).astype(dtype)).unsqueeze(0),
             torch.as_tensor(np.ascontiguousarray(transform).astype(dtype)),
             spatial_size=output_spatial_shape_[:3],
         )
-        data_ = data_.squeeze(0).detach().cpu().numpy()
-        data_ = np.moveaxis(data_, 0, -1)  # channel last for nifti
-        data_ = data_.reshape(list(data_.shape[:3]) + list(channel_shape))
+        data_np = data_torch.squeeze(0).detach().cpu().numpy()
+        data_np = np.moveaxis(data_np, 0, -1)  # channel last for nifti
+        data_np = data_np.reshape(list(data_np.shape[:3]) + list(channel_shape))
     else:  # single channel image, need to expand to have batch and channel
         while len(output_spatial_shape_) < len(data.shape):
             output_spatial_shape_ = output_spatial_shape_ + [1]
-        data_ = affine_xform(
+        data_torch = affine_xform(
             torch.as_tensor(np.ascontiguousarray(data).astype(dtype)[None, None]),
             torch.as_tensor(np.ascontiguousarray(transform).astype(dtype)),
             spatial_size=output_spatial_shape_[: len(data.shape)],
         )
-        data_ = data_.squeeze(0).squeeze(0).detach().cpu().numpy()
+        data_np = data_torch.squeeze(0).squeeze(0).detach().cpu().numpy()
 
-    results_img = nib.Nifti1Image(data_.astype(np.float32), to_affine_nd(3, target_affine))
+    results_img = nib.Nifti1Image(data_np.astype(np.float32), to_affine_nd(3, target_affine))
     nib.save(results_img, file_name)
     return
