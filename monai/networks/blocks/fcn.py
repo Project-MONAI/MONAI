@@ -194,7 +194,9 @@ class FCN(nn.Module):
             fs4 = self.refine9(F.interpolate(fs3, conv_x.size()[2:], mode="bilinear", align_corners=True) + gcfm5)
             out = self.refine10(F.interpolate(fs4, org_input.size()[2:], mode="bilinear", align_corners=True))
         else:
-            raise NotImplementedError(f"Currently only 'transpose' and 'interpolate' modes are supported, got {self.upsample_mode}.")
+            raise NotImplementedError(
+                f"Currently only 'transpose' and 'interpolate' modes are supported, got {self.upsample_mode}."
+            )
         return out
 
 
