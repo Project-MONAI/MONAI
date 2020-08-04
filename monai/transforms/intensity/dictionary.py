@@ -15,22 +15,25 @@ defined in :py:class:`monai.transforms.intensity.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Optional, Sequence, Tuple, Union, Any
-
+from typing import Any, Optional, Sequence, Tuple, Union
+from collections.abc import Iterable
 import numpy as np
 
 from monai.config import KeysCollection
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.intensity.array import (
-    NormalizeIntensity,
-    ScaleIntensityRange,
-    ThresholdIntensity,
     AdjustContrast,
-    ShiftIntensity,
-    ScaleIntensity,
-    ScaleIntensityRangePercentiles,
+    GaussianSmooth,
+    GaussianSharpen,
     MaskIntensity,
+    NormalizeIntensity,
+    ScaleIntensity,
+    ScaleIntensityRange,
+    ScaleIntensityRangePercentiles,
+    ShiftIntensity,
+    ThresholdIntensity,
 )
+from monai.utils import ensure_tuple_size
 
 
 class RandGaussianNoised(Randomizable, MapTransform):
@@ -298,6 +301,8 @@ class AdjustContrastd(MapTransform):
         `x = ((x - min) / intensity_range) ^ gamma * intensity_range + min`
 
     Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: monai.transforms.MapTransform
         gamma: gamma value to adjust the contrast as function.
     """
 
@@ -418,6 +423,179 @@ class MaskIntensityd(MapTransform):
         return d
 
 
+class GaussianSmoothd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.GaussianSmooth`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        sigma: if a list of values, must match the count of spatial dimensions of input data,
+            and apply every value in the list to 1 spatial dimension. if only 1 value provided,
+            use it for all spatial dimensions.
+
+    """
+
+    def __init__(self, keys: KeysCollection, sigma: Union[Sequence[float], float]):
+        super().__init__(keys)
+        self.converter = GaussianSmooth(sigma)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.converter(d[key])
+        return d
+
+
+class RandGaussianSmoothd(Randomizable, MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.GaussianSmooth`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        sigma_x: randomly select sigma value for the first spatial dimension.
+        sigma_y: randomly select sigma value for the second spatial dimension if have.
+        sigma_z: randomly select sigma value for the third spatial dimension if have.
+        prob: probability of Gaussian smooth.
+
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        sigma_x: Tuple[float, float] = (0.25, 1.5),
+        sigma_y: Tuple[float, float] = (0.25, 1.5),
+        sigma_z: Tuple[float, float] = (0.25, 1.5),
+        prob: float = 0.1,
+    ):
+        super().__init__(keys)
+        self.sigma_x = sigma_x
+        self.sigma_y = sigma_y
+        self.sigma_z = sigma_z
+        self.prob = prob
+        self._do_transform = False
+
+    def randomize(self, data: Optional[Any] = None) -> None:
+        self._do_transform = self.R.random_sample() < self.prob
+        self.x = self.R.uniform(low=self.sigma_x[0], high=self.sigma_x[1])
+        self.y = self.R.uniform(low=self.sigma_y[0], high=self.sigma_y[1])
+        self.z = self.R.uniform(low=self.sigma_z[0], high=self.sigma_z[1])
+
+    def __call__(self, data):
+        d = dict(data)
+        self.randomize()
+        if not self._do_transform:
+            return d
+        for key in self.keys:
+            sigma = ensure_tuple_size(tup=(self.x, self.y, self.z), dim=d[key].ndim - 1)
+            d[key] = GaussianSmooth(sigma=sigma)(d[key])
+        return d
+
+
+class GaussianSharpend(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.GaussianSharpen`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        sigma1: sigma parameter for the first gaussian kernel. if a list of values, must match the count
+            of spatial dimensions of input data, and apply every value in the list to 1 spatial dimension.
+            if only 1 value provided, use it for all spatial dimensions.
+        sigma2: sigma parameter for the second gaussian kernel. if a list of values, must match the count
+            of spatial dimensions of input data, and apply every value in the list to 1 spatial dimension.
+            if only 1 value provided, use it for all spatial dimensions.
+        alpha: weight parameter to compute the final result.
+
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        sigma1: Union[Sequence[float], float] = 3.0,
+        sigma2: Union[Sequence[float], float] = 1.0,
+        alpha: float = 30.0,
+    ):
+        super().__init__(keys)
+        self.converter = GaussianSharpen(sigma1, sigma2, alpha)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.converter(d[key])
+        return d
+
+
+class RandGaussianSharpend(Randomizable, MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.GaussianSharpen`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        sigma1_x: randomly select sigma value for the first spatial dimension of first gaussian kernel.
+        sigma1_y: randomly select sigma value for the second spatial dimension(if have) of first gaussian kernel.
+        sigma1_z: randomly select sigma value for the third spatial dimension(if have) of first gaussian kernel.
+        sigma2_x: randomly select sigma value for the first spatial dimension of second gaussian kernel.
+            if only 1 value `X` provided, it must be smaller than `sigma1_x` and randomly select from [X, sigma1_x].
+        sigma2_y: randomly select sigma value for the second spatial dimension(if have) of second gaussian kernel.
+            if only 1 value `Y` provided, it must be smaller than `sigma1_y` and randomly select from [Y, sigma1_y].
+        sigma2_z: randomly select sigma value for the third spatial dimension(if have) of second gaussian kernel.
+            if only 1 value `Z` provided, it must be smaller than `sigma1_z` and randomly select from [Z, sigma1_z].
+        alpha: randomly select weight parameter to compute the final result.
+        prob: probability of Gaussian sharpen.
+
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        sigma1_x: Tuple[float, float] = (0.5, 1.0),
+        sigma1_y: Tuple[float, float] = (0.5, 1.0),
+        sigma1_z: Tuple[float, float] = (0.5, 1.0),
+        sigma2_x: Union[Tuple[float, float], float] = 0.5,
+        sigma2_y: Union[Tuple[float, float], float] = 0.5,
+        sigma2_z: Union[Tuple[float, float], float] = 0.5,
+        alpha: Tuple[float, float] = (10.0, 30.0),
+        prob: float = 0.1,
+    ):
+        super().__init__(keys)
+        self.sigma1_x = sigma1_x
+        self.sigma1_y = sigma1_y
+        self.sigma1_z = sigma1_z
+        self.sigma2_x = sigma2_x
+        self.sigma2_y = sigma2_y
+        self.sigma2_z = sigma2_z
+        self.alpha = alpha
+        self.prob = prob
+        self._do_transform = False
+
+    def randomize(self, data: Optional[Any] = None) -> None:
+        self._do_transform = self.R.random_sample() < self.prob
+        self.x1 = self.R.uniform(low=self.sigma1_x[0], high=self.sigma1_x[1])
+        self.y1 = self.R.uniform(low=self.sigma1_y[0], high=self.sigma1_y[1])
+        self.z1 = self.R.uniform(low=self.sigma1_z[0], high=self.sigma1_z[1])
+        sigma2_x = (self.sigma2_x, self.x1) if not isinstance(self.sigma2_x, Iterable) else self.sigma2_x
+        sigma2_y = (self.sigma2_y, self.y1) if not isinstance(self.sigma2_y, Iterable) else self.sigma2_y
+        sigma2_z = (self.sigma2_z, self.z1) if not isinstance(self.sigma2_z, Iterable) else self.sigma2_z
+        self.x2 = self.R.uniform(low=sigma2_x[0], high=sigma2_x[1])
+        self.y2 = self.R.uniform(low=sigma2_y[0], high=sigma2_y[1])
+        self.z2 = self.R.uniform(low=sigma2_z[0], high=sigma2_z[1])
+        self.a = self.R.uniform(low=self.alpha[0], high=self.alpha[1])
+
+    def __call__(self, data):
+        d = dict(data)
+        self.randomize()
+        if not self._do_transform:
+            return d
+        for key in self.keys:
+            sigma1 = ensure_tuple_size(tup=(self.x1, self.y1, self.z1), dim=d[key].ndim - 1)
+            sigma2 = ensure_tuple_size(tup=(self.x2, self.y2, self.z2), dim=d[key].ndim - 1)
+            d[key] = GaussianSharpen(sigma1=sigma1, sigma2=sigma2, alpha=self.a)(d[key])
+        return d
+
+
 RandGaussianNoiseD = RandGaussianNoiseDict = RandGaussianNoised
 ShiftIntensityD = ShiftIntensityDict = ShiftIntensityd
 RandShiftIntensityD = RandShiftIntensityDict = RandShiftIntensityd
@@ -430,3 +608,7 @@ AdjustContrastD = AdjustContrastDict = AdjustContrastd
 RandAdjustContrastD = RandAdjustContrastDict = RandAdjustContrastd
 ScaleIntensityRangePercentilesD = ScaleIntensityRangePercentilesDict = ScaleIntensityRangePercentilesd
 MaskIntensityD = MaskIntensityDict = MaskIntensityd
+GaussianSmoothD = GaussianSmoothDict = GaussianSmoothd
+RandGaussianSmoothD = RandGaussianSmoothDict = RandGaussianSmoothd
+GaussianSharpenD = GaussianSharpenDict = GaussianSharpend
+RandGaussianSharpenD = RandGaussianSharpenDict = RandGaussianSharpend

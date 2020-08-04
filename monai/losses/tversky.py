@@ -9,9 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Union
-
 import warnings
+from typing import Union, Optional, Callable
 
 import torch
 from torch.nn.modules.loss import _Loss
@@ -39,6 +38,7 @@ class TverskyLoss(_Loss):
         to_onehot_y: bool = False,
         sigmoid: bool = False,
         softmax: bool = False,
+        other_act: Optional[Callable] = None,
         alpha: float = 0.5,
         beta: float = 0.5,
         reduction: Union[LossReduction, str] = LossReduction.MEAN,
@@ -49,6 +49,9 @@ class TverskyLoss(_Loss):
             to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
             sigmoid: If True, apply a sigmoid function to the prediction.
             softmax: If True, apply a softmax function to the prediction.
+            other_act: if don't want to use `sigmoid` or `softmax`, use other callable function to execute
+                other activation layers, Defaults to ``None``. for example:
+                `other_act = torch.tanh`.
             alpha: weight of false positives
             beta: weight of false negatives
             reduction: {``"none"``, ``"mean"``, ``"sum"``}
@@ -59,22 +62,26 @@ class TverskyLoss(_Loss):
                 - ``"sum"``: the output will be summed.
 
         Raises:
-            ValueError: sigmoid=True and softmax=True are not compatible.
+            TypeError: When ``other_act`` is not an ``Optional[Callable]``.
+            ValueError: When more than 1 of [``sigmoid=True``, ``softmax=True``, ``other_act is not None``].
+                Incompatible values.
 
         """
 
         super().__init__(reduction=LossReduction(reduction).value)
+        if other_act is not None and not callable(other_act):
+            raise TypeError(f"other_act must be None or callable but is {type(other_act).__name__}.")
+        if int(sigmoid) + int(softmax) + int(other_act is not None) > 1:
+            raise ValueError("Incompatible values: more than 1 of [sigmoid=True, softmax=True, other_act is not None].")
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
-
-        if sigmoid and softmax:
-            raise ValueError("sigmoid=True and softmax=True are not compatible.")
         self.sigmoid = sigmoid
         self.softmax = softmax
+        self.other_act = other_act
         self.alpha = alpha
         self.beta = beta
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5):
+    def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5) -> torch.Tensor:
         """
         Args:
             input: the shape should be BNH[WD].
@@ -82,28 +89,36 @@ class TverskyLoss(_Loss):
             smooth: a small constant to avoid nan.
 
         Raises:
-            ValueError: reduction={self.reduction} is invalid.
+            ValueError: When ``self.reduction`` is not one of ["mean", "sum", "none"].
 
         """
         if self.sigmoid:
             input = torch.sigmoid(input)
+
         n_pred_ch = input.shape[1]
-        if n_pred_ch == 1:
-            if self.softmax:
+        if self.softmax:
+            if n_pred_ch == 1:
                 warnings.warn("single channel prediction, `softmax=True` ignored.")
-            if self.to_onehot_y:
-                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
-            if not self.include_background:
-                warnings.warn("single channel prediction, `include_background=False` ignored.")
-        else:
-            if self.softmax:
+            else:
                 input = torch.softmax(input, 1)
-            if self.to_onehot_y:
-                target = one_hot(target, n_pred_ch)
-            if not self.include_background:
+
+        if self.other_act is not None:
+            input = self.other_act(input)
+
+        if self.to_onehot_y:
+            if n_pred_ch == 1:
+                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
+            else:
+                target = one_hot(target, num_classes=n_pred_ch)
+
+        if not self.include_background:
+            if n_pred_ch == 1:
+                warnings.warn("single channel prediction, `include_background=False` ignored.")
+            else:
                 # if skipping background, removing first channel
                 target = target[:, 1:]
                 input = input[:, 1:]
+
         assert (
             target.shape == input.shape
         ), f"ground truth has differing shape ({target.shape}) from input ({input.shape})"
@@ -123,12 +138,12 @@ class TverskyLoss(_Loss):
         numerator = tp + smooth
         denominator = tp + fp + fn + smooth
 
-        score = 1.0 - numerator / denominator
+        score: torch.Tensor = 1.0 - numerator / denominator
 
         if self.reduction == LossReduction.SUM.value:
-            return score.sum()  # sum over the batch and channel dims
+            return torch.sum(score)  # sum over the batch and channel dims
         if self.reduction == LossReduction.NONE.value:
             return score  # returns [N, n_classes] losses
         if self.reduction == LossReduction.MEAN.value:
-            return score.mean()
-        raise ValueError(f"reduction={self.reduction} is invalid.")
+            return torch.mean(score)
+        raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')

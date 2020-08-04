@@ -21,10 +21,10 @@ from ignite.engine import Engine
 from torch.utils.data import DataLoader
 
 from monai.data import NiftiDataset, create_test_image_3d
-from monai.inferers import sliding_window_inference
 from monai.handlers import SegmentationSaver
-from monai.networks.nets import UNet
+from monai.inferers import sliding_window_inference
 from monai.networks import predict_segmentation
+from monai.networks.nets import UNet
 from monai.transforms import AddChannel
 from monai.utils import set_determinism
 from tests.utils import make_nifti_image

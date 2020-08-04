@@ -27,7 +27,7 @@ def sliding_window_inference(
     mode: Union[BlendMode, str] = BlendMode.CONSTANT,
     padding_mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
     cval: float = 0.0,
-):
+) -> torch.Tensor:
     """
     Sliding window inference on `inputs` with `predictor`.
 
@@ -58,11 +58,12 @@ def sliding_window_inference(
         cval: fill value for 'constant' padding mode. Default: 0
 
     Raises:
-        NotImplementedError: inputs must have batch_size=1.
+        NotImplementedError: When ``inputs`` does not have batch size = 1.
 
     Note:
         - input must be channel-first and have a batch dim, support both spatial 2D and 3D.
         - currently only supports `inputs` with batch_size=1.
+
     """
     num_spatial_dims = len(inputs.shape) - 2
     assert 0 <= overlap < 1, "overlap must be >= 0 and < 1."
@@ -74,7 +75,7 @@ def sliding_window_inference(
 
     # TODO: Enable batch sizes > 1 in future
     if batch_size > 1:
-        raise NotImplementedError("inputs must have batch_size=1.")
+        raise NotImplementedError("Currently only inputs with batch size = 1 are supported.")
 
     roi_size = fall_back_tuple(roi_size, image_size_)
     # in case that image size is smaller than roi size
@@ -138,7 +139,7 @@ def sliding_window_inference(
                 count_map[0, :, curr_slice[0], curr_slice[1]] += importance_map
 
     # account for any overlapping sections
-    output_image /= count_map
+    output_image = output_image / count_map
 
     if num_spatial_dims == 3:
         return output_image[
@@ -152,7 +153,7 @@ def sliding_window_inference(
     ]  # 2D
 
 
-def _get_scan_interval(image_size, roi_size, num_spatial_dims: int, overlap: float):
+def _get_scan_interval(image_size: Sequence[int], roi_size: Sequence[int], num_spatial_dims: int, overlap: float):
     assert len(image_size) == num_spatial_dims, "image coord different from spatial dims."
     assert len(roi_size) == num_spatial_dims, "roi coord different from spatial dims."
 
