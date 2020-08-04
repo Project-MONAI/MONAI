@@ -20,8 +20,8 @@ import logging
 import torch
 
 import monai
-from monai.utils.misc import set_determinism, create_run_dir
-from monai.engines.utils import make_rand_latent_code
+from monai.utils.misc import set_determinism
+from monai.engines.utils import default_make_latent as make_latent
 from monai.networks.nets import Generator
 from monai.data import png_writer
 
@@ -52,11 +52,13 @@ def main():
     gen_net = gen_net.to(device)
 
     # create fakes
-    run_dir = create_run_dir("./GeneratedImages")
+    output_dir = "./generated_images"
+    if not os.path.isdir(output_dir):
+        os.path.mkdir(output_dir)
     num_fakes = 10
-    print("Generating %d fakes and saving in %s" % (num_fakes, run_dir))
-    fake_latents = make_rand_latent_code(num_fakes, latent_size).to(device)
-    save_generator_fakes(run_dir, gen_net(fake_latents))
+    print("Generating %d fakes and saving in %s" % (num_fakes, output_dir))
+    fake_latents = make_latent(num_fakes, latent_size).to(device)
+    save_generator_fakes(output_dir, gen_net(fake_latents))
 
 
 if __name__ == "__main__":

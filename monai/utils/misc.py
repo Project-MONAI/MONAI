@@ -217,34 +217,3 @@ def set_determinism(
         torch.backends.cudnn.benchmark = False
     else:
         torch.backends.cudnn.deterministic = False
-
-
-def create_run_dir(
-    save_dir, prefix: str = "model", time_format: str = "%Y_%m_%d_%H_%M_%S", time: datetime.datetime = None
-) -> str:
-    """
-    Creates run folder for model output in save dir. If save dir does not exist, it is created.
-
-    run folder name follows formula "{prefix}_{timestring}"
-        e.g. for prefix="model", the run folder is "model_2020_07_29_03_33_25"
-
-    Args:
-        save_dir: Location of model run folders.
-        prefix: Prefix for run dir name (Default: 'model')
-        time_format: timestring format (Default: '%Y_%m_%d_%H_%M_%S')
-        time: Override current timestamp in run dir name.
-
-    Returns:
-        filepath to created run_dir folder.
-    """
-    if time is None:
-        time = datetime.datetime.now()
-
-    run_dir_name = "%s_%s" % (prefix, (time.strftime(time_format)))
-    run_dir_fullpath = os.path.join(save_dir, run_dir_name)
-
-    if not os.path.isdir(save_dir):
-        os.mkdir(save_dir)
-    if not os.path.isdir(run_dir_fullpath):
-        os.mkdir(run_dir_fullpath)
-    return run_dir_fullpath

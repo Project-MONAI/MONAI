@@ -26,13 +26,13 @@ import logging
 import torch
 
 import monai
-from monai.utils.misc import set_determinism, create_run_dir
+from monai.utils.misc import set_determinism
 from monai.data import CacheDataset, DataLoader, png_writer
 from monai.networks.nets import Generator, Discriminator
 from monai.networks import normal_init
 from monai.engines import GanTrainer
 from monai.engines.utils import GanKeys as Keys
-from monai.engines.utils import make_rand_latent_code
+from monai.engines.utils import default_make_latent as make_latent
 from monai.handlers import StatsHandler, CheckpointSaver
 from monai.transforms import (
     Compose,
@@ -74,7 +74,7 @@ def main():
     batch_size = 300
     real_dataloader = DataLoader(real_dataset, batch_size=batch_size, shuffle=True, num_workers=10)
 
-    # define function to process batchdata dict object for input into discriminator
+    # define function to process batchdata for input into discriminator
     def prepare_batch(batchdata):
         """
         Process Dataloader batchdata dict object and return image tensors for D Inferer
@@ -122,7 +122,7 @@ def main():
         realloss = disc_loss_criterion(disc_net(real_images), real)
         genloss = disc_loss_criterion(disc_net(gen_images.detach()), gen)
 
-        return torch.div(torch.add(realloss, genloss), 2)
+        return (genloss + realloss) / 2
 
     def generator_loss(gen_images):
         """
@@ -135,7 +135,7 @@ def main():
         return gen_loss_criterion(output, cats)
 
     # initialize current run dir
-    run_dir = create_run_dir("./ModelOut", "hand-gan")
+    run_dir = "hand-gan"
     print("Saving model output to: %s " % run_dir)
 
     # create workflow handlers
@@ -170,9 +170,9 @@ def main():
         disc_net,
         disc_opt,
         discriminator_loss,
+        d_prepare_batch=prepare_batch,
         d_train_steps=disc_train_steps,
         latent_shape=latent_size,
-        prepare_batch=prepare_batch,
         key_train_metric=key_train_metric,
         train_handlers=handlers,
     )
@@ -183,7 +183,7 @@ def main():
     # Training completed, save a few random generated images.
     print("Saving trained generator sample output.")
     test_img_count = 10
-    test_latents = make_rand_latent_code(test_img_count, latent_size).to(device)
+    test_latents = make_latent(test_img_count, latent_size).to(device)
     fakes = gen_net(test_latents)
     for i, image in enumerate(fakes):
         filename = "gen-fake-final-%d.png" % (i)

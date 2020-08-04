@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader
 
 from monai.engines.utils import CommonKeys as Keys
 from monai.engines.utils import GanKeys
-from monai.engines.utils import default_prepare_batch, make_rand_latent_code
+from monai.engines.utils import default_prepare_batch, default_make_latent
 from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
 from monai.transforms import Transform
@@ -157,32 +157,34 @@ class SupervisedTrainer(Trainer):
 
 class GanTrainer(Trainer):
     """
-    Standard generative adversarial network training, inherits from trainer and Workflow.
+    Generative adversarial network training based on Goodfellow et al. 2014 https://arxiv.org/abs/1406.266,
+    inherits from trainer and Workflow. 
 
-    Training Loop: for each batch of data size m
-        1. Generate m fakes from random latent codes.
+    Training Loop: for each batch of data size `m`
+        1. Generate `m` fakes from random latent codes.
         2. Update D with these fakes and current batch reals, repeated d_train_steps times.
-        3. Generate m fakes from new random latent codes.
+        3. Generate `m` fakes from new random latent codes.
         4. Update generator with these fakes using discriminator feedback.
-
-    Based on [Goodfellow 2014] https://arxiv.org/abs/1406.2661
 
     Args:
         device: an object representing the device on which to run.
         max_epochs: the total epoch number for engine to run.
-        train_data_loader: Real data DataLoader to update discriminator.
+        train_data_loader: Core ignite engines uses `DataLoader` for training loop batchdata.
         g_network: generator (G) network architecture.
         g_optimizer: G optimizer function.
         g_loss_function: G loss function for optimizer.
         d_network: discriminator (D) network architecture.
         d_optimizer: D optimizer function.
         d_loss_function: D loss function for optimizer.
-        g_inferer: inference method to execute G model forward on latent code.
-        d_inferer: inference method to execute D model forward.
-        d_train_steps: number of times to update D with real data minibatch.
-        latent_shape: size of G random input latent code.
-        make_latent: callback function to create batch of latent input for G inferer.
-        prepare_batch: callback function to prepare DataLoader output for D inferer.
+        g_inferer: inference method to execute G model forward. Defaults to ``SimpleInferer()``.
+        d_inferer: inference method to execute D model forward. Defaults to ``SimpleInferer()``.
+        d_train_steps: number of times to update D with real data minibatch. Defaults to ``1``.
+        latent_shape: size of G input latent code. Defaults to ``64``.
+        d_prepare_batch: callback function to prepare batchdata for D inferer.
+            Defaults to return ``GanKeys.REALS`` in batchdata dict.
+        g_prepare_batch: callback function to create batch of latent input for G inferer. 
+            Defaults to return random latents.
+        g_update_latents: Calculate G loss with new latent codes. Defaults to ``True``.
         iteration_update: the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
         amp: whether to enable auto-mixed-precision training, reserved.
@@ -212,8 +214,9 @@ class GanTrainer(Trainer):
         d_inferer: Inferer = SimpleInferer(),
         d_train_steps: int = 1,
         latent_shape: int = 64,
-        prepare_batch: Callable = default_prepare_batch,
-        make_latent: Callable = make_rand_latent_code,
+        d_prepare_batch: Callable = default_prepare_batch,
+        g_prepare_batch: Callable = default_make_latent,
+        g_update_latents: bool = True,
         iteration_update: Optional[Callable] = None,
         amp: bool = True,
         post_transform: Optional[Transform] = None,
@@ -227,7 +230,7 @@ class GanTrainer(Trainer):
             max_epochs=max_epochs,
             amp=amp,
             data_loader=train_data_loader,
-            prepare_batch=prepare_batch,
+            prepare_batch=d_prepare_batch,
             iteration_update=iteration_update,
             key_metric=key_train_metric,
             additional_metrics=additional_metrics,
@@ -244,7 +247,8 @@ class GanTrainer(Trainer):
         self.d_inferer = d_inferer
         self.d_train_steps = d_train_steps
         self.latent_shape = latent_shape
-        self.make_latent = make_latent
+        self.g_prepare_batch = g_prepare_batch
+        self.g_update_latents = g_update_latents
 
     def _iteration(
         self, engine: Engine, batchdata: Union[Dict, Sequence]
@@ -263,35 +267,33 @@ class GanTrainer(Trainer):
         if batchdata is None:
             raise ValueError("must provide batch data for current iteration.")
 
-        real_data = self.prepare_batch(batchdata)
-        real_data = real_data.to(engine.state.device)
-
-        # Generate Fakes
-        batch_size = real_data.shape[0]
-        fake_latents = self.make_latent(batch_size, self.latent_shape).to(engine.state.device)
-        fake_data = self.g_inferer(fake_latents, self.g_network)
+        d_input = self.prepare_batch(batchdata).to(engine.state.device)
+        batch_size = self.data_loader.batch_size
+        g_input = self.g_prepare_batch(batch_size, self.latent_shape, batchdata).to(engine.state.device)
+        g_output = self.g_inferer(g_input, self.g_network)
 
         # Train Discriminator
         d_total_loss = torch.zeros(1,)
         for _ in range(self.d_train_steps):
             self.d_optimizer.zero_grad()
-            dloss = self.d_loss_function(fake_data, real_data)
+            dloss = self.d_loss_function(g_output, d_input)
             dloss.backward()
             self.d_optimizer.step()
             d_total_loss += dloss.item()
 
         # Train Generator
-        fake_latents = self.make_latent(batch_size, self.latent_shape).to(engine.state.device)
-        fake_data = self.g_inferer(fake_latents, self.g_network)
+        if self.g_update_latents:
+            g_input = self.g_prepare_batch(batch_size, self.latent_shape, batchdata).to(engine.state.device)
+        g_output = self.g_inferer(g_input, self.g_network)
         self.g_optimizer.zero_grad()
-        g_loss = self.g_loss_function(fake_data)
+        g_loss = self.g_loss_function(g_output)
         g_loss.backward()
         self.g_optimizer.step()
 
         return {
-            GanKeys.REALS: real_data,
-            GanKeys.FAKES: fake_data,
-            GanKeys.LATENTS: fake_latents,
+            GanKeys.REALS: d_input,
+            GanKeys.FAKES: g_output,
+            GanKeys.LATENTS: g_input,
             GanKeys.GLOSS: g_loss.item(),
             GanKeys.DLOSS: d_total_loss.item(),
         }

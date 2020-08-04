@@ -84,5 +84,5 @@ def default_prepare_batch(batchdata: Dict[str, torch.Tensor]) -> Union[Tuple[tor
         return (batchdata[CommonKeys.IMAGE], None)
 
 
-def make_rand_latent_code(num_latents: int, latent_size: int) -> torch.Tensor:
+def default_make_latent(num_latents: int, latent_size: int, real_data: torch.Tensor = None) -> torch.Tensor:
     return torch.randn(num_latents, latent_size)
