@@ -9,15 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence, Union
 import math
+from typing import Sequence, Union
+
 import torch
+import torch.nn.functional as F
 from torch import nn
 from torch.autograd import Function
-import torch.nn.functional as F
+
 from monai.networks.layers.convutils import gaussian_1d, same_padding
-from monai.utils import ensure_tuple_rep
-from monai.utils import optional_import
+from monai.utils import ensure_tuple_rep, optional_import
 
 _C, _ = optional_import("monai._C")
 _C_CUDA, _ = optional_import("monai._C_CUDA")

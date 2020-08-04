@@ -15,16 +15,22 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.blocks import FCN, MCFCN
+from monai.networks.nets import AHNet
 
 TEST_CASE_FCN_1 = [{"nout": 3}, torch.randn(5, 3, 64, 64), (5, 3, 64, 64)]
 TEST_CASE_FCN_2 = [{"nout": 2}, torch.randn(5, 3, 64, 64), (5, 2, 64, 64)]
+TEST_CASE_FCN_3 = [{"nout": 1, "upsample_mode": "interpolate"}, torch.randn(5, 3, 64, 64), (5, 1, 64, 64)]
 
 TEST_CASE_MCFCN_1 = [{"nout": 3, "nin": 8}, torch.randn(5, 8, 64, 64), (5, 3, 64, 64)]
 TEST_CASE_MCFCN_2 = [{"nout": 2, "nin": 1}, torch.randn(5, 1, 64, 64), (5, 2, 64, 64)]
+TEST_CASE_MCFCN_3 = [{"nout": 1, "nin": 2, "upsample_mode": "interpolate"}, torch.randn(5, 2, 64, 64), (5, 1, 64, 64)]
+
+TEST_CASE_AHNET_1 = [{"upsample_mode": "interpolate"}, torch.randn(3, 1, 128, 128, 64), (3, 1, 128, 128, 64)]
+TEST_CASE_AHNET_2 = [{"upsample_mode": "transpose"}, torch.randn(2, 1, 128, 128, 64), (2, 1, 128, 128, 64)]
 
 
 class TestFCN(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_FCN_1, TEST_CASE_FCN_2])
+    @parameterized.expand([TEST_CASE_FCN_1, TEST_CASE_FCN_2, TEST_CASE_FCN_3])
     def test_fcn_shape(self, input_param, input_data, expected_shape):
         net = FCN(**input_param)
         net.eval()
@@ -34,9 +40,19 @@ class TestFCN(unittest.TestCase):
 
 
 class TestMCFCN(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_MCFCN_1, TEST_CASE_MCFCN_2])
+    @parameterized.expand([TEST_CASE_MCFCN_1, TEST_CASE_MCFCN_2, TEST_CASE_MCFCN_3])
     def test_mcfcn_shape(self, input_param, input_data, expected_shape):
         net = MCFCN(**input_param)
+        net.eval()
+        with torch.no_grad():
+            result = net.forward(input_data)
+            self.assertEqual(result.shape, expected_shape)
+
+
+class TestAHNET(unittest.TestCase):
+    @parameterized.expand([TEST_CASE_AHNET_1, TEST_CASE_AHNET_2])
+    def test_fcn_shape(self, input_param, input_data, expected_shape):
+        net = AHNet(**input_param)
         net.eval()
         with torch.no_grad():
             result = net.forward(input_data)
