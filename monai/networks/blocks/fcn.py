@@ -25,7 +25,7 @@ models, _ = optional_import("torchvision", "0.5.0", name="models")
 class GCN(nn.Module):
     """
     The Global Convolutional Network module using large 1D
-    Kx1 and 1xK kernels to represent 2D kernels. 
+    Kx1 and 1xK kernels to represent 2D kernels.
     The code is adapted from lsqshr's original version:
     https://github.com/lsqshr/AH-Net/blob/master/net2d.py
     """
@@ -107,9 +107,9 @@ class FCN(nn.Module):
 
     Args:
         nout (int): number of output channels. Defaults to 1.
-        upsample_mode (str): The mode of upsampling manipulations, there are two choices: 
+        upsample_mode (str): The mode of upsampling manipulations, there are two choices:
             1) "transpose", uses transposed convolution layers.
-            2) "interpolate", uses standard interpolate way. 
+            2) "interpolate", uses standard interpolate way.
             Using the second mode cannot guarantee the model's reproducibility. Defaults to "transpose".
     """
 
@@ -209,9 +209,9 @@ class MCFCN(FCN):
     Args:
         nin (int): number of input channels. Defaults to 3.
         nout (int): number of output channels. Defaults to 1.
-        upsample_mode (str): The mode of upsampling manipulations, there are two choices: 
+        upsample_mode (str): The mode of upsampling manipulations, there are two choices:
             1) "transpose", uses transposed convolution layers.
-            2) "interpolate", uses standard interpolate way. 
+            2) "interpolate", uses standard interpolate way.
             Using the second mode cannot guarantee the model's reproducibility. Defaults to "transpose".
     """
 
