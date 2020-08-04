@@ -14,11 +14,10 @@ from typing import Type
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torchvision import models
 
-from monai.networks.layers.factories import Act, Conv, Dropout, Norm
-from monai.utils import exact_version, optional_import
-
-models, _ = optional_import("torchvision", "0.5.0", exact_version, "models")
+from monai.networks.blocks.convolutions import Convolution
+from monai.networks.layers.factories import Act, Conv, Norm
 
 
 class GCN(nn.Module):
@@ -106,22 +105,19 @@ class FCN(nn.Module):
 
     Args:
         nout (int): number of output channels. Defaults to 1.
-        deter_flag (bool): let deter_flag=True if needs to make the training process deterministic.
+        upsample_mode (str): The mode of upsampling manipulations, there are two choices: 
+            1) "transpose", uses transposed convolution layers.
+            2) "interpolate", uses standard interpolate way. 
+            Using the second mode cannot guarantee the model's reproducibility. Defaults to "transpose".
     """
 
-    def __init__(self, nout: int = 1, deter_flag: bool = False):
+    def __init__(self, nout: int = 1, upsample_mode: str = "transpose"):
         super(FCN, self).__init__()
 
-        relu_type: Type[nn.ReLU] = Act[Act.RELU]
         conv2d_type: Type[nn.Conv2d] = Conv[Conv.CONV, 2]
-        norm2d_type: Type[nn.BatchNorm2d] = Norm[Norm.BATCH, 2]
-        dropout_type: Type[nn.Dropout] = Dropout[Dropout.DROPOUT, 1]
 
-        self.deter_flag = deter_flag
-        self.relu_type = relu_type
-        self.norm2d_type = norm2d_type
+        self.upsample_mode = upsample_mode
         self.conv2d_type = conv2d_type
-        self.dropout_type = dropout_type
         self.nout = nout
         resnet = models.resnet50(pretrained=True)
 
@@ -153,24 +149,11 @@ class FCN(nn.Module):
         self.refine10 = Refine(self.nout)
         self.transformer = self.conv2d_type(in_channels=256, out_channels=64, kernel_size=1)
 
-        if self.deter_flag:
+        if self.upsample_mode == "transpose":
             conv2d_trans_type: Type[nn.ConvTranspose2d] = Conv[Conv.CONVTRANS, 2]
             self.up_conv = conv2d_trans_type(
                 in_channels=self.nout, out_channels=self.nout, kernel_size=2, stride=2, bias=False,
             )
-
-    def _regresser(self, inplanes: int) -> nn.Sequential:
-        """
-        Args:
-            inplanes (int): number of input channels.
-        """
-        return nn.Sequential(
-            self.conv2d_type(inplanes, inplanes, kernel_size=3, padding=1, bias=False),
-            self.norm2d_type(inplanes // 2),
-            self.relu_type(inplace=True),
-            self.dropout_type(0.1),
-            self.conv2d_type(inplanes // 2, self.nout, kernel_size=1),
-        )
 
     def forward(self, x: torch.Tensor):
         """
@@ -196,19 +179,20 @@ class FCN(nn.Module):
         gcfm4 = self.refine4(self.gcn4(pool_x))
         gcfm5 = self.refine5(self.gcn5(conv_x))
 
-        if self.deter_flag:
+        if self.upsample_mode == "transpose":
             fs1 = self.refine6(self.up_conv(gcfm1) + gcfm2)
             fs2 = self.refine7(self.up_conv(fs1) + gcfm3)
             fs3 = self.refine8(self.up_conv(fs2) + gcfm4)
             fs4 = self.refine9(self.up_conv(fs3) + gcfm5)
             out = self.refine10(self.up_conv(fs4))
-        else:
+        elif self.upsample_mode == "interpolate":
             fs1 = self.refine6(F.interpolate(gcfm1, fm3.size()[2:], mode="bilinear", align_corners=True) + gcfm2)
             fs2 = self.refine7(F.interpolate(fs1, fm2.size()[2:], mode="bilinear", align_corners=True) + gcfm3)
             fs3 = self.refine8(F.interpolate(fs2, pool_x.size()[2:], mode="bilinear", align_corners=True) + gcfm4)
             fs4 = self.refine9(F.interpolate(fs3, conv_x.size()[2:], mode="bilinear", align_corners=True) + gcfm5)
             out = self.refine10(F.interpolate(fs4, org_input.size()[2:], mode="bilinear", align_corners=True))
-
+        else:
+            raise NotImplementedError(f"Currently only 'transpose' and 'interpolate' modes are supported.")
         return out
 
 
@@ -221,18 +205,23 @@ class MCFCN(FCN):
     Args:
         nin (int): number of input channels. Defaults to 3.
         nout (int): number of output channels. Defaults to 1.
-        deter_flag (bool): let deter_flag=True if needs to make the training process deterministic.
+        upsample_mode (str): The mode of upsampling manipulations, there are two choices: 
+            1) "transpose", uses transposed convolution layers.
+            2) "interpolate", uses standard interpolate way. 
+            Using the second mode cannot guarantee the model's reproducibility. Defaults to "transpose".
     """
 
-    def __init__(self, nin: int = 3, nout: int = 1, deter_flag: bool = False):
-        super(MCFCN, self).__init__(nout=nout, deter_flag=deter_flag)
+    def __init__(self, nin: int = 3, nout: int = 1, upsample_mode: str = "transpose"):
+        super(MCFCN, self).__init__(nout=nout, upsample_mode=upsample_mode)
 
-        relu_type: Type[nn.ReLU] = Act[Act.RELU]
-        conv2d_type: Type[nn.Conv2d] = Conv[Conv.CONV, 2]
-        norm2d_type: Type[nn.BatchNorm2d] = Norm[Norm.BATCH, 2]
-
-        self.init_proj = nn.Sequential(
-            conv2d_type(nin, 3, kernel_size=1, padding=0, bias=False), norm2d_type(3), relu_type(inplace=True)
+        self.init_proj = Convolution(
+            dimensions=2,
+            in_channels=nin,
+            out_channels=3,
+            kernel_size=1,
+            act=("relu", {"inplace": True}),
+            norm=Norm.BATCH,
+            bias=False,
         )
 
     def forward(self, x: torch.Tensor):

@@ -40,14 +40,7 @@ class Bottleneck3x3x1(nn.Module):
 
         self.conv1 = conv3d_type(inplanes, planes, kernel_size=1, bias=False)
         self.bn1 = norm3d_type(planes)
-        self.conv2 = conv3d_type(
-            in_channels=planes,
-            out_channels=planes,
-            kernel_size=(3, 3, 1),
-            stride=stride,
-            padding=(1, 1, 0),
-            bias=False,
-        )
+        self.conv2 = conv3d_type(planes, planes, kernel_size=(3, 3, 1), stride=stride, padding=(1, 1, 0), bias=False,)
         self.bn2 = norm3d_type(planes)
         self.conv3 = conv3d_type(planes, planes * 4, kernel_size=1, bias=False)
         self.bn3 = norm3d_type(planes * 4)
@@ -103,7 +96,7 @@ class DenseBlock(nn.Sequential):
 
 
 class UpTransition(nn.Sequential):
-    def __init__(self, num_input_features: int, num_output_features: int, deter_flag: bool = False):
+    def __init__(self, num_input_features: int, num_output_features: int, upsample_mode: str = "transpose"):
         super(UpTransition, self).__init__()
 
         conv3d_type: Type[nn.Conv3d] = Conv[Conv.CONV, 3]
@@ -115,17 +108,19 @@ class UpTransition(nn.Sequential):
         self.add_module(
             "conv", conv3d_type(num_input_features, num_output_features, kernel_size=1, stride=1, bias=False)
         )
-        if deter_flag:
+        if upsample_mode == "transpose":
             conv3d_trans_type: Type[nn.ConvTranspose3d] = Conv[Conv.CONVTRANS, 3]
             self.add_module(
                 "pool", conv3d_trans_type(num_output_features, num_output_features, kernel_size=2, stride=2, bias=False)
             )
-        else:
+        elif upsample_mode == "interpolate":
             self.add_module("pool", nn.Upsample(scale_factor=2, mode="trilinear", align_corners=True))
+        else:
+            raise NotImplementedError(f"Currently only 'transpose' and 'interpolate' modes are supported.")
 
 
 class Final(nn.Sequential):
-    def __init__(self, num_input_features: int, num_output_features: int, deter_flag: bool = False):
+    def __init__(self, num_input_features: int, num_output_features: int, upsample_mode: str = "transpose"):
         super(Final, self).__init__()
 
         conv3d_type: Type[nn.Conv3d] = Conv[Conv.CONV, 3]
@@ -140,13 +135,15 @@ class Final(nn.Sequential):
                 num_input_features, num_output_features, kernel_size=(3, 3, 1), stride=1, padding=(1, 1, 0), bias=False
             ),
         )
-        if deter_flag:
+        if upsample_mode == "transpose":
             conv3d_trans_type: Type[nn.ConvTranspose3d] = Conv[Conv.CONVTRANS, 3]
             self.add_module(
-                "pool", conv3d_trans_type(num_output_features, num_output_features, kernel_size=2, stride=2, bias=False)
+                "up", conv3d_trans_type(num_output_features, num_output_features, kernel_size=2, stride=2, bias=False)
             )
+        elif upsample_mode == "interpolate":
+            self.add_module("up", nn.Upsample(scale_factor=2, mode="trilinear", align_corners=True))
         else:
-            self.add_module("pool", nn.Upsample(scale_factor=2, mode="trilinear", align_corners=True))
+            raise NotImplementedError(f"Currently only 'transpose' and 'interpolate' modes are supported.")
 
 
 class Pseudo3DLayer(nn.Module):
@@ -205,9 +202,9 @@ class Pseudo3DLayer(nn.Module):
         return torch.cat([inx, new_features], 1)
 
 
-class PVP(nn.Module):
-    def __init__(self, in_ch: int, deter_flag: bool = False):
-        super(PVP, self).__init__()
+class PSP(nn.Module):
+    def __init__(self, in_ch: int, upsample_mode: str = "transpose"):
+        super(PSP, self).__init__()
 
         conv3d_type: Type[nn.Conv3d] = Conv[Conv.CONV, 3]
         pool3d_type: Type[nn.MaxPool3d] = Pool[Pool.MAX, 3]
@@ -222,8 +219,8 @@ class PVP(nn.Module):
         self.proj16 = conv3d_type(in_ch, 1, kernel_size=(1, 1, 1), stride=1, padding=(1, 1, 0))
         self.proj8 = conv3d_type(in_ch, 1, kernel_size=(1, 1, 1), stride=1, padding=(1, 1, 0))
 
-        self.deter_flag = deter_flag
-        if self.deter_flag:
+        self.upsample_mode = upsample_mode
+        if self.upsample_mode == "transpose":
             conv3d_trans_type: Type[nn.ConvTranspose3d] = Conv[Conv.CONVTRANS, 3]
             self.up64 = conv3d_trans_type(1, 1, kernel_size=(64, 64, 1), stride=(64, 64, 1), padding=(64, 64, 0))
             self.up32 = conv3d_trans_type(1, 1, kernel_size=(32, 32, 1), stride=(32, 32, 1), padding=(32, 32, 0))
@@ -231,12 +228,12 @@ class PVP(nn.Module):
             self.up8 = conv3d_trans_type(1, 1, kernel_size=(8, 8, 1), stride=(8, 8, 1), padding=(8, 8, 0))
 
     def forward(self, x):
-        if self.deter_flag:
+        if self.upsample_mode == "transpose":
             x64 = self.up64(self.proj64(self.pool64(x)))
             x32 = self.up32(self.proj32(self.pool32(x)))
             x16 = self.up16(self.proj16(self.pool16(x)))
             x8 = self.up8(self.proj8(self.pool8(x)))
-        else:
+        elif self.upsample_mode == "interpolate":
             x64 = F.interpolate(
                 self.proj64(self.pool64(x)),
                 size=(x.size(2), x.size(3), x.size(4)),
@@ -258,6 +255,8 @@ class PVP(nn.Module):
             x8 = F.interpolate(
                 self.proj8(self.pool8(x)), size=(x.size(2), x.size(3), x.size(4)), mode="trilinear", align_corners=True
             )
+        else:
+            raise NotImplementedError(f"Currently only 'transpose' and 'interpolate' modes are supported.")
         x = torch.cat((x64, x32, x16, x8), dim=1)
         return x
 
@@ -268,33 +267,32 @@ class AHNet(nn.Module):
     The code is adapted from lsqshr's original version:
     https://github.com/lsqshr/AH-Net/blob/master/net3d.py
     In order to use pretrained weights from 2D FCN/MCFCN, please call the copy_from function, for example:
-    ahnet = AHNet(deter_flag=True)
+    ahnet = AHNet(upsample_mode='transpose')
     ahnet.copy_from(model_2d)
 
     Args:
         layers (list): number of residual blocks for 4 layers of the network (layer1...layer4).
-        deter_flag (bool): let deter_flag=True if needs to make the training process deterministic 
-            (monai.utils.set_determinism is also necessary). According to Pytorch's original implementations 
-            (https://pytorch.org/docs/stable/notes/randomness.html#pytorch), layers like nn.Upsample and
-            functions like F.interpolate will make the model non-deterministic. At the same time, as for
-            the nn.MaxPool3d, if the kernel_size is not equal to the stride, atomicAdd will be used
-            which will also let the model non-deterministic. Therefore, if the model needs to be
-            deterministic, we use another implementations to solve the issue. Specifically, we utilize
-            nn.ConvTranspose3d to do the upsampling and change the inconsistent kernel size values for
-            the max pooling layer.
+        upsample_mode (str): The mode of upsampling manipulations, there are two choices: 
+            1) "transpose", uses transposed convolution layers.
+            2) "interpolate", uses standard interpolate way. 
+            Using the second mode cannot guarantee the model's reproducibility. Defaults to "transpose".
     """
 
-    def __init__(self, layers: tuple = (3, 4, 6, 3), deter_flag: bool = False):
+    def __init__(self, layers: tuple = (3, 4, 6, 3), upsample_mode: str = "transpose"):
         self.inplanes = 64
         super(AHNet, self).__init__()
 
+        conv2d_type: Type[nn.Conv2d] = Conv[Conv.CONV, 2]
         conv3d_type: Type[nn.Conv3d] = Conv[Conv.CONV, 3]
         conv3d_trans_type: Type[nn.ConvTranspose3d] = Conv[Conv.CONVTRANS, 3]
+        norm2d_type: Type[nn.BatchNorm2d] = Norm[Norm.BATCH, 2]
         norm3d_type: Type[nn.BatchNorm3d] = Norm[Norm.BATCH, 3]
         relu_type: Type[nn.ReLU] = Act[Act.RELU]
         pool3d_type: Type[nn.MaxPool3d] = Pool[Pool.MAX, 3]
 
+        self.conv2d_type = conv2d_type
         self.conv3d_type = conv3d_type
+        self.norm2d_type = norm2d_type
         self.norm3d_type = norm3d_type
         self.relu_type = relu_type
         self.pool3d_type = pool3d_type
@@ -303,10 +301,12 @@ class AHNet(nn.Module):
         self.pool1 = pool3d_type(kernel_size=(1, 1, 2), stride=(1, 1, 2))
         self.bn0 = norm3d_type(64)
         self.relu = relu_type(inplace=True)
-        if deter_flag:
+        if upsample_mode == "transpose":
             self.maxpool = pool3d_type(kernel_size=(2, 2, 2), stride=2)
-        else:
+        elif upsample_mode == "interpolate":
             self.maxpool = pool3d_type(kernel_size=(3, 3, 3), stride=2, padding=1)
+        else:
+            raise NotImplementedError(f"Currently only 'transpose' and 'interpolate' modes are supported.")
 
         self.layer1 = self._make_layer(Bottleneck3x3x1, 64, layers[0], stride=1)
         self.layer2 = self._make_layer(Bottleneck3x3x1, 128, layers[1], stride=2)
@@ -324,19 +324,19 @@ class AHNet(nn.Module):
         noutres3 = 1024
         noutres4 = 2048
 
-        self.up0 = UpTransition(noutres4, noutres3, deter_flag)
+        self.up0 = UpTransition(noutres4, noutres3, upsample_mode)
         self.dense0 = DenseBlock(
             num_layers=ndenselayer, num_input_features=noutres3, bn_size=densebn, growth_rate=densegrowth, drop_rate=0.0
         )
         noutdense = noutres3 + ndenselayer * densegrowth
 
-        self.up1 = UpTransition(noutdense, noutres2, deter_flag)
+        self.up1 = UpTransition(noutdense, noutres2, upsample_mode)
         self.dense1 = DenseBlock(
             num_layers=ndenselayer, num_input_features=noutres2, bn_size=densebn, growth_rate=densegrowth, drop_rate=0.0
         )
         noutdense1 = noutres2 + ndenselayer * densegrowth
 
-        self.up2 = UpTransition(noutdense1, noutres1, deter_flag)
+        self.up2 = UpTransition(noutdense1, noutres1, upsample_mode)
         self.dense2 = DenseBlock(
             num_layers=ndenselayer, num_input_features=noutres1, bn_size=densebn, growth_rate=densegrowth, drop_rate=0.0
         )
@@ -352,7 +352,7 @@ class AHNet(nn.Module):
         )
         noutdense3 = num_init_features + densegrowth * ndenselayer
 
-        self.up3 = UpTransition(noutdense3, num_init_features, deter_flag)
+        self.up3 = UpTransition(noutdense3, num_init_features, upsample_mode)
         self.dense4 = DenseBlock(
             num_layers=ndenselayer,
             num_input_features=num_init_features,
@@ -362,12 +362,12 @@ class AHNet(nn.Module):
         )
         noutdense4 = num_init_features + densegrowth * ndenselayer
 
-        self.psp = PVP(noutdense4, deter_flag)
-        self.final = Final(4 + noutdense4, 1, deter_flag)
+        self.psp = PSP(noutdense4, upsample_mode)
+        self.final = Final(4 + noutdense4, 1, upsample_mode)
 
         # Initialise parameters
         for m in self.modules():
-            if isinstance(m, conv3d_type) or isinstance(m, conv3d_trans_type):
+            if isinstance(m, (conv3d_type, conv3d_trans_type)):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
                 m.weight.data.normal_(0, math.sqrt(2.0 / n))
             elif isinstance(m, norm3d_type):
@@ -433,76 +433,27 @@ class AHNet(nn.Module):
         # From 64x3x7x7 -> 64x3x7x7x1 -> 64x1x7x7x3
         p3d.data = p2d.data.unsqueeze(dim=4).permute(0, 4, 2, 3, 1).clone()
 
-        # Copy the initial module BN1
+        # Copy the initial module BN0
         copy_bn_param(net.bn0, self.bn0)
 
-        # Copy layer1
-        layer_2d = []
-        layer_3d = []
-        for m1 in net.layer1.modules():
-            if isinstance(m1, nn.Conv2d) or isinstance(m1, nn.BatchNorm2d):
-                layer_2d.append(m1)
+        # Copy layer1 to layer4
+        for i in range(1, 5):
+            layer_num = "layer" + str(i)
 
-        for m1 in self.layer1.modules():
-            if isinstance(m1, nn.Conv3d) or isinstance(m1, nn.BatchNorm3d):
-                layer_3d.append(m1)
+            layer_2d = []
+            layer_3d = []
+            for m1 in vars(net)["_modules"][layer_num].modules():
+                if isinstance(m1, (self.norm2d_type, self.conv2d_type)):
+                    layer_2d.append(m1)
+            for m2 in vars(self)["_modules"][layer_num].modules():
+                if isinstance(m2, (self.norm3d_type, self.conv3d_type)):
+                    layer_3d.append(m2)
 
-        for m1, m2 in zip(layer_2d, layer_3d):
-            if isinstance(m1, nn.Conv2d):
-                copy_conv_param(m1, m2)
-            if isinstance(m1, nn.BatchNorm2d):
-                copy_bn_param(m1, m2)
-
-        # Copy layer2
-        layer_2d = []
-        layer_3d = []
-        for m1 in net.layer2.modules():
-            if isinstance(m1, nn.Conv2d) or isinstance(m1, nn.BatchNorm2d):
-                layer_2d.append(m1)
-
-        for m1 in self.layer2.modules():
-            if isinstance(m1, nn.Conv3d) or isinstance(m1, nn.BatchNorm3d):
-                layer_3d.append(m1)
-
-        for m1, m2 in zip(layer_2d, layer_3d):
-            if isinstance(m1, nn.Conv2d):
-                copy_conv_param(m1, m2)
-            if isinstance(m1, nn.BatchNorm2d):
-                copy_bn_param(m1, m2)
-
-        # Copy layer3
-        layer_2d = []
-        layer_3d = []
-        for m1 in net.layer3.modules():
-            if isinstance(m1, nn.Conv2d) or isinstance(m1, nn.BatchNorm2d):
-                layer_2d.append(m1)
-
-        for m1 in self.layer3.modules():
-            if isinstance(m1, nn.Conv3d) or isinstance(m1, nn.BatchNorm3d):
-                layer_3d.append(m1)
-
-        for m1, m2 in zip(layer_2d, layer_3d):
-            if isinstance(m1, nn.Conv2d):
-                copy_conv_param(m1, m2)
-            if isinstance(m1, nn.BatchNorm2d):
-                copy_bn_param(m1, m2)
-
-        # Copy layer4
-        layer_2d = []
-        layer_3d = []
-        for m1 in net.layer4.modules():
-            if isinstance(m1, nn.Conv2d) or isinstance(m1, nn.BatchNorm2d):
-                layer_2d.append(m1)
-
-        for m1 in self.layer4.modules():
-            if isinstance(m1, nn.Conv3d) or isinstance(m1, nn.BatchNorm3d):
-                layer_3d.append(m1)
-
-        for m1, m2 in zip(layer_2d, layer_3d):
-            if isinstance(m1, nn.Conv2d):
-                copy_conv_param(m1, m2)
-            if isinstance(m1, nn.BatchNorm2d):
-                copy_bn_param(m1, m2)
+            for m1, m2 in zip(layer_2d, layer_3d):
+                if isinstance(m1, self.conv2d_type):
+                    copy_conv_param(m1, m2)
+                if isinstance(m1, self.norm2d_type):
+                    copy_bn_param(m1, m2)
 
 
 def copy_conv_param(module2d, module3d):
