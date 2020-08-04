@@ -14,16 +14,17 @@ MONAI GAN Evaluation Example
 
 """
 
+import logging
 import os
 import sys
-import logging
+
 import torch
 
 import monai
-from monai.utils.misc import set_determinism
+from monai.data import png_writer
 from monai.engines.utils import default_make_latent as make_latent
 from monai.networks.nets import Generator
-from monai.data import png_writer
+from monai.utils.misc import set_determinism
 
 
 def save_generator_fakes(run_folder, g_output_tensor):

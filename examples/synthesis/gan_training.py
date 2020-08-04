@@ -20,31 +20,32 @@ MONAI Generative Adversarial Networks Workflow Example
     https://github.com/Project-MONAI/MONAI/blob/master/examples/notebooks/mednist_tutorial.ipynb.
 """
 
+import logging
 import os
 import sys
-import logging
+
 import torch
 
 import monai
 from monai.apps.utils import download_and_extract
-from monai.utils.misc import set_determinism
 from monai.data import CacheDataset, DataLoader, png_writer
-from monai.networks.nets import Generator, Discriminator
-from monai.networks import normal_init
 from monai.engines import GanTrainer
 from monai.engines.utils import GanKeys as Keys
 from monai.engines.utils import default_make_latent as make_latent
-from monai.handlers import StatsHandler, CheckpointSaver
+from monai.handlers import CheckpointSaver, StatsHandler
+from monai.networks import normal_init
+from monai.networks.nets import Discriminator, Generator
 from monai.transforms import (
+    AddChannelD,
     Compose,
     LoadPNGD,
-    AddChannelD,
-    ScaleIntensityD,
-    RandRotateD,
     RandFlipD,
+    RandRotateD,
     RandZoomD,
+    ScaleIntensityD,
     ToTensorD,
 )
+from monai.utils.misc import set_determinism
 
 
 def main():
