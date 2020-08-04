@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import torch
 
@@ -74,7 +74,7 @@ def get_devices_spec(devices: Optional[Sequence[torch.device]] = None) -> List[t
     return devices
 
 
-def default_prepare_batch(batchdata: Dict[str, torch.Tensor]) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+def default_prepare_batch(batchdata: Dict[str, torch.Tensor]) -> Union[Tuple[torch.Tensor, Optional[torch.Tensor]], torch.Tensor]:
     assert isinstance(batchdata, dict), "default prepare_batch expects dictionary input data."
     if CommonKeys.LABEL in batchdata:
         return (batchdata[CommonKeys.IMAGE], batchdata[CommonKeys.LABEL])
