@@ -21,11 +21,11 @@ PIL, _ = optional_import("PIL")
 GifImage, _ = optional_import("PIL.GifImagePlugin", name="Image")
 
 if TYPE_CHECKING:
-    from torch.utils.tensorboard import SummaryWriter
     from tensorboard.compat.proto.summary_pb2 import Summary
+    from torch.utils.tensorboard import SummaryWriter
 else:
-    SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
     Summary, _ = optional_import("tensorboard.compat.proto.summary_pb2", name="Summary")
+    SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
 
 def _image3_animated_gif(tag: str, image: Union[np.ndarray, torch.Tensor], scale_factor: float = 1.0) -> Summary:
