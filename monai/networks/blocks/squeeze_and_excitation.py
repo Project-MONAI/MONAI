@@ -145,10 +145,10 @@ class SEBlock(nn.Module):
         conv_param_3: Optional[Dict] = None,
         project: Optional[Convolution] = None,
         r: int = 2,
-        acti_type_1: Union[Tuple[str, Dict], str] = "relu",
+        acti_type_1: Union[Tuple[str, Dict], str] = ("relu", {"inplace": True}),
         acti_type_2: Union[Tuple[str, Dict], str] = "sigmoid",
-        acti_type_final: Optional[Union[Tuple[str, Dict], str]] = "relu",
-    ) -> None:
+        acti_type_final: Optional[Union[Tuple[str, Dict], str]] = ("relu", {"inplace": True}),
+    ):
         """
         Args:
             spatial_dims: number of spatial dimensions, could be 1, 2, or 3.
@@ -157,9 +157,9 @@ class SEBlock(nn.Module):
             n_chns_2: number of output channels in the 2nd convolution.
             n_chns_3: number of output channels in the 3rd convolution.
             conv_param_1: additional parameters to the 1st convolution.
-                Defaults to ``{"kernel_size": 1, "norm": Norm.BATCH, "act": Act.RELU}``
+                Defaults to ``{"kernel_size": 1, "norm": Norm.BATCH, "act": ("relu", {"inplace": True})}``
             conv_param_2: additional parameters to the 2nd convolution.
-                Defaults to ``{"kernel_size": 3, "norm": Norm.BATCH, "act": Act.RELU}``
+                Defaults to ``{"kernel_size": 3, "norm": Norm.BATCH, "act": ("relu", {"inplace": True})}``
             conv_param_3: additional parameters to the 3rd convolution.
                 Defaults to ``{"kernel_size": 1, "norm": Norm.BATCH, "act": None}``
             project: in the case of residual chns and output chns doesn't match, a project
@@ -179,13 +179,13 @@ class SEBlock(nn.Module):
         super(SEBlock, self).__init__()
 
         if not conv_param_1:
-            conv_param_1 = {"kernel_size": 1, "norm": Norm.BATCH, "act": Act.RELU}
+            conv_param_1 = {"kernel_size": 1, "norm": Norm.BATCH, "act": ("relu", {"inplace": True})}
         self.conv1 = Convolution(
             dimensions=spatial_dims, in_channels=in_channels, out_channels=n_chns_1, **conv_param_1
         )
 
         if not conv_param_2:
-            conv_param_2 = {"kernel_size": 3, "norm": Norm.BATCH, "act": Act.RELU}
+            conv_param_2 = {"kernel_size": 3, "norm": Norm.BATCH, "act": ("relu", {"inplace": True})}
         self.conv2 = Convolution(dimensions=spatial_dims, in_channels=n_chns_1, out_channels=n_chns_2, **conv_param_2)
 
         if not conv_param_3:
@@ -239,11 +239,17 @@ class SEBottleneck(SEBlock):
         downsample: Optional[Convolution] = None,
     ) -> None:
 
-        conv_param_1 = {"strides": 1, "kernel_size": 1, "act": Act.RELU, "norm": Norm.BATCH, "bias": False}
+        conv_param_1 = {
+            "strides": 1,
+            "kernel_size": 1,
+            "act": ("relu", {"inplace": True}),
+            "norm": Norm.BATCH,
+            "bias": False,
+        }
         conv_param_2 = {
             "strides": stride,
             "kernel_size": 3,
-            "act": Act.RELU,
+            "act": ("relu", {"inplace": True}),
             "norm": Norm.BATCH,
             "groups": groups,
             "bias": False,
@@ -284,11 +290,17 @@ class SEResNetBottleneck(SEBlock):
         downsample: Optional[Convolution] = None,
     ) -> None:
 
-        conv_param_1 = {"strides": stride, "kernel_size": 1, "act": Act.RELU, "norm": Norm.BATCH, "bias": False}
+        conv_param_1 = {
+            "strides": stride,
+            "kernel_size": 1,
+            "act": ("relu", {"inplace": True}),
+            "norm": Norm.BATCH,
+            "bias": False,
+        }
         conv_param_2 = {
             "strides": 1,
             "kernel_size": 3,
-            "act": Act.RELU,
+            "act": ("relu", {"inplace": True}),
             "norm": Norm.BATCH,
             "groups": groups,
             "bias": False,
@@ -328,11 +340,17 @@ class SEResNeXtBottleneck(SEBlock):
         base_width: int = 4,
     ) -> None:
 
-        conv_param_1 = {"strides": 1, "kernel_size": 1, "act": Act.RELU, "norm": Norm.BATCH, "bias": False}
+        conv_param_1 = {
+            "strides": 1,
+            "kernel_size": 1,
+            "act": ("relu", {"inplace": True}),
+            "norm": Norm.BATCH,
+            "bias": False,
+        }
         conv_param_2 = {
             "strides": stride,
             "kernel_size": 3,
-            "act": Act.RELU,
+            "act": ("relu", {"inplace": True}),
             "norm": Norm.BATCH,
             "groups": groups,
             "bias": False,

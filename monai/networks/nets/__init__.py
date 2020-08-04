@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .ahnet import AHNet
 from .classifier import *
 from .densenet import DenseNet, densenet121, densenet169, densenet201, densenet264
 from .generator import Generator
