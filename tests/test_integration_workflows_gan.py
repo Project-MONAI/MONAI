@@ -28,7 +28,7 @@ from monai.engines.utils import GanKeys as Keys
 from monai.handlers import CheckpointSaver, StatsHandler, TensorBoardStatsHandler
 from monai.networks import normal_init
 from monai.networks.nets import Discriminator, Generator
-from monai.transforms import Compose, LoadNiftid, RandFlipd, ScaleIntensityd, ToTensord
+from monai.transforms import AsChannelFirstd, Compose, LoadNiftid, RandFlipd, ScaleIntensityd, ToTensord
 from monai.utils import set_determinism
 from tests.utils import skip_if_quick
 
@@ -41,6 +41,7 @@ def run_training_test(root_dir, device=torch.device("cuda:0")):
     train_transforms = Compose(
         [
             LoadNiftid(keys=["reals"]),
+            AsChannelFirstd(keys=["reals"]),
             ScaleIntensityd(keys=["reals"]),
             RandFlipd(keys=["reals"], prob=0.5),
             ToTensord(keys=["reals"]),

@@ -181,7 +181,7 @@ class GanTrainer(Trainer):
         latent_shape: size of G input latent code. Defaults to ``64``.
         d_prepare_batch: callback function to prepare batchdata for D inferer.
             Defaults to return ``GanKeys.REALS`` in batchdata dict.
-        g_prepare_batch: callback function to create batch of latent input for G inferer. 
+        g_prepare_batch: callback function to create batch of latent input for G inferer.
             Defaults to return random latents.
         g_update_latents: Calculate G loss with new latent codes. Defaults to ``True``.
         iteration_update: the callable function for every iteration, expect to accept `engine`
