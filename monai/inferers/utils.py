@@ -22,7 +22,7 @@ def sliding_window_inference(
     inputs: torch.Tensor,
     roi_size: Union[Sequence[int], int],
     sw_batch_size: int,
-    predictor: Callable,
+    predictor: Callable[[torch.Tensor], torch.Tensor],
     overlap: float = 0.25,
     mode: Union[BlendMode, str] = BlendMode.CONSTANT,
     padding_mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
@@ -107,8 +107,7 @@ def sliding_window_inference(
     # Perform predictions
     output_rois = list()
     for data in slice_batches:
-        seg_prob = predictor(data)
-        # batched patch segmentation
+        seg_prob = predictor(data) # batched patch segmentation
         output_rois.append(seg_prob.to(torch.device('cpu')))
 
     # stitching output image
@@ -120,8 +119,6 @@ def sliding_window_inference(
                                             mode=mode, device=torch.device('cpu'))
 
     # allocate memory to store the full output and the count for overlapping parts
-    # output_image = torch.zeros(output_shape, dtype=torch.float32, device=inputs.device)
-    # count_map = torch.zeros(output_shape, dtype=torch.float32, device=inputs.device)
     output_image = torch.zeros(output_shape, dtype=torch.float32, device=torch.device('cpu'))
     count_map = torch.zeros(output_shape, dtype=torch.float32, device=torch.device('cpu'))
 
