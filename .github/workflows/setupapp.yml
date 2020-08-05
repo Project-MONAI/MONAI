@@ -5,8 +5,6 @@ on:
   push:
     branches:
       - master
-      # temp add for test
-      - fix-gan-integration-test
 
 jobs:
   # caching of these jobs:
