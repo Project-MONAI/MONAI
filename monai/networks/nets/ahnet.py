@@ -275,16 +275,22 @@ class AHNet(nn.Module):
     In order to use pretrained weights from 2D FCN/MCFCN, please call the copy_from function, for example:
     ahnet = AHNet(upsample_mode='transpose')
     ahnet.copy_from(model_2d)
+    In the default settings (same as the author's official code), the input size of the first two dimensions should be divided 
+    by 32 and no less than 128, like (128, 128, 96). If you need to use lower sizes, please reduce the largest blocks in PSP 
+    module and change the num_input_features in Final module.
+    In addition, to utilize the "transpose" upsample mode, please ensure that the input size of the first two dimensions
+    should be divided by 128.
 
     Args:
-        layers (list): number of residual blocks for 4 layers of the network (layer1...layer4).
+        layers (tuple): number of residual blocks for 4 layers of the network (layer1...layer4). Defaults to (3, 4, 6, 3).
+        num_output_channel (int): number of output channels for the network. Defaults to 1.
         upsample_mode (str): The mode of upsampling manipulations, there are two choices:
             1) "transpose", uses transposed convolution layers.
             2) "interpolate", uses standard interpolate way.
-            Using the second mode cannot guarantee the model's reproducibility. Defaults to "transpose".
+            Using the second mode cannot guarantee the model's reproducibility. Defaults to "interpolate".
     """
 
-    def __init__(self, layers: tuple = (3, 4, 6, 3), upsample_mode: str = "transpose"):
+    def __init__(self, layers: tuple = (3, 4, 6, 3), num_output_channel: int = 1, upsample_mode: str = "interpolate"):
         self.inplanes = 64
         super(AHNet, self).__init__()
 
@@ -371,7 +377,7 @@ class AHNet(nn.Module):
         noutdense4 = num_init_features + densegrowth * ndenselayer
 
         self.psp = PSP(noutdense4, upsample_mode)
-        self.final = Final(4 + noutdense4, 1, upsample_mode)
+        self.final = Final(4 + noutdense4, num_output_channel, upsample_mode)
 
         # Initialise parameters
         for m in self.modules():
