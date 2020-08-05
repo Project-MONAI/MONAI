@@ -17,16 +17,24 @@ from parameterized import parameterized
 from monai.networks.blocks import FCN, MCFCN
 from monai.networks.nets import AHNet
 
-TEST_CASE_FCN_1 = [{"nout": 3}, torch.randn(5, 3, 64, 64), (5, 3, 64, 64)]
-TEST_CASE_FCN_2 = [{"nout": 2}, torch.randn(5, 3, 64, 64), (5, 2, 64, 64)]
-TEST_CASE_FCN_3 = [{"nout": 1, "upsample_mode": "interpolate"}, torch.randn(5, 3, 64, 64), (5, 1, 64, 64)]
+TEST_CASE_FCN_1 = [{"out_channels": 3}, torch.randn(5, 3, 64, 64), (5, 3, 64, 64)]
+TEST_CASE_FCN_2 = [{"out_channels": 2}, torch.randn(5, 3, 64, 64), (5, 2, 64, 64)]
+TEST_CASE_FCN_3 = [{"out_channels": 1, "upsample_mode": "interpolate"}, torch.randn(5, 3, 64, 64), (5, 1, 64, 64)]
 
-TEST_CASE_MCFCN_1 = [{"nout": 3, "nin": 8}, torch.randn(5, 8, 64, 64), (5, 3, 64, 64)]
-TEST_CASE_MCFCN_2 = [{"nout": 2, "nin": 1}, torch.randn(5, 1, 64, 64), (5, 2, 64, 64)]
-TEST_CASE_MCFCN_3 = [{"nout": 1, "nin": 2, "upsample_mode": "interpolate"}, torch.randn(5, 2, 64, 64), (5, 1, 64, 64)]
+TEST_CASE_MCFCN_1 = [{"out_channels": 3, "in_channels": 8}, torch.randn(5, 8, 64, 64), (5, 3, 64, 64)]
+TEST_CASE_MCFCN_2 = [{"out_channels": 2, "in_channels": 1}, torch.randn(5, 1, 64, 64), (5, 2, 64, 64)]
+TEST_CASE_MCFCN_3 = [
+    {"out_channels": 1, "in_channels": 2, "upsample_mode": "interpolate"},
+    torch.randn(5, 2, 64, 64),
+    (5, 1, 64, 64),
+]
 
 TEST_CASE_AHNET_1 = [{"upsample_mode": "interpolate"}, torch.randn(3, 1, 128, 128, 64), (3, 1, 128, 128, 64)]
-TEST_CASE_AHNET_2 = [{"upsample_mode": "transpose"}, torch.randn(2, 1, 128, 128, 64), (2, 1, 128, 128, 64)]
+TEST_CASE_AHNET_2 = [
+    {"upsample_mode": "transpose", "out_channels": 2},
+    torch.randn(2, 1, 128, 128, 64),
+    (2, 2, 128, 128, 64),
+]
 
 
 class TestFCN(unittest.TestCase):

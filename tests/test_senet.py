@@ -23,7 +23,7 @@ from monai.networks.nets import (
     senet154,
 )
 
-input_param = {"spatial_dims": 3, "in_ch": 2, "num_classes": 10}
+input_param = {"spatial_dims": 3, "in_channels": 2, "num_classes": 10}
 
 TEST_CASE_1 = [senet154(**input_param)]
 TEST_CASE_2 = [se_resnet50(**input_param)]
