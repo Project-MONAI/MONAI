@@ -12,6 +12,7 @@
 from .aspp import SimpleASPP
 from .convolutions import Convolution, ResidualUnit
 from .downsample import MaxAvgPool
+from .fcn import FCN, GCN, MCFCN, Refine
 from .squeeze_and_excitation import (
     ChannelSELayer,
     ResidualSELayer,

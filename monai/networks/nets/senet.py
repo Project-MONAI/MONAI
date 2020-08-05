@@ -45,6 +45,10 @@ class SENet(nn.Module):
             for SENet154: 0.2
             for SE-ResNet models: None
             for SE-ResNeXt models: None
+        dropout_dim: determine the dimensions of dropout. Defaults to 1.
+            When dropout_dim = 1, randomly zeroes some of the elements for each channel.
+            When dropout_dim = 2, Randomly zero out entire channels (a channel is a 2D feature map).
+            When dropout_dim = 3, Randomly zero out entire channels (a channel is a 3D feature map).
         inplanes:  number of input channels for layer1.
             for SENet154: 128
             for SE-ResNet models: 64
@@ -72,6 +76,7 @@ class SENet(nn.Module):
         groups: int,
         reduction: int,
         dropout_p: Optional[float] = 0.2,
+        dropout_dim: int = 1,
         inplanes: int = 128,
         downsample_kernel_size: int = 3,
         input_3x3: bool = True,
@@ -84,7 +89,7 @@ class SENet(nn.Module):
         conv_type: Type[Union[nn.Conv1d, nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]
         pool_type: Type[Union[nn.MaxPool1d, nn.MaxPool2d, nn.MaxPool3d]] = Pool[Pool.MAX, spatial_dims]
         norm_type: Type[Union[nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d]] = Norm[Norm.BATCH, spatial_dims]
-        dropout_type: Type[Union[nn.Dropout, nn.Dropout2d, nn.Dropout3d]] = Dropout[Dropout.DROPOUT, spatial_dims]
+        dropout_type: Type[Union[nn.Dropout, nn.Dropout2d, nn.Dropout3d]] = Dropout[Dropout.DROPOUT, dropout_dim]
         avg_pool_type: Type[Union[nn.AdaptiveAvgPool1d, nn.AdaptiveAvgPool2d, nn.AdaptiveAvgPool3d]] = Pool[
             Pool.ADAPTIVEAVG, spatial_dims
         ]
@@ -248,6 +253,7 @@ def senet154(spatial_dims: int, in_ch: int, num_classes: int) -> SENet:
         groups=64,
         reduction=16,
         dropout_p=0.2,
+        dropout_dim=1,
         num_classes=num_classes,
     )
     return model
@@ -279,6 +285,7 @@ def se_resnet101(spatial_dims: int, in_ch: int, num_classes: int) -> SENet:
         groups=1,
         reduction=16,
         dropout_p=0.2,
+        dropout_dim=1,
         inplanes=64,
         input_3x3=False,
         downsample_kernel_size=1,
@@ -296,6 +303,7 @@ def se_resnet152(spatial_dims: int, in_ch: int, num_classes: int) -> SENet:
         groups=1,
         reduction=16,
         dropout_p=0.2,
+        dropout_dim=1,
         inplanes=64,
         input_3x3=False,
         downsample_kernel_size=1,
