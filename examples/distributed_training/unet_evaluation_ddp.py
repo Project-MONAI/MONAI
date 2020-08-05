@@ -100,7 +100,7 @@ def evaluate(args):
     # create a evaluation data loader
     val_ds = Dataset(data=val_files, transform=val_transforms)
     # create a evaluation data sampler
-    val_sampler = DistributedSampler(val_ds)
+    val_sampler = DistributedSampler(val_ds, shuffle=False)
     # sliding window inference need to input 1 image in every iteration
     val_loader = DataLoader(val_ds, batch_size=1, shuffle=False, num_workers=0, pin_memory=True, sampler=val_sampler)
     dice_metric = DiceMetric(include_background=True, to_onehot_y=False, sigmoid=True, reduction="mean")

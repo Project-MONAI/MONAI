@@ -10,8 +10,8 @@
 # limitations under the License.
 
 """
-This example shows how to execute distributed training based on PyTorch native `DistributedDataParallel` module.
-It can run on several nodes with multiple GPU devices on every node.
+This example shows how to execute distributed training based on PyTorch native `DistributedDataParallel` module
+and MONAI workflows. It can run on several nodes with multiple GPU devices on every node.
 Main steps to set up the distributed training:
 
 - Execute `torch.distributed.launch` to create processes on every node for every GPU.
@@ -29,7 +29,10 @@ Main steps to set up the distributed training:
   Here we use `NVIDIA NCCL` as the backend and must set `init_method="env://"` if use `torch.distributed.launch`.
 - Wrap the model with `DistributedDataParallel` after moving to expected device.
 - Wrap Dataset with `DistributedSampler`, and disable the `shuffle` and `num_worker=0` in DataLoader.
-  Instead, shuffle data by `train_sampler.set_epoch(epoch)` before every epoch.
+  Instead, `SupervisedTrainer` shuffles data by `train_sampler.set_epoch(epoch)` before every epoch.
+- Add `StatsHandler` and `CheckpointHandler` to the master process which is `dist.get_rank() == 0`.
+- ignite can automatically reduce metrics for distributed training, refer to:
+  https://github.com/pytorch/ignite/blob/v0.3.0/ignite/metrics/metric.py#L85
 
 Note:
     `torch.distributed.launch` will launch `nnodes * nproc_per_node = world_size` processes in total.
@@ -51,6 +54,7 @@ import argparse
 import os
 import sys
 from glob import glob
+import logging
 
 import nibabel as nib
 import numpy as np
@@ -67,31 +71,24 @@ from monai.transforms import (
     AsDiscreted,
     AsChannelFirstd,
     Compose,
+    KeepLargestConnectedComponentd,
     LoadNiftid,
     RandCropByPosNegLabeld,
     RandRotate90d,
     ScaleIntensityd,
     ToTensord,
 )
-from monai.engines import SupervisedEvaluator, SupervisedTrainer
-from monai.inferers import SimpleInferer, SlidingWindowInferer
+from monai.engines import SupervisedTrainer
+from monai.inferers import SimpleInferer
 from monai.handlers import (
     CheckpointSaver,
     LrScheduleHandler,
-    MeanDice,
     StatsHandler,
-    TensorBoardImageHandler,
-    TensorBoardStatsHandler,
-    ValidationHandler,
 )
 
 
 def train(args):
-    # disable logging for processes execpt 0 on every node
-    if args.local_rank != 0:
-        f = open(os.devnull, "w")
-        sys.stdout = sys.stderr = f
-    elif not os.path.exists(args.dir):
+    if args.local_rank == 0 and not os.path.exists(args.dir):
         # create 40 random image, mask paris for training
         print(f"generating synthetic data to {args.dir} (this may take a while)")
         os.makedirs(args.dir)
@@ -109,19 +106,19 @@ def train(args):
 
     images = sorted(glob(os.path.join(args.dir, "img*.nii.gz")))
     segs = sorted(glob(os.path.join(args.dir, "seg*.nii.gz")))
-    train_files = [{"img": img, "seg": seg} for img, seg in zip(images, segs)]
+    train_files = [{"image": img, "label": seg} for img, seg in zip(images, segs)]
 
     # define transforms for image and segmentation
     train_transforms = Compose(
         [
-            LoadNiftid(keys=["img", "seg"]),
-            AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
-            ScaleIntensityd(keys=["img", "seg"]),
+            LoadNiftid(keys=["image", "label"]),
+            AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
+            ScaleIntensityd(keys=["image", "label"]),
             RandCropByPosNegLabeld(
-                keys=["img", "seg"], label_key="seg", spatial_size=[96, 96, 96], pos=1, neg=1, num_samples=4
+                keys=["image", "label"], label_key="label", spatial_size=[96, 96, 96], pos=1, neg=1, num_samples=4
             ),
-            RandRotate90d(keys=["img", "seg"], prob=0.5, spatial_axes=[0, 2]),
-            ToTensord(keys=["img", "seg"]),
+            RandRotate90d(keys=["image", "label"], prob=0.5, spatial_axes=[0, 2]),
+            ToTensord(keys=["image", "label"]),
         ]
     )
 
@@ -150,36 +147,6 @@ def train(args):
     # wrap the model with DistributedDataParallel module
     net = DistributedDataParallel(net, device_ids=[args.local_rank])
 
-
-    val_post_transforms = Compose(
-        [
-            Activationsd(keys="pred", sigmoid=True),
-            AsDiscreted(keys="pred", threshold_values=True),
-            KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),
-        ]
-    )
-    val_handlers = [
-        StatsHandler(output_transform=lambda x: None),
-        TensorBoardStatsHandler(log_dir="./runs/", output_transform=lambda x: None),
-        TensorBoardImageHandler(
-            log_dir="./runs/", batch_transform=lambda x: (x["image"], x["label"]), output_transform=lambda x: x["pred"]
-        ),
-        CheckpointSaver(save_dir="./runs/", save_dict={"net": net}, save_key_metric=True),
-    ]
-
-    evaluator = SupervisedEvaluator(
-        device=device,
-        val_data_loader=val_loader,
-        network=net,
-        inferer=SlidingWindowInferer(roi_size=(96, 96, 96), sw_batch_size=4, overlap=0.5),
-        post_transform=val_post_transforms,
-        key_val_metric={
-            "val_mean_dice": MeanDice(include_background=True, output_transform=lambda x: (x["pred"], x["label"]))
-        },
-        additional_metrics={"val_acc": Accuracy(output_transform=lambda x: (x["pred"], x["label"]))},
-        val_handlers=val_handlers,
-    )
-
     train_post_transforms = Compose(
         [
             Activationsd(keys="pred", sigmoid=True),
@@ -189,11 +156,13 @@ def train(args):
     )
     train_handlers = [
         LrScheduleHandler(lr_scheduler=lr_scheduler, print_lr=True),
-        ValidationHandler(validator=evaluator, interval=2, epoch_level=True),
-        StatsHandler(tag_name="train_loss", output_transform=lambda x: x["loss"]),
-        TensorBoardStatsHandler(log_dir="./runs/", tag_name="train_loss", output_transform=lambda x: x["loss"]),
-        CheckpointSaver(save_dir="./runs/", save_dict={"net": net, "opt": opt}, save_interval=2, epoch_level=True),
     ]
+    if dist.get_rank() == 0:
+        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+        train_handlers.extend([
+            StatsHandler(tag_name="train_loss", output_transform=lambda x: x["loss"]),
+            CheckpointSaver(save_dir="./runs/", save_dict={"net": net, "opt": opt}, save_interval=2),
+        ])
 
     trainer = SupervisedTrainer(
         device=device,
@@ -205,47 +174,10 @@ def train(args):
         inferer=SimpleInferer(),
         amp=False,
         post_transform=train_post_transforms,
-        key_train_metric={"train_acc": Accuracy(output_transform=lambda x: (x["pred"], x["label"]))},
+        key_train_metric={"train_acc": Accuracy(output_transform=lambda x: (x["pred"], x["label"]), device=device)},
         train_handlers=train_handlers,
     )
     trainer.run()
-
-
-
-
-
-
-
-
-    # start a typical PyTorch training
-    epoch_loss_values = list()
-    for epoch in range(5):
-        print("-" * 10)
-        print(f"epoch {epoch + 1}/{5}")
-        model.train()
-        epoch_loss = 0
-        step = 0
-        train_sampler.set_epoch(epoch)
-        for batch_data in train_loader:
-            step += 1
-            inputs, labels = batch_data["img"].to(device), batch_data["seg"].to(device)
-            optimizer.zero_grad()
-            outputs = model(inputs)
-            loss = loss_function(outputs, labels)
-            loss.backward()
-            optimizer.step()
-            epoch_loss += loss.item()
-            epoch_len = len(train_ds) // train_loader.batch_size
-            print(f"{step}/{epoch_len}, train_loss: {loss.item():.4f}")
-        epoch_loss /= step
-        epoch_loss_values.append(epoch_loss)
-        print(f"epoch {epoch + 1} average loss: {epoch_loss:.4f}")
-    print(f"train completed, epoch losses: {epoch_loss_values}")
-    if dist.get_rank() == 0:
-        # all processes should see same parameters as they all start from same
-        # random parameters and gradients are synchronized in backward passes,
-        # therefore, saving it in one process is sufficient
-        torch.save(model.state_dict(), "final_model.pth")
     dist.destroy_process_group()
 
 
