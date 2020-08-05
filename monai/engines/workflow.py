@@ -86,11 +86,12 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             raise TypeError(f"device must be a torch.device but is {type(device).__name__}.")
         if not isinstance(data_loader, DataLoader):
             raise TypeError(f"data_loader must be a torch.utils.data.DataLoader but is {type(data_loader).__name__}.")
-        if isinstance(data_loader.sampler, DistributedSampler):
+        sampler = getattr(data_loader, 'sampler')
+        if sampler is not None and isinstance(sampler, DistributedSampler):
 
             @self.on(Events.EPOCH_STARTED)
             def set_sampler_epoch(engine: Engine):
-                data_loader.sampler.set_epoch(engine.state.epoch)
+                sampler.set_epoch(engine.state.epoch)
 
         # set all sharable data for the workflow based on Ignite engine.state
         self.state = State(
