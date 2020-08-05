@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Sequence, Tuple, Union
+from typing import Callable, Sequence, Tuple, Union, Optional
 
 import torch
 import torch.nn.functional as F
@@ -59,8 +59,8 @@ def sliding_window_inference(
         cval: fill value for 'constant' padding mode. Default: 0
         device: device running the concatenation of the windows.
             By default the device and accordingly the memory of the input device is used. If for example
-            set to device=torch.device('cpu') the gpu memory consumption is less and independent of the
-            input and roi_size parameter.
+            device is set to device=torch.device('cpu') the gpu memory consumption is less and independent
+            of the input and roi_size parameter.
 
     Raises:
         NotImplementedError: When ``inputs`` does not have batch size = 1.
