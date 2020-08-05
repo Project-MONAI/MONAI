@@ -60,7 +60,7 @@ can be parameterized with the factory name and the arguments to pass to the crea
     layer = use_factory( (fact.TEST, kwargs) )
 """
 
-from typing import Any, Callable, Dict
+from typing import Any, Callable, Dict, Tuple, Type, Union
 
 import torch.nn as nn
 
@@ -77,14 +77,14 @@ class LayerFactory:
         self.factories: Dict[str, Callable] = {}
 
     @property
-    def names(self):
+    def names(self) -> Tuple[str, ...]:
         """
         Produces all factory names.
         """
 
         return tuple(self.factories)
 
-    def add_factory_callable(self, name: str, func: Callable):
+    def add_factory_callable(self, name: str, func: Callable) -> None:
         """
         Add the factory function to this object under the given name.
         """
@@ -97,12 +97,12 @@ class LayerFactory:
             + ".\nPlease see :py:class:`monai.networks.layers.split_args` for additional args parsing."
         )
 
-    def factory_function(self, name: str):
+    def factory_function(self, name: str) -> Callable:
         """
         Decorator for adding a factory function with the given name.
         """
 
-        def _add(func: Callable):
+        def _add(func: Callable) -> Callable:
             self.add_factory_callable(name, func)
             return func
 
@@ -198,20 +198,20 @@ Pool = LayerFactory()
 
 
 @Dropout.factory_function("dropout")
-def dropout_factory(dim: int):
-    types = [nn.Dropout, nn.Dropout2d, nn.Dropout3d]
+def dropout_factory(dim: int) -> Type[Union[nn.Dropout, nn.Dropout2d, nn.Dropout3d]]:
+    types = (nn.Dropout, nn.Dropout2d, nn.Dropout3d)
     return types[dim - 1]
 
 
 @Norm.factory_function("instance")
-def instance_factory(dim: int):
-    types = [nn.InstanceNorm1d, nn.InstanceNorm2d, nn.InstanceNorm3d]
+def instance_factory(dim: int) -> Type[Union[nn.InstanceNorm1d, nn.InstanceNorm2d, nn.InstanceNorm3d]]:
+    types = (nn.InstanceNorm1d, nn.InstanceNorm2d, nn.InstanceNorm3d)
     return types[dim - 1]
 
 
 @Norm.factory_function("batch")
-def batch_factory(dim: int):
-    types = [nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d]
+def batch_factory(dim: int) -> Type[Union[nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d]]:
+    types = (nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d)
     return types[dim - 1]
 
 
@@ -229,36 +229,40 @@ Act.add_factory_callable("logsoftmax", lambda: nn.modules.LogSoftmax)
 
 
 @Conv.factory_function("conv")
-def conv_factory(dim: int):
-    types = [nn.Conv1d, nn.Conv2d, nn.Conv3d]
+def conv_factory(dim: int) -> Type[Union[nn.Conv1d, nn.Conv2d, nn.Conv3d]]:
+    types = (nn.Conv1d, nn.Conv2d, nn.Conv3d)
     return types[dim - 1]
 
 
 @Conv.factory_function("convtrans")
-def convtrans_factory(dim: int):
-    types = [nn.ConvTranspose1d, nn.ConvTranspose2d, nn.ConvTranspose3d]
+def convtrans_factory(dim: int) -> Type[Union[nn.ConvTranspose1d, nn.ConvTranspose2d, nn.ConvTranspose3d]]:
+    types = (nn.ConvTranspose1d, nn.ConvTranspose2d, nn.ConvTranspose3d)
     return types[dim - 1]
 
 
 @Pool.factory_function("max")
-def maxpooling_factory(dim: int):
-    types = [nn.MaxPool1d, nn.MaxPool2d, nn.MaxPool3d]
+def maxpooling_factory(dim: int) -> Type[Union[nn.MaxPool1d, nn.MaxPool2d, nn.MaxPool3d]]:
+    types = (nn.MaxPool1d, nn.MaxPool2d, nn.MaxPool3d)
     return types[dim - 1]
 
 
 @Pool.factory_function("adaptivemax")
-def adaptive_maxpooling_factory(dim: int):
-    types = [nn.AdaptiveMaxPool1d, nn.AdaptiveMaxPool2d, nn.AdaptiveMaxPool3d]
+def adaptive_maxpooling_factory(
+    dim: int,
+) -> Type[Union[nn.AdaptiveMaxPool1d, nn.AdaptiveMaxPool2d, nn.AdaptiveMaxPool3d]]:
+    types = (nn.AdaptiveMaxPool1d, nn.AdaptiveMaxPool2d, nn.AdaptiveMaxPool3d)
     return types[dim - 1]
 
 
 @Pool.factory_function("avg")
-def avgpooling_factory(dim: int):
-    types = [nn.AvgPool1d, nn.AvgPool2d, nn.AvgPool3d]
+def avgpooling_factory(dim: int) -> Type[Union[nn.AvgPool1d, nn.AvgPool2d, nn.AvgPool3d]]:
+    types = (nn.AvgPool1d, nn.AvgPool2d, nn.AvgPool3d)
     return types[dim - 1]
 
 
 @Pool.factory_function("adaptiveavg")
-def adaptive_avgpooling_factory(dim: int):
-    types = [nn.AdaptiveAvgPool1d, nn.AdaptiveAvgPool2d, nn.AdaptiveAvgPool3d]
+def adaptive_avgpooling_factory(
+    dim: int,
+) -> Type[Union[nn.AdaptiveAvgPool1d, nn.AdaptiveAvgPool2d, nn.AdaptiveAvgPool3d]]:
+    types = (nn.AdaptiveAvgPool1d, nn.AdaptiveAvgPool2d, nn.AdaptiveAvgPool3d)
     return types[dim - 1]

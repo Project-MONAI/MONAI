@@ -65,7 +65,9 @@ class UNet(nn.Module):
         self.norm = norm
         self.dropout = dropout
 
-        def _create_block(inc: int, outc: int, channels: Sequence[int], strides: Sequence[int], is_top: bool):
+        def _create_block(
+            inc: int, outc: int, channels: Sequence[int], strides: Sequence[int], is_top: bool
+        ) -> nn.Sequential:
             """
             Builds the UNet structure from the bottom up by recursing down to the bottom block, then creating sequential
             blocks containing the downsample path, a skip connection around the previous block, and the upsample path.
@@ -79,6 +81,8 @@ class UNet(nn.Module):
             """
             c = channels[0]
             s = strides[0]
+
+            subblock: Union[nn.Sequential, ResidualUnit, Convolution]
 
             if len(channels) > 2:
                 subblock = _create_block(c, c, channels[1:], strides[1:], False)  # continue recursion down
@@ -95,7 +99,9 @@ class UNet(nn.Module):
 
         self.model = _create_block(in_channels, out_channels, self.channels, self.strides, True)
 
-    def _get_down_layer(self, in_channels: int, out_channels: int, strides: int, is_top: bool):
+    def _get_down_layer(
+        self, in_channels: int, out_channels: int, strides: int, is_top: bool
+    ) -> Union[ResidualUnit, Convolution]:
         """
         Args:
             in_channels: number of input channels.
@@ -127,7 +133,7 @@ class UNet(nn.Module):
                 dropout=self.dropout,
             )
 
-    def _get_bottom_layer(self, in_channels: int, out_channels: int):
+    def _get_bottom_layer(self, in_channels: int, out_channels: int) -> Union[ResidualUnit, Convolution]:
         """
         Args:
             in_channels: number of input channels.
@@ -135,7 +141,9 @@ class UNet(nn.Module):
         """
         return self._get_down_layer(in_channels, out_channels, 1, False)
 
-    def _get_up_layer(self, in_channels: int, out_channels: int, strides: int, is_top: bool):
+    def _get_up_layer(
+        self, in_channels: int, out_channels: int, strides: int, is_top: bool
+    ) -> Union[Convolution, nn.Sequential]:
         """
         Args:
             in_channels: number of input channels.
@@ -143,6 +151,8 @@ class UNet(nn.Module):
             strides: convolution stride.
             is_top: True if this is the top block.
         """
+        conv: Union[Convolution, nn.Sequential]
+
         conv = Convolution(
             self.dimensions,
             in_channels,
@@ -169,9 +179,9 @@ class UNet(nn.Module):
                 dropout=self.dropout,
                 last_conv_only=is_top,
             )
-            return nn.Sequential(conv, ru)
-        else:
-            return conv
+            conv = nn.Sequential(conv, ru)
+
+        return conv
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.model(x)

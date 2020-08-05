@@ -51,7 +51,7 @@ class SpatialPad(Transform):
         self.method: Method = Method(method)
         self.mode: NumpyPadMode = NumpyPadMode(mode)
 
-    def _determine_data_pad_width(self, data_shape: Sequence[int]):
+    def _determine_data_pad_width(self, data_shape: Sequence[int]) -> List[Tuple[int, int]]:
         self.spatial_size = fall_back_tuple(self.spatial_size, data_shape)
         if self.method == Method.SYMMETRIC:
             pad_width = list()
@@ -448,7 +448,7 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         image: Optional[np.ndarray] = None,
         image_threshold: float = 0.0,
     ) -> None:
-        self.spatial_size = spatial_size
+        self.spatial_size = ensure_tuple(spatial_size)
         self.label = label
         if pos < 0 or neg < 0:
             raise ValueError(f"pos and neg must be nonnegative, got pos={pos} neg={neg}.")
@@ -458,7 +458,7 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         self.num_samples = num_samples
         self.image = image
         self.image_threshold = image_threshold
-        self.centers = None
+        self.centers: Optional[List[List[np.ndarray]]] = None
 
     def randomize(self, label: np.ndarray, image: Optional[np.ndarray] = None) -> None:
         self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])

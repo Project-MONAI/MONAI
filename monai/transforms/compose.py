@@ -91,7 +91,9 @@ class Randomizable(ABC):
 
     R: np.random.RandomState = np.random.RandomState()
 
-    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "Randomizable":
         """
         Set the random state locally, to control the randomness, the derived
         classes should use :py:attr:`self.R` instead of `np.random` to introduce random
@@ -206,11 +208,12 @@ class Compose(Randomizable):
         self.transforms = ensure_tuple(transforms)
         self.set_random_state(seed=get_seed())
 
-    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
+    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None) -> "Compose":
         for _transform in self.transforms:
             if not isinstance(_transform, Randomizable):
                 continue
             _transform.set_random_state(seed, state)
+        return self
 
     def randomize(self, data: Optional[Any] = None) -> None:
         for _transform in self.transforms:
@@ -256,7 +259,7 @@ class MapTransform(Transform):
     """
 
     def __init__(self, keys: KeysCollection) -> None:
-        self.keys: Tuple[Any, ...] = ensure_tuple(keys)
+        self.keys: Tuple[Hashable, ...] = ensure_tuple(keys)
         if not self.keys:
             raise ValueError("keys must be non empty.")
         for key in self.keys:

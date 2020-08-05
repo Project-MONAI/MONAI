@@ -46,7 +46,7 @@ from monai.utils import (
 
 nib, _ = optional_import("nibabel")
 
-_torch_interp: Callable
+_torch_interp: Callable[..., torch.Tensor]
 
 if get_torch_version_tuple() >= (1, 5):
     # additional argument since torch 1.5 (to avoid warnings)
@@ -108,12 +108,12 @@ class Spacing(Transform):
     def __call__(
         self,
         data_array: np.ndarray,
-        affine=None,
+        affine: Optional[np.ndarray] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
         dtype: Optional[np.dtype] = None,
-    ):
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Args:
             data_array: in shape (num_channels, H[, W, ...]).
@@ -159,10 +159,10 @@ class Spacing(Transform):
         new_affine[:sr, -1] = offset[:sr]
         transform = np.linalg.inv(affine_) @ new_affine
         # adapt to the actual rank
-        transform_ = to_affine_nd(sr, transform)
+        transform = to_affine_nd(sr, transform)
 
         # no resampling if it's identity transform
-        if np.allclose(transform_, np.diag(np.ones(len(transform_))), atol=1e-3):
+        if np.allclose(transform, np.diag(np.ones(len(transform))), atol=1e-3):
             output_data = data_array.copy().astype(np.float32)
             new_affine = to_affine_nd(affine, new_affine)
             return output_data, affine, new_affine
@@ -178,7 +178,7 @@ class Spacing(Transform):
         output_data = affine_xform(
             # AffineTransform requires a batch dim
             torch.as_tensor(np.ascontiguousarray(data_array).astype(_dtype)).unsqueeze(0),
-            torch.as_tensor(np.ascontiguousarray(transform_).astype(_dtype)),
+            torch.as_tensor(np.ascontiguousarray(transform).astype(_dtype)),
             spatial_size=output_shape,
         )
         output_data = output_data.squeeze(0).detach().cpu().numpy().astype(np.float32)
@@ -192,7 +192,10 @@ class Orientation(Transform):
     """
 
     def __init__(
-        self, axcodes: Optional[str] = None, as_closest_canonical: bool = False, labels=tuple(zip("LPI", "RAS"))
+        self,
+        axcodes: Optional[str] = None,
+        as_closest_canonical: bool = False,
+        labels: Optional[Sequence[Tuple[str, str]]] = tuple(zip("LPI", "RAS")),
     ) -> None:
         """
         Args:
@@ -220,7 +223,9 @@ class Orientation(Transform):
         self.as_closest_canonical = as_closest_canonical
         self.labels = labels
 
-    def __call__(self, data_array: np.ndarray, affine=None):
+    def __call__(
+        self, data_array: np.ndarray, affine: Optional[np.ndarray] = None
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         original orientation of `data_array` is defined by `affine`.
 
@@ -709,7 +714,7 @@ class RandFlip(Randomizable, Transform):
         spatial_axis: Spatial axes along which to flip over. Default is None.
     """
 
-    def __init__(self, prob: float = 0.1, spatial_axis: Optional[Union[Sequence[int], int]] = None):
+    def __init__(self, prob: float = 0.1, spatial_axis: Optional[Union[Sequence[int], int]] = None) -> None:
         self.prob = prob
         self.flipper = Flip(spatial_axis=spatial_axis)
         self._do_transform = False
@@ -1003,7 +1008,7 @@ class RandDeformGrid(Randomizable, Transform):
         self.random_offset = 0.0
         self.device = device
 
-    def randomize(self, grid_size: Sequence[int]):
+    def randomize(self, grid_size: Sequence[int]) -> None:
         self.random_offset = self.R.normal(size=([len(grid_size)] + list(grid_size))).astype(np.float32)
         self.rand_mag = self.R.uniform(self.magnitude[0], self.magnitude[1])
 
@@ -1253,7 +1258,9 @@ class RandAffine(Randomizable, Transform):
         self.do_transform = False
         self.prob = prob
 
-    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandAffine":
         self.rand_affine_grid.set_random_state(seed, state)
         super().set_random_state(seed, state)
         return self
@@ -1373,7 +1380,9 @@ class Rand2DElastic(Randomizable, Transform):
         self.prob = prob
         self.do_transform = False
 
-    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "Rand2DElastic":
         self.deform_grid.set_random_state(seed, state)
         self.rand_affine_grid.set_random_state(seed, state)
         super().set_random_state(seed, state)
@@ -1499,7 +1508,9 @@ class Rand3DElastic(Randomizable, Transform):
         self.magnitude = 1.0
         self.sigma = 1.0
 
-    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "Rand3DElastic":
         self.rand_affine_grid.set_random_state(seed, state)
         super().set_random_state(seed, state)
         return self

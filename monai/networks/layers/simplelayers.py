@@ -9,15 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence, Union
 import math
+from typing import Sequence, Union, cast
+
 import torch
+import torch.nn.functional as F
 from torch import nn
 from torch.autograd import Function
-import torch.nn.functional as F
+
 from monai.networks.layers.convutils import gaussian_1d, same_padding
-from monai.utils import ensure_tuple_rep
-from monai.utils import optional_import
+from monai.utils import ensure_tuple_rep, optional_import
 
 _C, _ = optional_import("monai._C")
 _C_CUDA, _ = optional_import("monai._C_CUDA")
@@ -53,7 +54,7 @@ class Reshape(nn.Module):
     Reshapes input tensors to the given shape (minus batch dimension), retaining original batch size.
     """
 
-    def __init__(self, *shape) -> None:
+    def __init__(self, *shape: int) -> None:
         """
         Given a shape list/tuple `shape` of integers (s0, s1, ... , sn), this layer will reshape input tensors of
         shape (batch, s0 * s1 * ... * sn) to shape (batch, s0, s1, ... , sn).
@@ -85,7 +86,7 @@ class GaussianFilter(nn.Module):
         self.kernel = [
             torch.nn.Parameter(torch.as_tensor(gaussian_1d(s, truncated), dtype=torch.float), False) for s in _sigma
         ]
-        self.padding = [same_padding(k.size()[0]) for k in self.kernel]
+        self.padding = [cast(int, (same_padding(k.size()[0]))) for k in self.kernel]
         self.conv_n = [F.conv1d, F.conv2d, F.conv3d][spatial_dims - 1]
         for idx, param in enumerate(self.kernel):
             self.register_parameter(f"kernel_{idx}", param)

@@ -41,7 +41,7 @@ class Regressor(nn.Module):
         norm=Norm.INSTANCE,
         dropout: Optional[float] = None,
         bias: bool = True,
-    ):
+    ) -> None:
         """
         Construct the regressor network with the number of layers defined by `channels` and `strides`. Inputs are
         first passed through the convolutional layers in the forward pass, the output from this is then pass
@@ -90,7 +90,9 @@ class Regressor(nn.Module):
 
         self.final = self._get_final_layer((echannel,) + self.final_size)
 
-    def _get_layer(self, in_channels: int, out_channels: int, strides: int, is_last: bool):
+    def _get_layer(
+        self, in_channels: int, out_channels: int, strides: int, is_last: bool
+    ) -> Union[ResidualUnit, Convolution]:
         """
         Returns a layer accepting inputs with `in_channels` number of channels and producing outputs of `out_channels`
         number of channels. The `strides` indicates downsampling factor, ie. convolutional stride. If `is_last`
@@ -129,7 +131,7 @@ class Regressor(nn.Module):
 
         return layer
 
-    def _get_final_layer(self, in_shape):
+    def _get_final_layer(self, in_shape: Sequence[int]):
         linear = nn.Linear(int(np.product(in_shape)), int(np.product(self.out_shape)))
         return nn.Sequential(nn.Flatten(), linear)
 

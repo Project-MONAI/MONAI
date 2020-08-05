@@ -20,6 +20,26 @@ Blocks
 .. autoclass:: ResidualUnit
     :members:
 
+`GCN Module`
+~~~~~~~~~~~~
+.. autoclass:: GCN
+    :members:
+
+`Refinement Module`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: Refine
+    :members:
+
+`FCN Module`
+~~~~~~~~~~~~
+.. autoclass:: FCN
+    :members:
+
+`Multi-Channel FCN Module`
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: MCFCN
+    :members:
+
 `Squeeze-and-Excitation`
 ~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: ChannelSELayer
@@ -143,6 +163,11 @@ Layers
 Nets
 ----
 .. currentmodule:: monai.networks.nets
+
+`Ahnet`
+~~~~~~~
+.. autoclass:: AHNet
+  :members:
 
 `Densenet3D`
 ~~~~~~~~~~~~

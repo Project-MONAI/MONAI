@@ -15,7 +15,7 @@ defined in :py:class:`monai.transforms.croppad.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Any, Callable, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -61,7 +61,7 @@ class SpatialPadd(MapTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padder = SpatialPad(spatial_size, method)
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key, m in zip(self.keys, self.mode):
             d[key] = self.padder(d[key], mode=m)
@@ -106,7 +106,7 @@ class BorderPadd(MapTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padder = BorderPad(spatial_border=spatial_border)
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key, m in zip(self.keys, self.mode):
             d[key] = self.padder(d[key], mode=m)
@@ -142,7 +142,7 @@ class DivisiblePadd(MapTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padder = DivisiblePad(k=k)
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key, m in zip(self.keys, self.mode):
             d[key] = self.padder(d[key], mode=m)
@@ -176,7 +176,7 @@ class SpatialCropd(MapTransform):
         super().__init__(keys)
         self.cropper = SpatialCrop(roi_center, roi_size, roi_start, roi_end)
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.cropper(d[key])
@@ -198,7 +198,7 @@ class CenterSpatialCropd(MapTransform):
         super().__init__(keys)
         self.cropper = CenterSpatialCrop(roi_size)
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.cropper(d[key])
@@ -245,9 +245,10 @@ class RandSpatialCropd(Randomizable, MapTransform):
             valid_size = get_valid_patch_size(img_size, self._size)
             self._slices = (slice(None),) + get_random_patch(img_size, valid_size, self.R)
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         self.randomize(d[self.keys[0]].shape[1:])  # image shape from the first data key
+        assert self._size is not None
         for key in self.keys:
             if self.random_center:
                 d[key] = d[key][self._slices]
@@ -298,7 +299,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
     def randomize(self, data: Optional[Any] = None) -> None:
         pass
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> List[Dict[Hashable, np.ndarray]]:
         return [self.cropper(data) for _ in range(self.num_samples)]
 
 
@@ -339,7 +340,7 @@ class CropForegroundd(MapTransform):
         self.channel_indexes = ensure_tuple(channel_indexes) if channel_indexes is not None else None
         self.margin = margin
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         box_start, box_end = generate_spatial_bounding_box(
             d[self.source_key], self.select_fn, self.channel_indexes, self.margin
@@ -392,7 +393,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
     ) -> None:
         super().__init__(keys)
         self.label_key = label_key
-        self.spatial_size = spatial_size
+        self.spatial_size: Union[Tuple[int, ...], Sequence[int], int] = spatial_size
         if pos < 0 or neg < 0:
             raise ValueError(f"pos and neg must be nonnegative, got pos={pos} neg={neg}.")
         if pos + neg == 0:
@@ -401,7 +402,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         self.num_samples = num_samples
         self.image_key = image_key
         self.image_threshold = image_threshold
-        self.centers = None
+        self.centers: Optional[List[List[np.ndarray]]] = None
 
     def randomize(self, label: np.ndarray, image: Optional[np.ndarray] = None) -> None:
         self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
@@ -409,12 +410,14 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
             label, self.spatial_size, self.num_samples, self.pos_ratio, image, self.image_threshold, self.R
         )
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> List[Dict[Hashable, np.ndarray]]:
         d = dict(data)
         label = d[self.label_key]
         image = d[self.image_key] if self.image_key else None
         self.randomize(label, image)
-        results = [dict() for _ in range(self.num_samples)]
+        assert isinstance(self.spatial_size, tuple)
+        assert self.centers is not None
+        results: List[Dict[Hashable, np.ndarray]] = [dict() for _ in range(self.num_samples)]
         for key in data.keys():
             if key in self.keys:
                 img = d[key]

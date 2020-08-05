@@ -13,7 +13,8 @@ A collection of "vanilla" transforms for IO functions
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Optional
+from pathlib import Path
+from typing import Dict, List, Optional, Sequence, Union
 
 import numpy as np
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
@@ -57,14 +58,14 @@ class LoadNifti(Transform):
         self.image_only = image_only
         self.dtype = dtype
 
-    def __call__(self, filename):
+    def __call__(self, filename: Union[Sequence[Union[Path, str]], Path, str]):
         """
         Args:
-            filename (str, list, tuple, file): path file or file-like object or a list of files.
+            filename: path file or file-like object or a list of files.
         """
         filename = ensure_tuple(filename)
         img_array = list()
-        compatible_meta = dict()
+        compatible_meta: Dict = dict()
         for name in filename:
             img = nib.load(name)
             img = correct_nifti_header_if_necessary(img)
@@ -125,10 +126,10 @@ class LoadPNG(Transform):
         self.image_only = image_only
         self.dtype = dtype
 
-    def __call__(self, filename):
+    def __call__(self, filename: Union[Sequence[Union[Path, str]], Path, str]):
         """
         Args:
-            filename (str, list, tuple, file): path file or file-like object or a list of files.
+            filename: path file or file-like object or a list of files.
         """
         filename = ensure_tuple(filename)
         img_array = list()
@@ -191,10 +192,10 @@ class LoadNumpy(Transform):
             npz_keys = ensure_tuple(npz_keys)
         self.npz_keys = npz_keys
 
-    def __call__(self, filename):
+    def __call__(self, filename: Union[Sequence[Union[Path, str]], Path, str]):
         """
         Args:
-            filename (str, list, tuple, file): path file or file-like object or a list of files.
+            filename: path file or file-like object or a list of files.
 
         Raises:
             ValueError: When ``filename`` is a sequence and contains a "npz" file extension.
@@ -205,7 +206,7 @@ class LoadNumpy(Transform):
                 if name.endswith(".npz"):
                     raise ValueError("Cannot load a sequence of npz files.")
         filename = ensure_tuple(filename)
-        data_array = list()
+        data_array: List = list()
         compatible_meta = None
 
         def _save_data_meta(data_array, name, data, compatible_meta):

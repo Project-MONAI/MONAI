@@ -88,7 +88,7 @@ def exact_version(the_module, version_str: str = "") -> bool:
 def optional_import(
     module: str,
     version: str = "",
-    version_checker: Callable = min_version,
+    version_checker: Callable[..., bool] = min_version,
     name: str = "",
     descriptor: str = OPTIONAL_IMPORT_MSG_FMT,
     version_args=None,

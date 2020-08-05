@@ -13,7 +13,7 @@ import math
 import os
 import warnings
 from itertools import product, starmap
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import Dict, Generator, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -50,7 +50,9 @@ def get_random_patch(
     return tuple(slice(mc, mc + ps) for mc, ps in zip(min_corner, patch_size))
 
 
-def iter_patch_slices(dims: Sequence[int], patch_size: Union[Sequence[int], int], start_pos: Sequence[int] = ()):
+def iter_patch_slices(
+    dims: Sequence[int], patch_size: Union[Sequence[int], int], start_pos: Sequence[int] = ()
+) -> Generator[Tuple[slice, ...], None, None]:
     """
     Yield successive tuples of slices defining patches of size `patch_size` from an array of dimensions `dims`. The
     iteration starts from position `start_pos` in the array, or starting at the origin if this isn't provided. Each
@@ -149,7 +151,7 @@ def iter_patch(
     copy_back: bool = True,
     mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
     **pad_opts: Dict,
-):
+) -> Generator[np.ndarray, None, None]:
     """
     Yield successive patches from `arr` of size `patch_size`. The iteration can start from position `start_pos` in `arr`
     but drawing from a padded array extended by the `patch_size` in each dimension (so these coordinates can be negative
@@ -193,7 +195,7 @@ def iter_patch(
         arr[...] = arrpad[slices]
 
 
-def get_valid_patch_size(image_size: Sequence[int], patch_size: Union[Sequence[int], int]):
+def get_valid_patch_size(image_size: Sequence[int], patch_size: Union[Sequence[int], int]) -> Tuple[int, ...]:
     """
     Given an image of dimensions `image_size`, return a patch size tuple taking the dimension from `patch_size` if this is
     not 0/None. Otherwise, or if `patch_size` is shorter than `image_size`, the dimension from `image_size` is taken. This ensures
@@ -292,7 +294,7 @@ def rectify_header_sform_qform(img_nii):
     return img_nii
 
 
-def zoom_affine(affine, scale: Sequence[float], diagonal: bool = True):
+def zoom_affine(affine: np.ndarray, scale: Sequence[float], diagonal: bool = True) -> np.ndarray:
     """
     To make column norm of `affine` the same as `scale`.  If diagonal is False,
     returns an affine that combines orthogonal rotation and the new scale.
@@ -320,28 +322,30 @@ def zoom_affine(affine, scale: Sequence[float], diagonal: bool = True):
     affine = np.array(affine, dtype=float, copy=True)
     if len(affine) != len(affine[0]):
         raise ValueError(f"affine must be n x n, got {len(affine)} x {len(affine[0])}.")
-    scale_ = np.array(scale, dtype=float, copy=True)
-    if np.any(scale_ <= 0):
+    scale_np = np.array(scale, dtype=float, copy=True)
+    if np.any(scale_np <= 0):
         raise ValueError("scale must contain only positive numbers.")
     d = len(affine) - 1
-    if len(scale_) < d:  # defaults based on affine
+    if len(scale_np) < d:  # defaults based on affine
         norm = np.sqrt(np.sum(np.square(affine), 0))[:-1]
-        scale_ = np.append(scale_, norm[len(scale_) :])
-    scale_ = scale_[:d]
-    scale_[scale_ == 0] = 1.0
+        scale_np = np.append(scale_np, norm[len(scale_np) :])
+    scale_np = scale_np[:d]
+    scale_np[scale_np == 0] = 1.0
     if diagonal:
-        return np.diag(np.append(scale_, [1.0]))
+        return np.diag(np.append(scale_np, [1.0]))
     rzs = affine[:-1, :-1]  # rotation zoom scale
     zs = np.linalg.cholesky(rzs.T @ rzs).T
     rotation = rzs @ np.linalg.inv(zs)
-    s = np.sign(np.diag(zs)) * np.abs(scale_)
+    s = np.sign(np.diag(zs)) * np.abs(scale_np)
     # construct new affine with rotation and zoom
     new_affine = np.eye(len(affine))
     new_affine[:-1, :-1] = rotation @ np.diag(s)
     return new_affine
 
 
-def compute_shape_offset(spatial_shape, in_affine, out_affine):
+def compute_shape_offset(
+    spatial_shape: np.ndarray, in_affine: np.ndarray, out_affine: np.ndarray
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     Given input and output affine, compute appropriate shapes
     in the output space based on the input array's shape.
@@ -375,7 +379,7 @@ def compute_shape_offset(spatial_shape, in_affine, out_affine):
     return out_shape.astype(int), offset
 
 
-def to_affine_nd(r, affine):
+def to_affine_nd(r: Union[np.ndarray, int], affine: np.ndarray) -> np.ndarray:
     """
     Using elements from affine, to create a new affine matrix by
     assigning the rotation/zoom/scaling matrix and the translation vector.
@@ -402,19 +406,19 @@ def to_affine_nd(r, affine):
         an (r+1) x (r+1) matrix
 
     """
-    affine_ = np.array(affine, dtype=np.float64)
-    if affine_.ndim != 2:
-        raise ValueError(f"affine must have 2 dimensions, got {affine_.ndim}.")
+    affine_np = np.array(affine, dtype=np.float64)
+    if affine_np.ndim != 2:
+        raise ValueError(f"affine must have 2 dimensions, got {affine_np.ndim}.")
     new_affine = np.array(r, dtype=np.float64, copy=True)
     if new_affine.ndim == 0:
         sr = new_affine.astype(int)
         if not np.isfinite(sr) or sr < 0:
             raise ValueError(f"r must be positive, got {sr}.")
         new_affine = np.eye(sr + 1, dtype=np.float64)
-    d = max(min(len(new_affine) - 1, len(affine_) - 1), 1)
-    new_affine[:d, :d] = affine_[:d, :d]
+    d = max(min(len(new_affine) - 1, len(affine_np) - 1), 1)
+    new_affine[:d, :d] = affine_np[:d, :d]
     if d > 1:
-        new_affine[:d, -1] = affine_[:d, -1]
+        new_affine[:d, -1] = affine_np[:d, -1]
     return new_affine
 
 
@@ -460,7 +464,7 @@ def compute_importance_map(
     mode: Union[BlendMode, str] = BlendMode.CONSTANT,
     sigma_scale: float = 0.125,
     device: Optional[torch.device] = None,
-):
+) -> torch.Tensor:
     """Get importance map for different weight modes.
 
     Args:

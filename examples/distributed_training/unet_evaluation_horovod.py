@@ -41,21 +41,22 @@ Referring to: https://github.com/horovod/horovod/blob/master/examples/pytorch_mn
 
 """
 
+import argparse
 import os
 from glob import glob
+
+import horovod.torch as hvd
 import nibabel as nib
 import numpy as np
 import torch
 import torch.multiprocessing as mp
-import argparse
 from torch.utils.data.distributed import DistributedSampler
-import horovod.torch as hvd
 
 import monai
-from monai.data import create_test_image_3d, Dataset, DataLoader
+from monai.data import DataLoader, Dataset, create_test_image_3d
 from monai.inferers import sliding_window_inference
 from monai.metrics import DiceMetric
-from monai.transforms import Compose, LoadNiftid, AsChannelFirstd, ScaleIntensityd, ToTensord
+from monai.transforms import AsChannelFirstd, Compose, LoadNiftid, ScaleIntensityd, ToTensord
 
 
 def evaluate(args):
