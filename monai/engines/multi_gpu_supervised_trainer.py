@@ -13,8 +13,9 @@ from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence, Tuple
 
 import torch
 import torch.nn
-from torch.optim.optimizer import Optimizer
 from torch.nn.parallel import DataParallel, DistributedDataParallel
+from torch.optim.optimizer import Optimizer
+
 from monai.engines.utils import get_devices_spec
 from monai.utils import exact_version, optional_import
 
