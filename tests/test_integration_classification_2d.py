@@ -12,17 +12,18 @@
 import os
 import unittest
 from urllib.error import ContentTooShortError, HTTPError
+
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
 import monai
+from monai.apps import download_and_extract
 from monai.metrics import compute_roc_auc
 from monai.networks.nets import densenet121
 from monai.transforms import AddChannel, Compose, LoadPNG, RandFlip, RandRotate, RandZoom, ScaleIntensity, ToTensor
 from monai.utils import set_determinism
 from tests.utils import skip_if_quick
-from monai.apps import download_and_extract
 
 TEST_DATA_URL = "https://www.dropbox.com/s/5wwskxctvcxiuea/MedNIST.tar.gz?dl=1"
 MD5_VALUE = "0bc7306e7427e00ad1c5526a6677552d"
