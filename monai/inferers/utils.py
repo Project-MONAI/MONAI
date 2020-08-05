@@ -22,7 +22,7 @@ def sliding_window_inference(
     inputs: torch.Tensor,
     roi_size: Union[Sequence[int], int],
     sw_batch_size: int,
-    predictor: Callable[[torch.Tensor], torch.Tensor],
+    predictor: Callable,
     overlap: float = 0.25,
     mode: Union[BlendMode, str] = BlendMode.CONSTANT,
     padding_mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
@@ -107,19 +107,23 @@ def sliding_window_inference(
     # Perform predictions
     output_rois = list()
     for data in slice_batches:
-        seg_prob = predictor(data)  # batched patch segmentation
-        output_rois.append(seg_prob)
+        seg_prob = predictor(data)
+        # batched patch segmentation
+        output_rois.append(seg_prob.to(torch.device('cpu')))
 
     # stitching output image
     output_classes = output_rois[0].shape[1]
     output_shape = [batch_size, output_classes] + list(image_size)
 
     # Create importance map
-    importance_map = compute_importance_map(get_valid_patch_size(image_size, roi_size), mode=mode, device=inputs.device)
+    importance_map = compute_importance_map(get_valid_patch_size(image_size, roi_size),
+                                            mode=mode, device=torch.device('cpu'))
 
     # allocate memory to store the full output and the count for overlapping parts
-    output_image = torch.zeros(output_shape, dtype=torch.float32, device=inputs.device)
-    count_map = torch.zeros(output_shape, dtype=torch.float32, device=inputs.device)
+    # output_image = torch.zeros(output_shape, dtype=torch.float32, device=inputs.device)
+    # count_map = torch.zeros(output_shape, dtype=torch.float32, device=inputs.device)
+    output_image = torch.zeros(output_shape, dtype=torch.float32, device=torch.device('cpu'))
+    count_map = torch.zeros(output_shape, dtype=torch.float32, device=torch.device('cpu'))
 
     for window_id, slice_index in enumerate(range(0, len(slices), sw_batch_size)):
         slice_index_range = range(slice_index, min(slice_index + sw_batch_size, len(slices)))
@@ -139,7 +143,7 @@ def sliding_window_inference(
                 count_map[0, :, curr_slice[0], curr_slice[1]] += importance_map
 
     # account for any overlapping sections
-    output_image = output_image / count_map
+    output_image = (output_image / count_map).to(inputs.device)
 
     if num_spatial_dims == 3:
         return output_image[
@@ -150,12 +154,10 @@ def sliding_window_inference(
         ]
     return output_image[
         ..., pad_size[2] : image_size_[0] + pad_size[2], pad_size[0] : image_size_[1] + pad_size[0]
-    ]  # 2D
+    ] # 2D
 
 
-def _get_scan_interval(
-    image_size: Sequence[int], roi_size: Sequence[int], num_spatial_dims: int, overlap: float
-) -> Tuple[int, ...]:
+def _get_scan_interval(image_size: Sequence[int], roi_size: Sequence[int], num_spatial_dims: int, overlap: float):
     assert len(image_size) == num_spatial_dims, "image coord different from spatial dims."
     assert len(roi_size) == num_spatial_dims, "roi coord different from spatial dims."
 
@@ -167,3 +169,4 @@ def _get_scan_interval(
             # scan interval is (1-overlap)*roi_size
             scan_interval.append(int(roi_size[i] * (1 - overlap)))
     return tuple(scan_interval)
+
