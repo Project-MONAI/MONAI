@@ -36,7 +36,7 @@ Workflows
     :members:
 
 `GanTrainer`
-~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~
 .. autoclass:: GanTrainer
     :members:
 

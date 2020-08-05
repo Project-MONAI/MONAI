@@ -53,7 +53,7 @@ class Trainer(Workflow):
 
 class SupervisedTrainer(Trainer):
     """
-    Standard supervised training method with image and label, inherits from trainer and Workflow.
+    Standard supervised training method with image and label, inherits from ``Trainer`` and ``Workflow``.
 
     Args:
         device: an object representing the device on which to run.
@@ -157,7 +157,7 @@ class SupervisedTrainer(Trainer):
 class GanTrainer(Trainer):
     """
     Generative adversarial network training based on Goodfellow et al. 2014 https://arxiv.org/abs/1406.266,
-    inherits from trainer and Workflow.
+    inherits from ``Trainer`` and ``Workflow``.
 
     Training Loop: for each batch of data size `m`
         1. Generate `m` fakes from random latent codes.
@@ -186,7 +186,6 @@ class GanTrainer(Trainer):
         g_update_latents: Calculate G loss with new latent codes. Defaults to ``True``.
         iteration_update: the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
-        amp: whether to enable auto-mixed-precision training, reserved.
         post_transform: execute additional transformation for the model output data.
             Typically, several Tensor based transforms composed by `Compose`.
         key_train_metric: compute metric when every iteration completed, and save average value to
@@ -217,7 +216,6 @@ class GanTrainer(Trainer):
         g_prepare_batch: Callable = default_make_latent,
         g_update_latents: bool = True,
         iteration_update: Optional[Callable] = None,
-        amp: bool = True,
         post_transform: Optional[Transform] = None,
         key_train_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
@@ -227,7 +225,6 @@ class GanTrainer(Trainer):
         super().__init__(
             device=device,
             max_epochs=max_epochs,
-            amp=amp,
             data_loader=train_data_loader,
             prepare_batch=d_prepare_batch,
             iteration_update=iteration_update,
