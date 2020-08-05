@@ -51,25 +51,28 @@ Referring to: https://pytorch.org/tutorials/intermediate/ddp_tutorial.html
 """
 
 import argparse
+import logging
 import os
 import sys
 from glob import glob
-import logging
 
 import nibabel as nib
 import numpy as np
 import torch
 import torch.distributed as dist
+from ignite.metrics import Accuracy
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data.distributed import DistributedSampler
-from ignite.metrics import Accuracy
 
 import monai
 from monai.data import DataLoader, Dataset, create_test_image_3d
+from monai.engines import SupervisedTrainer
+from monai.handlers import CheckpointSaver, LrScheduleHandler, StatsHandler
+from monai.inferers import SimpleInferer
 from monai.transforms import (
     Activationsd,
-    AsDiscreted,
     AsChannelFirstd,
+    AsDiscreted,
     Compose,
     KeepLargestConnectedComponentd,
     LoadNiftid,
@@ -77,13 +80,6 @@ from monai.transforms import (
     RandRotate90d,
     ScaleIntensityd,
     ToTensord,
-)
-from monai.engines import SupervisedTrainer
-from monai.inferers import SimpleInferer
-from monai.handlers import (
-    CheckpointSaver,
-    LrScheduleHandler,
-    StatsHandler,
 )
 
 
@@ -159,10 +155,12 @@ def train(args):
     ]
     if dist.get_rank() == 0:
         logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-        train_handlers.extend([
-            StatsHandler(tag_name="train_loss", output_transform=lambda x: x["loss"]),
-            CheckpointSaver(save_dir="./runs/", save_dict={"net": net, "opt": opt}, save_interval=2),
-        ])
+        train_handlers.extend(
+            [
+                StatsHandler(tag_name="train_loss", output_transform=lambda x: x["loss"]),
+                CheckpointSaver(save_dir="./runs/", save_dict={"net": net, "opt": opt}, save_interval=2),
+            ]
+        )
 
     trainer = SupervisedTrainer(
         device=device,
