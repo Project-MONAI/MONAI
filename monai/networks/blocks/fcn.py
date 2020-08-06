@@ -210,10 +210,9 @@ class MCFCN(FCN):
     Args:
         in_channels: number of input channels. Defaults to 3.
         out_channels: number of output channels. Defaults to 1.
-        upsample_mode: The mode of upsampling manipulations, there are two choices:
-            1) "transpose", uses transposed convolution layers.
-            2) "interpolate", uses standard interpolate way.
-            Using the second mode cannot guarantee the model's reproducibility. Defaults to "transpose".
+        upsample_mode: The mode of upsampling manipulations. Defaults to ``transpose``,
+            means use transposed convolution layers. The second mode is ``interpolate``, 
+            means use standard interpolate way, this mode cannot guarantee the model's reproducibility.
     """
 
     def __init__(self, in_channels: int = 3, out_channels: int = 1, upsample_mode: str = "transpose"):

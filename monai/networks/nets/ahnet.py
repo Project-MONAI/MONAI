@@ -274,13 +274,13 @@ class AHNet(nn.Module):
     https://github.com/lsqshr/AH-Net/blob/master/net3d.py
     In order to use pretrained weights from 2D FCN/MCFCN, please call the copy_from function.
     In the default settings (same as the author's official code), the input size of the first two dimensions should be divided 
-    by 32 and no less than 128, like (128, 128, 96). If you need to use lower sizes, please reduce the largest blocks in PSP 
+    by 32 and no less than 128. If you need to use lower sizes, please reduce the largest blocks in PSP 
     module and change the num_input_features in Final module.
     In addition, to utilize the "transpose" upsample mode, please ensure that the input size of the first two dimensions
     should be divided by 128.
 
     Args:
-        layers: number of residual blocks for 4 layers of the network (layer1...layer4). Defaults to (3, 4, 6, 3).
+        layers: number of residual blocks for 4 layers of the network (layer1...layer4). Defaults to ``(3, 4, 6, 3)``.
         out_channels: number of output channels for the network. Defaults to 1.
         upsample_mode: The mode of upsampling manipulations, there are two choices:
             1) "transpose", uses transposed convolution layers.
