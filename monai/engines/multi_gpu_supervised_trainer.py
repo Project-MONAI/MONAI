@@ -96,6 +96,7 @@ def create_multigpu_supervised_evaluator(
     non_blocking: bool = False,
     prepare_batch: Callable = _prepare_batch,
     output_transform: Callable = _default_eval_transform,
+    distributed: bool = False,
 ) -> Engine:
     """
     Derived from `create_supervised_evaluator` in Ignite.
