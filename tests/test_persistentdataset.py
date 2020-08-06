@@ -9,13 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
 import os
 import shutil
-import numpy as np
 import tempfile
+import unittest
+
 import nibabel as nib
+import numpy as np
 from parameterized import parameterized
+
 from monai.data import PersistentDataset
 from monai.transforms import Compose, LoadNiftid, SimulateDelayd
 

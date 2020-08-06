@@ -122,6 +122,8 @@ Outputs:
 
 """
 
+from typing import Callable
+
 from monai.utils import export as _monai_export
 
 
@@ -130,11 +132,11 @@ def adaptor(function, outputs, inputs=None):
     def must_be_types_or_none(variable_name, variable, types):
         if variable is not None:
             if not isinstance(variable, types):
-                raise ValueError(f"'{variable_name}' must be None or {types} but is {type(variable)}")
+                raise TypeError(f"'{variable_name}' must be None or one of {types} but is {type(variable)}")
 
     def must_be_types(variable_name, variable, types):
         if not isinstance(variable, types):
-            raise ValueError(f"'{variable_name}' must be one of {types} but is {type(variable)}")
+            raise TypeError(f"'{variable_name}' must be one of {types} but is {type(variable)}")
 
     def map_names(ditems, input_map):
         return {input_map(k, k): v for k, v in ditems.items()}
@@ -240,7 +242,7 @@ def to_kwargs(fn):
 
 
 class FunctionSignature:
-    def __init__(self, function) -> None:
+    def __init__(self, function: Callable) -> None:
         import inspect
 
         sfn = inspect.signature(function)
@@ -257,9 +259,9 @@ class FunctionSignature:
                 self.non_var_parameters.add(p.name)
                 self.defaults[p.name] = p.default is not p.empty
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         s = "<class 'FunctionSignature': found_args={}, found_kwargs={}, defaults={}"
         return s.format(self.found_args, self.found_kwargs, self.defaults)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.__repr__()

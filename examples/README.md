@@ -38,10 +38,14 @@ Mainly shows transforms from BatchGenerator, TorchIO, Rising and ITK.
 #### [notebooks/mednist_GAN_tutorial](./notebooks/mednist_GAN_tutorial.ipynb)
 This notebook illustrates the use of MONAI for training a network to generate images from a random input tensor.
 A simple GAN is employed to do with a separate Generator and Discriminator networks.
+#### [notebooks/mednist_GAN_workflow](./notebooks/mednist_GAN_workflow.ipynb)
+This notebook shows the `GanTrainer`, a MONAI workflow engine for modularized adversarial learning. Train a medical image reconstruction network using the MedNIST hand CT scan dataset. Based on the tutorial.
 #### [notebooks/mednist_tutorial](./notebooks/mednist_tutorial.ipynb)
 This notebook shows how to easily integrate MONAI features into existing PyTorch programs.
 It's based on the MedNIST dataset which is very suitable for beginners as a tutorial.
 The content is also available as [a Colab tutorial](https://colab.research.google.com/drive/1wy8XUSnNWlhDNazFdvGBHLfdkGvOHBKe).
+#### [notebooks/models_ensemble](./notebooks/models_ensemble.ipynb)
+This tutorial shows how to leverage `EnsembleEvaluator`, `MeanEnsemble` and `VoteEnsemble` modules in MONAI to set up ensemble program.
 #### [notebooks/multi_gpu_test](./notebooks/multi_gpu_test.ipynb)
 This notebook is a quick demo for devices, run the Ignite trainer engine on CPU, GPU and multiple GPUs.
 #### [notebooks/nifti_read_example](./notebooks/nifti_read_example.ipynb)
@@ -86,3 +90,5 @@ The examples are PyTorch Ignite programs and have both dictionary-base and array
 #### [workflows](./workflows)
 Training and evaluation examples of 3D segmentation based on UNet3D and synthetic dataset.
 The examples are built with MONAI workflows, mainly contain: trainer/evaluator, handlers, post_transforms, etc.
+#### [synthesis](./synthesis)
+A GAN training and evaluation example for a medical image generative adversarial network. Easy run training script uses `GanTrainer` to train a 2D CT scan reconstruction network. Evaluation script generates random samples from a trained network.

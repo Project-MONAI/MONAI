@@ -9,19 +9,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import logging
-import numpy as np
 import os
+import sys
+
+import numpy as np
 import torch
-from ignite.engine import create_supervised_evaluator, _prepare_batch
+from ignite.engine import _prepare_batch, create_supervised_evaluator
 from ignite.metrics import Accuracy
 from torch.utils.data import DataLoader
 
 import monai
 from monai.data import NiftiDataset
-from monai.transforms import Compose, AddChannel, ScaleIntensity, Resize, ToTensor
-from monai.handlers import StatsHandler, ClassificationSaver, CheckpointLoader
+from monai.handlers import CheckpointLoader, ClassificationSaver, StatsHandler
+from monai.transforms import AddChannel, Compose, Resize, ScaleIntensity, ToTensor
 
 
 def main():
