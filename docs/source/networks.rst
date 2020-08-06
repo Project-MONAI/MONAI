@@ -203,6 +203,11 @@ Nets
 .. autoclass:: Unet
 .. autoclass:: unet
 
+`Vnet`
+~~~~~~
+.. autoclass:: VNet
+  :members:
+
 `Generator`
 ~~~~~~~~~~~
 .. autoclass:: Generator

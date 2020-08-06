@@ -17,3 +17,4 @@ from .highresnet import HighResBlock, HighResNet
 from .regressor import Regressor
 from .senet import SENet, se_resnet50, se_resnet101, se_resnet152, se_resnext50_32x4d, se_resnext101_32x4d, senet154
 from .unet import *
+from .vnet import VNet

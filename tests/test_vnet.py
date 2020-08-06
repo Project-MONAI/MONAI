@@ -14,30 +14,29 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.networks.nets import (
-    se_resnet50,
-    se_resnet101,
-    se_resnet152,
-    se_resnext50_32x4d,
-    se_resnext101_32x4d,
-    senet154,
-)
+from monai.networks.nets import VNet
 
-input_param = {"spatial_dims": 3, "in_channels": 2, "num_classes": 10}
+TEST_CASE_VNET_1 = [
+    {"in_channels": 4, "out_channels": 1, "act": "elu", "dropout_dim": 1},
+    torch.randn(1, 4, 32, 32, 32),
+    (1, 1, 32, 32, 32),
+]
+TEST_CASE_VNET_2 = [
+    {"in_channels": 2, "out_channels": 2, "act": "prelu", "dropout_dim": 2},
+    torch.randn(1, 2, 32, 32, 32),
+    (1, 2, 32, 32, 32),
+]
+TEST_CASE_VNET_3 = [
+    {"in_channels": 1, "out_channels": 3, "dropout_dim": 3},
+    torch.randn(1, 1, 32, 32, 32),
+    (1, 3, 32, 32, 32),
+]
 
-TEST_CASE_1 = [senet154(**input_param)]
-TEST_CASE_2 = [se_resnet50(**input_param)]
-TEST_CASE_3 = [se_resnet101(**input_param)]
-TEST_CASE_4 = [se_resnet152(**input_param)]
-TEST_CASE_5 = [se_resnext50_32x4d(**input_param)]
-TEST_CASE_6 = [se_resnext101_32x4d(**input_param)]
 
-
-class TestSENET(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
-    def test_senet154_shape(self, net):
-        input_data = torch.randn(5, 2, 64, 64, 64)
-        expected_shape = (5, 10)
+class TestVNet(unittest.TestCase):
+    @parameterized.expand([TEST_CASE_VNET_1, TEST_CASE_VNET_2, TEST_CASE_VNET_3])
+    def test_vnet_shape(self, input_param, input_data, expected_shape):
+        net = VNet(**input_param)
         net.eval()
         with torch.no_grad():
             result = net.forward(input_data)
