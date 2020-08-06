@@ -9,16 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import logging
-import numpy as np
 import os
+import sys
+
+import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
 import monai
-from monai.data import NiftiDataset, CSVSaver
-from monai.transforms import Compose, AddChannel, ScaleIntensity, Resize, ToTensor
+from monai.data import CSVSaver, NiftiDataset
+from monai.transforms import AddChannel, Compose, Resize, ScaleIntensity, ToTensor
 
 
 def main():

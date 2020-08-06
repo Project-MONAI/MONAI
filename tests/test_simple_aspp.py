@@ -12,8 +12,9 @@
 import unittest
 
 import torch
-from monai.networks.blocks import SimpleASPP
 from parameterized import parameterized
+
+from monai.networks.blocks import SimpleASPP
 
 TEST_CASES = [
     [  # 32-channel 2D, batch 7

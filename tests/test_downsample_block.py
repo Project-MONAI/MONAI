@@ -12,8 +12,9 @@
 import unittest
 
 import torch
-from monai.networks.blocks import MaxAvgPool
 from parameterized import parameterized
+
+from monai.networks.blocks import MaxAvgPool
 
 TEST_CASES = [
     [{"spatial_dims": 2, "kernel_size": 2}, torch.randn(7, 4, 64, 48), (7, 8, 32, 24)],  # 4-channel 2D, batch 7

@@ -9,10 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, TYPE_CHECKING
-
 import logging
 import warnings
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 import torch
 
@@ -43,8 +42,8 @@ class StatsHandler(object):
 
     def __init__(
         self,
-        epoch_print_logger: Optional[Callable] = None,
-        iteration_print_logger: Optional[Callable] = None,
+        epoch_print_logger: Optional[Callable[[Engine], Any]] = None,
+        iteration_print_logger: Optional[Callable[[Engine], Any]] = None,
         output_transform: Callable = lambda x: x,
         global_epoch_transform: Callable = lambda x: x,
         name: Optional[str] = None,
