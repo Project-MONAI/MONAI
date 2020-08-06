@@ -154,7 +154,8 @@ class IntegrationClassification2D(unittest.TestCase):
         self.data_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
         data_dir = os.path.join(self.data_dir, "MedNIST")
         dataset_file = os.path.join(self.data_dir, "MedNIST.tar.gz")
-        if not os.path.exists(dataset_file):
+
+        if not os.path.exists(data_dir):
             try:
                 download_and_extract(TEST_DATA_URL, dataset_file, self.data_dir, MD5_VALUE)
             except (ContentTooShortError, HTTPError, RuntimeError) as e:
@@ -163,7 +164,7 @@ class IntegrationClassification2D(unittest.TestCase):
                     # FIXME: skip MD5 check as current downloading method may fail
                     self.assertTrue(str(e).startswith("MD5 check"))
                 return  # skipping this test due the network connection errors
-        assert os.path.exists(dataset_file)
+
         assert os.path.exists(data_dir)
 
         class_names = sorted((x for x in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, x))))
