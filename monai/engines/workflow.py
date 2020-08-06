@@ -87,7 +87,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         if not isinstance(data_loader, DataLoader):
             raise TypeError(f"data_loader must be a torch.utils.data.DataLoader but is {type(data_loader).__name__}.")
         sampler = data_loader.__dict__["sampler"]
-        if sampler is not None and isinstance(sampler, DistributedSampler):
+        if isinstance(sampler, DistributedSampler):
 
             @self.on(Events.EPOCH_STARTED)
             def set_sampler_epoch(engine: Engine):
