@@ -18,7 +18,7 @@ from monai.networks.blocks.convolutions import Convolution
 from monai.networks.layers.factories import Act, Conv, Dropout, Norm, split_args
 
 
-def get_acti_layer(act: Optional[Union[Tuple[str, Dict], str]], nchan: int):
+def get_acti_layer(act: Union[Tuple[str, Dict], str], nchan: int = 0):
     if act == "prelu":
         act = ("prelu", {"num_parameters": nchan})
     act_name, act_args = split_args(act)
@@ -27,7 +27,7 @@ def get_acti_layer(act: Optional[Union[Tuple[str, Dict], str]], nchan: int):
 
 
 class LUConv(nn.Module):
-    def __init__(self, nchan: int, act: Optional[Union[Tuple[str, Dict], str]]):
+    def __init__(self, nchan: int, act: Union[Tuple[str, Dict], str]):
         super(LUConv, self).__init__()
 
         self.act_function = get_acti_layer(act, nchan)
@@ -41,7 +41,7 @@ class LUConv(nn.Module):
         return out
 
 
-def _make_nconv(nchan: int, depth: int, act: Optional[Union[Tuple[str, Dict], str]]):
+def _make_nconv(nchan: int, depth: int, act: Union[Tuple[str, Dict], str]):
     layers = []
     for _ in range(depth):
         layers.append(LUConv(nchan, act))
@@ -49,7 +49,7 @@ def _make_nconv(nchan: int, depth: int, act: Optional[Union[Tuple[str, Dict], st
 
 
 class InputTransition(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int, act: Optional[Union[Tuple[str, Dict], str]]):
+    def __init__(self, in_channels: int, out_channels: int, act: Union[Tuple[str, Dict], str]):
         super(InputTransition, self).__init__()
 
         if 16 % in_channels != 0:
@@ -74,7 +74,7 @@ class DownTransition(nn.Module):
         self,
         in_channels: int,
         nconvs: int,
-        act: Optional[Union[Tuple[str, Dict], str]],
+        act: Union[Tuple[str, Dict], str],
         dropout_prob: Optional[float] = None,
         dropout_dim: int = 3,
     ):
@@ -109,7 +109,7 @@ class UpTransition(nn.Module):
         in_channels: int,
         out_channels: int,
         nconvs: int,
-        act: Optional[Union[Tuple[str, Dict], str]],
+        act: Union[Tuple[str, Dict], str],
         dropout_prob: Optional[float] = None,
         dropout_dim: int = 3,
     ):
@@ -141,7 +141,7 @@ class UpTransition(nn.Module):
 
 
 class OutputTransition(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int, act: Optional[Union[Tuple[str, Dict], str]]):
+    def __init__(self, in_channels: int, out_channels: int, act: Union[Tuple[str, Dict], str]):
         super(OutputTransition, self).__init__()
 
         conv3d_type: Type[nn.Conv3d] = Conv[Conv.CONV, 3]
@@ -185,7 +185,7 @@ class VNet(nn.Module):
         self,
         in_channels: int = 1,
         out_channels: int = 1,
-        act: Optional[Union[Tuple[str, Dict], str]] = ("elu", {"inplace": True}),
+        act: Union[Tuple[str, Dict], str] = ("elu", {"inplace": True}),
         spatial_dims: int = 3,
         dropout_prob: float = 0.5,
         dropout_dim: int = 3,
