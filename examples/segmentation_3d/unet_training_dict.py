@@ -9,12 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 import os
+import shutil
 import sys
 import tempfile
-import shutil
 from glob import glob
-import logging
+
 import nibabel as nib
 import numpy as np
 import torch
@@ -22,18 +23,18 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 import monai
-from monai.transforms import (
-    Compose,
-    LoadNiftid,
-    AsChannelFirstd,
-    ScaleIntensityd,
-    RandCropByPosNegLabeld,
-    RandRotate90d,
-    ToTensord,
-)
 from monai.data import create_test_image_3d, list_data_collate
 from monai.inferers import sliding_window_inference
 from monai.metrics import DiceMetric
+from monai.transforms import (
+    AsChannelFirstd,
+    Compose,
+    LoadNiftid,
+    RandCropByPosNegLabeld,
+    RandRotate90d,
+    ScaleIntensityd,
+    ToTensord,
+)
 from monai.visualize import plot_2d_or_3d_image
 
 

@@ -9,9 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Dict, TYPE_CHECKING
-
 import logging
+from typing import TYPE_CHECKING, Dict, Optional
 
 import torch
 
@@ -20,9 +19,10 @@ from monai.utils import exact_version, optional_import
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
 Checkpoint, _ = optional_import("ignite.handlers", "0.3.0", exact_version, "Checkpoint")
 if TYPE_CHECKING:
-    from ignite.engine import Engine
+    from ignite.engine import Engine, RemovableEventHandle
 else:
     Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
+    RemovableEventHandle, _ = optional_import("ignite.engine", "0.3.0", exact_version, "RemovableEventHandle")
 
 
 class CheckpointLoader:
@@ -54,12 +54,20 @@ class CheckpointLoader:
 
         self._name = name
 
-    def attach(self, engine: Engine):
+    def attach(self, engine: Engine) -> RemovableEventHandle:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
         if self._name is None:
             self.logger = engine.logger
         return engine.add_event_handler(Events.STARTED, self)
 
     def __call__(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
         checkpoint = torch.load(self.load_path)
         if len(self.load_dict) == 1:
             key = list(self.load_dict.keys())[0]
