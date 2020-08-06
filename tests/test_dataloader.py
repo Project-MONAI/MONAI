@@ -10,8 +10,9 @@
 # limitations under the License.
 
 import unittest
+
 from monai.data import CacheDataset, DataLoader
-from monai.transforms import DataStatsd, SimulateDelayd, Compose
+from monai.transforms import Compose, DataStatsd, SimulateDelayd
 
 
 class TestDataLoader(unittest.TestCase):

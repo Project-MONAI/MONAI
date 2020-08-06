@@ -10,8 +10,8 @@
 # limitations under the License.
 
 import unittest
-import numpy as np
 
+import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import RandGaussianNoised
