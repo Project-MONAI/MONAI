@@ -16,10 +16,9 @@ from monai.utils import exact_version, optional_import
 
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
 if TYPE_CHECKING:
-    from ignite.engine import Engine, RemovableEventHandle
+    from ignite.engine import Engine
 else:
     Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
-    RemovableEventHandle, _ = optional_import("ignite.engine", "0.3.0", exact_version, "RemovableEventHandle")
 
 
 class MetricLogger:
@@ -29,12 +28,12 @@ class MetricLogger:
         self.loss: List = []
         self.metrics: DefaultDict = defaultdict(list)
 
-    def attach(self, engine: Engine) -> RemovableEventHandle:
+    def attach(self, engine: Engine) -> None:
         """
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        return engine.add_event_handler(Events.ITERATION_COMPLETED, self)
+        engine.add_event_handler(Events.ITERATION_COMPLETED, self)
 
     def __call__(self, engine: Engine) -> None:
         """
