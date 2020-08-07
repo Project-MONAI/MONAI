@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import math
-from typing import Optional, Tuple, Type, Union
+from typing import Optional, Sequence, Type, Union
 
 import torch
 import torch.nn as nn
@@ -28,13 +28,13 @@ class Bottleneck3x3x1(nn.Module):
         spatial_dims: int,
         inplanes: int,
         planes: int,
-        stride: Union[int, Tuple[int, int, int]] = 1,
+        stride: Union[Sequence[int], int] = 1,
         downsample: Optional[nn.Sequential] = None,
     ) -> None:
 
         super(Bottleneck3x3x1, self).__init__()
 
-        conv_type: Type[Union[nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]
+        conv_type = Conv[Conv.CONV, spatial_dims]
         norm_type: Type[Union[nn.BatchNorm2d, nn.BatchNorm3d]] = Norm[Norm.BATCH, spatial_dims]
         pool_type: Type[Union[nn.MaxPool2d, nn.MaxPool3d]] = Pool[Pool.MAX, spatial_dims]
         relu_type: Type[nn.ReLU] = Act[Act.RELU]
@@ -86,7 +86,7 @@ class Projection(nn.Sequential):
     def __init__(self, spatial_dims: int, num_input_features: int, num_output_features: int):
         super(Projection, self).__init__()
 
-        conv_type: Type[Union[nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]
+        conv_type = Conv[Conv.CONV, spatial_dims]
         norm_type: Type[Union[nn.BatchNorm2d, nn.BatchNorm3d]] = Norm[Norm.BATCH, spatial_dims]
         relu_type: Type[nn.ReLU] = Act[Act.RELU]
 
@@ -119,7 +119,7 @@ class UpTransition(nn.Sequential):
     ):
         super(UpTransition, self).__init__()
 
-        conv_type: Type[Union[nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]
+        conv_type = Conv[Conv.CONV, spatial_dims]
         norm_type: Type[Union[nn.BatchNorm2d, nn.BatchNorm3d]] = Norm[Norm.BATCH, spatial_dims]
         relu_type: Type[nn.ReLU] = Act[Act.RELU]
 
@@ -127,7 +127,7 @@ class UpTransition(nn.Sequential):
         self.add_module("relu", relu_type(inplace=True))
         self.add_module("conv", conv_type(num_input_features, num_output_features, kernel_size=1, stride=1, bias=False))
         if upsample_mode == "transpose":
-            conv_trans_type: Type[Union[nn.ConvTranspose2d, nn.ConvTranspose3d]] = Conv[Conv.CONVTRANS, spatial_dims]
+            conv_trans_type = Conv[Conv.CONVTRANS, spatial_dims]
             self.add_module(
                 "pool", conv_trans_type(num_output_features, num_output_features, kernel_size=2, stride=2, bias=False)
             )
@@ -141,7 +141,7 @@ class Final(nn.Sequential):
     ):
         super(Final, self).__init__()
 
-        conv_type: Type[Union[nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]
+        conv_type = Conv[Conv.CONV, spatial_dims]
         norm_type: Type[Union[nn.BatchNorm2d, nn.BatchNorm3d]] = Norm[Norm.BATCH, spatial_dims]
         relu_type: Type[nn.ReLU] = Act[Act.RELU]
 
@@ -159,7 +159,7 @@ class Final(nn.Sequential):
             ),
         )
         if upsample_mode == "transpose":
-            conv_trans_type: Type[Union[nn.ConvTranspose2d, nn.ConvTranspose3d]] = Conv[Conv.CONVTRANS, spatial_dims]
+            conv_trans_type = Conv[Conv.CONVTRANS, spatial_dims]
             self.add_module(
                 "up", conv_trans_type(num_output_features, num_output_features, kernel_size=2, stride=2, bias=False)
             )
@@ -172,7 +172,7 @@ class Pseudo3DLayer(nn.Module):
         super(Pseudo3DLayer, self).__init__()
         # 1x1x1
 
-        conv_type: Type[Union[nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]
+        conv_type = Conv[Conv.CONV, spatial_dims]
         norm_type: Type[Union[nn.BatchNorm2d, nn.BatchNorm3d]] = Norm[Norm.BATCH, spatial_dims]
         relu_type: Type[nn.ReLU] = Act[Act.RELU]
 
@@ -237,7 +237,7 @@ class PSP(nn.Module):
     def __init__(self, spatial_dims: int, in_ch: int, upsample_mode: str = "trilinear"):
         super(PSP, self).__init__()
 
-        conv_type: Type[Union[nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]
+        conv_type = Conv[Conv.CONV, spatial_dims]
         pool_type: Type[Union[nn.MaxPool2d, nn.MaxPool3d]] = Pool[Pool.MAX, spatial_dims]
 
         self.pool64 = pool_type(kernel_size=(64, 64, 1)[:spatial_dims], stride=(64, 64, 1)[:spatial_dims])
@@ -261,7 +261,7 @@ class PSP(nn.Module):
         self.upsample_mode = upsample_mode
         self.spatial_dims = spatial_dims
         if self.upsample_mode == "transpose":
-            conv_trans_type: Type[Union[nn.ConvTranspose2d, nn.ConvTranspose3d]] = Conv[Conv.CONVTRANS, spatial_dims]
+            conv_trans_type = Conv[Conv.CONVTRANS, spatial_dims]
             self.up64 = conv_trans_type(
                 1,
                 1,
@@ -348,9 +348,9 @@ class AHNet(nn.Module):
         self.inplanes = 64
         super(AHNet, self).__init__()
 
-        conv_type: Type[Union[nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]
-        conv_trans_type: Type[Union[nn.ConvTranspose2d, nn.ConvTranspose3d]] = Conv[Conv.CONVTRANS, spatial_dims]
-        norm_type: Type[Union[nn.BatchNorm2d, nn.BatchNorm3d]] = Norm[Norm.BATCH, spatial_dims]
+        conv_type = Conv[Conv.CONV, spatial_dims]
+        conv_trans_type = Conv[Conv.CONVTRANS, spatial_dims]
+        norm_type = Norm[Norm.BATCH, spatial_dims]
         pool_type: Type[Union[nn.MaxPool2d, nn.MaxPool3d]] = Pool[Pool.MAX, spatial_dims]
         relu_type: Type[nn.ReLU] = Act[Act.RELU]
         conv2d_type: Type[nn.Conv2d] = Conv[Conv.CONV, 2]
