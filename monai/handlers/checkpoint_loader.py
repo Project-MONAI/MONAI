@@ -43,16 +43,12 @@ class CheckpointLoader:
             to step into others’ devices. If map_location is missing, torch.load will
             first load the module to CPU and then copy each parameter to where it was
             saved, which would result in all processes on the same machine using the
-            same set of devices. 
+            same set of devices.
 
     """
 
     def __init__(
-        self,
-        load_path: str,
-        load_dict: Dict,
-        name: Optional[str] = None,
-        map_location: Optional[Dict] = None,
+        self, load_path: str, load_dict: Dict, name: Optional[str] = None, map_location: Optional[Dict] = None,
     ) -> None:
         assert load_path is not None, "must provide clear path to load checkpoint."
         self.load_path = load_path
