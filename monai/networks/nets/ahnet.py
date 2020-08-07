@@ -88,10 +88,10 @@ class Projection(nn.Sequential):
 
 
 class DenseBlock(nn.Sequential):
-    def __init__(self, num_layers: int, num_input_features: int, bn_size: int, growth_rate: int, drop_rate: float):
+    def __init__(self, num_layers: int, num_input_features: int, bn_size: int, growth_rate: int, dropout_prob: float):
         super(DenseBlock, self).__init__()
         for i in range(num_layers):
-            layer = Pseudo3DLayer(num_input_features + i * growth_rate, growth_rate, bn_size, drop_rate)
+            layer = Pseudo3DLayer(num_input_features + i * growth_rate, growth_rate, bn_size, dropout_prob)
             self.add_module("denselayer%d" % (i + 1), layer)
 
 
@@ -151,7 +151,7 @@ class Final(nn.Sequential):
 
 
 class Pseudo3DLayer(nn.Module):
-    def __init__(self, num_input_features: int, growth_rate: int, bn_size: int, drop_rate: float):
+    def __init__(self, num_input_features: int, growth_rate: int, bn_size: int, dropout_prob: float):
         super(Pseudo3DLayer, self).__init__()
         # 1x1x1
 
@@ -178,7 +178,7 @@ class Pseudo3DLayer(nn.Module):
         self.bn4 = norm3d_type(growth_rate)
         self.relu4 = relu_type(inplace=True)
         self.conv4 = conv3d_type(growth_rate, growth_rate, kernel_size=1, stride=1, bias=False)
-        self.drop_rate = drop_rate
+        self.dropout_prob = dropout_prob
 
     def forward(self, x):
         inx = x
@@ -199,10 +199,10 @@ class Pseudo3DLayer(nn.Module):
         x = self.relu4(x)
         new_features = self.conv4(x)
 
-        self.drop_rate = 0  # Dropout will make trouble!
+        self.dropout_prob = 0  # Dropout will make trouble!
         # since we use the train mode for inference
-        if self.drop_rate > 0:
-            new_features = F.dropout(new_features, p=self.drop_rate, training=self.training)
+        if self.dropout_prob > 0:
+            new_features = F.dropout(new_features, p=self.dropout_prob, training=self.training)
         return torch.cat([inx, new_features], 1)
 
 
@@ -272,19 +272,23 @@ class AHNet(nn.Module):
     Anisotropic Hybrid Network (AH-Net).
     The code is adapted from lsqshr's original version:
     https://github.com/lsqshr/AH-Net/blob/master/net3d.py
-    In order to use pretrained weights from 2D FCN/MCFCN, please call the copy_from function, for example:
-    ahnet = AHNet(upsample_mode='transpose')
-    ahnet.copy_from(model_2d)
+    In order to use pretrained weights from 2D FCN/MCFCN, please call the copy_from function.
+    In the default settings (same as the author's official code), the input size of the first two dimensions should be divided
+    by 32 and no less than 128. If you need to use lower sizes, please reduce the largest blocks in PSP
+    module and change the num_input_features in Final module.
+    In addition, to utilize the "transpose" upsample mode, please ensure that the input size of the first two dimensions
+    should be divided by 128.
 
     Args:
-        layers (list): number of residual blocks for 4 layers of the network (layer1...layer4).
-        upsample_mode (str): The mode of upsampling manipulations, there are two choices:
+        layers: number of residual blocks for 4 layers of the network (layer1...layer4). Defaults to ``(3, 4, 6, 3)``.
+        out_channels: number of output channels for the network. Defaults to 1.
+        upsample_mode: The mode of upsampling manipulations, there are two choices:
             1) "transpose", uses transposed convolution layers.
             2) "interpolate", uses standard interpolate way.
-            Using the second mode cannot guarantee the model's reproducibility. Defaults to "transpose".
+            Using the second mode cannot guarantee the model's reproducibility. Defaults to "interpolate".
     """
 
-    def __init__(self, layers: tuple = (3, 4, 6, 3), upsample_mode: str = "transpose"):
+    def __init__(self, layers: tuple = (3, 4, 6, 3), out_channels: int = 1, upsample_mode: str = "interpolate"):
         self.inplanes = 64
         super(AHNet, self).__init__()
 
@@ -334,19 +338,31 @@ class AHNet(nn.Module):
 
         self.up0 = UpTransition(noutres4, noutres3, upsample_mode)
         self.dense0 = DenseBlock(
-            num_layers=ndenselayer, num_input_features=noutres3, bn_size=densebn, growth_rate=densegrowth, drop_rate=0.0
+            num_layers=ndenselayer,
+            num_input_features=noutres3,
+            bn_size=densebn,
+            growth_rate=densegrowth,
+            dropout_prob=0.0,
         )
         noutdense = noutres3 + ndenselayer * densegrowth
 
         self.up1 = UpTransition(noutdense, noutres2, upsample_mode)
         self.dense1 = DenseBlock(
-            num_layers=ndenselayer, num_input_features=noutres2, bn_size=densebn, growth_rate=densegrowth, drop_rate=0.0
+            num_layers=ndenselayer,
+            num_input_features=noutres2,
+            bn_size=densebn,
+            growth_rate=densegrowth,
+            dropout_prob=0.0,
         )
         noutdense1 = noutres2 + ndenselayer * densegrowth
 
         self.up2 = UpTransition(noutdense1, noutres1, upsample_mode)
         self.dense2 = DenseBlock(
-            num_layers=ndenselayer, num_input_features=noutres1, bn_size=densebn, growth_rate=densegrowth, drop_rate=0.0
+            num_layers=ndenselayer,
+            num_input_features=noutres1,
+            bn_size=densebn,
+            growth_rate=densegrowth,
+            dropout_prob=0.0,
         )
         noutdense2 = noutres1 + ndenselayer * densegrowth
 
@@ -356,7 +372,7 @@ class AHNet(nn.Module):
             num_input_features=num_init_features,
             bn_size=densebn,
             growth_rate=densegrowth,
-            drop_rate=0.0,
+            dropout_prob=0.0,
         )
         noutdense3 = num_init_features + densegrowth * ndenselayer
 
@@ -366,12 +382,12 @@ class AHNet(nn.Module):
             num_input_features=num_init_features,
             bn_size=densebn,
             growth_rate=densegrowth,
-            drop_rate=0.0,
+            dropout_prob=0.0,
         )
         noutdense4 = num_init_features + densegrowth * ndenselayer
 
         self.psp = PSP(noutdense4, upsample_mode)
-        self.final = Final(4 + noutdense4, 1, upsample_mode)
+        self.final = Final(4 + noutdense4, out_channels, upsample_mode)
 
         # Initialise parameters
         for m in self.modules():

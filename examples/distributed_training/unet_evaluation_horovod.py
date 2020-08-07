@@ -95,7 +95,7 @@ def evaluate(args):
     # create a evaluation data loader
     val_ds = Dataset(data=val_files, transform=val_transforms)
     # create a evaluation data sampler
-    val_sampler = DistributedSampler(val_ds, num_replicas=hvd.size(), rank=hvd.rank())
+    val_sampler = DistributedSampler(val_ds, shuffle=False, num_replicas=hvd.size(), rank=hvd.rank())
     # when supported, use "forkserver" to spawn dataloader workers instead of "fork" to prevent
     # issues with Infiniband implementations that are not fork-safe
     multiprocessing_context = None

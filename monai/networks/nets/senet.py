@@ -28,7 +28,7 @@ class SENet(nn.Module):
 
     Args:
         spatial_dims: spatial dimension of the input data.
-        in_ch: channel number of the input data.
+        in_channels: channel number of the input data.
         block: SEBlock class.
             for SENet154: SEBottleneck
             for SE-ResNet models: SEResNetBottleneck
@@ -40,7 +40,7 @@ class SENet(nn.Module):
             for SE-ResNeXt models:  32
         reduction: reduction ratio for Squeeze-and-Excitation modules.
             for all models: 16
-        dropout_p: drop probability for the Dropout layer.
+        dropout_prob: drop probability for the Dropout layer.
             if `None` the Dropout layer is not used.
             for SENet154: 0.2
             for SE-ResNet models: None
@@ -70,12 +70,12 @@ class SENet(nn.Module):
     def __init__(
         self,
         spatial_dims: int,
-        in_ch: int,
+        in_channels: int,
         block: Type[Union[SEBottleneck, SEResNetBottleneck, SEResNeXtBottleneck]],
         layers: List[int],
         groups: int,
         reduction: int,
-        dropout_p: Optional[float] = 0.2,
+        dropout_prob: Optional[float] = 0.2,
         dropout_dim: int = 1,
         inplanes: int = 128,
         downsample_kernel_size: int = 3,
@@ -103,7 +103,7 @@ class SENet(nn.Module):
             layer0_modules = [
                 (
                     "conv1",
-                    conv_type(in_channels=in_ch, out_channels=64, kernel_size=3, stride=2, padding=1, bias=False),
+                    conv_type(in_channels=in_channels, out_channels=64, kernel_size=3, stride=2, padding=1, bias=False),
                 ),
                 ("bn1", norm_type(num_features=64)),
                 ("relu1", relu_type(inplace=True)),
@@ -121,7 +121,9 @@ class SENet(nn.Module):
             layer0_modules = [
                 (
                     "conv1",
-                    conv_type(in_channels=in_ch, out_channels=inplanes, kernel_size=7, stride=2, padding=3, bias=False),
+                    conv_type(
+                        in_channels=in_channels, out_channels=inplanes, kernel_size=7, stride=2, padding=3, bias=False
+                    ),
                 ),
                 ("bn1", norm_type(num_features=inplanes)),
                 ("relu1", relu_type(inplace=True)),
@@ -160,7 +162,7 @@ class SENet(nn.Module):
             downsample_kernel_size=downsample_kernel_size,
         )
         self.adaptive_avg_pool = avg_pool_type(1)
-        self.dropout = dropout_type(dropout_p) if dropout_p is not None else None
+        self.dropout = dropout_type(dropout_prob) if dropout_prob is not None else None
         self.last_linear = nn.Linear(512 * block.expansion, num_classes)
 
         for m in self.modules():
@@ -244,30 +246,30 @@ class SENet(nn.Module):
         return x
 
 
-def senet154(spatial_dims: int, in_ch: int, num_classes: int) -> SENet:
+def senet154(spatial_dims: int, in_channels: int, num_classes: int) -> SENet:
     model = SENet(
         spatial_dims=spatial_dims,
-        in_ch=in_ch,
+        in_channels=in_channels,
         block=SEBottleneck,
         layers=[3, 8, 36, 3],
         groups=64,
         reduction=16,
-        dropout_p=0.2,
+        dropout_prob=0.2,
         dropout_dim=1,
         num_classes=num_classes,
     )
     return model
 
 
-def se_resnet50(spatial_dims: int, in_ch: int, num_classes: int) -> SENet:
+def se_resnet50(spatial_dims: int, in_channels: int, num_classes: int) -> SENet:
     model = SENet(
         spatial_dims=spatial_dims,
-        in_ch=in_ch,
+        in_channels=in_channels,
         block=SEResNetBottleneck,
         layers=[3, 4, 6, 3],
         groups=1,
         reduction=16,
-        dropout_p=None,
+        dropout_prob=None,
         inplanes=64,
         input_3x3=False,
         downsample_kernel_size=1,
@@ -276,15 +278,15 @@ def se_resnet50(spatial_dims: int, in_ch: int, num_classes: int) -> SENet:
     return model
 
 
-def se_resnet101(spatial_dims: int, in_ch: int, num_classes: int) -> SENet:
+def se_resnet101(spatial_dims: int, in_channels: int, num_classes: int) -> SENet:
     model = SENet(
         spatial_dims=spatial_dims,
-        in_ch=in_ch,
+        in_channels=in_channels,
         block=SEResNetBottleneck,
         layers=[3, 4, 23, 3],
         groups=1,
         reduction=16,
-        dropout_p=0.2,
+        dropout_prob=0.2,
         dropout_dim=1,
         inplanes=64,
         input_3x3=False,
@@ -294,15 +296,15 @@ def se_resnet101(spatial_dims: int, in_ch: int, num_classes: int) -> SENet:
     return model
 
 
-def se_resnet152(spatial_dims: int, in_ch: int, num_classes: int) -> SENet:
+def se_resnet152(spatial_dims: int, in_channels: int, num_classes: int) -> SENet:
     model = SENet(
         spatial_dims=spatial_dims,
-        in_ch=in_ch,
+        in_channels=in_channels,
         block=SEResNetBottleneck,
         layers=[3, 8, 36, 3],
         groups=1,
         reduction=16,
-        dropout_p=0.2,
+        dropout_prob=0.2,
         dropout_dim=1,
         inplanes=64,
         input_3x3=False,
@@ -312,15 +314,15 @@ def se_resnet152(spatial_dims: int, in_ch: int, num_classes: int) -> SENet:
     return model
 
 
-def se_resnext50_32x4d(spatial_dims: int, in_ch: int, num_classes: int) -> SENet:
+def se_resnext50_32x4d(spatial_dims: int, in_channels: int, num_classes: int) -> SENet:
     model = SENet(
         spatial_dims=spatial_dims,
-        in_ch=in_ch,
+        in_channels=in_channels,
         block=SEResNeXtBottleneck,
         layers=[3, 4, 6, 3],
         groups=32,
         reduction=16,
-        dropout_p=None,
+        dropout_prob=None,
         inplanes=64,
         input_3x3=False,
         downsample_kernel_size=1,
@@ -329,15 +331,15 @@ def se_resnext50_32x4d(spatial_dims: int, in_ch: int, num_classes: int) -> SENet
     return model
 
 
-def se_resnext101_32x4d(spatial_dims: int, in_ch: int, num_classes: int) -> SENet:
+def se_resnext101_32x4d(spatial_dims: int, in_channels: int, num_classes: int) -> SENet:
     model = SENet(
         spatial_dims=spatial_dims,
-        in_ch=in_ch,
+        in_channels=in_channels,
         block=SEResNeXtBottleneck,
         layers=[3, 4, 23, 3],
         groups=32,
         reduction=16,
-        dropout_p=None,
+        dropout_prob=None,
         inplanes=64,
         input_3x3=False,
         downsample_kernel_size=1,

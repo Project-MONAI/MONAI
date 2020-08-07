@@ -33,9 +33,9 @@ class GCN(nn.Module):
     def __init__(self, inplanes: int, planes: int, ks: int = 7):
         """
         Args:
-            inplanes (int): number of input channels.
-            planes (int)： number of output channels.
-            ks (int): kernel size for one dimension. Defaults to 7.
+            inplanes: number of input channels.
+            planes: number of output channels.
+            ks: kernel size for one dimension. Defaults to 7.
         """
         super(GCN, self).__init__()
 
@@ -48,7 +48,7 @@ class GCN(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            x (torch.Tensor): in shape (batch, inplanes, spatial_1, spatial_2).
+            x: in shape (batch, inplanes, spatial_1, spatial_2).
         """
         x_l = self.conv_l1(x)
         x_l = self.conv_l2(x_l)
@@ -68,7 +68,7 @@ class Refine(nn.Module):
     def __init__(self, planes: int):
         """
         Args:
-            planes (int): number of input channels.
+            planes: number of input channels.
         """
         super(Refine, self).__init__()
 
@@ -84,7 +84,7 @@ class Refine(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            x (torch.Tensor): in shape (batch, planes, spatial_1, spatial_2).
+            x: in shape (batch, planes, spatial_1, spatial_2).
         """
         residual = x
         x = self.bn(x)
@@ -106,21 +106,21 @@ class FCN(nn.Module):
     https://github.com/lsqshr/AH-Net/blob/master/net2d.py
 
     Args:
-        nout (int): number of output channels. Defaults to 1.
-        upsample_mode (str): The mode of upsampling manipulations, there are two choices:
+        out_channels: number of output channels. Defaults to 1.
+        upsample_mode: The mode of upsampling manipulations, there are two choices:
             1) "transpose", uses transposed convolution layers.
             2) "interpolate", uses standard interpolate way.
             Using the second mode cannot guarantee the model's reproducibility. Defaults to "transpose".
     """
 
-    def __init__(self, nout: int = 1, upsample_mode: str = "transpose"):
+    def __init__(self, out_channels: int = 1, upsample_mode: str = "transpose"):
         super(FCN, self).__init__()
 
         conv2d_type: Type[nn.Conv2d] = Conv[Conv.CONV, 2]
 
         self.upsample_mode = upsample_mode
         self.conv2d_type = conv2d_type
-        self.nout = nout
+        self.out_channels = out_channels
         resnet = models.resnet50(pretrained=True)
 
         self.conv1 = resnet.conv1
@@ -133,34 +133,34 @@ class FCN(nn.Module):
         self.layer3 = resnet.layer3
         self.layer4 = resnet.layer4
 
-        self.gcn1 = GCN(2048, self.nout)
-        self.gcn2 = GCN(1024, self.nout)
-        self.gcn3 = GCN(512, self.nout)
-        self.gcn4 = GCN(64, self.nout)
-        self.gcn5 = GCN(64, self.nout)
+        self.gcn1 = GCN(2048, self.out_channels)
+        self.gcn2 = GCN(1024, self.out_channels)
+        self.gcn3 = GCN(512, self.out_channels)
+        self.gcn4 = GCN(64, self.out_channels)
+        self.gcn5 = GCN(64, self.out_channels)
 
-        self.refine1 = Refine(self.nout)
-        self.refine2 = Refine(self.nout)
-        self.refine3 = Refine(self.nout)
-        self.refine4 = Refine(self.nout)
-        self.refine5 = Refine(self.nout)
-        self.refine6 = Refine(self.nout)
-        self.refine7 = Refine(self.nout)
-        self.refine8 = Refine(self.nout)
-        self.refine9 = Refine(self.nout)
-        self.refine10 = Refine(self.nout)
+        self.refine1 = Refine(self.out_channels)
+        self.refine2 = Refine(self.out_channels)
+        self.refine3 = Refine(self.out_channels)
+        self.refine4 = Refine(self.out_channels)
+        self.refine5 = Refine(self.out_channels)
+        self.refine6 = Refine(self.out_channels)
+        self.refine7 = Refine(self.out_channels)
+        self.refine8 = Refine(self.out_channels)
+        self.refine9 = Refine(self.out_channels)
+        self.refine10 = Refine(self.out_channels)
         self.transformer = self.conv2d_type(in_channels=256, out_channels=64, kernel_size=1)
 
         if self.upsample_mode == "transpose":
             conv2d_trans_type: Type[nn.ConvTranspose2d] = Conv[Conv.CONVTRANS, 2]
             self.up_conv = conv2d_trans_type(
-                in_channels=self.nout, out_channels=self.nout, kernel_size=2, stride=2, bias=False,
+                in_channels=self.out_channels, out_channels=self.out_channels, kernel_size=2, stride=2, bias=False,
             )
 
     def forward(self, x: torch.Tensor):
         """
         Args:
-            x (torch.Tensor): in shape (batch, 3, spatial_1, spatial_2).
+            x: in shape (batch, 3, spatial_1, spatial_2).
         """
         org_input = x
         x = self.conv1(x)
@@ -206,21 +206,21 @@ class MCFCN(FCN):
     Adds a projection layer to take arbitrary number of inputs.
     The code is adapted from lsqshr's original version:
     https://github.com/lsqshr/AH-Net/blob/master/net2d.py
+
     Args:
-        nin (int): number of input channels. Defaults to 3.
-        nout (int): number of output channels. Defaults to 1.
-        upsample_mode (str): The mode of upsampling manipulations, there are two choices:
-            1) "transpose", uses transposed convolution layers.
-            2) "interpolate", uses standard interpolate way.
-            Using the second mode cannot guarantee the model's reproducibility. Defaults to "transpose".
+        in_channels: number of input channels. Defaults to 3.
+        out_channels: number of output channels. Defaults to 1.
+        upsample_mode: The mode of upsampling manipulations. Defaults to ``transpose``,
+            means use transposed convolution layers. The second mode is ``interpolate``,
+            means use standard interpolate way, this mode cannot guarantee the model's reproducibility.
     """
 
-    def __init__(self, nin: int = 3, nout: int = 1, upsample_mode: str = "transpose"):
-        super(MCFCN, self).__init__(nout=nout, upsample_mode=upsample_mode)
+    def __init__(self, in_channels: int = 3, out_channels: int = 1, upsample_mode: str = "transpose"):
+        super(MCFCN, self).__init__(out_channels=out_channels, upsample_mode=upsample_mode)
 
         self.init_proj = Convolution(
             dimensions=2,
-            in_channels=nin,
+            in_channels=in_channels,
             out_channels=3,
             kernel_size=1,
             act=("relu", {"inplace": True}),
@@ -231,7 +231,7 @@ class MCFCN(FCN):
     def forward(self, x: torch.Tensor):
         """
         Args:
-            x (torch.Tensor): in shape (batch, nin, spatial_1, spatial_2).
+            x: in shape (batch, in_channels, spatial_1, spatial_2).
         """
         x = self.init_proj(x)
         out = super(MCFCN, self).forward(x)
