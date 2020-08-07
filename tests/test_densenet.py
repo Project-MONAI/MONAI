@@ -22,10 +22,22 @@ TEST_CASE_1 = [  # 4-channel 3D, batch 16
     (16, 3),
 ]
 
+TEST_CASE_2 = [  # 4-channel 2D, batch 16
+    {"spatial_dims": 2, "in_channels": 2, "out_channels": 3},
+    torch.randn(16, 2, 32, 64),
+    (16, 3),
+]
+
+TEST_CASE_3 = [  # 4-channel 1D, batch 16
+    {"spatial_dims": 1, "in_channels": 2, "out_channels": 3},
+    torch.randn(16, 2, 32),
+    (16, 3),
+]
+
 
 class TestDENSENET(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1])
-    def test_121_shape(self, input_param, input_data, expected_shape):
+    def test_121_4d_shape(self, input_param, input_data, expected_shape):
         net = densenet121(**input_param)
         net.eval()
         with torch.no_grad():
@@ -33,7 +45,7 @@ class TestDENSENET(unittest.TestCase):
             self.assertEqual(result.shape, expected_shape)
 
     @parameterized.expand([TEST_CASE_1])
-    def test_169_shape(self, input_param, input_data, expected_shape):
+    def test_169_4d_shape(self, input_param, input_data, expected_shape):
         net = densenet169(**input_param)
         net.eval()
         with torch.no_grad():
@@ -41,7 +53,7 @@ class TestDENSENET(unittest.TestCase):
             self.assertEqual(result.shape, expected_shape)
 
     @parameterized.expand([TEST_CASE_1])
-    def test_201_shape(self, input_param, input_data, expected_shape):
+    def test_201_4d_shape(self, input_param, input_data, expected_shape):
         net = densenet201(**input_param)
         net.eval()
         with torch.no_grad():
@@ -49,7 +61,71 @@ class TestDENSENET(unittest.TestCase):
             self.assertEqual(result.shape, expected_shape)
 
     @parameterized.expand([TEST_CASE_1])
-    def test_264_shape(self, input_param, input_data, expected_shape):
+    def test_264_4d_shape(self, input_param, input_data, expected_shape):
+        net = densenet264(**input_param)
+        net.eval()
+        with torch.no_grad():
+            result = net.forward(input_data)
+            self.assertEqual(result.shape, expected_shape)
+
+    @parameterized.expand([TEST_CASE_2])
+    def test_121_3d_shape(self, input_param, input_data, expected_shape):
+        net = densenet121(**input_param)
+        net.eval()
+        with torch.no_grad():
+            result = net.forward(input_data)
+            self.assertEqual(result.shape, expected_shape)
+
+    @parameterized.expand([TEST_CASE_2])
+    def test_169_3d_shape(self, input_param, input_data, expected_shape):
+        net = densenet169(**input_param)
+        net.eval()
+        with torch.no_grad():
+            result = net.forward(input_data)
+            self.assertEqual(result.shape, expected_shape)
+
+    @parameterized.expand([TEST_CASE_2])
+    def test_201_3d_shape(self, input_param, input_data, expected_shape):
+        net = densenet201(**input_param)
+        net.eval()
+        with torch.no_grad():
+            result = net.forward(input_data)
+            self.assertEqual(result.shape, expected_shape)
+
+    @parameterized.expand([TEST_CASE_2])
+    def test_264_3d_shape(self, input_param, input_data, expected_shape):
+        net = densenet264(**input_param)
+        net.eval()
+        with torch.no_grad():
+            result = net.forward(input_data)
+            self.assertEqual(result.shape, expected_shape)
+
+    @parameterized.expand([TEST_CASE_3])
+    def test_121_2d_shape(self, input_param, input_data, expected_shape):
+        net = densenet121(**input_param)
+        net.eval()
+        with torch.no_grad():
+            result = net.forward(input_data)
+            self.assertEqual(result.shape, expected_shape)
+
+    @parameterized.expand([TEST_CASE_3])
+    def test_169_2d_shape(self, input_param, input_data, expected_shape):
+        net = densenet169(**input_param)
+        net.eval()
+        with torch.no_grad():
+            result = net.forward(input_data)
+            self.assertEqual(result.shape, expected_shape)
+
+    @parameterized.expand([TEST_CASE_3])
+    def test_201_2d_shape(self, input_param, input_data, expected_shape):
+        net = densenet201(**input_param)
+        net.eval()
+        with torch.no_grad():
+            result = net.forward(input_data)
+            self.assertEqual(result.shape, expected_shape)
+
+    @parameterized.expand([TEST_CASE_3])
+    def test_264_2d_shape(self, input_param, input_data, expected_shape):
         net = densenet264(**input_param)
         net.eval()
         with torch.no_grad():
