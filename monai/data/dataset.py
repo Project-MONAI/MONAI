@@ -361,7 +361,8 @@ class ZipDataset(Dataset):
             data.extend(to_list(dataset[index]))
         if self.transform is not None:
             data = apply_transform(self.transform, data, map_items=False)  # transform the list data
-        return data
+        # use tuple instead of list as the default collate_fn callback of MONAI DataLoader flattens nested lists
+        return tuple(data)
 
 
 class ArrayDataset(Randomizable, _TorchDataset):
