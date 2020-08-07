@@ -84,7 +84,6 @@ class TestIntegrationSlidingWindow(unittest.TestCase):
         output_image = nib.load(output_file).get_fdata()
         np.testing.assert_allclose(np.sum(output_image), 33621)
         np.testing.assert_allclose(output_image.shape, (28, 25, 63, 1))
-        np.testing.assert_string_equal(self.device.type, output_image.device.type)
         shutil.rmtree(tempdir)
 
 
