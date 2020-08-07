@@ -29,7 +29,7 @@ Main steps to set up the distributed evaluation:
   Here we use `NVIDIA NCCL` as the backend and must set `init_method="env://"` if use `torch.distributed.launch`.
 - Wrap the model with `DistributedDataParallel` after moving to expected device.
 - Put model file on every node, then load and map to expected GPU device in every process.
-- Wrap Dataset with `DistributedSampler`, set `num_worker=0` in DataLoader.
+- Wrap Dataset with `DistributedSampler`, disable the `shuffle` in sampler and DataLoader.
 - Compute `Dice Metric` on every process, reduce the results after synchronization.
 
 Note:
@@ -92,7 +92,7 @@ def evaluate(args):
         [
             LoadNiftid(keys=["img", "seg"]),
             AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
-            ScaleIntensityd(keys=["img", "seg"]),
+            ScaleIntensityd(keys="img"),
             ToTensord(keys=["img", "seg"]),
         ]
     )
@@ -102,7 +102,7 @@ def evaluate(args):
     # create a evaluation data sampler
     val_sampler = DistributedSampler(val_ds, shuffle=False)
     # sliding window inference need to input 1 image in every iteration
-    val_loader = DataLoader(val_ds, batch_size=1, shuffle=False, num_workers=0, pin_memory=True, sampler=val_sampler)
+    val_loader = DataLoader(val_ds, batch_size=1, shuffle=False, num_workers=2, pin_memory=True, sampler=val_sampler)
     dice_metric = DiceMetric(include_background=True, to_onehot_y=False, sigmoid=True, reduction="mean")
 
     # create UNet, DiceLoss and Adam optimizer
