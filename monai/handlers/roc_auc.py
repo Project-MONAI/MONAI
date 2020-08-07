@@ -12,6 +12,7 @@
 from typing import Callable, List, Optional, Sequence, Union
 
 import torch
+import torch.distributed as dist
 
 from monai.metrics import compute_roc_auc
 from monai.utils import Average, exact_version, optional_import
@@ -98,9 +99,10 @@ class ROCAUC(Metric):  # type: ignore[valid-type, misc]  # due to optional_impor
         _prediction_tensor = torch.cat(self._predictions, dim=0)
         _target_tensor = torch.cat(self._targets, dim=0)
 
-        if not self._is_reduced:
-            _prediction_tensor = torch.distributed.gather(_prediction_tensor)
-            _target_tensor = torch.distributed.gather(_target_tensor)
+        if dist.is_available() and dist.is_initialized() and not self._is_reduced:
+            dist.barrier()
+            _prediction_tensor = dist.gather(_prediction_tensor)
+            _target_tensor = dist.gather(_target_tensor)
             self._is_reduced = True
 
         return compute_roc_auc(
