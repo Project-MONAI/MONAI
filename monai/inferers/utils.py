@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Sequence, Tuple, Union, Optional
+from typing import Callable, Optional, Sequence, Tuple, Union
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 
@@ -27,7 +28,7 @@ def sliding_window_inference(
     mode: Union[BlendMode, str] = BlendMode.CONSTANT,
     padding_mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
     cval: float = 0.0,
-    device: Optional[torch.device] = None
+    device: Optional[torch.device] = None,
 ) -> torch.Tensor:
     """
     Sliding window inference on `inputs` with `predictor`.
@@ -115,7 +116,7 @@ def sliding_window_inference(
     # Perform predictions
     output_rois = list()
     for data in slice_batches:
-        seg_prob = predictor(data) # batched patch segmentation
+        seg_prob = predictor(data)  # batched patch segmentation
         output_rois.append(seg_prob.to(device))
 
     # stitching output image
@@ -123,8 +124,7 @@ def sliding_window_inference(
     output_shape = [batch_size, output_classes] + list(image_size)
 
     # Create importance map
-    importance_map = compute_importance_map(get_valid_patch_size(image_size, roi_size),
-                                            mode=mode, device=device)
+    importance_map = compute_importance_map(get_valid_patch_size(image_size, roi_size), mode=mode, device=device)
 
     # allocate memory to store the full output and the count for overlapping parts
     output_image = torch.zeros(output_shape, dtype=torch.float32, device=device)
@@ -159,17 +159,7 @@ def sliding_window_inference(
         ]
     return output_image[
         ..., pad_size[2] : image_size_[0] + pad_size[2], pad_size[0] : image_size_[1] + pad_size[0]
-    ] # 2D
-
-
-from typing import Callable, Sequence, Union, Optional, Tuple
-
-import torch
-import numpy as np
-import torch.nn.functional as F
-
-from monai.data.utils import compute_importance_map, dense_patch_slices, get_valid_patch_size
-from monai.utils import BlendMode, PytorchPadMode, fall_back_tuple
+    ]  # 2D
 
 
 def sliding_window_inference(
@@ -181,7 +171,7 @@ def sliding_window_inference(
     mode: Union[BlendMode, str] = BlendMode.CONSTANT,
     padding_mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
     cval: float = 0.0,
-    device: Optional[torch.device] = None
+    device: Optional[torch.device] = None,
 ) -> torch.Tensor:
     """
     Sliding window inference on `inputs` with `predictor`.
@@ -269,7 +259,7 @@ def sliding_window_inference(
     # Perform predictions
     output_rois = list()
     for data in slice_batches:
-        seg_prob = predictor(data) # batched patch segmentation
+        seg_prob = predictor(data)  # batched patch segmentation
         output_rois.append(seg_prob.to(device))
 
     # stitching output image
@@ -277,8 +267,7 @@ def sliding_window_inference(
     output_shape = [batch_size, output_classes] + list(image_size)
 
     # Create importance map
-    importance_map = compute_importance_map(get_valid_patch_size(image_size, roi_size),
-                                            mode=mode, device=device)
+    importance_map = compute_importance_map(get_valid_patch_size(image_size, roi_size), mode=mode, device=device)
 
     # allocate memory to store the full output and the count for overlapping parts
     output_image = torch.zeros(output_shape, dtype=torch.float32, device=device)
@@ -313,13 +302,12 @@ def sliding_window_inference(
         ]
     return output_image[
         ..., pad_size[2] : image_size_[0] + pad_size[2], pad_size[0] : image_size_[1] + pad_size[0]
-    ] # 2D
+    ]  # 2D
 
 
-def _get_scan_interval(image_size: Sequence[int], 
-                       roi_size: Sequence[int], 
-                       num_spatial_dims: int, 
-                       overlap: float) -> Tuple[int, ...]:
+def _get_scan_interval(
+    image_size: Sequence[int], roi_size: Sequence[int], num_spatial_dims: int, overlap: float
+) -> Tuple[int, ...]:
     assert len(image_size) == num_spatial_dims, "image coord different from spatial dims."
     assert len(roi_size) == num_spatial_dims, "roi coord different from spatial dims."
 
@@ -331,4 +319,3 @@ def _get_scan_interval(image_size: Sequence[int],
             # scan interval is (1-overlap)*roi_size
             scan_interval.append(int(roi_size[i] * (1 - overlap)))
     return tuple(scan_interval)
-
