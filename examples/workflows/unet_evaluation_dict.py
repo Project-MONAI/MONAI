@@ -61,7 +61,7 @@ def main():
         [
             LoadNiftid(keys=["image", "label"]),
             AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
-            ScaleIntensityd(keys=["image", "label"]),
+            ScaleIntensityd(keys="image"),
             ToTensord(keys=["image", "label"]),
         ]
     )
