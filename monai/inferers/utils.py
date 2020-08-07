@@ -148,7 +148,7 @@ def sliding_window_inference(
                 count_map[0, :, curr_slice[0], curr_slice[1]] += importance_map
 
     # account for any overlapping sections
-    output_image = (output_image / count_map).to(inputs.device)
+    output_image = output_image / count_map
 
     if num_spatial_dims == 3:
         return output_image[

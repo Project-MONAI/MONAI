@@ -44,7 +44,7 @@ def run_test(batch_size, img_name, seg_name, output_dir, device=torch.device("cu
         net.eval()
         img, seg, meta_data = batch
         with torch.no_grad():
-            seg_probs = sliding_window_inference(img.to(device), roi_size, sw_batch_size, net)
+            seg_probs = sliding_window_inference(img.to(device), roi_size, sw_batch_size, net, device=device)
             return predict_segmentation(seg_probs)
 
     infer_engine = Engine(_sliding_window_processor)
@@ -84,6 +84,7 @@ class TestIntegrationSlidingWindow(unittest.TestCase):
         output_image = nib.load(output_file).get_fdata()
         np.testing.assert_allclose(np.sum(output_image), 33621)
         np.testing.assert_allclose(output_image.shape, (28, 25, 63, 1))
+        np.testing.assert_string_equal(self.device.type, output_image.device.type)
         shutil.rmtree(tempdir)
 
 
