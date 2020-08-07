@@ -18,7 +18,7 @@ class RGDataset(CacheDataset):
     """
     Wraps CacheDataset with custom functionality for Radiogenomic GAN training.
 
-    RG Gan requires an adversarial datapoint of a different protein label to enforce disentangled RNA mapping.
+    RGGAN requires an adversarial datapoint of a different protein label to enforce disentangled RNA mapping.
 
     This additional datapoint can be seen as variables wrong_imgs and wrong_segs below.
     """
@@ -41,10 +41,10 @@ class RGDataset(CacheDataset):
     def __getitem__(self, index):
         datapoint = super(CacheDataset, self).__getitem__(index)
         
-        imgs = datapoint['image']
-        segs = datapoint['seg']
-        embedding = datapoint['embedding']
-        base_img_name = datapoint['base']
+        # imgs = datapoint['image']
+        # segs = datapoint['seg']
+        # embedding = datapoint['embedding']
+        # base_img_name = datapoint['base']
         
         length = self.__len__()
         rand_index = random.randint(0, length - 1)
@@ -54,9 +54,10 @@ class RGDataset(CacheDataset):
         while wrong_datapoint['class'] == datapoint['class'] and recursion_failsafe < 10:
             rand_index = random.randint(0, length - 1)
             wrong_datapoint = super(CacheDataset, self).__getitem__(rand_index)
-            recursion_failsafe = recursion_failsafe + 1
+            recursion_failsafe += 1
 
-        wrong_imgs = wrong_datapoint['image']
-        wrong_segs = wrong_datapoint['seg']
+        datapoint['w_image'] = wrong_datapoint['image']
+        datapoint['w_seg'] = wrong_datapoint['seg']
         
-        return [imgs], [segs], [wrong_imgs], [wrong_segs], embedding, base_img_name
+        return datapoint
+        #return [imgs], [segs], [wrong_imgs], [wrong_segs], embedding, base_img_name
