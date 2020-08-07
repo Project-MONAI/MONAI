@@ -31,13 +31,13 @@ def main():
 
     # define transforms
 
-    # create data loaders 
+    # create data loaders
 
     # create gan network
 
     # eval
 
-    # save    
+    # save
 
 
 if __name__ == "__main__":

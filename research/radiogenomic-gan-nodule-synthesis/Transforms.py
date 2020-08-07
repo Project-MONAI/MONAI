@@ -1,14 +1,10 @@
-
 import numpy as np
 from monai.transforms import Transform, MapTransform
 from monai.config.type_definitions import KeysCollection
 
+
 class ClipIntensity(Transform):
-    def __init__(
-        self,
-        min: int,
-        max: int
-    ) -> None:
+    def __init__(self, min: int, max: int) -> None:
         """
             Clip (limit) the values in a np array. Sets values outside min/max to limit, keeps values inbetween bounds the same.
             Args:
@@ -22,13 +18,9 @@ class ClipIntensity(Transform):
     def __call__(self, data):
         return np.clip(data, self.min, self.max)
 
+
 class ClipIntensityd(MapTransform):
-    def __init__(
-        self,
-        keys: KeysCollection,
-        min: int,
-        max: int
-    ) -> None:
+    def __init__(self, keys: KeysCollection, min: int, max: int) -> None:
         """
         Clip (limit) the values in a np array. Sets values outside min/max to limit, keeps values inbetween bounds the same.
             Args:
@@ -45,12 +37,9 @@ class ClipIntensityd(MapTransform):
             d[key] = self.clipper(d[key])
         return d
 
+
 class CropWithBoundingBoxd(MapTransform):
-    def __init__(
-        self,
-        keys: KeysCollection,
-        bbox_key: str
-    ) -> None:
+    def __init__(self, keys: KeysCollection, bbox_key: str) -> None:
         """
         Args:
             keys: keys of items to crop using bounding box values.
@@ -63,16 +52,15 @@ class CropWithBoundingBoxd(MapTransform):
 
     def __call__(self, data):
         d = dict(data)
-        img_shape = d['image_meta_dict']['spatial_shape']
+        img_shape = d["image_meta_dict"]["spatial_shape"]
         bbox_values = d[self.bbox_key]
         for key in self.keys:
             d[key] = self.cropper(d[key], bbox_values, img_shape)
         return d
 
+
 class CropWithBoundingBox(Transform):
-    def __init__(
-        self
-    ) -> None:
+    def __init__(self) -> None:
         """
         Args:
             data: image to apply crop

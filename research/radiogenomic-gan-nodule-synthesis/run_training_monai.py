@@ -212,7 +212,7 @@ def main():
         train_handlers=handlers,
     )
 
-    print('# start training')
+    print("# start training")
     trainer.run()
 
     print("END MAIN")

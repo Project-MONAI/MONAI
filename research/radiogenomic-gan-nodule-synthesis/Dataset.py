@@ -14,6 +14,7 @@ import random
 from typing import Callable
 from monai.data import CacheDataset
 
+
 class RGDataset(CacheDataset):
     """
     Wraps CacheDataset with custom functionality for Radiogenomic GAN training.
@@ -22,6 +23,7 @@ class RGDataset(CacheDataset):
 
     This additional datapoint can be seen as variables wrong_imgs and wrong_segs below.
     """
+
     def __init__(
         self, data, transform: Callable, cache_num: int = sys.maxsize, cache_rate: float = 1.0, num_workers: int = 0
     ):
@@ -37,27 +39,27 @@ class RGDataset(CacheDataset):
                 If 0 a single thread will be used. Default is 0.
         """
         super().__init__(data, transform, cache_num, cache_rate, num_workers)
-        
+
     def __getitem__(self, index):
         datapoint = super(CacheDataset, self).__getitem__(index)
-        
+
         # imgs = datapoint['image']
         # segs = datapoint['seg']
         # embedding = datapoint['embedding']
         # base_img_name = datapoint['base']
-        
+
         length = self.__len__()
         rand_index = random.randint(0, length - 1)
         wrong_datapoint = super(CacheDataset, self).__getitem__(rand_index)
 
         recursion_failsafe = 0
-        while wrong_datapoint['class'] == datapoint['class'] and recursion_failsafe < 10:
+        while wrong_datapoint["class"] == datapoint["class"] and recursion_failsafe < 10:
             rand_index = random.randint(0, length - 1)
             wrong_datapoint = super(CacheDataset, self).__getitem__(rand_index)
             recursion_failsafe += 1
 
-        datapoint['w_image'] = wrong_datapoint['image']
-        datapoint['w_seg'] = wrong_datapoint['seg']
-        
+        datapoint["w_image"] = wrong_datapoint["image"]
+        datapoint["w_seg"] = wrong_datapoint["seg"]
+
         return datapoint
-        #return [imgs], [segs], [wrong_imgs], [wrong_segs], embedding, base_img_name
+        # return [imgs], [segs], [wrong_imgs], [wrong_segs], embedding, base_img_name

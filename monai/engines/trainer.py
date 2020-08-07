@@ -16,7 +16,7 @@ from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 
 from monai.engines.utils import CommonKeys as Keys
-from monai.engines.utils import GanKeys, default_make_latent, default_prepare_batch
+from monai.engines.utils import GanKeys, default_make_latent, default_prepare_batch, default_gan_prepare_batch
 from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
 from monai.transforms import Transform
@@ -178,7 +178,7 @@ class GanTrainer(Trainer):
         g_inferer: inference method to execute G model forward. Defaults to ``SimpleInferer()``.
         d_inferer: inference method to execute D model forward. Defaults to ``SimpleInferer()``.
         d_train_steps: number of times to update D with real data minibatch. Defaults to ``1``.
-        latent_shape: size of G input latent code. Defaults to ``64``.
+        latent_size: size of G input latent code. Defaults to ``64``.
         d_prepare_batch: callback function to prepare batchdata for D inferer.
             Defaults to return ``GanKeys.REALS`` in batchdata dict.
         g_prepare_batch: callback function to create batch of latent input for G inferer.
@@ -211,8 +211,8 @@ class GanTrainer(Trainer):
         g_inferer: Inferer = SimpleInferer(),
         d_inferer: Inferer = SimpleInferer(),
         d_train_steps: int = 1,
-        latent_shape: int = 64,
-        d_prepare_batch: Callable = default_prepare_batch,
+        latent_size: int = 64,
+        d_prepare_batch: Callable = default_gan_prepare_batch,
         g_prepare_batch: Callable = default_make_latent,
         g_update_latents: bool = True,
         iteration_update: Optional[Callable] = None,
@@ -242,7 +242,7 @@ class GanTrainer(Trainer):
         self.d_loss_function = d_loss_function
         self.d_inferer = d_inferer
         self.d_train_steps = d_train_steps
-        self.latent_shape = latent_shape
+        self.latent_size = latent_size
         self.g_prepare_batch = g_prepare_batch
         self.g_update_latents = g_update_latents
 
@@ -263,9 +263,9 @@ class GanTrainer(Trainer):
         if batchdata is None:
             raise ValueError("must provide batch data for current iteration.")
 
-        d_input = self.prepare_batch(batchdata).to(engine.state.device)
+        d_input = self.prepare_batch(batchdata, engine.state.device)
         batch_size = self.data_loader.batch_size
-        g_input = self.g_prepare_batch(batch_size, self.latent_shape, batchdata).to(engine.state.device)
+        g_input = self.g_prepare_batch(batch_size, self.latent_size, engine.state.device, batchdata)
         g_output = self.g_inferer(g_input, self.g_network)
 
         # Train Discriminator
@@ -281,7 +281,7 @@ class GanTrainer(Trainer):
 
         # Train Generator
         if self.g_update_latents:
-            g_input = self.g_prepare_batch(batch_size, self.latent_shape, batchdata).to(engine.state.device)
+            g_input = self.g_prepare_batch(batch_size, self.latent_size, engine.state.device, batchdata)
         g_output = self.g_inferer(g_input, self.g_network)
         self.g_optimizer.zero_grad()
         g_loss = self.g_loss_function(g_output)

@@ -117,7 +117,7 @@ def run_training_test(root_dir, device=torch.device("cuda:0")):
         disc_opt,
         discriminator_loss,
         d_train_steps=disc_train_steps,
-        latent_shape=latent_size,
+        latent_size=latent_size,
         key_train_metric=key_train_metric,
         train_handlers=train_handlers,
     )

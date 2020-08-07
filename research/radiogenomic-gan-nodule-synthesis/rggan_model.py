@@ -268,7 +268,7 @@ class GET_IMAGE_G(nn.Module):
         self.img = nn.Sequential(conv3x3(ngf, out_dim), nn.Tanh())
         self.synthesisOut = Synthesis_Block_Direct(1)
         self.fc = nn.Sequential(
-              nn.Linear(self.in_dim, self.k_size * self.k_size * 2, bias=False),
+            nn.Linear(self.in_dim, self.k_size * self.k_size * 2, bias=False),
             nn.BatchNorm1d(self.k_size * self.k_size * 2),
             GLU(),
         )
@@ -406,4 +406,3 @@ class D_NET(nn.Module):
         D_img = self.logits_I(img_code)
         D_imgseg = self.logits_IS(imgseg_code)
         return [D_imgsegtxt.view(-1), D_img.view(-1), D_imgseg.view(-1)]
-

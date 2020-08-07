@@ -74,17 +74,53 @@ def get_devices_spec(devices: Optional[Sequence[torch.device]] = None) -> List[t
     return devices
 
 
-def default_prepare_batch(
-    batchdata: Dict[str, torch.Tensor]
-) -> Union[Tuple[torch.Tensor, Optional[torch.Tensor]], torch.Tensor]:
+def default_prepare_batch(batchdata: Dict[str, torch.Tensor]) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
     assert isinstance(batchdata, dict), "default prepare_batch expects dictionary input data."
     if CommonKeys.LABEL in batchdata:
         return (batchdata[CommonKeys.IMAGE], batchdata[CommonKeys.LABEL])
-    elif GanKeys.REALS in batchdata:
-        return batchdata[GanKeys.REALS]
     else:
         return (batchdata[CommonKeys.IMAGE], None)
 
 
-def default_make_latent(num_latents: int, latent_size: int, real_data: Optional[torch.Tensor] = None) -> torch.Tensor:
-    return torch.randn(num_latents, latent_size)
+def default_gan_prepare_batch(batchdata: Dict[str, torch.Tensor], device: torch.device) -> torch.Tensor:
+    """
+    Prepares batchdata for GAN Discriminator training. Sends Tensor to executing device.
+
+    Args:
+        batchdata: Dictionary data returned by DataLoader
+        devices: torch.device to store tensor for execution
+
+    Raises:
+        AssertionError: If input data is not a dictionary.
+        RuntimeError: If dictionary does not have CommonKeys.IMAGE or GanKeys.REALS key.
+
+    Returns:
+        Batch size tensor of images on device.
+    """
+    assert isinstance(batchdata, dict), "default prepare_batch expects dictionary input data."
+    if GanKeys.REALS in batchdata:
+        data = batchdata[GanKeys.REALS]
+    elif CommonKeys.IMAGE in batchdata:
+        data = batchdata[CommonKeys.IMAGE]
+    else:
+        raise RuntimeError("default gan_prepare_batch expects '%s' or '%s' key." % (CommonKeys.IMAGE, GanKeys.REALS))
+    return data.to(device)
+
+
+def default_make_latent(
+    num_latents: int, latent_size: int, device: torch.device, batchdata: Optional[torch.Tensor] = None
+) -> torch.Tensor:
+    """
+    Prepares a latent code for GAN Generator training. Sends Tensor to executing device.
+    If Generator needs additional input from Dataloader, override this func and process batchdata.
+
+    Args:
+        num_latents: number of latent codes to generate (typically batchsize)
+        latent_size: size of latent code for Generator input
+        devices: torch.device to store tensor for execution
+        batchdata: Minibatch from dataloader, ignored by default.
+
+    Returns:
+        Randomly generated latent codes.
+    """
+    return torch.randn(num_latents, latent_size).to(device)

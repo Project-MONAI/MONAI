@@ -82,11 +82,11 @@ def main():
     real_dataloader = DataLoader(real_dataset, batch_size=batch_size, shuffle=True, num_workers=10)
 
     # define function to process batchdata for input into discriminator
-    def prepare_batch(batchdata):
+    def prepare_batch(batchdata, device):
         """
         Process Dataloader batchdata dict object and return image tensors for D Inferer
         """
-        return batchdata["hand"]
+        return batchdata["hand"].to(device)
 
     # define networks
     disc_net = Discriminator(
@@ -179,7 +179,7 @@ def main():
         discriminator_loss,
         d_prepare_batch=prepare_batch,
         d_train_steps=disc_train_steps,
-        latent_shape=latent_size,
+        latent_size=latent_size,
         key_train_metric=key_train_metric,
         train_handlers=handlers,
     )
@@ -190,7 +190,7 @@ def main():
     # Training completed, save a few random generated images.
     print("Saving trained generator sample output.")
     test_img_count = 10
-    test_latents = make_latent(test_img_count, latent_size).to(device)
+    test_latents = make_latent(test_img_count, latent_size, device)
     fakes = gen_net(test_latents)
     for i, image in enumerate(fakes):
         filename = "gen-fake-final-%d.png" % (i)
