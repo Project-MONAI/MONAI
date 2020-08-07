@@ -176,7 +176,7 @@ class VNet(nn.Module):
     This code is adapted from:
     https://github.com/mattmacy/vnet.pytorch/blob/master/vnet.py
     The model supports 2D or 3D inputs.
-    
+
     Args:
         spatial_dims: spatial dimension of the input data. Defaults to 3.
         in_channels: number of input channels for the network. Defaults to 1.
