@@ -42,7 +42,7 @@ Note:
     python -m torch.distributed.launch --nproc_per_node=NUM_GPUS_PER_NODE
            --nnodes=NUM_NODES --node_rank=INDEX_CURRENT_NODE
            --master_addr="192.168.1.1" --master_port=1234
-           unet_evaluation_ddp.py -d DIR_OF_TESTDATA
+           unet_evaluation_workflows.py -d DIR_OF_TESTDATA
 
     This example was tested with [Ubuntu 16.04/20.04], [NCCL 2.6.3].
 
@@ -195,7 +195,7 @@ def main():
 # python -m torch.distributed.launch --nproc_per_node=NUM_GPUS_PER_NODE
 #        --nnodes=NUM_NODES --node_rank=INDEX_CURRENT_NODE
 #        --master_addr="192.168.1.1" --master_port=1234
-#        unet_evaluation_ddp.py -d DIR_OF_TESTDATA
+#        unet_evaluation_workflows.py -d DIR_OF_TESTDATA
 
 if __name__ == "__main__":
     main()
