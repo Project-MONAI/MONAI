@@ -107,10 +107,10 @@ class FCN(nn.Module):
 
     Args:
         out_channels: number of output channels. Defaults to 1.
-        upsample_mode: The mode of upsampling manipulations, there are two choices:
+        upsample_mode: The mode of upsampling manipulations, there are three choices:
             1) "transpose", uses transposed convolution layers.
-            2) "interpolate", uses standard interpolate way.
-            Using the second mode cannot guarantee the model's reproducibility. Defaults to "transpose".
+            2) "bilinear", uses standard interpolate way.
+            Using the second mode cannot guarantee the model's reproducibility. Defaults to "bilinear".
     """
 
     def __init__(self, out_channels: int = 1, upsample_mode: str = "transpose"):
@@ -187,16 +187,18 @@ class FCN(nn.Module):
             fs3 = self.refine8(self.up_conv(fs2) + gcfm4)
             fs4 = self.refine9(self.up_conv(fs3) + gcfm5)
             out = self.refine10(self.up_conv(fs4))
-        elif self.upsample_mode == "interpolate":
-            fs1 = self.refine6(F.interpolate(gcfm1, fm3.size()[2:], mode="bilinear", align_corners=True) + gcfm2)
-            fs2 = self.refine7(F.interpolate(fs1, fm2.size()[2:], mode="bilinear", align_corners=True) + gcfm3)
-            fs3 = self.refine8(F.interpolate(fs2, pool_x.size()[2:], mode="bilinear", align_corners=True) + gcfm4)
-            fs4 = self.refine9(F.interpolate(fs3, conv_x.size()[2:], mode="bilinear", align_corners=True) + gcfm5)
-            out = self.refine10(F.interpolate(fs4, org_input.size()[2:], mode="bilinear", align_corners=True))
         else:
-            raise NotImplementedError(
-                f"Currently only 'transpose' and 'interpolate' modes are supported, got {self.upsample_mode}."
+            fs1 = self.refine6(
+                F.interpolate(gcfm1, fm3.size()[2:], mode=self.upsample_mode, align_corners=True) + gcfm2
             )
+            fs2 = self.refine7(F.interpolate(fs1, fm2.size()[2:], mode=self.upsample_mode, align_corners=True) + gcfm3)
+            fs3 = self.refine8(
+                F.interpolate(fs2, pool_x.size()[2:], mode=self.upsample_mode, align_corners=True) + gcfm4
+            )
+            fs4 = self.refine9(
+                F.interpolate(fs3, conv_x.size()[2:], mode=self.upsample_mode, align_corners=True) + gcfm5
+            )
+            out = self.refine10(F.interpolate(fs4, org_input.size()[2:], mode=self.upsample_mode, align_corners=True))
         return out
 
 
@@ -210,9 +212,10 @@ class MCFCN(FCN):
     Args:
         in_channels: number of input channels. Defaults to 3.
         out_channels: number of output channels. Defaults to 1.
-        upsample_mode: The mode of upsampling manipulations. Defaults to ``transpose``,
-            means use transposed convolution layers. The second mode is ``interpolate``,
-            means use standard interpolate way, this mode cannot guarantee the model's reproducibility.
+        upsample_mode: The mode of upsampling manipulations, there are three choices:
+            1) "transpose", uses transposed convolution layers.
+            2) "bilinear", uses standard interpolate way.
+            Using the second mode cannot guarantee the model's reproducibility. Defaults to "bilinear".
     """
 
     def __init__(self, in_channels: int = 3, out_channels: int = 1, upsample_mode: str = "transpose"):
