@@ -9,13 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
 import os
 import shutil
-import numpy as np
 import tempfile
-from PIL import Image
+import unittest
+
+import numpy as np
 from parameterized import parameterized
+from PIL import Image
+
 from monai.transforms import LoadPNG
 
 TEST_CASE_1 = [(128, 128), ["test_image.png"], (128, 128), (128, 128)]

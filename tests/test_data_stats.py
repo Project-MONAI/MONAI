@@ -9,14 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
+import logging
 import os
 import shutil
-import logging
 import tempfile
+import unittest
+
 import numpy as np
 import torch
 from parameterized import parameterized
+
 from monai.transforms import DataStats
 
 TEST_CASE_1 = [

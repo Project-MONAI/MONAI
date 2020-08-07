@@ -10,9 +10,11 @@
 # limitations under the License.
 
 import unittest
-import torch
+
 import numpy as np
-from monai.utils import set_determinism, get_seed
+import torch
+
+from monai.utils import get_seed, set_determinism
 
 
 class TestSetDeterminism(unittest.TestCase):
