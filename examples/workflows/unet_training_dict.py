@@ -72,7 +72,7 @@ def main():
         [
             LoadNiftid(keys=["image", "label"]),
             AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
-            ScaleIntensityd(keys=["image", "label"]),
+            ScaleIntensityd(keys="image"),
             RandCropByPosNegLabeld(
                 keys=["image", "label"], label_key="label", spatial_size=[96, 96, 96], pos=1, neg=1, num_samples=4
             ),
@@ -84,7 +84,7 @@ def main():
         [
             LoadNiftid(keys=["image", "label"]),
             AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
-            ScaleIntensityd(keys=["image", "label"]),
+            ScaleIntensityd(keys="image"),
             ToTensord(keys=["image", "label"]),
         ]
     )

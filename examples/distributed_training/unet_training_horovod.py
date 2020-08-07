@@ -23,7 +23,7 @@ Main steps to set up the distributed training:
 - Run `hvd.init()` to initialize Horovod.
 - Pin each GPU to a single process to avoid resource contention, use `hvd.local_rank()` to get GPU index.
   And use `hvd.rank()` to get the overall rank index.
-- Wrap Dataset with `DistributedSampler`, and disable the `shuffle` and `num_worker=1` in DataLoader.
+- Wrap Dataset with `DistributedSampler`, and disable the `shuffle` in DataLoader.
   Instead, shuffle data by `train_sampler.set_epoch(epoch)` before every epoch.
 - Wrap the optimizer in hvd.DistributedOptimizer. The distributed optimizer delegates gradient
   computation to the original optimizer, averages gradients using allreduce or allgather,
@@ -101,7 +101,7 @@ def train(args):
         [
             LoadNiftid(keys=["img", "seg"]),
             AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
-            ScaleIntensityd(keys=["img", "seg"]),
+            ScaleIntensityd(keys="img"),
             RandCropByPosNegLabeld(
                 keys=["img", "seg"], label_key="seg", spatial_size=[96, 96, 96], pos=1, neg=1, num_samples=4
             ),
@@ -124,7 +124,7 @@ def train(args):
         train_ds,
         batch_size=2,
         shuffle=False,
-        num_workers=1,
+        num_workers=2,
         pin_memory=True,
         sampler=train_sampler,
         multiprocessing_context=multiprocessing_context,
