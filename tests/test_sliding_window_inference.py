@@ -33,7 +33,14 @@ TEST_CASE_6 = [(1, 3, 16, 7), (80, 50), 7, 0.5, "gaussian", torch.device("cpu:0"
 
 TEST_CASE_7 = [(1, 3, 16, 15, 7), (4, 10, 7), 3, 0.25, "gaussian", torch.device("cpu:0")]  # 3D small roi, gaussian
 
-TEST_CASE_8 = [(1, 3, 16, 15, 7), (4, 10, 7), 3, 0.25, "gaussian", torch.device("cuda:0")]  # test inference on gpu if availabe
+TEST_CASE_8 = [
+    (1, 3, 16, 15, 7),
+    (4, 10, 7),
+    3,
+    0.25,
+    "gaussian",
+    torch.device("cuda:0"),
+]  # test inference on gpu if availabe
 
 
 class TestSlidingWindowInference(unittest.TestCase):

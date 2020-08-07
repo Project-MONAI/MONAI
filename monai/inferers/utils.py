@@ -9,9 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Sequence, Tuple, Union, Optional
+from typing import Callable, Sequence, Union, Optional, Tuple
 
 import torch
+import numpy as np
 import torch.nn.functional as F
 
 from monai.data.utils import compute_importance_map, dense_patch_slices, get_valid_patch_size
@@ -59,8 +60,8 @@ def sliding_window_inference(
         cval: fill value for 'constant' padding mode. Default: 0
         device: device running the concatenation of the windows.
             By default the device and accordingly the memory of the input device is used. If for example
-            device is set to device=torch.device('cpu') the gpu memory consumption is less and independent
-            of the input and roi_size parameter.
+            set to device=torch.device('cpu') the gpu memory consumption is less and independent of the
+            input and roi_size parameter. Output is on the device set or if not set the inputs device.
 
     Raises:
         NotImplementedError: When ``inputs`` does not have batch size = 1.
