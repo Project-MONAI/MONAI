@@ -100,9 +100,13 @@ class ROCAUC(Metric):  # type: ignore[valid-type, misc]  # due to optional_impor
         _target_tensor = torch.cat(self._targets, dim=0)
 
         if dist.is_available() and dist.is_initialized() and not self._is_reduced:
-            dist.barrier()
-            _prediction_tensor = dist.gather(_prediction_tensor)
-            _target_tensor = dist.gather(_target_tensor)
+            # create placeholder to collect the data from all processes:
+            output = [torch.zeros_like(_prediction_tensor) for _ in range(dist.get_world_size())]
+            dist.all_gather(output, _prediction_tensor)
+            _prediction_tensor = torch.cat(output, dim=0)
+            output = [torch.zeros_like(_target_tensor) for _ in range(dist.get_world_size())]
+            dist.all_gather(output, _target_tensor)
+            _target_tensor = torch.cat(output, dim=0)
             self._is_reduced = True
 
         return compute_roc_auc(
