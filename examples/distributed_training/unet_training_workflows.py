@@ -28,7 +28,7 @@ Main steps to set up the distributed training:
 - Use `init_process_group` to initialize every process, every GPU runs in a separate process with unique rank.
   Here we use `NVIDIA NCCL` as the backend and must set `init_method="env://"` if use `torch.distributed.launch`.
 - Wrap the model with `DistributedDataParallel` after moving to expected device.
-- Wrap Dataset with `DistributedSampler`, and disable the `shuffle` and `num_worker=0` in DataLoader.
+- Wrap Dataset with `DistributedSampler`, and disable the `shuffle` in DataLoader.
   Instead, `SupervisedTrainer` shuffles data by `train_sampler.set_epoch(epoch)` before every epoch.
 - Add `StatsHandler` and `CheckpointHandler` to the master process which is `dist.get_rank() == 0`.
 - ignite can automatically reduce metrics for distributed training, refer to:
@@ -109,7 +109,7 @@ def train(args):
         [
             LoadNiftid(keys=["image", "label"]),
             AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
-            ScaleIntensityd(keys=["image", "label"]),
+            ScaleIntensityd(keys="image"),
             RandCropByPosNegLabeld(
                 keys=["image", "label"], label_key="label", spatial_size=[96, 96, 96], pos=1, neg=1, num_samples=4
             ),
@@ -124,7 +124,7 @@ def train(args):
     train_sampler = DistributedSampler(train_ds)
     # use batch_size=2 to load images and use RandCropByPosNegLabeld to generate 2 x 4 images for network training
     train_loader = DataLoader(
-        train_ds, batch_size=2, shuffle=False, num_workers=0, pin_memory=True, sampler=train_sampler,
+        train_ds, batch_size=2, shuffle=False, num_workers=2, pin_memory=True, sampler=train_sampler,
     )
 
     # create UNet, DiceLoss and Adam optimizer
@@ -170,7 +170,8 @@ def train(args):
         optimizer=opt,
         loss_function=loss,
         inferer=SimpleInferer(),
-        amp=False,
+        # if no FP16 support in GPU or PyTorch version < 1.6, will not enable AMP evaluation
+        amp=True if monai.config.get_torch_version_tuple() >= (1, 6) else False,
         post_transform=train_post_transforms,
         key_train_metric={"train_acc": Accuracy(output_transform=lambda x: (x["pred"], x["label"]), device=device)},
         train_handlers=train_handlers,

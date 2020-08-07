@@ -10,8 +10,8 @@
 # limitations under the License.
 
 """
-This example shows how to execute distributed evaluation based on PyTorch native `DistributedDataParallel` module.
-It can run on several nodes with multiple GPU devices on every node.
+This example shows how to execute distributed evaluation based on PyTorch native `DistributedDataParallel` module
+and MONAI workflows. It can run on several nodes with multiple GPU devices on every node.
 Main steps to set up the distributed evaluation:
 
 - Execute `torch.distributed.launch` to create processes on every node for every GPU.
@@ -29,8 +29,10 @@ Main steps to set up the distributed evaluation:
   Here we use `NVIDIA NCCL` as the backend and must set `init_method="env://"` if use `torch.distributed.launch`.
 - Wrap the model with `DistributedDataParallel` after moving to expected device.
 - Put model file on every node, then load and map to expected GPU device in every process.
-- Wrap Dataset with `DistributedSampler`, set `num_worker=0` in DataLoader.
-- Compute `Dice Metric` on every process, reduce the results after synchronization.
+- Wrap Dataset with `DistributedSampler`, disable the `shuffle` in sampler and DataLoader.
+- Add `StatsHandler` and `SegmentationSaver` to the master process which is `dist.get_rank() == 0`.
+- ignite can automatically reduce metrics for distributed evaluation, refer to:
+  https://github.com/pytorch/ignite/blob/v0.3.0/ignite/metrics/metric.py#L85
 
 Note:
     `torch.distributed.launch` will launch `nnodes * nproc_per_node = world_size` processes in total.
@@ -49,13 +51,16 @@ Referring to: https://pytorch.org/tutorials/intermediate/ddp_tutorial.html
 """
 
 import argparse
+import logging
 import os
+import sys
 from glob import glob
 
 import nibabel as nib
 import numpy as np
 import torch
 import torch.distributed as dist
+from ignite.metrics import Accuracy
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data.distributed import DistributedSampler
 
@@ -95,15 +100,15 @@ def evaluate(args):
 
     images = sorted(glob(os.path.join(args.dir, "img*.nii.gz")))
     segs = sorted(glob(os.path.join(args.dir, "seg*.nii.gz")))
-    val_files = [{"img": img, "seg": seg} for img, seg in zip(images, segs)]
+    val_files = [{"image": img, "label": seg} for img, seg in zip(images, segs)]
 
     # define transforms for image and segmentation
     val_transforms = Compose(
         [
-            LoadNiftid(keys=["img", "seg"]),
-            AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
-            ScaleIntensityd(keys=["img", "seg"]),
-            ToTensord(keys=["img", "seg"]),
+            LoadNiftid(keys=["image", "label"]),
+            AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
+            ScaleIntensityd(keys="image"),
+            ToTensord(keys=["image", "label"]),
         ]
     )
 
@@ -112,12 +117,11 @@ def evaluate(args):
     # create a evaluation data sampler
     val_sampler = DistributedSampler(val_ds, shuffle=False)
     # sliding window inference need to input 1 image in every iteration
-    val_loader = DataLoader(val_ds, batch_size=1, shuffle=False, num_workers=0, pin_memory=True, sampler=val_sampler)
-    dice_metric = DiceMetric(include_background=True, to_onehot_y=False, sigmoid=True, reduction="mean")
+    val_loader = DataLoader(val_ds, batch_size=1, shuffle=False, num_workers=2, pin_memory=True, sampler=val_sampler)
 
     # create UNet, DiceLoss and Adam optimizer
     device = torch.device(f"cuda:{args.local_rank}")
-    model = monai.networks.nets.UNet(
+    net = monai.networks.nets.UNet(
         dimensions=3,
         in_channels=1,
         out_channels=1,
@@ -126,11 +130,7 @@ def evaluate(args):
         num_res_units=2,
     ).to(device)
     # wrap the model with DistributedDataParallel module
-    model = DistributedDataParallel(model, device_ids=[args.local_rank])
-    # config mapping to expected GPU device
-    map_location = {"cuda:0": f"cuda:{args.local_rank}"}
-    # load model parameters to GPU device
-    model.load_state_dict(torch.load("final_model.pth", map_location=map_location))
+    net = DistributedDataParallel(net, device_ids=[args.local_rank])
 
     val_post_transforms = Compose(
         [
@@ -140,14 +140,25 @@ def evaluate(args):
         ]
     )
     val_handlers = [
-        StatsHandler(output_transform=lambda x: None),
-        CheckpointLoader(load_path="./runs/net_key_metric=0.9101.pth", load_dict={"net": net}),
-        SegmentationSaver(
-            output_dir="./runs/",
-            batch_transform=lambda batch: batch["image_meta_dict"],
-            output_transform=lambda output: output["pred"],
+        CheckpointLoader(
+            load_path="./runs/checkpoint_epoch=4.pth",
+            load_dict={"net": net},
+            # config mapping to expected GPU device
+            map_location={"cuda:0": f"cuda:{args.local_rank}"},
         ),
     ]
+    if dist.get_rank() == 0:
+        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+        val_handlers.extend(
+            [
+                StatsHandler(output_transform=lambda x: None),
+                SegmentationSaver(
+                    output_dir="./runs/",
+                    batch_transform=lambda batch: batch["image_meta_dict"],
+                    output_transform=lambda output: output["pred"],
+                ),
+            ]
+        )
 
     evaluator = SupervisedEvaluator(
         device=device,
@@ -156,46 +167,19 @@ def evaluate(args):
         inferer=SlidingWindowInferer(roi_size=(96, 96, 96), sw_batch_size=4, overlap=0.5),
         post_transform=val_post_transforms,
         key_val_metric={
-            "val_mean_dice": MeanDice(include_background=True, output_transform=lambda x: (x["pred"], x["label"]))
+            "val_mean_dice": MeanDice(
+                include_background=True,
+                output_transform=lambda x: (x["pred"], x["label"]),
+                device=device,
+            )
         },
-        additional_metrics={"val_acc": Accuracy(output_transform=lambda x: (x["pred"], x["label"]))},
+        additional_metrics={"val_acc": Accuracy(output_transform=lambda x: (x["pred"], x["label"]), device=device)},
         val_handlers=val_handlers,
         # if no FP16 support in GPU or PyTorch version < 1.6, will not enable AMP evaluation
         amp=True if monai.config.get_torch_version_tuple() >= (1, 6) else False,
     )
     evaluator.run()
-
-
-
-
-
-
-
-
-
-
-
-    model.eval()
-    with torch.no_grad():
-        # define PyTorch Tensor to record metrics result at each GPU
-        # the first value is `sum` of all dice metric, the second value is `count` of not_nan items
-        metric = torch.zeros(2, dtype=torch.float, device=device)
-        for val_data in val_loader:
-            val_images, val_labels = val_data["img"].to(device), val_data["seg"].to(device)
-            # define sliding window size and batch size for windows inference
-            roi_size = (96, 96, 96)
-            sw_batch_size = 4
-            val_outputs = sliding_window_inference(val_images, roi_size, sw_batch_size, model)
-            value = dice_metric(y_pred=val_outputs, y=val_labels).squeeze()
-            metric[0] += value * dice_metric.not_nans
-            metric[1] += dice_metric.not_nans
-        # synchronizes all processes and reduce results
-        dist.barrier()
-        dist.all_reduce(metric, op=torch.distributed.ReduceOp.SUM)
-        metric = metric.tolist()
-        if dist.get_rank() == 0:
-            print("evaluation metric:", metric[0] / metric[1])
-        dist.destroy_process_group()
+    dist.destroy_process_group()
 
 
 def main():
