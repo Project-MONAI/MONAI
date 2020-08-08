@@ -1,9 +1,7 @@
 import torch
 import torch.nn as nn
-import torch.nn.parallel
-
 import torch.nn.functional as F
-
+import torch.nn.parallel
 
 CFG_TREE_BASE_SIZE = 128
 CFG_GAN_Z_DIM = 10
@@ -315,26 +313,27 @@ class G_NET(nn.Module):
 
         c_code = self.ec_net(text_embedding)
 
-        fake_imgs, fake_segs, fg_switchs = [], [], []
+        # fake_imgs, fake_segs, fg_switchs = [], [], []
         # print('DEBUG: G_NET 311 Forward C %s, Z %s' % (c_code.shape, z_code.shape))
         h_code1, fg_switch1 = self.h_net1(z_code, c_code, base_img)
         fake_img1, fake_seg1 = self.img_net1(h_code1, z_code, c_code, base_img)
 
-        fake_imgs.append(fake_img1)
-        fake_segs.append(fake_seg1)
-        fg_switchs.append(fg_switch1)
+        # fake_imgs.append(fake_img1)
+        # fake_segs.append(fake_seg1)
+        # fg_switchs.append(fg_switch1)
 
-        return c_code, fake_imgs, fake_segs, fg_switchs
+        return c_code, fake_img1, fake_seg1, fg_switch1
+        # return c_code, fake_imgs, fake_segs, fg_switchs
 
 
 # ############## D networks ################################################
-def Block3x3_leakRelu(in_planes, out_planes):
+def Block3x3_leakRelu(in_planes, out_planes):  # used for pair-loss in D
     block = nn.Sequential(conv3x3(in_planes, out_planes), nn.BatchNorm2d(out_planes), nn.LeakyReLU(0.2, inplace=True))
     return block
 
 
 # Downsale the spatial size by a factor of 2
-def downBlock(in_planes, out_planes):
+def downBlock(in_planes, out_planes):  # looks unused
     block = nn.Sequential(
         nn.Conv2d(in_planes, out_planes, 4, 2, 1, bias=False),
         nn.BatchNorm2d(out_planes),

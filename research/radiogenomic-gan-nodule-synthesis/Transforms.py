@@ -1,6 +1,7 @@
 import numpy as np
-from monai.transforms import Transform, MapTransform
+
 from monai.config.type_definitions import KeysCollection
+from monai.transforms import MapTransform, Transform
 
 
 class ClipIntensity(Transform):
