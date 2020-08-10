@@ -9,22 +9,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import time
 from argparse import ArgumentParser
-import os
 
 import numpy as np
 import torch
-from monai.transforms import AddChannelDict, Compose, RandCropByPosNegLabeld, Rand3DElasticd, SpatialPadd
-from monai.losses import DiceLoss, FocalLoss
-from monai.metrics import compute_meandice
-from monai.data import Dataset, list_data_collate
-from monai.utils import first
+from data_utils import get_filenames, load_data_and_mask
 from torchgpipe import GPipe
 from torchgpipe.balance import balance_by_size
-
 from unet_pipe import UNetPipe, flatten_sequential
-from data_utils import get_filenames, load_data_and_mask
+
+from monai.data import Dataset, list_data_collate
+from monai.losses import DiceLoss, FocalLoss
+from monai.metrics import compute_meandice
+from monai.transforms import AddChannelDict, Compose, Rand3DElasticd, RandCropByPosNegLabeld, SpatialPadd
+from monai.utils import first
 
 N_CLASSES = 10
 TRAIN_PATH = "./data/HaN/train/"  # training data folder

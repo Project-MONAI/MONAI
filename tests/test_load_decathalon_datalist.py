@@ -9,11 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
-import os
 import json
+import os
 import shutil
 import tempfile
+import unittest
+
 from monai.data import load_decathalon_datalist
 
 
