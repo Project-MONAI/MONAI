@@ -37,7 +37,7 @@ class RestartGenerator:
     used to create an iterator which can start iteration over the given generator multiple times.
     """
 
-    def __init__(self, create_gen):
+    def __init__(self, create_gen) -> None:
         self.create_gen = create_gen
 
     def __iter__(self):
@@ -51,7 +51,7 @@ class MethodReplacer(object):
 
     replace_list_name = "__replacemethods__"
 
-    def __init__(self, meth):
+    def __init__(self, meth) -> None:
         self.meth = meth
 
     def replace_method(self, meth):

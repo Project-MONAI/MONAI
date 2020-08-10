@@ -15,7 +15,7 @@ import torch
 import torch.nn as nn
 
 from monai.networks.layers.factories import Conv
-from monai.utils import ensure_tuple_rep, UpsampleMode
+from monai.utils import UpsampleMode, ensure_tuple_rep
 
 
 class UpSample(nn.Module):
@@ -70,4 +70,4 @@ class UpSample(nn.Module):
         Args:
             x: Tensor in shape (batch, channel, spatial_1[, spatial_2, ...).
         """
-        return self.upsample(x)
+        return torch.as_tensor(self.upsample(x))

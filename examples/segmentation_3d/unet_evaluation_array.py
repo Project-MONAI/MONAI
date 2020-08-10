@@ -9,23 +9,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 import os
+import shutil
 import sys
 import tempfile
-import shutil
 from glob import glob
-import logging
+
 import nibabel as nib
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
 from monai import config
-from monai.transforms import Compose, AddChannel, ScaleIntensity, ToTensor
-from monai.networks.nets import UNet
-from monai.data import create_test_image_3d, NiftiSaver, NiftiDataset
+from monai.data import NiftiDataset, NiftiSaver, create_test_image_3d
 from monai.inferers import sliding_window_inference
 from monai.metrics import DiceMetric
+from monai.networks.nets import UNet
+from monai.transforms import AddChannel, Compose, ScaleIntensity, ToTensor
 
 
 def main():

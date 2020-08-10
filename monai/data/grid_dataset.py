@@ -9,15 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence, Union, Dict
-
 import math
+from typing import Dict, Sequence, Union
 
 import torch
 from torch.utils.data import Dataset, IterableDataset
 
 from monai.data.utils import iter_patch
-from monai.utils import ensure_tuple, NumpyPadMode
+from monai.utils import NumpyPadMode, ensure_tuple
 
 
 class GridPatchDataset(IterableDataset):
