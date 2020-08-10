@@ -169,10 +169,10 @@ def normal_init(
         normal_func(m.weight.data, 1.0, std)
         nn.init.constant_(m.bias.data, 0)
 
-        
+
 def icnr_init(conv, upsample_factor, init=nn.init.kaiming_normal_):
     """
-    ICNR initialization for 2D/3D kernels adapted from Aitken et al.,2017 , "Checkerboard artifact free 
+    ICNR initialization for 2D/3D kernels adapted from Aitken et al.,2017 , "Checkerboard artifact free
     sub-pixel convolution".
     """
     out_channels, in_channels, *dims = conv.weight.shape
@@ -188,21 +188,21 @@ def icnr_init(conv, upsample_factor, init=nn.init.kaiming_normal_):
     kernel = kernel.reshape([in_channels, out_channels] + dims)
     kernel = kernel.transpose(0, 1)
     conv.weight.data.copy_(kernel)
-    
-    
+
+
 def pixelshuffle(x: torch.Tensor, spatial_dims: int, scale_factor: int) -> torch.Tensor:
     """
     Apply pixel shuffle to the tensor `x` with spatial dimensions `spatial_dims` and scaling factor `scale_factor`.
     See Aitken et al.,2017 , "Checkerboard artifact free sub-pixel convolution".
-    
+
     Args:
         x: Input tensor
         spatial_dims: number of spatial dimensions, typically 2 or 3 for 2D or 3D
         scale_factor: factor to rescale the spatial dimensions by, must be >=1
-        
+
     Returns:
         Reshuffled version of `x`.
-        
+
     Raises:
         ValueError: When input channels of `x` are not divisible by (scale_factor ** spatial_dims)
     """
@@ -210,10 +210,10 @@ def pixelshuffle(x: torch.Tensor, spatial_dims: int, scale_factor: int) -> torch
     dim, factor = spatial_dims, scale_factor
     input_size = list(x.size())
     batch_size, channels = input_size[:2]
-    
+
     if channels % (factor ** dim) != 0:
         raise ValueError("PixelShuffle expects input channel to be divisible by (scale_factor ** spatial_dims).")
-    
+
     org_channels = channels // (factor ** dim)
     output_size = [batch_size, org_channels] + [dim * factor for dim in input_size[2:]]
 

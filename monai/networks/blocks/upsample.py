@@ -106,16 +106,16 @@ class SubpixelUpsample(nn.Module):
 
         if scale_factor <= 0:
             raise ValueError("the `scale_factor` multiplier should be an integer and no less than 1.")
-        
+
         self.spatial_dims = spatial_dims
         self.scale_factor = scale_factor
-        
+
         if conv_block is None:
             conv_out_channels = in_channels * (scale_factor ** spatial_dims)
             self.conv_block = Conv[Conv.CONV, spatial_dims](
                 in_channels=in_channels, out_channels=conv_out_channels, kernel_size=3, stride=1, padding=1,
             )
-            
+
             icnr_init(self.conv_block, self.scale_factor)
         else:
             self.conv_block = conv_block
