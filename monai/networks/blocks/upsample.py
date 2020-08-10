@@ -81,7 +81,7 @@ class SubpixelUpsample(nn.Module):
     Secondly, a pixel shuffle manipulation is utilized to aggregates the feature maps from
     low resolution space and build the super resolution space.
     The first part of the module is not fixed, a sequential layers can be used to replace the
-    default single layer. 
+    default single layer.
     The idea comes from:
     https://arxiv.org/abs/1609.05158
     The pixel shuffle mechanism refers to:
