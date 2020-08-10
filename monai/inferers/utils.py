@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Sequence, Tuple, Union
+from typing import Callable, Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn.functional as F
@@ -27,6 +27,7 @@ def sliding_window_inference(
     mode: Union[BlendMode, str] = BlendMode.CONSTANT,
     padding_mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
     cval: float = 0.0,
+    device: Optional[torch.device] = None,
 ) -> torch.Tensor:
     """
     Sliding window inference on `inputs` with `predictor`.
@@ -56,6 +57,10 @@ def sliding_window_inference(
             Padding mode when ``roi_size`` is larger than inputs. Defaults to ``"constant"``
             See also: https://pytorch.org/docs/stable/nn.functional.html#pad
         cval: fill value for 'constant' padding mode. Default: 0
+        device: device running the concatenation of the windows.
+            By default the device and accordingly the memory of the input device is used. If for example
+            set to device=torch.device('cpu') the gpu memory consumption is less and independent of the
+            input and roi_size parameter. Output is on the device set or if not set the inputs device.
 
     Raises:
         NotImplementedError: When ``inputs`` does not have batch size = 1.
@@ -76,6 +81,9 @@ def sliding_window_inference(
     # TODO: Enable batch sizes > 1 in future
     if batch_size > 1:
         raise NotImplementedError("Currently only inputs with batch size = 1 are supported.")
+
+    if device is None:
+        device = inputs.device
 
     roi_size = fall_back_tuple(roi_size, image_size_)
     # in case that image size is smaller than roi size
@@ -108,18 +116,18 @@ def sliding_window_inference(
     output_rois = list()
     for data in slice_batches:
         seg_prob = predictor(data)  # batched patch segmentation
-        output_rois.append(seg_prob)
+        output_rois.append(seg_prob.to(device))
 
     # stitching output image
     output_classes = output_rois[0].shape[1]
     output_shape = [batch_size, output_classes] + list(image_size)
 
     # Create importance map
-    importance_map = compute_importance_map(get_valid_patch_size(image_size, roi_size), mode=mode, device=inputs.device)
+    importance_map = compute_importance_map(get_valid_patch_size(image_size, roi_size), mode=mode, device=device)
 
     # allocate memory to store the full output and the count for overlapping parts
-    output_image = torch.zeros(output_shape, dtype=torch.float32, device=inputs.device)
-    count_map = torch.zeros(output_shape, dtype=torch.float32, device=inputs.device)
+    output_image = torch.zeros(output_shape, dtype=torch.float32, device=device)
+    count_map = torch.zeros(output_shape, dtype=torch.float32, device=device)
 
     for window_id, slice_index in enumerate(range(0, len(slices), sw_batch_size)):
         slice_index_range = range(slice_index, min(slice_index + sw_batch_size, len(slices)))
