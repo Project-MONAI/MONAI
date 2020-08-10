@@ -168,3 +168,59 @@ def normal_init(
     elif cname.find("BatchNorm") != -1:
         normal_func(m.weight.data, 1.0, std)
         nn.init.constant_(m.bias.data, 0)
+
+
+def icnr_init(conv, upsample_factor, init=nn.init.kaiming_normal_):
+    """
+    ICNR initialization for 2D/3D kernels adapted from Aitken et al.,2017 , "Checkerboard artifact free
+    sub-pixel convolution".
+    """
+    out_channels, in_channels, *dims = conv.weight.shape
+    scale_factor = upsample_factor ** len(dims)
+
+    oc2 = int(out_channels / scale_factor)
+
+    kernel = torch.zeros([oc2, in_channels] + dims)
+    kernel = init(kernel)
+    kernel = kernel.transpose(0, 1)
+    kernel = kernel.reshape(oc2, in_channels, -1)
+    kernel = kernel.repeat(1, 1, scale_factor)
+    kernel = kernel.reshape([in_channels, out_channels] + dims)
+    kernel = kernel.transpose(0, 1)
+    conv.weight.data.copy_(kernel)
+
+
+def pixelshuffle(x: torch.Tensor, spatial_dims: int, scale_factor: int) -> torch.Tensor:
+    """
+    Apply pixel shuffle to the tensor `x` with spatial dimensions `spatial_dims` and scaling factor `scale_factor`.
+    See Aitken et al.,2017 , "Checkerboard artifact free sub-pixel convolution".
+
+    Args:
+        x: Input tensor
+        spatial_dims: number of spatial dimensions, typically 2 or 3 for 2D or 3D
+        scale_factor: factor to rescale the spatial dimensions by, must be >=1
+
+    Returns:
+        Reshuffled version of `x`.
+
+    Raises:
+        ValueError: When input channels of `x` are not divisible by (scale_factor ** spatial_dims)
+    """
+
+    dim, factor = spatial_dims, scale_factor
+    input_size = list(x.size())
+    batch_size, channels = input_size[:2]
+
+    if channels % (factor ** dim) != 0:
+        raise ValueError("PixelShuffle expects input channel to be divisible by (scale_factor ** spatial_dims).")
+
+    org_channels = channels // (factor ** dim)
+    output_size = [batch_size, org_channels] + [dim * factor for dim in input_size[2:]]
+
+    indices = list(range(2, 2 + 2 * dim))
+    indices_factor, indices_dim = indices[:dim], indices[dim:]
+    indices = [j for i in zip(indices_dim, indices_factor) for j in i]
+
+    x = x.reshape(batch_size, org_channels, *([factor] * dim + input_size[2:]))
+    x = x.permute([0, 1] + indices).reshape(output_size)
+    return x

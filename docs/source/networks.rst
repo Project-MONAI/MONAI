@@ -84,6 +84,8 @@ Blocks
 ~~~~~~~~~~~~
 .. autoclass:: UpSample
     :members:
+.. autoclass:: SubpixelUpsample
+    :members:
 
 
 Layers
