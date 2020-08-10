@@ -13,7 +13,6 @@ import unittest
 
 import torch
 from parameterized import parameterized
-
 from unet_pipe import UNetPipe
 
 TEST_CASES = [

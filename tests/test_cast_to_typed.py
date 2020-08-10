@@ -10,9 +10,11 @@
 # limitations under the License.
 
 import unittest
-import torch
+
 import numpy as np
+import torch
 from parameterized import parameterized
+
 from monai.transforms import CastToTyped
 
 TEST_CASE_1 = [

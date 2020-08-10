@@ -14,9 +14,9 @@ import unittest
 import numpy as np
 import skimage.transform
 from parameterized import parameterized
-from tests.utils import NumpyImageTestCase2D
 
 from monai.transforms import Resized
+from tests.utils import NumpyImageTestCase2D
 
 
 class TestResized(NumpyImageTestCase2D):

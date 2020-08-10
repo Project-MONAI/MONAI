@@ -135,9 +135,22 @@ TEST_CASE_9 = [
     [[1.0000, 1.0000], [1.0000, 1.0000]],
 ]
 
+TEST_CASE_10 = [  # y (1, 1, 2, 2), y_pred (1, 1, 2, 2), expected out (1, 1)
+    {
+        "y_pred": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
+        "y": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
+        "include_background": True,
+        "to_onehot_y": False,
+        "mutually_exclusive": False,
+        "logit_thresh": 0.0,
+        "other_act": torch.tanh,
+    },
+    [[0.8]],
+]
+
 
 class TestComputeMeanDice(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_9])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_9, TEST_CASE_10])
     def test_value(self, input_data, expected_value):
         result = compute_meandice(**input_data)
         np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)

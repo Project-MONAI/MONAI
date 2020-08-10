@@ -168,6 +168,30 @@ Intensity
     :members:
     :special-members: __call__
 
+`GaussianSmooth`
+""""""""""""""""
+.. autoclass:: GaussianSmooth
+    :members:
+    :special-members: __call__
+
+`RandGaussianSmooth`
+""""""""""""""""""""
+.. autoclass:: RandGaussianSmooth
+    :members:
+    :special-members: __call__
+
+`GaussianSharpen`
+"""""""""""""""""
+.. autoclass:: GaussianSharpen
+    :members:
+    :special-members: __call__
+
+`RandGaussianSharpen`
+"""""""""""""""""""""
+.. autoclass:: RandGaussianSharpen
+    :members:
+    :special-members: __call__
+
 IO
 ^^
 
@@ -570,6 +594,30 @@ Instensity (Dict)
 `MaskIntensityd`
 """"""""""""""""
 .. autoclass:: MaskIntensityd
+    :members:
+    :special-members: __call__
+
+`GaussianSmoothd`
+"""""""""""""""""
+.. autoclass:: GaussianSmoothd
+    :members:
+    :special-members: __call__
+
+`RandGaussianSmoothd`
+"""""""""""""""""""""
+.. autoclass:: RandGaussianSmoothd
+    :members:
+    :special-members: __call__
+
+`GaussianSharpend`
+""""""""""""""""""
+.. autoclass:: GaussianSharpend
+    :members:
+    :special-members: __call__
+
+`RandGaussianSharpend`
+""""""""""""""""""""""
+.. autoclass:: RandGaussianSharpend
     :members:
     :special-members: __call__
 

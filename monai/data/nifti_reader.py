@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Sequence, Union, Any
+from typing import Any, Callable, Optional, Sequence
 
 import numpy as np
 from torch.utils.data import Dataset
@@ -28,7 +28,7 @@ class NiftiDataset(Dataset, Randomizable):
         self,
         image_files: Sequence[str],
         seg_files: Optional[Sequence[str]] = None,
-        labels: Optional[Sequence[Union[int, float]]] = None,
+        labels: Optional[Sequence[float]] = None,
         as_closest_canonical: bool = False,
         transform: Optional[Callable] = None,
         seg_transform: Optional[Callable] = None,
@@ -42,7 +42,7 @@ class NiftiDataset(Dataset, Randomizable):
         Args:
             image_files: list of image filenames
             seg_files: if in segmentation task, list of segmentation filenames
-            labels (list or array): if in classification task, list of classification labels
+            labels: if in classification task, list of classification labels
             as_closest_canonical: if True, load the image as closest to canonical orientation
             transform: transform to apply to image arrays
             seg_transform: transform to apply to segmentation arrays
@@ -50,12 +50,15 @@ class NiftiDataset(Dataset, Randomizable):
             dtype: if not None convert the loaded image to this data type
 
         Raises:
-            ValueError: Must have same number of image and segmentation files
+            ValueError: When ``seg_files`` length differs from ``image_files``.
 
         """
 
         if seg_files is not None and len(image_files) != len(seg_files):
-            raise ValueError("Must have same number of image and segmentation files")
+            raise ValueError(
+                "Must have same the number of segmentation as image files: "
+                f"images={len(image_files)}, segmentations={len(seg_files)}."
+            )
 
         self.image_files = image_files
         self.seg_files = seg_files
@@ -113,4 +116,5 @@ class NiftiDataset(Dataset, Randomizable):
             data.append(meta_data)
         if len(data) == 1:
             return data[0]
-        return data
+        # use tuple instead of list as the default collate_fn callback of MONAI DataLoader flattens nested lists
+        return tuple(data)

@@ -13,10 +13,11 @@ from collections import OrderedDict
 from typing import List
 
 import torch
-from monai.networks.blocks import Convolution, UpSample
-from monai.networks.layers.factories import Act, Conv, Norm
 from torch import nn
 from torchgpipe.skip import Namespace, pop, skippable, stash
+
+from monai.networks.blocks import Convolution, UpSample
+from monai.networks.layers.factories import Act, Conv, Norm
 
 
 @skippable(stash=["skip"], pop=[])
