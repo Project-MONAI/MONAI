@@ -17,8 +17,11 @@ import cv2
 import dateutil.tz
 import numpy as np
 import torch
+
+# RGGAN Custom Libraries
 from DataPreprocessor import load_rg_data
 from Dataset import RGDataset
+from ReparameterizationTrick import ReparameterizationApply, ReparameterizationRestore, ReparameterizationUpdate
 from rggan_model import D_NET, G_NET
 from rggan_utils import weights_init
 from Transforms import CropWithBoundingBoxd
@@ -203,18 +206,25 @@ def main():
         return gen_loss
 
     # Define training event handlers.
+    checkpoint_save_interval = 50
+
     handlers = [
+        ReparameterizationUpdate(network=gen_net, update_interval=1, epoch_only=False),
         StatsHandler(
             name="training_loss",
             output_transform=lambda x: {GanKeys.GLOSS: x[GanKeys.GLOSS], GanKeys.DLOSS: x[GanKeys.DLOSS]},
         ),
+        ReparameterizationApply(
+            network=gen_net, epoch_level=True, save_final=True, save_interval=checkpoint_save_interval,
+        ),
         CheckpointSaver(
             save_dir=output_data_dir,
             save_dict={"g_net": gen_net, "d_net": disc_net},
-            save_interval=50,
             epoch_level=True,
             save_final=True,
+            save_interval=checkpoint_save_interval,
         ),
+        ReparameterizationRestore(network=gen_net, epoch_level=True, save_interval=checkpoint_save_interval,),
     ]
 
     # Create GanTrainer.
