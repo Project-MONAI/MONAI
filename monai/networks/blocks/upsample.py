@@ -71,3 +71,73 @@ class UpSample(nn.Module):
             x: Tensor in shape (batch, channel, spatial_1[, spatial_2, ...).
         """
         return torch.as_tensor(self.upsample(x))
+
+
+class SubpixelUpsample(nn.Module):
+    """
+    Upsample via using a subpixel CNN. This module supports 1D, 2D and 3D input images.
+    The module is consisted with two parts. First of all, a convolutional layer is employed
+    to increase the number of channels into: ``in_channels * (scale_factor ** spatial_dims)``.
+    Secondly, a pixel shuffle manipulation is utilized to aggregates the feature maps from
+    low resolution space and build the super resolution space.
+    The first part of the module is not fixed, a sequential layers can be used to replace the
+    default single layer.
+    The idea comes from:
+    https://arxiv.org/abs/1609.05158
+    The pixel shuffle mechanism refers to:
+    https://github.com/pytorch/pytorch/blob/master/aten/src/ATen/native/PixelShuffle.cpp
+    and:
+    https://github.com/pytorch/pytorch/pull/6340/files
+    """
+
+    def __init__(
+        self, spatial_dims: int, in_channels: int, scale_factor: int = 2, conv_block: Optional[nn.Sequential] = None,
+    ) -> None:
+        """
+        Args:
+            spatial_dims: number of spatial dimensions of the input image.
+            in_channels: number of channels of the input image.
+            scale_factor: multiplier for spatial size. Defaults to 2.
+            conv_block: a conv block to extract feature maps before upsampling. Defaults to None.
+                When ``conv_block is None``, one reserved conv layer will be utilized.
+        """
+        super().__init__()
+
+        assert scale_factor > 0, "the multiplier should be an integer and no less than 1."
+        self.spatial_dims = spatial_dims
+        self.scale_factor = scale_factor
+        if conv_block is None:
+            conv_out_channels = in_channels * (scale_factor ** spatial_dims)
+            self.conv_block = Conv[Conv.CONV, spatial_dims](
+                in_channels=in_channels, out_channels=conv_out_channels, kernel_size=3, stride=1, padding=1,
+            )
+        else:
+            self.conv_block = conv_block
+
+    def pixelshuffle(self, x: torch.Tensor) -> torch.Tensor:
+
+        dim, factor = self.spatial_dims, self.scale_factor
+        input_size = list(x.size())
+        batch_size, channels = input_size[:2]
+        assert (
+            channels % (factor ** dim) == 0
+        ), "PixelShuffle expects input channel to be divisible by (scale_factor ** spatial_dims)."
+        org_channels = channels // (factor ** dim)
+        output_size = [batch_size, org_channels] + [dim * factor for dim in input_size[2:]]
+
+        indices = list(range(2, 2 + 2 * dim))
+        indices_factor, indices_dim = indices[:dim], indices[dim:]
+        indices = [j for i in zip(indices_dim, indices_factor) for j in i]
+
+        x = x.reshape(batch_size, org_channels, *([factor] * dim + input_size[2:]))
+        x = x.permute([0, 1] + indices).reshape(output_size)
+        return x
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            x: Tensor in shape (batch, channel, spatial_1[, spatial_2, ...).
+        """
+        x = self.conv_block(x)
+        x = self.pixelshuffle(x)
+        return x
