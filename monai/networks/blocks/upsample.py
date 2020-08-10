@@ -80,8 +80,8 @@ class SubpixelUpsample(nn.Module):
     to increase the number of channels into: ``in_channels * (scale_factor ** spatial_dims)``.
     Secondly, a pixel shuffle manipulation is utilized to aggregates the feature maps from
     low resolution space and build the super resolution space.
-    The first part of the module is not fixed, a sequential layers can be used to replace a
-    single layer. 
+    The first part of the module is not fixed, a sequential layers can be used to replace the
+    default single layer. 
     The idea comes from:
     https://arxiv.org/abs/1609.05158
     The pixel shuffle mechanism refers to:
@@ -90,20 +90,29 @@ class SubpixelUpsample(nn.Module):
     https://github.com/pytorch/pytorch/pull/6340/files
     """
 
-    def __init__(self, spatial_dims: int, in_channels: int, scale_factor: int = 2,) -> None:
+    def __init__(
+        self, spatial_dims: int, in_channels: int, scale_factor: int = 2, conv_block: Optional[nn.Sequential] = None,
+    ) -> None:
         """
         Args:
             spatial_dims: number of spatial dimensions of the input image.
             in_channels: number of channels of the input image.
             scale_factor: multiplier for spatial size. Defaults to 2.
+            conv_block: a conv block to extract feature maps before upsampling. Defaults to None.
+                When ``conv_block is None``, one reserved conv layer will be utilized.
         """
         super().__init__()
-        conv_out_channels = in_channels * (scale_factor ** spatial_dims)
+
+        assert scale_factor > 0, "the multiplier should be an integer and no less than 1."
         self.spatial_dims = spatial_dims
         self.scale_factor = scale_factor
-        self.conv = Conv[Conv.CONV, spatial_dims](
-            in_channels=in_channels, out_channels=conv_out_channels, kernel_size=3, stride=1, padding=1,
-        )
+        if conv_block is None:
+            conv_out_channels = in_channels * (scale_factor ** spatial_dims)
+            self.conv_block = Conv[Conv.CONV, spatial_dims](
+                in_channels=in_channels, out_channels=conv_out_channels, kernel_size=3, stride=1, padding=1,
+            )
+        else:
+            self.conv_block = conv_block
 
     def pixelshuffle(self, x: torch.Tensor) -> torch.Tensor:
 
@@ -129,6 +138,6 @@ class SubpixelUpsample(nn.Module):
         Args:
             x: Tensor in shape (batch, channel, spatial_1[, spatial_2, ...).
         """
-        x = self.conv(x)
+        x = self.conv_block(x)
         x = self.pixelshuffle(x)
-        return torch.as_tensor(x)
+        return x

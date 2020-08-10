@@ -12,9 +12,11 @@
 import unittest
 
 import torch
+import torch.nn as nn
 from parameterized import parameterized
 
 from monai.networks.blocks import SubpixelUpsample
+from monai.networks.layers.factories import Conv
 
 TEST_CASE_SUBPIXEL = []
 for inch in range(1, 5):
@@ -36,8 +38,20 @@ TEST_CASE_SUBPIXEL_3D_EXTRA = [
     torch.randn(2, 1, 16, 8, 4),  # different size for H, W and D
     (2, 1, 32, 16, 8),
 ]
+
+conv_block = nn.Sequential(
+    Conv[Conv.CONV, 3](1, 4, kernel_size=1), Conv[Conv.CONV, 3](4, 8, kernel_size=3, stride=1, padding=1,),
+)
+
+TEST_CASE_SUBPIXEL_CONV_BLOCK_EXTRA = [
+    {"spatial_dims": 3, "in_channels": 1, "scale_factor": 2, "conv_block": conv_block},
+    torch.randn(2, 1, 16, 8, 4),  # different size for H, W and D
+    (2, 1, 32, 16, 8),
+]
+
 TEST_CASE_SUBPIXEL.append(TEST_CASE_SUBPIXEL_2D_EXTRA)
 TEST_CASE_SUBPIXEL.append(TEST_CASE_SUBPIXEL_3D_EXTRA)
+TEST_CASE_SUBPIXEL.append(TEST_CASE_SUBPIXEL_CONV_BLOCK_EXTRA)
 
 
 class TestSUBPIXEL(unittest.TestCase):
