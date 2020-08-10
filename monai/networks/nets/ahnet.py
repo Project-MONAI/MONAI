@@ -129,10 +129,10 @@ class UpTransition(nn.Sequential):
         if upsample_mode == "transpose":
             conv_trans_type = Conv[Conv.CONVTRANS, spatial_dims]
             self.add_module(
-                "pool", conv_trans_type(num_output_features, num_output_features, kernel_size=2, stride=2, bias=False)
+                "up", conv_trans_type(num_output_features, num_output_features, kernel_size=2, stride=2, bias=False)
             )
         else:
-            self.add_module("pool", nn.Upsample(scale_factor=2, mode=upsample_mode, align_corners=True))
+            self.add_module("up", nn.Upsample(scale_factor=2, mode=upsample_mode, align_corners=True))
 
 
 class Final(nn.Sequential):

@@ -16,6 +16,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from monai.networks.blocks.convolutions import Convolution
+from monai.networks.blocks.upsample import UpSample
 from monai.networks.layers.factories import Act, Conv, Norm
 from monai.utils import optional_import
 
@@ -152,9 +153,12 @@ class FCN(nn.Module):
         self.transformer = self.conv2d_type(in_channels=256, out_channels=64, kernel_size=1)
 
         if self.upsample_mode == "transpose":
-            conv2d_trans_type: Type[nn.ConvTranspose2d] = Conv[Conv.CONVTRANS, 2]
-            self.up_conv = conv2d_trans_type(
-                in_channels=self.out_channels, out_channels=self.out_channels, kernel_size=2, stride=2, bias=False,
+            self.up_conv = UpSample(
+                spatial_dims=2,
+                in_channels=self.out_channels,
+                out_channels=self.out_channels,
+                scale_factor=2,
+                with_conv=True,
             )
 
     def forward(self, x: torch.Tensor):
