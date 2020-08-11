@@ -30,18 +30,23 @@ def _build_data_dict(data_dir, image_keys, bboxes, embeddings, class_info):
     for index, image_key in enumerate(image_keys):
         img_name = os.path.join(data_dir, "images", "%s.nii.gz" % image_key)
         seg_name = os.path.join(data_dir, "segmentations", "%s.nii.gz" % image_key)
-        # base_img_name = os.path.join(data_dir, "base_images", "%s0.nii.gz" % image_key)
-        base_img_name = os.path.join(data_dir, "base_images", "%s/0.nii.gz" % image_key.split("/")[0])
+        base_images = _load_base_images(data_dir, image_key)
         data_sample = {}
         data_sample["image"] = img_name
         data_sample["seg"] = seg_name
-        data_sample["base"] = base_img_name
+        data_sample["base"] = base_images
         data_sample["bbox"] = bboxes[index]
         data_sample["embedding"] = embeddings[index, :]
         data_sample["class"] = class_info[index]
         data_samples.append(data_sample)
     return data_samples
 
+def _load_base_images(data_dir, image_key):
+    patient_dir = image_key.split("/")[0]
+    base_image_dir = os.path.join(data_dir, "base_images", patient_dir)
+    base_images = os.listdir(base_image_dir)
+    base_images_full_path = [os.path.join(base_image_dir, base_filename) for base_filename in base_images]
+    return base_images_full_path
 
 def _load_bounding_boxes(data_dir):
     # bbox = [x-left, y-top, width, height]

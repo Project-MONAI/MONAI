@@ -12,6 +12,7 @@
 import datetime
 import logging
 import sys
+import random
 
 import cv2
 import dateutil.tz
@@ -73,7 +74,7 @@ def main():
             LoadNiftid(keys=["image", "seg", "base"], dtype=np.float64),
             SqueezeDimd(keys=["embedding"], dim=0),
             CropWithBoundingBoxd(keys=["image", "seg"], bbox_key="bbox"),
-            AddChanneld(keys=["image", "seg", "base"]),
+            AddChanneld(keys=["image", "seg"]),
             ThresholdIntensityd(keys=["seg"], threshold=0.5),
             Resized(keys=["image", "seg", "base"], spatial_size=image_shape, mode=InterpolateMode.AREA),
             ThresholdIntensityd(keys=["image", "base"], threshold=-1000, above=True, cval=-1000),
@@ -104,12 +105,18 @@ def main():
 
     # Define prepare_batch for input into RGGAN G and D.
     def g_prepare_batch(batch_size, latent_size, device, batchdata):
+        global background_base
         latent_codes = default_make_latent(batch_size, latent_size, device)
         embedding = batchdata["embedding"].to(device)
-        base = batchdata["base"].to(device)  # todo - process filename in transform chain
-        global background_base
-        background_base = base
-        return (latent_codes, embedding, base)
+        # select random background images for this batch
+        base_groups = batchdata["base"]
+        curr_bgs = []
+        for bases in base_groups:
+            base_ix = random.randint(0, len(bases) - 1)
+            curr_bgs.append(bases[base_ix][None])
+        bases = torch.stack(curr_bgs).to(device)
+        background_base = bases  # save pointer to bgs for loss func
+        return (latent_codes, embedding, bases)
 
     def d_prepare_batch(batchdata, device):
         real_imgs = batchdata["image"].to(device)
