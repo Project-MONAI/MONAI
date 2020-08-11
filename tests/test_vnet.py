@@ -16,25 +16,49 @@ from parameterized import parameterized
 
 from monai.networks.nets import VNet
 
-TEST_CASE_VNET_1 = [
-    {"in_channels": 4, "out_channels": 1, "act": "elu", "dropout_dim": 1},
+TEST_CASE_VNET_2D_1 = [
+    {"spatial_dims": 2, "in_channels": 4, "out_channels": 1, "act": "elu", "dropout_dim": 1},
+    torch.randn(1, 4, 32, 32),
+    (1, 1, 32, 32),
+]
+TEST_CASE_VNET_2D_2 = [
+    {"spatial_dims": 2, "in_channels": 2, "out_channels": 2, "act": "prelu", "dropout_dim": 2},
+    torch.randn(1, 2, 32, 32),
+    (1, 2, 32, 32),
+]
+TEST_CASE_VNET_2D_3 = [
+    {"spatial_dims": 2, "in_channels": 1, "out_channels": 3, "dropout_dim": 3},
+    torch.randn(1, 1, 32, 32),
+    (1, 3, 32, 32),
+]
+TEST_CASE_VNET_3D_1 = [
+    {"spatial_dims": 3, "in_channels": 4, "out_channels": 1, "act": "elu", "dropout_dim": 1},
     torch.randn(1, 4, 32, 32, 32),
     (1, 1, 32, 32, 32),
 ]
-TEST_CASE_VNET_2 = [
-    {"in_channels": 2, "out_channels": 2, "act": "prelu", "dropout_dim": 2},
+TEST_CASE_VNET_3D_2 = [
+    {"spatial_dims": 3, "in_channels": 2, "out_channels": 2, "act": "prelu", "dropout_dim": 2},
     torch.randn(1, 2, 32, 32, 32),
     (1, 2, 32, 32, 32),
 ]
-TEST_CASE_VNET_3 = [
-    {"in_channels": 1, "out_channels": 3, "dropout_dim": 3},
+TEST_CASE_VNET_3D_3 = [
+    {"spatial_dims": 3, "in_channels": 1, "out_channels": 3, "dropout_dim": 3},
     torch.randn(1, 1, 32, 32, 32),
     (1, 3, 32, 32, 32),
 ]
 
 
 class TestVNet(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_VNET_1, TEST_CASE_VNET_2, TEST_CASE_VNET_3])
+    @parameterized.expand(
+        [
+            TEST_CASE_VNET_2D_1,
+            TEST_CASE_VNET_2D_2,
+            TEST_CASE_VNET_2D_3,
+            TEST_CASE_VNET_3D_1,
+            TEST_CASE_VNET_3D_2,
+            TEST_CASE_VNET_3D_3,
+        ]
+    )
     def test_vnet_shape(self, input_param, input_data, expected_shape):
         net = VNet(**input_param)
         net.eval()
