@@ -32,6 +32,9 @@ The examples show how to execute distributed training and evaluation based on 3 
 They can run on several distributed nodes with multiple GPU devices on every node.
 #### [notebooks/3d_image_transforms](./notebooks/3d_image_transforms.ipynb)
 This notebook demonstrates the transformations on volumetric images.
+#### [notebooks/automatic_mixed_precision](./notebooks/automatic_mixed_precision.ipynb)
+This tutorial shows how to apply the automatic mixed precision(AMP) feature of PyTorch into training and evaluation programs.
+And compares the training speed and memory usage with/without AMP.
 #### [notebooks/brats_segmentation_3d](./notebooks/brats_segmentation_3d.ipynb)
 This tutorial shows how to construct a training workflow of multi-labels segmentation task based on [MSD Brain Tumor dataset](http://medicaldecathlon.com).
 #### [notebooks/cache_dataset_speed](./notebooks/cache_dataset_speed.ipynb)
