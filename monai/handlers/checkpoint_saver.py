@@ -179,6 +179,7 @@ class CheckpointSaver:
         assert self.logger is not None
         assert hasattr(self.logger, "info"), "Error, provided logger has not info attribute."
         self.logger.info(f"Exception_raised, saved exception checkpoint: {self._final_checkpoint.last_checkpoint}")
+        raise e
 
     def metrics_completed(self, engine: Engine) -> None:
         """Callback to compare metrics and save models in train or validation when epoch completed.

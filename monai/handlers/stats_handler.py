@@ -141,8 +141,7 @@ class StatsHandler(object):
 
         """
         self.logger.exception(f"Exception: {e}")
-        # import traceback
-        # traceback.print_exc()
+        raise e
 
     def _default_epoch_print(self, engine: Engine) -> None:
         """
