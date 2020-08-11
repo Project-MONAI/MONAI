@@ -108,13 +108,13 @@ class FCN(nn.Module):
 
     Args:
         out_channels: number of output channels. Defaults to 1.
-        upsample_mode: The mode of upsampling manipulations, there are three choices:
+        upsample_mode: The mode of upsampling manipulations, there are two choices:
             1) "transpose", uses transposed convolution layers.
-            2) "bilinear", uses standard interpolate way.
+            2) "bilinear", uses bilinear interpolate.
             Using the second mode cannot guarantee the model's reproducibility. Defaults to "bilinear".
     """
 
-    def __init__(self, out_channels: int = 1, upsample_mode: str = "transpose"):
+    def __init__(self, out_channels: int = 1, upsample_mode: str = "bilinear"):
         super(FCN, self).__init__()
 
         conv2d_type: Type[nn.Conv2d] = Conv[Conv.CONV, 2]
@@ -216,13 +216,13 @@ class MCFCN(FCN):
     Args:
         in_channels: number of input channels. Defaults to 3.
         out_channels: number of output channels. Defaults to 1.
-        upsample_mode: The mode of upsampling manipulations, there are three choices:
+        upsample_mode: The mode of upsampling manipulations, there are two choices:
             1) "transpose", uses transposed convolution layers.
-            2) "bilinear", uses standard interpolate way.
+            2) "bilinear", uses bilinear interpolate.
             Using the second mode cannot guarantee the model's reproducibility. Defaults to "bilinear".
     """
 
-    def __init__(self, in_channels: int = 3, out_channels: int = 1, upsample_mode: str = "transpose"):
+    def __init__(self, in_channels: int = 3, out_channels: int = 1, upsample_mode: str = "bilinear"):
         super(MCFCN, self).__init__(out_channels=out_channels, upsample_mode=upsample_mode)
 
         self.init_proj = Convolution(

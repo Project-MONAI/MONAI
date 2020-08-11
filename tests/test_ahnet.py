@@ -79,3 +79,7 @@ class TestAHNET(unittest.TestCase):
         with torch.no_grad():
             result = net.forward(input_data)
             self.assertEqual(result.shape, expected_shape)
+
+
+if __name__ == "__main__":
+    unittest.main()
