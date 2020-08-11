@@ -44,9 +44,9 @@ class Bottleneck3x3x1(nn.Module):
         self.conv2 = conv_type(
             planes,
             planes,
-            kernel_size=(3, 3, 1)[3 - spatial_dims :],
+            kernel_size=(3, 3, 1)[-spatial_dims:],
             stride=stride,
-            padding=(1, 1, 0)[3 - spatial_dims :],
+            padding=(1, 1, 0)[-spatial_dims:],
             bias=False,
         )
         self.bn2 = norm_type(planes)
@@ -55,7 +55,7 @@ class Bottleneck3x3x1(nn.Module):
         self.relu = relu_type(inplace=True)
         self.downsample = downsample
         self.stride = stride
-        self.pool = pool_type(kernel_size=(1, 1, 2)[3 - spatial_dims :], stride=(1, 1, 2)[3 - spatial_dims :])
+        self.pool = pool_type(kernel_size=(1, 1, 2)[-spatial_dims:], stride=(1, 1, 2)[-spatial_dims:])
 
     def forward(self, x):
         residual = x
@@ -152,9 +152,9 @@ class Final(nn.Sequential):
             conv_type(
                 num_input_features,
                 num_output_features,
-                kernel_size=(3, 3, 1)[3 - spatial_dims :],
+                kernel_size=(3, 3, 1)[-spatial_dims:],
                 stride=1,
-                padding=(1, 1, 0)[3 - spatial_dims :],
+                padding=(1, 1, 0)[-spatial_dims:],
                 bias=False,
             ),
         )
@@ -185,9 +185,9 @@ class Pseudo3DLayer(nn.Module):
         self.conv2 = conv_type(
             bn_size * growth_rate,
             growth_rate,
-            kernel_size=(3, 3, 1)[3 - spatial_dims :],
+            kernel_size=(3, 3, 1)[-spatial_dims:],
             stride=1,
-            padding=(1, 1, 0)[3 - spatial_dims :],
+            padding=(1, 1, 0)[-spatial_dims:],
             bias=False,
         )
         # 1x1x3
@@ -196,9 +196,9 @@ class Pseudo3DLayer(nn.Module):
         self.conv3 = conv_type(
             growth_rate,
             growth_rate,
-            kernel_size=(1, 1, 3)[3 - spatial_dims :],
+            kernel_size=(1, 1, 3)[-spatial_dims:],
             stride=1,
-            padding=(0, 0, 1)[3 - spatial_dims :],
+            padding=(0, 0, 1)[-spatial_dims:],
             bias=False,
         )
         # 1x1x1
@@ -240,22 +240,22 @@ class PSP(nn.Module):
         conv_type = Conv[Conv.CONV, spatial_dims]
         pool_type: Type[Union[nn.MaxPool2d, nn.MaxPool3d]] = Pool[Pool.MAX, spatial_dims]
 
-        self.pool64 = pool_type(kernel_size=(64, 64, 1)[3 - spatial_dims :], stride=(64, 64, 1)[3 - spatial_dims :])
-        self.pool32 = pool_type(kernel_size=(32, 32, 1)[3 - spatial_dims :], stride=(32, 32, 1)[3 - spatial_dims :])
-        self.pool16 = pool_type(kernel_size=(16, 16, 1)[3 - spatial_dims :], stride=(16, 16, 1)[3 - spatial_dims :])
-        self.pool8 = pool_type(kernel_size=(8, 8, 1)[3 - spatial_dims :], stride=(8, 8, 1)[3 - spatial_dims :])
+        self.pool64 = pool_type(kernel_size=(64, 64, 1)[-spatial_dims:], stride=(64, 64, 1)[-spatial_dims:])
+        self.pool32 = pool_type(kernel_size=(32, 32, 1)[-spatial_dims:], stride=(32, 32, 1)[-spatial_dims:])
+        self.pool16 = pool_type(kernel_size=(16, 16, 1)[-spatial_dims:], stride=(16, 16, 1)[-spatial_dims:])
+        self.pool8 = pool_type(kernel_size=(8, 8, 1)[-spatial_dims:], stride=(8, 8, 1)[-spatial_dims:])
 
         self.proj64 = conv_type(
-            in_ch, 1, kernel_size=(1, 1, 1)[3 - spatial_dims :], stride=1, padding=(1, 1, 0)[3 - spatial_dims :]
+            in_ch, 1, kernel_size=(1, 1, 1)[-spatial_dims:], stride=1, padding=(1, 1, 0)[-spatial_dims:]
         )
         self.proj32 = conv_type(
-            in_ch, 1, kernel_size=(1, 1, 1)[3 - spatial_dims :], stride=1, padding=(1, 1, 0)[3 - spatial_dims :]
+            in_ch, 1, kernel_size=(1, 1, 1)[-spatial_dims:], stride=1, padding=(1, 1, 0)[-spatial_dims:]
         )
         self.proj16 = conv_type(
-            in_ch, 1, kernel_size=(1, 1, 1)[3 - spatial_dims :], stride=1, padding=(1, 1, 0)[3 - spatial_dims :]
+            in_ch, 1, kernel_size=(1, 1, 1)[-spatial_dims:], stride=1, padding=(1, 1, 0)[-spatial_dims:]
         )
         self.proj8 = conv_type(
-            in_ch, 1, kernel_size=(1, 1, 1)[3 - spatial_dims :], stride=1, padding=(1, 1, 0)[3 - spatial_dims :]
+            in_ch, 1, kernel_size=(1, 1, 1)[-spatial_dims:], stride=1, padding=(1, 1, 0)[-spatial_dims:]
         )
 
         self.upsample_mode = upsample_mode
@@ -265,30 +265,30 @@ class PSP(nn.Module):
             self.up64 = conv_trans_type(
                 1,
                 1,
-                kernel_size=(64, 64, 1)[3 - spatial_dims :],
-                stride=(64, 64, 1)[3 - spatial_dims :],
-                padding=(64, 64, 0)[3 - spatial_dims :],
+                kernel_size=(64, 64, 1)[-spatial_dims:],
+                stride=(64, 64, 1)[-spatial_dims:],
+                padding=(64, 64, 0)[-spatial_dims:],
             )
             self.up32 = conv_trans_type(
                 1,
                 1,
-                kernel_size=(32, 32, 1)[3 - spatial_dims :],
-                stride=(32, 32, 1)[3 - spatial_dims :],
-                padding=(32, 32, 0)[3 - spatial_dims :],
+                kernel_size=(32, 32, 1)[-spatial_dims:],
+                stride=(32, 32, 1)[-spatial_dims:],
+                padding=(32, 32, 0)[-spatial_dims:],
             )
             self.up16 = conv_trans_type(
                 1,
                 1,
-                kernel_size=(16, 16, 1)[3 - spatial_dims :],
-                stride=(16, 16, 1)[3 - spatial_dims :],
-                padding=(16, 16, 0)[3 - spatial_dims :],
+                kernel_size=(16, 16, 1)[-spatial_dims:],
+                stride=(16, 16, 1)[-spatial_dims:],
+                padding=(16, 16, 0)[-spatial_dims:],
             )
             self.up8 = conv_trans_type(
                 1,
                 1,
-                kernel_size=(8, 8, 1)[3 - spatial_dims :],
-                stride=(8, 8, 1)[3 - spatial_dims :],
-                padding=(8, 8, 0)[3 - spatial_dims :],
+                kernel_size=(8, 8, 1)[-spatial_dims:],
+                stride=(8, 8, 1)[-spatial_dims:],
+                padding=(8, 8, 0)[-spatial_dims:],
             )
 
     def forward(self, x):
@@ -369,18 +369,18 @@ class AHNet(nn.Module):
         self.conv1 = conv_type(
             1,
             64,
-            kernel_size=(7, 7, 3)[3 - spatial_dims :],
-            stride=(2, 2, 1)[3 - spatial_dims :],
-            padding=(3, 3, 1)[3 - spatial_dims :],
+            kernel_size=(7, 7, 3)[-spatial_dims:],
+            stride=(2, 2, 1)[-spatial_dims:],
+            padding=(3, 3, 1)[-spatial_dims:],
             bias=False,
         )
-        self.pool1 = pool_type(kernel_size=(1, 1, 2)[3 - spatial_dims :], stride=(1, 1, 2)[3 - spatial_dims :])
+        self.pool1 = pool_type(kernel_size=(1, 1, 2)[-spatial_dims:], stride=(1, 1, 2)[-spatial_dims:])
         self.bn0 = norm_type(64)
         self.relu = relu_type(inplace=True)
         if upsample_mode == "transpose":
-            self.maxpool = pool_type(kernel_size=(2, 2, 2)[3 - spatial_dims :], stride=2)
+            self.maxpool = pool_type(kernel_size=(2, 2, 2)[-spatial_dims:], stride=2)
         else:
-            self.maxpool = pool_type(kernel_size=(3, 3, 3)[3 - spatial_dims :], stride=2, padding=1)
+            self.maxpool = pool_type(kernel_size=(3, 3, 3)[-spatial_dims:], stride=2, padding=1)
 
         self.layer1 = self._make_layer(Bottleneck3x3x1, 64, layers[0], stride=1)
         self.layer2 = self._make_layer(Bottleneck3x3x1, 128, layers[1], stride=2)
