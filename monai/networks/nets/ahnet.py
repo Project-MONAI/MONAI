@@ -320,7 +320,7 @@ class AHNet(nn.Module):
     Anisotropic Hybrid Network (AH-Net).
     The code is adapted from lsqshr's original version:
     https://github.com/lsqshr/AH-Net/blob/master/net3d.py
-    The model supports 2D or 3D inputs, as for the original 3D version, in order to use pretrained weights 
+    The model supports 2D or 3D inputs, as for the original 3D version, in order to use pretrained weights
     from 2D FCN/MCFCN, please call the copy_from function.
     To meet to requirements of the structure, the input size of the first ``dim-1`` dimensions should be divided
     by 32 and no less than 128. If you need to use lower sizes, please reduce the largest blocks in PSP
