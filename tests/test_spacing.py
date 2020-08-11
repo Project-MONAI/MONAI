@@ -37,7 +37,7 @@ TEST_CASES = [
         np.array([[[[1.0, 1.0]], [[1.0, 1.0]]]]),
     ],
     [
-        {"pixdim": (1.0, 0.2, 1.5), "diagonal": False, "padding_mode": "zeros"},
+        {"pixdim": (1.0, 0.2, 1.5), "diagonal": False, "padding_mode": "zeros", "align_corners": True},
         np.ones((1, 2, 1, 2)),  # data
         {"affine": np.array([[2, 1, 0, 4], [-1, -3, 0, 5], [0, 0, 2.0, 5], [0, 0, 0, 1]])},
         np.array([[[[0.95527864, 0.95527864]], [[1.0, 1.0]], [[1.0, 1.0]]]]),

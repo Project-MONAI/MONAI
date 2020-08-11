@@ -15,13 +15,22 @@ from typing import Callable, Sequence, Type, Union
 import torch
 import torch.nn as nn
 
-from monai.networks.layers.factories import Conv, Dropout, Pool, Norm
+from monai.networks.layers.factories import Conv, Dropout, Norm, Pool
 
 
 class _DenseLayer(nn.Sequential):
     def __init__(
         self, spatial_dims: int, in_channels: int, growth_rate: int, bn_size: int, dropout_prob: float
     ) -> None:
+        """
+        Args:
+            spatial_dims: number of spatial dimensions of the input image.
+            in_channels: number of the input channel.
+            growth_rate: how many filters to add each layer (k in paper).
+            bn_size: multiplicative factor for number of bottle neck layers.
+                (i.e. bn_size * k features in the bottleneck layer)
+            dropout_prob: dropout rate after each dense layer.
+        """
         super(_DenseLayer, self).__init__()
 
         out_channels = bn_size * growth_rate
@@ -40,7 +49,7 @@ class _DenseLayer(nn.Sequential):
         if dropout_prob > 0:
             self.add_module("dropout", dropout_type(dropout_prob))
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         new_features = super(_DenseLayer, self).forward(x)
         return torch.cat([x, new_features], 1)
 
@@ -49,6 +58,16 @@ class _DenseBlock(nn.Sequential):
     def __init__(
         self, spatial_dims: int, layers: int, in_channels: int, bn_size: int, growth_rate: int, dropout_prob: float
     ) -> None:
+        """
+        Args:
+            spatial_dims: number of spatial dimensions of the input image.
+            layers: number of layers in the block.
+            in_channels: number of the input channel.
+            bn_size: multiplicative factor for number of bottle neck layers.
+                (i.e. bn_size * k features in the bottleneck layer)
+            growth_rate: how many filters to add each layer (k in paper).
+            dropout_prob: dropout rate after each dense layer.
+        """
         super(_DenseBlock, self).__init__()
         for i in range(layers):
             layer = _DenseLayer(spatial_dims, in_channels, growth_rate, bn_size, dropout_prob)
@@ -58,6 +77,12 @@ class _DenseBlock(nn.Sequential):
 
 class _Transition(nn.Sequential):
     def __init__(self, spatial_dims: int, in_channels: int, out_channels: int) -> None:
+        """
+        Args:
+            spatial_dims: number of spatial dimensions of the input image.
+            in_channels: number of the input channel.
+            out_channels: number of the output classes.
+        """
         super(_Transition, self).__init__()
 
         conv_type: Callable = Conv[Conv.CONV, spatial_dims]
@@ -84,7 +109,7 @@ class DenseNet(nn.Module):
         growth_rate: how many filters to add each layer (k in paper).
         block_config: how many layers in each pooling block.
         bn_size: multiplicative factor for number of bottle neck layers.
-                      (i.e. bn_size * k features in the bottleneck layer)
+            (i.e. bn_size * k features in the bottleneck layer)
         dropout_prob: dropout rate after each dense layer.
     """
 
@@ -146,7 +171,7 @@ class DenseNet(nn.Module):
                 [
                     ("relu", nn.ReLU(inplace=True)),
                     ("norm", avg_pool_type(1)),
-                    ("flatten", nn.Flatten(1)),  # type: ignore # Module has no attribute
+                    ("flatten", nn.Flatten(1)),
                     ("class", nn.Linear(in_channels, out_channels)),
                 ]
             )
@@ -154,14 +179,14 @@ class DenseNet(nn.Module):
 
         for m in self.modules():
             if isinstance(m, conv_type):
-                nn.init.kaiming_normal_(m.weight)
+                nn.init.kaiming_normal_(torch.as_tensor(m.weight))
             elif isinstance(m, norm_type):
-                nn.init.constant_(m.weight, 1)
-                nn.init.constant_(m.bias, 0)
+                nn.init.constant_(torch.as_tensor(m.weight), 1)
+                nn.init.constant_(torch.as_tensor(m.bias), 0)
             elif isinstance(m, nn.Linear):
-                nn.init.constant_(m.bias, 0)
+                nn.init.constant_(torch.as_tensor(m.bias), 0)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.features(x)
         x = self.class_layers(x)
         return x
