@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import math
-from typing import Optional, Tuple, Type, Union
+from typing import Optional, Sequence, Type, Union
 
 import torch
 import torch.nn as nn
@@ -25,29 +25,37 @@ class Bottleneck3x3x1(nn.Module):
 
     def __init__(
         self,
+        spatial_dims: int,
         inplanes: int,
         planes: int,
-        stride: Union[int, Tuple[int, int, int]] = 1,
+        stride: Union[Sequence[int], int] = 1,
         downsample: Optional[nn.Sequential] = None,
     ) -> None:
 
         super(Bottleneck3x3x1, self).__init__()
 
-        conv3d_type: Type[nn.Conv3d] = Conv[Conv.CONV, 3]
-        norm3d_type: Type[nn.BatchNorm3d] = Norm[Norm.BATCH, 3]
+        conv_type = Conv[Conv.CONV, spatial_dims]
+        norm_type: Type[Union[nn.BatchNorm2d, nn.BatchNorm3d]] = Norm[Norm.BATCH, spatial_dims]
+        pool_type: Type[Union[nn.MaxPool2d, nn.MaxPool3d]] = Pool[Pool.MAX, spatial_dims]
         relu_type: Type[nn.ReLU] = Act[Act.RELU]
-        pool3d_type: Type[nn.MaxPool3d] = Pool[Pool.MAX, 3]
 
-        self.conv1 = conv3d_type(inplanes, planes, kernel_size=1, bias=False)
-        self.bn1 = norm3d_type(planes)
-        self.conv2 = conv3d_type(planes, planes, kernel_size=(3, 3, 1), stride=stride, padding=(1, 1, 0), bias=False,)
-        self.bn2 = norm3d_type(planes)
-        self.conv3 = conv3d_type(planes, planes * 4, kernel_size=1, bias=False)
-        self.bn3 = norm3d_type(planes * 4)
+        self.conv1 = conv_type(inplanes, planes, kernel_size=1, bias=False)
+        self.bn1 = norm_type(planes)
+        self.conv2 = conv_type(
+            planes,
+            planes,
+            kernel_size=(3, 3, 1)[-spatial_dims:],
+            stride=stride,
+            padding=(1, 1, 0)[-spatial_dims:],
+            bias=False,
+        )
+        self.bn2 = norm_type(planes)
+        self.conv3 = conv_type(planes, planes * 4, kernel_size=1, bias=False)
+        self.bn3 = norm_type(planes * 4)
         self.relu = relu_type(inplace=True)
         self.downsample = downsample
         self.stride = stride
-        self.pool = pool3d_type(kernel_size=(1, 1, 2), stride=(1, 1, 2))
+        self.pool = pool_type(kernel_size=(1, 1, 2)[-spatial_dims:], stride=(1, 1, 2)[-spatial_dims:])
 
     def forward(self, x):
         residual = x
@@ -75,109 +83,128 @@ class Bottleneck3x3x1(nn.Module):
 
 
 class Projection(nn.Sequential):
-    def __init__(self, num_input_features: int, num_output_features: int):
+    def __init__(self, spatial_dims: int, num_input_features: int, num_output_features: int):
         super(Projection, self).__init__()
 
-        conv3d_type: Type[nn.Conv3d] = Conv[Conv.CONV, 3]
-        norm3d_type: Type[nn.BatchNorm3d] = Norm[Norm.BATCH, 3]
+        conv_type = Conv[Conv.CONV, spatial_dims]
+        norm_type: Type[Union[nn.BatchNorm2d, nn.BatchNorm3d]] = Norm[Norm.BATCH, spatial_dims]
         relu_type: Type[nn.ReLU] = Act[Act.RELU]
 
-        self.add_module("norm", norm3d_type(num_input_features))
+        self.add_module("norm", norm_type(num_input_features))
         self.add_module("relu", relu_type(inplace=True))
-        self.add_module("conv", nn.Conv3d(num_input_features, num_output_features, kernel_size=1, stride=1, bias=False))
+        self.add_module("conv", conv_type(num_input_features, num_output_features, kernel_size=1, stride=1, bias=False))
 
 
 class DenseBlock(nn.Sequential):
-    def __init__(self, num_layers: int, num_input_features: int, bn_size: int, growth_rate: int, dropout_prob: float):
+    def __init__(
+        self,
+        spatial_dims: int,
+        num_layers: int,
+        num_input_features: int,
+        bn_size: int,
+        growth_rate: int,
+        dropout_prob: float,
+    ):
         super(DenseBlock, self).__init__()
         for i in range(num_layers):
-            layer = Pseudo3DLayer(num_input_features + i * growth_rate, growth_rate, bn_size, dropout_prob)
+            layer = Pseudo3DLayer(
+                spatial_dims, num_input_features + i * growth_rate, growth_rate, bn_size, dropout_prob
+            )
             self.add_module("denselayer%d" % (i + 1), layer)
 
 
 class UpTransition(nn.Sequential):
-    def __init__(self, num_input_features: int, num_output_features: int, upsample_mode: str = "transpose"):
+    def __init__(
+        self, spatial_dims: int, num_input_features: int, num_output_features: int, upsample_mode: str = "trilinear"
+    ):
         super(UpTransition, self).__init__()
 
-        conv3d_type: Type[nn.Conv3d] = Conv[Conv.CONV, 3]
-        norm3d_type: Type[nn.BatchNorm3d] = Norm[Norm.BATCH, 3]
+        conv_type = Conv[Conv.CONV, spatial_dims]
+        norm_type: Type[Union[nn.BatchNorm2d, nn.BatchNorm3d]] = Norm[Norm.BATCH, spatial_dims]
         relu_type: Type[nn.ReLU] = Act[Act.RELU]
 
-        self.add_module("norm", norm3d_type(num_input_features))
+        self.add_module("norm", norm_type(num_input_features))
         self.add_module("relu", relu_type(inplace=True))
-        self.add_module(
-            "conv", conv3d_type(num_input_features, num_output_features, kernel_size=1, stride=1, bias=False)
-        )
+        self.add_module("conv", conv_type(num_input_features, num_output_features, kernel_size=1, stride=1, bias=False))
         if upsample_mode == "transpose":
-            conv3d_trans_type: Type[nn.ConvTranspose3d] = Conv[Conv.CONVTRANS, 3]
+            conv_trans_type = Conv[Conv.CONVTRANS, spatial_dims]
             self.add_module(
-                "pool", conv3d_trans_type(num_output_features, num_output_features, kernel_size=2, stride=2, bias=False)
+                "up", conv_trans_type(num_output_features, num_output_features, kernel_size=2, stride=2, bias=False)
             )
-        elif upsample_mode == "interpolate":
-            self.add_module("pool", nn.Upsample(scale_factor=2, mode="trilinear", align_corners=True))
         else:
-            raise NotImplementedError(
-                f"Currently only 'transpose' and 'interpolate' modes are supported, got {upsample_mode}."
-            )
+            self.add_module("up", nn.Upsample(scale_factor=2, mode=upsample_mode, align_corners=True))
 
 
 class Final(nn.Sequential):
-    def __init__(self, num_input_features: int, num_output_features: int, upsample_mode: str = "transpose"):
+    def __init__(
+        self, spatial_dims: int, num_input_features: int, num_output_features: int, upsample_mode: str = "trilinear"
+    ):
         super(Final, self).__init__()
 
-        conv3d_type: Type[nn.Conv3d] = Conv[Conv.CONV, 3]
-        norm3d_type: Type[nn.BatchNorm3d] = Norm[Norm.BATCH, 3]
+        conv_type = Conv[Conv.CONV, spatial_dims]
+        norm_type: Type[Union[nn.BatchNorm2d, nn.BatchNorm3d]] = Norm[Norm.BATCH, spatial_dims]
         relu_type: Type[nn.ReLU] = Act[Act.RELU]
 
-        self.add_module("norm", norm3d_type(num_input_features))
+        self.add_module("norm", norm_type(num_input_features))
         self.add_module("relu", relu_type(inplace=True))
         self.add_module(
             "conv",
-            conv3d_type(
-                num_input_features, num_output_features, kernel_size=(3, 3, 1), stride=1, padding=(1, 1, 0), bias=False
+            conv_type(
+                num_input_features,
+                num_output_features,
+                kernel_size=(3, 3, 1)[-spatial_dims:],
+                stride=1,
+                padding=(1, 1, 0)[-spatial_dims:],
+                bias=False,
             ),
         )
         if upsample_mode == "transpose":
-            conv3d_trans_type: Type[nn.ConvTranspose3d] = Conv[Conv.CONVTRANS, 3]
+            conv_trans_type = Conv[Conv.CONVTRANS, spatial_dims]
             self.add_module(
-                "up", conv3d_trans_type(num_output_features, num_output_features, kernel_size=2, stride=2, bias=False)
+                "up", conv_trans_type(num_output_features, num_output_features, kernel_size=2, stride=2, bias=False)
             )
-        elif upsample_mode == "interpolate":
-            self.add_module("up", nn.Upsample(scale_factor=2, mode="trilinear", align_corners=True))
         else:
-            raise NotImplementedError(
-                f"Currently only 'transpose' and 'interpolate' modes are supported, got {upsample_mode}."
-            )
+            self.add_module("up", nn.Upsample(scale_factor=2, mode=upsample_mode, align_corners=True))
 
 
 class Pseudo3DLayer(nn.Module):
-    def __init__(self, num_input_features: int, growth_rate: int, bn_size: int, dropout_prob: float):
+    def __init__(self, spatial_dims: int, num_input_features: int, growth_rate: int, bn_size: int, dropout_prob: float):
         super(Pseudo3DLayer, self).__init__()
         # 1x1x1
 
-        conv3d_type: Type[nn.Conv3d] = Conv[Conv.CONV, 3]
-        norm3d_type: Type[nn.BatchNorm3d] = Norm[Norm.BATCH, 3]
+        conv_type = Conv[Conv.CONV, spatial_dims]
+        norm_type: Type[Union[nn.BatchNorm2d, nn.BatchNorm3d]] = Norm[Norm.BATCH, spatial_dims]
         relu_type: Type[nn.ReLU] = Act[Act.RELU]
 
-        self.bn1 = norm3d_type(num_input_features)
+        self.bn1 = norm_type(num_input_features)
         self.relu1 = relu_type(inplace=True)
-        self.conv1 = conv3d_type(num_input_features, bn_size * growth_rate, kernel_size=1, stride=1, bias=False)
+        self.conv1 = conv_type(num_input_features, bn_size * growth_rate, kernel_size=1, stride=1, bias=False)
         # 3x3x1
-        self.bn2 = norm3d_type(bn_size * growth_rate)
+        self.bn2 = norm_type(bn_size * growth_rate)
         self.relu2 = relu_type(inplace=True)
-        self.conv2 = conv3d_type(
-            bn_size * growth_rate, growth_rate, kernel_size=(3, 3, 1), stride=1, padding=(1, 1, 0), bias=False
+        self.conv2 = conv_type(
+            bn_size * growth_rate,
+            growth_rate,
+            kernel_size=(3, 3, 1)[-spatial_dims:],
+            stride=1,
+            padding=(1, 1, 0)[-spatial_dims:],
+            bias=False,
         )
         # 1x1x3
-        self.bn3 = norm3d_type(growth_rate)
+        self.bn3 = norm_type(growth_rate)
         self.relu3 = relu_type(inplace=True)
-        self.conv3 = conv3d_type(
-            growth_rate, growth_rate, kernel_size=(1, 1, 3), stride=1, padding=(0, 0, 1), bias=False
+        self.conv3 = conv_type(
+            growth_rate,
+            growth_rate,
+            kernel_size=(1, 1, 3)[-spatial_dims:],
+            stride=1,
+            padding=(0, 0, 1)[-spatial_dims:],
+            bias=False,
         )
         # 1x1x1
-        self.bn4 = norm3d_type(growth_rate)
+        self.bn4 = norm_type(growth_rate)
         self.relu4 = relu_type(inplace=True)
-        self.conv4 = conv3d_type(growth_rate, growth_rate, kernel_size=1, stride=1, bias=False)
+        self.conv4 = conv_type(growth_rate, growth_rate, kernel_size=1, stride=1, bias=False)
         self.dropout_prob = dropout_prob
 
     def forward(self, x):
@@ -207,29 +234,62 @@ class Pseudo3DLayer(nn.Module):
 
 
 class PSP(nn.Module):
-    def __init__(self, in_ch: int, upsample_mode: str = "transpose"):
+    def __init__(self, spatial_dims: int, in_ch: int, upsample_mode: str = "trilinear"):
         super(PSP, self).__init__()
 
-        conv3d_type: Type[nn.Conv3d] = Conv[Conv.CONV, 3]
-        pool3d_type: Type[nn.MaxPool3d] = Pool[Pool.MAX, 3]
+        conv_type = Conv[Conv.CONV, spatial_dims]
+        pool_type: Type[Union[nn.MaxPool2d, nn.MaxPool3d]] = Pool[Pool.MAX, spatial_dims]
 
-        self.pool64 = pool3d_type(kernel_size=(64, 64, 1), stride=(64, 64, 1))
-        self.pool32 = pool3d_type(kernel_size=(32, 32, 1), stride=(32, 32, 1))
-        self.pool16 = pool3d_type(kernel_size=(16, 16, 1), stride=(16, 16, 1))
-        self.pool8 = pool3d_type(kernel_size=(8, 8, 1), stride=(8, 8, 1))
+        self.pool64 = pool_type(kernel_size=(64, 64, 1)[-spatial_dims:], stride=(64, 64, 1)[-spatial_dims:])
+        self.pool32 = pool_type(kernel_size=(32, 32, 1)[-spatial_dims:], stride=(32, 32, 1)[-spatial_dims:])
+        self.pool16 = pool_type(kernel_size=(16, 16, 1)[-spatial_dims:], stride=(16, 16, 1)[-spatial_dims:])
+        self.pool8 = pool_type(kernel_size=(8, 8, 1)[-spatial_dims:], stride=(8, 8, 1)[-spatial_dims:])
 
-        self.proj64 = conv3d_type(in_ch, 1, kernel_size=(1, 1, 1), stride=1, padding=(1, 1, 0))
-        self.proj32 = conv3d_type(in_ch, 1, kernel_size=(1, 1, 1), stride=1, padding=(1, 1, 0))
-        self.proj16 = conv3d_type(in_ch, 1, kernel_size=(1, 1, 1), stride=1, padding=(1, 1, 0))
-        self.proj8 = conv3d_type(in_ch, 1, kernel_size=(1, 1, 1), stride=1, padding=(1, 1, 0))
+        self.proj64 = conv_type(
+            in_ch, 1, kernel_size=(1, 1, 1)[-spatial_dims:], stride=1, padding=(1, 1, 0)[-spatial_dims:]
+        )
+        self.proj32 = conv_type(
+            in_ch, 1, kernel_size=(1, 1, 1)[-spatial_dims:], stride=1, padding=(1, 1, 0)[-spatial_dims:]
+        )
+        self.proj16 = conv_type(
+            in_ch, 1, kernel_size=(1, 1, 1)[-spatial_dims:], stride=1, padding=(1, 1, 0)[-spatial_dims:]
+        )
+        self.proj8 = conv_type(
+            in_ch, 1, kernel_size=(1, 1, 1)[-spatial_dims:], stride=1, padding=(1, 1, 0)[-spatial_dims:]
+        )
 
         self.upsample_mode = upsample_mode
+        self.spatial_dims = spatial_dims
         if self.upsample_mode == "transpose":
-            conv3d_trans_type: Type[nn.ConvTranspose3d] = Conv[Conv.CONVTRANS, 3]
-            self.up64 = conv3d_trans_type(1, 1, kernel_size=(64, 64, 1), stride=(64, 64, 1), padding=(64, 64, 0))
-            self.up32 = conv3d_trans_type(1, 1, kernel_size=(32, 32, 1), stride=(32, 32, 1), padding=(32, 32, 0))
-            self.up16 = conv3d_trans_type(1, 1, kernel_size=(16, 16, 1), stride=(16, 16, 1), padding=(16, 16, 0))
-            self.up8 = conv3d_trans_type(1, 1, kernel_size=(8, 8, 1), stride=(8, 8, 1), padding=(8, 8, 0))
+            conv_trans_type = Conv[Conv.CONVTRANS, spatial_dims]
+            self.up64 = conv_trans_type(
+                1,
+                1,
+                kernel_size=(64, 64, 1)[-spatial_dims:],
+                stride=(64, 64, 1)[-spatial_dims:],
+                padding=(64, 64, 0)[-spatial_dims:],
+            )
+            self.up32 = conv_trans_type(
+                1,
+                1,
+                kernel_size=(32, 32, 1)[-spatial_dims:],
+                stride=(32, 32, 1)[-spatial_dims:],
+                padding=(32, 32, 0)[-spatial_dims:],
+            )
+            self.up16 = conv_trans_type(
+                1,
+                1,
+                kernel_size=(16, 16, 1)[-spatial_dims:],
+                stride=(16, 16, 1)[-spatial_dims:],
+                padding=(16, 16, 0)[-spatial_dims:],
+            )
+            self.up8 = conv_trans_type(
+                1,
+                1,
+                kernel_size=(8, 8, 1)[-spatial_dims:],
+                stride=(8, 8, 1)[-spatial_dims:],
+                padding=(8, 8, 0)[-spatial_dims:],
+            )
 
     def forward(self, x):
         if self.upsample_mode == "transpose":
@@ -237,31 +297,19 @@ class PSP(nn.Module):
             x32 = self.up32(self.proj32(self.pool32(x)))
             x16 = self.up16(self.proj16(self.pool16(x)))
             x8 = self.up8(self.proj8(self.pool8(x)))
-        elif self.upsample_mode == "interpolate":
+        else:
+            interpolate_size = tuple(x.size()[2:])
             x64 = F.interpolate(
-                self.proj64(self.pool64(x)),
-                size=(x.size(2), x.size(3), x.size(4)),
-                mode="trilinear",
-                align_corners=True,
+                self.proj64(self.pool64(x)), size=interpolate_size, mode=self.upsample_mode, align_corners=True,
             )
             x32 = F.interpolate(
-                self.proj32(self.pool32(x)),
-                size=(x.size(2), x.size(3), x.size(4)),
-                mode="trilinear",
-                align_corners=True,
+                self.proj32(self.pool32(x)), size=interpolate_size, mode=self.upsample_mode, align_corners=True,
             )
             x16 = F.interpolate(
-                self.proj16(self.pool16(x)),
-                size=(x.size(2), x.size(3), x.size(4)),
-                mode="trilinear",
-                align_corners=True,
+                self.proj16(self.pool16(x)), size=interpolate_size, mode=self.upsample_mode, align_corners=True,
             )
             x8 = F.interpolate(
-                self.proj8(self.pool8(x)), size=(x.size(2), x.size(3), x.size(4)), mode="trilinear", align_corners=True
-            )
-        else:
-            raise NotImplementedError(
-                f"Currently only 'transpose' and 'interpolate' modes are supported, got {self.upsample_mode}."
+                self.proj8(self.pool8(x)), size=interpolate_size, mode=self.upsample_mode, align_corners=True,
             )
         x = torch.cat((x64, x32, x16, x8), dim=1)
         return x
@@ -272,53 +320,67 @@ class AHNet(nn.Module):
     Anisotropic Hybrid Network (AH-Net).
     The code is adapted from lsqshr's original version:
     https://github.com/lsqshr/AH-Net/blob/master/net3d.py
-    In order to use pretrained weights from 2D FCN/MCFCN, please call the copy_from function.
-    In the default settings (same as the author's official code), the input size of the first two dimensions should be divided
+    The model supports 2D or 3D inputs, as for the original 3D version, in order to use pretrained weights
+    from 2D FCN/MCFCN, please call the copy_from function.
+    To meet to requirements of the structure, the input size of the first ``dim-1`` dimensions should be divided
     by 32 and no less than 128. If you need to use lower sizes, please reduce the largest blocks in PSP
-    module and change the num_input_features in Final module.
-    In addition, to utilize the "transpose" upsample mode, please ensure that the input size of the first two dimensions
+    module and change the ``num_input_features`` in Final module.
+    In addition, to utilize the "transpose" upsample mode, please ensure that the input size of the first ``dim-1`` dimensions
     should be divided by 128.
 
     Args:
         layers: number of residual blocks for 4 layers of the network (layer1...layer4). Defaults to ``(3, 4, 6, 3)``.
+        spatial_dims: spatial dimension of the input data. Defaults to 3.
         out_channels: number of output channels for the network. Defaults to 1.
-        upsample_mode: The mode of upsampling manipulations, there are two choices:
+        upsample_mode: The mode of upsampling manipulations, there are three choices:
             1) "transpose", uses transposed convolution layers.
-            2) "interpolate", uses standard interpolate way.
-            Using the second mode cannot guarantee the model's reproducibility. Defaults to "interpolate".
+            2) "bilinear" or "trilinear", uses standard interpolate way, for 2D and 3D inputs separately.
+            Using the second mode cannot guarantee the model's reproducibility. Defaults to "trilinear".
     """
 
-    def __init__(self, layers: tuple = (3, 4, 6, 3), out_channels: int = 1, upsample_mode: str = "interpolate"):
+    def __init__(
+        self,
+        layers: tuple = (3, 4, 6, 3),
+        spatial_dims: int = 3,
+        out_channels: int = 1,
+        upsample_mode: str = "trilinear",
+    ):
         self.inplanes = 64
         super(AHNet, self).__init__()
 
-        conv2d_type: Type[nn.Conv2d] = Conv[Conv.CONV, 2]
-        conv3d_type: Type[nn.Conv3d] = Conv[Conv.CONV, 3]
-        conv3d_trans_type: Type[nn.ConvTranspose3d] = Conv[Conv.CONVTRANS, 3]
-        norm2d_type: Type[nn.BatchNorm2d] = Norm[Norm.BATCH, 2]
-        norm3d_type: Type[nn.BatchNorm3d] = Norm[Norm.BATCH, 3]
+        conv_type = Conv[Conv.CONV, spatial_dims]
+        conv_trans_type = Conv[Conv.CONVTRANS, spatial_dims]
+        norm_type = Norm[Norm.BATCH, spatial_dims]
+        pool_type: Type[Union[nn.MaxPool2d, nn.MaxPool3d]] = Pool[Pool.MAX, spatial_dims]
         relu_type: Type[nn.ReLU] = Act[Act.RELU]
-        pool3d_type: Type[nn.MaxPool3d] = Pool[Pool.MAX, 3]
+        conv2d_type: Type[nn.Conv2d] = Conv[Conv.CONV, 2]
+        norm2d_type: Type[nn.BatchNorm2d] = Norm[Norm.BATCH, 2]
 
         self.conv2d_type = conv2d_type
-        self.conv3d_type = conv3d_type
         self.norm2d_type = norm2d_type
-        self.norm3d_type = norm3d_type
+        self.conv_type = conv_type
+        self.norm_type = norm_type
         self.relu_type = relu_type
-        self.pool3d_type = pool3d_type
-        # Make the 3x3x1 resnet layers
-        self.conv1 = conv3d_type(1, 64, kernel_size=(7, 7, 3), stride=(2, 2, 1), padding=(3, 3, 1), bias=False)
-        self.pool1 = pool3d_type(kernel_size=(1, 1, 2), stride=(1, 1, 2))
-        self.bn0 = norm3d_type(64)
+        self.pool_type = pool_type
+        self.spatial_dims = spatial_dims
+
+        assert spatial_dims == 2 or spatial_dims == 3, "spatial_dims can only be 2 or 3."
+
+        self.conv1 = conv_type(
+            1,
+            64,
+            kernel_size=(7, 7, 3)[-spatial_dims:],
+            stride=(2, 2, 1)[-spatial_dims:],
+            padding=(3, 3, 1)[-spatial_dims:],
+            bias=False,
+        )
+        self.pool1 = pool_type(kernel_size=(1, 1, 2)[-spatial_dims:], stride=(1, 1, 2)[-spatial_dims:])
+        self.bn0 = norm_type(64)
         self.relu = relu_type(inplace=True)
         if upsample_mode == "transpose":
-            self.maxpool = pool3d_type(kernel_size=(2, 2, 2), stride=2)
-        elif upsample_mode == "interpolate":
-            self.maxpool = pool3d_type(kernel_size=(3, 3, 3), stride=2, padding=1)
+            self.maxpool = pool_type(kernel_size=(2, 2, 2)[-spatial_dims:], stride=2)
         else:
-            raise NotImplementedError(
-                f"Currently only 'transpose' and 'interpolate' modes are supported, got {upsample_mode}."
-            )
+            self.maxpool = pool_type(kernel_size=(3, 3, 3)[-spatial_dims:], stride=2, padding=1)
 
         self.layer1 = self._make_layer(Bottleneck3x3x1, 64, layers[0], stride=1)
         self.layer2 = self._make_layer(Bottleneck3x3x1, 128, layers[1], stride=2)
@@ -336,65 +398,35 @@ class AHNet(nn.Module):
         noutres3 = 1024
         noutres4 = 2048
 
-        self.up0 = UpTransition(noutres4, noutres3, upsample_mode)
-        self.dense0 = DenseBlock(
-            num_layers=ndenselayer,
-            num_input_features=noutres3,
-            bn_size=densebn,
-            growth_rate=densegrowth,
-            dropout_prob=0.0,
-        )
+        self.up0 = UpTransition(spatial_dims, noutres4, noutres3, upsample_mode)
+        self.dense0 = DenseBlock(spatial_dims, ndenselayer, noutres3, densebn, densegrowth, 0.0)
         noutdense = noutres3 + ndenselayer * densegrowth
 
-        self.up1 = UpTransition(noutdense, noutres2, upsample_mode)
-        self.dense1 = DenseBlock(
-            num_layers=ndenselayer,
-            num_input_features=noutres2,
-            bn_size=densebn,
-            growth_rate=densegrowth,
-            dropout_prob=0.0,
-        )
+        self.up1 = UpTransition(spatial_dims, noutdense, noutres2, upsample_mode)
+        self.dense1 = DenseBlock(spatial_dims, ndenselayer, noutres2, densebn, densegrowth, 0.0)
         noutdense1 = noutres2 + ndenselayer * densegrowth
 
-        self.up2 = UpTransition(noutdense1, noutres1, upsample_mode)
-        self.dense2 = DenseBlock(
-            num_layers=ndenselayer,
-            num_input_features=noutres1,
-            bn_size=densebn,
-            growth_rate=densegrowth,
-            dropout_prob=0.0,
-        )
+        self.up2 = UpTransition(spatial_dims, noutdense1, noutres1, upsample_mode)
+        self.dense2 = DenseBlock(spatial_dims, ndenselayer, noutres1, densebn, densegrowth, 0.0)
         noutdense2 = noutres1 + ndenselayer * densegrowth
 
-        self.trans1 = Projection(noutdense2, num_init_features)
-        self.dense3 = DenseBlock(
-            num_layers=ndenselayer,
-            num_input_features=num_init_features,
-            bn_size=densebn,
-            growth_rate=densegrowth,
-            dropout_prob=0.0,
-        )
+        self.trans1 = Projection(spatial_dims, noutdense2, num_init_features)
+        self.dense3 = DenseBlock(spatial_dims, ndenselayer, num_init_features, densebn, densegrowth, 0.0)
         noutdense3 = num_init_features + densegrowth * ndenselayer
 
-        self.up3 = UpTransition(noutdense3, num_init_features, upsample_mode)
-        self.dense4 = DenseBlock(
-            num_layers=ndenselayer,
-            num_input_features=num_init_features,
-            bn_size=densebn,
-            growth_rate=densegrowth,
-            dropout_prob=0.0,
-        )
+        self.up3 = UpTransition(spatial_dims, noutdense3, num_init_features, upsample_mode)
+        self.dense4 = DenseBlock(spatial_dims, ndenselayer, num_init_features, densebn, densegrowth, 0.0)
         noutdense4 = num_init_features + densegrowth * ndenselayer
 
-        self.psp = PSP(noutdense4, upsample_mode)
-        self.final = Final(4 + noutdense4, out_channels, upsample_mode)
+        self.psp = PSP(spatial_dims, noutdense4, upsample_mode)
+        self.final = Final(spatial_dims, 4 + noutdense4, out_channels, upsample_mode)
 
         # Initialise parameters
         for m in self.modules():
-            if isinstance(m, (conv3d_type, conv3d_trans_type)):
+            if isinstance(m, (conv_type, conv_trans_type)):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
                 m.weight.data.normal_(0, math.sqrt(2.0 / n))
-            elif isinstance(m, norm3d_type):
+            elif isinstance(m, norm_type):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
 
@@ -402,18 +434,26 @@ class AHNet(nn.Module):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
-                self.conv3d_type(
-                    self.inplanes, planes * block.expansion, kernel_size=1, stride=(stride, stride, 1), bias=False
+                self.conv_type(
+                    self.inplanes,
+                    planes * block.expansion,
+                    kernel_size=1,
+                    stride=(stride, stride, 1)[: self.spatial_dims],
+                    bias=False,
                 ),
-                self.pool3d_type(kernel_size=(1, 1, stride), stride=(1, 1, stride)),
-                self.norm3d_type(planes * block.expansion),
+                self.pool_type(
+                    kernel_size=(1, 1, stride)[: self.spatial_dims], stride=(1, 1, stride)[: self.spatial_dims]
+                ),
+                self.norm_type(planes * block.expansion),
             )
 
         layers = []
-        layers.append(block(self.inplanes, planes, (stride, stride, 1), downsample))
+        layers.append(
+            block(self.spatial_dims, self.inplanes, planes, (stride, stride, 1)[: self.spatial_dims], downsample)
+        )
         self.inplanes = planes * block.expansion
         for _ in range(1, blocks):
-            layers.append(block(self.inplanes, planes))
+            layers.append(block(self.spatial_dims, self.inplanes, planes))
         return nn.Sequential(*layers)
 
     def forward(self, x):
@@ -450,8 +490,7 @@ class AHNet(nn.Module):
         return self.final(x)
 
     def copy_from(self, net):
-        # Copy the initial module CONV1 -- Need special care since
-        # we only have one input channel in the 3D network
+        # This method only supports for 3D AHNet, the input channel should be 1.
         p2d, p3d = next(net.conv1.parameters()), next(self.conv1.parameters())
 
         # From 64x3x7x7 -> 64x3x7x7x1 -> 64x1x7x7x3
@@ -470,7 +509,7 @@ class AHNet(nn.Module):
                 if isinstance(m1, (self.norm2d_type, self.conv2d_type)):
                     layer_2d.append(m1)
             for m2 in vars(self)["_modules"][layer_num].modules():
-                if isinstance(m2, (self.norm3d_type, self.conv3d_type)):
+                if isinstance(m2, (self.norm_type, self.conv_type)):
                     layer_3d.append(m2)
 
             for m1, m2 in zip(layer_2d, layer_3d):
