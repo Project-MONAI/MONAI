@@ -40,6 +40,11 @@ Blocks
 .. autoclass:: MCFCN
     :members:
 
+`SegResnet Block`
+~~~~~~~~~~~~~~~~~
+.. autoclass:: ResBlock
+    :members:
+
 `Squeeze-and-Excitation`
 ~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: ChannelSELayer
@@ -179,6 +184,11 @@ Nets
 .. autofunction:: densenet169
 .. autofunction:: densenet201
 .. autofunction:: densenet264
+
+`SegResnet`
+~~~~~~~~~~~
+.. autoclass:: SegResNet
+  :members:
 
 `Senet`
 ~~~~~~~
