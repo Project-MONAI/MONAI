@@ -37,6 +37,9 @@ class CheckpointSaver:
         name: identifier of logging.logger to use, if None, defaulting to ``engine.logger``.
         file_prefix: prefix for the filenames to which objects will be saved.
         save_final: whether to save checkpoint or session at final iteration or exception.
+            if want to save checkpoint when exception happened, please put this handler before
+            `StatsHandler` in the handler list, because our logic with ignite can only trigger
+            the first attached handler for `EXCEPTION_RAISED` event.
         save_key_metric: whether to save checkpoint or session when the value of key_metric is
             higher than all the previous values during training.keep 4 decimal places of metric,
             checkpoint name is: {file_prefix}_key_metric=0.XXXX.pth.
