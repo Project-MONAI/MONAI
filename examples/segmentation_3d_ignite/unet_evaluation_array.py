@@ -54,7 +54,7 @@ def main():
     segtrans = Compose([AddChannel(), ToTensor()])
     ds = NiftiDataset(images, segs, transform=imtrans, seg_transform=segtrans, image_only=False)
 
-    device = torch.device("cuda:0")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     net = UNet(
         dimensions=3,
         in_channels=1,
@@ -101,7 +101,7 @@ def main():
     file_saver.attach(evaluator)
 
     # the model was trained by "unet_training_array" example
-    ckpt_saver = CheckpointLoader(load_path="./runs/net_checkpoint_100.pth", load_dict={"net": net})
+    ckpt_saver = CheckpointLoader(load_path="./runs_array/net_checkpoint_100.pth", load_dict={"net": net})
     ckpt_saver.attach(evaluator)
 
     # sliding window inference for one image at every iteration

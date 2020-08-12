@@ -72,7 +72,7 @@ def main():
     loss = torch.nn.CrossEntropyLoss()
     lr = 1e-5
     opt = torch.optim.Adam(net.parameters(), lr)
-    device = torch.device("cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Ignite trainer expects batch=(img, label) and returns output=loss at every iteration,
     # user can add output_transform to return other values, like: y_pred, y, etc.
