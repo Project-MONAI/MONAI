@@ -9,20 +9,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import TYPE_CHECKING, Any, Callable
 
-def stopping_fn_from_metric(metric_name):
-    """Returns a stopping function for ignite.handlers.EarlyStopping using the given metric name."""
+from monai.utils import exact_version, optional_import
 
-    def stopping_fn(engine):
+if TYPE_CHECKING:
+    from ignite.engine import Engine
+else:
+    Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
+
+
+def stopping_fn_from_metric(metric_name: str) -> Callable[[Engine], Any]:
+    """
+    Returns a stopping function for ignite.handlers.EarlyStopping using the given metric name.
+    """
+
+    def stopping_fn(engine: Engine):
         return engine.state.metrics[metric_name]
 
     return stopping_fn
 
 
-def stopping_fn_from_loss():
-    """Returns a stopping function for ignite.handlers.EarlyStopping using the loss value."""
+def stopping_fn_from_loss() -> Callable[[Engine], Any]:
+    """
+    Returns a stopping function for ignite.handlers.EarlyStopping using the loss value.
+    """
 
-    def stopping_fn(engine):
+    def stopping_fn(engine: Engine):
         return -engine.state.output
 
     return stopping_fn

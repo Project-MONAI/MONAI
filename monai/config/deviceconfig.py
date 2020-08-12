@@ -13,9 +13,10 @@ import os
 import sys
 from collections import OrderedDict
 
-import monai
 import numpy as np
 import torch
+
+import monai
 
 try:
     import ignite
@@ -90,7 +91,9 @@ def get_optional_config_values():
 def print_config(file=sys.stdout):
     """
     Print the package versions to `file`.
-    Defaults to `sys.stdout`.
+
+    Args:
+        file: `print()` text stream file. Defaults to `sys.stdout`.
     """
     for k, v in get_config_values().items():
         print(f"{k} version: {v}", file=file, flush=True)
@@ -98,6 +101,12 @@ def print_config(file=sys.stdout):
     print("\nOptional dependencies:", file=file, flush=True)
     for k, v in get_optional_config_values().items():
         print(f"{k} version: {v}", file=file, flush=True)
+    print("\nFor details about installing the optional dependencies, please visit:", file=file, flush=True)
+    print(
+        "    https://docs.monai.io/en/latest/installation.html#installing-the-recommended-dependencies\n",
+        file=file,
+        flush=True,
+    )
 
 
 def set_visible_devices(*dev_inds):
@@ -109,4 +118,4 @@ def get_torch_version_tuple():
     Returns:
         tuple of ints represents the pytorch major/minor version.
     """
-    return tuple([int(x) for x in torch.__version__.split(".")[:2]])
+    return tuple((int(x) for x in torch.__version__.split(".")[:2]))

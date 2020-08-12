@@ -10,12 +10,17 @@
 # limitations under the License.
 
 import logging
-from typing import Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union
+
+from torch.optim.lr_scheduler import ReduceLROnPlateau, _LRScheduler
 
 from monai.utils import ensure_tuple, exact_version, optional_import
 
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
-Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
+if TYPE_CHECKING:
+    from ignite.engine import Engine
+else:
+    Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 
 
 class LrScheduleHandler:
@@ -25,15 +30,15 @@ class LrScheduleHandler:
 
     def __init__(
         self,
-        lr_scheduler,
+        lr_scheduler: Union[_LRScheduler, ReduceLROnPlateau],
         print_lr: bool = True,
         name: Optional[str] = None,
         epoch_level: bool = True,
-        step_transform: Callable = lambda engine: (),
-    ):
+        step_transform: Callable[[Engine], Any] = lambda engine: (),
+    ) -> None:
         """
         Args:
-            lr_scheduler (torch.optim.lr_scheduler): typically, lr_scheduler should be PyTorch
+            lr_scheduler: typically, lr_scheduler should be PyTorch
                 lr_scheduler object. If customized version, must have `step` and `get_last_lr` methods.
             print_lr: whether to print out the latest learning rate with logging.
             name: identifier of logging.logger to use, if None, defaulting to ``engine.logger``.
@@ -42,18 +47,25 @@ class LrScheduleHandler:
             step_transform: a callable that is used to transform the information from `engine`
                 to expected input data of lr_scheduler.step() function if necessary.
 
+        Raises:
+            TypeError: When ``step_transform`` is not ``callable``.
+
         """
         self.lr_scheduler = lr_scheduler
         self.print_lr = print_lr
         self.logger = logging.getLogger(name)
         self.epoch_level = epoch_level
         if not callable(step_transform):
-            raise ValueError("argument `step_transform` must be a callable.")
+            raise TypeError(f"step_transform must be callable but is {type(step_transform).__name__}.")
         self.step_transform = step_transform
 
         self._name = name
 
-    def attach(self, engine: Engine):
+    def attach(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
         if self._name is None:
             self.logger = engine.logger
         if self.epoch_level:
@@ -61,8 +73,12 @@ class LrScheduleHandler:
         else:
             engine.add_event_handler(Events.ITERATION_COMPLETED, self)
 
-    def __call__(self, engine):
+    def __call__(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
         args = ensure_tuple(self.step_transform(engine))
         self.lr_scheduler.step(*args)
         if self.print_lr:
-            self.logger.info(f"Current learning rate: {self.lr_scheduler._last_lr[0]}")
+            self.logger.info(f"Current learning rate: {self.lr_scheduler._last_lr[0]}")  # type: ignore[union-attr]

@@ -9,8 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Sequence
+
 import torch
 import torch.nn as nn
+
 from monai.networks.blocks.convolutions import Convolution
 from monai.networks.layers import same_padding
 from monai.networks.layers.factories import Act, Conv, Norm
@@ -32,11 +35,11 @@ class SimpleASPP(nn.Module):
         spatial_dims: int,
         in_channels: int,
         conv_out_channels: int,
-        kernel_sizes=(1, 3, 3, 3),
-        dilations=(1, 2, 4, 6),
+        kernel_sizes: Sequence[int] = (1, 3, 3, 3),
+        dilations: Sequence[int] = (1, 2, 4, 6),
         norm_type=Norm.BATCH,
         acti_type=Act.LEAKYRELU,
-    ):
+    ) -> None:
         """
         Args:
             spatial_dims: number of spatial dimensions, could be 1, 2, or 3.
@@ -51,16 +54,29 @@ class SimpleASPP(nn.Module):
                 Defaults to batch norm.
             acti_type: final kernel-size-one convolution activation type.
                 Defaults to leaky ReLU.
+
+        Raises:
+            ValueError: When ``kernel_sizes`` length differs from ``dilations``.
+
+        See also:
+
+            :py:class:`monai.networks.layers.Act`
+            :py:class:`monai.networks.layers.Conv`
+            :py:class:`monai.networks.layers.Norm`
+
         """
         super().__init__()
         if len(kernel_sizes) != len(dilations):
-            raise ValueError("len(kernel_sizes) and len(dilations) must be the same.")
+            raise ValueError(
+                "kernel_sizes and dilations length must match, "
+                f"got kernel_sizes={len(kernel_sizes)} dilations={len(dilations)}."
+            )
         pads = tuple(same_padding(k, d) for k, d in zip(kernel_sizes, dilations))
 
         self.convs = nn.ModuleList()
         for k, d, p in zip(kernel_sizes, dilations, pads):
             _conv = Conv[Conv.CONV, spatial_dims](
-                in_channels=in_channels, out_channels=conv_out_channels, kernel_size=k, dilation=d, padding=p,
+                in_channels=in_channels, out_channels=conv_out_channels, kernel_size=k, dilation=d, padding=p
             )
             self.convs.append(_conv)
 

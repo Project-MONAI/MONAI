@@ -10,8 +10,8 @@
 # limitations under the License.
 
 import unittest
-import numpy as np
 
+import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import RandGaussianNoise
@@ -28,7 +28,7 @@ class TestRandGaussianNoise(NumpyImageTestCase2D):
         np.random.seed(seed)
         np.random.random()
         expected = self.imt + np.random.normal(mean, np.random.uniform(0, std), size=self.imt.shape)
-        np.testing.assert_allclose(expected, noised)
+        np.testing.assert_allclose(expected, noised, atol=1e-5)
 
 
 if __name__ == "__main__":

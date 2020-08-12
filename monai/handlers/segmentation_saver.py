@@ -10,15 +10,18 @@
 # limitations under the License.
 
 import logging
-from typing import Callable, Optional, Union
+from typing import TYPE_CHECKING, Callable, Optional, Union
 
 import numpy as np
 
 from monai.data import NiftiSaver, PNGSaver
-from monai.utils import exact_version, optional_import
+from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, exact_version, optional_import
 
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
-Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
+if TYPE_CHECKING:
+    from ignite.engine import Engine
+else:
+    Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 
 
 class SegmentationSaver:
@@ -32,34 +35,41 @@ class SegmentationSaver:
         output_postfix: str = "seg",
         output_ext: str = ".nii.gz",
         resample: bool = True,
-        interp_order: str = "nearest",
-        mode: str = "border",
-        scale=None,
+        mode: Union[GridSampleMode, InterpolateMode, str] = "nearest",
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        scale: Optional[int] = None,
         dtype: Optional[np.dtype] = None,
         batch_transform: Callable = lambda x: x,
         output_transform: Callable = lambda x: x,
         name: Optional[str] = None,
-    ):
+    ) -> None:
         """
         Args:
             output_dir: output image directory.
             output_postfix: a string appended to all output file names.
             output_ext: output file extension name.
             resample: whether to resample before saving the data array.
-            interp_order:
-                The interpolation mode. Defaults to "nearest". This option is used when `resample = True`.
-                When saving NIfTI files, the available options are "nearest", "bilinear"
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample.
-                When saving PNG files, the available options are "nearest", "bilinear", "bicubic", "area".
-                See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate.
-            mode: The mode parameter determines how the input array is extended beyond its boundaries.
-                This option is used when `resample = True`.
-                When saving NIfTI files, the options are "zeros", "border", "reflection". Default is "border".
-                When saving PNG files, the options is ignored.
-            scale (255, 65535): postprocess data by clipping to [0, 1] and scaling
+            mode: This option is used when ``resample = True``. Defaults to ``"nearest"``.
+
+                - NIfTI files {``"bilinear"``, ``"nearest"``}
+                    Interpolation mode to calculate output values.
+                    See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                - PNG files {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
+                    The interpolation mode.
+                    See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+
+            padding_mode: This option is used when ``resample = True``. Defaults to ``"border"``.
+
+                - NIfTI files {``"zeros"``, ``"border"``, ``"reflection"``}
+                    Padding mode for outside grid values.
+                    See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                - PNG files
+                    This option is ignored.
+
+            scale: {``255``, ``65535``} postprocess data by clipping to [0, 1] and scaling
                 [0, 255] (uint8) or [0, 65535] (uint16). Default is None to disable scaling.
                 It's used for PNG format only.
-            dtype (np.dtype, optional): convert the image data to save to this data type.
+            dtype: convert the image data to save to this data type.
                 If None, keep the original type of data. It's used for Nifti format only.
             batch_transform: a callable that is used to transform the
                 ignite.engine.batch into expected format to extract the meta_data dictionary.
@@ -77,8 +87,8 @@ class SegmentationSaver:
                 output_postfix=output_postfix,
                 output_ext=output_ext,
                 resample=resample,
-                interp_order=interp_order,
-                mode=mode,
+                mode=GridSampleMode(mode),
+                padding_mode=padding_mode,
                 dtype=dtype,
             )
         elif output_ext == ".png":
@@ -87,26 +97,32 @@ class SegmentationSaver:
                 output_postfix=output_postfix,
                 output_ext=output_ext,
                 resample=resample,
-                interp_order=interp_order,
+                mode=InterpolateMode(mode),
                 scale=scale,
             )
         self.batch_transform = batch_transform
         self.output_transform = output_transform
 
-        self.logger = None if name is None else logging.getLogger(name)
+        self.logger = logging.getLogger(name)
         self._name = name
 
-    def attach(self, engine: Engine):
+    def attach(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
         if self._name is None:
             self.logger = engine.logger
         if not engine.has_event_handler(self, Events.ITERATION_COMPLETED):
             engine.add_event_handler(Events.ITERATION_COMPLETED, self)
 
-    def __call__(self, engine):
+    def __call__(self, engine: Engine) -> None:
         """
         This method assumes self.batch_transform will extract metadata from the input batch.
         Output file datatype is determined from ``engine.state.output.dtype``.
 
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
         meta_data = self.batch_transform(engine.state.batch)
         engine_output = self.output_transform(engine.state.output)

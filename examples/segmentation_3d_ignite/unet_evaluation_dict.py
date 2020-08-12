@@ -9,12 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 import os
+import shutil
 import sys
 import tempfile
-import shutil
 from glob import glob
-import logging
+
 import nibabel as nib
 import numpy as np
 import torch
@@ -22,12 +23,12 @@ from ignite.engine import Engine
 from torch.utils.data import DataLoader
 
 import monai
-from monai.data import list_data_collate, create_test_image_3d
+from monai.data import create_test_image_3d, list_data_collate
+from monai.handlers import CheckpointLoader, MeanDice, SegmentationSaver, StatsHandler
 from monai.inferers import sliding_window_inference
-from monai.networks.utils import predict_segmentation
+from monai.networks import predict_segmentation
 from monai.networks.nets import UNet
-from monai.transforms import Compose, LoadNiftid, AsChannelFirstd, ScaleIntensityd, ToTensord
-from monai.handlers import SegmentationSaver, CheckpointLoader, StatsHandler, MeanDice
+from monai.transforms import AsChannelFirstd, Compose, LoadNiftid, ScaleIntensityd, ToTensord
 
 
 def main():
@@ -54,7 +55,7 @@ def main():
         [
             LoadNiftid(keys=["img", "seg"]),
             AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
-            ScaleIntensityd(keys=["img", "seg"]),
+            ScaleIntensityd(keys="img"),
             ToTensord(keys=["img", "seg"]),
         ]
     )

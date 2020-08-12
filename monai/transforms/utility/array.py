@@ -13,14 +13,19 @@ A collection of "vanilla" transforms for utility functions
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-import time
-
-from typing import Callable, Optional
 import logging
+import time
+from typing import Callable, Optional, Sequence, TypeVar, Union
+
 import numpy as np
 import torch
 
 from monai.transforms.compose import Transform
+from monai.utils import ensure_tuple
+
+# Generic type which can represent either a numpy.ndarray or a torch.Tensor
+# Unlike Union can create a dependence between parameter(s) / return(s)
+NdarrayTensor = TypeVar("NdarrayTensor", np.ndarray, torch.Tensor)
 
 
 class Identity(Transform):
@@ -31,7 +36,10 @@ class Identity(Transform):
 
     """
 
-    def __call__(self, img):
+    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> np.ndarray:
+        """
+        Apply the transform to `img`.
+        """
         return np.asanyarray(img)
 
 
@@ -51,11 +59,14 @@ class AsChannelFirst(Transform):
         channel_dim: which dimension of input image is the channel, default is the last dimension.
     """
 
-    def __init__(self, channel_dim: int = -1):
+    def __init__(self, channel_dim: int = -1) -> None:
         assert isinstance(channel_dim, int) and channel_dim >= -1, "invalid channel dimension."
         self.channel_dim = channel_dim
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
+        """
+        Apply the transform to `img`.
+        """
         return np.moveaxis(img, self.channel_dim, 0)
 
 
@@ -74,11 +85,14 @@ class AsChannelLast(Transform):
         channel_dim: which dimension of input image is the channel, default is the first dimension.
     """
 
-    def __init__(self, channel_dim: int = 0):
+    def __init__(self, channel_dim: int = 0) -> None:
         assert isinstance(channel_dim, int) and channel_dim >= -1, "invalid channel dimension."
         self.channel_dim = channel_dim
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
+        """
+        Apply the transform to `img`.
+        """
         return np.moveaxis(img, self.channel_dim, -1)
 
 
@@ -96,7 +110,10 @@ class AddChannel(Transform):
     transforms.
     """
 
-    def __call__(self, img):
+    def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
+        """
+        Apply the transform to `img`.
+        """
         return img[None]
 
 
@@ -110,29 +127,49 @@ class RepeatChannel(Transform):
         repeats: the number of repetitions for each element.
     """
 
-    def __init__(self, repeats: int):
+    def __init__(self, repeats: int) -> None:
         assert repeats > 0, "repeats count must be greater than 0."
         self.repeats = repeats
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
+        """
+        Apply the transform to `img`, assuming `img` is a "channel-first" array.
+        """
         return np.repeat(img, self.repeats, 0)
 
 
 class CastToType(Transform):
     """
-    Cast the image data to specified numpy data type.
+    Cast the Numpy data to specified numpy data type, or cast the PyTorch Tensor to
+    specified PyTorch data type.
     """
 
-    def __init__(self, dtype: np.dtype = np.float32):
+    def __init__(self, dtype: Union[np.dtype, torch.dtype] = np.float32) -> None:
         """
         Args:
-            dtype (np.dtype): convert image to this data type, default is `np.float32`.
+            dtype: convert image to this data type, default is `np.float32`.
         """
         self.dtype = dtype
 
-    def __call__(self, img: np.ndarray):
-        assert isinstance(img, np.ndarray), "image must be numpy array."
-        return img.astype(self.dtype)
+    def __call__(
+        self, img: Union[np.ndarray, torch.Tensor], dtype: Optional[Union[np.dtype, torch.dtype]] = None
+    ) -> Union[np.ndarray, torch.Tensor]:
+        """
+        Apply the transform to `img`, assuming `img` is a numpy array or PyTorch Tensor.
+
+        Args:
+            dtype: convert image to this data type, default is `self.dtype`.
+
+        Raises:
+            TypeError: When ``img`` type is not in ``Union[numpy.ndarray, torch.Tensor]``.
+
+        """
+        if isinstance(img, np.ndarray):
+            return img.astype(self.dtype if dtype is None else dtype)
+        elif torch.is_tensor(img):
+            return torch.as_tensor(img, dtype=self.dtype if dtype is None else dtype)
+        else:
+            raise TypeError(f"img must be one of (numpy.ndarray, torch.Tensor) but is {type(img).__name__}.")
 
 
 class ToTensor(Transform):
@@ -140,7 +177,10 @@ class ToTensor(Transform):
     Converts the input image to a tensor without applying any other transformations.
     """
 
-    def __call__(self, img):
+    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> torch.Tensor:
+        """
+        Apply the transform to `img` and make it contiguous.
+        """
         if torch.is_tensor(img):
             return img.contiguous()
         return torch.as_tensor(np.ascontiguousarray(img))
@@ -151,7 +191,10 @@ class ToNumpy(Transform):
     Converts the input Tensor data to numpy array.
     """
 
-    def __call__(self, img):
+    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> np.ndarray:
+        """
+        Apply the transform to `img` and make it contiguous.
+        """
         if torch.is_tensor(img):
             img = img.detach().cpu().numpy()
         return np.ascontiguousarray(img)
@@ -162,10 +205,13 @@ class Transpose(Transform):
     Transposes the input image based on the given `indices` dimension ordering.
     """
 
-    def __init__(self, indices):
-        self.indices = indices
+    def __init__(self, indices: Optional[Sequence[int]]) -> None:
+        self.indices = None if indices is None else tuple(indices)
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
+        """
+        Apply the transform to `img`.
+        """
         return img.transpose(self.indices)
 
 
@@ -174,20 +220,24 @@ class SqueezeDim(Transform):
     Squeeze a unitary dimension.
     """
 
-    def __init__(self, dim: Optional[int] = 0):
+    def __init__(self, dim: Optional[int] = 0) -> None:
         """
         Args:
             dim: dimension to be squeezed. Default = 0
                 "None" works when the input is numpy array.
+
+        Raises:
+            TypeError: When ``dim`` is not an ``Optional[int]``.
+
         """
         if dim is not None and not isinstance(dim, int):
-            raise ValueError(f"Invalid channel dimension {dim}")
+            raise TypeError(f"dim must be None or a int but is {type(dim).__name__}.")
         self.dim = dim
 
-    def __call__(self, img):
+    def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
         """
         Args:
-            img (ndarray): numpy arrays with required dimension `dim` removed
+            img: numpy arrays with required dimension `dim` removed
         """
         return img.squeeze(self.dim)
 
@@ -196,35 +246,41 @@ class DataStats(Transform):
     """
     Utility transform to show the statistics of data for debug or analysis.
     It can be inserted into any place of a transform chain and check results of previous transforms.
+    It support both `numpy.ndarray` and `torch.tensor` as input data,
+    so it can be used in pre-processing and post-processing.
     """
 
     def __init__(
         self,
         prefix: str = "Data",
         data_shape: bool = True,
-        intensity_range: bool = True,
+        value_range: bool = True,
         data_value: bool = False,
         additional_info: Optional[Callable] = None,
         logger_handler: Optional[logging.Handler] = None,
-    ):
+    ) -> None:
         """
         Args:
             prefix: will be printed in format: "{prefix} statistics".
             data_shape: whether to show the shape of input data.
-            intensity_range: whether to show the intensity value range of input data.
+            value_range: whether to show the value range of input data.
             data_value: whether to show the raw value of input data.
                 a typical example is to print some properties of Nifti image: affine, pixdim, etc.
             additional_info: user can define callable function to extract additional info from input data.
-            logger_handler (logging.handler): add additional handler to output data: save to file, etc.
+            logger_handler: add additional handler to output data: save to file, etc.
                 add existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html
+
+        Raises:
+            TypeError: When ``additional_info`` is not an ``Optional[Callable]``.
+
         """
         assert isinstance(prefix, str), "prefix must be a string."
         self.prefix = prefix
         self.data_shape = data_shape
-        self.intensity_range = intensity_range
+        self.value_range = value_range
         self.data_value = data_value
         if additional_info is not None and not callable(additional_info):
-            raise ValueError("argument `additional_info` must be a callable.")
+            raise TypeError(f"additional_info must be None or callable but is {type(additional_info).__name__}.")
         self.additional_info = additional_info
         self.output: Optional[str] = None
         logging.basicConfig(level=logging.NOTSET)
@@ -234,19 +290,27 @@ class DataStats(Transform):
 
     def __call__(
         self,
-        img,
+        img: NdarrayTensor,
         prefix: Optional[str] = None,
         data_shape: Optional[bool] = None,
-        intensity_range: Optional[bool] = None,
+        value_range: Optional[bool] = None,
         data_value: Optional[bool] = None,
-        additional_info=None,
-    ):
+        additional_info: Optional[Callable] = None,
+    ) -> NdarrayTensor:
+        """
+        Apply the transform to `img`, optionally take arguments similar to the class constructor.
+        """
         lines = [f"{prefix or self.prefix} statistics:"]
 
         if self.data_shape if data_shape is None else data_shape:
             lines.append(f"Shape: {img.shape}")
-        if self.intensity_range if intensity_range is None else intensity_range:
-            lines.append(f"Intensity range: ({np.min(img)}, {np.max(img)})")
+        if self.value_range if value_range is None else value_range:
+            if isinstance(img, np.ndarray):
+                lines.append(f"Value range: ({np.min(img)}, {np.max(img)})")
+            elif torch.is_tensor(img):
+                lines.append(f"Value range: ({torch.min(img)}, {torch.max(img)})")
+            else:
+                lines.append(f"Value range: (not a PyTorch or Numpy array, type: {type(img)})")
         if self.data_value if data_value is None else data_value:
             lines.append(f"Value: {img}")
         additional_info = self.additional_info if additional_info is None else additional_info
@@ -271,7 +335,7 @@ class SimulateDelay(Transform):
     to sub-optimal design choices.
     """
 
-    def __init__(self, delay_time: float = 0.0):
+    def __init__(self, delay_time: float = 0.0) -> None:
         """
         Args:
             delay_time: The minimum amount of time, in fractions of seconds,
@@ -280,6 +344,115 @@ class SimulateDelay(Transform):
         super().__init__()
         self.delay_time: float = delay_time
 
-    def __call__(self, img, delay_time=None):
+    def __call__(self, img: NdarrayTensor, delay_time: Optional[float] = None) -> NdarrayTensor:
+        """
+        Args:
+            img: data remain unchanged throughout this transform.
+            delay_time: The minimum amount of time, in fractions of seconds,
+                to accomplish this delay task.
+        """
         time.sleep(self.delay_time if delay_time is None else delay_time)
         return img
+
+
+class Lambda(Transform):
+    """
+    Apply a user-defined lambda as a transform.
+
+    For example:
+
+    .. code-block:: python
+        :emphasize-lines: 2
+
+        image = np.ones((10, 2, 2))
+        lambd = Lambda(func=lambda x: x[:4, :, :])
+        print(lambd(image).shape)
+        (4, 2, 2)
+
+    Args:
+        func: Lambda/function to be applied.
+
+    Raises:
+        TypeError: When ``func`` is not an ``Optional[Callable]``.
+
+    """
+
+    def __init__(self, func: Optional[Callable] = None) -> None:
+        if func is not None and not callable(func):
+            raise TypeError(f"func must be None or callable but is {type(func).__name__}.")
+        self.func = func
+
+    def __call__(self, img: Union[np.ndarray, torch.Tensor], func: Optional[Callable] = None):
+        """
+        Apply `self.func` to `img`.
+
+        Args:
+            func: Lambda/function to be applied. Defaults to `self.func`.
+
+        Raises:
+            TypeError: When ``func`` is not an ``Optional[Callable]``.
+            ValueError: When ``func=None`` and ``self.func=None``. Incompatible values.
+
+        """
+        if func is not None:
+            if not callable(func):
+                raise TypeError(f"func must be None or callable but is {type(func).__name__}.")
+            return func(img)
+        if self.func is not None:
+            return self.func(img)
+        else:
+            raise ValueError("Incompatible values: func=None and self.func=None.")
+
+
+class LabelToMask(Transform):
+    """
+    Convert labels to mask for other tasks. A typical usage is to convert segmentation labels
+    to mask data to pre-process images and then feed the images into classification network.
+    It can support single channel labels or One-Hot labels with specified `select_labels`.
+    For example, users can select `label value = [2, 3]` to construct mask data, or select the
+    second and the third channels of labels to construct mask data.
+    The output mask data can be a multiple channels binary data or a single channel binary
+    data that merges all the channels.
+
+    Args:
+        select_labels: labels to generate mask from. for 1 channel label, the `select_labels`
+            is the expected label values, like: [1, 2, 3]. for One-Hot format label, the
+            `select_labels` is the expected channel indexes.
+        merge_channels: whether to use `np.any()` to merge the result on channel dim. if yes,
+            will return a single channel mask with binary data.
+
+    """
+
+    def __init__(
+        self, select_labels: Union[Sequence[int], int], merge_channels: bool = False,
+    ) -> None:  # pytype: disable=annotation-type-mismatch # pytype bug with bool
+        self.select_labels = ensure_tuple(select_labels)
+        self.merge_channels = merge_channels
+
+    def __call__(
+        self,
+        img: np.ndarray,
+        select_labels: Optional[Union[Sequence[int], int]] = None,
+        merge_channels: Optional[bool] = None,
+    ) -> np.ndarray:
+        """
+        Args:
+            select_labels: labels to generate mask from. for 1 channel label, the `select_labels`
+                is the expected label values, like: [1, 2, 3]. for One-Hot format label, the
+                `select_labels` is the expected channel indexes.
+            merge_channels: whether to use `np.any()` to merge the result on channel dim. if yes,
+                will return a single channel mask with binary data.
+        """
+        if select_labels is None:
+            select_labels = self.select_labels
+        else:
+            select_labels = ensure_tuple(select_labels)
+        if merge_channels is None:
+            merge_channels = self.merge_channels
+
+        if img.shape[0] > 1:
+            data = img[[*(select_labels)]]
+        else:
+            data = np.where(np.in1d(img, select_labels), True, False).reshape(img.shape)
+
+        return np.any(data, axis=0, keepdims=True) if merge_channels else data

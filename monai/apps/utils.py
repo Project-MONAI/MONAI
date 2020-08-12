@@ -9,16 +9,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-from urllib.request import urlretrieve
-from urllib.error import URLError
 import hashlib
+import os
 import tarfile
 import zipfile
-from monai.utils import process_bar
+from typing import Optional
+from urllib.error import ContentTooShortError, HTTPError, URLError
+from urllib.request import urlretrieve
+
+from monai.utils import optional_import, progress_bar
+
+gdown, has_gdown = optional_import("gdown", "3.6")
 
 
-def check_md5(filepath: str, md5_value: str = None):
+def check_md5(filepath: str, md5_value: Optional[str] = None) -> bool:
     """
     check MD5 signature of specified file.
 
@@ -29,9 +33,13 @@ def check_md5(filepath: str, md5_value: str = None):
     """
     if md5_value is not None:
         md5 = hashlib.md5()
-        with open(filepath, "rb") as f:
-            for chunk in iter(lambda: f.read(1024 * 1024), b""):
-                md5.update(chunk)
+        try:
+            with open(filepath, "rb") as f:
+                for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                    md5.update(chunk)
+        except Exception as e:
+            print(f"Exception in check_md5: {e}")
+            return False
         if md5_value != md5.hexdigest():
             return False
     else:
@@ -40,7 +48,7 @@ def check_md5(filepath: str, md5_value: str = None):
     return True
 
 
-def download_url(url: str, filepath: str, md5_value: str = None):
+def download_url(url: str, filepath: str, md5_value: Optional[str] = None) -> None:
     """
     Download file from specified URL link, support process bar and MD5 check.
 
@@ -50,31 +58,49 @@ def download_url(url: str, filepath: str, md5_value: str = None):
         md5_value: expected MD5 value to validate the downloaded file.
             if None, skip MD5 validation.
 
+    Raises:
+        RuntimeError: When the MD5 validation of the ``filepath`` existing file fails.
+        RuntimeError: When a network issue or denied permission prevents the
+            file download from ``url`` to ``filepath``.
+        URLError: See urllib.request.urlretrieve.
+        HTTPError: See urllib.request.urlretrieve.
+        ContentTooShortError: See urllib.request.urlretrieve.
+        IOError: See urllib.request.urlretrieve.
+        RuntimeError: When the MD5 validation of the ``url`` downloaded file fails.
+
     """
     if os.path.exists(filepath):
         if not check_md5(filepath, md5_value):
-            raise RuntimeError(f"MD5 check of existing file {filepath} failed, please delete it and try again.")
+            raise RuntimeError(f"MD5 check of existing file failed: filepath={filepath}, expected MD5={md5_value}.")
         print(f"file {filepath} exists, skip downloading.")
         return
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
-    def _process_hook(blocknum, blocksize, totalsize):
-        process_bar(blocknum * blocksize, totalsize)
+    if url.startswith("https://drive.google.com"):
+        gdown.download(url, filepath, quiet=False)
+        if not os.path.exists(filepath):
+            raise RuntimeError(
+                f"Download of file from {url} to {filepath} failed due to network issue or denied permission."
+            )
+    else:
 
-    try:
-        urlretrieve(url, filepath, reporthook=_process_hook)
-        print(f"\ndownloaded file: {filepath}.")
-    except (URLError, IOError) as e:
-        raise e
+        def _process_hook(blocknum: int, blocksize: int, totalsize: int):
+            progress_bar(blocknum * blocksize, totalsize, f"Downloading {filepath.split('/')[-1]}:")
+
+        try:
+            urlretrieve(url, filepath, reporthook=_process_hook)
+            print(f"\ndownloaded file: {filepath}.")
+        except (URLError, HTTPError, ContentTooShortError, IOError) as e:
+            print(f"download failed from {url} to {filepath}.")
+            raise e
 
     if not check_md5(filepath, md5_value):
         raise RuntimeError(
-            f"MD5 check of downloaded file failed, \
-            URL={url}, filepath={filepath}, expected MD5={md5_value}."
+            f"MD5 check of downloaded file failed: URL={url}, filepath={filepath}, expected MD5={md5_value}."
         )
 
 
-def extractall(filepath: str, output_dir: str, md5_value: str = None):
+def extractall(filepath: str, output_dir: str, md5_value: Optional[str] = None) -> None:
     """
     Extract file to the output directory.
     Expected file types are: `zip`, `tar.gz` and `tar`.
@@ -85,13 +111,17 @@ def extractall(filepath: str, output_dir: str, md5_value: str = None):
         md5_value: expected MD5 value to validate the compressed file.
             if None, skip MD5 validation.
 
+    Raises:
+        RuntimeError: When the MD5 validation of the ``filepath`` compressed file fails.
+        ValueError: When the ``filepath`` file extension is not one of [zip", "tar.gz", "tar"].
+
     """
     target_file = os.path.join(output_dir, os.path.basename(filepath).split(".")[0])
     if os.path.exists(target_file):
         print(f"extracted file {target_file} exists, skip extracting.")
         return
     if not check_md5(filepath, md5_value):
-        raise RuntimeError(f"MD5 check of compressed file {filepath} failed.")
+        raise RuntimeError(f"MD5 check of compressed file failed: filepath={filepath}, expected MD5={md5_value}.")
 
     if filepath.endswith("zip"):
         zip_file = zipfile.ZipFile(filepath)
@@ -102,10 +132,10 @@ def extractall(filepath: str, output_dir: str, md5_value: str = None):
         tar_file.extractall(output_dir)
         tar_file.close()
     else:
-        raise TypeError("unsupported compressed file type.")
+        raise ValueError('Unsupported file extension, available options are: ["zip", "tar.gz", "tar"].')
 
 
-def download_and_extract(url: str, filepath: str, output_dir: str, md5_value: str = None):
+def download_and_extract(url: str, filepath: str, output_dir: str, md5_value: Optional[str] = None) -> None:
     """
     Download file from URL and extract it to the output directory.
 

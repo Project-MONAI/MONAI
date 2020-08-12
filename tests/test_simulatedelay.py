@@ -9,10 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
 import time
+import unittest
+
 import numpy as np
 from parameterized import parameterized
+
 from monai.transforms.utility.array import SimulateDelay
 from tests.utils import NumpyImageTestCase2D
 
@@ -25,7 +27,7 @@ class TestSimulateDelay(NumpyImageTestCase2D):
         result = resize(self.imt[0])
         stop: float = time.time()
         measured_approximate: float = stop - start
-        np.testing.assert_array_less(delay_test_time, measured_approximate)
+        np.testing.assert_allclose(delay_test_time, measured_approximate, rtol=0.5)
 
 
 if __name__ == "__main__":

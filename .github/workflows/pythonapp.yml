@@ -5,11 +5,13 @@ on:
   push:
     branches:
       - master
-      # TODO: Remove ci trigger branch used for testing
-      - add-convenience-options-runtests
   pull_request:
 
 jobs:
+  # caching of these jobs:
+  #   - docker-20-03-py3-pip- (shared)
+  #   - ubuntu py37 pip-
+  #   - os-latest-pip- (shared)
   flake8-py3:
     runs-on: ubuntu-latest
     steps:
@@ -18,25 +20,28 @@ jobs:
       uses: actions/setup-python@v1
       with:
         python-version: 3.7
+    - name: cache weekly timestamp
+      id: pip-cache
+      run: |
+        echo "::set-output name=datew::$(date '+%Y-%V')"
+    - name: cache for pip
+      uses: actions/cache@v2
+      id: cache
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ steps.pip-cache.outputs.datew }}
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip wheel
-        pip install -r requirements-dev.txt
-    - name: Lint with black formater
+        python -m pip install -r requirements-dev.txt
+    - name: Lint and type check
       run: |
-        $(pwd)/runtests.sh --nounittests --black
-    - name: Lint with flake8 code checker
-      run: |
-        $(pwd)/runtests.sh --nounittests --flake8
-    - name: Type check with mypy static analysis
-      run: |
-        $(pwd)/runtests.sh --nounittests --mypy
-    - name: Type check with Pytype static analysis
-      run: |
+        # clean up temporary files
+        $(pwd)/runtests.sh --clean
         # Git hub actions have 2 cores, so parallize pytype
-        $(pwd)/runtests.sh --nounittests --pytype -j 2
+        $(pwd)/runtests.sh --nounittests --codeformat -j 2
 
-  quick-py3:
+  quick-py3:  # full dependencies installed
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -53,17 +58,33 @@ jobs:
       run: |
         which python
         python -m pip install --upgrade pip wheel
+    - name: cache weekly timestamp
+      id: pip-cache
+      run: |
+        echo "::set-output name=datew::$(date '+%Y-%V')"
+        echo "::set-output name=dir::$(pip cache dir)"
+      shell: bash
+    - name: cache for pip
+      uses: actions/cache@v2
+      id: cache
+      with:
+        path: ${{ steps.pip-cache.outputs.dir }}
+        key: ${{ matrix.os }}-latest-pip-${{ steps.pip-cache.outputs.datew }}
     - if: runner.os == 'windows'
       name: Install torch cpu from pytorch.org (Windows only)
       run: |
         python -m pip install torch==1.4 -f https://download.pytorch.org/whl/cpu/torch_stable.html
+        python -m pip install torchvision==0.5.0
         # min. requirements for windows instances
-        python -c "f=open('requirements-dev.txt', 'r'); txt=f.readlines(); f.close(); print(txt); f=open('requirements-dev.txt', 'w'); f.writelines(txt[1:10]); f.close()"
+        python -c "f=open('requirements-dev.txt', 'r'); txt=f.readlines(); f.close(); print(txt); f=open('requirements-dev.txt', 'w'); f.writelines(txt[1:11]); f.close()"
     - name: Install the dependencies
       run: |
         python -m pip install torch==1.4
+        python -m pip install torchvision==0.5.0
+        cat "requirements-dev.txt"
         python -m pip install -r requirements-dev.txt
         python -m pip list
+        python setup.py develop  # compile the cpp extensions
     - name: Run quick tests (CPU ${{ runner.os }})
       run: |
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
@@ -71,19 +92,29 @@ jobs:
       env:
         QUICKTEST: True
 
-  GPU-quick-py3:
+  GPU-quick-py3:  # GPU with full dependencies
     container:
       image: nvcr.io/nvidia/pytorch:20.03-py3
       options: --gpus all
     runs-on: [self-hosted, linux, x64]
     steps:
     - uses: actions/checkout@v2
+    - name: cache weekly timestamp
+      id: pip-cache
+      run: |
+        echo "::set-output name=datew::$(date '+%Y-%V')"
+    - name: cache for pip
+      uses: actions/cache@v2
+      id: cache
+      with:
+        path: ~/.cache/pip
+        key: docker-20-03-py3-pip-${{ steps.pip-cache.outputs.datew }}
     - name: Install the dependencies
       run: |
         which python
         python -m pip install --upgrade pip wheel
         python -m pip uninstall -y torch torchvision
-        python -m pip install torch==1.4
+        python -m pip install torch==1.4 torchvision==0.5.0
         python -m pip install -r requirements-dev.txt
     - name: Run quick tests (GPU)
       run: |
@@ -94,7 +125,6 @@ jobs:
         python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
         python -c 'import torch; print(torch.rand(5,3, device=torch.device("cuda:0")))'
         ./runtests.sh --quick
-        pip list
         coverage xml
     - name: Upload coverage
       uses: codecov/codecov-action@v1
@@ -111,9 +141,23 @@ jobs:
       uses: actions/setup-python@v1
       with:
         python-version: '3.x'
-    - name: Install setuptools
+    - name: cache weekly timestamp
+      id: pip-cache
+      run: |
+        echo "::set-output name=datew::$(date '+%Y-%V')"
+    - name: cache for pip
+      uses: actions/cache@v2
+      id: cache
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ steps.pip-cache.outputs.datew }}
+    - name: Install dependencies
       run: |
         python -m pip install --user --upgrade pip setuptools wheel twine
+        # install the latest pytorch for testing
+        # however, "pip install monai*.tar.gz" will build cpp/cuda with an isolated
+        # fresh torch installation according to pyproject.toml
+        python -m pip install torch>=1.4 torchvision
     - name: Test source archive and wheel file
       run: |
         git fetch --depth=1 origin +refs/tags/*:refs/tags/*
@@ -159,10 +203,20 @@ jobs:
       uses: actions/setup-python@v1
       with:
         python-version: 3.7
+    - name: cache weekly timestamp
+      id: pip-cache
+      run: |
+        echo "::set-output name=datew::$(date '+%Y-%V')"
+    - name: cache for pip
+      uses: actions/cache@v2
+      id: cache
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ steps.pip-cache.outputs.datew }}
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip wheel
-        pip install -r docs/requirements.txt
+        python -m pip install -r docs/requirements.txt
     - name: Make html
       run: |
         cd docs/

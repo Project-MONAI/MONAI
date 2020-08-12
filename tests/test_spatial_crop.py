@@ -10,8 +10,10 @@
 # limitations under the License.
 
 import unittest
+
 import numpy as np
 from parameterized import parameterized
+
 from monai.transforms import SpatialCrop
 
 TEST_CASE_1 = [
@@ -22,11 +24,7 @@ TEST_CASE_1 = [
 
 TEST_CASE_2 = [{"roi_start": [0, 0, 0], "roi_end": [2, 2, 2]}, np.random.randint(0, 2, size=[3, 3, 3, 3]), (3, 2, 2, 2)]
 
-TEST_CASE_3 = [
-    {"roi_start": [0, 0], "roi_end": [2, 2]},
-    np.random.randint(0, 2, size=[3, 3, 3, 3]),
-    (3, 2, 2, 3),
-]
+TEST_CASE_3 = [{"roi_start": [0, 0], "roi_end": [2, 2]}, np.random.randint(0, 2, size=[3, 3, 3, 3]), (3, 2, 2, 3)]
 
 TEST_CASE_4 = [
     {"roi_start": [0, 0, 0, 0, 0], "roi_end": [2, 2, 2, 2, 2]},

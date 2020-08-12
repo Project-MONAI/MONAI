@@ -9,19 +9,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import logging
-import numpy as np
 import os
+import sys
+
+import numpy as np
 import torch
-from ignite.engine import Events, create_supervised_trainer, create_supervised_evaluator, _prepare_batch
-from ignite.handlers import ModelCheckpoint, EarlyStopping
+from ignite.engine import Events, _prepare_batch, create_supervised_evaluator, create_supervised_trainer
+from ignite.handlers import EarlyStopping, ModelCheckpoint
 from ignite.metrics import Accuracy
 from torch.utils.data import DataLoader
 
 import monai
-from monai.transforms import Compose, LoadNiftid, AddChanneld, ScaleIntensityd, Resized, RandRotate90d, ToTensord
-from monai.handlers import StatsHandler, TensorBoardStatsHandler, stopping_fn_from_metric, ROCAUC
+from monai.handlers import ROCAUC, StatsHandler, TensorBoardStatsHandler, stopping_fn_from_metric
+from monai.transforms import AddChanneld, Compose, LoadNiftid, RandRotate90d, Resized, ScaleIntensityd, ToTensord
 
 
 def main():
@@ -85,7 +86,7 @@ def main():
     print(check_data["img"].shape, check_data["label"])
 
     # create DenseNet121, CrossEntropyLoss and Adam optimizer
-    net = monai.networks.nets.densenet.densenet121(spatial_dims=3, in_channels=1, out_channels=2,)
+    net = monai.networks.nets.densenet.densenet121(spatial_dims=3, in_channels=1, out_channels=2)
     loss = torch.nn.CrossEntropyLoss()
     lr = 1e-5
     opt = torch.optim.Adam(net.parameters(), lr)

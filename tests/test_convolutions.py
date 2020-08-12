@@ -9,14 +9,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from tests.utils import TorchImageTestCase2D
-
 from monai.networks.blocks import Convolution, ResidualUnit
+from tests.utils import TorchImageTestCase2D
 
 
 class TestConvolution2D(TorchImageTestCase2D):
     def test_conv1(self):
         conv = Convolution(2, self.input_channels, self.output_channels)
+        out = conv(self.imt)
+        expected_shape = (1, self.output_channels, self.im_shape[0], self.im_shape[1])
+        self.assertEqual(out.shape, expected_shape)
+
+    def test_conv1_no_acti(self):
+        conv = Convolution(2, self.input_channels, self.output_channels, act=None)
         out = conv(self.imt)
         expected_shape = (1, self.output_channels, self.im_shape[0], self.im_shape[1])
         self.assertEqual(out.shape, expected_shape)

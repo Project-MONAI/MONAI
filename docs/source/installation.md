@@ -54,10 +54,13 @@ This command will create a ``MONAI/`` folder in your current directory.
 You can install it by running:
 ```bash
 cd MONAI/
-pip install -e .
+python setup.py develop
+
+# to uninstall the package please run:
+python setup.py develop --uninstall
 ```
 or simply adding the root directory of the cloned source code (e.g., ``/workspace/Documents/MONAI``) to your ``$PYTHONPATH``
-and the codebase is ready to use.
+and the codebase is ready to use (without the additional features of MONAI C++/CUDA extensions).
 
 
 ## Validating the install
@@ -102,22 +105,33 @@ By default, the installation steps will only download and install the minimal re
 Optional dependencies can be installed using [the extras syntax](https://packaging.python.org/tutorials/installing-packages/#installing-setuptools-extras) to support additional features.
 
 For example, to install MONAI with Nibabel and Scikit-image support:
-```
+```bash
 git clone https://github.com/Project-MONAI/MONAI.git
 cd MONAI/
 pip install -e '.[nibabel,skimage]'
 ```
 
 Alternatively, to install all optional dependencies:
-```
+```bash
 git clone https://github.com/Project-MONAI/MONAI.git
 cd MONAI/
 pip install -e '.[all]'
 ```
 
 To install all optional dependencies for MONAI development:
-```
+```bash
 git clone https://github.com/Project-MONAI/MONAI.git
 cd MONAI/
 pip install -r requirements-dev.txt
 ```
+
+Since MONAI v0.2.0, the extras syntax such as `pip install 'monai[nibabel]'` is available via PyPI.
+
+- The options are
+```
+[nibabel, skimage, pillow, tensorboard, gdown, ignite]
+```
+which correspond to `nibabel`, `scikit-image`, `pillow`, `tensorboard`,
+`gdown`, and `pytorch-ignite` respectively.
+
+- `pip install 'monai[all]'` installs all the optional dependencies.

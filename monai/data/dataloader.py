@@ -9,27 +9,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Callable
+from typing import Callable, Optional
 
-import torch
-from monai.data import list_data_collate, worker_init_fn
+from torch.utils.data import DataLoader as _TorchDataLoader
+from torch.utils.data import Dataset, Sampler
+
+from monai.data.utils import list_data_collate, worker_init_fn
 
 __all__ = ["DataLoader"]
 
 
-class DataLoader(torch.utils.data.DataLoader):
+class DataLoader(_TorchDataLoader):
     """Generates images/labels for train/validation/testing from dataset.
     It inherits from PyTorch DataLoader and adds callbacks for `collate` and `worker_fn`.
 
     Args:
-        dataset (Dataset): dataset from which to load the data.
+        dataset: dataset from which to load the data.
         batch_size: how many samples per batch to load
             (default: ``1``).
         shuffle: set to ``True`` to have the data reshuffled
             at every epoch (default: ``False``).
-        sampler (Sampler, optional): defines the strategy to draw samples from
+        sampler: defines the strategy to draw samples from
             the dataset. If specified, :attr:`shuffle` must be ``False``.
-        batch_sampler (Sampler, optional): like :attr:`sampler`, but returns a batch of
+        batch_sampler: like :attr:`sampler`, but returns a batch of
             indices at a time. Mutually exclusive with :attr:`batch_size`,
             :attr:`shuffle`, :attr:`sampler`, and :attr:`drop_last`.
         num_workers: how many subprocesses to use for data
@@ -43,7 +45,7 @@ class DataLoader(torch.utils.data.DataLoader):
             if the dataset size is not divisible by the batch size. If ``False`` and
             the size of dataset is not divisible by the batch size, then the last batch
             will be smaller. (default: ``False``)
-        timeout (numeric, optional): if positive, the timeout value for collecting a batch
+        timeout: if positive, the timeout value for collecting a batch
             from workers. Should always be non-negative. (default: ``0``)
         multiprocessing_context: specify a valid start method for multi-processing.
 
@@ -51,18 +53,18 @@ class DataLoader(torch.utils.data.DataLoader):
 
     def __init__(
         self,
-        dataset,
-        batch_size: Optional[int] = 1,
+        dataset: Dataset,
+        batch_size: int = 1,
         shuffle: bool = False,
-        sampler=None,
-        batch_sampler=None,
-        num_workers: Optional[int] = 0,
-        pin_memory=False,
-        drop_last=False,
-        timeout=0,
+        sampler: Optional[Sampler] = None,
+        batch_sampler: Optional[Sampler] = None,
+        num_workers: int = 0,
+        pin_memory: bool = False,
+        drop_last: bool = False,
+        timeout: float = 0.0,
         multiprocessing_context: Optional[Callable] = None,
-    ):
-        super().__init__(
+    ) -> None:
+        super().__init__(  # type: ignore[call-overload]
             dataset=dataset,
             batch_size=batch_size,
             shuffle=shuffle,

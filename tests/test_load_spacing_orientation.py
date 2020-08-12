@@ -33,7 +33,7 @@ class TestLoadSpacingOrientation(unittest.TestCase):
         data_dict = LoadNiftid(keys="image")(data)
         data_dict = AddChanneld(keys="image")(data_dict)
         t = time.time()
-        res_dict = Spacingd(keys="image", pixdim=(1, 0.2, 1), diagonal=True, mode="zeros")(data_dict)
+        res_dict = Spacingd(keys="image", pixdim=(1, 0.2, 1), diagonal=True, padding_mode="zeros")(data_dict)
         t1 = time.time()
         print(f"time monai: {t1 - t}")
         anat = nibabel.Nifti1Image(data_dict["image"][0], data_dict["image_meta_dict"]["original_affine"])
@@ -55,7 +55,7 @@ class TestLoadSpacingOrientation(unittest.TestCase):
             np.array([[0, 0, 1, 0], [0, 1, 0, 0], [-1, 0, 0, 0], [0, 0, 0, 1]]) @ affine
         )
         t = time.time()
-        res_dict = Spacingd(keys="image", pixdim=(1, 2, 3), diagonal=True, mode="zeros")(data_dict)
+        res_dict = Spacingd(keys="image", pixdim=(1, 2, 3), diagonal=True, padding_mode="zeros")(data_dict)
         t1 = time.time()
         print(f"time monai: {t1 - t}")
         anat = nibabel.Nifti1Image(data_dict["image"][0], data_dict["image_meta_dict"]["original_affine"])
@@ -80,7 +80,7 @@ class TestLoadSpacingOrientation(unittest.TestCase):
         data_dict["image_meta_dict"]["original_affine"] = data_dict["image_meta_dict"]["affine"] = (
             np.array([[0, 0, 1, 0], [0, 1, 0, 0], [-1, 0, 0, 0], [0, 0, 0, 1]]) @ affine
         )
-        res_dict = Spacingd(keys="image", pixdim=(1, 2, 3), diagonal=False, mode="zeros")(data_dict)
+        res_dict = Spacingd(keys="image", pixdim=(1, 2, 3), diagonal=False, padding_mode="zeros")(data_dict)
         np.testing.assert_allclose(
             res_dict["image_meta_dict"]["affine"],
             np.array(
@@ -97,7 +97,7 @@ class TestLoadSpacingOrientation(unittest.TestCase):
         data = {"image": FILES[0]}
         data_dict = LoadNiftid(keys="image")(data)
         data_dict = AddChanneld(keys="image")(data_dict)
-        res_dict = Spacingd(keys="image", pixdim=(1, 2, 3), diagonal=False, mode="border")(data_dict)
+        res_dict = Spacingd(keys="image", pixdim=(1, 2, 3), diagonal=False, padding_mode="border")(data_dict)
         np.testing.assert_allclose(
             res_dict["image_meta_dict"]["affine"],
             np.array([[-1.0, 0.0, 0.0, 32.0], [0.0, 2.0, 0.0, -40.0], [0.0, 0.0, 3.0, -16.0], [0.0, 0.0, 0.0, 1.0]]),
@@ -107,7 +107,7 @@ class TestLoadSpacingOrientation(unittest.TestCase):
         data = {"image": FILES[0]}
         data_dict = LoadNiftid(keys="image")(data)
         data_dict = AddChanneld(keys="image")(data_dict)
-        res_dict = Spacingd(keys="image", pixdim=(1, 2, 3), diagonal=False, mode="border")(data_dict)
+        res_dict = Spacingd(keys="image", pixdim=(1, 2, 3), diagonal=False, padding_mode="border")(data_dict)
         res_dict = Orientationd(keys="image", axcodes="LPI")(res_dict)
         np.testing.assert_allclose(
             res_dict["image_meta_dict"]["affine"],
@@ -122,7 +122,7 @@ class TestLoadSpacingOrientation(unittest.TestCase):
         data_dict["image_meta_dict"]["original_affine"] = data_dict["image_meta_dict"]["affine"] = (
             np.array([[0, 0, 1, 0], [0, 1, 0, 0], [-1, 0, 0, 0], [0, 0, 0, 1]]) @ affine
         )
-        res_dict = Spacingd(keys="image", pixdim=(1, 2, 3), diagonal=False, mode="border")(data_dict)
+        res_dict = Spacingd(keys="image", pixdim=(1, 2, 3), diagonal=False, padding_mode="border")(data_dict)
         res_dict = Orientationd(keys="image", axcodes="LPI")(res_dict)
         np.testing.assert_allclose(
             res_dict["image_meta_dict"]["affine"],

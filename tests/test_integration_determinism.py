@@ -18,7 +18,7 @@ from torch.utils.data import DataLoader, Dataset
 from monai.data import create_test_image_2d
 from monai.losses import DiceLoss
 from monai.networks.nets import UNet
-from monai.transforms import Compose, AddChannel, RandRotate90, RandSpatialCrop, ScaleIntensity, ToTensor
+from monai.transforms import AddChannel, Compose, RandRotate90, RandSpatialCrop, ScaleIntensity, ToTensor
 from monai.utils import set_determinism
 
 
@@ -40,7 +40,7 @@ def run_test(batch_size=64, train_steps=200, device=torch.device("cuda:0")):
             return train_steps
 
     net = UNet(
-        dimensions=2, in_channels=1, out_channels=1, channels=(4, 8, 16, 32), strides=(2, 2, 2), num_res_units=2,
+        dimensions=2, in_channels=1, out_channels=1, channels=(4, 8, 16, 32), strides=(2, 2, 2), num_res_units=2
     ).to(device)
 
     loss = DiceLoss(sigmoid=True)

@@ -14,9 +14,9 @@ import unittest
 import numpy as np
 import scipy.ndimage
 from parameterized import parameterized
-from tests.utils import NumpyImageTestCase2D, NumpyImageTestCase3D
 
 from monai.transforms import Rotated
+from tests.utils import NumpyImageTestCase2D, NumpyImageTestCase3D
 
 TEST_CASES_2D = [
     (-30, False, "bilinear", "border", False),
@@ -37,15 +37,15 @@ TEST_CASES_3D = [
 
 class TestRotated2D(NumpyImageTestCase2D):
     @parameterized.expand(TEST_CASES_2D)
-    def test_correct_results(self, angle, keep_size, interp_order, mode, align_corners):
-        rotate_fn = Rotated(("img", "seg"), angle, keep_size, (interp_order, "nearest"), mode, align_corners)
+    def test_correct_results(self, angle, keep_size, mode, padding_mode, align_corners):
+        rotate_fn = Rotated(("img", "seg"), angle, keep_size, (mode, "nearest"), padding_mode, align_corners)
         rotated = rotate_fn({"img": self.imt[0], "seg": self.segn[0]})
         if keep_size:
             np.testing.assert_allclose(self.imt[0].shape, rotated["img"].shape)
-        _order = 0 if interp_order == "nearest" else 1
-        if mode == "border":
+        _order = 0 if mode == "nearest" else 1
+        if padding_mode == "border":
             _mode = "nearest"
-        elif mode == "reflection":
+        elif padding_mode == "reflection":
             _mode = "reflect"
         else:
             _mode = "constant"
@@ -63,22 +63,22 @@ class TestRotated2D(NumpyImageTestCase2D):
 
 class TestRotated3D(NumpyImageTestCase3D):
     @parameterized.expand(TEST_CASES_3D)
-    def test_correct_results(self, angle, keep_size, interp_order, mode, align_corners):
-        rotate_fn = Rotated(("img", "seg"), [0, angle, 0], keep_size, (interp_order, "nearest"), mode, align_corners)
+    def test_correct_results(self, angle, keep_size, mode, padding_mode, align_corners):
+        rotate_fn = Rotated(("img", "seg"), [0, angle, 0], keep_size, (mode, "nearest"), padding_mode, align_corners)
         rotated = rotate_fn({"img": self.imt[0], "seg": self.segn[0]})
         if keep_size:
             np.testing.assert_allclose(self.imt[0].shape, rotated["img"].shape)
-        _order = 0 if interp_order == "nearest" else 1
-        if mode == "border":
+        _order = 0 if mode == "nearest" else 1
+        if padding_mode == "border":
             _mode = "nearest"
-        elif mode == "reflection":
+        elif padding_mode == "reflection":
             _mode = "reflect"
         else:
             _mode = "constant"
         expected = scipy.ndimage.rotate(
             self.imt[0, 0], angle, (0, 2), not keep_size, order=_order, mode=_mode, prefilter=False
         )
-        np.testing.assert_allclose(expected, rotated["img"][0], atol=1e-3)
+        np.testing.assert_allclose(expected.astype(np.float32), rotated["img"][0], atol=1e-3)
 
         expected = scipy.ndimage.rotate(
             self.segn[0, 0], angle, (0, 2), not keep_size, order=0, mode=_mode, prefilter=False
@@ -89,15 +89,15 @@ class TestRotated3D(NumpyImageTestCase3D):
 
 class TestRotated3DXY(NumpyImageTestCase3D):
     @parameterized.expand(TEST_CASES_3D)
-    def test_correct_results(self, angle, keep_size, interp_order, mode, align_corners):
-        rotate_fn = Rotated(("img", "seg"), [0, 0, angle], keep_size, (interp_order, "nearest"), mode, align_corners)
+    def test_correct_results(self, angle, keep_size, mode, padding_mode, align_corners):
+        rotate_fn = Rotated(("img", "seg"), [0, 0, angle], keep_size, (mode, "nearest"), padding_mode, align_corners)
         rotated = rotate_fn({"img": self.imt[0], "seg": self.segn[0]})
         if keep_size:
             np.testing.assert_allclose(self.imt[0].shape, rotated["img"].shape)
-        _order = 0 if interp_order == "nearest" else 1
-        if mode == "border":
+        _order = 0 if mode == "nearest" else 1
+        if padding_mode == "border":
             _mode = "nearest"
-        elif mode == "reflection":
+        elif padding_mode == "reflection":
             _mode = "reflect"
         else:
             _mode = "constant"

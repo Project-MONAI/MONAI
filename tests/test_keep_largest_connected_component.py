@@ -438,24 +438,11 @@ VALID_CASES = [
     TEST_CASE_15,
 ]
 
-ITEST_CASE_1 = [
-    "no_applied_labels_for_single_channel",
-    {"independent": False},
-    grid_1,
-    TypeError,
-]
+ITEST_CASE_1 = ["no_applied_labels_for_single_channel", {"independent": False}, grid_1, TypeError]
 
-ITEST_CASE_2 = [
-    "no_applied_labels_for_multi_channel",
-    {"independent": False},
-    grid_3,
-    TypeError,
-]
+ITEST_CASE_2 = ["no_applied_labels_for_multi_channel", {"independent": False}, grid_3, TypeError]
 
-INVALID_CASES = [
-    ITEST_CASE_1,
-    ITEST_CASE_2,
-]
+INVALID_CASES = [ITEST_CASE_1, ITEST_CASE_2]
 
 
 class TestKeepLargestConnectedComponent(unittest.TestCase):

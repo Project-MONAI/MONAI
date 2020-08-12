@@ -9,13 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import collections.abc
 import itertools
-from collections.abc import Iterable
-from typing import Any, Tuple
+import random
+from typing import Any, Callable, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
-import random
 
 _seed = None
 
@@ -43,82 +43,154 @@ def first(iterable, default=None):
     return default
 
 
-def issequenceiterable(obj):
+def issequenceiterable(obj: Any) -> bool:
     """
-    Determine if the object is an iterable sequence and is not a string
+    Determine if the object is an iterable sequence and is not a string.
     """
-    return isinstance(obj, Iterable) and not isinstance(obj, str)
+    return isinstance(obj, collections.abc.Iterable) and not isinstance(obj, str)
 
 
 def ensure_tuple(vals: Any) -> Tuple[Any, ...]:
-    """Returns a tuple of `vals`"""
+    """
+    Returns a tuple of `vals`.
+    """
     if not issequenceiterable(vals):
         vals = (vals,)
 
     return tuple(vals)
 
 
-def ensure_tuple_size(tup, dim, pad_val=0):
-    """Returns a copy of `tup` with `dim` values by either shortened or padded with `pad_val` as necessary."""
-    tup = tuple(tup) + (pad_val,) * dim
-    return tup[:dim]
+def ensure_tuple_size(tup: Any, dim: int, pad_val: Any = 0) -> Tuple[Any, ...]:
+    """
+    Returns a copy of `tup` with `dim` values by either shortened or padded with `pad_val` as necessary.
+    """
+    tup = ensure_tuple(tup) + (pad_val,) * dim
+    return tuple(tup[:dim])
 
 
-def ensure_tuple_rep(tup, dim):
+def ensure_tuple_rep(tup: Any, dim: int) -> Tuple[Any, ...]:
     """
     Returns a copy of `tup` with `dim` values by either shortened or duplicated input.
+
+    Raises:
+        ValueError: When ``tup`` is a sequence and ``tup`` length is not ``dim``.
+
+    Examples::
+
+        >>> ensure_tuple_rep(1, 3)
+        (1, 1, 1)
+        >>> ensure_tuple_rep(None, 3)
+        (None, None, None)
+        >>> ensure_tuple_rep('test', 3)
+        ('test', 'test', 'test')
+        >>> ensure_tuple_rep([1, 2, 3], 3)
+        (1, 2, 3)
+        >>> ensure_tuple_rep(range(3), 3)
+        (0, 1, 2)
+        >>> ensure_tuple_rep([1, 2], 3)
+        ValueError: Sequence must have length 3, got length 2.
+
     """
     if not issequenceiterable(tup):
         return (tup,) * dim
     elif len(tup) == dim:
         return tuple(tup)
 
-    raise ValueError(f"sequence must have length {dim}, got length {len(tup)}.")
+    raise ValueError(f"Sequence must have length {dim}, got {len(tup)}.")
 
 
-def is_scalar_tensor(val):
+def fall_back_tuple(user_provided: Any, default: Sequence, func: Callable = lambda x: x and x > 0) -> Tuple[Any, ...]:
+    """
+    Refine `user_provided` according to the `default`, and returns as a validated tuple.
+
+    The validation is done for each element in `user_provided` using `func`.
+    If `func(user_provided[idx])` returns False, the corresponding `default[idx]` will be used
+    as the fallback.
+
+    Typically used when `user_provided` is a tuple of window size provided by the user,
+    `default` is defined by data, this function returns an updated `user_provided` with its non-positive
+    components replaced by the corresponding components from `default`.
+
+    Args:
+        user_provided: item to be validated.
+        default: a sequence used to provided the fallbacks.
+        func: a Callable to validate every components of `user_provided`.
+
+    Examples::
+
+        >>> fall_back_tuple((1, 2), (32, 32))
+        (1, 2)
+        >>> fall_back_tuple(None, (32, 32))
+        (32, 32)
+        >>> fall_back_tuple((-1, 10), (32, 32))
+        (32, 10)
+        >>> fall_back_tuple((-1, None), (32, 32))
+        (32, 32)
+        >>> fall_back_tuple((1, None), (32, 32))
+        (1, 32)
+        >>> fall_back_tuple(0, (32, 32))
+        (32, 32)
+        >>> fall_back_tuple(range(3), (32, 64, 48))
+        (32, 1, 2)
+        >>> fall_back_tuple([0], (32, 32))
+        ValueError: Sequence must have length 2, got length 1.
+
+    """
+    ndim = len(default)
+    user = ensure_tuple_rep(user_provided, ndim)
+    return tuple(  # use the default values if user provided is not valid
+        user_c if func(user_c) else default_c for default_c, user_c in zip(default, user)
+    )
+
+
+def is_scalar_tensor(val: Any) -> bool:
     if torch.is_tensor(val) and val.ndim == 0:
         return True
     return False
 
 
-def is_scalar(val):
+def is_scalar(val: Any) -> bool:
     if torch.is_tensor(val) and val.ndim == 0:
         return True
-    return np.isscalar(val)
+    return bool(np.isscalar(val))
 
 
-def process_bar(index: int, count: int, bar_len: int = 30, newline: bool = False):
-    """print a process bar to track some time consuming task.
+def progress_bar(index: int, count: int, desc: Optional[str] = None, bar_len: int = 30, newline: bool = False) -> None:
+    """print a progress bar to track some time consuming task.
 
     Args:
-        index: current satus in process.
-        count: total steps of the process.
+        index: current satus in progress.
+        count: total steps of the progress.
+        desc: description of the progress bar, if not None, show before the progress bar.
         bar_len: the total length of the bar on screen, default is 30 char.
         newline: whether to print in a new line for every index.
     """
     end = "\r" if newline is False else "\r\n"
     filled_len = int(bar_len * index // count)
-    bar = "[" + "=" * filled_len + " " * (bar_len - filled_len) + "]"
-    print(f"{index}/{count} {bar:s}  ", end=end)
+    bar = f"{desc} " if desc is not None else ""
+    bar += "[" + "=" * filled_len + " " * (bar_len - filled_len) + "]"
+    print(f"{index}/{count} {bar}", end=end)
     if index == count:
         print("")
 
 
-def get_seed():
+def get_seed() -> Optional[int]:
     return _seed
 
 
-def set_determinism(seed=np.iinfo(np.int32).max, additional_settings=None):
+def set_determinism(
+    seed: Optional[int] = np.iinfo(np.int32).max,
+    additional_settings: Optional[Union[Sequence[Callable[[int], Any]], Callable[[int], Any]]] = None,
+) -> None:
     """
     Set random seed for modules to enable or disable deterministic training.
 
     Args:
-        seed (None, int): the random seed to use, default is np.iinfo(np.int32).max.
+        seed: the random seed to use, default is np.iinfo(np.int32).max.
             It is recommended to set a large seed, i.e. a number that has a good balance
             of 0 and 1 bits. Avoid having many 0 bits in the seed.
             if set to None, will disable deterministic training.
-        additional_settings (Callable, list or tuple of Callables): additional settings
+        additional_settings: additional settings
             that need to set random seed.
 
     """

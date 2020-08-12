@@ -10,13 +10,13 @@
 # limitations under the License.
 
 import unittest
-import time
-import sys
-import torch
+
 import numpy as np
+import torch
 from parameterized import parameterized
+
 from monai.transforms import CopyItemsd
-from monai.utils.misc import ensure_tuple
+from monai.utils import ensure_tuple
 
 TEST_CASE_1 = ["img", 1, "img_1"]
 

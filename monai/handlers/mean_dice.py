@@ -9,12 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Sequence, Union
+from typing import Callable, Optional, Sequence
 
 import torch
 
-from monai.metrics import compute_meandice
-from monai.utils import exact_version, optional_import
+from monai.metrics import DiceMetric
+from monai.utils import MetricReduction, exact_version, optional_import
 
 NotComputableError, _ = optional_import("ignite.exceptions", "0.3.0", exact_version, "NotComputableError")
 Metric, _ = optional_import("ignite.metrics", "0.3.0", exact_version, "Metric")
@@ -22,7 +22,7 @@ reinit__is_reduced, _ = optional_import("ignite.metrics.metric", "0.3.0", exact_
 sync_all_reduce, _ = optional_import("ignite.metrics.metric", "0.3.0", exact_version, "sync_all_reduce")
 
 
-class MeanDice(Metric):
+class MeanDice(Metric):  # type: ignore[valid-type, misc] # due to optional_import
     """
     Computes Dice score metric from full size Tensor and collects average over batch, class-channels, iterations.
     """
@@ -33,10 +33,11 @@ class MeanDice(Metric):
         to_onehot_y: bool = False,
         mutually_exclusive: bool = False,
         sigmoid: bool = False,
+        other_act: Optional[Callable] = None,
         logit_thresh: float = 0.5,
         output_transform: Callable = lambda x: x,
         device: Optional[torch.device] = None,
-    ):
+    ) -> None:
         """
 
         Args:
@@ -47,54 +48,61 @@ class MeanDice(Metric):
                 a combination of argmax and to_onehot. Defaults to False.
             sigmoid: whether to add sigmoid function to the output prediction before computing Dice.
                 Defaults to False.
+            other_act: callable function to replace `sigmoid` as activation layer if needed, Defaults to ``None``.
+                for example: `other_act = torch.tanh`.
             logit_thresh: the threshold value to round value to 0.0 and 1.0. Defaults to None (no thresholding).
             output_transform: transform the ignite.engine.state.output into [y_pred, y] pair.
-            device (torch.device): device specification in case of distributed computation usage.
+            device: device specification in case of distributed computation usage.
 
         See also:
             :py:meth:`monai.metrics.meandice.compute_meandice`
         """
         super().__init__(output_transform, device=device)
-        self.include_background = include_background
-        self.to_onehot_y = to_onehot_y
-        self.mutually_exclusive = mutually_exclusive
-        self.sigmoid = sigmoid
-        self.logit_thresh = logit_thresh
-
-        self._sum = 0
-        self._num_examples = 0
-
-    @reinit__is_reduced
-    def reset(self):
-        self._sum = 0
-        self._num_examples = 0
-
-    @reinit__is_reduced
-    def update(self, output: Sequence[Union[torch.Tensor, dict]]):
-        if not len(output) == 2:
-            raise ValueError("MeanDice metric can only support y_pred and y.")
-        y_pred, y = output
-        scores = compute_meandice(
-            y_pred,
-            y,
-            self.include_background,
-            self.to_onehot_y,
-            self.mutually_exclusive,
-            self.sigmoid,
-            self.logit_thresh,
+        self.dice = DiceMetric(
+            include_background=include_background,
+            to_onehot_y=to_onehot_y,
+            mutually_exclusive=mutually_exclusive,
+            sigmoid=sigmoid,
+            other_act=other_act,
+            logit_thresh=logit_thresh,
+            reduction=MetricReduction.MEAN,
         )
+        self._sum = 0.0
+        self._num_examples = 0
+
+    @reinit__is_reduced
+    def reset(self) -> None:
+        self._sum = 0.0
+        self._num_examples = 0
+
+    @reinit__is_reduced
+    def update(self, output: Sequence[torch.Tensor]) -> None:
+        """
+        Args:
+            output: sequence with contents [y_pred, y].
+
+        Raises:
+            ValueError: When ``output`` length is not 2. MeanDice metric can only support y_pred and y.
+
+        """
+        if len(output) != 2:
+            raise ValueError(f"output must have length 2, got {len(output)}.")
+        y_pred, y = output
+        score = self.dice(y_pred, y)
+        assert self.dice.not_nans is not None
+        not_nans = int(self.dice.not_nans.item())
 
         # add all items in current batch
-        for batch in scores:
-            not_nan = ~torch.isnan(batch)
-            if not_nan.sum() == 0:
-                continue
-            class_avg = batch[not_nan].mean().item()
-            self._sum += class_avg
-            self._num_examples += 1
+        self._sum += score.item() * not_nans
+        self._num_examples += not_nans
 
     @sync_all_reduce("_sum", "_num_examples")
-    def compute(self):
+    def compute(self) -> float:
+        """
+        Raises:
+            NotComputableError: When ``compute`` is called before an ``update`` occurs.
+
+        """
         if self._num_examples == 0:
             raise NotComputableError("MeanDice must have at least one example before it can be computed.")
         return self._sum / self._num_examples

@@ -10,15 +10,18 @@
 # limitations under the License.
 
 import logging
-from typing import Optional
+from typing import TYPE_CHECKING, Dict, Optional
 
 import torch
 
 from monai.utils import exact_version, optional_import
 
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
-Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 Checkpoint, _ = optional_import("ignite.handlers", "0.3.0", exact_version, "Checkpoint")
+if TYPE_CHECKING:
+    from ignite.engine import Engine
+else:
+    Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 
 
 class CheckpointLoader:
@@ -30,15 +33,23 @@ class CheckpointLoader:
 
     Args:
         load_path: the file path of checkpoint, it should be a PyTorch `pth` file.
-        load_dict (dict): target objects that load checkpoint to. examples::
+        load_dict: target objects that load checkpoint to. examples::
 
             {'network': net, 'optimizer': optimizer, 'lr_scheduler': lr_scheduler}
 
         name: identifier of logging.logger to use, if None, defaulting to ``engine.logger``.
+        map_location: when loading the module for distributed training/evaluation,
+            need to provide an appropriate map_location argument to prevent a process
+            to step into others’ devices. If map_location is missing, torch.load will
+            first load the module to CPU and then copy each parameter to where it was
+            saved, which would result in all processes on the same machine using the
+            same set of devices.
 
     """
 
-    def __init__(self, load_path: str, load_dict, name: Optional[str] = None):
+    def __init__(
+        self, load_path: str, load_dict: Dict, name: Optional[str] = None, map_location: Optional[Dict] = None,
+    ) -> None:
         assert load_path is not None, "must provide clear path to load checkpoint."
         self.load_path = load_path
         assert load_dict is not None and len(load_dict) > 0, "must provide target objects to load."
@@ -47,16 +58,24 @@ class CheckpointLoader:
             if hasattr(v, "module"):
                 load_dict[k] = v.module
         self.load_dict = load_dict
-
         self._name = name
+        self.map_location = map_location
 
-    def attach(self, engine: Engine):
+    def attach(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
         if self._name is None:
             self.logger = engine.logger
-        return engine.add_event_handler(Events.STARTED, self)
+        engine.add_event_handler(Events.STARTED, self)
 
-    def __call__(self, engine):
-        checkpoint = torch.load(self.load_path)
+    def __call__(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
+        checkpoint = torch.load(self.load_path, map_location=self.map_location)
         if len(self.load_dict) == 1:
             key = list(self.load_dict.keys())[0]
             if not (key in checkpoint):

@@ -15,15 +15,14 @@ import sys
 import threading
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Any, Callable, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 from torch.utils.data import Dataset as _TorchDataset
 
-from monai.transforms import Compose, Randomizable, Transform
-from monai.transforms.utils import apply_transform
-from monai.utils import get_seed, process_bar
+from monai.transforms import Compose, Randomizable, Transform, apply_transform
+from monai.utils import get_seed, progress_bar
 
 
 class Dataset(_TorchDataset):
@@ -39,16 +38,16 @@ class Dataset(_TorchDataset):
          },                           },                           }]
     """
 
-    def __init__(self, data, transform: Optional[Callable] = None):
+    def __init__(self, data: Sequence, transform: Optional[Callable] = None) -> None:
         """
         Args:
-            data (Iterable): input data to load and transform to generate dataset for model.
+            data: input data to load and transform to generate dataset for model.
             transform: a callable data transform on input data.
         """
         self.data = data
         self.transform = transform
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.data)
 
     def __getitem__(self, index: int):
@@ -80,7 +79,7 @@ class PersistentDataset(Dataset):
         [ LoadNiftid(keys=['image', 'label']),
           Orientationd(keys=['image', 'label'], axcodes='RAS'),
           ScaleIntensityRanged(keys=['image'], a_min=-57, a_max=164, b_min=0.0, b_max=1.0, clip=True),
-          RandCropByPosNegLabeld(keys=['image', 'label'], label_key='label', size=(96, 96, 96),
+          RandCropByPosNegLabeld(keys=['image', 'label'], label_key='label', spatial_size=(96, 96, 96),
                                  pos=1, neg=1, num_samples=4, image_key='image', image_threshold=0),
           ToTensord(keys=['image', 'label'])]
 
@@ -93,12 +92,17 @@ class PersistentDataset(Dataset):
     followed by applying the random dependant parts of transform processing.
     """
 
-    def __init__(self, data, transform: Optional[Callable] = None, cache_dir=None):
+    def __init__(
+        self,
+        data: Sequence,
+        transform: Union[Sequence[Callable], Callable],
+        cache_dir: Optional[Union[Path, str]] = None,
+    ) -> None:
         """
         Args:
-            data (Iterable): input data to load and transform to generate dataset for model.
+            data: input data to load and transform to generate dataset for model.
             transform: transforms to execute operations on input data.
-            cache_dir (Path or str or None): If specified, this is the location for persistent storage
+            cache_dir: If specified, this is the location for persistent storage
                 of pre-computed transformed data tensors. The cache_dir is computed once, and
                 persists on disk until explicitly removed.  Different runs, programs, experiments
                 may share a common cache dir provided that the transforms pre-processing is
@@ -115,6 +119,7 @@ class PersistentDataset(Dataset):
 
         Args:
             item_transformed: The data to be transformed
+
         Returns:
             the transformed element up to the first identified
             random transform object
@@ -129,8 +134,10 @@ class PersistentDataset(Dataset):
     def _first_random_and_beyond_transform(self, item_transformed):
         """
         Process the data from before the first random transform to the final state ready for evaluation.
+
         Args:
             item_transformed: The data to be transformed (already processed up to the first random transform)
+
         Returns:
             the transformed element through the random transforms
         """
@@ -147,10 +154,11 @@ class PersistentDataset(Dataset):
 
     def _pre_first_random_cachecheck(self, item_transformed):
         """
-            A function to cache the expensive input data transform operations
-            so that huge data sets (larger than computer memory) can be processed
-            on the fly as needed, and intermediate results written to disk for
-            future use.
+        A function to cache the expensive input data transform operations
+        so that huge data sets (larger than computer memory) can be processed
+        on the fly as needed, and intermediate results written to disk for
+        future use.
+
         Args:
             item_transformed: The current data element to be mutated into transformed representation
 
@@ -166,13 +174,13 @@ class PersistentDataset(Dataset):
         if item_transformed.get("cached", False) is False:
             hashfile = None
             if self.cache_dir is not None:
-                cache_dir_path: Path = Path(self.cache_dir)
+                cache_dir_path = Path(self.cache_dir)
                 if cache_dir_path.is_dir():
                     # TODO: Find way to hash transforms content as part of the cache
                     data_item_md5 = hashlib.md5(
                         json.dumps(item_transformed, sort_keys=True).encode("utf-8")
                     ).hexdigest()
-                    hashfile: Path = Path(cache_dir_path) / f"{data_item_md5}.pt"
+                    hashfile = Path(cache_dir_path) / f"{data_item_md5}.pt"
 
             if hashfile is not None and hashfile.is_file():
                 item_transformed = torch.load(hashfile)
@@ -184,13 +192,13 @@ class PersistentDataset(Dataset):
                     # NOTE: Writing to ".temp_write_cache" and then using a nearly atomic rename operation
                     #       to make the cache more robust to manual killing of parent process
                     #       which may leave partially written cache files in an incomplete state
-                    temp_hash_file: Path = hashfile.with_suffix(".temp_write_cache")
+                    temp_hash_file = hashfile.with_suffix(".temp_write_cache")
                     torch.save(item_transformed, temp_hash_file)
                     temp_hash_file.rename(hashfile)
 
         return item_transformed
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int):
         pre_random_item = self._pre_first_random_cachecheck(self.data[index])
         post_random_item = self._first_random_and_beyond_transform(pre_random_item)
         return post_random_item
@@ -231,11 +239,16 @@ class CacheDataset(Dataset):
     """
 
     def __init__(
-        self, data, transform: Callable, cache_num: int = sys.maxsize, cache_rate: float = 1.0, num_workers: int = 0
-    ):
+        self,
+        data: Sequence,
+        transform: Union[Sequence[Callable], Callable],
+        cache_num: int = sys.maxsize,
+        cache_rate: float = 1.0,
+        num_workers: int = 0,
+    ) -> None:
         """
         Args:
-            data (Iterable): input data to load and transform to generate dataset for model.
+            data: input data to load and transform to generate dataset for model.
             transform: transforms to execute operations on input data.
             cache_num: number of items to be cached. Default is `sys.maxsize`.
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
@@ -250,7 +263,6 @@ class CacheDataset(Dataset):
         self.cache_num = min(cache_num, int(len(self) * cache_rate), len(self))
         if self.cache_num > 0:
             self._cache = [None] * self.cache_num
-            print("Load and cache transformed data...")
             if num_workers > 0:
                 self._item_processed = 0
                 self._thread_lock = threading.Lock()
@@ -262,9 +274,14 @@ class CacheDataset(Dataset):
             else:
                 for i in range(self.cache_num):
                     self._cache[i] = self._load_cache_item(data[i], transform.transforms)
-                    process_bar(i + 1, self.cache_num)
+                    progress_bar(i + 1, self.cache_num, "Load and cache transformed data: ")
 
-    def _load_cache_item(self, item, transforms):
+    def _load_cache_item(self, item: Any, transforms: Sequence[Callable]):
+        """
+        Args:
+            item: input item to load and transform to generate dataset for model.
+            transforms: transforms to execute operations on input item.
+        """
         for _transform in transforms:
             # execute all the deterministic transforms
             if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
@@ -272,12 +289,19 @@ class CacheDataset(Dataset):
             item = apply_transform(_transform, item)
         return item
 
-    def _load_cache_item_thread(self, args):
+    def _load_cache_item_thread(self, args: Tuple[int, Any, Sequence[Callable]]) -> None:
+        """
+        Args:
+            args: tuple with contents (i, item, transforms).
+                i: the index to load the cached item to.
+                item: input item to load and transform to generate dataset for model.
+                transforms: transforms to execute operations on input item.
+        """
         i, item, transforms = args
         self._cache[i] = self._load_cache_item(item, transforms)
         with self._thread_lock:
             self._item_processed += 1
-            process_bar(self._item_processed, self.cache_num)
+            progress_bar(self._item_processed, self.cache_num, "Load and cache transformed data: ")
 
     def __getitem__(self, index):
         if index < self.cache_num:
@@ -317,16 +341,16 @@ class ZipDataset(Dataset):
 
     """
 
-    def __init__(self, datasets, transform: Optional[Callable] = None):
+    def __init__(self, datasets: Sequence, transform: Optional[Callable] = None) -> None:
         """
         Args:
-            datasets (list or tuple): list of datasets to zip together.
+            datasets: list of datasets to zip together.
             transform: a callable data transform operates on the zipped item from `datasets`.
         """
         super().__init__(list(datasets), transform=transform)
 
-    def __len__(self):
-        return min([len(dataset) for dataset in self.data])
+    def __len__(self) -> int:
+        return min((len(dataset) for dataset in self.data))
 
     def __getitem__(self, index: int):
         def to_list(x):
@@ -337,7 +361,8 @@ class ZipDataset(Dataset):
             data.extend(to_list(dataset[index]))
         if self.transform is not None:
             data = apply_transform(self.transform, data, map_items=False)  # transform the list data
-        return data
+        # use tuple instead of list as the default collate_fn callback of MONAI DataLoader flattens nested lists
+        return tuple(data)
 
 
 class ArrayDataset(Randomizable, _TorchDataset):
@@ -392,23 +417,23 @@ class ArrayDataset(Randomizable, _TorchDataset):
 
     def __init__(
         self,
-        img,
+        img: Sequence,
         img_transform: Optional[Callable] = None,
-        seg=None,
+        seg: Optional[Sequence] = None,
         seg_transform: Optional[Callable] = None,
-        labels=None,
+        labels: Optional[Sequence] = None,
         label_transform: Optional[Callable] = None,
-    ):
+    ) -> None:
         """
         Initializes the dataset with the filename lists. The transform `img_transform` is applied
         to the images and `seg_transform` to the segmentations.
 
         Args:
-            img (Sequence): sequence of images.
+            img: sequence of images.
             img_transform: transform to apply to each element in `img`.
-            seg (Sequence, optional): sequence of segmentations.
+            seg: sequence of segmentations.
             seg_transform: transform to apply to each element in `seg`.
-            labels (Sequence, optional): sequence of labels.
+            labels: sequence of labels.
             label_transform: transform to apply to each element in `labels`.
 
         """
@@ -419,10 +444,10 @@ class ArrayDataset(Randomizable, _TorchDataset):
 
         self._seed = 0  # transform synchronization seed
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.dataset)
 
-    def randomize(self):
+    def randomize(self, data: Optional[Any] = None) -> None:
         self._seed = self.R.randint(np.iinfo(np.int32).max)
 
     def __getitem__(self, index: int):

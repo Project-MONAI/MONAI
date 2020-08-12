@@ -10,13 +10,16 @@
 # limitations under the License.
 
 import logging
-from typing import Callable, Optional
+from typing import TYPE_CHECKING, Callable, Optional
 
 from monai.data import CSVSaver
 from monai.utils import exact_version, optional_import
 
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
-Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
+if TYPE_CHECKING:
+    from ignite.engine import Engine
+else:
+    Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
 
 
 class ClassificationSaver:
@@ -32,7 +35,7 @@ class ClassificationSaver:
         batch_transform: Callable = lambda x: x,
         output_transform: Callable = lambda x: x,
         name: Optional[str] = None,
-    ):
+    ) -> None:
         """
         Args:
             output_dir: output CSV file directory.
@@ -52,10 +55,14 @@ class ClassificationSaver:
         self.batch_transform = batch_transform
         self.output_transform = output_transform
 
-        self.logger = None if name is None else logging.getLogger(name)
+        self.logger = logging.getLogger(name)
         self._name = name
 
-    def attach(self, engine: Engine):
+    def attach(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
         if self._name is None:
             self.logger = engine.logger
         if not engine.has_event_handler(self, Events.ITERATION_COMPLETED):
@@ -63,10 +70,12 @@ class ClassificationSaver:
         if not engine.has_event_handler(self.saver.finalize, Events.COMPLETED):
             engine.add_event_handler(Events.COMPLETED, lambda engine: self.saver.finalize())
 
-    def __call__(self, engine: Engine):
+    def __call__(self, engine: Engine) -> None:
         """
         This method assumes self.batch_transform will extract metadata from the input batch.
 
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
         meta_data = self.batch_transform(engine.state.batch)
         engine_output = self.output_transform(engine.state.output)

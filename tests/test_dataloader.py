@@ -10,8 +10,9 @@
 # limitations under the License.
 
 import unittest
+
 from monai.data import CacheDataset, DataLoader
-from monai.transforms import DataStatsd, SimulateDelayd, Compose
+from monai.transforms import Compose, DataStatsd, SimulateDelayd
 
 
 class TestDataLoader(unittest.TestCase):
@@ -22,7 +23,7 @@ class TestDataLoader(unittest.TestCase):
         ]
         transform = Compose(
             [
-                DataStatsd(keys=["image", "label"], data_shape=False, intensity_range=False, data_value=True),
+                DataStatsd(keys=["image", "label"], data_shape=False, value_range=False, data_value=True),
                 SimulateDelayd(keys=["image", "label"], delay_time=0.1),
             ]
         )

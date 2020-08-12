@@ -21,10 +21,17 @@ This research prototype is adapted from:
 
 To run the inference demo:
 
-- install the latest version of MONAI: `git clone https://github.com/Project-MONAI/MONAI` and `pip install -e .`.
+- Download and switch to MONAI 0.2.0 source code:
+```bash
+git clone https://github.com/Project-MONAI/MONAI
+cd MONAI
+git checkout 0.2.0
+pip install -e '.[nibabel]'  # install from the source code
+```
+The rest of the steps assume that the current directory is the folder of this README file.
 - download the input examples from [google drive folder](https://drive.google.com/drive/folders/1pIoSSc4Iq8R9_xXo0NzaOhIHZ3-PqqDC) to `./images`.
 - download the adapted pretrained model from [google drive folder](https://drive.google.com/drive/folders/1HXlYJGvTF3gNGOL0UFBeHVoA6Vh_GqEw) to `./model`.
 - run `python run_inference.py` and segmentation results will be saved at `./output`.
 
-("To segment COVID-19 pneumonia lesions from your own data, make sure that the images have been cropped into the lung region,
- and the intensity has been normalized into [0, 1] using window/level of 1500/-650.")
+_(To segment COVID-19 pneumonia lesions from your own images, make sure that the images have been cropped into the lung region,
+ and the intensity has been normalized into [0, 1] using window width/level of 1500/-650.)_

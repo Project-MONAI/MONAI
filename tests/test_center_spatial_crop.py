@@ -10,9 +10,13 @@
 # limitations under the License.
 
 import unittest
+
 import numpy as np
 from parameterized import parameterized
+
 from monai.transforms import CenterSpatialCrop
+
+TEST_CASE_0 = [{"roi_size": [2, 2, -1]}, np.random.randint(0, 2, size=[3, 3, 3, 3]), (3, 2, 2, 3)]
 
 TEST_CASE_1 = [{"roi_size": [2, 2, 2]}, np.random.randint(0, 2, size=[3, 3, 3, 3]), (3, 2, 2, 2)]
 
@@ -24,10 +28,10 @@ TEST_CASE_2 = [
 
 
 class TestCenterSpatialCrop(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1])
+    @parameterized.expand([TEST_CASE_0, TEST_CASE_1])
     def test_shape(self, input_param, input_data, expected_shape):
         result = CenterSpatialCrop(**input_param)(input_data)
-        self.assertTupleEqual(result.shape, expected_shape)
+        np.testing.assert_allclose(result.shape, expected_shape)
 
     @parameterized.expand([TEST_CASE_2])
     def test_value(self, input_param, input_data, expected_value):

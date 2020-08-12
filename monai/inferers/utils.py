@@ -9,51 +9,68 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable
+from typing import Callable, Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn.functional as F
+
 from monai.data.utils import compute_importance_map, dense_patch_slices, get_valid_patch_size
+from monai.utils import BlendMode, PytorchPadMode, fall_back_tuple
 
 
 def sliding_window_inference(
     inputs: torch.Tensor,
-    roi_size,
+    roi_size: Union[Sequence[int], int],
     sw_batch_size: int,
-    predictor: Callable,
+    predictor: Callable[[torch.Tensor], torch.Tensor],
     overlap: float = 0.25,
-    blend_mode: str = "constant",
-    padding_mode: str = "constant",
-    cval=0,
-):
+    mode: Union[BlendMode, str] = BlendMode.CONSTANT,
+    padding_mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
+    cval: float = 0.0,
+    device: Optional[torch.device] = None,
+) -> torch.Tensor:
     """
     Sliding window inference on `inputs` with `predictor`.
-
-    When roi_size is 0, the corresponding inputs dimension will be used as the window dimension.
 
     When roi_size is larger than the inputs' spatial size, the input image are padded during inference.
     To maintain the same spatial sizes, the output image will be cropped to the original input size.
 
     Args:
         inputs: input image to be processed (assuming NCHW[D])
-        roi_size (list, tuple): the spatial window size for inferences.
+        roi_size: the spatial window size for inferences.
+            When its components have None or non-positives, the corresponding inputs dimension will be used.
+            if the components of the `roi_size` are non-positive values, the transform will use the
+            corresponding components of img size. For example, `roi_size=(32, -1)` will be adapted
+            to `(32, 64)` if the second spatial dimension size of img is `64`.
         sw_batch_size: the batch size to run window slices.
         predictor: given input tensor `patch_data` in shape NCHW[D], `predictor(patch_data)`
             should return a prediction with the same spatial shape and batch_size, i.e. NMHW[D];
             where HW[D] represents the patch spatial size, M is the number of output channels, N is `sw_batch_size`.
         overlap: Amount of overlap between scans.
-        blend_mode: How to blend output of overlapping windows. Options are 'constant', 'gaussian'. 'constant'
-            gives equal weight to all predictions while gaussian gives less weight to predictions on edges of windows.
-        padding_mode: padding mode when roi_size is larger than inputs.
-            options are 'constant', 'reflect', 'replicate' or 'circular'. Default: 'constant'
+        mode: {``"constant"``, ``"gaussian"``}
+            How to blend output of overlapping windows. Defaults to ``"constant"``.
+
+            - ``"constant``": gives equal weight to all predictions.
+            - ``"gaussian``": gives less weight to predictions on edges of windows.
+
+        padding_mode: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}
+            Padding mode when ``roi_size`` is larger than inputs. Defaults to ``"constant"``
+            See also: https://pytorch.org/docs/stable/nn.functional.html#pad
         cval: fill value for 'constant' padding mode. Default: 0
+        device: device running the concatenation of the windows.
+            By default the device and accordingly the memory of the input device is used. If for example
+            set to device=torch.device('cpu') the gpu memory consumption is less and independent of the
+            input and roi_size parameter. Output is on the device set or if not set the inputs device.
+
+    Raises:
+        NotImplementedError: When ``inputs`` does not have batch size = 1.
 
     Note:
         - input must be channel-first and have a batch dim, support both spatial 2D and 3D.
         - currently only supports `inputs` with batch_size=1.
+
     """
     num_spatial_dims = len(inputs.shape) - 2
-    assert len(roi_size) == num_spatial_dims, f"roi_size {roi_size} does not match input dims."
     assert 0 <= overlap < 1, "overlap must be >= 0 and < 1."
 
     # determine image spatial size and batch size
@@ -63,9 +80,12 @@ def sliding_window_inference(
 
     # TODO: Enable batch sizes > 1 in future
     if batch_size > 1:
-        raise NotImplementedError
+        raise NotImplementedError("Currently only inputs with batch size = 1 are supported.")
 
-    original_image_size = [image_size_[i] for i in range(num_spatial_dims)]
+    if device is None:
+        device = inputs.device
+
+    roi_size = fall_back_tuple(roi_size, image_size_)
     # in case that image size is smaller than roi size
     image_size = tuple(max(image_size_[i], roi_size[i]) for i in range(num_spatial_dims))
     pad_size = []
@@ -73,7 +93,7 @@ def sliding_window_inference(
         diff = max(roi_size[k - 2] - inputs.shape[k], 0)
         half = diff // 2
         pad_size.extend([half, diff - half])
-    inputs = F.pad(inputs, pad=pad_size, mode=padding_mode, value=cval)
+    inputs = F.pad(inputs, pad=pad_size, mode=PytorchPadMode(padding_mode).value, value=cval)
 
     scan_interval = _get_scan_interval(image_size, roi_size, num_spatial_dims, overlap)
 
@@ -96,20 +116,18 @@ def sliding_window_inference(
     output_rois = list()
     for data in slice_batches:
         seg_prob = predictor(data)  # batched patch segmentation
-        output_rois.append(seg_prob)
+        output_rois.append(seg_prob.to(device))
 
     # stitching output image
     output_classes = output_rois[0].shape[1]
     output_shape = [batch_size, output_classes] + list(image_size)
 
     # Create importance map
-    importance_map = compute_importance_map(
-        get_valid_patch_size(image_size, roi_size), mode=blend_mode, device=inputs.device
-    )
+    importance_map = compute_importance_map(get_valid_patch_size(image_size, roi_size), mode=mode, device=device)
 
     # allocate memory to store the full output and the count for overlapping parts
-    output_image = torch.zeros(output_shape, dtype=torch.float32, device=inputs.device)
-    count_map = torch.zeros(output_shape, dtype=torch.float32, device=inputs.device)
+    output_image = torch.zeros(output_shape, dtype=torch.float32, device=device)
+    count_map = torch.zeros(output_shape, dtype=torch.float32, device=device)
 
     for window_id, slice_index in enumerate(range(0, len(slices), sw_batch_size)):
         slice_index_range = range(slice_index, min(slice_index + sw_batch_size, len(slices)))
@@ -129,21 +147,23 @@ def sliding_window_inference(
                 count_map[0, :, curr_slice[0], curr_slice[1]] += importance_map
 
     # account for any overlapping sections
-    output_image /= count_map
+    output_image = output_image / count_map
 
     if num_spatial_dims == 3:
         return output_image[
             ...,
-            pad_size[4] : original_image_size[0] + pad_size[4],
-            pad_size[2] : original_image_size[1] + pad_size[2],
-            pad_size[0] : original_image_size[2] + pad_size[0],
+            pad_size[4] : image_size_[0] + pad_size[4],
+            pad_size[2] : image_size_[1] + pad_size[2],
+            pad_size[0] : image_size_[2] + pad_size[0],
         ]
     return output_image[
-        ..., pad_size[2] : original_image_size[0] + pad_size[2], pad_size[0] : original_image_size[1] + pad_size[0]
+        ..., pad_size[2] : image_size_[0] + pad_size[2], pad_size[0] : image_size_[1] + pad_size[0]
     ]  # 2D
 
 
-def _get_scan_interval(image_size, roi_size, num_spatial_dims: int, overlap: float):
+def _get_scan_interval(
+    image_size: Sequence[int], roi_size: Sequence[int], num_spatial_dims: int, overlap: float
+) -> Tuple[int, ...]:
     assert len(image_size) == num_spatial_dims, "image coord different from spatial dims."
     assert len(roi_size) == num_spatial_dims, "roi coord different from spatial dims."
 

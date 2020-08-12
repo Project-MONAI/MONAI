@@ -9,14 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Union
+from typing import Dict, Optional, Union
 
 import numpy as np
 import torch
 
 from monai.data.nifti_writer import write_nifti
-
-from .utils import create_file_basename
+from monai.data.utils import create_file_basename
+from monai.utils import GridSampleMode, GridSamplePadMode
 
 
 class NiftiSaver:
@@ -33,35 +33,42 @@ class NiftiSaver:
         output_postfix: str = "seg",
         output_ext: str = ".nii.gz",
         resample: bool = True,
-        interp_order: str = "bilinear",
-        mode: str = "border",
-        dtype: Optional[np.dtype] = None,
-    ):
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        align_corners: bool = False,
+        dtype: Optional[np.dtype] = np.float64,
+    ) -> None:
         """
         Args:
             output_dir: output image directory.
             output_postfix: a string appended to all output file names.
             output_ext: output file extension name.
-            resample (bool): whether to resample before saving the data array.
-            interp_order (`nearest|bilinear`): the interpolation mode, default is "bilinear".
+            resample: whether to resample before saving the data array.
+            mode: {``"bilinear"``, ``"nearest"``}
+                This option is used when ``resample = True``.
+                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-                This option is used when `resample = True`.
-            mode (`zeros|border|reflection`):
-                The mode parameter determines how the input array is extended beyond its boundaries.
-                Defaults to "border". This option is used when `resample = True`.
-            dtype (np.dtype, optional): convert the image data to save to this data type.
-                If None, keep the original type of data.
+            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+                This option is used when ``resample = True``.
+                Padding mode for outside grid values. Defaults to ``"border"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
+                If None, use the data type of input data. To be compatible with other modules,
+                the output data type is always ``np.float32``.
         """
         self.output_dir = output_dir
         self.output_postfix = output_postfix
         self.output_ext = output_ext
         self.resample = resample
-        self.interp_order = interp_order
-        self.mode = mode
+        self.mode: GridSampleMode = GridSampleMode(mode)
+        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
+        self.align_corners = align_corners
         self.dtype = dtype
         self._data_index = 0
 
-    def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: dict = None):
+    def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
         """
         Save data into a Nifti file.
         The meta_data could optionally have the following keys:
@@ -76,10 +83,10 @@ class NiftiSaver:
 
         If meta_data is None, use the default index (starting from 0) as the filename.
 
-        args:
-            data (Tensor or ndarray): target data content that to be saved as a NIfTI format file.
+        Args:
+            data: target data content that to be saved as a NIfTI format file.
                 Assuming the data shape starts with a channel dimension and followed by spatial dimensions.
-            meta_data (dict): the meta data information corresponding to the data.
+            meta_data: the meta data information corresponding to the data.
 
         See Also
             :py:meth:`monai.data.nifti_writer.write_nifti`
@@ -105,13 +112,14 @@ class NiftiSaver:
             affine=affine,
             target_affine=original_affine,
             resample=self.resample,
-            output_shape=spatial_shape,
-            interp_order=self.interp_order,
+            output_spatial_shape=spatial_shape,
             mode=self.mode,
-            dtype=self.dtype or data.dtype,
+            padding_mode=self.padding_mode,
+            align_corners=self.align_corners,
+            dtype=self.dtype,
         )
 
-    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data=None):
+    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
         """
         Save a batch of data into Nifti format files.
 
@@ -125,9 +133,9 @@ class NiftiSaver:
         in this case each item in the batch will be saved as (64, 64, 1, 8)
         NIfTI file (the third dimension is reserved as a spatial dimension).
 
-        args:
-            batch_data (Tensor or ndarray): target batch data content that save into NIfTI format.
-            meta_data (dict): every key-value in the meta_data is corresponding to a batch of data.
+        Args:
+            batch_data: target batch data content that save into NIfTI format.
+            meta_data: every key-value in the meta_data is corresponding to a batch of data.
         """
         for i, data in enumerate(batch_data):  # save a batch of files
             self.save(data, {k: meta_data[k][i] for k in meta_data} if meta_data else None)

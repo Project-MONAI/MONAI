@@ -10,11 +10,13 @@
 # limitations under the License.
 
 import warnings
+from typing import Callable, Optional, Union
 
 import torch
 from torch.nn.modules.loss import _Loss
 
-from monai.networks.utils import one_hot
+from monai.networks import one_hot
+from monai.utils import LossReduction
 
 
 class TverskyLoss(_Loss):
@@ -36,64 +38,87 @@ class TverskyLoss(_Loss):
         to_onehot_y: bool = False,
         sigmoid: bool = False,
         softmax: bool = False,
+        other_act: Optional[Callable] = None,
         alpha: float = 0.5,
         beta: float = 0.5,
-        reduction: str = "mean",
-    ):
-
+        reduction: Union[LossReduction, str] = LossReduction.MEAN,
+    ) -> None:
         """
         Args:
             include_background: If False channel index 0 (background category) is excluded from the calculation.
             to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
             sigmoid: If True, apply a sigmoid function to the prediction.
             softmax: If True, apply a softmax function to the prediction.
+            other_act: if don't want to use `sigmoid` or `softmax`, use other callable function to execute
+                other activation layers, Defaults to ``None``. for example:
+                `other_act = torch.tanh`.
             alpha: weight of false positives
             beta: weight of false negatives
-            reduction (`none|mean|sum`): Specifies the reduction to apply to the output:
-                ``'none'``: no reduction will be applied,
-                ``'mean'``: the sum of the output will be divided by the number of elements in the output,
-                ``'sum'``: the output will be summed.
-                Default: ``'mean'``.
+            reduction: {``"none"``, ``"mean"``, ``"sum"``}
+                Specifies the reduction to apply to the output. Defaults to ``"mean"``.
+
+                - ``"none"``: no reduction will be applied.
+                - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
+                - ``"sum"``: the output will be summed.
+
+        Raises:
+            TypeError: When ``other_act`` is not an ``Optional[Callable]``.
+            ValueError: When more than 1 of [``sigmoid=True``, ``softmax=True``, ``other_act is not None``].
+                Incompatible values.
 
         """
 
-        super().__init__(reduction=reduction)
+        super().__init__(reduction=LossReduction(reduction).value)
+        if other_act is not None and not callable(other_act):
+            raise TypeError(f"other_act must be None or callable but is {type(other_act).__name__}.")
+        if int(sigmoid) + int(softmax) + int(other_act is not None) > 1:
+            raise ValueError("Incompatible values: more than 1 of [sigmoid=True, softmax=True, other_act is not None].")
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
-
-        if sigmoid and softmax:
-            raise ValueError("sigmoid=True and softmax=True are not compatible.")
         self.sigmoid = sigmoid
         self.softmax = softmax
+        self.other_act = other_act
         self.alpha = alpha
         self.beta = beta
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5):
+    def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5) -> torch.Tensor:
         """
         Args:
-            input (tensor): the shape should be BNH[WD].
-            target (tensor): the shape should be BNH[WD].
+            input: the shape should be BNH[WD].
+            target: the shape should be BNH[WD].
             smooth: a small constant to avoid nan.
+
+        Raises:
+            ValueError: When ``self.reduction`` is not one of ["mean", "sum", "none"].
+
         """
         if self.sigmoid:
             input = torch.sigmoid(input)
+
         n_pred_ch = input.shape[1]
-        if n_pred_ch == 1:
-            if self.softmax:
+        if self.softmax:
+            if n_pred_ch == 1:
                 warnings.warn("single channel prediction, `softmax=True` ignored.")
-            if self.to_onehot_y:
-                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
-            if not self.include_background:
-                warnings.warn("single channel prediction, `include_background=False` ignored.")
-        else:
-            if self.softmax:
+            else:
                 input = torch.softmax(input, 1)
-            if self.to_onehot_y:
-                target = one_hot(target, n_pred_ch)
-            if not self.include_background:
+
+        if self.other_act is not None:
+            input = self.other_act(input)
+
+        if self.to_onehot_y:
+            if n_pred_ch == 1:
+                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
+            else:
+                target = one_hot(target, num_classes=n_pred_ch)
+
+        if not self.include_background:
+            if n_pred_ch == 1:
+                warnings.warn("single channel prediction, `include_background=False` ignored.")
+            else:
                 # if skipping background, removing first channel
                 target = target[:, 1:]
                 input = input[:, 1:]
+
         assert (
             target.shape == input.shape
         ), f"ground truth has differing shape ({target.shape}) from input ({input.shape})"
@@ -113,12 +138,12 @@ class TverskyLoss(_Loss):
         numerator = tp + smooth
         denominator = tp + fp + fn + smooth
 
-        score = 1.0 - numerator / denominator
+        score: torch.Tensor = 1.0 - numerator / denominator
 
-        if self.reduction == "sum":
-            return score.sum()  # sum over the batch and channel dims
-        if self.reduction == "none":
+        if self.reduction == LossReduction.SUM.value:
+            return torch.sum(score)  # sum over the batch and channel dims
+        if self.reduction == LossReduction.NONE.value:
             return score  # returns [N, n_classes] losses
-        if self.reduction == "mean":
-            return score.mean()
-        raise ValueError(f"reduction={self.reduction} is invalid.")
+        if self.reduction == LossReduction.MEAN.value:
+            return torch.mean(score)
+        raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')

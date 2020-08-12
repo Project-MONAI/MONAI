@@ -9,42 +9,43 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 import os
+import shutil
 import sys
 import tempfile
-import shutil
 from glob import glob
-import logging
+
 import nibabel as nib
 import numpy as np
 import torch
 from ignite.metrics import Accuracy
 
 import monai
+from monai.data import create_test_image_3d
+from monai.engines import SupervisedEvaluator, SupervisedTrainer
+from monai.handlers import (
+    CheckpointSaver,
+    LrScheduleHandler,
+    MeanDice,
+    StatsHandler,
+    TensorBoardImageHandler,
+    TensorBoardStatsHandler,
+    ValidationHandler,
+)
+from monai.inferers import SimpleInferer, SlidingWindowInferer
 from monai.transforms import (
-    Compose,
-    LoadNiftid,
+    Activationsd,
     AsChannelFirstd,
-    ScaleIntensityd,
+    AsDiscreted,
+    Compose,
+    KeepLargestConnectedComponentd,
+    LoadNiftid,
     RandCropByPosNegLabeld,
     RandRotate90d,
+    ScaleIntensityd,
     ToTensord,
-    Activationsd,
-    AsDiscreted,
-    KeepLargestConnectedComponentd,
 )
-from monai.handlers import (
-    StatsHandler,
-    TensorBoardStatsHandler,
-    TensorBoardImageHandler,
-    ValidationHandler,
-    LrScheduleHandler,
-    CheckpointSaver,
-    MeanDice,
-)
-from monai.data import create_test_image_3d
-from monai.engines import SupervisedTrainer, SupervisedEvaluator
-from monai.inferers import SimpleInferer, SlidingWindowInferer
 
 
 def main():
@@ -71,9 +72,9 @@ def main():
         [
             LoadNiftid(keys=["image", "label"]),
             AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
-            ScaleIntensityd(keys=["image", "label"]),
+            ScaleIntensityd(keys="image"),
             RandCropByPosNegLabeld(
-                keys=["image", "label"], label_key="label", size=[96, 96, 96], pos=1, neg=1, num_samples=4
+                keys=["image", "label"], label_key="label", spatial_size=[96, 96, 96], pos=1, neg=1, num_samples=4
             ),
             RandRotate90d(keys=["image", "label"], prob=0.5, spatial_axes=[0, 2]),
             ToTensord(keys=["image", "label"]),
@@ -83,7 +84,7 @@ def main():
         [
             LoadNiftid(keys=["image", "label"]),
             AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
-            ScaleIntensityd(keys=["image", "label"]),
+            ScaleIntensityd(keys="image"),
             ToTensord(keys=["image", "label"]),
         ]
     )
@@ -121,7 +122,7 @@ def main():
         StatsHandler(output_transform=lambda x: None),
         TensorBoardStatsHandler(log_dir="./runs/", output_transform=lambda x: None),
         TensorBoardImageHandler(
-            log_dir="./runs/", batch_transform=lambda x: (x["image"], x["label"]), output_transform=lambda x: x["pred"],
+            log_dir="./runs/", batch_transform=lambda x: (x["image"], x["label"]), output_transform=lambda x: x["pred"]
         ),
         CheckpointSaver(save_dir="./runs/", save_dict={"net": net}, save_key_metric=True),
     ]
@@ -137,6 +138,8 @@ def main():
         },
         additional_metrics={"val_acc": Accuracy(output_transform=lambda x: (x["pred"], x["label"]))},
         val_handlers=val_handlers,
+        # if no FP16 support in GPU or PyTorch version < 1.6, will not enable AMP evaluation
+        amp=True if monai.config.get_torch_version_tuple() >= (1, 6) else False,
     )
 
     train_post_transforms = Compose(
@@ -162,10 +165,11 @@ def main():
         optimizer=opt,
         loss_function=loss,
         inferer=SimpleInferer(),
-        amp=False,
         post_transform=train_post_transforms,
         key_train_metric={"train_acc": Accuracy(output_transform=lambda x: (x["pred"], x["label"]))},
         train_handlers=train_handlers,
+        # if no FP16 support in GPU or PyTorch version < 1.6, will not enable AMP training
+        amp=True if monai.config.get_torch_version_tuple() >= (1, 6) else False,
     )
     trainer.run()
 

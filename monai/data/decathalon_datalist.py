@@ -9,27 +9,57 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import json
-from typing import Optional
+import os
+from typing import Dict, List, Optional, overload
+
+
+@overload
+def _compute_path(base_dir: str, element: str) -> str:
+    ...
+
+
+@overload
+def _compute_path(base_dir: str, element: List[str]) -> List[str]:
+    ...
 
 
 def _compute_path(base_dir, element):
+    """
+    Args:
+        base_dir: the base directory of the dataset.
+        element: file path(s) to append to directory.
+
+    Raises:
+        TypeError: When ``element`` contains a non ``str``.
+        TypeError: When ``element`` type is not in ``Union[list, str]``.
+
+    """
     if isinstance(element, str):
         return os.path.normpath(os.path.join(base_dir, element))
     elif isinstance(element, list):
         for e in element:
             if not isinstance(e, str):
-                raise ValueError("file path must be a string.")
+                raise TypeError(f"Every file path in element must be a str but got {type(element).__name__}.")
         return [os.path.normpath(os.path.join(base_dir, e)) for e in element]
     else:
-        raise ValueError("file path must be a string or a list of string.")
+        raise TypeError(f"element must be one of (str, list) but is {type(element).__name__}.")
 
 
-def _append_paths(base_dir, is_segmentation, items):
+def _append_paths(base_dir: str, is_segmentation: bool, items: List[Dict]) -> List[Dict]:
+    """
+    Args:
+        base_dir: the base directory of the dataset.
+        is_segmentation: whether the datalist is for segmentation task.
+        items: list of data items, each of which is a dict keyed by element names.
+
+    Raises:
+        TypeError: When ``items`` contains a non ``dict``.
+
+    """
     for item in items:
         if not isinstance(item, dict):
-            raise ValueError("data item must be dict.")
+            raise TypeError(f"Every item in items must be a dict but got {type(item).__name__}.")
         for k, v in item.items():
             if k == "image":
                 item[k] = _compute_path(base_dir, v)
@@ -43,7 +73,7 @@ def load_decathalon_datalist(
     is_segmentation: bool = True,
     data_list_key: str = "training",
     base_dir: Optional[str] = None,
-):
+) -> List[Dict]:
     """Load image/label paths of decathalon challenge from JSON file
 
     Json file is similar to what you get from http://medicaldecathlon.com/
@@ -55,22 +85,26 @@ def load_decathalon_datalist(
         data_list_key: the key to get a list of dictionary to be used, default is "training".
         base_dir: the base directory of the dataset, if None, use the datalist directory.
 
+    Raises:
+        ValueError: When ``data_list_file_path`` does not point to a file.
+        ValueError: When ``data_list_key`` is not specified in the data list file.
+
     Returns a list of data items, each of which is a dict keyed by element names, for example:
 
     .. code-block::
 
         [
-            {'image': '/workspace/data/chest_19.nii.gz',  'label': 0}, 
+            {'image': '/workspace/data/chest_19.nii.gz',  'label': 0},
             {'image': '/workspace/data/chest_31.nii.gz',  'label': 1}
         ]
 
     """
     if not os.path.isfile(data_list_file_path):
-        raise ValueError(f"data list file {data_list_file_path} does not exist.")
+        raise ValueError(f"Data list file {data_list_file_path} does not exist.")
     with open(data_list_file_path) as json_file:
         json_data = json.load(json_file)
     if data_list_key not in json_data:
-        raise ValueError(f"data list {data_list_key} not specified in '{data_list_file_path}'.")
+        raise ValueError(f'Data list {data_list_key} not specified in "{data_list_file_path}".')
     expected_data = json_data[data_list_key]
     if data_list_key == "test":
         expected_data = [{"image": i} for i in expected_data]

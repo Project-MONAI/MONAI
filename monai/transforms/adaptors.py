@@ -122,6 +122,8 @@ Outputs:
 
 """
 
+from typing import Callable
+
 from monai.utils import export as _monai_export
 
 
@@ -130,11 +132,11 @@ def adaptor(function, outputs, inputs=None):
     def must_be_types_or_none(variable_name, variable, types):
         if variable is not None:
             if not isinstance(variable, types):
-                raise ValueError(f"'{variable_name}' must be None or {types} but is {type(variable)}")
+                raise TypeError(f"'{variable_name}' must be None or one of {types} but is {type(variable)}")
 
     def must_be_types(variable_name, variable, types):
         if not isinstance(variable, types):
-            raise ValueError(f"'{variable_name}' must be one of {types} but is {type(variable)}")
+            raise TypeError(f"'{variable_name}' must be one of {types} but is {type(variable)}")
 
     def map_names(ditems, input_map):
         return {input_map(k, k): v for k, v in ditems.items()}
@@ -158,7 +160,7 @@ def adaptor(function, outputs, inputs=None):
         else:
             # no **kwargs
             # select only items from the method signature
-            dinputs = dict((k, v) for k, v in ditems.items() if k in sig.non_var_parameters)
+            dinputs = {k: v for k, v in ditems.items() if k in sig.non_var_parameters}
             must_be_types_or_none("inputs", inputs, (str, list, tuple, dict))
             if inputs is None:
                 pass
@@ -167,7 +169,7 @@ def adaptor(function, outputs, inputs=None):
                     raise ValueError("if 'inputs' is a string, function may only have a single non-variadic parameter")
                 dinputs = {inputs: ditems[inputs]}
             elif isinstance(inputs, (list, tuple)):
-                dinputs = dict((k, dinputs[k]) for k in inputs)
+                dinputs = {k: dinputs[k] for k in inputs}
             else:
                 # dict
                 dinputs = map_only_names(ditems, inputs)
@@ -192,7 +194,7 @@ def adaptor(function, outputs, inputs=None):
             if len(ret) != len(outputs):
                 raise ValueError("'outputs' must have the same length as the number of elements that were returned")
 
-            ret = dict((k, v) for k, v in zip(op, ret))
+            ret = {k: v for k, v in zip(op, ret)}
         else:
             must_be_types("outputs", op, (str, list, tuple))
             if isinstance(op, (list, tuple)):
@@ -240,7 +242,7 @@ def to_kwargs(fn):
 
 
 class FunctionSignature:
-    def __init__(self, function):
+    def __init__(self, function: Callable) -> None:
         import inspect
 
         sfn = inspect.signature(function)
@@ -257,9 +259,9 @@ class FunctionSignature:
                 self.non_var_parameters.add(p.name)
                 self.defaults[p.name] = p.default is not p.empty
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         s = "<class 'FunctionSignature': found_args={}, found_kwargs={}, defaults={}"
         return s.format(self.found_args, self.found_kwargs, self.defaults)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.__repr__()

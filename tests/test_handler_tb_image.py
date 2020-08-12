@@ -12,8 +12,9 @@
 import glob
 import os
 import shutil
-import unittest
 import tempfile
+import unittest
+
 import numpy as np
 import torch
 from ignite.engine import Engine, Events
@@ -21,14 +22,7 @@ from parameterized import parameterized
 
 from monai.handlers import TensorBoardImageHandler
 
-TEST_CASES = [
-    [[20, 20]],
-    [[2, 20, 20]],
-    [[3, 20, 20]],
-    [[20, 20, 20]],
-    [[2, 20, 20, 20]],
-    [[2, 2, 20, 20, 20]],
-]
+TEST_CASES = [[[20, 20]], [[2, 20, 20]], [[3, 20, 20]], [[20, 20, 20]], [[2, 20, 20, 20]], [[2, 2, 20, 20, 20]]]
 
 
 class TestHandlerTBImage(unittest.TestCase):

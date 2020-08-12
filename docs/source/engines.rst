@@ -35,6 +35,11 @@ Workflows
 .. autoclass:: SupervisedTrainer
     :members:
 
+`GanTrainer`
+~~~~~~~~~~~~
+.. autoclass:: GanTrainer
+    :members:
+
 `Evaluator`
 ~~~~~~~~~~~
 .. autoclass:: Evaluator
@@ -43,4 +48,9 @@ Workflows
 `SupervisedEvaluator`
 ~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: SupervisedEvaluator
+    :members:
+
+`EnsembleEvaluator`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: EnsembleEvaluator
     :members:

@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .adaptors import *
 from .compose import *
 from .croppad.array import *
 from .croppad.dictionary import *
@@ -16,9 +17,10 @@ from .intensity.array import *
 from .intensity.dictionary import *
 from .io.array import *
 from .io.dictionary import *
+from .post.array import *
+from .post.dictionary import *
 from .spatial.array import *
 from .spatial.dictionary import *
 from .utility.array import *
 from .utility.dictionary import *
-from .post.array import *
-from .post.dictionary import *
+from .utils import *
