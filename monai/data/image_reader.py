@@ -9,16 +9,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict
 from abc import ABC, abstractmethod
-import numpy as np
+from typing import Any, Dict
+
 import itk
+import numpy as np
 
 
 class ImageReader(ABC):
     """Abstract class to define interface APIs to load image files.
 
     """
+
     def __init__(self, img: Any = None):
         self._img = None
 
