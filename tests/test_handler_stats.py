@@ -143,6 +143,22 @@ class TestHandlerStats(unittest.TestCase):
                         self.assertTrue(has_key_word.match(line))
         shutil.rmtree(tempdir)
 
+    def test_exception(self):
+        logging.basicConfig(level=logging.INFO)
+
+        # set up engine
+        def _train_func(engine, batch):
+            raise RuntimeError("test exception.")
+
+        engine = Engine(_train_func)
+
+        # set up testing handler
+        stats_handler = StatsHandler()
+        stats_handler.attach(engine)
+
+        with self.assertRaises(RuntimeError):
+            engine.run(range(3), max_epochs=2)
+
 
 if __name__ == "__main__":
     unittest.main()
