@@ -21,11 +21,84 @@ from torch.utils.data._utils.collate import np_str_obj_array_pattern
 
 from monai.config import KeysCollection
 from monai.data.utils import correct_nifti_header_if_necessary
+from monai.data.image_reader import ImageReader, ITKReader
 from monai.transforms.compose import Transform
 from monai.utils import ensure_tuple, optional_import
 
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")
+
+
+class LoadImage(Transform):
+    """
+    Load image file or files from provided path based on reader, default reader is ITK.
+    All the supported image formats of ITK:
+    https://github.com/InsightSoftwareConsortium/ITK/tree/master/Modules/IO
+    If loading a list of files, stack them together and add a new dimension as first dimension,
+    and use the meta data of the first image to represent the stacked result.
+
+    """
+
+    def __init__(
+        self,
+        reader: ImageReader = None,
+        suffixes: Optional[Union[str, Sequence[str]]] = None,
+        image_only: bool = False,
+        dtype: Optional[np.dtype] = np.float32,
+    ) -> None:
+        """
+        Args:
+            reader: use reader to load image file and meta data, default is ITK.
+            suffixes: file suffixes that supported by the reader, if None, support all kinds of files.
+            image_only: if True return only the image volume, otherwise return image data array and header dict.
+            dtype: if not None convert the loaded image to this data type.
+
+        Note:
+            The transform returns image data array if `image_only` is True,
+            or a tuple of two elements containing the data array, and the meta data in a dict format otherwise.
+
+        """
+        if reader is None:
+            reader = ITKReader()
+        self.reader = reader
+        self.suffixes = suffixes
+        self.image_only = image_only
+        self.dtype = dtype
+
+    def __call__(self, filename: Union[Sequence[Union[Path, str]], Path, str]):
+        """
+        Args:
+            filename: path file or file-like object or a list of files.
+        """
+        filename = ensure_tuple(filename)
+        img_array = list()
+        compatible_meta: Dict = dict()
+        for name in filename:
+            if self.suffixes is not None and name.split(".")[-1] not in self.suffixes:
+                raise RuntimeError("unsupported file format.")
+            img = self.reader.read_image(name)
+            header = self.reader.get_meta_data()
+            header["filename_or_obj"] = name
+
+            img_array.append(self.reader.get_array_data().astype(dtype=self.dtype))
+
+            if self.image_only:
+                continue
+
+            if not compatible_meta:
+                for meta_key in header.GetKeys():
+                    meta_datum = header[meta_key]
+                    if (
+                        isinstance(meta_datum, np.ndarray)
+                        and np_str_obj_array_pattern.search(meta_datum.dtype.str) is not None
+                    ):
+                        continue
+                    compatible_meta[meta_key] = meta_datum
+
+        img_array = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
+        if self.image_only:
+            return img_array
+        return img_array, compatible_meta
 
 
 class LoadNifti(Transform):
