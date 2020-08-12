@@ -37,8 +37,8 @@ class CheckpointSaver:
         name: identifier of logging.logger to use, if None, defaulting to ``engine.logger``.
         file_prefix: prefix for the filenames to which objects will be saved.
         save_final: whether to save checkpoint or session at final iteration or exception.
-            if want to save checkpoint when exception happened, please put this handler before
-            `StatsHandler` in the handler list, because the logic with ignite can only trigger
+            if checkpoints are to be saved when an exception is raised, put this handler before
+            `StatsHandler` in the handler list, because the logic with Ignite can only trigger
             the first attached handler for `EXCEPTION_RAISED` event.
         save_key_metric: whether to save checkpoint or session when the value of key_metric is
             higher than all the previous values during training.keep 4 decimal places of metric,
@@ -172,7 +172,7 @@ class CheckpointSaver:
     def exception_raised(self, engine: Engine, e: Exception) -> None:
         """Callback for train or validation/evaluation exception raised Event.
         Save current data as final checkpoint if configure save_final is True. This callback may be skipped
-        because the logic with ignite can only trigger the first attached handler for `EXCEPTION_RAISED` event.
+        because the logic with Ignite can only trigger the first attached handler for `EXCEPTION_RAISED` event.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.

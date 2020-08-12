@@ -100,6 +100,26 @@ class TestHandlerCheckpointSaver(unittest.TestCase):
             self.assertTrue(os.path.exists(os.path.join(tempdir, filename)))
         shutil.rmtree(tempdir)
 
+    def test_exception(self):
+        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+        net = torch.nn.PReLU()
+        tempdir = tempfile.mkdtemp()
+
+        # set up engine
+        def _train_func(engine, batch):
+            raise RuntimeError("test exception.")
+
+        engine = Engine(_train_func)
+
+        # set up testing handler
+        stats_handler = CheckpointSaver(tempdir, {"net": net}, save_final=True)
+        stats_handler.attach(engine)
+
+        with self.assertRaises(RuntimeError):
+            engine.run(range(3), max_epochs=2)
+        self.assertTrue(os.path.exists(os.path.join(tempdir, "net_final_iteration=1.pth")))
+        shutil.rmtree(tempdir)
+
 
 if __name__ == "__main__":
     unittest.main()

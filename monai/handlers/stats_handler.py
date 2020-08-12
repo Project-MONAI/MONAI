@@ -134,7 +134,7 @@ class StatsHandler(object):
         """
         Handler for train or validation/evaluation exception raised Event.
         Print the exception information and traceback. This callback may be skipped because the logic
-        with ignite can only trigger the first attached handler for `EXCEPTION_RAISED` event.
+        with Ignite can only trigger the first attached handler for `EXCEPTION_RAISED` event.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
