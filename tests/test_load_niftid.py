@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import os
-import shutil
 import tempfile
 import unittest
 
@@ -30,14 +29,14 @@ class TestLoadNiftid(unittest.TestCase):
     def test_shape(self, input_param, expected_shape):
         test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]), np.eye(4))
         test_data = dict()
-        tempdir = tempfile.mkdtemp()
-        for key in KEYS:
-            nib.save(test_image, os.path.join(tempdir, key + ".nii.gz"))
-            test_data.update({key: os.path.join(tempdir, key + ".nii.gz")})
-        result = LoadNiftid(**input_param)(test_data)
+        with tempfile.TemporaryDirectory() as tempdir:
+            for key in KEYS:
+                nib.save(test_image, os.path.join(tempdir, key + ".nii.gz"))
+                test_data.update({key: os.path.join(tempdir, key + ".nii.gz")})
+            result = LoadNiftid(**input_param)(test_data)
+
         for key in KEYS:
             self.assertTupleEqual(result[key].shape, expected_shape)
-        shutil.rmtree(tempdir)
 
 
 if __name__ == "__main__":
