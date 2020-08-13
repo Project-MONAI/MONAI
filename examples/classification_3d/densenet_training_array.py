@@ -123,7 +123,7 @@ def main():
                 if metric > best_metric:
                     best_metric = metric
                     best_metric_epoch = epoch + 1
-                    torch.save(model.state_dict(), "best_metric_model_1.pth")
+                    torch.save(model.state_dict(), "best_metric_model_array.pth")
                     print("saved new best metric model")
                 print(
                     "current epoch: {} current accuracy: {:.4f} best accuracy: {:.4f} at epoch {}".format(

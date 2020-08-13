@@ -65,7 +65,7 @@ def main():
         num_res_units=2,
     ).to(device)
 
-    model.load_state_dict(torch.load("best_metric_model_1.pth"))
+    model.load_state_dict(torch.load("best_metric_model_array.pth"))
     model.eval()
     with torch.no_grad():
         metric_sum = 0.0
