@@ -6,8 +6,8 @@ import logging.config
 import os
 import time
 
-from monai.application.clara_fl.trainers.server_trainer import ServerTrainer
-from monai.application.clara_fl.argument_utils import parse_vars
+from ..trainers.server_trainer import ServerTrainer
+from ..argument_utils import parse_vars
 
 def main():
     parser = argparse.ArgumentParser()

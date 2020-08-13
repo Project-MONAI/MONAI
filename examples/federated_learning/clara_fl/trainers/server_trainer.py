@@ -24,6 +24,13 @@ class ServerTrainer:
         self.model_saver_options = options
 
     def train(self):
+        services = self.deploy()
+        self.start_training(services)
+
+    def start_training(self, services):
+        services.start()
+
+    def deploy(self):
 
         # We only deploy the first server right now
         first_server = sorted(self.server_config)[0]
@@ -54,7 +61,7 @@ class ServerTrainer:
         )
 
         services.deploy(grpc_args=first_server, secure_train=self.secure_train)
-        services.start()
+        return services
 
     def close(self):
         pass

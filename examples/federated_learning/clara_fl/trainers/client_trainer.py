@@ -18,10 +18,17 @@ class ClientTrainer:
         self.secure_train = secure_train
 
     def train(self):
-        fitter = SupervisedFitter(self.num_epochs)
+        fitter = self.deploy()
+        federated_client = self.create_fed_client()
+        federated_client.start_heartbeat()
+        return federated_client.run(fitter)
 
+    def deploy(self):
+        return SupervisedFitter(self.num_epochs)
+
+    def create_fed_client(self):
         servers = [{t['name']: t['service']} for t in self.server_config]
-        federated_client = FederatedClient(
+        return FederatedClient(
             client_id=str(self.uid),
             # We only deploy the first server right now .....
             server_args=sorted(servers)[0],
@@ -30,7 +37,6 @@ class ClientTrainer:
             secure_train=self.secure_train,
             model_reader_writer=PTModelReaderWriter()
         )
-        return federated_client.run(fitter)
 
     def close(self):
         pass
