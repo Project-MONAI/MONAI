@@ -10,8 +10,6 @@
 # limitations under the License.
 
 import glob
-import os
-import shutil
 import tempfile
 import unittest
 
@@ -35,14 +33,11 @@ TEST_CASE_5 = [(1, 3, 10, 10, 10)]
 class TestPlot2dOr3dImage(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
     def test_tb_image_shape(self, shape):
-        tempdir = tempfile.mkdtemp()
-        shutil.rmtree(tempdir, ignore_errors=True)
+        with tempfile.TemporaryDirectory() as tempdir:
 
-        plot_2d_or_3d_image(torch.zeros(shape), 0, SummaryWriter(log_dir=tempdir))
+            plot_2d_or_3d_image(torch.zeros(shape), 0, SummaryWriter(log_dir=tempdir))
 
-        self.assertTrue(os.path.exists(tempdir))
-        self.assertTrue(len(glob.glob(tempdir)) > 0)
-        shutil.rmtree(tempdir, ignore_errors=True)
+            self.assertTrue(len(glob.glob(tempdir)) > 0)
 
 
 if __name__ == "__main__":
