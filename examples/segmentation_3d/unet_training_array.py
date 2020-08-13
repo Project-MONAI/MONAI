@@ -77,7 +77,9 @@ def main():
 
         # create a training data loader
         train_ds = NiftiDataset(images[:20], segs[:20], transform=train_imtrans, seg_transform=train_segtrans)
-        train_loader = DataLoader(train_ds, batch_size=4, shuffle=True, num_workers=8, pin_memory=torch.cuda.is_available())
+        train_loader = DataLoader(
+            train_ds, batch_size=4, shuffle=True, num_workers=8, pin_memory=torch.cuda.is_available()
+        )
         # create a validation data loader
         val_ds = NiftiDataset(images[-20:], segs[-20:], transform=val_imtrans, seg_transform=val_segtrans)
         val_loader = DataLoader(val_ds, batch_size=1, num_workers=4, pin_memory=torch.cuda.is_available())

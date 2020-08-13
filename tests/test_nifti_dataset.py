@@ -87,7 +87,11 @@ class TestNiftiDataset(unittest.TestCase):
 
             # loading image/label, with meta
             dataset = NiftiDataset(
-                full_names, transform=lambda x: x + 1, seg_files=full_names, seg_transform=lambda x: x + 2, image_only=False
+                full_names,
+                transform=lambda x: x + 1,
+                seg_files=full_names,
+                seg_transform=lambda x: x + 2,
+                image_only=False,
             )
             for d_tuple, ref in zip(dataset, ref_data):
                 img, seg, meta = d_tuple
