@@ -118,8 +118,8 @@ class TestNiftiLoadRead(unittest.TestCase):
             img = np.arange(5).reshape((1, 5))
             write_nifti(img, image_name, affine=np.diag([1, 1, 1, 3, 3]), target_affine=np.diag([1.4, 2.0, 1, 3, 5]))
             out = nib.load(image_name)
-        np.testing.assert_allclose(out.get_fdata(), [[0, 2, 4]])
-        np.testing.assert_allclose(out.affine, np.diag([1.4, 2, 1, 1]))
+            np.testing.assert_allclose(out.get_fdata(), [[0, 2, 4]])
+            np.testing.assert_allclose(out.affine, np.diag([1.4, 2, 1, 1]))
 
     def test_write_3d(self):
         with tempfile.TemporaryDirectory() as out_dir:
@@ -134,8 +134,8 @@ class TestNiftiLoadRead(unittest.TestCase):
             img = np.arange(5).reshape((1, 1, 5))
             write_nifti(img, image_name, affine=np.diag([1, 1, 1, 3, 3]), target_affine=np.diag([1.4, 2.0, 2, 3, 5]))
             out = nib.load(image_name)
-        np.testing.assert_allclose(out.get_fdata(), [[[0, 2, 4]]])
-        np.testing.assert_allclose(out.affine, np.diag([1.4, 2, 2, 1]))
+            np.testing.assert_allclose(out.get_fdata(), [[[0, 2, 4]]])
+            np.testing.assert_allclose(out.affine, np.diag([1.4, 2, 2, 1]))
 
     def test_write_4d(self):
         with tempfile.TemporaryDirectory() as out_dir:
@@ -150,8 +150,8 @@ class TestNiftiLoadRead(unittest.TestCase):
             img = np.arange(5).reshape((1, 1, 5, 1))
             write_nifti(img, image_name, affine=np.diag([1, 1, 1, 3, 3]), target_affine=np.diag([1.4, 2.0, 2, 3, 5]))
             out = nib.load(image_name)
-        np.testing.assert_allclose(out.get_fdata(), [[[[0], [2], [4]]]])
-        np.testing.assert_allclose(out.affine, np.diag([1.4, 2, 2, 1]))
+            np.testing.assert_allclose(out.get_fdata(), [[[[0], [2], [4]]]])
+            np.testing.assert_allclose(out.affine, np.diag([1.4, 2, 2, 1]))
 
     def test_write_5d(self):
         with tempfile.TemporaryDirectory() as out_dir:
@@ -169,8 +169,8 @@ class TestNiftiLoadRead(unittest.TestCase):
             img = np.arange(10).reshape((1, 1, 5, 1, 2))
             write_nifti(img, image_name, affine=np.diag([1, 1, 1, 3, 3]), target_affine=np.diag([1.4, 2.0, 2, 3, 5]))
             out = nib.load(image_name)
-        np.testing.assert_allclose(out.get_fdata(), np.array([[[[[0.0, 1.0]], [[4.0, 5.0]], [[8.0, 9.0]]]]]))
-        np.testing.assert_allclose(out.affine, np.diag([1.4, 2, 2, 1]))
+            np.testing.assert_allclose(out.get_fdata(), np.array([[[[[0.0, 1.0]], [[4.0, 5.0]], [[8.0, 9.0]]]]]))
+            np.testing.assert_allclose(out.affine, np.diag([1.4, 2, 2, 1]))
 
 
 if __name__ == "__main__":

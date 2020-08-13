@@ -11,7 +11,7 @@
 
 import os
 import unittest
-
+import tempfile
 import numpy as np
 import torch
 from ignite.engine import Engine
