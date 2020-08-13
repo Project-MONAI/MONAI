@@ -13,7 +13,8 @@ from typing import Type, Union
 
 import torch.nn as nn
 
-from monai.networks.layers.factories import Act, Conv, Norm
+from monai.networks.blocks.convolutions import Convolution
+from monai.networks.layers.factories import Act, Norm
 
 
 def get_norm_layer(spatial_dims: int, in_channels: int, norm_name: str, num_groups: int = 8):
@@ -35,17 +36,14 @@ def get_conv_layer(
     spatial_dims: int, in_channels: int, out_channels: int, kernel_size: int = 3, stride: int = 1, bias: bool = False
 ):
 
-    conv_type: Type[Union[nn.Conv1d, nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]
-
-    conv = conv_type(
-        in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=kernel_size // 2, bias=bias,
+    return Convolution(
+        spatial_dims, in_channels, out_channels, strides=stride, kernel_size=kernel_size, bias=bias, conv_only=True,
     )
-    return conv
 
 
 class ResBlock(nn.Module):
     """
-    ResBlock emploies skip connection and two convolution blocks and is used
+    ResBlock employs skip connection and two convolution blocks and is used
     in SegResnet:
     "3D MRI brain tumor segmentation using autoencoder regularization, https://arxiv.org/abs/1810.11654"
     """
