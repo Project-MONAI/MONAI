@@ -37,11 +37,14 @@ class CheckpointSaver:
         name: identifier of logging.logger to use, if None, defaulting to ``engine.logger``.
         file_prefix: prefix for the filenames to which objects will be saved.
         save_final: whether to save checkpoint or session at final iteration or exception.
+            If checkpoints are to be saved when an exception is raised, put this handler before
+            `StatsHandler` in the handler list, because the logic with Ignite can only trigger
+            the first attached handler for `EXCEPTION_RAISED` event.
         save_key_metric: whether to save checkpoint or session when the value of key_metric is
             higher than all the previous values during training.keep 4 decimal places of metric,
             checkpoint name is: {file_prefix}_key_metric=0.XXXX.pth.
         key_metric_name: the name of key_metric in ignite metrics dictionary.
-            if None, use `engine.state.key_metric` instead.
+            If None, use `engine.state.key_metric` instead.
         key_metric_n_saved: save top N checkpoints or sessions, sorted by the value of key
             metric in descending order.
         epoch_level: save checkpoint during training for every N epochs or every N iterations.
@@ -168,7 +171,8 @@ class CheckpointSaver:
 
     def exception_raised(self, engine: Engine, e: Exception) -> None:
         """Callback for train or validation/evaluation exception raised Event.
-        Save current data as final checkpoint if configure save_final is True.
+        Save current data as final checkpoint if configure save_final is True. This callback may be skipped
+        because the logic with Ignite can only trigger the first attached handler for `EXCEPTION_RAISED` event.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
@@ -179,6 +183,7 @@ class CheckpointSaver:
         assert self.logger is not None
         assert hasattr(self.logger, "info"), "Error, provided logger has not info attribute."
         self.logger.info(f"Exception_raised, saved exception checkpoint: {self._final_checkpoint.last_checkpoint}")
+        raise e
 
     def metrics_completed(self, engine: Engine) -> None:
         """Callback to compare metrics and save models in train or validation when epoch completed.
