@@ -9,15 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import torch
-import os
-import shutil
 import logging
-import tempfile
+import os
 import re
+import shutil
+import tempfile
 import unittest
 from io import StringIO
 
+import torch
 from ignite.engine import Engine, Events
 
 from monai.handlers import StatsHandler
@@ -142,6 +142,22 @@ class TestHandlerStats(unittest.TestCase):
                     if idx in [1, 2, 3, 6, 7, 8]:
                         self.assertTrue(has_key_word.match(line))
         shutil.rmtree(tempdir)
+
+    def test_exception(self):
+        logging.basicConfig(level=logging.INFO)
+
+        # set up engine
+        def _train_func(engine, batch):
+            raise RuntimeError("test exception.")
+
+        engine = Engine(_train_func)
+
+        # set up testing handler
+        stats_handler = StatsHandler()
+        stats_handler.attach(engine)
+
+        with self.assertRaises(RuntimeError):
+            engine.run(range(3), max_epochs=2)
 
 
 if __name__ == "__main__":

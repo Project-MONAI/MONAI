@@ -116,7 +116,7 @@ class TestArrayDataset(unittest.TestCase):
         shutil.rmtree(tempdir)
 
     @parameterized.expand([TEST_CASE_4])
-    def test_dataloading(self, img_transform, expected_shape):
+    def test_dataloading_img(self, img_transform, expected_shape):
         test_image = nib.Nifti1Image(np.random.randint(0, 2, size=(128, 128, 128)), np.eye(4))
         tempdir = tempfile.mkdtemp()
         test_image1 = os.path.join(tempdir, "test_image1.nii.gz")
@@ -134,6 +134,31 @@ class TestArrayDataset(unittest.TestCase):
         dataset.set_random_state(1234)
         new_imgs = next(iter(loader))  # test batching
         np.testing.assert_allclose(imgs, new_imgs, atol=1e-3)
+
+    @parameterized.expand([TEST_CASE_4])
+    def test_dataloading_img_label(self, img_transform, expected_shape):
+        test_image = nib.Nifti1Image(np.random.randint(0, 2, size=(128, 128, 128)), np.eye(4))
+        tempdir = tempfile.mkdtemp()
+        test_image1 = os.path.join(tempdir, "test_image1.nii.gz")
+        test_image2 = os.path.join(tempdir, "test_image2.nii.gz")
+        test_label1 = os.path.join(tempdir, "test_label1.nii.gz")
+        test_label2 = os.path.join(tempdir, "test_label2.nii.gz")
+        nib.save(test_image, test_image1)
+        nib.save(test_image, test_image2)
+        nib.save(test_image, test_label1)
+        nib.save(test_image, test_label2)
+        test_images = [test_image1, test_image2]
+        test_labels = [test_label1, test_label2]
+        dataset = ArrayDataset(test_images, img_transform, test_labels, img_transform)
+        self.assertEqual(len(dataset), 2)
+        dataset.set_random_state(1234)
+        loader = DataLoader(dataset, batch_size=10, num_workers=1)
+        data = next(iter(loader))  # test batching
+        np.testing.assert_allclose(data[0].shape, [2] + list(expected_shape))
+
+        dataset.set_random_state(1234)
+        new_data = next(iter(loader))  # test batching
+        np.testing.assert_allclose(data[0], new_data[0], atol=1e-3)
 
 
 if __name__ == "__main__":

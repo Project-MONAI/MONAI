@@ -9,9 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from tests.utils import TorchImageTestCase2D
-
 from monai.networks.blocks import Convolution, ResidualUnit
+from tests.utils import TorchImageTestCase2D
 
 
 class TestConvolution2D(TorchImageTestCase2D):

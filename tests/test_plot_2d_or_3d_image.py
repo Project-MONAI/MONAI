@@ -11,12 +11,14 @@
 
 import glob
 import os
-import tempfile
 import shutil
+import tempfile
 import unittest
-from torch.utils.tensorboard import SummaryWriter
+
 import torch
 from parameterized import parameterized
+from torch.utils.tensorboard import SummaryWriter
+
 from monai.visualize import plot_2d_or_3d_image
 
 TEST_CASE_1 = [(1, 1, 10, 10)]
