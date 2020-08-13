@@ -9,13 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
 import os
-import shutil
-import numpy as np
 import tempfile
-from PIL import Image
+import unittest
+
+import numpy as np
 from parameterized import parameterized
+from PIL import Image
+
 from monai.transforms import LoadPNGd
 
 KEYS = ["image", "label", "extra"]
@@ -27,15 +28,14 @@ class TestLoadPNGd(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1])
     def test_shape(self, input_param, expected_shape):
         test_image = np.random.randint(0, 256, size=[128, 128, 3])
-        tempdir = tempfile.mkdtemp()
-        test_data = dict()
-        for key in KEYS:
-            Image.fromarray(test_image.astype("uint8")).save(os.path.join(tempdir, key + ".png"))
-            test_data.update({key: os.path.join(tempdir, key + ".png")})
-        result = LoadPNGd(**input_param)(test_data)
+        with tempfile.TemporaryDirectory() as tempdir:
+            test_data = dict()
+            for key in KEYS:
+                Image.fromarray(test_image.astype("uint8")).save(os.path.join(tempdir, key + ".png"))
+                test_data.update({key: os.path.join(tempdir, key + ".png")})
+            result = LoadPNGd(**input_param)(test_data)
         for key in KEYS:
             self.assertTupleEqual(result[key].shape, expected_shape)
-        shutil.rmtree(tempdir)
 
 
 if __name__ == "__main__":
