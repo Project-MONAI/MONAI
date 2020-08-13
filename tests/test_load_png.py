@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import os
-import shutil
 import tempfile
 import unittest
 
@@ -31,18 +30,17 @@ class TestLoadPNG(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_shape(self, data_shape, filenames, expected_shape, meta_shape):
         test_image = np.random.randint(0, 256, size=data_shape)
-        tempdir = tempfile.mkdtemp()
-        for i, name in enumerate(filenames):
-            filenames[i] = os.path.join(tempdir, name)
-            Image.fromarray(test_image.astype("uint8")).save(filenames[i])
-        result = LoadPNG()(filenames)
+        with tempfile.TemporaryDirectory() as tempdir:
+            for i, name in enumerate(filenames):
+                filenames[i] = os.path.join(tempdir, name)
+                Image.fromarray(test_image.astype("uint8")).save(filenames[i])
+            result = LoadPNG()(filenames)
         self.assertTupleEqual(result[1]["spatial_shape"], meta_shape)
         self.assertTupleEqual(result[0].shape, expected_shape)
         if result[0].shape == test_image.shape:
             np.testing.assert_allclose(result[0], test_image)
         else:
             np.testing.assert_allclose(result[0], np.tile(test_image, [result[0].shape[0], 1, 1]))
-        shutil.rmtree(tempdir)
 
 
 if __name__ == "__main__":

@@ -12,7 +12,6 @@
 import logging
 import os
 import re
-import shutil
 import tempfile
 import unittest
 from io import StringIO
@@ -116,32 +115,31 @@ class TestHandlerStats(unittest.TestCase):
         key_to_handler = "test_logging"
         key_to_print = "myLoss"
 
-        tempdir = tempfile.mkdtemp()
-        filename = os.path.join(tempdir, "test_loss_stats.log")
-        handler = logging.FileHandler(filename, mode="w")
+        with tempfile.TemporaryDirectory() as tempdir:
+            filename = os.path.join(tempdir, "test_loss_stats.log")
+            handler = logging.FileHandler(filename, mode="w")
 
-        # set up engine
-        def _train_func(engine, batch):
-            return torch.tensor(0.0)
+            # set up engine
+            def _train_func(engine, batch):
+                return torch.tensor(0.0)
 
-        engine = Engine(_train_func)
+            engine = Engine(_train_func)
 
-        # set up testing handler
-        stats_handler = StatsHandler(name=key_to_handler, tag_name=key_to_print, logger_handler=handler)
-        stats_handler.attach(engine)
+            # set up testing handler
+            stats_handler = StatsHandler(name=key_to_handler, tag_name=key_to_print, logger_handler=handler)
+            stats_handler.attach(engine)
 
-        engine.run(range(3), max_epochs=2)
-        handler.stream.close()
-        stats_handler.logger.removeHandler(handler)
-        with open(filename, "r") as f:
-            output_str = f.read()
-            grep = re.compile(f".*{key_to_handler}.*")
-            has_key_word = re.compile(f".*{key_to_print}.*")
-            for idx, line in enumerate(output_str.split("\n")):
-                if grep.match(line):
-                    if idx in [1, 2, 3, 6, 7, 8]:
-                        self.assertTrue(has_key_word.match(line))
-        shutil.rmtree(tempdir)
+            engine.run(range(3), max_epochs=2)
+            handler.stream.close()
+            stats_handler.logger.removeHandler(handler)
+            with open(filename, "r") as f:
+                output_str = f.read()
+                grep = re.compile(f".*{key_to_handler}.*")
+                has_key_word = re.compile(f".*{key_to_print}.*")
+                for idx, line in enumerate(output_str.split("\n")):
+                    if grep.match(line):
+                        if idx in [1, 2, 3, 6, 7, 8]:
+                            self.assertTrue(has_key_word.match(line))
 
     def test_exception(self):
         logging.basicConfig(level=logging.INFO)
