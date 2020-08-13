@@ -34,9 +34,10 @@ class TestPlot2dOr3dImage(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
     def test_tb_image_shape(self, shape):
         with tempfile.TemporaryDirectory() as tempdir:
-
-            plot_2d_or_3d_image(torch.zeros(shape), 0, SummaryWriter(log_dir=tempdir))
-
+            writer = SummaryWriter(log_dir=tempdir)
+            plot_2d_or_3d_image(torch.zeros(shape), 0, writer)
+            writer.flush()
+            writer.close()
             self.assertTrue(len(glob.glob(tempdir)) > 0)
 
 
