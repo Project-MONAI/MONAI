@@ -55,7 +55,7 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = monai.networks.nets.densenet.densenet121(spatial_dims=3, in_channels=1, out_channels=2).to(device)
 
-    model.load_state_dict(torch.load("best_metric_model_array.pth"))
+    model.load_state_dict(torch.load("best_metric_model_classification3d_array.pth"))
     model.eval()
     with torch.no_grad():
         num_correct = 0.0
