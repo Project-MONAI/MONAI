@@ -188,9 +188,7 @@ def main(tempdir):
         output_transform=lambda output: predict_segmentation(output[0]),
         global_iter_transform=lambda x: trainer.state.epoch,
     )
-    evaluator.add_event_handler(
-        event_name=Events.ITERATION_COMPLETED(every=2), handler=val_tensorboard_image_handler
-    )
+    evaluator.add_event_handler(event_name=Events.ITERATION_COMPLETED(every=2), handler=val_tensorboard_image_handler)
 
     train_epochs = 5
     state = trainer.run(train_loader, train_epochs)
