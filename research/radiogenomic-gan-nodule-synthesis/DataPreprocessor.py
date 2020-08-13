@@ -41,12 +41,14 @@ def _build_data_dict(data_dir, image_keys, bboxes, embeddings, class_info):
         data_samples.append(data_sample)
     return data_samples
 
+
 def _load_base_images(data_dir, image_key):
     patient_dir = image_key.split("/")[0]
     base_image_dir = os.path.join(data_dir, "base_images", patient_dir)
     base_images = os.listdir(base_image_dir)
     base_images_full_path = [os.path.join(base_image_dir, base_filename) for base_filename in base_images]
     return base_images_full_path
+
 
 def _load_bounding_boxes(data_dir):
     # bbox = [x-left, y-top, width, height]

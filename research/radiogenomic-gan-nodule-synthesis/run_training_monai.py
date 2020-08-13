@@ -11,8 +11,8 @@
 
 import datetime
 import logging
-import sys
 import random
+import sys
 
 import cv2
 import dateutil.tz
@@ -100,7 +100,7 @@ def main():
     num_workers: int = 5
     dataloader = DataLoader(dataset, batch_size=batch_size, drop_last=True, shuffle=False, num_workers=num_workers)
 
-    # Store a pointer to background base images from current batch to calculate generator loss.
+    # Store a pointer to a background base images from current batch to calculate generator loss.
     background_base: Optional[torch.Tensor] = None
 
     # Define prepare_batch for input into RGGAN G and D.
@@ -108,7 +108,7 @@ def main():
         global background_base
         latent_codes = default_make_latent(batch_size, latent_size, device)
         embedding = batchdata["embedding"].to(device)
-        # select random background images for this batch
+        # select random background bases for this batch
         base_groups = batchdata["base"]
         curr_bgs = []
         for bases in base_groups:

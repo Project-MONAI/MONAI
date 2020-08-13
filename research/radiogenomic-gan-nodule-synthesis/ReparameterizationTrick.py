@@ -116,7 +116,7 @@ class ReparameterizationApply:
 
 class ReparameterizationRestore:
     """
-    Restore network parameters. Use before resuming training, and after loading average params and performing relevant network operations.
+    Restore network parameters. Use before resuming training after loading average params and performing relevant network operations.
     """
 
     def __init__(self, network: torch.nn.Module, epoch_level: bool = True, save_interval: int = 0) -> None:

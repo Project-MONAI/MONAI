@@ -117,7 +117,7 @@ def default_make_latent(
     Args:
         num_latents: number of latent codes to generate (typically batchsize)
         latent_size: size of latent code for Generator input
-        devices: torch.device to store tensor for execution
+        device: torch.device to store tensor for execution
         batchdata: Minibatch from dataloader, ignored by default.
 
     Returns:
