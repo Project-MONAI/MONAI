@@ -57,8 +57,17 @@ class ITKReader(ImageReader):
         self.img = itk.imread(filename)
 
     def get_meta_dict(self) -> List:
-        meta_dict = self.img.GetMetaDataDictionary()
-        return {key: meta_dict[key] for key in meta_dict.GetKeys()}
+        img_meta_dict = self.img.GetMetaDataDictionary()
+        meta_dict = dict()
+        for key in img_meta_dict.GetKeys():
+            # ignore deprecated, legacy members that cause issues
+            if key.startswith('ITK_original_'):
+                continue
+            meta_dict[key] = img_meta_dict[key]
+        meta_dict['origin'] = np.asarray(self.img.GetOrigin())
+        meta_dict['spacing'] = np.asarray(self.img.GetSpacing())
+        meta_dict['direction'] = itk.array_from_matrix(self.img.GetDirection())
+        return meta_dict
 
     def get_affine(self) -> List:
         """
@@ -66,9 +75,9 @@ class ITKReader(ImageReader):
         Refer to: https://github.com/RSIP-Vision/medio
 
         """
-        direction = itk.array_from_vnl_matrix(self.img.GetDirection().GetVnlMatrix().as_matrix())
-        spacing = itk.array_from_vnl_vector(self.img.GetSpacing().GetVnlVector())
-        origin = itk.array_from_vnl_vector(self.img.GetOrigin().GetVnlVector())
+        direction = itk.array_from_matrix(self.img.GetDirection())
+        spacing = np.asarray(self.img.GetSpacing())
+        origin = np.asarray(self.img.GetOrigin())
 
         direction = np.asarray(direction)
         affine = np.eye(direction.shape[0] + 1)
@@ -77,13 +86,9 @@ class ITKReader(ImageReader):
         return affine
 
     def get_spatial_shape(self) -> List:
-        # don't support spatial dims greater than 3
-        spatial_rank = min(self.img.GetImageDimension(), 3)
-        meta_dict = self.img.GetMetaDataDictionary()
-        spatial_shape = list()
-        for i in range(1, spatial_rank + 1):
-            spatial_shape.append(int(meta_dict[f"dim[{i}]"]))
+        spatial_shape = list(itk.size(self.img))
+        spatial_shape.reverse()
         return spatial_shape
 
     def get_array_data(self) -> np.ndarray:
-        return itk.array_from_image(self.img)
+        return itk.array_view_from_image(self.img)
