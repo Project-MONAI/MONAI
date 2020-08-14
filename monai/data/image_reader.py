@@ -61,12 +61,12 @@ class ITKReader(ImageReader):
         meta_dict = dict()
         for key in img_meta_dict.GetKeys():
             # ignore deprecated, legacy members that cause issues
-            if key.startswith('ITK_original_'):
+            if key.startswith("ITK_original_"):
                 continue
             meta_dict[key] = img_meta_dict[key]
-        meta_dict['origin'] = np.asarray(self.img.GetOrigin())
-        meta_dict['spacing'] = np.asarray(self.img.GetSpacing())
-        meta_dict['direction'] = itk.array_from_matrix(self.img.GetDirection())
+        meta_dict["origin"] = np.asarray(self.img.GetOrigin())
+        meta_dict["spacing"] = np.asarray(self.img.GetSpacing())
+        meta_dict["direction"] = itk.array_from_matrix(self.img.GetDirection())
         return meta_dict
 
     def get_affine(self) -> List:
