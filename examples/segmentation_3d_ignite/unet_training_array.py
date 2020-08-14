@@ -11,7 +11,6 @@
 
 import logging
 import os
-import shutil
 import sys
 import tempfile
 from glob import glob
@@ -36,12 +35,11 @@ from monai.networks import predict_segmentation
 from monai.transforms import AddChannel, Compose, RandSpatialCrop, Resize, ScaleIntensity, ToTensor
 
 
-def main():
+def main(tempdir):
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-    # create a temporary directory and 40 random image, mask paris
-    tempdir = tempfile.mkdtemp()
+    # create a temporary directory and 40 random image, mask pairs
     print(f"generating synthetic data to {tempdir} (this may take a while)")
     for i in range(40):
         im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1)
@@ -155,8 +153,8 @@ def main():
     train_epochs = 30
     state = trainer.run(train_loader, train_epochs)
     print(state)
-    shutil.rmtree(tempdir)
 
 
 if __name__ == "__main__":
-    main()
+    with tempfile.TemporaryDirectory() as tempdir:
+        main(tempdir)

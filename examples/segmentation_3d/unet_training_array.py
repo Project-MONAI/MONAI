@@ -11,7 +11,6 @@
 
 import logging
 import os
-import shutil
 import sys
 import tempfile
 from glob import glob
@@ -30,12 +29,11 @@ from monai.transforms import AddChannel, Compose, RandRotate90, RandSpatialCrop,
 from monai.visualize import plot_2d_or_3d_image
 
 
-def main():
+def main(tempdir):
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-    # create a temporary directory and 40 random image, mask paris
-    tempdir = tempfile.mkdtemp()
+    # create a temporary directory and 40 random image, mask pairs
     print(f"generating synthetic data to {tempdir} (this may take a while)")
     for i in range(40):
         im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1)
@@ -159,10 +157,11 @@ def main():
                 plot_2d_or_3d_image(val_images, epoch + 1, writer, index=0, tag="image")
                 plot_2d_or_3d_image(val_labels, epoch + 1, writer, index=0, tag="label")
                 plot_2d_or_3d_image(val_outputs, epoch + 1, writer, index=0, tag="output")
-    shutil.rmtree(tempdir)
+
     print(f"train completed, best_metric: {best_metric:.4f} at epoch: {best_metric_epoch}")
     writer.close()
 
 
 if __name__ == "__main__":
-    main()
+    with tempfile.TemporaryDirectory() as tempdir:
+        main(tempdir)

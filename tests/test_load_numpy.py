@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import os
-import shutil
 import tempfile
 import unittest
 
@@ -22,69 +21,59 @@ from monai.transforms import LoadNumpy
 class TestLoadNumpy(unittest.TestCase):
     def test_npy(self):
         test_data = np.random.randint(0, 256, size=[3, 4, 4])
-        tempdir = tempfile.mkdtemp()
-        filepath = os.path.join(tempdir, "test_data.npy")
-        np.save(filepath, test_data)
+        with tempfile.TemporaryDirectory() as tempdir:
+            filepath = os.path.join(tempdir, "test_data.npy")
+            np.save(filepath, test_data)
 
-        result = LoadNumpy()(filepath)
+            result = LoadNumpy()(filepath)
         self.assertTupleEqual(result[1]["spatial_shape"], test_data.shape)
         self.assertTupleEqual(result[0].shape, test_data.shape)
         np.testing.assert_allclose(result[0], test_data)
 
-        shutil.rmtree(tempdir)
-
     def test_npz1(self):
         test_data1 = np.random.randint(0, 256, size=[3, 4, 4])
-        tempdir = tempfile.mkdtemp()
-        filepath = os.path.join(tempdir, "test_data.npy")
-        np.save(filepath, test_data1)
+        with tempfile.TemporaryDirectory() as tempdir:
+            filepath = os.path.join(tempdir, "test_data.npy")
+            np.save(filepath, test_data1)
 
-        result = LoadNumpy()(filepath)
+            result = LoadNumpy()(filepath)
         self.assertTupleEqual(result[1]["spatial_shape"], test_data1.shape)
         self.assertTupleEqual(result[0].shape, test_data1.shape)
         np.testing.assert_allclose(result[0], test_data1)
 
-        shutil.rmtree(tempdir)
-
     def test_npz2(self):
         test_data1 = np.random.randint(0, 256, size=[3, 4, 4])
         test_data2 = np.random.randint(0, 256, size=[3, 4, 4])
-        tempdir = tempfile.mkdtemp()
-        filepath = os.path.join(tempdir, "test_data.npz")
-        np.savez(filepath, test_data1, test_data2)
+        with tempfile.TemporaryDirectory() as tempdir:
+            filepath = os.path.join(tempdir, "test_data.npz")
+            np.savez(filepath, test_data1, test_data2)
 
-        result = LoadNumpy()(filepath)
+            result = LoadNumpy()(filepath)
         self.assertTupleEqual(result[1]["spatial_shape"], test_data1.shape)
         self.assertTupleEqual(result[0].shape, (2, 3, 4, 4))
         np.testing.assert_allclose(result[0], np.stack([test_data1, test_data2]))
-
-        shutil.rmtree(tempdir)
 
     def test_npz3(self):
         test_data1 = np.random.randint(0, 256, size=[3, 4, 4])
         test_data2 = np.random.randint(0, 256, size=[3, 4, 4])
-        tempdir = tempfile.mkdtemp()
-        filepath = os.path.join(tempdir, "test_data.npz")
-        np.savez(filepath, test1=test_data1, test2=test_data2)
+        with tempfile.TemporaryDirectory() as tempdir:
+            filepath = os.path.join(tempdir, "test_data.npz")
+            np.savez(filepath, test1=test_data1, test2=test_data2)
 
-        result = LoadNumpy(npz_keys=["test1", "test2"])(filepath)
+            result = LoadNumpy(npz_keys=["test1", "test2"])(filepath)
         self.assertTupleEqual(result[1]["spatial_shape"], test_data1.shape)
         self.assertTupleEqual(result[0].shape, (2, 3, 4, 4))
         np.testing.assert_allclose(result[0], np.stack([test_data1, test_data2]))
 
-        shutil.rmtree(tempdir)
-
     def test_npy_pickle(self):
         test_data = {"test": np.random.randint(0, 256, size=[3, 4, 4])}
-        tempdir = tempfile.mkdtemp()
-        filepath = os.path.join(tempdir, "test_data.npy")
-        np.save(filepath, test_data, allow_pickle=True)
+        with tempfile.TemporaryDirectory() as tempdir:
+            filepath = os.path.join(tempdir, "test_data.npy")
+            np.save(filepath, test_data, allow_pickle=True)
 
-        result = LoadNumpy(data_only=True, dtype=None)(filepath).item()
+            result = LoadNumpy(data_only=True, dtype=None)(filepath).item()
         self.assertTupleEqual(result["test"].shape, test_data["test"].shape)
         np.testing.assert_allclose(result["test"], test_data["test"])
-
-        shutil.rmtree(tempdir)
 
 
 if __name__ == "__main__":

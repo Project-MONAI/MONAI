@@ -10,8 +10,6 @@
 # limitations under the License.
 
 import glob
-import os
-import shutil
 import tempfile
 import unittest
 
@@ -28,25 +26,22 @@ TEST_CASES = [[[20, 20]], [[2, 20, 20]], [[3, 20, 20]], [[20, 20, 20]], [[2, 20,
 class TestHandlerTBImage(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_tb_image_shape(self, shape):
-        tempdir = tempfile.mkdtemp()
-        shutil.rmtree(tempdir, ignore_errors=True)
+        with tempfile.TemporaryDirectory() as tempdir:
 
-        # set up engine
-        def _train_func(engine, batch):
-            return torch.zeros((1, 1, 10, 10))
+            # set up engine
+            def _train_func(engine, batch):
+                return torch.zeros((1, 1, 10, 10))
 
-        engine = Engine(_train_func)
+            engine = Engine(_train_func)
 
-        # set up testing handler
-        stats_handler = TensorBoardImageHandler(log_dir=tempdir)
-        engine.add_event_handler(Events.ITERATION_COMPLETED, stats_handler)
+            # set up testing handler
+            stats_handler = TensorBoardImageHandler(log_dir=tempdir)
+            engine.add_event_handler(Events.ITERATION_COMPLETED, stats_handler)
 
-        data = zip(np.random.normal(size=(10, 4, *shape)), np.random.normal(size=(10, 4, *shape)))
-        engine.run(data, epoch_length=10, max_epochs=1)
+            data = zip(np.random.normal(size=(10, 4, *shape)), np.random.normal(size=(10, 4, *shape)))
+            engine.run(data, epoch_length=10, max_epochs=1)
 
-        self.assertTrue(os.path.exists(tempdir))
-        self.assertTrue(len(glob.glob(tempdir)) > 0)
-        shutil.rmtree(tempdir)
+            self.assertTrue(len(glob.glob(tempdir)) > 0)
 
 
 if __name__ == "__main__":

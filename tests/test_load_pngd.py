@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import os
-import shutil
 import tempfile
 import unittest
 
@@ -29,15 +28,14 @@ class TestLoadPNGd(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1])
     def test_shape(self, input_param, expected_shape):
         test_image = np.random.randint(0, 256, size=[128, 128, 3])
-        tempdir = tempfile.mkdtemp()
-        test_data = dict()
-        for key in KEYS:
-            Image.fromarray(test_image.astype("uint8")).save(os.path.join(tempdir, key + ".png"))
-            test_data.update({key: os.path.join(tempdir, key + ".png")})
-        result = LoadPNGd(**input_param)(test_data)
+        with tempfile.TemporaryDirectory() as tempdir:
+            test_data = dict()
+            for key in KEYS:
+                Image.fromarray(test_image.astype("uint8")).save(os.path.join(tempdir, key + ".png"))
+                test_data.update({key: os.path.join(tempdir, key + ".png")})
+            result = LoadPNGd(**input_param)(test_data)
         for key in KEYS:
             self.assertTupleEqual(result[key].shape, expected_shape)
-        shutil.rmtree(tempdir)
 
 
 if __name__ == "__main__":
