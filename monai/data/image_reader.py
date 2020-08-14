@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from abc import ABC, abstractmethod
-from typing import Any, List, Optional, Union, Sequence
+from typing import Any, List, Optional, Sequence, Union
 
 import itk
 import numpy as np
@@ -20,11 +20,8 @@ class ImageReader(ABC):
     """Abstract class to define interface APIs to load image files.
 
     """
-    def __init__(
-        self,
-        suffixes: Optional[Union[str, Sequence[str]]] = None,
-        img: Any = None
-    ):
+
+    def __init__(self, suffixes: Optional[Union[str, Sequence[str]]] = None, img: Any = None):
         self.suffixes = suffixes
         self.img = img
 
