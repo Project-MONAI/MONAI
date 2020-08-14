@@ -13,8 +13,7 @@ from typing import Dict, Optional
 
 import torch.nn as nn
 
-from monai.networks.blocks.segresnet_block import ResBlock, get_conv_layer, get_norm_layer
-from monai.networks.blocks.upsample import UpSample as UpSample
+from monai.networks.blocks.segresnet_block import *
 from monai.networks.layers.factories import Act, Dropout
 
 
@@ -62,9 +61,6 @@ class SegResNet(nn.Module):
         super().__init__()
 
         assert spatial_dims == 2 or spatial_dims == 3, "spatial_dims can only be 2 or 3."
-
-        if upsample_mode != "transpose":
-            upsample_mode = "bilinear" if spatial_dims == 2 else "trilinear"
 
         resblock_params = {"norm_name": norm_name, "num_groups": num_groups}
 
@@ -121,22 +117,11 @@ class SegResNet(nn.Module):
                     *[ResBlock(spatial_dims, sample_in_channels // 2, **resblock_params) for _ in range(blocks_up[i])]
                 )
             )
-            up_module: nn.Module
-            if upsample_mode == "transpose":
-                up_module = UpSample(
-                    spatial_dims,
-                    filters * 2 ** (n_up - i - 1),
-                    filters * 2 ** (n_up - i - 1),
-                    scale_factor=2,
-                    with_conv=True,
-                )
-            else:
-                up_module = nn.Upsample(scale_factor=2, mode=upsample_mode, align_corners=False,)
             up_samples.append(
                 nn.Sequential(
                     *[
                         get_conv_layer(spatial_dims, sample_in_channels, sample_in_channels // 2, kernel_size=1),
-                        up_module,
+                        get_upsample_layer(spatial_dims, sample_in_channels // 2, upsample_mode),
                     ]
                 )
             )
