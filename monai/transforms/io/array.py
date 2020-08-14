@@ -72,30 +72,30 @@ class LoadImage(Transform):
         """
         filename = ensure_tuple(filename)
         img_array = list()
-        compatible_meta: Dict = dict()
+        compatible_meta: Dict = None
         for name in filename:
-            if self.suffixes is not None and name.split(".")[-1] not in self.suffixes:
+            if not self.reader.verify_suffix(name.split(".")[-1]):
                 raise RuntimeError("unsupported file format.")
-            img = self.reader.read_image(name)
-            header = self.reader.get_meta_data()
-            header["filename_or_obj"] = name
-
+            self.reader.read_image(name)
             img_array.append(self.reader.get_array_data().astype(dtype=self.dtype))
-
             if self.image_only:
                 continue
 
-            if not compatible_meta:
-                for meta_key in header.GetKeys():
-                    meta_datum = header[meta_key]
-                    if (
-                        isinstance(meta_datum, np.ndarray)
-                        and np_str_obj_array_pattern.search(meta_datum.dtype.str) is not None
-                    ):
-                        continue
-                    compatible_meta[meta_key] = meta_datum
+            header = self.reader.get_meta_dict()
+            header["filename_or_obj"] = name
+            header["affine"] = self.reader.get_affine()
+            header["original_affine"] = header["affine"].copy()
+            header["spatial_shape"] = self.reader.get_spatial_shape()
+
+            if compatible_meta is None:
+                compatible_meta = header
+            else:
+                assert np.allclose(
+                    header["affine"], compatible_meta["affine"]
+                ), "affine data of all images should be same."
 
         img_array = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
+        self.reader.uncache()
         if self.image_only:
             return img_array
         return img_array, compatible_meta
