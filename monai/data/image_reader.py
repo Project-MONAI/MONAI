@@ -86,9 +86,7 @@ class ITKReader(ImageReader):
         return affine
 
     def get_spatial_shape(self) -> List:
-        spatial_shape = list(itk.size(self.img))
-        spatial_shape.reverse()
-        return spatial_shape
+        return list(itk.size(self.img))
 
     def get_array_data(self) -> np.ndarray:
-        return itk.array_view_from_image(self.img)
+        return itk.array_view_from_image(self.img, keep_axes=True)
