@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from abc import ABC, abstractmethod
-from typing import Any, List, Optional, Sequence, Union
+from typing import Any, List, Dict, Optional, Sequence, Union
 
 import numpy as np
 
@@ -40,7 +40,7 @@ class ImageReader(ABC):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def get_meta_dict(self) -> List:
+    def get_meta_dict(self) -> Dict:
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
@@ -60,7 +60,7 @@ class ITKReader(ImageReader):
     def read_image(self, filename: str):
         self.img = itk.imread(filename)
 
-    def get_meta_dict(self) -> List:
+    def get_meta_dict(self) -> Dict:
         img_meta_dict = self.img.GetMetaDataDictionary()
         meta_dict = dict()
         for key in img_meta_dict.GetKeys():
