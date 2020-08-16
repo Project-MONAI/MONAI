@@ -13,7 +13,7 @@ from abc import ABC, abstractmethod
 from typing import Any, List, Optional, Sequence, Union
 from monai.utils import optional_import
 
-itk, _ = optional_import("itk")
+itk, _ = optional_import("itk", allow_namespace_pkg=True)
 nib, _ = optional_import("nibabel")
 import numpy as np
 

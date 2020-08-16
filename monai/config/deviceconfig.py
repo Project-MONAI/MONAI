@@ -58,6 +58,14 @@ try:
 except (ImportError, AttributeError):
     tensorboard_version = "NOT INSTALLED or UNKNOWN VERSION."
 
+try:
+    import itk
+
+    itk_version = itk.Version.GetITKVersion()
+    del itk
+except (ImportError, AttributeError):
+    itk_version = "NOT INSTALLED or UNKNOWN VERSION."
+
 
 def get_config_values():
     """
@@ -84,6 +92,8 @@ def get_optional_config_values():
     output["scikit-image"] = skimage_version
     output["Pillow"] = PIL_version
     output["Tensorboard"] = tensorboard_version
+    output["ITK"] = itk_version
+
 
     return output
 
