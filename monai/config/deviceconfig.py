@@ -94,7 +94,6 @@ def get_optional_config_values():
     output["Tensorboard"] = tensorboard_version
     output["ITK"] = itk_version
 
-
     return output
 
 
