@@ -11,8 +11,10 @@
 
 from abc import ABC, abstractmethod
 from typing import Any, List, Optional, Sequence, Union
+from monai.utils import optional_import
 
-import itk
+itk, _ = optional_import("itk")
+nib, _ = optional_import("nibabel")
 import numpy as np
 
 
