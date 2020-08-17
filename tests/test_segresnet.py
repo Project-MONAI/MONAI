@@ -14,7 +14,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.networks.nets import SegResNet
+from monai.networks.nets import SegResNet, SegResNetVAE
 
 TEST_CASE_SEGRESNET = []
 for spatial_dims in range(2, 4):
@@ -65,7 +65,6 @@ for spatial_dims in range(2, 4):
                             "init_filters": init_filters,
                             "out_channels": out_channels,
                             "upsample_mode": upsample_mode,
-                            "use_vae": True,
                             "input_image_size": ([16] * spatial_dims),
                             "vae_estimate_std": vae_estimate_std,
                         },
@@ -92,14 +91,10 @@ class TestResBlock(unittest.TestCase):
 class TestResBlockVAE(unittest.TestCase):
     @parameterized.expand(TEST_CASE_SEGRESNET_VAE)
     def test_vae_shape(self, input_param, input_data, expected_shape):
-        net = SegResNet(**input_param)
+        net = SegResNetVAE(**input_param)
         with torch.no_grad():
             result, _ = net(input_data)
             self.assertEqual(result.shape, expected_shape)
-
-    def test_ill_arg(self):
-        with self.assertRaises(AssertionError):
-            SegResNet(use_vae=True)
 
 
 if __name__ == "__main__":

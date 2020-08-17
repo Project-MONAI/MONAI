@@ -24,7 +24,8 @@ class SegResNet(nn.Module):
     """
     SegResNet:
     "3D MRI brain tumor segmentation using autoencoder regularization, https://arxiv.org/abs/1810.11654"
-    The code is adapted from the author's code
+    The code is adapted from the author's code.
+    The module does not include the variational autoencoder (VAE).
     The model supports 2D or 3D inputs.
 
     Args:
@@ -44,14 +45,6 @@ class SegResNet(nn.Module):
             2) ``bilinear``, uses bilinear interpolate.
             3) ``trilinear``, uses trilinear interpolate.
             Using the last two modes cannot guarantee the model's reproducibility. Defaults to``trilinear``.
-        use_vae: if use the variational autoencoder (VAE) during training. Defaults to ``False``.
-        input_image_size: the size of images to input into the network. It is used to
-            determine the in_features of the fc layer in VAE. When ``use_vae == True``, please
-            ensure that this parameter is set. Defaults to ``None``.
-        vae_estimate_std: whether to estimate the standard deviations in VAE. Defaults to ``False``.
-        vae_default_std: if not to estimate the std, use the default value. Defaults to 0.3.
-        vae_nz: number of latent variables in VAE. Defaults to 256. 
-            Where, 128 to represent mean, and 128 to represent std.
     """
 
     def __init__(
@@ -67,11 +60,6 @@ class SegResNet(nn.Module):
         blocks_down: tuple = (1, 2, 2, 4),
         blocks_up: tuple = (1, 1, 1),
         upsample_mode: str = "trilinear",
-        use_vae: bool = False,
-        input_image_size: Optional[Sequence[int]] = None,
-        vae_estimate_std: bool = False,
-        vae_default_std: float = 0.3,
-        vae_nz: int = 256,
     ):
         super().__init__()
 
@@ -86,22 +74,11 @@ class SegResNet(nn.Module):
         self.num_groups = num_groups
         self.upsample_mode = upsample_mode
         self.use_conv_final = use_conv_final
-        self.use_vae = use_vae
         self.convInit = get_conv_layer(spatial_dims, in_channels, init_filters)
         self.down_layers = self._make_down_layers()
         self.up_layers, self.up_samples = self._make_up_layers()
         self.relu = Act[Act.RELU](inplace=True)
         self.conv_final = self._make_final_conv(out_channels)
-        self.use_cuda = torch.cuda.is_available()
-
-        if self.use_vae:
-            assert input_image_size is not None, "input_image_size needs to be set."
-            self.input_image_size = input_image_size
-            self.vae_estimate_std = vae_estimate_std
-            self.vae_default_std = vae_default_std
-            self.vae_nz = vae_nz
-            self._prepare_vae_modules()
-            self.vae_conv_final = self._make_final_conv(in_channels)
 
         if dropout_prob:
             self.dropout = Dropout[Dropout.DROPOUT, spatial_dims](dropout_prob)
@@ -169,6 +146,100 @@ class SegResNet(nn.Module):
             self.relu,
             get_conv_layer(self.spatial_dims, self.init_filters, out_channels=out_channels, kernel_size=1, bias=True),
         )
+
+    def forward(self, x):
+        x = self.convInit(x)
+        if self.dropout_prob:
+            x = self.dropout(x)
+
+        down_x = []
+        for i in range(len(self.blocks_down)):
+            x = self.down_layers[i](x)
+            down_x.append(x)
+        down_x.reverse()
+
+        for i in range(len(self.blocks_up)):
+            x = self.up_samples[i](x) + down_x[i + 1]
+            x = self.up_layers[i](x)
+
+        if self.use_conv_final:
+            x = self.conv_final(x)
+        return x
+
+
+class SegResNetVAE(SegResNet):
+    """
+    SegResNetVAE:
+    "3D MRI brain tumor segmentation using autoencoder regularization, https://arxiv.org/abs/1810.11654"
+    The code is adapted from the author's code.
+    The module contains the variational autoencoder (VAE).
+    The model supports 2D or 3D inputs.
+
+    Args:
+        spatial_dims: spatial dimension of the input data. Defaults to 3.
+        init_filters: number of output channels for initial convolution layer. Defaults to 8.
+        in_channels: number of input channels for the network. Defaults to 1.
+        out_channels: number of output channels for the network. Defaults to 2.
+        droupout_prob: probability of an element to be zero-ed. Defaults to ``None``.
+        norm_name: feature normalization type, this module only supports group norm, 
+            batch norm and instance norm. Defaults to ``group``.
+        num_groups: number of groups to separate the channels into. Defaults to 8.
+        use_conv_final: if add a final convolution block to output. Defaults to ``True``.
+        blocks_down: number of down sample blocks in each layer. Defaults to ``[1,2,2,4]``.
+        blocks_up: number of up sample blocks in each layer. Defaults to ``[1,1,1]``.
+        upsample_mode: The mode of upsampling manipulations, there are three choices:
+            1) ``transpose``, uses transposed convolution layers.
+            2) ``bilinear``, uses bilinear interpolate.
+            3) ``trilinear``, uses trilinear interpolate.
+            Using the last two modes cannot guarantee the model's reproducibility. Defaults to``trilinear``.
+        use_vae: if use the variational autoencoder (VAE) during training. Defaults to ``False``.
+        input_image_size: the size of images to input into the network. It is used to
+            determine the in_features of the fc layer in VAE. When ``use_vae == True``, please
+            ensure that this parameter is set. Defaults to ``None``.
+        vae_estimate_std: whether to estimate the standard deviations in VAE. Defaults to ``False``.
+        vae_default_std: if not to estimate the std, use the default value. Defaults to 0.3.
+        vae_nz: number of latent variables in VAE. Defaults to 256. 
+            Where, 128 to represent mean, and 128 to represent std.
+    """
+
+    def __init__(
+        self,
+        input_image_size: Sequence[int],
+        vae_estimate_std: bool = False,
+        vae_default_std: float = 0.3,
+        vae_nz: int = 256,
+        spatial_dims: int = 3,
+        init_filters: int = 8,
+        in_channels: int = 1,
+        out_channels: int = 2,
+        dropout_prob: Optional[float] = None,
+        norm_name: str = "group",
+        num_groups: int = 8,
+        use_conv_final: bool = True,
+        blocks_down: tuple = (1, 2, 2, 4),
+        blocks_up: tuple = (1, 1, 1),
+        upsample_mode: str = "trilinear",
+    ):
+        super(SegResNetVAE, self).__init__(
+            spatial_dims=spatial_dims,
+            init_filters=init_filters,
+            in_channels=in_channels,
+            out_channels=out_channels,
+            dropout_prob=dropout_prob,
+            norm_name=norm_name,
+            num_groups=num_groups,
+            use_conv_final=use_conv_final,
+            blocks_down=blocks_down,
+            blocks_up=blocks_up,
+            upsample_mode=upsample_mode,
+        )
+
+        self.input_image_size = input_image_size
+        self.vae_estimate_std = vae_estimate_std
+        self.vae_default_std = vae_default_std
+        self.vae_nz = vae_nz
+        self._prepare_vae_modules()
+        self.vae_conv_final = self._make_final_conv(in_channels)
 
     def _prepare_vae_modules(self):
         self.smallest_filters = 16
@@ -249,7 +320,7 @@ class SegResNet(nn.Module):
         if self.use_conv_final:
             x = self.conv_final(x)
 
-        if self.use_vae and self.training:
+        if self.training:
             vae_loss = self._get_vae_loss(net_input, vae_input)
             return x, vae_loss
         return x
