@@ -41,15 +41,13 @@ class LoadImage(Transform):
 
     def __init__(
         self,
-        reader: ImageReader = None,
-        suffixes: Optional[Union[str, Sequence[str]]] = None,
+        reader: Optional[ImageReader] = None,
         image_only: bool = False,
         dtype: Optional[np.dtype] = np.float32,
     ) -> None:
         """
         Args:
             reader: use reader to load image file and meta data, default is ITK.
-            suffixes: file suffixes that supported by the reader, if None, support all kinds of files.
             image_only: if True return only the image volume, otherwise return image data array and header dict.
             dtype: if not None convert the loaded image to this data type.
 
@@ -61,7 +59,6 @@ class LoadImage(Transform):
         if reader is None:
             reader = ITKReader()
         self.reader = reader
-        self.suffixes = suffixes
         self.image_only = image_only
         self.dtype = dtype
 
@@ -74,7 +71,14 @@ class LoadImage(Transform):
         img_array = list()
         compatible_meta: Dict = None
         for name in filename:
-            if not self.reader.verify_suffix(name.split(".")[-1]):
+            supported_format = False
+            suffixes = name.split(".")
+            for i in range(len(suffixes) - 1):
+                if self.reader.verify_suffix(".".join(suffixes[-(i + 2) : -1])):
+                    supported_format = True
+                    break
+
+            if not supported_format:
                 raise RuntimeError("unsupported file format.")
             self.reader.read_image(name)
             img_array.append(self.reader.get_array_data().astype(dtype=self.dtype))
@@ -83,8 +87,9 @@ class LoadImage(Transform):
 
             header = self.reader.get_meta_dict()
             header["filename_or_obj"] = name
+            header["original_affine"] = self.reader.get_affine()
+            self.reader.convert()
             header["affine"] = self.reader.get_affine()
-            header["original_affine"] = header["affine"].copy()
             header["spatial_shape"] = self.reader.get_spatial_shape()
 
             if compatible_meta is None:
