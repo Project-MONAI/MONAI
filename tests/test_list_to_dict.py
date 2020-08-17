@@ -35,9 +35,14 @@ TEST_CASE_4 = [
     {"a": True, "b": True, "c": False, "d": False},
 ]
 
+TEST_CASE_5 = [
+    ["a='1'", "b=2 ", " c = 3", "d='test'", "'e'=0", "f", "g=None"],
+    {"a": 1, "b": 2, "c": 3, "d": "test", "e": 0, "f": None, "g": None},
+]
+
 
 class TestListToDict(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
     def test_value_shape(self, input, output):
         result = list_to_dict(input)
         self.assertDictEqual(result, output)

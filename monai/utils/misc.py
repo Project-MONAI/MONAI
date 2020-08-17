@@ -232,10 +232,10 @@ def list_to_dict(items):
 
     def _parse_var(s):
         items = s.split("=", maxsplit=1)
-        key = items[0].strip()
+        key = items[0].strip(" \n\r\t'")
         value = None
         if len(items) > 1:
-            value = items[1].strip()
+            value = items[1].strip(" \n\r\t'")
         return key, value
 
     d = dict()
