@@ -15,9 +15,10 @@ import unittest
 
 import itk
 import nibabel as nib
-from PIL import Image
 import numpy as np
 from parameterized import parameterized
+from PIL import Image
+
 from monai.data import NibabelReader
 from monai.transforms import LoadImage
 
@@ -110,6 +111,7 @@ class TestLoadImage(unittest.TestCase):
             np.testing.assert_allclose(header["affine"], np.eye(3))
             np.testing.assert_allclose(header["original_affine"], np.eye(3))
             np.testing.assert_allclose(result, test_image)
+
 
 if __name__ == "__main__":
     unittest.main()

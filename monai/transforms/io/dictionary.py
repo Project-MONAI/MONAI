@@ -20,8 +20,8 @@ from typing import Callable, Optional
 import numpy as np
 
 from monai.config import KeysCollection
-from monai.transforms.compose import MapTransform
 from monai.data.image_reader import ImageReader
+from monai.transforms.compose import MapTransform
 from monai.transforms.io.array import LoadImage, LoadNifti, LoadNumpy, LoadPNG
 
 

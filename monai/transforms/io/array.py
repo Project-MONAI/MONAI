@@ -40,10 +40,7 @@ class LoadImage(Transform):
     """
 
     def __init__(
-        self,
-        reader: Optional[ImageReader] = None,
-        image_only: bool = False,
-        dtype: Optional[np.dtype] = np.float32,
+        self, reader: Optional[ImageReader] = None, image_only: bool = False, dtype: Optional[np.dtype] = np.float32,
     ) -> None:
         """
         Args:

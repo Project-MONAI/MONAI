@@ -14,8 +14,8 @@ from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
 
-from monai.utils import optional_import
 from monai.data.utils import correct_nifti_header_if_necessary
+from monai.utils import optional_import
 
 itk, _ = optional_import("itk", allow_namespace_pkg=True)
 nib, _ = optional_import("nibabel")
@@ -32,6 +32,7 @@ class ImageReader(ABC):
         as_closest_canonical: if True, load the image as closest to canonical axis format.
 
     """
+
     def __init__(self, img: Optional[Any] = None, as_closest_canonical: bool = False):
         self.img = img
         self.as_closest_canonical = as_closest_canonical
@@ -195,6 +196,7 @@ class NibabelReader(ImageReader):
         as_closest_canonical: if True, load the image as closest to canonical axis format.
 
     """
+
     def __init__(self, img: Optional[Any] = None, as_closest_canonical: bool = False):
         super().__init__(img, as_closest_canonical)
         self._suffixes: [Sequence] = ["nii", "nii.gz"]
