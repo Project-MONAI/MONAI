@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import os
-import shutil
 import tempfile
 import unittest
 
@@ -77,14 +76,13 @@ class TestIntegrationSlidingWindow(unittest.TestCase):
             os.remove(self.seg_name)
 
     def test_training(self):
-        tempdir = tempfile.mkdtemp()
-        output_file = run_test(
-            batch_size=2, img_name=self.img_name, seg_name=self.seg_name, output_dir=tempdir, device=self.device
-        )
-        output_image = nib.load(output_file).get_fdata()
-        np.testing.assert_allclose(np.sum(output_image), 33621)
-        np.testing.assert_allclose(output_image.shape, (28, 25, 63, 1))
-        shutil.rmtree(tempdir)
+        with tempfile.TemporaryDirectory() as tempdir:
+            output_file = run_test(
+                batch_size=2, img_name=self.img_name, seg_name=self.seg_name, output_dir=tempdir, device=self.device
+            )
+            output_image = nib.load(output_file).get_fdata()
+            np.testing.assert_allclose(np.sum(output_image), 33621)
+            np.testing.assert_allclose(output_image.shape, (28, 25, 63, 1))
 
 
 if __name__ == "__main__":
