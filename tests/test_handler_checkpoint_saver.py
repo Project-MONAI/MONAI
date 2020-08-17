@@ -9,17 +9,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-import tempfile
-import shutil
-import torch
-import unittest
-from ignite.engine import Engine
-from monai.handlers import CheckpointSaver
-import torch.optim as optim
-from parameterized import parameterized
 import logging
+import os
 import sys
+import tempfile
+import unittest
+
+import torch
+import torch.optim as optim
+from ignite.engine import Engine
+from parameterized import parameterized
+
+from monai.handlers import CheckpointSaver
 
 TEST_CASE_1 = [True, False, None, 1, True, 0, None, ["test_checkpoint_final_iteration=40.pth"]]
 
@@ -78,25 +79,43 @@ class TestHandlerCheckpointSaver(unittest.TestCase):
         if multi_devices:
             net = torch.nn.DataParallel(net)
         optimizer = optim.SGD(net.parameters(), lr=0.02)
-        tempdir = tempfile.mkdtemp()
-        handler = CheckpointSaver(
-            tempdir,
-            {"net": net, "opt": optimizer},
-            "CheckpointSaver",
-            "test",
-            save_final,
-            save_key_metric,
-            key_metric_name,
-            key_metric_n_saved,
-            epoch_level,
-            save_interval,
-            n_saved,
-        )
-        handler.attach(engine)
-        engine.run(data, max_epochs=5)
-        for filename in filenames:
-            self.assertTrue(os.path.exists(os.path.join(tempdir, filename)))
-        shutil.rmtree(tempdir)
+        with tempfile.TemporaryDirectory() as tempdir:
+            handler = CheckpointSaver(
+                tempdir,
+                {"net": net, "opt": optimizer},
+                "CheckpointSaver",
+                "test",
+                save_final,
+                save_key_metric,
+                key_metric_name,
+                key_metric_n_saved,
+                epoch_level,
+                save_interval,
+                n_saved,
+            )
+            handler.attach(engine)
+            engine.run(data, max_epochs=5)
+            for filename in filenames:
+                self.assertTrue(os.path.exists(os.path.join(tempdir, filename)))
+
+    def test_exception(self):
+        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+        net = torch.nn.PReLU()
+
+        # set up engine
+        def _train_func(engine, batch):
+            raise RuntimeError("test exception.")
+
+        engine = Engine(_train_func)
+
+        # set up testing handler
+        with tempfile.TemporaryDirectory() as tempdir:
+            stats_handler = CheckpointSaver(tempdir, {"net": net}, save_final=True)
+            stats_handler.attach(engine)
+
+            with self.assertRaises(RuntimeError):
+                engine.run(range(3), max_epochs=2)
+            self.assertTrue(os.path.exists(os.path.join(tempdir, "net_final_iteration=1.pth")))
 
 
 if __name__ == "__main__":

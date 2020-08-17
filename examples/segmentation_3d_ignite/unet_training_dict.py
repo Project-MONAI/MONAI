@@ -9,46 +9,45 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 import os
 import sys
 import tempfile
-import shutil
 from glob import glob
-import logging
+
 import nibabel as nib
 import numpy as np
 import torch
-from ignite.engine import Events, create_supervised_trainer, create_supervised_evaluator, _prepare_batch
-from ignite.handlers import ModelCheckpoint, EarlyStopping
+from ignite.engine import Events, _prepare_batch, create_supervised_evaluator, create_supervised_trainer
+from ignite.handlers import EarlyStopping, ModelCheckpoint
 from torch.utils.data import DataLoader
 
 import monai
-from monai.transforms import (
-    Compose,
-    LoadNiftid,
-    AsChannelFirstd,
-    ScaleIntensityd,
-    RandCropByPosNegLabeld,
-    RandRotate90d,
-    ToTensord,
-)
+from monai.data import create_test_image_3d, list_data_collate
 from monai.handlers import (
-    StatsHandler,
-    TensorBoardStatsHandler,
-    TensorBoardImageHandler,
     MeanDice,
+    StatsHandler,
+    TensorBoardImageHandler,
+    TensorBoardStatsHandler,
     stopping_fn_from_metric,
 )
-from monai.data import create_test_image_3d, list_data_collate
 from monai.networks import predict_segmentation
+from monai.transforms import (
+    AsChannelFirstd,
+    Compose,
+    LoadNiftid,
+    RandCropByPosNegLabeld,
+    RandRotate90d,
+    ScaleIntensityd,
+    ToTensord,
+)
 
 
-def main():
+def main(tempdir):
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-    # create a temporary directory and 40 random image, mask paris
-    tempdir = tempfile.mkdtemp()
+    # create a temporary directory and 40 random image, mask pairs
     print(f"generating synthetic data to {tempdir} (this may take a while)")
     for i in range(40):
         im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1, channel_dim=-1)
@@ -69,7 +68,7 @@ def main():
         [
             LoadNiftid(keys=["img", "seg"]),
             AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
-            ScaleIntensityd(keys=["img", "seg"]),
+            ScaleIntensityd(keys="img"),
             RandCropByPosNegLabeld(
                 keys=["img", "seg"], label_key="seg", spatial_size=[96, 96, 96], pos=1, neg=1, num_samples=4
             ),
@@ -81,7 +80,7 @@ def main():
         [
             LoadNiftid(keys=["img", "seg"]),
             AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
-            ScaleIntensityd(keys=["img", "seg"]),
+            ScaleIntensityd(keys="img"),
             ToTensord(keys=["img", "seg"]),
         ]
     )
@@ -194,8 +193,8 @@ def main():
     train_epochs = 5
     state = trainer.run(train_loader, train_epochs)
     print(state)
-    shutil.rmtree(tempdir)
 
 
 if __name__ == "__main__":
-    main()
+    with tempfile.TemporaryDirectory() as tempdir:
+        main(tempdir)

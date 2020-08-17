@@ -9,11 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
 import itertools
+import unittest
 
-
-from monai.transforms.adaptors import adaptor, apply_alias, to_kwargs, FunctionSignature
+from monai.transforms.adaptors import FunctionSignature, adaptor, apply_alias, to_kwargs
 
 
 class TestAdaptors(unittest.TestCase):
