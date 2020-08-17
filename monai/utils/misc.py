@@ -12,8 +12,9 @@
 import collections.abc
 import itertools
 import random
-from typing import Any, Callable, Optional, Sequence, Tuple, Union
 from distutils.util import strtobool
+from typing import Any, Callable, Optional, Sequence, Tuple, Union
+
 import numpy as np
 import torch
 
@@ -226,6 +227,7 @@ def list_to_dict(items):
     If no "=" in the pair, use None as the value, for example: ["a"], return: {"a": None}.
 
     """
+
     def _parse_var(s):
         items = s.split("=")
         # we remove blanks around keys, as is logical
@@ -233,7 +235,7 @@ def list_to_dict(items):
         value = None
         if len(items) > 1:
             # rejoin the rest, for example: MODEL="checkpoint_best_metric=0.94.pth"
-            value = '='.join(items[1:])
+            value = "=".join(items[1:])
         return key, value
 
     d = dict()
