@@ -59,6 +59,14 @@ except (ImportError, AttributeError):
     tensorboard_version = "NOT INSTALLED or UNKNOWN VERSION."
 
 try:
+    import gdown
+
+    gdown_version = gdown.__version__
+    del gdown
+except (ImportError, AttributeError):
+    gdown_version = "NOT INSTALLED or UNKNOWN VERSION."
+
+try:
     import itk
 
     itk_version = itk.Version.GetITKVersion()
@@ -92,6 +100,7 @@ def get_optional_config_values():
     output["scikit-image"] = skimage_version
     output["Pillow"] = PIL_version
     output["Tensorboard"] = tensorboard_version
+    output["gdown"] = gdown_version
     output["ITK"] = itk_version
 
     return output
