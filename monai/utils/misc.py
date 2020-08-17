@@ -12,8 +12,8 @@
 import collections.abc
 import itertools
 import random
-from distutils.util import strtobool
 from ast import literal_eval
+from distutils.util import strtobool
 from typing import Any, Callable, Optional, Sequence, Tuple, Union
 
 import numpy as np
