@@ -334,10 +334,10 @@ class AHNet(nn.Module):
         spatial_dims: spatial dimension of the input data. Defaults to 3.
         out_channels: number of output channels for the network. Defaults to 1.
         upsample_mode: The mode of upsampling manipulations, there are three choices:
-            1) "transpose", uses transposed convolution layers.
-            2) "bilinear", uses bilinear interpolate.
-            3) "trilinear", uses trilinear interpolate.
-            Using the last two modes cannot guarantee the model's reproducibility. Defaults to "trilinear".
+            1) ``transpose``, uses transposed convolution layers.
+            2) ``bilinear``, uses bilinear interpolate.
+            3) ``trilinear``, uses trilinear interpolate.
+            Using the last two modes cannot guarantee the model's reproducibility. Defaults to ``trilinear``.
     """
 
     def __init__(

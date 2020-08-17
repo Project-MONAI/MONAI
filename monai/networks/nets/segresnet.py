@@ -9,9 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, Optional
+from typing import Optional, Sequence
 
+import numpy as np
+import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from monai.networks.blocks.segresnet_block import *
 from monai.networks.layers.factories import Act, Dropout
@@ -21,8 +24,7 @@ class SegResNet(nn.Module):
     """
     SegResNet:
     "3D MRI brain tumor segmentation using autoencoder regularization, https://arxiv.org/abs/1810.11654"
-    The code is adapted from the author's code, the difference is that the variational autoencoder (VAE) 
-    is not used during training in this implementation.
+    The code is adapted from the author's code
     The model supports 2D or 3D inputs.
 
     Args:
@@ -34,14 +36,22 @@ class SegResNet(nn.Module):
         norm_name: feature normalization type, this module only supports group norm, 
             batch norm and instance norm. Defaults to ``group``.
         num_groups: number of groups to separate the channels into. Defaults to 8.
-        use_conv_final: if add a final convolution block to output an activated result. Defaults to True.
+        use_conv_final: if add a final convolution block to output. Defaults to ``True``.
         blocks_down: number of down sample blocks in each layer. Defaults to ``[1,2,2,4]``.
         blocks_up: number of up sample blocks in each layer. Defaults to ``[1,1,1]``.
         upsample_mode: The mode of upsampling manipulations, there are three choices:
-            1) "transpose", uses transposed convolution layers.
-            2) "bilinear", uses bilinear interpolate.
-            3) "trilinear", uses trilinear interpolate.
-            Using the last two modes cannot guarantee the model's reproducibility. Defaults to "trilinear".
+            1) ``transpose``, uses transposed convolution layers.
+            2) ``bilinear``, uses bilinear interpolate.
+            3) ``trilinear``, uses trilinear interpolate.
+            Using the last two modes cannot guarantee the model's reproducibility. Defaults to``trilinear``.
+        use_vae: if use the variational autoencoder (VAE) during training. Defaults to ``False``.
+        input_image_size: the size of images to input into the network. It is used to
+            determine the in_features of the fc layer in VAE. When ``use_vae == True``, please
+            ensure that this parameter is set. Defaults to ``None``.
+        vae_estimate_std: whether to estimate the standard deviations in VAE. Defaults to ``False``.
+        vae_default_std: if not to estimate the std, use the default value. Defaults to 0.3.
+        vae_nz: number of latent variables in VAE. Defaults to 256. 
+            Where, 128 to represent mean, and 128 to represent std.
     """
 
     def __init__(
@@ -57,37 +67,54 @@ class SegResNet(nn.Module):
         blocks_down: tuple = (1, 2, 2, 4),
         blocks_up: tuple = (1, 1, 1),
         upsample_mode: str = "trilinear",
+        use_vae: bool = False,
+        input_image_size: Optional[Sequence[int]] = None,
+        vae_estimate_std: bool = False,
+        vae_default_std: float = 0.3,
+        vae_nz: int = 256,
     ):
         super().__init__()
 
         assert spatial_dims == 2 or spatial_dims == 3, "spatial_dims can only be 2 or 3."
-
-        resblock_params = {"norm_name": norm_name, "num_groups": num_groups}
 
         self.spatial_dims = spatial_dims
         self.init_filters = init_filters
         self.blocks_down = blocks_down
         self.blocks_up = blocks_up
         self.dropout_prob = dropout_prob
+        self.norm_name = norm_name
+        self.num_groups = num_groups
         self.upsample_mode = upsample_mode
         self.use_conv_final = use_conv_final
+        self.use_vae = use_vae
         self.convInit = get_conv_layer(spatial_dims, in_channels, init_filters)
-        self.down_layers = self._make_down_layers(resblock_params)
-        self.up_layers, self.up_samples = self._make_up_layers(resblock_params)
+        self.down_layers = self._make_down_layers()
+        self.up_layers, self.up_samples = self._make_up_layers()
+        self.relu = Act[Act.RELU](inplace=True)
+        self.conv_final = self._make_final_conv(out_channels)
+        self.use_cuda = torch.cuda.is_available()
 
-        if use_conv_final:
-            self.conv_final = nn.Sequential(
-                get_norm_layer(spatial_dims, init_filters, norm_name, num_groups=num_groups),
-                Act[Act.RELU](inplace=True),
-                get_conv_layer(spatial_dims, init_filters, out_channels, kernel_size=1, bias=True),
-            )
+        if self.use_vae:
+            assert input_image_size is not None, "input_image_size needs to be set."
+            self.input_image_size = input_image_size
+            self.vae_estimate_std = vae_estimate_std
+            self.vae_default_std = vae_default_std
+            self.vae_nz = vae_nz
+            self._prepare_vae_modules()
+            self.vae_conv_final = self._make_final_conv(in_channels)
 
         if dropout_prob:
             self.dropout = Dropout[Dropout.DROPOUT, spatial_dims](dropout_prob)
 
-    def _make_down_layers(self, resblock_params: Dict):
+    def _make_down_layers(self):
         down_layers = nn.ModuleList()
-        blocks_down, spatial_dims, filters = self.blocks_down, self.spatial_dims, self.init_filters
+        blocks_down, spatial_dims, filters, norm_name, num_groups = (
+            self.blocks_down,
+            self.spatial_dims,
+            self.init_filters,
+            self.norm_name,
+            self.num_groups,
+        )
         for i in range(len(blocks_down)):
             layer_in_channels = filters * 2 ** i
             pre_conv = (
@@ -96,51 +123,133 @@ class SegResNet(nn.Module):
                 else nn.Identity()
             )
             down_layer = nn.Sequential(
-                pre_conv, *[ResBlock(spatial_dims, layer_in_channels, **resblock_params) for _ in range(blocks_down[i])]
+                pre_conv,
+                *[
+                    ResBlock(spatial_dims, layer_in_channels, norm_name=norm_name, num_groups=num_groups)
+                    for _ in range(blocks_down[i])
+                ],
             )
             down_layers.append(down_layer)
         return down_layers
 
-    def _make_up_layers(self, resblock_params: Dict):
+    def _make_up_layers(self):
         up_layers, up_samples = nn.ModuleList(), nn.ModuleList()
-        upsample_mode, blocks_up, spatial_dims, filters = (
+        upsample_mode, blocks_up, spatial_dims, filters, norm_name, num_groups = (
             self.upsample_mode,
             self.blocks_up,
             self.spatial_dims,
             self.init_filters,
+            self.norm_name,
+            self.num_groups,
         )
         n_up = len(blocks_up)
         for i in range(n_up):
             sample_in_channels = filters * 2 ** (n_up - i)
             up_layers.append(
                 nn.Sequential(
-                    *[ResBlock(spatial_dims, sample_in_channels // 2, **resblock_params) for _ in range(blocks_up[i])]
+                    *[
+                        ResBlock(spatial_dims, sample_in_channels // 2, norm_name=norm_name, num_groups=num_groups)
+                        for _ in range(blocks_up[i])
+                    ]
                 )
             )
             up_samples.append(
                 nn.Sequential(
                     *[
                         get_conv_layer(spatial_dims, sample_in_channels, sample_in_channels // 2, kernel_size=1),
-                        get_upsample_layer(spatial_dims, sample_in_channels // 2, upsample_mode),
+                        get_upsample_layer(spatial_dims, sample_in_channels // 2, upsample_mode=upsample_mode),
                     ]
                 )
             )
         return up_layers, up_samples
 
+    def _make_final_conv(self, out_channels: int):
+        return nn.Sequential(
+            get_norm_layer(self.spatial_dims, self.init_filters, norm_name=self.norm_name, num_groups=self.num_groups),
+            self.relu,
+            get_conv_layer(self.spatial_dims, self.init_filters, out_channels=out_channels, kernel_size=1, bias=True),
+        )
+
+    def _prepare_vae_modules(self):
+        self.smallest_filters = 16
+        zoom = 2 ** (len(self.blocks_down) - 1)
+        v_filters = self.init_filters * zoom
+        self.fc_insize = list(np.array(self.input_image_size) // (2 * zoom))
+        total_elements = int(self.smallest_filters * np.prod(self.fc_insize))
+
+        self.vae_down = nn.Sequential(
+            get_norm_layer(self.spatial_dims, v_filters, norm_name=self.norm_name, num_groups=self.num_groups),
+            self.relu,
+            get_conv_layer(self.spatial_dims, v_filters, self.smallest_filters, stride=2, bias=True),
+            get_norm_layer(
+                self.spatial_dims, self.smallest_filters, norm_name=self.norm_name, num_groups=self.num_groups
+            ),
+            self.relu,
+        )
+        self.vae_fc1 = nn.Linear(total_elements, self.vae_nz)
+        self.vae_fc2 = nn.Linear(total_elements, self.vae_nz)
+        self.vae_fc3 = nn.Linear(self.vae_nz, total_elements)
+
+        self.vae_fc_up_sample = nn.Sequential(
+            get_conv_layer(self.spatial_dims, self.smallest_filters, v_filters, kernel_size=1),
+            get_upsample_layer(self.spatial_dims, v_filters, upsample_mode=self.upsample_mode),
+            get_norm_layer(self.spatial_dims, v_filters, norm_name=self.norm_name, num_groups=self.num_groups),
+            self.relu,
+        )
+
+    def _get_vae_loss(self, net_input: torch.Tensor, vae_input: torch.Tensor):
+        """
+        Args:
+            net_input: the original input of the network.
+            vae_input: the input of VAE module, which is also the output of the network's encoder.
+        """
+        x_vae = self.vae_down(vae_input)
+        x_vae = x_vae.view(-1, self.vae_fc1.in_features)
+        z_mean = self.vae_fc1(x_vae)
+        if self.vae_estimate_std:
+            z_sigma = self.vae_fc2(x_vae)
+            z_sigma = F.softplus(z_sigma)
+            vae_reg_loss = 0.5 * torch.mean(z_mean ** 2 + z_sigma ** 2 - torch.log(1e-8 + z_sigma ** 2) - 1)
+        else:
+            z_sigma = self.vae_default_std
+            vae_reg_loss = torch.mean(z_mean ** 2)
+        x_vae = z_mean + z_sigma * torch.randn(
+            z_mean.shape, dtype=z_mean.dtype, device=z_mean.device, requires_grad=False
+        )
+        x_vae = self.vae_fc3(x_vae)
+        x_vae = self.relu(x_vae)
+        x_vae = x_vae.view([-1, self.smallest_filters] + self.fc_insize)
+        x_vae = self.vae_fc_up_sample(x_vae)
+        for i in range(len(self.blocks_up)):
+            x_vae = self.up_samples[i](x_vae)
+            x_vae = self.up_layers[i](x_vae)
+        x_vae = self.vae_conv_final(x_vae)
+        vae_mse_loss = F.mse_loss(net_input, x_vae)
+        vae_loss = vae_reg_loss + vae_mse_loss
+        return vae_loss
+
     def forward(self, x):
+        net_input = x
         x = self.convInit(x)
         if self.dropout_prob:
             x = self.dropout(x)
 
         down_x = []
         for i in range(len(self.blocks_down)):
-            x = self.down_layers[i](x)  # resblock
+            x = self.down_layers[i](x)
             down_x.append(x)
         down_x.reverse()
+
+        vae_input = x
 
         for i in range(len(self.blocks_up)):
             x = self.up_samples[i](x) + down_x[i + 1]
             x = self.up_layers[i](x)
+
         if self.use_conv_final:
-            return self.conv_final(x)
+            x = self.conv_final(x)
+
+        if self.use_vae and self.training:
+            vae_loss = self._get_vae_loss(net_input, vae_input)
+            return x, vae_loss
         return x

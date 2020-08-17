@@ -53,6 +53,27 @@ for spatial_dims in range(2, 4):
                 ]
                 TEST_CASE_SEGRESNET_2.append(test_case)
 
+TEST_CASE_SEGRESNET_VAE = []
+for spatial_dims in range(2, 4):
+    for init_filters in [8, 16]:
+        for out_channels in range(1, 3):
+            for upsample_mode in ["bilinear", "transpose"]:
+                for vae_estimate_std in [True, False]:
+                    test_case = [
+                        {
+                            "spatial_dims": spatial_dims,
+                            "init_filters": init_filters,
+                            "out_channels": out_channels,
+                            "upsample_mode": upsample_mode,
+                            "use_vae": True,
+                            "input_image_size": ([16] * spatial_dims),
+                            "vae_estimate_std": vae_estimate_std,
+                        },
+                        torch.randn(2, 1, *([16] * spatial_dims)),
+                        (2, out_channels, *([16] * spatial_dims)),
+                    ]
+                TEST_CASE_SEGRESNET_VAE.append(test_case)
+
 
 class TestResBlock(unittest.TestCase):
     @parameterized.expand(TEST_CASE_SEGRESNET + TEST_CASE_SEGRESNET_2)
@@ -66,6 +87,19 @@ class TestResBlock(unittest.TestCase):
     def test_ill_arg(self):
         with self.assertRaises(AssertionError):
             SegResNet(spatial_dims=4)
+
+
+class TestResBlockVAE(unittest.TestCase):
+    @parameterized.expand(TEST_CASE_SEGRESNET_VAE)
+    def test_vae_shape(self, input_param, input_data, expected_shape):
+        net = SegResNet(**input_param)
+        with torch.no_grad():
+            result, _ = net(input_data)
+            self.assertEqual(result.shape, expected_shape)
+
+    def test_ill_arg(self):
+        with self.assertRaises(AssertionError):
+            SegResNet(use_vae=True)
 
 
 if __name__ == "__main__":
