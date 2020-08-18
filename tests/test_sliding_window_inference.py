@@ -42,10 +42,23 @@ TEST_CASE_8 = [
     torch.device("cuda:0"),
 ]  # test inference on gpu if availabe
 
+TEST_CASE_9 = [(1, 3, 16, 15, 7), (4, 1, 7), 3, 0.25, "constant", torch.device("cpu:0")]  # 3D small roi
+
 
 class TestSlidingWindowInference(unittest.TestCase):
     @parameterized.expand(
-        [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7]
+        [
+            TEST_CASE_0,
+            TEST_CASE_1,
+            TEST_CASE_2,
+            TEST_CASE_3,
+            TEST_CASE_4,
+            TEST_CASE_5,
+            TEST_CASE_6,
+            TEST_CASE_7,
+            TEST_CASE_8,
+            TEST_CASE_9,
+        ]
     )
     def test_sliding_window_default(self, image_shape, roi_shape, sw_batch_size, overlap, mode, device):
         inputs = torch.ones(*image_shape)
@@ -58,7 +71,7 @@ class TestSlidingWindowInference(unittest.TestCase):
         result = sliding_window_inference(inputs.to(device), roi_shape, sw_batch_size, compute, overlap, mode=mode)
         np.testing.assert_string_equal(device.type, result.device.type)
         expected_val = np.ones(image_shape, dtype=np.float32) + 1
-        np.testing.assert_allclose(result.numpy(), expected_val)
+        np.testing.assert_allclose(result.cpu().numpy(), expected_val)
 
 
 if __name__ == "__main__":
