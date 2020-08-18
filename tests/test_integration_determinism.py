@@ -18,7 +18,7 @@ from torch.utils.data import DataLoader, Dataset
 from monai.data import create_test_image_2d
 from monai.losses import DiceLoss
 from monai.networks.nets import UNet
-from monai.transforms import Compose, AddChannel, RandRotate90, RandSpatialCrop, ScaleIntensity, ToTensor
+from monai.transforms import AddChannel, Compose, RandRotate90, RandSpatialCrop, ScaleIntensity, ToTensor
 from monai.utils import set_determinism
 
 

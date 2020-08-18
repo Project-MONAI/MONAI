@@ -27,9 +27,9 @@ TEST_CASE_4 = [{}, np.random.rand(1, 2, 1, 3), (2, 1, 3)]
 
 TEST_CASE_4_PT = [{}, torch.rand(1, 2, 1, 3), (2, 1, 3)]
 
-TEST_CASE_5 = [{"dim": -2}, np.random.rand(1, 1, 16, 8, 1)]
+TEST_CASE_5 = [ValueError, {"dim": -2}, np.random.rand(1, 1, 16, 8, 1)]
 
-TEST_CASE_6 = [{"dim": 0.5}, np.random.rand(1, 1, 16, 8, 1)]
+TEST_CASE_6 = [TypeError, {"dim": 0.5}, np.random.rand(1, 1, 16, 8, 1)]
 
 
 class TestSqueezeDim(unittest.TestCase):
@@ -39,8 +39,8 @@ class TestSqueezeDim(unittest.TestCase):
         self.assertTupleEqual(result.shape, expected_shape)
 
     @parameterized.expand([TEST_CASE_5, TEST_CASE_6])
-    def test_invalid_inputs(self, input_param, test_data):
-        with self.assertRaises(ValueError):
+    def test_invalid_inputs(self, exception, input_param, test_data):
+        with self.assertRaises(exception):
             SqueezeDim(**input_param)(test_data)
 
 
