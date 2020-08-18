@@ -9,12 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 import os
 import sys
 import tempfile
-import shutil
 from glob import glob
-import logging
+
 import nibabel as nib
 import numpy as np
 import torch
@@ -22,19 +22,18 @@ from ignite.engine import Engine
 from torch.utils.data import DataLoader
 
 from monai import config
-from monai.handlers import CheckpointLoader, SegmentationSaver, StatsHandler, MeanDice
 from monai.data import NiftiDataset, create_test_image_3d
+from monai.handlers import CheckpointLoader, MeanDice, SegmentationSaver, StatsHandler
 from monai.inferers import sliding_window_inference
-from monai.transforms import Compose, AddChannel, ScaleIntensity, ToTensor
-from monai.networks.nets import UNet
 from monai.networks import predict_segmentation
+from monai.networks.nets import UNet
+from monai.transforms import AddChannel, Compose, ScaleIntensity, ToTensor
 
 
-def main():
+def main(tempdir):
     config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-    tempdir = tempfile.mkdtemp()
     print(f"generating synthetic data to {tempdir} (this may take a while)")
     for i in range(5):
         im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1)
@@ -107,8 +106,8 @@ def main():
     loader = DataLoader(ds, batch_size=1, num_workers=1, pin_memory=torch.cuda.is_available())
     state = evaluator.run(loader)
     print(state)
-    shutil.rmtree(tempdir)
 
 
 if __name__ == "__main__":
-    main()
+    with tempfile.TemporaryDirectory() as tempdir:
+        main(tempdir)

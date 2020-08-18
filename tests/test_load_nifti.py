@@ -9,13 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
 import os
-import shutil
-import numpy as np
 import tempfile
+import unittest
+
 import nibabel as nib
+import numpy as np
 from parameterized import parameterized
+
 from monai.transforms import LoadNifti
 
 TEST_CASE_1 = [{"as_closest_canonical": False, "image_only": True}, ["test_image.nii.gz"], (128, 128, 128)]
@@ -39,11 +40,11 @@ class TestLoadNifti(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_shape(self, input_param, filenames, expected_shape):
         test_image = np.random.randint(0, 2, size=[128, 128, 128])
-        tempdir = tempfile.mkdtemp()
-        for i, name in enumerate(filenames):
-            filenames[i] = os.path.join(tempdir, name)
-            nib.save(nib.Nifti1Image(test_image, np.eye(4)), filenames[i])
-        result = LoadNifti(**input_param)(filenames)
+        with tempfile.TemporaryDirectory() as tempdir:
+            for i, name in enumerate(filenames):
+                filenames[i] = os.path.join(tempdir, name)
+                nib.save(nib.Nifti1Image(test_image, np.eye(4)), filenames[i])
+            result = LoadNifti(**input_param)(filenames)
 
         if isinstance(result, tuple):
             result, header = result
@@ -52,7 +53,6 @@ class TestLoadNifti(unittest.TestCase):
             if input_param["as_closest_canonical"]:
                 np.testing.asesrt_allclose(header["original_affine"], np.eye(4))
         self.assertTupleEqual(result.shape, expected_shape)
-        shutil.rmtree(tempdir)
 
 
 if __name__ == "__main__":
