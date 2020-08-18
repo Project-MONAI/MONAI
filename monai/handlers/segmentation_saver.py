@@ -9,14 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Union, TYPE_CHECKING
-
 import logging
+from typing import TYPE_CHECKING, Callable, Optional, Union
 
 import numpy as np
 
 from monai.data import NiftiSaver, PNGSaver
-from monai.utils import exact_version, optional_import, GridSampleMode, GridSamplePadMode, InterpolateMode
+from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, exact_version, optional_import
 
 Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
 if TYPE_CHECKING:
@@ -108,6 +107,10 @@ class SegmentationSaver:
         self._name = name
 
     def attach(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
         if self._name is None:
             self.logger = engine.logger
         if not engine.has_event_handler(self, Events.ITERATION_COMPLETED):
@@ -118,6 +121,8 @@ class SegmentationSaver:
         This method assumes self.batch_transform will extract metadata from the input batch.
         Output file datatype is determined from ``engine.state.output.dtype``.
 
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
         meta_data = self.batch_transform(engine.state.batch)
         engine_output = self.output_transform(engine.state.output)

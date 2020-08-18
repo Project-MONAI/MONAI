@@ -11,7 +11,8 @@
 
 from typing import Callable, Optional
 
-from torch.utils.data import Dataset, Sampler, DataLoader as _TorchDataLoader
+from torch.utils.data import DataLoader as _TorchDataLoader
+from torch.utils.data import Dataset, Sampler
 
 from monai.data.utils import list_data_collate, worker_init_fn
 
@@ -63,7 +64,7 @@ class DataLoader(_TorchDataLoader):
         timeout: float = 0.0,
         multiprocessing_context: Optional[Callable] = None,
     ) -> None:
-        super().__init__(  # type: ignore # No overload variant matches argument types
+        super().__init__(  # type: ignore[call-overload]
             dataset=dataset,
             batch_size=batch_size,
             shuffle=shuffle,
