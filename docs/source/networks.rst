@@ -190,6 +190,11 @@ Nets
 .. autoclass:: SegResNet
   :members:
 
+`SegResnetVAE`
+~~~~~~~~~~~~~~
+.. autoclass:: SegResNetVAE
+  :members:
+
 `Senet`
 ~~~~~~~
 .. autoclass:: SENet
