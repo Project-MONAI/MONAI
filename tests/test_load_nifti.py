@@ -35,9 +35,11 @@ TEST_CASE_4 = [
     (3, 128, 128, 128),
 ]
 
+TEST_CASE_5 = [{"as_closest_canonical": True, "image_only": False}, ["test_image.nii.gz"], (128, 128, 128)]
+
 
 class TestLoadNifti(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
     def test_shape(self, input_param, filenames, expected_shape):
         test_image = np.random.randint(0, 2, size=[128, 128, 128])
         with tempfile.TemporaryDirectory() as tempdir:
@@ -51,7 +53,7 @@ class TestLoadNifti(unittest.TestCase):
             self.assertTrue("affine" in header)
             np.testing.assert_allclose(header["affine"], np.eye(4))
             if input_param["as_closest_canonical"]:
-                np.testing.asesrt_allclose(header["original_affine"], np.eye(4))
+                np.testing.assert_allclose(header["original_affine"], np.eye(4))
         self.assertTupleEqual(result.shape, expected_shape)
 
 
