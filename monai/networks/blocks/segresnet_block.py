@@ -74,7 +74,7 @@ class ResBlock(nn.Module):
             kernel_size: convolution kernel size, the value should be an odd number. Defaults to 3.
             stride: convolution stride. Defaults to 1.
             bias: whether to have a bias term in convolution layer. Defaults to ``True``.
-            norm_name: feature normalization type, this module only supports group norm, 
+            norm_name: feature normalization type, this module only supports group norm,
                 batch norm and instance norm. Defaults to ``group``.
             num_groups: number of groups to separate the channels into, in this module,
                 in_channels should be divisible by num_groups. Defaults to 8.

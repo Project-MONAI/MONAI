@@ -34,7 +34,7 @@ class SegResNet(nn.Module):
         in_channels: number of input channels for the network. Defaults to 1.
         out_channels: number of output channels for the network. Defaults to 2.
         droupout_prob: probability of an element to be zero-ed. Defaults to ``None``.
-        norm_name: feature normalization type, this module only supports group norm, 
+        norm_name: feature normalization type, this module only supports group norm,
             batch norm and instance norm. Defaults to ``group``.
         num_groups: number of groups to separate the channels into. Defaults to 8.
         use_conv_final: if add a final convolution block to output. Defaults to ``True``.
@@ -181,7 +181,7 @@ class SegResNetVAE(SegResNet):
         in_channels: number of input channels for the network. Defaults to 1.
         out_channels: number of output channels for the network. Defaults to 2.
         droupout_prob: probability of an element to be zero-ed. Defaults to ``None``.
-        norm_name: feature normalization type, this module only supports group norm, 
+        norm_name: feature normalization type, this module only supports group norm,
             batch norm and instance norm. Defaults to ``group``.
         num_groups: number of groups to separate the channels into. Defaults to 8.
         use_conv_final: if add a final convolution block to output. Defaults to ``True``.
@@ -198,7 +198,7 @@ class SegResNetVAE(SegResNet):
             ensure that this parameter is set. Defaults to ``None``.
         vae_estimate_std: whether to estimate the standard deviations in VAE. Defaults to ``False``.
         vae_default_std: if not to estimate the std, use the default value. Defaults to 0.3.
-        vae_nz: number of latent variables in VAE. Defaults to 256. 
+        vae_nz: number of latent variables in VAE. Defaults to 256.
             Where, 128 to represent mean, and 128 to represent std.
     """
 
