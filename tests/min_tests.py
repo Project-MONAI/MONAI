@@ -69,7 +69,6 @@ def run_testsuit():
         "test_rotated",
         "test_spacing",
         "test_spacingd",
-        "test_vnet",
         "test_zoom",
         "test_zoom_affine",
         "test_zoomd",

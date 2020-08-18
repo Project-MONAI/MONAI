@@ -164,6 +164,7 @@ class Final(nn.Sequential):
                 "up", conv_trans_type(num_output_features, num_output_features, kernel_size=2, stride=2, bias=False)
             )
         else:
+            upsample_mode = "bilinear" if spatial_dims == 2 else "trilinear"
             self.add_module("up", nn.Upsample(scale_factor=2, mode=upsample_mode, align_corners=True))
 
 
@@ -333,9 +334,10 @@ class AHNet(nn.Module):
         spatial_dims: spatial dimension of the input data. Defaults to 3.
         out_channels: number of output channels for the network. Defaults to 1.
         upsample_mode: The mode of upsampling manipulations, there are three choices:
-            1) "transpose", uses transposed convolution layers.
-            2) "bilinear" or "trilinear", uses standard interpolate way, for 2D and 3D inputs separately.
-            Using the second mode cannot guarantee the model's reproducibility. Defaults to "trilinear".
+            1) ``transpose``, uses transposed convolution layers.
+            2) ``bilinear``, uses bilinear interpolate.
+            3) ``trilinear``, uses trilinear interpolate.
+            Using the last two modes cannot guarantee the model's reproducibility. Defaults to ``trilinear``.
     """
 
     def __init__(

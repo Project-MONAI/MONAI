@@ -215,6 +215,7 @@ def batch_factory(dim: int) -> Type[Union[nn.BatchNorm1d, nn.BatchNorm2d, nn.Bat
     return types[dim - 1]
 
 
+Norm.add_factory_callable("group", lambda: nn.modules.GroupNorm)
 Act.add_factory_callable("elu", lambda: nn.modules.ELU)
 Act.add_factory_callable("relu", lambda: nn.modules.ReLU)
 Act.add_factory_callable("leakyrelu", lambda: nn.modules.LeakyReLU)
