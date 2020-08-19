@@ -54,6 +54,9 @@ def main(tempdir):
     segs = sorted(glob(os.path.join(tempdir, "seg*.nii.gz")))
     val_files = [{"image": img, "label": seg} for img, seg in zip(images, segs)]
 
+    # model file path
+    model_file = glob("./runs/net_key_metric*")[0]
+
     # define transforms for image and segmentation
     val_transforms = Compose(
         [
@@ -69,7 +72,7 @@ def main(tempdir):
     val_loader = monai.data.DataLoader(val_ds, batch_size=1, num_workers=4)
 
     # create UNet, DiceLoss and Adam optimizer
-    device = torch.device("cuda:0")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     net = monai.networks.nets.UNet(
         dimensions=3,
         in_channels=1,
@@ -88,7 +91,7 @@ def main(tempdir):
     )
     val_handlers = [
         StatsHandler(output_transform=lambda x: None),
-        CheckpointLoader(load_path="./runs/net_key_metric=0.9101.pth", load_dict={"net": net}),
+        CheckpointLoader(load_path=model_file, load_dict={"net": net}),
         SegmentationSaver(
             output_dir="./runs/",
             batch_transform=lambda batch: batch["image_meta_dict"],
