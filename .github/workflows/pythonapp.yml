@@ -158,6 +158,7 @@ jobs:
         # however, "pip install monai*.tar.gz" will build cpp/cuda with an isolated
         # fresh torch installation according to pyproject.toml
         python -m pip install torch>=1.4 torchvision
+        python -m pip install -r requirements-dev.txt
     - name: Test source archive and wheel file
       run: |
         git fetch --depth=1 origin +refs/tags/*:refs/tags/*

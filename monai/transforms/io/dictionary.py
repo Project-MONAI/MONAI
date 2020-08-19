@@ -55,14 +55,14 @@ class LoadImaged(MapTransform):
                 default is False, which will raise exception if encountering existing key.
         """
         super().__init__(keys)
-        self.loader = LoadImage(reader, False, dtype)
+        self._loader = LoadImage(reader, False, dtype)
         if not isinstance(meta_key_postfix, str):
             raise TypeError(f"meta_key_postfix must be a str but is {type(meta_key_postfix).__name__}.")
         self.meta_key_postfix = meta_key_postfix
         self.overwriting = overwriting
 
     def register(self, reader: Optional[ImageReader] = None):
-        self.loader.register(reader)
+        self._loader.register(reader)
 
     def __call__(self, data, reader: Optional[ImageReader] = None):
         """
@@ -72,7 +72,7 @@ class LoadImaged(MapTransform):
         """
         d = dict(data)
         for key in self.keys:
-            data = self.loader(d[key], reader)
+            data = self._loader(d[key], reader)
             assert isinstance(data, (tuple, list)), "loader must return a tuple or list."
             d[key] = data[0]
             assert isinstance(data[1], dict), "metadata must be a dict."
