@@ -44,13 +44,33 @@ class ImageReader(ABC):
         """
         return self._suffixes
 
-    def verify_suffix(self, suffix: str) -> bool:
+    def verify_suffix(self, filename: str) -> bool:
         """
-        Verify whether the specified file matches supported suffixes.
-        If supported suffixes is None, skip the verification.
+        Verify whether the specified file or files match supported suffixes.
+        If supported suffixes is None, skip the verification and return True.
 
+        Args:
+            filename: file name or a list of file names to read.
+                if a list of files, verify all the subffixes.
         """
-        return False if self._suffixes is not None and suffix not in self._suffixes else True
+
+        if self._suffixes is None:
+            return True
+
+        supported_format: bool = True
+        filenames: Sequence[str] = ensure_tuple(filename)
+        for name in filenames:
+            suffixes: Sequence[str] = name.split(".")
+            passed: bool = False
+            for i in range(len(suffixes) - 1):
+                if ".".join(suffixes[-(i + 2) : -1]) in self._suffixes:
+                    passed = True
+                    break
+            if not passed:
+                supported_format = False
+                break
+
+        return supported_format
 
     def uncache(self) -> None:
         """
@@ -64,6 +84,9 @@ class ImageReader(ABC):
         """
         Read image data from specified file or files and save to `self.img`.
         Note that it returns the raw data, so different readers return different image data type.
+
+        Args:
+            filename: file name or a list of file names to read.
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
@@ -102,6 +125,9 @@ class ITKReader(ImageReader):
         Note that the returned object is ITK image object or list of ITK image objects.
         `self.img` is always a list, even only has 1 image.
 
+        Args:
+            filename: file name or a list of file names to read.
+
         """
         filenames: Sequence[str] = ensure_tuple(filename)
         self.img: Sequence[itk.Image] = list()
@@ -114,7 +140,8 @@ class ITKReader(ImageReader):
         Extract data array and meta data from loaded image and return them.
         This function returns 2 objects, first is numpy array of image data, second is dict of meta data.
         It constructs `affine`, `original_affine`, and `spatial_shape` and stores in meta dict.
-        If the loaded data is a list of images, stack them at first dim and use the meta data of first image.
+        If loading a list of files, stack them together and add a new dimension as first dimension,
+        and use the meta data of the first image to represent the stacked result.
 
         """
         img_array: Sequence[np.ndarray] = list()
@@ -141,6 +168,9 @@ class ITKReader(ImageReader):
         """
         Get all the meta data of the image and convert to dict type.
 
+        Args:
+            img: a ITK image object loaded from a image file.
+
         """
         img_meta_dict = img.GetMetaDataDictionary()
         meta_dict = dict()
@@ -161,6 +191,9 @@ class ITKReader(ImageReader):
         Construct Affine matrix based on direction, spacing, origin information.
         Refer to: https://github.com/RSIP-Vision/medio
 
+        Args:
+            img: a ITK image object loaded from a image file.
+
         """
         direction = itk.array_from_matrix(img.GetDirection())
         spacing = np.asarray(img.GetSpacing())
@@ -176,12 +209,18 @@ class ITKReader(ImageReader):
         """
         Get the spatial shape of image data, it doesn't contain the channel dim.
 
+        Args:
+            img: a ITK image object loaded from a image file.
+
         """
         return list(itk.size(img))
 
     def _get_array_data(self, img: itk.Image) -> np.ndarray:
         """
         Get the raw array data of the image, converted to Numpy array.
+
+        Args:
+            img: a ITK image object loaded from a image file.
 
         """
         return itk.array_view_from_image(img, keep_axes=self.keep_axes)
@@ -209,6 +248,9 @@ class NibabelReader(ImageReader):
         Note that the returned object is Nibabel image object or list of Nibabel image objects.
         `self.img` is always a list, even only has 1 image.
 
+        Args:
+            filename: file name or a list of file names to read.
+
         """
         filenames: Sequence[str] = ensure_tuple(filename)
         self.img: Sequence[nib.nifti1.Nifti1Image] = list()
@@ -223,7 +265,8 @@ class NibabelReader(ImageReader):
         Extract data array and meta data from loaded image and return them.
         This function returns 2 objects, first is numpy array of image data, second is dict of meta data.
         It constructs `affine`, `original_affine`, and `spatial_shape` and stores in meta dict.
-        If the loaded data is a list of images, stack them at first dim and use the meta data of first image.
+        If loading a list of files, stack them together and add a new dimension as first dimension,
+        and use the meta data of the first image to represent the stacked result.
 
         """
         img_array: Sequence[np.ndarray] = list()
@@ -254,6 +297,9 @@ class NibabelReader(ImageReader):
         """
         Get the all the meta data of the image and convert to dict type.
 
+        Args:
+            img: a Nibabel image object loaded from a image file.
+
         """
         return dict(img.header)
 
@@ -262,12 +308,18 @@ class NibabelReader(ImageReader):
         Get the affine matrix of the image, it can be used to correct
         spacing, orientation or execute spatial transforms.
 
+        Args:
+            img: a Nibabel image object loaded from a image file.
+
         """
         return img.affine
 
     def _get_spatial_shape(self, img: nib.nifti1.Nifti1Image) -> Sequence:
         """
         Get the spatial shape of image data, it doesn't contain the channel dim.
+
+        Args:
+            img: a Nibabel image object loaded from a image file.
 
         """
         ndim = img.header["dim"][0]
@@ -277,6 +329,9 @@ class NibabelReader(ImageReader):
     def _get_array_data(self, img: nib.nifti1.Nifti1Image) -> np.ndarray:
         """
         Get the raw array data of the image, converted to Numpy array.
+
+        Args:
+            img: a Nibabel image object loaded from a image file.
 
         """
         return np.array(img.get_fdata())

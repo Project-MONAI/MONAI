@@ -34,8 +34,10 @@ class LoadImage(Transform):
     Load image file or files from provided path based on reader, default reader is ITK.
     All the supported image formats of ITK:
     https://github.com/InsightSoftwareConsortium/ITK/tree/master/Modules/IO
-    If loading a list of files, stack them together and add a new dimension as first dimension,
-    and use the meta data of the first image to represent the stacked result.
+    Automatically choose readers based on the supported subffixes and in below order:
+    - User specified reader at runtime when call this loader.
+    - Registered readers from the first to the last in list.
+    - Default ITK reader.
 
     """
 
@@ -44,7 +46,8 @@ class LoadImage(Transform):
     ) -> None:
         """
         Args:
-            reader: use reader to load image file and meta data, default is ITK.
+            reader: register reader to load image file and meta data, if None, still can register readers
+                at runtime or use the default ITK reader.
             image_only: if True return only the image volume, otherwise return image data array and header dict.
             dtype: if not None convert the loaded image to this data type.
 
@@ -53,23 +56,50 @@ class LoadImage(Transform):
             or a tuple of two elements containing the data array, and the meta data in a dict format otherwise.
 
         """
-        if reader is None:
-            reader = ITKReader()
-        self.reader = reader
+        self.defaut_reader: ITKReader = ITKReader()
+        self.readers: Sequence[ImageReader] = list()
+        if reader is not None:
+            self.readers.append(reader)
         self.image_only = image_only
         self.dtype = dtype
 
-    def __call__(self, filename: Union[Sequence[Union[Path, str]], Path, str]):
+    def register(self, reader: Optional[ImageReader]) -> List[ImageReader]:
+        """
+        Register image reader to load image file and meta data.
+        Return all the registered image readers.
+
+        Args:
+            reader: registered reader to load image file and meta data based on subfix,
+                if all registered readers can't match subfix at runtime, use the default ITK reader.
+
+        """
+        self.readers.append(reader)
+        return self.readers
+
+    def __call__(
+        self,
+        filename: Union[Sequence[Union[Path, str]], Path, str],
+        reader: Optional[ImageReader] = None,
+    ):
         """
         Args:
             filename: path file or file-like object or a list of files.
                 will save the filename to meta_data with key `filename_or_obj`.
                 if provided a list of files, use the filename of first file.
+            reader: runtime reader to load image file and meta data.
 
         """
-        self.reader.read(filename)
-        img_array, meta_data = self.reader.get_data()
-        self.reader.uncache()
+        if reader is None or not reader.verify_suffix(filename):
+            reader = self.defaut_reader
+            if len(self.readers) > 0:
+                for r in self.readers:
+                    if r.verify_suffix(filename):
+                        reader = r
+                        break
+
+        reader.read(filename)
+        img_array, meta_data = reader.get_data()
+        reader.uncache()
         img_array = img_array.astype(self.dtype)
 
         if self.image_only:

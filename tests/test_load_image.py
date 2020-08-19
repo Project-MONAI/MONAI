@@ -19,7 +19,7 @@ import numpy as np
 from parameterized import parameterized
 from PIL import Image
 
-from monai.data import NibabelReader
+from monai.data import NibabelReader, ITKReader
 from monai.transforms import LoadImage
 
 TEST_CASE_1 = [
@@ -111,6 +111,21 @@ class TestLoadImage(unittest.TestCase):
             np.testing.assert_allclose(header["affine"], np.eye(3))
             np.testing.assert_allclose(header["original_affine"], np.eye(3))
             np.testing.assert_allclose(result, test_image)
+
+    def test_register(self):
+        spatial_size = (32, 64, 128)
+        expected_shape = (128, 64, 32)
+        test_image = np.random.rand(*spatial_size)
+        with tempfile.TemporaryDirectory() as tempdir:
+            filename = os.path.join(tempdir, "test_image.nii.gz")
+            itk_np_view = itk.image_view_from_array(test_image)
+            itk.imwrite(itk_np_view, filename)
+
+            loader = LoadImage(image_only=False)
+            loader.register(ITKReader(keep_axes=False))
+            result, header = loader(filename)
+            self.assertTupleEqual(tuple(header["spatial_shape"]), expected_shape)
+            self.assertTupleEqual(result.shape, spatial_size)
 
 
 if __name__ == "__main__":

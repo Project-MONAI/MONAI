@@ -12,11 +12,11 @@
 import os
 import tempfile
 import unittest
-
+import itk
 import nibabel as nib
 import numpy as np
 from parameterized import parameterized
-
+from monai.data import ITKReader
 from monai.transforms import LoadImaged
 
 KEYS = ["image", "label", "extra"]
@@ -37,6 +37,21 @@ class TestLoadImaged(unittest.TestCase):
 
         for key in KEYS:
             self.assertTupleEqual(result[key].shape, expected_shape)
+
+    def test_register(self):
+        spatial_size = (32, 64, 128)
+        expected_shape = (128, 64, 32)
+        test_image = np.random.rand(*spatial_size)
+        with tempfile.TemporaryDirectory() as tempdir:
+            filename = os.path.join(tempdir, "test_image.nii.gz")
+            itk_np_view = itk.image_view_from_array(test_image)
+            itk.imwrite(itk_np_view, filename)
+
+            loader = LoadImaged(keys="img")
+            loader.register(ITKReader(keep_axes=False))
+            result = loader({"img": filename})
+            self.assertTupleEqual(tuple(result["img_meta_dict"]["spatial_shape"]), expected_shape)
+            self.assertTupleEqual(result["img"].shape, spatial_size)
 
 
 if __name__ == "__main__":
