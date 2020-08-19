@@ -9,5 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .confusion_matrix import compute_confusion_metric
 from .meandice import DiceMetric, compute_meandice
 from .rocauc import compute_roc_auc
