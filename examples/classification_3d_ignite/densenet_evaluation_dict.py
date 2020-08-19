@@ -59,7 +59,7 @@ def main():
 
     # create DenseNet121
     net = monai.networks.nets.densenet.densenet121(spatial_dims=3, in_channels=1, out_channels=2)
-    device = torch.device("cuda:0")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     def prepare_batch(batch, device=None, non_blocking=False):
         return _prepare_batch((batch["img"], batch["label"]), device, non_blocking)
@@ -88,7 +88,7 @@ def main():
     prediction_saver.attach(evaluator)
 
     # the model was trained by "densenet_training_dict" example
-    CheckpointLoader(load_path="./runs/net_checkpoint_20.pth", load_dict={"net": net}).attach(evaluator)
+    CheckpointLoader(load_path="./runs_dict/net_checkpoint_20.pth", load_dict={"net": net}).attach(evaluator)
 
     # create a validation data loader
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)

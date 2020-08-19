@@ -90,7 +90,7 @@ def main():
     loss = torch.nn.CrossEntropyLoss()
     lr = 1e-5
     opt = torch.optim.Adam(net.parameters(), lr)
-    device = torch.device("cuda:0")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Ignite trainer expects batch=(img, label) and returns output=loss at every iteration,
     # user can add output_transform to return other values, like: y_pred, y, etc.
@@ -101,7 +101,7 @@ def main():
     trainer = create_supervised_trainer(net, opt, loss, device, False, prepare_batch=prepare_batch)
 
     # adding checkpoint handler to save models (network params and optimizer stats) during training
-    checkpoint_handler = ModelCheckpoint("./runs/", "net", n_saved=10, require_empty=False)
+    checkpoint_handler = ModelCheckpoint("./runs_dict/", "net", n_saved=10, require_empty=False)
     trainer.add_event_handler(
         event_name=Events.EPOCH_COMPLETED, handler=checkpoint_handler, to_save={"net": net, "opt": opt}
     )
