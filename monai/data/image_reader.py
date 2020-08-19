@@ -10,12 +10,12 @@
 # limitations under the License.
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Tuple, Optional, Sequence, Union
+from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
 from monai.data.utils import correct_nifti_header_if_necessary
-from monai.utils import optional_import, ensure_tuple
+from monai.utils import ensure_tuple, optional_import
 
 itk, _ = optional_import("itk", allow_namespace_pkg=True)
 nib, _ = optional_import("nibabel")
@@ -115,6 +115,7 @@ class ITKReader(ImageReader):
             however C-order indexing is expected by most algorithms in numpy / scipy.
 
     """
+
     def __init__(self, img: Optional[itk.Image] = None, keep_axes: bool = True):
         super().__init__(img=img)
         self.keep_axes = keep_axes

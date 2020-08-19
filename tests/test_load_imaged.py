@@ -12,10 +12,12 @@
 import os
 import tempfile
 import unittest
+
 import itk
 import nibabel as nib
 import numpy as np
 from parameterized import parameterized
+
 from monai.data import ITKReader
 from monai.transforms import LoadImaged
 

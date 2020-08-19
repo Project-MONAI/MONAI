@@ -19,7 +19,7 @@ import numpy as np
 from parameterized import parameterized
 from PIL import Image
 
-from monai.data import NibabelReader, ITKReader
+from monai.data import ITKReader, NibabelReader
 from monai.transforms import LoadImage
 
 TEST_CASE_1 = [

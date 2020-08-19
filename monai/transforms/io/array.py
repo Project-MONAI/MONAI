@@ -77,9 +77,7 @@ class LoadImage(Transform):
         return self.readers
 
     def __call__(
-        self,
-        filename: Union[Sequence[Union[Path, str]], Path, str],
-        reader: Optional[ImageReader] = None,
+        self, filename: Union[Sequence[Union[Path, str]], Path, str], reader: Optional[ImageReader] = None,
     ):
         """
         Args:
