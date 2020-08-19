@@ -40,7 +40,7 @@ class LoadImage(Transform):
     """
 
     def __init__(
-        self, reader: Optional[ImageReader] = None, image_only: bool = False, dtype: Optional[np.dtype] = np.float32,
+        self, reader: Optional[ImageReader] = None, image_only: bool = False, dtype: np.dtype = np.float32,
     ) -> None:
         """
         Args:
@@ -63,44 +63,19 @@ class LoadImage(Transform):
         """
         Args:
             filename: path file or file-like object or a list of files.
+                will save the filename to meta_data with key `filename_or_obj`.
+                if provided a list of files, use the filename of first file.
+
         """
-        filename = ensure_tuple(filename)
-        img_array = list()
-        compatible_meta: Dict = None
-        for name in filename:
-            supported_format = False
-            suffixes = name.split(".")
-            for i in range(len(suffixes) - 1):
-                if self.reader.verify_suffix(".".join(suffixes[-(i + 2) : -1])):
-                    supported_format = True
-                    break
-
-            if not supported_format:
-                raise RuntimeError("unsupported file format.")
-            self.reader.read_image(name)
-            img_array.append(self.reader.get_array_data().astype(dtype=self.dtype))
-            if self.image_only:
-                continue
-
-            header = self.reader.get_meta_dict()
-            header["filename_or_obj"] = name
-            header["original_affine"] = self.reader.get_affine()
-            self.reader.convert()
-            header["affine"] = self.reader.get_affine()
-            header["spatial_shape"] = self.reader.get_spatial_shape()
-
-            if compatible_meta is None:
-                compatible_meta = header
-            else:
-                assert np.allclose(
-                    header["affine"], compatible_meta["affine"]
-                ), "affine data of all images should be same."
-
-        img_array = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
+        self.reader.read(filename)
+        img_array, meta_data = self.reader.get_data()
         self.reader.uncache()
+        img_array = img_array.astype(self.dtype)
+
         if self.image_only:
             return img_array
-        return img_array, compatible_meta
+        meta_data["filename_or_obj"] = ensure_tuple(filename)[0]
+        return img_array, meta_data
 
 
 class LoadNifti(Transform):

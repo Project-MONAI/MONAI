@@ -10,12 +10,12 @@
 # limitations under the License.
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, Tuple, Optional, Sequence, Union
 
 import numpy as np
 
 from monai.data.utils import correct_nifti_header_if_necessary
-from monai.utils import optional_import
+from monai.utils import optional_import, ensure_tuple
 
 itk, _ = optional_import("itk", allow_namespace_pkg=True)
 nib, _ = optional_import("nibabel")
@@ -23,22 +23,20 @@ nib, _ = optional_import("nibabel")
 
 class ImageReader(ABC):
     """Abstract class to define interface APIs to load image files.
-    users need to call `read_image` to load image and then use other APIs
-    to get image data or properties from meta data.
+    users need to call `read` to load image and then use `get_data`
+    to get the image data and properties from meta data.
 
     Args:
         img: image to initialize the reader, this is for the usage that the image data
             is already in memory and no need to read from file again, default is None.
-        as_closest_canonical: if True, load the image as closest to canonical axis format.
 
     """
 
-    def __init__(self, img: Optional[Any] = None, as_closest_canonical: bool = False):
+    def __init__(self, img: Optional[Any] = None) -> None:
         self.img = img
-        self.as_closest_canonical = as_closest_canonical
-        self._suffixes: Optional[Sequence] = None
+        self._suffixes: Optional[Sequence[str]] = None
 
-    def get_suffixes(self):
+    def get_suffixes(self) -> Sequence[str]:
         """
         Get the supported image file suffixes of current reader.
         Default is None, support all kinds of image format.
@@ -46,7 +44,7 @@ class ImageReader(ABC):
         """
         return self._suffixes
 
-    def verify_suffix(self, suffix: str):
+    def verify_suffix(self, suffix: str) -> bool:
         """
         Verify whether the specified file matches supported suffixes.
         If supported suffixes is None, skip the verification.
@@ -54,7 +52,7 @@ class ImageReader(ABC):
         """
         return False if self._suffixes is not None and suffix not in self._suffixes else True
 
-    def uncache(self):
+    def uncache(self) -> None:
         """
         Release image object and other cache data.
 
@@ -62,51 +60,19 @@ class ImageReader(ABC):
         self.img = None
 
     @abstractmethod
-    def convert(self):
+    def read(self, filename: str) -> Union[Sequence[Any], Any]:
         """
-        Convert the image if necessary.
+        Read image data from specified file or files and save to `self.img`.
+        Note that it returns the raw data, so different readers return different image data type.
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def read_image(self, filename: str):
+    def get_data(self) -> Tuple[np.ndarray, Dict]:
         """
-        Read image data from specified file.
-        Note that different readers return different image data type.
-
-        """
-        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
-
-    @abstractmethod
-    def get_meta_dict(self) -> Dict:
-        """
-        Get the all the meta data of the image and convert to dict type.
-
-        """
-        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
-
-    @abstractmethod
-    def get_affine(self) -> np.ndarray:
-        """
-        Get or construct the affine matrix of the image, it can be used to correct
-        spacing, orientation or execute spatial transforms.
-
-        """
-        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
-
-    @abstractmethod
-    def get_spatial_shape(self) -> List:
-        """
-        Get the spatial shape of image data, it doesn't contain the channel dim.
-
-        """
-        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
-
-    @abstractmethod
-    def get_array_data(self) -> np.ndarray:
-        """
-        Get the raw array data of the image, converted to Numpy array.
+        Extract data array and meta data from loaded image and return them.
+        This function must return 2 objects, first is numpy array of image data, second is dict of meta data.
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
@@ -118,42 +84,77 @@ class ITKReader(ImageReader):
     All the supported image formats can be found:
     https://github.com/InsightSoftwareConsortium/ITK/tree/master/Modules/IO
 
+    Args:
+        img: image to initialize the reader, this is for the usage that the image data
+            is already in memory and no need to read from file again, default is None.
+        keep_axes: default to `True`. if `False`, the numpy array will have C-order indexing.
+            this is the reverse of how indices are specified in ITK, i.e. k,j,i versus i,j,k.
+            however C-order indexing is expected by most algorithms in numpy / scipy.
+
     """
+    def __init__(self, img: Optional[itk.Image] = None, keep_axes: bool = True):
+        super().__init__(img=img)
+        self.keep_axes = keep_axes
 
-    def convert(self, as_closest_canonical: Optional[bool] = None):
+    def read(self, filename: str):
         """
-        Convert the image as closest to canonical axis format.
-
-        """
-        # FIXME: need to add support later
-        pass
-
-    def read_image(self, filename: str):
-        """
-        Read image data from specified file.
-        Note that the returned object is ITK image object.
+        Read image data from specified file or files.
+        Note that the returned object is ITK image object or list of ITK image objects.
+        `self.img` is always a list, even only has 1 image.
 
         """
-        self.img = itk.imread(filename)
+        filenames: Sequence[str] = ensure_tuple(filename)
+        self.img: Sequence[itk.Image] = list()
+        for name in filenames:
+            self.img.append(itk.imread(name))
+        return self.img if len(filenames) > 1 else self.img[0]
 
-    def get_meta_dict(self) -> Dict:
+    def get_data(self):
         """
-        Get the all the meta data of the image and convert to dict type.
+        Extract data array and meta data from loaded image and return them.
+        This function returns 2 objects, first is numpy array of image data, second is dict of meta data.
+        It constructs `affine`, `original_affine`, and `spatial_shape` and stores in meta dict.
+        If the loaded data is a list of images, stack them at first dim and use the meta data of first image.
 
         """
-        img_meta_dict = self.img.GetMetaDataDictionary()
+        img_array: Sequence[np.ndarray] = list()
+        compatible_meta: Dict = None
+        for img in self.img:
+            header = self._get_meta_dict(img)
+            header["original_affine"] = self._get_affine(img)
+            header["affine"] = header["original_affine"].copy()
+            header["spatial_shape"] = self._get_spatial_shape(img)
+            img_array.append(self._get_array_data(img))
+
+            if compatible_meta is None:
+                compatible_meta = header
+            else:
+                if not np.allclose(header["affine"], compatible_meta["affine"]):
+                    raise RuntimeError("affine matrix of all images should be same.")
+                if not np.allclose(header["spatial_shape"], compatible_meta["spatial_shape"]):
+                    raise RuntimeError("spatial_shape of all images should be same.")
+
+        img_array = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
+        return img_array, compatible_meta
+
+    def _get_meta_dict(self, img: itk.Image) -> Dict:
+        """
+        Get all the meta data of the image and convert to dict type.
+
+        """
+        img_meta_dict = img.GetMetaDataDictionary()
         meta_dict = dict()
         for key in img_meta_dict.GetKeys():
             # ignore deprecated, legacy members that cause issues
             if key.startswith("ITK_original_"):
                 continue
             meta_dict[key] = img_meta_dict[key]
-        meta_dict["origin"] = np.asarray(self.img.GetOrigin())
-        meta_dict["spacing"] = np.asarray(self.img.GetSpacing())
-        meta_dict["direction"] = itk.array_from_matrix(self.img.GetDirection())
+        meta_dict["origin"] = np.asarray(img.GetOrigin())
+        meta_dict["spacing"] = np.asarray(img.GetSpacing())
+        meta_dict["direction"] = itk.array_from_matrix(img.GetDirection())
         return meta_dict
 
-    def get_affine(self) -> np.ndarray:
+    def _get_affine(self, img: itk.Image) -> np.ndarray:
         """
         Get or construct the affine matrix of the image, it can be used to correct
         spacing, orientation or execute spatial transforms.
@@ -161,9 +162,9 @@ class ITKReader(ImageReader):
         Refer to: https://github.com/RSIP-Vision/medio
 
         """
-        direction = itk.array_from_matrix(self.img.GetDirection())
-        spacing = np.asarray(self.img.GetSpacing())
-        origin = np.asarray(self.img.GetOrigin())
+        direction = itk.array_from_matrix(img.GetDirection())
+        spacing = np.asarray(img.GetSpacing())
+        origin = np.asarray(img.GetOrigin())
 
         direction = np.asarray(direction)
         affine = np.eye(direction.shape[0] + 1)
@@ -171,19 +172,19 @@ class ITKReader(ImageReader):
         affine[(slice(-1), -1)] = origin
         return affine
 
-    def get_spatial_shape(self) -> List:
+    def _get_spatial_shape(self, img: itk.Image) -> Sequence:
         """
         Get the spatial shape of image data, it doesn't contain the channel dim.
 
         """
-        return list(itk.size(self.img))
+        return list(itk.size(img))
 
-    def get_array_data(self) -> np.ndarray:
+    def _get_array_data(self, img: itk.Image) -> np.ndarray:
         """
         Get the raw array data of the image, converted to Numpy array.
 
         """
-        return itk.array_view_from_image(self.img, keep_axes=True)
+        return itk.array_view_from_image(img, keep_axes=self.keep_axes)
 
 
 class NibabelReader(ImageReader):
@@ -198,63 +199,87 @@ class NibabelReader(ImageReader):
     """
 
     def __init__(self, img: Optional[Any] = None, as_closest_canonical: bool = False):
-        super().__init__(img, as_closest_canonical)
-        self._suffixes: [Sequence] = ["nii", "nii.gz"]
+        super().__init__(img)
+        self._suffixes: [Sequence[str]] = ["nii", "nii.gz"]
+        self.as_closest_canonical = as_closest_canonical
 
-    def convert(self, as_closest_canonical: Optional[bool] = None):
+    def read(self, filename: str):
         """
-        Convert the image as closest to canonical axis format.
-
-        """
-        if as_closest_canonical is None:
-            as_closest_canonical = self.as_closest_canonical
-        if as_closest_canonical:
-            self.img = nib.as_closest_canonical(self.img)
-
-    def read_image(self, filename: str):
-        """
-        Read image data from specified file.
-        Note that the returned object is Nibabel image object.
+        Read image data from specified file or files.
+        Note that the returned object is Nibabel image object or list of Nibabel image objects.
+        `self.img` is always a list, even only has 1 image.
 
         """
-        img = nib.load(filename)
-        img = correct_nifti_header_if_necessary(img)
-        if self.as_closest_canonical:
-            img = nib.as_closest_canonical(img)
-        self.img = img
+        filenames: Sequence[str] = ensure_tuple(filename)
+        self.img: Sequence[nib.nifti1.Nifti1Image] = list()
+        for name in filenames:
+            img = nib.load(name)
+            img = correct_nifti_header_if_necessary(img)
+            self.img.append(img)
+        return self.img if len(filenames) > 1 else self.img[0]
 
-    def get_meta_dict(self) -> Dict:
+    def get_data(self):
+        """
+        Extract data array and meta data from loaded image and return them.
+        This function returns 2 objects, first is numpy array of image data, second is dict of meta data.
+        It constructs `affine`, `original_affine`, and `spatial_shape` and stores in meta dict.
+        If the loaded data is a list of images, stack them at first dim and use the meta data of first image.
+
+        """
+        img_array: Sequence[np.ndarray] = list()
+        compatible_meta: Dict = None
+        for img in self.img:
+            header = self._get_meta_dict(img)
+            header["original_affine"] = self._get_affine(img)
+            header["affine"] = header["original_affine"].copy()
+            if self.as_closest_canonical:
+                img = nib.as_closest_canonical(img)
+                header["affine"] = self._get_affine(img)
+            header["as_closest_canonical"] = self.as_closest_canonical
+            header["spatial_shape"] = self._get_spatial_shape(img)
+            img_array.append(self._get_array_data(img))
+
+            if compatible_meta is None:
+                compatible_meta = header
+            else:
+                if not np.allclose(header["affine"], compatible_meta["affine"]):
+                    raise RuntimeError("affine matrix of all images should be same.")
+                if not np.allclose(header["spatial_shape"], compatible_meta["spatial_shape"]):
+                    raise RuntimeError("spatial_shape of all images should be same.")
+
+        img_array = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
+        return img_array, compatible_meta
+
+    def _get_meta_dict(self, img: nib.nifti1.Nifti1Image) -> Dict:
         """
         Get the all the meta data of the image and convert to dict type.
 
         """
-        meta_data = dict(self.img.header)
-        meta_data["as_closest_canonical"] = self.as_closest_canonical
-        return meta_data
+        return dict(img.header)
 
-    def get_affine(self) -> np.ndarray:
+    def _get_affine(self, img: nib.nifti1.Nifti1Image) -> np.ndarray:
         """
         Get the affine matrix of the image, it can be used to correct
         spacing, orientation or execute spatial transforms.
 
         """
-        return self.img.affine
+        return img.affine
 
-    def get_spatial_shape(self) -> List:
+    def _get_spatial_shape(self, img: nib.nifti1.Nifti1Image) -> Sequence:
         """
         Get the spatial shape of image data, it doesn't contain the channel dim.
 
         """
-        ndim = self.img.header["dim"][0]
+        ndim = img.header["dim"][0]
         spatial_rank = min(ndim, 3)
-        return self.img.header["dim"][1 : spatial_rank + 1]
+        return img.header["dim"][1 : spatial_rank + 1]
 
-    def get_array_data(self) -> np.ndarray:
+    def _get_array_data(self, img: nib.nifti1.Nifti1Image) -> np.ndarray:
         """
         Get the raw array data of the image, converted to Numpy array.
 
         """
-        return np.array(self.img.get_fdata())
+        return np.array(img.get_fdata())
 
     def uncache(self):
         """
@@ -262,5 +287,6 @@ class NibabelReader(ImageReader):
 
         """
         if self.img is not None:
-            self.img.uncache()
-            super().uncache()
+            for img in self.img:
+                img.uncache()
+        super().uncache()
