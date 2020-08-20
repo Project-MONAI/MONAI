@@ -22,9 +22,13 @@ from .utils import is_supported_format
 if TYPE_CHECKING:
     import itk  # type: ignore
     import nibabel as nib
+    from itk import Image  # type: ignore
+    from nibabel.nifti1 import Nifti1Image
 else:
     itk, _ = optional_import("itk", allow_namespace_pkg=True)
+    Image, _ = optional_import("itk", allow_namespace_pkg=True, name="Image")
     nib, _ = optional_import("nibabel")
+    Nifti1Image, _ = optional_import("nibabel.nifti1", name="Nifti1Image")
 
 
 class ImageReader(ABC):
@@ -85,7 +89,7 @@ class ITKReader(ImageReader):
 
     def __init__(self, c_order_axis_indexing: bool = False):
         super().__init__()
-        self._img: Optional[Sequence[itk.Image]] = None
+        self._img: Optional[Sequence[Image]] = None
         self.c_order_axis_indexing = c_order_axis_indexing
 
     def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
@@ -99,7 +103,7 @@ class ITKReader(ImageReader):
         """
         return True
 
-    def read(self, data: Union[Sequence[str], str, itk.Image], **kwargs):
+    def read(self, data: Union[Sequence[str], str, Image], **kwargs):
         """
         Read image data from specified file or files, or set a `itk.Image` object.
         Note that the returned object is ITK image object or list of ITK image objects.
@@ -113,7 +117,7 @@ class ITKReader(ImageReader):
 
         """
         self._img = list()
-        if isinstance(data, itk.Image):
+        if isinstance(data, Image):
             self._img.append(data)
             return data
 
@@ -154,7 +158,7 @@ class ITKReader(ImageReader):
         img_array_ = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
         return img_array_, compatible_meta
 
-    def _get_meta_dict(self, img: itk.Image) -> Dict:
+    def _get_meta_dict(self, img: Image) -> Dict:
         """
         Get all the meta data of the image and convert to dict type.
 
@@ -174,7 +178,7 @@ class ITKReader(ImageReader):
         meta_dict["direction"] = itk.array_from_matrix(img.GetDirection())
         return meta_dict
 
-    def _get_affine(self, img: itk.Image) -> np.ndarray:
+    def _get_affine(self, img: Image) -> np.ndarray:
         """
         Get or construct the affine matrix of the image, it can be used to correct
         spacing, orientation or execute spatial transforms.
@@ -195,7 +199,7 @@ class ITKReader(ImageReader):
         affine[(slice(-1), -1)] = origin
         return affine
 
-    def _get_spatial_shape(self, img: itk.Image) -> Sequence:
+    def _get_spatial_shape(self, img: Image) -> Sequence:
         """
         Get the spatial shape of image data, it doesn't contain the channel dim.
 
@@ -205,7 +209,7 @@ class ITKReader(ImageReader):
         """
         return list(itk.size(img))
 
-    def _get_array_data(self, img: itk.Image) -> np.ndarray:
+    def _get_array_data(self, img: Image) -> np.ndarray:
         """
         Get the raw array data of the image, converted to Numpy array.
 
@@ -227,7 +231,7 @@ class NibabelReader(ImageReader):
 
     def __init__(self, as_closest_canonical: bool = False):
         super().__init__()
-        self._img: Optional[Sequence[nib.nifti1.Nifti1Image]] = None
+        self._img: Optional[Sequence[Nifti1Image]] = None
         self.as_closest_canonical = as_closest_canonical
 
     def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
@@ -242,7 +246,7 @@ class NibabelReader(ImageReader):
         suffixes: Sequence[str] = ["nii", "nii.gz"]
         return is_supported_format(filename, suffixes)
 
-    def read(self, data: Union[Sequence[str], str, nib.nifti1.Nifti1Image], **kwargs):
+    def read(self, data: Union[Sequence[str], str, Nifti1Image], **kwargs):
         """
         Read image data from specified file or files, or set a Nibabel Image object.
         Note that the returned object is Nibabel image object or list of Nibabel image objects.
@@ -255,7 +259,7 @@ class NibabelReader(ImageReader):
 
         """
         self._img = list()
-        if isinstance(data, nib.nifti1.Nifti1Image):
+        if isinstance(data, Nifti1Image):
             self._img.append(data)
             return data
 
@@ -302,7 +306,7 @@ class NibabelReader(ImageReader):
         img_array_ = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
         return img_array_, compatible_meta
 
-    def _get_meta_dict(self, img: nib.nifti1.Nifti1Image) -> Dict:
+    def _get_meta_dict(self, img: Nifti1Image) -> Dict:
         """
         Get the all the meta data of the image and convert to dict type.
 
@@ -312,7 +316,7 @@ class NibabelReader(ImageReader):
         """
         return dict(img.header)
 
-    def _get_affine(self, img: nib.nifti1.Nifti1Image) -> np.ndarray:
+    def _get_affine(self, img: Nifti1Image) -> np.ndarray:
         """
         Get the affine matrix of the image, it can be used to correct
         spacing, orientation or execute spatial transforms.
@@ -323,7 +327,7 @@ class NibabelReader(ImageReader):
         """
         return img.affine
 
-    def _get_spatial_shape(self, img: nib.nifti1.Nifti1Image) -> Sequence:
+    def _get_spatial_shape(self, img: Nifti1Image) -> Sequence:
         """
         Get the spatial shape of image data, it doesn't contain the channel dim.
 
@@ -335,7 +339,7 @@ class NibabelReader(ImageReader):
         spatial_rank = min(ndim, 3)
         return list(img.header["dim"][1 : spatial_rank + 1])
 
-    def _get_array_data(self, img: nib.nifti1.Nifti1Image) -> np.ndarray:
+    def _get_array_data(self, img: Nifti1Image) -> np.ndarray:
         """
         Get the raw array data of the image, converted to Numpy array.
 

@@ -156,7 +156,7 @@ jobs:
         ln -s /usr/bin/python$PYVER /usr/bin/python`echo $PYVER | cut -c1-1` &&
         curl -O https://bootstrap.pypa.io/get-pip.py && \
         python get-pip.py && \
-        rm get-pip.py ; fi 
+        rm get-pip.py ; fi
     - name: Install dependencies
       run: |
         which python
@@ -205,7 +205,6 @@ jobs:
         # however, "pip install monai*.tar.gz" will build cpp/cuda with an isolated
         # fresh torch installation according to pyproject.toml
         python -m pip install torch>=1.4 torchvision
-        python -m pip install -r requirements-dev.txt
     - name: Test source archive and wheel file
       run: |
         git fetch --depth=1 origin +refs/tags/*:refs/tags/*
