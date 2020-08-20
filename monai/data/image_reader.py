@@ -81,7 +81,7 @@ class ITKReader(ImageReader):
 
     def __init__(self, c_order_axis_indexing: bool = False):
         super().__init__()
-        self._img = None
+        self._img: Sequence[itk.Image] = None
         self.c_order_axis_indexing = c_order_axis_indexing
 
     def verify_suffix(self, filename: str) -> bool:
@@ -108,7 +108,7 @@ class ITKReader(ImageReader):
                 https://github.com/InsightSoftwareConsortium/ITK/blob/master/Wrapping/Generators/Python/itkExtras.py
 
         """
-        self._img: Sequence[itk.Image] = list()
+        self._img = list()
         if isinstance(data, itk.Image):
             self._img.append(data)
             return data
@@ -223,7 +223,7 @@ class NibabelReader(ImageReader):
 
     def __init__(self, as_closest_canonical: bool = False):
         super().__init__()
-        self.img = None
+        self._img: Sequence[nib.nifti1.Nifti1Image] = None
         self.as_closest_canonical = as_closest_canonical
 
     def verify_suffix(self, filename: str) -> bool:
@@ -250,7 +250,7 @@ class NibabelReader(ImageReader):
                 https://github.com/nipy/nibabel/blob/master/nibabel/loadsave.py
 
         """
-        self._img: Sequence[nib.nifti1.Nifti1Image] = list()
+        self._img = list()
         if isinstance(data, nib.nifti1.Nifti1Image):
             self._img.append(data)
             return data

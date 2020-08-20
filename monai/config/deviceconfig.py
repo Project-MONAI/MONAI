@@ -67,7 +67,7 @@ except (ImportError, AttributeError):
     gdown_version = "NOT INSTALLED or UNKNOWN VERSION."
 
 try:
-    import itk
+    import itk  # type: ignore
 
     itk_version = itk.Version.GetITKVersion()
     del itk
