@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Sequence, Tuple, Union
+from typing import Any, Dict, Sequence, Tuple, Union, List
 
 import numpy as np
 
@@ -127,7 +127,7 @@ class ITKReader(ImageReader):
         and use the meta data of the first image to represent the stacked result.
 
         """
-        img_array: Sequence[np.ndarray] = list()
+        img_array: List[np.ndarray] = list()
         compatible_meta: Dict = None
         if self._img is None:
             raise RuntimeError("please call read() first then use get_data().")
@@ -235,7 +235,7 @@ class NibabelReader(ImageReader):
                 if a list of files, verify all the subffixes.
 
         """
-        suffixes: [Sequence[str]] = ["nii", "nii.gz"]
+        suffixes: Sequence[str] = ["nii", "nii.gz"]
         return is_supported_format(filename, suffixes)
 
     def read(self, data: Union[Sequence[str], str, nib.nifti1.Nifti1Image], **kwargs):
@@ -271,7 +271,7 @@ class NibabelReader(ImageReader):
         and use the meta data of the first image to represent the stacked result.
 
         """
-        img_array: Sequence[np.ndarray] = list()
+        img_array: List[np.ndarray] = list()
         compatible_meta: Dict = None
         if self._img is None:
             raise RuntimeError("please call read() first then use get_data().")
