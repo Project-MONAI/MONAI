@@ -57,7 +57,7 @@ class LoadImage(Transform):
 
         """
         self.defaut_reader: ITKReader = ITKReader()
-        self.readers: Sequence[ImageReader] = list()
+        self.readers: List[ImageReader] = list()
         if reader is not None:
             self.readers.append(reader)
         self.image_only = image_only
@@ -77,7 +77,7 @@ class LoadImage(Transform):
         return self.readers
 
     def __call__(
-        self, filename: Union[Sequence[Union[Path, str]], Path, str], reader: Optional[ImageReader] = None,
+        self, filename: Union[Sequence[str], str], reader: Optional[ImageReader] = None,
     ):
         """
         Args:

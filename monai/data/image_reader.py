@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Sequence, Tuple, Union
+from typing import Any, Dict, List, Sequence, Tuple, Union, Optional
 
 import numpy as np
 
@@ -31,7 +31,7 @@ class ImageReader(ABC):
     """
 
     @abstractmethod
-    def verify_suffix(self, filename: str) -> bool:
+    def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
         """
         Verify whether the specified file or files format is supported by current reader.
 
@@ -81,10 +81,10 @@ class ITKReader(ImageReader):
 
     def __init__(self, c_order_axis_indexing: bool = False):
         super().__init__()
-        self._img: Sequence[itk.Image] = None
+        self._img: Optional[Sequence[itk.Image]] = None
         self.c_order_axis_indexing = c_order_axis_indexing
 
-    def verify_suffix(self, filename: str) -> bool:
+    def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
         """
         Verify whether the specified file or files format is supported by ITK reader.
 
@@ -223,10 +223,10 @@ class NibabelReader(ImageReader):
 
     def __init__(self, as_closest_canonical: bool = False):
         super().__init__()
-        self._img: Sequence[nib.nifti1.Nifti1Image] = None
+        self._img: Optional[Sequence[nib.nifti1.Nifti1Image]] = None
         self.as_closest_canonical = as_closest_canonical
 
-    def verify_suffix(self, filename: str) -> bool:
+    def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
         """
         Verify whether the specified file or files format is supported by Nibabel reader.
 
@@ -329,7 +329,7 @@ class NibabelReader(ImageReader):
         """
         ndim = img.header["dim"][0]
         spatial_rank = min(ndim, 3)
-        return img.header["dim"][1 : spatial_rank + 1]
+        return list(img.header["dim"][1 : spatial_rank + 1])
 
     def _get_array_data(self, img: nib.nifti1.Nifti1Image) -> np.ndarray:
         """
