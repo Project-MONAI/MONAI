@@ -96,7 +96,7 @@ def main(tempdir):
     val_loader = monai.data.DataLoader(val_ds, batch_size=1, num_workers=4)
 
     # create UNet, DiceLoss and Adam optimizer
-    device = torch.device("cuda:0")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     net = monai.networks.nets.UNet(
         dimensions=3,
         in_channels=1,

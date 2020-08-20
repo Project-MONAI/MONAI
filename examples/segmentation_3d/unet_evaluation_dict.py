@@ -72,7 +72,7 @@ def main(tempdir):
         num_res_units=2,
     ).to(devices[0])
 
-    model.load_state_dict(torch.load("best_metric_model.pth"))
+    model.load_state_dict(torch.load("best_metric_model_segmentation3d_dict.pth"))
 
     # if we have multiple GPUs, set data parallel to execute sliding window inference
     if len(devices) > 1:

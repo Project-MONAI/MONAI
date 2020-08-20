@@ -59,7 +59,7 @@ def main(tempdir):
     )
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
 
-    device = torch.device("cuda:0")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     net = UNet(
         dimensions=3,
         in_channels=1,
@@ -104,7 +104,7 @@ def main(tempdir):
         output_transform=lambda output: predict_segmentation(output[0]),
     ).attach(evaluator)
     # the model was trained by "unet_training_dict" example
-    CheckpointLoader(load_path="./runs/net_checkpoint_50.pth", load_dict={"net": net}).attach(evaluator)
+    CheckpointLoader(load_path="./runs_dict/net_checkpoint_50.pth", load_dict={"net": net}).attach(evaluator)
 
     # sliding window inference for one image at every iteration
     val_loader = DataLoader(
