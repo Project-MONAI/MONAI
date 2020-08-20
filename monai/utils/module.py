@@ -88,7 +88,7 @@ def exact_version(the_module, version_str: str = "") -> bool:
 def optional_import(
     module: str,
     version: str = "",
-    version_checker: Callable = min_version,
+    version_checker: Callable[..., bool] = min_version,
     name: str = "",
     descriptor: str = OPTIONAL_IMPORT_MSG_FMT,
     version_args=None,
@@ -110,9 +110,6 @@ def optional_import(
 
     Returns:
         The imported module and a boolean flag indicating whether the import is successful.
-
-    Raises:
-        _exception: Optional import: {msg}.
 
     Examples::
 
@@ -182,9 +179,17 @@ def optional_import(
                 self._exception = AttributeError(_default_msg).with_traceback(tb)
 
         def __getattr__(self, name):
+            """
+            Raises:
+                AttributeError: When you call this method.
+            """
             raise self._exception
 
         def __call__(self, *_args, **_kwargs):
+            """
+            Raises:
+                AttributeError: When you call this method.
+            """
             raise self._exception
 
     return _LazyRaise(), False

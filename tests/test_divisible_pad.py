@@ -12,8 +12,9 @@
 import unittest
 
 import numpy as np
-from monai.transforms import DivisiblePad
 from parameterized import parameterized
+
+from monai.transforms import DivisiblePad
 
 # pad first dim to be divisible by 7, the second unchanged.
 TEST_CASE_1 = [
