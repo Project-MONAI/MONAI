@@ -66,6 +66,14 @@ try:
 except (ImportError, AttributeError):
     gdown_version = "NOT INSTALLED or UNKNOWN VERSION."
 
+try
+    import torchvision
+
+    torchvision_version = torchvision.__version__
+    del torchvision
+except (ImportError, AttributeError):
+    torchvision_version = "NOT INSTALLED or UNKNOWN VERSION."
+
 try:
     import itk  # type: ignore
 
@@ -101,6 +109,7 @@ def get_optional_config_values():
     output["Pillow"] = PIL_version
     output["Tensorboard"] = tensorboard_version
     output["gdown"] = gdown_version
+    output["TorchVision"] = torchvision_version
     output["ITK"] = itk_version
 
     return output
