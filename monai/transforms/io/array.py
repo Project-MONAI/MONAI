@@ -20,12 +20,89 @@ import numpy as np
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
 
 from monai.config import KeysCollection
+from monai.data.image_reader import ImageReader, ITKReader
 from monai.data.utils import correct_nifti_header_if_necessary
 from monai.transforms.compose import Transform
 from monai.utils import ensure_tuple, optional_import
 
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")
+
+
+class LoadImage(Transform):
+    """
+    Load image file or files from provided path based on reader, default reader is ITK.
+    All the supported image formats of ITK:
+    https://github.com/InsightSoftwareConsortium/ITK/tree/master/Modules/IO
+    Automatically choose readers based on the supported subffixes and in below order:
+    - User specified reader at runtime when call this loader.
+    - Registered readers from the first to the last in list.
+    - Default ITK reader.
+
+    """
+
+    def __init__(
+        self, reader: Optional[ImageReader] = None, image_only: bool = False, dtype: np.dtype = np.float32,
+    ) -> None:
+        """
+        Args:
+            reader: register reader to load image file and meta data, if None, still can register readers
+                at runtime or use the default ITK reader.
+            image_only: if True return only the image volume, otherwise return image data array and header dict.
+            dtype: if not None convert the loaded image to this data type.
+
+        Note:
+            The transform returns image data array if `image_only` is True,
+            or a tuple of two elements containing the data array, and the meta data in a dict format otherwise.
+
+        """
+        self.defaut_reader: ITKReader = ITKReader()
+        self.readers: List[ImageReader] = list()
+        if reader is not None:
+            self.readers.append(reader)
+        self.image_only = image_only
+        self.dtype = dtype
+
+    def register(self, reader: ImageReader) -> List[ImageReader]:
+        """
+        Register image reader to load image file and meta data.
+        Return all the registered image readers.
+
+        Args:
+            reader: registered reader to load image file and meta data based on subfix,
+                if all registered readers can't match subfix at runtime, use the default ITK reader.
+
+        """
+        self.readers.append(reader)
+        return self.readers
+
+    def __call__(
+        self, filename: Union[Sequence[str], str], reader: Optional[ImageReader] = None,
+    ):
+        """
+        Args:
+            filename: path file or file-like object or a list of files.
+                will save the filename to meta_data with key `filename_or_obj`.
+                if provided a list of files, use the filename of first file.
+            reader: runtime reader to load image file and meta data.
+
+        """
+        if reader is None or not reader.verify_suffix(filename):
+            reader = self.defaut_reader
+            if len(self.readers) > 0:
+                for r in self.readers:
+                    if r.verify_suffix(filename):
+                        reader = r
+                        break
+
+        reader.read(filename)
+        img_array, meta_data = reader.get_data()
+        img_array = img_array.astype(self.dtype)
+
+        if self.image_only:
+            return img_array
+        meta_data["filename_or_obj"] = ensure_tuple(filename)[0]
+        return img_array, meta_data
 
 
 class LoadNifti(Transform):
