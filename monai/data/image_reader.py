@@ -16,6 +16,7 @@ import numpy as np
 
 from monai.data.utils import correct_nifti_header_if_necessary
 from monai.utils import ensure_tuple, optional_import
+
 from .utils import is_supported_format
 
 itk, _ = optional_import("itk", allow_namespace_pkg=True)
@@ -28,6 +29,7 @@ class ImageReader(ABC):
     to get the image data and properties from meta data.
 
     """
+
     @abstractmethod
     def verify_suffix(self, filename: str) -> bool:
         """
@@ -39,7 +41,6 @@ class ImageReader(ABC):
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
-
 
     @abstractmethod
     def read(self, data: Union[Sequence[str], str, Any], **kwargs) -> Union[Sequence[Any], Any]:
