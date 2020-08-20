@@ -66,7 +66,7 @@ try:
 except (ImportError, AttributeError):
     gdown_version = "NOT INSTALLED or UNKNOWN VERSION."
 
-try
+try:
     import torchvision
 
     torchvision_version = torchvision.__version__
