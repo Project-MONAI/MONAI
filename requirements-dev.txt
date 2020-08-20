@@ -19,5 +19,8 @@ pep8-naming
 pycodestyle
 pyflakes
 black
+isort
 pytype>=2020.6.1
 mypy
+ninja
+torchvision

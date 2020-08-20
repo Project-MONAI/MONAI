@@ -9,40 +9,39 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 import os
 import sys
 import tempfile
-import shutil
 from glob import glob
-import logging
+
 import nibabel as nib
 import numpy as np
 import torch
 from ignite.metrics import Accuracy
 
 import monai
-from monai.transforms import (
-    Compose,
-    LoadNiftid,
-    AsChannelFirstd,
-    ScaleIntensityd,
-    ToTensord,
-    Activationsd,
-    AsDiscreted,
-    KeepLargestConnectedComponentd,
-)
-from monai.handlers import StatsHandler, CheckpointLoader, SegmentationSaver, MeanDice
 from monai.data import create_test_image_3d
 from monai.engines import SupervisedEvaluator
+from monai.handlers import CheckpointLoader, MeanDice, SegmentationSaver, StatsHandler
 from monai.inferers import SlidingWindowInferer
+from monai.transforms import (
+    Activationsd,
+    AsChannelFirstd,
+    AsDiscreted,
+    Compose,
+    KeepLargestConnectedComponentd,
+    LoadNiftid,
+    ScaleIntensityd,
+    ToTensord,
+)
 
 
-def main():
+def main(tempdir):
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-    # create a temporary directory and 40 random image, mask paris
-    tempdir = tempfile.mkdtemp()
+    # create a temporary directory and 40 random image, mask pairs
     print(f"generating synthetic data to {tempdir} (this may take a while)")
     for i in range(5):
         im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1, channel_dim=-1)
@@ -55,12 +54,15 @@ def main():
     segs = sorted(glob(os.path.join(tempdir, "seg*.nii.gz")))
     val_files = [{"image": img, "label": seg} for img, seg in zip(images, segs)]
 
+    # model file path
+    model_file = glob("./runs/net_key_metric*")[0]
+
     # define transforms for image and segmentation
     val_transforms = Compose(
         [
             LoadNiftid(keys=["image", "label"]),
             AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
-            ScaleIntensityd(keys=["image", "label"]),
+            ScaleIntensityd(keys="image"),
             ToTensord(keys=["image", "label"]),
         ]
     )
@@ -70,7 +72,7 @@ def main():
     val_loader = monai.data.DataLoader(val_ds, batch_size=1, num_workers=4)
 
     # create UNet, DiceLoss and Adam optimizer
-    device = torch.device("cuda:0")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     net = monai.networks.nets.UNet(
         dimensions=3,
         in_channels=1,
@@ -89,7 +91,7 @@ def main():
     )
     val_handlers = [
         StatsHandler(output_transform=lambda x: None),
-        CheckpointLoader(load_path="./runs/net_key_metric=0.9101.pth", load_dict={"net": net}),
+        CheckpointLoader(load_path=model_file, load_dict={"net": net}),
         SegmentationSaver(
             output_dir="./runs/",
             batch_transform=lambda batch: batch["image_meta_dict"],
@@ -108,10 +110,12 @@ def main():
         },
         additional_metrics={"val_acc": Accuracy(output_transform=lambda x: (x["pred"], x["label"]))},
         val_handlers=val_handlers,
+        # if no FP16 support in GPU or PyTorch version < 1.6, will not enable AMP evaluation
+        amp=True if monai.config.get_torch_version_tuple() >= (1, 6) else False,
     )
     evaluator.run()
-    shutil.rmtree(tempdir)
 
 
 if __name__ == "__main__":
-    main()
+    with tempfile.TemporaryDirectory() as tempdir:
+        main(tempdir)

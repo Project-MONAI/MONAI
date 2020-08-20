@@ -9,12 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 import os
 import sys
 import tempfile
-import shutil
 from glob import glob
-import logging
+
 import nibabel as nib
 import numpy as np
 import torch
@@ -24,17 +24,16 @@ from torch.utils.tensorboard import SummaryWriter
 import monai
 from monai.data import NiftiDataset, create_test_image_3d
 from monai.inferers import sliding_window_inference
-from monai.transforms import Compose, AddChannel, ScaleIntensity, RandSpatialCrop, RandRotate90, ToTensor
 from monai.metrics import DiceMetric
+from monai.transforms import AddChannel, Compose, RandRotate90, RandSpatialCrop, ScaleIntensity, ToTensor
 from monai.visualize import plot_2d_or_3d_image
 
 
-def main():
+def main(tempdir):
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-    # create a temporary directory and 40 random image, mask paris
-    tempdir = tempfile.mkdtemp()
+    # create a temporary directory and 40 random image, mask pairs
     print(f"generating synthetic data to {tempdir} (this may take a while)")
     for i in range(40):
         im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1)
@@ -84,7 +83,7 @@ def main():
     dice_metric = DiceMetric(include_background=True, to_onehot_y=False, sigmoid=True, reduction="mean")
 
     # create UNet, DiceLoss and Adam optimizer
-    device = torch.device("cuda:0")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = monai.networks.nets.UNet(
         dimensions=3,
         in_channels=1,
@@ -146,7 +145,7 @@ def main():
                 if metric > best_metric:
                     best_metric = metric
                     best_metric_epoch = epoch + 1
-                    torch.save(model.state_dict(), "best_metric_model.pth")
+                    torch.save(model.state_dict(), "best_metric_model_segmentation3d_array.pth")
                     print("saved new best metric model")
                 print(
                     "current epoch: {} current mean dice: {:.4f} best mean dice: {:.4f} at epoch {}".format(
@@ -158,10 +157,11 @@ def main():
                 plot_2d_or_3d_image(val_images, epoch + 1, writer, index=0, tag="image")
                 plot_2d_or_3d_image(val_labels, epoch + 1, writer, index=0, tag="label")
                 plot_2d_or_3d_image(val_outputs, epoch + 1, writer, index=0, tag="output")
-    shutil.rmtree(tempdir)
+
     print(f"train completed, best_metric: {best_metric:.4f} at epoch: {best_metric_epoch}")
     writer.close()
 
 
 if __name__ == "__main__":
-    main()
+    with tempfile.TemporaryDirectory() as tempdir:
+        main(tempdir)
