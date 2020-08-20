@@ -129,9 +129,9 @@ Since MONAI v0.2.0, the extras syntax such as `pip install 'monai[nibabel]'` is 
 
 - The options are
 ```
-[nibabel, skimage, pillow, tensorboard, gdown, ignite, torchvision]
+[nibabel, skimage, pillow, tensorboard, gdown, ignite, torchvision, itk]
 ```
 which correspond to `nibabel`, `scikit-image`, `pillow`, `tensorboard`,
-`gdown`, `pytorch-ignite`, and `torchvision` respectively.
+`gdown`, `pytorch-ignite`, `torchvision`, and `itk` respectively.
 
 - `pip install 'monai[all]'` installs all the optional dependencies.

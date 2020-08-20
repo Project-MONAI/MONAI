@@ -49,6 +49,20 @@ Patch-based dataset
   :members:
 
 
+Image reader
+------------
+
+ITKReader
+~~~~~~~~~
+.. autoclass:: ITKReader
+  :members:
+
+NibabelReader
+~~~~~~~~~~~~~
+.. autoclass:: NibabelReader
+  :members:
+
+
 Nifti format handling
 ---------------------
 
