@@ -147,8 +147,8 @@ class ITKReader(ImageReader):
                 if not np.allclose(header["spatial_shape"], compatible_meta["spatial_shape"]):
                     raise RuntimeError("spatial_shape of all images should be same.")
 
-        img_array = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
-        return img_array, compatible_meta
+        img_array_ = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
+        return img_array_, compatible_meta
 
     def _get_meta_dict(self, img: itk.Image) -> Dict:
         """
@@ -295,8 +295,8 @@ class NibabelReader(ImageReader):
                 if not np.allclose(header["spatial_shape"], compatible_meta["spatial_shape"]):
                     raise RuntimeError("spatial_shape of all images should be same.")
 
-        img_array = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
-        return img_array, compatible_meta
+        img_array_ = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
+        return img_array_, compatible_meta
 
     def _get_meta_dict(self, img: nib.nifti1.Nifti1Image) -> Dict:
         """

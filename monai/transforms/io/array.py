@@ -63,7 +63,7 @@ class LoadImage(Transform):
         self.image_only = image_only
         self.dtype = dtype
 
-    def register(self, reader: Optional[ImageReader]) -> List[ImageReader]:
+    def register(self, reader: ImageReader) -> List[ImageReader]:
         """
         Register image reader to load image file and meta data.
         Return all the registered image readers.

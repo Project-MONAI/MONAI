@@ -61,7 +61,7 @@ class LoadImaged(MapTransform):
         self.meta_key_postfix = meta_key_postfix
         self.overwriting = overwriting
 
-    def register(self, reader: Optional[ImageReader] = None):
+    def register(self, reader: ImageReader):
         self._loader.register(reader)
 
     def __call__(self, data, reader: Optional[ImageReader] = None):
