@@ -509,7 +509,7 @@ def compute_importance_map(
     return importance_map
 
 
-def is_supported_format(filename: str, suffixes: Sequence[str]) -> bool:
+def is_supported_format(filename: Union[Sequence[str], str], suffixes: Sequence[str]) -> bool:
     """
     Verify whether the specified file or files format match supported suffixes.
     If supported suffixes is None, skip the verification and return True.
