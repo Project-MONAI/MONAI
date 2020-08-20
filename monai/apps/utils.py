@@ -176,12 +176,8 @@ def download_with_resume(url, file_path, hash=None, timeout=10):
         file_size = int(urlopen(url).info().get("Content-Length", -1))
 
         while first_byte < file_size:
-            last_byte = (
-                first_byte + block_size
-                if first_byte + block_size < file_size
-                else file_size - 1
-            )
-            
+            last_byte = first_byte + block_size if first_byte + block_size < file_size else file_size - 1
+
             req = Request(url)
             req.headers["Range"] = "bytes=%s-%s" % (first_byte, last_byte)
             data_chunk = urlopen(req, timeout=timeout).read()
