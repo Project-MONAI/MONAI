@@ -22,9 +22,9 @@ from monai.networks.layers.factories import Act, Conv, Dropout, Norm, Pool
 
 class SENet(nn.Module):
     """
-    SENet based on "Squeeze-and-Excitation Networks" https://arxiv.org/pdf/1709.01507.pdf
-    Adapted from Cadene Hub 2D version:
-    https://github.com/Cadene/pretrained-models.pytorch/blob/master/pretrainedmodels/models/senet.py
+    SENet based on `Squeeze-and-Excitation Networks <https://arxiv.org/pdf/1709.01507.pdf>`_.
+    Adapted from `Cadene Hub 2D version 
+    <https://github.com/Cadene/pretrained-models.pytorch/blob/master/pretrainedmodels/models/senet.py>`_.
 
     Args:
         spatial_dims: spatial dimension of the input data.

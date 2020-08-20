@@ -32,10 +32,12 @@ def compute_confusion_metric(
     zero_division: int = 0,
 ) -> Union[np.ndarray, List[float], float]:
     """
-    Compute confusion matrix related metrics. All Terminologies come from wikipedia:
-    https://en.wikipedia.org/wiki/Confusion_matrix
-    This function also take scikit-learn for reference:
-    https://scikit-learn.org/stable/modules/classes.html#module-sklearn.metrics
+    Compute confusion matrix related metrics. This function supports to calcuate all metrics
+    mentioned in: `Confusion matrix <https://en.wikipedia.org/wiki/Confusion_matrix>`_.
+    Before calculating, an activation function and/or a binarization manipulation can be employed
+    to pre-process the original inputs. Zero division is handled by replacing the result into a
+    single value. Referring to:
+    `sklearn.metrics <https://scikit-learn.org/stable/modules/classes.html#module-sklearn.metrics>`_.
 
     Args:
         y_pred: predictions. As for classification tasks,
@@ -43,25 +45,35 @@ def compute_confusion_metric(
             the shape should be [BNHW] or [BNHWD].
         y: ground truth, the first dim is batch.
         to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
-        task: ``"clf"`` or ``"seg"``, corresponds to classification or segmentation tasks.
-        activation: if specified, an activation function will be employed for `y_pred`.
-            The value can be ``"sigmoid"`` or ``"softmax"``, or a callable function. Defaults to None.
-            An example for callable function: ``activation = lambda x: torch.log_softmax(x)``.
-        bin_mode: if specified, a binarization manipulation will be employed for `y_pred` before
-            computing. The value can be ``"threshold"`` or ``"mutually_exclusive"``, or a callable function.
+        task: [``"clf"``, ``"seg"``]
+            corresponds to classification or segmentation tasks.
+        activation: [``"sigmoid"``, ``"softmax"``]
+            Activation method, if specified, an activation function will be employed for `y_pred`.
+            Defaults to None.
+            The parameter can also be a callable function, for example:
+            ``activation = lambda x: torch.log_softmax(x)``. 
+        bin_mode: [``"threshold"``, ``"mutually_exclusive"``]
+            Binarization method, if specified, a binarization manipulation will be employed 
+            for `y_pred`.
+
             - ``"threshold"``, a single threshold or a sequence of thresholds should be set.
-            - ``"mutually_exclusive"``, `y_pred` will be converted by a combination of
-            argmax and to_onehot.
+            - ``"mutually_exclusive"``, `y_pred` will be converted by a combination of `argmax` and `to_onehot`.
         bin_threshold: the threshold for binarization, can be a single value or a sequence of
             values that each one of the value represents a threshold for a class.
-        metric_name: the specific metric that needs to be calculated. The name should be the same as
-            described in wikipedia, and it's recommended to use underline to connect words. 
-            For instance: true positive rate should be named as ``"true_positive_rate"``.
-        average: type of averaging performed if not binary classification.
+        metric_name: [``"sensitivity"``, ``"specificity"``, ``"precision"``, ``"negative predictive value"``,
+            ``"miss rate"``, ``"fall out"``, ``"false discovery rate"``, ``"false omission rate"``,
+            ``"prevalence threshold"``, ``"threat score"``, ``"accuracy"``, ``"balanced accuracy"``,
+            ``"f1 score"``, ``"matthews correlation coefficient"``, ``"fowlkes mallows index"``,
+            ``"informedness"``, ``"markedness"``]
+            Some of the metrics have multiple aliases (as shown in the wikipedia page aforementioned),
+            and you can also input those names instead.
+        average: [``"macro"``, ``"weighted"``, ``"micro"``, ``"none"``]
+            Type of averaging performed if not binary classification.
             Defaults to ``"macro"``.
+
             - ``"macro"``: calculate metrics for each label, and find their unweighted mean.
                 This does not take label imbalance into account.
-            - ``"weighted"``: calculate metrics for each label, and find their average
+            - ``"weighted"``: calculate metrics for each label, and find their average,
                 weighted by support (the number of true instances for each label).
             - ``"micro"``: calculate metrics globally by considering each element of the label
                 indicator matrix as a label.

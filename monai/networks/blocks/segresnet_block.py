@@ -53,8 +53,8 @@ def get_upsample_layer(spatial_dims: int, in_channels: int, upsample_mode: str =
 class ResBlock(nn.Module):
     """
     ResBlock employs skip connection and two convolution blocks and is used
-    in SegResnet:
-    "3D MRI brain tumor segmentation using autoencoder regularization, https://arxiv.org/abs/1810.11654"
+    in SegResNet based on `3D MRI brain tumor segmentation using autoencoder regularization 
+    <https://arxiv.org/pdf/1810.11654.pdf>`_.
     """
 
     def __init__(

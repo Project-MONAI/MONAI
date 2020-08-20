@@ -27,8 +27,6 @@ class GCN(nn.Module):
     """
     The Global Convolutional Network module using large 1D
     Kx1 and 1xK kernels to represent 2D kernels.
-    The code is adapted from lsqshr's original version:
-    https://github.com/lsqshr/AH-Net/blob/master/net2d.py
     """
 
     def __init__(self, inplanes: int, planes: int, ks: int = 7):
@@ -62,8 +60,6 @@ class GCN(nn.Module):
 class Refine(nn.Module):
     """
     Simple residual block to refine the details of the activation maps.
-    The code is adapted from lsqshr's original version:
-    https://github.com/lsqshr/AH-Net/blob/master/net2d.py
     """
 
     def __init__(self, planes: int):
@@ -103,15 +99,16 @@ class FCN(nn.Module):
     """
     2D FCN network with 3 input channels. The small decoder is built
     with the GCN and Refine modules.
-    The code is adapted from lsqshr's original version:
-    https://github.com/lsqshr/AH-Net/blob/master/net2d.py
+    The code is adapted from `lsqshr's official 2D code <https://github.com/lsqshr/AH-Net/blob/master/net2d.py>`_.
 
     Args:
         out_channels: number of output channels. Defaults to 1.
-        upsample_mode: The mode of upsampling manipulations, there are two choices:
-            1) ``transpose``, uses transposed convolution layers.
-            2) ``bilinear``, uses bilinear interpolate.
+        upsample_mode: [``"transpose"``, ``"bilinear"``]
+            The mode of upsampling manipulations.
             Using the second mode cannot guarantee the model's reproducibility. Defaults to ``bilinear``.
+
+            - ``transpose``, uses transposed convolution layers.
+            - ``bilinear``, uses bilinear interpolate.
     """
 
     def __init__(self, out_channels: int = 1, upsample_mode: str = "bilinear"):
@@ -210,16 +207,16 @@ class MCFCN(FCN):
     """
     The multi-channel version of the 2D FCN module.
     Adds a projection layer to take arbitrary number of inputs.
-    The code is adapted from lsqshr's original version:
-    https://github.com/lsqshr/AH-Net/blob/master/net2d.py
 
     Args:
         in_channels: number of input channels. Defaults to 3.
         out_channels: number of output channels. Defaults to 1.
-        upsample_mode: The mode of upsampling manipulations, there are two choices:
-            1) ``transpose``, uses transposed convolution layers.
-            2) ``bilinear``, uses bilinear interpolate.
+        upsample_mode: [``"transpose"``, ``"bilinear"``]
+            The mode of upsampling manipulations.
             Using the second mode cannot guarantee the model's reproducibility. Defaults to ``bilinear``.
+
+            - ``transpose``, uses transposed convolution layers.
+            - ``bilinear``, uses bilinear interpolate.
     """
 
     def __init__(self, in_channels: int = 3, out_channels: int = 1, upsample_mode: str = "bilinear"):
