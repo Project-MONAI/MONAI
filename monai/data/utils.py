@@ -20,7 +20,7 @@ import torch
 from torch.utils.data._utils.collate import default_collate
 
 from monai.networks.layers.simplelayers import GaussianFilter
-from monai.utils import BlendMode, NumpyPadMode, ensure_tuple_size, first, optional_import
+from monai.utils import BlendMode, NumpyPadMode, ensure_tuple, ensure_tuple_size, first, optional_import
 
 nib, _ = optional_import("nibabel")
 
@@ -507,3 +507,30 @@ def compute_importance_map(
         raise ValueError(f'Unsupported mode: {mode}, available options are ["constant", "gaussian"].')
 
     return importance_map
+
+
+def is_supported_format(filename: Union[Sequence[str], str], suffixes: Sequence[str]) -> bool:
+    """
+    Verify whether the specified file or files format match supported suffixes.
+    If supported suffixes is None, skip the verification and return True.
+
+    Args:
+        filename: file name or a list of file names to read.
+            if a list of files, verify all the subffixes.
+        suffixes: all the supported image subffixes of current reader.
+
+    """
+    supported_format: bool = True
+    filenames: Sequence[str] = ensure_tuple(filename)
+    for name in filenames:
+        tokens: Sequence[str] = name.split(".")
+        passed: bool = False
+        for i in range(len(tokens) - 1):
+            if ".".join(tokens[-(i + 2) : -1]) in suffixes:
+                passed = True
+                break
+        if not passed:
+            supported_format = False
+            break
+
+    return supported_format
