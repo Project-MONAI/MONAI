@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Sequence, Tuple, Union, List
+from typing import Any, Dict, List, Sequence, Tuple, Union
 
 import numpy as np
 
