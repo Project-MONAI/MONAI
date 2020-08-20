@@ -16,6 +16,7 @@ import numpy as np
 
 from monai.data.utils import correct_nifti_header_if_necessary
 from monai.utils import ensure_tuple, optional_import
+from .utils import is_supported_format
 
 itk, _ = optional_import("itk", allow_namespace_pkg=True)
 nib, _ = optional_import("nibabel")
@@ -26,44 +27,19 @@ class ImageReader(ABC):
     users need to call `read` to load image and then use `get_data`
     to get the image data and properties from meta data.
 
-    Args:
-        img: image to initialize the reader, this is for the usage that the image data
-            is already in memory and no need to read from file again, default is None.
-        other_args: other particular arg for every sub-class reader.
-
     """
-
-    def __init__(self, img: Optional[Any] = None, **other_args) -> None:
-        self.img = img
-        self._suffixes: Optional[Sequence[str]] = None
-
+    @abstractmethod
     def verify_suffix(self, filename: str) -> bool:
         """
-        Verify whether the specified file or files match supported suffixes.
-        If supported suffixes is None, skip the verification and return True.
+        Verify whether the specified file or files format is supported by current reader.
 
         Args:
             filename: file name or a list of file names to read.
                 if a list of files, verify all the subffixes.
+
         """
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-        if self._suffixes is None:
-            return True
-
-        supported_format: bool = True
-        filenames: Sequence[str] = ensure_tuple(filename)
-        for name in filenames:
-            suffixes: Sequence[str] = name.split(".")
-            passed: bool = False
-            for i in range(len(suffixes) - 1):
-                if ".".join(suffixes[-(i + 2) : -1]) in self._suffixes:
-                    passed = True
-                    break
-            if not passed:
-                supported_format = False
-                break
-
-        return supported_format
 
     @abstractmethod
     def read(self, filename: str) -> Union[Sequence[Any], Any]:
@@ -96,16 +72,27 @@ class ITKReader(ImageReader):
     Args:
         img: image to initialize the reader, this is for the usage that the image data
             is already in memory and no need to read from file again, default is None.
-        other_args: acceptable args: `c_order_axis_indexing`.
-            if `c_order_axis_indexing=True`, the numpy array will have C-order indexing.
+        c_order_axis_indexing: if `True`, the numpy array will have C-order indexing.
             this is the reverse of how indices are specified in ITK, i.e. k,j,i versus i,j,k.
             however C-order indexing is expected by most algorithms in numpy / scipy.
 
     """
 
-    def __init__(self, img: Optional[itk.Image] = None, **other_args):
-        super().__init__(img=img)
-        self.c_order_axis_indexing = other_args.get("c_order_axis_indexing", False)
+    def __init__(self, img: Optional[itk.Image] = None, c_order_axis_indexing: bool = False):
+        super().__init__()
+        self.img = img
+        self.c_order_axis_indexing = c_order_axis_indexing
+
+    def verify_suffix(self, filename: str) -> bool:
+        """
+        Verify whether the specified file or files format is supported by ITK reader.
+
+        Args:
+            filename: file name or a list of file names to read.
+                if a list of files, verify all the subffixes.
+
+        """
+        return True
 
     def read(self, filename: str):
         """
@@ -227,9 +214,21 @@ class NibabelReader(ImageReader):
     """
 
     def __init__(self, img: Optional[Any] = None, **other_args):
-        super().__init__(img)
-        self._suffixes: [Sequence[str]] = ["nii", "nii.gz"]
+        super().__init__()
+        self.img = img
         self.as_closest_canonical = other_args.get("as_closest_canonical", False)
+
+    def verify_suffix(self, filename: str) -> bool:
+        """
+        Verify whether the specified file or files format is supported by Nibabel reader.
+
+        Args:
+            filename: file name or a list of file names to read.
+                if a list of files, verify all the subffixes.
+
+        """
+        suffixes: [Sequence[str]] = ["nii", "nii.gz"]
+        return is_supported_format(filename, suffixes)
 
     def read(self, filename: str):
         """
