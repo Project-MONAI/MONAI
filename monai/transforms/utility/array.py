@@ -456,3 +456,11 @@ class LabelToMask(Transform):
             data = np.where(np.in1d(img, select_labels), True, False).reshape(img.shape)
 
         return np.any(data, axis=0, keepdims=True) if merge_channels else data
+
+
+class BinaryToIndex(Transform):
+    def __init__(self):
+        super().__init__()
+
+    def __call__(self, data):
+        return super().__call__(data)
