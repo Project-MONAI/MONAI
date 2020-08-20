@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -42,13 +42,15 @@ class ImageReader(ABC):
 
 
     @abstractmethod
-    def read(self, filename: str) -> Union[Sequence[Any], Any]:
+    def read(self, data: Union[Sequence[str], str, Any], **kwargs) -> Union[Sequence[Any], Any]:
         """
-        Read image data from specified file or files and save to `self.img`.
+        Read image data from specified file or files, or set a loaded image.
         Note that it returns the raw data, so different readers return different image data type.
 
         Args:
-            filename: file name or a list of file names to read.
+            data: file name or a list of file names to read, or a loaded image object.
+            kwargs: additional args for 3rd party reader API.
+
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
@@ -70,17 +72,15 @@ class ITKReader(ImageReader):
     https://github.com/InsightSoftwareConsortium/ITK/tree/master/Modules/IO
 
     Args:
-        img: image to initialize the reader, this is for the usage that the image data
-            is already in memory and no need to read from file again, default is None.
         c_order_axis_indexing: if `True`, the numpy array will have C-order indexing.
             this is the reverse of how indices are specified in ITK, i.e. k,j,i versus i,j,k.
             however C-order indexing is expected by most algorithms in numpy / scipy.
 
     """
 
-    def __init__(self, img: Optional[itk.Image] = None, c_order_axis_indexing: bool = False):
+    def __init__(self, c_order_axis_indexing: bool = False):
         super().__init__()
-        self.img = img
+        self._img = None
         self.c_order_axis_indexing = c_order_axis_indexing
 
     def verify_suffix(self, filename: str) -> bool:
@@ -94,21 +94,28 @@ class ITKReader(ImageReader):
         """
         return True
 
-    def read(self, filename: str):
+    def read(self, data: Union[Sequence[str], str, itk.Image], **kwargs):
         """
-        Read image data from specified file or files.
+        Read image data from specified file or files, or set a `itk.Image` object.
         Note that the returned object is ITK image object or list of ITK image objects.
-        `self.img` is always a list, even only has 1 image.
+        `self._img` is always a list, even only has 1 image.
 
         Args:
-            filename: file name or a list of file names to read.
+            data: file name or a list of file names to read, or a `itk.Image` object for the usage that
+                the image data is already in memory and no need to read from file again.
+            kwargs: additional args for `itk.imread` API. more details about available args:
+                https://github.com/InsightSoftwareConsortium/ITK/blob/master/Wrapping/Generators/Python/itkExtras.py
 
         """
-        filenames: Sequence[str] = ensure_tuple(filename)
-        self.img: Sequence[itk.Image] = list()
+        self._img: Sequence[itk.Image] = list()
+        if isinstance(data, itk.Image):
+            self._img.append(data)
+            return data
+
+        filenames: Sequence[str] = ensure_tuple(data)
         for name in filenames:
-            self.img.append(itk.imread(name))
-        return self.img if len(filenames) > 1 else self.img[0]
+            self._img.append(itk.imread(name, **kwargs))
+        return self._img if len(filenames) > 1 else self._img[0]
 
     def get_data(self):
         """
@@ -121,7 +128,10 @@ class ITKReader(ImageReader):
         """
         img_array: Sequence[np.ndarray] = list()
         compatible_meta: Dict = None
-        for img in self.img:
+        if self._img is None:
+            raise RuntimeError("please call read() first then use get_data().")
+
+        for img in self._img:
             header = self._get_meta_dict(img)
             header["original_affine"] = self._get_affine(img)
             header["affine"] = header["original_affine"].copy()
@@ -206,17 +216,14 @@ class NibabelReader(ImageReader):
     Load NIfTI format images based on Nibabel library.
 
     Args:
-        img: image to initialize the reader, this is for the usage that the image data
-            is already in memory and no need to read from file again, default is None.
-        other_args: acceptable args: `as_closest_canonical`.
-            if `as_closest_canonical=True`, load the image as closest to canonical axis format.
+        as_closest_canonical: if True, load the image as closest to canonical axis format.
 
     """
 
-    def __init__(self, img: Optional[Any] = None, **other_args):
+    def __init__(self, as_closest_canonical: bool = False):
         super().__init__()
-        self.img = img
-        self.as_closest_canonical = other_args.get("as_closest_canonical", False)
+        self.img = None
+        self.as_closest_canonical = as_closest_canonical
 
     def verify_suffix(self, filename: str) -> bool:
         """
@@ -230,23 +237,29 @@ class NibabelReader(ImageReader):
         suffixes: [Sequence[str]] = ["nii", "nii.gz"]
         return is_supported_format(filename, suffixes)
 
-    def read(self, filename: str):
+    def read(self, data: Union[Sequence[str], str, nib.nifti1.Nifti1Image], **kwargs):
         """
-        Read image data from specified file or files.
+        Read image data from specified file or files, or set a Nibabel Image object.
         Note that the returned object is Nibabel image object or list of Nibabel image objects.
-        `self.img` is always a list, even only has 1 image.
+        `self._img` is always a list, even only has 1 image.
 
         Args:
-            filename: file name or a list of file names to read.
+            data: file name or a list of file names to read.
+            kwargs: additional args for `nibabel.load` API. more details about available args:
+                https://github.com/nipy/nibabel/blob/master/nibabel/loadsave.py
 
         """
-        filenames: Sequence[str] = ensure_tuple(filename)
-        self.img: Sequence[nib.nifti1.Nifti1Image] = list()
+        self._img: Sequence[nib.nifti1.Nifti1Image] = list()
+        if isinstance(data, nib.nifti1.Nifti1Image):
+            self._img.append(data)
+            return data
+
+        filenames: Sequence[str] = ensure_tuple(data)
         for name in filenames:
-            img = nib.load(name)
+            img = nib.load(name, **kwargs)
             img = correct_nifti_header_if_necessary(img)
-            self.img.append(img)
-        return self.img if len(filenames) > 1 else self.img[0]
+            self._img.append(img)
+        return self._img if len(filenames) > 1 else self._img[0]
 
     def get_data(self):
         """
@@ -259,7 +272,10 @@ class NibabelReader(ImageReader):
         """
         img_array: Sequence[np.ndarray] = list()
         compatible_meta: Dict = None
-        for img in self.img:
+        if self._img is None:
+            raise RuntimeError("please call read() first then use get_data().")
+
+        for img in self._img:
             header = self._get_meta_dict(img)
             header["original_affine"] = self._get_affine(img)
             header["affine"] = header["original_affine"].copy()
