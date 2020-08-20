@@ -35,6 +35,11 @@ Workflows
 .. autoclass:: SupervisedTrainer
     :members:
 
+`GanTrainer`
+~~~~~~~~~~~~
+.. autoclass:: GanTrainer
+    :members:
+
 `Evaluator`
 ~~~~~~~~~~~
 .. autoclass:: Evaluator

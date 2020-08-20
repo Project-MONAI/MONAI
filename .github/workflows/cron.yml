@@ -21,9 +21,10 @@ jobs:
         python -m pip install --upgrade pip wheel
         python -m pip uninstall -y torch torchvision
         if [ ${{ matrix.pytorch-version }} == "latest" ]; then
-          python -m pip install torch
+          python -m pip install torch torchvision
         else
           python -m pip install torch==${{ matrix.pytorch-version }}
+          python -m pip install torchvision==0.5.0
         fi
         python -m pip install -r requirements-dev.txt
         python -m pip list
