@@ -176,7 +176,6 @@ class GanTrainer(Trainer):
         d_optimizer: D optimizer function.
         d_loss_function: D loss function for optimizer.
         g_inferer: inference method to execute G model forward. Defaults to ``SimpleInferer()``.
-        d_inferer: inference method to execute D model forward. Defaults to ``SimpleInferer()``.
         d_train_steps: number of times to update D with real data minibatch. Defaults to ``1``.
         latent_size: size of G input latent code. Defaults to ``64``.
         d_prepare_batch: callback function to prepare batchdata for D inferer.
@@ -209,7 +208,6 @@ class GanTrainer(Trainer):
         d_optimizer: Optimizer,
         d_loss_function: Callable,
         g_inferer: Inferer = SimpleInferer(),
-        d_inferer: Inferer = SimpleInferer(),
         d_train_steps: int = 1,
         latent_size: int = 64,
         d_prepare_batch: Callable = default_gan_prepare_batch,
@@ -240,7 +238,6 @@ class GanTrainer(Trainer):
         self.d_network = d_network
         self.d_optimizer = d_optimizer
         self.d_loss_function = d_loss_function
-        self.d_inferer = d_inferer
         self.d_train_steps = d_train_steps
         self.latent_size = latent_size
         self.g_prepare_batch = g_prepare_batch
@@ -282,7 +279,7 @@ class GanTrainer(Trainer):
         # Train Generator
         if self.g_update_latents:
             g_input = self.g_prepare_batch(batch_size, self.latent_size, engine.state.device, batchdata)
-        g_output = self.g_inferer(g_input, self.g_network)
+            g_output = self.g_inferer(g_input, self.g_network)
         self.g_optimizer.zero_grad()
         g_loss = self.g_loss_function(g_output)
         g_loss.backward()

@@ -43,10 +43,11 @@ def run_evaluation(
     rggan_saved_model,
     index,
     output_dir="./output",
-    plot_only=False,
+    no_save=False,
     no_plot=True,
     seed=123,
     device_str="cuda:0",
+    randomize_latents=True,
 ):
     config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -99,6 +100,8 @@ def run_evaluation(
 
     logging.info("Generating images with embedding: %s" % index)
     for base in random_bgs:
+        if randomize_latents:
+            latent_codes = default_make_latent(num_latents=1, latent_size=10, device=device)
         _, chest_ct, nodule_seg, gene_code_impact = gen_net.forward(latent_codes, embedding, base[None])
         scans.append(torch.squeeze(chest_ct))
         segs.append(nodule_seg)
@@ -138,7 +141,7 @@ def run_evaluation(
     ndarr = grid.mul_(750).add_(-250).clamp_(-1000, 1000).permute(2, 1, 0).cpu().numpy()
     bgs_out = ndarr[:, :, 0]
 
-    if not plot_only:
+    if not no_save:
         print("Saving images in: %s" % output_dir)
         save_path = os.path.join(output_dir, f"Chest_CT_{index}.nii.gz")
         nib.save(nib.Nifti1Image(chest_ct_out, img_affline), save_path)
@@ -188,11 +191,12 @@ def execute_cmdline():
 if __name__ == "__main__":
     run_evaluation(
         data_dir="/nvdata/NSCLC-Ziyue",
-        rggan_saved_model="/nvdata/no_bbox_100.pth",
-        index=1,
-        output_dir="/nvdata/output",
-        plot_only=True,
+        rggan_saved_model="/nvdata/rggan/monai/no_erode_200.pth",
+        output_dir="/nvdata/rggan/monai/no_erode_200",
+        index=288,
+        seed=1222,
+        no_save=False,
         no_plot=False,
-        seed=12345,
+        randomize_latents=True,
         device_str="cuda:0",
     )

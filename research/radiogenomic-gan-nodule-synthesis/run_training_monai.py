@@ -14,7 +14,6 @@ import logging
 import random
 import sys
 
-import cv2
 import dateutil.tz
 import numpy as np
 import torch
@@ -22,10 +21,8 @@ import torch
 # RGGAN Custom Libraries
 from DataPreprocessor import load_rg_data
 from Dataset import RGDataset
-from ReparameterizationTrick import ReparameterizationApply, ReparameterizationRestore, ReparameterizationUpdate
 from rggan_model import D_NET, G_NET
 from rggan_utils import weights_init
-from Transforms import CropWithBoundingBoxd
 
 from monai import config
 from monai.data import DataLoader
@@ -73,7 +70,6 @@ def main():
         [
             LoadNiftid(keys=["image", "seg", "base"], dtype=np.float64),
             SqueezeDimd(keys=["embedding"], dim=0),
-            CropWithBoundingBoxd(keys=["image", "seg"], bbox_key="bbox"),
             AddChanneld(keys=["image", "seg"]),
             ThresholdIntensityd(keys=["seg"], threshold=0.5),
             Resized(keys=["image", "seg", "base"], spatial_size=image_shape, mode=InterpolateMode.AREA),
@@ -94,18 +90,18 @@ def main():
     )
 
     # Create dataset and dataloader.
-    cache_max: int = 25
+    cache_max: double = 3
     dataset = RGDataset(data_dict, train_transforms, cache_max)
     batch_size = 16
     num_workers: int = 5
     dataloader = DataLoader(dataset, batch_size=batch_size, drop_last=True, shuffle=False, num_workers=num_workers)
 
-    # Store a pointer to a background base images from current batch to calculate generator loss.
-    background_base: Optional[torch.Tensor] = None
+    # Store a pointer to base images from current batch for calculating generator loss.
+    minibatch_backgrounds: Optional[torch.Tensor] = None
 
     # Define prepare_batch for input into RGGAN G and D.
     def g_prepare_batch(batch_size, latent_size, device, batchdata):
-        global background_base
+        global minibatch_backgrounds
         latent_codes = default_make_latent(batch_size, latent_size, device)
         embedding = batchdata["embedding"].to(device)
         # select random background bases for this batch
@@ -115,7 +111,7 @@ def main():
             base_ix = random.randint(0, len(bases) - 1)
             curr_bgs.append(bases[base_ix][None])
         bases = torch.stack(curr_bgs).to(device)
-        background_base = bases  # save pointer to bgs for loss func
+        minibatch_backgrounds = bases.detach()  # save pointer to bgs for loss func
         return (latent_codes, embedding, bases)
 
     def d_prepare_batch(batchdata, device):
@@ -142,15 +138,15 @@ def main():
     disc_opt = torch.optim.Adam(disc_net.parameters(), lr=0.0001, betas=(0.5, 0.999))
 
     # Define loss functions.
-    real_labels = torch.FloatTensor(batch_size).fill_(1).to(device)
-    fake_labels = torch.FloatTensor(batch_size).fill_(0).to(device)
-    criterion = torch.nn.MSELoss()
-    rc_criterion = torch.nn.L1Loss()
+    real_labels = torch.ones(batch_size).to(device)
+    fake_labels = torch.zeros(batch_size).to(device)
+    logit_criterion = torch.nn.MSELoss()
+    bg_reconst_criterion = torch.nn.L1Loss()
 
-    ITS_LOSS_COEFF = 10.0
-    I_LOSS_COEFF = 8.0
-    IS_LOSS_COEFF = 1.0
-    RC_LOSS_COEFF = 100.0
+    img_seg_code_loss_coeff = 10.0
+    img_loss_coeff = 8.0
+    img_seg_loss_coeff = 1.0
+    bg_reconst_loss_coeff = 100.0
 
     def disc_loss(g_output, d_input):
         c_code, fake_imgs, fake_segs, _ = g_output
@@ -161,68 +157,62 @@ def main():
         logits_wseg = disc_net(real_imgs, c_code.detach(), wrong_segs)
         logits_fake = disc_net(fake_imgs.detach(), c_code.detach(), fake_segs.detach())
 
-        loss_real = ITS_LOSS_COEFF * criterion(logits_real[0], real_labels)
-        loss_wcode = ITS_LOSS_COEFF * criterion(logits_wcode[0], fake_labels)
-        loss_wseg = ITS_LOSS_COEFF * criterion(logits_wseg[0], fake_labels)
-        loss_fakes = ITS_LOSS_COEFF * criterion(logits_fake[0], fake_labels)
+        # gene code, image, segment realism
+        loss_real = img_seg_code_loss_coeff * logit_criterion(logits_real[0], real_labels)
+        loss_wcode = img_seg_code_loss_coeff * logit_criterion(logits_wcode[0], fake_labels)
+        loss_wseg = img_seg_code_loss_coeff * logit_criterion(logits_wseg[0], fake_labels)
+        loss_fakes = img_seg_code_loss_coeff * logit_criterion(logits_fake[0], fake_labels)
 
-        if I_LOSS_COEFF > 0:
-            loss_real += I_LOSS_COEFF * criterion(logits_real[1], real_labels)
-            loss_wcode += I_LOSS_COEFF * criterion(logits_wcode[1], real_labels)
-            loss_wseg += I_LOSS_COEFF * criterion(logits_wseg[1], real_labels)
-            loss_fakes += I_LOSS_COEFF * criterion(logits_fake[1], fake_labels)
+        # image realism
+        if img_loss_coeff > 0:
+            loss_real += img_loss_coeff * logit_criterion(logits_real[1], real_labels)
+            loss_wcode += img_loss_coeff * logit_criterion(logits_wcode[1], real_labels)
+            loss_wseg += img_loss_coeff * logit_criterion(logits_wseg[1], real_labels)
+            loss_fakes += img_loss_coeff * logit_criterion(logits_fake[1], fake_labels)
 
-        if IS_LOSS_COEFF > 0:
-            loss_real += IS_LOSS_COEFF * criterion(logits_real[2], real_labels)
-            loss_wcode += IS_LOSS_COEFF * criterion(logits_wcode[2], real_labels)
-            loss_wseg += IS_LOSS_COEFF * criterion(logits_wseg[2], fake_labels)
-            loss_fakes += IS_LOSS_COEFF * criterion(logits_fake[2], fake_labels)
+        # image segment realism
+        if img_seg_loss_coeff > 0:
+            loss_real += img_seg_loss_coeff * logit_criterion(logits_real[2], real_labels)
+            loss_wcode += img_seg_loss_coeff * logit_criterion(logits_wcode[2], real_labels)
+            loss_wseg += img_seg_loss_coeff * logit_criterion(logits_wseg[2], fake_labels)
+            loss_fakes += img_seg_loss_coeff * logit_criterion(logits_fake[2], fake_labels)
 
         return loss_real + loss_wcode + loss_wseg + loss_fakes
 
     bg_loss, pair_loss = None, None
 
     def gen_loss(g_output):
-        global background_base
+        global minibatch_backgrounds
         c_code, fake_imgs, fake_segs, fg_switches = g_output
-        feedback = disc_net(fake_imgs, c_code, fake_segs)
-        gen_loss = ITS_LOSS_COEFF * criterion(feedback[0], real_labels)
+        logits = disc_net(fake_imgs, c_code, fake_segs)
+        img_seg_code_realism, img_realism, img_seg_realism = disc_net(fake_imgs, c_code, fake_segs)
+        gen_loss = img_seg_code_loss_coeff * logit_criterion(img_seg_code_realism, real_labels)
 
-        if I_LOSS_COEFF > 0:
-            gen_loss += I_LOSS_COEFF * criterion(feedback[1], real_labels)
+        if img_loss_coeff > 0:
+            "Image realism loss"
+            gen_loss += img_loss_coeff * logit_criterion(img_realism, real_labels)
 
-        if IS_LOSS_COEFF > 0:
-            gen_loss += IS_LOSS_COEFF * criterion(feedback[2], real_labels)
+        if img_seg_loss_coeff > 0:
+            "Image segment realism loss"
+            gen_loss += img_seg_loss_coeff * logit_criterion(img_seg_realism, real_labels)
 
-        if RC_LOSS_COEFF > 0:
-            temp_seg = fake_segs.detach()
-            temp_mask = (temp_seg < 0).type(torch.FloatTensor)
-            erode_mask = temp_mask.permute(0, 2, 3, 1).data.cpu().numpy()
-            kernel = np.ones((5, 5), np.uint8)
-            for index in range(batch_size):
-                erode_mask[index, :, :, 0] = cv2.erode(erode_mask[index, :, :, 0], kernel, iterations=1)
-                # TODO: replace cv2 erode() call
-            bg_mask = torch.Tensor(erode_mask).to(device)
-            bg_mask = bg_mask.permute(0, 3, 1, 2)
+        if bg_reconst_loss_coeff > 0:
+            "Background reconstruction loss. Penalize G modifications to the background."
+            bg_mask = fake_segs.detach() < 0
             bg_fake = fake_imgs * bg_mask
-            bg_img = background_base * bg_mask
-            bg_loss = RC_LOSS_COEFF * rc_criterion(bg_fake, bg_img)
-
+            bg_img = minibatch_backgrounds * bg_mask
+            bg_loss = bg_reconst_loss_coeff * bg_reconst_criterion(bg_fake, bg_img)
             gen_loss += bg_loss
 
         return gen_loss
 
     # Define training event handlers.
-    checkpoint_save_interval = 50
+    checkpoint_save_interval = 25
 
     handlers = [
-        ReparameterizationUpdate(network=gen_net, update_interval=1, epoch_only=False),
         StatsHandler(
             name="training_loss",
             output_transform=lambda x: {GanKeys.GLOSS: x[GanKeys.GLOSS], GanKeys.DLOSS: x[GanKeys.DLOSS]},
-        ),
-        ReparameterizationApply(
-            network=gen_net, epoch_level=True, save_final=True, save_interval=checkpoint_save_interval,
         ),
         CheckpointSaver(
             save_dir=output_data_dir,
@@ -231,7 +221,6 @@ def main():
             save_final=True,
             save_interval=checkpoint_save_interval,
         ),
-        ReparameterizationRestore(network=gen_net, epoch_level=True, save_interval=checkpoint_save_interval,),
     ]
 
     # Create GanTrainer.
@@ -257,7 +246,6 @@ def main():
         train_handlers=handlers,
     )
 
-    print("# start training")
     trainer.run()
 
     print("END MAIN")
