@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -19,8 +19,12 @@ from monai.utils import ensure_tuple, optional_import
 
 from .utils import is_supported_format
 
-itk, _ = optional_import("itk", allow_namespace_pkg=True)
-nib, _ = optional_import("nibabel")
+if TYPE_CHECKING:
+    import itk  # type: ignore
+    import nibabel as nib
+else:
+    itk, _ = optional_import("itk", allow_namespace_pkg=True)
+    nib, _ = optional_import("nibabel")
 
 
 class ImageReader(ABC):
