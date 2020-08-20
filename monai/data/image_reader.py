@@ -29,20 +29,13 @@ class ImageReader(ABC):
     Args:
         img: image to initialize the reader, this is for the usage that the image data
             is already in memory and no need to read from file again, default is None.
+        other_args: other particular arg for every sub-class reader.
 
     """
 
-    def __init__(self, img: Optional[Any] = None) -> None:
+    def __init__(self, img: Optional[Any] = None, **other_args) -> None:
         self.img = img
         self._suffixes: Optional[Sequence[str]] = None
-
-    def get_suffixes(self) -> Sequence[str]:
-        """
-        Get the supported image file suffixes of current reader.
-        Default is None, support all kinds of image format.
-
-        """
-        return self._suffixes
 
     def verify_suffix(self, filename: str) -> bool:
         """
@@ -71,13 +64,6 @@ class ImageReader(ABC):
                 break
 
         return supported_format
-
-    def uncache(self) -> None:
-        """
-        Release image object and other cache data.
-
-        """
-        self.img = None
 
     @abstractmethod
     def read(self, filename: str) -> Union[Sequence[Any], Any]:
@@ -110,15 +96,16 @@ class ITKReader(ImageReader):
     Args:
         img: image to initialize the reader, this is for the usage that the image data
             is already in memory and no need to read from file again, default is None.
-        keep_axes: default to `True`. if `False`, the numpy array will have C-order indexing.
+        other_args: acceptable args: `c_order_axis_indexing`.
+            if `c_order_axis_indexing=True`, the numpy array will have C-order indexing.
             this is the reverse of how indices are specified in ITK, i.e. k,j,i versus i,j,k.
             however C-order indexing is expected by most algorithms in numpy / scipy.
 
     """
 
-    def __init__(self, img: Optional[itk.Image] = None, keep_axes: bool = True):
+    def __init__(self, img: Optional[itk.Image] = None, **other_args):
         super().__init__(img=img)
-        self.keep_axes = keep_axes
+        self.c_order_axis_indexing = other_args.get("c_order_axis_indexing", False)
 
     def read(self, filename: str):
         """
@@ -224,7 +211,7 @@ class ITKReader(ImageReader):
             img: a ITK image object loaded from a image file.
 
         """
-        return itk.array_view_from_image(img, keep_axes=self.keep_axes)
+        return itk.array_view_from_image(img, keep_axes=not self.c_order_axis_indexing)
 
 
 class NibabelReader(ImageReader):
@@ -234,14 +221,15 @@ class NibabelReader(ImageReader):
     Args:
         img: image to initialize the reader, this is for the usage that the image data
             is already in memory and no need to read from file again, default is None.
-        as_closest_canonical: if True, load the image as closest to canonical axis format.
+        other_args: acceptable args: `as_closest_canonical`.
+            if `as_closest_canonical=True`, load the image as closest to canonical axis format.
 
     """
 
-    def __init__(self, img: Optional[Any] = None, as_closest_canonical: bool = False):
+    def __init__(self, img: Optional[Any] = None, **other_args):
         super().__init__(img)
         self._suffixes: [Sequence[str]] = ["nii", "nii.gz"]
-        self.as_closest_canonical = as_closest_canonical
+        self.as_closest_canonical = other_args.get("as_closest_canonical", False)
 
     def read(self, filename: str):
         """
@@ -335,14 +323,4 @@ class NibabelReader(ImageReader):
             img: a Nibabel image object loaded from a image file.
 
         """
-        return np.array(img.get_fdata())
-
-    def uncache(self):
-        """
-        Release image object and other cache data.
-
-        """
-        if self.img is not None:
-            for img in self.img:
-                img.uncache()
-        super().uncache()
+        return np.asarray(img.dataobj)

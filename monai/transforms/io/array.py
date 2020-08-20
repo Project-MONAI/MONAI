@@ -97,7 +97,6 @@ class LoadImage(Transform):
 
         reader.read(filename)
         img_array, meta_data = reader.get_data()
-        reader.uncache()
         img_array = img_array.astype(self.dtype)
 
         if self.image_only:

@@ -122,7 +122,7 @@ class TestLoadImage(unittest.TestCase):
             itk.imwrite(itk_np_view, filename)
 
             loader = LoadImage(image_only=False)
-            loader.register(ITKReader(keep_axes=False))
+            loader.register(ITKReader(c_order_axis_indexing=True))
             result, header = loader(filename)
             self.assertTupleEqual(tuple(header["spatial_shape"]), expected_shape)
             self.assertTupleEqual(result.shape, spatial_size)
