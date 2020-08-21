@@ -21,7 +21,7 @@ TEST_CASE_1 = [
         "spatial_size": [2, 2, 2],
         "num_samples": 2,
         "pos_ratio": 1.0,
-        "spatial_shape": [3, 3, 3],
+        "label_spatial_shape": [3, 3, 3],
         "fg_indexes": [1, 9, 18],
         "bg_indexes": [3, 12, 21],
         "rand_state": np.random.RandomState(),

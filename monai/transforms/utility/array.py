@@ -461,6 +461,16 @@ class LabelToMask(Transform):
 
 class ForegroundBackgroundToIndexes(Transform):
     def __init__(self, image_threshold: float = 0.0, output_shape: Sequence[int] = None) -> None:
+        """
+        Compute foreground and background of the input label data, return the indexes.
+        If no output_shape specified, output data will be 1 dim indexes after flattening.
+
+        Args:
+            image_threshold: if enabled `image` at runtime, use ``image > image_threshold`` to
+                determine the valid image content area and select background only in this area.
+            output_shape: expected shape of output indexes. if not None, unravel indexes to specified shape.
+
+        """
         self.image_threshold = image_threshold
         self.output_shape = output_shape
 
@@ -470,11 +480,19 @@ class ForegroundBackgroundToIndexes(Transform):
         image: Optional[np.ndarray] = None,
         output_shape: Sequence[int] = None,
     ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Args:
+            label: input data to compute foreground and background indexes.
+            image: if image is not None, use ``label = 0 & image > image_threshold``
+                to define background. so the output items will not map to all the voxels in the label.
+            output_shape: expected shape of output indexes. if None, use `self.output_shape` instead.
+
+        """
         if output_shape is None:
             output_shape = self.output_shape
         fg_indexes, bg_indexes = map_binary_to_indexes(label, image, self.image_threshold)
         if output_shape is not None:
-            fg_indexes = [np.unravel_index(i, output_shape) for i in fg_indexes]
-            bg_indexes = [np.unravel_index(i, output_shape) for i in bg_indexes]
+            fg_indexes = np.stack([np.unravel_index(i, output_shape) for i in fg_indexes])
+            bg_indexes = np.stack([np.unravel_index(i, output_shape) for i in bg_indexes])
 
         return fg_indexes, bg_indexes

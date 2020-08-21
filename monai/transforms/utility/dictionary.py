@@ -524,8 +524,20 @@ class ForegroundBackgroundToIndexesd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.ForegroundBackgroundToIndexes`.
 
-    """
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        fg_postfix: postfix to save the computed foreground indexes in dict.
+            for example, if computed on `label` and `postfix = "_fg_indexes"`, the key will be `label_fg_indexes`.
+        bg_postfix: postfix to save the computed background indexes in dict.
+            for example, if computed on `label` and `postfix = "_bg_indexes"`, the key will be `label_bg_indexes`.
+        image_key: if image_key is not None, use ``label == 0 & image > image_threshold`` to determine
+            the negative sample(background). so the output items will not map to all the voxels in the label.
+        image_threshold: if enabled image_key, use ``image > image_threshold`` to determine
+            the valid image content area and select background only in this area.
+        output_shape: expected shape of output indexes. if not None, unravel indexes to specified shape.
 
+    """
     def __init__(
         self,
         keys: KeysCollection,
