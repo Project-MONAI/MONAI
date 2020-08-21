@@ -13,14 +13,17 @@ A collection of "vanilla" transforms for intensity adjustment
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Optional, Sequence, Tuple, Union, Any
-
+from collections.abc import Iterable
+from typing import Any, Optional, Sequence, Tuple, Union
 from warnings import warn
 
 import numpy as np
+import torch
 
-from monai.transforms.compose import Transform, Randomizable
+from monai.networks.layers import GaussianFilter
+from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.utils import rescale_array
+from monai.utils import ensure_tuple_size
 
 
 class RandGaussianNoise(Randomizable, Transform):
@@ -44,11 +47,12 @@ class RandGaussianNoise(Randomizable, Transform):
         self._do_transform = self.R.random() < self.prob
         self._noise = self.R.normal(self.mean, self.R.uniform(0, self.std), size=im_shape)
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Apply the transform to `img`.
         """
         self.randomize(img.shape)
+        assert self._noise is not None
         return img + self._noise.astype(img.dtype) if self._do_transform else img
 
 
@@ -63,7 +67,7 @@ class ShiftIntensity(Transform):
     def __init__(self, offset: float) -> None:
         self.offset = offset
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Apply the transform to `img`.
         """
@@ -75,7 +79,7 @@ class RandShiftIntensity(Randomizable, Transform):
     Randomly shift intensity with randomly picked offset.
     """
 
-    def __init__(self, offsets: Union[Tuple[float, float], float], prob: float = 0.1):
+    def __init__(self, offsets: Union[Tuple[float, float], float], prob: float = 0.1) -> None:
         """
         Args:
             offsets: offset range to randomly shift.
@@ -95,7 +99,7 @@ class RandShiftIntensity(Randomizable, Transform):
         self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
         self._do_transform = self.R.random() < self.prob
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Apply the transform to `img`.
         """
@@ -125,14 +129,20 @@ class ScaleIntensity(Transform):
         self.maxv = maxv
         self.factor = factor
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Apply the transform to `img`.
+
+        Raises:
+            ValueError: When ``self.minv=None`` or ``self.maxv=None`` and ``self.factor=None``. Incompatible values.
+
         """
         if self.minv is not None and self.maxv is not None:
             return rescale_array(img, self.minv, self.maxv, img.dtype)
-        else:
+        elif self.factor is not None:
             return (img * (1 + self.factor)).astype(img.dtype)
+        else:
+            raise ValueError("Incompatible values: minv=None or maxv=None and factor=None.")
 
 
 class RandScaleIntensity(Randomizable, Transform):
@@ -162,7 +172,7 @@ class RandScaleIntensity(Randomizable, Transform):
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
         self._do_transform = self.R.random() < self.prob
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Apply the transform to `img`.
         """
@@ -205,7 +215,7 @@ class NormalizeIntensity(Transform):
         self.nonzero = nonzero
         self.channel_wise = channel_wise
 
-    def _normalize(self, img):
+    def _normalize(self, img: np.ndarray) -> np.ndarray:
         slices = (img != 0) if self.nonzero else np.ones(img.shape, dtype=np.bool_)
         if np.any(slices):
             if self.subtrahend is not None and self.divisor is not None:
@@ -214,7 +224,7 @@ class NormalizeIntensity(Transform):
                 img[slices] = (img[slices] - np.mean(img[slices])) / np.std(img[slices])
         return img
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Apply the transform to `img`, assuming `img` is a channel-first array if `self.channel_wise` is True,
         """
@@ -244,7 +254,7 @@ class ThresholdIntensity(Transform):
         self.above = above
         self.cval = cval
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Apply the transform to `img`.
         """
@@ -271,7 +281,7 @@ class ScaleIntensityRange(Transform):
         self.b_max = b_max
         self.clip = clip
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Apply the transform to `img`.
         """
@@ -301,7 +311,7 @@ class AdjustContrast(Transform):
         assert isinstance(gamma, (int, float)), "gamma must be a float or int number."
         self.gamma = gamma
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Apply the transform to `img`.
         """
@@ -340,11 +350,12 @@ class RandAdjustContrast(Randomizable, Transform):
         self._do_transform = self.R.random_sample() < self.prob
         self.gamma_value = self.R.uniform(low=self.gamma[0], high=self.gamma[1])
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Apply the transform to `img`.
         """
         self.randomize()
+        assert self.gamma_value is not None
         if not self._do_transform:
             return img
         adjuster = AdjustContrast(self.gamma_value)
@@ -418,7 +429,7 @@ class ScaleIntensityRangePercentiles(Transform):
         self.clip = clip
         self.relative = relative
 
-    def __call__(self, img):
+    def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Apply the transform to `img`.
         """
@@ -455,12 +466,193 @@ class MaskIntensity(Transform):
 
     """
 
-    def __init__(self, mask_data: np.ndarray):
+    def __init__(self, mask_data: np.ndarray) -> None:
         self.mask_data = mask_data
 
-    def __call__(self, img, mask_data: Optional[np.ndarray] = None):
+    def __call__(self, img: np.ndarray, mask_data: Optional[np.ndarray] = None) -> np.ndarray:
+        """
+        Args:
+            mask_data: if mask data is single channel, apply to evey channel
+                of input image. if multiple channels, the channel number must
+                match input data. mask_data will be converted to `bool` values
+                by `mask_data > 0` before applying transform to input image.
+
+        Raises:
+            ValueError: When ``mask_data`` and ``img`` channels differ and ``mask_data`` is not single channel.
+
+        """
         mask_data_ = self.mask_data > 0 if mask_data is None else mask_data > 0
         if mask_data_.shape[0] != 1 and mask_data_.shape[0] != img.shape[0]:
-            raise RuntimeError("mask data has more than 1 channel and do not match channels of input data.")
+            raise ValueError(
+                "When mask_data is not single channel, mask_data channels must match img, "
+                f"got img={img.shape[0]} mask_data={mask_data_.shape[0]}."
+            )
 
         return img * mask_data_
+
+
+class GaussianSmooth(Transform):
+    """
+    Apply Gaussian smooth to the input data based on specified `sigma` parameter.
+    A default value `sigma=1.0` is provided for reference.
+
+    Args:
+        sigma: if a list of values, must match the count of spatial dimensions of input data,
+            and apply every value in the list to 1 spatial dimension. if only 1 value provided,
+            use it for all spatial dimensions.
+
+    """
+
+    def __init__(self, sigma: Union[Sequence[float], float] = 1.0) -> None:
+        self.sigma = sigma
+
+    def __call__(self, img: np.ndarray) -> np.ndarray:
+        gaussian_filter = GaussianFilter(img.ndim - 1, self.sigma)
+        input_data = torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0)
+        return gaussian_filter(input_data).squeeze(0).detach().numpy()
+
+
+class RandGaussianSmooth(Randomizable, Transform):
+    """
+    Apply Gaussian smooth to the input data based on randomly selected `sigma` parameters.
+
+    Args:
+        sigma_x: randomly select sigma value for the first spatial dimension.
+        sigma_y: randomly select sigma value for the second spatial dimension if have.
+        sigma_z: randomly select sigma value for the third spatial dimension if have.
+        prob: probability of Gaussian smooth.
+
+    """
+
+    def __init__(
+        self,
+        sigma_x: Tuple[float, float] = (0.25, 1.5),
+        sigma_y: Tuple[float, float] = (0.25, 1.5),
+        sigma_z: Tuple[float, float] = (0.25, 1.5),
+        prob: float = 0.1,
+    ) -> None:
+        self.sigma_x = sigma_x
+        self.sigma_y = sigma_y
+        self.sigma_z = sigma_z
+        self.prob = prob
+        self._do_transform = False
+
+    def randomize(self, data: Optional[Any] = None) -> None:
+        self._do_transform = self.R.random_sample() < self.prob
+        self.x = self.R.uniform(low=self.sigma_x[0], high=self.sigma_x[1])
+        self.y = self.R.uniform(low=self.sigma_y[0], high=self.sigma_y[1])
+        self.z = self.R.uniform(low=self.sigma_z[0], high=self.sigma_z[1])
+
+    def __call__(self, img: np.ndarray) -> np.ndarray:
+        self.randomize()
+        if not self._do_transform:
+            return img
+        sigma = ensure_tuple_size(tup=(self.x, self.y, self.z), dim=img.ndim - 1)
+        return GaussianSmooth(sigma=sigma)(img)
+
+
+class GaussianSharpen(Transform):
+    """
+    Sharpen images using the Gaussian Blur filter.
+    Referring to: http://scipy-lectures.org/advanced/image_processing/auto_examples/plot_sharpen.html.
+    The algorithm is shown as below
+
+    .. code-block:: python
+
+        blurred_f = gaussian_filter(img, sigma1)
+        filter_blurred_f = gaussian_filter(blurred_f, sigma2)
+        img = blurred_f + alpha * (blurred_f - filter_blurred_f)
+
+    A set of default values `sigma1=3.0`, `sigma2=1.0` and `alpha=30.0` is provide for reference.
+
+    Args:
+        sigma1: sigma parameter for the first gaussian kernel. if a list of values, must match the count
+            of spatial dimensions of input data, and apply every value in the list to 1 spatial dimension.
+            if only 1 value provided, use it for all spatial dimensions.
+        sigma2: sigma parameter for the second gaussian kernel. if a list of values, must match the count
+            of spatial dimensions of input data, and apply every value in the list to 1 spatial dimension.
+            if only 1 value provided, use it for all spatial dimensions.
+        alpha: weight parameter to compute the final result.
+
+    """
+
+    def __init__(
+        self,
+        sigma1: Union[Sequence[float], float] = 3.0,
+        sigma2: Union[Sequence[float], float] = 1.0,
+        alpha: float = 30.0,
+    ) -> None:
+        self.sigma1 = sigma1
+        self.sigma2 = sigma2
+        self.alpha = alpha
+
+    def __call__(self, img: np.ndarray) -> np.ndarray:
+        gaussian_filter1 = GaussianFilter(img.ndim - 1, self.sigma1)
+        gaussian_filter2 = GaussianFilter(img.ndim - 1, self.sigma2)
+        input_data = torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0)
+        blurred_f = gaussian_filter1(input_data)
+        filter_blurred_f = gaussian_filter2(blurred_f)
+        return (blurred_f + self.alpha * (blurred_f - filter_blurred_f)).squeeze(0).detach().numpy()
+
+
+class RandGaussianSharpen(Randomizable, Transform):
+    """
+    Sharpen images using the Gaussian Blur filter based on randomly selected `sigma1`, `sigma2` and `alpha`.
+    The algorithm is :py:class:`monai.transforms.GaussianSharpen`.
+
+    Args:
+        sigma1_x: randomly select sigma value for the first spatial dimension of first gaussian kernel.
+        sigma1_y: randomly select sigma value for the second spatial dimension(if have) of first gaussian kernel.
+        sigma1_z: randomly select sigma value for the third spatial dimension(if have) of first gaussian kernel.
+        sigma2_x: randomly select sigma value for the first spatial dimension of second gaussian kernel.
+            if only 1 value `X` provided, it must be smaller than `sigma1_x` and randomly select from [X, sigma1_x].
+        sigma2_y: randomly select sigma value for the second spatial dimension(if have) of second gaussian kernel.
+            if only 1 value `Y` provided, it must be smaller than `sigma1_y` and randomly select from [Y, sigma1_y].
+        sigma2_z: randomly select sigma value for the third spatial dimension(if have) of second gaussian kernel.
+            if only 1 value `Z` provided, it must be smaller than `sigma1_z` and randomly select from [Z, sigma1_z].
+        alpha: randomly select weight parameter to compute the final result.
+        prob: probability of Gaussian sharpen.
+
+    """
+
+    def __init__(
+        self,
+        sigma1_x: Tuple[float, float] = (0.5, 1.0),
+        sigma1_y: Tuple[float, float] = (0.5, 1.0),
+        sigma1_z: Tuple[float, float] = (0.5, 1.0),
+        sigma2_x: Union[Tuple[float, float], float] = 0.5,
+        sigma2_y: Union[Tuple[float, float], float] = 0.5,
+        sigma2_z: Union[Tuple[float, float], float] = 0.5,
+        alpha: Tuple[float, float] = (10.0, 30.0),
+        prob: float = 0.1,
+    ) -> None:
+        self.sigma1_x = sigma1_x
+        self.sigma1_y = sigma1_y
+        self.sigma1_z = sigma1_z
+        self.sigma2_x = sigma2_x
+        self.sigma2_y = sigma2_y
+        self.sigma2_z = sigma2_z
+        self.alpha = alpha
+        self.prob = prob
+        self._do_transform = False
+
+    def randomize(self, data: Optional[Any] = None) -> None:
+        self._do_transform = self.R.random_sample() < self.prob
+        self.x1 = self.R.uniform(low=self.sigma1_x[0], high=self.sigma1_x[1])
+        self.y1 = self.R.uniform(low=self.sigma1_y[0], high=self.sigma1_y[1])
+        self.z1 = self.R.uniform(low=self.sigma1_z[0], high=self.sigma1_z[1])
+        sigma2_x = (self.sigma2_x, self.x1) if not isinstance(self.sigma2_x, Iterable) else self.sigma2_x
+        sigma2_y = (self.sigma2_y, self.y1) if not isinstance(self.sigma2_y, Iterable) else self.sigma2_y
+        sigma2_z = (self.sigma2_z, self.z1) if not isinstance(self.sigma2_z, Iterable) else self.sigma2_z
+        self.x2 = self.R.uniform(low=sigma2_x[0], high=sigma2_x[1])
+        self.y2 = self.R.uniform(low=sigma2_y[0], high=sigma2_y[1])
+        self.z2 = self.R.uniform(low=sigma2_z[0], high=sigma2_z[1])
+        self.a = self.R.uniform(low=self.alpha[0], high=self.alpha[1])
+
+    def __call__(self, img: np.ndarray) -> np.ndarray:
+        self.randomize()
+        if not self._do_transform:
+            return img
+        sigma1 = ensure_tuple_size(tup=(self.x1, self.y1, self.z1), dim=img.ndim - 1)
+        sigma2 = ensure_tuple_size(tup=(self.x2, self.y2, self.z2), dim=img.ndim - 1)
+        return GaussianSharpen(sigma1=sigma1, sigma2=sigma2, alpha=self.a)(img)

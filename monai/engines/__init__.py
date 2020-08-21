@@ -9,6 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .evaluator import *
 from .multi_gpu_supervised_trainer import *
 from .trainer import *
-from .evaluator import *
