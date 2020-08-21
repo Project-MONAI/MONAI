@@ -17,75 +17,36 @@ from parameterized import parameterized
 from monai.transforms import ForegroundBackgroundToIndexesd
 
 TEST_CASE_1 = [
-    {
-        "keys": "label",
-        "image_key": None,
-        "image_threshold": 0.0,
-        "output_shape": None,
-    },
-    {
-        "label": np.array([[[0, 1, 1], [1, 0, 1], [1, 1, 0]]]),
-    },
+    {"keys": "label", "image_key": None, "image_threshold": 0.0, "output_shape": None,},
+    {"label": np.array([[[0, 1, 1], [1, 0, 1], [1, 1, 0]]]),},
     np.array([1, 2, 3, 5, 6, 7]),
     np.array([0, 4, 8]),
 ]
 
 TEST_CASE_2 = [
-    {
-        "keys": "label",
-        "image_key": "image",
-        "image_threshold": 0.0,
-        "output_shape": None,
-    },
-    {
-        "label": np.array([[[0, 1, 1], [1, 0, 1], [1, 1, 0]]]),
-        "image": np.array([[[1, 1, 1], [1, 0, 1], [1, 1, 1]]]),
-    },
+    {"keys": "label", "image_key": "image", "image_threshold": 0.0, "output_shape": None,},
+    {"label": np.array([[[0, 1, 1], [1, 0, 1], [1, 1, 0]]]), "image": np.array([[[1, 1, 1], [1, 0, 1], [1, 1, 1]]]),},
     np.array([1, 2, 3, 5, 6, 7]),
     np.array([0, 8]),
 ]
 
 TEST_CASE_3 = [
-    {
-        "keys": "label",
-        "image_key": "image",
-        "image_threshold": 1.0,
-        "output_shape": None,
-    },
-    {
-        "label": np.array([[[0, 1, 1], [1, 0, 1], [1, 1, 0]]]),
-        "image": np.array([[[3, 3, 3], [3, 1, 3], [3, 3, 3]]]),
-    },
+    {"keys": "label", "image_key": "image", "image_threshold": 1.0, "output_shape": None,},
+    {"label": np.array([[[0, 1, 1], [1, 0, 1], [1, 1, 0]]]), "image": np.array([[[3, 3, 3], [3, 1, 3], [3, 3, 3]]]),},
     np.array([1, 2, 3, 5, 6, 7]),
     np.array([0, 8]),
 ]
 
 TEST_CASE_4 = [
-    {
-        "keys": "label",
-        "image_key": "image",
-        "image_threshold": 1.0,
-        "output_shape": None,
-    },
-    {
-        "label": np.array([[[0, 1, 2], [3, 0, 4], [5, 6, 0]]]),
-        "image": np.array([[[3, 3, 3], [3, 1, 3], [3, 3, 3]]]),
-    },
+    {"keys": "label", "image_key": "image", "image_threshold": 1.0, "output_shape": None,},
+    {"label": np.array([[[0, 1, 2], [3, 0, 4], [5, 6, 0]]]), "image": np.array([[[3, 3, 3], [3, 1, 3], [3, 3, 3]]]),},
     np.array([1, 2, 3, 5, 6, 7]),
     np.array([0, 8]),
 ]
 
 TEST_CASE_5 = [
-    {
-        "keys": "label",
-        "image_key": "image",
-        "image_threshold": 1.0,
-        "output_shape": [3, 3],
-    },
-    {
-        "label": np.array([[[0, 1, 2], [3, 0, 4], [5, 6, 0]]]),
-        "image": np.array([[[3, 3, 3], [3, 1, 3], [3, 3, 3]]]),
-    },
+    {"keys": "label", "image_key": "image", "image_threshold": 1.0, "output_shape": [3, 3],},
+    {"label": np.array([[[0, 1, 2], [3, 0, 4], [5, 6, 0]]]), "image": np.array([[[3, 3, 3], [3, 1, 3], [3, 3, 3]]]),},
     np.array([[0, 1], [0, 2], [1, 0], [1, 2], [2, 0], [2, 1]]),
     np.array([[0, 0], [2, 2]]),
 ]

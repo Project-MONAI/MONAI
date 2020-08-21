@@ -434,8 +434,12 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         d = dict(data)
         label = d[self.label_key]
         image = d[self.image_key] if self.image_key else None
-        if self.fg_indexes_key is not None and self.fg_indexes_key in d and \
-                self.bg_indexes_key is not None and self.bg_indexes_key in d:
+        if (
+            self.fg_indexes_key is not None
+            and self.fg_indexes_key in d
+            and self.bg_indexes_key is not None
+            and self.bg_indexes_key in d
+        ):
             fg_indexes = d[self.fg_indexes_key]
             bg_indexes = d[self.bg_indexes_key]
         else:

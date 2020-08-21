@@ -15,14 +15,14 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 import logging
 import time
-from typing import Callable, Optional, Sequence, TypeVar, Union, Tuple
+from typing import Callable, Optional, Sequence, Tuple, TypeVar, Union
 
 import numpy as np
 import torch
 
 from monai.transforms.compose import Transform
-from monai.utils import ensure_tuple
 from monai.transforms.utils import map_binary_to_indexes
+from monai.utils import ensure_tuple
 
 # Generic type which can represent either a numpy.ndarray or a torch.Tensor
 # Unlike Union can create a dependence between parameter(s) / return(s)
@@ -475,10 +475,7 @@ class ForegroundBackgroundToIndexes(Transform):
         self.output_shape = output_shape
 
     def __call__(
-        self,
-        label: np.ndarray,
-        image: Optional[np.ndarray] = None,
-        output_shape: Sequence[int] = None,
+        self, label: np.ndarray, image: Optional[np.ndarray] = None, output_shape: Sequence[int] = None,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Args:

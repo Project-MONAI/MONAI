@@ -538,6 +538,7 @@ class ForegroundBackgroundToIndexesd(MapTransform):
         output_shape: expected shape of output indexes. if not None, unravel indexes to specified shape.
 
     """
+
     def __init__(
         self,
         keys: KeysCollection,

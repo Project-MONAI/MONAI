@@ -17,10 +17,7 @@ from parameterized import parameterized
 from monai.transforms import ForegroundBackgroundToIndexes
 
 TEST_CASE_1 = [
-    {
-        "image_threshold": 0.0,
-        "output_shape": None,
-    },
+    {"image_threshold": 0.0, "output_shape": None,},
     np.array([[[0, 1, 1], [1, 0, 1], [1, 1, 0]]]),
     None,
     np.array([1, 2, 3, 5, 6, 7]),
@@ -28,10 +25,7 @@ TEST_CASE_1 = [
 ]
 
 TEST_CASE_2 = [
-    {
-        "image_threshold": 0.0,
-        "output_shape": None,
-    },
+    {"image_threshold": 0.0, "output_shape": None,},
     np.array([[[0, 1, 1], [1, 0, 1], [1, 1, 0]]]),
     np.array([[[1, 1, 1], [1, 0, 1], [1, 1, 1]]]),
     np.array([1, 2, 3, 5, 6, 7]),
@@ -39,10 +33,7 @@ TEST_CASE_2 = [
 ]
 
 TEST_CASE_3 = [
-    {
-        "image_threshold": 1.0,
-        "output_shape": None,
-    },
+    {"image_threshold": 1.0, "output_shape": None,},
     np.array([[[0, 1, 1], [1, 0, 1], [1, 1, 0]]]),
     np.array([[[3, 3, 3], [3, 1, 3], [3, 3, 3]]]),
     np.array([1, 2, 3, 5, 6, 7]),
@@ -50,10 +41,7 @@ TEST_CASE_3 = [
 ]
 
 TEST_CASE_4 = [
-    {
-        "image_threshold": 1.0,
-        "output_shape": None,
-    },
+    {"image_threshold": 1.0, "output_shape": None,},
     np.array([[[0, 1, 2], [3, 0, 4], [5, 6, 0]]]),
     np.array([[[3, 3, 3], [3, 1, 3], [3, 3, 3]]]),
     np.array([1, 2, 3, 5, 6, 7]),
@@ -61,10 +49,7 @@ TEST_CASE_4 = [
 ]
 
 TEST_CASE_5 = [
-    {
-        "image_threshold": 1.0,
-        "output_shape": [3, 3],
-    },
+    {"image_threshold": 1.0, "output_shape": [3, 3],},
     np.array([[[0, 1, 2], [3, 0, 4], [5, 6, 0]]]),
     np.array([[[3, 3, 3], [3, 1, 3], [3, 3, 3]]]),
     np.array([[0, 1], [0, 2], [1, 0], [1, 2], [2, 0], [2, 1]]),
