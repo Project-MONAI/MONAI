@@ -115,7 +115,7 @@ def main_worker(args):
         f = open(os.devnull, "w")
         sys.stdout = sys.stderr = f
     if not os.path.exists(args.dir):
-        raise FileNotFoundError(f'Missing directory {args.dir}')
+        raise FileNotFoundError(f"Missing directory {args.dir}")
 
     # initialize the distributed training process, every GPU runs in a process
     dist.init_process_group(backend="nccl", init_method="env://")
@@ -145,12 +145,17 @@ def main_worker(args):
         section="training",
         download=False,
         num_workers=4,
-        cache_rate=1.0
+        cache_rate=1.0,
     )
     # create a training data sampler
     train_sampler = DistributedSampler(train_ds)
     train_loader = DataLoader(
-        train_ds, batch_size=args.batch_size, shuffle=False, num_workers=args.workers, pin_memory=True, sampler=train_sampler,
+        train_ds,
+        batch_size=args.batch_size,
+        shuffle=False,
+        num_workers=args.workers,
+        pin_memory=True,
+        sampler=train_sampler,
     )
 
     if dist.get_rank() == 0:
@@ -173,7 +178,7 @@ def main_worker(args):
             section="validation",
             download=False,
             num_workers=4,
-            cache_rate=1.0
+            cache_rate=1.0,
         )
         val_loader = DataLoader(val_ds, batch_size=2, shuffle=False, num_workers=args.workers)
 
@@ -196,11 +201,8 @@ def main_worker(args):
     total_epoch = args.epochs
     best_metric = -1000000
     best_metric_epoch = -1
-    epoch_time = AverageMeter('Time', ':6.3f')
-    progress = ProgressMeter(
-        total_epoch,
-        [epoch_time],
-        prefix="Epoch: ")
+    epoch_time = AverageMeter("Time", ":6.3f")
+    progress = ProgressMeter(total_epoch, [epoch_time], prefix="Epoch: ")
     end = time.time()
     for epoch in range(total_epoch):
         train_sampler.set_epoch(epoch)
@@ -235,21 +237,18 @@ def main_worker(args):
 
 
 def train(train_loader, model, criterion, optimizer, epoch, args, device):
-    batch_time = AverageMeter('Time', ':6.3f')
-    data_time = AverageMeter('Data', ':6.3f')
-    losses = AverageMeter('Loss', ':.4e')
-    progress = ProgressMeter(
-        len(train_loader),
-        [batch_time, data_time, losses],
-        prefix="Epoch: [{}]".format(epoch))
+    batch_time = AverageMeter("Time", ":6.3f")
+    data_time = AverageMeter("Data", ":6.3f")
+    losses = AverageMeter("Loss", ":.4e")
+    progress = ProgressMeter(len(train_loader), [batch_time, data_time, losses], prefix="Epoch: [{}]".format(epoch))
 
     # switch to train mode
     model.train()
 
     end = time.time()
     for i, batch_data in enumerate(train_loader):
-        image = batch_data['image'].to(device, non_blocking=True)
-        target = batch_data['label'].to(device, non_blocking=True)
+        image = batch_data["image"].to(device, non_blocking=True)
+        target = batch_data["label"].to(device, non_blocking=True)
 
         # measure data loading time
         data_time.update(time.time() - end)
@@ -327,45 +326,49 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--dir", default="./testdata", type=str, help="directory to create random data")
     # must parse the command-line argument: ``--local_rank=LOCAL_PROCESS_RANK``, which will be provided by DDP
-    parser.add_argument("--local_rank", type=int,
-                        help='node rank for distributed training')
-    parser.add_argument("--local_world_size", type=int,
-                        help='number of nodes for distributed training')
-    parser.add_argument('-j', '--workers', default=1, type=int, metavar='N',
-                        help='number of data loading workers (default: 1)')
-    parser.add_argument('--epochs', default=90, type=int, metavar='N',
-                        help='number of total epochs to run')
-    parser.add_argument('--lr', default=1e-4, type=float,
-                        help='learning rate')
-    parser.add_argument('-b', '--batch_size', default=4, type=int,
-                        metavar='N',
-                        help='mini-batch size (default: 256), this is the total '
-                             'batch size of all GPUs on the current node when '
-                             'using Data Parallel or Distributed Data Parallel')
-    parser.add_argument('-p', '--print_freq', default=10, type=int,
-                        metavar='N', help='print frequency (default: 10)')
-    parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
-                        help='evaluate model on validation set')
-    parser.add_argument('--seed', default=None, type=int,
-                        help='seed for initializing training.')
+    parser.add_argument("--local_rank", type=int, help="node rank for distributed training")
+    parser.add_argument("--local_world_size", type=int, help="number of nodes for distributed training")
+    parser.add_argument(
+        "-j", "--workers", default=1, type=int, metavar="N", help="number of data loading workers (default: 1)"
+    )
+    parser.add_argument("--epochs", default=90, type=int, metavar="N", help="number of total epochs to run")
+    parser.add_argument("--lr", default=1e-4, type=float, help="learning rate")
+    parser.add_argument(
+        "-b",
+        "--batch_size",
+        default=4,
+        type=int,
+        metavar="N",
+        help="mini-batch size (default: 256), this is the total "
+        "batch size of all GPUs on the current node when "
+        "using Data Parallel or Distributed Data Parallel",
+    )
+    parser.add_argument("-p", "--print_freq", default=10, type=int, metavar="N", help="print frequency (default: 10)")
+    parser.add_argument(
+        "-e", "--evaluate", dest="evaluate", action="store_true", help="evaluate model on validation set"
+    )
+    parser.add_argument("--seed", default=None, type=int, help="seed for initializing training.")
     parser.add_argument("--cache_rate", type=float, default=1.0)
     parser.add_argument("--val_interval", type=int, default=5)
     args = parser.parse_args()
 
     if args.seed is not None:
         set_determinism(seed=args.seed)
-        warnings.warn('You have chosen to seed training. '
-                      'This will turn on the CUDNN deterministic setting, '
-                      'which can slow down your training considerably! '
-                      'You may see unexpected behavior when restarting '
-                      'from checkpoints.')
+        warnings.warn(
+            "You have chosen to seed training. "
+            "This will turn on the CUDNN deterministic setting, "
+            "which can slow down your training considerably! "
+            "You may see unexpected behavior when restarting "
+            "from checkpoints."
+        )
 
     main_worker(args=args)
 
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
-    def __init__(self, name, fmt=':f'):
+
+    def __init__(self, name, fmt=":f"):
         self.name = name
         self.fmt = fmt
         self.val = 0
@@ -386,7 +389,7 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
     def __str__(self):
-        fmtstr = '{name} {val' + self.fmt + '} ({avg' + self.fmt + '})'
+        fmtstr = "{name} {val" + self.fmt + "} ({avg" + self.fmt + "})"
         return fmtstr.format(**self.__dict__)
 
 
@@ -399,12 +402,12 @@ class ProgressMeter(object):
     def display(self, batch):
         entries = [self.prefix + self.batch_fmtstr.format(batch)]
         entries += [str(meter) for meter in self.meters]
-        print('\t'.join(entries))
+        print("\t".join(entries))
 
     def _get_batch_fmtstr(self, num_batches):
         num_digits = len(str(num_batches // 1))
-        fmt = '{:' + str(num_digits) + 'd}'
-        return '[' + fmt + '/' + fmt.format(num_batches) + ']'
+        fmt = "{:" + str(num_digits) + "d}"
+        return "[" + fmt + "/" + fmt.format(num_batches) + "]"
 
 
 # usage example(refer to https://github.com/pytorch/pytorch/blob/master/torch/distributed/launch.py):
