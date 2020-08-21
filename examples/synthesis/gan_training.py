@@ -17,7 +17,7 @@ MONAI Generative Adversarial Networks Workflow Example
     Extract tarball and set input_dir variable. GAN script trains using hand CT scan jpg images.
 
     Dataset information available in MedNIST Tutorial
-    https://github.com/Project-MONAI/MONAI/blob/master/examples/notebooks/mednist_tutorial.ipynb.
+    https://github.com/Project-MONAI/Tutorials/blob/master/mednist_tutorial.ipynb
 """
 
 import logging

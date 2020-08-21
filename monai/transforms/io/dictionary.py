@@ -20,8 +20,67 @@ from typing import Callable, Optional
 import numpy as np
 
 from monai.config import KeysCollection
+from monai.data.image_reader import ImageReader
 from monai.transforms.compose import MapTransform
-from monai.transforms.io.array import LoadNifti, LoadNumpy, LoadPNG
+from monai.transforms.io.array import LoadImage, LoadNifti, LoadNumpy, LoadPNG
+
+
+class LoadImaged(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.LoadImage`,
+    must load image and metadata together. If loading a list of files in one key,
+    stack them together and add a new dimension as the first dimension, and use the
+    meta data of the first image to represent the stacked result. Note that the affine
+    transform of all the stacked images should be same. The output metadata field will
+    be created as ``key_{meta_key_postfix}``.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        reader: Optional[ImageReader] = None,
+        dtype: Optional[np.dtype] = np.float32,
+        meta_key_postfix: str = "meta_dict",
+        overwriting: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            dtype: if not None convert the loaded image data to this data type.
+            meta_key_postfix: use `key_{postfix}` to store the metadata of the nifti image,
+                default is `meta_dict`. The meta data is a dictionary object.
+                For example, load nifti file for `image`, store the metadata into `image_meta_dict`.
+            overwriting: whether allow to overwrite existing meta data of same key.
+                default is False, which will raise exception if encountering existing key.
+        """
+        super().__init__(keys)
+        self._loader = LoadImage(reader, False, dtype)
+        if not isinstance(meta_key_postfix, str):
+            raise TypeError(f"meta_key_postfix must be a str but is {type(meta_key_postfix).__name__}.")
+        self.meta_key_postfix = meta_key_postfix
+        self.overwriting = overwriting
+
+    def register(self, reader: ImageReader):
+        self._loader.register(reader)
+
+    def __call__(self, data, reader: Optional[ImageReader] = None):
+        """
+        Raises:
+            KeyError: When not ``self.overwriting`` and key already exists in ``data``.
+
+        """
+        d = dict(data)
+        for key in self.keys:
+            data = self._loader(d[key], reader)
+            assert isinstance(data, (tuple, list)), "loader must return a tuple or list."
+            d[key] = data[0]
+            assert isinstance(data[1], dict), "metadata must be a dict."
+            key_to_add = f"{key}_{self.meta_key_postfix}"
+            if key_to_add in d and not self.overwriting:
+                raise KeyError(f"Meta data with key {key_to_add} already exists and overwriting=False.")
+            d[key_to_add] = data[1]
+        return d
 
 
 class LoadDatad(MapTransform):
@@ -174,6 +233,7 @@ class LoadNumpyd(LoadDatad):
         super().__init__(keys, loader, meta_key_postfix, overwriting)
 
 
+LoadImageD = LoadImageDict = LoadImaged
 LoadNiftiD = LoadNiftiDict = LoadNiftid
 LoadPNGD = LoadPNGDict = LoadPNGd
 LoadNumpyD = LoadNumpyDict = LoadNumpyd

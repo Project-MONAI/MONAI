@@ -59,12 +59,28 @@ except (ImportError, AttributeError):
     tensorboard_version = "NOT INSTALLED or UNKNOWN VERSION."
 
 try:
+    import gdown
+
+    gdown_version = gdown.__version__
+    del gdown
+except (ImportError, AttributeError):
+    gdown_version = "NOT INSTALLED or UNKNOWN VERSION."
+
+try:
     import torchvision
 
     torchvision_version = torchvision.__version__
     del torchvision
 except (ImportError, AttributeError):
     torchvision_version = "NOT INSTALLED or UNKNOWN VERSION."
+
+try:
+    import itk  # type: ignore
+
+    itk_version = itk.Version.GetITKVersion()
+    del itk
+except (ImportError, AttributeError):
+    itk_version = "NOT INSTALLED or UNKNOWN VERSION."
 
 
 def get_config_values():
@@ -91,8 +107,10 @@ def get_optional_config_values():
     output["Nibabel"] = nibabel_version
     output["scikit-image"] = skimage_version
     output["Pillow"] = PIL_version
-    output["TensorBoard"] = tensorboard_version
+    output["Tensorboard"] = tensorboard_version
+    output["gdown"] = gdown_version
     output["TorchVision"] = torchvision_version
+    output["ITK"] = itk_version
 
     return output
 
