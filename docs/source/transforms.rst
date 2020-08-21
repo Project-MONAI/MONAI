@@ -195,6 +195,12 @@ Intensity
 IO
 ^^
 
+`LoadImage`
+"""""""""""
+.. autoclass:: LoadImage
+    :members:
+    :special-members: __call__
+
 `LoadNifti`
 """""""""""
 .. autoclass:: LoadNifti
@@ -627,6 +633,12 @@ IO (Dict)
 `LoadDatad`
 """""""""""
 .. autoclass:: LoadDatad
+    :members:
+    :special-members: __call__
+
+`LoadImaged`
+""""""""""""
+.. autoclass:: LoadImaged
     :members:
     :special-members: __call__
 

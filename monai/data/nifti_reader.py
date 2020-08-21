@@ -116,4 +116,5 @@ class NiftiDataset(Dataset, Randomizable):
             data.append(meta_data)
         if len(data) == 1:
             return data[0]
-        return data
+        # use tuple instead of list as the default collate_fn callback of MONAI DataLoader flattens nested lists
+        return tuple(data)

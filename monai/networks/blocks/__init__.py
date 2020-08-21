@@ -13,6 +13,7 @@ from .aspp import SimpleASPP
 from .convolutions import Convolution, ResidualUnit
 from .downsample import MaxAvgPool
 from .fcn import FCN, GCN, MCFCN, Refine
+from .segresnet_block import ResBlock
 from .squeeze_and_excitation import (
     ChannelSELayer,
     ResidualSELayer,
@@ -21,4 +22,4 @@ from .squeeze_and_excitation import (
     SEResNetBottleneck,
     SEResNeXtBottleneck,
 )
-from .upsample import UpSample
+from .upsample import SubpixelUpsample, UpSample

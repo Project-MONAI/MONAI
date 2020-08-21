@@ -11,7 +11,6 @@
 
 import logging
 import os
-import shutil
 import sys
 import tempfile
 from glob import glob
@@ -44,12 +43,11 @@ from monai.transforms import (
 )
 
 
-def main():
+def main(tempdir):
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-    # create a temporary directory and 40 random image, mask paris
-    tempdir = tempfile.mkdtemp()
+    # create a temporary directory and 40 random image, mask pairs
     print(f"generating synthetic data to {tempdir} (this may take a while)")
     for i in range(40):
         im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1, channel_dim=-1)
@@ -70,7 +68,7 @@ def main():
         [
             LoadNiftid(keys=["img", "seg"]),
             AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
-            ScaleIntensityd(keys=["img", "seg"]),
+            ScaleIntensityd(keys="img"),
             RandCropByPosNegLabeld(
                 keys=["img", "seg"], label_key="seg", spatial_size=[96, 96, 96], pos=1, neg=1, num_samples=4
             ),
@@ -82,7 +80,7 @@ def main():
         [
             LoadNiftid(keys=["img", "seg"]),
             AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
-            ScaleIntensityd(keys=["img", "seg"]),
+            ScaleIntensityd(keys="img"),
             ToTensord(keys=["img", "seg"]),
         ]
     )
@@ -125,7 +123,7 @@ def main():
     loss = monai.losses.DiceLoss(sigmoid=True)
     lr = 1e-3
     opt = torch.optim.Adam(net.parameters(), lr)
-    device = torch.device("cuda:0")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Ignite trainer expects batch=(img, seg) and returns output=loss at every iteration,
     # user can add output_transform to return other values, like: y_pred, y, etc.
@@ -135,7 +133,7 @@ def main():
     trainer = create_supervised_trainer(net, opt, loss, device, False, prepare_batch=prepare_batch)
 
     # adding checkpoint handler to save models (network params and optimizer stats) during training
-    checkpoint_handler = ModelCheckpoint("./runs/", "net", n_saved=10, require_empty=False)
+    checkpoint_handler = ModelCheckpoint("./runs_dict/", "net", n_saved=10, require_empty=False)
     trainer.add_event_handler(
         event_name=Events.EPOCH_COMPLETED, handler=checkpoint_handler, to_save={"net": net, "opt": opt}
     )
@@ -195,8 +193,8 @@ def main():
     train_epochs = 5
     state = trainer.run(train_loader, train_epochs)
     print(state)
-    shutil.rmtree(tempdir)
 
 
 if __name__ == "__main__":
-    main()
+    with tempfile.TemporaryDirectory() as tempdir:
+        main(tempdir)

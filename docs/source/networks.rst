@@ -40,6 +40,11 @@ Blocks
 .. autoclass:: MCFCN
     :members:
 
+`SegResnet Block`
+~~~~~~~~~~~~~~~~~
+.. autoclass:: ResBlock
+    :members:
+
 `Squeeze-and-Excitation`
 ~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: ChannelSELayer
@@ -83,6 +88,8 @@ Blocks
 `Upsampling`
 ~~~~~~~~~~~~
 .. autoclass:: UpSample
+    :members:
+.. autoclass:: SubpixelUpsample
     :members:
 
 
@@ -178,6 +185,16 @@ Nets
 .. autofunction:: densenet201
 .. autofunction:: densenet264
 
+`SegResnet`
+~~~~~~~~~~~
+.. autoclass:: SegResNet
+  :members:
+
+`SegResnetVAE`
+~~~~~~~~~~~~~~
+.. autoclass:: SegResNetVAE
+  :members:
+
 `Senet`
 ~~~~~~~
 .. autoclass:: SENet
@@ -202,6 +219,11 @@ Nets
   :members:
 .. autoclass:: Unet
 .. autoclass:: unet
+
+`Vnet`
+~~~~~~
+.. autoclass:: VNet
+  :members:
 
 `Generator`
 ~~~~~~~~~~~

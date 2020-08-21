@@ -55,7 +55,7 @@ def run_training_test(root_dir, device=torch.device("cuda:0"), cachedataset=Fals
             # resampling with align_corners=True or dtype=float64 will generate
             # slight different results between PyTorch 1.5 an 1.6
             Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"], dtype=np.float32),
-            ScaleIntensityd(keys=["img", "seg"]),
+            ScaleIntensityd(keys="img"),
             RandCropByPosNegLabeld(
                 keys=["img", "seg"], label_key="seg", spatial_size=[96, 96, 96], pos=1, neg=1, num_samples=4
             ),
@@ -71,7 +71,7 @@ def run_training_test(root_dir, device=torch.device("cuda:0"), cachedataset=Fals
             # resampling with align_corners=True or dtype=float64 will generate
             # slight different results between PyTorch 1.5 an 1.6
             Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"], dtype=np.float32),
-            ScaleIntensityd(keys=["img", "seg"]),
+            ScaleIntensityd(keys="img"),
             ToTensord(keys=["img", "seg"]),
         ]
     )
@@ -179,7 +179,7 @@ def run_inference_test(root_dir, device=torch.device("cuda:0")):
             # resampling with align_corners=True or dtype=float64 will generate
             # slight different results between PyTorch 1.5 an 1.6
             Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"], dtype=np.float32),
-            ScaleIntensityd(keys=["img", "seg"]),
+            ScaleIntensityd(keys="img"),
             ToTensord(keys=["img", "seg"]),
         ]
     )

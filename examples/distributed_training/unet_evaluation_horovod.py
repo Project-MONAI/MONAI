@@ -23,7 +23,7 @@ Main steps to set up the distributed evaluation:
 - Run `hvd.init()` to initialize Horovod.
 - Pin each GPU to a single process to avoid resource contention, use `hvd.local_rank()` to get GPU index.
   And use `hvd.rank()` to get the overall rank index.
-- Wrap Dataset with `DistributedSampler`.
+- Wrap Dataset with `DistributedSampler`, disable `shuffle` for sampler and DataLoader.
 - Broadcast the model parameters from rank 0 to all other processes.
 
 Note:
@@ -87,7 +87,7 @@ def evaluate(args):
         [
             LoadNiftid(keys=["img", "seg"]),
             AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
-            ScaleIntensityd(keys=["img", "seg"]),
+            ScaleIntensityd(keys="img"),
             ToTensord(keys=["img", "seg"]),
         ]
     )
@@ -95,7 +95,7 @@ def evaluate(args):
     # create a evaluation data loader
     val_ds = Dataset(data=val_files, transform=val_transforms)
     # create a evaluation data sampler
-    val_sampler = DistributedSampler(val_ds, num_replicas=hvd.size(), rank=hvd.rank())
+    val_sampler = DistributedSampler(val_ds, shuffle=False, num_replicas=hvd.size(), rank=hvd.rank())
     # when supported, use "forkserver" to spawn dataloader workers instead of "fork" to prevent
     # issues with Infiniband implementations that are not fork-safe
     multiprocessing_context = None
@@ -106,7 +106,7 @@ def evaluate(args):
         val_ds,
         batch_size=1,
         shuffle=False,
-        num_workers=1,
+        num_workers=2,
         pin_memory=True,
         sampler=val_sampler,
         multiprocessing_context=multiprocessing_context,

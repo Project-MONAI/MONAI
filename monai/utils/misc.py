@@ -12,6 +12,8 @@
 import collections.abc
 import itertools
 import random
+from ast import literal_eval
+from distutils.util import strtobool
 from typing import Any, Callable, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -217,3 +219,37 @@ def set_determinism(
         torch.backends.cudnn.benchmark = False
     else:
         torch.backends.cudnn.deterministic = False
+
+
+def list_to_dict(items):
+    """
+    To convert a list of "key=value" pairs into a dictionary.
+    For examples: items: `["a=1", "b=2", "c=3"]`, return: {"a": "1", "b": "2", "c": "3"}.
+    If no "=" in the pair, use None as the value, for example: ["a"], return: {"a": None}.
+    Note that it will remove the blanks around keys and values.
+
+    """
+
+    def _parse_var(s):
+        items = s.split("=", maxsplit=1)
+        key = items[0].strip(" \n\r\t'")
+        value = None
+        if len(items) > 1:
+            value = items[1].strip(" \n\r\t'")
+        return key, value
+
+    d = dict()
+    if items:
+        for item in items:
+            key, value = _parse_var(item)
+
+            try:
+                if key in d:
+                    raise KeyError(f"encounter duplicated key {key}.")
+                d[key] = literal_eval(value)
+            except ValueError:
+                try:
+                    d[key] = bool(strtobool(str(value)))
+                except ValueError:
+                    d[key] = value
+    return d

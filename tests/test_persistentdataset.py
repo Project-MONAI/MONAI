@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import os
-import shutil
 import tempfile
 import unittest
 
@@ -46,34 +45,33 @@ class TestDataset(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_shape(self, transform, expected_shape):
         test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]), np.eye(4))
-        tempdir = tempfile.mkdtemp()
-        nib.save(test_image, os.path.join(tempdir, "test_image1.nii.gz"))
-        nib.save(test_image, os.path.join(tempdir, "test_label1.nii.gz"))
-        nib.save(test_image, os.path.join(tempdir, "test_extra1.nii.gz"))
-        nib.save(test_image, os.path.join(tempdir, "test_image2.nii.gz"))
-        nib.save(test_image, os.path.join(tempdir, "test_label2.nii.gz"))
-        nib.save(test_image, os.path.join(tempdir, "test_extra2.nii.gz"))
-        test_data = [
-            {
-                "image": os.path.join(tempdir, "test_image1.nii.gz"),
-                "label": os.path.join(tempdir, "test_label1.nii.gz"),
-                "extra": os.path.join(tempdir, "test_extra1.nii.gz"),
-            },
-            {
-                "image": os.path.join(tempdir, "test_image2.nii.gz"),
-                "label": os.path.join(tempdir, "test_label2.nii.gz"),
-                "extra": os.path.join(tempdir, "test_extra2.nii.gz"),
-            },
-        ]
+        with tempfile.TemporaryDirectory() as tempdir:
+            nib.save(test_image, os.path.join(tempdir, "test_image1.nii.gz"))
+            nib.save(test_image, os.path.join(tempdir, "test_label1.nii.gz"))
+            nib.save(test_image, os.path.join(tempdir, "test_extra1.nii.gz"))
+            nib.save(test_image, os.path.join(tempdir, "test_image2.nii.gz"))
+            nib.save(test_image, os.path.join(tempdir, "test_label2.nii.gz"))
+            nib.save(test_image, os.path.join(tempdir, "test_extra2.nii.gz"))
+            test_data = [
+                {
+                    "image": os.path.join(tempdir, "test_image1.nii.gz"),
+                    "label": os.path.join(tempdir, "test_label1.nii.gz"),
+                    "extra": os.path.join(tempdir, "test_extra1.nii.gz"),
+                },
+                {
+                    "image": os.path.join(tempdir, "test_image2.nii.gz"),
+                    "label": os.path.join(tempdir, "test_label2.nii.gz"),
+                    "extra": os.path.join(tempdir, "test_extra2.nii.gz"),
+                },
+            ]
 
-        dataset_precached = PersistentDataset(data=test_data, transform=transform, cache_dir=tempdir)
-        data1_precached = dataset_precached[0]
-        data2_precached = dataset_precached[1]
+            dataset_precached = PersistentDataset(data=test_data, transform=transform, cache_dir=tempdir)
+            data1_precached = dataset_precached[0]
+            data2_precached = dataset_precached[1]
 
-        dataset_postcached = PersistentDataset(data=test_data, transform=transform, cache_dir=tempdir)
-        data1_postcached = dataset_postcached[0]
-        data2_postcached = dataset_postcached[1]
-        shutil.rmtree(tempdir)
+            dataset_postcached = PersistentDataset(data=test_data, transform=transform, cache_dir=tempdir)
+            data1_postcached = dataset_postcached[0]
+            data2_postcached = dataset_postcached[1]
 
         if transform is None:
             self.assertEqual(data1_precached["image"], os.path.join(tempdir, "test_image1.nii.gz"))

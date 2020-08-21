@@ -40,6 +40,7 @@ def run_testsuit():
         "test_integration_sliding_window",
         "test_integration_unet_2d",
         "test_integration_workflows",
+        "test_integration_workflows_gan",
         "test_keep_largest_connected_component",
         "test_keep_largest_connected_componentd",
         "test_load_nifti",

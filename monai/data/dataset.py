@@ -94,13 +94,14 @@ class PersistentDataset(Dataset):
 
     def __init__(
         self,
-        data: Sequence,
+        data: Sequence[str],
         transform: Union[Sequence[Callable], Callable],
         cache_dir: Optional[Union[Path, str]] = None,
     ) -> None:
         """
         Args:
-            data: input data to load and transform to generate dataset for model.
+            data: input data file paths to load and transform to generate dataset for model.
+                `PersistentDataset` expects input data to be a list of file paths and hashes them as cache keys.
             transform: transforms to execute operations on input data.
             cache_dir: If specified, this is the location for persistent storage
                 of pre-computed transformed data tensors. The cache_dir is computed once, and
@@ -361,7 +362,8 @@ class ZipDataset(Dataset):
             data.extend(to_list(dataset[index]))
         if self.transform is not None:
             data = apply_transform(self.transform, data, map_items=False)  # transform the list data
-        return data
+        # use tuple instead of list as the default collate_fn callback of MONAI DataLoader flattens nested lists
+        return tuple(data)
 
 
 class ArrayDataset(Randomizable, _TorchDataset):

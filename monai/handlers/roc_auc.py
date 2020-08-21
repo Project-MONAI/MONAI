@@ -12,11 +12,13 @@
 from typing import Callable, List, Optional, Sequence, Union
 
 import torch
+import torch.distributed as dist
 
 from monai.metrics import compute_roc_auc
 from monai.utils import Average, exact_version, optional_import
 
 Metric, _ = optional_import("ignite.metrics", "0.3.0", exact_version, "Metric")
+reinit__is_reduced, _ = optional_import("ignite.metrics.metric", "0.3.0", exact_version, "reinit__is_reduced")
 
 
 class ROCAUC(Metric):  # type: ignore[valid-type, misc]  # due to optional_import
@@ -44,7 +46,6 @@ class ROCAUC(Metric):  # type: ignore[valid-type, misc]  # due to optional_impor
             :class:`~ignite.engine.Engine` `process_function` output into the
             form expected by the metric. This can be useful if, for example, you have a multi-output model and
             you want to compute the metric with respect to one of the outputs.
-        device: device specification in case of distributed computation usage.
 
     Note:
         ROCAUC expects y to be comprised of 0's and 1's.
@@ -59,18 +60,19 @@ class ROCAUC(Metric):  # type: ignore[valid-type, misc]  # due to optional_impor
         other_act: Optional[Callable] = None,
         average: Union[Average, str] = Average.MACRO,
         output_transform: Callable = lambda x: x,
-        device: Optional[Union[str, torch.device]] = None,
     ) -> None:
-        super().__init__(output_transform, device=device)
+        super().__init__(output_transform)
         self.to_onehot_y = to_onehot_y
         self.softmax = softmax
         self.other_act = other_act
         self.average: Average = Average(average)
 
+    @reinit__is_reduced
     def reset(self) -> None:
         self._predictions: List[torch.Tensor] = []
         self._targets: List[torch.Tensor] = []
 
+    @reinit__is_reduced
     def update(self, output: Sequence[torch.Tensor]) -> None:
         """
         Args:
@@ -96,6 +98,17 @@ class ROCAUC(Metric):  # type: ignore[valid-type, misc]  # due to optional_impor
     def compute(self):
         _prediction_tensor = torch.cat(self._predictions, dim=0)
         _target_tensor = torch.cat(self._targets, dim=0)
+
+        if dist.is_available() and dist.is_initialized() and not self._is_reduced:
+            # create placeholder to collect the data from all processes:
+            output = [torch.zeros_like(_prediction_tensor) for _ in range(dist.get_world_size())]
+            dist.all_gather(output, _prediction_tensor)
+            _prediction_tensor = torch.cat(output, dim=0)
+            output = [torch.zeros_like(_target_tensor) for _ in range(dist.get_world_size())]
+            dist.all_gather(output, _target_tensor)
+            _target_tensor = torch.cat(output, dim=0)
+            self._is_reduced = True
+
         return compute_roc_auc(
             y_pred=_prediction_tensor,
             y=_target_tensor,

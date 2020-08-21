@@ -11,7 +11,6 @@
 
 import logging
 import os
-import shutil
 import sys
 import tempfile
 import unittest
@@ -80,25 +79,43 @@ class TestHandlerCheckpointSaver(unittest.TestCase):
         if multi_devices:
             net = torch.nn.DataParallel(net)
         optimizer = optim.SGD(net.parameters(), lr=0.02)
-        tempdir = tempfile.mkdtemp()
-        handler = CheckpointSaver(
-            tempdir,
-            {"net": net, "opt": optimizer},
-            "CheckpointSaver",
-            "test",
-            save_final,
-            save_key_metric,
-            key_metric_name,
-            key_metric_n_saved,
-            epoch_level,
-            save_interval,
-            n_saved,
-        )
-        handler.attach(engine)
-        engine.run(data, max_epochs=5)
-        for filename in filenames:
-            self.assertTrue(os.path.exists(os.path.join(tempdir, filename)))
-        shutil.rmtree(tempdir)
+        with tempfile.TemporaryDirectory() as tempdir:
+            handler = CheckpointSaver(
+                tempdir,
+                {"net": net, "opt": optimizer},
+                "CheckpointSaver",
+                "test",
+                save_final,
+                save_key_metric,
+                key_metric_name,
+                key_metric_n_saved,
+                epoch_level,
+                save_interval,
+                n_saved,
+            )
+            handler.attach(engine)
+            engine.run(data, max_epochs=5)
+            for filename in filenames:
+                self.assertTrue(os.path.exists(os.path.join(tempdir, filename)))
+
+    def test_exception(self):
+        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+        net = torch.nn.PReLU()
+
+        # set up engine
+        def _train_func(engine, batch):
+            raise RuntimeError("test exception.")
+
+        engine = Engine(_train_func)
+
+        # set up testing handler
+        with tempfile.TemporaryDirectory() as tempdir:
+            stats_handler = CheckpointSaver(tempdir, {"net": net}, save_final=True)
+            stats_handler.attach(engine)
+
+            with self.assertRaises(RuntimeError):
+                engine.run(range(3), max_epochs=2)
+            self.assertTrue(os.path.exists(os.path.join(tempdir, "net_final_iteration=1.pth")))
 
 
 if __name__ == "__main__":

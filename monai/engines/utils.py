@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import torch
 
@@ -29,6 +29,18 @@ class CommonKeys:
     LABEL = "label"
     PRED = "pred"
     LOSS = "loss"
+
+
+class GanKeys:
+    """
+    A set of common keys for generative adversarial networks.
+    """
+
+    REALS = "reals"
+    FAKES = "fakes"
+    LATENTS = "latents"
+    GLOSS = "g_loss"
+    DLOSS = "d_loss"
 
 
 def get_devices_spec(devices: Optional[Sequence[torch.device]] = None) -> List[torch.device]:
@@ -62,10 +74,17 @@ def get_devices_spec(devices: Optional[Sequence[torch.device]] = None) -> List[t
     return devices
 
 
-def default_prepare_batch(batchdata: Dict[str, torch.Tensor]) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+def default_prepare_batch(
+    batchdata: Dict[str, torch.Tensor]
+) -> Union[Tuple[torch.Tensor, Optional[torch.Tensor]], torch.Tensor]:
     assert isinstance(batchdata, dict), "default prepare_batch expects dictionary input data."
-    return (
-        (batchdata[CommonKeys.IMAGE], batchdata[CommonKeys.LABEL])
-        if CommonKeys.LABEL in batchdata
-        else (batchdata[CommonKeys.IMAGE], None)
-    )
+    if CommonKeys.LABEL in batchdata:
+        return (batchdata[CommonKeys.IMAGE], batchdata[CommonKeys.LABEL])
+    elif GanKeys.REALS in batchdata:
+        return batchdata[GanKeys.REALS]
+    else:
+        return (batchdata[CommonKeys.IMAGE], None)
+
+
+def default_make_latent(num_latents: int, latent_size: int, real_data: Optional[torch.Tensor] = None) -> torch.Tensor:
+    return torch.randn(num_latents, latent_size)
