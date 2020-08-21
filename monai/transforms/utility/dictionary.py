@@ -546,7 +546,7 @@ class ForegroundBackgroundToIndexesd(MapTransform):
         bg_postfix: str = "_bg_indexes",
         image_key: Optional[str] = None,
         image_threshold: float = 0.0,
-        output_shape: Sequence[int] = None,
+        output_shape: Optional[Sequence[int]] = None,
     ) -> None:
         super().__init__(keys)
         self.fg_postfix = fg_postfix
@@ -558,7 +558,7 @@ class ForegroundBackgroundToIndexesd(MapTransform):
         d = dict(data)
         image = d[self.image_key] if self.image_key else None
         for key in self.keys:
-            d[key + self.fg_postfix], d[key + self.bg_postfix] = self.converter(d[key], image)
+            d[str(key) + self.fg_postfix], d[str(key) + self.bg_postfix] = self.converter(d[key], image)
 
         return d
 

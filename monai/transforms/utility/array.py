@@ -460,7 +460,7 @@ class LabelToMask(Transform):
 
 
 class ForegroundBackgroundToIndexes(Transform):
-    def __init__(self, image_threshold: float = 0.0, output_shape: Sequence[int] = None) -> None:
+    def __init__(self, image_threshold: float = 0.0, output_shape: Optional[Sequence[int]] = None) -> None:
         """
         Compute foreground and background of the input label data, return the indexes.
         If no output_shape specified, output data will be 1 dim indexes after flattening.
@@ -475,7 +475,7 @@ class ForegroundBackgroundToIndexes(Transform):
         self.output_shape = output_shape
 
     def __call__(
-        self, label: np.ndarray, image: Optional[np.ndarray] = None, output_shape: Sequence[int] = None,
+        self, label: np.ndarray, image: Optional[np.ndarray] = None, output_shape: Optional[Sequence[int]] = None,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Args:

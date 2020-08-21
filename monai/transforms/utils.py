@@ -199,13 +199,13 @@ def map_binary_to_indexes(
     # Prepare fg/bg indices
     if label.shape[0] > 1:
         label = label[1:]  # for One-Hot format data, remove the background channel
-    label_flat: np.ndarray = np.any(label, axis=0).ravel()  # in case label has multiple dimensions
-    fg_indexes: np.ndarray = np.nonzero(label_flat)[0]
+    label_flat = np.any(label, axis=0).ravel()  # in case label has multiple dimensions
+    fg_indexes = np.nonzero(label_flat)[0]
     if image is not None:
-        img_flat: np.ndarray = np.any(image > image_threshold, axis=0).ravel()
-        bg_indexes: np.ndarray = np.nonzero(np.logical_and(img_flat, ~label_flat))[0]
+        img_flat = np.any(image > image_threshold, axis=0).ravel()
+        bg_indexes = np.nonzero(np.logical_and(img_flat, ~label_flat))[0]
     else:
-        bg_indexes: np.ndarray = np.nonzero(~label_flat)[0]
+        bg_indexes = np.nonzero(~label_flat)[0]
     return fg_indexes, bg_indexes
 
 
@@ -214,8 +214,8 @@ def generate_pos_neg_label_crop_centers(
     num_samples: int,
     pos_ratio: float,
     label_spatial_shape: Sequence[int],
-    fg_indexes: Sequence[int],
-    bg_indexes: Sequence[int],
+    fg_indexes: np.ndarray,
+    bg_indexes: np.ndarray,
     rand_state: np.random.RandomState = np.random,
 ) -> List[List[np.ndarray]]:
     """

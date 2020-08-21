@@ -17,7 +17,7 @@ from parameterized import parameterized
 from monai.transforms import map_binary_to_indexes
 
 TEST_CASE_1 = [
-    {"label": np.array([[[0, 1, 1], [1, 0, 1], [1, 1, 0]]]), "image": None, "image_threshold": 0.0,},
+    {"label": np.array([[[0, 1, 1], [1, 0, 1], [1, 1, 0]]]), "image": None, "image_threshold": 0.0},
     np.array([1, 2, 3, 5, 6, 7]),
     np.array([0, 4, 8]),
 ]

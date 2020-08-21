@@ -421,29 +421,27 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
     def randomize(
         self,
         label: np.ndarray,
-        fg_indexes: Sequence[int],
-        bg_indexes: Sequence[int],
+        fg_indexes: Optional[np.ndarray] = None,
+        bg_indexes: Optional[np.ndarray] = None,
         image: Optional[np.ndarray] = None,
     ) -> None:
         self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
+        if fg_indexes is None or bg_indexes is None:
+            fg_indexes_, bg_indexes_ = map_binary_to_indexes(label, image, self.image_threshold)
+        else:
+            fg_indexes_ = fg_indexes
+            bg_indexes_ = bg_indexes
         self.centers = generate_pos_neg_label_crop_centers(
-            self.spatial_size, self.num_samples, self.pos_ratio, label.shape[1:], fg_indexes, bg_indexes, self.R
+            self.spatial_size, self.num_samples, self.pos_ratio, label.shape[1:], fg_indexes_, bg_indexes_, self.R
         )
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> List[Dict[Hashable, np.ndarray]]:
         d = dict(data)
         label = d[self.label_key]
         image = d[self.image_key] if self.image_key else None
-        if (
-            self.fg_indexes_key is not None
-            and self.fg_indexes_key in d
-            and self.bg_indexes_key is not None
-            and self.bg_indexes_key in d
-        ):
-            fg_indexes = d[self.fg_indexes_key]
-            bg_indexes = d[self.bg_indexes_key]
-        else:
-            fg_indexes, bg_indexes = map_binary_to_indexes(label, image, self.image_threshold)
+        fg_indexes = d.get(self.fg_indexes_key, None) if self.fg_indexes_key is not None else None
+        bg_indexes = d.get(self.bg_indexes_key, None) if self.bg_indexes_key is not None else None
+
         self.randomize(label, fg_indexes, bg_indexes, image)
         assert isinstance(self.spatial_size, tuple)
         assert self.centers is not None

@@ -457,8 +457,8 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         num_samples: int = 1,
         image: Optional[np.ndarray] = None,
         image_threshold: float = 0.0,
-        fg_indexes: Optional[Sequence[int]] = None,
-        bg_indexes: Optional[Sequence[int]] = None,
+        fg_indexes: Optional[np.ndarray] = None,
+        bg_indexes: Optional[np.ndarray] = None,
     ) -> None:
         self.spatial_size = ensure_tuple(spatial_size)
         self.label = label
@@ -477,13 +477,18 @@ class RandCropByPosNegLabel(Randomizable, Transform):
     def randomize(
         self,
         label: np.ndarray,
-        fg_indexes: Sequence[int],
-        bg_indexes: Sequence[int],
+        fg_indexes: Optional[np.ndarray] = None,
+        bg_indexes: Optional[np.ndarray] = None,
         image: Optional[np.ndarray] = None,
     ) -> None:
         self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
+        if fg_indexes is None or bg_indexes is None:
+            fg_indexes_, bg_indexes_ = map_binary_to_indexes(label, image, self.image_threshold)
+        else:
+            fg_indexes_ = fg_indexes
+            bg_indexes_ = bg_indexes
         self.centers = generate_pos_neg_label_crop_centers(
-            self.spatial_size, self.num_samples, self.pos_ratio, label.shape[1:], fg_indexes, bg_indexes, self.R
+            self.spatial_size, self.num_samples, self.pos_ratio, label.shape[1:], fg_indexes_, bg_indexes_, self.R
         )
 
     def __call__(
@@ -491,8 +496,8 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         img: np.ndarray,
         label: Optional[np.ndarray] = None,
         image: Optional[np.ndarray] = None,
-        fg_indexes: Optional[Sequence[int]] = None,
-        bg_indexes: Optional[Sequence[int]] = None,
+        fg_indexes: Optional[np.ndarray] = None,
+        bg_indexes: Optional[np.ndarray] = None,
     ) -> List[np.ndarray]:
         """
         Args:
