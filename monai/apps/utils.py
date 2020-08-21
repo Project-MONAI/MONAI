@@ -77,16 +77,43 @@ def download_url(url: str, filepath: str, md5_value: Optional[str] = None) -> No
             raise RuntimeError(f"MD5 check of existing file failed: filepath={filepath}, expected MD5={md5_value}.")
         print(f"file {filepath} exists, skip downloading.")
         return
-    os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
     if url.startswith("https://drive.google.com"):
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
         gdown.download(url, filepath, quiet=False)
         if not os.path.exists(filepath):
             raise RuntimeError(
                 f"Download of file from {url} to {filepath} failed due to network issue or denied permission."
             )
-    else:
+    elif url.startswith("https://msd-for-monai.s3-us-west-2.amazonaws.com"):
+        block_size = 1024 * 1024
+        tmp_file_path = filepath + ".part"
+        first_byte = os.path.getsize(tmp_file_path) if os.path.exists(tmp_file_path) else 0
+        file_size = -1
+        
+        try:
+            file_size = int(urlopen(url).info().get("Content-Length", -1))
 
+            while first_byte < file_size:
+                last_byte = first_byte + block_size if first_byte + block_size < file_size else file_size - 1
+
+                req = Request(url)
+                req.headers["Range"] = "bytes=%s-%s" % (first_byte, last_byte)
+                data_chunk = urlopen(req, timeout=10).read()
+                with open(tmp_file_path, "ab") as f:
+                    f.write(data_chunk)
+                first_byte = last_byte + 1
+        except IOError as e:
+            logging.debug("IO Error - %s" % e)
+        finally:
+            if file_size == os.path.getsize(tmp_file_path):
+                if md5_value and not check_md5(tmp_file_path, md5_value):
+                    raise Exception("Error validating the file against its MD5 hash")
+                shutil.move(tmp_file_path, filepath)
+            elif file_size == -1:
+                raise Exception("Error getting Content-Length from server: %s" % url)
+    else:
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
         def _process_hook(blocknum: int, blocksize: int, totalsize: int):
             progress_bar(blocknum * blocksize, totalsize, f"Downloading {filepath.split('/')[-1]}:")
 
@@ -152,61 +179,4 @@ def download_and_extract(url: str, filepath: str, output_dir: str, md5_value: Op
 
     """
     download_url(url=url, filepath=filepath, md5_value=md5_value)
-    extractall(filepath=filepath, output_dir=output_dir, md5_value=md5_value)
-
-
-def download_with_resume(url, file_path, hash=None, timeout=10):
-    """
-    Performs a HTTP(S) download that can be restarted if prematurely terminated.
-    The HTTP server must support byte ranges.
-    :param file_path: the path to the file to write to disk
-    :type file_path:  string
-    :param hash: hash value for file validation
-    :type hash:  string (MD5 hash value)
-    :param timout: timeout for http request
-    :type timeout: int
-    """
-    if os.path.exists(file_path):
-        return
-    block_size = 1024 * 1024
-    tmp_file_path = file_path + ".part"
-    first_byte = os.path.getsize(tmp_file_path) if os.path.exists(tmp_file_path) else 0
-    file_size = -1
-    try:
-        file_size = int(urlopen(url).info().get("Content-Length", -1))
-
-        while first_byte < file_size:
-            last_byte = first_byte + block_size if first_byte + block_size < file_size else file_size - 1
-
-            req = Request(url)
-            req.headers["Range"] = "bytes=%s-%s" % (first_byte, last_byte)
-            data_chunk = urlopen(req, timeout=timeout).read()
-            with open(tmp_file_path, "ab") as f:
-                f.write(data_chunk)
-            first_byte = last_byte + 1
-    except IOError as e:
-        logging.debug("IO Error - %s" % e)
-    finally:
-        if file_size == os.path.getsize(tmp_file_path):
-            if hash and not check_md5(tmp_file_path, hash):
-                raise Exception("Error validating the file against its MD5 hash")
-            shutil.move(tmp_file_path, file_path)
-        elif file_size == -1:
-            raise Exception("Error getting Content-Length from server: %s" % url)
-
-
-def download_with_resume_and_extract(url: str, filepath: str, output_dir: str, md5_value: Optional[str] = None) -> None:
-    """
-    Download file from URL and extract it to the output directory.
-
-    Args:
-        url: source URL link to download file.
-        filepath: the file path of compressed file.
-        output_dir: target directory to save extracted files.
-            defaut is None to save in current directory.
-        md5_value: expected MD5 value to validate the downloaded file.
-            if None, skip MD5 validation.
-
-    """
-    download_with_resume(url=url, filepath=filepath, hash=md5_value)
     extractall(filepath=filepath, output_dir=output_dir, md5_value=md5_value)

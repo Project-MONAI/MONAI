@@ -234,7 +234,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         dataset_dir = os.path.join(root_dir, task)
         tarfile_name = f"{dataset_dir}.tar"
         if download:
-            download_with_resume_and_extract(self.resource[task], tarfile_name, root_dir, self.md5[task])
+            download_and_extract(self.resource[task], tarfile_name, root_dir, self.md5[task])
 
         if not os.path.exists(dataset_dir):
             raise RuntimeError(
