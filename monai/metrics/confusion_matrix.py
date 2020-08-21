@@ -23,7 +23,6 @@ def compute_confusion_metric(
     y_pred: torch.Tensor,
     y: torch.Tensor,
     to_onehot_y: bool = False,
-    task: str = "clf",
     activation: Optional[Union[str, Callable]] = None,
     bin_mode: Optional[str] = "threshold",
     bin_threshold: Union[float, Sequence[float]] = 0.5,
@@ -45,8 +44,6 @@ def compute_confusion_metric(
             the shape should be [BNHW] or [BNHWD].
         y: ground truth, the first dim is batch.
         to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
-        task: [``"clf"``, ``"seg"``]
-            corresponds to classification or segmentation tasks.
         activation: [``"sigmoid"``, ``"softmax"``]
             Activation method, if specified, an activation function will be employed for `y_pred`.
             Defaults to None.
@@ -85,7 +82,6 @@ def compute_confusion_metric(
         AssertionError: when specify activation function and ``mutually_exclusive`` mode at the same time.
     """
 
-    y_pred, y = check_dimension(y_pred, y, task=task)
     y_pred_ndim, y_ndim = y_pred.ndimension(), y.ndimension()
     # one-hot for ground truth
     if to_onehot_y:

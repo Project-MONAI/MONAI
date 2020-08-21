@@ -53,7 +53,7 @@ class InputTransition(nn.Module):
         super(InputTransition, self).__init__()
 
         if 16 % in_channels != 0:
-            raise ValueError(f"16 should be divided by in_channels, got in_channels={in_channels}.")
+            raise ValueError(f"16 should be divisible by in_channels, got in_channels={in_channels}.")
 
         self.spatial_dims = spatial_dims
         self.in_channels = in_channels
@@ -187,8 +187,8 @@ class VNet(nn.Module):
         dropout_dim: determine the dimensions of dropout. Defaults to 3.
 
             - ``dropout_dim = 1``, randomly zeroes some of the elements for each channel.
-            - ``dropout_dim = 2``, Randomly zero out entire channels (a channel is a 2D feature map).
-            - ``dropout_dim = 3``, Randomly zero out entire channels (a channel is a 3D feature map).
+            - ``dropout_dim = 2``, Randomly zeroes out entire channels (a channel is a 2D feature map).
+            - ``dropout_dim = 3``, Randomly zeroes out entire channels (a channel is a 3D feature map).
     """
 
     def __init__(

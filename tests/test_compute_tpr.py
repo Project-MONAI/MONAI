@@ -101,14 +101,7 @@ for y_pred in [y_org, 1 - y_org]:
     for i in range(len(average_list)):
         average = average_list[i]
         test_case = [
-            {
-                "y_pred": y_pred,
-                "y": y,
-                "metric_name": metric_name,
-                "bin_mode": "threshold",
-                "average": average,
-                "task": "seg",
-            },
+            {"y_pred": y_pred, "y": y, "metric_name": metric_name, "bin_mode": "threshold", "average": average},
             seg_result_list_2d[ct],
         ]
         ct += 1
@@ -132,7 +125,6 @@ for y_pred in [y_org, -y_org]:
                 "metric_name": metric_name,
                 "bin_mode": "threshold",
                 "average": average,
-                "task": "seg",
             },
             seg_result_list_3d[ct],
         ]

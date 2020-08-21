@@ -19,48 +19,6 @@ from monai.networks import one_hot
 from monai.utils import Average
 
 
-def check_dimension(
-    y_pred: torch.Tensor, y: torch.Tensor, task: str = "clf",
-):
-    """
-    This function is used to check the dimension of inputs.
-
-    Args:
-        y_pred: predictions. As for classification tasks,
-            `y_pred` should has the shape [B] or [BN]. As for segmentation tasks, 
-            the shape should be [BNHW] or [BNHWD].
-        y: ground truth, the first dim is batch.
-        task: ``"clf"`` or ``"seg"``, corresponds to classification or segmentation tasks.
-
-    Raises:
-        ValueError: When `y_pred` dimension is not one of [1, 2] for clf.
-        ValueError: When `y` dimension is not one of [1, 2] for clf.
-        ValueError: When `y_pred` dimension is not one of [4, 5] for seg.
-        ValueError: When `y` dimension is not one of [4, 5] for seg.
-        NotImplementedError: When input an task name that is not implemented.
-    """
-
-    y_pred_ndim, y_ndim = y_pred.ndimension(), y.ndimension()
-    if task == "clf":
-        if y_pred_ndim not in (1, 2):
-            raise ValueError("Clf predictions should be of shape (B, N) or (B, ).")
-        if y_ndim not in (1, 2):
-            raise ValueError("Clf targets should be of shape (B, N) or (B, ).")
-        if y_pred_ndim == 2 and y_pred.shape[1] == 1:
-            y_pred = y_pred.squeeze(dim=-1)
-            y_pred_ndim = 1
-        if y_ndim == 2 and y.shape[1] == 1:
-            y = y.squeeze(dim=-1)
-    elif task == "seg":
-        if y_pred_ndim not in (4, 5):
-            raise ValueError("Seg predictions should be of shape (B, N, H, W) or (B, N, H, W, D).")
-        if y_ndim not in (4, 5):
-            raise ValueError("Seg targets should be of shape (B, N, H, W) or (B, N, H, W, D).")
-    else:
-        raise NotImplementedError("only clf and seg tasks are acceptable.")
-    return y_pred, y
-
-
 def do_activation(input_data: torch.Tensor, activation: Union[str, Callable] = "softmax") -> torch.Tensor:
     """
     This function is used to do activation for inputs.
@@ -133,14 +91,19 @@ def cal_confusion_matrix_elements(p: torch.Tensor, t: torch.Tensor) -> List[np.n
     return a list of these values.
 
     Args:
-        p: predictions, a binarized torch.Tensor in the shape [B] or [BN] or [BNHW] or [BNHWD].
-        t: ground truth, a binarized torch.Tensor in the shape [B] or [BN] or [BNHW] or [BNHWD].
+        p: predictions, a binarized torch.Tensor that its first dimension represents the batch size.
+        t: ground truth, a binarized torch.Tensor that its first dimension represents the batch size.
+            parameter t and p should have same shapes.
 
     Notes:
         If the input shape is [B], each element in the returned list is an int value.
         Else, each element in the returned list is an np.ndarray with shape (N,), where each element in
         this array represents the value for the corresponding class.
+
+    Raises:
+        AssertionError: when `p` and `t` have different shapes.
     """
+    assert p.shape == t.shape, "predictions and targets should have same shapes."
     with torch.no_grad():
         dims = p.ndimension()
         if dims > 1:  # in the form of [BNS], where S is the number of pixels for one sample.
@@ -166,24 +129,25 @@ def cal_confusion_matrix_elements(p: torch.Tensor, t: torch.Tensor) -> List[np.n
 
 
 def handle_zero_divide(
-    numerator: Union[np.ndarray, float, int], denominator: Union[np.ndarray, float, int], zero_division: int = 0
-) -> Union[np.ndarray, float]:
+    numerator: Union[np.ndarray, torch.Tensor, float, int],
+    denominator: Union[np.ndarray, torch.Tensor, float, int],
+    zero_division: int = 0,
+) -> Union[np.ndarray, torch.Tensor, float]:
     """
     This function is used to handle the division case that the denominator has 0.
     This function takes sklearn for reference, see:
     https://github.com/scikit-learn/scikit-learn/blob/0fb307bf3/sklearn/metrics/_classification.py#L1179
     """
-    if not isinstance(denominator, np.ndarray):
+    if isinstance(denominator, (float, int)):
         if denominator != 0:
             return numerator / denominator
         else:
             return zero_division
     else:
         mask = denominator == 0.0
-        denominator = denominator.copy()
         denominator[mask] = 1
         result = numerator / denominator
-        if not np.any(mask):
+        if not mask.any():
             return result
         else:
             result[mask] = zero_division
@@ -225,7 +189,7 @@ def do_calculate_metric(
     else:
         bin_flag = False
     if average == Average.MICRO:
-        ele_list = [l.sum() for l in confusion_ele_list]
+        ele_list = [int(l.sum()) for l in confusion_ele_list]
     else:
         ele_list = confusion_ele_list
     tp, tn, fp, fn, p, n = ele_list
