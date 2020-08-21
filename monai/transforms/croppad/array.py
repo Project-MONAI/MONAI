@@ -20,7 +20,11 @@ import numpy as np
 from monai.config import IndexSelection
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.compose import Randomizable, Transform
-from monai.transforms.utils import generate_pos_neg_label_crop_centers, generate_spatial_bounding_box
+from monai.transforms.utils import (
+    generate_pos_neg_label_crop_centers,
+    generate_spatial_bounding_box,
+    map_binary_to_indexes,
+)
 from monai.utils import Method, NumpyPadMode, ensure_tuple, fall_back_tuple
 
 
@@ -447,6 +451,8 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         num_samples: int = 1,
         image: Optional[np.ndarray] = None,
         image_threshold: float = 0.0,
+        fg_indexes: Optional[Sequence[int]] = None,
+        bg_indexes: Optional[Sequence[int]] = None,
     ) -> None:
         self.spatial_size = ensure_tuple(spatial_size)
         self.label = label
@@ -459,15 +465,28 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         self.image = image
         self.image_threshold = image_threshold
         self.centers: Optional[List[List[np.ndarray]]] = None
+        self.fg_indexes = fg_indexes
+        self.bg_indexes = bg_indexes
 
-    def randomize(self, label: np.ndarray, image: Optional[np.ndarray] = None) -> None:
+    def randomize(
+        self,
+        label: np.ndarray,
+        fg_indexes: Sequence[int],
+        bg_indexes: Sequence[int],
+        image: Optional[np.ndarray] = None,
+    ) -> None:
         self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
         self.centers = generate_pos_neg_label_crop_centers(
-            label, self.spatial_size, self.num_samples, self.pos_ratio, image, self.image_threshold, self.R
+            self.spatial_size, self.num_samples, self.pos_ratio, label.shape[1:], fg_indexes, bg_indexes, self.R
         )
 
     def __call__(
-        self, img: np.ndarray, label: Optional[np.ndarray] = None, image: Optional[np.ndarray] = None,
+        self,
+        img: np.ndarray,
+        label: Optional[np.ndarray] = None,
+        image: Optional[np.ndarray] = None,
+        fg_indexes: Optional[Sequence[int]] = None,
+        bg_indexes: Optional[Sequence[int]] = None,
     ) -> List[np.ndarray]:
         """
         Args:
@@ -478,7 +497,17 @@ class RandCropByPosNegLabel(Randomizable, Transform):
                 use ``label == 0 & image > image_threshold`` to select the negative sample(background) center.
                 so the crop center will only exist on valid image area. if None, use `self.image`.
         """
-        self.randomize(self.label if label is None else label, self.image if image is None else image)
+        if label is None:
+            label = self.label
+        if image is None:
+            image = self.image
+        if fg_indexes is None or bg_indexes is None:
+            if self.fg_indexes is not None and self.bg_indexes is not None:
+                fg_indexes = self.fg_indexes
+                bg_indexes = self.bg_indexes
+            else:
+                fg_indexes, bg_indexes = map_binary_to_indexes(label, image, self.image_threshold)
+        self.randomize(label, fg_indexes, bg_indexes, image)
         results: List[np.ndarray] = list()
         if self.centers is not None:
             for center in self.centers:

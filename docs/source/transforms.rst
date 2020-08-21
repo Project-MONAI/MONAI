@@ -468,6 +468,12 @@ Utility
     :members:
     :special-members: __call__
 
+`ForegroundBackgroundToIndexes`
+"""""""""""""""""""""""""""""""
+.. autoclass:: ForegroundBackgroundToIndexes
+    :members:
+    :special-members: __call__
+
 Dictionary Transforms
 ---------------------
 
@@ -894,6 +900,12 @@ Utility (Dict)
 `LabelToMaskd`
 """"""""""""""
 .. autoclass:: LabelToMaskd
+    :members:
+    :special-members: __call__
+
+`ForegroundBackgroundToIndexesd`
+""""""""""""""""""""""""""""""""
+.. autoclass:: ForegroundBackgroundToIndexesd
     :members:
     :special-members: __call__
 

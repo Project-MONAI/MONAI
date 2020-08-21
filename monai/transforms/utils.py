@@ -179,13 +179,31 @@ def resize_center(img: np.ndarray, *resize_dims: Optional[int], fill_value: floa
     return dest
 
 
-def generate_pos_neg_label_crop_centers(
+def map_binary_to_indexes(
     label: np.ndarray,
+    image: Optional[np.ndarray] = None,
+    image_threshold: float = 0.0,
+) -> Tuple[np.ndarray, np.ndarray]:
+    # Prepare fg/bg indices
+    if label.shape[0] > 1:
+        label = label[1:]  # for One-Hot format data, remove the background channel
+    label_flat = np.any(label, axis=0).ravel()  # in case label has multiple dimensions
+    fg_indexes = np.nonzero(label_flat)[0]
+    if image is not None:
+        img_flat = np.any(image > image_threshold, axis=0).ravel()
+        bg_indexes = np.nonzero(np.logical_and(img_flat, ~label_flat))[0]
+    else:
+        bg_indexes = np.nonzero(~label_flat)[0]
+    return fg_indexes, bg_indexes
+
+
+def generate_pos_neg_label_crop_centers(
     spatial_size: Union[Sequence[int], int],
     num_samples: int,
     pos_ratio: float,
-    image: Optional[np.ndarray] = None,
-    image_threshold: float = 0.0,
+    spatial_shape: Sequence[int],
+    fg_indexes: Sequence[int],
+    bg_indexes: Sequence[int],
     rand_state: np.random.RandomState = np.random,
 ) -> List[List[np.ndarray]]:
     """Generate valid sample locations based on image with option for specifying foreground ratio
@@ -207,7 +225,7 @@ def generate_pos_neg_label_crop_centers(
         ValueError: When the foreground and background indices lengths are 0.
 
     """
-    max_size = label.shape[1:]
+    max_size = spatial_shape
     spatial_size = fall_back_tuple(spatial_size, default=max_size)
     if not (np.subtract(max_size, spatial_size) >= 0).all():
         raise ValueError("The proposed roi is larger than the image.")
@@ -234,31 +252,20 @@ def generate_pos_neg_label_crop_centers(
         return center_ori
 
     centers = []
-    # Prepare fg/bg indices
-    if label.shape[0] > 1:
-        label = label[1:]  # for One-Hot format data, remove the background channel
-    label_flat = np.any(label, axis=0).ravel()  # in case label has multiple dimensions
-    fg_indices = np.nonzero(label_flat)[0]
-    if image is not None:
-        img_flat = np.any(image > image_threshold, axis=0).ravel()
-        bg_indices = np.nonzero(np.logical_and(img_flat, ~label_flat))[0]
-    else:
-        bg_indices = np.nonzero(~label_flat)[0]
 
-    if not len(fg_indices) or not len(bg_indices):
-        if not len(fg_indices) and not len(bg_indices):
+    if not len(fg_indexes) or not len(bg_indexes):
+        if not len(fg_indexes) and not len(bg_indexes):
             raise ValueError("No sampling location available.")
         warnings.warn(
-            f"N foreground {len(fg_indices)}, N  background {len(bg_indices)},"
+            f"N foreground {len(fg_indexes)}, N  background {len(bg_indexes)},"
             "unable to generate class balanced samples."
         )
-        pos_ratio = 0 if not len(fg_indices) else 1
+        pos_ratio = 0 if not len(fg_indexes) else 1
 
     for _ in range(num_samples):
-        indices_to_use = fg_indices if rand_state.rand() < pos_ratio else bg_indices
+        indices_to_use = fg_indexes if rand_state.rand() < pos_ratio else bg_indexes
         random_int = rand_state.randint(len(indices_to_use))
-        center = np.unravel_index(indices_to_use[random_int], label.shape)
-        center = center[1:]
+        center = np.unravel_index(indices_to_use[random_int], spatial_shape)
         # shift center to range of valid centers
         center_ori = list(center)
         centers.append(_correct_centers(center_ori, valid_start, valid_end))

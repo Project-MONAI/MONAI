@@ -15,13 +15,14 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 import logging
 import time
-from typing import Callable, Optional, Sequence, TypeVar, Union
+from typing import Callable, Optional, Sequence, TypeVar, Union, Tuple
 
 import numpy as np
 import torch
 
 from monai.transforms.compose import Transform
 from monai.utils import ensure_tuple
+from monai.transforms.utils import map_binary_to_indexes
 
 # Generic type which can represent either a numpy.ndarray or a torch.Tensor
 # Unlike Union can create a dependence between parameter(s) / return(s)
@@ -458,9 +459,22 @@ class LabelToMask(Transform):
         return np.any(data, axis=0, keepdims=True) if merge_channels else data
 
 
-class BinaryToIndex(Transform):
-    def __init__(self):
-        super().__init__()
+class ForegroundBackgroundToIndexes(Transform):
+    def __init__(self, image_threshold: float = 0.0, output_shape: Sequence[int] = None) -> None:
+        self.image_threshold = image_threshold
+        self.output_shape = output_shape
 
-    def __call__(self, data):
-        return super().__call__(data)
+    def __call__(
+        self,
+        label: np.ndarray,
+        image: Optional[np.ndarray] = None,
+        output_shape: Sequence[int] = None,
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        if output_shape is None:
+            output_shape = self.output_shape
+        fg_indexes, bg_indexes = map_binary_to_indexes(label, image, self.image_threshold)
+        if output_shape is not None:
+            fg_indexes = [np.unravel_index(i, output_shape) for i in fg_indexes]
+            bg_indexes = [np.unravel_index(i, output_shape) for i in bg_indexes]
+
+        return fg_indexes, bg_indexes

@@ -30,6 +30,7 @@ from monai.transforms.utility.array import (
     AsChannelLast,
     CastToType,
     DataStats,
+    ForegroundBackgroundToIndexes,
     Identity,
     LabelToMask,
     Lambda,
@@ -519,6 +520,36 @@ class LabelToMaskd(MapTransform):
         return d
 
 
+class ForegroundBackgroundToIndexesd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.ForegroundBackgroundToIndexes`.
+
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        fg_postfix: str = "_fg_indexes",
+        bg_postfix: str = "_bg_indexes",
+        image_key: Optional[str] = None,
+        image_threshold: float = 0.0,
+        output_shape: Sequence[int] = None,
+    ) -> None:
+        super().__init__(keys)
+        self.fg_postfix = fg_postfix
+        self.bg_postfix = bg_postfix
+        self.image_key = image_key
+        self.converter = ForegroundBackgroundToIndexes(image_threshold, output_shape)
+
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = dict(data)
+        image = d[self.image_key] if self.image_key else None
+        for key in self.keys:
+            d[key + self.fg_postfix], d[key + self.bg_postfix] = self.converter(d[key], image)
+
+        return d
+
+
 IdentityD = IdentityDict = Identityd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
@@ -534,3 +565,4 @@ CopyItemsD = CopyItemsDict = CopyItemsd
 ConcatItemsD = ConcatItemsDict = ConcatItemsd
 LambdaD = LambdaDict = Lambdad
 LabelToMaskD = LabelToMaskDict = LabelToMaskd
+ForegroundBackgroundToIndexesD = ForegroundBackgroundToIndexesDict = ForegroundBackgroundToIndexesd

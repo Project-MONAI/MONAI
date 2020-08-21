@@ -23,7 +23,11 @@ from monai.config import IndexSelection, KeysCollection
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.croppad.array import BorderPad, CenterSpatialCrop, DivisiblePad, SpatialCrop, SpatialPad
-from monai.transforms.utils import generate_pos_neg_label_crop_centers, generate_spatial_bounding_box
+from monai.transforms.utils import (
+    generate_pos_neg_label_crop_centers,
+    generate_spatial_bounding_box,
+    map_binary_to_indexes,
+)
 from monai.utils import Method, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
 
 NumpyPadModeSequence = Union[Sequence[Union[NumpyPadMode, str]], NumpyPadMode, str]
@@ -390,6 +394,8 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         num_samples: int = 1,
         image_key: Optional[str] = None,
         image_threshold: float = 0.0,
+        fg_indexes_key: Optional[str] = None,
+        bg_indexes_key: Optional[str] = None,
     ) -> None:
         super().__init__(keys)
         self.label_key = label_key
@@ -402,19 +408,33 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         self.num_samples = num_samples
         self.image_key = image_key
         self.image_threshold = image_threshold
+        self.fg_indexes_key = fg_indexes_key
+        self.bg_indexes_key = bg_indexes_key
         self.centers: Optional[List[List[np.ndarray]]] = None
 
-    def randomize(self, label: np.ndarray, image: Optional[np.ndarray] = None) -> None:
+    def randomize(
+        self,
+        label: np.ndarray,
+        fg_indexes: Sequence[int],
+        bg_indexes: Sequence[int],
+        image: Optional[np.ndarray] = None,
+    ) -> None:
         self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
         self.centers = generate_pos_neg_label_crop_centers(
-            label, self.spatial_size, self.num_samples, self.pos_ratio, image, self.image_threshold, self.R
+            self.spatial_size, self.num_samples, self.pos_ratio, label.shape[1:], fg_indexes, bg_indexes, self.R
         )
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> List[Dict[Hashable, np.ndarray]]:
         d = dict(data)
         label = d[self.label_key]
         image = d[self.image_key] if self.image_key else None
-        self.randomize(label, image)
+        if self.fg_indexes_key is not None and self.fg_indexes_key in d and \
+                self.bg_indexes_key is not None and self.bg_indexes_key in d:
+            fg_indexes = d[self.fg_indexes_key]
+            bg_indexes = d[self.bg_indexes_key]
+        else:
+            fg_indexes, bg_indexes = map_binary_to_indexes(label, image, self.image_threshold)
+        self.randomize(label, fg_indexes, bg_indexes, image)
         assert isinstance(self.spatial_size, tuple)
         assert self.centers is not None
         results: List[Dict[Hashable, np.ndarray]] = [dict() for _ in range(self.num_samples)]
