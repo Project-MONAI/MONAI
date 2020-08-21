@@ -90,7 +90,7 @@ def download_url(url: str, filepath: str, md5_value: Optional[str] = None) -> No
         tmp_file_path = filepath + ".part"
         first_byte = os.path.getsize(tmp_file_path) if os.path.exists(tmp_file_path) else 0
         file_size = -1
-        
+
         try:
             file_size = int(urlopen(url).info().get("Content-Length", -1))
 
@@ -114,6 +114,7 @@ def download_url(url: str, filepath: str, md5_value: Optional[str] = None) -> No
                 raise Exception("Error getting Content-Length from server: %s" % url)
     else:
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
+
         def _process_hook(blocknum: int, blocksize: int, totalsize: int):
             progress_bar(blocknum * blocksize, totalsize, f"Downloading {filepath.split('/')[-1]}:")
 
