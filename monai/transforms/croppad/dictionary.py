@@ -377,12 +377,14 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
             the negative sample(background) center. so the crop center will only exist on valid image area.
         image_threshold: if enabled image_key, use ``image > image_threshold`` to determine
             the valid image content area.
-        fg_indexes_key: if provided pre-computed foreground indexes, will ignore above `image` and `image_threshold`,
-            and randomly select crop centers on them, need to co-work with `bg_indexes_key`.
-            a typical usage is to call `ForegroundBackgroundToIndexesd` transform first and cache the results.
-        bg_indexes_key: if provided pre-computed background indexes, will ignore above `image` and `image_threshold`,
-            and randomly select crop centers on them, need to co-work with `fg_indexes_key`.
-            a typical usage is to call `ForegroundBackgroundToIndexesd` transform first and cache the results.
+        fg_indexes_key: if provided pre-computed foreground indexes of `label`, will ignore above `image_key` and
+            `image_threshold`, and randomly select crop centers based on them, need to provide `fg_indexes_key`
+            and `bg_indexes_key` together, expect to be 1 dim array of spatial indexes after flattening.
+            a typical usage is to call `FgBgToIndexesd` transform first and cache the results.
+        bg_indexes_key: if provided pre-computed background indexes of `label`, will ignore above `image_key` and
+            `image_threshold`, and randomly select crop centers based on them, need to provide `fg_indexes_key`
+            and `bg_indexes_key` together, expect to be 1 dim array of spatial indexes after flattening.
+            a typical usage is to call `FgBgToIndexesd` transform first and cache the results.
 
     Raises:
         ValueError: When ``pos`` or ``neg`` are negative.

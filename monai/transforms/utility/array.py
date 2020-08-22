@@ -464,6 +464,9 @@ class FgBgToIndexes(Transform):
         """
         Compute foreground and background of the input label data, return the indexes.
         If no output_shape specified, output data will be 1 dim indexes after flattening.
+        This transform can help pre-compute foreground and background regions for other transforms.
+        A typical usage is to randomly select foreground and background to crop.
+        The main logic is based on :py:class:`monai.transforms.utils.map_binary_to_indexes`.
 
         Args:
             image_threshold: if enabled `image` at runtime, use ``image > image_threshold`` to

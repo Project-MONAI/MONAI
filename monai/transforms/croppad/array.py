@@ -435,12 +435,14 @@ class RandCropByPosNegLabel(Randomizable, Transform):
             sample (background) center. So the crop center will only come from the valid image areas.
         image_threshold: if enabled `image`, use ``image > image_threshold`` to determine
             the valid image content areas.
-        fg_indexes: if provided pre-computed foreground indexes, will ignore above `image` and `image_threshold`,
-            and randomly select crop centers on them, need to co-work with `bg_indexes`.
-            a typical usage is to call `ForegroundBackgroundToIndexes` transform first and cache the results.
-        bg_indexes: if provided pre-computed background indexes, will ignore above `image` and `image_threshold`,
-            and randomly select crop centers on them, need to co-work with `fg_indexes`.
-            a typical usage is to call `ForegroundBackgroundToIndexes` transform first and cache the results.
+        fg_indexes: if provided pre-computed foreground indexes of `label`, will ignore above `image` and
+            `image_threshold`, and randomly select crop centers based on them, need to provide `fg_indexes`
+            and `bg_indexes` together, expect to be 1 dim array of spatial indexes after flattening.
+            a typical usage is to call `FgBgToIndexes` transform first and cache the results.
+        bg_indexes: if provided pre-computed background indexes of `label`, will ignore above `image` and
+            `image_threshold`, and randomly select crop centers based on them, need to provide `fg_indexes`
+            and `bg_indexes` together, expect to be 1 dim array of spatial indexes after flattening.
+            a typical usage is to call `FgBgToIndexes` transform first and cache the results.
 
     Raises:
         ValueError: When ``pos`` or ``neg`` are negative.
@@ -507,8 +509,10 @@ class RandCropByPosNegLabel(Randomizable, Transform):
             image: optional image data to help select valid area, can be same as `img` or another image array.
                 use ``label == 0 & image > image_threshold`` to select the negative sample(background) center.
                 so the crop center will only exist on valid image area. if None, use `self.image`.
-            fg_indexes: foreground indexes to randomly select crop centers, need to co-work with `bg_indexes`.
-            bg_indexes: background indexes to randomly select crop centers, need to co-work with `fg_indexes`.
+            fg_indexes: foreground indexes to randomly select crop centers,
+                need to provide `fg_indexes` and `bg_indexes` together.
+            bg_indexes: background indexes to randomly select crop centers,
+                need to provide `fg_indexes` and `bg_indexes` together.
 
         """
         if label is None:
