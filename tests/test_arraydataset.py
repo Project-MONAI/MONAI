@@ -56,7 +56,7 @@ TEST_CASE_4 = [Compose([LoadNifti(image_only=True), AddChannel(), RandGaussianNo
 
 class TestArrayDataset(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
-    def test_shape(self, img_transform, label_transform, indexes, expected_shape):
+    def test_shape(self, img_transform, label_transform, indices, expected_shape):
         test_image = nib.Nifti1Image(np.random.randint(0, 2, size=(128, 128, 128)), np.eye(4))
         with tempfile.TemporaryDirectory() as tempdir:
             test_image1 = os.path.join(tempdir, "test_image1.nii.gz")
@@ -76,18 +76,18 @@ class TestArrayDataset(unittest.TestCase):
             data1 = dataset[0]
             data2 = dataset[1]
 
-            self.assertTupleEqual(data1[indexes[0]].shape, expected_shape)
-            self.assertTupleEqual(data1[indexes[1]].shape, expected_shape)
-            np.testing.assert_allclose(data1[indexes[0]], data1[indexes[1]])
-            self.assertTupleEqual(data2[indexes[0]].shape, expected_shape)
-            self.assertTupleEqual(data2[indexes[1]].shape, expected_shape)
-            np.testing.assert_allclose(data2[indexes[0]], data2[indexes[0]])
+            self.assertTupleEqual(data1[indices[0]].shape, expected_shape)
+            self.assertTupleEqual(data1[indices[1]].shape, expected_shape)
+            np.testing.assert_allclose(data1[indices[0]], data1[indices[1]])
+            self.assertTupleEqual(data2[indices[0]].shape, expected_shape)
+            self.assertTupleEqual(data2[indices[1]].shape, expected_shape)
+            np.testing.assert_allclose(data2[indices[0]], data2[indices[0]])
 
             dataset = ArrayDataset(test_images, img_transform, test_segs, label_transform, test_labels, None)
             dataset.set_random_state(1234)
             _ = dataset[0]
             data2_new = dataset[1]
-            np.testing.assert_allclose(data2[indexes[0]], data2_new[indexes[0]], atol=1e-3)
+            np.testing.assert_allclose(data2[indices[0]], data2_new[indices[0]], atol=1e-3)
 
     @parameterized.expand([TEST_CASE_4])
     def test_default_none(self, img_transform, expected_shape):

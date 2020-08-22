@@ -30,6 +30,7 @@ from monai.transforms.utility.array import (
     AsChannelLast,
     CastToType,
     DataStats,
+    FgBgToIndices,
     Identity,
     LabelToMask,
     Lambda,
@@ -499,7 +500,7 @@ class LabelToMaskd(MapTransform):
             See also: :py:class:`monai.transforms.compose.MapTransform`
         select_labels: labels to generate mask from. for 1 channel label, the `select_labels`
             is the expected label values, like: [1, 2, 3]. for One-Hot format label, the
-            `select_labels` is the expected channel indexes.
+            `select_labels` is the expected channel indices.
         merge_channels: whether to use `np.any()` to merge the result on channel dim.
             if yes, will return a single channel mask with binary data.
 
@@ -519,6 +520,49 @@ class LabelToMaskd(MapTransform):
         return d
 
 
+class FgBgToIndicesd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.FgBgToIndices`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        fg_postfix: postfix to save the computed foreground indices in dict.
+            for example, if computed on `label` and `postfix = "_fg_indices"`, the key will be `label_fg_indices`.
+        bg_postfix: postfix to save the computed background indices in dict.
+            for example, if computed on `label` and `postfix = "_bg_indices"`, the key will be `label_bg_indices`.
+        image_key: if image_key is not None, use ``label == 0 & image > image_threshold`` to determine
+            the negative sample(background). so the output items will not map to all the voxels in the label.
+        image_threshold: if enabled image_key, use ``image > image_threshold`` to determine
+            the valid image content area and select background only in this area.
+        output_shape: expected shape of output indices. if not None, unravel indices to specified shape.
+
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        fg_postfix: str = "_fg_indices",
+        bg_postfix: str = "_bg_indices",
+        image_key: Optional[str] = None,
+        image_threshold: float = 0.0,
+        output_shape: Optional[Sequence[int]] = None,
+    ) -> None:
+        super().__init__(keys)
+        self.fg_postfix = fg_postfix
+        self.bg_postfix = bg_postfix
+        self.image_key = image_key
+        self.converter = FgBgToIndices(image_threshold, output_shape)
+
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = dict(data)
+        image = d[self.image_key] if self.image_key else None
+        for key in self.keys:
+            d[str(key) + self.fg_postfix], d[str(key) + self.bg_postfix] = self.converter(d[key], image)
+
+        return d
+
+
 IdentityD = IdentityDict = Identityd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
@@ -534,3 +578,4 @@ CopyItemsD = CopyItemsDict = CopyItemsd
 ConcatItemsD = ConcatItemsDict = ConcatItemsd
 LambdaD = LambdaDict = Lambdad
 LabelToMaskD = LabelToMaskDict = LabelToMaskd
+FgBgToIndicesD = FgBgToIndicesDict = FgBgToIndicesd

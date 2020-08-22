@@ -468,6 +468,12 @@ Utility
     :members:
     :special-members: __call__
 
+`FgBgToIndices`
+"""""""""""""""
+.. autoclass:: FgBgToIndices
+    :members:
+    :special-members: __call__
+
 Dictionary Transforms
 ---------------------
 
@@ -894,6 +900,12 @@ Utility (Dict)
 `LabelToMaskd`
 """"""""""""""
 .. autoclass:: LabelToMaskd
+    :members:
+    :special-members: __call__
+
+`FgBgToIndicesd`
+""""""""""""""""
+.. autoclass:: FgBgToIndicesd
     :members:
     :special-members: __call__
 
