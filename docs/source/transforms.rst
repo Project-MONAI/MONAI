@@ -468,9 +468,9 @@ Utility
     :members:
     :special-members: __call__
 
-`ForegroundBackgroundToIndexes`
-"""""""""""""""""""""""""""""""
-.. autoclass:: ForegroundBackgroundToIndexes
+`FgBgToIndexes`
+"""""""""""""""
+.. autoclass:: FgBgToIndexes
     :members:
     :special-members: __call__
 
@@ -903,9 +903,9 @@ Utility (Dict)
     :members:
     :special-members: __call__
 
-`ForegroundBackgroundToIndexesd`
-""""""""""""""""""""""""""""""""
-.. autoclass:: ForegroundBackgroundToIndexesd
+`FgBgToIndexesd`
+""""""""""""""""
+.. autoclass:: FgBgToIndexesd
     :members:
     :special-members: __call__
 

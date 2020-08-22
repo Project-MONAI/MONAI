@@ -30,7 +30,7 @@ from monai.transforms.utility.array import (
     AsChannelLast,
     CastToType,
     DataStats,
-    ForegroundBackgroundToIndexes,
+    FgBgToIndexes,
     Identity,
     LabelToMask,
     Lambda,
@@ -520,9 +520,9 @@ class LabelToMaskd(MapTransform):
         return d
 
 
-class ForegroundBackgroundToIndexesd(MapTransform):
+class FgBgToIndexesd(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.ForegroundBackgroundToIndexes`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.FgBgToIndexes`.
 
     Args:
         keys: keys of the corresponding items to be transformed.
@@ -552,7 +552,7 @@ class ForegroundBackgroundToIndexesd(MapTransform):
         self.fg_postfix = fg_postfix
         self.bg_postfix = bg_postfix
         self.image_key = image_key
-        self.converter = ForegroundBackgroundToIndexes(image_threshold, output_shape)
+        self.converter = FgBgToIndexes(image_threshold, output_shape)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
@@ -578,4 +578,4 @@ CopyItemsD = CopyItemsDict = CopyItemsd
 ConcatItemsD = ConcatItemsDict = ConcatItemsd
 LambdaD = LambdaDict = Lambdad
 LabelToMaskD = LabelToMaskDict = LabelToMaskd
-ForegroundBackgroundToIndexesD = ForegroundBackgroundToIndexesDict = ForegroundBackgroundToIndexesd
+FgBgToIndexesD = FgBgToIndexesDict = FgBgToIndexesd

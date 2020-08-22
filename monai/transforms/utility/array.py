@@ -459,7 +459,7 @@ class LabelToMask(Transform):
         return np.any(data, axis=0, keepdims=True) if merge_channels else data
 
 
-class ForegroundBackgroundToIndexes(Transform):
+class FgBgToIndexes(Transform):
     def __init__(self, image_threshold: float = 0.0, output_shape: Optional[Sequence[int]] = None) -> None:
         """
         Compute foreground and background of the input label data, return the indexes.
