@@ -13,7 +13,6 @@ import hashlib
 import logging
 import os
 import shutil
-import sys
 import tarfile
 import zipfile
 from typing import Optional
@@ -93,6 +92,7 @@ def download_url(url: str, filepath: str, md5_value: Optional[str] = None) -> No
 
         try:
             file_size = int(urlopen(url).info().get("Content-Length", -1))
+            progress_bar(index=first_byte, count=file_size)
 
             while first_byte < file_size:
                 last_byte = first_byte + block_size if first_byte + block_size < file_size else file_size - 1
@@ -102,6 +102,7 @@ def download_url(url: str, filepath: str, md5_value: Optional[str] = None) -> No
                 data_chunk = urlopen(req, timeout=10).read()
                 with open(tmp_file_path, "ab") as f:
                     f.write(data_chunk)
+                progress_bar(index=last_byte, count=file_size)
                 first_byte = last_byte + 1
         except IOError as e:
             logging.debug("IO Error - %s" % e)
