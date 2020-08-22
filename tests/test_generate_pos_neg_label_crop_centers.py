@@ -18,12 +18,12 @@ from monai.transforms import generate_pos_neg_label_crop_centers
 
 TEST_CASE_1 = [
     {
-        "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
         "spatial_size": [2, 2, 2],
         "num_samples": 2,
         "pos_ratio": 1.0,
-        "image": None,
-        "image_threshold": 0,
+        "label_spatial_shape": [3, 3, 3],
+        "fg_indices": [1, 9, 18],
+        "bg_indices": [3, 12, 21],
         "rand_state": np.random.RandomState(),
     },
     list,

@@ -21,7 +21,7 @@ TEST_CASE_1 = [
         "keys": ["img", "label"],
         "source_key": "label",
         "select_fn": lambda x: x > 0,
-        "channel_indexes": None,
+        "channel_indices": None,
         "margin": 0,
     },
     {
@@ -32,19 +32,19 @@ TEST_CASE_1 = [
 ]
 
 TEST_CASE_2 = [
-    {"keys": ["img"], "source_key": "img", "select_fn": lambda x: x > 1, "channel_indexes": None, "margin": 0},
+    {"keys": ["img"], "source_key": "img", "select_fn": lambda x: x > 1, "channel_indices": None, "margin": 0},
     {"img": np.array([[[0, 0, 0, 0, 0], [0, 1, 1, 1, 0], [0, 1, 3, 1, 0], [0, 1, 1, 1, 0], [0, 0, 0, 0, 0]]])},
     np.array([[[3]]]),
 ]
 
 TEST_CASE_3 = [
-    {"keys": ["img"], "source_key": "img", "select_fn": lambda x: x > 0, "channel_indexes": 0, "margin": 0},
+    {"keys": ["img"], "source_key": "img", "select_fn": lambda x: x > 0, "channel_indices": 0, "margin": 0},
     {"img": np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]])},
     np.array([[[1, 2, 1], [2, 3, 2], [1, 2, 1]]]),
 ]
 
 TEST_CASE_4 = [
-    {"keys": ["img"], "source_key": "img", "select_fn": lambda x: x > 0, "channel_indexes": None, "margin": 1},
+    {"keys": ["img"], "source_key": "img", "select_fn": lambda x: x > 0, "channel_indices": None, "margin": 1},
     {"img": np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]])},
     np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0]]]),
 ]
