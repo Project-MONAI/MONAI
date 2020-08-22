@@ -27,9 +27,9 @@ def _calculate(y: torch.Tensor, y_pred: torch.Tensor) -> float:
         torch.tensor([0, 1], dtype=y.dtype, device=y.device)
     ), "y values must be 0 or 1, can not be all 0 or all 1."
     n = len(y)
-    indexes = y_pred.argsort()
-    y = y[indexes].cpu().numpy()
-    y_pred = y_pred[indexes].cpu().numpy()
+    indices = y_pred.argsort()
+    y = y[indices].cpu().numpy()
+    y_pred = y_pred[indices].cpu().numpy()
     nneg = auc = tmp_pos = tmp_neg = 0.0
 
     for i in range(n):

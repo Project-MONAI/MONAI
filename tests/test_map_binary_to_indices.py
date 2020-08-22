@@ -14,7 +14,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.transforms import map_binary_to_indexes
+from monai.transforms import map_binary_to_indices
 
 TEST_CASE_1 = [
     {"label": np.array([[[0, 1, 1], [1, 0, 1], [1, 1, 0]]]), "image": None, "image_threshold": 0.0},
@@ -53,12 +53,12 @@ TEST_CASE_4 = [
 ]
 
 
-class TestMapBinaryToIndexes(unittest.TestCase):
+class TestMapBinaryToIndices(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_type_shape(self, input_data, expected_fg, expected_bg):
-        fg_indexes, bg_indexes = map_binary_to_indexes(**input_data)
-        np.testing.assert_allclose(fg_indexes, expected_fg)
-        np.testing.assert_allclose(bg_indexes, expected_bg)
+        fg_indices, bg_indices = map_binary_to_indices(**input_data)
+        np.testing.assert_allclose(fg_indices, expected_fg)
+        np.testing.assert_allclose(bg_indices, expected_bg)
 
 
 if __name__ == "__main__":

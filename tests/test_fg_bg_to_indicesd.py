@@ -14,7 +14,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.transforms import FgBgToIndexesd
+from monai.transforms import FgBgToIndicesd
 
 TEST_CASE_1 = [
     {"keys": "label", "image_key": None, "image_threshold": 0.0, "output_shape": None},
@@ -52,12 +52,12 @@ TEST_CASE_5 = [
 ]
 
 
-class TestFgBgToIndexesd(unittest.TestCase):
+class TestFgBgToIndicesd(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
     def test_type_shape(self, input_data, data, expected_fg, expected_bg):
-        result = FgBgToIndexesd(**input_data)(data)
-        np.testing.assert_allclose(result["label_fg_indexes"], expected_fg)
-        np.testing.assert_allclose(result["label_bg_indexes"], expected_bg)
+        result = FgBgToIndicesd(**input_data)(data)
+        np.testing.assert_allclose(result["label_fg_indices"], expected_fg)
+        np.testing.assert_allclose(result["label_bg_indices"], expected_bg)
 
 
 if __name__ == "__main__":

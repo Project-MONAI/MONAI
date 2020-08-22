@@ -468,9 +468,9 @@ Utility
     :members:
     :special-members: __call__
 
-`FgBgToIndexes`
+`FgBgToIndices`
 """""""""""""""
-.. autoclass:: FgBgToIndexes
+.. autoclass:: FgBgToIndices
     :members:
     :special-members: __call__
 
@@ -903,9 +903,9 @@ Utility (Dict)
     :members:
     :special-members: __call__
 
-`FgBgToIndexesd`
+`FgBgToIndicesd`
 """"""""""""""""
-.. autoclass:: FgBgToIndexesd
+.. autoclass:: FgBgToIndicesd
     :members:
     :special-members: __call__
 

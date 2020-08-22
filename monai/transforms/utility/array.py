@@ -21,7 +21,7 @@ import numpy as np
 import torch
 
 from monai.transforms.compose import Transform
-from monai.transforms.utils import map_binary_to_indexes
+from monai.transforms.utils import map_binary_to_indices
 from monai.utils import ensure_tuple
 
 # Generic type which can represent either a numpy.ndarray or a torch.Tensor
@@ -418,7 +418,7 @@ class LabelToMask(Transform):
     Args:
         select_labels: labels to generate mask from. for 1 channel label, the `select_labels`
             is the expected label values, like: [1, 2, 3]. for One-Hot format label, the
-            `select_labels` is the expected channel indexes.
+            `select_labels` is the expected channel indices.
         merge_channels: whether to use `np.any()` to merge the result on channel dim. if yes,
             will return a single channel mask with binary data.
 
@@ -440,7 +440,7 @@ class LabelToMask(Transform):
         Args:
             select_labels: labels to generate mask from. for 1 channel label, the `select_labels`
                 is the expected label values, like: [1, 2, 3]. for One-Hot format label, the
-                `select_labels` is the expected channel indexes.
+                `select_labels` is the expected channel indices.
             merge_channels: whether to use `np.any()` to merge the result on channel dim. if yes,
                 will return a single channel mask with binary data.
         """
@@ -459,19 +459,19 @@ class LabelToMask(Transform):
         return np.any(data, axis=0, keepdims=True) if merge_channels else data
 
 
-class FgBgToIndexes(Transform):
+class FgBgToIndices(Transform):
     def __init__(self, image_threshold: float = 0.0, output_shape: Optional[Sequence[int]] = None) -> None:
         """
-        Compute foreground and background of the input label data, return the indexes.
-        If no output_shape specified, output data will be 1 dim indexes after flattening.
+        Compute foreground and background of the input label data, return the indices.
+        If no output_shape specified, output data will be 1 dim indices after flattening.
         This transform can help pre-compute foreground and background regions for other transforms.
         A typical usage is to randomly select foreground and background to crop.
-        The main logic is based on :py:class:`monai.transforms.utils.map_binary_to_indexes`.
+        The main logic is based on :py:class:`monai.transforms.utils.map_binary_to_indices`.
 
         Args:
             image_threshold: if enabled `image` at runtime, use ``image > image_threshold`` to
                 determine the valid image content area and select background only in this area.
-            output_shape: expected shape of output indexes. if not None, unravel indexes to specified shape.
+            output_shape: expected shape of output indices. if not None, unravel indices to specified shape.
 
         """
         self.image_threshold = image_threshold
@@ -482,17 +482,17 @@ class FgBgToIndexes(Transform):
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Args:
-            label: input data to compute foreground and background indexes.
+            label: input data to compute foreground and background indices.
             image: if image is not None, use ``label = 0 & image > image_threshold``
                 to define background. so the output items will not map to all the voxels in the label.
-            output_shape: expected shape of output indexes. if None, use `self.output_shape` instead.
+            output_shape: expected shape of output indices. if None, use `self.output_shape` instead.
 
         """
         if output_shape is None:
             output_shape = self.output_shape
-        fg_indexes, bg_indexes = map_binary_to_indexes(label, image, self.image_threshold)
+        fg_indices, bg_indices = map_binary_to_indices(label, image, self.image_threshold)
         if output_shape is not None:
-            fg_indexes = np.stack([np.unravel_index(i, output_shape) for i in fg_indexes])
-            bg_indexes = np.stack([np.unravel_index(i, output_shape) for i in bg_indexes])
+            fg_indices = np.stack([np.unravel_index(i, output_shape) for i in fg_indices])
+            bg_indices = np.stack([np.unravel_index(i, output_shape) for i in bg_indices])
 
-        return fg_indexes, bg_indexes
+        return fg_indices, bg_indices
