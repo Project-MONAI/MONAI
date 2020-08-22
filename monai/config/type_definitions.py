@@ -45,7 +45,7 @@ IndexSelection = Union[Iterable[int], int]
 """IndexSelection
 
 The IndexSelection type is used to for defining variables
-that store a subset of indexes to select items from a List or Array like objects.
-The indexes must be integers, and if a container of indexes is specified, the
+that store a subset of indices to select items from a List or Array like objects.
+The indices must be integers, and if a container of indices is specified, the
 container must be iterable.
 """

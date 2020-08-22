@@ -187,7 +187,7 @@ class KeepLargestConnectedComponentd(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             applied_labels: Labels for applying the connected component on.
                 If only one channel. The pixel whose value is not in this list will remain unchanged.
-                If the data is in one-hot format, this is the channel indexes to apply transform.
+                If the data is in one-hot format, this is the channel indices to apply transform.
             independent: consider several labels as a whole or independent, default is `True`.
                 Example use case would be segment label 1 is liver and label 2 is liver tumor, in that case
                 you want this "independent" to be specified as False.
