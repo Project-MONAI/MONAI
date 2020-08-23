@@ -10,12 +10,14 @@
 # limitations under the License.
 
 import hashlib
+import logging
 import os
+import shutil
 import tarfile
 import zipfile
 from typing import Optional
 from urllib.error import ContentTooShortError, HTTPError, URLError
-from urllib.request import urlretrieve
+from urllib.request import Request, urlopen, urlretrieve
 
 from monai.utils import optional_import, progress_bar
 
@@ -74,15 +76,45 @@ def download_url(url: str, filepath: str, md5_value: Optional[str] = None) -> No
             raise RuntimeError(f"MD5 check of existing file failed: filepath={filepath}, expected MD5={md5_value}.")
         print(f"file {filepath} exists, skip downloading.")
         return
-    os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
     if url.startswith("https://drive.google.com"):
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
         gdown.download(url, filepath, quiet=False)
         if not os.path.exists(filepath):
             raise RuntimeError(
                 f"Download of file from {url} to {filepath} failed due to network issue or denied permission."
             )
+    elif url.startswith("https://msd-for-monai.s3-us-west-2.amazonaws.com"):
+        block_size = 1024 * 1024
+        tmp_file_path = filepath + ".part"
+        first_byte = os.path.getsize(tmp_file_path) if os.path.exists(tmp_file_path) else 0
+        file_size = -1
+
+        try:
+            file_size = int(urlopen(url).info().get("Content-Length", -1))
+            progress_bar(index=first_byte, count=file_size)
+
+            while first_byte < file_size:
+                last_byte = first_byte + block_size if first_byte + block_size < file_size else file_size - 1
+
+                req = Request(url)
+                req.headers["Range"] = "bytes=%s-%s" % (first_byte, last_byte)
+                data_chunk = urlopen(req, timeout=10).read()
+                with open(tmp_file_path, "ab") as f:
+                    f.write(data_chunk)
+                progress_bar(index=last_byte, count=file_size)
+                first_byte = last_byte + 1
+        except IOError as e:
+            logging.debug("IO Error - %s" % e)
+        finally:
+            if file_size == os.path.getsize(tmp_file_path):
+                if md5_value and not check_md5(tmp_file_path, md5_value):
+                    raise Exception("Error validating the file against its MD5 hash")
+                shutil.move(tmp_file_path, filepath)
+            elif file_size == -1:
+                raise Exception("Error getting Content-Length from server: %s" % url)
     else:
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
         def _process_hook(blocknum: int, blocksize: int, totalsize: int):
             progress_bar(blocknum * blocksize, totalsize, f"Downloading {filepath.split('/')[-1]}:")
