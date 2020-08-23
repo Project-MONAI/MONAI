@@ -333,7 +333,7 @@ class DataStatsd(MapTransform):
 
 class SimulateDelayd(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:monai.transforms.utility.array.SimulateDelay.
+    Dictionary-based wrapper of :py:class:`monai.transforms.SimulateDelay`.
     """
 
     def __init__(self, keys: KeysCollection, delay_time: Union[Sequence[float], float] = 0.0) -> None:
