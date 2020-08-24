@@ -53,7 +53,7 @@ class InputTransition(nn.Module):
         super(InputTransition, self).__init__()
 
         if 16 % in_channels != 0:
-            raise ValueError(f"16 should be divided by in_channels, got in_channels={in_channels}.")
+            raise ValueError(f"16 should be divisible by in_channels, got in_channels={in_channels}.")
 
         self.spatial_dims = spatial_dims
         self.in_channels = in_channels
@@ -170,11 +170,11 @@ class OutputTransition(nn.Module):
 
 class VNet(nn.Module):
     """
-    V-Net: Fully Convolutional Neural Networks for Volumetric Medical Image Segmentation
-    The official Caffe implementation is available in:
-    https://github.com/faustomilletari/VNet
-    This code is adapted from:
-    https://github.com/mattmacy/vnet.pytorch/blob/master/vnet.py
+    V-Net based on `Fully Convolutional Neural Networks for Volumetric Medical Image Segmentation 
+    <https://arxiv.org/pdf/1606.04797.pdf>`_.
+    Adapted from `the official Caffe implementation 
+    <https://github.com/faustomilletari/VNet>`_. and `another pytorch implementation 
+    <https://github.com/mattmacy/vnet.pytorch/blob/master/vnet.py>`_.
     The model supports 2D or 3D inputs.
 
     Args:
@@ -185,9 +185,10 @@ class VNet(nn.Module):
         act: activation type in the network. Defaults to ``("elu", {"inplace": True})``.
         dropout_prob: dropout ratio. Defaults to 0.5. Defaults to 3.
         dropout_dim: determine the dimensions of dropout. Defaults to 3.
-            When dropout_dim = 1, randomly zeroes some of the elements for each channel.
-            When dropout_dim = 2, Randomly zero out entire channels (a channel is a 2D feature map).
-            When dropout_dim = 3, Randomly zero out entire channels (a channel is a 3D feature map).
+
+            - ``dropout_dim = 1``, randomly zeroes some of the elements for each channel.
+            - ``dropout_dim = 2``, Randomly zeroes out entire channels (a channel is a 2D feature map).
+            - ``dropout_dim = 3``, Randomly zeroes out entire channels (a channel is a 3D feature map).
     """
 
     def __init__(
