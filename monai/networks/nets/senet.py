@@ -22,9 +22,9 @@ from monai.networks.layers.factories import Act, Conv, Dropout, Norm, Pool
 
 class SENet(nn.Module):
     """
-    SENet based on "Squeeze-and-Excitation Networks" https://arxiv.org/pdf/1709.01507.pdf
-    Adapted from Cadene Hub 2D version:
-    https://github.com/Cadene/pretrained-models.pytorch/blob/master/pretrainedmodels/models/senet.py
+    SENet based on `Squeeze-and-Excitation Networks <https://arxiv.org/pdf/1709.01507.pdf>`_.
+    Adapted from `Cadene Hub 2D version 
+    <https://github.com/Cadene/pretrained-models.pytorch/blob/master/pretrainedmodels/models/senet.py>`_.
 
     Args:
         spatial_dims: spatial dimension of the input data.
@@ -47,8 +47,8 @@ class SENet(nn.Module):
             for SE-ResNeXt models: None
         dropout_dim: determine the dimensions of dropout. Defaults to 1.
             When dropout_dim = 1, randomly zeroes some of the elements for each channel.
-            When dropout_dim = 2, Randomly zero out entire channels (a channel is a 2D feature map).
-            When dropout_dim = 3, Randomly zero out entire channels (a channel is a 3D feature map).
+            When dropout_dim = 2, Randomly zeroes out entire channels (a channel is a 2D feature map).
+            When dropout_dim = 3, Randomly zeroes out entire channels (a channel is a 3D feature map).
         inplanes:  number of input channels for layer1.
             for SENet154: 128
             for SE-ResNet models: 64

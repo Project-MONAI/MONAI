@@ -97,9 +97,9 @@ class _Transition(nn.Sequential):
 
 class DenseNet(nn.Module):
     """
-    Densenet based on: "Densely Connected Convolutional Networks" https://arxiv.org/pdf/1608.06993.pdf
-    Adapted from PyTorch Hub 2D version:
-    https://github.com/pytorch/vision/blob/master/torchvision/models/densenet.py
+    Densenet based on: `Densely Connected Convolutional Networks <https://arxiv.org/pdf/1608.06993.pdf>`_.
+    Adapted from `PyTorch Hub 2D version 
+    <https://github.com/pytorch/vision/blob/master/torchvision/models/densenet.py>`_.
 
     Args:
         spatial_dims: number of spatial dimensions of the input image.
