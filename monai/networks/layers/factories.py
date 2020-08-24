@@ -195,6 +195,7 @@ Norm = LayerFactory()
 Act = LayerFactory()
 Conv = LayerFactory()
 Pool = LayerFactory()
+Pad = LayerFactory()
 
 
 @Dropout.factory_function("dropout")
@@ -267,4 +268,16 @@ def adaptive_avgpooling_factory(
     dim: int,
 ) -> Type[Union[nn.AdaptiveAvgPool1d, nn.AdaptiveAvgPool2d, nn.AdaptiveAvgPool3d]]:
     types = (nn.AdaptiveAvgPool1d, nn.AdaptiveAvgPool2d, nn.AdaptiveAvgPool3d)
+    return types[dim - 1]
+
+
+@Pad.factory_function("replicationpad")
+def replication_pad_factory(dim: int) -> Type[Union[nn.ReplicationPad1d, nn.ReplicationPad2d, nn.ReplicationPad3d]]:
+    types = (nn.ReplicationPad1d, nn.ReplicationPad2d, nn.ReplicationPad3d)
+    return types[dim - 1]
+
+
+@Pad.factory_function("constantpad")
+def constant_pad_factory(dim: int) -> Type[Union[nn.ConstantPad1d, nn.ConstantPad2d, nn.ConstantPad3d]]:
+    types = (nn.ConstantPad1d, nn.ConstantPad2d, nn.ConstantPad3d)
     return types[dim - 1]
