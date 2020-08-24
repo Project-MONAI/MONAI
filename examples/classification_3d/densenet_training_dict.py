@@ -92,7 +92,7 @@ def main():
     val_loader = DataLoader(val_ds, batch_size=2, num_workers=4, pin_memory=torch.cuda.is_available())
 
     # Create DenseNet121, CrossEntropyLoss and Adam optimizer
-    device = torch.device("cuda:0")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = monai.networks.nets.densenet.densenet121(spatial_dims=3, in_channels=1, out_channels=2).to(device)
     loss_function = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), 1e-5)
@@ -139,7 +139,7 @@ def main():
                 if acc_metric > best_metric:
                     best_metric = acc_metric
                     best_metric_epoch = epoch + 1
-                    torch.save(model.state_dict(), "best_metric_model.pth")
+                    torch.save(model.state_dict(), "best_metric_model_classification3d_dict.pth")
                     print("saved new best metric model")
                 print(
                     "current epoch: {} current accuracy: {:.4f} current AUC: {:.4f} best accuracy: {:.4f} at epoch {}".format(

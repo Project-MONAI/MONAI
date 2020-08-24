@@ -11,7 +11,6 @@
 
 import logging
 import os
-import shutil
 import sys
 import tempfile
 from glob import glob
@@ -31,11 +30,10 @@ from monai.networks.nets import UNet
 from monai.transforms import AsChannelFirstd, Compose, LoadNiftid, ScaleIntensityd, ToTensord
 
 
-def main():
+def main(tempdir):
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-    tempdir = tempfile.mkdtemp()
     print(f"generating synthetic data to {tempdir} (this may take a while)")
     for i in range(5):
         im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1, channel_dim=-1)
@@ -61,7 +59,7 @@ def main():
     )
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
 
-    device = torch.device("cuda:0")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     net = UNet(
         dimensions=3,
         in_channels=1,
@@ -106,7 +104,7 @@ def main():
         output_transform=lambda output: predict_segmentation(output[0]),
     ).attach(evaluator)
     # the model was trained by "unet_training_dict" example
-    CheckpointLoader(load_path="./runs/net_checkpoint_50.pth", load_dict={"net": net}).attach(evaluator)
+    CheckpointLoader(load_path="./runs_dict/net_checkpoint_50.pth", load_dict={"net": net}).attach(evaluator)
 
     # sliding window inference for one image at every iteration
     val_loader = DataLoader(
@@ -114,8 +112,8 @@ def main():
     )
     state = evaluator.run(val_loader)
     print(state)
-    shutil.rmtree(tempdir)
 
 
 if __name__ == "__main__":
-    main()
+    with tempfile.TemporaryDirectory() as tempdir:
+        main(tempdir)

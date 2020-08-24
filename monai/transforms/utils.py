@@ -179,27 +179,56 @@ def resize_center(img: np.ndarray, *resize_dims: Optional[int], fill_value: floa
     return dest
 
 
-def generate_pos_neg_label_crop_centers(
-    label: np.ndarray,
-    spatial_size: Union[Sequence[int], int],
-    num_samples: int,
-    pos_ratio: float,
-    image: Optional[np.ndarray] = None,
-    image_threshold: float = 0.0,
-    rand_state: np.random.RandomState = np.random,
-) -> List[List[np.ndarray]]:
-    """Generate valid sample locations based on image with option for specifying foreground ratio
-    Valid: samples sitting entirely within image, expected input shape: [C, H, W, D] or [C, H, W]
+def map_binary_to_indices(
+    label: np.ndarray, image: Optional[np.ndarray] = None, image_threshold: float = 0.0,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Compute the foreground and background of input label data, return the indices after fattening.
+    For example:
+    ``label = np.array([[[0, 1, 1], [1, 0, 1], [1, 1, 0]]])``
+    ``foreground indices = np.array([1, 2, 3, 5, 6, 7])`` and ``background indices = np.array([0, 4, 8])``
 
     Args:
         label: use the label data to get the foreground/background information.
+        image: if image is not None, use ``label = 0 & image > image_threshold``
+            to define background. so the output items will not map to all the voxels in the label.
+        image_threshold: if enabled `image`, use ``image > image_threshold`` to
+            determine the valid image content area and select background only in this area.
+
+    """
+    # Prepare fg/bg indices
+    if label.shape[0] > 1:
+        label = label[1:]  # for One-Hot format data, remove the background channel
+    label_flat = np.any(label, axis=0).ravel()  # in case label has multiple dimensions
+    fg_indices = np.nonzero(label_flat)[0]
+    if image is not None:
+        img_flat = np.any(image > image_threshold, axis=0).ravel()
+        bg_indices = np.nonzero(np.logical_and(img_flat, ~label_flat))[0]
+    else:
+        bg_indices = np.nonzero(~label_flat)[0]
+    return fg_indices, bg_indices
+
+
+def generate_pos_neg_label_crop_centers(
+    spatial_size: Union[Sequence[int], int],
+    num_samples: int,
+    pos_ratio: float,
+    label_spatial_shape: Sequence[int],
+    fg_indices: np.ndarray,
+    bg_indices: np.ndarray,
+    rand_state: np.random.RandomState = np.random,
+) -> List[List[np.ndarray]]:
+    """
+    Generate valid sample locations based on the label with option for specifying foreground ratio
+    Valid: samples sitting entirely within image, expected input shape: [C, H, W, D] or [C, H, W]
+
+    Args:
         spatial_size: spatial size of the ROIs to be sampled.
         num_samples: total sample centers to be generated.
         pos_ratio: ratio of total locations generated that have center being foreground.
-        image: if image is not None, use ``label = 0 & image > image_threshold``
-            to select background. so the crop center will only exist on valid image area.
-        image_threshold: if enabled image_key, use ``image > image_threshold`` to
-            determine the valid image content area.
+        label_spatial_shape: spatial shape of the original label data to unravel selected centers.
+        fg_indices: pre-computed foreground indices in 1 dimension.
+        bg_indices: pre-computed background indices in 1 dimension.
         rand_state: numpy randomState object to align with other modules.
 
     Raises:
@@ -207,14 +236,14 @@ def generate_pos_neg_label_crop_centers(
         ValueError: When the foreground and background indices lengths are 0.
 
     """
-    max_size = label.shape[1:]
-    spatial_size = fall_back_tuple(spatial_size, default=max_size)
-    if not (np.subtract(max_size, spatial_size) >= 0).all():
+    spatial_size = fall_back_tuple(spatial_size, default=label_spatial_shape)
+    if not (np.subtract(label_spatial_shape, spatial_size) >= 0).all():
         raise ValueError("The proposed roi is larger than the image.")
 
     # Select subregion to assure valid roi
     valid_start = np.floor_divide(spatial_size, 2)
-    valid_end = np.subtract(max_size + np.array(1), spatial_size / np.array(2)).astype(np.uint16)  # add 1 for random
+    # add 1 for random
+    valid_end = np.subtract(label_spatial_shape + np.array(1), spatial_size / np.array(2)).astype(np.uint16)
     # int generation to have full range on upper side, but subtract unfloored size/2 to prevent rounded range
     # from being too high
     for i in range(len(valid_start)):  # need this because np.random.randint does not work with same start and end
@@ -234,16 +263,6 @@ def generate_pos_neg_label_crop_centers(
         return center_ori
 
     centers = []
-    # Prepare fg/bg indices
-    if label.shape[0] > 1:
-        label = label[1:]  # for One-Hot format data, remove the background channel
-    label_flat = np.any(label, axis=0).ravel()  # in case label has multiple dimensions
-    fg_indices = np.nonzero(label_flat)[0]
-    if image is not None:
-        img_flat = np.any(image > image_threshold, axis=0).ravel()
-        bg_indices = np.nonzero(np.logical_and(img_flat, ~label_flat))[0]
-    else:
-        bg_indices = np.nonzero(~label_flat)[0]
 
     if not len(fg_indices) or not len(bg_indices):
         if not len(fg_indices) and not len(bg_indices):
@@ -257,8 +276,7 @@ def generate_pos_neg_label_crop_centers(
     for _ in range(num_samples):
         indices_to_use = fg_indices if rand_state.rand() < pos_ratio else bg_indices
         random_int = rand_state.randint(len(indices_to_use))
-        center = np.unravel_index(indices_to_use[random_int], label.shape)
-        center = center[1:]
+        center = np.unravel_index(indices_to_use[random_int], label_spatial_shape)
         # shift center to range of valid centers
         center_ori = list(center)
         centers.append(_correct_centers(center_ori, valid_start, valid_end))
@@ -434,7 +452,7 @@ def create_translate(spatial_dims: int, shift: Union[Sequence[float], float]) ->
 def generate_spatial_bounding_box(
     img: np.ndarray,
     select_fn: Callable = lambda x: x > 0,
-    channel_indexes: Optional[IndexSelection] = None,
+    channel_indices: Optional[IndexSelection] = None,
     margin: int = 0,
 ) -> Tuple[List[int], List[int]]:
     """
@@ -445,12 +463,12 @@ def generate_spatial_bounding_box(
     Args:
         img: source image to generate bounding box from.
         select_fn: function to select expected foreground, default is to select values > 0.
-        channel_indexes: if defined, select foreground only on the specified channels
+        channel_indices: if defined, select foreground only on the specified channels
             of image. if None, select foreground on the whole image.
         margin: add margin to all dims of the bounding box.
     """
     assert isinstance(margin, int), "margin must be int type."
-    data = img[[*(ensure_tuple(channel_indexes))]] if channel_indexes is not None else img
+    data = img[[*(ensure_tuple(channel_indices))]] if channel_indices is not None else img
     data = np.any(select_fn(data), axis=0)
     nonzero_idx = np.nonzero(data)
 

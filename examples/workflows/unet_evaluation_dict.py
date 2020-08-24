@@ -11,7 +11,6 @@
 
 import logging
 import os
-import shutil
 import sys
 import tempfile
 from glob import glob
@@ -38,12 +37,11 @@ from monai.transforms import (
 )
 
 
-def main():
+def main(tempdir):
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-    # create a temporary directory and 40 random image, mask paris
-    tempdir = tempfile.mkdtemp()
+    # create a temporary directory and 40 random image, mask pairs
     print(f"generating synthetic data to {tempdir} (this may take a while)")
     for i in range(5):
         im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1, channel_dim=-1)
@@ -55,6 +53,9 @@ def main():
     images = sorted(glob(os.path.join(tempdir, "im*.nii.gz")))
     segs = sorted(glob(os.path.join(tempdir, "seg*.nii.gz")))
     val_files = [{"image": img, "label": seg} for img, seg in zip(images, segs)]
+
+    # model file path
+    model_file = glob("./runs/net_key_metric*")[0]
 
     # define transforms for image and segmentation
     val_transforms = Compose(
@@ -71,7 +72,7 @@ def main():
     val_loader = monai.data.DataLoader(val_ds, batch_size=1, num_workers=4)
 
     # create UNet, DiceLoss and Adam optimizer
-    device = torch.device("cuda:0")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     net = monai.networks.nets.UNet(
         dimensions=3,
         in_channels=1,
@@ -90,7 +91,7 @@ def main():
     )
     val_handlers = [
         StatsHandler(output_transform=lambda x: None),
-        CheckpointLoader(load_path="./runs/net_key_metric=0.9101.pth", load_dict={"net": net}),
+        CheckpointLoader(load_path=model_file, load_dict={"net": net}),
         SegmentationSaver(
             output_dir="./runs/",
             batch_transform=lambda batch: batch["image_meta_dict"],
@@ -113,8 +114,8 @@ def main():
         amp=True if monai.config.get_torch_version_tuple() >= (1, 6) else False,
     )
     evaluator.run()
-    shutil.rmtree(tempdir)
 
 
 if __name__ == "__main__":
-    main()
+    with tempfile.TemporaryDirectory() as tempdir:
+        main(tempdir)

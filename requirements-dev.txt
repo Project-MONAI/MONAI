@@ -5,6 +5,7 @@ parameterized
 pytorch-ignite==0.3.0
 gdown>=3.6.4
 scipy
+itk
 nibabel
 pillow
 tensorboard

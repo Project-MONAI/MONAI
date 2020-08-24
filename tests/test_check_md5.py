@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import os
-import shutil
 import tempfile
 import unittest
 
@@ -31,14 +30,12 @@ class TestCheckMD5(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_shape(self, md5_value, expected_result):
         test_image = np.ones((64, 64, 3))
-        tempdir = tempfile.mkdtemp()
-        filename = os.path.join(tempdir, "test_file.png")
-        Image.fromarray(test_image.astype("uint8")).save(filename)
+        with tempfile.TemporaryDirectory() as tempdir:
+            filename = os.path.join(tempdir, "test_file.png")
+            Image.fromarray(test_image.astype("uint8")).save(filename)
 
-        result = check_md5(filename, md5_value)
-        self.assertTrue(result == expected_result)
-
-        shutil.rmtree(tempdir)
+            result = check_md5(filename, md5_value)
+            self.assertTrue(result == expected_result)
 
 
 if __name__ == "__main__":

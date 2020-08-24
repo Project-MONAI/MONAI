@@ -23,7 +23,11 @@ from monai.config import IndexSelection, KeysCollection
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.croppad.array import BorderPad, CenterSpatialCrop, DivisiblePad, SpatialCrop, SpatialPad
-from monai.transforms.utils import generate_pos_neg_label_crop_centers, generate_spatial_bounding_box
+from monai.transforms.utils import (
+    generate_pos_neg_label_crop_centers,
+    generate_spatial_bounding_box,
+    map_binary_to_indices,
+)
 from monai.utils import Method, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
 
 NumpyPadModeSequence = Union[Sequence[Union[NumpyPadMode, str]], NumpyPadMode, str]
@@ -321,7 +325,7 @@ class CropForegroundd(MapTransform):
         keys: KeysCollection,
         source_key: str,
         select_fn: Callable = lambda x: x > 0,
-        channel_indexes: Optional[IndexSelection] = None,
+        channel_indices: Optional[IndexSelection] = None,
         margin: int = 0,
     ) -> None:
         """
@@ -330,20 +334,20 @@ class CropForegroundd(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             source_key: data source to generate the bounding box of foreground, can be image or label, etc.
             select_fn: function to select expected foreground, default is to select values > 0.
-            channel_indexes: if defined, select foreground only on the specified channels
+            channel_indices: if defined, select foreground only on the specified channels
                 of image. if None, select foreground on the whole image.
             margin: add margin to all dims of the bounding box.
         """
         super().__init__(keys)
         self.source_key = source_key
         self.select_fn = select_fn
-        self.channel_indexes = ensure_tuple(channel_indexes) if channel_indexes is not None else None
+        self.channel_indices = ensure_tuple(channel_indices) if channel_indices is not None else None
         self.margin = margin
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         box_start, box_end = generate_spatial_bounding_box(
-            d[self.source_key], self.select_fn, self.channel_indexes, self.margin
+            d[self.source_key], self.select_fn, self.channel_indices, self.margin
         )
         cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
         for key in self.keys:
@@ -373,6 +377,14 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
             the negative sample(background) center. so the crop center will only exist on valid image area.
         image_threshold: if enabled image_key, use ``image > image_threshold`` to determine
             the valid image content area.
+        fg_indices_key: if provided pre-computed foreground indices of `label`, will ignore above `image_key` and
+            `image_threshold`, and randomly select crop centers based on them, need to provide `fg_indices_key`
+            and `bg_indices_key` together, expect to be 1 dim array of spatial indices after flattening.
+            a typical usage is to call `FgBgToIndicesd` transform first and cache the results.
+        bg_indices_key: if provided pre-computed background indices of `label`, will ignore above `image_key` and
+            `image_threshold`, and randomly select crop centers based on them, need to provide `fg_indices_key`
+            and `bg_indices_key` together, expect to be 1 dim array of spatial indices after flattening.
+            a typical usage is to call `FgBgToIndicesd` transform first and cache the results.
 
     Raises:
         ValueError: When ``pos`` or ``neg`` are negative.
@@ -390,6 +402,8 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         num_samples: int = 1,
         image_key: Optional[str] = None,
         image_threshold: float = 0.0,
+        fg_indices_key: Optional[str] = None,
+        bg_indices_key: Optional[str] = None,
     ) -> None:
         super().__init__(keys)
         self.label_key = label_key
@@ -402,19 +416,35 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         self.num_samples = num_samples
         self.image_key = image_key
         self.image_threshold = image_threshold
+        self.fg_indices_key = fg_indices_key
+        self.bg_indices_key = bg_indices_key
         self.centers: Optional[List[List[np.ndarray]]] = None
 
-    def randomize(self, label: np.ndarray, image: Optional[np.ndarray] = None) -> None:
+    def randomize(
+        self,
+        label: np.ndarray,
+        fg_indices: Optional[np.ndarray] = None,
+        bg_indices: Optional[np.ndarray] = None,
+        image: Optional[np.ndarray] = None,
+    ) -> None:
         self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
+        if fg_indices is None or bg_indices is None:
+            fg_indices_, bg_indices_ = map_binary_to_indices(label, image, self.image_threshold)
+        else:
+            fg_indices_ = fg_indices
+            bg_indices_ = bg_indices
         self.centers = generate_pos_neg_label_crop_centers(
-            label, self.spatial_size, self.num_samples, self.pos_ratio, image, self.image_threshold, self.R
+            self.spatial_size, self.num_samples, self.pos_ratio, label.shape[1:], fg_indices_, bg_indices_, self.R
         )
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> List[Dict[Hashable, np.ndarray]]:
         d = dict(data)
         label = d[self.label_key]
         image = d[self.image_key] if self.image_key else None
-        self.randomize(label, image)
+        fg_indices = d.get(self.fg_indices_key, None) if self.fg_indices_key is not None else None
+        bg_indices = d.get(self.bg_indices_key, None) if self.bg_indices_key is not None else None
+
+        self.randomize(label, fg_indices, bg_indices, image)
         assert isinstance(self.spatial_size, tuple)
         assert self.centers is not None
         results: List[Dict[Hashable, np.ndarray]] = [dict() for _ in range(self.num_samples)]

@@ -17,6 +17,7 @@ MONAI GAN Evaluation Example
 import logging
 import os
 import sys
+from glob import glob
 
 import torch
 
@@ -39,10 +40,10 @@ def main():
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
     set_determinism(12345)
-    device = torch.device("cuda:0")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # load generator
-    network_filepath = "./network_final.pth"
+    network_filepath = glob("./model_out/*.pth")[0]
     data = torch.load(network_filepath)
     latent_size = 64
     gen_net = Generator(

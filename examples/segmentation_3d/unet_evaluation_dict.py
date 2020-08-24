@@ -11,7 +11,6 @@
 
 import logging
 import os
-import shutil
 import sys
 import tempfile
 from glob import glob
@@ -30,11 +29,10 @@ from monai.networks.nets import UNet
 from monai.transforms import AsChannelFirstd, Compose, LoadNiftid, ScaleIntensityd, ToTensord
 
 
-def main():
+def main(tempdir):
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-    tempdir = tempfile.mkdtemp()
     print(f"generating synthetic data to {tempdir} (this may take a while)")
     for i in range(5):
         im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1, channel_dim=-1)
@@ -74,7 +72,7 @@ def main():
         num_res_units=2,
     ).to(devices[0])
 
-    model.load_state_dict(torch.load("best_metric_model.pth"))
+    model.load_state_dict(torch.load("best_metric_model_segmentation3d_dict.pth"))
 
     # if we have multiple GPUs, set data parallel to execute sliding window inference
     if len(devices) > 1:
@@ -98,8 +96,8 @@ def main():
             saver.save_batch(val_outputs, val_data["img_meta_dict"])
         metric = metric_sum / metric_count
         print("evaluation metric:", metric)
-    shutil.rmtree(tempdir)
 
 
 if __name__ == "__main__":
-    main()
+    with tempfile.TemporaryDirectory() as tempdir:
+        main(tempdir)
