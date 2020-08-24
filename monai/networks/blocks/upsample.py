@@ -84,7 +84,7 @@ class SubpixelUpsample(nn.Module):
     The first part of the module is not fixed, a sequential layers can be used to replace the
     default single layer.
 
-    See: Shi et al., 2016, "Real-Time Single Image and Video Super-Resolution 
+    See: Shi et al., 2016, "Real-Time Single Image and Video Super-Resolution
         Using a nEfficient Sub-Pixel Convolutional Neural Network."
     See: Aitken et al., 2017, "Checkerboard artifact free sub-pixel convolution".
 
@@ -113,7 +113,7 @@ class SubpixelUpsample(nn.Module):
             conv_block: a conv block to extract feature maps before upsampling. Defaults to None.
                 When ``conv_block is None``, one reserved conv layer will be utilized.
             apply_pad_pool: if True the upsampled tensor is padded then average pooling is applied with a kernel the
-                size of `scale_factor` with a stride of 1. This implements the nearest neighbour resize convolution 
+                size of `scale_factor` with a stride of 1. This implements the nearest neighbour resize convolution
                 component of subpixel convolutions described in Aitken et al.
         """
         super().__init__()
