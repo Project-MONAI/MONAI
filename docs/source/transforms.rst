@@ -195,6 +195,12 @@ Intensity
 IO
 ^^
 
+`LoadImage`
+"""""""""""
+.. autoclass:: LoadImage
+    :members:
+    :special-members: __call__
+
 `LoadNifti`
 """""""""""
 .. autoclass:: LoadNifti
@@ -462,6 +468,12 @@ Utility
     :members:
     :special-members: __call__
 
+`FgBgToIndices`
+"""""""""""""""
+.. autoclass:: FgBgToIndices
+    :members:
+    :special-members: __call__
+
 Dictionary Transforms
 ---------------------
 
@@ -627,6 +639,12 @@ IO (Dict)
 `LoadDatad`
 """""""""""
 .. autoclass:: LoadDatad
+    :members:
+    :special-members: __call__
+
+`LoadImaged`
+""""""""""""
+.. autoclass:: LoadImaged
     :members:
     :special-members: __call__
 
@@ -882,6 +900,12 @@ Utility (Dict)
 `LabelToMaskd`
 """"""""""""""
 .. autoclass:: LabelToMaskd
+    :members:
+    :special-members: __call__
+
+`FgBgToIndicesd`
+""""""""""""""""
+.. autoclass:: FgBgToIndicesd
     :members:
     :special-members: __call__
 

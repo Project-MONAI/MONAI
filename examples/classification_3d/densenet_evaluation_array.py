@@ -52,10 +52,10 @@ def main():
     val_loader = DataLoader(val_ds, batch_size=2, num_workers=4, pin_memory=torch.cuda.is_available())
 
     # Create DenseNet121
-    device = torch.device("cuda:0")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = monai.networks.nets.densenet.densenet121(spatial_dims=3, in_channels=1, out_channels=2).to(device)
 
-    model.load_state_dict(torch.load("best_metric_model.pth"))
+    model.load_state_dict(torch.load("best_metric_model_classification3d_array.pth"))
     model.eval()
     with torch.no_grad():
         num_correct = 0.0

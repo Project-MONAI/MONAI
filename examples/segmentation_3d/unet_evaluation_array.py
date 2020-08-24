@@ -53,7 +53,7 @@ def main(tempdir):
     val_loader = DataLoader(val_ds, batch_size=1, num_workers=1, pin_memory=torch.cuda.is_available())
     dice_metric = DiceMetric(include_background=True, to_onehot_y=False, sigmoid=True, reduction="mean")
 
-    device = torch.device("cuda:0")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = UNet(
         dimensions=3,
         in_channels=1,
@@ -63,7 +63,7 @@ def main(tempdir):
         num_res_units=2,
     ).to(device)
 
-    model.load_state_dict(torch.load("best_metric_model.pth"))
+    model.load_state_dict(torch.load("best_metric_model_segmentation3d_array.pth"))
     model.eval()
     with torch.no_grad():
         metric_sum = 0.0

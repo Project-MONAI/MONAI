@@ -17,7 +17,7 @@ MONAI Generative Adversarial Networks Workflow Example
     Extract tarball and set input_dir variable. GAN script trains using hand CT scan jpg images.
 
     Dataset information available in MedNIST Tutorial
-    https://github.com/Project-MONAI/MONAI/blob/master/examples/notebooks/mednist_tutorial.ipynb.
+    https://github.com/Project-MONAI/Tutorials/blob/master/mednist_tutorial.ipynb
 """
 
 import logging
@@ -52,7 +52,7 @@ def main():
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
     set_determinism(12345)
-    device = torch.device("cuda:0")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # load real data
     mednist_url = "https://www.dropbox.com/s/5wwskxctvcxiuea/MedNIST.tar.gz?dl=1"
