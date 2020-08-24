@@ -20,7 +20,7 @@ import numpy as np
 import torch
 from DataPreprocessor import load_rg_data
 from Dataset import RGDataset
-from rggan_model import G_NET
+from rggan import G_NET
 from torchvision.utils import make_grid
 
 from monai import config

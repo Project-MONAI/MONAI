@@ -3,6 +3,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.parallel
 
+from monai.networks.blocks import Convolution
+from monai.networks.layers.factories import Act, Norm, Conv
+
+
 CFG_TREE_BASE_SIZE = 128
 CFG_GAN_Z_DIM = 10
 CFG_GAN_EMBEDDING_DIM = 128
@@ -63,12 +67,6 @@ def upBlock(in_planes, out_planes):
         nn.BatchNorm2d(out_planes * 2),
         GLU(),
     )
-    return block
-
-
-# Keep the spatial size
-def Block3x3_relu(in_planes, out_planes):
-    block = nn.Sequential(conv3x3(in_planes, out_planes * 2), nn.BatchNorm2d(out_planes * 2), GLU())
     return block
 
 
@@ -134,10 +132,12 @@ class Synthesis_Block_Direct(nn.Module):
 
 
 class EC_NET(nn.Module):
-    def __init__(self):
+    def __init__(
+        self, code_dim=5172, ef_dim=128,
+    ):
         super(EC_NET, self).__init__()
-        self.t_dim = CFG_TEXT_DIMENSION
-        self.ef_dim = CFG_GAN_EMBEDDING_DIM
+        self.t_dim = code_dim
+        self.ef_dim = ef_dim
 
         self.fc = nn.Sequential(
             nn.Linear(self.t_dim, self.ef_dim * 4, bias=False),
@@ -295,11 +295,11 @@ class GET_IMAGE_G(nn.Module):
 
 
 class G_NET(nn.Module):
-    def __init__(self):
+    def __init__(self, gf_dim=32, ef_dim=128):
         super(G_NET, self).__init__()
-        self.gf_dim = CFG_GAN_GF_DIM  # 32
+        self.gf_dim = gf_dim  # CFG_GAN_GF_DIM  # 32
+        self.ef_dim = ef_dim  # CFG_GAN_EMBEDDING_DIM  # 128
         self.define_module()
-        self.ef_dim = CFG_GAN_EMBEDDING_DIM  # 128
 
     def define_module(self):
 
@@ -327,81 +327,73 @@ class G_NET(nn.Module):
 
 
 # ############## D networks ################################################
-def Block3x3_leakRelu(in_planes, out_planes):  # used for pair-loss in D
-    block = nn.Sequential(conv3x3(in_planes, out_planes), nn.BatchNorm2d(out_planes), nn.LeakyReLU(0.2, inplace=True))
-    return block
-
-
-# Downsale the spatial size by a factor of 2
-def downBlock(in_planes, out_planes):  # looks unused
-    block = nn.Sequential(
-        nn.Conv2d(in_planes, out_planes, 4, 2, 1, bias=False),
-        nn.BatchNorm2d(out_planes),
-        nn.LeakyReLU(0.2, inplace=True),
-    )
-    return block
-
-
-# Downsale the spatial size by a factor of 16
-def encode_image(ndf, indim=1):
-    encode_img = nn.Sequential(
-        # --> state size. ndf x in_size/2 x in_size/2
-        nn.Conv2d(indim, ndf, 4, 2, 1, bias=False),
-        nn.LeakyReLU(0.2, inplace=True),
-        # --> state size 2ndf x x in_size/4 x in_size/4
-        nn.Conv2d(ndf, ndf * 2, 4, 2, 1, bias=False),
-        nn.BatchNorm2d(ndf * 2),
-        nn.LeakyReLU(0.2, inplace=True),
-        # --> state size 4ndf x in_size/8 x in_size/8
-        nn.Conv2d(ndf * 2, ndf * 4, 4, 2, 1, bias=False),
-        nn.BatchNorm2d(ndf * 4),
-        nn.LeakyReLU(0.2, inplace=True),
-        # --> state size 8ndf x in_size/16 x in_size/16
-        nn.Conv2d(ndf * 4, ndf * 8, 4, 2, 1, bias=False),
-        nn.BatchNorm2d(ndf * 8),
-        nn.LeakyReLU(0.2, inplace=True),
-    )
-    return encode_img
-
-
-# For 64 x 64 images
 class D_NET(nn.Module):
-    def __init__(self):
+    def __init__(self, spatial_dim=2, df_dim=64, embed_dim=128, k_size=8, norm=Norm.BATCH):
         super(D_NET, self).__init__()
-        self.df_dim = CFG_GAN_DF_DIM
-        self.ef_dim = CFG_GAN_EMBEDDING_DIM
-        self.k_size = CFG_TREE_BASE_SIZE // (2 ** 4)
-        self.define_module()
+        self.df_dim = df_dim  # CFG_GAN_DF_DIM
+        self.embed_dim = embed_dim  # CFG_GAN_EMBEDDING_DIM
+        self.k_size = k_size  # CFG_TREE_BASE_SIZE // (2 ** 4) or 128 // 16
+        self.norm = norm
+        self.act = (Act.LEAKYRELU, {"negative_slope": 0.2, "inplace": True})
 
-    def define_module(self):
-        ndf = self.df_dim
-        efg = self.ef_dim
-        k_size = self.k_size
-        indim = 1
-        self.img_code_s16 = encode_image(ndf)
-        self.imgseg_code_s16 = encode_image(ndf, indim + 1)
+        # image realism
+        self.img_code_s16 = self._build_img_encode(self.df_dim, 1)
+        # image seg realism
+        self.imgseg_code_s16 = self._build_img_encode(self.df_dim, 2)
+        # image seg code realism
+        self.jointConv = Convolution(
+            spatial_dim,
+            self.df_dim * 8 + self.embed_dim,
+            self.df_dim * 8,
+            strides=1,
+            kernel_size=3,
+            bias=False,
+            act=self.act,
+            norm=self.norm,
+        )
 
-        self.jointConv = Block3x3_leakRelu(ndf * 8 + efg, ndf * 8)
+        # logits
+        self.logits_I = Conv["CONV", spatial_dim](self.df_dim * 8, 1, kernel_size=self.k_size, stride=1)
+        self.logits_IS = Conv["CONV", spatial_dim](self.df_dim * 8, 1, kernel_size=self.k_size, stride=1)
+        self.logits_ISC = Conv["CONV", spatial_dim](self.df_dim * 8, 1, kernel_size=self.k_size, stride=1)
 
-        self.logits_IST = nn.Sequential(nn.Conv2d(ndf * 8, 1, kernel_size=k_size, stride=1))
-        self.logits_I = nn.Sequential(nn.Conv2d(ndf * 8, 1, kernel_size=k_size, stride=1))
-        self.logits_IS = nn.Sequential(nn.Conv2d(ndf * 8, 1, kernel_size=k_size, stride=1))
+    def _build_img_encode(self, ndf, input_dims):
+        encode_img = nn.Sequential(
+            # --> state size. ndf x in_size/2 x in_size/2
+            Conv["conv", 2](input_dims, ndf, 4, 2, 1, bias=False),
+            Act["leakyrelu"](0.2, inplace=True),
+            # --> state size 2ndf x x in_size/4 x in_size/4
+            Conv["conv", 2](ndf, ndf * 2, 4, 2, 1, bias=False),
+            Norm["batch", 2](ndf * 2),
+            Act["leakyrelu"](0.2, inplace=True),
+            # --> state size 4ndf x in_size/8 x in_size/8
+            Conv["conv", 2](ndf * 2, ndf * 4, 4, 2, 1, bias=False),
+            Norm["batch", 2](ndf * 4),
+            Act["leakyrelu"](0.2, inplace=True),
+            # --> state size 8ndf x in_size/16 x in_size/16
+            Conv["conv", 2](ndf * 4, ndf * 8, 4, 2, 1, bias=False),
+            Norm["batch", 2](ndf * 8),
+            Act["leakyrelu"](0.2, inplace=True),
+        )
+        return encode_img
 
     def forward(self, img, txt, seg):
+        # prepare data
         imgseg_pair = torch.cat((img, seg), 1)
-        txt_code = txt.view(-1, self.ef_dim, 1, 1)
+        txt_code = txt.view(-1, self.embed_dim, 1, 1)
         txt_code = txt_code.repeat(1, 1, self.k_size, self.k_size)
 
-        # only img
+        # grade img realism
         img_code = self.img_code_s16(img)
-        # img seg pair
+        # grade img seg realism
         imgseg_code = self.imgseg_code_s16(imgseg_pair)
-
-        # imgsegtxt
+        # grade img seg code realism
         h_c_code1 = torch.cat((txt_code, imgseg_code), 1)
         h_c_code1 = self.jointConv(h_c_code1)
 
-        D_imgsegtxt = self.logits_IST(h_c_code1)
-        D_img = self.logits_I(img_code)
-        D_imgseg = self.logits_IS(imgseg_code)
-        return [D_imgsegtxt.view(-1), D_img.view(-1), D_imgseg.view(-1)]
+        # calculate logits
+        logits_i = self.logits_I(img_code)
+        logits_is = self.logits_IS(imgseg_code)
+        logits_isc = self.logits_ISC(h_c_code1)
+
+        return [logits_isc.view(-1), logits_i.view(-1), logits_is.view(-1)]

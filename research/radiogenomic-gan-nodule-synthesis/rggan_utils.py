@@ -3,13 +3,15 @@ from torch import nn
 
 def weights_init(m):  # G used for G init and D init
     classname = m.__class__.__name__
-    if classname.find("Conv") != -1:
-        nn.init.orthogonal(m.weight.data, 1.0)
+    if classname.find("Convolution") != -1:
+        nn.init.orthogonal_(m.conv.weight.data, 1.0)
+    elif classname.find("Conv") != -1:
+        nn.init.orthogonal_(m.weight.data, 1.0)
     elif classname.find("BatchNorm") != -1:
         m.weight.data.normal_(1.0, 0.02)
         m.bias.data.fill_(0)
     elif classname.find("Linear") != -1:
-        nn.init.orthogonal(m.weight.data, 1.0)
+        nn.init.orthogonal_(m.weight.data, 1.0)
         if m.bias is not None:
             m.bias.data.fill_(0.0)
 
