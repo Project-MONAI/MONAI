@@ -135,7 +135,7 @@ class SubpixelUpsample(nn.Module):
             self.conv_block = conv_block
 
         self.pad_pool: nn.Module = nn.Identity()
-        
+
         if apply_pad_pool:
             pool_type = Pool[Pool.AVG, self.dimensions]
             pad_type = Pad[Pad.CONSTANTPAD, self.dimensions]
