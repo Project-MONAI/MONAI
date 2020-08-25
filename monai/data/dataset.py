@@ -261,7 +261,7 @@ class CacheDataset(Dataset):
         if not isinstance(transform, Compose):
             transform = Compose(transform)
         super().__init__(data, transform)
-        self.cache_num = min(cache_num, int(len(self) * cache_rate), len(self))
+        self.cache_num = min(cache_num, int(len(data) * cache_rate), len(data))
         if self.cache_num > 0:
             self._cache = [None] * self.cache_num
             if num_workers > 0:
@@ -319,6 +319,137 @@ class CacheDataset(Dataset):
             # no cache for this data, execute all the transforms directly
             data = super(CacheDataset, self).__getitem__(index)
         return data
+
+
+class SmartCacheDataset(CacheDataset):
+    def __init__(
+        self,
+        data: Sequence,
+        transform: Union[Sequence[Callable], Callable],
+        replace_rate: float,
+        cache_num: int = sys.maxsize,
+        cache_rate: float = 1.0,
+        num_workers: int = 0,
+    ) -> None:
+        super().__init__(data, transform, cache_num, cache_rate, num_workers)
+        if replace_rate <= 0:
+            raise ValueError("replace_rate must be greater than 0, otherwise, please use CacheDataset.")
+        self._total_num = len(data)
+        self._replace_num = min(math.ceil(self.cache_num * replace_rate), len(data) - self.cache_num)
+        self._replacements = [None for _ in range(self._replace_num)]
+        self._cache_data_idx = [i for i in range(self.cache_num)]
+        self._replace_data_idx = [i for i in range(self._replace_num)]
+        self._start_pos = 0
+        self._update_lock = threading.Lock()
+        self._round = 1
+        self._round_done = False
+        self._replace_mgr = threading.Thread(target=_manage_replacement, args=(self,))
+        self._started = False
+        self._compute_data_idx()
+
+    def _compute_data_idx(self):
+        for i in range(self._replace_num):
+            pos = self._start_pos + self.cache_num + i
+            if pos >= self._total_num:
+                pos -= self._total_num
+            self._replace_data_idx[i] = pos
+
+    def start(self):
+        self._replace_mgr.start()
+        self._started = True
+
+    def _restart(self):
+        self._round = 1
+        self._replace_mgr = threading.Thread(target=_manage_replacement, args=(self,))
+        self.start()
+
+    def _try_update_cache(self):
+        with self._update_lock:
+            if self._round_done:
+                remain_num = self.cache_num - self._replace_num
+                for i in remain_num:
+                    self._cache[i] = self._cache[i + self._replace_num]
+                for i in self._replace_num:
+                    self._cache[remain_num + i] = self._replacements[i]
+
+                self._start_pos += self._replace_num
+                if self._start_pos >= self._total_num:
+                    self._start_pos -= self._total_num
+                self._compute_data_idx()
+
+                # ready for next round
+                self._round += 1
+                self._round_done = False
+                return True
+            else:
+                return False
+
+    def update_cache(self):
+        # if the cache has been shutdown before, need to restart the _replace_mgr thread
+        if not self._replace_mgr.isAlive():
+            self._restart()
+
+        # make sure update is done
+        while True:
+            updated = self._try_update_cache()
+            if updated:
+                break
+            else:
+                time.sleep(0.01)
+
+    def _try_shutdown(self):
+        with self._update_lock:
+            if self._round_done:
+                self._round = 0
+                self._round_done = False
+                return True
+            else:
+                return False
+
+    def shutdown(self):
+        if not self._started:
+            return
+
+        # wait until replace mgr is done the current round
+        while True:
+            done = self._try_shutdown()
+            if done:
+                self._replace_mgr.join()
+                return
+            else:
+                time.sleep(0.01)
+
+    def _compute_replacements(self):
+        for i in range(self._replace_num):
+            pos = self._replace_data_idx[i]
+            self._load_cache_item(self.data[pos], self.transform.transforms)
+        self._round_done = True
+
+    def _try_manage_replacement(self, check_round):
+        with self._update_lock:
+            if self._round <= 0:
+                # shutdown replacement
+                self._round_done = True
+                return True, -1
+
+            if self._round != check_round:
+                self._compute_replacements()
+            return False, self._round
+
+    def manage_replacement(self):
+        check_round = -1
+        while True:
+            done, check_round = self._try_manage_replacement(check_round)
+            if done:
+                return
+            time.sleep(0.01)
+
+    def __len__(self):
+        return self.cache_num
+
+
+def _manage_replacement(cache: SmartCacheDataset):
+    cache.manage_replacement()
 
 
 class ZipDataset(Dataset):
