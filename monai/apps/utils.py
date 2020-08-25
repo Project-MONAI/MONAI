@@ -77,7 +77,9 @@ def download_url(url: str, filepath: str, md5_value: Optional[str] = None) -> No
         print(f"file {filepath} exists, skip downloading.")
         return
 
-    if url.startswith("https://drive.google.com") and has_gdown:
+    if url.startswith("https://drive.google.com"):
+        if not has_gdown:
+            raise RuntimeError(f"To download files from Google Drive, please install the gdown dependency.")
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
         gdown.download(url, filepath, quiet=False)
         if not os.path.exists(filepath):
@@ -114,6 +116,7 @@ def download_url(url: str, filepath: str, md5_value: Optional[str] = None) -> No
             elif file_size == -1:
                 raise Exception("Error getting Content-Length from server: %s" % url)
     else:
+        print("using urlretrieve")
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
         def _process_hook(blocknum: int, blocksize: int, totalsize: int):
