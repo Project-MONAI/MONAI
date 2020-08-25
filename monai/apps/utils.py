@@ -116,7 +116,6 @@ def download_url(url: str, filepath: str, md5_value: Optional[str] = None) -> No
             elif file_size == -1:
                 raise Exception("Error getting Content-Length from server: %s" % url)
     else:
-        print("using urlretrieve")
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
         def _process_hook(blocknum: int, blocksize: int, totalsize: int):
