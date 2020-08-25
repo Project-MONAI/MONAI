@@ -335,6 +335,8 @@ class SmartCacheDataset(CacheDataset):
         num_replace_workers: int = 0,
     ) -> None:
         super().__init__(data, transform, cache_num, cache_rate, num_init_workers)
+        if self.cache_num == len(data):
+            raise ValueError("cache_num must be smaller than dataset length to support replacement.")
         if replace_rate <= 0:
             raise ValueError("replace_rate must be greater than 0, otherwise, please use CacheDataset.")
         self.num_replace_workers = num_init_workers
