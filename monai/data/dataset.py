@@ -11,13 +11,13 @@
 
 import hashlib
 import json
-import sys
 import math
-import time
+import sys
 import threading
+import time
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
-from typing import Any, Callable, Optional, Sequence, Tuple, Union, List
+from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch

@@ -325,7 +325,7 @@ class AHNet(nn.Module):
     by 32 and no less than 128. If you need to use lower sizes, please reduce the largest blocks in PSP
     module and change the ``num_input_features`` in Final module.
     In addition, to utilize the "transpose" upsample mode, please ensure that the input size of the first ``dim-1`` dimensions
-    should be divisible by 128. In order to use pretrained weights from 2D FCN/MCFCN, please call the `copy_from` function, 
+    should be divisible by 128. In order to use pretrained weights from 2D FCN/MCFCN, please call the `copy_from` function,
     for example:
 
     .. code-block:: python
