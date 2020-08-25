@@ -497,15 +497,13 @@ class SmartCacheDataset(CacheDataset):
             else:
                 time.sleep(0.01)
 
-    def _replace_cache_thread(self, index: int) -> None:
+    def _replace_cache_thread(self, index: int):
         """
         Execute deterministic transforms on the new data for replacement.
 
         """
         pos: int = self._replace_data_idx[index]
-        self._replacements[index] = self._load_cache_item(
-            self.data[pos], self.transform.transforms
-        )  # pytype: disable=attribute-error
+        self._replacements[index] = self._load_cache_item(self.data[pos], self.transform.transforms)  # type: ignore
 
     def _compute_replacements(self):
         """
@@ -519,9 +517,7 @@ class SmartCacheDataset(CacheDataset):
         else:
             for i in range(self._replace_num):
                 pos: int = self._replace_data_idx[i]
-                self._replacements[i] = self._load_cache_item(
-                    self.data[pos], self.transform.transforms
-                )  # pytype: disable=attribute-error
+                self._replacements[i] = self._load_cache_item(self.data[pos], self.transform.transforms)  # type: ignore
         self._round_done = True
 
     def _try_manage_replacement(self, check_round):
