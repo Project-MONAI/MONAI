@@ -324,6 +324,48 @@ class CacheDataset(Dataset):
 
 
 class SmartCacheDataset(CacheDataset):
+    """
+    Re-implementation of the SmartCache mechanism in NVIDIA Clara-train SDK.
+    At any time, the cache pool only keeps a subset of the whole dataset. In each epoch, only the items
+    in the cache are used for training. This ensures that data needed for training is readily available,
+    keeping GPU resources busy. Note that cached items may still have to go through a non-deterministic
+    transform sequence before being fed to GPU. At the same time, another thread is preparing replacement
+    items by applying the transform sequence to items not in cache. Once one epoch is completed, Smart
+    Cache replaces the same number of items with replacement items.
+    Smart Cache uses a simple `running window` algorithm to determine the cache content and replacement items.
+    Let N be the configured number of objects in cache; and R be the number of replacement objects (R = ceil(N * r),
+    where r is the configured replace rate).
+    For more details, please refer to:
+    https://docs.nvidia.com/clara/tlt-mi/clara-train-sdk-v3.0/nvmidl/additional_features/smart_cache.html#smart-cache
+
+    For example, if we have 5 images: `[image1, image2, image3, image4, image5]`, and `cache_num=4`, `replace_rate=0.25`.
+    so the actual training images cached and replaced for every epoch are as below:
+    epoch 1: [image1, image2, image3, image4]
+    epoch 2: [image2, image3, image4, image5]
+    epoch 3: [image3, image4, image5, image1]
+    epoch 3: [image4, image5, image1, image2]
+    epoch N: [image[N % 5] ...]
+
+    The usage of `SmartCacheDataset` contains 4 steps:
+    1. Initialize `SmartCacheDataset` object and cache for the first epoch.
+    2. Call `start()` to run replacement thread in background.
+    3. Call `update_cache()` before every epoch to replace training items.
+    4. Call `shutdown()` when training ends.
+
+    Args:
+        data: input data to load and transform to generate dataset for model.
+        transform: transforms to execute operations on input data.
+        replace_rate: percentage of the cached items to be replaced in every epoch.
+        cache_num: number of items to be cached. Default is `sys.maxsize`.
+            will take the minimum of (cache_num, data_length x cache_rate, data_length).
+        cache_rate: percentage of cached data in total, default is 1.0 (cache all).
+            will take the minimum of (cache_num, data_length x cache_rate, data_length).
+        num_init_workers: the number of worker threads to initialize the cache for first epoch.
+            if 0, run in main thread, no separate thread will open.
+        num_replace_workers: the number of worker threads to prepare the replacement cache for every epoch.
+            if 0, run in main thread, no separate thread will open.
+
+    """
     def __init__(
         self,
         data: Sequence,
@@ -356,6 +398,10 @@ class SmartCacheDataset(CacheDataset):
         self._compute_data_idx()
 
     def _compute_data_idx(self):
+        """
+        Update the replacement data position in the total data.
+
+        """
         for i in range(self._replace_num):
             pos: int = self._start_pos + self.cache_num + i
             if pos >= self._total_num:
@@ -363,15 +409,27 @@ class SmartCacheDataset(CacheDataset):
             self._replace_data_idx[i] = pos
 
     def start(self):
+        """
+        Start the background thread to replace training items for every epoch.
+
+        """
         self._replace_mgr.start()
         self._started = True
 
     def _restart(self):
+        """
+        Restart background thread if killed for some reason.
+
+        """
         self._round = 1
         self._replace_mgr = threading.Thread(target=_manage_replacement, args=(self,))
         self.start()
 
     def _try_update_cache(self):
+        """
+        Update the cache items with new replacement for current epoch.
+
+        """
         with self._update_lock:
             if self._round_done:
                 remain_num: int = self.cache_num - self._replace_num
@@ -394,7 +452,11 @@ class SmartCacheDataset(CacheDataset):
                 return False
 
     def update_cache(self):
-        # if the cache has been shutdown before, need to restart the _replace_mgr thread
+        """
+        Update cache items for current epoch, need to call this function before every epoch.
+        If the cache has been shutdown before, need to restart the `_replace_mgr` thread.
+
+        """
         if not self._replace_mgr.isAlive():
             self._restart()
 
@@ -406,6 +468,10 @@ class SmartCacheDataset(CacheDataset):
                 time.sleep(0.01)
 
     def _try_shutdown(self):
+        """
+        Wait for thread lock to shut down the background thread.
+
+        """
         with self._update_lock:
             if self._round_done:
                 self._round = 0
@@ -415,6 +481,10 @@ class SmartCacheDataset(CacheDataset):
                 return False
 
     def shutdown(self):
+        """
+        Shut down the background thread for replacement.
+
+        """
         if not self._started:
             return
 
@@ -427,10 +497,19 @@ class SmartCacheDataset(CacheDataset):
                 time.sleep(0.01)
 
     def _replace_cache_thread(self, index: int) -> None:
+        """
+        Execute deterministic transforms on the new data for replacement.
+
+        """
         pos: int = self._replace_data_idx[index]
         self._replacements[index] = self._load_cache_item(self.data[pos], self.transform.transforms)  # pytype: disable=attribute-error
 
     def _compute_replacements(self):
+        """
+        Compute expected items for the replacement of next epoch, execute deterministic transforms.
+        It can support multi-threads to accelerate the computation progress.
+
+        """
         if self.num_replace_workers > 0:
             with ThreadPool(self.num_replace_workers) as p:
                 p.map(self._replace_cache_thread, list(range(self._replace_num)))
@@ -441,6 +520,10 @@ class SmartCacheDataset(CacheDataset):
         self._round_done = True
 
     def _try_manage_replacement(self, check_round):
+        """
+        Wait thread lock and replace training items in the bacground thread.
+
+        """
         with self._update_lock:
             if self._round <= 0:
                 # shutdown replacement
@@ -452,6 +535,10 @@ class SmartCacheDataset(CacheDataset):
             return False, self._round
 
     def manage_replacement(self):
+        """
+        Background thread for replacement.
+
+        """
         check_round: int = -1
         while True:
             done, check_round = self._try_manage_replacement(check_round)
