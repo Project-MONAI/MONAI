@@ -58,7 +58,7 @@ TEST_CASE_SUBPIXEL.append(TEST_CASE_SUBPIXEL_CONV_BLOCK_EXTRA)
 
 # add every test back with the pad/pool sequential component omitted
 for tests in list(TEST_CASE_SUBPIXEL):
-    args: dict = tests[0]
+    args: dict = tests[0]  # type: ignore
     args = dict(args)
     args["apply_pad_pool"] = False
     TEST_CASE_SUBPIXEL.append([args, tests[1], tests[2]])
