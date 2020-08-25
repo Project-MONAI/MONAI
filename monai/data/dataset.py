@@ -9,20 +9,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Sequence, Union, Tuple, Any
-
 import hashlib
 import json
 import sys
 import threading
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
+from typing import Any, Callable, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 from torch.utils.data import Dataset as _TorchDataset
 
-from monai.transforms import apply_transform, Compose, Randomizable, Transform
+from monai.transforms import Compose, Randomizable, Transform, apply_transform
 from monai.utils import get_seed, progress_bar
 
 
@@ -95,13 +94,14 @@ class PersistentDataset(Dataset):
 
     def __init__(
         self,
-        data: Sequence,
+        data: Sequence[str],
         transform: Union[Sequence[Callable], Callable],
         cache_dir: Optional[Union[Path, str]] = None,
     ) -> None:
         """
         Args:
-            data: input data to load and transform to generate dataset for model.
+            data: input data file paths to load and transform to generate dataset for model.
+                `PersistentDataset` expects input data to be a list of file paths and hashes them as cache keys.
             transform: transforms to execute operations on input data.
             cache_dir: If specified, this is the location for persistent storage
                 of pre-computed transformed data tensors. The cache_dir is computed once, and
@@ -173,9 +173,9 @@ class PersistentDataset(Dataset):
             cache is ONLY dependant on the input filename paths.
         """
         if item_transformed.get("cached", False) is False:
-            hashfile: Optional[Path] = None
+            hashfile = None
             if self.cache_dir is not None:
-                cache_dir_path: Path = Path(self.cache_dir)
+                cache_dir_path = Path(self.cache_dir)
                 if cache_dir_path.is_dir():
                     # TODO: Find way to hash transforms content as part of the cache
                     data_item_md5 = hashlib.md5(
@@ -193,7 +193,7 @@ class PersistentDataset(Dataset):
                     # NOTE: Writing to ".temp_write_cache" and then using a nearly atomic rename operation
                     #       to make the cache more robust to manual killing of parent process
                     #       which may leave partially written cache files in an incomplete state
-                    temp_hash_file: Path = hashfile.with_suffix(".temp_write_cache")
+                    temp_hash_file = hashfile.with_suffix(".temp_write_cache")
                     torch.save(item_transformed, temp_hash_file)
                     temp_hash_file.rename(hashfile)
 
@@ -278,6 +278,11 @@ class CacheDataset(Dataset):
                     progress_bar(i + 1, self.cache_num, "Load and cache transformed data: ")
 
     def _load_cache_item(self, item: Any, transforms: Sequence[Callable]):
+        """
+        Args:
+            item: input item to load and transform to generate dataset for model.
+            transforms: transforms to execute operations on input item.
+        """
         for _transform in transforms:
             # execute all the deterministic transforms
             if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
@@ -285,7 +290,14 @@ class CacheDataset(Dataset):
             item = apply_transform(_transform, item)
         return item
 
-    def _load_cache_item_thread(self, args: Tuple) -> None:
+    def _load_cache_item_thread(self, args: Tuple[int, Any, Sequence[Callable]]) -> None:
+        """
+        Args:
+            args: tuple with contents (i, item, transforms).
+                i: the index to load the cached item to.
+                item: input item to load and transform to generate dataset for model.
+                transforms: transforms to execute operations on input item.
+        """
         i, item, transforms = args
         self._cache[i] = self._load_cache_item(item, transforms)
         with self._thread_lock:
@@ -333,7 +345,7 @@ class ZipDataset(Dataset):
     def __init__(self, datasets: Sequence, transform: Optional[Callable] = None) -> None:
         """
         Args:
-            datasets (list or tuple): list of datasets to zip together.
+            datasets: list of datasets to zip together.
             transform: a callable data transform operates on the zipped item from `datasets`.
         """
         super().__init__(list(datasets), transform=transform)
@@ -350,7 +362,8 @@ class ZipDataset(Dataset):
             data.extend(to_list(dataset[index]))
         if self.transform is not None:
             data = apply_transform(self.transform, data, map_items=False)  # transform the list data
-        return data
+        # use tuple instead of list as the default collate_fn callback of MONAI DataLoader flattens nested lists
+        return tuple(data)
 
 
 class ArrayDataset(Randomizable, _TorchDataset):
