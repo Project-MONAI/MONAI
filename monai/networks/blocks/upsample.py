@@ -134,6 +134,8 @@ class SubpixelUpsample(nn.Module):
         else:
             self.conv_block = conv_block
 
+        self.pad_pool: nn.Module = nn.Identity()
+        
         if apply_pad_pool:
             pool_type = Pool[Pool.AVG, self.dimensions]
             pad_type = Pad[Pad.CONSTANTPAD, self.dimensions]
@@ -142,8 +144,6 @@ class SubpixelUpsample(nn.Module):
                 pad_type(padding=(self.scale_factor - 1, 0) * self.dimensions, value=0.0),
                 pool_type(kernel_size=self.scale_factor, stride=1),
             )
-        else:
-            self.pad_pool = nn.Identity()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """

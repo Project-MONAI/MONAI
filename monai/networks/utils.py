@@ -224,10 +224,10 @@ def pixelshuffle(x: torch.Tensor, dimensions: int, scale_factor: int) -> torch.T
     org_channels = channels // scale_divisor
     output_size = [batch_size, org_channels] + [d * factor for d in input_size[2:]]
 
-    indices = list(range(2, 2 + 2 * dim))
+    indices = tuple(range(2, 2 + 2 * dim))
     indices_factor, indices_dim = indices[:dim], indices[dim:]
-    indices = sum(zip(indices_dim, indices_factor), ())
+    permute_indices = (0, 1) + sum(zip(indices_dim, indices_factor), ())
 
     x = x.reshape(batch_size, org_channels, *([factor] * dim + input_size[2:]))
-    x = x.permute((0, 1) + indices).reshape(output_size)
+    x = x.permute(permute_indices).reshape(output_size)
     return x
