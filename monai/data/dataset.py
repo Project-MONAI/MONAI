@@ -12,6 +12,8 @@
 import hashlib
 import json
 import sys
+import math
+import time
 import threading
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
@@ -329,16 +331,19 @@ class SmartCacheDataset(CacheDataset):
         replace_rate: float,
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
-        num_workers: int = 0,
+        num_init_workers: int = 0,
+        num_replace_workers: int = 0,
     ) -> None:
-        super().__init__(data, transform, cache_num, cache_rate, num_workers)
+        super().__init__(data, transform, cache_num, cache_rate, num_init_workers)
         if replace_rate <= 0:
             raise ValueError("replace_rate must be greater than 0, otherwise, please use CacheDataset.")
+        self.num_replace_workers = num_init_workers
+
         self._total_num = len(data)
         self._replace_num = min(math.ceil(self.cache_num * replace_rate), len(data) - self.cache_num)
         self._replacements = [None for _ in range(self._replace_num)]
-        self._cache_data_idx = [i for i in range(self.cache_num)]
         self._replace_data_idx = [i for i in range(self._replace_num)]
+
         self._start_pos = 0
         self._update_lock = threading.Lock()
         self._round = 1
@@ -367,9 +372,9 @@ class SmartCacheDataset(CacheDataset):
         with self._update_lock:
             if self._round_done:
                 remain_num = self.cache_num - self._replace_num
-                for i in remain_num:
+                for i in range(remain_num):
                     self._cache[i] = self._cache[i + self._replace_num]
-                for i in self._replace_num:
+                for i in range(self._replace_num):
                     self._cache[remain_num + i] = self._replacements[i]
 
                 self._start_pos += self._replace_num
@@ -419,10 +424,18 @@ class SmartCacheDataset(CacheDataset):
             else:
                 time.sleep(0.01)
 
+    def _replace_cache_thread(self, index: int) -> None:
+        pos = self._replace_data_idx[index]
+        self._replacements[index] = self._load_cache_item(self.data[pos], self.transform.transforms)
+
     def _compute_replacements(self):
-        for i in range(self._replace_num):
-            pos = self._replace_data_idx[i]
-            self._load_cache_item(self.data[pos], self.transform.transforms)
+        if self.num_replace_workers > 0:
+            with ThreadPool(self.num_replace_workers) as p:
+                p.map(self._replace_cache_thread, [i for i in range(self._replace_num)])
+        else:
+            for i in range(self._replace_num):
+                pos = self._replace_data_idx[i]
+                self._replacements[i] = self._load_cache_item(self.data[pos], self.transform.transforms)
         self._round_done = True
 
     def _try_manage_replacement(self, check_round):
