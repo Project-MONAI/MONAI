@@ -86,7 +86,7 @@ def do_binarization(
 
 def cal_confusion_matrix_elements(p: torch.Tensor, t: torch.Tensor) -> List[np.ndarray]:
     """
-    This function is used to calculate the number of true positives (tp), true negatives(tn), 
+    This function is used to calculate the number of true positives (tp), true negatives(tn),
     false positives (fp), false negatives (fn), total positives and total negatives, and
     return a list of these values.
 

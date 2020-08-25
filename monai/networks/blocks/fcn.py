@@ -151,7 +151,7 @@ class FCN(nn.Module):
 
         if self.upsample_mode == "transpose":
             self.up_conv = UpSample(
-                spatial_dims=2,
+                dimensions=2,
                 in_channels=self.out_channels,
                 out_channels=self.out_channels,
                 scale_factor=2,
