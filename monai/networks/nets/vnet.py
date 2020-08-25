@@ -170,10 +170,10 @@ class OutputTransition(nn.Module):
 
 class VNet(nn.Module):
     """
-    V-Net based on `Fully Convolutional Neural Networks for Volumetric Medical Image Segmentation 
+    V-Net based on `Fully Convolutional Neural Networks for Volumetric Medical Image Segmentation
     <https://arxiv.org/pdf/1606.04797.pdf>`_.
-    Adapted from `the official Caffe implementation 
-    <https://github.com/faustomilletari/VNet>`_. and `another pytorch implementation 
+    Adapted from `the official Caffe implementation
+    <https://github.com/faustomilletari/VNet>`_. and `another pytorch implementation
     <https://github.com/mattmacy/vnet.pytorch/blob/master/vnet.py>`_.
     The model supports 2D or 3D inputs.
 

@@ -14,7 +14,7 @@ from typing import Optional, Sequence, Union
 import torch
 import torch.nn as nn
 
-from monai.networks.layers.factories import Conv
+from monai.networks.layers.factories import Conv, Pad, Pool
 from monai.networks.utils import icnr_init, pixelshuffle
 from monai.utils import UpsampleMode, ensure_tuple_rep
 
@@ -26,7 +26,7 @@ class UpSample(nn.Module):
 
     def __init__(
         self,
-        spatial_dims: int,
+        dimensions: int,
         in_channels: int,
         out_channels: Optional[int] = None,
         scale_factor: Union[Sequence[float], float] = 2,
@@ -36,7 +36,7 @@ class UpSample(nn.Module):
     ) -> None:
         """
         Args:
-            spatial_dims: number of spatial dimensions of the input image.
+            dimensions: number of spatial dimensions of the input image.
             in_channels: number of channels of the input image.
             out_channels: number of channels of the output image. Defaults to `in_channels`.
             scale_factor: multiplier for spatial size. Has to match input size if it is a tuple. Defaults to 2.
@@ -49,20 +49,20 @@ class UpSample(nn.Module):
             align_corners: set the align_corners parameter of `torch.nn.Upsample`. Defaults to True.
         """
         super().__init__()
-        scale_factor_ = ensure_tuple_rep(scale_factor, spatial_dims)
+        scale_factor_ = ensure_tuple_rep(scale_factor, dimensions)
         if not out_channels:
             out_channels = in_channels
         if not with_conv:
             mode = UpsampleMode(mode)
             linear_mode = [UpsampleMode.LINEAR, UpsampleMode.BILINEAR, UpsampleMode.TRILINEAR]
-            if mode in linear_mode:  # choose mode based on spatial_dims
-                mode = linear_mode[spatial_dims - 1]
+            if mode in linear_mode:  # choose mode based on dimensions
+                mode = linear_mode[dimensions - 1]
             self.upsample = nn.Sequential(
-                Conv[Conv.CONV, spatial_dims](in_channels=in_channels, out_channels=out_channels, kernel_size=1),
+                Conv[Conv.CONV, dimensions](in_channels=in_channels, out_channels=out_channels, kernel_size=1),
                 nn.Upsample(scale_factor=scale_factor_, mode=mode.value, align_corners=align_corners),
             )
         else:
-            self.upsample = Conv[Conv.CONVTRANS, spatial_dims](
+            self.upsample = Conv[Conv.CONVTRANS, dimensions](
                 in_channels=in_channels, out_channels=out_channels, kernel_size=scale_factor_, stride=scale_factor_
             )
 
@@ -78,13 +78,19 @@ class SubpixelUpsample(nn.Module):
     """
     Upsample via using a subpixel CNN. This module supports 1D, 2D and 3D input images.
     The module is consisted with two parts. First of all, a convolutional layer is employed
-    to increase the number of channels into: ``in_channels * (scale_factor ** spatial_dims)``.
+    to increase the number of channels into: ``in_channels * (scale_factor ** dimensions)``.
     Secondly, a pixel shuffle manipulation is utilized to aggregates the feature maps from
     low resolution space and build the super resolution space.
     The first part of the module is not fixed, a sequential layers can be used to replace the
     default single layer.
+
+    See: Shi et al., 2016, "Real-Time Single Image and Video Super-Resolution
+        Using a nEfficient Sub-Pixel Convolutional Neural Network."
+    See: Aitken et al., 2017, "Checkerboard artifact free sub-pixel convolution".
+
     The idea comes from:
     https://arxiv.org/abs/1609.05158
+
     The pixel shuffle mechanism refers to:
     https://github.com/pytorch/pytorch/blob/master/aten/src/ATen/native/PixelShuffle.cpp
     and:
@@ -92,27 +98,35 @@ class SubpixelUpsample(nn.Module):
     """
 
     def __init__(
-        self, spatial_dims: int, in_channels: int, scale_factor: int = 2, conv_block: Optional[nn.Module] = None,
+        self,
+        dimensions: int,
+        in_channels: int,
+        scale_factor: int = 2,
+        conv_block: Optional[nn.Module] = None,
+        apply_pad_pool: bool = True,
     ) -> None:
         """
         Args:
-            spatial_dims: number of spatial dimensions of the input image.
+            dimensions: number of spatial dimensions of the input image.
             in_channels: number of channels of the input image.
             scale_factor: multiplier for spatial size. Defaults to 2.
             conv_block: a conv block to extract feature maps before upsampling. Defaults to None.
                 When ``conv_block is None``, one reserved conv layer will be utilized.
+            apply_pad_pool: if True the upsampled tensor is padded then average pooling is applied with a kernel the
+                size of `scale_factor` with a stride of 1. This implements the nearest neighbour resize convolution
+                component of subpixel convolutions described in Aitken et al.
         """
         super().__init__()
 
         if scale_factor <= 0:
-            raise ValueError("the `scale_factor` multiplier should be an integer and no less than 1.")
+            raise ValueError(f"The `scale_factor` multiplier must be an integer greater than 0, got {scale_factor}.")
 
-        self.spatial_dims = spatial_dims
+        self.dimensions = dimensions
         self.scale_factor = scale_factor
 
         if conv_block is None:
-            conv_out_channels = in_channels * (scale_factor ** spatial_dims)
-            self.conv_block = Conv[Conv.CONV, spatial_dims](
+            conv_out_channels = in_channels * (scale_factor ** dimensions)
+            self.conv_block = Conv[Conv.CONV, dimensions](
                 in_channels=in_channels, out_channels=conv_out_channels, kernel_size=3, stride=1, padding=1,
             )
 
@@ -120,11 +134,23 @@ class SubpixelUpsample(nn.Module):
         else:
             self.conv_block = conv_block
 
+        self.pad_pool: nn.Module = nn.Identity()
+
+        if apply_pad_pool:
+            pool_type = Pool[Pool.AVG, self.dimensions]
+            pad_type = Pad[Pad.CONSTANTPAD, self.dimensions]
+
+            self.pad_pool = nn.Sequential(
+                pad_type(padding=(self.scale_factor - 1, 0) * self.dimensions, value=0.0),
+                pool_type(kernel_size=self.scale_factor, stride=1),
+            )
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Args:
             x: Tensor in shape (batch, channel, spatial_1[, spatial_2, ...).
         """
         x = self.conv_block(x)
-        x = pixelshuffle(x, self.spatial_dims, self.scale_factor)
+        x = pixelshuffle(x, self.dimensions, self.scale_factor)
+        x = self.pad_pool(x)
         return x
