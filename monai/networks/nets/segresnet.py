@@ -22,7 +22,7 @@ from monai.networks.layers.factories import Act, Dropout
 
 class SegResNet(nn.Module):
     """
-    SegResNet based on `3D MRI brain tumor segmentation using autoencoder regularization 
+    SegResNet based on `3D MRI brain tumor segmentation using autoencoder regularization
     <https://arxiv.org/pdf/1810.11654.pdf>`_.
     The module does not include the variational autoencoder (VAE).
     The model supports 2D or 3D inputs.
@@ -170,7 +170,7 @@ class SegResNet(nn.Module):
 
 class SegResNetVAE(SegResNet):
     """
-    SegResNetVAE based on `3D MRI brain tumor segmentation using autoencoder regularization 
+    SegResNetVAE based on `3D MRI brain tumor segmentation using autoencoder regularization
     <https://arxiv.org/pdf/1810.11654.pdf>`_.
     The module contains the variational autoencoder (VAE).
     The model supports 2D or 3D inputs.

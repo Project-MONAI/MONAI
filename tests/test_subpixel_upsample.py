@@ -23,18 +23,20 @@ for inch in range(1, 5):
     for dim in range(1, 4):
         for factor in range(1, 3):
             test_case = [
-                {"spatial_dims": dim, "in_channels": inch, "scale_factor": factor},
+                {"dimensions": dim, "in_channels": inch, "scale_factor": factor},
                 torch.randn(2, inch, *([8] * dim)),
                 (2, inch, *([8 * factor] * dim)),
             ]
             TEST_CASE_SUBPIXEL.append(test_case)
+
 TEST_CASE_SUBPIXEL_2D_EXTRA = [
-    {"spatial_dims": 2, "in_channels": 2, "scale_factor": 3},
+    {"dimensions": 2, "in_channels": 2, "scale_factor": 3},
     torch.randn(2, 2, 8, 4),  # different size for H and W
     (2, 2, 24, 12),
 ]
+
 TEST_CASE_SUBPIXEL_3D_EXTRA = [
-    {"spatial_dims": 3, "in_channels": 1, "scale_factor": 2},
+    {"dimensions": 3, "in_channels": 1, "scale_factor": 2},
     torch.randn(2, 1, 16, 8, 4),  # different size for H, W and D
     (2, 1, 32, 16, 8),
 ]
@@ -44,7 +46,7 @@ conv_block = nn.Sequential(
 )
 
 TEST_CASE_SUBPIXEL_CONV_BLOCK_EXTRA = [
-    {"spatial_dims": 3, "in_channels": 1, "scale_factor": 2, "conv_block": conv_block},
+    {"dimensions": 3, "in_channels": 1, "scale_factor": 2, "conv_block": conv_block},
     torch.randn(2, 1, 16, 8, 4),  # different size for H, W and D
     (2, 1, 32, 16, 8),
 ]
@@ -52,6 +54,14 @@ TEST_CASE_SUBPIXEL_CONV_BLOCK_EXTRA = [
 TEST_CASE_SUBPIXEL.append(TEST_CASE_SUBPIXEL_2D_EXTRA)
 TEST_CASE_SUBPIXEL.append(TEST_CASE_SUBPIXEL_3D_EXTRA)
 TEST_CASE_SUBPIXEL.append(TEST_CASE_SUBPIXEL_CONV_BLOCK_EXTRA)
+
+
+# add every test back with the pad/pool sequential component omitted
+for tests in list(TEST_CASE_SUBPIXEL):
+    args: dict = tests[0]  # type: ignore
+    args = dict(args)
+    args["apply_pad_pool"] = False
+    TEST_CASE_SUBPIXEL.append([args, tests[1], tests[2]])
 
 
 class TestSUBPIXEL(unittest.TestCase):

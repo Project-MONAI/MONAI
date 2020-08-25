@@ -40,7 +40,7 @@ def compute_confusion_metric(
 
     Args:
         y_pred: predictions. As for classification tasks,
-            `y_pred` should has the shape [B] or [BN]. As for segmentation tasks, 
+            `y_pred` should has the shape [B] or [BN]. As for segmentation tasks,
             the shape should be [BNHW] or [BNHWD].
         y: ground truth, the first dim is batch.
         to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
@@ -48,9 +48,9 @@ def compute_confusion_metric(
             Activation method, if specified, an activation function will be employed for `y_pred`.
             Defaults to None.
             The parameter can also be a callable function, for example:
-            ``activation = lambda x: torch.log_softmax(x)``. 
+            ``activation = lambda x: torch.log_softmax(x)``.
         bin_mode: [``"threshold"``, ``"mutually_exclusive"``]
-            Binarization method, if specified, a binarization manipulation will be employed 
+            Binarization method, if specified, a binarization manipulation will be employed
             for `y_pred`.
 
             - ``"threshold"``, a single threshold or a sequence of thresholds should be set.
