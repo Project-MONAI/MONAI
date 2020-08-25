@@ -382,7 +382,7 @@ class SmartCacheDataset(CacheDataset):
             raise ValueError("cache_num must be smaller than dataset length to support replacement.")
         if replace_rate <= 0:
             raise ValueError("replace_rate must be greater than 0, otherwise, please use CacheDataset.")
-        self.num_replace_workers: int = num_init_workers
+        self.num_replace_workers: int = num_replace_workers
 
         self._total_num: int = len(data)
         self._replace_num: int = min(math.ceil(self.cache_num * replace_rate), len(data) - self.cache_num)
@@ -392,9 +392,8 @@ class SmartCacheDataset(CacheDataset):
         self._start_pos: int = 0
         self._update_lock: threading.Lock = threading.Lock()
         self._round: int = 1
-        self._round_done: bool = False
-        self._replace_mgr: threading.Thread = threading.Thread(target=_manage_replacement, args=(self,))
-        self._started: bool = False
+        self._replace_done: bool = False
+        self._replace_mgr: Optional[threading.Thread] = None
 
         self._compute_data_idx()
 
@@ -409,13 +408,22 @@ class SmartCacheDataset(CacheDataset):
                 pos -= self._total_num
             self._replace_data_idx[i] = pos
 
+    def is_started(self):
+        """
+        Check whether the replacement thread is already started.
+
+        """
+        if self._replace_mgr is None:
+            return False
+        return self._replace_mgr.isAlive()
+
     def start(self):
         """
         Start the background thread to replace training items for every epoch.
 
         """
-        self._replace_mgr.start()
-        self._started = True
+        if self._replace_mgr is None or not self._is_started():
+            self._restart()
 
     def _restart(self):
         """
@@ -423,8 +431,8 @@ class SmartCacheDataset(CacheDataset):
 
         """
         self._round = 1
-        self._replace_mgr = threading.Thread(target=_manage_replacement, args=(self,))
-        self.start()
+        self._replace_mgr = threading.Thread(target=self.manage_replacement, daemon=True)
+        self._replace_mgr.start()
 
     def _try_update_cache(self):
         """
@@ -432,7 +440,7 @@ class SmartCacheDataset(CacheDataset):
 
         """
         with self._update_lock:
-            if self._round_done:
+            if self._replace_done:
                 remain_num: int = self.cache_num - self._replace_num
                 for i in range(remain_num):
                     self._cache[i] = self._cache[i + self._replace_num]
@@ -447,7 +455,7 @@ class SmartCacheDataset(CacheDataset):
 
                 # ready for next round
                 self._round += 1
-                self._round_done = False
+                self._replace_done = False
                 return True
             else:
                 return False
@@ -462,11 +470,8 @@ class SmartCacheDataset(CacheDataset):
             self._restart()
 
         # make sure update is done
-        while True:
-            if self._try_update_cache():
-                break
-            else:
-                time.sleep(0.01)
+        while not self._try_update_cache():
+            time.sleep(0.01)
 
     def _try_shutdown(self):
         """
@@ -474,9 +479,9 @@ class SmartCacheDataset(CacheDataset):
 
         """
         with self._update_lock:
-            if self._round_done:
+            if self._replace_done:
                 self._round = 0
-                self._round_done = False
+                self._replace_done = False
                 return True
             else:
                 return False
@@ -486,16 +491,13 @@ class SmartCacheDataset(CacheDataset):
         Shut down the background thread for replacement.
 
         """
-        if not self._started:
+        if not self.is_started():
             return
 
         # wait until replace mgr is done the current round
-        while True:
-            if self._try_shutdown():
-                self._replace_mgr.join()
-                return
-            else:
-                time.sleep(0.01)
+        while not self._try_shutdown():
+            time.sleep(0.01)
+        self._replace_mgr.join()
 
     def _replace_cache_thread(self, index: int):
         """
@@ -516,19 +518,18 @@ class SmartCacheDataset(CacheDataset):
                 p.map(self._replace_cache_thread, list(range(self._replace_num)))
         else:
             for i in range(self._replace_num):
-                pos: int = self._replace_data_idx[i]
-                self._replacements[i] = self._load_cache_item(self.data[pos], self.transform.transforms)  # type: ignore
-        self._round_done = True
+                self._replace_cache_thread(i)
+        self._replace_done = True
 
     def _try_manage_replacement(self, check_round):
         """
-        Wait thread lock and replace training items in the bacground thread.
+        Wait thread lock and replace training items in the background thread.
 
         """
         with self._update_lock:
             if self._round <= 0:
                 # shutdown replacement
-                self._round_done = True
+                self._replace_done = True
                 return True, -1
 
             if self._round != check_round:
@@ -541,18 +542,17 @@ class SmartCacheDataset(CacheDataset):
 
         """
         check_round: int = -1
-        while True:
+        done = False
+        while not done:
             done, check_round = self._try_manage_replacement(check_round)
-            if done:
-                return
             time.sleep(0.01)
 
     def __len__(self):
+        """
+        The dataset length is given by cache_num instead of len(data).
+
+        """
         return self.cache_num
-
-
-def _manage_replacement(cache: SmartCacheDataset):
-    cache.manage_replacement()
 
 
 class ZipDataset(Dataset):
