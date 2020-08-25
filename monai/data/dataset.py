@@ -344,7 +344,7 @@ class SmartCacheDataset(CacheDataset):
         self._total_num: int = len(data)
         self._replace_num: int = min(math.ceil(self.cache_num * replace_rate), len(data) - self.cache_num)
         self._replacements: List[Any] = [None for _ in range(self._replace_num)]
-        self._replace_data_idx: List[int] = [i for i in range(self._replace_num)]
+        self._replace_data_idx: List[int] = list(range(self._replace_num))
 
         self._start_pos: int = 0
         self._update_lock: threading.Lock = threading.Lock()
@@ -433,7 +433,7 @@ class SmartCacheDataset(CacheDataset):
     def _compute_replacements(self):
         if self.num_replace_workers > 0:
             with ThreadPool(self.num_replace_workers) as p:
-                p.map(self._replace_cache_thread, [i for i in range(self._replace_num)])
+                p.map(self._replace_cache_thread, list(range(self._replace_num)))
         else:
             for i in range(self._replace_num):
                 pos: int = self._replace_data_idx[i]

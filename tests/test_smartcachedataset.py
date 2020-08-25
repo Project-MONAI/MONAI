@@ -58,7 +58,7 @@ class TestSmartCacheDataset(unittest.TestCase):
                 self.assertIsNotNone(dataset._cache[i])
 
             dataset.start()
-            for epoch in range(3):
+            for _ in range(3):
                 dataset.update_cache()
                 self.assertIsNotNone(dataset._cache[15])
                 if isinstance(dataset._cache[15]["image"], np.ndarray):
