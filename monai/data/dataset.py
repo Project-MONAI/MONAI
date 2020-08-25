@@ -17,7 +17,7 @@ import time
 import threading
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
-from typing import Any, Callable, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Optional, Sequence, Tuple, Union, List
 
 import numpy as np
 import torch
@@ -339,24 +339,25 @@ class SmartCacheDataset(CacheDataset):
             raise ValueError("cache_num must be smaller than dataset length to support replacement.")
         if replace_rate <= 0:
             raise ValueError("replace_rate must be greater than 0, otherwise, please use CacheDataset.")
-        self.num_replace_workers = num_init_workers
+        self.num_replace_workers: int = num_init_workers
 
-        self._total_num = len(data)
-        self._replace_num = min(math.ceil(self.cache_num * replace_rate), len(data) - self.cache_num)
-        self._replacements = [None for _ in range(self._replace_num)]
-        self._replace_data_idx = [i for i in range(self._replace_num)]
+        self._total_num: int = len(data)
+        self._replace_num: int = min(math.ceil(self.cache_num * replace_rate), len(data) - self.cache_num)
+        self._replacements: List[Any] = [None for _ in range(self._replace_num)]
+        self._replace_data_idx: List[int] = [i for i in range(self._replace_num)]
 
-        self._start_pos = 0
-        self._update_lock = threading.Lock()
-        self._round = 1
-        self._round_done = False
-        self._replace_mgr = threading.Thread(target=_manage_replacement, args=(self,))
-        self._started = False
+        self._start_pos: int = 0
+        self._update_lock: threading.Lock = threading.Lock()
+        self._round: int = 1
+        self._round_done: bool = False
+        self._replace_mgr: threading.Thread = threading.Thread(target=_manage_replacement, args=(self,))
+        self._started: bool = False
+
         self._compute_data_idx()
 
     def _compute_data_idx(self):
         for i in range(self._replace_num):
-            pos = self._start_pos + self.cache_num + i
+            pos: int = self._start_pos + self.cache_num + i
             if pos >= self._total_num:
                 pos -= self._total_num
             self._replace_data_idx[i] = pos
@@ -373,7 +374,7 @@ class SmartCacheDataset(CacheDataset):
     def _try_update_cache(self):
         with self._update_lock:
             if self._round_done:
-                remain_num = self.cache_num - self._replace_num
+                remain_num: int = self.cache_num - self._replace_num
                 for i in range(remain_num):
                     self._cache[i] = self._cache[i + self._replace_num]
                 for i in range(self._replace_num):
@@ -382,6 +383,7 @@ class SmartCacheDataset(CacheDataset):
                 self._start_pos += self._replace_num
                 if self._start_pos >= self._total_num:
                     self._start_pos -= self._total_num
+
                 self._compute_data_idx()
 
                 # ready for next round
@@ -398,8 +400,7 @@ class SmartCacheDataset(CacheDataset):
 
         # make sure update is done
         while True:
-            updated = self._try_update_cache()
-            if updated:
+            if self._try_update_cache():
                 break
             else:
                 time.sleep(0.01)
@@ -419,15 +420,14 @@ class SmartCacheDataset(CacheDataset):
 
         # wait until replace mgr is done the current round
         while True:
-            done = self._try_shutdown()
-            if done:
+            if self._try_shutdown():
                 self._replace_mgr.join()
                 return
             else:
                 time.sleep(0.01)
 
     def _replace_cache_thread(self, index: int) -> None:
-        pos = self._replace_data_idx[index]
+        pos: int = self._replace_data_idx[index]
         self._replacements[index] = self._load_cache_item(self.data[pos], self.transform.transforms)
 
     def _compute_replacements(self):
@@ -436,7 +436,7 @@ class SmartCacheDataset(CacheDataset):
                 p.map(self._replace_cache_thread, [i for i in range(self._replace_num)])
         else:
             for i in range(self._replace_num):
-                pos = self._replace_data_idx[i]
+                pos: int = self._replace_data_idx[i]
                 self._replacements[i] = self._load_cache_item(self.data[pos], self.transform.transforms)
         self._round_done = True
 
@@ -452,7 +452,7 @@ class SmartCacheDataset(CacheDataset):
             return False, self._round
 
     def manage_replacement(self):
-        check_round = -1
+        check_round: int = -1
         while True:
             done, check_round = self._try_manage_replacement(check_round)
             if done:
