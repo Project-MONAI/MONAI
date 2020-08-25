@@ -4,14 +4,12 @@ import torch.nn.functional as F
 import torch.nn.parallel
 
 from monai.networks.blocks import Convolution
-from monai.networks.layers.factories import Act, Norm, Conv
-
+from monai.networks.layers.factories import Act, Conv, Norm, split_args
 
 CFG_TREE_BASE_SIZE = 128
 CFG_GAN_Z_DIM = 10
 CFG_GAN_EMBEDDING_DIM = 128
 CFG_GAN_GF_DIM = 32
-CFG_TREE_BRANCH_NUM = 1
 CFG_GAN_DF_DIM = 64
 CFG_TEXT_DIMENSION = 5172
 
@@ -294,106 +292,93 @@ class GET_IMAGE_G(nn.Module):
         #     return img_set
 
 
-class G_NET(nn.Module):
+class GenNet(nn.Module):
     def __init__(self, gf_dim=32, ef_dim=128):
-        super(G_NET, self).__init__()
+        super(GenNet, self).__init__()
         self.gf_dim = gf_dim  # CFG_GAN_GF_DIM  # 32
         self.ef_dim = ef_dim  # CFG_GAN_EMBEDDING_DIM  # 128
-        self.define_module()
-
-    def define_module(self):
 
         self.ec_net = EC_NET()
-
-        if CFG_TREE_BRANCH_NUM > 0:
-            self.h_net1 = INIT_STAGE_G(self.gf_dim * 16)
-            self.img_net1 = GET_IMAGE_G(self.gf_dim, 2)
+        self.h_net1 = INIT_STAGE_G(self.gf_dim * 16)
+        self.img_net1 = GET_IMAGE_G(self.gf_dim, 2)
 
     def forward(self, z_code, text_embedding, base_img):
-
         c_code = self.ec_net(text_embedding)
-
-        # fake_imgs, fake_segs, fg_switchs = [], [], []
-        # print('DEBUG: G_NET 311 Forward C %s, Z %s' % (c_code.shape, z_code.shape))
         h_code1, fg_switch1 = self.h_net1(z_code, c_code, base_img)
         fake_img1, fake_seg1 = self.img_net1(h_code1, z_code, c_code, base_img)
 
-        # fake_imgs.append(fake_img1)
-        # fake_segs.append(fake_seg1)
-        # fg_switchs.append(fg_switch1)
-
         return c_code, fake_img1, fake_seg1, fg_switch1
-        # return c_code, fake_imgs, fake_segs, fg_switchs
 
 
 # ############## D networks ################################################
-class D_NET(nn.Module):
-    def __init__(self, spatial_dim=2, df_dim=64, embed_dim=128, k_size=8, norm=Norm.BATCH):
-        super(D_NET, self).__init__()
+class DiscNet(nn.Module):
+    def __init__(
+        self,
+        spatial_dim=2,
+        df_dim=64,
+        embed_dim=128,
+        k_size=8,
+        norm=Norm.BATCH,
+        act=(Act.LEAKYRELU, {"negative_slope": 0.2, "inplace": True}),
+    ):
+        super(DiscNet, self).__init__()
+        self.dim = spatial_dim
         self.df_dim = df_dim  # CFG_GAN_DF_DIM
         self.embed_dim = embed_dim  # CFG_GAN_EMBEDDING_DIM
-        self.k_size = k_size  # CFG_TREE_BASE_SIZE // (2 ** 4) or 128 // 16
+        self.k_size = k_size  # CFG_TREE_BASE_SIZE // (2 ** 4) OR 128 // 16
         self.norm = norm
-        self.act = (Act.LEAKYRELU, {"negative_slope": 0.2, "inplace": True})
+        self.act = act
 
-        # image realism
-        self.img_code_s16 = self._build_img_encode(self.df_dim, 1)
-        # image seg realism
-        self.imgseg_code_s16 = self._build_img_encode(self.df_dim, 2)
-        # image seg code realism
-        self.jointConv = Convolution(
-            spatial_dim,
-            self.df_dim * 8 + self.embed_dim,
-            self.df_dim * 8,
-            strides=1,
-            kernel_size=3,
-            bias=False,
-            act=self.act,
-            norm=self.norm,
-        )
+        self.encoding_I = self._build_img_encode(self.df_dim, 1)
+        self.encoding_IS = self._build_img_encode(self.df_dim, 2)
+        self.encoding_ISC = self._get_encode_img_layer(self.df_dim * 8 + self.embed_dim, self.df_dim * 8, padding=1, stride=1)
 
-        # logits
-        self.logits_I = Conv["CONV", spatial_dim](self.df_dim * 8, 1, kernel_size=self.k_size, stride=1)
-        self.logits_IS = Conv["CONV", spatial_dim](self.df_dim * 8, 1, kernel_size=self.k_size, stride=1)
-        self.logits_ISC = Conv["CONV", spatial_dim](self.df_dim * 8, 1, kernel_size=self.k_size, stride=1)
+        self.logits_I = Conv["CONV", self.dim](self.df_dim * 8, 1, kernel_size=self.k_size, stride=1)
+        self.logits_IS = Conv["CONV", self.dim](self.df_dim * 8, 1, kernel_size=self.k_size, stride=1)
+        self.logits_ISC = Conv["CONV", self.dim](self.df_dim * 8, 1, kernel_size=self.k_size, stride=1)
+
+    def _get_encode_img_layer(
+        self, in_channel, out_channel, k_size=3, stride=2, padding=1, no_norm=False, no_act=False, bias=False
+    ):
+        block = nn.Sequential()
+        block.add_module("conv", Conv["conv", self.dim](in_channel, out_channel, k_size, stride, padding, bias=bias))
+
+        if not no_norm:
+            norm, norm_args = split_args(self.norm)
+            block.add_module("norm", Norm[norm, self.dim](out_channel, **norm_args))
+
+        if not no_act:
+            act, act_args = split_args(self.act)
+            block.add_module("act", Act[act](**act_args))
+
+        return block
 
     def _build_img_encode(self, ndf, input_dims):
         encode_img = nn.Sequential(
-            # --> state size. ndf x in_size/2 x in_size/2
-            Conv["conv", 2](input_dims, ndf, 4, 2, 1, bias=False),
-            Act["leakyrelu"](0.2, inplace=True),
-            # --> state size 2ndf x x in_size/4 x in_size/4
-            Conv["conv", 2](ndf, ndf * 2, 4, 2, 1, bias=False),
-            Norm["batch", 2](ndf * 2),
-            Act["leakyrelu"](0.2, inplace=True),
-            # --> state size 4ndf x in_size/8 x in_size/8
-            Conv["conv", 2](ndf * 2, ndf * 4, 4, 2, 1, bias=False),
-            Norm["batch", 2](ndf * 4),
-            Act["leakyrelu"](0.2, inplace=True),
-            # --> state size 8ndf x in_size/16 x in_size/16
-            Conv["conv", 2](ndf * 4, ndf * 8, 4, 2, 1, bias=False),
-            Norm["batch", 2](ndf * 8),
-            Act["leakyrelu"](0.2, inplace=True),
+            self._get_encode_img_layer(input_dims, ndf, no_norm=True),
+            self._get_encode_img_layer(ndf, ndf * 2),
+            self._get_encode_img_layer(ndf * 2, ndf * 4),
+            self._get_encode_img_layer(ndf * 4, ndf * 8),
         )
         return encode_img
 
-    def forward(self, img, txt, seg):
-        # prepare data
+    def forward(self, img, embedding, seg):
+        # prepare input data tensors
         imgseg_pair = torch.cat((img, seg), 1)
-        txt_code = txt.view(-1, self.embed_dim, 1, 1)
-        txt_code = txt_code.repeat(1, 1, self.k_size, self.k_size)
+        input_embed = embedding.view(-1, self.embed_dim, 1, 1)
+        input_embed = input_embed.repeat(1, 1, self.k_size, self.k_size)
 
-        # grade img realism
-        img_code = self.img_code_s16(img)
-        # grade img seg realism
-        imgseg_code = self.imgseg_code_s16(imgseg_pair)
-        # grade img seg code realism
-        h_c_code1 = torch.cat((txt_code, imgseg_code), 1)
-        h_c_code1 = self.jointConv(h_c_code1)
+        # img realism
+        encoding_i = self.encoding_I(img)
+        # img seg realism
+        encoding_is = self.encoding_IS(imgseg_pair)
+        # img seg code realism
+        input_isc = torch.cat((input_embed, encoding_is), 1)
+        encoding_isc = self.encoding_ISC(input_isc)
 
         # calculate logits
-        logits_i = self.logits_I(img_code)
-        logits_is = self.logits_IS(imgseg_code)
-        logits_isc = self.logits_ISC(h_c_code1)
+        logits_i = self.logits_I(encoding_i)
+        logits_is = self.logits_IS(encoding_is)
+        logits_isc = self.logits_ISC(encoding_isc)
 
         return [logits_isc.view(-1), logits_i.view(-1), logits_is.view(-1)]

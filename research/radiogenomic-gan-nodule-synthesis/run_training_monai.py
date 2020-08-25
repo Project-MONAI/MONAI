@@ -21,7 +21,8 @@ import torch
 # RGGAN Custom Libraries
 from DataPreprocessor import load_rg_data
 from Dataset import RGDataset
-from rggan import D_NET, G_NET
+from rggan import GenNet as G_NET
+from rggan import DiscNet as D_NET
 from rggan_utils import weights_init
 
 from monai import config
