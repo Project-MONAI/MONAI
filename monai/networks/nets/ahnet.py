@@ -318,26 +318,33 @@ class PSP(nn.Module):
 
 class AHNet(nn.Module):
     """
-    Anisotropic Hybrid Network (AH-Net).
-    The code is adapted from lsqshr's original version:
-    https://github.com/lsqshr/AH-Net/blob/master/net3d.py
-    The model supports 2D or 3D inputs, as for the original 3D version, in order to use pretrained weights
-    from 2D FCN/MCFCN, please call the copy_from function.
+    AHNet based on `Anisotropic Hybrid Network <https://arxiv.org/pdf/1711.08580.pdf>`_.
+    Adapted from `lsqshr's official code <https://github.com/lsqshr/AH-Net/blob/master/net3d.py>`_.
+    The model supports 2D or 3D inputs, as for the original 3D version.
     To meet to requirements of the structure, the input size of the first ``dim-1`` dimensions should be divided
     by 32 and no less than 128. If you need to use lower sizes, please reduce the largest blocks in PSP
     module and change the ``num_input_features`` in Final module.
     In addition, to utilize the "transpose" upsample mode, please ensure that the input size of the first ``dim-1`` dimensions
-    should be divided by 128.
+    should be divisible by 128. In order to use pretrained weights from 2D FCN/MCFCN, please call the `copy_from` function, 
+    for example:
+
+    .. code-block:: python
+
+        model = monai.networks.nets.AHNet(out_channels=2, upsample_mode='transpose')
+        model2d = monai.networks.blocks.FCN()
+        model.copy_from(model2d)
 
     Args:
         layers: number of residual blocks for 4 layers of the network (layer1...layer4). Defaults to ``(3, 4, 6, 3)``.
         spatial_dims: spatial dimension of the input data. Defaults to 3.
         out_channels: number of output channels for the network. Defaults to 1.
-        upsample_mode: The mode of upsampling manipulations, there are three choices:
-            1) ``transpose``, uses transposed convolution layers.
-            2) ``bilinear``, uses bilinear interpolate.
-            3) ``trilinear``, uses trilinear interpolate.
+        upsample_mode: [``"transpose"``, ``"bilinear"``, ``"trilinear"``]
+            The mode of upsampling manipulations.
             Using the last two modes cannot guarantee the model's reproducibility. Defaults to ``trilinear``.
+
+            - ``"transpose"``, uses transposed convolution layers.
+            - ``"bilinear"``, uses bilinear interpolate.
+            - ``"trilinear"``, uses trilinear interpolate.
     """
 
     def __init__(

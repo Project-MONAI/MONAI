@@ -22,9 +22,8 @@ from monai.networks.layers.factories import Act, Dropout
 
 class SegResNet(nn.Module):
     """
-    SegResNet:
-    "3D MRI brain tumor segmentation using autoencoder regularization, https://arxiv.org/abs/1810.11654"
-    The code is adapted from the author's code.
+    SegResNet based on `3D MRI brain tumor segmentation using autoencoder regularization 
+    <https://arxiv.org/pdf/1810.11654.pdf>`_.
     The module does not include the variational autoencoder (VAE).
     The model supports 2D or 3D inputs.
 
@@ -40,11 +39,13 @@ class SegResNet(nn.Module):
         use_conv_final: if add a final convolution block to output. Defaults to ``True``.
         blocks_down: number of down sample blocks in each layer. Defaults to ``[1,2,2,4]``.
         blocks_up: number of up sample blocks in each layer. Defaults to ``[1,1,1]``.
-        upsample_mode: The mode of upsampling manipulations, there are three choices:
-            1) ``transpose``, uses transposed convolution layers.
-            2) ``bilinear``, uses bilinear interpolate.
-            3) ``trilinear``, uses trilinear interpolate.
+        upsample_mode: [``"transpose"``, ``"bilinear"``, ``"trilinear"``]
+            The mode of upsampling manipulations.
             Using the last two modes cannot guarantee the model's reproducibility. Defaults to``trilinear``.
+
+            - ``transpose``, uses transposed convolution layers.
+            - ``bilinear``, uses bilinear interpolate.
+            - ``trilinear``, uses trilinear interpolate.
     """
 
     def __init__(
@@ -169,9 +170,8 @@ class SegResNet(nn.Module):
 
 class SegResNetVAE(SegResNet):
     """
-    SegResNetVAE:
-    "3D MRI brain tumor segmentation using autoencoder regularization, https://arxiv.org/abs/1810.11654"
-    The code is adapted from the author's code.
+    SegResNetVAE based on `3D MRI brain tumor segmentation using autoencoder regularization 
+    <https://arxiv.org/pdf/1810.11654.pdf>`_.
     The module contains the variational autoencoder (VAE).
     The model supports 2D or 3D inputs.
 
@@ -187,11 +187,13 @@ class SegResNetVAE(SegResNet):
         use_conv_final: if add a final convolution block to output. Defaults to ``True``.
         blocks_down: number of down sample blocks in each layer. Defaults to ``[1,2,2,4]``.
         blocks_up: number of up sample blocks in each layer. Defaults to ``[1,1,1]``.
-        upsample_mode: The mode of upsampling manipulations, there are three choices:
-            1) ``transpose``, uses transposed convolution layers.
-            2) ``bilinear``, uses bilinear interpolate.
-            3) ``trilinear``, uses trilinear interpolate.
+        upsample_mode: [``"transpose"``, ``"bilinear"``, ``"trilinear"``]
+            The mode of upsampling manipulations.
             Using the last two modes cannot guarantee the model's reproducibility. Defaults to``trilinear``.
+
+            - ``transpose``, uses transposed convolution layers.
+            - ``bilinear``, uses bilinear interpolate.
+            - ``trilinear``, uses trilinear interpolate.
         use_vae: if use the variational autoencoder (VAE) during training. Defaults to ``False``.
         input_image_size: the size of images to input into the network. It is used to
             determine the in_features of the fc layer in VAE. When ``use_vae == True``, please
