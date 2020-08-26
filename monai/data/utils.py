@@ -13,13 +13,14 @@ import math
 import os
 import warnings
 from itertools import product, starmap
-from typing import Dict, Generator, List, Optional, Sequence, Tuple, Union
+from typing import Dict, Generator, List, Optional, Sequence, Tuple, Union, Any
 
 import numpy as np
 import torch
 from torch.utils.data._utils.collate import default_collate
 from torch.utils.data.distributed import DistributedSampler
 
+import monai
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.utils import BlendMode, NumpyPadMode, ensure_tuple, ensure_tuple_size, first, optional_import
 
@@ -539,7 +540,7 @@ def is_supported_format(filename: Union[Sequence[str], str], suffixes: Sequence[
     return supported_format
 
 
-def partition_dataset(data: Sequence, shuffle: bool = False, seed: int = 0):
+def partition_dataset(data: Sequence[Any], shuffle: bool = False, seed: int = 0):
     """
     Partition the dataset for distributed training, every rank process only train with its own data partition.
     It can be useful for `CacheDataset` or `SmartCacheDataset`, because every rank process can only compute and
@@ -557,6 +558,6 @@ def partition_dataset(data: Sequence, shuffle: bool = False, seed: int = 0):
             this number should be identical across all processes in the distributed group.
 
     """
-    sampler = DistributedSampler(dataset=data, shuffle=shuffle)
+    sampler: DistributedSampler = DistributedSampler(dataset=monai.data.Dataset(data), shuffle=shuffle)
     sampler.set_epoch(seed)
     return [data[i] for i in sampler]
