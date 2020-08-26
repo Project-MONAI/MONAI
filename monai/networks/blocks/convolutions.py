@@ -86,8 +86,11 @@ class Convolution(nn.Sequential):
         conv_type = Conv[Conv.CONVTRANS if is_transposed else Conv.CONV, dimensions]
 
         # define the normalisation type and the arguments to the constructor
-        norm_name, norm_args = split_args(norm)
-        norm_type = Norm[norm_name, dimensions]
+        if norm is not None:
+            norm_name, norm_args = split_args(norm)
+            norm_type = Norm[norm_name, dimensions]
+        else:
+            norm_type = norm_args = None
 
         # define the activation type and the arguments to the constructor
         if act is not None:
@@ -137,9 +140,12 @@ class Convolution(nn.Sequential):
         self.add_module("conv", conv)
 
         if not conv_only:
-            self.add_module("norm", norm_type(out_channels, **norm_args))
+            if norm is not None:
+                self.add_module("norm", norm_type(out_channels, **norm_args))
+
             if dropout:
                 self.add_module("dropout", drop_type(**drop_args))
+
             if act is not None:
                 self.add_module("act", act_type(**act_args))
 
