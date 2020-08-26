@@ -92,6 +92,10 @@ class PersistentDataset(Dataset):
 
     Subsequent uses of a dataset directly read pre-processed results from `cache_dir`
     followed by applying the random dependant parts of transform processing.
+
+    Note:
+        The input data must be a list of file paths and will hash them as cache keys.
+
     """
 
     def __init__(
@@ -108,13 +112,19 @@ class PersistentDataset(Dataset):
             cache_dir: If specified, this is the location for persistent storage
                 of pre-computed transformed data tensors. The cache_dir is computed once, and
                 persists on disk until explicitly removed.  Different runs, programs, experiments
-                may share a common cache dir provided that the transforms pre-processing is
-                consistent.
+                may share a common cache dir provided that the transforms pre-processing is consistent.
+                If the cache_dir doesn't exist, will automatically create it.
         """
         if not isinstance(transform, Compose):
             transform = Compose(transform)
         super().__init__(data=data, transform=transform)
         self.cache_dir = Path(cache_dir) if cache_dir is not None else None
+        if self.cache_dir is not None:
+            if not self.cache_dir.exists():
+                self.cache_dir.mkdir(parents=True)
+            if not self.cache_dir.is_dir():
+                raise ValueError("cache_dir must be a directory.")
+
 
     def _pre_first_random_transform(self, item_transformed):
         """
@@ -177,13 +187,11 @@ class PersistentDataset(Dataset):
         if item_transformed.get("cached", False) is False:
             hashfile = None
             if self.cache_dir is not None:
-                cache_dir_path = Path(self.cache_dir)
-                if cache_dir_path.is_dir():
-                    # TODO: Find way to hash transforms content as part of the cache
-                    data_item_md5 = hashlib.md5(
-                        json.dumps(item_transformed, sort_keys=True).encode("utf-8")
-                    ).hexdigest()
-                    hashfile = Path(cache_dir_path) / f"{data_item_md5}.pt"
+                # TODO: Find way to hash transforms content as part of the cache
+                data_item_md5 = hashlib.md5(
+                    json.dumps(item_transformed, sort_keys=True).encode("utf-8")
+                ).hexdigest()
+                hashfile = self.cache_dir / f"{data_item_md5}.pt"
 
             if hashfile is not None and hashfile.is_file():
                 item_transformed = torch.load(hashfile)
