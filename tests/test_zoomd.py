@@ -27,7 +27,12 @@ class TestZoomd(NumpyImageTestCase2D):
     @parameterized.expand(VALID_CASES)
     def test_correct_results(self, zoom, mode, keep_size):
         key = "img"
-        zoom_fn = Zoomd(key, zoom=zoom, mode=mode, keep_size=keep_size,)
+        zoom_fn = Zoomd(
+            key,
+            zoom=zoom,
+            mode=mode,
+            keep_size=keep_size,
+        )
         zoomed = zoom_fn({key: self.imt[0]})
         _order = 0
         if mode.endswith("linear"):

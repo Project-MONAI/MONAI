@@ -124,7 +124,12 @@ def train(args):
     train_sampler = DistributedSampler(train_ds)
     # use batch_size=2 to load images and use RandCropByPosNegLabeld to generate 2 x 4 images for network training
     train_loader = DataLoader(
-        train_ds, batch_size=2, shuffle=False, num_workers=2, pin_memory=True, sampler=train_sampler,
+        train_ds,
+        batch_size=2,
+        shuffle=False,
+        num_workers=2,
+        pin_memory=True,
+        sampler=train_sampler,
     )
 
     # create UNet, DiceLoss and Adam optimizer

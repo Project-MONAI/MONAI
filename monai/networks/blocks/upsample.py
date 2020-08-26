@@ -127,7 +127,11 @@ class SubpixelUpsample(nn.Module):
         if conv_block is None:
             conv_out_channels = in_channels * (scale_factor ** dimensions)
             self.conv_block = Conv[Conv.CONV, dimensions](
-                in_channels=in_channels, out_channels=conv_out_channels, kernel_size=3, stride=1, padding=1,
+                in_channels=in_channels,
+                out_channels=conv_out_channels,
+                kernel_size=3,
+                stride=1,
+                padding=1,
             )
 
             icnr_init(self.conv_block, self.scale_factor)
