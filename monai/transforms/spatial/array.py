@@ -1327,8 +1327,8 @@ class Rand2DElastic(Randomizable, Transform):
         Args:
             spacing : distance in between the control points.
             magnitude_range: the random offsets will be generated from ``uniform[magnitude[0], magnitude[1])``.
-            prob: probability of returning a randomized affine grid.
-                defaults to 0.1, with 10% chance returns a randomized grid,
+            prob: probability of returning a randomized elastic transform.
+                defaults to 0.1, with 10% chance returns a randomized elastic transform,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
             rotate_range: angle range in radians. rotate_range[0] with be used to generate the 1st rotation
                 parameter from `uniform[-rotate_range[0], rotate_range[0])`.
@@ -1456,8 +1456,8 @@ class Rand3DElastic(Randomizable, Transform):
                 ``uniform[sigma_range[0], sigma_range[1])`` will be used to smooth the random offset grid.
             magnitude_range: the random offsets on the grid will be generated from
                 ``uniform[magnitude[0], magnitude[1])``.
-            prob: probability of returning a randomized affine grid.
-                defaults to 0.1, with 10% chance returns a randomized grid,
+            prob: probability of returning a randomized elastic transform.
+                defaults to 0.1, with 10% chance returns a randomized elastic transform,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
             rotate_range: angle range in radians. rotate_range[0] with be used to generate the 1st rotation
                 parameter from `uniform[-rotate_range[0], rotate_range[0])`. Similarly, `rotate_range[1]` and
