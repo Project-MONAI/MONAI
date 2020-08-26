@@ -538,5 +538,23 @@ def is_supported_format(filename: Union[Sequence[str], str], suffixes: Sequence[
 
 
 def partition_dataset(data: Sequence, shuffle: bool = False, seed: int = 0):
-    sampler = DistributedSampler(dataset=data, shuffle=shuffle, seed=seed)
+    """
+    Partition the dataset for distributed training, every rank process only train with its own data partition.
+    It can be useful for `CacheDataset` or `SmartCacheDataset`, because every rank process can only compute and
+    cache its own data.
+    Note that every rank process will shuffle data only in its own partition if set `shuffle=True` to DataLoader.
+
+    The alternative solution is to use `DistributedSampler`, which supports global shuffle before every epoch.
+    But if using `CacheDataset` or `SmartCacheDataset`, every rank process will cache duplicated data content and
+    raise systen memory usage.
+
+    Args:
+        data: data list to partition, assumed to be of constant size.
+        shuffle: if true, will shuffle the indices of data list before partition.
+        seed: random seed to shuffle the indices if `shuffle=True`.
+            this number should be identical across all processes in the distributed group.
+
+    """
+    sampler = DistributedSampler(dataset=data, shuffle=shuffle)
+    sampler.set_epoch(seed)
     return [data[i] for i in sampler]

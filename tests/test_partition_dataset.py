@@ -9,31 +9,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import numpy as np
-import torch
 import torch.distributed as dist
 
-from monai.handlers import ROCAUC
+from monai.data import partition_dataset
+
+TEST_CASES = [
+    [False, 0, np.array([0, 2, 4, 6, 8]), np.array([1, 3, 5, 7, 9])],
+    [True, 0, np.array([4, 7, 3, 0, 6]), np.array([1, 5, 9, 8, 2])],
+    [True, 100, np.array([0, 5, 3, 4, 7]), np.array([8, 2, 6, 1, 9])],
+]
 
 
 def main():
     dist.init_process_group(backend="nccl", init_method="env://")
+    data = list(range(10))
 
-    auc_metric = ROCAUC(to_onehot_y=True, softmax=True)
+    for case in TEST_CASES:
+        data_part = partition_dataset(data, shuffle=case[0], seed=case[1])
 
-    if dist.get_rank() == 0:
-        y_pred = torch.tensor([[0.1, 0.9], [0.3, 1.4]], device=torch.device("cuda:0"))
-        y = torch.tensor([[0], [1]], device=torch.device("cuda:0"))
-        auc_metric.update([y_pred, y])
+        if dist.get_rank() == 0:
+            np.testing.assert_allclose(np.array(data_part), case[2])
 
-    if dist.get_rank() == 1:
-        y_pred = torch.tensor([[0.2, 0.1], [0.1, 0.5]], device=torch.device("cuda:1"))
-        y = torch.tensor([[0], [1]], device=torch.device("cuda:1"))
-        auc_metric.update([y_pred, y])
-
-    result = auc_metric.compute()
-    np.testing.assert_allclose(0.75, result)
+        if dist.get_rank() == 1:
+            np.testing.assert_allclose(np.array(data_part), case[3])
 
     dist.destroy_process_group()
 
@@ -42,7 +41,7 @@ def main():
 # python -m torch.distributed.launch --nproc_per_node=NUM_GPUS_PER_NODE
 #        --nnodes=NUM_NODES --node_rank=INDEX_CURRENT_NODE
 #        --master_addr="192.168.1.1" --master_port=1234
-#        test_handler_rocauc_dist.py
+#        test_partition_dataset.py
 
 if __name__ == "__main__":
     main()

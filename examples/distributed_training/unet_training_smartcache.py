@@ -10,8 +10,10 @@
 # limitations under the License.
 
 """
-This example shows how to execute distributed training based on PyTorch native `DistributedDataParallel` module.
+This example shows how to execute distributed training based on PyTorch native module and SmartCacheDataset.
 It can run on several nodes with multiple GPU devices on every node.
+It splits data into partitions, every rank only cache and train with its own partition.
+
 Main steps to set up the distributed training:
 
 - Execute `torch.distributed.launch` to create processes on every node for every GPU.
@@ -28,8 +30,11 @@ Main steps to set up the distributed training:
 - Use `init_process_group` to initialize every process, every GPU runs in a separate process with unique rank.
   Here we use `NVIDIA NCCL` as the backend and must set `init_method="env://"` if use `torch.distributed.launch`.
 - Wrap the model with `DistributedDataParallel` after moving to expected device.
-- Wrap Dataset with `DistributedSampler`, and disable the `shuffle` in DataLoader.
-  Instead, shuffle data by `train_sampler.set_epoch(epoch)` before every epoch.
+- Execute `partition_dataset` to load data only for current rank, no need `DistributedSampler` anymore.
+- `SmartCacheDataset` computes and caches the data for the first epoch.
+- Call `start()` function of `SmartCacheDataset` to start the replacement thread.
+- Call `update_cache()` function of `SmartCacheDataset` before every epoch to replace part of cache content.
+- Call `shutdown()` function of `SmartCacheDataset` to stop replacement thread when training ends.
 
 Note:
     `torch.distributed.launch` will launch `nnodes * nproc_per_node = world_size` processes in total.
@@ -39,7 +44,7 @@ Note:
     python -m torch.distributed.launch --nproc_per_node=NUM_GPUS_PER_NODE
            --nnodes=NUM_NODES --node_rank=INDEX_CURRENT_NODE
            --master_addr="192.168.1.1" --master_port=1234
-           unet_training_ddp.py -d DIR_OF_TESTDATA
+           unet_training_smartcache.py -d DIR_OF_TESTDATA
 
     This example was tested with [Ubuntu 16.04/20.04], [NCCL 2.6.3].
 
@@ -59,7 +64,7 @@ import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel
 
 import monai
-from monai.data import DataLoader, Dataset, create_test_image_3d, partition_dataset
+from monai.data import DataLoader, SmartCacheDataset, create_test_image_3d, partition_dataset
 from monai.transforms import (
     AsChannelFirstd,
     Compose,
@@ -110,8 +115,16 @@ def train(args):
         ]
     )
 
-    # create a training data loader
-    train_ds = Dataset(data=partition_dataset(train_files), transform=train_transforms)
+    # partition dataset based on current rank number, every rank trains with its own data
+    data_part = partition_dataset(train_files, shuffle=True)
+    train_ds = SmartCacheDataset(
+        data=data_part,
+        transform=train_transforms,
+        replace_rate=0.2,
+        cache_num=15,  # we suppose to use 2 ranks in this example, every rank has 20 training images
+        num_init_workers=2,
+        num_replace_workers=2,
+    )
     # use batch_size=2 to load images and use RandCropByPosNegLabeld to generate 2 x 4 images for network training
     train_loader = DataLoader(train_ds, batch_size=2, shuffle=True, num_workers=2, pin_memory=True)
 
@@ -132,13 +145,15 @@ def train(args):
 
     # start a typical PyTorch training
     epoch_loss_values = list()
+    # start the replacement thread of SmartCache
+    train_ds.start()
+
     for epoch in range(5):
         print("-" * 10)
         print(f"epoch {epoch + 1}/{5}")
         model.train()
         epoch_loss = 0
         step = 0
-        train_sampler.set_epoch(epoch)
         for batch_data in train_loader:
             step += 1
             inputs, labels = batch_data["img"].to(device), batch_data["seg"].to(device)
@@ -152,7 +167,11 @@ def train(args):
             print(f"{step}/{epoch_len}, train_loss: {loss.item():.4f}")
         epoch_loss /= step
         epoch_loss_values.append(epoch_loss)
+        # replace 20% of cache content for next epoch
+        train_ds.update_cache()
         print(f"epoch {epoch + 1} average loss: {epoch_loss:.4f}")
+    # stop replacement thread of SmartCache
+    train_ds.shutdown()
     print(f"train completed, epoch losses: {epoch_loss_values}")
     if dist.get_rank() == 0:
         # all processes should see same parameters as they all start from same
@@ -177,7 +196,7 @@ def main():
 # python -m torch.distributed.launch --nproc_per_node=NUM_GPUS_PER_NODE
 #        --nnodes=NUM_NODES --node_rank=INDEX_CURRENT_NODE
 #        --master_addr="192.168.1.1" --master_port=1234
-#        unet_training_ddp.py -d DIR_OF_TESTDATA
+#        unet_training_smartcache.py -d DIR_OF_TESTDATA
 
 if __name__ == "__main__":
     main()
