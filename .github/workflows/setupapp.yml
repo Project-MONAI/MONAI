@@ -5,8 +5,6 @@ on:
   push:
     branches:
       - master
-      # temp add for test
-      - remove-smartcache-test-from-min
 
 jobs:
   # caching of these jobs:
