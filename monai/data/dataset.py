@@ -92,6 +92,10 @@ class PersistentDataset(Dataset):
 
     Subsequent uses of a dataset directly read pre-processed results from `cache_dir`
     followed by applying the random dependant parts of transform processing.
+
+    Note:
+        The input data must be a list of file paths and will hash them as cache keys.
+
     """
 
     def __init__(
@@ -108,13 +112,18 @@ class PersistentDataset(Dataset):
             cache_dir: If specified, this is the location for persistent storage
                 of pre-computed transformed data tensors. The cache_dir is computed once, and
                 persists on disk until explicitly removed.  Different runs, programs, experiments
-                may share a common cache dir provided that the transforms pre-processing is
-                consistent.
+                may share a common cache dir provided that the transforms pre-processing is consistent.
+                If the cache_dir doesn't exist, will automatically create it.
         """
         if not isinstance(transform, Compose):
             transform = Compose(transform)
         super().__init__(data=data, transform=transform)
         self.cache_dir = Path(cache_dir) if cache_dir is not None else None
+        if self.cache_dir is not None:
+            if not self.cache_dir.exists():
+                self.cache_dir.mkdir(parents=True)
+            if not self.cache_dir.is_dir():
+                raise ValueError("cache_dir must be a directory.")
 
     def _pre_first_random_transform(self, item_transformed):
         """
@@ -177,13 +186,9 @@ class PersistentDataset(Dataset):
         if item_transformed.get("cached", False) is False:
             hashfile = None
             if self.cache_dir is not None:
-                cache_dir_path = Path(self.cache_dir)
-                if cache_dir_path.is_dir():
-                    # TODO: Find way to hash transforms content as part of the cache
-                    data_item_md5 = hashlib.md5(
-                        json.dumps(item_transformed, sort_keys=True).encode("utf-8")
-                    ).hexdigest()
-                    hashfile = Path(cache_dir_path) / f"{data_item_md5}.pt"
+                # TODO: Find way to hash transforms content as part of the cache
+                data_item_md5 = hashlib.md5(json.dumps(item_transformed, sort_keys=True).encode("utf-8")).hexdigest()
+                hashfile = self.cache_dir / f"{data_item_md5}.pt"
 
             if hashfile is not None and hashfile.is_file():
                 item_transformed = torch.load(hashfile)
@@ -191,7 +196,7 @@ class PersistentDataset(Dataset):
                 item_transformed = self._pre_first_random_transform(item_transformed)
                 if hashfile is not None:
                     # add sentinel flag to indicate that the transforms have already been computed.
-                    item_transformed["cache"] = True
+                    item_transformed["cached"] = True
                     # NOTE: Writing to ".temp_write_cache" and then using a nearly atomic rename operation
                     #       to make the cache more robust to manual killing of parent process
                     #       which may leave partially written cache files in an incomplete state
@@ -378,7 +383,7 @@ class SmartCacheDataset(CacheDataset):
         num_replace_workers: int = 0,
     ) -> None:
         super().__init__(data, transform, cache_num, cache_rate, num_init_workers)
-        if self.cache_num == len(data):
+        if self.cache_num >= len(data):
             raise ValueError("cache_num must be smaller than dataset length to support replacement.")
         if replace_rate <= 0:
             raise ValueError("replace_rate must be greater than 0, otherwise, please use CacheDataset.")
@@ -422,7 +427,7 @@ class SmartCacheDataset(CacheDataset):
         Start the background thread to replace training items for every epoch.
 
         """
-        if self._replace_mgr is None or not self._is_started():
+        if self._replace_mgr is None or not self.is_started():
             self._restart()
 
     def _restart(self):

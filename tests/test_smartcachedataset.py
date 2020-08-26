@@ -57,15 +57,16 @@ class TestSmartCacheDataset(unittest.TestCase):
             for i in range(dataset.cache_num):
                 self.assertIsNotNone(dataset._cache[i])
 
-            dataset.start()
-            for _ in range(3):
-                dataset.update_cache()
-                self.assertIsNotNone(dataset._cache[15])
-                if isinstance(dataset._cache[15]["image"], np.ndarray):
-                    np.testing.assert_allclose(dataset._cache[15]["image"], dataset._cache[15]["label"])
-                else:
-                    self.assertIsInstance(dataset._cache[15]["image"], str)
-            dataset.shutdown()
+            for _ in range(2):
+                dataset.start()
+                for _ in range(3):
+                    dataset.update_cache()
+                    self.assertIsNotNone(dataset._cache[15])
+                    if isinstance(dataset._cache[15]["image"], np.ndarray):
+                        np.testing.assert_allclose(dataset._cache[15]["image"], dataset._cache[15]["label"])
+                    else:
+                        self.assertIsInstance(dataset._cache[15]["image"], str)
+                dataset.shutdown()
 
 
 if __name__ == "__main__":
