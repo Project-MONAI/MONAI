@@ -10,14 +10,14 @@
 # limitations under the License.
 
 import unittest
-import numpy as np
 
+import numpy as np
 import scipy.ndimage
 from parameterized import parameterized
 
 from monai.transforms import RandRotated
-from tests.utils import NumpyImageTestCase2D, NumpyImageTestCase3D
 from monai.utils import GridSampleMode, GridSamplePadMode
+from tests.utils import NumpyImageTestCase2D, NumpyImageTestCase3D
 
 
 class TestRandRotated2D(NumpyImageTestCase2D):

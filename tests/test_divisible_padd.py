@@ -12,8 +12,9 @@
 import unittest
 
 import numpy as np
-from monai.transforms import DivisiblePadd
 from parameterized import parameterized
+
+from monai.transforms import DivisiblePadd
 
 TEST_CASE_1 = [
     {"keys": ["img"], "k": [4, 3, 2], "mode": "constant"},

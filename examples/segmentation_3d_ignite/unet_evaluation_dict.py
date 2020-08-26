@@ -9,12 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 import os
 import sys
 import tempfile
-import shutil
 from glob import glob
-import logging
+
 import nibabel as nib
 import numpy as np
 import torch
@@ -22,19 +22,18 @@ from ignite.engine import Engine
 from torch.utils.data import DataLoader
 
 import monai
-from monai.data import list_data_collate, create_test_image_3d
+from monai.data import create_test_image_3d, list_data_collate
+from monai.handlers import CheckpointLoader, MeanDice, SegmentationSaver, StatsHandler
 from monai.inferers import sliding_window_inference
 from monai.networks import predict_segmentation
 from monai.networks.nets import UNet
-from monai.transforms import Compose, LoadNiftid, AsChannelFirstd, ScaleIntensityd, ToTensord
-from monai.handlers import SegmentationSaver, CheckpointLoader, StatsHandler, MeanDice
+from monai.transforms import AsChannelFirstd, Compose, LoadNiftid, ScaleIntensityd, ToTensord
 
 
-def main():
+def main(tempdir):
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-    tempdir = tempfile.mkdtemp()
     print(f"generating synthetic data to {tempdir} (this may take a while)")
     for i in range(5):
         im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1, channel_dim=-1)
@@ -54,13 +53,13 @@ def main():
         [
             LoadNiftid(keys=["img", "seg"]),
             AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
-            ScaleIntensityd(keys=["img", "seg"]),
+            ScaleIntensityd(keys="img"),
             ToTensord(keys=["img", "seg"]),
         ]
     )
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
 
-    device = torch.device("cuda:0")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     net = UNet(
         dimensions=3,
         in_channels=1,
@@ -105,7 +104,7 @@ def main():
         output_transform=lambda output: predict_segmentation(output[0]),
     ).attach(evaluator)
     # the model was trained by "unet_training_dict" example
-    CheckpointLoader(load_path="./runs/net_checkpoint_50.pth", load_dict={"net": net}).attach(evaluator)
+    CheckpointLoader(load_path="./runs_dict/net_checkpoint_50.pth", load_dict={"net": net}).attach(evaluator)
 
     # sliding window inference for one image at every iteration
     val_loader = DataLoader(
@@ -113,8 +112,8 @@ def main():
     )
     state = evaluator.run(val_loader)
     print(state)
-    shutil.rmtree(tempdir)
 
 
 if __name__ == "__main__":
-    main()
+    with tempfile.TemporaryDirectory() as tempdir:
+        main(tempdir)

@@ -10,8 +10,10 @@
 # limitations under the License.
 
 import unittest
-import torch
+
 import numpy as np
+import torch
+
 from monai.transforms import LabelToContourd
 
 expected_output_for_cube = np.array(
@@ -167,9 +169,9 @@ class TestContourd(unittest.TestCase):
 
         # check invalid input data
         error_input = {"img": torch.rand(1, 2, 3)}
-        self.assertRaises(RuntimeError, LabelToContourd(**input_param), error_input)
+        self.assertRaises(ValueError, LabelToContourd(**input_param), error_input)
         error_input = {"img": torch.rand(1, 2, 3, 4, 5, 6)}
-        self.assertRaises(RuntimeError, LabelToContourd(**input_param), error_input)
+        self.assertRaises(ValueError, LabelToContourd(**input_param), error_input)
 
 
 if __name__ == "__main__":

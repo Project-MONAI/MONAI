@@ -48,11 +48,13 @@ TEST_CASE_4_PT = [
 ]
 
 TEST_CASE_5 = [
+    ValueError,
     {"keys": ["img", "seg"], "dim": -2},
     {"img": np.random.rand(1, 1, 16, 8, 1), "seg": np.random.randint(0, 2, size=[1, 1, 16, 8, 1])},
 ]
 
 TEST_CASE_6 = [
+    TypeError,
     {"keys": ["img", "seg"], "dim": 0.5},
     {"img": np.random.rand(1, 1, 16, 8, 1), "seg": np.random.randint(0, 2, size=[1, 1, 16, 8, 1])},
 ]
@@ -66,8 +68,8 @@ class TestSqueezeDim(unittest.TestCase):
         self.assertTupleEqual(result["seg"].shape, expected_shape)
 
     @parameterized.expand([TEST_CASE_5, TEST_CASE_6])
-    def test_invalid_inputs(self, input_param, test_data):
-        with self.assertRaises(ValueError):
+    def test_invalid_inputs(self, exception, input_param, test_data):
+        with self.assertRaises(exception):
             SqueezeDimd(**input_param)(test_data)
 
 

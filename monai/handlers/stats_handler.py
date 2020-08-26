@@ -9,10 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, TYPE_CHECKING
-
 import logging
 import warnings
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 import torch
 
@@ -43,8 +42,8 @@ class StatsHandler(object):
 
     def __init__(
         self,
-        epoch_print_logger: Optional[Callable] = None,
-        iteration_print_logger: Optional[Callable] = None,
+        epoch_print_logger: Optional[Callable[[Engine], Any]] = None,
+        iteration_print_logger: Optional[Callable[[Engine], Any]] = None,
         output_transform: Callable = lambda x: x,
         global_epoch_transform: Callable = lambda x: x,
         name: Optional[str] = None,
@@ -71,7 +70,7 @@ class StatsHandler(object):
                 tag_name: scalar_value to logger. Defaults to ``'Loss'``.
             key_var_format: a formatting string to control the output string format of key: value.
             logger_handler: add additional handler to handle the stats data: save to file, etc.
-                add existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html
+                Add existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html
         """
 
         self.epoch_print_logger = epoch_print_logger
@@ -134,7 +133,8 @@ class StatsHandler(object):
     def exception_raised(self, engine: Engine, e: Exception) -> None:
         """
         Handler for train or validation/evaluation exception raised Event.
-        Print the exception information and traceback.
+        Print the exception information and traceback. This callback may be skipped because the logic
+        with Ignite can only trigger the first attached handler for `EXCEPTION_RAISED` event.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
@@ -142,8 +142,7 @@ class StatsHandler(object):
 
         """
         self.logger.exception(f"Exception: {e}")
-        # import traceback
-        # traceback.print_exc()
+        raise e
 
     def _default_epoch_print(self, engine: Engine) -> None:
         """

@@ -9,17 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Dict, Optional, Sequence, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence
 
 import torch
 from torch.utils.data import DataLoader
 
-from monai.inferers import Inferer, SimpleInferer
-from monai.transforms import Transform
 from monai.engines.utils import CommonKeys as Keys
 from monai.engines.utils import default_prepare_batch
 from monai.engines.workflow import Workflow
-from monai.utils import exact_version, optional_import, ensure_tuple
+from monai.inferers import Inferer, SimpleInferer
+from monai.transforms import Transform
+from monai.utils import ensure_tuple, exact_version, optional_import
 
 if TYPE_CHECKING:
     from ignite.engine import Engine
@@ -47,6 +47,7 @@ class Evaluator(Workflow):
         additional_metrics: more Ignite metrics that also attach to Ignite Engine.
         val_handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
             CheckpointHandler, StatsHandler, SegmentationSaver, etc.
+        amp: whether to enable auto-mixed-precision evaluation, default is False.
 
     """
 
@@ -60,11 +61,11 @@ class Evaluator(Workflow):
         key_val_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
         val_handlers: Optional[Sequence] = None,
+        amp: bool = False,
     ) -> None:
         super().__init__(
             device=device,
             max_epochs=1,
-            amp=False,
             data_loader=val_data_loader,
             prepare_batch=prepare_batch,
             iteration_update=iteration_update,
@@ -72,6 +73,7 @@ class Evaluator(Workflow):
             key_metric=key_val_metric,
             additional_metrics=additional_metrics,
             handlers=val_handlers,
+            amp=amp,
         )
 
     def run(self, global_epoch: int = 1) -> None:
@@ -88,7 +90,7 @@ class Evaluator(Workflow):
         self.state.iteration = 0
         super().run()
 
-    def get_validation_stats(self) -> Dict[str, Union[int, float]]:
+    def get_validation_stats(self) -> Dict[str, float]:
         return {"best_validation_metric": self.state.best_metric, "best_validation_epoch": self.state.best_metric_epoch}
 
 
@@ -112,6 +114,7 @@ class SupervisedEvaluator(Evaluator):
         additional_metrics: more Ignite metrics that also attach to Ignite Engine.
         val_handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
             CheckpointHandler, StatsHandler, SegmentationSaver, etc.
+        amp: whether to enable auto-mixed-precision evaluation, default is False.
 
     """
 
@@ -127,7 +130,8 @@ class SupervisedEvaluator(Evaluator):
         key_val_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
         val_handlers: Optional[Sequence] = None,
-    ):
+        amp: bool = False,
+    ) -> None:
         super().__init__(
             device=device,
             val_data_loader=val_data_loader,
@@ -137,12 +141,13 @@ class SupervisedEvaluator(Evaluator):
             key_val_metric=key_val_metric,
             additional_metrics=additional_metrics,
             val_handlers=val_handlers,
+            amp=amp,
         )
 
         self.network = network
         self.inferer = inferer
 
-    def _iteration(self, engine: Engine, batchdata: Union[Dict, Sequence]) -> Dict[str, torch.Tensor]:
+    def _iteration(self, engine: Engine, batchdata: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """
         callback function for the Supervised Evaluation processing logic of 1 iteration in Ignite Engine.
         Return below items in a dictionary:
@@ -155,11 +160,11 @@ class SupervisedEvaluator(Evaluator):
             batchdata: input data for this iteration, usually can be dictionary or tuple of Tensor data.
 
         Raises:
-            ValueError: must provide batch data for current iteration.
+            ValueError: When ``batchdata`` is None.
 
         """
         if batchdata is None:
-            raise ValueError("must provide batch data for current iteration.")
+            raise ValueError("Must provide batch data for current iteration.")
         inputs, targets = self.prepare_batch(batchdata)
         inputs = inputs.to(engine.state.device)
         if targets is not None:
@@ -168,7 +173,11 @@ class SupervisedEvaluator(Evaluator):
         # execute forward computation
         self.network.eval()
         with torch.no_grad():
-            predictions = self.inferer(inputs, self.network)
+            if self.amp:
+                with torch.cuda.amp.autocast():
+                    predictions = self.inferer(inputs, self.network)
+            else:
+                predictions = self.inferer(inputs, self.network)
 
         return {Keys.IMAGE: inputs, Keys.LABEL: targets, Keys.PRED: predictions}
 
@@ -196,6 +205,7 @@ class EnsembleEvaluator(Evaluator):
         additional_metrics: more Ignite metrics that also attach to Ignite Engine.
         val_handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
             CheckpointHandler, StatsHandler, SegmentationSaver, etc.
+        amp: whether to enable auto-mixed-precision evaluation, default is False.
 
     """
 
@@ -212,7 +222,8 @@ class EnsembleEvaluator(Evaluator):
         key_val_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
         val_handlers: Optional[Sequence] = None,
-    ):
+        amp: bool = False,
+    ) -> None:
         super().__init__(
             device=device,
             val_data_loader=val_data_loader,
@@ -222,13 +233,14 @@ class EnsembleEvaluator(Evaluator):
             key_val_metric=key_val_metric,
             additional_metrics=additional_metrics,
             val_handlers=val_handlers,
+            amp=amp,
         )
 
         self.networks = ensure_tuple(networks)
         self.pred_keys = ensure_tuple(pred_keys)
         self.inferer = inferer
 
-    def _iteration(self, engine: Engine, batchdata: Union[Dict, Sequence]) -> Dict[str, torch.Tensor]:
+    def _iteration(self, engine: Engine, batchdata: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """
         callback function for the Supervised Evaluation processing logic of 1 iteration in Ignite Engine.
         Return below items in a dictionary:
@@ -244,21 +256,25 @@ class EnsembleEvaluator(Evaluator):
             batchdata: input data for this iteration, usually can be dictionary or tuple of Tensor data.
 
         Raises:
-            ValueError: must provide batch data for current iteration.
+            ValueError: When ``batchdata`` is None.
 
         """
         if batchdata is None:
-            raise ValueError("must provide batch data for current iteration.")
+            raise ValueError("Must provide batch data for current iteration.")
         inputs, targets = self.prepare_batch(batchdata)
         inputs = inputs.to(engine.state.device)
         if targets is not None:
             targets = targets.to(engine.state.device)
 
         # execute forward computation
-        predictions: Dict[str, torch.Tensor] = {Keys.IMAGE: inputs, Keys.LABEL: targets}
+        predictions = {Keys.IMAGE: inputs, Keys.LABEL: targets}
         for idx, network in enumerate(self.networks):
             network.eval()
             with torch.no_grad():
-                predictions.update({self.pred_keys[idx]: self.inferer(inputs, network)})
+                if self.amp:
+                    with torch.cuda.amp.autocast():
+                        predictions.update({self.pred_keys[idx]: self.inferer(inputs, network)})
+                else:
+                    predictions.update({self.pred_keys[idx]: self.inferer(inputs, network)})
 
         return predictions
