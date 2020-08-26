@@ -21,8 +21,8 @@ import torch
 # RGGAN Custom Libraries
 from DataPreprocessor import load_rg_data
 from Dataset import RGDataset
-from rggan import GenNet as G_NET
-from rggan import DiscNet as D_NET
+from rggan import GenNet
+from rggan import DiscNet
 from rggan_utils import weights_init
 
 from monai import config
@@ -129,9 +129,10 @@ def main():
             return network(latent_codes, embedding, base)
 
     # Create and initialize RGGAN G and D networks.
-    gen_net = G_NET().to(device)
+    gen_net = GenNet().to(device)
     gen_net.apply(weights_init)
     disc_net = D_NET().to(device)
+    disc_net = DiscNet().to(device)
     disc_net.apply(weights_init)
 
     # Define optimizers.

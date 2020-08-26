@@ -20,7 +20,7 @@ import numpy as np
 import torch
 from DataPreprocessor import load_rg_data
 from Dataset import RGDataset
-from rggan import G_NET
+from rggan import GenNet as G_NET
 from torchvision.utils import make_grid
 
 from monai import config
@@ -143,19 +143,19 @@ def run_evaluation(
 
     if not no_save:
         print("Saving images in: %s" % output_dir)
-        save_path = os.path.join(output_dir, f"Chest_CT_{index}.nii.gz")
+        save_path = os.path.join(output_dir, f"Chest_CT_{index}_{seed}.nii.gz")
         nib.save(nib.Nifti1Image(chest_ct_out, img_affline), save_path)
-        save_path = os.path.join(output_dir, f"Nodule_Masks_{index}.nii.gz")
+        save_path = os.path.join(output_dir, f"Nodule_Masks_{index}_{seed}.nii.gz")
         nib.save(nib.Nifti1Image(nodule_seg_out, img_affline), save_path)
-        save_path = os.path.join(output_dir, f"Gene_Impact_{index}.nii.gz")
+        save_path = os.path.join(output_dir, f"Gene_Impact_{index}_{seed}.nii.gz")
         nib.save(nib.Nifti1Image(gene_impact_out, img_affline), save_path)
-        save_path = os.path.join(output_dir, f"Backgrounds_{index}.nii.gz")
+        save_path = os.path.join(output_dir, f"Backgrounds_{index}_{seed}.nii.gz")
         nib.save(nib.Nifti1Image(bgs_out, img_affline), save_path)
 
     if not no_plot:
         figs, axs = plt.subplots(1, 4)
         axs[0].imshow(chest_ct_out)
-        axs[0].set_title("Chest CT %d" % index)
+        axs[0].set_title("Chest CT %d %d" % (index, seed))
         axs[1].imshow(nodule_seg_out)
         axs[1].set_title("Nodule Mask")
         axs[2].imshow(gene_impact_out)
@@ -191,10 +191,10 @@ def execute_cmdline():
 if __name__ == "__main__":
     run_evaluation(
         data_dir="/nvdata/NSCLC-Ziyue",
-        rggan_saved_model="/nvdata/rggan/monai/no_erode_200.pth",
-        output_dir="/nvdata/rggan/monai/no_erode_200",
-        index=288,
-        seed=1222,
+        rggan_saved_model="/nvdata/rggan/monai/net/g_synth_50.pth",
+        output_dir="/nvdata/rggan/monai/net/g_synth_50",
+        index=666,
+        seed=121,
         no_save=False,
         no_plot=False,
         randomize_latents=True,
