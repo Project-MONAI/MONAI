@@ -125,7 +125,6 @@ class PersistentDataset(Dataset):
             if not self.cache_dir.is_dir():
                 raise ValueError("cache_dir must be a directory.")
 
-
     def _pre_first_random_transform(self, item_transformed):
         """
         Process the data from original state up to the first random element.
@@ -188,9 +187,7 @@ class PersistentDataset(Dataset):
             hashfile = None
             if self.cache_dir is not None:
                 # TODO: Find way to hash transforms content as part of the cache
-                data_item_md5 = hashlib.md5(
-                    json.dumps(item_transformed, sort_keys=True).encode("utf-8")
-                ).hexdigest()
+                data_item_md5 = hashlib.md5(json.dumps(item_transformed, sort_keys=True).encode("utf-8")).hexdigest()
                 hashfile = self.cache_dir / f"{data_item_md5}.pt"
 
             if hashfile is not None and hashfile.is_file():
