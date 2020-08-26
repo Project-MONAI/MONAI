@@ -13,7 +13,7 @@ import math
 import os
 import warnings
 from itertools import product, starmap
-from typing import Dict, Generator, List, Optional, Sequence, Tuple, Union, Any
+from typing import Any, Dict, Generator, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
