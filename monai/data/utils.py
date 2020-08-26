@@ -18,6 +18,7 @@ from typing import Dict, Generator, List, Optional, Sequence, Tuple, Union
 import numpy as np
 import torch
 from torch.utils.data._utils.collate import default_collate
+from torch.utils.data.distributed import DistributedSampler
 
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.utils import BlendMode, NumpyPadMode, ensure_tuple, ensure_tuple_size, first, optional_import
@@ -534,3 +535,8 @@ def is_supported_format(filename: Union[Sequence[str], str], suffixes: Sequence[
             break
 
     return supported_format
+
+
+def partition_dataset(data: Sequence, shuffle: bool = False, seed: int = 0):
+    sampler = DistributedSampler(dataset=data, shuffle=shuffle, seed=seed)
+    return [data[i] for i in sampler]
