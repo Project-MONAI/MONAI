@@ -44,17 +44,12 @@ class RGDataset(CacheDataset):
     def __getitem__(self, index):
         datapoint = super(CacheDataset, self).__getitem__(index)
 
-        # imgs = datapoint['image']
-        # segs = datapoint['seg']
-        # embedding = datapoint['embedding']
-        # base_img_name = datapoint['base']
-
         length = self.__len__()
         rand_index = random.randint(0, length - 1)
         wrong_datapoint = super(CacheDataset, self).__getitem__(rand_index)
 
         recursion_failsafe = 0
-        while wrong_datapoint["class"] == datapoint["class"] and recursion_failsafe < 10:
+        while wrong_datapoint["patient"] == datapoint["patient"] and recursion_failsafe < 10:
             rand_index = random.randint(0, length - 1)
             wrong_datapoint = super(CacheDataset, self).__getitem__(rand_index)
             recursion_failsafe += 1
@@ -63,4 +58,3 @@ class RGDataset(CacheDataset):
         datapoint["w_seg"] = wrong_datapoint["seg"]
 
         return datapoint
-        # return [imgs], [segs], [wrong_imgs], [wrong_segs], embedding, base_img_name

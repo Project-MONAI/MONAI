@@ -49,7 +49,7 @@ from monai.utils.misc import set_determinism
 def main():
     config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)  # Required for Handler output
-    device = torch.device("cuda:1")
+    device = torch.device("cuda:0")
     set_determinism(12345)
 
     # Define data directories.
@@ -70,7 +70,7 @@ def main():
     train_transforms = Compose(
         [
             LoadNiftid(keys=["image", "seg", "base"], dtype=np.float64),
-            SqueezeDimd(keys=["embedding"], dim=0),
+            SqueezeDimd(keys=["rna_embedding"], dim=0),
             AddChanneld(keys=["image", "seg"]),
             ThresholdIntensityd(keys=["seg"], threshold=0.5),
             Resized(keys=["image", "seg", "base"], spatial_size=image_shape, mode=InterpolateMode.AREA),
@@ -97,14 +97,14 @@ def main():
     num_workers: int = 5
     dataloader = DataLoader(dataset, batch_size=batch_size, drop_last=True, shuffle=False, num_workers=num_workers)
 
-    # Store a pointer to base images from current batch for calculating generator loss.
+    # Make a pointer to bg images from current discriminator training batch to calculate generator loss.
     minibatch_backgrounds: Optional[torch.Tensor] = None
 
     # Define prepare_batch for input into RGGAN G and D.
     def g_prepare_batch(batch_size, latent_size, device, batchdata):
         global minibatch_backgrounds
         latent_codes = default_make_latent(batch_size, latent_size, device)
-        embedding = batchdata["embedding"].to(device)
+        embedding = batchdata["rna_embedding"].to(device)
         # select random background bases for this batch
         base_groups = batchdata["base"]
         curr_bgs = []

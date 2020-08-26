@@ -36,8 +36,8 @@ def _build_data_dict(data_dir, image_keys, bboxes, embeddings, class_info):
         data_sample["seg"] = seg_name
         data_sample["base"] = base_images
         data_sample["bbox"] = bboxes[index]
-        data_sample["embedding"] = embeddings[index, :]
-        data_sample["class"] = class_info[index]
+        data_sample["rna_embedding"] = embeddings[index, :]
+        data_sample["patient"] = class_info[index]
         data_samples.append(data_sample)
     return data_samples
 
