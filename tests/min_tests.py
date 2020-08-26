@@ -74,6 +74,7 @@ def run_testsuit():
         "test_zoomd",
         "test_load_image",
         "test_load_imaged",
+        "test_smartcachedataset",
     ]
 
     files = glob.glob(os.path.join(os.path.dirname(__file__), "test_*.py"))
