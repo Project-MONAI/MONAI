@@ -20,7 +20,6 @@ import torch
 from torch.utils.data._utils.collate import default_collate
 from torch.utils.data.distributed import DistributedSampler
 
-import monai
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.utils import BlendMode, NumpyPadMode, ensure_tuple, ensure_tuple_size, first, optional_import
 
@@ -558,6 +557,6 @@ def partition_dataset(data: Sequence[Any], shuffle: bool = False, seed: int = 0)
             this number should be identical across all processes in the distributed group.
 
     """
-    sampler: DistributedSampler = DistributedSampler(dataset=monai.data.Dataset(data), shuffle=shuffle)
+    sampler: DistributedSampler = DistributedSampler(dataset=data, shuffle=shuffle)  # type: ignore
     sampler.set_epoch(seed)
     return [data[i] for i in sampler]
