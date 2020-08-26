@@ -15,8 +15,8 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.networks.layers import AffineTransform
 from monai.networks import normalize_transform, to_norm_affine
+from monai.networks.layers import AffineTransform
 
 TEST_NORM_CASES = [
     [(4, 5), True, [[[0.666667, 0, -1], [0, 0.5, -1], [0, 0, 1]]]],
@@ -99,7 +99,7 @@ class TestToNormAffine(unittest.TestCase):
 
     @parameterized.expand(TEST_ILL_TO_NORM_AFFINE_CASES)
     def test_to_norm_affine_ill(self, affine, src_size, dst_size, align_corners):
-        with self.assertRaises(ValueError):
+        with self.assertRaises(TypeError):
             to_norm_affine(affine, src_size, dst_size, align_corners)
         with self.assertRaises(ValueError):
             affine = torch.as_tensor(affine, device=torch.device("cpu:0"), dtype=torch.float32)

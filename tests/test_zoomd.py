@@ -12,9 +12,8 @@
 import unittest
 
 import numpy as np
-
-from scipy.ndimage import zoom as zoom_scipy
 from parameterized import parameterized
+from scipy.ndimage import zoom as zoom_scipy
 
 from monai.transforms import Zoomd
 from tests.utils import NumpyImageTestCase2D

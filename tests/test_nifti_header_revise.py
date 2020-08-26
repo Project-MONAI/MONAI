@@ -10,8 +10,8 @@
 # limitations under the License.
 
 import unittest
-import nibabel as nib
 
+import nibabel as nib
 import numpy as np
 
 from monai.data import rectify_header_sform_qform

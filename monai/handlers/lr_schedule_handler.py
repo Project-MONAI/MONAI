@@ -9,11 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Union, TYPE_CHECKING
-
 import logging
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
-from torch.optim.lr_scheduler import _LRScheduler, ReduceLROnPlateau
+from torch.optim.lr_scheduler import ReduceLROnPlateau, _LRScheduler
 
 from monai.utils import ensure_tuple, exact_version, optional_import
 
@@ -35,7 +34,7 @@ class LrScheduleHandler:
         print_lr: bool = True,
         name: Optional[str] = None,
         epoch_level: bool = True,
-        step_transform: Callable = lambda engine: (),
+        step_transform: Callable[[Engine], Any] = lambda engine: (),
     ) -> None:
         """
         Args:
@@ -49,7 +48,7 @@ class LrScheduleHandler:
                 to expected input data of lr_scheduler.step() function if necessary.
 
         Raises:
-            ValueError: argument `step_transform` must be a callable.
+            TypeError: When ``step_transform`` is not ``callable``.
 
         """
         self.lr_scheduler = lr_scheduler
@@ -57,12 +56,16 @@ class LrScheduleHandler:
         self.logger = logging.getLogger(name)
         self.epoch_level = epoch_level
         if not callable(step_transform):
-            raise ValueError("argument `step_transform` must be a callable.")
+            raise TypeError(f"step_transform must be callable but is {type(step_transform).__name__}.")
         self.step_transform = step_transform
 
         self._name = name
 
     def attach(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
         if self._name is None:
             self.logger = engine.logger
         if self.epoch_level:
@@ -71,9 +74,11 @@ class LrScheduleHandler:
             engine.add_event_handler(Events.ITERATION_COMPLETED, self)
 
     def __call__(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
         args = ensure_tuple(self.step_transform(engine))
         self.lr_scheduler.step(*args)
         if self.print_lr:
-            self.logger.info(
-                f"Current learning rate: {self.lr_scheduler._last_lr[0]}"  # type: ignore # Module has no attribute
-            )
+            self.logger.info(f"Current learning rate: {self.lr_scheduler._last_lr[0]}")  # type: ignore[union-attr]

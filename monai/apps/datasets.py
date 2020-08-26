@@ -9,14 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Union, Sequence, Any, Optional
-
 import os
 import sys
+from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
+from monai.apps.utils import download_and_extract
 from monai.data import CacheDataset, load_decathalon_datalist
 from monai.transforms import LoadNiftid, LoadPNGd, Randomizable
-from monai.apps.utils import download_and_extract
 
 
 class MedNISTDataset(Randomizable, CacheDataset):
@@ -44,8 +43,8 @@ class MedNISTDataset(Randomizable, CacheDataset):
             if 0 a single thread will be used. Default is 0.
 
     Raises:
-        ValueError: root_dir must be a directory.
-        RuntimeError: can not find dataset directory, please use download=True to download it.
+        ValueError: When ``root_dir`` is not a directory.
+        RuntimeError: When ``dataset_dir`` doesn't exist and downloading is not selected (``download=False``).
 
     """
 
@@ -68,7 +67,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
         num_workers: int = 0,
     ) -> None:
         if not os.path.isdir(root_dir):
-            raise ValueError("root_dir must be a directory.")
+            raise ValueError("Root directory root_dir must be a directory.")
         self.section = section
         self.val_frac = val_frac
         self.test_frac = test_frac
@@ -80,7 +79,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
 
         if not os.path.exists(dataset_dir):
             raise RuntimeError(
-                f"can not find dataset directory: {dataset_dir}, please use download=True to download it."
+                f"Cannot find dataset directory: {dataset_dir}, please use download=True to download it."
             )
         data = self._generate_data_list(dataset_dir)
         super().__init__(data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers)
@@ -88,7 +87,12 @@ class MedNISTDataset(Randomizable, CacheDataset):
     def randomize(self, data: Optional[Any] = None) -> None:
         self.rann = self.R.random()
 
-    def _generate_data_list(self, dataset_dir: str):
+    def _generate_data_list(self, dataset_dir: str) -> List[Dict]:
+        """
+        Raises:
+            ValueError: When ``section`` is not one of ["training", "validation", "test"].
+
+        """
         class_names = sorted((x for x in os.listdir(dataset_dir) if os.path.isdir(os.path.join(dataset_dir, x))))
         num_class = len(class_names)
         image_files = [
@@ -120,7 +124,9 @@ class MedNISTDataset(Randomizable, CacheDataset):
                 if self.rann < self.val_frac or self.rann >= self.val_frac + self.test_frac:
                     continue
             else:
-                raise ValueError("section name can only be: training, validation or test.")
+                raise ValueError(
+                    f'Unsupported section: {self.section}, available options are ["training", "validation", "test"].'
+                )
             data.append({"image": image_files_list[i], "label": image_class[i]})
         return data
 
@@ -154,6 +160,13 @@ class DecathlonDataset(Randomizable, CacheDataset):
         num_workers: the number of worker threads to use.
             if 0 a single thread will be used. Default is 0.
 
+    Raises:
+        ValueError: When ``root_dir`` is not a directory.
+        ValueError: When ``task`` is not one of ["Task01_BrainTumour", "Task02_Heart",
+            "Task03_Liver", "Task04_Hippocampus", "Task05_Prostate", "Task06_Lung", "Task07_Pancreas",
+            "Task08_HepaticVessel", "Task09_Spleen", "Task10_Colon"].
+        RuntimeError: When ``dataset_dir`` doesn't exist and downloading is not selected (``download=False``).
+
     Example::
 
         transform = Compose(
@@ -171,24 +184,19 @@ class DecathlonDataset(Randomizable, CacheDataset):
 
         print(data[0]["image"], data[0]["label"])
 
-    Raises:
-        ValueError: root_dir must be a directory.
-        ValueError: unsupported task.
-        RuntimeError: can not find dataset directory, please use download=True to download it.
-
     """
 
     resource = {
-        "Task01_BrainTumour": "https://drive.google.com/uc?id=1A2IU8Sgea1h3fYLpYtFb2v7NYdMjvEhU",
-        "Task02_Heart": "https://drive.google.com/uc?id=1wEB2I6S6tQBVEPxir8cA5kFB8gTQadYY",
-        "Task03_Liver": "https://drive.google.com/uc?id=1jyVGUGyxKBXV6_9ivuZapQS8eUJXCIpu",
-        "Task04_Hippocampus": "https://www.dropbox.com/s/j9s3le3ogwztevr/Task04_Hippocampus.tar?dl=1",
-        "Task05_Prostate": "https://www.dropbox.com/s/y3xg3e2giz5f5s9/Task05_Prostate.tar?dl=1",
-        "Task06_Lung": "https://drive.google.com/uc?id=1I1LR7XjyEZ-VBQ-Xruh31V7xExMjlVvi",
-        "Task07_Pancreas": "https://drive.google.com/uc?id=1YZQFSonulXuagMIfbJkZeTFJ6qEUuUxL",
-        "Task08_HepaticVessel": "https://drive.google.com/uc?id=1qVrpV7vmhIsUxFiH189LmAn0ALbAPrgS",
-        "Task09_Spleen": "https://drive.google.com/uc?id=1jzeNU1EKnK81PyTsrx0ujfNl-t0Jo8uE",
-        "Task10_Colon": "https://drive.google.com/uc?id=1m7tMpE9qEcQGQjL_BdMD-Mvgmc44hG1Y",
+        "Task01_BrainTumour": "https://msd-for-monai.s3-us-west-2.amazonaws.com/Task01_BrainTumour.tar",
+        "Task02_Heart": "https://msd-for-monai.s3-us-west-2.amazonaws.com/Task02_Heart.tar",
+        "Task03_Liver": "https://msd-for-monai.s3-us-west-2.amazonaws.com/Task03_Liver.tar",
+        "Task04_Hippocampus": "https://msd-for-monai.s3-us-west-2.amazonaws.com/Task04_Hippocampus.tar",
+        "Task05_Prostate": "https://msd-for-monai.s3-us-west-2.amazonaws.com/Task05_Prostate.tar",
+        "Task06_Lung": "https://msd-for-monai.s3-us-west-2.amazonaws.com/Task06_Lung.tar",
+        "Task07_Pancreas": "https://msd-for-monai.s3-us-west-2.amazonaws.com/Task07_Pancreas.tar",
+        "Task08_HepaticVessel": "https://msd-for-monai.s3-us-west-2.amazonaws.com/Task08_HepaticVessel.tar",
+        "Task09_Spleen": "https://msd-for-monai.s3-us-west-2.amazonaws.com/Task09_Spleen.tar",
+        "Task10_Colon": "https://msd-for-monai.s3-us-west-2.amazonaws.com/Task10_Colon.tar",
     }
     md5 = {
         "Task01_BrainTumour": "240a19d752f0d9e9101544901065d872",
@@ -217,12 +225,12 @@ class DecathlonDataset(Randomizable, CacheDataset):
         num_workers: int = 0,
     ) -> None:
         if not os.path.isdir(root_dir):
-            raise ValueError("root_dir must be a directory.")
+            raise ValueError("Root directory root_dir must be a directory.")
         self.section = section
         self.val_frac = val_frac
         self.set_random_state(seed=seed)
         if task not in self.resource:
-            raise ValueError(f"unsupported task: {task}, available options are: {list(self.resource)}.")
+            raise ValueError(f"Unsupported task: {task}, available options are: {list(self.resource.keys())}.")
         dataset_dir = os.path.join(root_dir, task)
         tarfile_name = f"{dataset_dir}.tar"
         if download:
@@ -230,7 +238,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
 
         if not os.path.exists(dataset_dir):
             raise RuntimeError(
-                f"can not find dataset directory: {dataset_dir}, please use download=True to download it."
+                f"Cannot find dataset directory: {dataset_dir}, please use download=True to download it."
             )
         data = self._generate_data_list(dataset_dir)
         super().__init__(data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers)
@@ -238,7 +246,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
     def randomize(self, data: Optional[Any] = None) -> None:
         self.rann = self.R.random()
 
-    def _generate_data_list(self, dataset_dir: str):
+    def _generate_data_list(self, dataset_dir: str) -> List[Dict]:
         section = "training" if self.section in ["training", "validation"] else "test"
         datalist = load_decathalon_datalist(os.path.join(dataset_dir, "dataset.json"), True, section)
         if section == "test":

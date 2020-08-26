@@ -16,3 +16,7 @@ Metrics
 `Area under the ROC curve`
 --------------------------
 .. autofunction:: compute_roc_auc
+
+`Confusion Matrix`
+------------------
+.. autofunction:: compute_confusion_metric
