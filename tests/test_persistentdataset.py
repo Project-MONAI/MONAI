@@ -65,11 +65,12 @@ class TestDataset(unittest.TestCase):
                 },
             ]
 
-            dataset_precached = PersistentDataset(data=test_data, transform=transform, cache_dir=tempdir)
+            cache_dir = os.path.join(os.path.join(tempdir, "cache"), "data")
+            dataset_precached = PersistentDataset(data=test_data, transform=transform, cache_dir=cache_dir)
             data1_precached = dataset_precached[0]
             data2_precached = dataset_precached[1]
 
-            dataset_postcached = PersistentDataset(data=test_data, transform=transform, cache_dir=tempdir)
+            dataset_postcached = PersistentDataset(data=test_data, transform=transform, cache_dir=cache_dir)
             data1_postcached = dataset_postcached[0]
             data2_postcached = dataset_postcached[1]
 

@@ -427,7 +427,7 @@ class SmartCacheDataset(CacheDataset):
         Start the background thread to replace training items for every epoch.
 
         """
-        if self._replace_mgr is None or not self._is_started():
+        if self._replace_mgr is None or not self.is_started():
             self._restart()
 
     def _restart(self):
