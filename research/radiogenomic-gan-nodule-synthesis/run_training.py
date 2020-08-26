@@ -18,13 +18,13 @@ import dateutil.tz
 import numpy as np
 import torch
 
-# RGGAN Custom Libraries
-from DataPreprocessor import load_rg_data
-from Dataset import RGDataset
-from rggan import GenNet
-from rggan import DiscNet
-from rggan_utils import weights_init
+# RGGAN Imports
+from RGDataPreprocessor import load_rg_data
+from RGDataset import RGDataset
+from RGModel import DiscNet, GenNet
+from RGUtils import weights_init
 
+# MONAI Framework
 from monai import config
 from monai.data import DataLoader
 from monai.engines import GanTrainer, default_make_latent
@@ -49,7 +49,7 @@ from monai.utils.misc import set_determinism
 def main():
     config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)  # Required for Handler output
-    device = torch.device("cuda:0")
+    device = torch.device("cuda:1")
     set_determinism(12345)
 
     # Define data directories.
@@ -60,7 +60,7 @@ def main():
     print("Input Data Dir: %s" % input_data_dir)
     print("Output Data Dir: %s" % output_data_dir)
 
-    # Load data filepath dictionary.
+    # Create dictionary of data files.
     data_dict = load_rg_data(input_data_dir)
 
     # Define image transform pipeline.
@@ -131,7 +131,7 @@ def main():
     # Create and initialize RGGAN G and D networks.
     gen_net = GenNet().to(device)
     gen_net.apply(weights_init)
-    disc_net = D_NET().to(device)
+
     disc_net = DiscNet().to(device)
     disc_net.apply(weights_init)
 
@@ -209,7 +209,7 @@ def main():
         return gen_loss
 
     # Define training event handlers.
-    checkpoint_save_interval = 25
+    checkpoint_save_interval = 50
 
     handlers = [
         StatsHandler(

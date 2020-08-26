@@ -1,4 +1,4 @@
-# GAN for End-To-End Nodule Image Generation and Radiogenomic Map Learned
+# Radiogenomic GAN for End-To-End Nodule Image Generation and Radiogenomic Map Learning
 
 > If you use this work in your research, please cite the paper.
 
@@ -13,19 +13,25 @@ This research prototype neural network is adapted from:
 
 **Downloading the Data**
 
-The network uses the [NSCLC-Radiogenomics dataset](https://wiki.cancerimagingarchive.net/display/Public/NSCLC+Radiogenomics), which contains CT scans, PET/CT scans, semantic tumor annotations, gene mutation, RNA sequences from excised tissue, and survival outcomes from 211 patients with Non-Small Cell Lung Cancer. 
+The research was done with the [NSCLC-Radiogenomics dataset](https://wiki.cancerimagingarchive.net/display/Public/NSCLC+Radiogenomics), which contains CT scans, PET/CT scans, semantic tumor annotations, gene mutation, RNA sequences from excised tissue, and survival outcomes from 211 patients with Non-Small Cell Lung Cancer.
+
+To train the model, visit the link above and download:
+
+- Images and Segmentations (DICOM, 97.6 GB)	
+- Clinical Data (csv)	
+- RNA sequence data (web)
 
 **Preparing the Dataset**
 
-- todo
+- Todo
 
 **Training the Model**
 
-- install the latest version of MONAI: `git clone https://github.com/Project-MONAI/MONAI` and `pip install -e .`.
-- extract the open source dataset to `./images`.
-- run `python run_training.py` and the generation results will be saved at `./output`.
-- todo
+- Install the latest version of MONAI: [Installation Guide](https://docs.monai.io/en/latest/installation.html)
+- Complete the data preperation steps above.
+- Place cleaned data in `./data` or adjust path in training script. 
+- Execute `python run_training.py` to start RGGAN training, the generation results will be saved in `./ModelOut`.
 
 **Running Model Inference** 
 
-- todo
+- Todo: Improve evaluation script.

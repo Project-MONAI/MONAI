@@ -18,9 +18,9 @@ import matplotlib.pyplot as plt
 import nibabel as nib
 import numpy as np
 import torch
-from DataPreprocessor import load_rg_data
-from Dataset import RGDataset
-from rggan import GenNet as G_NET
+from RGDataPreprocessor import load_rg_data
+from RGDataset import RGDataset
+from RGModel import GenNet
 from torchvision.utils import make_grid
 
 from monai import config
@@ -83,7 +83,7 @@ def run_evaluation(
 
     # load generator
     logging.info("Loading RGGAN model: %s" % rggan_saved_model)
-    gen_net = G_NET()
+    gen_net = GenNet()
     gen_net.load_state_dict(torch.load(rggan_saved_model)["g_net"])
     gen_net.to(device)
     gen_net.eval()
@@ -109,9 +109,6 @@ def run_evaluation(
 
     # save images
     img_affline = data["base_meta_dict"]["affine"]
-
-    if not os.path.isdir(output_dir):
-        os.mkdir(output_dir)
 
     # create chest ct scans image grid
     chest_cts = torch.stack(scans)  # [10, 128, 128]
@@ -142,6 +139,8 @@ def run_evaluation(
     bgs_out = ndarr[:, :, 0]
 
     if not no_save:
+        if not os.path.isdir(output_dir):
+            os.mkdir(output_dir)
         print("Saving images in: %s" % output_dir)
         save_path = os.path.join(output_dir, f"Chest_CT_{index}_{seed}.nii.gz")
         nib.save(nib.Nifti1Image(chest_ct_out, img_affline), save_path)
@@ -172,7 +171,8 @@ def execute_cmdline():
     """
     parser = argparse.ArgumentParser(
         prog="RGGAN Evaluation",
-        description="Pass embedding and background image into generator to create chest CT scans, nodule masks, and gene fusion maps.",
+        description="Pass embedding and background image into generator to create chest \
+            CT scans, nodule masks, and gene fusion maps.",
         epilog="https://github.com/Project-MONAI/MONAI",
     )
     parser.add_argument("--index", help="Embedding from DS to evaluate.", default=1, type=int)
@@ -191,10 +191,10 @@ def execute_cmdline():
 if __name__ == "__main__":
     run_evaluation(
         data_dir="/nvdata/NSCLC-Ziyue",
-        rggan_saved_model="/nvdata/rggan/monai/net/g_synth_50.pth",
-        output_dir="/nvdata/rggan/monai/net/g_synth_50",
-        index=666,
-        seed=121,
+        rggan_saved_model="./ModelOut/final.pth",
+        output_dir="./evaluation/",
+        index=1,
+        seed=12345,
         no_save=False,
         no_plot=False,
         randomize_latents=True,

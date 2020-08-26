@@ -1,6 +1,17 @@
+# Copyright 2020 MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import torch
-import torch.nn as nn
 import torch.nn.parallel
+from torch import nn
 
 from monai.networks.blocks import Convolution
 from monai.networks.layers.factories import Act, Conv, Norm, split_args
@@ -22,15 +33,15 @@ Network architecture based on original MC GAN https://github.com/HYOJINPARK/MC_G
 def calc_mean_std(feat, eps=1e-5):
     size = feat.size()
     assert len(size) == 4
-    N, C = size[:2]
+    batch_size, channels = size[:2]
     feat = feat.contiguous()
-    feat_var = feat.view(N, C, -1).var(dim=2) + eps
-    feat_std = feat_var.sqrt().view(N, C, 1, 1)
-    feat_mean = feat.view(N, C, -1).mean(dim=2).view(N, C, 1, 1)
+    feat_var = feat.view(batch_size, channels, -1).var(dim=2) + eps
+    feat_std = feat_var.sqrt().view(batch_size, channels, 1, 1)
+    feat_mean = feat.view(batch_size, channels, -1).mean(dim=2).view(batch_size, channels, 1, 1)
     return feat_mean, feat_std
 
 
-def adaptive_instance_normalization(content_feat, style_feat):
+def adain(content_feat, style_feat):
     assert content_feat.size()[:2] == style_feat.size()[:2]
     size = content_feat.size()
     style_mean, style_std = calc_mean_std(style_feat)
@@ -39,8 +50,6 @@ def adaptive_instance_normalization(content_feat, style_feat):
     normalized_feat = (content_feat - content_mean.expand(size)) / content_std.expand(size)
     return normalized_feat * style_std.expand(size) + style_mean.expand(size)
 
-
-adain = adaptive_instance_normalization
 
 # ############# Generator ############# #
 
@@ -197,7 +206,8 @@ class GenImgStage(nn.Module):
         super(GenImgStage, self).__init__()
         self.k_size = kernel_size
         self.img = nn.Sequential(
-            Conv["CONV", 2](img_features, output_channels, kernel_size=3, stride=1, padding=1, bias=False), Act["TANH"](),
+            Conv["CONV", 2](img_features, output_channels, kernel_size=3, stride=1, padding=1, bias=False),
+            Act["TANH"](),
         )
         self.synth_out = SynthesisBlockDirect(1)
         self.fc = nn.Sequential(
