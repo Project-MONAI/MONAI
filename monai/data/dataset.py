@@ -196,7 +196,7 @@ class PersistentDataset(Dataset):
                 item_transformed = self._pre_first_random_transform(item_transformed)
                 if hashfile is not None:
                     # add sentinel flag to indicate that the transforms have already been computed.
-                    item_transformed["cache"] = True
+                    item_transformed["cached"] = True
                     # NOTE: Writing to ".temp_write_cache" and then using a nearly atomic rename operation
                     #       to make the cache more robust to manual killing of parent process
                     #       which may leave partially written cache files in an incomplete state
