@@ -229,12 +229,12 @@ class GenImgStage(nn.Module):
 
 
 class GenNet(nn.Module):
-    def __init__(self, spatial_dim=2, img_features=32, embed_dim=128, latent_size=10, code_kernel_size=8):
+    def __init__(self, spatial_dim=2, img_features=32, embed_dim=128, latent_size=10, code_k_size=8):
         super(GenNet, self).__init__()
         input_size = embed_dim + latent_size
         self.ec_net = EncoderNet()
-        self.synth_net = GenSynthStage(spatial_dim, img_features * 16, input_size, code_kernel_size)
-        self.img_net = GenImgStage(spatial_dim, img_features, input_size, code_kernel_size)
+        self.synth_net = GenSynthStage(spatial_dim, img_features * 16, input_size, code_k_size)
+        self.img_net = GenImgStage(spatial_dim, img_features, input_size, code_k_size)
 
     def forward(self, z_code, description, base_img):
         embedding = self.ec_net(description)
@@ -253,7 +253,7 @@ class DiscNet(nn.Module):
         spatial_dim=2,
         img_features=64,
         embed_dim=128,
-        k_size=8,
+        code_k_size=8,
         norm=Norm.BATCH,
         act=(Act.LEAKYRELU, {"negative_slope": 0.2, "inplace": True}),
     ):
@@ -261,7 +261,7 @@ class DiscNet(nn.Module):
         self.dim = spatial_dim
         self.img_features = img_features
         self.embed_dim = embed_dim
-        self.k_size = k_size
+        self.k_size = code_k_size
         self.norm = norm
         self.act = act
 

@@ -73,7 +73,7 @@ def run_evaluation(
                 channel_wise=True,
             ),
             AddChanneld(keys="base"),
-            ToTensord(keys=["base", "embedding"]),
+            ToTensord(keys=["base", "rna_embedding"]),
         ]
     )
 
@@ -91,7 +91,7 @@ def run_evaluation(
     # create generator input
     data = dataset[index]
     latent_codes = default_make_latent(num_latents=1, latent_size=10, device=device)
-    embedding = data["embedding"].to(device)
+    embedding = data["rna_embedding"].to(device)
     random_bgs = data["base"]
     random_bgs = random_bgs.permute(1, 0, 2, 3).to(device)
 
