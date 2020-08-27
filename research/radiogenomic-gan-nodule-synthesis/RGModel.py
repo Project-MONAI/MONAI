@@ -56,7 +56,11 @@ def adain(content_feat, style_feat):
 
 class SynthesisBlock(nn.Module):
     def __init__(
-        self, dim, channels, norm=Norm.BATCH, act=(Act.LEAKYRELU, {"negative_slope": 0.02, "inplace": True}),
+        self,
+        dim,
+        channels,
+        norm=Norm.BATCH,
+        act=(Act.LEAKYRELU, {"negative_slope": 0.02, "inplace": True}),
     ):
         super(SynthesisBlock, self).__init__()
         self.fg_block = nn.Sequential(

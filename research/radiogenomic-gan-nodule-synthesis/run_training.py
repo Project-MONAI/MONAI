@@ -263,7 +263,11 @@ def run_training(
 def execute_cmdline():
     parser = ArgumentParser(prog="MONAI RadiogenomicGAN Training Script")
     parser.add_argument(
-        "--device", type=str, default="cuda:0", dest="device", help="device type string. e.g. 'cuda:0' or 'cpu'.",
+        "--device",
+        type=str,
+        default="cuda:0",
+        dest="device",
+        help="device type string. e.g. 'cuda:0' or 'cpu'.",
     )
     parser.add_argument("--ep", type=int, default=500, dest="num_epochs")
     parser.add_argument("--bs", type=int, default=16, dest="batch_size")
@@ -271,7 +275,11 @@ def execute_cmdline():
     parser.add_argument("--input", type=str, default="./data", dest="input_dir")
     parser.add_argument("--output", type=str, default="./ModelOut", dest="output_dir")
     parser.add_argument(
-        "--save_interval", type=int, default=50, dest="save_interval", help="Save checkpoints every N epochs.",
+        "--save_interval",
+        type=int,
+        default=50,
+        dest="save_interval",
+        help="Save checkpoints every N epochs.",
     )
     parser.add_argument("--g_lr", type=float, default=0.0001, dest="g_lr", help="Loss rate for G ADAM optimizer")
     parser.add_argument("--d_lr", type=float, default=0.0001, dest="d_lr", help="Loss rate for D ADAM optimizer")
