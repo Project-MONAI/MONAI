@@ -5,6 +5,8 @@ on:
   push:
     branches:
       - master
+      # temp add for test
+      - 943-update-docker-20.08
 
 jobs:
   # caching of these jobs:
