@@ -21,3 +21,4 @@ from .stats_handler import StatsHandler
 from .tensorboard_handlers import TensorBoardImageHandler, TensorBoardStatsHandler
 from .utils import *
 from .validation_handler import ValidationHandler
+from .smartcache_handler import SmartCacheHandler
