@@ -195,7 +195,8 @@ def pixelshuffle(x: torch.Tensor, dimensions: int, scale_factor: int) -> torch.T
     Apply pixel shuffle to the tensor `x` with spatial dimensions `dimensions` and scaling factor `scale_factor`.
 
     See: Shi et al., 2016, "Real-Time Single Image and Video Super-Resolution
-        Using a nEfficient Sub-Pixel Convolutional Neural Network."
+    Using a nEfficient Sub-Pixel Convolutional Neural Network."
+
     See: Aitken et al., 2017, "Checkerboard artifact free sub-pixel convolution".
 
     Args:
