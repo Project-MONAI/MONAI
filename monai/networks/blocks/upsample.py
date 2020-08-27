@@ -98,6 +98,7 @@ class SubpixelUpsample(nn.Module):
     https://github.com/pytorch/pytorch/pull/6340/files
 
     """
+
     def __init__(
         self,
         dimensions: int,

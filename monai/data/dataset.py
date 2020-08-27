@@ -358,6 +358,7 @@ class SmartCacheDataset(CacheDataset):
     4. Call `shutdown()` when training ends.
 
     """
+
     def __init__(
         self,
         data: Sequence,
