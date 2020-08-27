@@ -12,6 +12,7 @@
 import unittest
 
 import numpy as np
+
 from monai.transforms import RandShiftIntensityd
 from tests.utils import NumpyImageTestCase2D
 

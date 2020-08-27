@@ -9,16 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import logging
-import numpy as np
 import os
+import sys
+
+import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
 import monai
-from monai.transforms import Compose, LoadNiftid, AddChanneld, ScaleIntensityd, Resized, ToTensord
 from monai.data import CSVSaver
+from monai.transforms import AddChanneld, Compose, LoadNiftid, Resized, ScaleIntensityd, ToTensord
 
 
 def main():
@@ -59,10 +60,10 @@ def main():
     val_loader = DataLoader(val_ds, batch_size=2, num_workers=4, pin_memory=torch.cuda.is_available())
 
     # Create DenseNet121
-    device = torch.device("cuda:0")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = monai.networks.nets.densenet.densenet121(spatial_dims=3, in_channels=1, out_channels=2).to(device)
 
-    model.load_state_dict(torch.load("best_metric_model.pth"))
+    model.load_state_dict(torch.load("best_metric_model_classification3d_dict.pth"))
     model.eval()
     with torch.no_grad():
         num_correct = 0.0

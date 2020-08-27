@@ -9,38 +9,37 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 import os
 import sys
 import tempfile
-import shutil
 from glob import glob
-import logging
+
 import nibabel as nib
 import numpy as np
 import torch
-from ignite.engine import Events, create_supervised_trainer, create_supervised_evaluator
-from ignite.handlers import ModelCheckpoint, EarlyStopping
+from ignite.engine import Events, create_supervised_evaluator, create_supervised_trainer
+from ignite.handlers import EarlyStopping, ModelCheckpoint
 from torch.utils.data import DataLoader
 
 import monai
 from monai.data import NiftiDataset, create_test_image_3d
-from monai.transforms import Compose, AddChannel, ScaleIntensity, RandSpatialCrop, Resize, ToTensor
 from monai.handlers import (
-    StatsHandler,
-    TensorBoardStatsHandler,
-    TensorBoardImageHandler,
     MeanDice,
+    StatsHandler,
+    TensorBoardImageHandler,
+    TensorBoardStatsHandler,
     stopping_fn_from_metric,
 )
 from monai.networks import predict_segmentation
+from monai.transforms import AddChannel, Compose, RandSpatialCrop, Resize, ScaleIntensity, ToTensor
 
 
-def main():
+def main(tempdir):
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-    # create a temporary directory and 40 random image, mask paris
-    tempdir = tempfile.mkdtemp()
+    # create a temporary directory and 40 random image, mask pairs
     print(f"generating synthetic data to {tempdir} (this may take a while)")
     for i in range(40):
         im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1)
@@ -87,14 +86,14 @@ def main():
     loss = monai.losses.DiceLoss(sigmoid=True)
     lr = 1e-3
     opt = torch.optim.Adam(net.parameters(), lr)
-    device = torch.device("cuda:0")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Ignite trainer expects batch=(img, seg) and returns output=loss at every iteration,
     # user can add output_transform to return other values, like: y_pred, y, etc.
     trainer = create_supervised_trainer(net, opt, loss, device, False)
 
     # adding checkpoint handler to save models (network params and optimizer stats) during training
-    checkpoint_handler = ModelCheckpoint("./runs/", "net", n_saved=10, require_empty=False)
+    checkpoint_handler = ModelCheckpoint("./runs_array/", "net", n_saved=10, require_empty=False)
     trainer.add_event_handler(
         event_name=Events.EPOCH_COMPLETED, handler=checkpoint_handler, to_save={"net": net, "opt": opt}
     )
@@ -154,8 +153,8 @@ def main():
     train_epochs = 30
     state = trainer.run(train_loader, train_epochs)
     print(state)
-    shutil.rmtree(tempdir)
 
 
 if __name__ == "__main__":
-    main()
+    with tempfile.TemporaryDirectory() as tempdir:
+        main(tempdir)

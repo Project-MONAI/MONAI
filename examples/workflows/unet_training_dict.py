@@ -9,50 +9,49 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 import os
 import sys
 import tempfile
-import shutil
 from glob import glob
-import logging
+
 import nibabel as nib
 import numpy as np
 import torch
 from ignite.metrics import Accuracy
 
 import monai
+from monai.data import create_test_image_3d
+from monai.engines import SupervisedEvaluator, SupervisedTrainer
+from monai.handlers import (
+    CheckpointSaver,
+    LrScheduleHandler,
+    MeanDice,
+    StatsHandler,
+    TensorBoardImageHandler,
+    TensorBoardStatsHandler,
+    ValidationHandler,
+)
+from monai.inferers import SimpleInferer, SlidingWindowInferer
 from monai.transforms import (
-    Compose,
-    LoadNiftid,
+    Activationsd,
     AsChannelFirstd,
-    ScaleIntensityd,
+    AsDiscreted,
+    Compose,
+    KeepLargestConnectedComponentd,
+    LoadNiftid,
     RandCropByPosNegLabeld,
     RandRotate90d,
+    ScaleIntensityd,
     ToTensord,
-    Activationsd,
-    AsDiscreted,
-    KeepLargestConnectedComponentd,
 )
-from monai.handlers import (
-    StatsHandler,
-    TensorBoardStatsHandler,
-    TensorBoardImageHandler,
-    ValidationHandler,
-    LrScheduleHandler,
-    CheckpointSaver,
-    MeanDice,
-)
-from monai.data import create_test_image_3d
-from monai.engines import SupervisedTrainer, SupervisedEvaluator
-from monai.inferers import SimpleInferer, SlidingWindowInferer
 
 
-def main():
+def main(tempdir):
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-    # create a temporary directory and 40 random image, mask paris
-    tempdir = tempfile.mkdtemp()
+    # create a temporary directory and 40 random image, mask pairs
     print(f"generating synthetic data to {tempdir} (this may take a while)")
     for i in range(40):
         im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1, channel_dim=-1)
@@ -71,7 +70,7 @@ def main():
         [
             LoadNiftid(keys=["image", "label"]),
             AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
-            ScaleIntensityd(keys=["image", "label"]),
+            ScaleIntensityd(keys="image"),
             RandCropByPosNegLabeld(
                 keys=["image", "label"], label_key="label", spatial_size=[96, 96, 96], pos=1, neg=1, num_samples=4
             ),
@@ -83,7 +82,7 @@ def main():
         [
             LoadNiftid(keys=["image", "label"]),
             AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
-            ScaleIntensityd(keys=["image", "label"]),
+            ScaleIntensityd(keys="image"),
             ToTensord(keys=["image", "label"]),
         ]
     )
@@ -97,7 +96,7 @@ def main():
     val_loader = monai.data.DataLoader(val_ds, batch_size=1, num_workers=4)
 
     # create UNet, DiceLoss and Adam optimizer
-    device = torch.device("cuda:0")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     net = monai.networks.nets.UNet(
         dimensions=3,
         in_channels=1,
@@ -121,7 +120,9 @@ def main():
         StatsHandler(output_transform=lambda x: None),
         TensorBoardStatsHandler(log_dir="./runs/", output_transform=lambda x: None),
         TensorBoardImageHandler(
-            log_dir="./runs/", batch_transform=lambda x: (x["image"], x["label"]), output_transform=lambda x: x["pred"]
+            log_dir="./runs/",
+            batch_transform=lambda x: (x["image"], x["label"]),
+            output_transform=lambda x: x["pred"],
         ),
         CheckpointSaver(save_dir="./runs/", save_dict={"net": net}, save_key_metric=True),
     ]
@@ -137,6 +138,8 @@ def main():
         },
         additional_metrics={"val_acc": Accuracy(output_transform=lambda x: (x["pred"], x["label"]))},
         val_handlers=val_handlers,
+        # if no FP16 support in GPU or PyTorch version < 1.6, will not enable AMP evaluation
+        amp=True if monai.config.get_torch_version_tuple() >= (1, 6) else False,
     )
 
     train_post_transforms = Compose(
@@ -162,15 +165,15 @@ def main():
         optimizer=opt,
         loss_function=loss,
         inferer=SimpleInferer(),
-        amp=False,
         post_transform=train_post_transforms,
         key_train_metric={"train_acc": Accuracy(output_transform=lambda x: (x["pred"], x["label"]))},
         train_handlers=train_handlers,
+        # if no FP16 support in GPU or PyTorch version < 1.6, will not enable AMP training
+        amp=True if monai.config.get_torch_version_tuple() >= (1, 6) else False,
     )
     trainer.run()
 
-    shutil.rmtree(tempdir)
-
 
 if __name__ == "__main__":
-    main()
+    with tempfile.TemporaryDirectory() as tempdir:
+        main(tempdir)
