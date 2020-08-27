@@ -10,8 +10,10 @@
 # limitations under the License.
 
 import unittest
+
 import torch
 from parameterized import parameterized
+
 from monai.transforms import VoteEnsembled
 
 # shape: [1, 2, 1, 1]
