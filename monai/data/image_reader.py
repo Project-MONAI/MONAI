@@ -348,3 +348,144 @@ class NibabelReader(ImageReader):
 
         """
         return np.asarray(img.dataobj)
+
+
+class NumpyReader(ImageReader):
+    """
+    Load NPY or NPZ format data based on Numpy library, they can be arrays or pickled objects.
+    A typical usage is to load the `mask` data for classification task.
+    It can load part of the npz file with specified `npz_keys`.
+
+    Args:
+        npz_keys: if loading npz file, only load the specified keys, if None, load all the items.
+            stack the loaded items together to construct a new first dimension.
+
+    """
+
+    def __init__(self, npz_keys: Optional[KeysCollection] = None):
+        super().__init__()
+        self._img: Optional[Sequence[Nifti1Image]] = None
+        if npz_keys is not None:
+            npz_keys = ensure_tuple(npz_keys)
+        self.npz_keys = npz_keys
+
+    def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
+        """
+        Verify whether the specified file or files format is supported by Numpy reader.
+
+        Args:
+            filename: file name or a list of file names to read.
+                if a list of files, verify all the subffixes.
+
+        """
+        suffixes: Sequence[str] = ["npz", "npy"]
+        return is_supported_format(filename, suffixes)
+
+    def read(self, data: Union[Sequence[str], str, np.ndarray], **kwargs):
+        """
+        Read image data from specified file or files, or set a Numpy array.
+        Note that the returned object is Numpy array or list of Numpy arrays.
+        `self._img` is always a list, even only has 1 image.
+
+        Args:
+            data: file name or a list of file names to read.
+            kwargs: additional args for `numpy.load` API except `allow_pickle`. more details about available args:
+                https://numpy.org/doc/stable/reference/generated/numpy.load.html
+
+        """
+        self._img = list()
+        if isinstance(data, np.ndarray):
+            self._img.append(data)
+            return data
+
+        filenames: Sequence[str] = ensure_tuple(data)
+        for name in filenames:
+            img = np.load(name, allow_pickle=True, **kwargs)
+            if name.endswith(".npz"):
+                # load expected items from NPZ file
+                npz_keys = [f"arr_{i}" for i in range(len(img))] if self.npz_keys is None else self.npz_keys
+                for k in npz_keys:
+                    self._img.append(img[k])
+            else:
+                self._img.append(img)
+
+        return self._img if len(filenames) > 1 else self._img[0]
+
+    def get_data(self):
+        """
+        Extract data array and meta data from loaded image and return them.
+        This function returns 2 objects, first is numpy array of image data, second is dict of meta data.
+        It constructs `affine`, `original_affine`, and `spatial_shape` and stores in meta dict.
+        If loading a list of files, stack them together and add a new dimension as first dimension,
+        and use the meta data of the first image to represent the stacked result.
+
+        """
+        img_array: List[np.ndarray] = list()
+        compatible_meta: Dict = None
+        if self._img is None:
+            raise RuntimeError("please call read() first then use get_data().")
+
+        for img in self._img:
+            header = self._get_meta_dict(img)
+            header["original_affine"] = self._get_affine(img)
+            header["affine"] = header["original_affine"].copy()
+            if self.as_closest_canonical:
+                img = nib.as_closest_canonical(img)
+                header["affine"] = self._get_affine(img)
+            header["as_closest_canonical"] = self.as_closest_canonical
+            header["spatial_shape"] = self._get_spatial_shape(img)
+            img_array.append(self._get_array_data(img))
+
+            if compatible_meta is None:
+                compatible_meta = header
+            else:
+                if not np.allclose(header["affine"], compatible_meta["affine"]):
+                    raise RuntimeError("affine matrix of all images should be same.")
+                if not np.allclose(header["spatial_shape"], compatible_meta["spatial_shape"]):
+                    raise RuntimeError("spatial_shape of all images should be same.")
+
+        img_array_ = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
+        return img_array_, compatible_meta
+
+    def _get_meta_dict(self, img: Nifti1Image) -> Dict:
+        """
+        Get the all the meta data of the image and convert to dict type.
+
+        Args:
+            img: a Nibabel image object loaded from a image file.
+
+        """
+        return dict(img.header)
+
+    def _get_affine(self, img: Nifti1Image) -> np.ndarray:
+        """
+        Get the affine matrix of the image, it can be used to correct
+        spacing, orientation or execute spatial transforms.
+
+        Args:
+            img: a Nibabel image object loaded from a image file.
+
+        """
+        return img.affine
+
+    def _get_spatial_shape(self, img: Nifti1Image) -> Sequence:
+        """
+        Get the spatial shape of image data, it doesn't contain the channel dim.
+
+        Args:
+            img: a Nibabel image object loaded from a image file.
+
+        """
+        ndim = img.header["dim"][0]
+        spatial_rank = min(ndim, 3)
+        return list(img.header["dim"][1 : spatial_rank + 1])
+
+    def _get_array_data(self, img: Nifti1Image) -> np.ndarray:
+        """
+        Get the raw array data of the image, converted to Numpy array.
+
+        Args:
+            img: a Nibabel image object loaded from a image file.
+
+        """
+        return np.asarray(img.dataobj)
