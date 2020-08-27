@@ -168,7 +168,9 @@ def evaluate(args):
         post_transform=val_post_transforms,
         key_val_metric={
             "val_mean_dice": MeanDice(
-                include_background=True, output_transform=lambda x: (x["pred"], x["label"]), device=device,
+                include_background=True,
+                output_transform=lambda x: (x["pred"], x["label"]),
+                device=device,
             )
         },
         additional_metrics={"val_acc": Accuracy(output_transform=lambda x: (x["pred"], x["label"]), device=device)},
