@@ -47,7 +47,9 @@ def do_activation(input_data: torch.Tensor, activation: Union[str, Callable] = "
 
 
 def do_binarization(
-    input_data: torch.Tensor, bin_mode: str = "threshold", bin_threshold: Union[float, Sequence[float]] = 0.5,
+    input_data: torch.Tensor,
+    bin_mode: str = "threshold",
+    bin_threshold: Union[float, Sequence[float]] = 0.5,
 ) -> torch.Tensor:
     """
     Args:

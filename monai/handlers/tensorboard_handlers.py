@@ -192,7 +192,7 @@ class TensorBoardImageHandler(object):
         - Expects ``output_transform(engine.state.output)`` to return a torch
           tensor in format (y_pred[N, channel, ...], loss).
 
-     """
+    """
 
     def __init__(
         self,
