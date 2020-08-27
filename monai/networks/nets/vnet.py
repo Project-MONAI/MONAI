@@ -32,7 +32,12 @@ class LUConv(nn.Module):
 
         self.act_function = get_acti_layer(act, nchan)
         self.conv_block = Convolution(
-            dimensions=spatial_dims, in_channels=nchan, out_channels=nchan, kernel_size=5, act=None, norm=Norm.BATCH,
+            dimensions=spatial_dims,
+            in_channels=nchan,
+            out_channels=nchan,
+            kernel_size=5,
+            act=None,
+            norm=Norm.BATCH,
         )
 
     def forward(self, x):
@@ -59,7 +64,12 @@ class InputTransition(nn.Module):
         self.in_channels = in_channels
         self.act_function = get_acti_layer(act, 16)
         self.conv_block = Convolution(
-            dimensions=spatial_dims, in_channels=in_channels, out_channels=16, kernel_size=5, act=None, norm=Norm.BATCH,
+            dimensions=spatial_dims,
+            in_channels=in_channels,
+            out_channels=16,
+            kernel_size=5,
+            act=None,
+            norm=Norm.BATCH,
         )
 
     def forward(self, x):
