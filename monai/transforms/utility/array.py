@@ -425,7 +425,9 @@ class LabelToMask(Transform):
     """
 
     def __init__(
-        self, select_labels: Union[Sequence[int], int], merge_channels: bool = False,
+        self,
+        select_labels: Union[Sequence[int], int],
+        merge_channels: bool = False,
     ) -> None:  # pytype: disable=annotation-type-mismatch # pytype bug with bool
         self.select_labels = ensure_tuple(select_labels)
         self.merge_channels = merge_channels
@@ -478,7 +480,10 @@ class FgBgToIndices(Transform):
         self.output_shape = output_shape
 
     def __call__(
-        self, label: np.ndarray, image: Optional[np.ndarray] = None, output_shape: Optional[Sequence[int]] = None,
+        self,
+        label: np.ndarray,
+        image: Optional[np.ndarray] = None,
+        output_shape: Optional[Sequence[int]] = None,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Args:
