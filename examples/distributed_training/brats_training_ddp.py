@@ -60,12 +60,13 @@ import torch
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data.distributed import DistributedSampler
+from torch.utils.tensorboard import SummaryWriter
 
 from monai.apps import DecathlonDataset
 from monai.data import DataLoader
 from monai.losses import DiceLoss
 from monai.metrics import DiceMetric
-from monai.networks.nets import UNet
+from monai.networks.nets import UNet, SegResNet
 from monai.transforms import (
     AsChannelFirstd,
     CenterSpatialCropd,
@@ -145,7 +146,7 @@ def main_worker(args):
         section="training",
         download=False,
         num_workers=4,
-        cache_rate=1.0,
+        cache_rate=args.cache_rate,
     )
     # create a training data sampler
     train_sampler = DistributedSampler(train_ds)
@@ -159,6 +160,9 @@ def main_worker(args):
     )
 
     if dist.get_rank() == 0:
+        # Logging for TensorBoard
+        writer = SummaryWriter(log_dir=args.log_dir)
+        # validation transforms and dataset
         val_transforms = Compose(
             [
                 LoadNiftid(keys=["image", "label"]),
@@ -178,20 +182,28 @@ def main_worker(args):
             section="validation",
             download=False,
             num_workers=4,
-            cache_rate=1.0,
+            cache_rate=args.cache_rate,
         )
         val_loader = DataLoader(val_ds, batch_size=2, shuffle=False, num_workers=args.workers)
 
     # create UNet, DiceLoss and Adam optimizer
     device = torch.device(f"cuda:{args.local_rank}")
-    model = UNet(
-        dimensions=3,
-        in_channels=4,
-        out_channels=3,
-        channels=(16, 32, 64, 128, 256),
-        strides=(2, 2, 2, 2),
-        num_res_units=2,
-    ).to(device)
+    if args.network == 'UNet':
+        model = UNet(
+            dimensions=3,
+            in_channels=4,
+            out_channels=3,
+            channels=(16, 32, 64, 128, 256),
+            strides=(2, 2, 2, 2),
+            num_res_units=2,
+        ).to(device)
+    else:
+        model = SegResNet(
+            in_channels=4,
+            out_channels=3,
+            init_filters=16,
+            dropout_prob=0.2
+        ).to(device)
     loss_function = DiceLoss(to_onehot_y=False, sigmoid=True, squared_pred=True)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-5, amsgrad=True)
     # wrap the model with DistributedDataParallel module
@@ -207,24 +219,28 @@ def main_worker(args):
     for epoch in range(total_epoch):
         train_sampler.set_epoch(epoch)
 
-        train(train_loader, model, loss_function, optimizer, epoch, args, device)
+        train_loss = train(train_loader, model, loss_function, optimizer, epoch, args, device)
         epoch_time.update(time.time() - end)
 
         if epoch % args.print_freq == 0:
             progress.display(epoch)
 
-        if dist.get_rank() == 0 and (epoch + 1) % args.val_interval == 0:
-            metric, metric_tc, metric_wt, metric_et = evaluate(model, val_loader, device)
-            if metric > best_metric:
-                best_metric = metric
-                best_metric_epoch = epoch + 1
-                # torch.save(model.state_dict(), os.path.join(args.dir, "best_metric_model.pth"))
-                # print("saved new best metric model")
-            print(
-                f"current epoch: {epoch + 1} current mean dice: {metric:.4f}"
-                f" tc: {metric_tc:.4f} wt: {metric_wt:.4f} et: {metric_et:.4f}"
-                f"\nbest mean dice: {best_metric:.4f} at epoch: {best_metric_epoch}"
-            )
+        if dist.get_rank() == 0:
+            writer.add_scalar("Loss/train", train_loss, epoch)
+            if (epoch + 1) % args.val_interval == 0:
+                metric, metric_tc, metric_wt, metric_et = evaluate(model, val_loader, device)
+                writer.add_scalar("Mean Dice/val", metric, epoch)
+                writer.add_scalar("Mean Dice TC/val", metric_tc, epoch)
+                writer.add_scalar("Mean Dice WT/val", metric_wt, epoch)
+                writer.add_scalar("Mean Dice ET/val", metric_et, epoch)
+                if metric > best_metric:
+                    best_metric = metric
+                    best_metric_epoch = epoch + 1
+                print(
+                    f"current epoch: {epoch + 1} current mean dice: {metric:.4f}"
+                    f" tc: {metric_tc:.4f} wt: {metric_wt:.4f} et: {metric_et:.4f}"
+                    f"\nbest mean dice: {best_metric:.4f} at epoch: {best_metric_epoch}"
+                )
         end = time.time()
 
     if dist.get_rank() == 0:
@@ -233,6 +249,7 @@ def main_worker(args):
         # random parameters and gradients are synchronized in backward passes,
         # therefore, saving it in one process is sufficient
         torch.save(model.state_dict(), "final_model.pth")
+        writer.flush()
     dist.destroy_process_group()
 
 
@@ -271,6 +288,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args, device):
 
         if i % 10 == 0:
             progress.display(i)
+    return losses.avg
 
 
 def evaluate(model, data_loader, device):
@@ -350,6 +368,8 @@ def main():
     parser.add_argument("--seed", default=None, type=int, help="seed for initializing training.")
     parser.add_argument("--cache_rate", type=float, default=1.0)
     parser.add_argument("--val_interval", type=int, default=5)
+    parser.add_argument("--network", type=str, default="UNet", choices=["UNet", "SegResNet"])
+    parser.add_argument("--log_dir", type=str, default=None)
     args = parser.parse_args()
 
     if args.seed is not None:
