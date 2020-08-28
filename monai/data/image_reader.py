@@ -14,9 +14,10 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple, Un
 
 import numpy as np
 
+from monai.config import KeysCollection
 from monai.data.utils import correct_nifti_header_if_necessary
 from monai.utils import ensure_tuple, optional_import
-from monai.config import KeysCollection
+
 from .utils import is_supported_format
 
 if TYPE_CHECKING:
