@@ -70,7 +70,7 @@ NibabelReader
 
 NumpyReader
 ~~~~~~~~~~~
-.. autoclass:: NunpyReader
+.. autoclass:: NumpyReader
   :members:
 
 
