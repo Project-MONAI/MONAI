@@ -68,3 +68,8 @@ Validation handler
 ------------------
 .. autoclass:: ValidationHandler
     :members:
+
+SmartCache handler
+------------------
+.. autoclass:: SmartCacheHandler
+    :members:
