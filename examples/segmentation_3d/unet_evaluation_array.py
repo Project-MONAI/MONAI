@@ -9,30 +9,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 import os
 import sys
 import tempfile
-import shutil
 from glob import glob
-import logging
+
 import nibabel as nib
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
 from monai import config
-from monai.transforms import Compose, AddChannel, ScaleIntensity, ToTensor
-from monai.networks.nets import UNet
-from monai.data import create_test_image_3d, NiftiSaver, NiftiDataset
+from monai.data import NiftiDataset, NiftiSaver, create_test_image_3d
 from monai.inferers import sliding_window_inference
 from monai.metrics import DiceMetric
+from monai.networks.nets import UNet
+from monai.transforms import AddChannel, Compose, ScaleIntensity, ToTensor
 
 
-def main():
+def main(tempdir):
     config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-    tempdir = tempfile.mkdtemp()
     print(f"generating synthetic data to {tempdir} (this may take a while)")
     for i in range(5):
         im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1)
@@ -54,7 +53,7 @@ def main():
     val_loader = DataLoader(val_ds, batch_size=1, num_workers=1, pin_memory=torch.cuda.is_available())
     dice_metric = DiceMetric(include_background=True, to_onehot_y=False, sigmoid=True, reduction="mean")
 
-    device = torch.device("cuda:0")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = UNet(
         dimensions=3,
         in_channels=1,
@@ -64,7 +63,7 @@ def main():
         num_res_units=2,
     ).to(device)
 
-    model.load_state_dict(torch.load("best_metric_model.pth"))
+    model.load_state_dict(torch.load("best_metric_model_segmentation3d_array.pth"))
     model.eval()
     with torch.no_grad():
         metric_sum = 0.0
@@ -83,8 +82,8 @@ def main():
             saver.save_batch(val_outputs, val_data[2])
         metric = metric_sum / metric_count
         print("evaluation metric:", metric)
-    shutil.rmtree(tempdir)
 
 
 if __name__ == "__main__":
-    main()
+    with tempfile.TemporaryDirectory() as tempdir:
+        main(tempdir)

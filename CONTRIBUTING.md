@@ -50,7 +50,7 @@ Ideally, the new branch should be based on the latest `master` branch.
 1. Wait for the pull request to be merged.
 
 ### Ensuring code quality
-To ensure the code quality, MONAI relies on several linting tools ([flake8 and its plugins](https://gitlab.com/pycqa/flake8), [black](https://github.com/psf/black)),
+To ensure the code quality, MONAI relies on several linting tools ([flake8 and its plugins](https://gitlab.com/pycqa/flake8), [black](https://github.com/psf/black), [isort](https://github.com/timothycrosley/isort)),
 static type analysis tools ([mypy](https://github.com/python/mypy), [pytype](https://github.com/google/pytype)), as well as a set of unit/integration tests.
 
 This section highlights all the necessary steps required before sending a pull request.
@@ -61,7 +61,7 @@ To collaborate efficiently, please read through this section and follow them.
 * [Building documentation](#building-the-documentation)
 
 #### Coding style
-Coding style is checked and enforced by flake8 and black, using [a flake8 configuration](./setup.cfg) similar to [PyTorch's](https://github.com/pytorch/pytorch/blob/master/.flake8).
+Coding style is checked and enforced by flake8, black, and isort, using [a flake8 configuration](./setup.cfg) similar to [PyTorch's](https://github.com/pytorch/pytorch/blob/master/.flake8).
 The next section provides [a few commands to run the relevant tools](#code-analysis-and-unit-testing).
 
 For string definition, [f-string](https://www.python.org/dev/peps/pep-0498/) is recommended to use over `%-print` and `format-print` from python 3.6. So please try to use `f-string` if you need to define any string object.
