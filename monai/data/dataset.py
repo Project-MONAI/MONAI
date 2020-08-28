@@ -344,18 +344,20 @@ class SmartCacheDataset(CacheDataset):
     https://docs.nvidia.com/clara/tlt-mi/clara-train-sdk-v3.0/nvmidl/additional_features/smart_cache.html#smart-cache
 
     For example, if we have 5 images: `[image1, image2, image3, image4, image5]`, and `cache_num=4`, `replace_rate=0.25`.
-    so the actual training images cached and replaced for every epoch are as below:
-    epoch 1: [image1, image2, image3, image4]
-    epoch 2: [image2, image3, image4, image5]
-    epoch 3: [image3, image4, image5, image1]
-    epoch 3: [image4, image5, image1, image2]
-    epoch N: [image[N % 5] ...]
+    so the actual training images cached and replaced for every epoch are as below::
+
+        epoch 1: [image1, image2, image3, image4]
+        epoch 2: [image2, image3, image4, image5]
+        epoch 3: [image3, image4, image5, image1]
+        epoch 3: [image4, image5, image1, image2]
+        epoch N: [image[N % 5] ...]
 
     The usage of `SmartCacheDataset` contains 4 steps:
-    1. Initialize `SmartCacheDataset` object and cache for the first epoch.
-    2. Call `start()` to run replacement thread in background.
-    3. Call `update_cache()` before every epoch to replace training items.
-    4. Call `shutdown()` when training ends.
+
+        1. Initialize `SmartCacheDataset` object and cache for the first epoch.
+        2. Call `start()` to run replacement thread in background.
+        3. Call `update_cache()` before every epoch to replace training items.
+        4. Call `shutdown()` when training ends.
 
     """
 
