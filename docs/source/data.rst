@@ -68,6 +68,11 @@ NibabelReader
 .. autoclass:: NibabelReader
   :members:
 
+NumpyReader
+~~~~~~~~~~~
+.. autoclass:: NumpyReader
+  :members:
+
 PILReader
 ~~~~~~~~~
 .. autoclass:: PILReader
