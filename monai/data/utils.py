@@ -519,7 +519,7 @@ def is_supported_format(filename: Union[Sequence[str], str], suffixes: Sequence[
     Args:
         filename: file name or a list of file names to read.
             if a list of files, verify all the subffixes.
-        suffixes: all the supported image subffixes of current reader.
+        suffixes: all the supported image subffixes of current reader, must be a list of lower case suffixes.
 
     """
     supported_format: bool = True
@@ -528,7 +528,7 @@ def is_supported_format(filename: Union[Sequence[str], str], suffixes: Sequence[
         tokens: Sequence[str] = name.split(".")
         passed: bool = False
         for i in range(len(tokens) - 1):
-            if ".".join(tokens[-(i + 2) : -1]) in suffixes:
+            if ".".join(tokens[-(i + 2) : -1]).lower() in suffixes:
                 passed = True
                 break
         if not passed:

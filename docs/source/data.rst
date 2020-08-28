@@ -68,6 +68,11 @@ NibabelReader
 .. autoclass:: NibabelReader
   :members:
 
+PILReader
+~~~~~~~~~
+.. autoclass:: PILReader
+  :members:
+
 
 Nifti format handling
 ---------------------
