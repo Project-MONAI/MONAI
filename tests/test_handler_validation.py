@@ -10,11 +10,13 @@
 # limitations under the License.
 
 import unittest
+
 import torch
 from ignite.engine import Engine
+
 from monai.data import Dataset
-from monai.handlers import ValidationHandler
 from monai.engines import Evaluator
+from monai.handlers import ValidationHandler
 
 
 class TestEvaluator(Evaluator):

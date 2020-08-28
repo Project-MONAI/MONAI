@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import os
-import shutil
 import tempfile
 import unittest
 
@@ -38,85 +37,88 @@ class RandTest(Randomizable):
 
 class TestNiftiDataset(unittest.TestCase):
     def test_dataset(self):
-        tempdir = tempfile.mkdtemp()
-        full_names, ref_data = [], []
-        for filename in FILENAMES:
-            test_image = np.random.randint(0, 2, size=(4, 4, 4))
-            ref_data.append(test_image)
-            save_path = os.path.join(tempdir, filename)
-            full_names.append(save_path)
-            nib.save(nib.Nifti1Image(test_image, np.eye(4)), save_path)
+        with tempfile.TemporaryDirectory() as tempdir:
+            full_names, ref_data = [], []
+            for filename in FILENAMES:
+                test_image = np.random.randint(0, 2, size=(4, 4, 4))
+                ref_data.append(test_image)
+                save_path = os.path.join(tempdir, filename)
+                full_names.append(save_path)
+                nib.save(nib.Nifti1Image(test_image, np.eye(4)), save_path)
 
-        # default loading no meta
-        dataset = NiftiDataset(full_names)
-        for d, ref in zip(dataset, ref_data):
-            np.testing.assert_allclose(d, ref, atol=1e-3)
+            # default loading no meta
+            dataset = NiftiDataset(full_names)
+            for d, ref in zip(dataset, ref_data):
+                np.testing.assert_allclose(d, ref, atol=1e-3)
 
-        # loading no meta, int
-        dataset = NiftiDataset(full_names, dtype=np.float16)
-        for d, _ in zip(dataset, ref_data):
-            self.assertEqual(d.dtype, np.float16)
+            # loading no meta, int
+            dataset = NiftiDataset(full_names, dtype=np.float16)
+            for d, _ in zip(dataset, ref_data):
+                self.assertEqual(d.dtype, np.float16)
 
-        # loading with meta, no transform
-        dataset = NiftiDataset(full_names, image_only=False)
-        for d_tuple, ref in zip(dataset, ref_data):
-            d, meta = d_tuple
-            np.testing.assert_allclose(d, ref, atol=1e-3)
-            np.testing.assert_allclose(meta["original_affine"], np.eye(4))
+            # loading with meta, no transform
+            dataset = NiftiDataset(full_names, image_only=False)
+            for d_tuple, ref in zip(dataset, ref_data):
+                d, meta = d_tuple
+                np.testing.assert_allclose(d, ref, atol=1e-3)
+                np.testing.assert_allclose(meta["original_affine"], np.eye(4))
 
-        # loading image/label, no meta
-        dataset = NiftiDataset(full_names, seg_files=full_names, image_only=True)
-        for d_tuple, ref in zip(dataset, ref_data):
-            img, seg = d_tuple
-            np.testing.assert_allclose(img, ref, atol=1e-3)
-            np.testing.assert_allclose(seg, ref, atol=1e-3)
+            # loading image/label, no meta
+            dataset = NiftiDataset(full_names, seg_files=full_names, image_only=True)
+            for d_tuple, ref in zip(dataset, ref_data):
+                img, seg = d_tuple
+                np.testing.assert_allclose(img, ref, atol=1e-3)
+                np.testing.assert_allclose(seg, ref, atol=1e-3)
 
-        # loading image/label, no meta
-        dataset = NiftiDataset(full_names, transform=lambda x: x + 1, image_only=True)
-        for d, ref in zip(dataset, ref_data):
-            np.testing.assert_allclose(d, ref + 1, atol=1e-3)
+            # loading image/label, no meta
+            dataset = NiftiDataset(full_names, transform=lambda x: x + 1, image_only=True)
+            for d, ref in zip(dataset, ref_data):
+                np.testing.assert_allclose(d, ref + 1, atol=1e-3)
 
-        # set seg transform, but no seg_files
-        with self.assertRaises(TypeError):
-            dataset = NiftiDataset(full_names, seg_transform=lambda x: x + 1, image_only=True)
-            _ = dataset[0]
+            # set seg transform, but no seg_files
+            with self.assertRaises(TypeError):
+                dataset = NiftiDataset(full_names, seg_transform=lambda x: x + 1, image_only=True)
+                _ = dataset[0]
 
-        # set seg transform, but no seg_files
-        with self.assertRaises(TypeError):
-            dataset = NiftiDataset(full_names, seg_transform=lambda x: x + 1, image_only=True)
-            _ = dataset[0]
+            # set seg transform, but no seg_files
+            with self.assertRaises(TypeError):
+                dataset = NiftiDataset(full_names, seg_transform=lambda x: x + 1, image_only=True)
+                _ = dataset[0]
 
-        # loading image/label, with meta
-        dataset = NiftiDataset(
-            full_names, transform=lambda x: x + 1, seg_files=full_names, seg_transform=lambda x: x + 2, image_only=False
-        )
-        for d_tuple, ref in zip(dataset, ref_data):
-            img, seg, meta = d_tuple
-            np.testing.assert_allclose(img, ref + 1, atol=1e-3)
-            np.testing.assert_allclose(seg, ref + 2, atol=1e-3)
-            np.testing.assert_allclose(meta["original_affine"], np.eye(4), atol=1e-3)
+            # loading image/label, with meta
+            dataset = NiftiDataset(
+                full_names,
+                transform=lambda x: x + 1,
+                seg_files=full_names,
+                seg_transform=lambda x: x + 2,
+                image_only=False,
+            )
+            for d_tuple, ref in zip(dataset, ref_data):
+                img, seg, meta = d_tuple
+                np.testing.assert_allclose(img, ref + 1, atol=1e-3)
+                np.testing.assert_allclose(seg, ref + 2, atol=1e-3)
+                np.testing.assert_allclose(meta["original_affine"], np.eye(4), atol=1e-3)
 
-        # loading image/label, with meta
-        dataset = NiftiDataset(
-            full_names, transform=lambda x: x + 1, seg_files=full_names, labels=[1, 2, 3], image_only=False
-        )
-        for idx, (d_tuple, ref) in enumerate(zip(dataset, ref_data)):
-            img, seg, label, meta = d_tuple
-            np.testing.assert_allclose(img, ref + 1, atol=1e-3)
-            np.testing.assert_allclose(seg, ref, atol=1e-3)
-            np.testing.assert_allclose(idx + 1, label)
-            np.testing.assert_allclose(meta["original_affine"], np.eye(4), atol=1e-3)
+            # loading image/label, with meta
+            dataset = NiftiDataset(
+                full_names, transform=lambda x: x + 1, seg_files=full_names, labels=[1, 2, 3], image_only=False
+            )
+            for idx, (d_tuple, ref) in enumerate(zip(dataset, ref_data)):
+                img, seg, label, meta = d_tuple
+                np.testing.assert_allclose(img, ref + 1, atol=1e-3)
+                np.testing.assert_allclose(seg, ref, atol=1e-3)
+                np.testing.assert_allclose(idx + 1, label)
+                np.testing.assert_allclose(meta["original_affine"], np.eye(4), atol=1e-3)
 
-        # loading image/label, with sync. transform
-        dataset = NiftiDataset(
-            full_names, transform=RandTest(), seg_files=full_names, seg_transform=RandTest(), image_only=False
-        )
-        for d_tuple, ref in zip(dataset, ref_data):
-            img, seg, meta = d_tuple
-            np.testing.assert_allclose(img, seg, atol=1e-3)
-            self.assertTrue(not np.allclose(img, ref))
-            np.testing.assert_allclose(meta["original_affine"], np.eye(4), atol=1e-3)
-        shutil.rmtree(tempdir)
+            # loading image/label, with sync. transform
+            dataset = NiftiDataset(
+                full_names, transform=RandTest(), seg_files=full_names, seg_transform=RandTest(), image_only=False
+            )
+            for d_tuple, ref in zip(dataset, ref_data):
+                img, seg, meta = d_tuple
+                np.testing.assert_allclose(img, seg, atol=1e-3)
+                self.assertTrue(not np.allclose(img, ref))
+                np.testing.assert_allclose(meta["original_affine"], np.eye(4), atol=1e-3)
 
 
 if __name__ == "__main__":

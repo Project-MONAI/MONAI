@@ -10,8 +10,10 @@
 # limitations under the License.
 
 import unittest
+
 import numpy as np
 from parameterized import parameterized
+
 from monai.transforms import ThresholdIntensity
 
 TEST_CASE_1 = [{"threshold": 5, "above": True, "cval": 0}, (0, 0, 0, 0, 0, 0, 6, 7, 8, 9)]

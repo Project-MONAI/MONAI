@@ -10,8 +10,10 @@
 # limitations under the License.
 
 import unittest
+
 import numpy as np
 from parameterized import parameterized
+
 from monai.transforms import AsChannelFirst
 
 TEST_CASE_1 = [{"channel_dim": -1}, (4, 1, 2, 3)]

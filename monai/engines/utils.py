@@ -9,7 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence, Dict, Optional
+from typing import Dict, List, Optional, Sequence, Tuple, Union
+
 import torch
 
 
@@ -30,7 +31,19 @@ class CommonKeys:
     LOSS = "loss"
 
 
-def get_devices_spec(devices: Optional[Sequence[torch.device]] = None):
+class GanKeys:
+    """
+    A set of common keys for generative adversarial networks.
+    """
+
+    REALS = "reals"
+    FAKES = "fakes"
+    LATENTS = "latents"
+    GLOSS = "g_loss"
+    DLOSS = "d_loss"
+
+
+def get_devices_spec(devices: Optional[Sequence[torch.device]] = None) -> List[torch.device]:
     """
     Get a valid specification for one or more devices. If `devices` is None get devices for all CUDA devices available.
     If `devices` is and zero-length structure a single CPU compute device is returned. In any other cases `devices` is
@@ -39,29 +52,39 @@ def get_devices_spec(devices: Optional[Sequence[torch.device]] = None):
     Args:
         devices: list of devices to request, None for all GPU devices, [] for CPU.
 
+    Raises:
+        RuntimeError: When all GPUs are selected (``devices=None``) but no GPUs are available.
+
     Returns:
         list of torch.device: list of devices.
-
-    Raises:
-        ValueError: No GPU devices available
 
     """
     if devices is None:
         devices = [torch.device(f"cuda:{d:d}") for d in range(torch.cuda.device_count())]
 
         if len(devices) == 0:
-            raise ValueError("No GPU devices available")
+            raise RuntimeError("No GPU devices available.")
 
     elif len(devices) == 0:
         devices = [torch.device("cpu")]
 
+    else:
+        devices = list(devices)
+
     return devices
 
 
-def default_prepare_batch(batchdata: Dict):
+def default_prepare_batch(
+    batchdata: Dict[str, torch.Tensor]
+) -> Union[Tuple[torch.Tensor, Optional[torch.Tensor]], torch.Tensor]:
     assert isinstance(batchdata, dict), "default prepare_batch expects dictionary input data."
-    return (
-        (batchdata[CommonKeys.IMAGE], batchdata[CommonKeys.LABEL])
-        if CommonKeys.LABEL in batchdata
-        else (batchdata[CommonKeys.IMAGE], None)
-    )
+    if CommonKeys.LABEL in batchdata:
+        return (batchdata[CommonKeys.IMAGE], batchdata[CommonKeys.LABEL])
+    elif GanKeys.REALS in batchdata:
+        return batchdata[GanKeys.REALS]
+    else:
+        return (batchdata[CommonKeys.IMAGE], None)
+
+
+def default_make_latent(num_latents: int, latent_size: int, real_data: Optional[torch.Tensor] = None) -> torch.Tensor:
+    return torch.randn(num_latents, latent_size)

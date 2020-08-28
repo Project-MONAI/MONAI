@@ -27,6 +27,12 @@ Generic Interfaces
   :members:
   :special-members: __getitem__
 
+`SmartCacheDataset`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: SmartCacheDataset
+  :members:
+  :special-members: __getitem__
+
 `ZipDataset`
 ~~~~~~~~~~~~
 .. autoclass:: ZipDataset
@@ -46,6 +52,25 @@ Patch-based dataset
 `GridPatchDataset`
 ~~~~~~~~~~~~~~~~~~
 .. autoclass:: GridPatchDataset
+  :members:
+
+
+Image reader
+------------
+
+ITKReader
+~~~~~~~~~
+.. autoclass:: ITKReader
+  :members:
+
+NibabelReader
+~~~~~~~~~~~~~
+.. autoclass:: NibabelReader
+  :members:
+
+NumpyReader
+~~~~~~~~~~~
+.. autoclass:: NunpyReader
   :members:
 
 

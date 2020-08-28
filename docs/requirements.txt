@@ -2,6 +2,7 @@
 torch>=1.4.0
 pytorch-ignite==0.3.0
 numpy>=1.17
+itk
 nibabel
 parameterized
 scikit-image>=0.14.2
