@@ -85,7 +85,8 @@ class SubpixelUpsample(nn.Module):
     default single layer.
 
     See: Shi et al., 2016, "Real-Time Single Image and Video Super-Resolution
-        Using a nEfficient Sub-Pixel Convolutional Neural Network."
+    Using a nEfficient Sub-Pixel Convolutional Neural Network."
+
     See: Aitken et al., 2017, "Checkerboard artifact free sub-pixel convolution".
 
     The idea comes from:
@@ -95,6 +96,7 @@ class SubpixelUpsample(nn.Module):
     https://github.com/pytorch/pytorch/blob/master/aten/src/ATen/native/PixelShuffle.cpp
     and:
     https://github.com/pytorch/pytorch/pull/6340/files
+
     """
 
     def __init__(
@@ -127,7 +129,11 @@ class SubpixelUpsample(nn.Module):
         if conv_block is None:
             conv_out_channels = in_channels * (scale_factor ** dimensions)
             self.conv_block = Conv[Conv.CONV, dimensions](
-                in_channels=in_channels, out_channels=conv_out_channels, kernel_size=3, stride=1, padding=1,
+                in_channels=in_channels,
+                out_channels=conv_out_channels,
+                kernel_size=3,
+                stride=1,
+                padding=1,
             )
 
             icnr_init(self.conv_block, self.scale_factor)

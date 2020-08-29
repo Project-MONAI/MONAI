@@ -323,7 +323,10 @@ class Resize(Transform):
         self.align_corners = align_corners
 
     def __call__(
-        self, img: np.ndarray, mode: Optional[Union[InterpolateMode, str]] = None, align_corners: Optional[bool] = None,
+        self,
+        img: np.ndarray,
+        mode: Optional[Union[InterpolateMode, str]] = None,
+        align_corners: Optional[bool] = None,
     ) -> np.ndarray:
         """
         Args:
@@ -497,7 +500,10 @@ class Zoom(Transform):
         self.keep_size = keep_size
 
     def __call__(
-        self, img: np.ndarray, mode: Optional[Union[InterpolateMode, str]] = None, align_corners: Optional[bool] = None,
+        self,
+        img: np.ndarray,
+        mode: Optional[Union[InterpolateMode, str]] = None,
+        align_corners: Optional[bool] = None,
     ) -> np.ndarray:
         """
         Args:
@@ -784,7 +790,10 @@ class RandZoom(Randomizable, Transform):
             self._zoom = self._zoom[0]
 
     def __call__(
-        self, img: np.ndarray, mode: Optional[Union[InterpolateMode, str]] = None, align_corners: Optional[bool] = None,
+        self,
+        img: np.ndarray,
+        mode: Optional[Union[InterpolateMode, str]] = None,
+        align_corners: Optional[bool] = None,
     ) -> np.ndarray:
         """
         Args:
@@ -803,7 +812,9 @@ class RandZoom(Randomizable, Transform):
             return img.astype(_dtype)
         zoomer = Zoom(self._zoom, keep_size=self.keep_size)
         return zoomer(
-            img, mode=mode or self.mode, align_corners=self.align_corners if align_corners is None else align_corners,
+            img,
+            mode=mode or self.mode,
+            align_corners=self.align_corners if align_corners is None else align_corners,
         ).astype(_dtype)
 
 
@@ -1327,8 +1338,8 @@ class Rand2DElastic(Randomizable, Transform):
         Args:
             spacing : distance in between the control points.
             magnitude_range: the random offsets will be generated from ``uniform[magnitude[0], magnitude[1])``.
-            prob: probability of returning a randomized affine grid.
-                defaults to 0.1, with 10% chance returns a randomized grid,
+            prob: probability of returning a randomized elastic transform.
+                defaults to 0.1, with 10% chance returns a randomized elastic transform,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
             rotate_range: angle range in radians. rotate_range[0] with be used to generate the 1st rotation
                 parameter from `uniform[-rotate_range[0], rotate_range[0])`.
@@ -1456,8 +1467,8 @@ class Rand3DElastic(Randomizable, Transform):
                 ``uniform[sigma_range[0], sigma_range[1])`` will be used to smooth the random offset grid.
             magnitude_range: the random offsets on the grid will be generated from
                 ``uniform[magnitude[0], magnitude[1])``.
-            prob: probability of returning a randomized affine grid.
-                defaults to 0.1, with 10% chance returns a randomized grid,
+            prob: probability of returning a randomized elastic transform.
+                defaults to 0.1, with 10% chance returns a randomized elastic transform,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
             rotate_range: angle range in radians. rotate_range[0] with be used to generate the 1st rotation
                 parameter from `uniform[-rotate_range[0], rotate_range[0])`. Similarly, `rotate_range[1]` and

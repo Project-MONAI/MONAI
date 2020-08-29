@@ -94,9 +94,9 @@ def make_animated_gif_summary(
     image = image[tuple(slicing)]
 
     for it_i in range(min(max_out, list(image.shape)[0])):
-        one_channel_img: Union[torch.Tensor, np.ndarray] = image[it_i, :, :, :].squeeze(dim=0) if torch.is_tensor(
-            image
-        ) else image[it_i, :, :, :]
+        one_channel_img: Union[torch.Tensor, np.ndarray] = (
+            image[it_i, :, :, :].squeeze(dim=0) if torch.is_tensor(image) else image[it_i, :, :, :]
+        )
         summary_op = _image3_animated_gif(tag + suffix.format(it_i), one_channel_img, scale_factor)
     return summary_op
 

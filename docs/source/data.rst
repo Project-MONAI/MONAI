@@ -68,6 +68,11 @@ NibabelReader
 .. autoclass:: NibabelReader
   :members:
 
+NumpyReader
+~~~~~~~~~~~
+.. autoclass:: NumpyReader
+  :members:
+
 
 Nifti format handling
 ---------------------

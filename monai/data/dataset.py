@@ -344,31 +344,20 @@ class SmartCacheDataset(CacheDataset):
     https://docs.nvidia.com/clara/tlt-mi/clara-train-sdk-v3.0/nvmidl/additional_features/smart_cache.html#smart-cache
 
     For example, if we have 5 images: `[image1, image2, image3, image4, image5]`, and `cache_num=4`, `replace_rate=0.25`.
-    so the actual training images cached and replaced for every epoch are as below:
-    epoch 1: [image1, image2, image3, image4]
-    epoch 2: [image2, image3, image4, image5]
-    epoch 3: [image3, image4, image5, image1]
-    epoch 3: [image4, image5, image1, image2]
-    epoch N: [image[N % 5] ...]
+    so the actual training images cached and replaced for every epoch are as below::
+
+        epoch 1: [image1, image2, image3, image4]
+        epoch 2: [image2, image3, image4, image5]
+        epoch 3: [image3, image4, image5, image1]
+        epoch 3: [image4, image5, image1, image2]
+        epoch N: [image[N % 5] ...]
 
     The usage of `SmartCacheDataset` contains 4 steps:
-    1. Initialize `SmartCacheDataset` object and cache for the first epoch.
-    2. Call `start()` to run replacement thread in background.
-    3. Call `update_cache()` before every epoch to replace training items.
-    4. Call `shutdown()` when training ends.
 
-    Args:
-        data: input data to load and transform to generate dataset for model.
-        transform: transforms to execute operations on input data.
-        replace_rate: percentage of the cached items to be replaced in every epoch.
-        cache_num: number of items to be cached. Default is `sys.maxsize`.
-            will take the minimum of (cache_num, data_length x cache_rate, data_length).
-        cache_rate: percentage of cached data in total, default is 1.0 (cache all).
-            will take the minimum of (cache_num, data_length x cache_rate, data_length).
-        num_init_workers: the number of worker threads to initialize the cache for first epoch.
-            if 0, run in main thread, no separate thread will open.
-        num_replace_workers: the number of worker threads to prepare the replacement cache for every epoch.
-            if 0, run in main thread, no separate thread will open.
+        1. Initialize `SmartCacheDataset` object and cache for the first epoch.
+        2. Call `start()` to run replacement thread in background.
+        3. Call `update_cache()` before every epoch to replace training items.
+        4. Call `shutdown()` when training ends.
 
     """
 
@@ -382,6 +371,20 @@ class SmartCacheDataset(CacheDataset):
         num_init_workers: int = 0,
         num_replace_workers: int = 0,
     ) -> None:
+        """
+        Args:
+            data: input data to load and transform to generate dataset for model.
+            transform: transforms to execute operations on input data.
+            replace_rate: percentage of the cached items to be replaced in every epoch.
+            cache_num: number of items to be cached. Default is `sys.maxsize`.
+                will take the minimum of (cache_num, data_length x cache_rate, data_length).
+            cache_rate: percentage of cached data in total, default is 1.0 (cache all).
+                will take the minimum of (cache_num, data_length x cache_rate, data_length).
+            num_init_workers: the number of worker threads to initialize the cache for first epoch.
+                if 0, run in main thread, no separate thread will open.
+            num_replace_workers: the number of worker threads to prepare the replacement cache for every epoch.
+                if 0, run in main thread, no separate thread will open.
+        """
         super().__init__(data, transform, cache_num, cache_rate, num_init_workers)
         if self.cache_num >= len(data):
             raise ValueError("cache_num must be smaller than dataset length to support replacement.")

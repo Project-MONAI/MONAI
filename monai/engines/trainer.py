@@ -269,7 +269,9 @@ class GanTrainer(Trainer):
         g_output = self.g_inferer(g_input, self.g_network)
 
         # Train Discriminator
-        d_total_loss = torch.zeros(1,)
+        d_total_loss = torch.zeros(
+            1,
+        )
         for _ in range(self.d_train_steps):
             self.d_optimizer.zero_grad()
             dloss = self.d_loss_function(g_output, d_input)

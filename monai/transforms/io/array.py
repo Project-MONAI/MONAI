@@ -42,7 +42,10 @@ class LoadImage(Transform):
     """
 
     def __init__(
-        self, reader: Optional[ImageReader] = None, image_only: bool = False, dtype: np.dtype = np.float32,
+        self,
+        reader: Optional[ImageReader] = None,
+        image_only: bool = False,
+        dtype: np.dtype = np.float32,
     ) -> None:
         """
         Args:
@@ -77,7 +80,9 @@ class LoadImage(Transform):
         return self.readers
 
     def __call__(
-        self, filename: Union[Sequence[str], str], reader: Optional[ImageReader] = None,
+        self,
+        filename: Union[Sequence[str], str],
+        reader: Optional[ImageReader] = None,
     ):
         """
         Args:
