@@ -47,9 +47,9 @@ def load_submodules(basemod, load_all: bool = True, exclude_pattern: str = "(.*[
     """
     submodules = []
 
-    for importer, name, is_pkg in walk_packages(basemod.__path__, prefix=basemod.__name__ + "."): 
+    for importer, name, is_pkg in walk_packages(basemod.__path__, prefix=basemod.__name__ + "."):
         if (is_pkg or load_all) and name not in sys.modules and match(exclude_pattern, name) is None:
-            mod = import_module(name) 
+            mod = import_module(name)
             importer.find_module(name).load_module(name)
             submodules.append(mod)
 
