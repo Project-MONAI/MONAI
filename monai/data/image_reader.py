@@ -31,7 +31,7 @@ else:
     Image, _ = optional_import("itk", allow_namespace_pkg=True, name="Image")
     nib, _ = optional_import("nibabel")
     Nifti1Image, _ = optional_import("nibabel.nifti1", name="Nifti1Image")
-    Image, _ = optional_import("PIL.Image")
+    PILImage, _ = optional_import("PIL.Image")
 
 
 class ImageReader(ABC):
@@ -447,7 +447,7 @@ class PILReader(ImageReader):
 
     def __init__(self, **kwargs):
         super().__init__()
-        self._img: Optional[Sequence[PILImage]] = None
+        self._img: Optional[Sequence[PILImage.Image]] = None
         self.kwargs = kwargs
 
     def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
@@ -469,7 +469,7 @@ class PILReader(ImageReader):
             data: file name or a list of file names to read.
         """
         self._img = list()
-        if isinstance(data, Image):
+        if isinstance(data, PILImage.Image):
             self._img.append(data)
             return data
 
@@ -496,7 +496,7 @@ class PILReader(ImageReader):
         for img in self._img:
             header = self._get_meta_dict(img)
             header["spatial_shape"] = self._get_spatial_shape(img)
-            img_array.append(img)
+            img_array.append(np.asarray(img))
 
             if compatible_meta is None:
                 compatible_meta = header
@@ -507,7 +507,7 @@ class PILReader(ImageReader):
         img_array_ = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
         return img_array_, compatible_meta
 
-    def _get_meta_dict(self, img: PILImage) -> Dict:
+    def _get_meta_dict(self, img: PILImage.Image) -> Dict:
         """
         Get the all the meta data of the image and convert to dict type.
         Args:
@@ -521,7 +521,7 @@ class PILReader(ImageReader):
         meta["info"] = img.info
         return meta
 
-    def _get_spatial_shape(self, img: PILImage) -> Sequence:
+    def _get_spatial_shape(self, img: PILImage.Image) -> Sequence:
         """
         Get the spatial shape of image data, it doesn't contain the channel dim.
         Args:
