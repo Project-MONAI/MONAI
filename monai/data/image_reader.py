@@ -230,6 +230,7 @@ class NibabelReader(ImageReader):
             https://github.com/nipy/nibabel/blob/master/nibabel/loadsave.py
 
     """
+
     def __init__(self, as_closest_canonical: bool = False, **kwargs):
         super().__init__()
         self._img: Optional[Sequence[Nifti1Image]] = None
