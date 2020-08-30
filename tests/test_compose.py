@@ -11,7 +11,7 @@
 
 import unittest
 
-from monai.transforms import Compose, Randomizable, AddChannel
+from monai.transforms import AddChannel, Compose, Randomizable
 
 
 class TestCompose(unittest.TestCase):

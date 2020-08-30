@@ -10,8 +10,10 @@
 # limitations under the License.
 
 import unittest
+
 import torch
 from parameterized import parameterized
+
 from monai.transforms import SplitChannel
 
 TEST_CASE_1 = [{"to_onehot": False}, torch.randint(0, 2, size=(4, 3, 3, 4)), (4, 1, 3, 4)]

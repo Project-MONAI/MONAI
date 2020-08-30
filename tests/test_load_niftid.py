@@ -9,13 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
 import os
-import shutil
-import numpy as np
 import tempfile
+import unittest
+
 import nibabel as nib
+import numpy as np
 from parameterized import parameterized
+
 from monai.transforms import LoadNiftid
 
 KEYS = ["image", "label", "extra"]
@@ -28,14 +29,14 @@ class TestLoadNiftid(unittest.TestCase):
     def test_shape(self, input_param, expected_shape):
         test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]), np.eye(4))
         test_data = dict()
-        tempdir = tempfile.mkdtemp()
-        for key in KEYS:
-            nib.save(test_image, os.path.join(tempdir, key + ".nii.gz"))
-            test_data.update({key: os.path.join(tempdir, key + ".nii.gz")})
-        result = LoadNiftid(**input_param)(test_data)
+        with tempfile.TemporaryDirectory() as tempdir:
+            for key in KEYS:
+                nib.save(test_image, os.path.join(tempdir, key + ".nii.gz"))
+                test_data.update({key: os.path.join(tempdir, key + ".nii.gz")})
+            result = LoadNiftid(**input_param)(test_data)
+
         for key in KEYS:
             self.assertTupleEqual(result[key].shape, expected_shape)
-        shutil.rmtree(tempdir)
 
 
 if __name__ == "__main__":

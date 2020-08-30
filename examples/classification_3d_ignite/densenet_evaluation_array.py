@@ -9,19 +9,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import logging
-import numpy as np
 import os
+import sys
+
+import numpy as np
 import torch
-from ignite.engine import create_supervised_evaluator, _prepare_batch
+from ignite.engine import _prepare_batch, create_supervised_evaluator
 from ignite.metrics import Accuracy
 from torch.utils.data import DataLoader
 
 import monai
 from monai.data import NiftiDataset
-from monai.transforms import Compose, AddChannel, ScaleIntensity, Resize, ToTensor
-from monai.handlers import StatsHandler, ClassificationSaver, CheckpointLoader
+from monai.handlers import CheckpointLoader, ClassificationSaver, StatsHandler
+from monai.transforms import AddChannel, Compose, Resize, ScaleIntensity, ToTensor
 
 
 def main():
@@ -51,7 +52,7 @@ def main():
     val_ds = NiftiDataset(image_files=images, labels=labels, transform=val_transforms, image_only=False)
     # create DenseNet121
     net = monai.networks.nets.densenet.densenet121(spatial_dims=3, in_channels=1, out_channels=2)
-    device = torch.device("cuda:0")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     metric_name = "Accuracy"
     # add evaluation metric to the evaluator engine
@@ -80,7 +81,7 @@ def main():
     prediction_saver.attach(evaluator)
 
     # the model was trained by "densenet_training_array" example
-    CheckpointLoader(load_path="./runs/net_checkpoint_20.pth", load_dict={"net": net}).attach(evaluator)
+    CheckpointLoader(load_path="./runs_array/net_checkpoint_20.pth", load_dict={"net": net}).attach(evaluator)
 
     # create a validation data loader
     val_loader = DataLoader(val_ds, batch_size=2, num_workers=4, pin_memory=torch.cuda.is_available())
