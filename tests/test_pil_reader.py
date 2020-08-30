@@ -38,7 +38,7 @@ class TestPNGReader(unittest.TestCase):
             for i, name in enumerate(filenames):
                 filenames[i] = os.path.join(tempdir, name)
                 Image.fromarray(test_image.astype("uint8")).save(filenames[i])
-            reader = PILReader()
+            reader = PILReader(mode="r")
             reader.read(filenames)
             result = reader.get_data()
             # load image by PIL and compare the result

@@ -439,7 +439,7 @@ class NumpyReader(ImageReader):
 
 class PILReader(ImageReader):
     """
-    Load common 2D image format (PNG, JPG, etc. using PIL) file or files from provided path.
+    Load common 2D image format (supports PNG, JPG, BMP) file or files from provided path.
     Args:
         kwargs: additional args for `Image.open` API in `read()`, mode details about available args:
             https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.open
