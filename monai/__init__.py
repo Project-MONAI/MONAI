@@ -24,7 +24,7 @@ __basedir__ = os.path.dirname(__file__)
 
 # handlers_* have some external decorators the users may not have installed
 # *.so files and folder "_C" may not exist when the cpp extensions are not compiled
-excludes = "(^(handlers))|((\\.so)$)|(_C)"
+excludes = "(^(monai.handlers))|((\\.so)$)|(^(monai._C))"
 
 # load directory modules only, skip loading individual files
 load_submodules(sys.modules[__name__], False, exclude_pattern=excludes)
