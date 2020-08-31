@@ -17,8 +17,8 @@ from typing import Any, Dict, Generator, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
-from torch.utils.data._utils.collate import default_collate
 import torch.distributed as dist
+from torch.utils.data._utils.collate import default_collate
 
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.utils import BlendMode, NumpyPadMode, ensure_tuple, ensure_tuple_size, first, optional_import
@@ -594,10 +594,10 @@ def partition_dataset(
 
     if not drop_last and total_size - len(indices) > 0:
         # add extra samples to make it evenly divisible
-        indices += indices[:(total_size - len(indices))]
+        indices += indices[: (total_size - len(indices))]
     else:
         # remove tail of data to make it evenly divisible
         indices = indices[:total_size]
 
-    indices = indices[rank : total_size : num_replicas]
+    indices = indices[rank:total_size:num_replicas]
     return [data[i] for i in indices]
