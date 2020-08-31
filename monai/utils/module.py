@@ -47,11 +47,14 @@ def load_submodules(basemod, load_all: bool = True, exclude_pattern: str = "(.*[
     """
     submodules = []
 
-    for importer, name, is_pkg in walk_packages(basemod.__path__, prefix=basemod.__name__ + "."):
-        if (is_pkg or load_all) and name not in sys.modules and match(exclude_pattern, name) is None:
-            mod = import_module(name)
-            importer.find_module(name).load_module(name)
-            submodules.append(mod)
+    try:
+        for importer, name, is_pkg in walk_packages(basemod.__path__, prefix=basemod.__name__ + "."):
+            if (is_pkg or load_all) and name not in sys.modules and match(exclude_pattern, name) is None:
+                mod = import_module(name)
+                importer.find_module(name).load_module(name)
+                submodules.append(mod)
+    except OptionalImportError:
+        pass  # could not import the optional deps., they are ignored
 
     return submodules
 
@@ -83,6 +86,12 @@ def exact_version(the_module, version_str: str = "") -> bool:
     Returns True if the module's __version__ matches version_str
     """
     return bool(the_module.__version__ == version_str)
+
+
+class OptionalImportError(ImportError):
+    """
+    Could not import APIs from an optional dependency.
+    """
 
 
 def optional_import(
@@ -121,11 +130,11 @@ def optional_import(
         >>> print(flag)
         False
         >>> the_module.method  # trying to access a module which is not imported
-        AttributeError: Optional import: import unknown_module (No module named 'unknown_module').
+        OptionalImportError: import unknown_module (No module named 'unknown_module').
 
         >>> torch, flag = optional_import('torch', '42', exact_version)
         >>> torch.nn  # trying to access a module for which there isn't a proper version imported
-        AttributeError: Optional import: import torch (requires version '42' by 'exact_version').
+        OptionalImportError: import torch (requires version '42' by 'exact_version').
 
         >>> conv, flag = optional_import('torch.nn.functional', '1.0', name='conv1d')
         >>> print(conv)
@@ -133,7 +142,7 @@ def optional_import(
 
         >>> conv, flag = optional_import('torch.nn.functional', '42', name='conv1d')
         >>> conv()  # trying to use a function from the not successfully imported module (due to unmatched version)
-        AttributeError: Optional import: from torch.nn.functional import conv1d (requires version '42' by 'min_version').
+        OptionalImportError: from torch.nn.functional import conv1d (requires version '42' by 'min_version').
     """
 
     tb = None
@@ -169,26 +178,26 @@ def optional_import(
     class _LazyRaise:
         def __init__(self, *_args, **_kwargs):
             _default_msg = (
-                f"Optional import: {msg}."
+                f"{msg}."
                 + "\n\nFor details about installing the optional dependencies, please visit:"
                 + "\n    https://docs.monai.io/en/latest/installation.html#installing-the-recommended-dependencies"
             )
             if tb is None:
-                self._exception = AttributeError(_default_msg)
+                self._exception = OptionalImportError(_default_msg)
             else:
-                self._exception = AttributeError(_default_msg).with_traceback(tb)
+                self._exception = OptionalImportError(_default_msg).with_traceback(tb)
 
         def __getattr__(self, name):
             """
             Raises:
-                AttributeError: When you call this method.
+                OptionalImportError: When you call this method.
             """
             raise self._exception
 
         def __call__(self, *_args, **_kwargs):
             """
             Raises:
-                AttributeError: When you call this method.
+                OptionalImportError: When you call this method.
             """
             raise self._exception
 
