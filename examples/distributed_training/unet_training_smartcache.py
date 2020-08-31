@@ -53,10 +53,11 @@ Referring to: https://pytorch.org/tutorials/intermediate/ddp_tutorial.html
 """
 
 import argparse
+import math
 import os
 import sys
 from glob import glob
-import math
+
 import nibabel as nib
 import numpy as np
 import torch
