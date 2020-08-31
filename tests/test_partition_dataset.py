@@ -16,8 +16,8 @@ from monai.data import partition_dataset
 
 TEST_CASES = [
     [False, 0, np.array([0, 2, 4, 6, 8]), np.array([1, 3, 5, 7, 9])],
-    [True, 0, np.array([4, 7, 3, 0, 6]), np.array([1, 5, 9, 8, 2])],
-    [True, 100, np.array([0, 5, 3, 4, 7]), np.array([8, 2, 6, 1, 9])],
+    [True, 0, np.array([2, 4, 1, 7, 0]), np.array([8, 9, 6, 3, 5])],
+    [True, 100, np.array([7, 1, 4, 0, 9]), np.array([6, 5, 2, 3, 8])],
 ]
 
 
