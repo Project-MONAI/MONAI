@@ -46,17 +46,23 @@ TEST_CASE_4 = [
     (3, 128, 128, 128),
 ]
 
-TEST_CASE_5 = [{"image_only": True}, ["test_image.nii.gz"], (128, 128, 128)]
+TEST_CASE_5 = [
+    {"reader": NibabelReader(mmap=False), "image_only": False},
+    ["test_image.nii.gz"],
+    (128, 128, 128),
+]
 
-TEST_CASE_6 = [{"image_only": False}, ["test_image.nii.gz"], (128, 128, 128)]
+TEST_CASE_6 = [{"image_only": True}, ["test_image.nii.gz"], (128, 128, 128)]
 
-TEST_CASE_7 = [
+TEST_CASE_7 = [{"image_only": False}, ["test_image.nii.gz"], (128, 128, 128)]
+
+TEST_CASE_8 = [
     {"image_only": True},
     ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
     (3, 128, 128, 128),
 ]
 
-TEST_CASE_8 = [
+TEST_CASE_9 = [
     {"image_only": False},
     ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
     (3, 128, 128, 128),
@@ -64,7 +70,7 @@ TEST_CASE_8 = [
 
 
 class TestLoadImage(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
     def test_nibabel_reader(self, input_param, filenames, expected_shape):
         test_image = np.random.rand(128, 128, 128)
         with tempfile.TemporaryDirectory() as tempdir:
@@ -81,7 +87,7 @@ class TestLoadImage(unittest.TestCase):
                 np.testing.assert_allclose(header["original_affine"], np.eye(4))
             self.assertTupleEqual(result.shape, expected_shape)
 
-    @parameterized.expand([TEST_CASE_5, TEST_CASE_6, TEST_CASE_7, TEST_CASE_8])
+    @parameterized.expand([TEST_CASE_6, TEST_CASE_7, TEST_CASE_8, TEST_CASE_9])
     def test_itk_reader(self, input_param, filenames, expected_shape):
         test_image = np.random.rand(128, 128, 128)
         with tempfile.TemporaryDirectory() as tempdir:
