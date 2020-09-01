@@ -171,7 +171,7 @@ class AsDiscreted(MapTransform):
 
 class KeepLargestConnectedComponentd(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:monai.transforms.KeepLargestConnectedComponent.
+    Dictionary-based wrapper of :py:class:`monai.transforms.KeepLargestConnectedComponent`.
     """
 
     def __init__(
@@ -187,7 +187,7 @@ class KeepLargestConnectedComponentd(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             applied_labels: Labels for applying the connected component on.
                 If only one channel. The pixel whose value is not in this list will remain unchanged.
-                If the data is in one-hot format, this is the channel indexes to apply transform.
+                If the data is in one-hot format, this is the channel indices to apply transform.
             independent: consider several labels as a whole or independent, default is `True`.
                 Example use case would be segment label 1 is liver and label 2 is liver tumor, in that case
                 you want this "independent" to be specified as False.
@@ -208,7 +208,7 @@ class KeepLargestConnectedComponentd(MapTransform):
 
 class LabelToContourd(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:monai.transforms.LabelToContour.
+    Dictionary-based wrapper of :py:class:`monai.transforms.LabelToContour`.
     """
 
     def __init__(self, keys: KeysCollection, kernel_type: str = "Laplace") -> None:
@@ -276,7 +276,7 @@ class Ensembled(MapTransform):
 
 class MeanEnsembled(Ensembled):
     """
-    Dictionary-based wrapper of :py:class:monai.transforms.MeanEnsemble.
+    Dictionary-based wrapper of :py:class:`monai.transforms.MeanEnsemble`.
     """
 
     def __init__(
@@ -309,7 +309,7 @@ class MeanEnsembled(Ensembled):
 
 class VoteEnsembled(Ensembled):
     """
-    Dictionary-based wrapper of :py:class:monai.transforms.VoteEnsemble.
+    Dictionary-based wrapper of :py:class:`monai.transforms.VoteEnsemble`.
     """
 
     def __init__(

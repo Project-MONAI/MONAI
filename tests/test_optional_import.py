@@ -11,18 +11,18 @@
 
 import unittest
 
-from monai.utils import exact_version, optional_import
+from monai.utils import OptionalImportError, exact_version, optional_import
 
 
 class TestOptionalImport(unittest.TestCase):
     def test_default(self):
         my_module, flag = optional_import("not_a_module")
         self.assertFalse(flag)
-        with self.assertRaises(AttributeError):
+        with self.assertRaises(OptionalImportError):
             my_module.test
 
         my_module, flag = optional_import("torch.randint")
-        with self.assertRaises(AttributeError):
+        with self.assertRaises(OptionalImportError):
             self.assertFalse(flag)
             print(my_module.test)
 
@@ -33,10 +33,10 @@ class TestOptionalImport(unittest.TestCase):
 
     def test_import_wrong_number(self):
         my_module, flag = optional_import("torch", "42")
-        with self.assertRaisesRegex(AttributeError, "version"):
+        with self.assertRaisesRegex(OptionalImportError, "version"):
             my_module.nn
         self.assertFalse(flag)
-        with self.assertRaisesRegex(AttributeError, "version"):
+        with self.assertRaisesRegex(OptionalImportError, "version"):
             my_module.randint(1, 2, (1, 2))
         with self.assertRaisesRegex(ValueError, "invalid literal"):
             my_module, flag = optional_import("torch", "test")  # version should be number.number
@@ -62,10 +62,10 @@ class TestOptionalImport(unittest.TestCase):
 
     def test_import_exact(self):
         my_module, flag = optional_import("torch", "0", exact_version)
-        with self.assertRaisesRegex(AttributeError, "exact_version"):
+        with self.assertRaisesRegex(OptionalImportError, "exact_version"):
             my_module.nn
         self.assertFalse(flag)
-        with self.assertRaisesRegex(AttributeError, "exact_version"):
+        with self.assertRaisesRegex(OptionalImportError, "exact_version"):
             my_module.randint(1, 2, (1, 2))
 
     def test_import_method(self):

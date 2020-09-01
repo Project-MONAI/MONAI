@@ -40,8 +40,8 @@ class Convolution(nn.Sequential):
         dropout: dropout ratio. Defaults to no dropout.
         dropout_dim: determine the dimensions of dropout. Defaults to 1.
             When dropout_dim = 1, randomly zeroes some of the elements for each channel.
-            When dropout_dim = 2, Randomly zero out entire channels (a channel is a 2D feature map).
-            When dropout_dim = 3, Randomly zero out entire channels (a channel is a 3D feature map).
+            When dropout_dim = 2, Randomly zeroes out entire channels (a channel is a 2D feature map).
+            When dropout_dim = 3, Randomly zeroes out entire channels (a channel is a 3D feature map).
             The value of dropout_dim should be no no larger than the value of dimensions.
         dilation: dilation rate. Defaults to 1.
         groups: controls the connections between inputs and outputs. Defaults to 1.
@@ -86,8 +86,11 @@ class Convolution(nn.Sequential):
         conv_type = Conv[Conv.CONVTRANS if is_transposed else Conv.CONV, dimensions]
 
         # define the normalisation type and the arguments to the constructor
-        norm_name, norm_args = split_args(norm)
-        norm_type = Norm[norm_name, dimensions]
+        if norm is not None:
+            norm_name, norm_args = split_args(norm)
+            norm_type = Norm[norm_name, dimensions]
+        else:
+            norm_type = norm_args = None
 
         # define the activation type and the arguments to the constructor
         if act is not None:
@@ -137,9 +140,12 @@ class Convolution(nn.Sequential):
         self.add_module("conv", conv)
 
         if not conv_only:
-            self.add_module("norm", norm_type(out_channels, **norm_args))
+            if norm is not None:
+                self.add_module("norm", norm_type(out_channels, **norm_args))
+
             if dropout:
                 self.add_module("dropout", drop_type(**drop_args))
+
             if act is not None:
                 self.add_module("act", act_type(**act_args))
 

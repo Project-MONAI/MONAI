@@ -38,6 +38,7 @@ def main():
     dist.destroy_process_group()
 
 
+# suppose to execute on 2 rank processes
 # python -m torch.distributed.launch --nproc_per_node=NUM_GPUS_PER_NODE
 #        --nnodes=NUM_NODES --node_rank=INDEX_CURRENT_NODE
 #        --master_addr="192.168.1.1" --master_port=1234
