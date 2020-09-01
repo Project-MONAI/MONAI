@@ -35,9 +35,14 @@ TEST_CASE_4 = [
     True,
 ]
 
+TEST_CASE_5 = [
+    {"filename": "C:\\documents\\testfile.nii.gz", "suffixes": ["nii", "nii.gz"]},
+    True,
+]
+
 
 class TestIsSupportedFormat(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
     def test_value(self, input_param, result):
         self.assertEqual(is_supported_format(**input_param), result)
 

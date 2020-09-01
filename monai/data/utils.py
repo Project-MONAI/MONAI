@@ -13,7 +13,7 @@ import math
 import os
 import warnings
 from itertools import product, starmap
-from pathlib import PurePosixPath
+from pathlib import PurePath
 from typing import Dict, Generator, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -525,7 +525,7 @@ def is_supported_format(filename: Union[Sequence[str], str], suffixes: Sequence[
     """
     filenames: Sequence[str] = ensure_tuple(filename)
     for name in filenames:
-        tokens: Sequence[str] = PurePosixPath(name).suffixes
+        tokens: Sequence[str] = PurePath(name).suffixes
         if len(tokens) == 0 or not any(("." + s.lower()) == "".join(tokens) for s in suffixes):
             return False
 
