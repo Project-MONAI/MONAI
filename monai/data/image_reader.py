@@ -54,15 +54,13 @@ class ImageReader(ABC):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def read(self, data: Union[Sequence[str], str, Any], **kwargs) -> Union[Sequence[Any], Any]:
+    def read(self, data: Union[Sequence[str], str, Any]) -> Union[Sequence[Any], Any]:
         """
         Read image data from specified file or files, or set a loaded image.
         Note that it returns the raw data, so different readers return different image data type.
 
         Args:
             data: file name or a list of file names to read, or a loaded image object.
-            kwargs: additional args for 3rd party reader API.
-
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
@@ -87,13 +85,16 @@ class ITKReader(ImageReader):
         c_order_axis_indexing: if `True`, the numpy array will have C-order indexing.
             this is the reverse of how indices are specified in ITK, i.e. k,j,i versus i,j,k.
             however C-order indexing is expected by most algorithms in numpy / scipy.
+        kwargs: additional args for `itk.imread` API. more details about available args:
+            https://github.com/InsightSoftwareConsortium/ITK/blob/master/Wrapping/Generators/Python/itkExtras.py
 
     """
 
-    def __init__(self, c_order_axis_indexing: bool = False):
+    def __init__(self, c_order_axis_indexing: bool = False, **kwargs):
         super().__init__()
         self._img: Optional[Sequence[Image]] = None
         self.c_order_axis_indexing = c_order_axis_indexing
+        self.kwargs = kwargs
 
     def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
         """
@@ -106,7 +107,7 @@ class ITKReader(ImageReader):
         """
         return True
 
-    def read(self, data: Union[Sequence[str], str, Image], **kwargs):
+    def read(self, data: Union[Sequence[str], str, Image]):
         """
         Read image data from specified file or files, or set a `itk.Image` object.
         Note that the returned object is ITK image object or list of ITK image objects.
@@ -115,8 +116,6 @@ class ITKReader(ImageReader):
         Args:
             data: file name or a list of file names to read, or a `itk.Image` object for the usage that
                 the image data is already in memory and no need to read from file again.
-            kwargs: additional args for `itk.imread` API. more details about available args:
-                https://github.com/InsightSoftwareConsortium/ITK/blob/master/Wrapping/Generators/Python/itkExtras.py
 
         """
         self._img = list()
@@ -126,7 +125,7 @@ class ITKReader(ImageReader):
 
         filenames: Sequence[str] = ensure_tuple(data)
         for name in filenames:
-            self._img.append(itk.imread(name, **kwargs))
+            self._img.append(itk.imread(name, **self.kwargs))
         return self._img if len(filenames) > 1 else self._img[0]
 
     def get_data(self):
@@ -229,13 +228,16 @@ class NibabelReader(ImageReader):
 
     Args:
         as_closest_canonical: if True, load the image as closest to canonical axis format.
+        kwargs: additional args for `nibabel.load` API. more details about available args:
+            https://github.com/nipy/nibabel/blob/master/nibabel/loadsave.py
 
     """
 
-    def __init__(self, as_closest_canonical: bool = False):
+    def __init__(self, as_closest_canonical: bool = False, **kwargs):
         super().__init__()
         self._img: Optional[Sequence[Nifti1Image]] = None
         self.as_closest_canonical = as_closest_canonical
+        self.kwargs = kwargs
 
     def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
         """
@@ -249,7 +251,7 @@ class NibabelReader(ImageReader):
         suffixes: Sequence[str] = ["nii", "nii.gz"]
         return is_supported_format(filename, suffixes)
 
-    def read(self, data: Union[Sequence[str], str, Nifti1Image], **kwargs):
+    def read(self, data: Union[Sequence[str], str, Nifti1Image]):
         """
         Read image data from specified file or files, or set a Nibabel Image object.
         Note that the returned object is Nibabel image object or list of Nibabel image objects.
@@ -257,8 +259,6 @@ class NibabelReader(ImageReader):
 
         Args:
             data: file name or a list of file names to read.
-            kwargs: additional args for `nibabel.load` API. more details about available args:
-                https://github.com/nipy/nibabel/blob/master/nibabel/loadsave.py
 
         """
         self._img = list()
@@ -268,7 +268,7 @@ class NibabelReader(ImageReader):
 
         filenames: Sequence[str] = ensure_tuple(data)
         for name in filenames:
-            img = nib.load(name, **kwargs)
+            img = nib.load(name, **self.kwargs)
             img = correct_nifti_header_if_necessary(img)
             self._img.append(img)
         return self._img if len(filenames) > 1 else self._img[0]
@@ -361,14 +361,18 @@ class NumpyReader(ImageReader):
     Args:
         npz_keys: if loading npz file, only load the specified keys, if None, load all the items.
             stack the loaded items together to construct a new first dimension.
+        kwargs: additional args for `numpy.load` API except `allow_pickle`. more details about available args:
+            https://numpy.org/doc/stable/reference/generated/numpy.load.html
+
     """
 
-    def __init__(self, npz_keys: Optional[KeysCollection] = None):
+    def __init__(self, npz_keys: Optional[KeysCollection] = None, **kwargs):
         super().__init__()
         self._img: Optional[Sequence[Nifti1Image]] = None
         if npz_keys is not None:
             npz_keys = ensure_tuple(npz_keys)
         self.npz_keys = npz_keys
+        self.kwargs = kwargs
 
     def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
         """
@@ -380,15 +384,14 @@ class NumpyReader(ImageReader):
         suffixes: Sequence[str] = ["npz", "npy"]
         return is_supported_format(filename, suffixes)
 
-    def read(self, data: Union[Sequence[str], str, np.ndarray], **kwargs):
+    def read(self, data: Union[Sequence[str], str, np.ndarray]):
         """
         Read image data from specified file or files, or set a Numpy array.
         Note that the returned object is Numpy array or list of Numpy arrays.
-        `self._img` is always a list, even only has 1 image.
+        `self._img` is always a list, even only has 1 image
         Args:
             data: file name or a list of file names to read.
-            kwargs: additional args for `numpy.load` API except `allow_pickle`. more details about available args:
-                https://numpy.org/doc/stable/reference/generated/numpy.load.html
+
         """
         self._img = list()
         if isinstance(data, np.ndarray):
@@ -397,7 +400,7 @@ class NumpyReader(ImageReader):
 
         filenames: Sequence[str] = ensure_tuple(data)
         for name in filenames:
-            img = np.load(name, allow_pickle=True, **kwargs)
+            img = np.load(name, allow_pickle=True, **self.kwargs)
             if name.endswith(".npz"):
                 # load expected items from NPZ file
                 npz_keys = [f"arr_{i}" for i in range(len(img))] if self.npz_keys is None else self.npz_keys
@@ -512,6 +515,7 @@ class PILReader(ImageReader):
         Get the all the meta data of the image and convert to dict type.
         Args:
             img: a PIL Image object loaded from a image file.
+
         """
         meta = dict()
         meta["format"] = img.format
