@@ -14,7 +14,7 @@ import os
 import warnings
 from itertools import product, starmap
 from typing import Dict, Generator, List, Optional, Sequence, Tuple, Union
-
+from pathlib import PurePosixPath
 import numpy as np
 import torch
 from torch.utils.data._utils.collate import default_collate
@@ -522,17 +522,10 @@ def is_supported_format(filename: Union[Sequence[str], str], suffixes: Sequence[
         suffixes: all the supported image subffixes of current reader, must be a list of lower case suffixes.
 
     """
-    supported_format: bool = True
     filenames: Sequence[str] = ensure_tuple(filename)
     for name in filenames:
-        tokens: Sequence[str] = name.split(".")
-        passed: bool = False
-        for i in range(len(tokens) - 1):
-            if ".".join(tokens[-(i + 2) : -1]).lower() in suffixes:
-                passed = True
-                break
-        if not passed:
-            supported_format = False
-            break
+        tokens: Sequence[str] = PurePosixPath(name).suffixes
+        if len(tokens) == 0 or not any(("." + s.lower()) == "".join(tokens) for s in suffixes):
+            return False
 
-    return supported_format
+    return True
