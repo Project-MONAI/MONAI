@@ -92,7 +92,11 @@ class SubpixelUpsample(nn.Module):
     """
 
     def __init__(
-        self, spatial_dims: int, in_channels: int, scale_factor: int = 2, conv_block: Optional[nn.Module] = None,
+        self,
+        spatial_dims: int,
+        in_channels: int,
+        scale_factor: int = 2,
+        conv_block: Optional[nn.Module] = None,
     ) -> None:
         """
         Args:
@@ -113,7 +117,11 @@ class SubpixelUpsample(nn.Module):
         if conv_block is None:
             conv_out_channels = in_channels * (scale_factor ** spatial_dims)
             self.conv_block = Conv[Conv.CONV, spatial_dims](
-                in_channels=in_channels, out_channels=conv_out_channels, kernel_size=3, stride=1, padding=1,
+                in_channels=in_channels,
+                out_channels=conv_out_channels,
+                kernel_size=3,
+                stride=1,
+                padding=1,
             )
 
             icnr_init(self.conv_block, self.scale_factor)

@@ -36,14 +36,25 @@ def get_conv_layer(
 ):
 
     return Convolution(
-        spatial_dims, in_channels, out_channels, strides=stride, kernel_size=kernel_size, bias=bias, conv_only=True,
+        spatial_dims,
+        in_channels,
+        out_channels,
+        strides=stride,
+        kernel_size=kernel_size,
+        bias=bias,
+        conv_only=True,
     )
 
 
 def get_upsample_layer(spatial_dims: int, in_channels: int, upsample_mode: str = "trilinear", scale_factor: int = 2):
     up_module: nn.Module
     if upsample_mode == "transpose":
-        up_module = UpSample(spatial_dims, in_channels, scale_factor=scale_factor, with_conv=True,)
+        up_module = UpSample(
+            spatial_dims,
+            in_channels,
+            scale_factor=scale_factor,
+            with_conv=True,
+        )
     else:
         upsample_mode = "bilinear" if spatial_dims == 2 else "trilinear"
         up_module = nn.Upsample(scale_factor=scale_factor, mode=upsample_mode, align_corners=False)

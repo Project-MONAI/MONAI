@@ -90,7 +90,15 @@ class DoubleConv(nn.Module):
         """
         super(DoubleConv, self).__init__()
         self.conv = nn.Sequential(
-            Convolution(spatial_dims, in_channels, out_channels, strides=stride, act=act_1, norm=norm_1, bias=False,),
+            Convolution(
+                spatial_dims,
+                in_channels,
+                out_channels,
+                strides=stride,
+                act=act_1,
+                norm=norm_1,
+                bias=False,
+            ),
             Convolution(spatial_dims, out_channels, out_channels, act=act_2, norm=norm_2, conv_only=conv_only),
         )
 
@@ -120,10 +128,26 @@ class UNetPipe(nn.Sequential):
         # construct the encoder
         encoder_layers: List[nn.Module] = []
         init_conv = Convolution(
-            spatial_dims, in_channels, n_enc_filter[0], strides=2, act=Act.LEAKYRELU, norm=Norm.BATCH, bias=False,
+            spatial_dims,
+            in_channels,
+            n_enc_filter[0],
+            strides=2,
+            act=Act.LEAKYRELU,
+            norm=Norm.BATCH,
+            bias=False,
         )
         encoder_layers.append(
-            nn.Sequential(OrderedDict([("Conv", init_conv,), ("skip", Stash().isolate(namespaces[0]))]))
+            nn.Sequential(
+                OrderedDict(
+                    [
+                        (
+                            "Conv",
+                            init_conv,
+                        ),
+                        ("skip", Stash().isolate(namespaces[0])),
+                    ]
+                )
+            )
         )
         for i in range(1, depth + 1):
             down_conv = DoubleConv(spatial_dims, n_enc_filter[i - 1], n_enc_filter[i])
@@ -152,7 +176,10 @@ class UNetPipe(nn.Sequential):
             [
                 ("Up", UpSample(spatial_dims, n_feat, in_ch, 2, True)),
                 ("RELU", Act[Act.LEAKYRELU](inplace=False)),
-                ("out", Conv[Conv.CONV, spatial_dims](in_ch, out_channels, kernel_size=3, padding=1),),
+                (
+                    "out",
+                    Conv[Conv.CONV, spatial_dims](in_ch, out_channels, kernel_size=3, padding=1),
+                ),
             ]
         )
         decoder_layers.append(nn.Sequential(layer_dict))

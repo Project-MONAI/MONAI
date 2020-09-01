@@ -467,7 +467,10 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         )
 
     def __call__(
-        self, img: np.ndarray, label: Optional[np.ndarray] = None, image: Optional[np.ndarray] = None,
+        self,
+        img: np.ndarray,
+        label: Optional[np.ndarray] = None,
+        image: Optional[np.ndarray] = None,
     ) -> List[np.ndarray]:
         """
         Args:

@@ -94,7 +94,11 @@ class LoadDatad(MapTransform):
     """
 
     def __init__(
-        self, keys: KeysCollection, loader: Callable, meta_key_postfix: str = "meta_dict", overwriting: bool = False,
+        self,
+        keys: KeysCollection,
+        loader: Callable,
+        meta_key_postfix: str = "meta_dict",
+        overwriting: bool = False,
     ) -> None:
         """
         Args:

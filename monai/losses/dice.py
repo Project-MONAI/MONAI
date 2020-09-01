@@ -468,7 +468,10 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         alpha_extended = torch.gather(alpha_extended, index=flat_target_extended, dim=1)
 
         # Compute the generalized true positive as in eq. 9
-        generalized_true_pos = torch.sum(alpha_extended * (1.0 - wasserstein_distance_map), dim=[1, 2],)
+        generalized_true_pos = torch.sum(
+            alpha_extended * (1.0 - wasserstein_distance_map),
+            dim=[1, 2],
+        )
         return generalized_true_pos
 
     def compute_denominator(
@@ -487,7 +490,10 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         alpha_extended = torch.gather(alpha_extended, index=flat_target_extended, dim=1)
 
         # Compute the generalized true positive as in eq. 9
-        generalized_true_pos = torch.sum(alpha_extended * (2.0 - wasserstein_distance_map), dim=[1, 2],)
+        generalized_true_pos = torch.sum(
+            alpha_extended * (2.0 - wasserstein_distance_map),
+            dim=[1, 2],
+        )
         return generalized_true_pos
 
     def compute_weights_generalized_true_positives(self, flat_target: torch.Tensor) -> torch.Tensor:

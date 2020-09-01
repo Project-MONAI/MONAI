@@ -323,7 +323,10 @@ class Resize(Transform):
         self.align_corners = align_corners
 
     def __call__(
-        self, img: np.ndarray, mode: Optional[Union[InterpolateMode, str]] = None, align_corners: Optional[bool] = None,
+        self,
+        img: np.ndarray,
+        mode: Optional[Union[InterpolateMode, str]] = None,
+        align_corners: Optional[bool] = None,
     ) -> np.ndarray:
         """
         Args:
@@ -497,7 +500,10 @@ class Zoom(Transform):
         self.keep_size = keep_size
 
     def __call__(
-        self, img: np.ndarray, mode: Optional[Union[InterpolateMode, str]] = None, align_corners: Optional[bool] = None,
+        self,
+        img: np.ndarray,
+        mode: Optional[Union[InterpolateMode, str]] = None,
+        align_corners: Optional[bool] = None,
     ) -> np.ndarray:
         """
         Args:
@@ -784,7 +790,10 @@ class RandZoom(Randomizable, Transform):
             self._zoom = self._zoom[0]
 
     def __call__(
-        self, img: np.ndarray, mode: Optional[Union[InterpolateMode, str]] = None, align_corners: Optional[bool] = None,
+        self,
+        img: np.ndarray,
+        mode: Optional[Union[InterpolateMode, str]] = None,
+        align_corners: Optional[bool] = None,
     ) -> np.ndarray:
         """
         Args:
@@ -803,7 +812,9 @@ class RandZoom(Randomizable, Transform):
             return img.astype(_dtype)
         zoomer = Zoom(self._zoom, keep_size=self.keep_size)
         return zoomer(
-            img, mode=mode or self.mode, align_corners=self.align_corners if align_corners is None else align_corners,
+            img,
+            mode=mode or self.mode,
+            align_corners=self.align_corners if align_corners is None else align_corners,
         ).astype(_dtype)
 
 

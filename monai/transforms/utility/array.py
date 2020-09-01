@@ -424,7 +424,9 @@ class LabelToMask(Transform):
     """
 
     def __init__(
-        self, select_labels: Union[Sequence[int], int], merge_channels: bool = False,
+        self,
+        select_labels: Union[Sequence[int], int],
+        merge_channels: bool = False,
     ) -> None:  # pytype: disable=annotation-type-mismatch # pytype bug with bool
         self.select_labels = ensure_tuple(select_labels)
         self.merge_channels = merge_channels

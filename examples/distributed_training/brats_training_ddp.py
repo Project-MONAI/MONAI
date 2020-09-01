@@ -63,10 +63,10 @@ from torch.utils.data.distributed import DistributedSampler
 from torch.utils.tensorboard import SummaryWriter
 
 from monai.apps import DecathlonDataset
-from monai.data import DataLoader, load_decathalon_datalist, CacheDataset
+from monai.data import CacheDataset, DataLoader, load_decathalon_datalist
 from monai.losses import DiceLoss
 from monai.metrics import DiceMetric
-from monai.networks.nets import UNet, SegResNet
+from monai.networks.nets import SegResNet, UNet
 from monai.transforms import (
     AsChannelFirstd,
     CenterSpatialCropd,
@@ -76,11 +76,12 @@ from monai.transforms import (
     NormalizeIntensityd,
     Orientationd,
     RandFlipd,
+    Randomizable,
     RandScaleIntensityd,
     RandShiftIntensityd,
     RandSpatialCropd,
     Spacingd,
-    ToTensord, Randomizable,
+    ToTensord,
 )
 from monai.utils import set_determinism
 
@@ -142,7 +143,7 @@ class BratsCacheDataset(Randomizable, CacheDataset):
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
         num_workers: int = 0,
-        shuffle=False
+        shuffle=False,
     ) -> None:
         if not os.path.isdir(root_dir):
             raise ValueError("Root directory root_dir must be a directory.")
@@ -220,11 +221,7 @@ def main_worker(args):
         cache_rate=args.cache_rate,
     )
     train_loader = DataLoader(
-        train_ds,
-        batch_size=args.batch_size,
-        shuffle=True,
-        num_workers=args.workers,
-        pin_memory=True
+        train_ds, batch_size=args.batch_size, shuffle=True, num_workers=args.workers, pin_memory=True
     )
 
     # validation transforms and dataset
@@ -249,11 +246,7 @@ def main_worker(args):
         cache_rate=args.cache_rate,
     )
     val_loader = DataLoader(
-        val_ds,
-        batch_size=args.batch_size,
-        shuffle=False,
-        num_workers=args.workers,
-        pin_memory=True
+        val_ds, batch_size=args.batch_size, shuffle=False, num_workers=args.workers, pin_memory=True
     )
 
     if dist.get_rank() == 0:
@@ -262,7 +255,7 @@ def main_worker(args):
 
     # create UNet, DiceLoss and Adam optimizer
     device = torch.device(f"cuda:{args.local_rank}")
-    if args.network == 'UNet':
+    if args.network == "UNet":
         model = UNet(
             dimensions=3,
             in_channels=4,
@@ -272,12 +265,7 @@ def main_worker(args):
             num_res_units=2,
         ).to(device)
     else:
-        model = SegResNet(
-            in_channels=4,
-            out_channels=3,
-            init_filters=16,
-            dropout_prob=0.2
-        ).to(device)
+        model = SegResNet(in_channels=4, out_channels=3, init_filters=16, dropout_prob=0.2).to(device)
     loss_function = DiceLoss(to_onehot_y=False, sigmoid=True, squared_pred=True)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-5, amsgrad=True)
     # wrap the model with DistributedDataParallel module
