@@ -33,6 +33,7 @@ TEST_CASE_6 = [(128, 128, 3), ["test_image.bmp"], (128, 128, 3), (128, 128)]
 
 TEST_CASE_7 = [(128, 128, 3), ["test_image.png"], (128, 128, 2), (128, 128)]
 
+
 class TestPNGReader(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
     def test_shape_value(self, data_shape, filenames, expected_shape, meta_shape):
