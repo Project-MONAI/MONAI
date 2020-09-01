@@ -62,7 +62,6 @@ from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.tensorboard import SummaryWriter
 
-from monai.apps import DecathlonDataset
 from monai.data import CacheDataset, DataLoader, load_decathalon_datalist
 from monai.losses import DiceLoss
 from monai.metrics import DiceMetric
