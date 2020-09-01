@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import os
-import shutil
+import tempfile
 import unittest
 
 import numpy as np
@@ -21,52 +21,46 @@ from monai.data import NiftiSaver
 
 class TestNiftiSaver(unittest.TestCase):
     def test_saved_content(self):
-        default_dir = os.path.join(".", "tempdir")
-        shutil.rmtree(default_dir, ignore_errors=True)
+        with tempfile.TemporaryDirectory() as tempdir:
 
-        saver = NiftiSaver(output_dir=default_dir, output_postfix="seg", output_ext=".nii.gz")
+            saver = NiftiSaver(output_dir=tempdir, output_postfix="seg", output_ext=".nii.gz")
 
-        meta_data = {"filename_or_obj": ["testfile" + str(i) for i in range(8)]}
-        saver.save_batch(torch.zeros(8, 1, 2, 2), meta_data)
-        for i in range(8):
-            filepath = os.path.join("testfile" + str(i), "testfile" + str(i) + "_seg.nii.gz")
-            self.assertTrue(os.path.exists(os.path.join(default_dir, filepath)))
-        shutil.rmtree(default_dir)
+            meta_data = {"filename_or_obj": ["testfile" + str(i) for i in range(8)]}
+            saver.save_batch(torch.zeros(8, 1, 2, 2), meta_data)
+            for i in range(8):
+                filepath = os.path.join("testfile" + str(i), "testfile" + str(i) + "_seg.nii.gz")
+                self.assertTrue(os.path.exists(os.path.join(tempdir, filepath)))
 
     def test_saved_resize_content(self):
-        default_dir = os.path.join(".", "tempdir")
-        shutil.rmtree(default_dir, ignore_errors=True)
+        with tempfile.TemporaryDirectory() as tempdir:
 
-        saver = NiftiSaver(output_dir=default_dir, output_postfix="seg", output_ext=".nii.gz", dtype=np.float32)
+            saver = NiftiSaver(output_dir=tempdir, output_postfix="seg", output_ext=".nii.gz", dtype=np.float32)
 
-        meta_data = {
-            "filename_or_obj": ["testfile" + str(i) for i in range(8)],
-            "affine": [np.diag(np.ones(4)) * 5] * 8,
-            "original_affine": [np.diag(np.ones(4)) * 1.0] * 8,
-        }
-        saver.save_batch(torch.randint(0, 255, (8, 8, 2, 2)), meta_data)
-        for i in range(8):
-            filepath = os.path.join("testfile" + str(i), "testfile" + str(i) + "_seg.nii.gz")
-            self.assertTrue(os.path.exists(os.path.join(default_dir, filepath)))
-        shutil.rmtree(default_dir)
+            meta_data = {
+                "filename_or_obj": ["testfile" + str(i) for i in range(8)],
+                "affine": [np.diag(np.ones(4)) * 5] * 8,
+                "original_affine": [np.diag(np.ones(4)) * 1.0] * 8,
+            }
+            saver.save_batch(torch.randint(0, 255, (8, 8, 2, 2)), meta_data)
+            for i in range(8):
+                filepath = os.path.join("testfile" + str(i), "testfile" + str(i) + "_seg.nii.gz")
+                self.assertTrue(os.path.exists(os.path.join(tempdir, filepath)))
 
     def test_saved_3d_resize_content(self):
-        default_dir = os.path.join(".", "tempdir")
-        shutil.rmtree(default_dir, ignore_errors=True)
+        with tempfile.TemporaryDirectory() as tempdir:
 
-        saver = NiftiSaver(output_dir=default_dir, output_postfix="seg", output_ext=".nii.gz", dtype=np.float32)
+            saver = NiftiSaver(output_dir=tempdir, output_postfix="seg", output_ext=".nii.gz", dtype=np.float32)
 
-        meta_data = {
-            "filename_or_obj": ["testfile" + str(i) for i in range(8)],
-            "spatial_shape": [(10, 10, 2)] * 8,
-            "affine": [np.diag(np.ones(4)) * 5] * 8,
-            "original_affine": [np.diag(np.ones(4)) * 1.0] * 8,
-        }
-        saver.save_batch(torch.randint(0, 255, (8, 8, 1, 2, 2)), meta_data)
-        for i in range(8):
-            filepath = os.path.join("testfile" + str(i), "testfile" + str(i) + "_seg.nii.gz")
-            self.assertTrue(os.path.exists(os.path.join(default_dir, filepath)))
-        shutil.rmtree(default_dir)
+            meta_data = {
+                "filename_or_obj": ["testfile" + str(i) for i in range(8)],
+                "spatial_shape": [(10, 10, 2)] * 8,
+                "affine": [np.diag(np.ones(4)) * 5] * 8,
+                "original_affine": [np.diag(np.ones(4)) * 1.0] * 8,
+            }
+            saver.save_batch(torch.randint(0, 255, (8, 8, 1, 2, 2)), meta_data)
+            for i in range(8):
+                filepath = os.path.join("testfile" + str(i), "testfile" + str(i) + "_seg.nii.gz")
+                self.assertTrue(os.path.exists(os.path.join(tempdir, filepath)))
 
 
 if __name__ == "__main__":

@@ -14,10 +14,10 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 from scipy.ndimage import zoom as zoom_scipy
-from tests.utils import NumpyImageTestCase2D
 
 from monai.transforms import RandZoom
-from monai.utils import InterpolateMode, GridSampleMode
+from monai.utils import GridSampleMode, InterpolateMode
+from tests.utils import NumpyImageTestCase2D
 
 VALID_CASES = [(0.8, 1.2, "nearest", False), (0.8, 1.2, InterpolateMode.NEAREST, False)]
 
@@ -25,7 +25,13 @@ VALID_CASES = [(0.8, 1.2, "nearest", False), (0.8, 1.2, InterpolateMode.NEAREST,
 class TestRandZoom(NumpyImageTestCase2D):
     @parameterized.expand(VALID_CASES)
     def test_correct_results(self, min_zoom, max_zoom, mode, keep_size):
-        random_zoom = RandZoom(prob=1.0, min_zoom=min_zoom, max_zoom=max_zoom, mode=mode, keep_size=keep_size,)
+        random_zoom = RandZoom(
+            prob=1.0,
+            min_zoom=min_zoom,
+            max_zoom=max_zoom,
+            mode=mode,
+            keep_size=keep_size,
+        )
         random_zoom.set_random_state(1234)
         zoomed = random_zoom(self.imt[0])
         expected = list()

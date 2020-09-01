@@ -12,16 +12,15 @@
 A collection of generic interfaces for MONAI transforms.
 """
 
-from typing import Any, Hashable, Optional, Tuple
-
-from abc import ABC, abstractmethod
 import warnings
+from abc import ABC, abstractmethod
+from typing import Any, Callable, Hashable, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
 from monai.config import KeysCollection
-from monai.utils import ensure_tuple, get_seed
 from monai.transforms.utils import apply_transform
+from monai.utils import ensure_tuple, get_seed
 
 
 class Transform(ABC):
@@ -66,10 +65,10 @@ class Transform(ABC):
         This method can optionally take additional arguments to help execute transformation operation.
 
         Raises:
-            NotImplementedError: Subclass {self.__class__.__name__} must implement the compute method
+            NotImplementedError: When the subclass does not override this method.
 
         """
-        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement the compute method")
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
 class Randomizable(ABC):
@@ -92,7 +91,9 @@ class Randomizable(ABC):
 
     R: np.random.RandomState = np.random.RandomState()
 
-    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "Randomizable":
         """
         Set the random state locally, to control the randomness, the derived
         classes should use :py:attr:`self.R` instead of `np.random` to introduce random
@@ -102,11 +103,11 @@ class Randomizable(ABC):
             seed: set the random state with an integer seed.
             state: set the random state with a `np.random.RandomState` object.
 
+        Raises:
+            TypeError: When ``state`` is not an ``Optional[np.random.RandomState]``.
+
         Returns:
             a Randomizable instance.
-
-        Raises:
-            ValueError: `state` must be a `np.random.RandomState`, got {type(state)}
 
         """
         if seed is not None:
@@ -116,7 +117,7 @@ class Randomizable(ABC):
 
         if state is not None:
             if not isinstance(state, np.random.RandomState):
-                raise ValueError(f"`state` must be a `np.random.RandomState`, got {type(state)}")
+                raise TypeError(f"state must be None or a np.random.RandomState but is {type(state).__name__}.")
             self.R = state
             return self
 
@@ -134,10 +135,10 @@ class Randomizable(ABC):
         This method can generate the random factors based on properties of the input data.
 
         Raises:
-            NotImplementedError: Subclass {self.__class__.__name__} must implement the compute method
+            NotImplementedError: When the subclass does not override this method.
 
         """
-        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement the compute method")
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
 class Compose(Randomizable):
@@ -201,17 +202,18 @@ class Compose(Randomizable):
         them are called on the labels.
     """
 
-    def __init__(self, transforms=None) -> None:
+    def __init__(self, transforms: Optional[Union[Sequence[Callable], Callable]] = None) -> None:
         if transforms is None:
             transforms = []
         self.transforms = ensure_tuple(transforms)
         self.set_random_state(seed=get_seed())
 
-    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
+    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None) -> "Compose":
         for _transform in self.transforms:
             if not isinstance(_transform, Randomizable):
                 continue
             _transform.set_random_state(seed, state)
+        return self
 
     def randomize(self, data: Optional[Any] = None) -> None:
         for _transform in self.transforms:
@@ -250,15 +252,19 @@ class MapTransform(Transform):
                         # do nothing or some exceptions handling.
                 return data
 
+    Raises:
+        ValueError: When ``keys`` is an empty iterable.
+        TypeError: When ``keys`` type is not in ``Union[Hashable, Iterable[Hashable]]``.
+
     """
 
     def __init__(self, keys: KeysCollection) -> None:
-        self.keys: Tuple[Any, ...] = ensure_tuple(keys)
+        self.keys: Tuple[Hashable, ...] = ensure_tuple(keys)
         if not self.keys:
-            raise ValueError("keys unspecified")
+            raise ValueError("keys must be non empty.")
         for key in self.keys:
             if not isinstance(key, Hashable):
-                raise ValueError(f"keys should be a hashable or a sequence of hashables, got {type(key)}")
+                raise TypeError(f"keys must be one of (Hashable, Iterable[Hashable]) but is {type(keys).__name__}.")
 
     @abstractmethod
     def __call__(self, data):
@@ -281,7 +287,11 @@ class MapTransform(Transform):
 
         - the channel dimension is not omitted even if number of channels is one
 
+        Raises:
+            NotImplementedError: When the subclass does not override this method.
+
         returns:
             An updated dictionary version of ``data`` by applying the transform.
+
         """
-        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement the compute method")
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
