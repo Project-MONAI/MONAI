@@ -63,7 +63,7 @@ from torch.utils.data.distributed import DistributedSampler
 from torch.utils.tensorboard import SummaryWriter
 
 from monai.apps import DecathlonDataset
-from monai.data import DataLoader
+from monai.data import DataLoader, load_decathalon_datalist, CacheDataset
 from monai.losses import DiceLoss
 from monai.metrics import DiceMetric
 from monai.networks.nets import UNet, SegResNet
@@ -80,7 +80,7 @@ from monai.transforms import (
     RandShiftIntensityd,
     RandSpatialCropd,
     Spacingd,
-    ToTensord,
+    ToTensord, Randomizable,
 )
 from monai.utils import set_determinism
 
@@ -108,6 +108,78 @@ class ConvertToMultiChannelBasedOnBratsClassesd(MapTransform):
             result.append(d[key] == 2)
             d[key] = np.stack(result, axis=0).astype(np.float32)
         return d
+
+
+def partition_dataset(data, shuffle: bool = False, seed: int = 0):
+    """
+    Partition the dataset for distributed training, every rank process only train with its own data partition.
+    It can be useful for `CacheDataset` or `SmartCacheDataset`, because every rank process can only compute and
+    cache its own data.
+    Note that every rank process will shuffle data only in its own partition if set `shuffle=True` to DataLoader.
+    The alternative solution is to use `DistributedSampler`, which supports global shuffle before every epoch.
+    But if using `CacheDataset` or `SmartCacheDataset`, every rank process will cache duplicated data content and
+    raise systen memory usage.
+    Args:
+        data: data list to partition, assumed to be of constant size.
+        shuffle: if true, will shuffle the indices of data list before partition.
+        seed: random seed to shuffle the indices if `shuffle=True`.
+            this number should be identical across all processes in the distributed group.
+    """
+    sampler: DistributedSampler = DistributedSampler(dataset=data, shuffle=shuffle)  # type: ignore
+    sampler.set_epoch(seed)
+    return [data[i] for i in sampler]
+
+
+class BratsCacheDataset(Randomizable, CacheDataset):
+    def __init__(
+        self,
+        root_dir: str,
+        task: str,
+        section: str,
+        transform=LoadNiftid(["image", "label"]),
+        seed: int = 0,
+        val_frac: float = 0.2,
+        cache_num: int = sys.maxsize,
+        cache_rate: float = 1.0,
+        num_workers: int = 0,
+        shuffle=False
+    ) -> None:
+        if not os.path.isdir(root_dir):
+            raise ValueError("Root directory root_dir must be a directory.")
+        self.section = section
+        self.val_frac = val_frac
+        self.set_random_state(seed=seed)
+        dataset_dir = os.path.join(root_dir, task)
+        self.rann = None
+
+        if not os.path.exists(dataset_dir):
+            raise RuntimeError(
+                f"Cannot find dataset directory: {dataset_dir}, please use download=True to download it."
+            )
+        data = self._generate_data_list(dataset_dir)
+        data = partition_dataset(data, shuffle=shuffle)
+        super().__init__(data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers)
+
+    def randomize(self, data=None) -> None:
+        self.rann = self.R.random()
+
+    def _generate_data_list(self, dataset_dir: str):
+        section = "training" if self.section in ["training", "validation"] else "test"
+        datalist = load_decathalon_datalist(os.path.join(dataset_dir, "dataset.json"), True, section)
+        if section == "test":
+            return datalist
+        else:
+            data = list()
+            for i in datalist:
+                self.randomize()
+                if self.section == "training":
+                    if self.rann < self.val_frac:
+                        continue
+                else:
+                    if self.rann >= self.val_frac:
+                        continue
+                data.append(i)
+            return data
 
 
 def main_worker(args):
@@ -139,52 +211,54 @@ def main_worker(args):
     )
 
     # create a training data loader
-    train_ds = DecathlonDataset(
+    train_ds = BratsCacheDataset(
         root_dir=args.dir,
         task="Task01_BrainTumour",
         transform=train_transforms,
         section="training",
-        download=False,
         num_workers=4,
         cache_rate=args.cache_rate,
     )
-    # create a training data sampler
-    train_sampler = DistributedSampler(train_ds)
     train_loader = DataLoader(
         train_ds,
         batch_size=args.batch_size,
+        shuffle=True,
+        num_workers=args.workers,
+        pin_memory=True
+    )
+
+    # validation transforms and dataset
+    val_transforms = Compose(
+        [
+            LoadNiftid(keys=["image", "label"]),
+            AsChannelFirstd(keys="image"),
+            ConvertToMultiChannelBasedOnBratsClassesd(keys="label"),
+            Spacingd(keys=["image", "label"], pixdim=(1.5, 1.5, 2.0), mode=("bilinear", "nearest")),
+            Orientationd(keys=["image", "label"], axcodes="RAS"),
+            CenterSpatialCropd(keys=["image", "label"], roi_size=[128, 128, 64]),
+            NormalizeIntensityd(keys="image", nonzero=True, channel_wise=True),
+            ToTensord(keys=["image", "label"]),
+        ]
+    )
+    val_ds = BratsCacheDataset(
+        root_dir=args.dir,
+        task="Task01_BrainTumour",
+        transform=val_transforms,
+        section="validation",
+        num_workers=4,
+        cache_rate=args.cache_rate,
+    )
+    val_loader = DataLoader(
+        val_ds,
+        batch_size=args.batch_size,
         shuffle=False,
         num_workers=args.workers,
-        pin_memory=True,
-        sampler=train_sampler,
+        pin_memory=True
     )
 
     if dist.get_rank() == 0:
         # Logging for TensorBoard
         writer = SummaryWriter(log_dir=args.log_dir)
-        # validation transforms and dataset
-        val_transforms = Compose(
-            [
-                LoadNiftid(keys=["image", "label"]),
-                AsChannelFirstd(keys="image"),
-                ConvertToMultiChannelBasedOnBratsClassesd(keys="label"),
-                Spacingd(keys=["image", "label"], pixdim=(1.5, 1.5, 2.0), mode=("bilinear", "nearest")),
-                Orientationd(keys=["image", "label"], axcodes="RAS"),
-                CenterSpatialCropd(keys=["image", "label"], roi_size=[128, 128, 64]),
-                NormalizeIntensityd(keys="image", nonzero=True, channel_wise=True),
-                ToTensord(keys=["image", "label"]),
-            ]
-        )
-        val_ds = DecathlonDataset(
-            root_dir=args.dir,
-            task="Task01_BrainTumour",
-            transform=val_transforms,
-            section="validation",
-            download=False,
-            num_workers=4,
-            cache_rate=args.cache_rate,
-        )
-        val_loader = DataLoader(val_ds, batch_size=2, shuffle=False, num_workers=args.workers)
 
     # create UNet, DiceLoss and Adam optimizer
     device = torch.device(f"cuda:{args.local_rank}")
@@ -217,7 +291,6 @@ def main_worker(args):
     progress = ProgressMeter(total_epoch, [epoch_time], prefix="Epoch: ")
     end = time.time()
     for epoch in range(total_epoch):
-        train_sampler.set_epoch(epoch)
 
         train_loss = train(train_loader, model, loss_function, optimizer, epoch, args, device)
         epoch_time.update(time.time() - end)
@@ -227,18 +300,25 @@ def main_worker(args):
 
         if dist.get_rank() == 0:
             writer.add_scalar("Loss/train", train_loss, epoch)
-            if (epoch + 1) % args.val_interval == 0:
-                metric, metric_tc, metric_wt, metric_et = evaluate(model, val_loader, device)
-                writer.add_scalar("Mean Dice/val", metric, epoch)
-                writer.add_scalar("Mean Dice TC/val", metric_tc, epoch)
-                writer.add_scalar("Mean Dice WT/val", metric_wt, epoch)
-                writer.add_scalar("Mean Dice ET/val", metric_et, epoch)
-                if metric > best_metric:
-                    best_metric = metric
+
+        if (epoch + 1) % args.val_interval == 0:
+            metric, metric_tc, metric_wt, metric_et = evaluate(model, val_loader, device)
+            metrics = torch.tensor([metric, metric_tc, metric_wt, metric_et]).to(device)
+            dist.all_reduce(metrics, op=torch.distributed.ReduceOp.SUM)
+
+            if dist.get_rank() == 0:
+                metrics = metrics / dist.get_world_size()
+
+                writer.add_scalar("Mean Dice/val", metrics[0], epoch)
+                writer.add_scalar("Mean Dice TC/val", metrics[1], epoch)
+                writer.add_scalar("Mean Dice WT/val", metrics[2], epoch)
+                writer.add_scalar("Mean Dice ET/val", metrics[3], epoch)
+                if metrics[0] > best_metric:
+                    best_metric = metrics[0]
                     best_metric_epoch = epoch + 1
                 print(
-                    f"current epoch: {epoch + 1} current mean dice: {metric:.4f}"
-                    f" tc: {metric_tc:.4f} wt: {metric_wt:.4f} et: {metric_et:.4f}"
+                    f"current epoch: {epoch + 1} current mean dice: {metrics[0]:.4f}"
+                    f" tc: {metrics[1]:.4f} wt: {metrics[2]:.4f} et: {metrics[3]:.4f}"
                     f"\nbest mean dice: {best_metric:.4f} at epoch: {best_metric_epoch}"
                 )
         end = time.time()
@@ -248,7 +328,7 @@ def main_worker(args):
         # all processes should see same parameters as they all start from same
         # random parameters and gradients are synchronized in backward passes,
         # therefore, saving it in one process is sufficient
-        torch.save(model.state_dict(), "final_model.pth")
+        # torch.save(model.state_dict(), "final_model.pth")
         writer.flush()
     dist.destroy_process_group()
 
@@ -292,10 +372,6 @@ def train(train_loader, model, criterion, optimizer, epoch, args, device):
 
 
 def evaluate(model, data_loader, device):
-    metric_values = list()
-    metric_values_tc = list()
-    metric_values_wt = list()
-    metric_values_et = list()
     metric_sum = metric_sum_tc = metric_sum_wt = metric_sum_et = 0.0
     metric_count = metric_count_tc = metric_count_wt = metric_count_et = 0
 
@@ -304,8 +380,8 @@ def evaluate(model, data_loader, device):
         dice_metric = DiceMetric(include_background=True, sigmoid=True, reduction="mean")
         for val_data in data_loader:
             val_inputs, val_labels = (
-                val_data["image"].to(device),
-                val_data["label"].to(device),
+                val_data["image"].to(device, non_blocking=True),
+                val_data["label"].to(device, non_blocking=True),
             )
             val_outputs = model(val_inputs)
             # compute overall mean dice
@@ -330,13 +406,10 @@ def evaluate(model, data_loader, device):
             metric_sum_et += value_et.item() * not_nans
 
         metric = metric_sum / metric_count
-        metric_values.append(metric)
         metric_tc = metric_sum_tc / metric_count_tc
-        metric_values_tc.append(metric_tc)
         metric_wt = metric_sum_wt / metric_count_wt
-        metric_values_wt.append(metric_wt)
         metric_et = metric_sum_et / metric_count_et
-        metric_values_et.append(metric_et)
+
     return metric, metric_tc, metric_wt, metric_et
 
 
