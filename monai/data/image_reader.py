@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple, Union, Callable
 
 import numpy as np
 
@@ -444,13 +444,16 @@ class PILReader(ImageReader):
     """
     Load common 2D image format (supports PNG, JPG, BMP) file or files from provided path.
     Args:
+        converter: additional function to convert the image data after `read()`.
+            for example, use `converter=lambda image: image.convert("LA")` to convert image format.
         kwargs: additional args for `Image.open` API in `read()`, mode details about available args:
             https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.open
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, converter: Optional[Callable] = None, **kwargs):
         super().__init__()
         self._img: Optional[Sequence[PILImage.Image]] = None
+        self.converter = converter
         self.kwargs = kwargs
 
     def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
@@ -473,12 +476,16 @@ class PILReader(ImageReader):
         """
         self._img = list()
         if isinstance(data, PILImage.Image):
+            if callable(self.converter):
+                data = self.converter(data)
             self._img.append(data)
             return data
 
         filenames: Sequence[str] = ensure_tuple(data)
         for name in filenames:
             img = PILImage.open(name, **self.kwargs)
+            if callable(self.converter):
+                img = self.converter(img)
             self._img.append(img)
 
         return self._img if len(filenames) > 1 else self._img[0]
