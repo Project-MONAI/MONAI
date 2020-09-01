@@ -13,8 +13,9 @@ import math
 import os
 import warnings
 from itertools import product, starmap
-from typing import Dict, Generator, List, Optional, Sequence, Tuple, Union
 from pathlib import PurePosixPath
+from typing import Dict, Generator, List, Optional, Sequence, Tuple, Union
+
 import numpy as np
 import torch
 from torch.utils.data._utils.collate import default_collate
