@@ -17,6 +17,7 @@ from .mean_dice import MeanDice
 from .metric_logger import MetricLogger
 from .roc_auc import ROCAUC
 from .segmentation_saver import SegmentationSaver
+from .smartcache_handler import SmartCacheHandler
 from .stats_handler import StatsHandler
 from .tensorboard_handlers import TensorBoardImageHandler, TensorBoardStatsHandler
 from .utils import *

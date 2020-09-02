@@ -10,8 +10,10 @@
 # limitations under the License.
 
 import unittest
+
 import numpy as np
 from parameterized import parameterized
+
 from monai.transforms import RepeatChannel
 
 TEST_CASE_1 = [{"repeats": 3}, np.array([[[0, 1], [1, 2]]]), (3, 2, 2)]

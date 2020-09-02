@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import os
-import shutil
 import tempfile
 import unittest
 
@@ -21,10 +20,10 @@ from ignite.engine import Engine
 from torch.utils.data import DataLoader
 
 from monai.data import NiftiDataset, create_test_image_3d
-from monai.inferers import sliding_window_inference
 from monai.handlers import SegmentationSaver
-from monai.networks.nets import UNet
+from monai.inferers import sliding_window_inference
 from monai.networks import predict_segmentation
+from monai.networks.nets import UNet
 from monai.transforms import AddChannel
 from monai.utils import set_determinism
 from tests.utils import make_nifti_image
@@ -44,7 +43,7 @@ def run_test(batch_size, img_name, seg_name, output_dir, device=torch.device("cu
         net.eval()
         img, seg, meta_data = batch
         with torch.no_grad():
-            seg_probs = sliding_window_inference(img.to(device), roi_size, sw_batch_size, net)
+            seg_probs = sliding_window_inference(img.to(device), roi_size, sw_batch_size, net, device=device)
             return predict_segmentation(seg_probs)
 
     infer_engine = Engine(_sliding_window_processor)
@@ -77,14 +76,13 @@ class TestIntegrationSlidingWindow(unittest.TestCase):
             os.remove(self.seg_name)
 
     def test_training(self):
-        tempdir = tempfile.mkdtemp()
-        output_file = run_test(
-            batch_size=2, img_name=self.img_name, seg_name=self.seg_name, output_dir=tempdir, device=self.device
-        )
-        output_image = nib.load(output_file).get_fdata()
-        np.testing.assert_allclose(np.sum(output_image), 33621)
-        np.testing.assert_allclose(output_image.shape, (28, 25, 63, 1))
-        shutil.rmtree(tempdir)
+        with tempfile.TemporaryDirectory() as tempdir:
+            output_file = run_test(
+                batch_size=2, img_name=self.img_name, seg_name=self.seg_name, output_dir=tempdir, device=self.device
+            )
+            output_image = nib.load(output_file).get_fdata()
+            np.testing.assert_allclose(np.sum(output_image), 33621)
+            np.testing.assert_allclose(output_image.shape, (28, 25, 63, 1))
 
 
 if __name__ == "__main__":
