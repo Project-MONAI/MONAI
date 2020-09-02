@@ -13,6 +13,7 @@ import math
 import os
 import warnings
 from itertools import product, starmap
+from pathlib import PurePath
 from typing import Dict, Generator, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -519,20 +520,13 @@ def is_supported_format(filename: Union[Sequence[str], str], suffixes: Sequence[
     Args:
         filename: file name or a list of file names to read.
             if a list of files, verify all the subffixes.
-        suffixes: all the supported image subffixes of current reader.
+        suffixes: all the supported image subffixes of current reader, must be a list of lower case suffixes.
 
     """
-    supported_format: bool = True
     filenames: Sequence[str] = ensure_tuple(filename)
     for name in filenames:
-        tokens: Sequence[str] = name.split(".")
-        passed: bool = False
-        for i in range(len(tokens) - 1):
-            if ".".join(tokens[-(i + 2) : -1]) in suffixes:
-                passed = True
-                break
-        if not passed:
-            supported_format = False
-            break
+        tokens: Sequence[str] = PurePath(name).suffixes
+        if len(tokens) == 0 or not any(("." + s.lower()) == "".join(tokens) for s in suffixes):
+            return False
 
-    return supported_format
+    return True

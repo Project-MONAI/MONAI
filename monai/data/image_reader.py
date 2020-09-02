@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -25,11 +25,13 @@ if TYPE_CHECKING:
     import nibabel as nib
     from itk import Image  # type: ignore
     from nibabel.nifti1 import Nifti1Image
+    from PIL import Image as PILImage
 else:
     itk, _ = optional_import("itk", allow_namespace_pkg=True)
     Image, _ = optional_import("itk", allow_namespace_pkg=True, name="Image")
     nib, _ = optional_import("nibabel")
     Nifti1Image, _ = optional_import("nibabel.nifti1", name="Nifti1Image")
+    PILImage, _ = optional_import("PIL.Image")
 
 
 class ImageReader(ABC):
@@ -356,7 +358,6 @@ class NumpyReader(ImageReader):
     Load NPY or NPZ format data based on Numpy library, they can be arrays or pickled objects.
     A typical usage is to load the `mask` data for classification task.
     It can load part of the npz file with specified `npz_keys`.
-
     Args:
         npz_keys: if loading npz file, only load the specified keys, if None, load all the items.
             stack the loaded items together to construct a new first dimension.
@@ -376,11 +377,9 @@ class NumpyReader(ImageReader):
     def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
         """
         Verify whether the specified file or files format is supported by Numpy reader.
-
         Args:
             filename: file name or a list of file names to read.
                 if a list of files, verify all the subffixes.
-
         """
         suffixes: Sequence[str] = ["npz", "npy"]
         return is_supported_format(filename, suffixes)
@@ -389,8 +388,7 @@ class NumpyReader(ImageReader):
         """
         Read image data from specified file or files, or set a Numpy array.
         Note that the returned object is Numpy array or list of Numpy arrays.
-        `self._img` is always a list, even only has 1 image.
-
+        `self._img` is always a list, even only has 1 image
         Args:
             data: file name or a list of file names to read.
 
@@ -420,7 +418,6 @@ class NumpyReader(ImageReader):
         It constructs `spatial_shape=data.shape` and stores in meta dict if the data is numpy array.
         If loading a list of files, stack them together and add a new dimension as first dimension,
         and use the meta data of the first image to represent the stacked result.
-
         """
         img_array: List[np.ndarray] = list()
         compatible_meta: Dict = None
@@ -441,3 +438,104 @@ class NumpyReader(ImageReader):
 
         img_array_ = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
         return img_array_, compatible_meta
+
+
+class PILReader(ImageReader):
+    """
+    Load common 2D image format (supports PNG, JPG, BMP) file or files from provided path.
+    Args:
+        converter: additional function to convert the image data after `read()`.
+            for example, use `converter=lambda image: image.convert("LA")` to convert image format.
+        kwargs: additional args for `Image.open` API in `read()`, mode details about available args:
+            https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.open
+    """
+
+    def __init__(self, converter: Optional[Callable] = None, **kwargs):
+        super().__init__()
+        self._img: Optional[Sequence[PILImage.Image]] = None
+        self.converter = converter
+        self.kwargs = kwargs
+
+    def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
+        """
+        Verify whether the specified file or files format is supported by PIL reader.
+        Args:
+            filename: file name or a list of file names to read.
+                if a list of files, verify all the subffixes.
+        """
+        suffixes: Sequence[str] = ["png", "jpg", "bmp"]
+        return is_supported_format(filename, suffixes)
+
+    def read(self, data: Union[Sequence[str], str, np.ndarray]):
+        """
+        Read image data from specified file or files, or set a PIL image.
+        Note that the returned object is PIL image or list of PIL image.
+        `self._img` is always a list, even only has 1 image.
+        Args:
+            data: file name or a list of file names to read.
+        """
+        self._img = list()
+        if isinstance(data, PILImage.Image):
+            if callable(self.converter):
+                data = self.converter(data)
+            self._img.append(data)
+            return data
+
+        filenames: Sequence[str] = ensure_tuple(data)
+        for name in filenames:
+            img = PILImage.open(name, **self.kwargs)
+            if callable(self.converter):
+                img = self.converter(img)
+            self._img.append(img)
+
+        return self._img if len(filenames) > 1 else self._img[0]
+
+    def get_data(self):
+        """
+        Extract data array and meta data from loaded data and return them.
+        This function returns 2 objects, first is numpy array of image data, second is dict of meta data.
+        It constructs `spatial_shape` and stores in meta dict.
+        If loading a list of files, stack them together and add a new dimension as first dimension,
+        and use the meta data of the first image to represent the stacked result.
+        """
+        img_array: List[np.ndarray] = list()
+        compatible_meta: Dict = None
+        if self._img is None:
+            raise RuntimeError("please call read() first then use get_data().")
+
+        for img in self._img:
+            header = self._get_meta_dict(img)
+            header["spatial_shape"] = self._get_spatial_shape(img)
+            img_array.append(np.asarray(img))
+
+            if compatible_meta is None:
+                compatible_meta = header
+            else:
+                if not np.allclose(header["spatial_shape"], compatible_meta["spatial_shape"]):
+                    raise RuntimeError("spatial_shape of all images should be same.")
+
+        img_array_ = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
+        return img_array_, compatible_meta
+
+    def _get_meta_dict(self, img: PILImage.Image) -> Dict:
+        """
+        Get the all the meta data of the image and convert to dict type.
+        Args:
+            img: a PIL Image object loaded from a image file.
+
+        """
+        meta = dict()
+        meta["format"] = img.format
+        meta["mode"] = img.mode
+        meta["width"] = img.width
+        meta["height"] = img.height
+        meta["info"] = img.info
+        return meta
+
+    def _get_spatial_shape(self, img: PILImage.Image) -> Sequence:
+        """
+        Get the spatial shape of image data, it doesn't contain the channel dim.
+        Args:
+            img: a PIL Image object loaded from a image file.
+        """
+        return [img.width, img.height]

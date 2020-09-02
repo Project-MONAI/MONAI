@@ -73,6 +73,11 @@ NumpyReader
 .. autoclass:: NumpyReader
   :members:
 
+PILReader
+~~~~~~~~~
+.. autoclass:: PILReader
+  :members:
+
 
 Nifti format handling
 ---------------------
