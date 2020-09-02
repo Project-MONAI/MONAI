@@ -9,30 +9,38 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import warnings
 
 from setuptools import find_packages, setup
 
 import versioneer
 
+FORCE_CUDA = os.getenv("FORCE_CUDA", "0") == "1"
+
+BUILD_CPP = BUILD_CUDA = False
+try:
+    import torch
+    from torch.utils.cpp_extension import CppExtension
+
+    BUILD_CPP = True
+    from torch.utils.cpp_extension import CUDA_HOME, CUDAExtension
+
+    BUILD_CUDA = (torch.cuda.is_available() and (CUDA_HOME is not None)) or FORCE_CUDA
+except ImportError:
+    warnings.warn("torch extension build skipped.")
+finally:
+    print(f"BUILD_CPP={BUILD_CPP}, BUILD_CUDA={BUILD_CUDA}")
+
 
 def get_extensions():
-
-    try:
-        import torch
-        from torch.utils.cpp_extension import CUDA_HOME, CppExtension, CUDAExtension
-
-        print(f"setup.py with torch {torch.__version__}")
-    except ImportError:
-        warnings.warn("torch cpp/cuda building skipped.")
-        return []
-
-    ext_modules = [CppExtension("monai._C", ["monai/networks/extensions/lltm/lltm.cpp"])]
-    if torch.cuda.is_available() and (CUDA_HOME is not None):
+    ext_modules = []
+    if BUILD_CPP:
+        ext_modules.append(CppExtension("monai._C", ["monai/extensions/lltm/lltm.cpp"]))
+    if BUILD_CUDA:
         ext_modules.append(
             CUDAExtension(
-                "monai._C_CUDA",
-                ["monai/networks/extensions/lltm/lltm_cuda.cpp", "monai/networks/extensions/lltm/lltm_cuda_kernel.cu"],
+                "monai._C_CUDA", ["monai/extensions/lltm/lltm_cuda.cpp", "monai/extensions/lltm/lltm_cuda_kernel.cu"],
             )
         )
     return ext_modules
@@ -40,12 +48,10 @@ def get_extensions():
 
 def get_cmds():
     cmds = versioneer.get_cmdclass()
-    try:
+    if BUILD_CPP or BUILD_CUDA:
         from torch.utils.cpp_extension import BuildExtension
 
         cmds.update({"build_ext": BuildExtension})
-    except ImportError:
-        warnings.warn("torch cpp_extension module not found.")
     return cmds
 
 
