@@ -56,7 +56,10 @@ You can install it by running:
 cd MONAI/
 python setup.py develop
 
-# to uninstall the package please run:
+# For MacOS:
+# CC=clang CXX=clang++ python setup.py develop 
+
+# To uninstall the package please run:
 python setup.py develop --uninstall
 ```
 or simply adding the root directory of the cloned source code (e.g., ``/workspace/Documents/MONAI``) to your ``$PYTHONPATH``
