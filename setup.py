@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import glob
 import os
 import warnings
 
@@ -34,24 +35,26 @@ finally:
 
 
 def get_extensions():
+    this_dir = os.path.dirname(os.path.abspath(__file__))
+    ext_dir = os.path.join(this_dir, "monai", "extensions")
     ext_modules = []
     if BUILD_CPP:
-        ext_modules.append(CppExtension("monai._C", ["monai/extensions/lltm/lltm.cpp"]))
+        lltm_cpu = glob.glob(os.path.join(ext_dir, "lltm", "*_cpu.cpp"))
+        ext_modules.append(CppExtension("monai._C", lltm_cpu))
     if BUILD_CUDA:
-        ext_modules.append(
-            CUDAExtension(
-                "monai._C_CUDA", ["monai/extensions/lltm/lltm_cuda.cpp", "monai/extensions/lltm/lltm_cuda_kernel.cu"],
-            )
-        )
+        lltm_gpu = glob.glob(os.path.join(ext_dir, "lltm", "*_cuda*"))
+        ext_modules.append(CUDAExtension("monai._C_CUDA", lltm_gpu))
     return ext_modules
 
 
 def get_cmds():
     cmds = versioneer.get_cmdclass()
-    if BUILD_CPP or BUILD_CUDA:
-        from torch.utils.cpp_extension import BuildExtension
+    if not (BUILD_CPP or BUILD_CUDA):
+        return cmds
 
-        cmds.update({"build_ext": BuildExtension})
+    from torch.utils.cpp_extension import BuildExtension
+
+    cmds.update({"build_ext": BuildExtension})
     return cmds
 
 
