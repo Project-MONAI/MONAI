@@ -193,6 +193,7 @@ def main_worker(args):
     # initialize the distributed training process, every GPU runs in a process
     dist.init_process_group(backend="nccl", init_method="env://")
 
+    total_start = time.time()
     train_transforms = Compose(
         [
             # load 4 Nifti images and stack them together
@@ -277,6 +278,7 @@ def main_worker(args):
     epoch_time = AverageMeter("Time", ":6.3f")
     progress = ProgressMeter(total_epoch, [epoch_time], prefix="Epoch: ")
     end = time.time()
+    print(f"Time elapsed before training: {end-total_start}")
     for epoch in range(total_epoch):
 
         train_loss = train(train_loader, model, loss_function, optimizer, epoch, args, device)
@@ -309,13 +311,14 @@ def main_worker(args):
                     f"\nbest mean dice: {best_metric:.4f} at epoch: {best_metric_epoch}"
                 )
         end = time.time()
+        print(f"Time elapsed after epoch {epoch + 1} is {end - total_start}")
 
     if dist.get_rank() == 0:
         print(f"train completed, best_metric: {best_metric:.4f}  at epoch: {best_metric_epoch}")
         # all processes should see same parameters as they all start from same
         # random parameters and gradients are synchronized in backward passes,
         # therefore, saving it in one process is sufficient
-        # torch.save(model.state_dict(), "final_model.pth")
+        torch.save(model.state_dict(), "final_model.pth")
         writer.flush()
     dist.destroy_process_group()
 
