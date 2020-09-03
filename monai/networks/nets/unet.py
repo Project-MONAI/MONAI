@@ -38,6 +38,11 @@ class UNet(nn.Module):
         dropout=0,
     ) -> None:
         """
+        Enhanced version of UNet which has residual units implemented with the ResidualUnit class.
+        The residual part uses a convolution to change the input dimensions to match the output dimensions
+        if this is necessary but will use nn.Identity if not.
+        Refer to: https://link.springer.com/chapter/10.1007/978-3-030-12029-0_40.
+
         Args:
             dimensions: number of spatial dimensions.
             in_channels: number of input channels.
