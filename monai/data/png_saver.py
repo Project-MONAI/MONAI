@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Union, Dict
+from typing import Dict, Optional, Union
 
 import numpy as np
 import torch
@@ -76,10 +76,11 @@ class PNGSaver:
             meta_data: the meta data information corresponding to the data.
 
         Raises:
-            ValueError: PNG image should only have 1, 3 or 4 channels.
+            ValueError: When ``data`` channels is not one of [1, 3, 4].
 
         See Also
             :py:meth:`monai.data.png_writer.write_png`
+
         """
         filename = meta_data["filename_or_obj"] if meta_data else str(self._data_index)
         self._data_index += 1
@@ -96,10 +97,14 @@ class PNGSaver:
         elif 2 < data.shape[0] < 5:
             data = np.moveaxis(data, 0, -1)
         else:
-            raise ValueError("PNG image should only have 1, 3 or 4 channels.")
+            raise ValueError(f"Unsupported number of channels: {data.shape[0]}, available options are [1, 3, 4]")
 
         write_png(
-            data, file_name=filename, output_spatial_shape=spatial_shape, mode=self.mode, scale=self.scale,
+            data,
+            file_name=filename,
+            output_spatial_shape=spatial_shape,
+            mode=self.mode,
+            scale=self.scale,
         )
 
     def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:

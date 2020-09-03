@@ -9,20 +9,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Sequence, Union, Tuple, Any
-
 import hashlib
 import json
+import math
 import sys
 import threading
+import time
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
+from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 from torch.utils.data import Dataset as _TorchDataset
 
-from monai.transforms import apply_transform, Compose, Randomizable, Transform
+from monai.transforms import Compose, Randomizable, Transform, apply_transform
 from monai.utils import get_seed, progress_bar
 
 
@@ -91,28 +92,38 @@ class PersistentDataset(Dataset):
 
     Subsequent uses of a dataset directly read pre-processed results from `cache_dir`
     followed by applying the random dependant parts of transform processing.
+
+    Note:
+        The input data must be a list of file paths and will hash them as cache keys.
+
     """
 
     def __init__(
         self,
-        data: Sequence,
+        data: Sequence[str],
         transform: Union[Sequence[Callable], Callable],
         cache_dir: Optional[Union[Path, str]] = None,
     ) -> None:
         """
         Args:
-            data: input data to load and transform to generate dataset for model.
+            data: input data file paths to load and transform to generate dataset for model.
+                `PersistentDataset` expects input data to be a list of file paths and hashes them as cache keys.
             transform: transforms to execute operations on input data.
             cache_dir: If specified, this is the location for persistent storage
                 of pre-computed transformed data tensors. The cache_dir is computed once, and
                 persists on disk until explicitly removed.  Different runs, programs, experiments
-                may share a common cache dir provided that the transforms pre-processing is
-                consistent.
+                may share a common cache dir provided that the transforms pre-processing is consistent.
+                If the cache_dir doesn't exist, will automatically create it.
         """
         if not isinstance(transform, Compose):
             transform = Compose(transform)
         super().__init__(data=data, transform=transform)
         self.cache_dir = Path(cache_dir) if cache_dir is not None else None
+        if self.cache_dir is not None:
+            if not self.cache_dir.exists():
+                self.cache_dir.mkdir(parents=True)
+            if not self.cache_dir.is_dir():
+                raise ValueError("cache_dir must be a directory.")
 
     def _pre_first_random_transform(self, item_transformed):
         """
@@ -173,15 +184,11 @@ class PersistentDataset(Dataset):
             cache is ONLY dependant on the input filename paths.
         """
         if item_transformed.get("cached", False) is False:
-            hashfile: Optional[Path] = None
+            hashfile = None
             if self.cache_dir is not None:
-                cache_dir_path: Path = Path(self.cache_dir)
-                if cache_dir_path.is_dir():
-                    # TODO: Find way to hash transforms content as part of the cache
-                    data_item_md5 = hashlib.md5(
-                        json.dumps(item_transformed, sort_keys=True).encode("utf-8")
-                    ).hexdigest()
-                    hashfile = Path(cache_dir_path) / f"{data_item_md5}.pt"
+                # TODO: Find way to hash transforms content as part of the cache
+                data_item_md5 = hashlib.md5(json.dumps(item_transformed, sort_keys=True).encode("utf-8")).hexdigest()
+                hashfile = self.cache_dir / f"{data_item_md5}.pt"
 
             if hashfile is not None and hashfile.is_file():
                 item_transformed = torch.load(hashfile)
@@ -189,11 +196,11 @@ class PersistentDataset(Dataset):
                 item_transformed = self._pre_first_random_transform(item_transformed)
                 if hashfile is not None:
                     # add sentinel flag to indicate that the transforms have already been computed.
-                    item_transformed["cache"] = True
+                    item_transformed["cached"] = True
                     # NOTE: Writing to ".temp_write_cache" and then using a nearly atomic rename operation
                     #       to make the cache more robust to manual killing of parent process
                     #       which may leave partially written cache files in an incomplete state
-                    temp_hash_file: Path = hashfile.with_suffix(".temp_write_cache")
+                    temp_hash_file = hashfile.with_suffix(".temp_write_cache")
                     torch.save(item_transformed, temp_hash_file)
                     temp_hash_file.rename(hashfile)
 
@@ -261,7 +268,7 @@ class CacheDataset(Dataset):
         if not isinstance(transform, Compose):
             transform = Compose(transform)
         super().__init__(data, transform)
-        self.cache_num = min(cache_num, int(len(self) * cache_rate), len(self))
+        self.cache_num = min(cache_num, int(len(data) * cache_rate), len(data))
         if self.cache_num > 0:
             self._cache = [None] * self.cache_num
             if num_workers > 0:
@@ -278,6 +285,11 @@ class CacheDataset(Dataset):
                     progress_bar(i + 1, self.cache_num, "Load and cache transformed data: ")
 
     def _load_cache_item(self, item: Any, transforms: Sequence[Callable]):
+        """
+        Args:
+            item: input item to load and transform to generate dataset for model.
+            transforms: transforms to execute operations on input item.
+        """
         for _transform in transforms:
             # execute all the deterministic transforms
             if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
@@ -285,7 +297,14 @@ class CacheDataset(Dataset):
             item = apply_transform(_transform, item)
         return item
 
-    def _load_cache_item_thread(self, args: Tuple) -> None:
+    def _load_cache_item_thread(self, args: Tuple[int, Any, Sequence[Callable]]) -> None:
+        """
+        Args:
+            args: tuple with contents (i, item, transforms).
+                i: the index to load the cached item to.
+                item: input item to load and transform to generate dataset for model.
+                transforms: transforms to execute operations on input item.
+        """
         i, item, transforms = args
         self._cache[i] = self._load_cache_item(item, transforms)
         with self._thread_lock:
@@ -307,6 +326,241 @@ class CacheDataset(Dataset):
             # no cache for this data, execute all the transforms directly
             data = super(CacheDataset, self).__getitem__(index)
         return data
+
+
+class SmartCacheDataset(CacheDataset):
+    """
+    Re-implementation of the SmartCache mechanism in NVIDIA Clara-train SDK.
+    At any time, the cache pool only keeps a subset of the whole dataset. In each epoch, only the items
+    in the cache are used for training. This ensures that data needed for training is readily available,
+    keeping GPU resources busy. Note that cached items may still have to go through a non-deterministic
+    transform sequence before being fed to GPU. At the same time, another thread is preparing replacement
+    items by applying the transform sequence to items not in cache. Once one epoch is completed, Smart
+    Cache replaces the same number of items with replacement items.
+    Smart Cache uses a simple `running window` algorithm to determine the cache content and replacement items.
+    Let N be the configured number of objects in cache; and R be the number of replacement objects (R = ceil(N * r),
+    where r is the configured replace rate).
+    For more details, please refer to:
+    https://docs.nvidia.com/clara/tlt-mi/clara-train-sdk-v3.0/nvmidl/additional_features/smart_cache.html#smart-cache
+
+    For example, if we have 5 images: `[image1, image2, image3, image4, image5]`, and `cache_num=4`, `replace_rate=0.25`.
+    so the actual training images cached and replaced for every epoch are as below::
+
+        epoch 1: [image1, image2, image3, image4]
+        epoch 2: [image2, image3, image4, image5]
+        epoch 3: [image3, image4, image5, image1]
+        epoch 3: [image4, image5, image1, image2]
+        epoch N: [image[N % 5] ...]
+
+    The usage of `SmartCacheDataset` contains 4 steps:
+
+        1. Initialize `SmartCacheDataset` object and cache for the first epoch.
+        2. Call `start()` to run replacement thread in background.
+        3. Call `update_cache()` before every epoch to replace training items.
+        4. Call `shutdown()` when training ends.
+
+    """
+
+    def __init__(
+        self,
+        data: Sequence,
+        transform: Union[Sequence[Callable], Callable],
+        replace_rate: float,
+        cache_num: int = sys.maxsize,
+        cache_rate: float = 1.0,
+        num_init_workers: int = 0,
+        num_replace_workers: int = 0,
+    ) -> None:
+        """
+        Args:
+            data: input data to load and transform to generate dataset for model.
+            transform: transforms to execute operations on input data.
+            replace_rate: percentage of the cached items to be replaced in every epoch.
+            cache_num: number of items to be cached. Default is `sys.maxsize`.
+                will take the minimum of (cache_num, data_length x cache_rate, data_length).
+            cache_rate: percentage of cached data in total, default is 1.0 (cache all).
+                will take the minimum of (cache_num, data_length x cache_rate, data_length).
+            num_init_workers: the number of worker threads to initialize the cache for first epoch.
+                if 0, run in main thread, no separate thread will open.
+            num_replace_workers: the number of worker threads to prepare the replacement cache for every epoch.
+                if 0, run in main thread, no separate thread will open.
+        """
+        super().__init__(data, transform, cache_num, cache_rate, num_init_workers)
+        if self.cache_num >= len(data):
+            raise ValueError("cache_num must be smaller than dataset length to support replacement.")
+        if replace_rate <= 0:
+            raise ValueError("replace_rate must be greater than 0, otherwise, please use CacheDataset.")
+        self.num_replace_workers: int = num_replace_workers
+
+        self._total_num: int = len(data)
+        self._replace_num: int = min(math.ceil(self.cache_num * replace_rate), len(data) - self.cache_num)
+        self._replacements: List[Any] = [None for _ in range(self._replace_num)]
+        self._replace_data_idx: List[int] = list(range(self._replace_num))
+
+        self._start_pos: int = 0
+        self._update_lock: threading.Lock = threading.Lock()
+        self._round: int = 1
+        self._replace_done: bool = False
+        self._replace_mgr: Optional[threading.Thread] = None
+
+        self._compute_data_idx()
+
+    def _compute_data_idx(self):
+        """
+        Update the replacement data position in the total data.
+
+        """
+        for i in range(self._replace_num):
+            pos: int = self._start_pos + self.cache_num + i
+            if pos >= self._total_num:
+                pos -= self._total_num
+            self._replace_data_idx[i] = pos
+
+    def is_started(self):
+        """
+        Check whether the replacement thread is already started.
+
+        """
+        if self._replace_mgr is None:
+            return False
+        return self._replace_mgr.isAlive()
+
+    def start(self):
+        """
+        Start the background thread to replace training items for every epoch.
+
+        """
+        if self._replace_mgr is None or not self.is_started():
+            self._restart()
+
+    def _restart(self):
+        """
+        Restart background thread if killed for some reason.
+
+        """
+        self._round = 1
+        self._replace_mgr = threading.Thread(target=self.manage_replacement, daemon=True)
+        self._replace_mgr.start()
+
+    def _try_update_cache(self):
+        """
+        Update the cache items with new replacement for current epoch.
+
+        """
+        with self._update_lock:
+            if self._replace_done:
+                remain_num: int = self.cache_num - self._replace_num
+                for i in range(remain_num):
+                    self._cache[i] = self._cache[i + self._replace_num]
+                for i in range(self._replace_num):
+                    self._cache[remain_num + i] = self._replacements[i]
+
+                self._start_pos += self._replace_num
+                if self._start_pos >= self._total_num:
+                    self._start_pos -= self._total_num
+
+                self._compute_data_idx()
+
+                # ready for next round
+                self._round += 1
+                self._replace_done = False
+                return True
+            else:
+                return False
+
+    def update_cache(self):
+        """
+        Update cache items for current epoch, need to call this function before every epoch.
+        If the cache has been shutdown before, need to restart the `_replace_mgr` thread.
+
+        """
+        if not self._replace_mgr.isAlive():
+            self._restart()
+
+        # make sure update is done
+        while not self._try_update_cache():
+            time.sleep(0.01)
+
+    def _try_shutdown(self):
+        """
+        Wait for thread lock to shut down the background thread.
+
+        """
+        with self._update_lock:
+            if self._replace_done:
+                self._round = 0
+                self._replace_done = False
+                return True
+            else:
+                return False
+
+    def shutdown(self):
+        """
+        Shut down the background thread for replacement.
+
+        """
+        if not self.is_started():
+            return
+
+        # wait until replace mgr is done the current round
+        while not self._try_shutdown():
+            time.sleep(0.01)
+        self._replace_mgr.join()
+
+    def _replace_cache_thread(self, index: int):
+        """
+        Execute deterministic transforms on the new data for replacement.
+
+        """
+        pos: int = self._replace_data_idx[index]
+        self._replacements[index] = self._load_cache_item(self.data[pos], self.transform.transforms)  # type: ignore
+
+    def _compute_replacements(self):
+        """
+        Compute expected items for the replacement of next epoch, execute deterministic transforms.
+        It can support multi-threads to accelerate the computation progress.
+
+        """
+        if self.num_replace_workers > 0:
+            with ThreadPool(self.num_replace_workers) as p:
+                p.map(self._replace_cache_thread, list(range(self._replace_num)))
+        else:
+            for i in range(self._replace_num):
+                self._replace_cache_thread(i)
+        self._replace_done = True
+
+    def _try_manage_replacement(self, check_round):
+        """
+        Wait thread lock and replace training items in the background thread.
+
+        """
+        with self._update_lock:
+            if self._round <= 0:
+                # shutdown replacement
+                self._replace_done = True
+                return True, -1
+
+            if self._round != check_round:
+                self._compute_replacements()
+            return False, self._round
+
+    def manage_replacement(self):
+        """
+        Background thread for replacement.
+
+        """
+        check_round: int = -1
+        done = False
+        while not done:
+            done, check_round = self._try_manage_replacement(check_round)
+            time.sleep(0.01)
+
+    def __len__(self):
+        """
+        The dataset length is given by cache_num instead of len(data).
+
+        """
+        return self.cache_num
 
 
 class ZipDataset(Dataset):
@@ -333,7 +587,7 @@ class ZipDataset(Dataset):
     def __init__(self, datasets: Sequence, transform: Optional[Callable] = None) -> None:
         """
         Args:
-            datasets (list or tuple): list of datasets to zip together.
+            datasets: list of datasets to zip together.
             transform: a callable data transform operates on the zipped item from `datasets`.
         """
         super().__init__(list(datasets), transform=transform)
@@ -350,7 +604,8 @@ class ZipDataset(Dataset):
             data.extend(to_list(dataset[index]))
         if self.transform is not None:
             data = apply_transform(self.transform, data, map_items=False)  # transform the list data
-        return data
+        # use tuple instead of list as the default collate_fn callback of MONAI DataLoader flattens nested lists
+        return tuple(data)
 
 
 class ArrayDataset(Randomizable, _TorchDataset):

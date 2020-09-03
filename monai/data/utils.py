@@ -9,19 +9,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Optional, Sequence, Tuple, Union, Dict
-
+import math
 import os
 import warnings
-import math
-from itertools import starmap, product
+from itertools import product, starmap
+from pathlib import PurePath
+from typing import Dict, Generator, List, Optional, Sequence, Tuple, Union
 
+import numpy as np
 import torch
 from torch.utils.data._utils.collate import default_collate
-import numpy as np
 
-from monai.utils import ensure_tuple_size, optional_import, NumpyPadMode, BlendMode, first
 from monai.networks.layers.simplelayers import GaussianFilter
+from monai.utils import BlendMode, NumpyPadMode, ensure_tuple, ensure_tuple_size, first, optional_import
 
 nib, _ = optional_import("nibabel")
 
@@ -51,7 +51,9 @@ def get_random_patch(
     return tuple(slice(mc, mc + ps) for mc, ps in zip(min_corner, patch_size))
 
 
-def iter_patch_slices(dims: Sequence[int], patch_size: Union[Sequence[int], int], start_pos: Sequence[int] = ()):
+def iter_patch_slices(
+    dims: Sequence[int], patch_size: Union[Sequence[int], int], start_pos: Sequence[int] = ()
+) -> Generator[Tuple[slice, ...], None, None]:
     """
     Yield successive tuples of slices defining patches of size `patch_size` from an array of dimensions `dims`. The
     iteration starts from position `start_pos` in the array, or starting at the origin if this isn't provided. Each
@@ -80,7 +82,9 @@ def iter_patch_slices(dims: Sequence[int], patch_size: Union[Sequence[int], int]
 
 
 def dense_patch_slices(
-    image_size: Sequence[int], patch_size: Sequence[int], scan_interval: Sequence[int],
+    image_size: Sequence[int],
+    patch_size: Sequence[int],
+    scan_interval: Sequence[int],
 ) -> List[Tuple[slice, ...]]:
     """
     Enumerate all slices defining 2D/3D patches of size `patch_size` from an `image_size` input image.
@@ -90,16 +94,16 @@ def dense_patch_slices(
         patch_size: size of patches to generate slices
         scan_interval: dense patch sampling interval
 
+    Raises:
+        ValueError: When ``image_size`` length is not one of [2, 3].
+
     Returns:
         a list of slice objects defining each patch
-
-    Raises:
-        ValueError: image_size should have 2 or 3 elements
 
     """
     num_spatial_dims = len(image_size)
     if num_spatial_dims not in (2, 3):
-        raise ValueError("image_size should have 2 or 3 elements")
+        raise ValueError(f"Unsupported image_size length: {len(image_size)}, available options are [2, 3]")
     patch_size = get_valid_patch_size(image_size, patch_size)
     scan_interval = ensure_tuple_size(scan_interval, num_spatial_dims)
 
@@ -150,7 +154,7 @@ def iter_patch(
     copy_back: bool = True,
     mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
     **pad_opts: Dict,
-):
+) -> Generator[np.ndarray, None, None]:
     """
     Yield successive patches from `arr` of size `patch_size`. The iteration can start from position `start_pos` in `arr`
     but drawing from a padded array extended by the `patch_size` in each dimension (so these coordinates can be negative
@@ -194,7 +198,7 @@ def iter_patch(
         arr[...] = arrpad[slices]
 
 
-def get_valid_patch_size(image_size: Sequence[int], patch_size: Union[Sequence[int], int]):
+def get_valid_patch_size(image_size: Sequence[int], patch_size: Union[Sequence[int], int]) -> Tuple[int, ...]:
     """
     Given an image of dimensions `image_size`, return a patch size tuple taking the dimension from `patch_size` if this is
     not 0/None. Otherwise, or if `patch_size` is shorter than `image_size`, the dimension from `image_size` is taken. This ensures
@@ -240,7 +244,7 @@ def correct_nifti_header_if_necessary(img_nii):
     In the updated image pixdim matches the affine.
 
     Args:
-        img_nii (nifti image object)
+        img_nii: nifti image object
     """
     dim = img_nii.header["dim"][0]
     if dim >= 5:
@@ -261,6 +265,9 @@ def rectify_header_sform_qform(img_nii):
     incompatibilities with pixel dimensions
 
     Adapted from https://github.com/NifTK/NiftyNet/blob/v0.6.0/niftynet/io/misc_io.py
+
+    Args:
+        img_nii: nifti image object
     """
     d = img_nii.header["dim"][0]
     pixdim = np.asarray(img_nii.header.get_zooms())[:d]
@@ -290,7 +297,7 @@ def rectify_header_sform_qform(img_nii):
     return img_nii
 
 
-def zoom_affine(affine, scale: Sequence[float], diagonal: bool = True):
+def zoom_affine(affine: np.ndarray, scale: Sequence[float], diagonal: bool = True) -> np.ndarray:
     """
     To make column norm of `affine` the same as `scale`.  If diagonal is False,
     returns an affine that combines orthogonal rotation and the new scale.
@@ -306,44 +313,52 @@ def zoom_affine(affine, scale: Sequence[float], diagonal: bool = True):
         diagonal: whether to return a diagonal scaling matrix.
             Defaults to True.
 
+    Raises:
+        ValueError: When ``affine`` is not a square matrix.
+        ValueError: When ``scale`` contains a nonpositive scalar.
+
     Returns:
         the updated `n x n` affine.
 
-    Raises:
-        ValueError: affine should be a square matrix
-        ValueError: scale must be a sequence of positive numbers.
-
     """
+
     affine = np.array(affine, dtype=float, copy=True)
     if len(affine) != len(affine[0]):
-        raise ValueError("affine should be a square matrix")
-    scale_ = np.array(scale, dtype=float, copy=True)
-    if np.any(scale_ <= 0):
-        raise ValueError("scale must be a sequence of positive numbers.")
+        raise ValueError(f"affine must be n x n, got {len(affine)} x {len(affine[0])}.")
+    scale_np = np.array(scale, dtype=float, copy=True)
+    if np.any(scale_np <= 0):
+        raise ValueError("scale must contain only positive numbers.")
     d = len(affine) - 1
-    if len(scale_) < d:  # defaults based on affine
+    if len(scale_np) < d:  # defaults based on affine
         norm = np.sqrt(np.sum(np.square(affine), 0))[:-1]
-        scale_ = np.append(scale_, norm[len(scale_) :])
-    scale_ = scale_[:d]
-    scale_[scale_ == 0] = 1.0
+        scale_np = np.append(scale_np, norm[len(scale_np) :])
+    scale_np = scale_np[:d]
+    scale_np[scale_np == 0] = 1.0
     if diagonal:
-        return np.diag(np.append(scale_, [1.0]))
+        return np.diag(np.append(scale_np, [1.0]))
     rzs = affine[:-1, :-1]  # rotation zoom scale
     zs = np.linalg.cholesky(rzs.T @ rzs).T
     rotation = rzs @ np.linalg.inv(zs)
-    s = np.sign(np.diag(zs)) * np.abs(scale_)
+    s = np.sign(np.diag(zs)) * np.abs(scale_np)
     # construct new affine with rotation and zoom
     new_affine = np.eye(len(affine))
     new_affine[:-1, :-1] = rotation @ np.diag(s)
     return new_affine
 
 
-def compute_shape_offset(spatial_shape, in_affine, out_affine):
+def compute_shape_offset(
+    spatial_shape: np.ndarray, in_affine: np.ndarray, out_affine: np.ndarray
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     Given input and output affine, compute appropriate shapes
     in the output space based on the input array's shape.
     This function also returns the offset to put the shape
     in a good position with respect to the world coordinate system.
+
+    Args:
+        spatial_shape: input array's shape
+        in_affine (matrix): 2D affine matrix
+        out_affine (matrix): 2D affine matrix
     """
     shape = np.array(spatial_shape, copy=True, dtype=float)
     sr = len(shape)
@@ -367,7 +382,7 @@ def compute_shape_offset(spatial_shape, in_affine, out_affine):
     return out_shape.astype(int), offset
 
 
-def to_affine_nd(r, affine):
+def to_affine_nd(r: Union[np.ndarray, int], affine: np.ndarray) -> np.ndarray:
     """
     Using elements from affine, to create a new affine matrix by
     assigning the rotation/zoom/scaling matrix and the translation vector.
@@ -382,32 +397,31 @@ def to_affine_nd(r, affine):
     the last column of the output affine is copied from ``affine``'s last column.
     `k` is determined by `min(len(r) - 1, len(affine) - 1)`.
 
-
     Args:
         r (int or matrix): number of spatial dimensions or an output affine to be filled.
         affine (matrix): 2D affine matrix
 
+    Raises:
+        ValueError: When ``affine`` dimensions is not 2.
+        ValueError: When ``r`` is nonpositive.
+
     Returns:
         an (r+1) x (r+1) matrix
 
-    Raises:
-        ValueError: input affine matrix must have two dimensions, got {affine.ndim}.
-        ValueError: r must be positive, got {sr}.
-
     """
-    affine_ = np.array(affine, dtype=np.float64)
-    if affine_.ndim != 2:
-        raise ValueError(f"input affine matrix must have two dimensions, got {affine_.ndim}.")
+    affine_np = np.array(affine, dtype=np.float64)
+    if affine_np.ndim != 2:
+        raise ValueError(f"affine must have 2 dimensions, got {affine_np.ndim}.")
     new_affine = np.array(r, dtype=np.float64, copy=True)
     if new_affine.ndim == 0:
         sr = new_affine.astype(int)
         if not np.isfinite(sr) or sr < 0:
             raise ValueError(f"r must be positive, got {sr}.")
         new_affine = np.eye(sr + 1, dtype=np.float64)
-    d = max(min(len(new_affine) - 1, len(affine_) - 1), 1)
-    new_affine[:d, :d] = affine_[:d, :d]
+    d = max(min(len(new_affine) - 1, len(affine_np) - 1), 1)
+    new_affine[:d, :d] = affine_np[:d, :d]
     if d > 1:
-        new_affine[:d, -1] = affine_[:d, -1]
+        new_affine[:d, -1] = affine_np[:d, -1]
     return new_affine
 
 
@@ -453,7 +467,7 @@ def compute_importance_map(
     mode: Union[BlendMode, str] = BlendMode.CONSTANT,
     sigma_scale: float = 0.125,
     device: Optional[torch.device] = None,
-):
+) -> torch.Tensor:
     """Get importance map for different weight modes.
 
     Args:
@@ -468,11 +482,11 @@ def compute_importance_map(
             (sigma = sigma_scale * dim_size). Used for gaussian mode only.
         device: Device to put importance map on.
 
+    Raises:
+        ValueError: When ``mode`` is not one of ["constant", "gaussian"].
+
     Returns:
         Tensor of size patch_size.
-
-    Raises:
-        ValueError: mode must be "constant" or "gaussian".
 
     """
     mode = BlendMode(mode)
@@ -493,6 +507,26 @@ def compute_importance_map(
         # importance_map cannot be 0, otherwise we may end up with nans!
         importance_map[importance_map == 0] = torch.min(importance_map[importance_map != 0])
     else:
-        raise ValueError('mode must be "constant" or "gaussian".')
+        raise ValueError(f'Unsupported mode: {mode}, available options are ["constant", "gaussian"].')
 
     return importance_map
+
+
+def is_supported_format(filename: Union[Sequence[str], str], suffixes: Sequence[str]) -> bool:
+    """
+    Verify whether the specified file or files format match supported suffixes.
+    If supported suffixes is None, skip the verification and return True.
+
+    Args:
+        filename: file name or a list of file names to read.
+            if a list of files, verify all the subffixes.
+        suffixes: all the supported image subffixes of current reader, must be a list of lower case suffixes.
+
+    """
+    filenames: Sequence[str] = ensure_tuple(filename)
+    for name in filenames:
+        tokens: Sequence[str] = PurePath(name).suffixes
+        if len(tokens) == 0 or not any(("." + s.lower()) == "".join(tokens) for s in suffixes):
+            return False
+
+    return True
