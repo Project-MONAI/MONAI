@@ -5,6 +5,7 @@ parameterized
 pytorch-ignite==0.3.0
 gdown>=3.6.4
 scipy
+itk
 nibabel
 pillow
 tensorboard
@@ -19,5 +20,8 @@ pep8-naming
 pycodestyle
 pyflakes
 black
+isort
 pytype>=2020.6.1
 mypy
+ninja
+torchvision

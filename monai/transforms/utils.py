@@ -9,16 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Sequence, Union
-
 import random
 import warnings
+from typing import Callable, List, Optional, Sequence, Tuple, Union
 
-import torch
 import numpy as np
+import torch
 
 from monai.config import IndexSelection
-from monai.utils import ensure_tuple, ensure_tuple_size, fall_back_tuple, optional_import, min_version
+from monai.utils import ensure_tuple, ensure_tuple_size, fall_back_tuple, min_version, optional_import
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 
@@ -30,7 +29,7 @@ def rand_choice(prob: float = 0.5) -> bool:
     return bool(random.random() <= prob)
 
 
-def img_bounds(img):
+def img_bounds(img: np.ndarray) -> np.ndarray:
     """
     Returns the minimum and maximum indices of non-zero lines in axis 0 of `img`, followed by that for axis 1.
     """
@@ -39,21 +38,21 @@ def img_bounds(img):
     return np.concatenate((np.where(ax0)[0][[0, -1]], np.where(ax1)[0][[0, -1]]))
 
 
-def in_bounds(x, y, margin, maxx, maxy) -> bool:
+def in_bounds(x: float, y: float, margin: float, maxx: float, maxy: float) -> bool:
     """
     Returns True if (x,y) is within the rectangle (margin, margin, maxx-margin, maxy-margin).
     """
     return bool(margin <= x < (maxx - margin) and margin <= y < (maxy - margin))
 
 
-def is_empty(img) -> bool:
+def is_empty(img: Union[np.ndarray, torch.Tensor]) -> bool:
     """
     Returns True if `img` is empty, that is its maximum value is not greater than its minimum.
     """
     return not (img.max() > img.min())  # use > instead of <= so that an image full of NaNs will result in True
 
 
-def zero_margins(img, margin) -> bool:
+def zero_margins(img: np.ndarray, margin: int) -> bool:
     """
     Returns True if the values within `margin` indices of the edges of `img` in dimensions 1 and 2 are 0.
     """
@@ -66,7 +65,9 @@ def zero_margins(img, margin) -> bool:
     return True
 
 
-def rescale_array(arr, minv=0.0, maxv=1.0, dtype: Optional[np.dtype] = np.float32):
+def rescale_array(
+    arr: np.ndarray, minv: float = 0.0, maxv: float = 1.0, dtype: Optional[np.dtype] = np.float32
+) -> np.ndarray:
     """
     Rescale the values of numpy array `arr` to be from `minv` to `maxv`.
     """
@@ -83,7 +84,9 @@ def rescale_array(arr, minv=0.0, maxv=1.0, dtype: Optional[np.dtype] = np.float3
     return (norm * (maxv - minv)) + minv  # rescale by minv and maxv, which is the normalized array by default
 
 
-def rescale_instance_array(arr: np.ndarray, minv: float = 0.0, maxv: float = 1.0, dtype: np.dtype = np.float32):
+def rescale_instance_array(
+    arr: np.ndarray, minv: float = 0.0, maxv: float = 1.0, dtype: np.dtype = np.float32
+) -> np.ndarray:
     """
     Rescale each array slice along the first dimension of `arr` independently.
     """
@@ -94,7 +97,7 @@ def rescale_instance_array(arr: np.ndarray, minv: float = 0.0, maxv: float = 1.0
     return out
 
 
-def rescale_array_int_max(arr: np.ndarray, dtype: np.dtype = np.uint16):
+def rescale_array_int_max(arr: np.ndarray, dtype: np.dtype = np.uint16) -> np.ndarray:
     """
     Rescale the array `arr` to be between the minimum and maximum values of the type `dtype`.
     """
@@ -102,7 +105,13 @@ def rescale_array_int_max(arr: np.ndarray, dtype: np.dtype = np.uint16):
     return rescale_array(arr, info.min, info.max).astype(dtype)
 
 
-def copypaste_arrays(src, dest, srccenter, destcenter, dims):
+def copypaste_arrays(
+    src: np.ndarray,
+    dest: np.ndarray,
+    srccenter: Sequence[int],
+    destcenter: Sequence[int],
+    dims: Sequence[Optional[int]],
+) -> Tuple[Tuple[slice, ...], Tuple[slice, ...]]:
     """
     Calculate the slices to copy a sliced area of array `src` into array `dest`. The area has dimensions `dims` (use 0
     or None to copy everything in that dimension), the source area is centered at `srccenter` index in `src` and copied
@@ -151,7 +160,7 @@ def copypaste_arrays(src, dest, srccenter, destcenter, dims):
     return tuple(srcslices), tuple(destslices)
 
 
-def resize_center(img, *resize_dims, fill_value=0):
+def resize_center(img: np.ndarray, *resize_dims: Optional[int], fill_value: float = 0.0) -> np.ndarray:
     """
     Resize `img` by cropping or expanding the image from the center. The `resize_dims` values are the output dimensions
     (or None to use original dimension of `img`). If a dimension is smaller than that of `img` then the result will be
@@ -170,58 +179,25 @@ def resize_center(img, *resize_dims, fill_value=0):
     return dest
 
 
-def generate_pos_neg_label_crop_centers(
+def map_binary_to_indices(
     label: np.ndarray,
-    spatial_size: Union[Sequence[int], int],
-    num_samples: int,
-    pos_ratio: float,
     image: Optional[np.ndarray] = None,
     image_threshold: float = 0.0,
-    rand_state: np.random.RandomState = np.random,
-):
-    """Generate valid sample locations based on image with option for specifying foreground ratio
-    Valid: samples sitting entirely within image, expected input shape: [C, H, W, D] or [C, H, W]
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Compute the foreground and background of input label data, return the indices after fattening.
+    For example:
+    ``label = np.array([[[0, 1, 1], [1, 0, 1], [1, 1, 0]]])``
+    ``foreground indices = np.array([1, 2, 3, 5, 6, 7])`` and ``background indices = np.array([0, 4, 8])``
 
     Args:
         label: use the label data to get the foreground/background information.
-        spatial_size: spatial size of the ROIs to be sampled.
-        num_samples: total sample centers to be generated.
-        pos_ratio: ratio of total locations generated that have center being foreground.
         image: if image is not None, use ``label = 0 & image > image_threshold``
-            to select background. so the crop center will only exist on valid image area.
-        image_threshold: if enabled image_key, use ``image > image_threshold`` to
-            determine the valid image content area.
-        rand_state: numpy randomState object to align with other modules.
-
-    Raises:
-        ValueError: no sampling location available.
+            to define background. so the output items will not map to all the voxels in the label.
+        image_threshold: if enabled `image`, use ``image > image_threshold`` to
+            determine the valid image content area and select background only in this area.
 
     """
-    max_size = label.shape[1:]
-    spatial_size = fall_back_tuple(spatial_size, default=max_size)
-    if not (np.subtract(max_size, spatial_size) >= 0).all():
-        raise ValueError("proposed roi is larger than image itself.")
-
-    # Select subregion to assure valid roi
-    valid_start = np.floor_divide(spatial_size, 2)
-    valid_end = np.subtract(max_size + np.array(1), spatial_size / np.array(2)).astype(np.uint16)  # add 1 for random
-    # int generation to have full range on upper side, but subtract unfloored size/2 to prevent rounded range
-    # from being too high
-    for i in range(len(valid_start)):  # need this because np.random.randint does not work with same start and end
-        if valid_start[i] == valid_end[i]:
-            valid_end[i] += 1
-
-    def _correct_centers(center_ori, valid_start, valid_end):
-        for i, c in enumerate(center_ori):
-            center_i = c
-            if c < valid_start[i]:
-                center_i = valid_start[i]
-            if c >= valid_end[i]:
-                center_i = valid_end[i] - 1
-            center_ori[i] = center_i
-        return center_ori
-
-    centers = []
     # Prepare fg/bg indices
     if label.shape[0] > 1:
         label = label[1:]  # for One-Hot format data, remove the background channel
@@ -232,10 +208,67 @@ def generate_pos_neg_label_crop_centers(
         bg_indices = np.nonzero(np.logical_and(img_flat, ~label_flat))[0]
     else:
         bg_indices = np.nonzero(~label_flat)[0]
+    return fg_indices, bg_indices
+
+
+def generate_pos_neg_label_crop_centers(
+    spatial_size: Union[Sequence[int], int],
+    num_samples: int,
+    pos_ratio: float,
+    label_spatial_shape: Sequence[int],
+    fg_indices: np.ndarray,
+    bg_indices: np.ndarray,
+    rand_state: np.random.RandomState = np.random,
+) -> List[List[np.ndarray]]:
+    """
+    Generate valid sample locations based on the label with option for specifying foreground ratio
+    Valid: samples sitting entirely within image, expected input shape: [C, H, W, D] or [C, H, W]
+
+    Args:
+        spatial_size: spatial size of the ROIs to be sampled.
+        num_samples: total sample centers to be generated.
+        pos_ratio: ratio of total locations generated that have center being foreground.
+        label_spatial_shape: spatial shape of the original label data to unravel selected centers.
+        fg_indices: pre-computed foreground indices in 1 dimension.
+        bg_indices: pre-computed background indices in 1 dimension.
+        rand_state: numpy randomState object to align with other modules.
+
+    Raises:
+        ValueError: When the proposed roi is larger than the image.
+        ValueError: When the foreground and background indices lengths are 0.
+
+    """
+    spatial_size = fall_back_tuple(spatial_size, default=label_spatial_shape)
+    if not (np.subtract(label_spatial_shape, spatial_size) >= 0).all():
+        raise ValueError("The proposed roi is larger than the image.")
+
+    # Select subregion to assure valid roi
+    valid_start = np.floor_divide(spatial_size, 2)
+    # add 1 for random
+    valid_end = np.subtract(label_spatial_shape + np.array(1), spatial_size / np.array(2)).astype(np.uint16)
+    # int generation to have full range on upper side, but subtract unfloored size/2 to prevent rounded range
+    # from being too high
+    for i in range(len(valid_start)):  # need this because np.random.randint does not work with same start and end
+        if valid_start[i] == valid_end[i]:
+            valid_end[i] += 1
+
+    def _correct_centers(
+        center_ori: List[np.ndarray], valid_start: np.ndarray, valid_end: np.ndarray
+    ) -> List[np.ndarray]:
+        for i, c in enumerate(center_ori):
+            center_i = c
+            if c < valid_start[i]:
+                center_i = valid_start[i]
+            if c >= valid_end[i]:
+                center_i = valid_end[i] - 1
+            center_ori[i] = center_i
+        return center_ori
+
+    centers = []
 
     if not len(fg_indices) or not len(bg_indices):
         if not len(fg_indices) and not len(bg_indices):
-            raise ValueError("no sampling location available.")
+            raise ValueError("No sampling location available.")
         warnings.warn(
             f"N foreground {len(fg_indices)}, N  background {len(bg_indices)},"
             "unable to generate class balanced samples."
@@ -245,8 +278,7 @@ def generate_pos_neg_label_crop_centers(
     for _ in range(num_samples):
         indices_to_use = fg_indices if rand_state.rand() < pos_ratio else bg_indices
         random_int = rand_state.randint(len(indices_to_use))
-        center = np.unravel_index(indices_to_use[random_int], label.shape)
-        center = center[1:]
+        center = np.unravel_index(indices_to_use[random_int], label_spatial_shape)
         # shift center to range of valid centers
         center_ori = list(center)
         centers.append(_correct_centers(center_ori, valid_start, valid_end))
@@ -254,7 +286,7 @@ def generate_pos_neg_label_crop_centers(
     return centers
 
 
-def apply_transform(transform: Callable, data: object, map_items: bool = True):
+def apply_transform(transform: Callable, data, map_items: bool = True):
     """
     Transform `data` with `transform`.
     If `data` is a list or tuple and `map_data` is True, each item of `data` will be transformed
@@ -268,7 +300,7 @@ def apply_transform(transform: Callable, data: object, map_items: bool = True):
             if `data` is a list or tuple. Defaults to True.
 
     Raises:
-        with_traceback: applying transform {transform}.
+        Exception: When ``transform`` raises an exception.
 
     """
     try:
@@ -276,7 +308,7 @@ def apply_transform(transform: Callable, data: object, map_items: bool = True):
             return [transform(item) for item in data]
         return transform(data)
     except Exception as e:
-        raise type(e)(f"applying transform {transform}.").with_traceback(e.__traceback__)
+        raise type(e)(f"Applying transform {transform}.").with_traceback(e.__traceback__)
 
 
 def create_grid(
@@ -284,7 +316,7 @@ def create_grid(
     spacing: Optional[Sequence[float]] = None,
     homogeneous: bool = True,
     dtype: np.dtype = float,
-):
+) -> np.ndarray:
     """
     compute a `spatial_size` mesh.
 
@@ -303,8 +335,8 @@ def create_grid(
 
 
 def create_control_grid(
-    spatial_shape: Sequence[int], spacing: Sequence[float], homogeneous: bool = True, dtype: Optional[np.dtype] = float
-):
+    spatial_shape: Sequence[int], spacing: Sequence[float], homogeneous: bool = True, dtype: np.dtype = float
+) -> np.ndarray:
     """
     control grid with two additional point in each direction
     """
@@ -318,7 +350,7 @@ def create_control_grid(
     return create_grid(grid_shape, spacing, homogeneous, dtype)
 
 
-def create_rotate(spatial_dims: int, radians: Union[Sequence[float], float]):
+def create_rotate(spatial_dims: int, radians: Union[Sequence[float], float]) -> np.ndarray:
     """
     create a 2D or 3D rotation matrix
 
@@ -329,7 +361,8 @@ def create_rotate(spatial_dims: int, radians: Union[Sequence[float], float]):
             rotation in the 1st, 2nd, and 3rd dim respectively.
 
     Raises:
-        ValueError: create_rotate got spatial_dims={spatial_dims}, radians={radians}.
+        ValueError: When ``radians`` is empty.
+        ValueError: When ``spatial_dims`` is not one of [2, 3].
 
     """
     radians = ensure_tuple(radians)
@@ -337,6 +370,7 @@ def create_rotate(spatial_dims: int, radians: Union[Sequence[float], float]):
         if len(radians) >= 1:
             sin_, cos_ = np.sin(radians[0]), np.cos(radians[0])
             return np.array([[cos_, -sin_, 0.0], [sin_, cos_, 0.0], [0.0, 0.0, 1.0]])
+        raise ValueError("radians must be non empty.")
 
     if spatial_dims == 3:
         affine = None
@@ -355,12 +389,14 @@ def create_rotate(spatial_dims: int, radians: Union[Sequence[float], float]):
             affine = affine @ np.array(
                 [[cos_, -sin_, 0.0, 0.0], [sin_, cos_, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
             )
+        if affine is None:
+            raise ValueError("radians must be non empty.")
         return affine
 
-    raise ValueError(f"create_rotate got spatial_dims={spatial_dims}, radians={radians}.")
+    raise ValueError(f"Unsupported spatial_dims: {spatial_dims}, available options are [2, 3].")
 
 
-def create_shear(spatial_dims: int, coefs: Union[Sequence[float], float]):
+def create_shear(spatial_dims: int, coefs: Union[Sequence[float], float]) -> np.ndarray:
     """
     create a shearing matrix
 
@@ -369,7 +405,7 @@ def create_shear(spatial_dims: int, coefs: Union[Sequence[float], float]):
         coefs: shearing factors, defaults to 0.
 
     Raises:
-        NotImplementedError: spatial_dims must be 2 or 3
+        NotImplementedError: When ``spatial_dims`` is not one of [2, 3].
 
     """
     if spatial_dims == 2:
@@ -385,10 +421,10 @@ def create_shear(spatial_dims: int, coefs: Union[Sequence[float], float]):
                 [0.0, 0.0, 0.0, 1.0],
             ]
         )
-    raise NotImplementedError("spatial_dims must be 2 or 3")
+    raise NotImplementedError("Currently only spatial_dims in [2, 3] are supported.")
 
 
-def create_scale(spatial_dims: int, scaling_factor: Union[Sequence[float], float]):
+def create_scale(spatial_dims: int, scaling_factor: Union[Sequence[float], float]) -> np.ndarray:
     """
     create a scaling matrix
 
@@ -400,7 +436,7 @@ def create_scale(spatial_dims: int, scaling_factor: Union[Sequence[float], float
     return np.diag(scaling_factor[:spatial_dims] + (1.0,))
 
 
-def create_translate(spatial_dims: int, shift: Union[Sequence[float], float]):
+def create_translate(spatial_dims: int, shift: Union[Sequence[float], float]) -> np.ndarray:
     """
     create a translation matrix
 
@@ -418,9 +454,9 @@ def create_translate(spatial_dims: int, shift: Union[Sequence[float], float]):
 def generate_spatial_bounding_box(
     img: np.ndarray,
     select_fn: Callable = lambda x: x > 0,
-    channel_indexes: Optional[IndexSelection] = None,
+    channel_indices: Optional[IndexSelection] = None,
     margin: int = 0,
-):
+) -> Tuple[List[int], List[int]]:
     """
     generate the spatial bounding box of foreground in the image with start-end positions.
     Users can define arbitrary function to select expected foreground from the whole image or specified channels.
@@ -429,12 +465,12 @@ def generate_spatial_bounding_box(
     Args:
         img: source image to generate bounding box from.
         select_fn: function to select expected foreground, default is to select values > 0.
-        channel_indexes: if defined, select foreground only on the specified channels
+        channel_indices: if defined, select foreground only on the specified channels
             of image. if None, select foreground on the whole image.
         margin: add margin to all dims of the bounding box.
     """
     assert isinstance(margin, int), "margin must be int type."
-    data = img[[*(ensure_tuple(channel_indexes))]] if channel_indexes is not None else img
+    data = img[[*(ensure_tuple(channel_indices))]] if channel_indices is not None else img
     data = np.any(select_fn(data), axis=0)
     nonzero_idx = np.nonzero(data)
 
@@ -447,7 +483,7 @@ def generate_spatial_bounding_box(
     return box_start, box_end
 
 
-def get_largest_connected_component_mask(img, connectivity: Optional[int] = None):
+def get_largest_connected_component_mask(img: torch.Tensor, connectivity: Optional[int] = None) -> torch.Tensor:
     """
     Gets the largest connected component mask of an image.
 

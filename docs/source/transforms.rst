@@ -168,8 +168,38 @@ Intensity
     :members:
     :special-members: __call__
 
+`GaussianSmooth`
+""""""""""""""""
+.. autoclass:: GaussianSmooth
+    :members:
+    :special-members: __call__
+
+`RandGaussianSmooth`
+""""""""""""""""""""
+.. autoclass:: RandGaussianSmooth
+    :members:
+    :special-members: __call__
+
+`GaussianSharpen`
+"""""""""""""""""
+.. autoclass:: GaussianSharpen
+    :members:
+    :special-members: __call__
+
+`RandGaussianSharpen`
+"""""""""""""""""""""
+.. autoclass:: RandGaussianSharpen
+    :members:
+    :special-members: __call__
+
 IO
 ^^
+
+`LoadImage`
+"""""""""""
+.. autoclass:: LoadImage
+    :members:
+    :special-members: __call__
 
 `LoadNifti`
 """""""""""
@@ -438,6 +468,12 @@ Utility
     :members:
     :special-members: __call__
 
+`FgBgToIndices`
+"""""""""""""""
+.. autoclass:: FgBgToIndices
+    :members:
+    :special-members: __call__
+
 Dictionary Transforms
 ---------------------
 
@@ -573,8 +609,44 @@ Instensity (Dict)
     :members:
     :special-members: __call__
 
+`GaussianSmoothd`
+"""""""""""""""""
+.. autoclass:: GaussianSmoothd
+    :members:
+    :special-members: __call__
+
+`RandGaussianSmoothd`
+"""""""""""""""""""""
+.. autoclass:: RandGaussianSmoothd
+    :members:
+    :special-members: __call__
+
+`GaussianSharpend`
+""""""""""""""""""
+.. autoclass:: GaussianSharpend
+    :members:
+    :special-members: __call__
+
+`RandGaussianSharpend`
+""""""""""""""""""""""
+.. autoclass:: RandGaussianSharpend
+    :members:
+    :special-members: __call__
+
 IO (Dict)
 ^^^^^^^^^
+
+`LoadDatad`
+"""""""""""
+.. autoclass:: LoadDatad
+    :members:
+    :special-members: __call__
+
+`LoadImaged`
+""""""""""""
+.. autoclass:: LoadImaged
+    :members:
+    :special-members: __call__
 
 `LoadNiftid`
 """"""""""""
@@ -624,6 +696,12 @@ Post-processing (Dict)
 `LabelToContourd`
 """""""""""""""""
 .. autoclass:: LabelToContourd
+    :members:
+    :special-members: __call__
+
+`Ensembled`
+"""""""""""
+.. autoclass:: Ensembled
     :members:
     :special-members: __call__
 
@@ -822,6 +900,12 @@ Utility (Dict)
 `LabelToMaskd`
 """"""""""""""
 .. autoclass:: LabelToMaskd
+    :members:
+    :special-members: __call__
+
+`FgBgToIndicesd`
+""""""""""""""""
+.. autoclass:: FgBgToIndicesd
     :members:
     :special-members: __call__
 

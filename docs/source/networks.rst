@@ -20,6 +20,31 @@ Blocks
 .. autoclass:: ResidualUnit
     :members:
 
+`GCN Module`
+~~~~~~~~~~~~
+.. autoclass:: GCN
+    :members:
+
+`Refinement Module`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: Refine
+    :members:
+
+`FCN Module`
+~~~~~~~~~~~~
+.. autoclass:: FCN
+    :members:
+
+`Multi-Channel FCN Module`
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: MCFCN
+    :members:
+
+`SegResnet Block`
+~~~~~~~~~~~~~~~~~
+.. autoclass:: ResBlock
+    :members:
+
 `Squeeze-and-Excitation`
 ~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: ChannelSELayer
@@ -35,6 +60,21 @@ Blocks
 .. autoclass:: SEBlock
     :members:
 
+`Squeeze-and-Excitation Bottleneck`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: SEBottleneck
+    :members:
+
+`Squeeze-and-Excitation Resnet Bottleneck`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: SEResNetBottleneck
+    :members:
+
+`Squeeze-and-Excitation ResneXt Bottleneck`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: SEResNeXtBottleneck
+    :members:
+
 `Simple ASPP`
 ~~~~~~~~~~~~~
 .. autoclass:: SimpleASPP
@@ -48,6 +88,8 @@ Blocks
 `Upsampling`
 ~~~~~~~~~~~~
 .. autoclass:: UpSample
+    :members:
+.. autoclass:: SubpixelUpsample
     :members:
 
 
@@ -114,6 +156,11 @@ Layers
 .. autoclass:: monai.networks.layers.AffineTransform
     :members:
 
+`LLTM`
+~~~~~~
+.. autoclass:: LLTM
+    :members:
+
 `Utilities`
 ~~~~~~~~~~~
 .. automodule:: monai.networks.layers.convutils
@@ -124,6 +171,11 @@ Nets
 ----
 .. currentmodule:: monai.networks.nets
 
+`Ahnet`
+~~~~~~~
+.. autoclass:: AHNet
+  :members:
+
 `Densenet3D`
 ~~~~~~~~~~~~
 .. autoclass:: DenseNet
@@ -132,6 +184,27 @@ Nets
 .. autofunction:: densenet169
 .. autofunction:: densenet201
 .. autofunction:: densenet264
+
+`SegResnet`
+~~~~~~~~~~~
+.. autoclass:: SegResNet
+  :members:
+
+`SegResnetVAE`
+~~~~~~~~~~~~~~
+.. autoclass:: SegResNetVAE
+  :members:
+
+`Senet`
+~~~~~~~
+.. autoclass:: SENet
+  :members:
+.. autofunction:: senet154
+.. autofunction:: se_resnet50
+.. autofunction:: se_resnet101
+.. autofunction:: se_resnet152
+.. autofunction:: se_resnext50_32x4d
+.. autofunction:: se_resnext101_32x4d
 
 `Highresnet`
 ~~~~~~~~~~~~
@@ -146,6 +219,11 @@ Nets
   :members:
 .. autoclass:: Unet
 .. autoclass:: unet
+
+`Vnet`
+~~~~~~
+.. autoclass:: VNet
+  :members:
 
 `Generator`
 ~~~~~~~~~~~
