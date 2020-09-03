@@ -12,6 +12,10 @@
 """
 This example shows how to execute distributed training based on PyTorch native `DistributedDataParallel` module.
 It can run on several nodes with multiple GPU devices on every node.
+
+This example is a real-world task based on Decathlon challenge Task01: Brain Tumor segmentation.
+So it's more complicated than other distributed training demo examples.
+
 Main steps to set up the distributed training:
 
 - Execute `torch.distributed.launch` to create processes on every node for every GPU.
@@ -28,8 +32,7 @@ Main steps to set up the distributed training:
 - Use `init_process_group` to initialize every process, every GPU runs in a separate process with unique rank.
   Here we use `NVIDIA NCCL` as the backend and must set `init_method="env://"` if use `torch.distributed.launch`.
 - Wrap the model with `DistributedDataParallel` after moving to expected device.
-- Wrap Dataset with `DistributedSampler`, and disable the `shuffle` and `num_worker=0` in DataLoader.
-  Instead, shuffle data by `train_sampler.set_epoch(epoch)` before every epoch.
+- Partition dataset before training, so every rank process will only handle its own data partition.
 
 Note:
     `torch.distributed.launch` will launch `nnodes * nproc_per_node = world_size` processes in total.
@@ -39,7 +42,7 @@ Note:
     python -m torch.distributed.launch --nproc_per_node=NUM_GPUS_PER_NODE
            --nnodes=NUM_NODES --node_rank=INDEX_CURRENT_NODE
            --master_addr="192.168.1.1" --master_port=1234
-           unet_training_ddp.py -d DIR_OF_TESTDATA
+           brats_training_ddp.py -d DIR_OF_TESTDATA
 
     This example was tested with [Ubuntu 16.04/20.04], [NCCL 2.6.3].
 
@@ -62,7 +65,8 @@ from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.tensorboard import SummaryWriter
 
-from monai.data import CacheDataset, DataLoader, load_decathalon_datalist
+from monai.apps import DecathlonDataset
+from monai.data import DataLoader
 from monai.losses import DiceLoss
 from monai.metrics import DiceMetric
 from monai.networks.nets import SegResNet, UNet
@@ -75,7 +79,6 @@ from monai.transforms import (
     NormalizeIntensityd,
     Orientationd,
     RandFlipd,
-    Randomizable,
     RandScaleIntensityd,
     RandShiftIntensityd,
     RandSpatialCropd,
@@ -130,56 +133,34 @@ def partition_dataset(data, shuffle: bool = False, seed: int = 0):
     return [data[i] for i in sampler]
 
 
-class BratsCacheDataset(Randomizable, CacheDataset):
+class BratsCacheDataset(DecathlonDataset):
     def __init__(
         self,
-        root_dir: str,
-        task: str,
-        section: str,
+        root_dir,
+        section,
         transform=LoadNiftid(["image", "label"]),
-        seed: int = 0,
-        val_frac: float = 0.2,
-        cache_num: int = sys.maxsize,
-        cache_rate: float = 1.0,
-        num_workers: int = 0,
+        cache_rate=1.0,
+        num_workers=0,
         shuffle=False,
     ) -> None:
+
         if not os.path.isdir(root_dir):
             raise ValueError("Root directory root_dir must be a directory.")
         self.section = section
-        self.val_frac = val_frac
-        self.set_random_state(seed=seed)
-        dataset_dir = os.path.join(root_dir, task)
-        self.rann = None
-
+        self.shuffle = shuffle
+        self.val_frac = 0.2
+        self.set_random_state(seed=0)
+        dataset_dir = os.path.join(root_dir, "Task01_BrainTumour")
         if not os.path.exists(dataset_dir):
             raise RuntimeError(
-                f"Cannot find dataset directory: {dataset_dir}, please use download=True to download it."
+                f"Cannot find dataset directory: {dataset_dir}, please download it from Decathlon challenge."
             )
         data = self._generate_data_list(dataset_dir)
-        data = partition_dataset(data, shuffle=shuffle)
-        super().__init__(data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers)
+        super(DecathlonDataset, self).__init__(data, transform, cache_rate=cache_rate, num_workers=num_workers)
 
-    def randomize(self, data=None) -> None:
-        self.rann = self.R.random()
-
-    def _generate_data_list(self, dataset_dir: str):
-        section = "training" if self.section in ["training", "validation"] else "test"
-        datalist = load_decathalon_datalist(os.path.join(dataset_dir, "dataset.json"), True, section)
-        if section == "test":
-            return datalist
-        else:
-            data = list()
-            for i in datalist:
-                self.randomize()
-                if self.section == "training":
-                    if self.rann < self.val_frac:
-                        continue
-                else:
-                    if self.rann >= self.val_frac:
-                        continue
-                data.append(i)
-            return data
+    def _generate_data_list(self, dataset_dir):
+        data = super()._generate_data_list(dataset_dir)
+        return partition_dataset(data, shuffle=self.shuffle, seed=0)
 
 
 def main_worker(args):
@@ -214,11 +195,11 @@ def main_worker(args):
     # create a training data loader
     train_ds = BratsCacheDataset(
         root_dir=args.dir,
-        task="Task01_BrainTumour",
         transform=train_transforms,
         section="training",
         num_workers=4,
         cache_rate=args.cache_rate,
+        shuffle=True,
     )
     train_loader = DataLoader(
         train_ds, batch_size=args.batch_size, shuffle=True, num_workers=args.workers, pin_memory=True
@@ -239,11 +220,11 @@ def main_worker(args):
     )
     val_ds = BratsCacheDataset(
         root_dir=args.dir,
-        task="Task01_BrainTumour",
         transform=val_transforms,
         section="validation",
         num_workers=4,
         cache_rate=args.cache_rate,
+        shuffle=False,
     )
     val_loader = DataLoader(
         val_ds, batch_size=args.batch_size, shuffle=False, num_workers=args.workers, pin_memory=True
@@ -292,22 +273,18 @@ def main_worker(args):
 
         if (epoch + 1) % args.val_interval == 0:
             metric, metric_tc, metric_wt, metric_et = evaluate(model, val_loader, device)
-            metrics = torch.tensor([metric, metric_tc, metric_wt, metric_et]).to(device)
-            dist.all_reduce(metrics, op=torch.distributed.ReduceOp.SUM)
 
             if dist.get_rank() == 0:
-                metrics = metrics / dist.get_world_size()
-
-                writer.add_scalar("Mean Dice/val", metrics[0], epoch)
-                writer.add_scalar("Mean Dice TC/val", metrics[1], epoch)
-                writer.add_scalar("Mean Dice WT/val", metrics[2], epoch)
-                writer.add_scalar("Mean Dice ET/val", metrics[3], epoch)
-                if metrics[0] > best_metric:
-                    best_metric = metrics[0]
+                writer.add_scalar("Mean Dice/val", metric, epoch)
+                writer.add_scalar("Mean Dice TC/val", metric_tc, epoch)
+                writer.add_scalar("Mean Dice WT/val", metric_wt, epoch)
+                writer.add_scalar("Mean Dice ET/val", metric_et, epoch)
+                if metric > best_metric:
+                    best_metric = metric
                     best_metric_epoch = epoch + 1
                 print(
-                    f"current epoch: {epoch + 1} current mean dice: {metrics[0]:.4f}"
-                    f" tc: {metrics[1]:.4f} wt: {metrics[2]:.4f} et: {metrics[3]:.4f}"
+                    f"current epoch: {epoch + 1} current mean dice: {metric:.4f}"
+                    f" tc: {metric_tc:.4f} wt: {metric_wt:.4f} et: {metric_et:.4f}"
                     f"\nbest mean dice: {best_metric:.4f} at epoch: {best_metric_epoch}"
                 )
         end = time.time()
@@ -362,8 +339,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args, device):
 
 
 def evaluate(model, data_loader, device):
-    metric_sum = metric_sum_tc = metric_sum_wt = metric_sum_et = 0.0
-    metric_count = metric_count_tc = metric_count_wt = metric_count_et = 0
+    metric = torch.zeros(8, dtype=torch.float, device=device)
 
     model.eval()
     with torch.no_grad():
@@ -375,40 +351,35 @@ def evaluate(model, data_loader, device):
             )
             val_outputs = model(val_inputs)
             # compute overall mean dice
-            value = dice_metric(y_pred=val_outputs, y=val_labels)
-            not_nans = dice_metric.not_nans.item()
-            metric_count += not_nans
-            metric_sum += value.item() * not_nans
+            value = dice_metric(y_pred=val_outputs, y=val_labels).squeeze()
+            metric[0] += value * dice_metric.not_nans
+            metric[1] += dice_metric.not_nans
             # compute mean dice for TC
-            value_tc = dice_metric(y_pred=val_outputs[:, 0:1], y=val_labels[:, 0:1])
-            not_nans = dice_metric.not_nans.item()
-            metric_count_tc += not_nans
-            metric_sum_tc += value_tc.item() * not_nans
+            value_tc = dice_metric(y_pred=val_outputs[:, 0:1], y=val_labels[:, 0:1]).squeeze()
+            metric[2] += value_tc * dice_metric.not_nans
+            metric[3] += dice_metric.not_nans
             # compute mean dice for WT
-            value_wt = dice_metric(y_pred=val_outputs[:, 1:2], y=val_labels[:, 1:2])
-            not_nans = dice_metric.not_nans.item()
-            metric_count_wt += not_nans
-            metric_sum_wt += value_wt.item() * not_nans
+            value_wt = dice_metric(y_pred=val_outputs[:, 1:2], y=val_labels[:, 1:2]).squeeze()
+            metric[4] += value_wt * dice_metric.not_nans
+            metric[5] += dice_metric.not_nans
             # compute mean dice for ET
-            value_et = dice_metric(y_pred=val_outputs[:, 2:3], y=val_labels[:, 2:3])
-            not_nans = dice_metric.not_nans.item()
-            metric_count_et += not_nans
-            metric_sum_et += value_et.item() * not_nans
+            value_et = dice_metric(y_pred=val_outputs[:, 2:3], y=val_labels[:, 2:3]).squeeze()
+            metric[6] += value_et * dice_metric.not_nans
+            metric[7] += dice_metric.not_nans
 
-        metric = metric_sum / metric_count
-        metric_tc = metric_sum_tc / metric_count_tc
-        metric_wt = metric_sum_wt / metric_count_wt
-        metric_et = metric_sum_et / metric_count_et
+        # synchronizes all processes and reduce results
+        dist.barrier()
+        dist.all_reduce(metric, op=torch.distributed.ReduceOp.SUM)
+        metric = metric.tolist()
 
-    return metric, metric_tc, metric_wt, metric_et
+    return metric[0] / metric[1], metric[2] / metric[3], metric[4] / metric[5], metric[6] / metric[7]
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-d", "--dir", default="./testdata", type=str, help="directory to create random data")
+    parser.add_argument("-d", "--dir", default="./testdata", type=str, help="directory of Brain Tumor dataset.")
     # must parse the command-line argument: ``--local_rank=LOCAL_PROCESS_RANK``, which will be provided by DDP
     parser.add_argument("--local_rank", type=int, help="node rank for distributed training")
-    parser.add_argument("--local_world_size", type=int, help="number of nodes for distributed training")
     parser.add_argument(
         "-j", "--workers", default=1, type=int, metavar="N", help="number of data loading workers (default: 1)"
     )
@@ -498,8 +469,7 @@ class ProgressMeter(object):
 # python -m torch.distributed.launch --nproc_per_node=NUM_GPUS_PER_NODE
 #        --nnodes=NUM_NODES --node_rank=INDEX_CURRENT_NODE
 #        --master_addr="10.110.44.150" --master_port=1234
-#        msd_brats_training_ddp.py -d DIR_OF_TESTDATA
-
+#        brats_training_ddp.py -d DIR_OF_TESTDATA
 
 if __name__ == "__main__":
     main()
