@@ -14,6 +14,7 @@ limitations under the License.
 #pragma once
 #include <torch/extension.h>
 #include <vector>
+#include "utils/monai_utils.h"
 
 #ifdef WITH_CUDA
 std::vector<torch::Tensor> lltm_cuda_forward(
@@ -61,6 +62,12 @@ std::vector<torch::Tensor> lltm_forward(
     torch::Tensor old_cell) {
   if (input.is_cuda()) {
 #ifdef WITH_CUDA
+  CHECK_CONTIGUOUS_CUDA(input);
+  CHECK_CONTIGUOUS_CUDA(weights);
+  CHECK_CONTIGUOUS_CUDA(bias);
+  CHECK_CONTIGUOUS_CUDA(old_h);
+  CHECK_CONTIGUOUS_CUDA(old_cell);
+
   return lltm_cuda_forward(input, weights, bias, old_h, old_cell);
 #else
     AT_ERROR("Not compiled with GPU support.");
@@ -81,6 +88,16 @@ std::vector<torch::Tensor> lltm_backward(
     torch::Tensor weights){
   if(X.is_cuda()) {
 #ifdef WITH_CUDA
+  CHECK_CONTIGUOUS_CUDA(grad_h);
+  CHECK_CONTIGUOUS_CUDA(grad_cell);
+  CHECK_CONTIGUOUS_CUDA(new_cell);
+  CHECK_CONTIGUOUS_CUDA(input_gate);
+  CHECK_CONTIGUOUS_CUDA(output_gate);
+  CHECK_CONTIGUOUS_CUDA(candidate_cell);
+  CHECK_CONTIGUOUS_CUDA(X);
+  CHECK_CONTIGUOUS_CUDA(gate_weights);
+  CHECK_CONTIGUOUS_CUDA(weights);
+
   return lltm_cuda_backward(
       grad_h,
       grad_cell,
