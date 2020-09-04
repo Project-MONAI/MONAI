@@ -10,6 +10,7 @@
 # limitations under the License.
 
 from monai.networks.blocks import Convolution, ResidualUnit
+from monai.networks.layers.convutils import nnunet_output_padding, nnunet_padding
 from tests.utils import TorchImageTestCase2D, TorchImageTestCase3D
 
 
@@ -33,10 +34,11 @@ class TestConvolution2D(TorchImageTestCase2D):
         self.assertEqual(out.shape, expected_shape)
 
     def test_stride1(self):
-        conv = Convolution(2, self.input_channels, self.output_channels, strides=2)
-        out = conv(self.imt)
-        expected_shape = (1, self.output_channels, self.im_shape[0] // 2, self.im_shape[1] // 2)
-        self.assertEqual(out.shape, expected_shape)
+        for strides in [2, [2, 2], (2, 2)]:
+            conv = Convolution(2, self.input_channels, self.output_channels, strides=strides)
+            out = conv(self.imt)
+            expected_shape = (1, self.output_channels, self.im_shape[0] // 2, self.im_shape[1] // 2)
+            self.assertEqual(out.shape, expected_shape)
 
     def test_dilation1(self):
         conv = Convolution(2, self.input_channels, self.output_channels, dilation=3)
@@ -62,6 +64,34 @@ class TestConvolution2D(TorchImageTestCase2D):
         expected_shape = (1, self.output_channels, self.im_shape[0] * 2, self.im_shape[1] * 2)
         self.assertEqual(out.shape, expected_shape)
 
+    def test_padding_with_function(self):
+        strides, kernel_size = [1, 2], (3, 3)
+        padding = nnunet_padding(kernel_size, strides)
+        conv = Convolution(
+            2, self.input_channels, self.output_channels, strides=strides, kernel_size=kernel_size, padding=padding,
+        )
+        out = conv(self.imt)
+        expected_shape = (1, self.output_channels, self.im_shape[0], self.im_shape[1] // 2)
+        self.assertEqual(out.shape, expected_shape)
+
+    def test_out_padding_with_function(self):
+        strides, kernel_size = [2, 2], (3, 3)
+        padding = nnunet_padding(kernel_size, strides)
+        out_padding = nnunet_output_padding(kernel_size, strides, padding)
+        conv = Convolution(
+            2,
+            self.input_channels,
+            self.output_channels,
+            strides=strides,
+            kernel_size=kernel_size,
+            is_transposed=True,
+            padding=padding,
+            out_padding=out_padding,
+        )
+        out = conv(self.imt)
+        expected_shape = (1, self.output_channels, self.im_shape[0] * 2, self.im_shape[1] * 2)
+        self.assertEqual(out.shape, expected_shape)
+
 
 class TestConvolution3D(TorchImageTestCase3D):
     def test_conv1(self):
@@ -83,10 +113,17 @@ class TestConvolution3D(TorchImageTestCase3D):
         self.assertEqual(out.shape, expected_shape)
 
     def test_stride1(self):
-        conv = Convolution(3, self.input_channels, self.output_channels, strides=2)
-        out = conv(self.imt)
-        expected_shape = (1, self.output_channels, self.im_shape[1] // 2, self.im_shape[0] // 2, self.im_shape[2] // 2)
-        self.assertEqual(out.shape, expected_shape)
+        for strides in [2, (2, 2, 2), [2, 2, 2]]:
+            conv = Convolution(3, self.input_channels, self.output_channels, strides=strides)
+            out = conv(self.imt)
+            expected_shape = (
+                1,
+                self.output_channels,
+                self.im_shape[1] // 2,
+                self.im_shape[0] // 2,
+                self.im_shape[2] // 2,
+            )
+            self.assertEqual(out.shape, expected_shape)
 
     def test_dilation1(self):
         conv = Convolution(3, self.input_channels, self.output_channels, dilation=3)
@@ -112,6 +149,34 @@ class TestConvolution3D(TorchImageTestCase3D):
         expected_shape = (1, self.output_channels, self.im_shape[1] * 2, self.im_shape[0] * 2, self.im_shape[2] * 2)
         self.assertEqual(out.shape, expected_shape)
 
+    def test_padding_with_function(self):
+        strides, kernel_size = [1, 1, 2], 3
+        padding = nnunet_padding(kernel_size, strides)
+        conv = Convolution(
+            3, self.input_channels, self.output_channels, strides=strides, kernel_size=kernel_size, padding=padding,
+        )
+        out = conv(self.imt)
+        expected_shape = (1, self.output_channels, self.im_shape[1], self.im_shape[0], self.im_shape[2] // 2)
+        self.assertEqual(out.shape, expected_shape)
+
+    def test_out_padding_with_function(self):
+        strides, kernel_size = 2, (3, 3, 3)
+        padding = nnunet_padding(kernel_size, strides)
+        out_padding = nnunet_output_padding(kernel_size, strides, padding)
+        conv = Convolution(
+            3,
+            self.input_channels,
+            self.output_channels,
+            strides=strides,
+            kernel_size=kernel_size,
+            is_transposed=True,
+            padding=padding,
+            out_padding=out_padding,
+        )
+        out = conv(self.imt)
+        expected_shape = (1, self.output_channels, self.im_shape[1] * 2, self.im_shape[0] * 2, self.im_shape[2] * 2)
+        self.assertEqual(out.shape, expected_shape)
+
 
 class TestResidualUnit2D(TorchImageTestCase2D):
     def test_conv_only1(self):
@@ -121,10 +186,11 @@ class TestResidualUnit2D(TorchImageTestCase2D):
         self.assertEqual(out.shape, expected_shape)
 
     def test_stride1(self):
-        conv = ResidualUnit(2, 1, self.output_channels, strides=2)
-        out = conv(self.imt)
-        expected_shape = (1, self.output_channels, self.im_shape[0] // 2, self.im_shape[1] // 2)
-        self.assertEqual(out.shape, expected_shape)
+        for strides in [2, [2, 2], (2, 2)]:
+            conv = ResidualUnit(2, 1, self.output_channels, strides=strides)
+            out = conv(self.imt)
+            expected_shape = (1, self.output_channels, self.im_shape[0] // 2, self.im_shape[1] // 2)
+            self.assertEqual(out.shape, expected_shape)
 
     def test_dilation1(self):
         conv = ResidualUnit(2, 1, self.output_channels, dilation=3)
