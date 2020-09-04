@@ -25,6 +25,7 @@ SKIP_BUILD = os.getenv("SKIP_MONAI_BUILD", "0") == "1"
 BUILD_CPP = BUILD_CUDA = False
 try:
     import torch
+    print(f"setup.py with torch {torch.__version__}")
     from torch.utils.cpp_extension import BuildExtension, CppExtension
 
     BUILD_CPP = True

@@ -133,7 +133,7 @@ jobs:
         cat "requirements-dev.txt"
         python -m pip install -r requirements-dev.txt
         python -m pip list
-        python setup.py develop  # to compile extensions using the system native torch
+        SKIP_MONAI_BUILD=1 python setup.py develop  # no compile of extensions
     - name: Run quick tests (CPU ${{ runner.os }})
       run: |
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'

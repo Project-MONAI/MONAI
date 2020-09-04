@@ -84,6 +84,8 @@ jobs:
         cat "requirements-dev.txt"
         python -m pip install -r requirements-dev.txt
         python -m pip list
+        SKIP_MONAI_BUILD=1 python setup.py develop
+        python setup.py develop --uninstall
         python setup.py develop  # compile the cpp extensions
     - name: Run quick tests (CPU ${{ runner.os }})
       run: |
