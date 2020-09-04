@@ -57,7 +57,10 @@ cd MONAI/
 python setup.py develop
 
 # For MacOS:
-# CC=clang CXX=clang++ python setup.py develop 
+# CC=clang CXX=clang++ python setup.py develop
+
+# To install without build
+# SKIP_MONAI_BUILD=1 python setup.py develop
 
 # To uninstall the package please run:
 python setup.py develop --uninstall
