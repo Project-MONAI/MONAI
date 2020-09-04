@@ -15,7 +15,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from monai.networks.layers.convutils import same_padding
+from monai.networks.layers.convutils import nnunet_output_padding, same_padding
 from monai.networks.layers.factories import Act, Conv, Dropout, Norm, split_args
 
 
@@ -48,7 +48,7 @@ class Convolution(nn.Sequential):
         bias: whether to have a bias term. Defaults to True.
         conv_only: whether to use the convolutional layer only. Defaults to False.
         is_transposed: if True uses ConvTrans instead of Conv. Defaults to False.
-        padding: controls the amount of implicit zero-paddings on both sides for padding number of points 
+        padding: controls the amount of implicit zero-paddings on both sides for padding number of points
             for each dimension. Defaults to None.
         output_padding: controls the additional size added to one side of the output shape.
             Defaults to None.
@@ -120,7 +120,7 @@ class Convolution(nn.Sequential):
 
         if is_transposed:
             if not output_padding:
-                output_padding = strides - 1
+                output_padding = nnunet_output_padding(1, strides, padding=0)
             conv = conv_type(
                 in_channels,
                 out_channels,
@@ -180,7 +180,7 @@ class ResidualUnit(nn.Module):
         bias: whether to have a bias term. Defaults to True.
         last_conv_only: for the last subunit, whether to use the convolutional layer only.
             Defaults to False.
-        padding: controls the amount of implicit zero-paddings on both sides for padding number of points 
+        padding: controls the amount of implicit zero-paddings on both sides for padding number of points
             for each dimension. Defaults to None.
 
     See also:

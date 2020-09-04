@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import unittest
+
 from monai.networks.blocks import Convolution, ResidualUnit
 from monai.networks.layers.convutils import nnunet_output_padding, nnunet_padding
 from tests.utils import TorchImageTestCase2D, TorchImageTestCase3D
@@ -68,7 +70,12 @@ class TestConvolution2D(TorchImageTestCase2D):
         strides, kernel_size = [1, 2], (3, 3)
         padding = nnunet_padding(kernel_size, strides)
         conv = Convolution(
-            2, self.input_channels, self.output_channels, strides=strides, kernel_size=kernel_size, padding=padding,
+            2,
+            self.input_channels,
+            self.output_channels,
+            strides=strides,
+            kernel_size=kernel_size,
+            padding=padding,
         )
         out = conv(self.imt)
         expected_shape = (1, self.output_channels, self.im_shape[0], self.im_shape[1] // 2)
@@ -77,7 +84,7 @@ class TestConvolution2D(TorchImageTestCase2D):
     def test_out_padding_with_function(self):
         strides, kernel_size = [2, 2], (3, 3)
         padding = nnunet_padding(kernel_size, strides)
-        out_padding = nnunet_output_padding(kernel_size, strides, padding)
+        output_padding = nnunet_output_padding(kernel_size, strides, padding)
         conv = Convolution(
             2,
             self.input_channels,
@@ -86,7 +93,7 @@ class TestConvolution2D(TorchImageTestCase2D):
             kernel_size=kernel_size,
             is_transposed=True,
             padding=padding,
-            out_padding=out_padding,
+            output_padding=output_padding,
         )
         out = conv(self.imt)
         expected_shape = (1, self.output_channels, self.im_shape[0] * 2, self.im_shape[1] * 2)
@@ -153,7 +160,12 @@ class TestConvolution3D(TorchImageTestCase3D):
         strides, kernel_size = [1, 1, 2], 3
         padding = nnunet_padding(kernel_size, strides)
         conv = Convolution(
-            3, self.input_channels, self.output_channels, strides=strides, kernel_size=kernel_size, padding=padding,
+            3,
+            self.input_channels,
+            self.output_channels,
+            strides=strides,
+            kernel_size=kernel_size,
+            padding=padding,
         )
         out = conv(self.imt)
         expected_shape = (1, self.output_channels, self.im_shape[1], self.im_shape[0], self.im_shape[2] // 2)
@@ -162,7 +174,7 @@ class TestConvolution3D(TorchImageTestCase3D):
     def test_out_padding_with_function(self):
         strides, kernel_size = 2, (3, 3, 3)
         padding = nnunet_padding(kernel_size, strides)
-        out_padding = nnunet_output_padding(kernel_size, strides, padding)
+        output_padding = nnunet_output_padding(kernel_size, strides, padding)
         conv = Convolution(
             3,
             self.input_channels,
@@ -171,7 +183,7 @@ class TestConvolution3D(TorchImageTestCase3D):
             kernel_size=kernel_size,
             is_transposed=True,
             padding=padding,
-            out_padding=out_padding,
+            output_padding=output_padding,
         )
         out = conv(self.imt)
         expected_shape = (1, self.output_channels, self.im_shape[1] * 2, self.im_shape[0] * 2, self.im_shape[2] * 2)
@@ -203,3 +215,7 @@ class TestResidualUnit2D(TorchImageTestCase2D):
         out = conv(self.imt)
         expected_shape = (1, self.output_channels, self.im_shape[0], self.im_shape[1])
         self.assertEqual(out.shape, expected_shape)
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -43,8 +43,9 @@ def same_padding(
 
 
 def nnunet_padding(
-    kernel_size: Union[Sequence[int], int], stride: Union[Sequence[int], int],
-) -> Union[Tuple[int], int]:
+    kernel_size: Union[Sequence[int], int],
+    stride: Union[Sequence[int], int],
+) -> Union[Tuple[int, ...], int]:
 
     kernel_size_np = np.atleast_1d(kernel_size)
     stride_np = np.atleast_1d(stride)
@@ -55,8 +56,10 @@ def nnunet_padding(
 
 
 def nnunet_output_padding(
-    kernel_size: Union[Sequence[int], int], stride: Union[Sequence[int], int], padding: Union[Sequence[int], int],
-) -> Union[Tuple[int], int]:
+    kernel_size: Union[Sequence[int], int],
+    stride: Union[Sequence[int], int],
+    padding: Union[Sequence[int], int],
+) -> Union[Tuple[int, ...], int]:
     kernel_size_np = np.atleast_1d(kernel_size)
     stride_np = np.atleast_1d(stride)
     padding_np = np.atleast_1d(padding)
