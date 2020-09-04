@@ -87,6 +87,7 @@ jobs:
         SKIP_MONAI_BUILD=1 python setup.py develop
         python setup.py develop --uninstall
         python setup.py develop  # compile the cpp extensions
+      shell: bash
     - name: Run quick tests (CPU ${{ runner.os }})
       run: |
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'

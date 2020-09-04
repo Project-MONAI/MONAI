@@ -25,6 +25,7 @@ SKIP_BUILD = os.getenv("SKIP_MONAI_BUILD", "0") == "1"
 BUILD_CPP = BUILD_CUDA = False
 try:
     import torch
+
     print(f"setup.py with torch {torch.__version__}")
     from torch.utils.cpp_extension import BuildExtension, CppExtension
 
@@ -33,7 +34,6 @@ try:
 
     BUILD_CUDA = (torch.cuda.is_available() and (CUDA_HOME is not None)) or FORCE_CUDA
 except ImportError:
-    torch = CppExtension = BuildExtension = CUDA_HOME = CUDAExtension = None
     warnings.warn("extension build skipped.")
 finally:
     if SKIP_BUILD:
@@ -61,7 +61,7 @@ def get_extensions():
         sources += source_cuda
         define_macros += [("WITH_CUDA", None)]
         extra_compile_args = {"cxx": [], "nvcc": []}
-    if extension is None:
+    if extension is None or not sources:
         return []  # compile nothing
 
     ext_modules = [

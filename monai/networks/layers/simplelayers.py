@@ -132,7 +132,7 @@ class LLTMFunction(Function):
     @staticmethod
     def backward(ctx, grad_h, grad_cell):
         outputs = _C.lltm_backward(grad_h.contiguous(), grad_cell.contiguous(), *ctx.saved_tensors)
-        d_old_h, d_input, d_weights, d_bias, d_old_cell = outputs
+        d_old_h, d_input, d_weights, d_bias, d_old_cell = outputs[:5]
 
         return d_input, d_weights, d_bias, d_old_h, d_old_cell
 

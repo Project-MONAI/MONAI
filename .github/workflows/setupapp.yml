@@ -134,6 +134,7 @@ jobs:
         python -m pip install -r requirements-dev.txt
         python -m pip list
         SKIP_MONAI_BUILD=1 python setup.py develop  # no compile of extensions
+      shell: bash
     - name: Run quick tests (CPU ${{ runner.os }})
       run: |
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
