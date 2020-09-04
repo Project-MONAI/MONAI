@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - 789-cuda-resampling
 
 jobs:
   # caching of these jobs:
