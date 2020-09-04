@@ -12,11 +12,10 @@ limitations under the License.
 */
 
 #include <torch/extension.h>
-
 #include <cuda.h>
 #include <cuda_runtime.h>
-
 #include <vector>
+#include <"../utils/monai_utils.h">
 
 namespace {
 template <typename scalar_t>
@@ -113,6 +112,12 @@ std::vector<torch::Tensor> lltm_cuda_forward(
     torch::Tensor bias,
     torch::Tensor old_h,
     torch::Tensor old_cell) {
+  CHECK_CONTIGUOUS_CUDA(input);
+  CHECK_CONTIGUOUS_CUDA(weights);
+  CHECK_CONTIGUOUS_CUDA(bias);
+  CHECK_CONTIGUOUS_CUDA(old_h);
+  CHECK_CONTIGUOUS_CUDA(old_cell);
+
   auto X = torch::cat({old_h, input}, /*dim=*/1);
   auto gate_weights = torch::addmm(bias, X, weights.transpose(0, 1));
 
@@ -153,6 +158,16 @@ std::vector<torch::Tensor> lltm_cuda_backward(
     torch::Tensor X,
     torch::Tensor gates,
     torch::Tensor weights) {
+  CHECK_CONTIGUOUS_CUDA(grad_h);
+  CHECK_CONTIGUOUS_CUDA(grad_cell);
+  CHECK_CONTIGUOUS_CUDA(new_cell);
+  CHECK_CONTIGUOUS_CUDA(input_gate);
+  CHECK_CONTIGUOUS_CUDA(output_gate);
+  CHECK_CONTIGUOUS_CUDA(candidate_cell);
+  CHECK_CONTIGUOUS_CUDA(X);
+  CHECK_CONTIGUOUS_CUDA(gates);
+  CHECK_CONTIGUOUS_CUDA(weights);
+
   auto d_old_cell = torch::zeros_like(new_cell);
   auto d_gates = torch::zeros_like(gates);
 

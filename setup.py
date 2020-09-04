@@ -17,44 +17,71 @@ from setuptools import find_packages, setup
 
 import versioneer
 
+# TODO: debug mode -g -O0, compile test cases
+
 FORCE_CUDA = os.getenv("FORCE_CUDA", "0") == "1"
+SKIP_BUILD = os.getenv("SKIP_MONAI_BUILD", "0") == "1"
 
 BUILD_CPP = BUILD_CUDA = False
 try:
     import torch
-    from torch.utils.cpp_extension import CppExtension
+    from torch.utils.cpp_extension import BuildExtension, CppExtension
 
     BUILD_CPP = True
     from torch.utils.cpp_extension import CUDA_HOME, CUDAExtension
 
     BUILD_CUDA = (torch.cuda.is_available() and (CUDA_HOME is not None)) or FORCE_CUDA
 except ImportError:
-    warnings.warn("torch extension build skipped.")
+    torch = CppExtension = BuildExtension = CUDA_HOME = CUDAExtension = None
+    warnings.warn("extension build skipped.")
 finally:
-    print(f"BUILD_CPP={BUILD_CPP}, BUILD_CUDA={BUILD_CUDA}")
+    if SKIP_BUILD:
+        BUILD_CPP = BUILD_CUDA = False
+    print(f"BUILD_MONAI_CPP={BUILD_CPP}, BUILD_MONAI_CUDA={BUILD_CUDA}")
 
 
 def get_extensions():
     this_dir = os.path.dirname(os.path.abspath(__file__))
-    ext_dir = os.path.join(this_dir, "monai", "extensions")
-    ext_modules = []
+    ext_dir = os.path.join(this_dir, "monai", "csrc")
+    include_dirs = [ext_dir]
+
+    main_src = glob.glob(os.path.join(ext_dir, "*.cpp"))
+    source_cpu = glob.glob(os.path.join(ext_dir, "**", "*.cpp"))
+    source_cuda = glob.glob(os.path.join(ext_dir, "**", "*.cu"))
+
+    extension = None
+    define_macros = []
+    extra_compile_args = {}
+    sources = main_src + source_cpu
     if BUILD_CPP:
-        lltm_cpu = glob.glob(os.path.join(ext_dir, "lltm", "*_cpu.cpp"))
-        ext_modules.append(CppExtension("monai._C", lltm_cpu))
+        extension = CppExtension
     if BUILD_CUDA:
-        lltm_gpu = glob.glob(os.path.join(ext_dir, "lltm", "*_cuda*"))
-        ext_modules.append(CUDAExtension("monai._C_CUDA", lltm_gpu))
+        extension = CUDAExtension
+        sources += source_cuda
+        define_macros += [("WITH_CUDA", None)]
+        extra_compile_args = {"cxx": [], "nvcc": []}
+    if extension is None:
+        return []  # compile nothing
+
+    ext_modules = [
+        extension(
+            name="monai._C",
+            sources=sources,
+            include_dirs=include_dirs,
+            define_macros=define_macros,
+            extra_compile_args=extra_compile_args,
+        )
+    ]
     return ext_modules
 
 
 def get_cmds():
     cmds = versioneer.get_cmdclass()
+
     if not (BUILD_CPP or BUILD_CUDA):
         return cmds
 
-    from torch.utils.cpp_extension import BuildExtension
-
-    cmds.update({"build_ext": BuildExtension})
+    cmds.update({"build_ext": BuildExtension.with_options(no_python_abi_suffix=True)})
     return cmds
 
 

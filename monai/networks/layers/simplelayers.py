@@ -21,7 +21,6 @@ from monai.networks.layers.convutils import gaussian_1d, same_padding
 from monai.utils import ensure_tuple_rep, optional_import
 
 _C, _ = optional_import("monai._C")
-_C_CUDA, _ = optional_import("monai._C_CUDA")
 
 __all__ = ["SkipConnection", "Flatten", "GaussianFilter", "LLTM"]
 
@@ -123,8 +122,7 @@ class GaussianFilter(nn.Module):
 class LLTMFunction(Function):
     @staticmethod
     def forward(ctx, input, weights, bias, old_h, old_cell):
-        ext = _C_CUDA if weights.is_cuda else _C
-        outputs = ext.lltm_forward(input, weights, bias, old_h, old_cell)
+        outputs = _C.lltm_forward(input, weights, bias, old_h, old_cell)
         new_h, new_cell = outputs[:2]
         variables = outputs[1:] + [weights]
         ctx.save_for_backward(*variables)
@@ -133,12 +131,8 @@ class LLTMFunction(Function):
 
     @staticmethod
     def backward(ctx, grad_h, grad_cell):
-        if grad_h.is_cuda:
-            outputs = _C_CUDA.lltm_backward(grad_h.contiguous(), grad_cell.contiguous(), *ctx.saved_tensors)
-            d_old_h, d_input, d_weights, d_bias, d_old_cell, d_gates = outputs
-        else:
-            outputs = _C.lltm_backward(grad_h.contiguous(), grad_cell.contiguous(), *ctx.saved_tensors)
-            d_old_h, d_input, d_weights, d_bias, d_old_cell = outputs
+        outputs = _C.lltm_backward(grad_h.contiguous(), grad_cell.contiguous(), *ctx.saved_tensors)
+        d_old_h, d_input, d_weights, d_bias, d_old_cell = outputs
 
         return d_input, d_weights, d_bias, d_old_h, d_old_cell
 
