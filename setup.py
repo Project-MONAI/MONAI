@@ -9,43 +9,80 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import glob
+import os
 import warnings
 
 from setuptools import find_packages, setup
 
 import versioneer
 
+# TODO: debug mode -g -O0, compile test cases
+
+FORCE_CUDA = os.getenv("FORCE_CUDA", "0") == "1"
+SKIP_BUILD = os.getenv("SKIP_MONAI_BUILD", "0") == "1"
+
+BUILD_CPP = BUILD_CUDA = False
+try:
+    import torch
+
+    print(f"setup.py with torch {torch.__version__}")
+    from torch.utils.cpp_extension import BuildExtension, CppExtension
+
+    BUILD_CPP = True
+    from torch.utils.cpp_extension import CUDA_HOME, CUDAExtension
+
+    BUILD_CUDA = (torch.cuda.is_available() and (CUDA_HOME is not None)) or FORCE_CUDA
+except ImportError:
+    warnings.warn("extension build skipped.")
+finally:
+    if SKIP_BUILD:
+        BUILD_CPP = BUILD_CUDA = False
+    print(f"BUILD_MONAI_CPP={BUILD_CPP}, BUILD_MONAI_CUDA={BUILD_CUDA}")
+
 
 def get_extensions():
+    this_dir = os.path.dirname(os.path.abspath(__file__))
+    ext_dir = os.path.join(this_dir, "monai", "csrc")
+    include_dirs = [ext_dir]
 
-    try:
-        import torch
-        from torch.utils.cpp_extension import CUDA_HOME, CppExtension, CUDAExtension
+    main_src = glob.glob(os.path.join(ext_dir, "*.cpp"))
+    source_cpu = glob.glob(os.path.join(ext_dir, "**", "*.cpp"))
+    source_cuda = glob.glob(os.path.join(ext_dir, "**", "*.cu"))
 
-        print(f"setup.py with torch {torch.__version__}")
-    except ImportError:
-        warnings.warn("torch cpp/cuda building skipped.")
-        return []
+    extension = None
+    define_macros = []
+    extra_compile_args = {}
+    sources = main_src + source_cpu
+    if BUILD_CPP:
+        extension = CppExtension
+    if BUILD_CUDA:
+        extension = CUDAExtension
+        sources += source_cuda
+        define_macros += [("WITH_CUDA", None)]
+        extra_compile_args = {"cxx": [], "nvcc": []}
+    if extension is None or not sources:
+        return []  # compile nothing
 
-    ext_modules = [CppExtension("monai._C", ["monai/networks/extensions/lltm/lltm.cpp"])]
-    if torch.cuda.is_available() and (CUDA_HOME is not None):
-        ext_modules.append(
-            CUDAExtension(
-                "monai._C_CUDA",
-                ["monai/networks/extensions/lltm/lltm_cuda.cpp", "monai/networks/extensions/lltm/lltm_cuda_kernel.cu"],
-            )
+    ext_modules = [
+        extension(
+            name="monai._C",
+            sources=sources,
+            include_dirs=include_dirs,
+            define_macros=define_macros,
+            extra_compile_args=extra_compile_args,
         )
+    ]
     return ext_modules
 
 
 def get_cmds():
     cmds = versioneer.get_cmdclass()
-    try:
-        from torch.utils.cpp_extension import BuildExtension
 
-        cmds.update({"build_ext": BuildExtension})
-    except ImportError:
-        warnings.warn("torch cpp_extension module not found.")
+    if not (BUILD_CPP or BUILD_CUDA):
+        return cmds
+
+    cmds.update({"build_ext": BuildExtension.with_options(no_python_abi_suffix=True)})
     return cmds
 
 
