@@ -47,7 +47,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest, macOS-latest, ubuntu-latest]
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python 3.x
