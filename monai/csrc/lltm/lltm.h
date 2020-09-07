@@ -11,12 +11,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+#pragma once
 #include <torch/extension.h>
-
 #include <vector>
+#include "utils/common_utils.h"
 
-// CUDA forward declarations
-
+#ifdef WITH_CUDA
 std::vector<torch::Tensor> lltm_cuda_forward(
     torch::Tensor input,
     torch::Tensor weights,
@@ -34,13 +34,25 @@ std::vector<torch::Tensor> lltm_cuda_backward(
     torch::Tensor X,
     torch::Tensor gate_weights,
     torch::Tensor weights);
+#endif
 
-// C++ interface
+std::vector<torch::Tensor> lltm_cpu_forward(
+    torch::Tensor input,
+    torch::Tensor weights,
+    torch::Tensor bias,
+    torch::Tensor old_h,
+    torch::Tensor old_cell);
 
-// NOTE: AT_ASSERT has become AT_CHECK on master after 0.4.
-#define CHECK_CUDA(x) AT_ASSERTM(x.type().is_cuda(), #x " must be a CUDA tensor")
-#define CHECK_CONTIGUOUS(x) AT_ASSERTM(x.is_contiguous(), #x " must be contiguous")
-#define CHECK_INPUT(x) CHECK_CUDA(x); CHECK_CONTIGUOUS(x)
+std::vector<torch::Tensor> lltm_cpu_backward(
+    torch::Tensor grad_h,
+    torch::Tensor grad_cell,
+    torch::Tensor new_cell,
+    torch::Tensor input_gate,
+    torch::Tensor output_gate,
+    torch::Tensor candidate_cell,
+    torch::Tensor X,
+    torch::Tensor gate_weights,
+    torch::Tensor weights);
 
 std::vector<torch::Tensor> lltm_forward(
     torch::Tensor input,
@@ -48,13 +60,20 @@ std::vector<torch::Tensor> lltm_forward(
     torch::Tensor bias,
     torch::Tensor old_h,
     torch::Tensor old_cell) {
-  CHECK_INPUT(input);
-  CHECK_INPUT(weights);
-  CHECK_INPUT(bias);
-  CHECK_INPUT(old_h);
-  CHECK_INPUT(old_cell);
+  if (input.is_cuda()) {
+#ifdef WITH_CUDA
+    CHECK_CONTIGUOUS_CUDA(input);
+    CHECK_CONTIGUOUS_CUDA(weights);
+    CHECK_CONTIGUOUS_CUDA(bias);
+    CHECK_CONTIGUOUS_CUDA(old_h);
+    CHECK_CONTIGUOUS_CUDA(old_cell);
 
-  return lltm_cuda_forward(input, weights, bias, old_h, old_cell);
+    return lltm_cuda_forward(input, weights, bias, old_h, old_cell);
+#else
+    AT_ERROR("Not compiled with GPU support.");
+#endif
+  }
+  return lltm_cpu_forward(input, weights, bias, old_h, old_cell);
 }
 
 std::vector<torch::Tensor> lltm_backward(
@@ -66,17 +85,34 @@ std::vector<torch::Tensor> lltm_backward(
     torch::Tensor candidate_cell,
     torch::Tensor X,
     torch::Tensor gate_weights,
-    torch::Tensor weights) {
-  CHECK_INPUT(grad_h);
-  CHECK_INPUT(grad_cell);
-  CHECK_INPUT(input_gate);
-  CHECK_INPUT(output_gate);
-  CHECK_INPUT(candidate_cell);
-  CHECK_INPUT(X);
-  CHECK_INPUT(gate_weights);
-  CHECK_INPUT(weights);
+    torch::Tensor weights){
+  if(X.is_cuda()) {
+#ifdef WITH_CUDA
+    CHECK_CONTIGUOUS_CUDA(grad_h);
+    CHECK_CONTIGUOUS_CUDA(grad_cell);
+    CHECK_CONTIGUOUS_CUDA(new_cell);
+    CHECK_CONTIGUOUS_CUDA(input_gate);
+    CHECK_CONTIGUOUS_CUDA(output_gate);
+    CHECK_CONTIGUOUS_CUDA(candidate_cell);
+    CHECK_CONTIGUOUS_CUDA(X);
+    CHECK_CONTIGUOUS_CUDA(gate_weights);
+    CHECK_CONTIGUOUS_CUDA(weights);
 
-  return lltm_cuda_backward(
+    return lltm_cuda_backward(
+        grad_h,
+        grad_cell,
+        new_cell,
+        input_gate,
+        output_gate,
+        candidate_cell,
+        X,
+        gate_weights,
+        weights);
+#else
+    AT_ERROR("Not compiled with GPU support.");
+#endif
+  }
+  return lltm_cpu_backward(
       grad_h,
       grad_cell,
       new_cell,
@@ -86,9 +122,4 @@ std::vector<torch::Tensor> lltm_backward(
       X,
       gate_weights,
       weights);
-}
-
-PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-  m.def("lltm_forward", &lltm_forward, "LLTM forward (CUDA)");
-  m.def("lltm_backward", &lltm_backward, "LLTM backward (CUDA)");
 }

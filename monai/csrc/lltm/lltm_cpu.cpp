@@ -12,7 +12,6 @@ limitations under the License.
 */
 
 #include <torch/extension.h>
-
 #include <vector>
 
 // s'(z) = (1 - s(z)) * s(z)
@@ -33,7 +32,7 @@ torch::Tensor d_elu(torch::Tensor z, torch::Scalar alpha = 1.0) {
   return (z > 0).type_as(z) + mask.type_as(z) * (alpha * e);
 }
 
-std::vector<torch::Tensor> lltm_forward(
+std::vector<torch::Tensor> lltm_cpu_forward(
     torch::Tensor input,
     torch::Tensor weights,
     torch::Tensor bias,
@@ -60,7 +59,7 @@ std::vector<torch::Tensor> lltm_forward(
           gate_weights};
 }
 
-std::vector<torch::Tensor> lltm_backward(
+std::vector<torch::Tensor> lltm_cpu_backward(
     torch::Tensor grad_h,
     torch::Tensor grad_cell,
     torch::Tensor new_cell,
@@ -95,9 +94,4 @@ std::vector<torch::Tensor> lltm_backward(
   auto d_input = d_X.slice(/*dim=*/1, state_size);
 
   return {d_old_h, d_input, d_weights, d_bias, d_old_cell};
-}
-
-PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-  m.def("lltm_forward", &lltm_forward, "LLTM forward");
-  m.def("lltm_backward", &lltm_backward, "LLTM backward");
 }
