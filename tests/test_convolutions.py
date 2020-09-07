@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import unittest
+
 from monai.networks.blocks import Convolution, ResidualUnit
 from tests.utils import TorchImageTestCase2D, TorchImageTestCase3D
 
@@ -33,10 +35,11 @@ class TestConvolution2D(TorchImageTestCase2D):
         self.assertEqual(out.shape, expected_shape)
 
     def test_stride1(self):
-        conv = Convolution(2, self.input_channels, self.output_channels, strides=2)
-        out = conv(self.imt)
-        expected_shape = (1, self.output_channels, self.im_shape[0] // 2, self.im_shape[1] // 2)
-        self.assertEqual(out.shape, expected_shape)
+        for strides in [2, [2, 2], (2, 2)]:
+            conv = Convolution(2, self.input_channels, self.output_channels, strides=strides)
+            out = conv(self.imt)
+            expected_shape = (1, self.output_channels, self.im_shape[0] // 2, self.im_shape[1] // 2)
+            self.assertEqual(out.shape, expected_shape)
 
     def test_dilation1(self):
         conv = Convolution(2, self.input_channels, self.output_channels, dilation=3)
@@ -83,10 +86,17 @@ class TestConvolution3D(TorchImageTestCase3D):
         self.assertEqual(out.shape, expected_shape)
 
     def test_stride1(self):
-        conv = Convolution(3, self.input_channels, self.output_channels, strides=2)
-        out = conv(self.imt)
-        expected_shape = (1, self.output_channels, self.im_shape[1] // 2, self.im_shape[0] // 2, self.im_shape[2] // 2)
-        self.assertEqual(out.shape, expected_shape)
+        for strides in [2, (2, 2, 2), [2, 2, 2]]:
+            conv = Convolution(3, self.input_channels, self.output_channels, strides=strides)
+            out = conv(self.imt)
+            expected_shape = (
+                1,
+                self.output_channels,
+                self.im_shape[1] // 2,
+                self.im_shape[0] // 2,
+                self.im_shape[2] // 2,
+            )
+            self.assertEqual(out.shape, expected_shape)
 
     def test_dilation1(self):
         conv = Convolution(3, self.input_channels, self.output_channels, dilation=3)
@@ -121,10 +131,11 @@ class TestResidualUnit2D(TorchImageTestCase2D):
         self.assertEqual(out.shape, expected_shape)
 
     def test_stride1(self):
-        conv = ResidualUnit(2, 1, self.output_channels, strides=2)
-        out = conv(self.imt)
-        expected_shape = (1, self.output_channels, self.im_shape[0] // 2, self.im_shape[1] // 2)
-        self.assertEqual(out.shape, expected_shape)
+        for strides in [2, [2, 2], (2, 2)]:
+            conv = ResidualUnit(2, 1, self.output_channels, strides=strides)
+            out = conv(self.imt)
+            expected_shape = (1, self.output_channels, self.im_shape[0] // 2, self.im_shape[1] // 2)
+            self.assertEqual(out.shape, expected_shape)
 
     def test_dilation1(self):
         conv = ResidualUnit(2, 1, self.output_channels, dilation=3)
@@ -137,3 +148,7 @@ class TestResidualUnit2D(TorchImageTestCase2D):
         out = conv(self.imt)
         expected_shape = (1, self.output_channels, self.im_shape[0], self.im_shape[1])
         self.assertEqual(out.shape, expected_shape)
+
+
+if __name__ == "__main__":
+    unittest.main()
