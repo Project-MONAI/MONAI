@@ -13,7 +13,7 @@ from typing import Sequence, Tuple, Union
 
 import numpy as np
 
-__all__ = ["same_padding", "calculate_out_shape", "gaussian_1d"]
+__all__ = ["same_padding", "stride_minus_kernel_padding", "calculate_out_shape", "gaussian_1d"]
 
 
 def same_padding(
@@ -40,6 +40,19 @@ def same_padding(
     padding = tuple(int(p) for p in padding_np)
 
     return padding if len(padding) > 1 else padding[0]
+
+
+def stride_minus_kernel_padding(
+    kernel_size: Union[Sequence[int], int],
+    stride: Union[Sequence[int], int],
+) -> Union[Tuple[int, ...], int]:
+    kernel_size_np = np.atleast_1d(kernel_size)
+    stride_np = np.atleast_1d(stride)
+
+    out_padding_np = stride_np - kernel_size_np
+    out_padding = tuple(int(p) for p in out_padding_np)
+
+    return out_padding if len(out_padding) > 1 else out_padding[0]
 
 
 def calculate_out_shape(

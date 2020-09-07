@@ -15,7 +15,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from monai.networks.layers.convutils import same_padding
+from monai.networks.layers.convutils import same_padding, stride_minus_kernel_padding
 from monai.networks.layers.factories import Act, Conv, Dropout, Norm, split_args
 
 
@@ -48,6 +48,10 @@ class Convolution(nn.Sequential):
         bias: whether to have a bias term. Defaults to True.
         conv_only: whether to use the convolutional layer only. Defaults to False.
         is_transposed: if True uses ConvTrans instead of Conv. Defaults to False.
+        padding: controls the amount of implicit zero-paddings on both sides for padding number of points
+            for each dimension. Defaults to None.
+        output_padding: controls the additional size added to one side of the output shape.
+            Defaults to None.
 
     See also:
 
@@ -64,7 +68,7 @@ class Convolution(nn.Sequential):
         dimensions: int,
         in_channels: int,
         out_channels: int,
-        strides: int = 1,
+        strides: Union[Sequence[int], int] = 1,
         kernel_size: Union[Sequence[int], int] = 3,
         act: Optional[Union[Tuple, str]] = Act.PRELU,
         norm: Union[Tuple, str] = Norm.INSTANCE,
@@ -75,16 +79,17 @@ class Convolution(nn.Sequential):
         bias: bool = True,
         conv_only: bool = False,
         is_transposed: bool = False,
+        padding: Optional[Union[Sequence[int], int]] = None,
+        output_padding: Optional[Union[Sequence[int], int]] = None,
     ) -> None:
         super().__init__()
         self.dimensions = dimensions
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.is_transposed = is_transposed
-
-        padding = same_padding(kernel_size, dilation)
+        if not padding:
+            padding = same_padding(kernel_size, dilation)
         conv_type = Conv[Conv.CONVTRANS if is_transposed else Conv.CONV, dimensions]
-
         # define the normalisation type and the arguments to the constructor
         if norm is not None:
             norm_name, norm_args = split_args(norm)
@@ -114,13 +119,15 @@ class Convolution(nn.Sequential):
             drop_type = Dropout[drop_name, dropout_dim]
 
         if is_transposed:
+            if not output_padding:
+                output_padding = stride_minus_kernel_padding(1, strides)
             conv = conv_type(
                 in_channels,
                 out_channels,
                 kernel_size=kernel_size,
                 stride=strides,
                 padding=padding,
-                output_padding=strides - 1,
+                output_padding=output_padding,
                 groups=groups,
                 bias=bias,
                 dilation=dilation,
@@ -173,6 +180,8 @@ class ResidualUnit(nn.Module):
         bias: whether to have a bias term. Defaults to True.
         last_conv_only: for the last subunit, whether to use the convolutional layer only.
             Defaults to False.
+        padding: controls the amount of implicit zero-paddings on both sides for padding number of points
+            for each dimension. Defaults to None.
 
     See also:
 
@@ -185,7 +194,7 @@ class ResidualUnit(nn.Module):
         dimensions: int,
         in_channels: int,
         out_channels: int,
-        strides: int = 1,
+        strides: Union[Sequence[int], int] = 1,
         kernel_size: Union[Sequence[int], int] = 3,
         subunits: int = 2,
         act: Optional[Union[Tuple, str]] = Act.PRELU,
@@ -195,6 +204,7 @@ class ResidualUnit(nn.Module):
         dilation: Union[Sequence[int], int] = 1,
         bias: bool = True,
         last_conv_only: bool = False,
+        padding: Optional[Union[Sequence[int], int]] = None,
     ) -> None:
         super().__init__()
         self.dimensions = dimensions
@@ -202,8 +212,8 @@ class ResidualUnit(nn.Module):
         self.out_channels = out_channels
         self.conv = nn.Sequential()
         self.residual = nn.Identity()
-
-        padding = same_padding(kernel_size, dilation)
+        if not padding:
+            padding = same_padding(kernel_size, dilation)
         schannels = in_channels
         sstrides = strides
         subunits = max(1, subunits)
@@ -223,6 +233,7 @@ class ResidualUnit(nn.Module):
                 dilation=dilation,
                 bias=bias,
                 conv_only=conv_only,
+                padding=padding,
             )
 
             self.conv.add_module(f"unit{su:d}", unit)

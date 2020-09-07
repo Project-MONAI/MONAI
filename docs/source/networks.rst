@@ -40,6 +40,17 @@ Blocks
 .. autoclass:: MCFCN
     :members:
 
+`No New Unet Block`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: UnetResBlock
+    :members:
+.. autoclass:: UnetBasicBlock
+    :members:
+.. autoclass:: UnetUpBlock
+    :members:
+.. autoclass:: UnetUpBlock
+    :members:
+
 `SegResnet Block`
 ~~~~~~~~~~~~~~~~~
 .. autoclass:: ResBlock
