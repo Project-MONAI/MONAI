@@ -13,7 +13,7 @@ import sys
 from importlib import import_module
 from pkgutil import walk_packages
 from re import match
-from typing import Any, Callable, Tuple
+from typing import Any, Callable, List, Tuple
 
 OPTIONAL_IMPORT_MSG_FMT = "{}"
 
@@ -46,17 +46,19 @@ def load_submodules(basemod, load_all: bool = True, exclude_pattern: str = "(.*[
     `load_all` is True, excluding anything whose name matches `exclude_pattern`.
     """
     submodules = []
-
-    try:
-        for importer, name, is_pkg in walk_packages(basemod.__path__, prefix=basemod.__name__ + "."):
-            if (is_pkg or load_all) and name not in sys.modules and match(exclude_pattern, name) is None:
+    err_mod: List[str] = []
+    for importer, name, is_pkg in walk_packages(
+        basemod.__path__, prefix=basemod.__name__ + ".", onerror=err_mod.append
+    ):
+        if (is_pkg or load_all) and name not in sys.modules and match(exclude_pattern, name) is None:
+            try:
                 mod = import_module(name)
                 importer.find_module(name).load_module(name)
                 submodules.append(mod)
-    except OptionalImportError:
-        pass  # could not import the optional deps., they are ignored
+            except OptionalImportError:
+                pass  # could not import the optional deps., they are ignored
 
-    return submodules
+    return submodules, err_mod
 
 
 def get_full_type_name(typeobj):
