@@ -519,8 +519,8 @@ def is_supported_format(filename: Union[Sequence[str], str], suffixes: Sequence[
 
     Args:
         filename: file name or a list of file names to read.
-            if a list of files, verify all the subffixes.
-        suffixes: all the supported image subffixes of current reader, must be a list of lower case suffixes.
+            if a list of files, verify all the suffixes.
+        suffixes: all the supported image suffixes of current reader, must be a list of lower case suffixes.
 
     """
     filenames: Sequence[str] = ensure_tuple(filename)

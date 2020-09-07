@@ -372,7 +372,7 @@ class CopyItemsd(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             times: expected copy times, for example, if keys is "img", times is 3,
                 it will add 3 copies of "img" data to the dictionary.
-            names: the names coresponding to the newly copied data,
+            names: the names corresponding to the newly copied data,
                 the length should match `len(keys) x times`. for example, if keys is ["img", "seg"]
                 and times is 2, names can be: ["img_1", "seg_1", "img_2", "seg_2"].
 
@@ -419,7 +419,7 @@ class ConcatItemsd(MapTransform):
         Args:
             keys: keys of the corresponding items to be concatenated together.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            name: the name coresponding to the key to store the concatenated data.
+            name: the name corresponding to the key to store the concatenated data.
             dim: on which dimension to concatenate the items, default is 0.
 
         Raises:

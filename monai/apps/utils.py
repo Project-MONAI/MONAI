@@ -177,7 +177,7 @@ def download_and_extract(url: str, filepath: str, output_dir: str, md5_value: Op
         url: source URL link to download file.
         filepath: the file path of compressed file.
         output_dir: target directory to save extracted files.
-            defaut is None to save in current directory.
+            default is None to save in current directory.
         md5_value: expected MD5 value to validate the downloaded file.
             if None, skip MD5 validation.
 

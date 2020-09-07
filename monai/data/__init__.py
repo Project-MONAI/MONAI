@@ -12,7 +12,7 @@
 from .csv_saver import CSVSaver
 from .dataloader import DataLoader
 from .dataset import ArrayDataset, CacheDataset, Dataset, PersistentDataset, SmartCacheDataset, ZipDataset
-from .decathalon_datalist import load_decathalon_datalist
+from .decathlon_datalist import load_decathlon_datalist
 from .grid_dataset import GridPatchDataset
 from .image_reader import *
 from .nifti_reader import NiftiDataset

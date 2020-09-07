@@ -68,13 +68,13 @@ def _append_paths(base_dir: str, is_segmentation: bool, items: List[Dict]) -> Li
     return items
 
 
-def load_decathalon_datalist(
+def load_decathlon_datalist(
     data_list_file_path: str,
     is_segmentation: bool = True,
     data_list_key: str = "training",
     base_dir: Optional[str] = None,
 ) -> List[Dict]:
-    """Load image/label paths of decathalon challenge from JSON file
+    """Load image/label paths of decathlon challenge from JSON file
 
     Json file is similar to what you get from http://medicaldecathlon.com/
     Those dataset.json files

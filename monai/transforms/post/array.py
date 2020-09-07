@@ -372,7 +372,7 @@ class MeanEnsemble(Transform):
     The input data can be a list or tuple of PyTorch Tensor with shape: [B, C[, H, W, D]],
     Or a single PyTorch Tensor with shape: [E, B, C[, H, W, D]], the `E` dimension represents
     the output data from different models.
-    Typcally, the input data is model output of segmentation task or classificaiton task.
+    Typically, the input data is model output of segmentation task or classification task.
     And it also can support to add `weights` for the input data.
 
     Args:
@@ -412,7 +412,7 @@ class VoteEnsemble(Transform):
     The input data can be a list or tuple of PyTorch Tensor with shape: [B[, C, H, W, D]],
     Or a single PyTorch Tensor with shape: [E, B[, C, H, W, D]], the `E` dimension represents
     the output data from different models.
-    Typcally, the input data is model output of segmentation task or classificaiton task.
+    Typically, the input data is model output of segmentation task or classification task.
 
     Note:
         This vote transform expects the input data is discrete values. It can be multiple channels

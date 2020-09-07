@@ -75,7 +75,7 @@ def train(args):
     hvd.init()
     # Horovod limits CPU threads to be used per worker
     torch.set_num_threads(1)
-    # disable logging for processes execpt 0 on every node
+    # disable logging for processes except 0 on every node
     if hvd.local_rank() != 0:
         f = open(os.devnull, "w")
         sys.stdout = sys.stderr = f

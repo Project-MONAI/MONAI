@@ -24,7 +24,7 @@ def do_activation(input_data: torch.Tensor, activation: Union[str, Callable] = "
     This function is used to do activation for inputs.
 
     Args:
-        input_data: the input that to be acitvated, in the shape [B] or [BN] or [BNHW] or [BNHWD].
+        input_data: the input that to be activated, in the shape [B] or [BN] or [BNHW] or [BNHWD].
         activation: can be ``"sigmoid"`` or ``"softmax"``, or a callable function. Defaults to ``"softmax"``.
             An example for callable function: ``activation = lambda x: torch.log_softmax(x)``.
 
@@ -267,7 +267,7 @@ def check_metric_name_and_unify(metric_name: str):
     """
     There are many metrics related to confusion matrix, and some of the metrics have
     more than one names. In addition, some of the names are very long.
-    Therefore, this function is used to simplify the implementaton.
+    Therefore, this function is used to simplify the implementation.
     """
     metric_name = metric_name.replace(" ", "_")
     metric_name = metric_name.lower()
