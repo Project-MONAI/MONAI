@@ -34,7 +34,7 @@ class LoadImage(Transform):
     Load image file or files from provided path based on reader, default reader is ITK.
     All the supported image formats of ITK:
     https://github.com/InsightSoftwareConsortium/ITK/tree/master/Modules/IO
-    Automatically choose readers based on the supported subffixes and in below order:
+    Automatically choose readers based on the supported suffixes and in below order:
     - User specified reader at runtime when call this loader.
     - Registered readers from the first to the last in list.
     - Default ITK reader.
@@ -59,7 +59,7 @@ class LoadImage(Transform):
             or a tuple of two elements containing the data array, and the meta data in a dict format otherwise.
 
         """
-        self.defaut_reader: ITKReader = ITKReader()
+        self.default_reader: ITKReader = ITKReader()
         self.readers: List[ImageReader] = list()
         if reader is not None:
             self.readers.append(reader)
@@ -72,8 +72,8 @@ class LoadImage(Transform):
         Return all the registered image readers.
 
         Args:
-            reader: registered reader to load image file and meta data based on subfix,
-                if all registered readers can't match subfix at runtime, use the default ITK reader.
+            reader: registered reader to load image file and meta data based on suffix,
+                if all registered readers can't match suffix at runtime, use the default ITK reader.
 
         """
         self.readers.append(reader)
@@ -93,7 +93,7 @@ class LoadImage(Transform):
 
         """
         if reader is None or not reader.verify_suffix(filename):
-            reader = self.defaut_reader
+            reader = self.default_reader
             if len(self.readers) > 0:
                 for r in self.readers:
                     if r.verify_suffix(filename):
@@ -249,7 +249,7 @@ class LoadNumpy(Transform):
     """
     Load arrays or pickled objects from .npy, .npz or pickled files, file or files are from provided path.
     A typical usage is to load the `mask` data for classification task.
-    If loading a list of files or laoding npz file, stack results together and add a new dimension as first dimension,
+    If loading a list of files or loading npz file, stack results together and add a new dimension as first dimension,
     and use the meta data of the first file to represent the stacked result.
     It can load part of the npz file with specified `npz_keys`.
     It's based on the Numpy load/read API:

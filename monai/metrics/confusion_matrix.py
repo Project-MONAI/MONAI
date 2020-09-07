@@ -31,7 +31,7 @@ def compute_confusion_metric(
     zero_division: int = 0,
 ) -> Union[np.ndarray, List[float], float]:
     """
-    Compute confusion matrix related metrics. This function supports to calcuate all metrics
+    Compute confusion matrix related metrics. This function supports to calculate all metrics
     mentioned in: `Confusion matrix <https://en.wikipedia.org/wiki/Confusion_matrix>`_.
     Before calculating, an activation function and/or a binarization manipulation can be employed
     to pre-process the original inputs. Zero division is handled by replacing the result into a

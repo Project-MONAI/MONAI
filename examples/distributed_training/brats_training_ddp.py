@@ -121,7 +121,7 @@ def partition_dataset(data, shuffle: bool = False, seed: int = 0):
     Note that every rank process will shuffle data only in its own partition if set `shuffle=True` to DataLoader.
     The alternative solution is to use `DistributedSampler`, which supports global shuffle before every epoch.
     But if using `CacheDataset` or `SmartCacheDataset`, every rank process will cache duplicated data content and
-    raise systen memory usage.
+    raise system memory usage.
     Args:
         data: data list to partition, assumed to be of constant size.
         shuffle: if true, will shuffle the indices of data list before partition.

@@ -14,10 +14,10 @@ import os
 import tempfile
 import unittest
 
-from monai.data import load_decathalon_datalist
+from monai.data import load_decathlon_datalist
 
 
-class TestLoadDecathalonDatalist(unittest.TestCase):
+class TestLoadDecathlonDatalist(unittest.TestCase):
     def test_seg_values(self):
         with tempfile.TemporaryDirectory() as tempdir:
             test_data = {
@@ -34,7 +34,7 @@ class TestLoadDecathalonDatalist(unittest.TestCase):
             file_path = os.path.join(tempdir, "test_data.json")
             with open(file_path, "w") as json_file:
                 json_file.write(json_str)
-            result = load_decathalon_datalist(file_path, True, "training", tempdir)
+            result = load_decathlon_datalist(file_path, True, "training", tempdir)
             self.assertEqual(result[0]["image"], os.path.join(tempdir, "spleen_19.nii.gz"))
             self.assertEqual(result[0]["label"], os.path.join(tempdir, "spleen_19.nii.gz"))
 
@@ -51,7 +51,7 @@ class TestLoadDecathalonDatalist(unittest.TestCase):
             file_path = os.path.join(tempdir, "test_data.json")
             with open(file_path, "w") as json_file:
                 json_file.write(json_str)
-            result = load_decathalon_datalist(file_path, False, "training", tempdir)
+            result = load_decathlon_datalist(file_path, False, "training", tempdir)
             self.assertEqual(result[0]["image"], os.path.join(tempdir, "chest_19.nii.gz"))
             self.assertEqual(result[0]["label"], 0)
 
@@ -77,7 +77,7 @@ class TestLoadDecathalonDatalist(unittest.TestCase):
             file_path = os.path.join(tempdir, "test_data.json")
             with open(file_path, "w") as json_file:
                 json_file.write(json_str)
-            result = load_decathalon_datalist(file_path, True, "training", None)
+            result = load_decathlon_datalist(file_path, True, "training", None)
             self.assertEqual(result[0]["image"], os.path.join(tempdir, "spleen_19.nii.gz"))
             self.assertEqual(result[0]["label"], os.path.join(tempdir, "spleen_19.nii.gz"))
 
@@ -93,7 +93,7 @@ class TestLoadDecathalonDatalist(unittest.TestCase):
             file_path = os.path.join(tempdir, "test_data.json")
             with open(file_path, "w") as json_file:
                 json_file.write(json_str)
-            result = load_decathalon_datalist(file_path, True, "test", tempdir)
+            result = load_decathlon_datalist(file_path, True, "test", tempdir)
             self.assertEqual(result[0]["image"], os.path.join(tempdir, "spleen_15.nii.gz"))
 
 

@@ -48,7 +48,7 @@ class ImageReader(ABC):
 
         Args:
             filename: file name or a list of file names to read.
-                if a list of files, verify all the subffixes.
+                if a list of files, verify all the suffixes.
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
@@ -102,7 +102,7 @@ class ITKReader(ImageReader):
 
         Args:
             filename: file name or a list of file names to read.
-                if a list of files, verify all the subffixes.
+                if a list of files, verify all the suffixes.
 
         """
         return True
@@ -245,7 +245,7 @@ class NibabelReader(ImageReader):
 
         Args:
             filename: file name or a list of file names to read.
-                if a list of files, verify all the subffixes.
+                if a list of files, verify all the suffixes.
 
         """
         suffixes: Sequence[str] = ["nii", "nii.gz"]
@@ -358,6 +358,7 @@ class NumpyReader(ImageReader):
     Load NPY or NPZ format data based on Numpy library, they can be arrays or pickled objects.
     A typical usage is to load the `mask` data for classification task.
     It can load part of the npz file with specified `npz_keys`.
+
     Args:
         npz_keys: if loading npz file, only load the specified keys, if None, load all the items.
             stack the loaded items together to construct a new first dimension.
@@ -377,9 +378,10 @@ class NumpyReader(ImageReader):
     def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
         """
         Verify whether the specified file or files format is supported by Numpy reader.
+
         Args:
             filename: file name or a list of file names to read.
-                if a list of files, verify all the subffixes.
+                if a list of files, verify all the suffixes.
         """
         suffixes: Sequence[str] = ["npz", "npy"]
         return is_supported_format(filename, suffixes)
@@ -443,6 +445,7 @@ class NumpyReader(ImageReader):
 class PILReader(ImageReader):
     """
     Load common 2D image format (supports PNG, JPG, BMP) file or files from provided path.
+
     Args:
         converter: additional function to convert the image data after `read()`.
             for example, use `converter=lambda image: image.convert("LA")` to convert image format.
@@ -459,9 +462,10 @@ class PILReader(ImageReader):
     def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
         """
         Verify whether the specified file or files format is supported by PIL reader.
+
         Args:
             filename: file name or a list of file names to read.
-                if a list of files, verify all the subffixes.
+                if a list of files, verify all the suffixes.
         """
         suffixes: Sequence[str] = ["png", "jpg", "bmp"]
         return is_supported_format(filename, suffixes)
