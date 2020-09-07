@@ -14,7 +14,7 @@ import sys
 from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
 from monai.apps.utils import download_and_extract
-from monai.data import CacheDataset, load_decathalon_datalist
+from monai.data import CacheDataset, load_decathlon_datalist
 from monai.transforms import LoadNiftid, LoadPNGd, Randomizable
 
 
@@ -32,7 +32,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
         download: whether to download and extract the MedNIST from resource link, default is False.
             if expected file already exists, skip downloading even set it to True.
             user can manually copy `MedNIST.tar.gz` file or `MedNIST` folder to root directory.
-        seed: random seed to randomly split training, validation and test datasets, defaut is 0.
+        seed: random seed to randomly split training, validation and test datasets, default is 0.
         val_frac: percentage of of validation fraction in the whole dataset, default is 0.1.
         test_frac: percentage of of test fraction in the whole dataset, default is 0.1.
         cache_num: number of items to be cached. Default is `sys.maxsize`.
@@ -144,12 +144,12 @@ class DecathlonDataset(Randomizable, CacheDataset):
             "Task08_HepaticVessel", "Task09_Spleen", "Task10_Colon").
         section: expected data section, can be: `training`, `validation` or `test`.
         transform: transforms to execute operations on input data. the default transform is `LoadNiftid`,
-            which can load Nifit format data into numpy array with [H, W, D] or [H, W, D, C] shape.
+            which can load Nifti format data into numpy array with [H, W, D] or [H, W, D, C] shape.
             for further usage, use `AddChanneld` or `AsChannelFirstd` to convert the shape to [C, H, W, D].
         download: whether to download and extract the Decathlon from resource link, default is False.
             if expected file already exists, skip downloading even set it to True.
             user can manually copy tar file or dataset folder to the root directory.
-        seed: random seed to randomly split `training`, `validation` and `test` datasets, defaut is 0.
+        seed: random seed to randomly split `training`, `validation` and `test` datasets, default is 0.
         val_frac: percentage of of validation fraction from the `training` section, default is 0.2.
             Decathlon data only contains `training` section with labels and `test` section without labels,
             so randomly select fraction from the `training` section as the `validation` section.
@@ -248,7 +248,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
 
     def _generate_data_list(self, dataset_dir: str) -> List[Dict]:
         section = "training" if self.section in ["training", "validation"] else "test"
-        datalist = load_decathalon_datalist(os.path.join(dataset_dir, "dataset.json"), True, section)
+        datalist = load_decathlon_datalist(os.path.join(dataset_dir, "dataset.json"), True, section)
         if section == "test":
             return datalist
         else:

@@ -86,7 +86,7 @@ def partition_dataset(data, num_replicas=None, rank=None, shuffle=False, seed=0,
 
     The alternative solution is to use `DistributedSampler`, which supports global shuffle before every epoch.
     But if using `CacheDataset` or `SmartCacheDataset`, every rank process will cache duplicated data content and
-    raise systen memory usage.
+    raise system memory usage.
 
     Args:
         data: data list to partition, assumed to be of constant size.
@@ -134,7 +134,7 @@ def partition_dataset(data, num_replicas=None, rank=None, shuffle=False, seed=0,
 
 
 def train(args):
-    # disable logging for processes execpt 0 on every node
+    # disable logging for processes except 0 on every node
     if args.local_rank != 0:
         f = open(os.devnull, "w")
         sys.stdout = sys.stderr = f

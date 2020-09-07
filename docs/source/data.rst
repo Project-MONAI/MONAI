@@ -118,9 +118,9 @@ Utilities
   :members:
 
 
-Decathalon Datalist
-~~~~~~~~~~~~~~~~~~~
-.. autofunction:: monai.data.load_decathalon_datalist
+Decathlon Datalist
+~~~~~~~~~~~~~~~~~~
+.. autofunction:: monai.data.load_decathlon_datalist
 
 
 DataLoader

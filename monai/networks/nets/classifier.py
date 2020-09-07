@@ -101,7 +101,7 @@ class Critic(Classifier):
     """
     Defines a critic network from Classifier with a single output value and no final activation. The final layer is
     `nn.Flatten` instead of `nn.Linear`, the final result is computed as the mean over the first dimension. This is
-    meant to be used with Wassertein GANs.
+    meant to be used with Wasserstein GANs.
     """
 
     def __init__(

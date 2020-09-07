@@ -73,7 +73,7 @@ from monai.transforms import (
 
 
 def train(args):
-    # disable logging for processes execpt 0 on every node
+    # disable logging for processes except 0 on every node
     if args.local_rank != 0:
         f = open(os.devnull, "w")
         sys.stdout = sys.stderr = f
