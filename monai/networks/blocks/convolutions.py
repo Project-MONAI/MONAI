@@ -15,7 +15,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from monai.networks.layers.convutils import nnunet_output_padding, same_padding
+from monai.networks.layers.convutils import same_padding, stride_minus_kernel_padding
 from monai.networks.layers.factories import Act, Conv, Dropout, Norm, split_args
 
 
@@ -120,7 +120,7 @@ class Convolution(nn.Sequential):
 
         if is_transposed:
             if not output_padding:
-                output_padding = nnunet_output_padding(1, strides, padding=0)
+                output_padding = stride_minus_kernel_padding(1, strides)
             conv = conv_type(
                 in_channels,
                 out_channels,
