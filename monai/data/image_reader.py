@@ -107,7 +107,7 @@ class ITKReader(ImageReader):
         """
         return True
 
-    def read(self, data: Union[Sequence[str], str, Image]):
+    def read(self, data: Union[Sequence[str], str, Any]):
         """
         Read image data from specified file or files, or set a `itk.Image` object.
         Note that the returned object is ITK image object or list of ITK image objects.
@@ -251,7 +251,7 @@ class NibabelReader(ImageReader):
         suffixes: Sequence[str] = ["nii", "nii.gz"]
         return is_supported_format(filename, suffixes)
 
-    def read(self, data: Union[Sequence[str], str, Nifti1Image]):
+    def read(self, data: Union[Sequence[str], str, Any]):
         """
         Read image data from specified file or files, or set a Nibabel Image object.
         Note that the returned object is Nibabel image object or list of Nibabel image objects.
