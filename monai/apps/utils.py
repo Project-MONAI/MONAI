@@ -9,16 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional
-
-import os
-from urllib.request import urlretrieve
-from urllib.error import URLError, ContentTooShortError, HTTPError
 import hashlib
+import logging
+import os
+import shutil
 import tarfile
 import zipfile
+from typing import Optional
+from urllib.error import ContentTooShortError, HTTPError, URLError
+from urllib.request import Request, urlopen, urlretrieve
 
-from monai.utils import progress_bar, optional_import
+from monai.utils import optional_import, progress_bar
 
 gdown, has_gdown = optional_import("gdown", "3.6")
 
@@ -60,28 +61,64 @@ def download_url(url: str, filepath: str, md5_value: Optional[str] = None) -> No
             if None, skip MD5 validation.
 
     Raises:
-        RuntimeError: MD5 check of existing file {filepath} failed, please delete it and try again.
-        URLError: See urllib.request.urlopen
-        HTTPError: See urllib.request.urlopen
-        ContentTooShortError: See urllib.request.urlopen
-        IOError: See urllib.request.urlopen
-        RuntimeError: MD5 check of downloaded file failed, URL={url}, filepath={filepath}, expected MD5={md5_value}.
+        RuntimeError: When the MD5 validation of the ``filepath`` existing file fails.
+        RuntimeError: When a network issue or denied permission prevents the
+            file download from ``url`` to ``filepath``.
+        URLError: See urllib.request.urlretrieve.
+        HTTPError: See urllib.request.urlretrieve.
+        ContentTooShortError: See urllib.request.urlretrieve.
+        IOError: See urllib.request.urlretrieve.
+        RuntimeError: When the MD5 validation of the ``url`` downloaded file fails.
 
     """
     if os.path.exists(filepath):
         if not check_md5(filepath, md5_value):
-            raise RuntimeError(f"MD5 check of existing file {filepath} failed, please delete it and try again.")
+            raise RuntimeError(f"MD5 check of existing file failed: filepath={filepath}, expected MD5={md5_value}.")
         print(f"file {filepath} exists, skip downloading.")
         return
-    os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
     if url.startswith("https://drive.google.com"):
+        if not has_gdown:
+            raise RuntimeError("To download files from Google Drive, please install the gdown dependency.")
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
         gdown.download(url, filepath, quiet=False)
         if not os.path.exists(filepath):
-            raise RuntimeError("download failed due to network issue or permission denied.")
-    else:
+            raise RuntimeError(
+                f"Download of file from {url} to {filepath} failed due to network issue or denied permission."
+            )
+    elif url.startswith("https://msd-for-monai.s3-us-west-2.amazonaws.com"):
+        block_size = 1024 * 1024
+        tmp_file_path = filepath + ".part"
+        first_byte = os.path.getsize(tmp_file_path) if os.path.exists(tmp_file_path) else 0
+        file_size = -1
 
-        def _process_hook(blocknum, blocksize, totalsize):
+        try:
+            file_size = int(urlopen(url).info().get("Content-Length", -1))
+            progress_bar(index=first_byte, count=file_size)
+
+            while first_byte < file_size:
+                last_byte = first_byte + block_size if first_byte + block_size < file_size else file_size - 1
+
+                req = Request(url)
+                req.headers["Range"] = "bytes=%s-%s" % (first_byte, last_byte)
+                data_chunk = urlopen(req, timeout=10).read()
+                with open(tmp_file_path, "ab") as f:
+                    f.write(data_chunk)
+                progress_bar(index=last_byte, count=file_size)
+                first_byte = last_byte + 1
+        except IOError as e:
+            logging.debug("IO Error - %s" % e)
+        finally:
+            if file_size == os.path.getsize(tmp_file_path):
+                if md5_value and not check_md5(tmp_file_path, md5_value):
+                    raise Exception("Error validating the file against its MD5 hash")
+                shutil.move(tmp_file_path, filepath)
+            elif file_size == -1:
+                raise Exception("Error getting Content-Length from server: %s" % url)
+    else:
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+
+        def _process_hook(blocknum: int, blocksize: int, totalsize: int):
             progress_bar(blocknum * blocksize, totalsize, f"Downloading {filepath.split('/')[-1]}:")
 
         try:
@@ -93,8 +130,7 @@ def download_url(url: str, filepath: str, md5_value: Optional[str] = None) -> No
 
     if not check_md5(filepath, md5_value):
         raise RuntimeError(
-            f"MD5 check of downloaded file failed, \
-            URL={url}, filepath={filepath}, expected MD5={md5_value}."
+            f"MD5 check of downloaded file failed: URL={url}, filepath={filepath}, expected MD5={md5_value}."
         )
 
 
@@ -110,8 +146,8 @@ def extractall(filepath: str, output_dir: str, md5_value: Optional[str] = None) 
             if None, skip MD5 validation.
 
     Raises:
-        RuntimeError: MD5 check of compressed file {filepath} failed.
-        TypeError: unsupported compressed file type.
+        RuntimeError: When the MD5 validation of the ``filepath`` compressed file fails.
+        ValueError: When the ``filepath`` file extension is not one of [zip", "tar.gz", "tar"].
 
     """
     target_file = os.path.join(output_dir, os.path.basename(filepath).split(".")[0])
@@ -119,7 +155,7 @@ def extractall(filepath: str, output_dir: str, md5_value: Optional[str] = None) 
         print(f"extracted file {target_file} exists, skip extracting.")
         return
     if not check_md5(filepath, md5_value):
-        raise RuntimeError(f"MD5 check of compressed file {filepath} failed.")
+        raise RuntimeError(f"MD5 check of compressed file failed: filepath={filepath}, expected MD5={md5_value}.")
 
     if filepath.endswith("zip"):
         zip_file = zipfile.ZipFile(filepath)
@@ -130,7 +166,7 @@ def extractall(filepath: str, output_dir: str, md5_value: Optional[str] = None) 
         tar_file.extractall(output_dir)
         tar_file.close()
     else:
-        raise TypeError("unsupported compressed file type.")
+        raise ValueError('Unsupported file extension, available options are: ["zip", "tar.gz", "tar"].')
 
 
 def download_and_extract(url: str, filepath: str, output_dir: str, md5_value: Optional[str] = None) -> None:
@@ -141,7 +177,7 @@ def download_and_extract(url: str, filepath: str, output_dir: str, md5_value: Op
         url: source URL link to download file.
         filepath: the file path of compressed file.
         output_dir: target directory to save extracted files.
-            defaut is None to save in current directory.
+            default is None to save in current directory.
         md5_value: expected MD5 value to validate the downloaded file.
             if None, skip MD5 validation.
 

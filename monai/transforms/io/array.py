@@ -13,17 +13,101 @@ A collection of "vanilla" transforms for IO functions
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Optional
+from pathlib import Path
+from typing import Dict, List, Optional, Sequence, Union
 
 import numpy as np
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
+
 from monai.config import KeysCollection
+from monai.data.image_reader import ImageReader, ITKReader
 from monai.data.utils import correct_nifti_header_if_necessary
 from monai.transforms.compose import Transform
-from monai.utils import optional_import, ensure_tuple
+from monai.utils import ensure_tuple, optional_import
 
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")
+
+
+class LoadImage(Transform):
+    """
+    Load image file or files from provided path based on reader, default reader is ITK.
+    All the supported image formats of ITK:
+    https://github.com/InsightSoftwareConsortium/ITK/tree/master/Modules/IO
+    Automatically choose readers based on the supported suffixes and in below order:
+    - User specified reader at runtime when call this loader.
+    - Registered readers from the first to the last in list.
+    - Default ITK reader.
+
+    """
+
+    def __init__(
+        self,
+        reader: Optional[ImageReader] = None,
+        image_only: bool = False,
+        dtype: np.dtype = np.float32,
+    ) -> None:
+        """
+        Args:
+            reader: register reader to load image file and meta data, if None, still can register readers
+                at runtime or use the default ITK reader.
+            image_only: if True return only the image volume, otherwise return image data array and header dict.
+            dtype: if not None convert the loaded image to this data type.
+
+        Note:
+            The transform returns image data array if `image_only` is True,
+            or a tuple of two elements containing the data array, and the meta data in a dict format otherwise.
+
+        """
+        self.default_reader: ITKReader = ITKReader()
+        self.readers: List[ImageReader] = list()
+        if reader is not None:
+            self.readers.append(reader)
+        self.image_only = image_only
+        self.dtype = dtype
+
+    def register(self, reader: ImageReader) -> List[ImageReader]:
+        """
+        Register image reader to load image file and meta data.
+        Return all the registered image readers.
+
+        Args:
+            reader: registered reader to load image file and meta data based on suffix,
+                if all registered readers can't match suffix at runtime, use the default ITK reader.
+
+        """
+        self.readers.append(reader)
+        return self.readers
+
+    def __call__(
+        self,
+        filename: Union[Sequence[str], str],
+        reader: Optional[ImageReader] = None,
+    ):
+        """
+        Args:
+            filename: path file or file-like object or a list of files.
+                will save the filename to meta_data with key `filename_or_obj`.
+                if provided a list of files, use the filename of first file.
+            reader: runtime reader to load image file and meta data.
+
+        """
+        if reader is None or not reader.verify_suffix(filename):
+            reader = self.default_reader
+            if len(self.readers) > 0:
+                for r in self.readers:
+                    if r.verify_suffix(filename):
+                        reader = r
+                        break
+
+        reader.read(filename)
+        img_array, meta_data = reader.get_data()
+        img_array = img_array.astype(self.dtype)
+
+        if self.image_only:
+            return img_array
+        meta_data["filename_or_obj"] = ensure_tuple(filename)[0]
+        return img_array, meta_data
 
 
 class LoadNifti(Transform):
@@ -56,14 +140,14 @@ class LoadNifti(Transform):
         self.image_only = image_only
         self.dtype = dtype
 
-    def __call__(self, filename):
+    def __call__(self, filename: Union[Sequence[Union[Path, str]], Path, str]):
         """
         Args:
-            filename (str, list, tuple, file): path file or file-like object or a list of files.
+            filename: path file or file-like object or a list of files.
         """
         filename = ensure_tuple(filename)
         img_array = list()
-        compatible_meta = dict()
+        compatible_meta: Dict = dict()
         for name in filename:
             img = nib.load(name)
             img = correct_nifti_header_if_necessary(img)
@@ -124,10 +208,10 @@ class LoadPNG(Transform):
         self.image_only = image_only
         self.dtype = dtype
 
-    def __call__(self, filename):
+    def __call__(self, filename: Union[Sequence[Union[Path, str]], Path, str]):
         """
         Args:
-            filename (str, list, tuple, file): path file or file-like object or a list of files.
+            filename: path file or file-like object or a list of files.
         """
         filename = ensure_tuple(filename)
         img_array = list()
@@ -165,7 +249,7 @@ class LoadNumpy(Transform):
     """
     Load arrays or pickled objects from .npy, .npz or pickled files, file or files are from provided path.
     A typical usage is to load the `mask` data for classification task.
-    If loading a list of files or laoding npz file, stack results together and add a new dimension as first dimension,
+    If loading a list of files or loading npz file, stack results together and add a new dimension as first dimension,
     and use the meta data of the first file to represent the stacked result.
     It can load part of the npz file with specified `npz_keys`.
     It's based on the Numpy load/read API:
@@ -190,17 +274,21 @@ class LoadNumpy(Transform):
             npz_keys = ensure_tuple(npz_keys)
         self.npz_keys = npz_keys
 
-    def __call__(self, filename):
+    def __call__(self, filename: Union[Sequence[Union[Path, str]], Path, str]):
         """
         Args:
-            filename (str, list, tuple, file): path file or file-like object or a list of files.
+            filename: path file or file-like object or a list of files.
+
+        Raises:
+            ValueError: When ``filename`` is a sequence and contains a "npz" file extension.
+
         """
         if isinstance(filename, (tuple, list)):
             for name in filename:
                 if name.endswith(".npz"):
-                    raise TypeError("can not load a list of npz file.")
+                    raise ValueError("Cannot load a sequence of npz files.")
         filename = ensure_tuple(filename)
-        data_array = list()
+        data_array: List = list()
         compatible_meta = None
 
         def _save_data_meta(data_array, name, data, compatible_meta):

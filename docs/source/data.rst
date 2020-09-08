@@ -27,6 +27,12 @@ Generic Interfaces
   :members:
   :special-members: __getitem__
 
+`SmartCacheDataset`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: SmartCacheDataset
+  :members:
+  :special-members: __getitem__
+
 `ZipDataset`
 ~~~~~~~~~~~~
 .. autoclass:: ZipDataset
@@ -46,6 +52,30 @@ Patch-based dataset
 `GridPatchDataset`
 ~~~~~~~~~~~~~~~~~~
 .. autoclass:: GridPatchDataset
+  :members:
+
+
+Image reader
+------------
+
+ITKReader
+~~~~~~~~~
+.. autoclass:: ITKReader
+  :members:
+
+NibabelReader
+~~~~~~~~~~~~~
+.. autoclass:: NibabelReader
+  :members:
+
+NumpyReader
+~~~~~~~~~~~
+.. autoclass:: NumpyReader
+  :members:
+
+PILReader
+~~~~~~~~~
+.. autoclass:: PILReader
   :members:
 
 
@@ -88,9 +118,9 @@ Utilities
   :members:
 
 
-Decathalon Datalist
-~~~~~~~~~~~~~~~~~~~
-.. autofunction:: monai.data.load_decathalon_datalist
+Decathlon Datalist
+~~~~~~~~~~~~~~~~~~
+.. autofunction:: monai.data.load_decathlon_datalist
 
 
 DataLoader

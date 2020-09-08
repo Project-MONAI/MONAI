@@ -22,6 +22,7 @@ def run_testsuit():
         "test_cachedataset_parallel",
         "test_check_md5",
         "test_dataset",
+        "test_ahnet",
         "test_handler_checkpoint_loader",
         "test_handler_checkpoint_saver",
         "test_handler_classification_saver",
@@ -39,6 +40,7 @@ def run_testsuit():
         "test_integration_sliding_window",
         "test_integration_unet_2d",
         "test_integration_workflows",
+        "test_integration_workflows_gan",
         "test_keep_largest_connected_component",
         "test_keep_largest_connected_componentd",
         "test_load_nifti",
@@ -70,6 +72,10 @@ def run_testsuit():
         "test_zoom",
         "test_zoom_affine",
         "test_zoomd",
+        "test_load_image",
+        "test_load_imaged",
+        "test_smartcachedataset",
+        "test_lltm",
     ]
 
     files = glob.glob(os.path.join(os.path.dirname(__file__), "test_*.py"))
@@ -86,6 +92,16 @@ def run_testsuit():
 
 
 if __name__ == "__main__":
+
+    # testing import submodules
+    from monai.utils.module import load_submodules
+
+    _, err_mod = load_submodules(sys.modules["monai"], True)
+    if err_mod:
+        # expecting that only engines and handlers are not imported
+        assert sorted(err_mod) == ["monai.engines", "monai.handlers"]
+
+    # testing all modules
     test_runner = unittest.TextTestRunner(stream=sys.stdout, verbosity=2)
     result = test_runner.run(run_testsuit())
     exit(int(not result.wasSuccessful()))

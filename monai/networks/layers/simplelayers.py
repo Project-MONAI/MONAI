@@ -9,16 +9,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence, Union
+import math
+from typing import Sequence, Union, cast
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch import nn
+from torch.autograd import Function
 
 from monai.networks.layers.convutils import gaussian_1d, same_padding
-from monai.utils import ensure_tuple_rep
+from monai.utils import ensure_tuple_rep, optional_import
 
-__all__ = ["SkipConnection", "Flatten", "GaussianFilter"]
+_C, _ = optional_import("monai._C")
+
+__all__ = ["SkipConnection", "Flatten", "GaussianFilter", "LLTM"]
 
 
 class SkipConnection(nn.Module):
@@ -31,7 +35,7 @@ class SkipConnection(nn.Module):
         self.submodule = submodule
         self.cat_dim = cat_dim
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return torch.cat([x, self.submodule(x)], self.cat_dim)
 
 
@@ -40,7 +44,7 @@ class Flatten(nn.Module):
     Flattens the given input in the forward pass to be [B,-1] in shape.
     """
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return x.view(x.size(0), -1)
 
 
@@ -49,7 +53,7 @@ class Reshape(nn.Module):
     Reshapes input tensors to the given shape (minus batch dimension), retaining original batch size.
     """
 
-    def __init__(self, *shape) -> None:
+    def __init__(self, *shape: int) -> None:
         """
         Given a shape list/tuple `shape` of integers (s0, s1, ... , sn), this layer will reshape input tensors of
         shape (batch, s0 * s1 * ... * sn) to shape (batch, s0, s1, ... , sn).
@@ -60,7 +64,7 @@ class Reshape(nn.Module):
         super().__init__()
         self.shape = (1,) + tuple(shape)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         shape = list(self.shape)
         shape[0] = x.shape[0]  # done this way for Torchscript
         return x.reshape(shape)
@@ -81,27 +85,27 @@ class GaussianFilter(nn.Module):
         self.kernel = [
             torch.nn.Parameter(torch.as_tensor(gaussian_1d(s, truncated), dtype=torch.float), False) for s in _sigma
         ]
-        self.padding = [same_padding(k.size()[0]) for k in self.kernel]
+        self.padding = [cast(int, (same_padding(k.size()[0]))) for k in self.kernel]
         self.conv_n = [F.conv1d, F.conv2d, F.conv3d][spatial_dims - 1]
         for idx, param in enumerate(self.kernel):
             self.register_parameter(f"kernel_{idx}", param)
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Args:
             x: in shape [Batch, chns, H, W, D].
 
         Raises:
-            TypeError: x must be a Tensor, got {type(x).__name__}.
+            TypeError: When ``x`` is not a ``torch.Tensor``.
 
         """
         if not torch.is_tensor(x):
-            raise TypeError(f"x must be a Tensor, got {type(x).__name__}.")
+            raise TypeError(f"x must be a torch.Tensor but is {type(x).__name__}.")
         chns = x.shape[1]
         sp_dim = self.spatial_dims
         x = x.clone()  # no inplace change of x
 
-        def _conv(input_, d):
+        def _conv(input_: torch.Tensor, d: int) -> torch.Tensor:
             if d < 0:
                 return input_
             s = [1] * (sp_dim + 2)
@@ -113,3 +117,53 @@ class GaussianFilter(nn.Module):
             return self.conv_n(input=_conv(input_, d - 1), weight=kernel, padding=padding, groups=chns)
 
         return _conv(x, sp_dim - 1)
+
+
+class LLTMFunction(Function):
+    @staticmethod
+    def forward(ctx, input, weights, bias, old_h, old_cell):
+        outputs = _C.lltm_forward(input, weights, bias, old_h, old_cell)
+        new_h, new_cell = outputs[:2]
+        variables = outputs[1:] + [weights]
+        ctx.save_for_backward(*variables)
+
+        return new_h, new_cell
+
+    @staticmethod
+    def backward(ctx, grad_h, grad_cell):
+        outputs = _C.lltm_backward(grad_h.contiguous(), grad_cell.contiguous(), *ctx.saved_tensors)
+        d_old_h, d_input, d_weights, d_bias, d_old_cell = outputs[:5]
+
+        return d_input, d_weights, d_bias, d_old_h, d_old_cell
+
+
+class LLTM(nn.Module):
+    """
+    This recurrent unit is similar to an LSTM, but differs in that it lacks a forget
+    gate and uses an Exponential Linear Unit (ELU) as its internal activation function.
+    Because this unit never forgets, call it LLTM, or Long-Long-Term-Memory unit.
+    It has both C++ and CUDA implementation, automatically switch according to the
+    target device where put this module to.
+
+    Args:
+        input_features: size of input feature data
+        state_size: size of the state of recurrent unit
+
+    Referring to: https://pytorch.org/tutorials/advanced/cpp_extension.html
+    """
+
+    def __init__(self, input_features: int, state_size: int):
+        super(LLTM, self).__init__()
+        self.input_features = input_features
+        self.state_size = state_size
+        self.weights = nn.Parameter(torch.empty(3 * state_size, input_features + state_size))
+        self.bias = nn.Parameter(torch.empty(1, 3 * state_size))
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        stdv = 1.0 / math.sqrt(self.state_size)
+        for weight in self.parameters():
+            weight.data.uniform_(-stdv, +stdv)
+
+    def forward(self, input, state):
+        return LLTMFunction.apply(input, self.weights, self.bias, *state)
