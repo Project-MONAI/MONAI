@@ -13,9 +13,45 @@ limitations under the License.
 
 #include <torch/extension.h>
 #include "lltm/lltm.h"
+#include "resample/pushpull.h"
+#include "utils/resample_utils.h"
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   // lltm
   m.def("lltm_forward", &lltm_forward, "LLTM forward");
   m.def("lltm_backward", &lltm_backward, "LLTM backward");
+
+  // resample bound mode
+  py::enum_<monai::BoundType>(m, "BoundType")
+      .value("replicate", monai::BoundType::Replicate)
+      .value("dct1", monai::BoundType::DCT1)
+      .value("dct2", monai::BoundType::DCT2)
+      .value("dst1", monai::BoundType::DST1)
+      .value("dst2", monai::BoundType::DST2)
+      .value("dft", monai::BoundType::DFT)
+      .value("sliding", monai::BoundType::Sliding)
+      .value("zero", monai::BoundType::Zero)
+      .export_values();
+
+  // resample interpolation mode
+  py::enum_<monai::InterpolationType>(m, "InterpolationType")
+      .value("nearest", monai::InterpolationType::Nearest)
+      .value("linear", monai::InterpolationType::Linear)
+      .value("quadratic", monai::InterpolationType::Quadratic)
+      .value("cubic", monai::InterpolationType::Cubic)
+      .value("fourth", monai::InterpolationType::FourthOrder)
+      .value("fifth", monai::InterpolationType::FifthOrder)
+      .value("sixth", monai::InterpolationType::SixthOrder)
+      .value("seventh", monai::InterpolationType::SeventhOrder)
+      .export_values();
+
+  // resample
+  m.def("grid_pull", &monai::grid_pull, "GridPull");
+  m.def("grid_pull_backward", &monai::grid_pull_backward, "GridPull backward");
+  m.def("grid_push", &monai::grid_push, "GridPush");
+  m.def("grid_push_backward", &monai::grid_push_backward, "GridPush backward");
+  m.def("grid_count", &monai::grid_count, "GridCount");
+  m.def("grid_count_backward", &monai::grid_count_backward, "GridCount backward");
+  m.def("grid_grad", &monai::grid_grad, "GridGrad");
+  m.def("grid_grad_backward", &monai::grid_grad_backward, "GridGrad backward");
 }
