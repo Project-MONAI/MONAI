@@ -62,6 +62,23 @@ do
 done
 
 
+# run training files in examples/segmentation_2d
+for file in "examples/segmentation_2d"/*train*
+do
+    python "$file"
+done
+
+# check training files generated from examples/segmentation_2d
+[ -e "./best_metric_model_segmentation2d_array.pth" ] && echo "1" >> $TEMP_LOG || (echo "examples segmentation_2d: model file not generated" | tee $TEMP_LOG && exit 0)
+[ -e "./best_metric_model_segmentation2d_dict.pth" ] && echo "1" >> $TEMP_LOG || (echo "examples segmentation_2d: model file not generated" | tee $TEMP_LOG && exit 0)
+
+# run eval files in examples/segmentation_2d
+for file in "examples/segmentation_2d"/*eval*
+do
+    python "$file"
+done
+
+
 # run training files in examples/segmentation_3d
 for file in "examples/segmentation_3d"/*train*
 do
