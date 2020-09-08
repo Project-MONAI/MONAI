@@ -22,22 +22,22 @@ from monai.networks.layers.factories import Act, Norm, split_args
 class UnetResBlock(nn.Module):
     """
     A skip-connection based module that can be used for:
-        `NNUnet <https://arxiv.org/pdf/1809.10483.pdf>`_.
+        `No New-Net <https://arxiv.org/pdf/1809.10483.pdf>`_.
 
     Args:
-    dimensions: number of spatial dimensions.
-    in_channels: number of input channels.
-    out_channels: number of output channels.
-    kernel_size: convolution kernel size.
-    stride: convolution stride.
-    norm_name: [``"batch"``, ``"instance"``, ``"group"``]
-        feature normalization type and arguments. In this module, if using group norm,
-        in_channels should be divisible by 16 (default value for ``num_groups``).
+        spatial_dims: number of spatial dimensions.
+        in_channels: number of input channels.
+        out_channels: number of output channels.
+        kernel_size: convolution kernel size.
+        stride: convolution stride.
+        norm_name: [``"batch"``, ``"instance"``, ``"group"``]
+            feature normalization type and arguments. In this module, if using ``"group"``,
+            `in_channels` should be divisible by 16 (default value for ``num_groups``).
     """
 
     def __init__(
         self,
-        dimensions: int,
+        spatial_dims: int,
         in_channels: int,
         out_channels: int,
         kernel_size: Union[Sequence[int], int],
@@ -46,7 +46,7 @@ class UnetResBlock(nn.Module):
     ):
         super(UnetResBlock, self).__init__()
         self.conv1 = get_conv_layer(
-            dimensions,
+            spatial_dims,
             in_channels,
             out_channels,
             kernel_size=kernel_size,
@@ -54,7 +54,7 @@ class UnetResBlock(nn.Module):
             conv_only=True,
         )
         self.conv2 = get_conv_layer(
-            dimensions,
+            spatial_dims,
             out_channels,
             out_channels,
             kernel_size=kernel_size,
@@ -62,7 +62,7 @@ class UnetResBlock(nn.Module):
             conv_only=True,
         )
         self.conv3 = get_conv_layer(
-            dimensions,
+            spatial_dims,
             in_channels,
             out_channels,
             kernel_size=1,
@@ -70,9 +70,9 @@ class UnetResBlock(nn.Module):
             conv_only=True,
         )
         self.lrelu = get_acti_layer(("leakyrelu", {"inplace": True, "negative_slope": 0.01}))
-        self.norm1 = get_norm_layer(dimensions, out_channels, norm_name)
-        self.norm2 = get_norm_layer(dimensions, out_channels, norm_name)
-        self.norm3 = get_norm_layer(dimensions, out_channels, norm_name)
+        self.norm1 = get_norm_layer(spatial_dims, out_channels, norm_name)
+        self.norm2 = get_norm_layer(spatial_dims, out_channels, norm_name)
+        self.norm3 = get_norm_layer(spatial_dims, out_channels, norm_name)
         self.downsample = in_channels != out_channels
         stride_np = np.atleast_1d(stride)
         if not np.all(stride_np == 1):
@@ -96,22 +96,22 @@ class UnetResBlock(nn.Module):
 class UnetBasicBlock(nn.Module):
     """
     A CNN module module that can be used for:
-        `NNUnet <https://arxiv.org/pdf/1809.10483.pdf>`_.
+        `No New-Net <https://arxiv.org/pdf/1809.10483.pdf>`_.
 
     Args:
-    dimensions: number of spatial dimensions.
-    in_channels: number of input channels.
-    out_channels: number of output channels.
-    kernel_size: convolution kernel size.
-    stride: convolution stride.
-    norm_name: [``"batch"``, ``"instance"``, ``"group"``]
-        feature normalization type and arguments. In this module, if using group norm,
-        in_channels should be divisible by 16 (default value for ``num_groups``).
+        spatial_dims: number of spatial dimensions.
+        in_channels: number of input channels.
+        out_channels: number of output channels.
+        kernel_size: convolution kernel size.
+        stride: convolution stride.
+        norm_name: [``"batch"``, ``"instance"``, ``"group"``]
+            feature normalization type and arguments. In this module, if using ``"group"``,
+            `in_channels` should be divisible by 16 (default value for ``num_groups``).
     """
 
     def __init__(
         self,
-        dimensions: int,
+        spatial_dims: int,
         in_channels: int,
         out_channels: int,
         kernel_size: Union[Sequence[int], int],
@@ -120,7 +120,7 @@ class UnetBasicBlock(nn.Module):
     ):
         super(UnetBasicBlock, self).__init__()
         self.conv1 = get_conv_layer(
-            dimensions,
+            spatial_dims,
             in_channels,
             out_channels,
             kernel_size=kernel_size,
@@ -128,7 +128,7 @@ class UnetBasicBlock(nn.Module):
             conv_only=True,
         )
         self.conv2 = get_conv_layer(
-            dimensions,
+            spatial_dims,
             out_channels,
             out_channels,
             kernel_size=kernel_size,
@@ -136,8 +136,8 @@ class UnetBasicBlock(nn.Module):
             conv_only=True,
         )
         self.lrelu = get_acti_layer(("leakyrelu", {"inplace": True, "negative_slope": 0.01}))
-        self.norm1 = get_norm_layer(dimensions, out_channels, norm_name)
-        self.norm2 = get_norm_layer(dimensions, out_channels, norm_name)
+        self.norm1 = get_norm_layer(spatial_dims, out_channels, norm_name)
+        self.norm2 = get_norm_layer(spatial_dims, out_channels, norm_name)
 
     def forward(self, inp):
         out = self.conv1(inp)
@@ -152,22 +152,22 @@ class UnetBasicBlock(nn.Module):
 class UnetUpBlock(nn.Module):
     """
     An upsampling module that can be used for:
-        `NNUnet <https://arxiv.org/pdf/1809.10483.pdf>`_.
+        `No New-Net <https://arxiv.org/pdf/1809.10483.pdf>`_.
 
     Args:
-    dimensions: number of spatial dimensions.
-    in_channels: number of input channels.
-    out_channels: number of output channels.
-    kernel_size: convolution kernel size.
-    stride: convolution stride.
-    norm_name: [``"batch"``, ``"instance"``, ``"group"``]
-        feature normalization type and arguments. In this module, if using group norm,
-        in_channels should be divisible by 16 (default value for ``num_groups``).
+        spatial_dims: number of spatial dimensions.
+        in_channels: number of input channels.
+        out_channels: number of output channels.
+        kernel_size: convolution kernel size.
+        stride: convolution stride.
+        norm_name: [``"batch"``, ``"instance"``, ``"group"``]
+            feature normalization type and arguments. In this module, if using ``"group"``,
+            `in_channels` should be divisible by 16 (default value for ``num_groups``).
     """
 
     def __init__(
         self,
-        dimensions: int,
+        spatial_dims: int,
         in_channels: int,
         out_channels: int,
         kernel_size: Union[Sequence[int], int],
@@ -177,7 +177,7 @@ class UnetUpBlock(nn.Module):
         super(UnetUpBlock, self).__init__()
         self.stride = stride
         self.transp_conv = get_conv_layer(
-            dimensions,
+            spatial_dims,
             in_channels,
             in_channels,
             kernel_size=kernel_size,
@@ -186,7 +186,7 @@ class UnetUpBlock(nn.Module):
             is_transposed=True,
         )
         self.conv_block = UnetBasicBlock(
-            dimensions,
+            spatial_dims,
             in_channels + out_channels,
             out_channels,
             kernel_size=kernel_size,
@@ -203,10 +203,10 @@ class UnetUpBlock(nn.Module):
 
 
 class UnetOutBlock(nn.Module):
-    def __init__(self, dimensions: int, in_channels: int, out_channels: int):
+    def __init__(self, spatial_dims: int, in_channels: int, out_channels: int):
         super(UnetOutBlock, self).__init__()
         self.conv = get_conv_layer(
-            dimensions, in_channels, out_channels, kernel_size=1, stride=1, bias=True, conv_only=True
+            spatial_dims, in_channels, out_channels, kernel_size=1, stride=1, bias=True, conv_only=True
         )
 
     def forward(self, inp):
@@ -220,7 +220,7 @@ def get_acti_layer(act: Union[Tuple[str, Dict], str]):
     return act_type(**act_args)
 
 
-def get_norm_layer(dimensions: int, out_channels: int, norm_name: str, num_groups: int = 16):
+def get_norm_layer(spatial_dims: int, out_channels: int, norm_name: str, num_groups: int = 16):
     if norm_name not in ["batch", "instance", "group"]:
         raise ValueError(f"Unsupported normalization mode: {norm_name}")
     else:
@@ -228,12 +228,12 @@ def get_norm_layer(dimensions: int, out_channels: int, norm_name: str, num_group
             assert out_channels % num_groups == 0, "out_channels should be divisible by num_groups."
             norm = Norm[norm_name](num_groups=num_groups, num_channels=out_channels, affine=True)
         else:
-            norm = Norm[norm_name, dimensions](out_channels, affine=True)
+            norm = Norm[norm_name, spatial_dims](out_channels, affine=True)
         return norm
 
 
 def get_conv_layer(
-    dimensions: int,
+    spatial_dims: int,
     in_channels: int,
     out_channels: int,
     kernel_size: Union[Sequence[int], int] = 3,
@@ -250,7 +250,7 @@ def get_conv_layer(
         output_padding = get_output_padding(kernel_size, stride, padding)
 
     return Convolution(
-        dimensions,
+        spatial_dims,
         in_channels,
         out_channels,
         strides=stride,
@@ -273,6 +273,8 @@ def get_padding(
     kernel_size_np = np.atleast_1d(kernel_size)
     stride_np = np.atleast_1d(stride)
     padding_np = (kernel_size_np - stride_np + 1) / 2
+    error_msg = "padding value should not be negative, please change the kernel size and/or stride."
+    assert np.min(padding_np) >= 0, error_msg
     padding = tuple(int(p) for p in padding_np)
 
     return padding if len(padding) > 1 else padding[0]
@@ -288,6 +290,8 @@ def get_output_padding(
     padding_np = np.atleast_1d(padding)
 
     out_padding_np = 2 * padding_np + stride_np - kernel_size_np
+    error_msg = "out_padding value should not be negative, please change the kernel size and/or stride."
+    assert np.min(out_padding_np) >= 0, error_msg
     out_padding = tuple(int(p) for p in out_padding_np)
 
     return out_padding if len(out_padding) > 1 else out_padding[0]
