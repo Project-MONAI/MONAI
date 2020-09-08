@@ -14,8 +14,9 @@ import os
 import sys
 import tempfile
 from glob import glob
-from PIL import Image
+
 import torch
+from PIL import Image
 from torch.utils.data import DataLoader
 
 import monai
@@ -80,7 +81,7 @@ def main(tempdir):
             value = dice_metric(y_pred=val_outputs, y=val_labels)
             metric_count += len(value)
             metric_sum += value.item() * len(value)
-            val_outputs = (val_outputs.sigmoid() >= 0.5)
+            val_outputs = val_outputs.sigmoid() >= 0.5
             saver.save_batch(val_outputs)
         metric = metric_sum / metric_count
         print("evaluation metric:", metric)

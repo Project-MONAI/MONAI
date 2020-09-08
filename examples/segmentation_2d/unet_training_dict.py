@@ -14,8 +14,9 @@ import os
 import sys
 import tempfile
 from glob import glob
-from PIL import Image
+
 import torch
+from PIL import Image
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
