@@ -117,7 +117,8 @@ function compile_cpp {
 
 function clang_format {
     echo "Running clang-format..."
-    clang_format_tool='clang-format'
+    ${cmdPrefix}python -m tests.clang_format_utils
+    clang_format_tool='.clang-format-bin/clang-format'
     # Verify .
     if ! type -p "$clang_format_tool" >/dev/null; then
         echo "'clang-format' not found, skipping the formatting."
