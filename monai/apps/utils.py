@@ -24,56 +24,67 @@ from monai.utils import optional_import, progress_bar
 gdown, has_gdown = optional_import("gdown", "3.6")
 
 
-def check_md5(filepath: str, md5_value: Optional[str] = None) -> bool:
+def check_hash(filepath: str, val: Optional[str] = None, hash_type: str = "md5") -> bool:
     """
-    check MD5 signature of specified file.
+    Verify hash signature of specified file.
 
     Args:
-        filepath: path of source file to verify MD5.
-        md5_value: expected MD5 value of the file.
+        filepath: path of source file to verify hash value.
+        val: expected hash value of the file.
+        hash_type: 'md5' or 'sha1', defaults to 'md5'.
 
     """
-    if md5_value is not None:
-        md5 = hashlib.md5()
-        try:
-            with open(filepath, "rb") as f:
-                for chunk in iter(lambda: f.read(1024 * 1024), b""):
-                    md5.update(chunk)
-        except Exception as e:
-            print(f"Exception in check_md5: {e}")
-            return False
-        if md5_value != md5.hexdigest():
-            return False
+    if val is None:
+        print(f"Expected {hash_type} is None, skip {hash_type} check for file {filepath}.")
+        return True
+    if hash_type.lower() == "md5":
+        actual_hash = hashlib.md5()
+    elif hash_type.lower() == "sha1":
+        actual_hash = hashlib.sha1()
     else:
-        print(f"expected MD5 is None, skip MD5 check for file {filepath}.")
+        raise NotImplementedError(f"Unknown 'hash_type' {hash_type}.")
+    try:
+        with open(filepath, "rb") as f:
+            for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                actual_hash.update(chunk)
+    except Exception as e:
+        print(f"Exception in check_hash: {e}")
+        return False
+    if val != actual_hash.hexdigest():
+        print("check_hash failed.")
+        return False
 
+    print(f"Verified '{os.path.basename(filepath)}', {hash_type}: {val}.")
     return True
 
 
-def download_url(url: str, filepath: str, md5_value: Optional[str] = None) -> None:
+def download_url(url: str, filepath: str, hash_val: Optional[str] = None, hash_type: str = "md5") -> None:
     """
-    Download file from specified URL link, support process bar and MD5 check.
+    Download file from specified URL link, support process bar and hash check.
 
     Args:
         url: source URL link to download file.
         filepath: target filepath to save the downloaded file.
-        md5_value: expected MD5 value to validate the downloaded file.
-            if None, skip MD5 validation.
+        hash_val: expected hash value to validate the downloaded file.
+            if None, skip hash validation.
+        hash_type: 'md5' or 'sha1', defaults to 'md5'.
 
     Raises:
-        RuntimeError: When the MD5 validation of the ``filepath`` existing file fails.
+        RuntimeError: When the hash validation of the ``filepath`` existing file fails.
         RuntimeError: When a network issue or denied permission prevents the
             file download from ``url`` to ``filepath``.
         URLError: See urllib.request.urlretrieve.
         HTTPError: See urllib.request.urlretrieve.
         ContentTooShortError: See urllib.request.urlretrieve.
         IOError: See urllib.request.urlretrieve.
-        RuntimeError: When the MD5 validation of the ``url`` downloaded file fails.
+        RuntimeError: When the hash validation of the ``url`` downloaded file fails.
 
     """
     if os.path.exists(filepath):
-        if not check_md5(filepath, md5_value):
-            raise RuntimeError(f"MD5 check of existing file failed: filepath={filepath}, expected MD5={md5_value}.")
+        if not check_hash(filepath, hash_val, hash_type):
+            raise RuntimeError(
+                f"{hash_type} check of existing file failed: filepath={filepath}, expected {hash_type}={hash_val}."
+            )
         print(f"file {filepath} exists, skip downloading.")
         return
 
@@ -110,8 +121,8 @@ def download_url(url: str, filepath: str, md5_value: Optional[str] = None) -> No
             logging.debug("IO Error - %s" % e)
         finally:
             if file_size == os.path.getsize(tmp_file_path):
-                if md5_value and not check_md5(tmp_file_path, md5_value):
-                    raise Exception("Error validating the file against its MD5 hash")
+                if hash_val and not check_hash(tmp_file_path, hash_val, hash_type):
+                    raise Exception(f"Error validating the file against its {hash_type} hash")
                 shutil.move(tmp_file_path, filepath)
             elif file_size == -1:
                 raise Exception("Error getting Content-Length from server: %s" % url)
@@ -128,13 +139,14 @@ def download_url(url: str, filepath: str, md5_value: Optional[str] = None) -> No
             print(f"download failed from {url} to {filepath}.")
             raise e
 
-    if not check_md5(filepath, md5_value):
+    if not check_hash(filepath, hash_val, hash_type):
         raise RuntimeError(
-            f"MD5 check of downloaded file failed: URL={url}, filepath={filepath}, expected MD5={md5_value}."
+            f"{hash_type} check of downloaded file failed: URL={url}, "
+            f"filepath={filepath}, expected {hash_type}={hash_val}."
         )
 
 
-def extractall(filepath: str, output_dir: str, md5_value: Optional[str] = None) -> None:
+def extractall(filepath: str, output_dir: str, hash_val: Optional[str] = None, hash_type: str = "md5") -> None:
     """
     Extract file to the output directory.
     Expected file types are: `zip`, `tar.gz` and `tar`.
@@ -142,11 +154,12 @@ def extractall(filepath: str, output_dir: str, md5_value: Optional[str] = None) 
     Args:
         filepath: the file path of compressed file.
         output_dir: target directory to save extracted files.
-        md5_value: expected MD5 value to validate the compressed file.
-            if None, skip MD5 validation.
+        hash_val: expected hash value to validate the compressed file.
+            if None, skip hash validation.
+        hash_type: 'md5' or 'sha1', defaults to 'md5'.
 
     Raises:
-        RuntimeError: When the MD5 validation of the ``filepath`` compressed file fails.
+        RuntimeError: When the hash validation of the ``filepath`` compressed file fails.
         ValueError: When the ``filepath`` file extension is not one of [zip", "tar.gz", "tar"].
 
     """
@@ -154,8 +167,10 @@ def extractall(filepath: str, output_dir: str, md5_value: Optional[str] = None) 
     if os.path.exists(target_file):
         print(f"extracted file {target_file} exists, skip extracting.")
         return
-    if not check_md5(filepath, md5_value):
-        raise RuntimeError(f"MD5 check of compressed file failed: filepath={filepath}, expected MD5={md5_value}.")
+    if not check_hash(filepath, hash_val, hash_type):
+        raise RuntimeError(
+            f"{hash_type} check of compressed file failed: " f"filepath={filepath}, expected {hash_type}={hash_val}."
+        )
 
     if filepath.endswith("zip"):
         zip_file = zipfile.ZipFile(filepath)
@@ -169,7 +184,9 @@ def extractall(filepath: str, output_dir: str, md5_value: Optional[str] = None) 
         raise ValueError('Unsupported file extension, available options are: ["zip", "tar.gz", "tar"].')
 
 
-def download_and_extract(url: str, filepath: str, output_dir: str, md5_value: Optional[str] = None) -> None:
+def download_and_extract(
+    url: str, filepath: str, output_dir: str, hash_val: Optional[str] = None, hash_type: str = "md5"
+) -> None:
     """
     Download file from URL and extract it to the output directory.
 
@@ -178,9 +195,10 @@ def download_and_extract(url: str, filepath: str, output_dir: str, md5_value: Op
         filepath: the file path of compressed file.
         output_dir: target directory to save extracted files.
             default is None to save in current directory.
-        md5_value: expected MD5 value to validate the downloaded file.
-            if None, skip MD5 validation.
+        hash_val: expected hash value to validate the downloaded file.
+            if None, skip hash validation.
+        hash_type: 'md5' or 'sha1', defaults to 'md5'.
 
     """
-    download_url(url=url, filepath=filepath, md5_value=md5_value)
-    extractall(filepath=filepath, output_dir=output_dir, md5_value=md5_value)
+    download_url(url=url, filepath=filepath, hash_val=hash_val, hash_type=hash_type)
+    extractall(filepath=filepath, output_dir=output_dir, hash_val=hash_val, hash_type=hash_type)

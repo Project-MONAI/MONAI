@@ -20,7 +20,6 @@ def run_testsuit():
         "test_arraydataset",
         "test_cachedataset",
         "test_cachedataset_parallel",
-        "test_check_md5",
         "test_dataset",
         "test_ahnet",
         "test_handler_checkpoint_loader",
