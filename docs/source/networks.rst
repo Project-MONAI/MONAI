@@ -48,8 +48,6 @@ Blocks
     :members:
 .. autoclass:: UnetUpBlock
     :members:
-.. autoclass:: UnetUpBlock
-    :members:
 
 `SegResnet Block`
 ~~~~~~~~~~~~~~~~~
@@ -222,6 +220,11 @@ Nets
 .. autoclass:: HighResNet
   :members:
 .. autoclass:: HighResBlock
+  :members:
+
+`NNUnet`
+~~~~~~~~
+.. autoclass:: NNUnet
   :members:
 
 `Unet`

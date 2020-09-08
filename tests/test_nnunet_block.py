@@ -17,7 +17,7 @@ from parameterized import parameterized
 from monai.networks.blocks.nnunet_block import UnetBasicBlock, UnetResBlock, UnetUpBlock, get_padding
 
 TEST_CASE_RES_BASIC_BLOCK = []
-for dimensions in range(2, 4):
+for spatial_dims in range(2, 4):
     for kernel_size in [1, 3]:
         for stride in [1, 2]:
             for norm_name in ["group", "batch", "instance"]:
@@ -28,38 +28,38 @@ for dimensions in range(2, 4):
                     out_size = int((in_size + 2 * padding - kernel_size) / stride) + 1
                     test_case = [
                         {
-                            "dimensions": dimensions,
+                            "spatial_dims": spatial_dims,
                             "in_channels": 16,
                             "out_channels": 16,
                             "kernel_size": kernel_size,
                             "norm_name": norm_name,
                             "stride": stride,
                         },
-                        torch.randn(1, 16, *([in_size] * dimensions)),
-                        (1, 16, *([out_size] * dimensions)),
+                        torch.randn(1, 16, *([in_size] * spatial_dims)),
+                        (1, 16, *([out_size] * spatial_dims)),
                     ]
                     TEST_CASE_RES_BASIC_BLOCK.append(test_case)
 
 TEST_UP_BLOCK = []
 in_channels, out_channels = 4, 2
-for dimensions in range(2, 4):
+for spatial_dims in range(2, 4):
     for kernel_size in [1, 3]:
-        for stride in [2, 3]:
+        for stride in [1, 2]:
             for norm_name in ["batch", "instance"]:
                 for in_size in [15, 16]:
                     out_size = in_size * stride
                     test_case = [
                         {
-                            "dimensions": dimensions,
+                            "spatial_dims": spatial_dims,
                             "in_channels": in_channels,
                             "out_channels": out_channels,
                             "kernel_size": kernel_size,
                             "norm_name": norm_name,
                             "stride": stride,
                         },
-                        torch.randn(1, in_channels, *([in_size] * dimensions)),
-                        (1, out_channels, *([out_size] * dimensions)),
-                        torch.randn(1, out_channels, *([in_size * stride] * dimensions)),
+                        torch.randn(1, in_channels, *([in_size] * spatial_dims)),
+                        (1, out_channels, *([out_size] * spatial_dims)),
+                        torch.randn(1, out_channels, *([in_size * stride] * spatial_dims)),
                     ]
                     TEST_UP_BLOCK.append(test_case)
 
@@ -75,9 +75,9 @@ class TestResBasicBlock(unittest.TestCase):
 
     def test_ill_arg(self):
         with self.assertRaises(ValueError):
-            UnetResBlock(3, 4, 2, kernel_size=3, stride=1, norm_name="norm")
-        with self.assertRaises(ValueError):
             UnetBasicBlock(3, 4, 2, kernel_size=3, stride=1, norm_name="norm")
+        with self.assertRaises(AssertionError):
+            UnetResBlock(3, 4, 2, kernel_size=1, stride=4, norm_name="batch")
 
 
 class TestUpBlock(unittest.TestCase):
