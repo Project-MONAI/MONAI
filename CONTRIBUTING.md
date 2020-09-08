@@ -4,8 +4,8 @@
     1. [Checking the coding style](#checking-the-coding-style)
     1. [Unit testing](#unit-testing)
     1. [Building the documentation](#building-the-documentation)
-    1. [Signing your work](#signing-your-work)
     1. [Automatic code formatting](#automatic-code-formatting)
+    1. [Signing your work](#signing-your-work)
     1. [Utility functions](#utility-functions)
   * [Submitting pull requests](#submitting-pull-requests)
 - [The code reviewing process (for the maintainers)](#the-code-reviewing-process)
@@ -129,6 +129,19 @@ Before submitting a pull request, it is recommended to:
 
 Please type `make help` for all supported format options.
 
+#### Automatic code formatting
+MONAI provides support of automatic Python code formatting via [a customised GitHub action](https://github.com/Project-MONAI/monai-code-formatter).
+This makes the project's Python coding style consistent and reduces maintenance burdens.
+Commenting a pull request with `/black` triggers the formatting action based on [`psf/Black`](https://github.com/psf/black) (this is implemented with [`slash command dispatch`](https://github.com/marketplace/actions/slash-command-dispatch)).
+
+Steps for the formatting process:
+- After submitting a pull request or push to an existing pull request,
+make a comment to the pull request to trigger the formatting action.
+The first line of the comment must be `/black` so that it will be interpreted by [the comment parser](https://github.com/marketplace/actions/slash-command-dispatch#how-are-comments-parsed-for-slash-commands).
+- [Auto] The GitHub action tries to format all Python files (using [`psf/Black`](https://github.com/psf/black)) in the branch and makes a commit under the name "MONAI bot" if there's code change. The actual formatting action is deployed at [project-monai/monai-code-formatter](https://github.com/Project-MONAI/monai-code-formatter).
+- [Auto] After the formatting commit, the GitHub action adds an emoji to the comment that triggered the process.
+- Repeat the above steps if necessary.
+
 #### Signing your work
 MONAI enforces the [Developer Certificate of Origin](https://developercertificate.org/) (DCO) on all pull requests.
 All commit messages should contain the `Signed-off-by` line with an email address. The [GitHub DCO app](https://github.com/apps/dco) is deployed on MONAI. The pull request's status will be `failed` if commits do not contain a valid `Signed-off-by` line.
@@ -184,20 +197,6 @@ By making a contribution to this project, I certify that:
     maintained indefinitely and may be redistributed consistent with
     this project or the open source license(s) involved.
 ```
-
-#### Automatic code formatting
-MONAI provides support of automatic Python code formatting via [a customised GitHub action](https://github.com/Project-MONAI/monai-code-formatter).
-This makes the project's Python coding style consistent and reduces maintenance burdens.
-Commenting a pull request with `/black` triggers the formatting action based on [`psf/Black`](https://github.com/psf/black) (this is implemented with [`slash command dispatch`](https://github.com/marketplace/actions/slash-command-dispatch)).
-
-Steps for the formatting process:
-- After submitting a pull request or push to an existing pull request,
-make a comment to the pull request to trigger the formatting action.
-The first line of the comment must be `/black` so that it will be interpreted by [the comment parser](https://github.com/marketplace/actions/slash-command-dispatch#how-are-comments-parsed-for-slash-commands).
-- [Auto] The GitHub action tries to format all Python files (using [`psf/Black`](https://github.com/psf/black)) in the branch and makes a commit under the name "MONAI bot" if there's code change. The actual formatting action is deployed at [project-monai/monai-code-formatter](https://github.com/Project-MONAI/monai-code-formatter).
-- [Auto] After the formatting commit, the GitHub action adds an emoji to the comment that triggered the process.
-- Repeat the above steps if necessary.
-
 
 #### Utility functions
 MONAI provides a set of generic utility functions and frequently used routines.
