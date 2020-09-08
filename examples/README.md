@@ -20,6 +20,9 @@ The examples show how to execute distributed training and evaluation based on 3 
 - PyTorch ignite and MONAI workflows.
 
 They can run on several distributed nodes with multiple GPU devices on every node.
+#### [segmentation_2d](./segmentation_2d)
+Training and evaluation examples of 2D segmentation based on UNet and synthetic dataset.
+The examples are standard PyTorch programs and have both dictionary-based and array-based versions.
 #### [segmentation_3d](./segmentation_3d)
 Training and evaluation examples of 3D segmentation based on UNet3D and synthetic dataset.
 The examples are standard PyTorch programs and have both dictionary-based and array-based versions.
