@@ -245,11 +245,10 @@ class DecathlonDataset(Randomizable, CacheDataset):
                 f"Cannot find dataset directory: {dataset_dir}, please use download=True to download it."
             )
         data = self._generate_data_list(dataset_dir)
-        self._properties = (
-            load_decathlon_properties(os.path.join(dataset_dir, "dataset.json"), property_keys)
-            if property_keys is not None
-            else None
-        )
+        if property_keys is not None:
+            self._properties = load_decathlon_properties(os.path.join(dataset_dir, "dataset.json"), property_keys)
+        else:
+            self._properties = None
         super().__init__(data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers)
 
     def randomize(self, data: Optional[Any] = None) -> None:
@@ -263,9 +262,10 @@ class DecathlonDataset(Randomizable, CacheDataset):
         """
         if keys is None:
             return self._properties
+        elif self._properties is not None:
+            return {key: self._properties[key] for key in ensure_tuple(keys)}
         else:
-            keys_ = ensure_tuple(keys)
-            return {key: self._properties[key] for key in keys_}
+            return None
 
     def _generate_data_list(self, dataset_dir: str) -> List[Dict]:
         section = "training" if self.section in ["training", "validation"] else "test"
