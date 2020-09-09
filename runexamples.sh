@@ -6,7 +6,7 @@ set -e
 # install necessary packages
 pip install numpy
 pip install torch
-pip install 'monai[nibabel]'
+pip install 'monai[itk, nibabel, pillow]'
 
 
 # home directory
