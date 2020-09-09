@@ -17,7 +17,7 @@ import numpy as np
 import torch
 
 from monai.config import IndexSelection
-from monai.utils import ensure_tuple, ensure_tuple_size, fall_back_tuple, min_version, optional_import
+from monai.utils import ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple, min_version, optional_import
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 
@@ -455,7 +455,7 @@ def generate_spatial_bounding_box(
     img: np.ndarray,
     select_fn: Callable = lambda x: x > 0,
     channel_indices: Optional[IndexSelection] = None,
-    margin: int = 0,
+    margin: Union[Sequence[int], int] = 0,
 ) -> Tuple[List[int], List[int]]:
     """
     generate the spatial bounding box of foreground in the image with start-end positions.
@@ -467,19 +467,19 @@ def generate_spatial_bounding_box(
         select_fn: function to select expected foreground, default is to select values > 0.
         channel_indices: if defined, select foreground only on the specified channels
             of image. if None, select foreground on the whole image.
-        margin: add margin to all dims of the bounding box.
+        margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
     """
-    assert isinstance(margin, int), "margin must be int type."
     data = img[[*(ensure_tuple(channel_indices))]] if channel_indices is not None else img
     data = np.any(select_fn(data), axis=0)
     nonzero_idx = np.nonzero(data)
+    margin = ensure_tuple_rep(margin, data.ndim)
 
     box_start = list()
     box_end = list()
     for i in range(data.ndim):
         assert len(nonzero_idx[i]) > 0, f"did not find nonzero index at spatial dim {i}"
-        box_start.append(max(0, np.min(nonzero_idx[i]) - margin))
-        box_end.append(min(data.shape[i], np.max(nonzero_idx[i]) + margin + 1))
+        box_start.append(max(0, np.min(nonzero_idx[i]) - margin[i]))
+        box_end.append(min(data.shape[i], np.max(nonzero_idx[i]) + margin[i] + 1))
     return box_start, box_end
 
 
