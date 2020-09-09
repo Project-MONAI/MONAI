@@ -24,7 +24,6 @@ from monai.utils import optional_import, progress_bar
 gdown, has_gdown = optional_import("gdown", "3.6")
 
 
-
 def check_hash(filepath: str, val: Optional[str] = None, hash_type: str = "md5") -> bool:
     """
     Verify hash signature of specified file.
