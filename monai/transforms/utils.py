@@ -17,14 +17,7 @@ import numpy as np
 import torch
 
 from monai.config import IndexSelection
-from monai.utils import (
-    ensure_tuple,
-    ensure_tuple_rep,
-    ensure_tuple_size,
-    fall_back_tuple,
-    min_version,
-    optional_import,
-)
+from monai.utils import ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple, min_version, optional_import
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 
