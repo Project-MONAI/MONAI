@@ -124,11 +124,7 @@ function clang_format {
         echo "'clang-format' not found, skipping the formatting."
         exit 1
     fi
-    if ! type -p "git" >/dev/null; then
-        echo "'git' not found, skipping the formatting."
-        exit 1
-    fi
-    git ls-files | grep -e "monai/csrc" | tr '\n' '\0' | xargs -0 "$clang_format_tool" -style=file -i
+    find monai/csrc -type f | while read i; do $clang_format_tool -style=file -i $i; done
 }
 
 function clean_py {
