@@ -264,7 +264,8 @@ class DecathlonDataset(Randomizable, CacheDataset):
         if keys is None:
             return self._properties
         else:
-            return {key: self._properties[key] for key in ensure_tuple(keys)}
+            keys_ = ensure_tuple(keys)
+            return {key: self._properties[key] for key in keys_}
 
     def _generate_data_list(self, dataset_dir: str) -> List[Dict]:
         section = "training" if self.section in ["training", "validation"] else "test"
