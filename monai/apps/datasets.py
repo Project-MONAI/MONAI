@@ -14,8 +14,9 @@ import sys
 from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
 from monai.apps.utils import download_and_extract
-from monai.data import CacheDataset, load_decathlon_datalist
+from monai.data import CacheDataset, load_decathlon_datalist, load_decathlon_properties
 from monai.transforms import LoadNiftid, LoadPNGd, Randomizable
+from monai.utils import ensure_tuple
 
 
 class MedNISTDataset(Randomizable, CacheDataset):
@@ -143,6 +144,8 @@ class DecathlonDataset(Randomizable, CacheDataset):
             "Task03_Liver", "Task04_Hippocampus", "Task05_Prostate", "Task06_Lung", "Task07_Pancreas",
             "Task08_HepaticVessel", "Task09_Spleen", "Task10_Colon").
         section: expected data section, can be: `training`, `validation` or `test`.
+        property_keys: if not None, will also load these properties from the JSON config file of dataset.
+            user can call `get_properties()` to get specified properties or all the properties loaded.
         transform: transforms to execute operations on input data. the default transform is `LoadNiftid`,
             which can load Nifti format data into numpy array with [H, W, D] or [H, W, D, C] shape.
             for further usage, use `AddChanneld` or `AsChannelFirstd` to convert the shape to [C, H, W, D].
@@ -216,6 +219,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         root_dir: str,
         task: str,
         section: str,
+        property_keys: Optional[Union[Sequence[str], str]] = None,
         transform: Union[Sequence[Callable], Callable] = LoadNiftid(["image", "label"]),
         download: bool = False,
         seed: int = 0,
@@ -241,10 +245,22 @@ class DecathlonDataset(Randomizable, CacheDataset):
                 f"Cannot find dataset directory: {dataset_dir}, please use download=True to download it."
             )
         data = self._generate_data_list(dataset_dir)
+        self._properties = load_decathlon_properties(os.path.join(dataset_dir, "dataset.json"), property_keys) if property_keys is not None else None
         super().__init__(data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers)
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self.rann = self.R.random()
+
+    def get_properties(self, keys: Optional[Union[Sequence[str], str]] = None):
+        """
+        Get the loaded properties of dataset with specified keys.
+        If no keys specified, return all the loaded properties.
+
+        """
+        if keys is None:
+            return self._properties
+        else:
+            return {key: self._properties[key] for key in ensure_tuple(keys)}
 
     def _generate_data_list(self, dataset_dir: str) -> List[Dict]:
         section = "training" if self.section in ["training", "validation"] else "test"
