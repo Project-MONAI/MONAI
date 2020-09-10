@@ -31,7 +31,6 @@ class NiftiSaver:
         self,
         output_dir: str = "./",
         output_postfix: str = "seg",
-        input_ext: str = ".nii.gz",
         output_ext: str = ".nii.gz",
         resample: bool = True,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
@@ -43,8 +42,6 @@ class NiftiSaver:
         Args:
             output_dir: output image directory.
             output_postfix: a string appended to all output file names.
-            input_ext: extension name of input image data, remove it from input filename
-                and construct the output filename with output_ext.
             output_ext: output file extension name.
             resample: whether to resample before saving the data array.
             mode: {``"bilinear"``, ``"nearest"``}
@@ -63,7 +60,6 @@ class NiftiSaver:
         """
         self.output_dir = output_dir
         self.output_postfix = output_postfix
-        self.input_ext = input_ext
         self.output_ext = output_ext
         self.resample = resample
         self.mode: GridSampleMode = GridSampleMode(mode)
@@ -104,7 +100,7 @@ class NiftiSaver:
         if torch.is_tensor(data):
             data = data.detach().cpu().numpy()
 
-        filename = create_file_basename(self.input_ext, self.output_postfix, filename, self.output_dir)
+        filename = create_file_basename(self.output_postfix, filename, self.output_dir)
         filename = f"{filename}{self.output_ext}"
         # change data shape to be (channel, h, w, d)
         while len(data.shape) < 4:

@@ -426,7 +426,6 @@ def to_affine_nd(r: Union[np.ndarray, int], affine: np.ndarray) -> np.ndarray:
 
 
 def create_file_basename(
-    input_ext: str,
     postfix: str,
     input_file_name: str,
     folder_path: str,
@@ -437,7 +436,6 @@ def create_file_basename(
     filename (extension is added by lib level writer before writing the file)
 
     Args:
-        input_ext: extension of the input file name, need to remove it to create output basename.
         postfix: output name's postfix
         input_file_name: path to the input image file.
         folder_path: path for the output file
@@ -450,9 +448,9 @@ def create_file_basename(
     # get the filename and directory
     filedir, filename = os.path.split(input_file_name)
     # remove exntension
-    if not filename.endswith(input_ext):
-        raise RuntimeError(f"file {filename} does not have specified input image extension {input_ext}.")
-    filename = filename.replace(input_ext, "")
+    filename, ext = os.path.splitext(filename)
+    if ext == ".gz":
+        filename, ext = os.path.splitext(filename)
     # use data_root_dir to find relative path to file
     filedir_rel_path = ""
     if data_root_dir:

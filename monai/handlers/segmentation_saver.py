@@ -33,7 +33,6 @@ class SegmentationSaver:
         self,
         output_dir: str = "./",
         output_postfix: str = "seg",
-        input_ext: str = ".nii.gz",
         output_ext: str = ".nii.gz",
         resample: bool = True,
         mode: Union[GridSampleMode, InterpolateMode, str] = "nearest",
@@ -86,7 +85,6 @@ class SegmentationSaver:
             self.saver = NiftiSaver(
                 output_dir=output_dir,
                 output_postfix=output_postfix,
-                input_ext=input_ext,
                 output_ext=output_ext,
                 resample=resample,
                 mode=GridSampleMode(mode),
@@ -97,7 +95,6 @@ class SegmentationSaver:
             self.saver = PNGSaver(
                 output_dir=output_dir,
                 output_postfix=output_postfix,
-                input_ext=input_ext,
                 output_ext=output_ext,
                 resample=resample,
                 mode=InterpolateMode(mode),
