@@ -244,8 +244,18 @@ class DecathlonDataset(Randomizable, CacheDataset):
                 f"Cannot find dataset directory: {dataset_dir}, please use download=True to download it."
             )
         data = self._generate_data_list(dataset_dir)
-        property_keys = ["name", "description", "reference", "licence", "relase", "tensorImageSize",
-                         "modality", "labels", "numTraining", "numTest"]
+        property_keys = [
+            "name",
+            "description",
+            "reference",
+            "licence",
+            "relase",
+            "tensorImageSize",
+            "modality",
+            "labels",
+            "numTraining",
+            "numTest",
+        ]
         self._properties = load_decathlon_properties(os.path.join(dataset_dir, "dataset.json"), property_keys)
         super().__init__(data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers)
 
