@@ -86,6 +86,7 @@ class NNUnet(nn.Module):
         self.deep_supr_num = deep_supr_num
         self.apply(self.initialize_weights)
         self.check_kernel_stride()
+        self.check_deep_supr_num()
 
     def check_kernel_stride(self):
         kernels, strides = self.kernel_size, self.strides
