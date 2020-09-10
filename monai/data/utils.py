@@ -425,14 +425,19 @@ def to_affine_nd(r: Union[np.ndarray, int], affine: np.ndarray) -> np.ndarray:
     return new_affine
 
 
-def create_file_basename(postfix: str, input_file_name: str, folder_path: str, data_root_dir: str = "") -> str:
+def create_file_basename(
+    postfix: str,
+    input_file_name: str,
+    folder_path: str,
+    data_root_dir: str = "",
+) -> str:
     """
     Utility function to create the path to the output file based on the input
     filename (extension is added by lib level writer before writing the file)
 
     Args:
         postfix: output name's postfix
-        input_file_name: path to the input image file
+        input_file_name: path to the input image file.
         folder_path: path for the output file
         data_root_dir: if not empty, it specifies the beginning parts of the input file's
             absolute path. This is used to compute `input_file_rel_path`, the relative path to the file from
@@ -442,12 +447,10 @@ def create_file_basename(postfix: str, input_file_name: str, folder_path: str, d
 
     # get the filename and directory
     filedir, filename = os.path.split(input_file_name)
-
-    # jettison the extension to have just filename
+    # remove exntension
     filename, ext = os.path.splitext(filename)
-    while ext != "":
+    if ext == ".gz":
         filename, ext = os.path.splitext(filename)
-
     # use data_root_dir to find relative path to file
     filedir_rel_path = ""
     if data_root_dir:
@@ -526,7 +529,7 @@ def is_supported_format(filename: Union[Sequence[str], str], suffixes: Sequence[
     filenames: Sequence[str] = ensure_tuple(filename)
     for name in filenames:
         tokens: Sequence[str] = PurePath(name).suffixes
-        if len(tokens) == 0 or not any(("." + s.lower()) == "".join(tokens) for s in suffixes):
+        if len(tokens) == 0 or not any(("." + s.lower()) in "".join(tokens) for s in suffixes):
             return False
 
     return True

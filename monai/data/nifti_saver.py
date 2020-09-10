@@ -99,6 +99,7 @@ class NiftiSaver:
 
         if torch.is_tensor(data):
             data = data.detach().cpu().numpy()
+
         filename = create_file_basename(self.output_postfix, filename, self.output_dir)
         filename = f"{filename}{self.output_ext}"
         # change data shape to be (channel, h, w, d)
