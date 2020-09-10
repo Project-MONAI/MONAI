@@ -22,9 +22,9 @@ class TestPNGSaver(unittest.TestCase):
     def test_saved_content(self):
         with tempfile.TemporaryDirectory() as tempdir:
 
-            saver = PNGSaver(output_dir=tempdir, output_postfix="seg", output_ext=".png", scale=255)
+            saver = PNGSaver(output_dir=tempdir, output_postfix="seg", input_ext=".jpg", output_ext=".png", scale=255)
 
-            meta_data = {"filename_or_obj": ["testfile" + str(i) for i in range(8)]}
+            meta_data = {"filename_or_obj": ["testfile" + str(i) + ".jpg" for i in range(8)]}
             saver.save_batch(torch.randint(1, 200, (8, 1, 2, 2)), meta_data)
             for i in range(8):
                 filepath = os.path.join("testfile" + str(i), "testfile" + str(i) + "_seg.png")
@@ -33,9 +33,9 @@ class TestPNGSaver(unittest.TestCase):
     def test_saved_content_three_channel(self):
         with tempfile.TemporaryDirectory() as tempdir:
 
-            saver = PNGSaver(output_dir=tempdir, output_postfix="seg", output_ext=".png", scale=255)
+            saver = PNGSaver(output_dir=tempdir, output_postfix="seg", input_ext=".jpg", output_ext=".png", scale=255)
 
-            meta_data = {"filename_or_obj": ["testfile" + str(i) for i in range(8)]}
+            meta_data = {"filename_or_obj": ["testfile" + str(i) + ".jpg" for i in range(8)]}
             saver.save_batch(torch.randint(1, 200, (8, 3, 2, 2)), meta_data)
             for i in range(8):
                 filepath = os.path.join("testfile" + str(i), "testfile" + str(i) + "_seg.png")
@@ -44,10 +44,10 @@ class TestPNGSaver(unittest.TestCase):
     def test_saved_content_spatial_size(self):
         with tempfile.TemporaryDirectory() as tempdir:
 
-            saver = PNGSaver(output_dir=tempdir, output_postfix="seg", output_ext=".png", scale=255)
+            saver = PNGSaver(output_dir=tempdir, output_postfix="seg", input_ext=".jpg", output_ext=".png", scale=255)
 
             meta_data = {
-                "filename_or_obj": ["testfile" + str(i) for i in range(8)],
+                "filename_or_obj": ["testfile" + str(i) + ".jpg" for i in range(8)],
                 "spatial_shape": [(4, 4) for i in range(8)],
             }
             saver.save_batch(torch.randint(1, 200, (8, 1, 2, 2)), meta_data)
