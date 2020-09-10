@@ -6,7 +6,7 @@ set -e
 # install necessary packages
 pip install numpy
 pip install torch
-pip install 'monai[nibabel]'
+pip install 'monai[itk, nibabel, pillow]'
 
 
 # home directory
@@ -57,6 +57,23 @@ done
 
 # run eval files in examples/classification_3d_ignite
 for file in "examples/classification_3d_ignite"/*eval*
+do
+    python "$file"
+done
+
+
+# run training files in examples/segmentation_2d
+for file in "examples/segmentation_2d"/*train*
+do
+    python "$file"
+done
+
+# check training files generated from examples/segmentation_2d
+[ -e "./best_metric_model_segmentation2d_array.pth" ] && echo "1" >> $TEMP_LOG || (echo "examples segmentation_2d: model file not generated" | tee $TEMP_LOG && exit 0)
+[ -e "./best_metric_model_segmentation2d_dict.pth" ] && echo "1" >> $TEMP_LOG || (echo "examples segmentation_2d: model file not generated" | tee $TEMP_LOG && exit 0)
+
+# run eval files in examples/segmentation_2d
+for file in "examples/segmentation_2d"/*eval*
 do
     python "$file"
 done
