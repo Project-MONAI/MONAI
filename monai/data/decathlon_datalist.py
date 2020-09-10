@@ -11,7 +11,9 @@
 
 import json
 import os
-from typing import Dict, List, Optional, overload
+from typing import Dict, List, Optional, Sequence, Union, overload
+
+from monai.utils import ensure_tuple
 
 
 @overload
@@ -113,3 +115,30 @@ def load_decathlon_datalist(
         base_dir = os.path.dirname(data_list_file_path)
 
     return _append_paths(base_dir, is_segmentation, expected_data)
+
+
+def load_decathlon_properties(
+    data_property_file_path: str,
+    property_keys: Union[Sequence[str], str],
+) -> Dict:
+    """Load the properties from the JSON file contains data property with specified `property_keys`.
+
+    Args:
+        data_property_file_path: the path to the JSON file of data properties.
+        property_keys: expected keys to load from the JSON file, for example, we have these keys
+            in the decathlon challenge:
+            `name`, `description`, `reference`, `licence`, `relase`, `tensorImageSize`,
+            `modality`, `labels`, `numTraining`, `numTest`, etc.
+
+    """
+    if not os.path.isfile(data_property_file_path):
+        raise ValueError(f"Data property file {data_property_file_path} does not exist.")
+    with open(data_property_file_path) as json_file:
+        json_data = json.load(json_file)
+
+    properties = dict()
+    for key in ensure_tuple(property_keys):
+        if key not in json_data:
+            raise KeyError(f"key {key} is not in the data property file.")
+        properties[key] = json_data[key]
+    return properties
