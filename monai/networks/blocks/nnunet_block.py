@@ -23,7 +23,7 @@ class UnetResBlock(nn.Module):
     """
     A skip-connection based module that can be used for NNUNet, based on:
     `Automated Design of Deep Learning Methods for Biomedical Image Segmentation <https://arxiv.org/abs/1904.08128>`_.
-    `nnU-Net: Self-adapting Framework for U-Net-Based Medical Image Segmentation https://arxiv.org/abs/1809.10486`_.
+    `nnU-Net: Self-adapting Framework for U-Net-Based Medical Image Segmentation <https://arxiv.org/abs/1809.10486>`_.
 
     Args:
         spatial_dims: number of spatial dimensions.
@@ -98,7 +98,7 @@ class UnetBasicBlock(nn.Module):
     """
     A CNN module module that can be used for NNUNet, based on:
     `Automated Design of Deep Learning Methods for Biomedical Image Segmentation <https://arxiv.org/abs/1904.08128>`_.
-    `nnU-Net: Self-adapting Framework for U-Net-Based Medical Image Segmentation https://arxiv.org/abs/1809.10486`_.
+    `nnU-Net: Self-adapting Framework for U-Net-Based Medical Image Segmentation <https://arxiv.org/abs/1809.10486>`_.
 
     Args:
         spatial_dims: number of spatial dimensions.
@@ -155,7 +155,7 @@ class UnetUpBlock(nn.Module):
     """
     An upsampling module that can be used for NNUNet, based on:
     `Automated Design of Deep Learning Methods for Biomedical Image Segmentation <https://arxiv.org/abs/1904.08128>`_.
-    `nnU-Net: Self-adapting Framework for U-Net-Based Medical Image Segmentation https://arxiv.org/abs/1809.10486`_.
+    `nnU-Net: Self-adapting Framework for U-Net-Based Medical Image Segmentation <https://arxiv.org/abs/1809.10486>`_.
 
     Args:
         spatial_dims: number of spatial dimensions.
