@@ -66,7 +66,6 @@ class TestDecathlonDataset(unittest.TestCase):
             root_dir=testing_dir,
             task="Task04_Hippocampus",
             section="validation",
-            property_keys=["name", "labels"],
             download=False,
         )
         properties = data.get_properties(keys="labels")
