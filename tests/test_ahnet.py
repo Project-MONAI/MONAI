@@ -47,6 +47,11 @@ TEST_CASE_AHNET_2D_2 = [
     torch.randn(2, 1, 128, 128),
     (2, 2, 128, 128),
 ]
+TEST_CASE_AHNET_2D_3 = [
+    {"spatial_dims": 2, "upsample_mode": "bilinear", "out_channels": 2},
+    torch.randn(2, 1, 160, 128),
+    (2, 2, 160, 128),
+]
 TEST_CASE_AHNET_3D_1 = [
     {"spatial_dims": 3, "upsample_mode": "trilinear"},
     torch.randn(3, 1, 128, 128, 64),
@@ -56,6 +61,11 @@ TEST_CASE_AHNET_3D_2 = [
     {"spatial_dims": 3, "upsample_mode": "transpose", "out_channels": 2},
     torch.randn(2, 1, 128, 128, 64),
     (2, 2, 128, 128, 64),
+]
+TEST_CASE_AHNET_3D_3 = [
+    {"spatial_dims": 3, "upsample_mode": "trilinear", "out_channels": 2},
+    torch.randn(2, 1, 160, 128, 64),
+    (2, 2, 160, 128, 64),
 ]
 TEST_CASE_AHNET_3D_WITH_PRETRAIN_1 = [
     {"spatial_dims": 3, "upsample_mode": "trilinear"},
@@ -92,7 +102,16 @@ class TestMCFCN(unittest.TestCase):
 
 
 class TestAHNET(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_AHNET_2D_1, TEST_CASE_AHNET_2D_2, TEST_CASE_AHNET_3D_1, TEST_CASE_AHNET_3D_2])
+    @parameterized.expand(
+        [
+            TEST_CASE_AHNET_2D_1,
+            TEST_CASE_AHNET_2D_2,
+            TEST_CASE_AHNET_2D_3,
+            TEST_CASE_AHNET_3D_1,
+            TEST_CASE_AHNET_3D_2,
+            TEST_CASE_AHNET_3D_3,
+        ]
+    )
     def test_ahnet_shape(self, input_param, input_data, expected_shape):
         net = AHNet(**input_param)
         net.eval()
