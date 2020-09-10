@@ -333,7 +333,7 @@ class AHNet(nn.Module):
     AHNet based on `Anisotropic Hybrid Network <https://arxiv.org/pdf/1711.08580.pdf>`_.
     Adapted from `lsqshr's official code <https://github.com/lsqshr/AH-Net/blob/master/net3d.py>`_.
     The model supports 2D or 3D inputs, as for the original 3D version.
-    To meet to requirements of the structure, the input size of the first ``dim-1`` dimensions should be divided
+    To meet to requirements of the structure, the input size of the first ``dim-1`` dimensions should be divisible
     by 32 and no less than 128. If you need to use lower sizes, please reduce the largest blocks in PSP
     module and change the ``num_input_features`` in Final module.
     In addition, to utilize the "transpose" upsample mode, please ensure that the input size of the first ``dim-1`` dimensions
