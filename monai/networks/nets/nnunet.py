@@ -19,7 +19,10 @@ from monai.networks.blocks.nnunet_block import *
 
 class NNUnet(nn.Module):
     """
-    NNUnet based on: `No New-Net <https://arxiv.org/pdf/1809.10483.pdf>`_.
+    This reimplementation of NNUnet is based on:
+    `Automated Design of Deep Learning Methods for Biomedical Image Segmentation <https://arxiv.org/abs/1904.08128>`_.
+    `nnU-Net: Self-adapting Framework for U-Net-Based Medical Image Segmentation https://arxiv.org/abs/1809.10486`_.
+
     This model is more flexible compared with ``monai.networks.nets.UNet`` in three
     places:
 
