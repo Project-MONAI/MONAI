@@ -192,6 +192,12 @@ Intensity
     :members:
     :special-members: __call__
 
+`RandHistogramShift`
+"""""""""""""""""""""
+.. autoclass:: RandHistogramShift
+    :members:
+    :special-members: __call__
+
 IO
 ^^
 
@@ -630,6 +636,12 @@ Instensity (Dict)
 `RandGaussianSharpend`
 """"""""""""""""""""""
 .. autoclass:: RandGaussianSharpend
+    :members:
+    :special-members: __call__
+
+`RandHistogramShiftd`
+"""""""""""""""""""""
+.. autoclass:: RandHistogramShiftd
     :members:
     :special-members: __call__
 
