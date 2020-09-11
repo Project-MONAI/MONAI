@@ -40,7 +40,7 @@ class TestHandlerSegmentationSaver(unittest.TestCase):
             saver = SegmentationSaver(output_dir=tempdir, output_postfix="seg", output_ext=output_ext, scale=255)
             saver.attach(engine)
 
-            data = [{"filename_or_obj": ["testfile" + str(i) for i in range(8)]}]
+            data = [{"filename_or_obj": ["testfile" + str(i) + ".nii.gz" for i in range(8)]}]
             engine.run(data, max_epochs=1)
             for i in range(8):
                 filepath = os.path.join("testfile" + str(i), "testfile" + str(i) + "_seg" + output_ext)
@@ -62,7 +62,7 @@ class TestHandlerSegmentationSaver(unittest.TestCase):
 
             data = [
                 {
-                    "filename_or_obj": ["testfile" + str(i) for i in range(8)],
+                    "filename_or_obj": ["testfile" + str(i) + ".nii.gz" for i in range(8)],
                     "spatial_shape": [(28, 28)] * 8,
                     "affine": [np.diag(np.ones(4)) * 5] * 8,
                     "original_affine": [np.diag(np.ones(4)) * 1.0] * 8,
