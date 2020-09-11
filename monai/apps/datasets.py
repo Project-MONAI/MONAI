@@ -244,12 +244,12 @@ class DecathlonDataset(Randomizable, CacheDataset):
                 f"Cannot find dataset directory: {dataset_dir}, please use download=True to download it."
             )
         data = self._generate_data_list(dataset_dir)
+        # as `release` key has typo in Task04 config file, ignore it.
         property_keys = [
             "name",
             "description",
             "reference",
             "licence",
-            "relase",
             "tensorImageSize",
             "modality",
             "labels",
