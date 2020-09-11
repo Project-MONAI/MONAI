@@ -332,12 +332,17 @@ class AHNet(nn.Module):
     """
     AHNet based on `Anisotropic Hybrid Network <https://arxiv.org/pdf/1711.08580.pdf>`_.
     Adapted from `lsqshr's official code <https://github.com/lsqshr/AH-Net/blob/master/net3d.py>`_.
-    The model supports 2D or 3D inputs, as for the original 3D version.
+    Except from the original network that supports 3D inputs, this implementation also supports 2D inputs.
+    According to the `tests for deconvolutions <https://github.com/Project-MONAI/MONAI/issues/1023>`_, using
+    ``"transpose"`` rather than linear interpolations is faster. Therefore, this implementation sets ``"transpose"``
+    as the default upsampling method.
+
     To meet to requirements of the structure, the input size of the first ``dim-1`` dimensions should be divisible
-    by 32 and no less than 128. If you need to use lower sizes, please reduce the largest blocks in PSP
-    module and change the ``num_input_features`` in Final module.
-    In addition, to utilize the "transpose" upsample mode, please ensure that the input size of the first ``dim-1`` dimensions
-    should be divisible by 128. In order to use pretrained weights from 2D FCN/MCFCN, please call the `copy_from` function,
+    by 128. In addition, for linear interpolation based upsampling modes, the input size of the first ``dim-1``
+    dimensions should be divisible by 32 and no less than 128. If you need to use lower sizes, please reduce the
+    largest blocks in PSP module and change the ``num_input_features`` in Final module.
+
+    In order to use pretrained weights from 2D FCN/MCFCN, please call the `copy_from` function,
     for example:
 
     .. code-block:: python
@@ -352,7 +357,7 @@ class AHNet(nn.Module):
         out_channels: number of output channels for the network. Defaults to 1.
         upsample_mode: [``"transpose"``, ``"bilinear"``, ``"trilinear"``]
             The mode of upsampling manipulations.
-            Using the last two modes cannot guarantee the model's reproducibility. Defaults to ``trilinear``.
+            Using the last two modes cannot guarantee the model's reproducibility. Defaults to ``transpose``.
 
             - ``"transpose"``, uses transposed convolution layers.
             - ``"bilinear"``, uses bilinear interpolate.
@@ -364,7 +369,7 @@ class AHNet(nn.Module):
         layers: tuple = (3, 4, 6, 3),
         spatial_dims: int = 3,
         out_channels: int = 1,
-        upsample_mode: str = "trilinear",
+        upsample_mode: str = "transpose",
     ):
         self.inplanes = 64
         super(AHNet, self).__init__()
