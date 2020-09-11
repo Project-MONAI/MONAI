@@ -21,8 +21,9 @@ from monai.networks.layers.factories import Act, Norm, split_args
 
 class UnetResBlock(nn.Module):
     """
-    A skip-connection based module that can be used for:
-        `No New-Net <https://arxiv.org/pdf/1809.10483.pdf>`_.
+    A skip-connection based module that can be used for NNUNet, based on:
+    `Automated Design of Deep Learning Methods for Biomedical Image Segmentation <https://arxiv.org/abs/1904.08128>`_.
+    `nnU-Net: Self-adapting Framework for U-Net-Based Medical Image Segmentation <https://arxiv.org/abs/1809.10486>`_.
 
     Args:
         spatial_dims: number of spatial dimensions.
@@ -95,8 +96,9 @@ class UnetResBlock(nn.Module):
 
 class UnetBasicBlock(nn.Module):
     """
-    A CNN module module that can be used for:
-        `No New-Net <https://arxiv.org/pdf/1809.10483.pdf>`_.
+    A CNN module module that can be used for NNUNet, based on:
+    `Automated Design of Deep Learning Methods for Biomedical Image Segmentation <https://arxiv.org/abs/1904.08128>`_.
+    `nnU-Net: Self-adapting Framework for U-Net-Based Medical Image Segmentation <https://arxiv.org/abs/1809.10486>`_.
 
     Args:
         spatial_dims: number of spatial dimensions.
@@ -151,8 +153,9 @@ class UnetBasicBlock(nn.Module):
 
 class UnetUpBlock(nn.Module):
     """
-    An upsampling module that can be used for:
-        `No New-Net <https://arxiv.org/pdf/1809.10483.pdf>`_.
+    An upsampling module that can be used for NNUNet, based on:
+    `Automated Design of Deep Learning Methods for Biomedical Image Segmentation <https://arxiv.org/abs/1904.08128>`_.
+    `nnU-Net: Self-adapting Framework for U-Net-Based Medical Image Segmentation <https://arxiv.org/abs/1809.10486>`_.
 
     Args:
         spatial_dims: number of spatial dimensions.
