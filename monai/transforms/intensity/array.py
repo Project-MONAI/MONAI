@@ -656,3 +656,46 @@ class RandGaussianSharpen(Randomizable, Transform):
         sigma1 = ensure_tuple_size(tup=(self.x1, self.y1, self.z1), dim=img.ndim - 1)
         sigma2 = ensure_tuple_size(tup=(self.x2, self.y2, self.z2), dim=img.ndim - 1)
         return GaussianSharpen(sigma1=sigma1, sigma2=sigma2, alpha=self.a)(img)
+
+
+class RandHistogramShift(Randomizable, Transform):
+    """
+    Apply random nonlinear transform to the image's intensity histogram.
+
+    Args:
+        num_control_points: number of control points governing the nonlinear intensity mapping.
+            a smaller number of control points allows for larger intensity shifts. if two values provided, number of
+            control points selecting from range (min_value, max_value).
+        prob: probability of histogram shift.
+    """
+
+    def __init__(self, num_control_points: Union[Tuple[int, int], int] = 10, prob: float = 0.1) -> None:
+
+        if isinstance(num_control_points, int):
+            assert num_control_points > 2, "num_control_points should be greater than or equal to 3"
+            self.num_control_points = (num_control_points, num_control_points)
+        else:
+            assert len(num_control_points) == 2, "num_control points should be a number or a pair of numbers"
+            assert min(num_control_points) > 2, "num_control_points should be greater than or equal to 3"
+            self.num_control_points = (min(num_control_points), max(num_control_points))
+        self.prob = prob
+        self._do_transform = False
+
+    def randomize(self, data: Optional[Any] = None) -> None:
+        self._do_transform = self.R.random() < self.prob
+        num_control_point = self.R.randint(self.num_control_points[0], self.num_control_points[1] + 1)
+        self.reference_control_points = np.linspace(0, 1, num_control_point)
+        self.floating_control_points = np.copy(self.reference_control_points)
+        for i in range(1, num_control_point - 1):
+            self.floating_control_points[i] = self.R.uniform(
+                self.floating_control_points[i - 1], self.floating_control_points[i + 1]
+            )
+
+    def __call__(self, img: np.ndarray) -> np.ndarray:
+        self.randomize()
+        if not self._do_transform:
+            return img
+        img_min, img_max = img.min(), img.max()
+        reference_control_points_scaled = self.reference_control_points * (img_max - img_min) + img_min
+        floating_control_points_scaled = self.floating_control_points * (img_max - img_min) + img_min
+        return np.interp(img, reference_control_points_scaled, floating_control_points_scaled)

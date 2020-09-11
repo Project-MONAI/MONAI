@@ -599,6 +599,57 @@ class RandGaussianSharpend(Randomizable, MapTransform):
         return d
 
 
+class RandHistogramShiftd(Randomizable, MapTransform):
+    """
+    Dictionary-based version :py:class:`monai.transforms.RandHistogramShift`.
+    Apply random nonlinear transform the the image's intensity histogram.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: monai.transforms.MapTransform
+        num_control_points: number of control points governing the nonlinear intensity mapping.
+            a smaller number of control points allows for larger intensity shifts. if two values provided, number of
+            control points selecting from range (min_value, max_value).
+        prob: probability of histogram shift.
+    """
+
+    def __init__(
+        self, keys: KeysCollection, num_control_points: Union[Tuple[int, int], int] = 10, prob: float = 0.1
+    ) -> None:
+        super().__init__(keys)
+        if isinstance(num_control_points, int):
+            assert num_control_points > 2, "num_control_points should be greater than or equal to 3"
+            self.num_control_points = (num_control_points, num_control_points)
+        else:
+            assert len(num_control_points) == 2, "num_control points should be a number or a pair of numbers"
+            assert min(num_control_points) > 2, "num_control_points should be greater than or equal to 3"
+            self.num_control_points = (min(num_control_points), max(num_control_points))
+        self.prob = prob
+        self._do_transform = False
+
+    def randomize(self, data: Optional[Any] = None) -> None:
+        self._do_transform = self.R.random() < self.prob
+        num_control_point = self.R.randint(self.num_control_points[0], self.num_control_points[1] + 1)
+        self.reference_control_points = np.linspace(0, 1, num_control_point)
+        self.floating_control_points = np.copy(self.reference_control_points)
+        for i in range(1, num_control_point - 1):
+            self.floating_control_points[i] = self.R.uniform(
+                self.floating_control_points[i - 1], self.floating_control_points[i + 1]
+            )
+
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = dict(data)
+        self.randomize()
+        if not self._do_transform:
+            return d
+        for key in self.keys:
+            img_min, img_max = d[key].min(), d[key].max()
+            reference_control_points_scaled = self.reference_control_points * (img_max - img_min) + img_min
+            floating_control_points_scaled = self.floating_control_points * (img_max - img_min) + img_min
+            d[key] = np.interp(d[key], reference_control_points_scaled, floating_control_points_scaled)
+        return d
+
+
 RandGaussianNoiseD = RandGaussianNoiseDict = RandGaussianNoised
 ShiftIntensityD = ShiftIntensityDict = ShiftIntensityd
 RandShiftIntensityD = RandShiftIntensityDict = RandShiftIntensityd
@@ -615,3 +666,4 @@ GaussianSmoothD = GaussianSmoothDict = GaussianSmoothd
 RandGaussianSmoothD = RandGaussianSmoothDict = RandGaussianSmoothd
 GaussianSharpenD = GaussianSharpenDict = GaussianSharpend
 RandGaussianSharpenD = RandGaussianSharpenDict = RandGaussianSharpend
+RandHistogramShiftD = RandHistogramShiftDict = RandHistogramShiftd
