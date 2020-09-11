@@ -13,3 +13,4 @@ from .confusion_matrix import compute_confusion_metric
 from .confusion_matrix_utils import *
 from .meandice import DiceMetric, compute_meandice
 from .rocauc import compute_roc_auc
+from .hausdorff_distance import compute_hausdorff_distance
