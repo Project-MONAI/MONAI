@@ -125,5 +125,8 @@ temp/
 tests/testing_data/MedNIST*
 tests/testing_data/*Hippocampus*
 
+# clang format tool
+.clang-format-bin/
+
 # VSCode
 .vscode/
