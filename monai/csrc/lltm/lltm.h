@@ -85,8 +85,8 @@ std::vector<torch::Tensor> lltm_backward(
     torch::Tensor candidate_cell,
     torch::Tensor X,
     torch::Tensor gate_weights,
-    torch::Tensor weights){
-  if(X.is_cuda()) {
+    torch::Tensor weights) {
+  if (X.is_cuda()) {
 #ifdef WITH_CUDA
     CHECK_CONTIGUOUS_CUDA(grad_h);
     CHECK_CONTIGUOUS_CUDA(grad_cell);
@@ -99,27 +99,11 @@ std::vector<torch::Tensor> lltm_backward(
     CHECK_CONTIGUOUS_CUDA(weights);
 
     return lltm_cuda_backward(
-        grad_h,
-        grad_cell,
-        new_cell,
-        input_gate,
-        output_gate,
-        candidate_cell,
-        X,
-        gate_weights,
-        weights);
+        grad_h, grad_cell, new_cell, input_gate, output_gate, candidate_cell, X, gate_weights, weights);
 #else
     AT_ERROR("Not compiled with GPU support.");
 #endif
   }
   return lltm_cpu_backward(
-      grad_h,
-      grad_cell,
-      new_cell,
-      input_gate,
-      output_gate,
-      candidate_cell,
-      X,
-      gate_weights,
-      weights);
+      grad_h, grad_cell, new_cell, input_gate, output_gate, candidate_cell, X, gate_weights, weights);
 }
