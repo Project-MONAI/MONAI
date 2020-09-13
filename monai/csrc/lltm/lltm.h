@@ -12,6 +12,7 @@ limitations under the License.
 */
 
 #pragma once
+
 #include <torch/extension.h>
 #include <vector>
 #include "utils/common_utils.h"
