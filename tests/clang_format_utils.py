@@ -61,7 +61,8 @@ def get_and_check_clang_format():
             PLATFORM_TO_CF_URL[HOST_PLATFORM], CLANG_FORMAT_PATH, PLATFORM_TO_HASH[HOST_PLATFORM], hash_type="sha1"
         )
     except Exception as e:
-        print(f"Download {CLANG_FORMAT_PATH} failed: {e}.")
+        print(f"Download {CLANG_FORMAT_PATH} failed: {e}")
+        print(f"Please remove {CLANG_FORMAT_PATH} and retry.")
         return False
 
     # Make sure the binary is executable.

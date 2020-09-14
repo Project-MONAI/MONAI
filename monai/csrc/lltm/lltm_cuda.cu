@@ -11,9 +11,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#include <torch/extension.h>
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include <torch/extension.h>
 
 #include <vector>
 
@@ -49,59 +49,53 @@ __device__ __forceinline__ scalar_t d_elu(scalar_t z, scalar_t alpha = 1.0) {
 
 template <typename scalar_t>
 __global__ void lltm_cuda_forward_kernel(
-    const torch::PackedTensorAccessor<scalar_t,3,torch::RestrictPtrTraits,size_t> gates,
-    const torch::PackedTensorAccessor<scalar_t,2,torch::RestrictPtrTraits,size_t> old_cell,
-    torch::PackedTensorAccessor<scalar_t,2,torch::RestrictPtrTraits,size_t> new_h,
-    torch::PackedTensorAccessor<scalar_t,2,torch::RestrictPtrTraits,size_t> new_cell,
-    torch::PackedTensorAccessor<scalar_t,2,torch::RestrictPtrTraits,size_t> input_gate,
-    torch::PackedTensorAccessor<scalar_t,2,torch::RestrictPtrTraits,size_t> output_gate,
-    torch::PackedTensorAccessor<scalar_t,2,torch::RestrictPtrTraits,size_t> candidate_cell) {
-  //batch index
+    const torch::PackedTensorAccessor32<scalar_t, 3, torch::RestrictPtrTraits> gates,
+    const torch::PackedTensorAccessor32<scalar_t, 2, torch::RestrictPtrTraits> old_cell,
+    torch::PackedTensorAccessor32<scalar_t, 2, torch::RestrictPtrTraits> new_h,
+    torch::PackedTensorAccessor32<scalar_t, 2, torch::RestrictPtrTraits> new_cell,
+    torch::PackedTensorAccessor32<scalar_t, 2, torch::RestrictPtrTraits> input_gate,
+    torch::PackedTensorAccessor32<scalar_t, 2, torch::RestrictPtrTraits> output_gate,
+    torch::PackedTensorAccessor32<scalar_t, 2, torch::RestrictPtrTraits> candidate_cell) {
+  // batch index
   const int n = blockIdx.y;
   // column index
   const int c = blockIdx.x * blockDim.x + threadIdx.x;
-  if (c < gates.size(2)){
+  if (c < gates.size(2)) {
     input_gate[n][c] = sigmoid(gates[n][0][c]);
     output_gate[n][c] = sigmoid(gates[n][1][c]);
     candidate_cell[n][c] = elu(gates[n][2][c]);
-    new_cell[n][c] =
-        old_cell[n][c] + candidate_cell[n][c] * input_gate[n][c];
+    new_cell[n][c] = old_cell[n][c] + candidate_cell[n][c] * input_gate[n][c];
     new_h[n][c] = tanh(new_cell[n][c]) * output_gate[n][c];
   }
 }
 
 template <typename scalar_t>
 __global__ void lltm_cuda_backward_kernel(
-    torch::PackedTensorAccessor<scalar_t,2,torch::RestrictPtrTraits,size_t> d_old_cell,
-    torch::PackedTensorAccessor<scalar_t,3,torch::RestrictPtrTraits,size_t> d_gates,
-    const torch::PackedTensorAccessor<scalar_t,2,torch::RestrictPtrTraits,size_t> grad_h,
-    const torch::PackedTensorAccessor<scalar_t,2,torch::RestrictPtrTraits,size_t> grad_cell,
-    const torch::PackedTensorAccessor<scalar_t,2,torch::RestrictPtrTraits,size_t> new_cell,
-    const torch::PackedTensorAccessor<scalar_t,2,torch::RestrictPtrTraits,size_t> input_gate,
-    const torch::PackedTensorAccessor<scalar_t,2,torch::RestrictPtrTraits,size_t> output_gate,
-    const torch::PackedTensorAccessor<scalar_t,2,torch::RestrictPtrTraits,size_t> candidate_cell,
-    const torch::PackedTensorAccessor<scalar_t,3,torch::RestrictPtrTraits,size_t> gate_weights) {
-  //batch index
+    torch::PackedTensorAccessor32<scalar_t, 2, torch::RestrictPtrTraits> d_old_cell,
+    torch::PackedTensorAccessor32<scalar_t, 3, torch::RestrictPtrTraits> d_gates,
+    const torch::PackedTensorAccessor32<scalar_t, 2, torch::RestrictPtrTraits> grad_h,
+    const torch::PackedTensorAccessor32<scalar_t, 2, torch::RestrictPtrTraits> grad_cell,
+    const torch::PackedTensorAccessor32<scalar_t, 2, torch::RestrictPtrTraits> new_cell,
+    const torch::PackedTensorAccessor32<scalar_t, 2, torch::RestrictPtrTraits> input_gate,
+    const torch::PackedTensorAccessor32<scalar_t, 2, torch::RestrictPtrTraits> output_gate,
+    const torch::PackedTensorAccessor32<scalar_t, 2, torch::RestrictPtrTraits> candidate_cell,
+    const torch::PackedTensorAccessor32<scalar_t, 3, torch::RestrictPtrTraits> gate_weights) {
+  // batch index
   const int n = blockIdx.y;
   // column index
   const int c = blockIdx.x * blockDim.x + threadIdx.x;
-  if (c < d_gates.size(2)){
+  if (c < d_gates.size(2)) {
     const auto d_output_gate = tanh(new_cell[n][c]) * grad_h[n][c];
     const auto d_tanh_new_cell = output_gate[n][c] * grad_h[n][c];
-    const auto d_new_cell =
-        d_tanh(new_cell[n][c]) * d_tanh_new_cell + grad_cell[n][c];
-
+    const auto d_new_cell = d_tanh(new_cell[n][c]) * d_tanh_new_cell + grad_cell[n][c];
 
     d_old_cell[n][c] = d_new_cell;
     const auto d_candidate_cell = input_gate[n][c] * d_new_cell;
     const auto d_input_gate = candidate_cell[n][c] * d_new_cell;
 
-    d_gates[n][0][c] =
-        d_input_gate * d_sigmoid(gate_weights[n][0][c]);
-    d_gates[n][1][c] =
-        d_output_gate * d_sigmoid(gate_weights[n][1][c]);
-    d_gates[n][2][c] =
-        d_candidate_cell * d_elu(gate_weights[n][2][c]);
+    d_gates[n][0][c] = d_input_gate * d_sigmoid(gate_weights[n][0][c]);
+    d_gates[n][1][c] = d_output_gate * d_sigmoid(gate_weights[n][1][c]);
+    d_gates[n][2][c] = d_candidate_cell * d_elu(gate_weights[n][2][c]);
   }
 }
 } // namespace
@@ -128,16 +122,16 @@ std::vector<torch::Tensor> lltm_cuda_forward(
   const int threads = 1024;
   const dim3 blocks((state_size + threads - 1) / threads, batch_size);
 
-  AT_DISPATCH_FLOATING_TYPES(gates.type(), "lltm_forward_cuda", ([&] {
-    lltm_cuda_forward_kernel<scalar_t><<<blocks, threads>>>(
-        gates.packed_accessor<scalar_t,3,torch::RestrictPtrTraits,size_t>(),
-        old_cell.packed_accessor<scalar_t,2,torch::RestrictPtrTraits,size_t>(),
-        new_h.packed_accessor<scalar_t,2,torch::RestrictPtrTraits,size_t>(),
-        new_cell.packed_accessor<scalar_t,2,torch::RestrictPtrTraits,size_t>(),
-        input_gate.packed_accessor<scalar_t,2,torch::RestrictPtrTraits,size_t>(),
-        output_gate.packed_accessor<scalar_t,2,torch::RestrictPtrTraits,size_t>(),
-        candidate_cell.packed_accessor<scalar_t,2,torch::RestrictPtrTraits,size_t>());
-  }));
+  AT_DISPATCH_FLOATING_TYPES(gates.scalar_type(), "lltm_forward_cuda", ([&] {
+                               lltm_cuda_forward_kernel<scalar_t><<<blocks, threads>>>(
+                                   gates.packed_accessor32<scalar_t, 3, torch::RestrictPtrTraits>(),
+                                   old_cell.packed_accessor32<scalar_t, 2, torch::RestrictPtrTraits>(),
+                                   new_h.packed_accessor32<scalar_t, 2, torch::RestrictPtrTraits>(),
+                                   new_cell.packed_accessor32<scalar_t, 2, torch::RestrictPtrTraits>(),
+                                   input_gate.packed_accessor32<scalar_t, 2, torch::RestrictPtrTraits>(),
+                                   output_gate.packed_accessor32<scalar_t, 2, torch::RestrictPtrTraits>(),
+                                   candidate_cell.packed_accessor32<scalar_t, 2, torch::RestrictPtrTraits>());
+                             }));
 
   return {new_h, new_cell, input_gate, output_gate, candidate_cell, X, gates};
 }
@@ -161,18 +155,18 @@ std::vector<torch::Tensor> lltm_cuda_backward(
   const int threads = 1024;
   const dim3 blocks((state_size + threads - 1) / threads, batch_size);
 
-  AT_DISPATCH_FLOATING_TYPES(X.type(), "lltm_forward_cuda", ([&] {
-    lltm_cuda_backward_kernel<scalar_t><<<blocks, threads>>>(
-        d_old_cell.packed_accessor<scalar_t,2,torch::RestrictPtrTraits,size_t>(),
-        d_gates.packed_accessor<scalar_t,3,torch::RestrictPtrTraits,size_t>(),
-        grad_h.packed_accessor<scalar_t,2,torch::RestrictPtrTraits,size_t>(),
-        grad_cell.packed_accessor<scalar_t,2,torch::RestrictPtrTraits,size_t>(),
-        new_cell.packed_accessor<scalar_t,2,torch::RestrictPtrTraits,size_t>(),
-        input_gate.packed_accessor<scalar_t,2,torch::RestrictPtrTraits,size_t>(),
-        output_gate.packed_accessor<scalar_t,2,torch::RestrictPtrTraits,size_t>(),
-        candidate_cell.packed_accessor<scalar_t,2,torch::RestrictPtrTraits,size_t>(),
-        gates.packed_accessor<scalar_t,3,torch::RestrictPtrTraits,size_t>());
-  }));
+  AT_DISPATCH_FLOATING_TYPES(X.scalar_type(), "lltm_forward_cuda", ([&] {
+                               lltm_cuda_backward_kernel<scalar_t><<<blocks, threads>>>(
+                                   d_old_cell.packed_accessor32<scalar_t, 2, torch::RestrictPtrTraits>(),
+                                   d_gates.packed_accessor32<scalar_t, 3, torch::RestrictPtrTraits>(),
+                                   grad_h.packed_accessor32<scalar_t, 2, torch::RestrictPtrTraits>(),
+                                   grad_cell.packed_accessor32<scalar_t, 2, torch::RestrictPtrTraits>(),
+                                   new_cell.packed_accessor32<scalar_t, 2, torch::RestrictPtrTraits>(),
+                                   input_gate.packed_accessor32<scalar_t, 2, torch::RestrictPtrTraits>(),
+                                   output_gate.packed_accessor32<scalar_t, 2, torch::RestrictPtrTraits>(),
+                                   candidate_cell.packed_accessor32<scalar_t, 2, torch::RestrictPtrTraits>(),
+                                   gates.packed_accessor32<scalar_t, 3, torch::RestrictPtrTraits>());
+                             }));
 
   auto d_gate_weights = d_gates.flatten(1, 2);
   auto d_weights = d_gate_weights.t().mm(X);

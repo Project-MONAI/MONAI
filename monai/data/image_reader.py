@@ -160,7 +160,7 @@ class ITKReader(ImageReader):
         img_array_ = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
         return img_array_, compatible_meta
 
-    def _get_meta_dict(self, img: Image) -> Dict:
+    def _get_meta_dict(self, img) -> Dict:
         """
         Get all the meta data of the image and convert to dict type.
 
@@ -180,7 +180,7 @@ class ITKReader(ImageReader):
         meta_dict["direction"] = itk.array_from_matrix(img.GetDirection())
         return meta_dict
 
-    def _get_affine(self, img: Image) -> np.ndarray:
+    def _get_affine(self, img) -> np.ndarray:
         """
         Get or construct the affine matrix of the image, it can be used to correct
         spacing, orientation or execute spatial transforms.
@@ -201,7 +201,7 @@ class ITKReader(ImageReader):
         affine[(slice(-1), -1)] = origin
         return affine
 
-    def _get_spatial_shape(self, img: Image) -> Sequence:
+    def _get_spatial_shape(self, img) -> Sequence:
         """
         Get the spatial shape of image data, it doesn't contain the channel dim.
 
@@ -211,7 +211,7 @@ class ITKReader(ImageReader):
         """
         return list(itk.size(img))
 
-    def _get_array_data(self, img: Image) -> np.ndarray:
+    def _get_array_data(self, img) -> np.ndarray:
         """
         Get the raw array data of the image, converted to Numpy array.
 
@@ -309,7 +309,7 @@ class NibabelReader(ImageReader):
         img_array_ = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
         return img_array_, compatible_meta
 
-    def _get_meta_dict(self, img: Nifti1Image) -> Dict:
+    def _get_meta_dict(self, img) -> Dict:
         """
         Get the all the meta data of the image and convert to dict type.
 
@@ -319,7 +319,7 @@ class NibabelReader(ImageReader):
         """
         return dict(img.header)
 
-    def _get_affine(self, img: Nifti1Image) -> np.ndarray:
+    def _get_affine(self, img) -> np.ndarray:
         """
         Get the affine matrix of the image, it can be used to correct
         spacing, orientation or execute spatial transforms.
@@ -330,7 +330,7 @@ class NibabelReader(ImageReader):
         """
         return img.affine
 
-    def _get_spatial_shape(self, img: Nifti1Image) -> Sequence:
+    def _get_spatial_shape(self, img) -> Sequence:
         """
         Get the spatial shape of image data, it doesn't contain the channel dim.
 
@@ -342,7 +342,7 @@ class NibabelReader(ImageReader):
         spatial_rank = min(ndim, 3)
         return list(img.header["dim"][1 : spatial_rank + 1])
 
-    def _get_array_data(self, img: Nifti1Image) -> np.ndarray:
+    def _get_array_data(self, img) -> np.ndarray:
         """
         Get the raw array data of the image, converted to Numpy array.
 
@@ -521,7 +521,7 @@ class PILReader(ImageReader):
         img_array_ = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
         return img_array_, compatible_meta
 
-    def _get_meta_dict(self, img: PILImage.Image) -> Dict:
+    def _get_meta_dict(self, img) -> Dict:
         """
         Get the all the meta data of the image and convert to dict type.
         Args:
@@ -536,7 +536,7 @@ class PILReader(ImageReader):
         meta["info"] = img.info
         return meta
 
-    def _get_spatial_shape(self, img: PILImage.Image) -> Sequence:
+    def _get_spatial_shape(self, img) -> Sequence:
         """
         Get the spatial shape of image data, it doesn't contain the channel dim.
         Args:
