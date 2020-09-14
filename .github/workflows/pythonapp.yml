@@ -84,14 +84,64 @@ jobs:
         cat "requirements-dev.txt"
         python -m pip install -r requirements-dev.txt
         python -m pip list
-        SKIP_MONAI_BUILD=1 python setup.py develop
+        python setup.py develop
         python setup.py develop --uninstall
-        python setup.py develop  # compile the cpp extensions
+        BUILD_MONAI=1 python setup.py develop  # compile the cpp extensions
       shell: bash
     - name: Run quick tests (CPU ${{ runner.os }})
       run: |
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
         python -m unittest -v
+      env:
+        QUICKTEST: True
+
+  min-dep-py3:  # min dependencies installed
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macOS-latest, ubuntu-latest]
+    timeout-minutes: 20
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.x
+      uses: actions/setup-python@v1
+      with:
+        python-version: '3.x'
+    - name: Prepare pip wheel
+      run: |
+        which python
+        python -m pip install --upgrade pip wheel
+    - name: cache weekly timestamp
+      id: pip-cache
+      run: |
+        echo "::set-output name=datew::$(date '+%Y-%V')"
+        echo "::set-output name=dir::$(pip cache dir)"
+      shell: bash
+    - name: cache for pip
+      uses: actions/cache@v2
+      id: cache
+      with:
+        path: ${{ steps.pip-cache.outputs.dir }}
+        key: ${{ matrix.os }}-latest-pip-${{ steps.pip-cache.outputs.datew }}
+    - if: runner.os == 'windows'
+      name: Install torch cpu from pytorch.org (Windows only)
+      run: |
+        python -m pip install torch==1.4 -f https://download.pytorch.org/whl/cpu/torch_stable.html
+    - name: Install the dependencies
+      run: |
+        # min. requirements for windows instances
+        python -m pip install torch==1.4
+        python -c "f=open('requirements-dev.txt', 'r'); txt=f.readlines(); f.close(); print(txt); f=open('requirements-dev.txt', 'w'); f.writelines(txt[1:5]); f.close()"
+        cat "requirements-dev.txt"
+        python -m pip install -r requirements-dev.txt
+        python -m pip list
+        BUILD_MONAI=0 python setup.py develop  # no compile of extensions
+      shell: bash
+    - name: Run quick tests (CPU ${{ runner.os }})
+      run: |
+        python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
+        python -m tests.min_tests
       env:
         QUICKTEST: True
 
@@ -170,11 +220,11 @@ jobs:
       run: |
         python -m pip list
         nvidia-smi
-        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
+        export CUDA_VISIBLE_DEVICES=$(coverage run -m tests.utils)
         echo $CUDA_VISIBLE_DEVICES
         python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
         python -c 'import torch; print(torch.rand(5,3, device=torch.device("cuda:0")))'
-        ./runtests.sh --quick
+        BUILD_MONAI=1 ./runtests.sh --quick
         if [ ${{ matrix.environment }} == "PT16+CUDA110" ]; then
           # test the clang-format tool downloading once
           coverage run -m tests.clang_format_utils
@@ -274,4 +324,7 @@ jobs:
     - name: Make html
       run: |
         cd docs/
-        make html
+        make clean
+        make html 2>&1 | tee tmp_log
+        if [[ $(grep -c "^WARNING:" tmp_log) != 0 ]]; then echo "found warnings"; exit 1; fi
+      shell: bash
