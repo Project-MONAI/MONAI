@@ -25,12 +25,26 @@ def compute_hausdorff_distance(
     directed: bool = False
 ) -> float:
     """
-    Compute the directed Hausdorff distance. Here, we consider the directed
-    Hausdorff, which is the maximum distance between any point on the first
-    set and its nearest point on the second set.
+    Compute the Hausdorff distance. The user has the option to calculate the
+    directed or non-directed Hausdorff distance. By default, the non-directed
+    Hausdorff distance is calculated.
+
+    The input images can be binary or labelfield images. If labelfield images
+    are supplied, they are converted to binary images using `label_idx`.
+
+    `scipy`'s Binary dilation is used to to calculate the edges of the binary
+    labelfield, and the coordinates of these edges are passed to `scipy`'s
+    `directed_hausdorff` function.
 
     We require that images are the same size, and assume that they occupy the
     same space (spacing, orientation, etc.).
+
+    Args:
+        seg_1: first binary or labelfield image.
+        seg_2: second binary or labelfield image.
+        label_idx: for labelfield images, convert to binary with
+            `seg_1 = seg_1 == label_idx`.
+        directed: calculate directed Hausdorff distance (defaults to `False`).
     """
 
     # Get both labelfields as np arrays
