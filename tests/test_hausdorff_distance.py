@@ -11,10 +11,10 @@
 
 import unittest
 from typing import Tuple
+from parameterized import parameterized
 
 import numpy as np
 import torch
-from parameterized import parameterized
 
 from monai.metrics import compute_hausdorff_distance
 
@@ -52,7 +52,6 @@ def create_spherical_seg_3d(
     return image
 
 
-metric_name = "hausdorff distance"
 # test the metric under 2 class classification task
 TEST_CASES = [
     [
