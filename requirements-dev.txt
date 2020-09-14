@@ -25,3 +25,6 @@ pytype>=2020.6.1
 mypy
 ninja
 torchvision
+recommonmark
+sphinx_autodoc_typehints
+sphinx_rtd_theme
