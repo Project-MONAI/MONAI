@@ -95,6 +95,11 @@ function print_usage {
     exit 1
 }
 
+function check_import {
+    echo "PYTHON: $(which python)"
+    ${cmdPrefix}python -c "import monai"
+}
+
 function print_version {
     ${cmdPrefix}python -c 'import monai; monai.config.print_config()'
 }
@@ -106,6 +111,8 @@ function install_deps {
 
 function compile_cpp {
     echo "Compiling and installing MONAI cpp extensions..."
+    # depends on setup.py behaviour for building
+    # currently setup.py uses environment variables: BUILD_MONAI and FORCE_CUDA
     ${cmdPrefix}python setup.py -v develop --uninstall
     if [[ "$OSTYPE" == "darwin"* ]];
     then  # clang for mac os
@@ -138,6 +145,7 @@ function clean_py {
 
     find ${TO_CLEAN} -type f -name "*.py[co]" -delete
     find ${TO_CLEAN} -type f -name ".coverage" -delete
+    find ${TO_CLEAN} -type f -name "*.so" -delete
     find ${TO_CLEAN} -type d -name "__pycache__" -delete
 
     find ${TO_CLEAN} -depth -type d -name ".eggs" -exec rm -r "{}" +
@@ -248,7 +256,7 @@ cd "$homedir"
 
 # python path
 export PYTHONPATH="$homedir:$PYTHONPATH"
-echo "$PYTHONPATH"
+echo "PYTHONPATH: $PYTHONPATH"
 
 # by default do nothing
 cmdPrefix=""
@@ -260,7 +268,10 @@ then
     # commands are echoed instead of ran
     cmdPrefix="dryrun "
     function dryrun { echo "    " "$@"; }
+else
+    check_import
 fi
+
 
 if [ $doCleanup = true ]
 then
