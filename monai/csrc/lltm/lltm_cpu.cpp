@@ -50,13 +50,7 @@ std::vector<torch::Tensor> lltm_cpu_forward(
   auto new_cell = old_cell + candidate_cell * input_gate;
   auto new_h = torch::tanh(new_cell) * output_gate;
 
-  return {new_h,
-          new_cell,
-          input_gate,
-          output_gate,
-          candidate_cell,
-          X,
-          gate_weights};
+  return {new_h, new_cell, input_gate, output_gate, candidate_cell, X, gate_weights};
 }
 
 std::vector<torch::Tensor> lltm_cpu_backward(
@@ -82,8 +76,7 @@ std::vector<torch::Tensor> lltm_cpu_backward(
   d_output_gate *= d_sigmoid(gates[1]);
   d_candidate_cell *= d_elu(gates[2]);
 
-  auto d_gates =
-      torch::cat({d_input_gate, d_output_gate, d_candidate_cell}, /*dim=*/1);
+  auto d_gates = torch::cat({d_input_gate, d_output_gate, d_candidate_cell}, /*dim=*/1);
 
   auto d_weights = d_gates.t().mm(X);
   auto d_bias = d_gates.sum(/*dim=*/0, /*keepdim=*/true);

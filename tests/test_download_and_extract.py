@@ -32,7 +32,7 @@ class TestDownloadAndExtract(unittest.TestCase):
             print(str(e))
             if isinstance(e, RuntimeError):
                 # FIXME: skip MD5 check as current downloading method may fail
-                self.assertTrue(str(e).startswith("MD5 check"))
+                self.assertTrue(str(e).startswith("md5 check"))
             return  # skipping this test due the network connection errors
 
         wrong_md5 = "0"
@@ -42,13 +42,13 @@ class TestDownloadAndExtract(unittest.TestCase):
             print(str(e))
             if isinstance(e, RuntimeError):
                 # FIXME: skip MD5 check as current downloading method may fail
-                self.assertTrue(str(e).startswith("MD5 check"))
+                self.assertTrue(str(e).startswith("md5 check"))
             return  # skipping this test due the network connection errors
 
         try:
             extractall(filepath, output_dir, wrong_md5)
         except RuntimeError as e:
-            self.assertTrue(str(e).startswith("MD5 check"))
+            self.assertTrue(str(e).startswith("md5 check"))
 
 
 if __name__ == "__main__":
