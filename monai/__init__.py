@@ -13,7 +13,9 @@ import os
 import sys
 
 from ._version import get_versions
-from .utils.module import load_submodules
+
+PY_REQUIRED_MAJOR = 3
+PY_REQUIRED_MINOR = 6
 
 __version__ = get_versions()["version"]
 del get_versions
@@ -21,6 +23,15 @@ del get_versions
 __copyright__ = "(c) 2020 MONAI Consortium"
 
 __basedir__ = os.path.dirname(__file__)
+
+if not (sys.version_info.major == PY_REQUIRED_MAJOR and sys.version_info.minor >= PY_REQUIRED_MINOR):
+    raise RuntimeError(
+        "MONAI requires Python {}.{} or higher. But the current Python is: {}".format(
+            PY_REQUIRED_MAJOR, PY_REQUIRED_MINOR, sys.version
+        ),
+    )
+
+from .utils.module import load_submodules  # noqa: E402
 
 # handlers_* have some external decorators the users may not have installed
 # *.so files and folder "_C" may not exist when the cpp extensions are not compiled
