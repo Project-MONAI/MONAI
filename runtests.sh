@@ -95,6 +95,11 @@ function print_usage {
     exit 1
 }
 
+function check_import {
+    echo "PYTHON: $(which python)"
+    ${cmdPrefix}python -c "import monai"
+}
+
 function print_version {
     ${cmdPrefix}python -c 'import monai; monai.config.print_config()'
 }
@@ -251,7 +256,7 @@ cd "$homedir"
 
 # python path
 export PYTHONPATH="$homedir:$PYTHONPATH"
-echo "$PYTHONPATH"
+echo "PYTHONPATH: $PYTHONPATH"
 
 # by default do nothing
 cmdPrefix=""
@@ -263,7 +268,10 @@ then
     # commands are echoed instead of ran
     cmdPrefix="dryrun "
     function dryrun { echo "    " "$@"; }
+else
+    check_import
 fi
+
 
 if [ $doCleanup = true ]
 then
