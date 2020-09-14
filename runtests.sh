@@ -1,6 +1,18 @@
 #! /bin/bash
-set -e
+
+# Copyright 2020 MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # script for running all tests
+set -e
 
 # output formatting
 separator=""
@@ -32,6 +44,7 @@ doBlackFix=false
 doIsortFormat=false
 doIsortFix=false
 doFlake8Format=false
+doClangFormat=false
 doPytypeFormat=false
 doMypyFormat=false
 doCleanup=false
@@ -39,7 +52,7 @@ doCleanup=false
 NUM_PARALLEL=1
 
 function print_usage {
-    echo "runtests.sh [--codeformat] [--autofix] [--black] [--isort] [--flake8] [--pytype] [--mypy]"
+    echo "runtests.sh [--codeformat] [--autofix] [--black] [--isort] [--flake8] [--clangformat] [--pytype] [--mypy]"
     echo "            [--nounittests] [--coverage] [--quick] [--net] [--dryrun] [-j number] [--clean] [--help] [--version]"
     echo ""
     echo "MONAI unit testing utilities."
@@ -56,6 +69,7 @@ function print_usage {
     echo "    --autofix         : format code using \"isort\" and \"black\""
     echo "    --isort           : perform \"isort\" import sort checks"
     echo "    --flake8          : perform \"flake8\" code format checks"
+    echo "    --clangformat     : format csrc code using \"clang-format\""
     echo ""
     echo "Python type check options:"
     echo "    --pytype          : perform \"pytype\" static type checks"
@@ -99,6 +113,18 @@ function compile_cpp {
     else
         ${cmdPrefix}python setup.py -v develop
     fi
+}
+
+function clang_format {
+    echo "Running clang-format..."
+    ${cmdPrefix}python -m tests.clang_format_utils
+    clang_format_tool='.clang-format-bin/clang-format'
+    # Verify .
+    if ! type -p "$clang_format_tool" >/dev/null; then
+        echo "'clang-format' not found, skipping the formatting."
+        exit 1
+    fi
+    find monai/csrc -type f | while read i; do $clang_format_tool -style=file -i $i; done
 }
 
 function clean_py {
@@ -179,6 +205,9 @@ do
             doIsortFormat=true
             doBlackFormat=true
         ;;
+        --clangformat)
+            doClangFormat=true
+        ;;
         --isort)
             doIsortFormat=true
         ;;
@@ -238,6 +267,16 @@ then
     echo "${separator}${blue}clean${noColor}"
 
     clean_py
+
+    echo "${green}done!${noColor}"
+    exit
+fi
+
+if [ $doClangFormat = true ]
+then
+    echo "${separator}${blue}clang-formatting${noColor}"
+
+    clang_format
 
     echo "${green}done!${noColor}"
     exit

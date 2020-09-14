@@ -18,7 +18,7 @@ Applications
 `Utilities`
 -----------
 
-.. autofunction:: check_md5
+.. autofunction:: check_hash
 
 .. autofunction:: download_url
 

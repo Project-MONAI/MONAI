@@ -15,27 +15,35 @@ import unittest
 
 import numpy as np
 from parameterized import parameterized
-from PIL import Image
 
-from monai.apps import check_md5
+from monai.apps import check_hash
 
-TEST_CASE_1 = ["f38e9e043c8e902321e827b24ce2e5ec", True]
+TEST_CASE_1 = ["b94716452086a054208395e8c9d1ae2a", "md5", True]
 
-TEST_CASE_2 = ["12c730d4e7427e00ad1c5526a6677535", False]
+TEST_CASE_2 = ["abcdefg", "md5", False]
 
-TEST_CASE_3 = [None, True]
+TEST_CASE_3 = [None, "md5", True]
+
+TEST_CASE_4 = [None, "sha1", True]
+
+TEST_CASE_5 = ["b4dc3c246b298eae37cefdfdd2a50b091ffd5e69", "sha1", True]
 
 
 class TestCheckMD5(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
-    def test_shape(self, md5_value, expected_result):
-        test_image = np.ones((64, 64, 3))
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
+    def test_result(self, md5_value, t, expected_result):
+        test_image = np.ones((5, 5, 3))
         with tempfile.TemporaryDirectory() as tempdir:
             filename = os.path.join(tempdir, "test_file.png")
-            Image.fromarray(test_image.astype("uint8")).save(filename)
+            test_image.tofile(filename)
 
-            result = check_md5(filename, md5_value)
+            result = check_hash(filename, md5_value, hash_type=t)
             self.assertTrue(result == expected_result)
+
+    def test_hash_type_error(self):
+        with self.assertRaises(NotImplementedError):
+            with tempfile.TemporaryDirectory() as tempdir:
+                check_hash(tempdir, "test_hash", "test_type")
 
 
 if __name__ == "__main__":
