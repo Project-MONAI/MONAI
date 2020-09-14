@@ -14,7 +14,7 @@ from typing import Union
 import numpy as np
 import torch
 
-from skimage.measure import marching_cubes
+from scipy.ndimage.morphology import binary_dilation
 from scipy.spatial.distance import directed_hausdorff
 
 
@@ -22,7 +22,7 @@ def compute_hausdorff_distance(
     seg_1: Union[np.ndarray, torch.Tensor],
     seg_2: Union[np.ndarray, torch.Tensor],
     label_idx: int,
-    directed_hausdorff: bool = False
+    directed: bool = False
 ) -> float:
     """
     Compute the directed Hausdorff distance. Here, we consider the directed
@@ -44,25 +44,29 @@ def compute_hausdorff_distance(
         raise ValueError("Labelfields should have same "
                          "shape (and non-zero number of elements)")
 
+    # If not binary images, convert them
+    if seg_1.dtype != bool:
+        seg_1 = seg_1 == label_idx
+    if seg_2.dtype != bool:
+        seg_2 = seg_2 == label_idx
+
     # Check both have at least 1 voxel with desired index
-    if label_idx not in seg_1 or label_idx not in seg_2:
+    if not (np.any(seg_1) and np.any(seg_2)):
         raise ValueError("Labelfields should have at least 1 voxel containing "
                          f"the desired labelfield, {label_idx}")
 
-    # Generate a surface mesh from each of the images
-    coords_1 = marching_cubes(seg_1, label_idx)
-    coords_2 = marching_cubes(seg_2, label_idx)
+    # Do binary dilation and use XOR to get edges
+    edges_1 = binary_dilation(seg_1) ^ seg_1
+    edges_2 = binary_dilation(seg_2) ^ seg_2
 
-    # TODO Check surfaces
-    if len(coords_1)*len(coords_2) <= 1:
-        raise ValueError("Marching cubes failed for at least one of the "
-                         "labelfields. "
-                         f"Num coords for labelfield 1: {len(coords_1)}. "
-                         f"Num coords for labelfield 2: {len(coords_2)}.")
+    # Extract coordinates of these edge points
+    coords_1 = np.argwhere(edges_1)
+    coords_2 = np.argwhere(edges_2)
 
-    if directed_hausdorff:
-        return directed_hausdorff(coords_1, coords_2)
+    # Get (potentially directed) Hausdorff distance
+    if directed:
+        return directed_hausdorff(coords_1, coords_2)[0]
     else:
         return max(
-            directed_hausdorff(coords_1, coords_2),
-            directed_hausdorff(coords_2, coords_1))
+            directed_hausdorff(coords_1, coords_2)[0],
+            directed_hausdorff(coords_2, coords_1)[0])

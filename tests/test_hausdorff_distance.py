@@ -20,7 +20,7 @@ from monai.metrics import compute_hausdorff_distance
 
 
 def create_spherical_seg_3d(
-    radius: float = 5.0,
+    radius: float = 20.0,
     centre: Tuple[int] = (49, 49, 49),
     labelfield_value: int = 1,
     background_value: int = 0,
@@ -63,6 +63,22 @@ TEST_CASES = [
         },
         0.,
     ],
+    [
+        {
+            "seg_1": create_spherical_seg_3d(radius=20, labelfield_value=2.0),
+            "seg_2": create_spherical_seg_3d(radius=21, labelfield_value=2.0),
+            "label_idx": 2.0,
+        },
+        1.4142135623730951,
+    ],
+    [
+        {
+            "seg_1": create_spherical_seg_3d(radius=20, centre=(49, 49, 49)),
+            "seg_2": create_spherical_seg_3d(radius=20, centre=(50, 49, 49)),
+            "label_idx": 1.0,
+        },
+        1.,
+    ],
 ]
 
 
@@ -74,8 +90,4 @@ class TestHausdorffDistance(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    # unittest.main()
-    a = create_spherical_seg_3d()
-    b = create_spherical_seg_3d()
-    label_idx = 1
-    result = compute_hausdorff_distance(a, b, label_idx)
+    unittest.main()
