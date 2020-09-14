@@ -40,6 +40,10 @@ for the latest features:
 ```bash
 pip install git+https://github.com/Project-MONAI/MONAI#egg=MONAI
 ```
+or, to build with MONAI Cpp/CUDA extensions:
+```bash
+BUILD_MONAI=1 pip install git+https://github.com/Project-MONAI/MONAI#egg=MONAI
+```
 this command will download and install the current master branch of [MONAI from
 GitHub](https://github.com/Project-MONAI/MONAI).
 
@@ -55,17 +59,25 @@ You can install it by running:
 ```bash
 cd MONAI/
 python setup.py develop
-
-# For MacOS:
-# CC=clang CXX=clang++ python setup.py develop
-
-# To install without build
-# SKIP_MONAI_BUILD=1 python setup.py develop
-
-# To uninstall the package please run:
-python setup.py develop --uninstall
 ```
-or simply adding the root directory of the cloned source code (e.g., ``/workspace/Documents/MONAI``) to your ``$PYTHONPATH``
+or, to build with MONAI Cpp/CUDA extensions:
+```bash
+cd MONAI/
+BUILD_MONAI=1 python setup.py develop
+# for MacOS
+BUILD_MONAI=1 CC=clang CXX=clang++ python setup.py develop
+```
+
+To uninstall the package please run:
+```bash
+cd MONAI/
+python setup.py develop --uninstall
+
+# to further clean up the MONAI/ folder (Bash script)
+./runtests.sh --clean
+```
+
+Alternatively, simply adding the root directory of the cloned source code (e.g., ``/workspace/Documents/MONAI``) to your ``$PYTHONPATH``
 and the codebase is ready to use (without the additional features of MONAI C++/CUDA extensions).
 
 
