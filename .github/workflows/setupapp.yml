@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - master
-      - default-to-no-build
 
 jobs:
   # caching of these jobs:
