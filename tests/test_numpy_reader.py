@@ -26,8 +26,7 @@ class TestNumpyReader(unittest.TestCase):
             np.save(filepath, test_data)
 
             reader = NumpyReader()
-            reader.read(filepath)
-            result = reader.get_data()
+            result = reader.get_data(reader.read(filepath))
         self.assertTupleEqual(result[1]["spatial_shape"], test_data.shape)
         self.assertTupleEqual(result[0].shape, test_data.shape)
         np.testing.assert_allclose(result[0], test_data)
@@ -39,8 +38,7 @@ class TestNumpyReader(unittest.TestCase):
             np.save(filepath, test_data1)
 
             reader = NumpyReader()
-            reader.read(filepath)
-            result = reader.get_data()
+            result = reader.get_data(reader.read(filepath))
         self.assertTupleEqual(result[1]["spatial_shape"], test_data1.shape)
         self.assertTupleEqual(result[0].shape, test_data1.shape)
         np.testing.assert_allclose(result[0], test_data1)
@@ -53,8 +51,7 @@ class TestNumpyReader(unittest.TestCase):
             np.savez(filepath, test_data1, test_data2)
 
             reader = NumpyReader()
-            reader.read(filepath)
-            result = reader.get_data()
+            result = reader.get_data(reader.read(filepath))
         self.assertTupleEqual(result[1]["spatial_shape"], test_data1.shape)
         self.assertTupleEqual(result[0].shape, (2, 3, 4, 4))
         np.testing.assert_allclose(result[0], np.stack([test_data1, test_data2]))
@@ -67,8 +64,7 @@ class TestNumpyReader(unittest.TestCase):
             np.savez(filepath, test1=test_data1, test2=test_data2)
 
             reader = NumpyReader(npz_keys=["test1", "test2"])
-            reader.read(filepath)
-            result = reader.get_data()
+            result = reader.get_data(reader.read(filepath))
         self.assertTupleEqual(result[1]["spatial_shape"], test_data1.shape)
         self.assertTupleEqual(result[0].shape, (2, 3, 4, 4))
         np.testing.assert_allclose(result[0], np.stack([test_data1, test_data2]))
@@ -80,10 +76,19 @@ class TestNumpyReader(unittest.TestCase):
             np.save(filepath, test_data, allow_pickle=True)
 
             reader = NumpyReader()
-            reader.read(filepath)
-            result = reader.get_data()[0].item()
+            result = reader.get_data(reader.read(filepath))[0].item()
         self.assertTupleEqual(result["test"].shape, test_data["test"].shape)
         np.testing.assert_allclose(result["test"], test_data["test"])
+
+    def test_kwargs(self):
+        test_data = {"test": np.random.randint(0, 256, size=[3, 4, 4])}
+        with tempfile.TemporaryDirectory() as tempdir:
+            filepath = os.path.join(tempdir, "test_data.npy")
+            np.save(filepath, test_data, allow_pickle=True)
+
+            reader = NumpyReader(mmap_mode="r")
+            result = reader.get_data(reader.read(filepath, mmap_mode=None))[0].item()
+        self.assertTupleEqual(result["test"].shape, test_data["test"].shape)
 
 
 if __name__ == "__main__":
