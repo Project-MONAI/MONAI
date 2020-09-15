@@ -117,7 +117,7 @@ class ITKReader(ImageReader):
 
         Args:
             data: file name or a list of file names to read,
-            kwargs: additional args for `itk.imread` API, if not set, using `self.kwargs`.
+            kwargs: additional args for `itk.imread` API, will override `self.kwargs` for existing keys.
                 More details about available args:
                 https://github.com/InsightSoftwareConsortium/ITK/blob/master/Wrapping/Generators/Python/itkExtras.py
 
@@ -125,10 +125,10 @@ class ITKReader(ImageReader):
         img_: List[Image] = list()
 
         filenames: Sequence[str] = ensure_tuple(data)
-        if len(kwargs) == 0:
-            kwargs = self.kwargs
+        kwargs_ = self.kwargs.copy()
+        kwargs_.update(kwargs)
         for name in filenames:
-            img_.append(itk.imread(name, **kwargs))
+            img_.append(itk.imread(name, **kwargs_))
         return img_ if len(filenames) > 1 else img_[0]
 
     def get_data(self, img):
@@ -261,7 +261,7 @@ class NibabelReader(ImageReader):
 
         Args:
             data: file name or a list of file names to read.
-            kwargs: additional args for `nibabel.load` API, if not set, using `self.kwargs`.
+            kwargs: additional args for `nibabel.load` API, will override `self.kwargs` for existing keys.
                 More details about available args:
                 https://github.com/nipy/nibabel/blob/master/nibabel/loadsave.py
 
@@ -269,10 +269,10 @@ class NibabelReader(ImageReader):
         img_: List[Nifti1Image] = list()
 
         filenames: Sequence[str] = ensure_tuple(data)
-        if len(kwargs) == 0:
-            kwargs = self.kwargs
+        kwargs_ = self.kwargs.copy()
+        kwargs_.update(kwargs)
         for name in filenames:
-            img = nib.load(name, **kwargs)
+            img = nib.load(name, **kwargs_)
             img = correct_nifti_header_if_necessary(img)
             img_.append(img)
         return img_ if len(filenames) > 1 else img_[0]
@@ -397,7 +397,7 @@ class NumpyReader(ImageReader):
 
         Args:
             data: file name or a list of file names to read.
-            kwargs: additional args for `numpy.load` API except `allow_pickle`, if not set, using `self.kwargs`.
+            kwargs: additional args for `numpy.load` API except `allow_pickle`, will override `self.kwargs` for existing keys.
                 More details about available args:
                 https://numpy.org/doc/stable/reference/generated/numpy.load.html
 
@@ -405,10 +405,10 @@ class NumpyReader(ImageReader):
         img_: List[Nifti1Image] = list()
 
         filenames: Sequence[str] = ensure_tuple(data)
-        if len(kwargs) == 0:
-            kwargs = self.kwargs
+        kwargs_ = self.kwargs.copy()
+        kwargs_.update(kwargs)
         for name in filenames:
-            img = np.load(name, allow_pickle=True, **kwargs)
+            img = np.load(name, allow_pickle=True, **kwargs_)
             if name.endswith(".npz"):
                 # load expected items from NPZ file
                 npz_keys = [f"arr_{i}" for i in range(len(img))] if self.npz_keys is None else self.npz_keys
@@ -486,7 +486,7 @@ class PILReader(ImageReader):
 
         Args:
             data: file name or a list of file names to read.
-            kwargs: additional args for `Image.open` API in `read()`, if not set, using `self.kwargs`.
+            kwargs: additional args for `Image.open` API in `read()`, will override `self.kwargs` for existing keys.
                 Mode details about available args:
                 https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.open
 
@@ -494,10 +494,10 @@ class PILReader(ImageReader):
         img_: List[PILImage.Image] = list()
 
         filenames: Sequence[str] = ensure_tuple(data)
-        if len(kwargs) == 0:
-            kwargs = self.kwargs
+        kwargs_ = self.kwargs.copy()
+        kwargs_.update(kwargs)
         for name in filenames:
-            img = PILImage.open(name, **kwargs)
+            img = PILImage.open(name, **kwargs_)
             if callable(self.converter):
                 img = self.converter(img)
             img_.append(img)

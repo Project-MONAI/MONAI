@@ -133,6 +133,26 @@ class TestLoadImage(unittest.TestCase):
             self.assertTupleEqual(tuple(header["spatial_shape"]), expected_shape)
             self.assertTupleEqual(result.shape, spatial_size)
 
+    def test_kwargs(self):
+        spatial_size = (32, 64, 128)
+        expected_shape = (128, 64, 32)
+        test_image = np.random.rand(*spatial_size)
+        with tempfile.TemporaryDirectory() as tempdir:
+            filename = os.path.join(tempdir, "test_image.nii.gz")
+            itk_np_view = itk.image_view_from_array(test_image)
+            itk.imwrite(itk_np_view, filename)
+
+            loader = LoadImage(image_only=False)
+            reader = ITKReader(fallback_only=False)
+            loader.register(reader)
+            result, header = loader(filename)
+
+            reader = ITKReader()
+            img = reader.read(filename, fallback_only=False)
+            result_raw, header_raw = reader.get_data(img)
+            self.assertListEqual(header["spatial_shape"], header_raw["spatial_shape"])
+            self.assertTupleEqual(result.shape, result_raw.shape)
+
 
 if __name__ == "__main__":
     unittest.main()

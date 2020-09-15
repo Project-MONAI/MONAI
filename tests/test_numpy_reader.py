@@ -80,6 +80,16 @@ class TestNumpyReader(unittest.TestCase):
         self.assertTupleEqual(result["test"].shape, test_data["test"].shape)
         np.testing.assert_allclose(result["test"], test_data["test"])
 
+    def test_kwargs(self):
+        test_data = {"test": np.random.randint(0, 256, size=[3, 4, 4])}
+        with tempfile.TemporaryDirectory() as tempdir:
+            filepath = os.path.join(tempdir, "test_data.npy")
+            np.save(filepath, test_data, allow_pickle=True)
+
+            reader = NumpyReader(mmap_mode="r")
+            result = reader.get_data(reader.read(filepath, mmap_mode=None))[0].item()
+        self.assertTupleEqual(result["test"].shape, test_data["test"].shape)
+
 
 if __name__ == "__main__":
     unittest.main()
