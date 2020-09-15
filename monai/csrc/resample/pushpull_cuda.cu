@@ -1777,43 +1777,4 @@ MONAI_NAMESPACE_DEVICE { // cuda
 
 } // namespace <device>
 
-// ~~~ NOT IMPLEMENTED ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-namespace notimplemented {
-
-template <typename BoundType, typename InterpolationType, typename SourceType>
-MONAI_HOST std::deque<Tensor> pushpull(
-    const SourceType& source,
-    const Tensor& grid,
-    BoundType bound,
-    InterpolationType interpolation,
-    bool extrapolate,
-    bool do_pull,
-    bool do_push,
-    bool do_count,
-    bool do_grad,
-    bool do_sgrad) {
-  throw std::logic_error("Function not implemented for this device.");
-}
-
-template <typename BoundType, typename InterpolationType, typename SourceType>
-MONAI_HOST std::deque<Tensor> pushpull(
-    const SourceType& source,
-    const Tensor& grid,
-    const Tensor& target,
-    BoundType bound,
-    InterpolationType interpolation,
-    bool extrapolate,
-    bool do_pull,
-    bool do_push,
-    bool do_count,
-    bool do_grad,
-    bool do_sgrad) {
-  throw std::logic_error("Function not implemented for this device.");
-}
-
-PUSHPULL_INSTANTIATE;
-
-} // namespace notimplemented
-
 } // namespace monai
