@@ -57,6 +57,7 @@ Technical documentation is available at `docs.monai.io <https://docs.monai.io>`_
    losses
    networks
    metrics
+   optimizers
    data
    engines
    inferers
