@@ -50,7 +50,7 @@ class TestLoadImaged(unittest.TestCase):
             itk.imwrite(itk_np_view, filename)
 
             loader = LoadImaged(keys="img")
-            loader.register(ITKReader(c_order_axis_indexing=True))
+            loader.register(ITKReader())
             result = loader({"img": filename})
             self.assertTupleEqual(tuple(result["img_meta_dict"]["spatial_shape"]), expected_shape)
             self.assertTupleEqual(result["img"].shape, spatial_size)
