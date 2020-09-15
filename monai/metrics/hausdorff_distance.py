@@ -13,7 +13,6 @@ from typing import Union
 
 import numpy as np
 import torch
-
 from scipy.ndimage.morphology import binary_dilation
 from scipy.spatial.distance import directed_hausdorff
 

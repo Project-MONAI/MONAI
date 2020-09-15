@@ -11,10 +11,10 @@
 
 import unittest
 from typing import Tuple
-from parameterized import parameterized
 
 import numpy as np
 import torch
+from parameterized import parameterized
 
 from monai.metrics import compute_hausdorff_distance
 
