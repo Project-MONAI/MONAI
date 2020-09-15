@@ -13,7 +13,9 @@ from typing import Union
 
 import numpy as np
 import torch
+
 from monai.utils import optional_import
+
 binary_dilation, _ = optional_import("scipy.ndimage.morphology", name="binary_dilation")
 directed_hausdorff, _ = optional_import("scipy.spatial.distance", name="directed_hausdorff")
 
