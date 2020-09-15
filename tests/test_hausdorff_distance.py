@@ -13,7 +13,6 @@ import unittest
 from typing import Tuple
 
 import numpy as np
-import torch
 from parameterized import parameterized
 
 from monai.metrics import compute_hausdorff_distance
@@ -21,10 +20,10 @@ from monai.metrics import compute_hausdorff_distance
 
 def create_spherical_seg_3d(
     radius: float = 20.0,
-    centre: Tuple[int] = (49, 49, 49),
+    centre: Tuple[int, int, int] = (49, 49, 49),
     labelfield_value: int = 1,
     background_value: int = 0,
-    im_shape: Tuple[int] = (99, 99, 99)
+    im_shape: Tuple[int, int, int] = (99, 99, 99),
 ) -> np.ndarray:
     """
     Return a 3D image with a sphere inside. Voxel values will be
@@ -42,9 +41,9 @@ def create_spherical_seg_3d(
     """
     # Create image
     image = np.zeros(im_shape, dtype=np.int32)
-    spy, spx, spz = np.ogrid[-centre[0]: im_shape[0] - centre[0],
-                             -centre[1]: im_shape[1] - centre[1],
-                             -centre[2]: im_shape[2] - centre[2]]
+    spy, spx, spz = np.ogrid[
+        -centre[0] : im_shape[0] - centre[0], -centre[1] : im_shape[1] - centre[1], -centre[2] : im_shape[2] - centre[2]
+    ]
     circle = (spx * spx + spy * spy + spz * spz) <= radius * radius
 
     image[circle] = labelfield_value
@@ -60,13 +59,13 @@ TEST_CASES = [
             "seg_2": create_spherical_seg_3d(),
             "label_idx": 1,
         },
-        0.,
+        0.0,
     ],
     [
         {
-            "seg_1": create_spherical_seg_3d(radius=20, labelfield_value=2.0),
-            "seg_2": create_spherical_seg_3d(radius=21, labelfield_value=2.0),
-            "label_idx": 2.0,
+            "seg_1": create_spherical_seg_3d(radius=20, labelfield_value=2),
+            "seg_2": create_spherical_seg_3d(radius=21, labelfield_value=2),
+            "label_idx": 2,
         },
         1.4142135623730951,
     ],
@@ -74,9 +73,9 @@ TEST_CASES = [
         {
             "seg_1": create_spherical_seg_3d(radius=20, centre=(49, 49, 49)),
             "seg_2": create_spherical_seg_3d(radius=20, centre=(50, 49, 49)),
-            "label_idx": 1.0,
+            "label_idx": 1,
         },
-        1.,
+        1.0,
     ],
 ]
 

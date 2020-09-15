@@ -21,7 +21,7 @@ def compute_hausdorff_distance(
     seg_1: Union[np.ndarray, torch.Tensor],
     seg_2: Union[np.ndarray, torch.Tensor],
     label_idx: int,
-    directed: bool = False
+    directed: bool = False,
 ) -> float:
     """
     Compute the Hausdorff distance. The user has the option to calculate the
@@ -48,14 +48,13 @@ def compute_hausdorff_distance(
 
     # Get both labelfields as np arrays
     if torch.is_tensor(seg_1):
-        seg_1 = seg_1.detach().cpu().np()
+        seg_1 = seg_1.detach().cpu().numpy()
     if torch.is_tensor(seg_2):
-        seg_2 = seg_2.detach().cpu().np()
+        seg_2 = seg_2.detach().cpu().numpy()
 
     # Check non-zero number of elements and same shape
     if seg_1.size == 0 or seg_1.shape != seg_2.shape:
-        raise ValueError("Labelfields should have same "
-                         "shape (and non-zero number of elements)")
+        raise ValueError("Labelfields should have same shape (and non-zero number of elements)")
 
     # If not binary images, convert them
     if seg_1.dtype != bool:
@@ -65,8 +64,7 @@ def compute_hausdorff_distance(
 
     # Check both have at least 1 voxel with desired index
     if not (np.any(seg_1) and np.any(seg_2)):
-        raise ValueError("Labelfields should have at least 1 voxel containing "
-                         f"the desired labelfield, {label_idx}")
+        raise ValueError(f"Labelfields should have at least 1 voxel containing the desired labelfield, {label_idx}")
 
     # Do binary dilation and use XOR to get edges
     edges_1 = binary_dilation(seg_1) ^ seg_1
@@ -78,8 +76,6 @@ def compute_hausdorff_distance(
 
     # Get (potentially directed) Hausdorff distance
     if directed:
-        return directed_hausdorff(coords_1, coords_2)[0]
+        return float(directed_hausdorff(coords_1, coords_2)[0])
     else:
-        return max(
-            directed_hausdorff(coords_1, coords_2)[0],
-            directed_hausdorff(coords_2, coords_1)[0])
+        return float(max(directed_hausdorff(coords_1, coords_2)[0], directed_hausdorff(coords_2, coords_1)[0]))
