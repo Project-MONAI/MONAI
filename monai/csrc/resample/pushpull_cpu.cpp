@@ -25,7 +25,7 @@ limitations under the License.
 // TODO:
 // . [DONE] generic 3d
 // . [DONE] generic 2d
-// . sliding nearest 3
+// . sliding nearest 3d
 // . sliding nearest 2d
 // . sliding linear 3d
 // . sliding linear 2d

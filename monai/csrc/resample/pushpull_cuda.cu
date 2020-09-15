@@ -16,8 +16,8 @@ limitations under the License.
 // This file implements spline interpolation / sampling and its adjoint
 // operations. It corresponds loosely to torch's `GridSampler`.
 // It handles boundary conditions and interpolation orders defined in
-// `utils/resample_utils.h` and `utils/resample_utils.h`. These parameters can be specified
-// per dimension.
+// `utils/resample_utils.h` and `utils/resample_utils.h`.
+// These parameters can be specified per dimension.
 // Isotorpic 0-th and 1-st order interpolation have their own (faster)
 // implementations. Sliding boundary conditions are also implemented
 // separately.
@@ -490,7 +490,7 @@ MONAI_NAMESPACE_DEVICE { // cuda
       out_sY = pull.stride(3);
       out_sZ = dim == 2 ? static_cast<offset_t>(0) : pull.stride(4);
       out_sK = static_cast<offset_t>(0);
-      out_ptr = pull.data_ptr<scalar_t>();
+      out_ptr = pull.template data_ptr<scalar_t>();
     } else if (do_sgrad) {
       if (dim == 2)
         output.push_back(at::empty({N, C, trgt_X, trgt_Y, 2}, src_opt));
@@ -503,7 +503,7 @@ MONAI_NAMESPACE_DEVICE { // cuda
       out_sY = sgrad.stride(3);
       out_sZ = dim == 2 ? static_cast<offset_t>(0) : sgrad.stride(4);
       out_sK = sgrad.stride(dim == 2 ? 4 : 5);
-      out_ptr = sgrad.data_ptr<scalar_t>();
+      out_ptr = sgrad.template data_ptr<scalar_t>();
 
       if (iso && interpolation0 == InterpolationType::Nearest)
         sgrad.zero_();
@@ -519,7 +519,7 @@ MONAI_NAMESPACE_DEVICE { // cuda
       out_sY = push.stride(3);
       out_sZ = dim == 2 ? static_cast<offset_t>(0) : push.stride(4);
       out_sK = static_cast<offset_t>(0);
-      out_ptr = push.data_ptr<scalar_t>();
+      out_ptr = push.template data_ptr<scalar_t>();
     } else if (do_count) {
       if (dim == 2)
         output.push_back(at::zeros({N, 1, src_X, src_Y}, grid_opt));
@@ -532,7 +532,7 @@ MONAI_NAMESPACE_DEVICE { // cuda
       out_sY = count.stride(3);
       out_sZ = dim == 2 ? static_cast<offset_t>(0) : count.stride(4);
       out_sK = static_cast<offset_t>(0);
-      out_ptr = count.data_ptr<scalar_t>();
+      out_ptr = count.template data_ptr<scalar_t>();
     }
     if (do_grad) {
       if (dim == 2)
@@ -545,7 +545,7 @@ MONAI_NAMESPACE_DEVICE { // cuda
       grad_sY = grad.stride(2);
       grad_sZ = dim == 2 ? static_cast<offset_t>(0) : grad.stride(3);
       grad_sC = grad.stride(dim == 2 ? 3 : 4);
-      grad_ptr = grad.data_ptr<scalar_t>();
+      grad_ptr = grad.template data_ptr<scalar_t>();
 
       if (iso && interpolation0 == InterpolationType::Nearest)
         grad.zero_();
