@@ -175,7 +175,7 @@ function print_style_fail_msg() {
 }
 
 function is_pip_installed() {
-	return $($PY_EXE -c "import sys, pkgutil; sys.exit(0 if pkgutil.find_loader(sys.argv[1]) else 1)" $1)
+	return $(${PY_EXE} -c "import sys, pkgutil; sys.exit(0 if pkgutil.find_loader(sys.argv[1]) else 1)" $1)
 }
 
 if [ -z "$1" ]
@@ -326,9 +326,9 @@ then
 
     if [ $doIsortFix = true ]
     then
-        ${cmdPrefix}$PY_EXE -m isort "$(pwd)"
+        ${cmdPrefix}${PY_EXE} -m isort "$(pwd)"
     else
-        ${cmdPrefix}$PY_EXE -m isort --check "$(pwd)"
+        ${cmdPrefix}${PY_EXE} -m isort --check "$(pwd)"
     fi
 
     isort_status=$?
@@ -358,13 +358,13 @@ then
     then
         install_deps
     fi
-    ${cmdPrefix}$PY_EXE -m black --version
+    ${cmdPrefix}${PY_EXE} -m black --version
 
     if [ $doBlackFix = true ]
     then
-        ${cmdPrefix}$PY_EXE -m black "$(pwd)"
+        ${cmdPrefix}${PY_EXE} -m black "$(pwd)"
     else
-        ${cmdPrefix}$PY_EXE -m black --check "$(pwd)"
+        ${cmdPrefix}${PY_EXE} -m black --check "$(pwd)"
     fi
 
     black_status=$?
@@ -389,9 +389,9 @@ then
 	then
         install_deps
     fi
-    ${cmdPrefix}$PY_EXE -m flake8 --version
+    ${cmdPrefix}${PY_EXE} -m flake8 --version
 
-    ${cmdPrefix}$PY_EXE -m flake8 "$(pwd)" --count --statistics
+    ${cmdPrefix}${PY_EXE} -m flake8 "$(pwd)" --count --statistics
 
     flake8_status=$?
     if [ ${flake8_status} -ne 0 ]
@@ -415,9 +415,9 @@ then
     then
         install_deps
     fi
-    ${cmdPrefix}$PY_EXE -m pytype --version
+    ${cmdPrefix}${PY_EXE} -m pytype --version
 
-    ${cmdPrefix}$PY_EXE -m pytype -j ${NUM_PARALLEL} --python-version="$(${PY_EXE} -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")"
+    ${cmdPrefix}${PY_EXE} -m pytype -j ${NUM_PARALLEL} --python-version="$(${PY_EXE} -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")"
 
     pytype_status=$?
     if [ ${pytype_status} -ne 0 ]
@@ -441,13 +441,13 @@ then
     then
         install_deps
     fi
-    ${cmdPrefix}$PY_EXE -m mypy --version
+    ${cmdPrefix}${PY_EXE} -m mypy --version
 
     if [ $doDryRun = true ]
     then
-        ${cmdPrefix}MYPYPATH="$(pwd)"/monai $PY_EXE -m mypy "$(pwd)"
+        ${cmdPrefix}MYPYPATH="$(pwd)"/monai ${PY_EXE} -m mypy "$(pwd)"
     else
-        MYPYPATH="$(pwd)"/monai $PY_EXE -m mypy "$(pwd)" # cmdPrefix does not work with MYPYPATH
+        MYPYPATH="$(pwd)"/monai ${PY_EXE} -m mypy "$(pwd)" # cmdPrefix does not work with MYPYPATH
     fi
 
     mypy_status=$?
@@ -478,8 +478,8 @@ fi
 if [ $doCoverage = true ]
 then
     echo "${separator}${blue}coverage${noColor}"
-    cmd="coverage run -a --source ."
-    ${cmdPrefix}coverage erase
+    cmd="${PY_EXE} -m coverage run -a --source ."
+    ${cmdPrefix}${PY_EXE} -m coverage erase
 fi
 
 # # download test data if needed
@@ -518,5 +518,5 @@ fi
 if [ $doCoverage = true ]
 then
     echo "${separator}${blue}coverage${noColor}"
-    ${cmdPrefix}coverage report --skip-covered -m
+    ${cmdPrefix}${PY_EXE} -m coverage report --skip-covered -m
 fi
