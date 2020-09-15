@@ -54,22 +54,26 @@ class ImageReader(ABC):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def read(self, data: Union[Sequence[str], str, Any]) -> Union[Sequence[Any], Any]:
+    def read(self, data: Union[Sequence[str], str], **kwargs) -> Union[Sequence[Any], Any]:
         """
-        Read image data from specified file or files, or set a loaded image.
+        Read image data from specified file or files.
         Note that it returns the raw data, so different readers return different image data type.
 
         Args:
-            data: file name or a list of file names to read, or a loaded image object.
+            data: file name or a list of file names to read.
+            kwargs: additional args for actual `read` API of 3rd party libs.
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def get_data(self) -> Tuple[np.ndarray, Dict]:
+    def get_data(self, img) -> Tuple[np.ndarray, Dict]:
         """
         Extract data array and meta data from loaded image and return them.
         This function must return 2 objects, first is numpy array of image data, second is dict of meta data.
+
+        Args:
+            img: an image object loaded from a image file or a list of image objects.
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
@@ -92,7 +96,6 @@ class ITKReader(ImageReader):
 
     def __init__(self, c_order_axis_indexing: bool = False, **kwargs):
         super().__init__()
-        self._img: Optional[Sequence[Image]] = None
         self.c_order_axis_indexing = c_order_axis_indexing
         self.kwargs = kwargs
 
@@ -107,28 +110,28 @@ class ITKReader(ImageReader):
         """
         return True
 
-    def read(self, data: Union[Sequence[str], str, Any]):
+    def read(self, data: Union[Sequence[str], str], **kwargs):
         """
-        Read image data from specified file or files, or set a `itk.Image` object.
+        Read image data from specified file or files.
         Note that the returned object is ITK image object or list of ITK image objects.
-        `self._img` is always a list, even only has 1 image.
 
         Args:
-            data: file name or a list of file names to read, or a `itk.Image` object for the usage that
-                the image data is already in memory and no need to read from file again.
+            data: file name or a list of file names to read,
+            kwargs: additional args for `itk.imread` API, will override `self.kwargs` for existing keys.
+                More details about available args:
+                https://github.com/InsightSoftwareConsortium/ITK/blob/master/Wrapping/Generators/Python/itkExtras.py
 
         """
-        self._img = list()
-        if isinstance(data, Image):
-            self._img.append(data)
-            return data
+        img_: List[Image] = list()
 
         filenames: Sequence[str] = ensure_tuple(data)
+        kwargs_ = self.kwargs.copy()
+        kwargs_.update(kwargs)
         for name in filenames:
-            self._img.append(itk.imread(name, **self.kwargs))
-        return self._img if len(filenames) > 1 else self._img[0]
+            img_.append(itk.imread(name, **kwargs_))
+        return img_ if len(filenames) > 1 else img_[0]
 
-    def get_data(self):
+    def get_data(self, img):
         """
         Extract data array and meta data from loaded image and return them.
         This function returns 2 objects, first is numpy array of image data, second is dict of meta data.
@@ -136,18 +139,19 @@ class ITKReader(ImageReader):
         If loading a list of files, stack them together and add a new dimension as first dimension,
         and use the meta data of the first image to represent the stacked result.
 
+        Args:
+            img: a ITK image object loaded from a image file or a list of ITK image objects.
+
         """
         img_array: List[np.ndarray] = list()
         compatible_meta: Dict = None
-        if self._img is None:
-            raise RuntimeError("please call read() first then use get_data().")
 
-        for img in self._img:
-            header = self._get_meta_dict(img)
-            header["original_affine"] = self._get_affine(img)
+        for i in ensure_tuple(img):
+            header = self._get_meta_dict(i)
+            header["original_affine"] = self._get_affine(i)
             header["affine"] = header["original_affine"].copy()
-            header["spatial_shape"] = self._get_spatial_shape(img)
-            img_array.append(self._get_array_data(img))
+            header["spatial_shape"] = self._get_spatial_shape(i)
+            img_array.append(self._get_array_data(i))
 
             if compatible_meta is None:
                 compatible_meta = header
@@ -235,7 +239,6 @@ class NibabelReader(ImageReader):
 
     def __init__(self, as_closest_canonical: bool = False, **kwargs):
         super().__init__()
-        self._img: Optional[Sequence[Nifti1Image]] = None
         self.as_closest_canonical = as_closest_canonical
         self.kwargs = kwargs
 
@@ -251,29 +254,30 @@ class NibabelReader(ImageReader):
         suffixes: Sequence[str] = ["nii", "nii.gz"]
         return is_supported_format(filename, suffixes)
 
-    def read(self, data: Union[Sequence[str], str, Any]):
+    def read(self, data: Union[Sequence[str], str], **kwargs):
         """
-        Read image data from specified file or files, or set a Nibabel Image object.
+        Read image data from specified file or files.
         Note that the returned object is Nibabel image object or list of Nibabel image objects.
-        `self._img` is always a list, even only has 1 image.
 
         Args:
             data: file name or a list of file names to read.
+            kwargs: additional args for `nibabel.load` API, will override `self.kwargs` for existing keys.
+                More details about available args:
+                https://github.com/nipy/nibabel/blob/master/nibabel/loadsave.py
 
         """
-        self._img = list()
-        if isinstance(data, Nifti1Image):
-            self._img.append(data)
-            return data
+        img_: List[Nifti1Image] = list()
 
         filenames: Sequence[str] = ensure_tuple(data)
+        kwargs_ = self.kwargs.copy()
+        kwargs_.update(kwargs)
         for name in filenames:
-            img = nib.load(name, **self.kwargs)
+            img = nib.load(name, **kwargs_)
             img = correct_nifti_header_if_necessary(img)
-            self._img.append(img)
-        return self._img if len(filenames) > 1 else self._img[0]
+            img_.append(img)
+        return img_ if len(filenames) > 1 else img_[0]
 
-    def get_data(self):
+    def get_data(self, img):
         """
         Extract data array and meta data from loaded image and return them.
         This function returns 2 objects, first is numpy array of image data, second is dict of meta data.
@@ -281,22 +285,23 @@ class NibabelReader(ImageReader):
         If loading a list of files, stack them together and add a new dimension as first dimension,
         and use the meta data of the first image to represent the stacked result.
 
+        Args:
+            img: a Nibabel image object loaded from a image file or a list of Nibabel image objects.
+
         """
         img_array: List[np.ndarray] = list()
         compatible_meta: Dict = None
-        if self._img is None:
-            raise RuntimeError("please call read() first then use get_data().")
 
-        for img in self._img:
-            header = self._get_meta_dict(img)
-            header["original_affine"] = self._get_affine(img)
+        for i in ensure_tuple(img):
+            header = self._get_meta_dict(i)
+            header["original_affine"] = self._get_affine(i)
             header["affine"] = header["original_affine"].copy()
             if self.as_closest_canonical:
-                img = nib.as_closest_canonical(img)
-                header["affine"] = self._get_affine(img)
+                i = nib.as_closest_canonical(i)
+                header["affine"] = self._get_affine(i)
             header["as_closest_canonical"] = self.as_closest_canonical
-            header["spatial_shape"] = self._get_spatial_shape(img)
-            img_array.append(self._get_array_data(img))
+            header["spatial_shape"] = self._get_spatial_shape(i)
+            img_array.append(self._get_array_data(i))
 
             if compatible_meta is None:
                 compatible_meta = header
@@ -369,7 +374,6 @@ class NumpyReader(ImageReader):
 
     def __init__(self, npz_keys: Optional[KeysCollection] = None, **kwargs):
         super().__init__()
-        self._img: Optional[Sequence[Nifti1Image]] = None
         if npz_keys is not None:
             npz_keys = ensure_tuple(npz_keys)
         self.npz_keys = npz_keys
@@ -386,51 +390,57 @@ class NumpyReader(ImageReader):
         suffixes: Sequence[str] = ["npz", "npy"]
         return is_supported_format(filename, suffixes)
 
-    def read(self, data: Union[Sequence[str], str, np.ndarray]):
+    def read(self, data: Union[Sequence[str], str], **kwargs):
         """
-        Read image data from specified file or files, or set a Numpy array.
+        Read image data from specified file or files.
         Note that the returned object is Numpy array or list of Numpy arrays.
-        `self._img` is always a list, even only has 1 image
+
         Args:
             data: file name or a list of file names to read.
+            kwargs: additional args for `numpy.load` API except `allow_pickle`, will override `self.kwargs` for existing keys.
+                More details about available args:
+                https://numpy.org/doc/stable/reference/generated/numpy.load.html
 
         """
-        self._img = list()
-        if isinstance(data, np.ndarray):
-            self._img.append(data)
-            return data
+        img_: List[Nifti1Image] = list()
 
         filenames: Sequence[str] = ensure_tuple(data)
+        kwargs_ = self.kwargs.copy()
+        kwargs_.update(kwargs)
         for name in filenames:
-            img = np.load(name, allow_pickle=True, **self.kwargs)
+            img = np.load(name, allow_pickle=True, **kwargs_)
             if name.endswith(".npz"):
                 # load expected items from NPZ file
                 npz_keys = [f"arr_{i}" for i in range(len(img))] if self.npz_keys is None else self.npz_keys
                 for k in npz_keys:
-                    self._img.append(img[k])
+                    img_.append(img[k])
             else:
-                self._img.append(img)
+                img_.append(img)
 
-        return self._img if len(filenames) > 1 else self._img[0]
+        return img_ if len(img_) > 1 else img_[0]
 
-    def get_data(self):
+    def get_data(self, img):
         """
         Extract data array and meta data from loaded data and return them.
         This function returns 2 objects, first is numpy array of image data, second is dict of meta data.
         It constructs `spatial_shape=data.shape` and stores in meta dict if the data is numpy array.
         If loading a list of files, stack them together and add a new dimension as first dimension,
         and use the meta data of the first image to represent the stacked result.
+
+        Args:
+            img: a Numpy array loaded from a file or a list of Numpy arrays.
+
         """
         img_array: List[np.ndarray] = list()
         compatible_meta: Dict = None
-        if self._img is None:
-            raise RuntimeError("please call read() first then use get_data().")
+        if isinstance(img, np.ndarray):
+            img = (img,)
 
-        for img in self._img:
+        for i in ensure_tuple(img):
             header = dict()
-            if isinstance(img, np.ndarray):
-                header["spatial_shape"] = img.shape
-            img_array.append(img)
+            if isinstance(i, np.ndarray):
+                header["spatial_shape"] = i.shape
+            img_array.append(i)
 
             if compatible_meta is None:
                 compatible_meta = header
@@ -455,7 +465,6 @@ class PILReader(ImageReader):
 
     def __init__(self, converter: Optional[Callable] = None, **kwargs):
         super().__init__()
-        self._img: Optional[Sequence[PILImage.Image]] = None
         self.converter = converter
         self.kwargs = kwargs
 
@@ -470,47 +479,50 @@ class PILReader(ImageReader):
         suffixes: Sequence[str] = ["png", "jpg", "bmp"]
         return is_supported_format(filename, suffixes)
 
-    def read(self, data: Union[Sequence[str], str, np.ndarray]):
+    def read(self, data: Union[Sequence[str], str, np.ndarray], **kwargs):
         """
-        Read image data from specified file or files, or set a PIL image.
+        Read image data from specified file or files.
         Note that the returned object is PIL image or list of PIL image.
-        `self._img` is always a list, even only has 1 image.
+
         Args:
             data: file name or a list of file names to read.
+            kwargs: additional args for `Image.open` API in `read()`, will override `self.kwargs` for existing keys.
+                Mode details about available args:
+                https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.open
+
         """
-        self._img = list()
-        if isinstance(data, PILImage.Image):
-            if callable(self.converter):
-                data = self.converter(data)
-            self._img.append(data)
-            return data
+        img_: List[PILImage.Image] = list()
 
         filenames: Sequence[str] = ensure_tuple(data)
+        kwargs_ = self.kwargs.copy()
+        kwargs_.update(kwargs)
         for name in filenames:
-            img = PILImage.open(name, **self.kwargs)
+            img = PILImage.open(name, **kwargs_)
             if callable(self.converter):
                 img = self.converter(img)
-            self._img.append(img)
+            img_.append(img)
 
-        return self._img if len(filenames) > 1 else self._img[0]
+        return img_ if len(filenames) > 1 else img_[0]
 
-    def get_data(self):
+    def get_data(self, img):
         """
         Extract data array and meta data from loaded data and return them.
         This function returns 2 objects, first is numpy array of image data, second is dict of meta data.
         It constructs `spatial_shape` and stores in meta dict.
         If loading a list of files, stack them together and add a new dimension as first dimension,
         and use the meta data of the first image to represent the stacked result.
+
+        Args:
+            img: a PIL Image object loaded from a file or a list of PIL Image objects.
+
         """
         img_array: List[np.ndarray] = list()
         compatible_meta: Dict = None
-        if self._img is None:
-            raise RuntimeError("please call read() first then use get_data().")
 
-        for img in self._img:
-            header = self._get_meta_dict(img)
-            header["spatial_shape"] = self._get_spatial_shape(img)
-            img_array.append(np.asarray(img))
+        for i in ensure_tuple(img):
+            header = self._get_meta_dict(i)
+            header["spatial_shape"] = self._get_spatial_shape(i)
+            img_array.append(np.asarray(i))
 
             if compatible_meta is None:
                 compatible_meta = header
