@@ -84,19 +84,16 @@ class ITKReader(ImageReader):
     Load medical images based on ITK library.
     All the supported image formats can be found:
     https://github.com/InsightSoftwareConsortium/ITK/tree/master/Modules/IO
+    The loaded data array will be in C order, for example, a 3D image will be `CDWH`.
 
     Args:
-        c_order_axis_indexing: if `True`, the numpy array will have C-order indexing.
-            this is the reverse of how indices are specified in ITK, i.e. k,j,i versus i,j,k.
-            however C-order indexing is expected by most algorithms in numpy / scipy.
         kwargs: additional args for `itk.imread` API. more details about available args:
             https://github.com/InsightSoftwareConsortium/ITK/blob/master/Wrapping/Generators/Python/itkExtras.py
 
     """
 
-    def __init__(self, c_order_axis_indexing: bool = False, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__()
-        self.c_order_axis_indexing = c_order_axis_indexing
         self.kwargs = kwargs
 
     def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
@@ -223,7 +220,7 @@ class ITKReader(ImageReader):
             img: a ITK image object loaded from a image file.
 
         """
-        return itk.array_view_from_image(img, keep_axes=not self.c_order_axis_indexing)
+        return itk.array_view_from_image(img, keep_axes=False)
 
 
 class NibabelReader(ImageReader):
