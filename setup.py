@@ -11,6 +11,8 @@
 
 import glob
 import os
+import re
+import sys
 import warnings
 
 from setuptools import find_packages, setup
@@ -19,8 +21,8 @@ import versioneer
 
 # TODO: debug mode -g -O0, compile test cases
 
-FORCE_CUDA = os.getenv("FORCE_CUDA", "0") == "1"
-SKIP_BUILD = os.getenv("SKIP_MONAI_BUILD", "0") == "1"
+RUN_BUILD = os.getenv("BUILD_MONAI", "0") == "1"
+FORCE_CUDA = os.getenv("FORCE_CUDA", "0") == "1"  # flag ignored if BUILD_MONAI is False
 
 BUILD_CPP = BUILD_CUDA = False
 try:
@@ -36,9 +38,39 @@ try:
 except ImportError:
     warnings.warn("extension build skipped.")
 finally:
-    if SKIP_BUILD:
+    if not RUN_BUILD:
         BUILD_CPP = BUILD_CUDA = False
+        print("Please set environment variable `BUILD_MONAI=1` to enable Cpp/CUDA extension build.")
     print(f"BUILD_MONAI_CPP={BUILD_CPP}, BUILD_MONAI_CUDA={BUILD_CUDA}")
+
+
+def torch_parallel_backend():
+    match = re.search(
+        "^ATen parallel backend: (?P<backend>.*)$",
+        torch._C._parallel_info(),
+        re.MULTILINE,
+    )
+    if match is None:
+        return None
+    backend = match.group("backend")
+    if backend == "OpenMP":
+        return "AT_PARALLEL_OPENMP"
+    elif backend == "native thread pool":
+        return "AT_PARALLEL_NATIVE"
+    elif backend == "native thread pool and TBB":
+        return "AT_PARALLEL_NATIVE_TBB"
+    else:
+        return None
+
+
+def omp_flags():
+    if sys.platform == "win32":
+        return ["/openmp"]
+    if sys.platform == "darwin":
+        # https://stackoverflow.com/questions/37362414/
+        # return ["-fopenmp=libiomp5"]
+        return []
+    return ["-fopenmp"]
 
 
 def get_extensions():
@@ -51,16 +83,23 @@ def get_extensions():
     source_cuda = glob.glob(os.path.join(ext_dir, "**", "*.cu"))
 
     extension = None
-    define_macros = []
+    define_macros = [(f"{torch_parallel_backend()}", 1)]
     extra_compile_args = {}
+    extra_link_args = []
     sources = main_src + source_cpu
     if BUILD_CPP:
         extension = CppExtension
+        extra_compile_args.setdefault("cxx", [])
+        if torch_parallel_backend() == "AT_PARALLEL_OPENMP":
+            extra_compile_args["cxx"] += omp_flags()
+        extra_link_args = omp_flags()
     if BUILD_CUDA:
         extension = CUDAExtension
         sources += source_cuda
         define_macros += [("WITH_CUDA", None)]
         extra_compile_args = {"cxx": [], "nvcc": []}
+        if torch_parallel_backend() == "AT_PARALLEL_OPENMP":
+            extra_compile_args["cxx"] += omp_flags()
     if extension is None or not sources:
         return []  # compile nothing
 
@@ -71,6 +110,7 @@ def get_extensions():
             include_dirs=include_dirs,
             define_macros=define_macros,
             extra_compile_args=extra_compile_args,
+            extra_link_args=extra_link_args,
         )
     ]
     return ext_modules
