@@ -11,7 +11,7 @@
 
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
-
+import os
 import numpy as np
 
 from monai.config import KeysCollection
@@ -125,6 +125,22 @@ class ITKReader(ImageReader):
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
         for name in filenames:
+            if os.path.isdir(name):
+                # read DICOM series of 1 image in a folder, refer to: https://github.com/RSIP-Vision/medio
+                names_generator = itk.GDCMSeriesFileNames.New()
+                names_generator.SetUseSeriesDetails(True)
+                names_generator.AddSeriesRestriction("0008|0021")  # Series Date
+                names_generator.SetDirectory(name)
+                series_uid = names_generator.GetSeriesUIDs()
+
+                if len(series_uid) == 0:
+                    raise FileNotFoundError(f"no DICOMs in: {name}.")
+                if len(series_uid) > 1:
+                    raise OSError(f"the directory: {name} contains more than one DICOM series.")
+
+                series_identifier = series_uid[0]
+                name = names_generator.GetFileNames(series_identifier)
+
             img_.append(itk.imread(name, **kwargs_))
         return img_ if len(filenames) > 1 else img_[0]
 
