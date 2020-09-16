@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - 'releases/*'
+      - test-packaging
     tags:
       - '*'
 
