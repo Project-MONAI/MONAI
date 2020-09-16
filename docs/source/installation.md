@@ -60,7 +60,7 @@ You can install it by running:
 cd MONAI/
 python setup.py develop
 ```
-or, to build with MONAI Cpp/CUDA extensions:
+or, to build with MONAI Cpp/CUDA extensions and install:
 ```bash
 cd MONAI/
 BUILD_MONAI=1 python setup.py develop
