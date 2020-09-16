@@ -116,12 +116,12 @@ function compile_cpp {
     echo "Compiling and installing MONAI cpp extensions..."
     # depends on setup.py behaviour for building
     # currently setup.py uses environment variables: BUILD_MONAI and FORCE_CUDA
-    ${cmdPrefix}${PY_EXE} setup.py -v develop --uninstall
+    ${cmdPrefix}${PY_EXE} setup.py develop --user --uninstall
     if [[ "$OSTYPE" == "darwin"* ]];
     then  # clang for mac os
-        CC=clang CXX=clang++ ${cmdPrefix}${PY_EXE} setup.py -v develop
+        CC=clang CXX=clang++ ${cmdPrefix}${PY_EXE} setup.py develop --user
     else
-        ${cmdPrefix}${PY_EXE} setup.py -v develop
+        ${cmdPrefix}${PY_EXE} setup.py develop --user
     fi
 }
 
@@ -140,24 +140,24 @@ function clang_format {
 function clean_py {
     # uninstall the development package
     echo "Uninstalling MONAI development files..."
-    ${cmdPrefix}${PY_EXE} setup.py -v develop --uninstall
+    ${cmdPrefix}${PY_EXE} setup.py develop --user --uninstall
 
     # remove temporary files (in the directory of this script)
     TO_CLEAN="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
     echo "Removing temporary files in ${TO_CLEAN}"
 
-    find ${TO_CLEAN} -type f -name "*.py[co]" -delete
-    find ${TO_CLEAN} -type f -name ".coverage" -delete
-    find ${TO_CLEAN} -type f -name "*.so" -delete
-    find ${TO_CLEAN} -type d -name "__pycache__" -delete
+    find ${TO_CLEAN}/monai -type f -name "*.py[co]" -delete
+    find ${TO_CLEAN}/monai -type f -name "*.so" -delete
+    find ${TO_CLEAN}/monai -type d -name "__pycache__" -delete
+    find ${TO_CLEAN} -maxdepth 1 -type f -name ".coverage" -delete
 
-    find ${TO_CLEAN} -depth -type d -name ".eggs" -exec rm -r "{}" +
-    find ${TO_CLEAN} -depth -type d -name "monai.egg-info" -exec rm -r "{}" +
-    find ${TO_CLEAN} -depth -type d -name "build" -exec rm -r "{}" +
-    find ${TO_CLEAN} -depth -type d -name "dist" -exec rm -r "{}" +
-    find ${TO_CLEAN} -depth -type d -name ".mypy_cache" -exec rm -r "{}" +
-    find ${TO_CLEAN} -depth -type d -name ".pytype" -exec rm -r "{}" +
-    find ${TO_CLEAN} -depth -type d -name ".coverage" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -maxdepth 1 -type d -name ".eggs" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -maxdepth 1 -type d -name "monai.egg-info" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -maxdepth 1 -type d -name "build" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -maxdepth 1 -type d -name "dist" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -maxdepth 1 -type d -name ".mypy_cache" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -maxdepth 1 -type d -name ".pytype" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -maxdepth 1 -type d -name ".coverage" -exec rm -r "{}" +
 }
 
 function torch_validate {
