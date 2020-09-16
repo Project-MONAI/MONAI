@@ -100,8 +100,8 @@ class LoadImage(Transform):
                         reader = r
                         break
 
-        reader.read(filename)
-        img_array, meta_data = reader.get_data()
+        img = reader.read(filename)
+        img_array, meta_data = reader.get_data(img)
         img_array = img_array.astype(self.dtype)
 
         if self.image_only:

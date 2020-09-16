@@ -43,8 +43,7 @@ class TestPNGReader(unittest.TestCase):
                 filenames[i] = os.path.join(tempdir, name)
                 Image.fromarray(test_image.astype("uint8")).save(filenames[i])
             reader = PILReader(mode="r")
-            reader.read(filenames)
-            result = reader.get_data()
+            result = reader.get_data(reader.read(filenames))
             # load image by PIL and compare the result
             test_image = np.asarray(Image.open(filenames[0]))
 
@@ -62,9 +61,8 @@ class TestPNGReader(unittest.TestCase):
             for i, name in enumerate(filenames):
                 filenames[i] = os.path.join(tempdir, name)
                 Image.fromarray(test_image.astype("uint8")).save(filenames[i])
-            reader = PILReader(converter=lambda image: image.convert("LA"), mode="r")
-            reader.read(filenames)
-            result = reader.get_data()
+            reader = PILReader(converter=lambda image: image.convert("LA"))
+            result = reader.get_data(reader.read(filenames, mode="r"))
             # load image by PIL and compare the result
             test_image = np.asarray(Image.open(filenames[0]).convert("LA"))
 

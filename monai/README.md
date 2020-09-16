@@ -20,6 +20,8 @@
 
 * **networks**: contains network definitions, component definitions, and Pytorch specific utilities.
 
+* **optimizers**: classes defining optimizers.
+
 * **transforms**: defines data transforms for preprocessing and postprocessing.
 
 * **utils**: generic utilities intended to be implemented in pure Python or using Numpy,
