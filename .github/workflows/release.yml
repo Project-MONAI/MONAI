@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - 'releases/*'
-      - enhance-ci
     tags:
       - '*'
 
