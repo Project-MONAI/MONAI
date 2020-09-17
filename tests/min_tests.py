@@ -92,6 +92,7 @@ def run_testsuit():
         "test_zoom_affine",
         "test_zoomd",
     ]
+    assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 
     files = glob.glob(os.path.join(os.path.dirname(__file__), "test_*.py"))
 
@@ -99,9 +100,7 @@ def run_testsuit():
     for case in files:
         test_module = os.path.basename(case)[:-3]
         if test_module in exclude_cases:
-            print(f"skipping test {test_module}.")
-        elif case in cases:
-            raise ValueError(f"Duplicated test case in the exclude list: {case}.")
+            print(f"skipping tests.{test_module}.")
         else:
             cases.append(f"tests.{test_module}")
     test_suite = unittest.TestLoader().loadTestsFromNames(cases)

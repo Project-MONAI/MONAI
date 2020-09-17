@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import Callable, List, Optional, Sequence, Union
+from typing import Callable, List, Sequence, Union
 
 import numpy as np
 import torch
@@ -250,7 +250,7 @@ def do_calculate_metric(
     if average == Average.MICRO or average == Average.NONE:
         return result
 
-    weights: Optional[np.ndarray] = None
+    weights = None
     if average == Average.WEIGHTED:
         weights = p
     result = np.average(result, weights=weights)
