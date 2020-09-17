@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - enhance-ci
 
 jobs:
   # caching of these jobs:
@@ -119,9 +120,19 @@ jobs:
       run: |
         BUILD_MONAI=1 pip install git+https://github.com/Project-MONAI/MONAI#egg=MONAI
         python -c 'import monai; monai.config.print_config()'
-        cd $(python -c 'import monai; import os; print(os.path.dirname(monai.__file__))')
-        ls .
-        pip uninstall -y monai
+    - uses: actions/checkout@v2
+    - name: Quick test installed
+      run: |
+        cd $GITHUB_WORKSPACE
+        rm -rf monai/
+        ls -al .
+        python -c "f=open('requirements-dev.txt', 'r'); txt=f.readlines(); f.close(); print(txt); f=open('requirements-dev.txt', 'w'); f.writelines(txt[1:6]); f.close()"
+        cat requirements-dev.txt
+        python -m pip install -r requirements-dev.txt
+        python -m tests.min_tests
+      env:
+        QUICKTEST: True
+
 
   docker:
     container:
