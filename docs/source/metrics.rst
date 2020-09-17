@@ -20,3 +20,11 @@ Metrics
 `Confusion Matrix`
 ------------------
 .. autofunction:: compute_confusion_metric
+
+`Hausdorff Distance`
+--------------------
+.. autofunction:: percentile_hausdorff_distance
+
+`Average Surface Distance`
+--------------------------
+.. autofunction:: average_surface_distance
