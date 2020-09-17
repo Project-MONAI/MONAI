@@ -126,9 +126,7 @@ jobs:
         cd $GITHUB_WORKSPACE
         rm -rf monai/
         ls -al .
-        python -c "f=open('requirements-dev.txt', 'r'); txt=f.readlines(); f.close(); print(txt); f=open('requirements-dev.txt', 'w'); f.writelines(txt[1:6]); f.close()"
-        cat requirements-dev.txt
-        python -m pip install -r requirements-dev.txt
+        python -m pip install -r requirements-min.txt
         python -m tests.min_tests
       env:
         QUICKTEST: True
@@ -145,3 +143,6 @@ jobs:
         cd /opt/monai
         ls -al
         ngc --version
+        python -m tests.min_tests
+      env:
+        QUICKTEST: True
