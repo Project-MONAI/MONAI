@@ -128,6 +128,7 @@ class TestLoadImage(unittest.TestCase):
             ),
         ),
         self.assertTupleEqual(result.shape, expected_shape)
+        self.assertTupleEqual(tuple(header['spatial_shape']), expected_shape)
 
     def test_load_png(self):
         spatial_size = (256, 256)
