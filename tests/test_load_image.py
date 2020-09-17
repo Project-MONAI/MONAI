@@ -68,6 +68,12 @@ TEST_CASE_9 = [
     (3, 128, 128, 128),
 ]
 
+TEST_CASE_10 = [
+    {"image_only": False, "reader": ITKReader(pixel_type=itk.UC)},
+    "tests/testing_data/CT_DICOM",
+    (4, 16, 16),
+]
+
 
 class TestLoadImage(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
@@ -104,6 +110,24 @@ class TestLoadImage(unittest.TestCase):
                 np.testing.assert_allclose(header["affine"], np.eye(4))
                 np.testing.assert_allclose(header["original_affine"], np.eye(4))
             self.assertTupleEqual(result.shape, expected_shape)
+
+    @parameterized.expand([TEST_CASE_10])
+    def test_itk_dicom_series_reader(self, input_param, filenames, expected_shape):
+        result, header = LoadImage(**input_param)(filenames)
+        self.assertTrue("affine" in header)
+        self.assertEqual(header["filename_or_obj"], filenames)
+        np.testing.assert_allclose(
+            header["affine"],
+            np.array(
+                [
+                    [0.488281, 0.0, 0.0, -125.0],
+                    [0.0, 0.488281, 0.0, -128.100006],
+                    [0.0, 0.0, 68.33333333, -99.480003],
+                    [0.0, 0.0, 0.0, 1.0],
+                ]
+            ),
+        ),
+        self.assertTupleEqual(result.shape, expected_shape)
 
     def test_load_png(self):
         spatial_size = (256, 256)
