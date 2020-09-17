@@ -454,7 +454,7 @@ class LabelToMask(Transform):
             merge_channels = self.merge_channels
 
         if img.shape[0] > 1:
-            data = img[[*(select_labels)]]
+            data = img[[*select_labels]]
         else:
             data = np.where(np.in1d(img, select_labels), True, False).reshape(img.shape)
 

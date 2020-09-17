@@ -18,12 +18,12 @@ from monai.transforms import RandHistogramShiftD
 
 TEST_CASES = [
     [
-        {"keys": ("img"), "num_control_points": 5, "prob": 0.0},
+        {"keys": ("img",), "num_control_points": 5, "prob": 0.0},
         {"img": np.arange(8).reshape((1, 2, 2, 2)), "seg": np.ones(8).reshape((1, 2, 2, 2))},
         {"img": np.arange(8).reshape((1, 2, 2, 2)), "seg": np.ones(8).reshape((1, 2, 2, 2))},
     ],
     [
-        {"keys": ("img"), "num_control_points": 5, "prob": 0.9},
+        {"keys": ("img",), "num_control_points": 5, "prob": 0.9},
         {"img": np.arange(8).reshape((1, 2, 2, 2)), "seg": np.ones(8).reshape((1, 2, 2, 2))},
         {
             "img": np.array(
@@ -33,7 +33,7 @@ TEST_CASES = [
         },
     ],
     [
-        {"keys": ("img"), "num_control_points": (5, 20), "prob": 0.9},
+        {"keys": ("img",), "num_control_points": (5, 20), "prob": 0.9},
         {"img": np.arange(8).reshape((1, 2, 2, 2)), "seg": np.ones(8).reshape((1, 2, 2, 2))},
         {
             "img": np.array(

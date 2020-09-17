@@ -183,13 +183,9 @@ def do_calculate_metric(
     div_0 = zero_division
     # pre-process average
     average = Average(average)
-    bin_flag: bool
     if len(confusion_ele_list[0].shape) == 0:
-        bin_flag = True
         average = Average.NONE  # for binary tasks, other average methods are meaningless.
         ele_list = [int(l) for l in confusion_ele_list]
-    else:
-        bin_flag = False
     if average == Average.MICRO:
         ele_list = [int(l.sum()) for l in confusion_ele_list]
     else:
@@ -254,10 +250,8 @@ def do_calculate_metric(
     if average == Average.MICRO or average == Average.NONE:
         return result
 
-    weights: Optional[np.ndarray]
-    if average == Average.MACRO:
-        weights = None
-    elif average == Average.WEIGHTED:
+    weights: Optional[np.ndarray] = None
+    if average == Average.WEIGHTED:
         weights = p
     result = np.average(result, weights=weights)
     return result

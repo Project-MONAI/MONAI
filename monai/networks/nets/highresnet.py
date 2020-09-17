@@ -196,7 +196,7 @@ class HighResNet(nn.Module):
         super(HighResNet, self).__init__()
         blocks = nn.ModuleList()
 
-        # intial conv layer
+        # initial conv layer
         params = layer_params[0]
         _in_chns, _out_chns = in_channels, params["n_features"]
         blocks.append(
