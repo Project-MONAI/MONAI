@@ -227,7 +227,9 @@ class ITKReader(ImageReader):
             img: a ITK image object loaded from a image file.
 
         """
-        return list(itk.size(img))
+        shape = list(itk.size(img))
+        shape.reverse()
+        return shape
 
     def _get_array_data(self, img) -> np.ndarray:
         """

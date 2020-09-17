@@ -128,6 +128,7 @@ class TestLoadImage(unittest.TestCase):
             ),
         ),
         self.assertTupleEqual(result.shape, expected_shape)
+        self.assertTupleEqual(tuple(header["spatial_shape"]), expected_shape)
 
     def test_load_png(self):
         spatial_size = (256, 256)
@@ -144,7 +145,6 @@ class TestLoadImage(unittest.TestCase):
 
     def test_register(self):
         spatial_size = (32, 64, 128)
-        expected_shape = (128, 64, 32)
         test_image = np.random.rand(*spatial_size)
         with tempfile.TemporaryDirectory() as tempdir:
             filename = os.path.join(tempdir, "test_image.nii.gz")
@@ -154,7 +154,7 @@ class TestLoadImage(unittest.TestCase):
             loader = LoadImage(image_only=False)
             loader.register(ITKReader())
             result, header = loader(filename)
-            self.assertTupleEqual(tuple(header["spatial_shape"]), expected_shape)
+            self.assertTupleEqual(tuple(header["spatial_shape"]), spatial_size)
             self.assertTupleEqual(result.shape, spatial_size)
 
     def test_kwargs(self):
