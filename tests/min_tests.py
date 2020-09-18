@@ -16,23 +16,37 @@ import unittest
 
 
 def run_testsuit():
+    """
+    Load test cases by excluding those need external dependencies.
+    The loaded cases should work with "requirements-min.txt"::
+
+        # in the monai repo folder:
+        pip install -r requirements-min.txt
+        QUICKTEST=true python -m tests.min_tests
+
+    :return: a test suite
+    """
     exclude_cases = [  # these cases use external dependencies
+        "test_ahnet",
         "test_arraydataset",
         "test_cachedataset",
         "test_cachedataset_parallel",
         "test_dataset",
-        "test_ahnet",
+        "test_ensemble_evaluator",
         "test_handler_checkpoint_loader",
         "test_handler_checkpoint_saver",
         "test_handler_classification_saver",
         "test_handler_lr_scheduler",
         "test_handler_mean_dice",
         "test_handler_rocauc",
+        "test_handler_rocauc_dist",
         "test_handler_segmentation_saver",
+        "test_handler_smartcache",
         "test_handler_stats",
         "test_handler_tb_image",
         "test_handler_tb_stats",
         "test_handler_validation",
+        "test_hausdorff_distance",
         "test_header_correct",
         "test_img2tensorboard",
         "test_integration_segmentation_3d",
@@ -42,6 +56,9 @@ def run_testsuit():
         "test_integration_workflows_gan",
         "test_keep_largest_connected_component",
         "test_keep_largest_connected_componentd",
+        "test_lltm",
+        "test_load_image",
+        "test_load_imaged",
         "test_load_nifti",
         "test_load_niftid",
         "test_load_png",
@@ -68,17 +85,14 @@ def run_testsuit():
         "test_resized",
         "test_rotate",
         "test_rotated",
+        "test_smartcachedataset",
         "test_spacing",
         "test_spacingd",
         "test_zoom",
         "test_zoom_affine",
         "test_zoomd",
-        "test_load_image",
-        "test_load_imaged",
-        "test_smartcachedataset",
-        "test_lltm",
-        "test_hausdorff_distance",
     ]
+    assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 
     files = glob.glob(os.path.join(os.path.dirname(__file__), "test_*.py"))
 
@@ -86,7 +100,7 @@ def run_testsuit():
     for case in files:
         test_module = os.path.basename(case)[:-3]
         if test_module in exclude_cases:
-            print(f"skipping test {test_module}.")
+            print(f"skipping tests.{test_module}.")
         else:
             cases.append(f"tests.{test_module}")
     test_suite = unittest.TestLoader().loadTestsFromNames(cases)
@@ -100,6 +114,7 @@ if __name__ == "__main__":
 
     _, err_mod = load_submodules(sys.modules["monai"], True)
     if err_mod:
+        print(err_mod)
         # expecting that only engines and handlers are not imported
         assert sorted(err_mod) == ["monai.engines", "monai.handlers"]
 

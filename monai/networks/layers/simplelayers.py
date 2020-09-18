@@ -22,7 +22,7 @@ from monai.utils import ensure_tuple_rep, optional_import
 
 _C, _ = optional_import("monai._C")
 
-__all__ = ["SkipConnection", "Flatten", "GaussianFilter", "LLTM"]
+__all__ = ["SkipConnection", "Flatten", "GaussianFilter", "LLTM", "Reshape"]
 
 
 class SkipConnection(nn.Module):

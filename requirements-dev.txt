@@ -1,8 +1,5 @@
-# Requirements for testing
--r requirements.txt
-setuptools==50.3.0
-coverage
-parameterized
+# Full requirements for developments
+-r requirements-min.txt
 pytorch-ignite==0.3.0
 gdown>=3.6.4
 scipy
