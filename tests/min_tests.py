@@ -78,6 +78,7 @@ def run_testsuit():
         "test_smartcachedataset",
         "test_lltm",
         "test_hausdorff_distance",
+        "test_surface_distance",
     ]
 
     files = glob.glob(os.path.join(os.path.dirname(__file__), "test_*.py"))

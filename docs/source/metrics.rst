@@ -23,8 +23,8 @@ Metrics
 
 `Hausdorff Distance`
 --------------------
-.. autofunction:: percentile_hausdorff_distance
+.. autofunction:: compute_percent_hausdorff_distance
 
 `Average Surface Distance`
 --------------------------
-.. autofunction:: average_surface_distance
+.. autofunction:: compute_average_surface_distance
