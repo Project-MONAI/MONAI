@@ -30,7 +30,7 @@ from monai.utils.misc import set_determinism
 
 def save_generator_fakes(run_folder, g_output_tensor):
     for i, image in enumerate(g_output_tensor):
-        filename = "gen-fake-%d.png" % (i)
+        filename = "gen-fake-%d.png" % i
         save_path = os.path.join(run_folder, filename)
         img_array = image[0].cpu().data.numpy()
         png_writer.write_png(img_array, save_path, scale=255)

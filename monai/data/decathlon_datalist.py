@@ -127,7 +127,7 @@ def load_decathlon_properties(
         data_property_file_path: the path to the JSON file of data properties.
         property_keys: expected keys to load from the JSON file, for example, we have these keys
             in the decathlon challenge:
-            `name`, `description`, `reference`, `licence`, `relase`, `tensorImageSize`,
+            `name`, `description`, `reference`, `licence`, `tensorImageSize`,
             `modality`, `labels`, `numTraining`, `numTest`, etc.
 
     """

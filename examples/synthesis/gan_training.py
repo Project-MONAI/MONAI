@@ -193,7 +193,7 @@ def main():
     test_latents = make_latent(test_img_count, latent_size).to(device)
     fakes = gen_net(test_latents)
     for i, image in enumerate(fakes):
-        filename = "gen-fake-final-%d.png" % (i)
+        filename = "gen-fake-final-%d.png" % i
         save_path = os.path.join(run_dir, filename)
         img_array = image[0].cpu().data.numpy()
         png_writer.write_png(img_array, save_path, scale=255)

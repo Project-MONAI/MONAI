@@ -38,13 +38,6 @@ jobs:
         cd "$tmp_dir"
         ls -al
 
-        # install from wheel
-        python -m pip install monai*.whl
-        python -c 'import monai; monai.config.print_config()' 2>&1 | grep -iv "unknown"
-        python -c 'import monai; print(monai.__file__)'
-        python -m pip uninstall -y monai
-        rm monai*.whl
-
         # install from tar.gz
         python -m pip install monai*.tar.gz
         python -c 'import monai; monai.config.print_config()' 2>&1 | grep -iv "unknown"
@@ -52,9 +45,22 @@ jobs:
         python -m pip uninstall -y monai
         rm monai*.tar.gz
 
+        # install from wheel
+        python -m pip install monai*.whl
+        python -c 'import monai; monai.config.print_config()' 2>&1 | grep -iv "unknown"
+        python -c 'import monai; print(monai.__file__)'
+
         # clean up
         cd "$root_dir"
         rm -r "$tmp_dir"
+        rm -rf monai/
+        ls -al .
+    - name: Quick test installed
+      run: |
+        python -m pip install -r requirements-min.txt
+        python -m tests.min_tests
+      env:
+        QUICKTEST: True
 
     - if: matrix.python-version == '3.8' && startsWith(github.ref, 'refs/tags/')
       name: Upload artifacts

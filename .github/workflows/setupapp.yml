@@ -119,9 +119,17 @@ jobs:
       run: |
         BUILD_MONAI=1 pip install git+https://github.com/Project-MONAI/MONAI#egg=MONAI
         python -c 'import monai; monai.config.print_config()'
-        cd $(python -c 'import monai; import os; print(os.path.dirname(monai.__file__))')
-        ls .
-        pip uninstall -y monai
+    - uses: actions/checkout@v2
+    - name: Quick test installed
+      run: |
+        cd $GITHUB_WORKSPACE
+        rm -rf monai/
+        ls -al .
+        python -m pip install -r requirements-min.txt
+        python -m tests.min_tests
+      env:
+        QUICKTEST: True
+
 
   docker:
     container:
@@ -134,3 +142,6 @@ jobs:
         cd /opt/monai
         ls -al
         ngc --version
+        python -m tests.min_tests
+      env:
+        QUICKTEST: True

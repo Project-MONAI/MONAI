@@ -105,7 +105,7 @@ class NNUnet(nn.Module):
         deep_supr_num, strides = self.deep_supr_num, self.strides
         num_up_layers = len(strides) - 1
         error_msg = "deep_supr_num should be less than the number of up sample layers."
-        assert deep_supr_num >= 1 and deep_supr_num < num_up_layers, error_msg
+        assert 1 <= deep_supr_num < num_up_layers, error_msg
 
     def forward(self, x):
         out = self.input_block(x)
