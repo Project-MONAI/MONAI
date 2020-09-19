@@ -15,13 +15,13 @@ from typing import Any, Sequence, Union
 import torch
 from parameterized import parameterized
 
-from monai.networks.nets import NNUnet
+from monai.networks.nets import DynUNet
 
 strides: Sequence[Union[Sequence[int], int]]
 kernel_size: Sequence[Any]
 expected_shape: Sequence[Any]
 
-TEST_CASE_NNUNET_2D = []
+TEST_CASE_DYNUNET_2D = []
 for kernel_size in [(3, 3, 3, 1), ((3, 1), 1, (3, 3), (1, 1))]:
     for strides in [(1, 1, 1, 1), (2, 2, 2, 1)]:
         for in_channels in [2, 3]:
@@ -44,9 +44,9 @@ for kernel_size in [(3, 3, 3, 1), ((3, 1), 1, (3, 3), (1, 1))]:
                     torch.randn(1, in_channels, in_size, in_size),
                     expected_shape,
                 ]
-                TEST_CASE_NNUNET_2D.append(test_case)
+                TEST_CASE_DYNUNET_2D.append(test_case)
 
-TEST_CASE_NNUNET_3D = []  # in 3d cases, also test anisotropic kernel/strides
+TEST_CASE_DYNUNET_3D = []  # in 3d cases, also test anisotropic kernel/strides
 for out_channels in [2, 3]:
     for res_block in [True, False]:
         in_channels = 1
@@ -66,7 +66,7 @@ for out_channels in [2, 3]:
             torch.randn(1, in_channels, in_size, in_size, in_size),
             expected_shape,
         ]
-        TEST_CASE_NNUNET_3D.append(test_case)
+        TEST_CASE_DYNUNET_3D.append(test_case)
 
 TEST_CASE_DEEP_SUPERVISION = []
 for spatial_dims in [2, 3]:
@@ -97,20 +97,20 @@ for spatial_dims in [2, 3]:
                 TEST_CASE_DEEP_SUPERVISION.append(test_case)
 
 
-class TestUUNet(unittest.TestCase):
-    @parameterized.expand(TEST_CASE_NNUNET_2D + TEST_CASE_NNUNET_3D)
+class TestDynUNet(unittest.TestCase):
+    @parameterized.expand(TEST_CASE_DYNUNET_2D + TEST_CASE_DYNUNET_3D)
     def test_shape(self, input_param, input_data, expected_shape):
-        net = NNUnet(**input_param)
+        net = DynUNet(**input_param)
         net.eval()
         with torch.no_grad():
             result = net(input_data)
             self.assertEqual(result.shape, expected_shape)
 
 
-class TestUUNetDeepSupervision(unittest.TestCase):
+class TestDynUNetDeepSupervision(unittest.TestCase):
     @parameterized.expand(TEST_CASE_DEEP_SUPERVISION)
     def test_shape(self, input_param, input_data, expected_shape):
-        net = NNUnet(**input_param)
+        net = DynUNet(**input_param)
         with torch.no_grad():
             results = net(input_data)
             self.assertEqual(len(results), len(expected_shape))
