@@ -59,7 +59,7 @@ class FocalLoss(_WeightedLoss):
         """
         super(FocalLoss, self).__init__(weight=weight, reduction=LossReduction(reduction).value)
         self.gamma = gamma
-        self.weight: Optional[torch.Tensor]
+        self.weight: Optional[torch.Tensor] = None
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """

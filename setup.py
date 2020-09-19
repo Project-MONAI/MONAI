@@ -45,22 +45,24 @@ finally:
 
 
 def torch_parallel_backend():
-    match = re.search(
-        "^ATen parallel backend: (?P<backend>.*)$",
-        torch._C._parallel_info(),
-        re.MULTILINE,
-    )
-    if match is None:
-        return None
-    backend = match.group("backend")
-    if backend == "OpenMP":
-        return "AT_PARALLEL_OPENMP"
-    elif backend == "native thread pool":
-        return "AT_PARALLEL_NATIVE"
-    elif backend == "native thread pool and TBB":
-        return "AT_PARALLEL_NATIVE_TBB"
-    else:
-        return None
+    try:
+        match = re.search(
+            "^ATen parallel backend: (?P<backend>.*)$",
+            torch._C._parallel_info(),
+            re.MULTILINE,
+        )
+        if match is None:
+            return None
+        backend = match.group("backend")
+        if backend == "OpenMP":
+            return "AT_PARALLEL_OPENMP"
+        elif backend == "native thread pool":
+            return "AT_PARALLEL_NATIVE"
+        elif backend == "native thread pool and TBB":
+            return "AT_PARALLEL_NATIVE_TBB"
+    except (NameError, AttributeError):  # no torch or no binaries
+        warnings.warn("Could not determine torch parallel_info.")
+    return None
 
 
 def omp_flags():

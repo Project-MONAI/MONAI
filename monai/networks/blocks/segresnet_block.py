@@ -73,8 +73,6 @@ class ResBlock(nn.Module):
         spatial_dims: int,
         in_channels: int,
         kernel_size: int = 3,
-        stride: int = 1,
-        bias: bool = False,
         norm_name: str = "group",
         num_groups: int = 8,
     ) -> None:
@@ -83,8 +81,6 @@ class ResBlock(nn.Module):
             spatial_dims: number of spatial dimensions, could be 1, 2 or 3.
             in_channels: number of input channels.
             kernel_size: convolution kernel size, the value should be an odd number. Defaults to 3.
-            stride: convolution stride. Defaults to 1.
-            bias: whether to have a bias term in convolution layer. Defaults to ``True``.
             norm_name: feature normalization type, this module only supports group norm,
                 batch norm and instance norm. Defaults to ``group``.
             num_groups: number of groups to separate the channels into, in this module,

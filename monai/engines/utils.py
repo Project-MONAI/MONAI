@@ -79,11 +79,11 @@ def default_prepare_batch(
 ) -> Union[Tuple[torch.Tensor, Optional[torch.Tensor]], torch.Tensor]:
     assert isinstance(batchdata, dict), "default prepare_batch expects dictionary input data."
     if CommonKeys.LABEL in batchdata:
-        return (batchdata[CommonKeys.IMAGE], batchdata[CommonKeys.LABEL])
+        return batchdata[CommonKeys.IMAGE], batchdata[CommonKeys.LABEL]
     elif GanKeys.REALS in batchdata:
         return batchdata[GanKeys.REALS]
     else:
-        return (batchdata[CommonKeys.IMAGE], None)
+        return batchdata[CommonKeys.IMAGE], None
 
 
 def default_make_latent(num_latents: int, latent_size: int, real_data: Optional[torch.Tensor] = None) -> torch.Tensor:
