@@ -223,7 +223,7 @@ Nets
   :members:
 
 `DynUNet`
-~~~~~~~~
+~~~~~~~~~
 .. autoclass:: DynUNet
   :members:
 

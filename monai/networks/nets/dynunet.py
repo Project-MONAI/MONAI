@@ -19,7 +19,7 @@ from monai.networks.blocks.dynunet_block import *
 
 class DynUNet(nn.Module):
     """
-    This reimplementation of DynUNet is based on:
+    This reimplementation of a dynamic UNet (DynUNet) is based on:
     `Automated Design of Deep Learning Methods for Biomedical Image Segmentation <https://arxiv.org/abs/1904.08128>`_.
     `nnU-Net: Self-adapting Framework for U-Net-Based Medical Image Segmentation <https://arxiv.org/abs/1809.10486>`_.
 
