@@ -131,7 +131,7 @@ def get_cmds():
 setup(
     version=versioneer.get_version(),
     cmdclass=get_cmds(),
-    packages=find_packages(exclude=("docs", "examples", "tests", "research")),
+    packages=find_packages(exclude=("docs", "examples", "tests")),
     zip_safe=False,
     package_data={"monai": ["py.typed"]},
     ext_modules=get_extensions(),
