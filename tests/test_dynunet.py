@@ -15,7 +15,7 @@ from typing import Any, Sequence, Union
 import torch
 from parameterized import parameterized
 
-from monai.networks.nets import dynUNet
+from monai.networks.nets import DynUNet
 
 strides: Sequence[Union[Sequence[int], int]]
 kernel_size: Sequence[Any]
@@ -97,20 +97,20 @@ for spatial_dims in [2, 3]:
                 TEST_CASE_DEEP_SUPERVISION.append(test_case)
 
 
-class TestdynUNet(unittest.TestCase):
+class TestDynUNet(unittest.TestCase):
     @parameterized.expand(TEST_CASE_DYNUNET_2D + TEST_CASE_DYNUNET_3D)
     def test_shape(self, input_param, input_data, expected_shape):
-        net = dynUNet(**input_param)
+        net = DynUNet(**input_param)
         net.eval()
         with torch.no_grad():
             result = net(input_data)
             self.assertEqual(result.shape, expected_shape)
 
 
-class TestdynUNetDeepSupervision(unittest.TestCase):
+class TestDynUNetDeepSupervision(unittest.TestCase):
     @parameterized.expand(TEST_CASE_DEEP_SUPERVISION)
     def test_shape(self, input_param, input_data, expected_shape):
-        net = dynUNet(**input_param)
+        net = DynUNet(**input_param)
         with torch.no_grad():
             results = net(input_data)
             self.assertEqual(len(results), len(expected_shape))

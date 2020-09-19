@@ -222,9 +222,9 @@ Nets
 .. autoclass:: HighResBlock
   :members:
 
-`dynUNet`
+`DynUNet`
 ~~~~~~~~
-.. autoclass:: dynUNet
+.. autoclass:: DynUNet
   :members:
 
 `Unet`
