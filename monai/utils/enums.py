@@ -35,8 +35,11 @@ class GridSampleMode(Enum):
     See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
     """
 
-    BILINEAR = "bilinear"
     NEAREST = "nearest"
+    BILINEAR = "bilinear"
+    QUADRATIC = "quadratic"
+    CUBIC = "cubic"
+    FOURTH = "fourth"
 
 
 class InterpolateMode(Enum):
