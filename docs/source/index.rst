@@ -37,8 +37,7 @@ Getting started
 
 `MedNIST demo <https://colab.research.google.com/drive/1wy8XUSnNWlhDNazFdvGBHLfdkGvOHBKe>`_ and `MONAI for PyTorch Users <https://colab.research.google.com/drive/1boqy7ENpKrqaJoxFlbHIBnIODAs1Ih1T>`_ are available on Colab.
 
-Examples are located at `monai/examples <https://github.com/Project-MONAI/MONAI/tree/master/examples>`_,
-notebook tutorials are located at `Project-MONAI/Tutorials <https://github.com/Project-MONAI/Tutorials>`_.
+Examples and notebook tutorials are located at `Project-MONAI/tutorials <https://github.com/Project-MONAI/tutorials>`_.
 
 Technical documentation is available at `docs.monai.io <https://docs.monai.io>`_.
 
