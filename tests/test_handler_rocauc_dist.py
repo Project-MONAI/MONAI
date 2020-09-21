@@ -20,6 +20,7 @@ from monai.handlers import ROCAUC
 def main():
     dist.init_process_group(backend="nccl", init_method="env://")
 
+    torch.cuda.set_device(dist.get_rank())
     auc_metric = ROCAUC(to_onehot_y=True, softmax=True)
 
     if dist.get_rank() == 0:
