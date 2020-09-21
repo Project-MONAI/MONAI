@@ -36,7 +36,7 @@ class TestHandlerCheckpointLoader(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             CheckpointSaver(save_dir=tempdir, save_dict={"net": net1}, save_final=True).attach(engine)
             engine.run([0] * 8, max_epochs=5)
-            path = tempdir + "/net_final_iteration=40.pth"
+            path = tempdir + "/net_final_iteration=40.pt"
             CheckpointLoader(load_path=path, load_dict={"net": net2}).attach(engine)
             engine.run([0] * 8, max_epochs=1)
             torch.testing.assert_allclose(net2.state_dict()["weight"], 0.1)
@@ -57,7 +57,7 @@ class TestHandlerCheckpointLoader(unittest.TestCase):
             save_dict = {"net": net1, "opt": optimizer}
             CheckpointSaver(save_dir=tempdir, save_dict=save_dict, save_final=True).attach(engine)
             engine.run([0] * 8, max_epochs=5)
-            path = tempdir + "/checkpoint_final_iteration=40.pth"
+            path = tempdir + "/checkpoint_final_iteration=40.pt"
             CheckpointLoader(load_path=path, load_dict={"net": net2}).attach(engine)
             engine.run([0] * 8, max_epochs=1)
             torch.testing.assert_allclose(net2.state_dict()["weight"], 0.1)
@@ -77,7 +77,7 @@ class TestHandlerCheckpointLoader(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             CheckpointSaver(save_dir=tempdir, save_dict={"net": net1}, save_final=True).attach(engine)
             engine.run([0] * 8, max_epochs=5)
-            path = tempdir + "/net_final_iteration=40.pth"
+            path = tempdir + "/net_final_iteration=40.pt"
             CheckpointLoader(load_path=path, load_dict={"net": net2}).attach(engine)
             engine.run([0] * 8, max_epochs=1)
             torch.testing.assert_allclose(net2.state_dict()["module.weight"], 0.1)

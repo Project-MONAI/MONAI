@@ -1,6 +1,6 @@
 # Full requirements for developments
 -r requirements-min.txt
-pytorch-ignite==0.3.0
+pytorch-ignite==0.4.2
 gdown>=3.6.4
 scipy
 itk
