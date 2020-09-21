@@ -9,76 +9,81 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Union
+from typing import Optional, Union
 
 import numpy as np
 import torch
 
-from monai.utils import optional_import
-
-binary_dilation, _ = optional_import("scipy.ndimage.morphology", name="binary_dilation")
-directed_hausdorff, _ = optional_import("scipy.spatial.distance", name="directed_hausdorff")
+from .utils import get_mask_edges, get_surface_distance
 
 
 def compute_hausdorff_distance(
-    seg_1: Union[np.ndarray, torch.Tensor],
-    seg_2: Union[np.ndarray, torch.Tensor],
+    seg_pred: Union[np.ndarray, torch.Tensor],
+    seg_gt: Union[np.ndarray, torch.Tensor],
     label_idx: int,
+    distance_metric: str = "euclidean",
+    percentile: Optional[float] = None,
     directed: bool = False,
-) -> float:
+):
     """
     Compute the Hausdorff distance. The user has the option to calculate the
     directed or non-directed Hausdorff distance. By default, the non-directed
-    Hausdorff distance is calculated.
-
-    The input images can be binary or labelfield images. If labelfield images
-    are supplied, they are converted to binary images using `label_idx`.
-
-    `scipy`'s Binary dilation is used to to calculate the edges of the binary
-    labelfield, and the coordinates of these edges are passed to `scipy`'s
-    `directed_hausdorff` function.
-
-    We require that images are the same size, and assume that they occupy the
-    same space (spacing, orientation, etc.).
+    Hausdorff distance is calculated. In addition, specify the `percentile`
+    parameter can get the percentile of the distance.
 
     Args:
-        seg_1: first binary or labelfield image.
-        seg_2: second binary or labelfield image.
+        seg_pred: the predicted binary or labelfield image.
+        seg_gt: the actual binary or labelfield image.
         label_idx: for labelfield images, convert to binary with
-            `seg_1 = seg_1 == label_idx`.
-        directed: calculate directed Hausdorff distance (defaults to `False`).
+            `seg_pred = seg_pred == label_idx`.
+        distance_metric: : [``"euclidean"``, ``"chessboard"``, ``"taxicab"``]
+            the metric used to compute surface distance. Defaults to ``"euclidean"``.
+        percentile: an optional float number between 0 and 100. If specified, the corresponding
+            percentile of the Hausdorff Distance rather than the maximum result will be achieved.
+            Defaults to ``None``.
+        directed: calculate directed Hausdorff distance. Defaults to ``False``.
     """
 
-    # Get both labelfields as np arrays
-    if torch.is_tensor(seg_1):
-        seg_1 = seg_1.detach().cpu().numpy()
-    if torch.is_tensor(seg_2):
-        seg_2 = seg_2.detach().cpu().numpy()
-
-    # Check non-zero number of elements and same shape
-    if seg_1.size == 0 or seg_1.shape != seg_2.shape:
-        raise ValueError("Labelfields should have same shape (and non-zero number of elements)")
-
-    # If not binary images, convert them
-    if seg_1.dtype != bool:
-        seg_1 = seg_1 == label_idx
-    if seg_2.dtype != bool:
-        seg_2 = seg_2 == label_idx
-
-    # Check both have at least 1 voxel with desired index
-    if not (np.any(seg_1) and np.any(seg_2)):
-        raise ValueError(f"Labelfields should have at least 1 voxel containing the desired labelfield, {label_idx}")
-
-    # Do binary dilation and use XOR to get edges
-    edges_1 = binary_dilation(seg_1) ^ seg_1
-    edges_2 = binary_dilation(seg_2) ^ seg_2
-
-    # Extract coordinates of these edge points
-    coords_1 = np.argwhere(edges_1)
-    coords_2 = np.argwhere(edges_2)
-
-    # Get (potentially directed) Hausdorff distance
+    (edges_pred, edges_gt) = get_mask_edges(seg_pred, seg_gt, label_idx)
+    hd = compute_percent_hausdorff_distance(edges_pred, edges_gt, label_idx, distance_metric, percentile)
     if directed:
-        return float(directed_hausdorff(coords_1, coords_2)[0])
+        return hd
+
+    hd2 = compute_percent_hausdorff_distance(edges_gt, edges_pred, label_idx, distance_metric, percentile)
+    return max(hd, hd2)
+
+
+def compute_percent_hausdorff_distance(
+    edges_pred: np.ndarray,
+    edges_gt: np.ndarray,
+    label_idx: int,
+    distance_metric: str = "euclidean",
+    percentile: Optional[float] = None,
+):
+    """
+    This function is used to compute the directed Hausdorff distance.
+
+    Args:
+        edges_pred: the edge of the predictions.
+        edges_gt: the edge of the ground truth.
+        label_idx: for labelfield images, convert to binary with
+            `seg_pred = seg_pred == label_idx`.
+        distance_metric: : [``"euclidean"``, ``"chessboard"``, ``"taxicab"``]
+            the metric used to compute surface distance. Defaults to ``"euclidean"``.
+        percentile: an optional float number between 0 and 100. If specified, the corresponding
+            percentile of the Hausdorff Distance rather than the maximum result will be achieved.
+            Defaults to ``None``.
+    """
+
+    surface_distance = get_surface_distance(edges_pred, edges_gt, label_idx, distance_metric=distance_metric)
+
+    # for input without foreground
+    if surface_distance.shape == (0,):
+        return np.inf
+
+    if not percentile:
+        return surface_distance.max()
+    elif 0 <= percentile <= 100:
+        return np.percentile(surface_distance, percentile)
     else:
-        return float(max(directed_hausdorff(coords_1, coords_2)[0], directed_hausdorff(coords_2, coords_1)[0]))
+        raise ValueError(f"percentile should be a value between 0 and 100, get {percentile}.")
