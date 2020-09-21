@@ -1,1 +1,0 @@
-This folder presents implementations of recent research prototypes/demonstrations using MONAI.
