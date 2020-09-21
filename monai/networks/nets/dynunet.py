@@ -14,12 +14,12 @@ from typing import List, Sequence, Union
 
 import torch.nn as nn
 
-from monai.networks.blocks.nnunet_block import *
+from monai.networks.blocks.dynunet_block import *
 
 
-class NNUnet(nn.Module):
+class DynUNet(nn.Module):
     """
-    This reimplementation of NNUnet is based on:
+    This reimplementation of a dynamic UNet (DynUNet) is based on:
     `Automated Design of Deep Learning Methods for Biomedical Image Segmentation <https://arxiv.org/abs/1904.08128>`_.
     `nnU-Net: Self-adapting Framework for U-Net-Based Medical Image Segmentation <https://arxiv.org/abs/1809.10486>`_.
 
@@ -67,7 +67,7 @@ class NNUnet(nn.Module):
         deep_supr_num: int = 1,
         res_block: bool = True,
     ):
-        super(NNUnet, self).__init__()
+        super(DynUNet, self).__init__()
         self.spatial_dims = spatial_dims
         self.in_channels = in_channels
         self.out_channels = out_channels

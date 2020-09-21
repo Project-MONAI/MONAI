@@ -324,5 +324,5 @@ jobs:
         cd docs/
         make clean
         make html 2>&1 | tee tmp_log
-        if [[ $(grep -c "^WARNING:" tmp_log) != 0 ]]; then echo "found warnings"; exit 1; fi
+        if [[ $(grep -c "WARNING:" tmp_log) != 0 ]]; then echo "found warnings"; grep "WARNING:" tmp_log; exit 1; fi
       shell: bash

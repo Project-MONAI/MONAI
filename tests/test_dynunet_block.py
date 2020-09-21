@@ -14,7 +14,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.networks.blocks.nnunet_block import UnetBasicBlock, UnetResBlock, UnetUpBlock, get_padding
+from monai.networks.blocks.dynunet_block import UnetBasicBlock, UnetResBlock, UnetUpBlock, get_padding
 
 TEST_CASE_RES_BASIC_BLOCK = []
 for spatial_dims in range(2, 4):
