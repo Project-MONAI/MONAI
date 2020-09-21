@@ -51,31 +51,67 @@ def create_spherical_seg_3d(
     return image
 
 
-# test the metric under 2 class classification task
 TEST_CASES = [
     [
-        {
-            "seg_1": create_spherical_seg_3d(),
-            "seg_2": create_spherical_seg_3d(),
-            "label_idx": 1,
-        },
-        0.0,
+        [create_spherical_seg_3d(), create_spherical_seg_3d(), 1],
+        [0, 0, 0, 0, 0, 0],
     ],
     [
-        {
-            "seg_1": create_spherical_seg_3d(radius=20, labelfield_value=2),
-            "seg_2": create_spherical_seg_3d(radius=21, labelfield_value=2),
-            "label_idx": 2,
-        },
-        1.4142135623730951,
+        [
+            create_spherical_seg_3d(radius=20, centre=(20, 20, 20)),
+            create_spherical_seg_3d(radius=20, centre=(19, 19, 19)),
+            1,
+        ],
+        [1.7320508075688772, 1.7320508075688772, 1, 1, 3, 3],
     ],
     [
-        {
-            "seg_1": create_spherical_seg_3d(radius=20, centre=(49, 49, 49)),
-            "seg_2": create_spherical_seg_3d(radius=20, centre=(50, 49, 49)),
-            "label_idx": 1,
-        },
-        1.0,
+        [
+            create_spherical_seg_3d(radius=33, labelfield_value=2, centre=(19, 33, 22)),
+            create_spherical_seg_3d(radius=33, labelfield_value=2, centre=(20, 33, 22)),
+            2,
+        ],
+        [1, 1, 1, 1, 1, 1],
+    ],
+    [
+        [
+            create_spherical_seg_3d(radius=20, centre=(20, 33, 22)),
+            create_spherical_seg_3d(radius=40, centre=(20, 33, 22)),
+            1,
+        ],
+        [20.09975124224178, 20.223748416156685, 15, 20, 24, 35],
+    ],
+    [
+        [
+            np.zeros([99, 99, 99]),
+            create_spherical_seg_3d(radius=40, centre=(20, 33, 22)),
+            1,
+        ],
+        [np.inf, np.inf, np.inf, np.inf, np.inf, np.inf],
+    ],
+    [
+        [
+            np.zeros([99, 99, 99]),
+            np.zeros([99, 99, 99]),
+            1,
+        ],
+        [np.inf, np.inf, np.inf, np.inf, np.inf, np.inf],
+    ],
+    [
+        [
+            create_spherical_seg_3d(),
+            np.zeros([99, 99, 99]),
+            1,
+        ],
+        [np.inf, np.inf, np.inf, np.inf, np.inf, np.inf],
+    ],
+    [
+        [
+            create_spherical_seg_3d(radius=20, centre=(20, 33, 22)),
+            create_spherical_seg_3d(radius=40, centre=(20, 33, 22)),
+            1,
+            95,
+        ],
+        [19.924858845171276, 20.09975124224178, 14, 18, 22, 33],
     ],
 ]
 
@@ -83,8 +119,20 @@ TEST_CASES = [
 class TestHausdorffDistance(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_value(self, input_data, expected_value):
-        result = compute_hausdorff_distance(**input_data)
-        np.testing.assert_allclose(expected_value, result, rtol=1e-7)
+        percentile = None
+        if len(input_data) == 4:
+            [seg_1, seg_2, label_idx, percentile] = input_data
+        else:
+            [seg_1, seg_2, label_idx] = input_data
+        ct = 0
+        for metric in ["euclidean", "chessboard", "taxicab"]:
+            for directed in [True, False]:
+                result = compute_hausdorff_distance(
+                    seg_1, seg_2, label_idx, distance_metric=metric, percentile=percentile, directed=directed
+                )
+                expected_value_curr = expected_value[ct]
+                np.testing.assert_allclose(expected_value_curr, result, rtol=1e-7)
+                ct += 1
 
 
 if __name__ == "__main__":
