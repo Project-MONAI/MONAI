@@ -56,9 +56,19 @@ TEST_CASE_4 = [
     ([0, 0], [4, 5]),
 ]
 
+TEST_CASE_5 = [
+    {
+        "img": np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]),
+        "select_fn": lambda x: x > 0,
+        "channel_indices": None,
+        "margin": [2, 1],
+    },
+    ([0, 0], [5, 5]),
+]
+
 
 class TestGenerateSpatialBoundingBox(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
     def test_value(self, input_data, expected_box):
         result = generate_spatial_bounding_box(**input_data)
         self.assertTupleEqual(result, expected_box)

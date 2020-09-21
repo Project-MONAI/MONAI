@@ -1,6 +1,18 @@
 #! /bin/bash
-set -e
+
+# Copyright 2020 MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # script for running all tests
+set -e
 
 # output formatting
 separator=""
@@ -32,14 +44,17 @@ doBlackFix=false
 doIsortFormat=false
 doIsortFix=false
 doFlake8Format=false
+doClangFormat=false
 doPytypeFormat=false
 doMypyFormat=false
 doCleanup=false
 
 NUM_PARALLEL=1
 
+PY_EXE=${MONAI_PY_EXE:-$(which python)}
+
 function print_usage {
-    echo "runtests.sh [--codeformat] [--autofix] [--black] [--isort] [--flake8] [--pytype] [--mypy]"
+    echo "runtests.sh [--codeformat] [--autofix] [--black] [--isort] [--flake8] [--clangformat] [--pytype] [--mypy]"
     echo "            [--nounittests] [--coverage] [--quick] [--net] [--dryrun] [-j number] [--clean] [--help] [--version]"
     echo ""
     echo "MONAI unit testing utilities."
@@ -49,13 +64,14 @@ function print_usage {
     echo "./runtests.sh --codeformat --nounittests  # run coding style and static type checking."
     echo "./runtests.sh --quick                     # run minimal unit tests, for quick verification during code developments."
     echo "./runtests.sh --autofix --nounittests     # run automatic code formatting using \"isort\" and \"black\"."
-    echo "./runtests.sh --clean                     # clean up temporary files and run \"python setup.py develop --uninstall\"."
+    echo "./runtests.sh --clean                     # clean up temporary files and run \"${PY_EXE} setup.py develop --uninstall\"."
     echo ""
     echo "Code style check options:"
     echo "    --black           : perform \"black\" code format checks"
     echo "    --autofix         : format code using \"isort\" and \"black\""
     echo "    --isort           : perform \"isort\" import sort checks"
     echo "    --flake8          : perform \"flake8\" code format checks"
+    echo "    --clangformat     : format csrc code using \"clang-format\""
     echo ""
     echo "Python type check options:"
     echo "    --pytype          : perform \"pytype\" static type checks"
@@ -78,53 +94,74 @@ function print_usage {
     echo "${separator}For bug reports, questions, and discussions, please file an issue at:"
     echo "    https://github.com/Project-MONAI/MONAI/issues/new/choose"
     echo ""
+    echo "To choose an alternative python executable, set the environmental variable, \"MONAI_PY_EXE\"."
     exit 1
 }
 
+function check_import {
+    echo "python: ${PY_EXE}"
+    ${cmdPrefix}${PY_EXE} -c "import monai"
+}
+
 function print_version {
-    ${cmdPrefix}python -c 'import monai; monai.config.print_config()'
+    ${cmdPrefix}${PY_EXE} -c 'import monai; monai.config.print_config()'
 }
 
 function install_deps {
     echo "Pip installing MONAI development dependencies and compile MONAI cpp extensions..."
-    ${cmdPrefix}python -m pip install -r requirements-dev.txt
+    ${cmdPrefix}${PY_EXE} -m pip install -r requirements-dev.txt
 }
 
 function compile_cpp {
     echo "Compiling and installing MONAI cpp extensions..."
-    ${cmdPrefix}python setup.py -v develop --uninstall
+    # depends on setup.py behaviour for building
+    # currently setup.py uses environment variables: BUILD_MONAI and FORCE_CUDA
+    ${cmdPrefix}${PY_EXE} setup.py develop --user --uninstall
     if [[ "$OSTYPE" == "darwin"* ]];
     then  # clang for mac os
-        CC=clang CXX=clang++ ${cmdPrefix}python setup.py -v develop
+        CC=clang CXX=clang++ ${cmdPrefix}${PY_EXE} setup.py develop --user
     else
-        ${cmdPrefix}python setup.py -v develop
+        ${cmdPrefix}${PY_EXE} setup.py develop --user
     fi
+}
+
+function clang_format {
+    echo "Running clang-format..."
+    ${cmdPrefix}${PY_EXE} -m tests.clang_format_utils
+    clang_format_tool='.clang-format-bin/clang-format'
+    # Verify .
+    if ! type -p "$clang_format_tool" >/dev/null; then
+        echo "'clang-format' not found, skipping the formatting."
+        exit 1
+    fi
+    find monai/csrc -type f | while read i; do $clang_format_tool -style=file -i $i; done
 }
 
 function clean_py {
     # uninstall the development package
     echo "Uninstalling MONAI development files..."
-    ${cmdPrefix}python setup.py -v develop --uninstall
+    ${cmdPrefix}${PY_EXE} setup.py develop --user --uninstall
 
     # remove temporary files (in the directory of this script)
     TO_CLEAN="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
     echo "Removing temporary files in ${TO_CLEAN}"
 
-    find ${TO_CLEAN} -type f -name "*.py[co]" -delete
-    find ${TO_CLEAN} -type f -name ".coverage" -delete
-    find ${TO_CLEAN} -type d -name "__pycache__" -delete
+    find ${TO_CLEAN}/monai -type f -name "*.py[co]" -delete
+    find ${TO_CLEAN}/monai -type f -name "*.so" -delete
+    find ${TO_CLEAN}/monai -type d -name "__pycache__" -delete
+    find ${TO_CLEAN} -maxdepth 1 -type f -name ".coverage" -delete
 
-    find ${TO_CLEAN} -depth -type d -name ".eggs" -exec rm -r "{}" +
-    find ${TO_CLEAN} -depth -type d -name "monai.egg-info" -exec rm -r "{}" +
-    find ${TO_CLEAN} -depth -type d -name "build" -exec rm -r "{}" +
-    find ${TO_CLEAN} -depth -type d -name "dist" -exec rm -r "{}" +
-    find ${TO_CLEAN} -depth -type d -name ".mypy_cache" -exec rm -r "{}" +
-    find ${TO_CLEAN} -depth -type d -name ".pytype" -exec rm -r "{}" +
-    find ${TO_CLEAN} -depth -type d -name ".coverage" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -maxdepth 1 -type d -name ".eggs" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -maxdepth 1 -type d -name "monai.egg-info" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -maxdepth 1 -type d -name "build" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -maxdepth 1 -type d -name "dist" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -maxdepth 1 -type d -name ".mypy_cache" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -maxdepth 1 -type d -name ".pytype" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -maxdepth 1 -type d -name ".coverage" -exec rm -r "{}" +
 }
 
 function torch_validate {
-    ${cmdPrefix}python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
+    ${cmdPrefix}${PY_EXE} -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
 }
 
 function print_error_msg() {
@@ -135,6 +172,10 @@ function print_error_msg() {
 function print_style_fail_msg() {
     echo "${red}Check failed!${noColor}"
     echo "Please run auto style fixes: ${green}./runtests.sh --autofix --nounittests${noColor}"
+}
+
+function is_pip_installed() {
+	return $(${PY_EXE} -c "import sys, pkgutil; sys.exit(0 if pkgutil.find_loader(sys.argv[1]) else 1)" $1)
 }
 
 if [ -z "$1" ]
@@ -179,6 +220,9 @@ do
             doIsortFormat=true
             doBlackFormat=true
         ;;
+        --clangformat)
+            doClangFormat=true
+        ;;
         --isort)
             doIsortFormat=true
         ;;
@@ -219,7 +263,7 @@ cd "$homedir"
 
 # python path
 export PYTHONPATH="$homedir:$PYTHONPATH"
-echo "$PYTHONPATH"
+echo "PYTHONPATH: $PYTHONPATH"
 
 # by default do nothing
 cmdPrefix=""
@@ -231,13 +275,26 @@ then
     # commands are echoed instead of ran
     cmdPrefix="dryrun "
     function dryrun { echo "    " "$@"; }
+else
+    check_import
 fi
+
 
 if [ $doCleanup = true ]
 then
     echo "${separator}${blue}clean${noColor}"
 
     clean_py
+
+    echo "${green}done!${noColor}"
+    exit
+fi
+
+if [ $doClangFormat = true ]
+then
+    echo "${separator}${blue}clang-formatting${noColor}"
+
+    clang_format
 
     echo "${green}done!${noColor}"
     exit
@@ -261,7 +318,7 @@ then
     fi
 
     # ensure that the necessary packages for code format testing are installed
-    if [[ ! -f "$(which isort)" ]]
+    if ! is_pip_installed isort
     then
         install_deps
     fi
@@ -269,9 +326,9 @@ then
 
     if [ $doIsortFix = true ]
     then
-        ${cmdPrefix}isort "$(pwd)"
+        ${cmdPrefix}${PY_EXE} -m isort "$(pwd)"
     else
-        ${cmdPrefix}isort --check "$(pwd)"
+        ${cmdPrefix}${PY_EXE} -m isort --check "$(pwd)"
     fi
 
     isort_status=$?
@@ -297,17 +354,17 @@ then
     fi
 
     # ensure that the necessary packages for code format testing are installed
-    if [[ ! -f "$(which black)" ]]
+    if ! is_pip_installed black
     then
         install_deps
     fi
-    ${cmdPrefix}black --version
+    ${cmdPrefix}${PY_EXE} -m black --version
 
     if [ $doBlackFix = true ]
     then
-        ${cmdPrefix}black "$(pwd)"
+        ${cmdPrefix}${PY_EXE} -m black "$(pwd)"
     else
-        ${cmdPrefix}black --check "$(pwd)"
+        ${cmdPrefix}${PY_EXE} -m black --check "$(pwd)"
     fi
 
     black_status=$?
@@ -328,13 +385,13 @@ then
     echo "${separator}${blue}flake8${noColor}"
 
     # ensure that the necessary packages for code format testing are installed
-    if [[ ! -f "$(which flake8)" ]]
-    then
+    if ! is_pip_installed flake8
+	then
         install_deps
     fi
-    ${cmdPrefix}flake8 --version
+    ${cmdPrefix}${PY_EXE} -m flake8 --version
 
-    ${cmdPrefix}flake8 "$(pwd)" --count --statistics
+    ${cmdPrefix}${PY_EXE} -m flake8 "$(pwd)" --count --statistics
 
     flake8_status=$?
     if [ ${flake8_status} -ne 0 ]
@@ -354,13 +411,13 @@ then
     echo "${separator}${blue}pytype${noColor}"
 
     # ensure that the necessary packages for code format testing are installed
-    if [[ ! -f "$(which pytype)" ]]
+    if ! is_pip_installed pytype
     then
         install_deps
     fi
-    ${cmdPrefix}pytype --version
+    ${cmdPrefix}${PY_EXE} -m pytype --version
 
-    ${cmdPrefix}pytype -j ${NUM_PARALLEL} --python-version="$(python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")"
+    ${cmdPrefix}${PY_EXE} -m pytype -j ${NUM_PARALLEL} --python-version="$(${PY_EXE} -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")"
 
     pytype_status=$?
     if [ ${pytype_status} -ne 0 ]
@@ -380,17 +437,17 @@ then
     echo "${separator}${blue}mypy${noColor}"
 
     # ensure that the necessary packages for code format testing are installed
-    if [[ ! -f "$(which mypy)" ]]
+    if ! is_pip_installed mypy
     then
         install_deps
     fi
-    ${cmdPrefix}mypy --version
+    ${cmdPrefix}${PY_EXE} -m mypy --version
 
     if [ $doDryRun = true ]
     then
-        ${cmdPrefix}MYPYPATH="$(pwd)"/monai mypy "$(pwd)"
+        ${cmdPrefix}MYPYPATH="$(pwd)"/monai ${PY_EXE} -m mypy "$(pwd)"
     else
-        MYPYPATH="$(pwd)"/monai mypy "$(pwd)" # cmdPrefix does not work with MYPYPATH
+        MYPYPATH="$(pwd)"/monai ${PY_EXE} -m mypy "$(pwd)" # cmdPrefix does not work with MYPYPATH
     fi
 
     mypy_status=$?
@@ -406,7 +463,7 @@ fi
 
 
 # testing command to run
-cmd="python3"
+cmd="${PY_EXE}"
 
 # When running --quick, require doCoverage as well and set QUICKTEST environmental
 # variable to disable slow unit tests from running.
@@ -421,8 +478,8 @@ fi
 if [ $doCoverage = true ]
 then
     echo "${separator}${blue}coverage${noColor}"
-    cmd="coverage run -a --source ."
-    ${cmdPrefix}coverage erase
+    cmd="${PY_EXE} -m coverage run -a --source ."
+    ${cmdPrefix}${PY_EXE} -m coverage erase
 fi
 
 # # download test data if needed
@@ -461,5 +518,5 @@ fi
 if [ $doCoverage = true ]
 then
     echo "${separator}${blue}coverage${noColor}"
-    ${cmdPrefix}coverage report --skip-covered -m
+    ${cmdPrefix}${PY_EXE} -m coverage report --skip-covered -m
 fi

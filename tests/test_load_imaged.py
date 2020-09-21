@@ -42,7 +42,6 @@ class TestLoadImaged(unittest.TestCase):
 
     def test_register(self):
         spatial_size = (32, 64, 128)
-        expected_shape = (128, 64, 32)
         test_image = np.random.rand(*spatial_size)
         with tempfile.TemporaryDirectory() as tempdir:
             filename = os.path.join(tempdir, "test_image.nii.gz")
@@ -50,9 +49,9 @@ class TestLoadImaged(unittest.TestCase):
             itk.imwrite(itk_np_view, filename)
 
             loader = LoadImaged(keys="img")
-            loader.register(ITKReader(c_order_axis_indexing=True))
+            loader.register(ITKReader())
             result = loader({"img": filename})
-            self.assertTupleEqual(tuple(result["img_meta_dict"]["spatial_shape"]), expected_shape)
+            self.assertTupleEqual(tuple(result["img_meta_dict"]["spatial_shape"]), spatial_size)
             self.assertTupleEqual(result["img"].shape, spatial_size)
 
 

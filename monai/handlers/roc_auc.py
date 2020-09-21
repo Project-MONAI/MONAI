@@ -46,6 +46,7 @@ class ROCAUC(Metric):  # type: ignore[valid-type, misc]  # due to optional_impor
             :class:`~ignite.engine.Engine` `process_function` output into the
             form expected by the metric. This can be useful if, for example, you have a multi-output model and
             you want to compute the metric with respect to one of the outputs.
+        device: device specification in case of distributed computation usage.
 
     Note:
         ROCAUC expects y to be comprised of 0's and 1's.
@@ -60,8 +61,9 @@ class ROCAUC(Metric):  # type: ignore[valid-type, misc]  # due to optional_impor
         other_act: Optional[Callable] = None,
         average: Union[Average, str] = Average.MACRO,
         output_transform: Callable = lambda x: x,
+        device: Optional[torch.device] = None,
     ) -> None:
-        super().__init__(output_transform)
+        super().__init__(output_transform, device=device)
         self.to_onehot_y = to_onehot_y
         self.softmax = softmax
         self.other_act = other_act

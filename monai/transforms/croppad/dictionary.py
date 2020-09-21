@@ -336,7 +336,7 @@ class CropForegroundd(MapTransform):
             select_fn: function to select expected foreground, default is to select values > 0.
             channel_indices: if defined, select foreground only on the specified channels
                 of image. if None, select foreground on the whole image.
-            margin: add margin to all dims of the bounding box.
+            margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
         """
         super().__init__(keys)
         self.source_key = source_key

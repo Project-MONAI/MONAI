@@ -384,14 +384,17 @@ class CropForeground(Transform):
     """
 
     def __init__(
-        self, select_fn: Callable = lambda x: x > 0, channel_indices: Optional[IndexSelection] = None, margin: int = 0
+        self,
+        select_fn: Callable = lambda x: x > 0,
+        channel_indices: Optional[IndexSelection] = None,
+        margin: Union[Sequence[int], int] = 0,
     ) -> None:
         """
         Args:
             select_fn: function to select expected foreground, default is to select values > 0.
             channel_indices: if defined, select foreground only on the specified channels
                 of image. if None, select foreground on the whole image.
-            margin: add margin to all dims of the bounding box.
+            margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
         """
         self.select_fn = select_fn
         self.channel_indices = ensure_tuple(channel_indices) if channel_indices is not None else None

@@ -51,7 +51,7 @@ class TestDecathlonDataset(unittest.TestCase):
             print(str(e))
             if isinstance(e, RuntimeError):
                 # FIXME: skip MD5 check as current downloading method may fail
-                self.assertTrue(str(e).startswith("MD5 check"))
+                self.assertTrue(str(e).startswith("md5 check"))
             return  # skipping this test due the network connection errors
 
         _test_dataset(data)
@@ -61,6 +61,16 @@ class TestDecathlonDataset(unittest.TestCase):
         _test_dataset(data)
         data = DecathlonDataset(root_dir=testing_dir, task="Task04_Hippocampus", section="validation", download=False)
         self.assertTupleEqual(data[0]["image"].shape, (33, 47, 34))
+
+        data = DecathlonDataset(
+            root_dir=testing_dir,
+            task="Task04_Hippocampus",
+            section="validation",
+            download=False,
+        )
+        properties = data.get_properties(keys="labels")
+        self.assertDictEqual(properties["labels"], {"0": "background", "1": "Anterior", "2": "Posterior"})
+
         shutil.rmtree(os.path.join(testing_dir, "Task04_Hippocampus"))
         try:
             data = DecathlonDataset(

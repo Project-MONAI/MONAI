@@ -46,6 +46,7 @@ exclude_patterns = [
     "visualize",
     "utils",
     "inferers",
+    "optimizers",
 ]
 
 

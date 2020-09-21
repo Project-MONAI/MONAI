@@ -4,6 +4,8 @@
 
 * **config**: for system configuration and diagnostic output.
 
+* **csrc**: for C++/CUDA extensions.
+
 * **data**: for the datasets, readers/writers, and synthetic data
 
 * **engines**: engine-derived classes for extending Ignite behaviour.
@@ -17,6 +19,8 @@
 * **metrics**: defines metric tracking types.
 
 * **networks**: contains network definitions, component definitions, and Pytorch specific utilities.
+
+* **optimizers**: classes defining optimizers.
 
 * **transforms**: defines data transforms for preprocessing and postprocessing.
 

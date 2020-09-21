@@ -64,7 +64,7 @@ from typing import Any, Callable, Dict, Tuple, Type, Union
 
 import torch.nn as nn
 
-__all__ = ["LayerFactory", "Dropout", "Norm", "Act", "Conv", "Pool", "split_args"]
+__all__ = ["LayerFactory", "Dropout", "Norm", "Act", "Conv", "Pool", "Pad", "split_args"]
 
 
 class LayerFactory:

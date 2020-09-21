@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import Callable, List, Optional, Sequence, Union
+from typing import Callable, List, Sequence, Union
 
 import numpy as np
 import torch
@@ -24,7 +24,7 @@ def do_activation(input_data: torch.Tensor, activation: Union[str, Callable] = "
     This function is used to do activation for inputs.
 
     Args:
-        input_data: the input that to be acitvated, in the shape [B] or [BN] or [BNHW] or [BNHWD].
+        input_data: the input that to be activated, in the shape [B] or [BN] or [BNHW] or [BNHWD].
         activation: can be ``"sigmoid"`` or ``"softmax"``, or a callable function. Defaults to ``"softmax"``.
             An example for callable function: ``activation = lambda x: torch.log_softmax(x)``.
 
@@ -183,13 +183,9 @@ def do_calculate_metric(
     div_0 = zero_division
     # pre-process average
     average = Average(average)
-    bin_flag: bool
     if len(confusion_ele_list[0].shape) == 0:
-        bin_flag = True
         average = Average.NONE  # for binary tasks, other average methods are meaningless.
         ele_list = [int(l) for l in confusion_ele_list]
-    else:
-        bin_flag = False
     if average == Average.MICRO:
         ele_list = [int(l.sum()) for l in confusion_ele_list]
     else:
@@ -254,10 +250,8 @@ def do_calculate_metric(
     if average == Average.MICRO or average == Average.NONE:
         return result
 
-    weights: Optional[np.ndarray]
-    if average == Average.MACRO:
-        weights = None
-    elif average == Average.WEIGHTED:
+    weights = None
+    if average == Average.WEIGHTED:
         weights = p
     result = np.average(result, weights=weights)
     return result
@@ -267,7 +261,7 @@ def check_metric_name_and_unify(metric_name: str):
     """
     There are many metrics related to confusion matrix, and some of the metrics have
     more than one names. In addition, some of the names are very long.
-    Therefore, this function is used to simplify the implementaton.
+    Therefore, this function is used to simplify the implementation.
     """
     metric_name = metric_name.replace(" ", "_")
     metric_name = metric_name.lower()

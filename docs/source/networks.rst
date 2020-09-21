@@ -40,6 +40,15 @@ Blocks
 .. autoclass:: MCFCN
     :members:
 
+`No New Unet Block`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: UnetResBlock
+    :members:
+.. autoclass:: UnetBasicBlock
+    :members:
+.. autoclass:: UnetUpBlock
+    :members:
+
 `SegResnet Block`
 ~~~~~~~~~~~~~~~~~
 .. autoclass:: ResBlock
@@ -211,6 +220,11 @@ Nets
 .. autoclass:: HighResNet
   :members:
 .. autoclass:: HighResBlock
+  :members:
+
+`DynUNet`
+~~~~~~~~~
+.. autoclass:: DynUNet
   :members:
 
 `Unet`

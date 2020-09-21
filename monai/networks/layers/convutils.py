@@ -12,8 +12,9 @@
 from typing import Sequence, Tuple, Union
 
 import numpy as np
+import torch
 
-__all__ = ["same_padding", "calculate_out_shape", "gaussian_1d"]
+__all__ = ["same_padding", "stride_minus_kernel_padding", "calculate_out_shape", "gaussian_1d"]
 
 
 def same_padding(
@@ -42,6 +43,19 @@ def same_padding(
     return padding if len(padding) > 1 else padding[0]
 
 
+def stride_minus_kernel_padding(
+    kernel_size: Union[Sequence[int], int],
+    stride: Union[Sequence[int], int],
+) -> Union[Tuple[int, ...], int]:
+    kernel_size_np = np.atleast_1d(kernel_size)
+    stride_np = np.atleast_1d(stride)
+
+    out_padding_np = stride_np - kernel_size_np
+    out_padding = tuple(int(p) for p in out_padding_np)
+
+    return out_padding if len(out_padding) > 1 else out_padding[0]
+
+
 def calculate_out_shape(
     in_shape: Union[Sequence[int], int],
     kernel_size: Union[Sequence[int], int],
@@ -64,7 +78,7 @@ def calculate_out_shape(
     return out_shape if len(out_shape) > 1 else out_shape[0]
 
 
-def gaussian_1d(sigma: float, truncated: float = 4.0) -> np.ndarray:
+def gaussian_1d(sigma: Union[float, torch.Tensor], truncated: float = 4.0) -> np.ndarray:
     """
     one dimensional gaussian kernel.
 
@@ -73,18 +87,17 @@ def gaussian_1d(sigma: float, truncated: float = 4.0) -> np.ndarray:
         truncated: tail length
 
     Raises:
-        ValueError: When ``sigma`` is nonpositive.
+        ValueError: When ``sigma`` is non-positive.
 
     Returns:
-        1D numpy array
+        1D torch tensor
 
     """
-    if sigma <= 0:
-        raise ValueError(f"sigma must be positive, got {sigma}.")
-
+    sigma = torch.as_tensor(sigma).float()
+    if sigma <= 0 or truncated <= 0:
+        raise ValueError(f"sigma and truncated must be positive, got {sigma} and {truncated}.")
     tail = int(sigma * truncated + 0.5)
-    sigma2 = sigma * sigma
-    x = np.arange(-tail, tail + 1)
-    out = np.exp(-0.5 / sigma2 * x ** 2)
-    out /= out.sum()
-    return out
+    x = torch.arange(-tail, tail + 1).float()
+    t = 1 / (torch.tensor(2.0).sqrt() * sigma)
+    out = 0.5 * ((t * (x + 0.5)).erf() - (t * (x - 0.5)).erf())
+    return out.clamp(min=0)

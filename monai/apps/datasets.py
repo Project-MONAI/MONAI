@@ -14,8 +14,9 @@ import sys
 from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
 from monai.apps.utils import download_and_extract
-from monai.data import CacheDataset, load_decathalon_datalist
+from monai.data import CacheDataset, load_decathlon_datalist, load_decathlon_properties
 from monai.transforms import LoadNiftid, LoadPNGd, Randomizable
+from monai.utils import ensure_tuple
 
 
 class MedNISTDataset(Randomizable, CacheDataset):
@@ -32,7 +33,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
         download: whether to download and extract the MedNIST from resource link, default is False.
             if expected file already exists, skip downloading even set it to True.
             user can manually copy `MedNIST.tar.gz` file or `MedNIST` folder to root directory.
-        seed: random seed to randomly split training, validation and test datasets, defaut is 0.
+        seed: random seed to randomly split training, validation and test datasets, default is 0.
         val_frac: percentage of of validation fraction in the whole dataset, default is 0.1.
         test_frac: percentage of of test fraction in the whole dataset, default is 0.1.
         cache_num: number of items to be cached. Default is `sys.maxsize`.
@@ -135,6 +136,8 @@ class DecathlonDataset(Randomizable, CacheDataset):
     """
     The Dataset to automatically download the data of Medical Segmentation Decathlon challenge
     (http://medicaldecathlon.com/) and generate items for training, validation or test.
+    It will also load these properties from the JSON config file of dataset. user can call `get_properties()`
+    to get specified properties or all the properties loaded.
     It's based on :py:class:`monai.data.CacheDataset` to accelerate the training process.
 
     Args:
@@ -144,12 +147,12 @@ class DecathlonDataset(Randomizable, CacheDataset):
             "Task08_HepaticVessel", "Task09_Spleen", "Task10_Colon").
         section: expected data section, can be: `training`, `validation` or `test`.
         transform: transforms to execute operations on input data. the default transform is `LoadNiftid`,
-            which can load Nifit format data into numpy array with [H, W, D] or [H, W, D, C] shape.
+            which can load Nifti format data into numpy array with [H, W, D] or [H, W, D, C] shape.
             for further usage, use `AddChanneld` or `AsChannelFirstd` to convert the shape to [C, H, W, D].
         download: whether to download and extract the Decathlon from resource link, default is False.
             if expected file already exists, skip downloading even set it to True.
             user can manually copy tar file or dataset folder to the root directory.
-        seed: random seed to randomly split `training`, `validation` and `test` datasets, defaut is 0.
+        seed: random seed to randomly split `training`, `validation` and `test` datasets, default is 0.
         val_frac: percentage of of validation fraction from the `training` section, default is 0.2.
             Decathlon data only contains `training` section with labels and `test` section without labels,
             so randomly select fraction from the `training` section as the `validation` section.
@@ -241,14 +244,40 @@ class DecathlonDataset(Randomizable, CacheDataset):
                 f"Cannot find dataset directory: {dataset_dir}, please use download=True to download it."
             )
         data = self._generate_data_list(dataset_dir)
+        # as `release` key has typo in Task04 config file, ignore it.
+        property_keys = [
+            "name",
+            "description",
+            "reference",
+            "licence",
+            "tensorImageSize",
+            "modality",
+            "labels",
+            "numTraining",
+            "numTest",
+        ]
+        self._properties = load_decathlon_properties(os.path.join(dataset_dir, "dataset.json"), property_keys)
         super().__init__(data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers)
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self.rann = self.R.random()
 
+    def get_properties(self, keys: Optional[Union[Sequence[str], str]] = None):
+        """
+        Get the loaded properties of dataset with specified keys.
+        If no keys specified, return all the loaded properties.
+
+        """
+        if keys is None:
+            return self._properties
+        elif self._properties is not None:
+            return {key: self._properties[key] for key in ensure_tuple(keys)}
+        else:
+            return {}
+
     def _generate_data_list(self, dataset_dir: str) -> List[Dict]:
         section = "training" if self.section in ["training", "validation"] else "test"
-        datalist = load_decathalon_datalist(os.path.join(dataset_dir, "dataset.json"), True, section)
+        datalist = load_decathlon_datalist(os.path.join(dataset_dir, "dataset.json"), True, section)
         if section == "test":
             return datalist
         else:

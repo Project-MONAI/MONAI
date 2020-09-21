@@ -46,25 +46,37 @@ TEST_CASE_4 = [
     (3, 128, 128, 128),
 ]
 
-TEST_CASE_5 = [{"image_only": True}, ["test_image.nii.gz"], (128, 128, 128)]
+TEST_CASE_5 = [
+    {"reader": NibabelReader(mmap=False), "image_only": False},
+    ["test_image.nii.gz"],
+    (128, 128, 128),
+]
 
-TEST_CASE_6 = [{"image_only": False}, ["test_image.nii.gz"], (128, 128, 128)]
+TEST_CASE_6 = [{"image_only": True}, ["test_image.nii.gz"], (128, 128, 128)]
 
-TEST_CASE_7 = [
+TEST_CASE_7 = [{"image_only": False}, ["test_image.nii.gz"], (128, 128, 128)]
+
+TEST_CASE_8 = [
     {"image_only": True},
     ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
     (3, 128, 128, 128),
 ]
 
-TEST_CASE_8 = [
+TEST_CASE_9 = [
     {"image_only": False},
     ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
     (3, 128, 128, 128),
 ]
 
+TEST_CASE_10 = [
+    {"image_only": False, "reader": ITKReader(pixel_type=itk.UC)},
+    "tests/testing_data/CT_DICOM",
+    (4, 16, 16),
+]
+
 
 class TestLoadImage(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
     def test_nibabel_reader(self, input_param, filenames, expected_shape):
         test_image = np.random.rand(128, 128, 128)
         with tempfile.TemporaryDirectory() as tempdir:
@@ -81,7 +93,7 @@ class TestLoadImage(unittest.TestCase):
                 np.testing.assert_allclose(header["original_affine"], np.eye(4))
             self.assertTupleEqual(result.shape, expected_shape)
 
-    @parameterized.expand([TEST_CASE_5, TEST_CASE_6, TEST_CASE_7, TEST_CASE_8])
+    @parameterized.expand([TEST_CASE_6, TEST_CASE_7, TEST_CASE_8, TEST_CASE_9])
     def test_itk_reader(self, input_param, filenames, expected_shape):
         test_image = np.random.rand(128, 128, 128)
         with tempfile.TemporaryDirectory() as tempdir:
@@ -99,6 +111,25 @@ class TestLoadImage(unittest.TestCase):
                 np.testing.assert_allclose(header["original_affine"], np.eye(4))
             self.assertTupleEqual(result.shape, expected_shape)
 
+    @parameterized.expand([TEST_CASE_10])
+    def test_itk_dicom_series_reader(self, input_param, filenames, expected_shape):
+        result, header = LoadImage(**input_param)(filenames)
+        self.assertTrue("affine" in header)
+        self.assertEqual(header["filename_or_obj"], filenames)
+        np.testing.assert_allclose(
+            header["affine"],
+            np.array(
+                [
+                    [0.488281, 0.0, 0.0, -125.0],
+                    [0.0, 0.488281, 0.0, -128.100006],
+                    [0.0, 0.0, 68.33333333, -99.480003],
+                    [0.0, 0.0, 0.0, 1.0],
+                ]
+            ),
+        ),
+        self.assertTupleEqual(result.shape, expected_shape)
+        self.assertTupleEqual(tuple(header["spatial_shape"]), expected_shape)
+
     def test_load_png(self):
         spatial_size = (256, 256)
         test_image = np.random.randint(0, 256, size=spatial_size)
@@ -114,6 +145,20 @@ class TestLoadImage(unittest.TestCase):
 
     def test_register(self):
         spatial_size = (32, 64, 128)
+        test_image = np.random.rand(*spatial_size)
+        with tempfile.TemporaryDirectory() as tempdir:
+            filename = os.path.join(tempdir, "test_image.nii.gz")
+            itk_np_view = itk.image_view_from_array(test_image)
+            itk.imwrite(itk_np_view, filename)
+
+            loader = LoadImage(image_only=False)
+            loader.register(ITKReader())
+            result, header = loader(filename)
+            self.assertTupleEqual(tuple(header["spatial_shape"]), spatial_size)
+            self.assertTupleEqual(result.shape, spatial_size)
+
+    def test_kwargs(self):
+        spatial_size = (32, 64, 128)
         expected_shape = (128, 64, 32)
         test_image = np.random.rand(*spatial_size)
         with tempfile.TemporaryDirectory() as tempdir:
@@ -122,10 +167,15 @@ class TestLoadImage(unittest.TestCase):
             itk.imwrite(itk_np_view, filename)
 
             loader = LoadImage(image_only=False)
-            loader.register(ITKReader(c_order_axis_indexing=True))
+            reader = ITKReader(fallback_only=False)
+            loader.register(reader)
             result, header = loader(filename)
-            self.assertTupleEqual(tuple(header["spatial_shape"]), expected_shape)
-            self.assertTupleEqual(result.shape, spatial_size)
+
+            reader = ITKReader()
+            img = reader.read(filename, fallback_only=False)
+            result_raw, header_raw = reader.get_data(img)
+            self.assertListEqual(header["spatial_shape"], header_raw["spatial_shape"])
+            self.assertTupleEqual(result.shape, result_raw.shape)
 
 
 if __name__ == "__main__":
