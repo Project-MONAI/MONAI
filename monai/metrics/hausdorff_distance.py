@@ -28,8 +28,8 @@ def compute_hausdorff_distance(
     """
     Compute the Hausdorff distance. The user has the option to calculate the
     directed or non-directed Hausdorff distance. By default, the non-directed
-    Hausdorff distance is calculated. In addition, via specifying the `percentile` parameter
-    can get the percentile of the distance.
+    Hausdorff distance is calculated. In addition, specify the `percentile`
+    parameter can get the percentile of the distance.
 
     Args:
         seg_pred: the predicted binary or labelfield image.
