@@ -18,6 +18,7 @@ import numpy as np
 import torch
 
 import monai
+from monai.utils import OptionalImportError, optional_import
 
 try:
     import ignite
@@ -93,9 +94,9 @@ except (ImportError, AttributeError):
 
 
 try:
-    _, HAS_EXT = monai.utils.optional_import("monai._C")
+    _, HAS_EXT = optional_import("monai._C")
     USE_COMPILED = HAS_EXT and os.getenv("BUILD_MONAI", "0") == "1"
-except (monai.utils.OptionalImportError, ImportError, AttributeError):
+except (OptionalImportError, ImportError, AttributeError):
     HAS_EXT = USE_COMPILED = False
 
 
