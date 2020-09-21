@@ -32,7 +32,7 @@ Main steps to set up the distributed training:
   Instead, `SupervisedTrainer` shuffles data by `train_sampler.set_epoch(epoch)` before every epoch.
 - Add `StatsHandler` and `CheckpointHandler` to the master process which is `dist.get_rank() == 0`.
 - ignite can automatically reduce metrics for distributed training, refer to:
-  https://github.com/pytorch/ignite/blob/v0.4.2/ignite/metrics/metric.py#L507
+  https://github.com/pytorch/ignite/blob/v0.3.0/ignite/metrics/metric.py#L85
 
 Note:
     `torch.distributed.launch` will launch `nnodes * nproc_per_node = world_size` processes in total.

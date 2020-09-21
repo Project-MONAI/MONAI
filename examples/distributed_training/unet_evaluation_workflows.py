@@ -32,7 +32,7 @@ Main steps to set up the distributed evaluation:
 - Wrap Dataset with `DistributedSampler`, disable the `shuffle` in sampler and DataLoader.
 - Add `StatsHandler` and `SegmentationSaver` to the master process which is `dist.get_rank() == 0`.
 - ignite can automatically reduce metrics for distributed evaluation, refer to:
-  https://github.com/pytorch/ignite/blob/v0.4.2/ignite/metrics/metric.py#L507
+  https://github.com/pytorch/ignite/blob/v0.3.0/ignite/metrics/metric.py#L85
 
 Note:
     `torch.distributed.launch` will launch `nnodes * nproc_per_node = world_size` processes in total.
