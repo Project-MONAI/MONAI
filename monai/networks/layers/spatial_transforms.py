@@ -17,7 +17,7 @@ import torch.nn as nn
 from monai.networks import to_norm_affine
 from monai.utils import GridSampleMode, GridSamplePadMode, ensure_tuple, optional_import
 
-_C, has_monai_ext = optional_import("monai._C")
+_C, _ = optional_import("monai._C")
 
 __all__ = ["AffineTransform", "grid_pull", "grid_push", "grid_count", "grid_grad"]
 

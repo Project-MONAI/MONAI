@@ -13,17 +13,15 @@ A collection of "vanilla" transforms for spatial operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-import os
 import warnings
 from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 
-from monai.config import get_torch_version_tuple
+from monai.config import USE_COMPILED, get_torch_version_tuple
 from monai.data.utils import compute_shape_offset, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
-from monai.networks.layers.spatial_transforms import has_monai_ext
 from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.croppad.array import CenterSpatialCrop
 from monai.transforms.utils import (
@@ -47,8 +45,6 @@ from monai.utils import (
 )
 
 nib, _ = optional_import("nibabel")
-
-use_compiled = has_monai_ext and os.getenv("BUILD_MONAI", "0") == "1"
 
 _torch_interp: Callable[..., torch.Tensor]
 
@@ -1095,7 +1091,7 @@ class Resample(Transform):
             img = img.to(self.device)
             grid = grid.to(self.device)
 
-        if use_compiled:
+        if USE_COMPILED:
             for i, dim in enumerate(img.shape[1:]):
                 grid[i] += (dim - 1.0) / 2.0
             grid = grid[:-1] / grid[-1:]
