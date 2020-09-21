@@ -42,8 +42,6 @@ class Trainer(Workflow):
         If call this function multiple times, it will continuously run from the previous state.
 
         """
-        if self._is_done(self.state):
-            self.state.iteration = 0  # to avoid creating new State instance in ignite Engine.run
         self.scaler = torch.cuda.amp.GradScaler() if self.amp else None
         super().run()
 
