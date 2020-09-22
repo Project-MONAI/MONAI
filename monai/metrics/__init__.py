@@ -14,3 +14,4 @@ from .confusion_matrix_utils import *
 from .hausdorff_distance import compute_hausdorff_distance
 from .meandice import DiceMetric, compute_meandice
 from .rocauc import compute_roc_auc
+from .surface_distance import compute_average_surface_distance

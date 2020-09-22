@@ -15,7 +15,7 @@ from typing import Tuple
 import numpy as np
 from parameterized import parameterized
 
-from monai.metrics import compute_hausdorff_distance
+from monai.metrics import compute_average_surface_distance
 
 
 def create_spherical_seg_3d(
@@ -54,15 +54,16 @@ def create_spherical_seg_3d(
 TEST_CASES = [
     [
         [create_spherical_seg_3d(), create_spherical_seg_3d(), 1],
-        [0, 0, 0, 0, 0, 0],
+        [0, 0],
     ],
     [
         [
             create_spherical_seg_3d(radius=20, centre=(20, 20, 20)),
             create_spherical_seg_3d(radius=20, centre=(19, 19, 19)),
             1,
+            "taxicab",
         ],
-        [1.7320508075688772, 1.7320508075688772, 1, 1, 3, 3],
+        [1.0380029806259314, 1.0380029806259314],
     ],
     [
         [
@@ -70,7 +71,7 @@ TEST_CASES = [
             create_spherical_seg_3d(radius=33, labelfield_value=2, centre=(20, 33, 22)),
             2,
         ],
-        [1, 1, 1, 1, 1, 1],
+        [0.35021200688332677, 0.3483278807706289],
     ],
     [
         [
@@ -78,7 +79,25 @@ TEST_CASES = [
             create_spherical_seg_3d(radius=40, centre=(20, 33, 22)),
             1,
         ],
-        [20.09975124224178, 20.223748416156685, 15, 20, 24, 35],
+        [13.975673696300824, 12.040033513150455],
+    ],
+    [
+        [
+            create_spherical_seg_3d(radius=20, centre=(20, 33, 22)),
+            create_spherical_seg_3d(radius=40, centre=(20, 33, 22)),
+            1,
+            "chessboard",
+        ],
+        [10.792254295459173, 9.605067064083457],
+    ],
+    [
+        [
+            create_spherical_seg_3d(radius=20, centre=(20, 33, 22)),
+            create_spherical_seg_3d(radius=40, centre=(20, 33, 22)),
+            1,
+            "taxicab",
+        ],
+        [17.32691760951026, 12.432687531048186],
     ],
     [
         [
@@ -86,7 +105,7 @@ TEST_CASES = [
             create_spherical_seg_3d(radius=40, centre=(20, 33, 22)),
             1,
         ],
-        [np.inf, np.inf, np.inf, np.inf, np.inf, np.inf],
+        [np.inf, np.inf],
     ],
     [
         [
@@ -94,45 +113,36 @@ TEST_CASES = [
             np.zeros([99, 99, 99]),
             1,
         ],
-        [np.inf, np.inf, np.inf, np.inf, np.inf, np.inf],
+        [np.inf, np.inf],
     ],
     [
         [
             create_spherical_seg_3d(),
             np.zeros([99, 99, 99]),
             1,
+            "taxicab",
         ],
-        [np.inf, np.inf, np.inf, np.inf, np.inf, np.inf],
-    ],
-    [
-        [
-            create_spherical_seg_3d(radius=20, centre=(20, 33, 22)),
-            create_spherical_seg_3d(radius=40, centre=(20, 33, 22)),
-            1,
-            95,
-        ],
-        [19.924858845171276, 20.09975124224178, 14, 18, 22, 33],
+        [np.inf, np.inf],
     ],
 ]
 
 
-class TestHausdorffDistance(unittest.TestCase):
+class TestAllSurfaceMetrics(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_value(self, input_data, expected_value):
-        percentile = None
         if len(input_data) == 4:
-            [seg_1, seg_2, label_idx, percentile] = input_data
+            [seg_1, seg_2, label_idx, metric] = input_data
         else:
             [seg_1, seg_2, label_idx] = input_data
+            metric = "euclidean"
         ct = 0
-        for metric in ["euclidean", "chessboard", "taxicab"]:
-            for directed in [True, False]:
-                result = compute_hausdorff_distance(
-                    seg_1, seg_2, label_idx, distance_metric=metric, percentile=percentile, directed=directed
-                )
-                expected_value_curr = expected_value[ct]
-                np.testing.assert_allclose(expected_value_curr, result, rtol=1e-7)
-                ct += 1
+        for symmetric in [True, False]:
+            expected_value_curr = expected_value[ct]
+            result = compute_average_surface_distance(
+                seg_1, seg_2, label_idx, symmetric=symmetric, distance_metric=metric
+            )
+            np.testing.assert_allclose(expected_value_curr, result, rtol=1e-7)
+            ct += 1
 
 
 if __name__ == "__main__":
