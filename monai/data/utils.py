@@ -21,7 +21,15 @@ import torch
 from torch.utils.data._utils.collate import default_collate
 
 from monai.networks.layers.simplelayers import GaussianFilter
-from monai.utils import BlendMode, NumpyPadMode, ensure_tuple, ensure_tuple_size, first, optional_import
+from monai.utils import (
+    BlendMode,
+    NumpyPadMode,
+    ensure_tuple,
+    ensure_tuple_rep,
+    ensure_tuple_size,
+    first,
+    optional_import,
+)
 
 nib, _ = optional_import("nibabel")
 
@@ -468,7 +476,7 @@ def create_file_basename(
 def compute_importance_map(
     patch_size: Tuple[int, ...],
     mode: Union[BlendMode, str] = BlendMode.CONSTANT,
-    sigma_scale: float = 0.125,
+    sigma_scale: Union[Sequence[float], float] = 0.125,
     device: Optional[torch.device] = None,
 ) -> torch.Tensor:
     """Get importance map for different weight modes.
@@ -497,7 +505,8 @@ def compute_importance_map(
         importance_map = torch.ones(patch_size, device=device).float()
     elif mode == BlendMode.GAUSSIAN:
         center_coords = [i // 2 for i in patch_size]
-        sigmas = [i * sigma_scale for i in patch_size]
+        sigma_scale = ensure_tuple_rep(sigma_scale, len(patch_size))
+        sigmas = [i * sigma_s for i, sigma_s in zip(patch_size, sigma_scale)]
 
         importance_map = torch.zeros(patch_size, device=device)
         importance_map[tuple(center_coords)] = 1
@@ -508,9 +517,12 @@ def compute_importance_map(
         importance_map = importance_map.float()
 
         # importance_map cannot be 0, otherwise we may end up with nans!
-        importance_map[importance_map == 0] = torch.min(importance_map[importance_map != 0])
+        min_non_zero = importance_map[importance_map != 0].min().item()
+        importance_map = torch.clamp(importance_map, min=min_non_zero)
     else:
-        raise ValueError(f'Unsupported mode: {mode}, available options are ["constant", "gaussian"].')
+        raise ValueError(
+            f"Unsupported mode: {mode}, available options are [{BlendMode.CONSTANT}, {BlendMode.CONSTANT}]."
+        )
 
     return importance_map
 
