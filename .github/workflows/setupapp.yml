@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - adds-sigma-option
 
 jobs:
   # caching of these jobs:
