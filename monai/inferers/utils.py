@@ -59,7 +59,7 @@ def sliding_window_inference(
             When sigma_scale is a sequence of floats, the values denote sigma_scale at the corresponding
             spatial dimensions.
         padding_mode: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}
-            Padding mode when ``roi_size`` is larger than inputs. Defaults to ``"constant"``
+            Padding mode for ``inputs``, when ``roi_size`` is larger than inputs. Defaults to ``"constant"``
             See also: https://pytorch.org/docs/stable/nn.functional.html#pad
         cval: fill value for 'constant' padding mode. Default: 0
         device: device running the concatenation of the windows.

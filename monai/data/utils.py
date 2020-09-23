@@ -476,7 +476,7 @@ def create_file_basename(
 def compute_importance_map(
     patch_size: Tuple[int, ...],
     mode: Union[BlendMode, str] = BlendMode.CONSTANT,
-    sigma_scale: float = 0.125,
+    sigma_scale: Union[Sequence[float], float] = 0.125,
     device: Optional[torch.device] = None,
 ) -> torch.Tensor:
     """Get importance map for different weight modes.
