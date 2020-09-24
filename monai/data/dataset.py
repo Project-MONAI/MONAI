@@ -25,14 +25,14 @@ import torch
 from torch.utils.data import Dataset as _TorchDataset
 
 from monai.transforms import Compose, Randomizable, Transform, apply_transform
-from monai.utils import exact_version, get_seed, optional_import
+from monai.utils import get_seed, min_version, optional_import
 
 if TYPE_CHECKING:
     from tqdm import tqdm
 
     has_tqdm = True
 else:
-    tqdm, has_tqdm = optional_import("tqdm", "4.49.0", exact_version, "tqdm")
+    tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
 
 
 class Dataset(_TorchDataset):
