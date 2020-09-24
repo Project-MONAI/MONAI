@@ -646,7 +646,8 @@ class RandHistogramShiftd(Randomizable, MapTransform):
             img_min, img_max = d[key].min(), d[key].max()
             reference_control_points_scaled = self.reference_control_points * (img_max - img_min) + img_min
             floating_control_points_scaled = self.floating_control_points * (img_max - img_min) + img_min
-            d[key] = np.interp(d[key], reference_control_points_scaled, floating_control_points_scaled)
+            dtype = d[key].dtype
+            d[key] = np.interp(d[key], reference_control_points_scaled, floating_control_points_scaled).astype(dtype)
         return d
 
 
