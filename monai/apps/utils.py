@@ -14,14 +14,22 @@ import logging
 import os
 import shutil
 import tarfile
+import warnings
 import zipfile
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 from urllib.error import ContentTooShortError, HTTPError, URLError
 from urllib.request import Request, urlopen, urlretrieve
 
-from monai.utils import optional_import, progress_bar
+from monai.utils import min_version, optional_import
 
 gdown, has_gdown = optional_import("gdown", "3.6")
+
+if TYPE_CHECKING:
+    from tqdm import tqdm
+
+    has_tqdm = True
+else:
+    tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
 
 
 def check_hash(filepath: str, val: Optional[str] = None, hash_type: str = "md5") -> bool:
@@ -105,7 +113,17 @@ def download_url(url: str, filepath: str, hash_val: Optional[str] = None, hash_t
 
         try:
             file_size = int(urlopen(url).info().get("Content-Length", -1))
-            progress_bar(index=first_byte, count=file_size)
+            if has_tqdm:
+                pbar = tqdm(
+                    unit="B",
+                    unit_scale=True,
+                    unit_divisor=1024,
+                    miniters=1,
+                    desc=filepath.split(os.sep)[-1],
+                    total=file_size,
+                )
+            else:
+                warnings.warn("tqdm is not installed, will not show the downloading progress bar.")
 
             while first_byte < file_size:
                 last_byte = first_byte + block_size if first_byte + block_size < file_size else file_size - 1
@@ -115,8 +133,11 @@ def download_url(url: str, filepath: str, hash_val: Optional[str] = None, hash_t
                 data_chunk = urlopen(req, timeout=10).read()
                 with open(tmp_file_path, "ab") as f:
                     f.write(data_chunk)
-                progress_bar(index=last_byte, count=file_size)
+                if has_tqdm:
+                    pbar.update(len(data_chunk))
                 first_byte = last_byte + 1
+            if has_tqdm:
+                pbar.close()
         except IOError as e:
             logging.debug("IO Error - %s" % e)
         finally:
@@ -129,11 +150,37 @@ def download_url(url: str, filepath: str, hash_val: Optional[str] = None, hash_t
     else:
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
-        def _process_hook(blocknum: int, blocksize: int, totalsize: int):
-            progress_bar(blocknum * blocksize, totalsize, f"Downloading {filepath.split('/')[-1]}:")
+        class TqdmUpTo(tqdm):
+            """
+            Provides `update_to(n)` which uses `tqdm.update(delta_n)`.
+            Inspired by the example in https://github.com/tqdm/tqdm.
+
+            """
+
+            def update_to(self, b: int = 1, bsize: int = 1, tsize: Optional[int] = None):
+                """
+                b: number of blocks transferred so far, default: 1.
+                bsize: size of each block (in tqdm units), default: 1.
+                tsize: total size (in tqdm units). if None, remains unchanged.
+
+                """
+                if tsize is not None:
+                    self.total = tsize
+                self.update(b * bsize - self.n)  # will also set self.n = b * bsize
 
         try:
-            urlretrieve(url, filepath, reporthook=_process_hook)
+            if has_tqdm:
+                with TqdmUpTo(
+                    unit="B",
+                    unit_scale=True,
+                    unit_divisor=1024,
+                    miniters=1,
+                    desc=filepath.split(os.sep)[-1],
+                ) as t:
+                    urlretrieve(url, filepath, reporthook=t.update_to)
+            else:
+                warnings.warn("tqdm is not installed, will not show the downloading progress bar.")
+                urlretrieve(url, filepath)
             print(f"\ndownloaded file: {filepath}.")
         except (URLError, HTTPError, ContentTooShortError, IOError) as e:
             print(f"download failed from {url} to {filepath}.")
