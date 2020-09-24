@@ -18,7 +18,7 @@ import time
 import warnings
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -314,13 +314,14 @@ class CacheDataset(Dataset):
             item = apply_transform(_transform, item)
         return item
 
-    def _load_cache_item_thread(self, args: Tuple[int, Sequence[Callable], Any, Optional[tqdm]]) -> None:
+    def _load_cache_item_thread(self, args: Any) -> None:
         """
         Args:
             args: tuple with contents (i, item, transforms, pbar).
                 i: the index to load the cached item to.
                 item: input item to load and transform to generate dataset for model.
                 transforms: transforms to execute operations on input item.
+                pbar: tqdm progress bar
         """
         i, item, transforms, pbar = args
         self._cache[i] = self._load_cache_item(item, transforms)
