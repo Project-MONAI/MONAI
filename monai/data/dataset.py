@@ -24,7 +24,9 @@ import torch
 from torch.utils.data import Dataset as _TorchDataset
 
 from monai.transforms import Compose, Randomizable, Transform, apply_transform
-from monai.utils import get_seed, progress_bar
+from monai.utils import get_seed, exact_version, optional_import
+
+tqdm = optional_import("tqdm", "4.49.0", exact_version, "tqdm")
 
 
 class Dataset(_TorchDataset):
@@ -271,18 +273,20 @@ class CacheDataset(Dataset):
         self.cache_num = min(cache_num, int(len(data) * cache_rate), len(data))
         if self.cache_num > 0:
             self._cache = [None] * self.cache_num
+            pbar = tqdm(total=self.cache_num, desc="Load and cache transformed data")
             if num_workers > 0:
                 self._item_processed = 0
                 self._thread_lock = threading.Lock()
                 with ThreadPool(num_workers) as p:
                     p.map(
                         self._load_cache_item_thread,
-                        [(i, data[i], transform.transforms) for i in range(self.cache_num)],
+                        [(i, data[i], transform.transforms, pbar) for i in range(self.cache_num)],
                     )
             else:
                 for i in range(self.cache_num):
                     self._cache[i] = self._load_cache_item(data[i], transform.transforms)
-                    progress_bar(i + 1, self.cache_num, "Load and cache transformed data: ")
+                    pbar.update(1)
+            pbar.close()
 
     def _load_cache_item(self, item: Any, transforms: Sequence[Callable]):
         """
@@ -305,11 +309,10 @@ class CacheDataset(Dataset):
                 item: input item to load and transform to generate dataset for model.
                 transforms: transforms to execute operations on input item.
         """
-        i, item, transforms = args
+        i, item, transforms, pbar = args
         self._cache[i] = self._load_cache_item(item, transforms)
         with self._thread_lock:
-            self._item_processed += 1
-            progress_bar(self._item_processed, self.cache_num, "Load and cache transformed data: ")
+            pbar.update(1)
 
     def __getitem__(self, index):
         if index < self.cache_num:

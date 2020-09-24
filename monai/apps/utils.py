@@ -19,10 +19,10 @@ from typing import Optional
 from urllib.error import ContentTooShortError, HTTPError, URLError
 from urllib.request import Request, urlopen, urlretrieve
 
-from monai.utils import optional_import
+from monai.utils import exact_version, optional_import
 
 gdown, has_gdown = optional_import("gdown", "3.6")
-from tqdm import tqdm
+tqdm = optional_import("tqdm", "4.49.0", exact_version, "tqdm")
 
 
 def check_hash(filepath: str, val: Optional[str] = None, hash_type: str = "md5") -> bool:
@@ -106,7 +106,14 @@ def download_url(url: str, filepath: str, hash_val: Optional[str] = None, hash_t
 
         try:
             file_size = int(urlopen(url).info().get("Content-Length", -1))
-            pbar = tqdm(total=file_size)
+            pbar = tqdm(
+                unit="B",
+                unit_scale=True,
+                unit_divisor=1024,
+                miniters=1,
+                desc=filepath.split(os.sep)[-1],
+                total=file_size,
+            )
 
             while first_byte < file_size:
                 last_byte = first_byte + block_size if first_byte + block_size < file_size else file_size - 1
@@ -116,7 +123,7 @@ def download_url(url: str, filepath: str, hash_val: Optional[str] = None, hash_t
                 data_chunk = urlopen(req, timeout=10).read()
                 with open(tmp_file_path, "ab") as f:
                     f.write(data_chunk)
-                tqdm.update(last_byte)
+                pbar.update(len(data_chunk))
                 first_byte = last_byte + 1
             pbar.close()
         except IOError as e:
@@ -149,7 +156,13 @@ def download_url(url: str, filepath: str, hash_val: Optional[str] = None, hash_t
                 self.update(b * bsize - self.n)  # will also set self.n = b * bsize
 
         try:
-            with TqdmUpTo(unit="B", unit_scale=True, unit_divisor=1024, miniters=1, desc=filepath.split("/")[-1]) as t:
+            with TqdmUpTo(
+                unit="B",
+                unit_scale=True,
+                unit_divisor=1024,
+                miniters=1,
+                desc=filepath.split(os.sep)[-1],
+            ) as t:
                 urlretrieve(url, filepath, reporthook=t.update_to)
             print(f"\ndownloaded file: {filepath}.")
         except (URLError, HTTPError, ContentTooShortError, IOError) as e:
