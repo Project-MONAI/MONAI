@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - 'releases/*'
+      - 629-use-tqdm-progressbar
     tags:
       - '*'
 

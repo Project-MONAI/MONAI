@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - 629-use-tqdm-progressbar
   pull_request:
 
 jobs:
