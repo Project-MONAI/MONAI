@@ -25,7 +25,7 @@ import torch
 from torch.utils.data import Dataset as _TorchDataset
 
 from monai.transforms import Compose, Randomizable, Transform, apply_transform
-from monai.utils import get_seed, exact_version, optional_import
+from monai.utils import exact_version, get_seed, optional_import
 
 tqdm, has_tqdm = optional_import("tqdm", "4.49.0", exact_version, "tqdm")
 

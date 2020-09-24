@@ -14,8 +14,8 @@ import logging
 import os
 import shutil
 import tarfile
-import zipfile
 import warnings
+import zipfile
 from typing import Optional
 from urllib.error import ContentTooShortError, HTTPError, URLError
 from urllib.request import Request, urlopen, urlretrieve
@@ -150,6 +150,7 @@ def download_url(url: str, filepath: str, hash_val: Optional[str] = None, hash_t
             Inspired by the example in https://github.com/tqdm/tqdm.
 
             """
+
             def update_to(self, b: int = 1, bsize: int = 1, tsize: Optional[int] = None):
                 """
                 b: number of blocks transferred so far, default: 1.
