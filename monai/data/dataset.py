@@ -15,6 +15,7 @@ import math
 import sys
 import threading
 import time
+import warnings
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
 from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
@@ -26,7 +27,7 @@ from torch.utils.data import Dataset as _TorchDataset
 from monai.transforms import Compose, Randomizable, Transform, apply_transform
 from monai.utils import get_seed, exact_version, optional_import
 
-tqdm = optional_import("tqdm", "4.49.0", exact_version, "tqdm")
+tqdm, has_tqdm = optional_import("tqdm", "4.49.0", exact_version, "tqdm")
 
 
 class Dataset(_TorchDataset):
@@ -273,7 +274,12 @@ class CacheDataset(Dataset):
         self.cache_num = min(cache_num, int(len(data) * cache_rate), len(data))
         if self.cache_num > 0:
             self._cache = [None] * self.cache_num
-            pbar = tqdm(total=self.cache_num, desc="Load and cache transformed data")
+            if has_tqdm:
+                pbar = tqdm(total=self.cache_num, desc="Load and cache transformed data")
+            else:
+                warnings.warn("tqdm is not installed, will not show the caching progress bar.")
+                pbar = None
+
             if num_workers > 0:
                 self._item_processed = 0
                 self._thread_lock = threading.Lock()
@@ -285,8 +291,10 @@ class CacheDataset(Dataset):
             else:
                 for i in range(self.cache_num):
                     self._cache[i] = self._load_cache_item(data[i], transform.transforms)
-                    pbar.update(1)
-            pbar.close()
+                    if pbar is not None:
+                        pbar.update(1)
+            if pbar is not None:
+                pbar.close()
 
     def _load_cache_item(self, item: Any, transforms: Sequence[Callable]):
         """
@@ -311,8 +319,9 @@ class CacheDataset(Dataset):
         """
         i, item, transforms, pbar = args
         self._cache[i] = self._load_cache_item(item, transforms)
-        with self._thread_lock:
-            pbar.update(1)
+        if pbar is not None:
+            with self._thread_lock:
+                pbar.update(1)
 
     def __getitem__(self, index):
         if index < self.cache_num:
