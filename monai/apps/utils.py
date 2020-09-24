@@ -16,14 +16,20 @@ import shutil
 import tarfile
 import warnings
 import zipfile
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 from urllib.error import ContentTooShortError, HTTPError, URLError
 from urllib.request import Request, urlopen, urlretrieve
 
 from monai.utils import exact_version, optional_import
 
 gdown, has_gdown = optional_import("gdown", "3.6")
-tqdm, has_tqdm = optional_import("tqdm", "4.49.0", exact_version, "tqdm")
+
+if TYPE_CHECKING:
+    from tqdm import tqdm
+
+    has_tqdm = True
+else:
+    tqdm, has_tqdm = optional_import("tqdm", "4.49.0", exact_version, "tqdm")
 
 
 def check_hash(filepath: str, val: Optional[str] = None, hash_type: str = "md5") -> bool:

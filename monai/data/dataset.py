@@ -18,7 +18,7 @@ import time
 import warnings
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -27,7 +27,12 @@ from torch.utils.data import Dataset as _TorchDataset
 from monai.transforms import Compose, Randomizable, Transform, apply_transform
 from monai.utils import exact_version, get_seed, optional_import
 
-tqdm, has_tqdm = optional_import("tqdm", "4.49.0", exact_version, "tqdm")
+if TYPE_CHECKING:
+    from tqdm import tqdm
+
+    has_tqdm = True
+else:
+    tqdm, has_tqdm = optional_import("tqdm", "4.49.0", exact_version, "tqdm")
 
 
 class Dataset(_TorchDataset):
@@ -309,10 +314,10 @@ class CacheDataset(Dataset):
             item = apply_transform(_transform, item)
         return item
 
-    def _load_cache_item_thread(self, args: Tuple[int, Any, Sequence[Callable]]) -> None:
+    def _load_cache_item_thread(self, args: Tuple[int, Sequence[Callable], Any, Optional[tqdm]]) -> None:
         """
         Args:
-            args: tuple with contents (i, item, transforms).
+            args: tuple with contents (i, item, transforms, pbar).
                 i: the index to load the cached item to.
                 item: input item to load and transform to generate dataset for model.
                 transforms: transforms to execute operations on input item.
