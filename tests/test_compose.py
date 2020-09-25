@@ -132,6 +132,7 @@ class TestCompose(unittest.TestCase):
         train_loader = DataLoader(train_ds, num_workers=2)
         out_1 = next(iter(train_loader))
         self.assertAlmostEqual(out_1.cpu().item(), 0.0409280)
+        set_determinism(None)
 
     def test_data_loader_2(self):
         xform_2 = Compose([_RandXform(), _RandXform()])
@@ -155,6 +156,7 @@ class TestCompose(unittest.TestCase):
         train_loader = DataLoader(train_ds, num_workers=2)
         out_1 = next(iter(train_loader))
         self.assertAlmostEqual(out_1.cpu().item(), 0.9892192)
+        set_determinism(None)
 
 
 if __name__ == "__main__":
