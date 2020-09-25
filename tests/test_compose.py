@@ -11,7 +11,18 @@
 
 import unittest
 
+from monai.data import DataLoader, Dataset
 from monai.transforms import AddChannel, Compose, Randomizable
+from monai.utils import set_determinism
+
+
+class _RandXform(Randomizable):
+    def randomize(self):
+        self.val = self.R.random_sample()
+
+    def __call__(self, __unused):
+        self.randomize()
+        return self.val
 
 
 class TestCompose(unittest.TestCase):
@@ -98,6 +109,52 @@ class TestCompose(unittest.TestCase):
         transforms = Compose([abs, AddChannel(), round])
         with self.assertRaisesRegex(Exception, "AddChannel"):
             transforms(42.1)
+
+    def test_data_loader(self):
+        xform_1 = Compose([_RandXform()])
+        train_ds = Dataset([1], transform=xform_1)
+
+        xform_1.set_random_state(123)
+        out_1 = train_ds[0]
+        self.assertAlmostEqual(out_1, 0.2045649)
+
+        xform_1.set_random_state(123)
+        train_loader = DataLoader(train_ds, num_workers=0)
+        out_1 = next(iter(train_loader))
+        self.assertAlmostEqual(out_1.cpu().item(), 0.2045649)
+
+        set_determinism(seed=123)
+        train_loader = DataLoader(train_ds, num_workers=1)
+        out_1 = next(iter(train_loader))
+        self.assertAlmostEqual(out_1.cpu().item(), 0.0409280)
+
+        set_determinism(seed=123)
+        train_loader = DataLoader(train_ds, num_workers=2)
+        out_1 = next(iter(train_loader))
+        self.assertAlmostEqual(out_1.cpu().item(), 0.0409280)
+
+    def test_data_loader_2(self):
+        xform_2 = Compose([_RandXform(), _RandXform()])
+        train_ds = Dataset([1], transform=xform_2)
+
+        xform_2.set_random_state(123)
+        out_2 = train_ds[0]
+        self.assertAlmostEqual(out_2, 0.4092510)
+
+        xform_2.set_random_state(123)
+        train_loader = DataLoader(train_ds, num_workers=0)
+        out_2 = next(iter(train_loader))
+        self.assertAlmostEqual(out_2.cpu().item(), 0.4092510)
+
+        set_determinism(seed=123)
+        train_loader = DataLoader(train_ds, num_workers=1)
+        out_2 = next(iter(train_loader))
+        self.assertAlmostEqual(out_2.cpu().item(), 0.9892192)
+
+        set_determinism(seed=123)
+        train_loader = DataLoader(train_ds, num_workers=2)
+        out_1 = next(iter(train_loader))
+        self.assertAlmostEqual(out_1.cpu().item(), 0.9892192)
 
 
 if __name__ == "__main__":
