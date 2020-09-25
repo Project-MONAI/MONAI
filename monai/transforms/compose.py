@@ -209,10 +209,11 @@ class Compose(Randomizable):
         self.set_random_state(seed=get_seed())
 
     def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None) -> "Compose":
+        super().set_random_state(seed=seed, state=state)
         for _transform in self.transforms:
             if not isinstance(_transform, Randomizable):
                 continue
-            _transform.set_random_state(seed, state)
+            _transform.set_random_state(seed=self.R.randint(low=0, high=2 ** 32 - 1))
         return self
 
     def randomize(self, data: Optional[Any] = None) -> None:
