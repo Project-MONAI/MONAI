@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - improve_compose_random_seed
   pull_request:
 
 jobs:
