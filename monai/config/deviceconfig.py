@@ -10,8 +10,8 @@
 # limitations under the License.
 
 import os
-import sys
 import platform
+import sys
 from collections import OrderedDict
 
 import numpy as np
