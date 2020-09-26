@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - 'releases/*'
-      - improve_compose_random_seed
     tags:
       - '*'
 

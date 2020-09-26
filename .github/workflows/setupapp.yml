@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - master
-      - improve_compose_random_seed
 
 jobs:
   # caching of these jobs:
