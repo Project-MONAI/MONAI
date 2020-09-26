@@ -265,7 +265,7 @@ class IntegrationSegmentation3D(unittest.TestCase):
             )
             repeated[i].extend(losses)
             print("best metric", best_metric)
-            np.testing.assert_allclose(best_metric, 0.9278079837560653, rtol=1e-3)
+            np.testing.assert_allclose(best_metric, 0.9278079837560653, rtol=1e-2)
             repeated[i].append(best_metric)
             np.testing.assert_allclose(best_metric_epoch, 6)
             self.assertTrue(len(glob(os.path.join(self.data_dir, "runs"))) > 0)
@@ -276,7 +276,7 @@ class IntegrationSegmentation3D(unittest.TestCase):
 
             # check inference properties
             print("infer metric", infer_metric)
-            np.testing.assert_allclose(infer_metric, 0.9291245058178902, rtol=1e-3)
+            np.testing.assert_allclose(infer_metric, 0.9291245058178902, rtol=1e-2)
             repeated[i].append(infer_metric)
             output_files = sorted(glob(os.path.join(self.data_dir, "output", "img*", "*.nii.gz")))
             sums = [
