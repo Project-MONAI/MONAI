@@ -20,6 +20,8 @@ import numpy as np
 import torch
 
 _seed = None
+_flag_deterministic = torch.backends.cudnn.deterministic
+_flag_cudnn_benchmark = torch.backends.cudnn.benchmark
 
 
 def zip_with(op, *vals, mapfunc=map):
@@ -217,8 +219,9 @@ def set_determinism(
     if seed is not None:
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
-    else:
-        torch.backends.cudnn.deterministic = False
+    else:  # restore the original flags
+        torch.backends.cudnn.deterministic = _flag_deterministic
+        torch.backends.cudnn.benchmark = _flag_cudnn_benchmark
 
 
 def list_to_dict(items):

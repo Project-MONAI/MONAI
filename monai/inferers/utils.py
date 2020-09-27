@@ -25,6 +25,7 @@ def sliding_window_inference(
     predictor: Callable[[torch.Tensor], torch.Tensor],
     overlap: float = 0.25,
     mode: Union[BlendMode, str] = BlendMode.CONSTANT,
+    sigma_scale: Union[Sequence[float], float] = 0.125,
     padding_mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
     cval: float = 0.0,
     device: Optional[torch.device] = None,
@@ -53,8 +54,12 @@ def sliding_window_inference(
             - ``"constant``": gives equal weight to all predictions.
             - ``"gaussian``": gives less weight to predictions on edges of windows.
 
+        sigma_scale: the standard deviation coefficient of the Gaussian window when `mode` is ``"gaussian"``.
+            Default: 0.125. Actual window sigma is ``sigma_scale`` * ``dim_size``.
+            When sigma_scale is a sequence of floats, the values denote sigma_scale at the corresponding
+            spatial dimensions.
         padding_mode: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}
-            Padding mode when ``roi_size`` is larger than inputs. Defaults to ``"constant"``
+            Padding mode for ``inputs``, when ``roi_size`` is larger than inputs. Defaults to ``"constant"``
             See also: https://pytorch.org/docs/stable/nn.functional.html#pad
         cval: fill value for 'constant' padding mode. Default: 0
         device: device running the concatenation of the windows.
@@ -123,7 +128,9 @@ def sliding_window_inference(
     output_shape = [batch_size, output_classes] + list(image_size)
 
     # Create importance map
-    importance_map = compute_importance_map(get_valid_patch_size(image_size, roi_size), mode=mode, device=device)
+    importance_map = compute_importance_map(
+        get_valid_patch_size(image_size, roi_size), mode=mode, sigma_scale=sigma_scale, device=device
+    )
 
     # allocate memory to store the full output and the count for overlapping parts
     output_image = torch.zeros(output_shape, dtype=torch.float32, device=device)

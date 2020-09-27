@@ -24,12 +24,12 @@ TEST_CASES = [
     ],
     [
         {"num_control_points": 5, "prob": 0.9},
-        {"img": np.arange(8).reshape((1, 2, 2, 2))},
+        {"img": np.arange(8).reshape((1, 2, 2, 2)).astype(np.float32)},
         np.array([[[[0.0, 0.57227867], [1.1391707, 1.68990281]], [[2.75833219, 4.34445884], [5.70913743, 7.0]]]]),
     ],
     [
         {"num_control_points": (5, 20), "prob": 0.9},
-        {"img": np.arange(8).reshape((1, 2, 2, 2))},
+        {"img": np.arange(8).reshape((1, 2, 2, 2)).astype(np.float32)},
         np.array([[[[0.0, 1.17472492], [2.21553091, 2.88292011]], [[3.98407301, 5.01302123], [6.09275004, 7.0]]]]),
     ],
 ]

@@ -15,16 +15,24 @@ import math
 import sys
 import threading
 import time
+import warnings
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence, Union
 
 import numpy as np
 import torch
 from torch.utils.data import Dataset as _TorchDataset
 
 from monai.transforms import Compose, Randomizable, Transform, apply_transform
-from monai.utils import get_seed, progress_bar
+from monai.utils import get_seed, min_version, optional_import
+
+if TYPE_CHECKING:
+    from tqdm import tqdm
+
+    has_tqdm = True
+else:
+    tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
 
 
 class Dataset(_TorchDataset):
@@ -271,18 +279,27 @@ class CacheDataset(Dataset):
         self.cache_num = min(cache_num, int(len(data) * cache_rate), len(data))
         if self.cache_num > 0:
             self._cache = [None] * self.cache_num
+            if has_tqdm:
+                pbar = tqdm(total=self.cache_num, desc="Load and cache transformed data")
+            else:
+                warnings.warn("tqdm is not installed, will not show the caching progress bar.")
+                pbar = None
+
             if num_workers > 0:
                 self._item_processed = 0
                 self._thread_lock = threading.Lock()
                 with ThreadPool(num_workers) as p:
                     p.map(
                         self._load_cache_item_thread,
-                        [(i, data[i], transform.transforms) for i in range(self.cache_num)],
+                        [(i, data[i], transform.transforms, pbar) for i in range(self.cache_num)],
                     )
             else:
                 for i in range(self.cache_num):
                     self._cache[i] = self._load_cache_item(data[i], transform.transforms)
-                    progress_bar(i + 1, self.cache_num, "Load and cache transformed data: ")
+                    if pbar is not None:
+                        pbar.update(1)
+            if pbar is not None:
+                pbar.close()
 
     def _load_cache_item(self, item: Any, transforms: Sequence[Callable]):
         """
@@ -297,19 +314,20 @@ class CacheDataset(Dataset):
             item = apply_transform(_transform, item)
         return item
 
-    def _load_cache_item_thread(self, args: Tuple[int, Any, Sequence[Callable]]) -> None:
+    def _load_cache_item_thread(self, args: Any) -> None:
         """
         Args:
-            args: tuple with contents (i, item, transforms).
+            args: tuple with contents (i, item, transforms, pbar).
                 i: the index to load the cached item to.
                 item: input item to load and transform to generate dataset for model.
                 transforms: transforms to execute operations on input item.
+                pbar: tqdm progress bar
         """
-        i, item, transforms = args
+        i, item, transforms, pbar = args
         self._cache[i] = self._load_cache_item(item, transforms)
-        with self._thread_lock:
-            self._item_processed += 1
-            progress_bar(self._item_processed, self.cache_num, "Load and cache transformed data: ")
+        if pbar is not None:
+            with self._thread_lock:
+                pbar.update(1)
 
     def __getitem__(self, index):
         if index < self.cache_num:

@@ -698,4 +698,4 @@ class RandHistogramShift(Randomizable, Transform):
         img_min, img_max = img.min(), img.max()
         reference_control_points_scaled = self.reference_control_points * (img_max - img_min) + img_min
         floating_control_points_scaled = self.floating_control_points * (img_max - img_min) + img_min
-        return np.interp(img, reference_control_points_scaled, floating_control_points_scaled)
+        return np.interp(img, reference_control_points_scaled, floating_control_points_scaled).astype(img.dtype)
