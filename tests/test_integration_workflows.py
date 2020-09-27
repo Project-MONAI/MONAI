@@ -265,7 +265,7 @@ class IntegrationWorkflows(unittest.TestCase):
                 np.testing.assert_allclose(best_metric, 0.9250373750925064, rtol=1e-3)
             repeated[i].append(best_metric)
 
-            model_file = sorted(glob(os.path.join(self.data_dir, "net_key_metric*.pth")))[-1]
+            model_file = sorted(glob(os.path.join(self.data_dir, "net_key_metric*.pt")))[-1]
             infer_metric = run_inference_test(self.data_dir, model_file, device=self.device, amp=(i == 2))
             print("infer metric", infer_metric)
             # check inference properties
