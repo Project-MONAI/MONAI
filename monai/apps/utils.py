@@ -16,10 +16,11 @@ import shutil
 import tarfile
 import warnings
 import zipfile
-import numpy as np
 from typing import TYPE_CHECKING, Optional
 from urllib.error import ContentTooShortError, HTTPError, URLError
 from urllib.request import Request, urlopen, urlretrieve
+
+import numpy as np
 
 from monai.utils import min_version, optional_import
 
@@ -262,7 +263,7 @@ def split_dataset(nfolds: int, length: int):
 
     """
     sizes = np.full(nfolds, length // nfolds, dtype=np.int)
-    sizes[:length % nfolds] += 1
+    sizes[: length % nfolds] += 1
     indices = list()
     pos = 0
     for size in sizes:

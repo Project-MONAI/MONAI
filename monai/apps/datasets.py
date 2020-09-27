@@ -12,6 +12,7 @@
 import os
 import sys
 from typing import Any, Callable, Dict, List, Optional, Sequence, Union
+
 import numpy as np
 
 from monai.apps.utils import download_and_extract, split_dataset
@@ -288,7 +289,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
             indices = self.randomize(indices)
             fold_indices = split_dataset(int(1 / self.val_frac), length)
             if self.section == "training":
-                indices = indices[fold_indices[0][1]:]
+                indices = indices[fold_indices[0][1] :]
             else:
-                indices = indices[:fold_indices[0][1]]
+                indices = indices[: fold_indices[0][1]]
             return [datalist[i] for i in indices]
