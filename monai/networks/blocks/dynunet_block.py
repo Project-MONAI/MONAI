@@ -24,7 +24,6 @@ class UnetResBlock(nn.Module):
     A skip-connection based module that can be used for DynUNet, based on:
     `Automated Design of Deep Learning Methods for Biomedical Image Segmentation <https://arxiv.org/abs/1904.08128>`_.
     `nnU-Net: Self-adapting Framework for U-Net-Based Medical Image Segmentation <https://arxiv.org/abs/1809.10486>`_.
-
     Args:
         spatial_dims: number of spatial dimensions.
         in_channels: number of input channels.
@@ -163,6 +162,7 @@ class UnetUpBlock(nn.Module):
         out_channels: number of output channels.
         kernel_size: convolution kernel size.
         stride: convolution stride.
+        upsamle_kernel_size: convolution kernel size for transposed convolution layers.
         norm_name: [``"batch"``, ``"instance"``, ``"group"``]
             feature normalization type and arguments. In this module, if using ``"group"``,
             `in_channels` should be divisible by 16 (default value for ``num_groups``).
@@ -175,22 +175,23 @@ class UnetUpBlock(nn.Module):
         out_channels: int,
         kernel_size: Union[Sequence[int], int],
         stride: Union[Sequence[int], int],
+        upsamle_kernel_size: Union[Sequence[int], int],
         norm_name: str,
     ):
         super(UnetUpBlock, self).__init__()
-        self.stride = stride
+        upsample_stride = upsamle_kernel_size
         self.transp_conv = get_conv_layer(
             spatial_dims,
             in_channels,
-            in_channels,
-            kernel_size=kernel_size,
-            stride=stride,
+            out_channels,
+            kernel_size=upsamle_kernel_size,
+            stride=upsample_stride,
             conv_only=True,
             is_transposed=True,
         )
         self.conv_block = UnetBasicBlock(
             spatial_dims,
-            in_channels + out_channels,
+            out_channels + out_channels,
             out_channels,
             kernel_size=kernel_size,
             stride=1,
@@ -251,7 +252,6 @@ def get_conv_layer(
     output_padding = None
     if is_transposed:
         output_padding = get_output_padding(kernel_size, stride, padding)
-
     return Convolution(
         spatial_dims,
         in_channels,
