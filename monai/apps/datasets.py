@@ -12,8 +12,9 @@
 import os
 import sys
 from typing import Any, Callable, Dict, List, Optional, Sequence, Union
+import numpy as np
 
-from monai.apps.utils import download_and_extract
+from monai.apps.utils import download_and_extract, split_dataset
 from monai.data import CacheDataset, load_decathlon_datalist, load_decathlon_properties
 from monai.transforms import LoadNiftid, LoadPNGd, Randomizable
 from monai.utils import ensure_tuple
@@ -260,7 +261,8 @@ class DecathlonDataset(Randomizable, CacheDataset):
         super().__init__(data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers)
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        self.rann = self.R.random()
+        self.R.shuffle(data)
+        return data
 
     def get_properties(self, keys: Optional[Union[Sequence[str], str]] = None):
         """
@@ -281,14 +283,12 @@ class DecathlonDataset(Randomizable, CacheDataset):
         if section == "test":
             return datalist
         else:
-            data = list()
-            for i in datalist:
-                self.randomize()
-                if self.section == "training":
-                    if self.rann < self.val_frac:
-                        continue
-                else:
-                    if self.rann >= self.val_frac:
-                        continue
-                data.append(i)
-            return data
+            length = len(datalist)
+            indices = np.arange(length)
+            indices = self.randomize(indices)
+            fold_indices = split_dataset(int(1 / self.val_frac), length)
+            if self.section == "training":
+                indices = indices[fold_indices[0][1]:]
+            else:
+                indices = indices[:fold_indices[0][1]]
+            return [datalist[i] for i in indices]

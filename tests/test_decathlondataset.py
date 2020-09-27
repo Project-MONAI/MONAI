@@ -37,7 +37,7 @@ class TestDecathlonDataset(unittest.TestCase):
             self.assertTrue("image" in dataset[0])
             self.assertTrue("label" in dataset[0])
             self.assertTrue("image_meta_dict" in dataset[0])
-            self.assertTupleEqual(dataset[0]["image"].shape, (1, 33, 47, 34))
+            self.assertTupleEqual(dataset[0]["image"].shape, (1, 36, 47, 44))
 
         try:  # will start downloading if testing_dir doesn't have the Decathlon files
             data = DecathlonDataset(
@@ -60,7 +60,7 @@ class TestDecathlonDataset(unittest.TestCase):
         )
         _test_dataset(data)
         data = DecathlonDataset(root_dir=testing_dir, task="Task04_Hippocampus", section="validation", download=False)
-        self.assertTupleEqual(data[0]["image"].shape, (33, 47, 34))
+        self.assertTupleEqual(data[0]["image"].shape, (36, 47, 44))
 
         data = DecathlonDataset(
             root_dir=testing_dir,

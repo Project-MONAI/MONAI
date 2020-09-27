@@ -16,6 +16,7 @@ import shutil
 import tarfile
 import warnings
 import zipfile
+import numpy as np
 from typing import TYPE_CHECKING, Optional
 from urllib.error import ContentTooShortError, HTTPError, URLError
 from urllib.request import Request, urlopen, urlretrieve
@@ -249,3 +250,22 @@ def download_and_extract(
     """
     download_url(url=url, filepath=filepath, hash_val=hash_val, hash_type=hash_type)
     extractall(filepath=filepath, output_dir=output_dir, hash_val=hash_val, hash_type=hash_type)
+
+
+def split_dataset(nfolds: int, length: int):
+    """
+    Split dataset into N folds, return a list of indices for every fold.
+
+    Args:
+        nfolds: expected fold number.
+        length: dataset size in total.
+
+    """
+    sizes = np.full(nfolds, length // nfolds, dtype=np.int)
+    sizes[:length % nfolds] += 1
+    indices = list()
+    pos = 0
+    for size in sizes:
+        indices.append([pos, pos + size])
+        pos += size
+    return indices
