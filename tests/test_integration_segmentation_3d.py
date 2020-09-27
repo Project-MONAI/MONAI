@@ -243,7 +243,7 @@ class IntegrationSegmentation3D(unittest.TestCase):
     def test_training(self):
         repeated = []
         for i in range(3):
-            torch.manual_seed(0)
+            set_determinism(0)
 
             repeated.append([])
             losses, best_metric, best_metric_epoch = run_training_test(
@@ -254,20 +254,20 @@ class IntegrationSegmentation3D(unittest.TestCase):
             np.testing.assert_allclose(
                 losses,
                 [
-                    0.5469526141881943,
-                    0.48241865634918213,
-                    0.4494174599647522,
-                    0.44529161751270296,
-                    0.4375701665878296,
-                    0.4191529631614685,
+                    0.5367575764656067,
+                    0.47809085845947263,
+                    0.4581485688686371,
+                    0.44621670842170713,
+                    0.42341905236244204,
+                    0.425730699300766,
                 ],
                 rtol=1e-3,
             )
             repeated[i].extend(losses)
             print("best metric", best_metric)
-            np.testing.assert_allclose(best_metric, 0.9310397356748581, rtol=1e-3)
+            np.testing.assert_allclose(best_metric, 0.9293890595436096, rtol=1e-3)
             repeated[i].append(best_metric)
-            np.testing.assert_allclose(best_metric_epoch, 6)
+            np.testing.assert_allclose(best_metric_epoch, 4)
             self.assertTrue(len(glob(os.path.join(self.data_dir, "runs"))) > 0)
             model_file = os.path.join(self.data_dir, "best_metric_model.pth")
             self.assertTrue(os.path.exists(model_file))
@@ -276,54 +276,55 @@ class IntegrationSegmentation3D(unittest.TestCase):
 
             # check inference properties
             print("infer metric", infer_metric)
-            np.testing.assert_allclose(infer_metric, 0.9311131909489632, rtol=1e-3)
+            np.testing.assert_allclose(infer_metric, 0.9297081649303436, rtol=1e-3)
             repeated[i].append(infer_metric)
             output_files = sorted(glob(os.path.join(self.data_dir, "output", "img*", "*.nii.gz")))
             sums = [
-                0.1424753292588007,
-                0.1526987837377587,
-                0.1522260782081298,
-                0.14019321331952597,
-                0.1889864339514267,
-                0.1701282966371258,
-                0.14722480298056123,
-                0.16880386820665885,
-                0.15761801809458714,
-                0.17966934735315532,
-                0.16294827907125564,
-                0.16845101446685762,
-                0.1449689105633501,
-                0.11433514172116171,
-                0.16221140044365004,
-                0.20167776688188802,
-                0.17651101148068069,
-                0.09850290784203589,
-                0.19442294509584152,
-                0.20366986799489217,
-                0.19687920603828438,
-                0.20891339578342968,
-                0.16267399855187073,
-                0.13240519812867665,
-                0.14902747106846712,
-                0.14290015447893328,
-                0.23212359931942977,
-                0.16157145267490547,
-                0.14873448049959515,
-                0.10324549379352314,
-                0.11922617331906066,
-                0.13010115069670078,
-                0.1142811082302379,
-                0.15300297514849476,
-                0.1636881807980574,
-                0.1943394302416328,
-                0.22336282196225676,
-                0.1813985200502387,
-                0.19082037882616065,
-                0.07541222674515398,
+                0.14304920343082841,
+                0.15323288852601852,
+                0.15267650846045258,
+                0.14085394087675793,
+                0.18867044046731696,
+                0.16997677838377798,
+                0.14794903698774653,
+                0.1690904946482894,
+                0.15806344055607233,
+                0.1802389814209031,
+                0.16352084957856114,
+                0.16851541867637987,
+                0.14546316232984807,
+                0.11589256260120152,
+                0.16256606426223563,
+                0.2012071063051163,
+                0.17621048357003952,
+                0.10047407466531516,
+                0.1938776118694348,
+                0.20311166069223835,
+                0.19631885591303244,
+                0.20827661563158223,
+                0.1631536775482103,
+                0.13299366201599772,
+                0.1492290128864453,
+                0.14382656412678615,
+                0.23054621151436466,
+                0.16156232002811247,
+                0.14915278374273472,
+                0.10447263319408617,
+                0.11980298421600769,
+                0.13129987779731184,
+                0.11573474991965434,
+                0.15314097350477454,
+                0.16369088750713434,
+                0.19396258924030704,
+                0.2220313012642987,
+                0.18124990395382162,
+                0.1905252559383788,
+                0.07755734078049704,
             ]
+            print([np.mean(nib.load(output).get_fdata()) for output in output_files])
             for (output, s) in zip(output_files, sums):
                 ave = np.mean(nib.load(output).get_fdata())
-                np.testing.assert_allclose(ave, s, rtol=1e-2)
+                np.testing.assert_allclose(ave, s, atol=1e-2)
                 repeated[i].append(ave)
         np.testing.assert_allclose(repeated[0], repeated[1])
         np.testing.assert_allclose(repeated[0], repeated[2])

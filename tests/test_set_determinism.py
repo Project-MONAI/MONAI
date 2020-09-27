@@ -20,6 +20,7 @@ from monai.utils import get_seed, set_determinism
 class TestSetDeterminism(unittest.TestCase):
     def test_values(self):
         # check system default flags
+        set_determinism(None)
         self.assertTrue(not torch.backends.cudnn.deterministic)
         self.assertTrue(get_seed() is None)
         # set default seed
@@ -45,6 +46,7 @@ class TestSetDeterminism(unittest.TestCase):
         self.assertEqual(b, d)
         self.assertTrue(torch.backends.cudnn.deterministic)
         self.assertTrue(not torch.backends.cudnn.benchmark)
+        set_determinism(seed=None)
 
 
 if __name__ == "__main__":
