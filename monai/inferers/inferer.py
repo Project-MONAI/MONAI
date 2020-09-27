@@ -15,7 +15,7 @@ from typing import Sequence, Union
 import torch
 
 from monai.inferers.utils import sliding_window_inference
-from monai.utils import BlendMode
+from monai.utils import BlendMode, PytorchPadMode
 
 
 class Inferer(ABC):
@@ -79,9 +79,19 @@ class SlidingWindowInferer(Inferer):
             - ``"constant``": gives equal weight to all predictions.
             - ``"gaussian``": gives less weight to predictions on edges of windows.
 
+        sigma_scale: the standard deviation coefficient of the Gaussian window when `mode` is ``"gaussian"``.
+            Default: 0.125. Actual window sigma is ``sigma_scale`` * ``dim_size``.
+            When sigma_scale is a sequence of floats, the values denote sigma_scale at the corresponding
+            spatial dimensions.
+        padding_mode: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}
+            Padding mode when ``roi_size`` is larger than inputs. Defaults to ``"constant"``
+            See also: https://pytorch.org/docs/stable/nn.functional.html#pad
+        cval: fill value for 'constant' padding mode. Default: 0
+
+
     Note:
-        the "sw_batch_size" here is to run a batch of window slices of 1 input image,
-        not batch size of input images.
+        ``sw_batch_size`` denotes the max number of windows per network inference iteration,
+        not the batch size of inputs.
 
     """
 
@@ -91,12 +101,18 @@ class SlidingWindowInferer(Inferer):
         sw_batch_size: int = 1,
         overlap: float = 0.25,
         mode: Union[BlendMode, str] = BlendMode.CONSTANT,
+        sigma_scale: Union[Sequence[float], float] = 0.125,
+        padding_mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
+        cval: float = 0.0,
     ) -> None:
         Inferer.__init__(self)
         self.roi_size = roi_size
         self.sw_batch_size = sw_batch_size
         self.overlap = overlap
         self.mode: BlendMode = BlendMode(mode)
+        self.sigma_scale = sigma_scale
+        self.padding_mode = padding_mode
+        self.cval = cval
 
     def __call__(self, inputs: torch.Tensor, network: torch.nn.Module) -> torch.Tensor:
         """
@@ -107,4 +123,14 @@ class SlidingWindowInferer(Inferer):
             network: target model to execute inference.
 
         """
-        return sliding_window_inference(inputs, self.roi_size, self.sw_batch_size, network, self.overlap, self.mode)
+        return sliding_window_inference(
+            inputs=inputs,
+            roi_size=self.roi_size,
+            sw_batch_size=self.sw_batch_size,
+            predictor=network,
+            overlap=self.overlap,
+            mode=self.mode,
+            sigma_scale=self.sigma_scale,
+            padding_mode=self.padding_mode,
+            cval=self.cval,
+        )

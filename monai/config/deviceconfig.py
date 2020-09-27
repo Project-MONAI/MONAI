@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import os
+import platform
 import sys
 from collections import OrderedDict
 
@@ -82,6 +83,14 @@ try:
 except (ImportError, AttributeError):
     itk_version = "NOT INSTALLED or UNKNOWN VERSION."
 
+try:
+    import tqdm
+
+    tqdm_version = tqdm.__version__
+    del tqdm
+except (ImportError, AttributeError):
+    tqdm_version = "NOT INSTALLED or UNKNOWN VERSION."
+
 
 def get_config_values():
     """
@@ -91,6 +100,7 @@ def get_config_values():
 
     output["MONAI"] = monai.__version__
     output["Python"] = sys.version.replace("\n", " ")
+    output["OS"] = f"{platform.system()} ({platform.release()})"
     output["Numpy"] = np.version.full_version
     output["Pytorch"] = torch.__version__
 
@@ -111,6 +121,7 @@ def get_optional_config_values():
     output["gdown"] = gdown_version
     output["TorchVision"] = torchvision_version
     output["ITK"] = itk_version
+    output["tqdm"] = tqdm_version
 
     return output
 

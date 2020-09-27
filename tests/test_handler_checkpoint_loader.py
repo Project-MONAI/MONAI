@@ -83,7 +83,7 @@ class TestHandlerCheckpointLoader(unittest.TestCase):
             engine = Engine(lambda e, b: None)
             CheckpointLoader(load_path=path, load_dict={"net": net2}).attach(engine)
             engine.run([0] * 8, max_epochs=1)
-            torch.testing.assert_allclose(net2.state_dict()["module.weight"], 0.1)
+            torch.testing.assert_allclose(net2.state_dict()["module.weight"].cpu(), 0.1)
 
 
 if __name__ == "__main__":

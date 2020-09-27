@@ -120,6 +120,8 @@ jobs:
         BUILD_MONAI=1 pip install git+https://github.com/Project-MONAI/MONAI#egg=MONAI
         python -c 'import monai; monai.config.print_config()'
     - uses: actions/checkout@v2
+      with:
+        ref: master
     - name: Quick test installed
       run: |
         cd $GITHUB_WORKSPACE
