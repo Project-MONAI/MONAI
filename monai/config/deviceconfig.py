@@ -82,6 +82,14 @@ try:
 except (ImportError, AttributeError):
     itk_version = "NOT INSTALLED or UNKNOWN VERSION."
 
+try:
+    import tqdm
+
+    tqdm_version = tqdm.__version__
+    del tqdm
+except (ImportError, AttributeError):
+    tqdm_version = "NOT INSTALLED or UNKNOWN VERSION."
+
 
 def get_config_values():
     """
@@ -111,6 +119,7 @@ def get_optional_config_values():
     output["gdown"] = gdown_version
     output["TorchVision"] = torchvision_version
     output["ITK"] = itk_version
+    output["tqdm"] = tqdm_version
 
     return output
 
