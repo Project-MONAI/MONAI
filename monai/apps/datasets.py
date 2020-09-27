@@ -261,9 +261,8 @@ class DecathlonDataset(Randomizable, CacheDataset):
         self._properties = load_decathlon_properties(os.path.join(dataset_dir, "dataset.json"), property_keys)
         super().__init__(data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers)
 
-    def randomize(self, data: Optional[Any] = None) -> None:
+    def randomize(self, data: List[int]) -> None:
         self.R.shuffle(data)
-        return data
 
     def get_properties(self, keys: Optional[Union[Sequence[str], str]] = None):
         """
@@ -283,13 +282,13 @@ class DecathlonDataset(Randomizable, CacheDataset):
         datalist = load_decathlon_datalist(os.path.join(dataset_dir, "dataset.json"), True, section)
         return self._split_datalist(datalist)
 
-    def _split_datalist(self, datalist):
+    def _split_datalist(self, datalist: List[Dict]) -> List[Dict]:
         if self.section == "test":
             return datalist
         else:
             length = len(datalist)
             indices = np.arange(length)
-            indices = self.randomize(indices)
+            self.randomize(indices)
             fold_indices = split_dataset(int(1 / self.val_frac), length)
             if self.section == "training":
                 indices = indices[fold_indices[0][1] :]
