@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import os
+import platform
 import sys
 from collections import OrderedDict
 
@@ -99,6 +100,7 @@ def get_config_values():
 
     output["MONAI"] = monai.__version__
     output["Python"] = sys.version.replace("\n", " ")
+    output["OS"] = f"{platform.system()} ({platform.release()})"
     output["Numpy"] = np.version.full_version
     output["Pytorch"] = torch.__version__
 
