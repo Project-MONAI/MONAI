@@ -194,6 +194,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         print(data[0]["image"], data[0]["label"])
 
     Example of 5 folds cross validation training::
+
         # use same random seed for all the datasets
         dataset_fold0_train = DecathlonDataset(root_dir="./", task="Task09_Spleen", section="training",
             nsplts=5, fold=0, seed=12345, download=True)
