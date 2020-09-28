@@ -22,7 +22,14 @@ import numpy as np
 from monai.config import IndexSelection, KeysCollection
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.compose import MapTransform, Randomizable
-from monai.transforms.croppad.array import BorderPad, CenterSpatialCrop, DivisiblePad, SpatialCrop, SpatialPad
+from monai.transforms.croppad.array import (
+    BorderPad,
+    CenterSpatialCrop,
+    DivisiblePad,
+    ResizeWithPadOrCrop,
+    SpatialCrop,
+    SpatialPad,
+)
 from monai.transforms.utils import (
     generate_pos_neg_label_crop_centers,
     generate_spatial_bounding_box,
@@ -461,6 +468,38 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         return results
 
 
+class ResizeWithPadOrCropd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.ResizeWithPadOrCrop`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: monai.transforms.MapTransform
+        spatial_size: the spatial size of output data after padding or crop.
+            If has non-positive values, the corresponding size of input image will be used (no padding).
+        mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
+            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            One of the listed string values or a user supplied function for padding. Defaults to ``"constant"``.
+            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        spatial_size: Union[Sequence[int], int],
+        mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+    ) -> None:
+        super().__init__(keys)
+        self.padcropper = ResizeWithPadOrCrop(spatial_size=spatial_size, mode=mode)
+
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.padcropper(d[key])
+        return d
+
+
 SpatialPadD = SpatialPadDict = SpatialPadd
 BorderPadD = BorderPadDict = BorderPadd
 DivisiblePadD = DivisiblePadDict = DivisiblePadd
@@ -470,3 +509,4 @@ RandSpatialCropD = RandSpatialCropDict = RandSpatialCropd
 RandSpatialCropSamplesD = RandSpatialCropSamplesDict = RandSpatialCropSamplesd
 CropForegroundD = CropForegroundDict = CropForegroundd
 RandCropByPosNegLabelD = RandCropByPosNegLabelDict = RandCropByPosNegLabeld
+ResizeWithPadOrCropD = ResizeWithPadOrCropDict = ResizeWithPadOrCropd
