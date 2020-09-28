@@ -154,7 +154,8 @@ class DecathlonDataset(Randomizable, CacheDataset):
         download: whether to download and extract the Decathlon from resource link, default is False.
             if expected file already exists, skip downloading even set it to True.
             user can manually copy tar file or dataset folder to the root directory.
-        seed: random seed to randomly split `training`, `validation` and `test` datasets, default is 0.
+        seed: random seed to randomly shuffle the datalist before splitting into N folds, default is 0.
+            note to set same seed for all the related datasets(`training` and `validation` sections in all N folds).
         nsplits: number of folds, split the training data into N folds. each fold is then used once as a
             validation while the N - 1 remaining folds form the training set.
             Decathlon data only contains `training` section with labels and `test` section without labels,
@@ -187,10 +188,29 @@ class DecathlonDataset(Randomizable, CacheDataset):
         )
 
         data = DecathlonDataset(
-            root_dir="./", task="Task09_Spleen", transform=transform, section="validation", download=True
+            root_dir="./", task="Task09_Spleen", transform=transform, section="validation", fold=0, download=True
         )
 
         print(data[0]["image"], data[0]["label"])
+
+    Example of 5 folds cross validation training::
+        # use same random seed for all the datasets
+        dataset_fold0_train = DecathlonDataset(root_dir="./", task="Task09_Spleen", section="training",
+            nsplts=5, fold=0, seed=12345, download=True)
+        dataset_fold0_val = DecathlonDataset(root_dir="./", task="Task09_Spleen", section="validation",
+            nsplts=5, fold=0, seed=12345, download=False)
+        # execute training for fold 0 ...
+
+        dataset_fold1_train = DecathlonDataset(root_dir="./", task="Task09_Spleen", section="training",
+            nsplts=5, fold=1, seed=12345, download=False)
+        dataset_fold1_val = DecathlonDataset(root_dir="./", task="Task09_Spleen", section="validation",
+            nsplts=5, fold=1, seed=12345, download=False)
+        # execute training for fold 1 ...
+
+        ...
+
+        dataset_fold4_train = ...
+        # execute training for fold 4 ...
 
     """
 
