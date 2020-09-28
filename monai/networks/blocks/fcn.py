@@ -109,9 +109,13 @@ class FCN(nn.Module):
 
             - ``transpose``, uses transposed convolution layers.
             - ``bilinear``, uses bilinear interpolate.
+        pretrained: If True, returns a model pre-trained on ImageNet
+        progress: If True, displays a progress bar of the download to stderr.
     """
 
-    def __init__(self, out_channels: int = 1, upsample_mode: str = "bilinear"):
+    def __init__(
+        self, out_channels: int = 1, upsample_mode: str = "bilinear", pretrained: bool = True, progress: bool = True
+    ):
         super(FCN, self).__init__()
 
         conv2d_type: Type[nn.Conv2d] = Conv[Conv.CONV, 2]
@@ -119,7 +123,7 @@ class FCN(nn.Module):
         self.upsample_mode = upsample_mode
         self.conv2d_type = conv2d_type
         self.out_channels = out_channels
-        resnet = models.resnet50(pretrained=True)
+        resnet = models.resnet50(pretrained=pretrained, progress=progress)
 
         self.conv1 = resnet.conv1
         self.bn0 = resnet.bn1
@@ -217,10 +221,21 @@ class MCFCN(FCN):
 
             - ``transpose``, uses transposed convolution layers.
             - ``bilinear``, uses bilinear interpolate.
+        pretrained: If True, returns a model pre-trained on ImageNet
+        progress: If True, displays a progress bar of the download to stderr.
     """
 
-    def __init__(self, in_channels: int = 3, out_channels: int = 1, upsample_mode: str = "bilinear"):
-        super(MCFCN, self).__init__(out_channels=out_channels, upsample_mode=upsample_mode)
+    def __init__(
+        self,
+        in_channels: int = 3,
+        out_channels: int = 1,
+        upsample_mode: str = "bilinear",
+        pretrained: bool = True,
+        progress: bool = True,
+    ):
+        super(MCFCN, self).__init__(
+            out_channels=out_channels, upsample_mode=upsample_mode, pretrained=pretrained, progress=progress
+        )
 
         self.init_proj = Convolution(
             dimensions=2,
