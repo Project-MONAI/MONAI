@@ -536,3 +536,42 @@ class RandCropByPosNegLabel(Randomizable, Transform):
                 results.append(cropper(img))
 
         return results
+
+
+class ResizeWithPadOrCrop(Transform):
+    """
+    Resize an image to a target spatial size by either centrally cropping the image or
+    padding it evenly with a user-specified mode.
+    when the dimension is smaller than the target size, do central cropping along that dim.
+    when the dimension is larger than the target size, do symmetric padding along that dim.
+
+    Args:
+        spatial_size: the spatial size of output data after padding or crop.
+            If has non-positive values, the corresponding size of input image will be used (no padding).
+        mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
+            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            One of the listed string values or a user supplied function for padding. Defaults to ``"constant"``.
+            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+
+    """
+
+    def __init__(
+        self,
+        spatial_size: Union[Sequence[int], int],
+        mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+    ):
+        self.padder = SpatialPad(spatial_size=spatial_size, mode=mode)
+        self.cropper = CenterSpatialCrop(roi_size=spatial_size)
+
+    def __call__(self, img: np.ndarray, mode: Optional[Union[NumpyPadMode, str]] = None) -> np.ndarray:
+        """
+        Args:
+            img: data to pad or crop, assuming `img` is channel-first and
+                padding or cropping doesn't apply to the channel dim.
+            mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
+                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                One of the listed string values or a user supplied function for padding.
+                If None, defaults to the ``mode`` in construction.
+                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+        """
+        return self.cropper(self.padder(img, mode=mode))
