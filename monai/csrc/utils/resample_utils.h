@@ -45,11 +45,11 @@ namespace monai {
 // atomicAdd API changed between pytorch 1.4 and 1.5.
 template <typename scalar_t, typename offset_t>
 static __forceinline__ __device__ void gpuAtomicAdd(scalar_t* ptr, offset_t offset, scalar_t value) {
-  // #if MONAI_TORCH_VERSION >= 10500
+#if MONAI_TORCH_VERSION >= 10500
   ::gpuAtomicAdd(ptr + offset, value);
-  // #else
-  //    ::atomicAdd(ptr+offset, value);
-  //#endif
+#else
+  ::atomicAdd(ptr + offset, value);
+#endif
 }
 } // namespace monai
 #else
