@@ -93,6 +93,12 @@ Crop and Pad
     :members:
     :special-members: __call__
 
+`ResizeWithPadOrCrop`
+"""""""""""""""""""""
+.. autoclass:: ResizeWithPadOrCrop
+    :members:
+    :special-members: __call__
+
 Intensity
 ^^^^^^^^^
 
@@ -537,6 +543,12 @@ Crop and Pad (Dict)
 `RandCropByPosNegLabeld`
 """"""""""""""""""""""""
 .. autoclass:: RandCropByPosNegLabeld
+    :members:
+    :special-members: __call__
+
+`ResizeWithPadOrCropd`
+""""""""""""""""""""""
+.. autoclass:: ResizeWithPadOrCropd
     :members:
     :special-members: __call__
 
