@@ -274,7 +274,7 @@ class IntegrationWorkflows(unittest.TestCase):
             else:
                 np.testing.assert_allclose(infer_metric, 0.9217007756233215, rtol=1e-2)
             repeated[i].append(infer_metric)
-            return
+
             output_files = sorted(glob(os.path.join(self.data_dir, "img*", "*.nii.gz")))
             if i == 2:
                 sums = [
