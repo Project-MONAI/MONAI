@@ -59,9 +59,45 @@ class TestDecathlonDataset(unittest.TestCase):
             root_dir=testing_dir, task="Task04_Hippocampus", transform=transform, section="validation", download=False
         )
         _test_dataset(data)
+        # test train / validation for fold 0 of 5 splits
         data = DecathlonDataset(root_dir=testing_dir, task="Task04_Hippocampus", section="validation", download=False)
         self.assertTupleEqual(data[0]["image"].shape, (36, 47, 44))
+        self.assertEqual(len(data), 52)
+        data = DecathlonDataset(root_dir=testing_dir, task="Task04_Hippocampus", section="training", download=False)
+        self.assertTupleEqual(data[0]["image"].shape, (34, 56, 31))
+        self.assertEqual(len(data), 208)
+        # test train / validation for fold 4 of 5 splits
+        data = DecathlonDataset(
+            root_dir=testing_dir,
+            task="Task04_Hippocampus",
+            section="validation",
+            download=False,
+            fold=4,
+        )
+        self.assertTupleEqual(data[0]["image"].shape, (34, 45, 43))
+        self.assertEqual(len(data), 52)
+        data = DecathlonDataset(
+            root_dir=testing_dir,
+            task="Task04_Hippocampus",
+            section="training",
+            download=False,
+            fold=4,
+        )
+        self.assertTupleEqual(data[0]["image"].shape, (36, 47, 44))
+        self.assertEqual(len(data), 208)
+        # test train for 1 split
+        data = DecathlonDataset(
+            root_dir=testing_dir,
+            task="Task04_Hippocampus",
+            section="training",
+            download=False,
+            nsplits=1,
+            fold=0,
+        )
+        self.assertTupleEqual(data[0]["image"].shape, (36, 47, 44))
+        self.assertEqual(len(data), 260)
 
+        # test dataset properties
         data = DecathlonDataset(
             root_dir=testing_dir,
             task="Task04_Hippocampus",

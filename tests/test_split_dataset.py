@@ -15,13 +15,13 @@ from parameterized import parameterized
 
 from monai.apps import split_dataset
 
-TEST_CASE_1 = [{"nfolds": 5, "length": 10}, [[0, 2], [2, 4], [4, 6], [6, 8], [8, 10]]]
+TEST_CASE_1 = [{"nsplits": 5, "length": 10}, [[0, 2], [2, 4], [4, 6], [6, 8], [8, 10]]]
 
-TEST_CASE_2 = [{"nfolds": 5, "length": 13}, [[0, 3], [3, 6], [6, 9], [9, 11], [11, 13]]]
+TEST_CASE_2 = [{"nsplits": 5, "length": 13}, [[0, 3], [3, 6], [6, 9], [9, 11], [11, 13]]]
 
-TEST_CASE_3 = [{"nfolds": 5, "length": 11}, [[0, 3], [3, 5], [5, 7], [7, 9], [9, 11]]]
+TEST_CASE_3 = [{"nsplits": 5, "length": 11}, [[0, 3], [3, 5], [5, 7], [7, 9], [9, 11]]]
 
-TEST_CASE_4 = [{"nfolds": 1, "length": 10}, [[0, 10]]]
+TEST_CASE_4 = [{"nsplits": 1, "length": 10}, [[0, 10]]]
 
 
 class TestSplitDataset(unittest.TestCase):

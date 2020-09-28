@@ -253,17 +253,17 @@ def download_and_extract(
     extractall(filepath=filepath, output_dir=output_dir, hash_val=hash_val, hash_type=hash_type)
 
 
-def split_dataset(nfolds: int, length: int):
+def split_dataset(nsplits: int, length: int):
     """
     Split dataset into N folds, return a list of indices for every fold.
 
     Args:
-        nfolds: expected fold number.
+        nsplits: expected fold number.
         length: dataset size in total.
 
     """
-    sizes = np.full(nfolds, length // nfolds, dtype=np.int)
-    sizes[: length % nfolds] += 1
+    sizes = np.full(nsplits, length // nsplits, dtype=np.int)
+    sizes[: length % nsplits] += 1
     indices = list()
     pos = 0
     for size in sizes:

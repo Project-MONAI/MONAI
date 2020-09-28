@@ -155,9 +155,12 @@ class DecathlonDataset(Randomizable, CacheDataset):
             if expected file already exists, skip downloading even set it to True.
             user can manually copy tar file or dataset folder to the root directory.
         seed: random seed to randomly split `training`, `validation` and `test` datasets, default is 0.
-        val_frac: percentage of of validation fraction from the `training` section, default is 0.2.
+        nsplits: number of folds, split the training data into N folds. each fold is then used once as a
+            validation while the N - 1 remaining folds form the training set.
             Decathlon data only contains `training` section with labels and `test` section without labels,
             so randomly select fraction from the `training` section as the `validation` section.
+            if set `nsplits = 1`, will not split 
+        fold: index of fold for training and validation, default is 0.
         cache_num: number of items to be cached. Default is `sys.maxsize`.
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         cache_rate: percentage of cached data in total, default is 1.0 (cache all).
@@ -224,7 +227,8 @@ class DecathlonDataset(Randomizable, CacheDataset):
         transform: Union[Sequence[Callable], Callable] = LoadNiftid(["image", "label"]),
         download: bool = False,
         seed: int = 0,
-        val_frac: float = 0.2,
+        nsplits: int = 5,
+        fold: int = 0,
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
         num_workers: int = 0,
@@ -232,7 +236,10 @@ class DecathlonDataset(Randomizable, CacheDataset):
         if not os.path.isdir(root_dir):
             raise ValueError("Root directory root_dir must be a directory.")
         self.section = section
-        self.val_frac = val_frac
+        self.nsplits = nsplits
+        if fold > nsplits - 1:
+            raise ValueError("fold index should be in [0, nsplit - 1].")
+        self.fold = fold
         self.set_random_state(seed=seed)
         if task not in self.resource:
             raise ValueError(f"Unsupported task: {task}, available options are: {list(self.resource.keys())}.")
@@ -289,9 +296,13 @@ class DecathlonDataset(Randomizable, CacheDataset):
             length = len(datalist)
             indices = np.arange(length)
             self.randomize(indices)
-            fold_indices = split_dataset(int(1 / self.val_frac), length)
-            if self.section == "training":
-                indices = indices[fold_indices[0][1] :]
+            if self.nsplits > 1:
+                fold_indices = split_dataset(self.nsplits, length)
+                if self.section == "training":
+                    indices = np.delete(indices, np.s_[fold_indices[self.fold][0] : fold_indices[self.fold][1]], axis=None)
+                else:
+                    indices = indices[fold_indices[self.fold][0] : fold_indices[self.fold][1]]
             else:
-                indices = indices[: fold_indices[0][1]]
+                if self.section == "validation":
+                    raise ValueError("if nplits is 1, will not generate datalist for validation.")
             return [datalist[i] for i in indices]
