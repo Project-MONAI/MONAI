@@ -26,9 +26,9 @@ from monai.transforms.croppad.array import (
     BorderPad,
     CenterSpatialCrop,
     DivisiblePad,
+    ResizeWithPadOrCrop,
     SpatialCrop,
     SpatialPad,
-    ResizeWithPadOrCrop,
 )
 from monai.transforms.utils import (
     generate_pos_neg_label_crop_centers,
@@ -483,6 +483,7 @@ class ResizeWithPadOrCropd(MapTransform):
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
 
     """
+
     def __init__(
         self,
         keys: KeysCollection,

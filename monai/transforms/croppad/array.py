@@ -554,6 +554,7 @@ class ResizeWithPadOrCrop(Transform):
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
 
     """
+
     def __init__(
         self,
         spatial_size: Union[Sequence[int], int],
