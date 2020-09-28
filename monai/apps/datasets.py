@@ -159,7 +159,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
             validation while the N - 1 remaining folds form the training set.
             Decathlon data only contains `training` section with labels and `test` section without labels,
             so randomly select fraction from the `training` section as the `validation` section.
-            if set `nsplits = 1`, will not split 
+            if set `nsplits = 1`, will not split
         fold: index of fold for training and validation, default is 0.
         cache_num: number of items to be cached. Default is `sys.maxsize`.
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
@@ -299,7 +299,9 @@ class DecathlonDataset(Randomizable, CacheDataset):
             if self.nsplits > 1:
                 fold_indices = split_dataset(self.nsplits, length)
                 if self.section == "training":
-                    indices = np.delete(indices, np.s_[fold_indices[self.fold][0] : fold_indices[self.fold][1]], axis=None)
+                    indices = np.delete(
+                        indices, np.s_[fold_indices[self.fold][0] : fold_indices[self.fold][1]], axis=None
+                    )
                 else:
                     indices = indices[fold_indices[self.fold][0] : fold_indices[self.fold][1]]
             else:
