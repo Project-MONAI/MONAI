@@ -34,14 +34,16 @@ class TestParallelExecution(unittest.TestCase):
 
     @expect_failure_if_no_gpu
     def test_single_gpu(self):
-        net = torch.nn.Conv2d(1, 1, 3, padding=1)
+        device = torch.device("cuda:0")
+        net = torch.nn.Conv2d(1, 1, 3, padding=1).to(device)
         opt = torch.optim.Adam(net.parameters(), 1e-3)
-        trainer = create_multigpu_supervised_trainer(net, opt, fake_loss, [torch.device("cuda:0")])
+        trainer = create_multigpu_supervised_trainer(net, opt, fake_loss, [device])
         trainer.run(fake_data_stream(), 2, 2)
 
     @expect_failure_if_no_gpu
     def test_multi_gpu(self):
-        net = torch.nn.Conv2d(1, 1, 3, padding=1)
+        device = torch.device("cuda")
+        net = torch.nn.Conv2d(1, 1, 3, padding=1).to(device)
         opt = torch.optim.Adam(net.parameters(), 1e-3)
 
         with warnings.catch_warnings():

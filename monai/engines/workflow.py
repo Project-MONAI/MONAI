@@ -19,15 +19,15 @@ from monai.engines.utils import default_prepare_batch
 from monai.transforms import apply_transform
 from monai.utils import ensure_tuple, exact_version, optional_import
 
-IgniteEngine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
-State, _ = optional_import("ignite.engine", "0.3.0", exact_version, "State")
-Events, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Events")
+IgniteEngine, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Engine")
+State, _ = optional_import("ignite.engine", "0.4.2", exact_version, "State")
+Events, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Events")
 if TYPE_CHECKING:
     from ignite.engine import Engine
     from ignite.metrics import Metric
 else:
-    Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
-    Metric, _ = optional_import("ignite.metrics", "0.3.0", exact_version, "Metric")
+    Engine, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Engine")
+    Metric, _ = optional_import("ignite.metrics", "0.4.2", exact_version, "Metric")
 
 
 class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optional_import
@@ -99,7 +99,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             iteration=0,
             epoch=0,
             max_epochs=max_epochs,
-            epoch_length=-1,
+            epoch_length=len(data_loader),
             output=None,
             batch=None,
             metrics={},
@@ -154,7 +154,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         Execute training, validation or evaluation based on Ignite Engine.
 
         """
-        super().run(data=self.data_loader, epoch_length=len(self.data_loader))
+        super().run(data=self.data_loader, max_epochs=self.state.max_epochs)
 
     def _iteration(self, engine: Engine, batchdata: Dict[str, torch.Tensor]):
         """

@@ -22,7 +22,7 @@ from parameterized import parameterized
 
 from monai.handlers import CheckpointSaver
 
-TEST_CASE_1 = [True, False, None, 1, True, 0, None, ["test_checkpoint_final_iteration=40.pth"]]
+TEST_CASE_1 = [True, False, None, 1, True, 0, None, ["test_checkpoint_final_iteration=40.pt"]]
 
 TEST_CASE_2 = [
     False,
@@ -32,10 +32,10 @@ TEST_CASE_2 = [
     True,
     0,
     None,
-    ["test_checkpoint_key_metric=32.pth", "test_checkpoint_key_metric=40.pth"],
+    ["test_checkpoint_key_metric=32.pt", "test_checkpoint_key_metric=40.pt"],
 ]
 
-TEST_CASE_3 = [False, False, None, 1, True, 2, 2, ["test_checkpoint_epoch=2.pth", "test_checkpoint_epoch=4.pth"]]
+TEST_CASE_3 = [False, False, None, 1, True, 2, 2, ["test_checkpoint_epoch=2.pt", "test_checkpoint_epoch=4.pt"]]
 
 TEST_CASE_4 = [
     False,
@@ -45,10 +45,10 @@ TEST_CASE_4 = [
     False,
     10,
     2,
-    ["test_checkpoint_iteration=30.pth", "test_checkpoint_iteration=40.pth"],
+    ["test_checkpoint_iteration=30.pt", "test_checkpoint_iteration=40.pt"],
 ]
 
-TEST_CASE_5 = [True, False, None, 1, True, 0, None, ["test_checkpoint_final_iteration=40.pth"], True]
+TEST_CASE_5 = [True, False, None, 1, True, 0, None, ["test_checkpoint_final_iteration=40.pt"], True]
 
 
 class TestHandlerCheckpointSaver(unittest.TestCase):
@@ -115,7 +115,7 @@ class TestHandlerCheckpointSaver(unittest.TestCase):
 
             with self.assertRaises(RuntimeError):
                 engine.run(range(3), max_epochs=2)
-            self.assertTrue(os.path.exists(os.path.join(tempdir, "net_final_iteration=1.pth")))
+            self.assertTrue(os.path.exists(os.path.join(tempdir, "net_final_iteration=1.pt")))
 
 
 if __name__ == "__main__":
