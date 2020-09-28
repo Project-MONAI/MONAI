@@ -149,27 +149,27 @@ def download_url(url: str, filepath: str, hash_val: Optional[str] = None, hash_t
                 raise Exception("Error getting Content-Length from server: %s" % url)
     else:
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
-
-        class TqdmUpTo(tqdm):
-            """
-            Provides `update_to(n)` which uses `tqdm.update(delta_n)`.
-            Inspired by the example in https://github.com/tqdm/tqdm.
-
-            """
-
-            def update_to(self, b: int = 1, bsize: int = 1, tsize: Optional[int] = None):
-                """
-                b: number of blocks transferred so far, default: 1.
-                bsize: size of each block (in tqdm units), default: 1.
-                tsize: total size (in tqdm units). if None, remains unchanged.
-
-                """
-                if tsize is not None:
-                    self.total = tsize
-                self.update(b * bsize - self.n)  # will also set self.n = b * bsize
-
         try:
             if has_tqdm:
+
+                class TqdmUpTo(tqdm):
+                    """
+                    Provides `update_to(n)` which uses `tqdm.update(delta_n)`.
+                    Inspired by the example in https://github.com/tqdm/tqdm.
+
+                    """
+
+                    def update_to(self, b: int = 1, bsize: int = 1, tsize: Optional[int] = None):
+                        """
+                        b: number of blocks transferred so far, default: 1.
+                        bsize: size of each block (in tqdm units), default: 1.
+                        tsize: total size (in tqdm units). if None, remains unchanged.
+
+                        """
+                        if tsize is not None:
+                            self.total = tsize
+                        self.update(b * bsize - self.n)  # will also set self.n = b * bsize
+
                 with TqdmUpTo(
                     unit="B",
                     unit_scale=True,

@@ -87,7 +87,7 @@ class Convolution(nn.Sequential):
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.is_transposed = is_transposed
-        if not padding:
+        if padding is None:
             padding = same_padding(kernel_size, dilation)
         conv_type = Conv[Conv.CONVTRANS if is_transposed else Conv.CONV, dimensions]
         # define the normalisation type and the arguments to the constructor
@@ -119,7 +119,7 @@ class Convolution(nn.Sequential):
             drop_type = Dropout[drop_name, dropout_dim]
 
         if is_transposed:
-            if not output_padding:
+            if output_padding is None:
                 output_padding = stride_minus_kernel_padding(1, strides)
             conv = conv_type(
                 in_channels,
