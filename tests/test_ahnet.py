@@ -17,22 +17,34 @@ from parameterized import parameterized
 from monai.networks.blocks import FCN, MCFCN
 from monai.networks.nets import AHNet
 
-TEST_CASE_FCN_1 = [{"out_channels": 3, "upsample_mode": "transpose"}, torch.randn(5, 3, 64, 64), (5, 3, 64, 64)]
-TEST_CASE_FCN_2 = [{"out_channels": 2, "upsample_mode": "transpose"}, torch.randn(5, 3, 64, 64), (5, 2, 64, 64)]
-TEST_CASE_FCN_3 = [{"out_channels": 1, "upsample_mode": "bilinear"}, torch.randn(5, 3, 64, 64), (5, 1, 64, 64)]
+TEST_CASE_FCN_1 = [
+    {"out_channels": 3, "upsample_mode": "transpose"},
+    torch.randn(5, 3, 64, 64),
+    (5, 3, 64, 64),
+]
+TEST_CASE_FCN_2 = [
+    {"out_channels": 2, "upsample_mode": "transpose", "pretrained": True, "progress": False},
+    torch.randn(5, 3, 64, 64),
+    (5, 2, 64, 64),
+]
+TEST_CASE_FCN_3 = [
+    {"out_channels": 1, "upsample_mode": "bilinear", "pretrained": False},
+    torch.randn(5, 3, 64, 64),
+    (5, 1, 64, 64),
+]
 
 TEST_CASE_MCFCN_1 = [
-    {"out_channels": 3, "in_channels": 8, "upsample_mode": "transpose"},
+    {"out_channels": 3, "in_channels": 8, "upsample_mode": "transpose", "progress": False},
     torch.randn(5, 8, 64, 64),
     (5, 3, 64, 64),
 ]
 TEST_CASE_MCFCN_2 = [
-    {"out_channels": 2, "in_channels": 1, "upsample_mode": "transpose"},
+    {"out_channels": 2, "in_channels": 1, "upsample_mode": "transpose", "progress": True},
     torch.randn(5, 1, 64, 64),
     (5, 2, 64, 64),
 ]
 TEST_CASE_MCFCN_3 = [
-    {"out_channels": 1, "in_channels": 2, "upsample_mode": "bilinear"},
+    {"out_channels": 1, "in_channels": 2, "upsample_mode": "bilinear", "pretrained": False},
     torch.randn(5, 2, 64, 64),
     (5, 1, 64, 64),
 ]
