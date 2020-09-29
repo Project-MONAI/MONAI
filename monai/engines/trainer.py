@@ -26,8 +26,8 @@ if TYPE_CHECKING:
     from ignite.engine import Engine
     from ignite.metrics import Metric
 else:
-    Engine, _ = optional_import("ignite.engine", "0.3.0", exact_version, "Engine")
-    Metric, _ = optional_import("ignite.metrics", "0.3.0", exact_version, "Metric")
+    Engine, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Engine")
+    Metric, _ = optional_import("ignite.metrics", "0.4.2", exact_version, "Metric")
 
 
 class Trainer(Workflow):
@@ -42,8 +42,6 @@ class Trainer(Workflow):
         If call this function multiple times, it will continuously run from the previous state.
 
         """
-        if self._is_done(self.state):
-            self.state.iteration = 0  # to avoid creating new State instance in ignite Engine.run
         self.scaler = torch.cuda.amp.GradScaler() if self.amp else None
         super().run()
 
