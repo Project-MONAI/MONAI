@@ -299,9 +299,9 @@ class DecathlonDataset(Randomizable, CacheDataset):
 
             val_length = int(length * self.val_frac)
             if self.section == "training":
-                self.indices = indices[val_length :]
+                self.indices = indices[val_length:]
             else:
-                self.indices = indices[: val_length]
+                self.indices = indices[:val_length]
 
             return [datalist[i] for i in indices]
 
@@ -349,6 +349,7 @@ class CVDecathlonDataset:
         # execute training for fold 4 ...
 
     """
+
     def __init__(
         self,
         root_dir: str,
