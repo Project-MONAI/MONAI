@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - 'releases/*'
-      - 789-cuda-resampling-1
     tags:
       - '*'
 
