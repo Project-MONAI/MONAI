@@ -182,11 +182,11 @@ class DecathlonDataset(Randomizable, CacheDataset):
             ]
         )
 
-        data = DecathlonDataset(
-            root_dir="./", task="Task09_Spleen", transform=transform, section="validation", fold=0, download=True
+        val_data = DecathlonDataset(
+            root_dir="./", task="Task09_Spleen", transform=transform, section="validation", seed=12345, download=True
         )
 
-        print(data[0]["image"], data[0]["label"])
+        print(val_data[0]["image"], val_data[0]["label"])
 
     """
 
@@ -244,7 +244,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
             raise RuntimeError(
                 f"Cannot find dataset directory: {dataset_dir}, please use download=True to download it."
             )
-        self.indices = None
+        self.indices: np.ndarray = np.array([])
         data = self._generate_data_list(dataset_dir)
         # as `release` key has typo in Task04 config file, ignore it.
         property_keys = [
@@ -261,7 +261,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         self._properties = load_decathlon_properties(os.path.join(dataset_dir, "dataset.json"), property_keys)
         super().__init__(data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers)
 
-    def get_indices(self):
+    def get_indices(self) -> np.ndarray:
         """
         Get the indices of datalist used in this dataset.
 
@@ -303,7 +303,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
             else:
                 self.indices = indices[:val_length]
 
-            return [datalist[i] for i in indices]
+            return [datalist[i] for i in self.indices]
 
 
 class CVDecathlonDataset:
