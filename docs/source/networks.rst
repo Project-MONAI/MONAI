@@ -165,6 +165,22 @@ Layers
 .. autoclass:: monai.networks.layers.AffineTransform
     :members:
 
+`grid_pull`
+~~~~~~~~~~~
+.. autofunction:: monai.networks.layers.grid_pull
+
+`grid_push`
+~~~~~~~~~~~
+.. autofunction:: monai.networks.layers.grid_push
+
+`grid_count`
+~~~~~~~~~~~~
+.. autofunction:: monai.networks.layers.grid_count
+
+`grid_grad`
+~~~~~~~~~~~
+.. autofunction:: monai.networks.layers.grid_grad
+
 `LLTM`
 ~~~~~~
 .. autoclass:: LLTM

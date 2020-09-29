@@ -15,9 +15,390 @@ import torch
 import torch.nn as nn
 
 from monai.networks import to_norm_affine
-from monai.utils import GridSampleMode, GridSamplePadMode, ensure_tuple
+from monai.utils import GridSampleMode, GridSamplePadMode, ensure_tuple, optional_import
 
-__all__ = ["AffineTransform"]
+_C, _ = optional_import("monai._C")
+
+__all__ = ["AffineTransform", "grid_pull", "grid_push", "grid_count", "grid_grad"]
+
+
+class _GridPull(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, input, grid, interpolation, bound, extrapolate):
+        opt = (bound, interpolation, extrapolate)
+        output = _C.grid_pull(input, grid, *opt)
+        if input.requires_grad or grid.requires_grad:
+            ctx.opt = opt
+            ctx.save_for_backward(input, grid)
+
+        return output
+
+    @staticmethod
+    def backward(ctx, grad):
+        var = ctx.saved_variables
+        opt = ctx.opt
+        grad_input = grad_grid = None
+        grads = _C.grid_pull_backward(grad, *var, *opt)
+        if ctx.needs_input_grad[0]:
+            grad_input = grads[0]
+        if ctx.needs_input_grad[1]:
+            grad_grid = grads[1]
+        return grad_input, grad_grid, None, None, None
+
+
+def grid_pull(input: torch.Tensor, grid: torch.Tensor, interpolation="linear", bound="zero", extrapolate: bool = True):
+    """
+    Sample an image with respect to a deformation field.
+
+    `interpolation` can be an int, a string or an InterpolationType.
+    Possible values are::
+
+        - 0 or 'nearest'    or InterpolationType.nearest
+        - 1 or 'linear'     or InterpolationType.linear
+        - 2 or 'quadratic'  or InterpolationType.quadratic
+        - 3 or 'cubic'      or InterpolationType.cubic
+        - 4 or 'fourth'     or InterpolationType.fourth
+        - etc.
+
+    A list of values can be provided, in the order [W, H, D],
+    to specify dimension-specific interpolation orders.
+
+    `bound` can be an int, a string or a BoundType.
+    Possible values are::
+
+        - 0 or 'replicate'  or BoundType.replicate
+        - 1 or 'dct1'       or BoundType.dct1
+        - 2 or 'dct2'       or BoundType.dct2
+        - 3 or 'dst1'       or BoundType.dst1
+        - 4 or 'dst2'       or BoundType.dst2
+        - 5 or 'dft'        or BoundType.dft
+        - 6 or 'sliding'    or BoundType.sliding [not implemented]
+        - 7 or 'zero'       or BoundType.zero
+
+    A list of values can be provided, in the order [W, H, D],
+    to specify dimension-specific boundary conditions.
+    `sliding` is a specific condition than only applies to flow fields
+    (with as many channels as dimensions). It cannot be dimension-specific.
+    Note that:
+
+        - `dft` corresponds to circular padding
+        - `dct2` corresponds to Neumann boundary conditions (symmetric)
+        - `dst2` corresponds to Dirichlet boundary conditions (antisymmetric)
+
+    See:
+        https://en.wikipedia.org/wiki/Discrete_cosine_transform
+        https://en.wikipedia.org/wiki/Discrete_sine_transform
+
+    Args:
+        input: Input image. `(B, C, Wi, Hi, Di)`.
+        grid: Deformation field. `(B, Wo, Ho, Do, 2|3)`.
+        interpolation (int or list[int] , optional): Interpolation order.
+            Defaults to `1`.
+        bound (BoundType, or list[BoundType], optional): Boundary conditions.
+            Defaults to `'zero'`.
+        extrapolate: Extrapolate out-of-bound data.
+            Defaults to `True`.
+
+    Returns:
+        output (torch.Tensor): Deformed image `(B, C, Wo, Ho, Do)`.
+
+    """
+    # Convert parameters
+    bound = ensure_tuple(bound)
+    interpolation = ensure_tuple(interpolation)
+    bound = [_C.BoundType.__members__[b] if isinstance(b, str) else _C.BoundType(b) for b in bound]
+    interpolation = [
+        _C.InterpolationType.__members__[i] if isinstance(i, str) else _C.InterpolationType(i) for i in interpolation
+    ]
+
+    return _GridPull.apply(input, grid, interpolation, bound, extrapolate)
+
+
+class _GridPush(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, input, grid, shape, interpolation, bound, extrapolate):
+        opt = (bound, interpolation, extrapolate)
+        output = _C.grid_push(input, grid, shape, *opt)
+        if input.requires_grad or grid.requires_grad:
+            ctx.opt = opt
+            ctx.save_for_backward(input, grid)
+
+        return output
+
+    @staticmethod
+    def backward(ctx, grad):
+        var = ctx.saved_variables
+        opt = ctx.opt
+        grad_input = grad_grid = None
+        grads = _C.grid_push_backward(grad, *var, *opt)
+        if ctx.needs_input_grad[0]:
+            grad_input = grads[0]
+        if ctx.needs_input_grad[1]:
+            grad_grid = grads[1]
+        return grad_input, grad_grid, None, None, None, None
+
+
+def grid_push(
+    input: torch.Tensor, grid: torch.Tensor, shape=None, interpolation="linear", bound="zero", extrapolate: bool = True
+):
+    """
+    Splat an image with respect to a deformation field (pull adjoint).
+
+    `interpolation` can be an int, a string or an InterpolationType.
+    Possible values are::
+
+        - 0 or 'nearest'    or InterpolationType.nearest
+        - 1 or 'linear'     or InterpolationType.linear
+        - 2 or 'quadratic'  or InterpolationType.quadratic
+        - 3 or 'cubic'      or InterpolationType.cubic
+        - 4 or 'fourth'     or InterpolationType.fourth
+        - etc.
+
+    A list of values can be provided, in the order `[W, H, D]`,
+    to specify dimension-specific interpolation orders.
+
+    `bound` can be an int, a string or a BoundType.
+    Possible values are::
+
+        - 0 or 'replicate'  or BoundType.replicate
+        - 1 or 'dct1'       or BoundType.dct1
+        - 2 or 'dct2'       or BoundType.dct2
+        - 3 or 'dst1'       or BoundType.dst1
+        - 4 or 'dst2'       or BoundType.dst2
+        - 5 or 'dft'        or BoundType.dft
+        - 6 or 'sliding'    or BoundType.sliding [not implemented]
+        - 7 or 'zero'       or BoundType.zero
+
+    A list of values can be provided, in the order `[W, H, D]`,
+    to specify dimension-specific boundary conditions.
+    `sliding` is a specific condition than only applies to flow fields
+    (with as many channels as dimensions). It cannot be dimension-specific.
+    Note that:
+
+        - `dft` corresponds to circular padding
+        - `dct2` corresponds to Neumann boundary conditions (symmetric)
+        - `dst2` corresponds to Dirichlet boundary conditions (antisymmetric)
+
+    See also:
+
+        - https://en.wikipedia.org/wiki/Discrete_cosine_transform
+        - https://en.wikipedia.org/wiki/Discrete_sine_transform
+
+    Args:
+        input: Input image `(B, C, Wi, Hi, Di)`.
+        grid: Deformation field `(B, Wi, Hi, Di, 2|3)`.
+        shape: Shape of the source image.
+        interpolation (int or list[int] , optional): Interpolation order.
+            Defaults to `1`.
+        bound (BoundType, or list[BoundType], optional): Boundary conditions.
+            Defaults to `'zero'`.
+        extrapolate: Extrapolate out-of-bound data.
+            Defaults to `True`.
+
+    Returns:
+        output (torch.Tensor): Splatted image `(B, C, Wo, Ho, Do)`.
+
+    """
+    # Convert parameters
+    bound = ensure_tuple(bound)
+    interpolation = ensure_tuple(interpolation)
+    bound = [_C.BoundType.__members__[b] if isinstance(b, str) else _C.BoundType(b) for b in bound]
+    interpolation = [
+        _C.InterpolationType.__members__[i] if isinstance(i, str) else _C.InterpolationType(i) for i in interpolation
+    ]
+
+    if shape is None:
+        shape = tuple(input.shape[2:])
+
+    return _GridPush.apply(input, grid, shape, interpolation, bound, extrapolate)
+
+
+class _GridCount(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, grid, shape, interpolation, bound, extrapolate):
+        opt = (bound, interpolation, extrapolate)
+        output = _C.grid_count(grid, shape, *opt)
+        if grid.requires_grad:
+            ctx.opt = opt
+            ctx.save_for_backward(grid)
+
+        return output
+
+    @staticmethod
+    def backward(ctx, grad):
+        var = ctx.saved_variables
+        opt = ctx.opt
+        grad_grid = None
+        if ctx.needs_input_grad[0]:
+            grad_grid = _C.grid_count_backward(grad, *var, *opt)
+        return grad_grid, None, None, None, None
+
+
+def grid_count(grid: torch.Tensor, shape=None, interpolation="linear", bound="zero", extrapolate: bool = True):
+    """
+    Splatting weights with respect to a deformation field (pull adjoint).
+
+    This function is equivalent to applying grid_push to an image of ones.
+
+    `interpolation` can be an int, a string or an InterpolationType.
+    Possible values are::
+
+        - 0 or 'nearest'    or InterpolationType.nearest
+        - 1 or 'linear'     or InterpolationType.linear
+        - 2 or 'quadratic'  or InterpolationType.quadratic
+        - 3 or 'cubic'      or InterpolationType.cubic
+        - 4 or 'fourth'     or InterpolationType.fourth
+        - etc.
+
+    A list of values can be provided, in the order [W, H, D],
+    to specify dimension-specific interpoaltion orders.
+
+    `bound` can be an int, a string or a BoundType.
+    Possible values are::
+
+        - 0 or 'replicate'  or BoundType.replicate
+        - 1 or 'dct1'       or BoundType.dct1
+        - 2 or 'dct2'       or BoundType.dct2
+        - 3 or 'dst1'       or BoundType.dst1
+        - 4 or 'dst2'       or BoundType.dst2
+        - 5 or 'dft'        or BoundType.dft
+        - 6 or 'sliding'    or BoundType.sliding [not implemented]
+        - 7 or 'zero'       or BoundType.zero
+
+    A list of values can be provided, in the order [W, H, D],
+    to specify dimension-specific boundary conditions.
+    `sliding` is a specific condition than only applies to flow fields
+    (with as many channels as dimensions). It cannot be dimension-specific.
+    Note that:
+
+        - `dft` corresponds to circular padding
+        - `dct2` corresponds to Neumann boundary conditions (symmetric)
+        - `dst2` corresponds to Dirichlet boundary conditions (antisymmetric)
+
+    See Also:
+
+        - https://en.wikipedia.org/wiki/Discrete_cosine_transform
+        - https://en.wikipedia.org/wiki/Discrete_sine_transform
+
+    Args:
+        grid: Deformation field `(B, Wi, Hi, Di, 2|3)`.
+        shape: shape of the source image.
+        interpolation (int or list[int] , optional): Interpolation order.
+            Defaults to `1`.
+        bound (BoundType, or list[BoundType], optional): Boundary conditions.
+            Defaults to `'zero'`.
+        extrapolate (bool, optional): Extrapolate out-of-bound data.
+            Defaults to `True`.
+
+    Returns:
+        output (torch.Tensor): Splat weights `(B, 1, Wo, Ho, Do)`.
+
+    """
+    # Convert parameters
+    bound = ensure_tuple(bound)
+    interpolation = ensure_tuple(interpolation)
+    bound = [_C.BoundType.__members__[b] if isinstance(b, str) else _C.BoundType(b) for b in bound]
+    interpolation = [
+        _C.InterpolationType.__members__[i] if isinstance(i, str) else _C.InterpolationType(i) for i in interpolation
+    ]
+
+    if shape is None:
+        shape = tuple(grid.shape[2:])
+
+    return _GridCount.apply(grid, shape, interpolation, bound, extrapolate)
+
+
+class _GridGrad(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, input, grid, interpolation, bound, extrapolate):
+        opt = (bound, interpolation, extrapolate)
+        output = _C.grid_grad(input, grid, *opt)
+        if input.requires_grad or grid.requires_grad:
+            ctx.opt = opt
+            ctx.save_for_backward(input, grid)
+
+        return output
+
+    @staticmethod
+    def backward(ctx, grad):
+        var = ctx.saved_variables
+        opt = ctx.opt
+        grad_input = grad_grid = None
+        if ctx.needs_input_grad[0] or ctx.needs_input_grad[1]:
+            grads = _C.grid_grad_backward(grad, *var, *opt)
+            if ctx.needs_input_grad[0]:
+                grad_input = grads[0]
+            if ctx.needs_input_grad[1]:
+                grad_grid = grads[1]
+        return grad_input, grad_grid, None, None, None
+
+
+def grid_grad(input: torch.Tensor, grid: torch.Tensor, interpolation="linear", bound="zero", extrapolate: bool = True):
+    """
+    Sample an image with respect to a deformation field.
+
+    `interpolation` can be an int, a string or an InterpolationType.
+    Possible values are::
+
+        - 0 or 'nearest'    or InterpolationType.nearest
+        - 1 or 'linear'     or InterpolationType.linear
+        - 2 or 'quadratic'  or InterpolationType.quadratic
+        - 3 or 'cubic'      or InterpolationType.cubic
+        - 4 or 'fourth'     or InterpolationType.fourth
+        - etc.
+
+    A list of values can be provided, in the order [W, H, D],
+    to specify dimension-specific interpolation orders.
+
+    `bound` can be an int, a string or a BoundType.
+    Possible values are::
+
+        - 0 or 'replicate'  or BoundType.replicate
+        - 1 or 'dct1'       or BoundType.dct1
+        - 2 or 'dct2'       or BoundType.dct2
+        - 3 or 'dst1'       or BoundType.dst1
+        - 4 or 'dst2'       or BoundType.dst2
+        - 5 or 'dft'        or BoundType.dft
+        - 6 or 'sliding'    or BoundType.sliding [not implemented]
+        - 7 or 'zero'       or BoundType.zero
+
+    A list of values can be provided, in the order [W, H, D],
+    to specify dimension-specific boundary conditions.
+    `sliding` is a specific condition than only applies to flow fields
+    (with as many channels as dimensions). It cannot be dimension-specific.
+    Note that:
+
+        - `dft` corresponds to circular padding
+        - `dct2` corresponds to Neumann boundary conditions (symmetric)
+        - `dst2` corresponds to Dirichlet boundary conditions (antisymmetric)
+
+    See also:
+
+        - https://en.wikipedia.org/wiki/Discrete_cosine_transform
+        - https://en.wikipedia.org/wiki/Discrete_sine_transform
+
+    Args:
+        input: Input image. `(B, C, Wi, Hi, Di)`.
+        grid: Deformation field. `(B, Wo, Ho, Do, 2|3)`.
+        interpolation (int or list[int] , optional): Interpolation order.
+            Defaults to `1`.
+        bound (BoundType, or list[BoundType], optional): Boundary conditions.
+            Defaults to `'zero'`.
+        extrapolate: Extrapolate out-of-bound data. Defaults to `True`.
+
+    Returns:
+        output (torch.Tensor): Sampled gradients (B, C, Wo, Ho, Do, 2|3).
+
+    """
+    # Convert parameters
+    bound = ensure_tuple(bound)
+    interpolation = ensure_tuple(interpolation)
+    bound = [_C.BoundType.__members__[b] if isinstance(b, str) else _C.BoundType(b) for b in bound]
+    interpolation = [
+        _C.InterpolationType.__members__[i] if isinstance(i, str) else _C.InterpolationType(i) for i in interpolation
+    ]
+
+    return _GridGrad.apply(input, grid, interpolation, bound, extrapolate)
 
 
 class AffineTransform(nn.Module):

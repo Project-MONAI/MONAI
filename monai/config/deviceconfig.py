@@ -18,6 +18,7 @@ import numpy as np
 import torch
 
 import monai
+from monai.utils import OptionalImportError, optional_import
 
 try:
     import ignite
@@ -92,6 +93,13 @@ except (ImportError, AttributeError):
     tqdm_version = "NOT INSTALLED or UNKNOWN VERSION."
 
 
+try:
+    _, HAS_EXT = optional_import("monai._C")
+    USE_COMPILED = HAS_EXT and os.getenv("BUILD_MONAI", "0") == "1"
+except (OptionalImportError, ImportError, AttributeError):
+    HAS_EXT = USE_COMPILED = False
+
+
 def get_config_values():
     """
     Read the package versions into a dictionary.
@@ -135,6 +143,7 @@ def print_config(file=sys.stdout):
     """
     for k, v in get_config_values().items():
         print(f"{k} version: {v}", file=file, flush=True)
+    print(f"MONAI flags: HAS_EXT = {HAS_EXT}, USE_COMPILED = {USE_COMPILED}")
 
     print("\nOptional dependencies:", file=file, flush=True)
     for k, v in get_optional_config_values().items():
