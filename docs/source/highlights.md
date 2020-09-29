@@ -232,7 +232,7 @@ The trainers and evaluators of the workflows are compatible with pytorch-ignite 
 The workflow and event handlers are shown as below:
 ![image](../images/workflows.png)
 
-The end-to-end training and evaluation examples are available at [Workflow examples](https://github.com/Project-MONAI/tutorials/tree/master/modules/workflows).
+The end-to-end training and evaluation examples are available at [Workflow examples](https://github.com/Project-MONAI/tutorials/tree/master/modules/engines).
 
 ### 2. EnsembleEvaluator
 Models ensemble is a popular strategy in machine learning and deep learning areas to achieve more accurate and more stable outputs. A typical practice is:
