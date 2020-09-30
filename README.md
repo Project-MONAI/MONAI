@@ -58,6 +58,11 @@ Technical documentation is available at [docs.monai.io](https://docs.monai.io).
 ## Contributing
 For guidance on making a contribution to MONAI, see the [contributing guidelines](https://github.com/Project-MONAI/MONAI/blob/master/CONTRIBUTING.md).
 
+## Community
+Join the conversation on Twitter [@ProjectMONAI](https://twitter.com/ProjectMONAI) or join our [Slack channel](https://forms.gle/QTxJq3hFictp31UM9).
+
+Ask and answer questions over on the [PyTorch Forums](https://discuss.pytorch.org/) or [StackOverflow](https://stackoverflow.com/tags/monai). Make sure to tag @monai.
+
 ## Links
 - Website: https://monai.io/
 - API documentation: https://docs.monai.io
