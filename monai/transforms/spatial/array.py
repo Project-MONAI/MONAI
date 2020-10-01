@@ -19,9 +19,9 @@ from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 import numpy as np
 import torch
 
-from monai.config import get_torch_version_tuple
+from monai.config import USE_COMPILED, get_torch_version_tuple
 from monai.data.utils import compute_shape_offset, to_affine_nd, zoom_affine
-from monai.networks.layers import AffineTransform, GaussianFilter
+from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.croppad.array import CenterSpatialCrop
 from monai.transforms.utils import (
@@ -1091,19 +1091,40 @@ class Resample(Transform):
             img = img.to(self.device)
             grid = grid.to(self.device)
 
-        for i, dim in enumerate(img.shape[1:]):
-            grid[i] = 2.0 * grid[i] / (dim - 1.0)
-        grid = grid[:-1] / grid[-1:]
-        index_ordering: List[int] = list(range(img.ndimension() - 2, -1, -1))
-        grid = grid[index_ordering]
-        grid = grid.permute(list(range(grid.ndimension()))[1:] + [0])
-        out = torch.nn.functional.grid_sample(
-            img.unsqueeze(0).float(),
-            grid.unsqueeze(0).float(),
-            mode=self.mode.value if mode is None else GridSampleMode(mode).value,
-            padding_mode=self.padding_mode.value if padding_mode is None else GridSamplePadMode(padding_mode).value,
-            align_corners=True,
-        )[0]
+        if USE_COMPILED:
+            for i, dim in enumerate(img.shape[1:]):
+                grid[i] += (dim - 1.0) / 2.0
+            grid = grid[:-1] / grid[-1:]
+            grid = grid.permute(list(range(grid.ndimension()))[1:] + [0])
+            _padding_mode = self.padding_mode.value if padding_mode is None else GridSamplePadMode(padding_mode).value
+            if _padding_mode == "zeros":
+                bound = 7
+            elif _padding_mode == "border":
+                bound = 0
+            else:
+                bound = 1
+            _interp_mode = self.mode.value if mode is None else GridSampleMode(mode).value
+            out = grid_pull(
+                img.unsqueeze(0).float(),
+                grid.unsqueeze(0).float(),
+                bound=bound,
+                extrapolate=True,
+                interpolation=1 if _interp_mode == "bilinear" else _interp_mode,
+            )[0]
+        else:
+            for i, dim in enumerate(img.shape[1:]):
+                grid[i] = 2.0 * grid[i] / (dim - 1.0)
+            grid = grid[:-1] / grid[-1:]
+            index_ordering: List[int] = list(range(img.ndimension() - 2, -1, -1))
+            grid = grid[index_ordering]
+            grid = grid.permute(list(range(grid.ndimension()))[1:] + [0])
+            out = torch.nn.functional.grid_sample(
+                img.unsqueeze(0).float(),
+                grid.unsqueeze(0).float(),
+                mode=self.mode.value if mode is None else GridSampleMode(mode).value,
+                padding_mode=self.padding_mode.value if padding_mode is None else GridSamplePadMode(padding_mode).value,
+                align_corners=True,
+            )[0]
         if self.as_tensor_output:
             return out
         return out.cpu().numpy()

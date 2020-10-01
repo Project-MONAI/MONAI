@@ -17,8 +17,8 @@ import torch.distributed as dist
 from monai.metrics import compute_roc_auc
 from monai.utils import Average, exact_version, optional_import
 
-Metric, _ = optional_import("ignite.metrics", "0.3.0", exact_version, "Metric")
-reinit__is_reduced, _ = optional_import("ignite.metrics.metric", "0.3.0", exact_version, "reinit__is_reduced")
+Metric, _ = optional_import("ignite.metrics", "0.4.2", exact_version, "Metric")
+reinit__is_reduced, _ = optional_import("ignite.metrics.metric", "0.4.2", exact_version, "reinit__is_reduced")
 
 
 class ROCAUC(Metric):  # type: ignore[valid-type, misc]  # due to optional_import

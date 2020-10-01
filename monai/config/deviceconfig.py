@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import os
+import platform
 import sys
 from collections import OrderedDict
 
@@ -17,6 +18,7 @@ import numpy as np
 import torch
 
 import monai
+from monai.utils import OptionalImportError, optional_import
 
 try:
     import ignite
@@ -82,6 +84,21 @@ try:
 except (ImportError, AttributeError):
     itk_version = "NOT INSTALLED or UNKNOWN VERSION."
 
+try:
+    import tqdm
+
+    tqdm_version = tqdm.__version__
+    del tqdm
+except (ImportError, AttributeError):
+    tqdm_version = "NOT INSTALLED or UNKNOWN VERSION."
+
+
+try:
+    _, HAS_EXT = optional_import("monai._C")
+    USE_COMPILED = HAS_EXT and os.getenv("BUILD_MONAI", "0") == "1"
+except (OptionalImportError, ImportError, AttributeError):
+    HAS_EXT = USE_COMPILED = False
+
 
 def get_config_values():
     """
@@ -91,6 +108,7 @@ def get_config_values():
 
     output["MONAI"] = monai.__version__
     output["Python"] = sys.version.replace("\n", " ")
+    output["OS"] = f"{platform.system()} ({platform.release()})"
     output["Numpy"] = np.version.full_version
     output["Pytorch"] = torch.__version__
 
@@ -111,6 +129,7 @@ def get_optional_config_values():
     output["gdown"] = gdown_version
     output["TorchVision"] = torchvision_version
     output["ITK"] = itk_version
+    output["tqdm"] = tqdm_version
 
     return output
 
@@ -124,6 +143,7 @@ def print_config(file=sys.stdout):
     """
     for k, v in get_config_values().items():
         print(f"{k} version: {v}", file=file, flush=True)
+    print(f"MONAI flags: HAS_EXT = {HAS_EXT}, USE_COMPILED = {USE_COMPILED}")
 
     print("\nOptional dependencies:", file=file, flush=True)
     for k, v in get_optional_config_values().items():
