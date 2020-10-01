@@ -32,7 +32,7 @@ class SegResNet(nn.Module):
         init_filters: number of output channels for initial convolution layer. Defaults to 8.
         in_channels: number of input channels for the network. Defaults to 1.
         out_channels: number of output channels for the network. Defaults to 2.
-        droupout_prob: probability of an element to be zero-ed. Defaults to ``None``.
+        dropout_prob: probability of an element to be zero-ed. Defaults to ``None``.
         norm_name: feature normalization type, this module only supports group norm,
             batch norm and instance norm. Defaults to ``group``.
         num_groups: number of groups to separate the channels into. Defaults to 8.
@@ -180,7 +180,7 @@ class SegResNetVAE(SegResNet):
         init_filters: number of output channels for initial convolution layer. Defaults to 8.
         in_channels: number of input channels for the network. Defaults to 1.
         out_channels: number of output channels for the network. Defaults to 2.
-        droupout_prob: probability of an element to be zero-ed. Defaults to ``None``.
+        dropout_prob: probability of an element to be zero-ed. Defaults to ``None``.
         norm_name: feature normalization type, this module only supports group norm,
             batch norm and instance norm. Defaults to ``group``.
         num_groups: number of groups to separate the channels into. Defaults to 8.

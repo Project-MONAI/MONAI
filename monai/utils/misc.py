@@ -163,7 +163,7 @@ def progress_bar(index: int, count: int, desc: Optional[str] = None, bar_len: in
     """print a progress bar to track some time consuming task.
 
     Args:
-        index: current satus in progress.
+        index: current status in progress.
         count: total steps of the progress.
         desc: description of the progress bar, if not None, show before the progress bar.
         bar_len: the total length of the bar on screen, default is 30 char.

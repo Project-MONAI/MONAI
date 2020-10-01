@@ -251,7 +251,7 @@ def grid_count(grid: torch.Tensor, shape=None, interpolation="linear", bound="ze
         - etc.
 
     A list of values can be provided, in the order [W, H, D],
-    to specify dimension-specific interpoaltion orders.
+    to specify dimension-specific interpolation orders.
 
     `bound` can be an int, a string or a BoundType.
     Possible values are::

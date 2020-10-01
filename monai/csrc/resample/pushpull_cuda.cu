@@ -18,7 +18,7 @@ limitations under the License.
 // It handles boundary conditions and interpolation orders defined in
 // `utils/resample_utils.h` and `utils/resample_utils.h`.
 // These parameters can be specified per dimension.
-// Isotorpic 0-th and 1-st order interpolation have their own (faster)
+// Isotropic 0-th and 1-st order interpolation have their own (faster)
 // implementations. Sliding boundary conditions are also implemented
 // separately.
 
@@ -29,9 +29,9 @@ limitations under the License.
 // . sliding nearest 2d
 // . sliding linear 3d
 // . sliding linear 2d
-// . slinding generic 3d
+// . sliding generic 3d
 // . sliding generic 2d
-// . [DONE] spatial gradient mode (without mutliplication with output gradient)
+// . [DONE] spatial gradient mode (without multiplication with output gradient)
 // . [DONE] second order gradients (backward pass for spatial gradients)
 // . performance tests
 // . input bound/inter are always vectors -> clean unused constructors

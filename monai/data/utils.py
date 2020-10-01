@@ -455,7 +455,7 @@ def create_file_basename(
 
     # get the filename and directory
     filedir, filename = os.path.split(input_file_name)
-    # remove exntension
+    # remove extension
     filename, ext = os.path.splitext(filename)
     if ext == ".gz":
         filename, ext = os.path.splitext(filename)

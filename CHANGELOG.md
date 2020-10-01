@@ -5,6 +5,52 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.3.0] - 2020-10-02
+### Added
+* Overview document for [feature highlights in v0.3.0](https://github.com/Project-MONAI/MONAI/blob/master/docs/source/highlights.md)
+* Automatic mixed precision support
+* Multi-node, multi-GPU data parallel model training support
+* 3 new evaluation metric functions
+* 11 new network layers and blocks
+* 6 new network architectures
+* 14 new transforms, including an I/O adaptor
+* Cross validation module for `DecathlonDataset`
+* Smart Cache module in dataset
+* `monai.optimizers` module
+* `monai.csrc` module
+* Experimental feature of ImageReader using ITK, Nibabel, Numpy, Pillow (PIL Fork)
+* Experimental feature of differentiable image resampling in C++/CUDA
+* Ensemble evaluator module
+* GAN trainer module
+* Initial cross-platform CI environment for C++/CUDA code
+* Code style enforcement now includes isort and clang-format
+* Progress bar with tqdm
+
+### Changed
+* Now fully compatible with PyTorch 1.6
+* Base Docker image upgraded to `nvcr.io/nvidia/pytorch:20.08-py3` from `nvcr.io/nvidia/pytorch:20.03-py3`
+* Code contributions now require signing off on the [Developer Certificate of Origin (DCO)](https://developercertificate.org/)
+* Major work in type hinting finished
+* Remote datasets migrated to [Open Data on AWS](https://registry.opendata.aws/)
+* Optionally depend on PyTorch-Ignite v0.4.2 instead of v0.3.0
+* Optionally depend on torchvision, ITK
+* Enhanced CI tests with 8 new testing environments
+### Removed
+* `MONAI/examples` folder (relocated into [`Project-MONAI/tutorials`](https://github.com/Project-MONAI/tutorials))
+* `MONAI/research` folder (relocated to [`Project-MONAI/research-contributions`](https://github.com/Project-MONAI/research-contributions))
+### Fixed
+* `dense_patch_slices` incorrect indexing
+* Data type issue in `GeneralizedWassersteinDiceLoss`
+* `ZipDataset` return value inconsistencies
+* `sliding_window_inference` indexing and `device` issues
+* importing monai modules may cause namespace pollution
+* Random data splits issue in `DecathlonDataset`
+* Issue of randomising a `Compose` transform
+* Various issues in function type hints
+* Typos in docstring and documentation
+* `PersistentDataset` issue with existing file folder
+* Filename issue in the output writers
+
 ## [0.2.0] - 2020-07-02
 ### Added
 * Overview document for [feature highlights in v0.2.0](https://github.com/Project-MONAI/MONAI/blob/master/docs/source/highlights.md)
@@ -56,6 +102,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 [highlights]: https://github.com/Project-MONAI/MONAI/blob/master/docs/source/highlights.md
 
-[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/0.2.0...HEAD
+[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/0.3.0...HEAD
+[0.3.0]: https://github.com/Project-MONAI/MONAI/compare/0.2.0...0.3.0
 [0.2.0]: https://github.com/Project-MONAI/MONAI/compare/0.1.0...0.2.0
 [0.1.0]: https://github.com/Project-MONAI/MONAI/commits/0.1.0
