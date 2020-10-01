@@ -15,7 +15,7 @@ The overall architecture and modules are shown in the following figure:
 ![image](../images/arch_modules_v0.3.png)
 The rest of this page provides more details for each module.
 
-* [Data I/O, processing and augmentation](#medical-image-data-io-processing-and-augmentation)
+* [Data I/O, processing and augmentation](#medical-image-data-i-o-processing-and-augmentation)
 * [Datasets](#datasets)
 * [Loss functions](#losses)
 * [Network architectures](#network-architectures)
