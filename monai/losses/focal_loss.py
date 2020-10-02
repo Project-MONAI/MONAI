@@ -72,7 +72,7 @@ class FocalLoss(_WeightedLoss):
                 in the range [0, C-1] where C is the number of classes.
 
         Raises:
-            ValueError: When ``target`` ndim differs from ``logit``.
+            ValueError: When ``target`` ndim differs from ``logits``.
             ValueError: When ``target`` channel is not 1 and ``target`` shape differs from ``logits``.
             ValueError: When ``self.reduction`` is not one of ["mean", "sum", "none"].
 
@@ -90,7 +90,7 @@ class FocalLoss(_WeightedLoss):
                 f"where C is the number of classes inferred from 'logits': C={i.shape[1]}. "
             )
         if i.shape[1] == 1:
-            raise NotImplementedError("Single channel predictions not supported.")
+            raise NotImplementedError("Single-channel predictions not supported.")
 
         # Change the shape of logits and target to
         # num_batch x num_class x num_voxels.
