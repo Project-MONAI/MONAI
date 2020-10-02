@@ -56,7 +56,7 @@ for spatial_dims in range(2, 4):
                             "kernel_size": kernel_size,
                             "norm_name": norm_name,
                             "stride": stride,
-                            "upsamle_kernel_size": stride,
+                            "upsample_kernel_size": stride,
                         },
                         torch.randn(1, in_channels, *([in_size] * spatial_dims)),
                         (1, out_channels, *([out_size] * spatial_dims)),

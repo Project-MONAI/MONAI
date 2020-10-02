@@ -43,7 +43,7 @@ class DynUNet(nn.Module):
         out_channels: number of output channels.
         kernel_size: convolution kernel size.
         strides: convolution strides for each blocks.
-        upsamle_kernel_size: convolution kernel size for transposed convolution layers.
+        upsample_kernel_size: convolution kernel size for transposed convolution layers.
         norm_name: [``"batch"``, ``"instance"``, ``"group"``]
             feature normalization type and arguments.
         deep_supervision: whether to add deep supervision head before output. Defaults to ``True``.
@@ -63,7 +63,7 @@ class DynUNet(nn.Module):
         out_channels: int,
         kernel_size: Sequence[Union[Sequence[int], int]],
         strides: Sequence[Union[Sequence[int], int]],
-        upsamle_kernel_size: Sequence[Union[Sequence[int], int]],
+        upsample_kernel_size: Sequence[Union[Sequence[int], int]],
         norm_name: str = "instance",
         deep_supervision: bool = True,
         deep_supr_num: int = 1,
@@ -75,7 +75,7 @@ class DynUNet(nn.Module):
         self.out_channels = out_channels
         self.kernel_size = kernel_size
         self.strides = strides
-        self.upsamle_kernel_size = upsamle_kernel_size
+        self.upsample_kernel_size = upsample_kernel_size
         self.norm_name = norm_name
         self.deep_supervision = deep_supervision
         self.conv_block = UnetResBlock if res_block else UnetBasicBlock
@@ -164,8 +164,8 @@ class DynUNet(nn.Module):
     def get_upsamples(self):
         inp, out = self.filters[1:][::-1], self.filters[:-1][::-1]
         strides, kernel_size = self.strides[1:][::-1], self.kernel_size[1:][::-1]
-        upsamle_kernel_size = self.upsamle_kernel_size[::-1]
-        return self.get_module_list(inp, out, kernel_size, strides, UnetUpBlock, upsamle_kernel_size)
+        upsample_kernel_size = self.upsample_kernel_size[::-1]
+        return self.get_module_list(inp, out, kernel_size, strides, UnetUpBlock, upsample_kernel_size)
 
     def get_module_list(
         self,
@@ -174,12 +174,12 @@ class DynUNet(nn.Module):
         kernel_size: Sequence[Union[Sequence[int], int]],
         strides: Sequence[Union[Sequence[int], int]],
         conv_block: nn.Module,
-        upsamle_kernel_size: Optional[Sequence[Union[Sequence[int], int]]] = None,
+        upsample_kernel_size: Optional[Sequence[Union[Sequence[int], int]]] = None,
     ):
         layers = []
-        if upsamle_kernel_size is not None:
+        if upsample_kernel_size is not None:
             for in_c, out_c, kernel, stride, up_kernel in zip(
-                in_channels, out_channels, kernel_size, strides, upsamle_kernel_size
+                in_channels, out_channels, kernel_size, strides, upsample_kernel_size
             ):
                 params = {
                     "spatial_dims": self.spatial_dims,
@@ -188,7 +188,7 @@ class DynUNet(nn.Module):
                     "kernel_size": kernel,
                     "stride": stride,
                     "norm_name": self.norm_name,
-                    "upsamle_kernel_size": up_kernel,
+                    "upsample_kernel_size": up_kernel,
                 }
                 layer = conv_block(**params)
                 layers.append(layer)

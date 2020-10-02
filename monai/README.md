@@ -6,7 +6,7 @@
 
 * **csrc**: for C++/CUDA extensions.
 
-* **data**: for the datasets, readers/writers, and synthetic data
+* **data**: for the datasets, readers/writers, and synthetic data.
 
 * **engines**: engine-derived classes for extending Ignite behaviour.
 
