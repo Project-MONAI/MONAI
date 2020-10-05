@@ -69,7 +69,7 @@ class DataLoader(_TorchDataLoader):
             # when num_workers > 0, random states are determined by worker_init_fn
             # this is to make the behavior consistent when num_workers == 0
             _seed = torch.empty((), dtype=torch.int64).random_(generator=None).item()
-            set_rnd(dataset, _seed)
+            set_rnd(dataset, int(_seed))
         super().__init__(  # type: ignore[call-overload]
             dataset=dataset,
             batch_size=batch_size,
