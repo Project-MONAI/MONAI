@@ -12,10 +12,10 @@
 import unittest
 
 import numpy as np
-from torch.utils.data.dataloader import DataLoader
 
-from monai.data import PatchDataset
+from monai.data import DataLoader, Dataset, PatchDataset
 from monai.transforms import RandShiftIntensity, RandSpatialCropSamples
+from monai.utils import set_determinism
 
 
 def identity(x):
@@ -38,28 +38,40 @@ class TestPatchDataset(unittest.TestCase):
         self.assertEqual(output, expected)
 
     def test_loading_array(self):
+        set_determinism(seed=1234)
         # image dataset
         images = [np.arange(16, dtype=np.float).reshape(1, 4, 4), np.arange(16, dtype=np.float).reshape(1, 4, 4)]
         # image patch sampler
-        n_samples = 5
+        n_samples = 8
         sampler = RandSpatialCropSamples(roi_size=(3, 3), num_samples=n_samples, random_center=True, random_size=False)
-        sampler.set_random_state(1234)
-        # patch-level intensity shifts
+
+        # image level
         patch_intensity = RandShiftIntensity(offsets=1.0, prob=1.0)
-        patch_intensity.set_random_state(1234)
-        # construct the patch dataset
-        ds = PatchDataset(dataset=images, patch_func=sampler, samples_per_image=n_samples, transform=patch_intensity)
+        image_ds = Dataset(images, transform=patch_intensity)
+        # patch level
+        ds = PatchDataset(dataset=image_ds, patch_func=sampler, samples_per_image=n_samples, transform=patch_intensity)
+
         np.testing.assert_equal(len(ds), n_samples * len(images))
         # use the patch dataset, length: len(images) x samplers_per_image
         for item in DataLoader(ds, batch_size=2, shuffle=False, num_workers=2):
             np.testing.assert_equal(tuple(item.shape), (2, 1, 3, 3))
         np.testing.assert_allclose(
-            ds[-1],
+            item[0],
             np.array(
-                [[[0.383039, 1.383039, 2.383039], [4.383039, 5.383039, 6.383039], [8.383039, 9.383039, 10.383039]]]
+                [[[0.166312, 1.166312, 2.166312], [4.166312, 5.166312, 6.166312], [8.166312, 9.166312, 10.166312]]]
             ),
             rtol=1e-5,
         )
+        for item in DataLoader(ds, batch_size=2, shuffle=False, num_workers=0):
+            np.testing.assert_equal(tuple(item.shape), (2, 1, 3, 3))
+        np.testing.assert_allclose(
+            item[0],
+            np.array(
+                [[[1.229009, 2.229009, 3.229009], [5.229009, 6.229009, 7.229009], [9.229009, 10.229009, 11.229009]]]
+            ),
+            rtol=1e-5,
+        )
+        set_determinism(seed=None)
 
 
 if __name__ == "__main__":

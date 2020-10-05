@@ -111,7 +111,8 @@ class Randomizable(ABC):
 
         """
         if seed is not None:
-            _seed = id(seed) % np.iinfo(np.uint32).max if not isinstance(seed, (int, np.uint32, np.int32)) else seed
+            _seed = id(seed) if not isinstance(seed, (int, np.uint32, np.int32)) else seed
+            _seed = _seed % (np.iinfo(np.uint32).max + 1)
             self.R = np.random.RandomState(_seed)
             return self
 

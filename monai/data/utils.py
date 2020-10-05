@@ -242,8 +242,24 @@ def worker_init_fn(worker_id: int) -> None:
 
     """
     worker_info = torch.utils.data.get_worker_info()
-    if hasattr(worker_info.dataset, "transform") and hasattr(worker_info.dataset.transform, "set_random_state"):
-        worker_info.dataset.transform.set_random_state(worker_info.seed % (2 ** 32))
+    set_rnd(worker_info.dataset, seed=worker_info.seed)
+
+
+def set_rnd(obj, seed: int) -> int:
+    """
+    Set seed or random state for all randomisable properties of obj.
+
+    Args:
+        seed: set the random state with an integer seed.
+    """
+    if not hasattr(obj, "__dict__"):
+        return seed  # no attribute
+    if hasattr(obj, "set_random_state"):
+        obj.set_random_state(seed=seed % (np.iinfo(np.int32).max + 1))
+        return seed + 1
+    for key in obj.__dict__:
+        seed = set_rnd(obj.__dict__[key], seed=seed)
+    return seed
 
 
 def correct_nifti_header_if_necessary(img_nii):

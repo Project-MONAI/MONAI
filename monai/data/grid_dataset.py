@@ -90,9 +90,8 @@ class PatchDataset(Dataset):
     .. code-block:: python
 
         import numpy as np
-        from torch.utils.data.dataloader import DataLoader
 
-        from monai.data import PatchDataset
+        from monai.data import PatchDataset, DataLoader
         from monai.transforms import RandSpatialCropSamples, RandShiftIntensity
 
         # image dataset
