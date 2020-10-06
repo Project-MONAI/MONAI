@@ -20,12 +20,11 @@ from multiprocessing.pool import ThreadPool
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence, Union
 
-import numpy as np
 import torch
 from torch.utils.data import Dataset as _TorchDataset
 
 from monai.transforms import Compose, Randomizable, Transform, apply_transform
-from monai.utils import get_seed, min_version, optional_import
+from monai.utils import MAX_SEED, get_seed, min_version, optional_import
 
 if TYPE_CHECKING:
     from tqdm import tqdm
@@ -709,7 +708,7 @@ class ArrayDataset(Randomizable, _TorchDataset):
         return len(self.dataset)
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        self._seed = self.R.randint(np.iinfo(np.int32).max)
+        self._seed = self.R.randint(MAX_SEED, dtype="uint32")
 
     def __getitem__(self, index: int):
         self.randomize()

@@ -11,10 +11,11 @@
 
 from typing import Callable, Optional
 
+import torch
 from torch.utils.data import DataLoader as _TorchDataLoader
 from torch.utils.data import Dataset, Sampler
 
-from monai.data.utils import list_data_collate, worker_init_fn
+from monai.data.utils import list_data_collate, set_rnd, worker_init_fn
 
 __all__ = ["DataLoader"]
 
@@ -64,6 +65,12 @@ class DataLoader(_TorchDataLoader):
         timeout: float = 0.0,
         multiprocessing_context: Optional[Callable] = None,
     ) -> None:
+        if num_workers == 0:
+            # when num_workers > 0, random states are determined by worker_init_fn
+            # this is to make the behavior consistent when num_workers == 0
+            # torch.int64 doesn't work well on some versions of windows
+            _seed = torch.empty((), dtype=torch.int32).random_(generator=None).item()
+            set_rnd(dataset, int(_seed))
         super().__init__(  # type: ignore[call-overload]
             dataset=dataset,
             batch_size=batch_size,
