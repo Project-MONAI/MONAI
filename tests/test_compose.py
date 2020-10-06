@@ -122,16 +122,16 @@ class TestCompose(unittest.TestCase):
         set_determinism(seed=123)
         train_loader = DataLoader(train_ds, num_workers=0)
         out_1 = next(iter(train_loader))
-        self.assertAlmostEqual(out_1.cpu().item(), 0.564007472)
+        self.assertAlmostEqual(out_1.cpu().item(), 0.84291356)
 
         if sys.platform != "win32":  # skip multi-worker tests on win32
             train_loader = DataLoader(train_ds, num_workers=1)
             out_1 = next(iter(train_loader))
-            self.assertAlmostEqual(out_1.cpu().item(), 0.967309689)
+            self.assertAlmostEqual(out_1.cpu().item(), 0.180814653)
 
             train_loader = DataLoader(train_ds, num_workers=2)
             out_1 = next(iter(train_loader))
-            self.assertAlmostEqual(out_1.cpu().item(), 0.9405696)
+            self.assertAlmostEqual(out_1.cpu().item(), 0.04293707)
         set_determinism(None)
 
     def test_data_loader_2(self):
@@ -144,16 +144,16 @@ class TestCompose(unittest.TestCase):
 
         train_loader = DataLoader(train_ds, num_workers=0)
         out_2 = next(iter(train_loader))
-        self.assertAlmostEqual(out_2.cpu().item(), 0.38186686)
+        self.assertAlmostEqual(out_2.cpu().item(), 0.7858843729)
 
         if sys.platform != "win32":  # skip multi-worker tests on win32
             train_loader = DataLoader(train_ds, num_workers=1)
             out_2 = next(iter(train_loader))
-            self.assertAlmostEqual(out_2.cpu().item(), 0.40172681)
+            self.assertAlmostEqual(out_2.cpu().item(), 0.305763411)
 
             train_loader = DataLoader(train_ds, num_workers=2)
             out_1 = next(iter(train_loader))
-            self.assertAlmostEqual(out_1.cpu().item(), 0.10265908)
+            self.assertAlmostEqual(out_1.cpu().item(), 0.131966779)
         set_determinism(None)
 
 

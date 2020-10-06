@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
 import unittest
 
 import numpy as np
@@ -31,7 +32,8 @@ class TestPatchDataset(unittest.TestCase):
         result = PatchDataset(dataset=test_dataset, patch_func=identity, samples_per_image=n_per_image)
 
         output = []
-        for item in DataLoader(result, batch_size=3, num_workers=5):
+        n_workers = 0 if sys.platform == "win32" else 2
+        for item in DataLoader(result, batch_size=3, num_workers=n_workers):
             print(item)
             output.append("".join(item))
         expected = ["vwx", "yzh", "ell", "owo", "rld"]
@@ -53,24 +55,31 @@ class TestPatchDataset(unittest.TestCase):
 
         np.testing.assert_equal(len(ds), n_samples * len(images))
         # use the patch dataset, length: len(images) x samplers_per_image
-        for item in DataLoader(ds, batch_size=2, shuffle=False, num_workers=2):
-            np.testing.assert_equal(tuple(item.shape), (2, 1, 3, 3))
-        np.testing.assert_allclose(
-            item[0],
-            np.array(
-                [[[0.166312, 1.166312, 2.166312], [4.166312, 5.166312, 6.166312], [8.166312, 9.166312, 10.166312]]]
-            ),
-            rtol=1e-5,
-        )
         for item in DataLoader(ds, batch_size=2, shuffle=False, num_workers=0):
             np.testing.assert_equal(tuple(item.shape), (2, 1, 3, 3))
         np.testing.assert_allclose(
             item[0],
             np.array(
-                [[[1.229009, 2.229009, 3.229009], [5.229009, 6.229009, 7.229009], [9.229009, 10.229009, 11.229009]]]
+                [[[1.779992, 2.779992, 3.779992], [5.779992, 6.779992, 7.779992], [9.779992, 10.779992, 11.779992]]]
             ),
             rtol=1e-5,
         )
+        if sys.platform != "win32":
+            for item in DataLoader(ds, batch_size=2, shuffle=False, num_workers=2):
+                np.testing.assert_equal(tuple(item.shape), (2, 1, 3, 3))
+            np.testing.assert_allclose(
+                item[0],
+                np.array(
+                    [
+                        [
+                            [5.025618, 6.025618, 7.025618],
+                            [9.025618, 10.025618, 11.025618],
+                            [13.025618, 14.025618, 15.025618],
+                        ]
+                    ]
+                ),
+                rtol=1e-5,
+            )
         set_determinism(seed=None)
 
 

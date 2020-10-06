@@ -22,6 +22,7 @@ from torch.utils.data._utils.collate import default_collate
 
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.utils import (
+    MAX_SEED,
     BlendMode,
     NumpyPadMode,
     ensure_tuple,
@@ -255,8 +256,8 @@ def set_rnd(obj, seed: int) -> int:
     if not hasattr(obj, "__dict__"):
         return seed  # no attribute
     if hasattr(obj, "set_random_state"):
-        obj.set_random_state(seed=seed % (np.iinfo(np.int32).max + 1))
-        return seed + 1
+        obj.set_random_state(seed=seed % MAX_SEED)
+        return seed + 1  # a different seed for the next component
     for key in obj.__dict__:
         seed = set_rnd(obj.__dict__[key], seed=seed)
     return seed
