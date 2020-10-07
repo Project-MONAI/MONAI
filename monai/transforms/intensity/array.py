@@ -185,11 +185,11 @@ class RandScaleIntensity(Randomizable, Transform):
 
 class NormalizeIntensity(Transform):
     """
-    Normalize input based on provided args, using calculated mean and std if not provided
-    (shape of subtrahend and divisor must match. if 0, entire volume uses same subtrahend and
-    divisor, otherwise the shape can have dimension 1 for channels).
+    Normalize input based on provided args, using calculated mean and std if not provided.
     This transform can normalize only non-zero values or entire image, and can also calculate
     mean and std on each channel separately.
+    When `channel_wise` is True, the first dimension of `subtrahend` and `divisor` should
+    be the number of image channels if they are not None.
 
     Args:
         subtrahend: the amount to subtract by (usually the mean).
@@ -201,27 +201,33 @@ class NormalizeIntensity(Transform):
 
     def __init__(
         self,
-        subtrahend: Optional[np.ndarray] = None,
-        divisor: Optional[np.ndarray] = None,
+        subtrahend: Optional[Sequence] = None,
+        divisor: Optional[Sequence] = None,
         nonzero: bool = False,
         channel_wise: bool = False,
     ) -> None:
-        if subtrahend is not None or divisor is not None:
-            assert isinstance(subtrahend, np.ndarray) and isinstance(
-                divisor, np.ndarray
-            ), "subtrahend and divisor must be set in pair and in numpy array."
         self.subtrahend = subtrahend
         self.divisor = divisor
         self.nonzero = nonzero
         self.channel_wise = channel_wise
 
-    def _normalize(self, img: np.ndarray) -> np.ndarray:
+    def _normalize(self, img: np.ndarray, sub=None, div=None) -> np.ndarray:
         slices = (img != 0) if self.nonzero else np.ones(img.shape, dtype=np.bool_)
-        if np.any(slices):
-            if self.subtrahend is not None and self.divisor is not None:
-                img[slices] = (img[slices] - self.subtrahend[slices]) / self.divisor[slices]
-            else:
-                img[slices] = (img[slices] - np.mean(img[slices])) / np.std(img[slices])
+        if not np.any(slices):
+            return img
+
+        _sub = sub if sub is not None else np.mean(img[slices])
+        if isinstance(_sub, np.ndarray):
+            _sub = _sub[slices]
+
+        _div = div if div is not None else np.std(img[slices])
+        if np.isscalar(_div):
+            if _div == 0.0:
+                _div = 1.0
+        elif isinstance(_div, np.ndarray):
+            _div = _div[slices]
+            _div[_div == 0.0] = 1.0
+        img[slices] = (img[slices] - _sub) / _div
         return img
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
@@ -229,10 +235,19 @@ class NormalizeIntensity(Transform):
         Apply the transform to `img`, assuming `img` is a channel-first array if `self.channel_wise` is True,
         """
         if self.channel_wise:
+            if self.subtrahend is not None and len(self.subtrahend) != len(img):
+                raise ValueError(f"img has {len(img)} channels, but subtrahend has {len(self.subtrahend)} components.")
+            if self.divisor is not None and len(self.divisor) != len(img):
+                raise ValueError(f"img has {len(img)} channels, but divisor has {len(self.divisor)} components.")
+
             for i, d in enumerate(img):
-                img[i] = self._normalize(d)
+                img[i] = self._normalize(
+                    d,
+                    sub=self.subtrahend[i] if self.subtrahend is not None else None,
+                    div=self.divisor[i] if self.divisor is not None else None,
+                )
         else:
-            img = self._normalize(img)
+            img = self._normalize(img, self.subtrahend, self.divisor)
 
         return img
 
