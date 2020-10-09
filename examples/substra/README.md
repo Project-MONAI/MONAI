@@ -4,6 +4,8 @@ This examples demonstrates how to run the [3D segmentation tutorial](https://git
 
 In order to run the example, you'll need to have an instance of the substra platform running. Please refer to the [Substra documentation](https://doc.substra.ai/) for more information.
 
+This is based on the version [0.7.1](https://github.com/SubstraFoundation/substra/releases/tag/0.7.1) of Substra.
+
 ## Running the example
 
 ### Preliminary
