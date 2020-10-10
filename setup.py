@@ -15,6 +15,7 @@ import re
 import sys
 import warnings
 
+import pkg_resources
 from setuptools import find_packages, setup
 
 import versioneer
@@ -35,13 +36,18 @@ try:
     from torch.utils.cpp_extension import CUDA_HOME, CUDAExtension
 
     BUILD_CUDA = (torch.cuda.is_available() and (CUDA_HOME is not None)) or FORCE_CUDA
-except ImportError:
-    warnings.warn("extension build skipped.")
+
+    _pt_version = pkg_resources.parse_version(torch.__version__).release  # type: ignore[attr-defined]
+    assert _pt_version is not None and len(_pt_version) >= 3, "unknown torch version"
+    TORCH_VERSION = int(_pt_version[0]) * 10000 + int(_pt_version[1]) * 100 + int(_pt_version[2])
+except (ImportError, TypeError, AssertionError, AttributeError) as e:
+    TORCH_VERSION = 0
+    warnings.warn(f"extension build skipped: {e}")
 finally:
     if not RUN_BUILD:
         BUILD_CPP = BUILD_CUDA = False
         print("Please set environment variable `BUILD_MONAI=1` to enable Cpp/CUDA extension build.")
-    print(f"BUILD_MONAI_CPP={BUILD_CPP}, BUILD_MONAI_CUDA={BUILD_CUDA}")
+    print(f"BUILD_MONAI_CPP={BUILD_CPP}, BUILD_MONAI_CUDA={BUILD_CUDA}, TORCH_VERSION={TORCH_VERSION}.")
 
 
 def torch_parallel_backend():
@@ -85,7 +91,7 @@ def get_extensions():
     source_cuda = glob.glob(os.path.join(ext_dir, "**", "*.cu"))
 
     extension = None
-    define_macros = [(f"{torch_parallel_backend()}", 1)]
+    define_macros = [(f"{torch_parallel_backend()}", 1), ("MONAI_TORCH_VERSION", TORCH_VERSION)]
     extra_compile_args = {}
     extra_link_args = []
     sources = main_src + source_cpu

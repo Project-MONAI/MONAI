@@ -159,6 +159,10 @@ class TestFocalLoss(unittest.TestCase):
         chn_target = torch.ones((1, 3))
         with self.assertRaisesRegex(ValueError, ""):
             FocalLoss(reduction="mean")(chn_input, chn_target)
+        chn_input = torch.ones((1, 1, 30))
+        chn_target = torch.ones((1, 1, 30))
+        with self.assertRaisesRegex(NotImplementedError, ""):
+            FocalLoss()(chn_input, chn_target)
 
 
 if __name__ == "__main__":

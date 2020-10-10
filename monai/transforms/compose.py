@@ -20,7 +20,7 @@ import numpy as np
 
 from monai.config import KeysCollection
 from monai.transforms.utils import apply_transform
-from monai.utils import ensure_tuple, get_seed
+from monai.utils import MAX_SEED, ensure_tuple, get_seed
 
 
 class Transform(ABC):
@@ -111,7 +111,8 @@ class Randomizable(ABC):
 
         """
         if seed is not None:
-            _seed = id(seed) % np.iinfo(np.uint32).max if not isinstance(seed, (int, np.uint32, np.int32)) else seed
+            _seed = id(seed) if not isinstance(seed, (int, np.integer)) else seed
+            _seed = _seed % MAX_SEED
             self.R = np.random.RandomState(_seed)
             return self
 
@@ -213,7 +214,7 @@ class Compose(Randomizable):
         for _transform in self.transforms:
             if not isinstance(_transform, Randomizable):
                 continue
-            _transform.set_random_state(seed=self.R.randint(low=0, high=np.iinfo(np.uint32).max, dtype="uint32"))
+            _transform.set_random_state(seed=self.R.randint(MAX_SEED, dtype="uint32"))
         return self
 
     def randomize(self, data: Optional[Any] = None) -> None:

@@ -54,6 +54,10 @@ Patch-based dataset
 .. autoclass:: GridPatchDataset
   :members:
 
+`PatchDataset`
+~~~~~~~~~~~~~~
+.. autoclass:: PatchDataset
+  :members:
 
 Image reader
 ------------

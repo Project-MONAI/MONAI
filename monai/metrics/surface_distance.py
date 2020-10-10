@@ -26,7 +26,7 @@ def compute_average_surface_distance(
 ):
     """
     This function is used to compute the Average Surface Distance from `seg_pred` to `seg_gt`
-    under the default seeting.
+    under the default setting.
     In addition, if sets ``symmetric = True``, the average symmetric surface distance between
     these two inputs will be returned.
 

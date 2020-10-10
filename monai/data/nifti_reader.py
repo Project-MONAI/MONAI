@@ -15,7 +15,7 @@ import numpy as np
 from torch.utils.data import Dataset
 
 from monai.transforms import LoadNifti, Randomizable, apply_transform
-from monai.utils import get_seed
+from monai.utils import MAX_SEED, get_seed
 
 
 class NiftiDataset(Dataset, Randomizable):
@@ -76,7 +76,7 @@ class NiftiDataset(Dataset, Randomizable):
         return len(self.image_files)
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        self._seed = self.R.randint(np.iinfo(np.int32).max)
+        self._seed = self.R.randint(MAX_SEED, dtype="uint32")
 
     def __getitem__(self, index: int):
         self.randomize()

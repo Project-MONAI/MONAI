@@ -10,16 +10,15 @@
 # limitations under the License.
 
 import os
-import shutil
 import unittest
 from urllib.error import ContentTooShortError, HTTPError
 
-from monai.apps import DecathlonDataset
+from monai.apps import CVDecathlonDataset
 from monai.transforms import AddChanneld, Compose, LoadNiftid, ScaleIntensityd, ToTensord
 from tests.utils import skip_if_quick
 
 
-class TestDecathlonDataset(unittest.TestCase):
+class TestCVDecathlonDataset(unittest.TestCase):
     @skip_if_quick
     def test_values(self):
         testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
@@ -37,16 +36,19 @@ class TestDecathlonDataset(unittest.TestCase):
             self.assertTrue("image" in dataset[0])
             self.assertTrue("label" in dataset[0])
             self.assertTrue("image_meta_dict" in dataset[0])
-            self.assertTupleEqual(dataset[0]["image"].shape, (1, 36, 47, 44))
+            self.assertTupleEqual(dataset[0]["image"].shape, (1, 34, 49, 41))
+
+        cvdataset = CVDecathlonDataset(
+            root_dir=testing_dir,
+            task="Task04_Hippocampus",
+            transform=transform,
+            download=True,
+            seed=12345,
+            nsplits=5,
+        )
 
         try:  # will start downloading if testing_dir doesn't have the Decathlon files
-            data = DecathlonDataset(
-                root_dir=testing_dir,
-                task="Task04_Hippocampus",
-                transform=transform,
-                section="validation",
-                download=True,
-            )
+            data = cvdataset.get_dataset(fold=0, section="validation")
         except (ContentTooShortError, HTTPError, RuntimeError) as e:
             print(str(e))
             if isinstance(e, RuntimeError):
@@ -55,40 +57,18 @@ class TestDecathlonDataset(unittest.TestCase):
             return  # skipping this test due the network connection errors
 
         _test_dataset(data)
-        data = DecathlonDataset(
-            root_dir=testing_dir, task="Task04_Hippocampus", transform=transform, section="validation", download=False
-        )
-        _test_dataset(data)
-        # test validation without transforms
-        data = DecathlonDataset(root_dir=testing_dir, task="Task04_Hippocampus", section="validation", download=False)
-        self.assertTupleEqual(data[0]["image"].shape, (36, 47, 44))
-        self.assertEqual(len(data), 52)
-        data = DecathlonDataset(root_dir=testing_dir, task="Task04_Hippocampus", section="training", download=False)
-        self.assertTupleEqual(data[0]["image"].shape, (34, 56, 31))
+
+        # test training data for fold 0 of 5 splits
+        data = cvdataset.get_dataset(fold=0, section="training")
+        self.assertTupleEqual(data[0]["image"].shape, (1, 34, 48, 40))
         self.assertEqual(len(data), 208)
-
-        # test dataset properties
-        data = DecathlonDataset(
-            root_dir=testing_dir,
-            task="Task04_Hippocampus",
-            section="validation",
-            download=False,
-        )
-        properties = data.get_properties(keys="labels")
-        self.assertDictEqual(properties["labels"], {"0": "background", "1": "Anterior", "2": "Posterior"})
-
-        shutil.rmtree(os.path.join(testing_dir, "Task04_Hippocampus"))
-        try:
-            data = DecathlonDataset(
-                root_dir=testing_dir,
-                task="Task04_Hippocampus",
-                transform=transform,
-                section="validation",
-                download=False,
-            )
-        except RuntimeError as e:
-            print(str(e))
-            self.assertTrue(str(e).startswith("Cannot find dataset directory"))
+        # test train / validation for fold 4 of 5 splits
+        data = cvdataset.get_dataset(fold=4, section="validation")
+        self.assertTupleEqual(data[0]["image"].shape, (1, 33, 55, 29))
+        self.assertEqual(len(data), 52)
+        data = cvdataset.get_dataset(fold=4, section="training")
+        self.assertTupleEqual(data[0]["image"].shape, (1, 34, 49, 41))
+        self.assertEqual(len(data), 208)
 
 
 if __name__ == "__main__":
