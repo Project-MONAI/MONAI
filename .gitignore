@@ -124,3 +124,18 @@ temp/
 # temporary testing data MedNIST
 tests/testing_data/MedNIST*
 tests/testing_data/*Hippocampus*
+
+model_out
+MedNIST/
+MedNIST.tar.gz
+hand-gan*/
+ModelOut/
+research/radiogenomic-gan-nodule-synthesis/ModelOut/
+
+examples/workflows/runs/
+
+output/
+
+research/radiogenomic-gan-nodule-synthesis/datasets.py
+
+.vscode/

@@ -6,29 +6,28 @@ A re-implementation of the Radiogenomic-GAN originally proposed by:
 
 Ziyue Xu, X. Wang, H. Shin, D. Yang, H. Roth, F. Milletari, L. Zhang, D. Xu (2019) "Correlation via synthesis: end-to-end nodule image generation and radiogenomic map learning based on generative adversarial network. 2020. DOI: [1907.03728](https://arxiv.org/pdf/1907.03728.pdf)
 
-This research prototype neural network is adapted from:
+This research prototype network is adapted from:
 
 - [MC-GAN Code Repository](https://github.com/HYOJINPARK/MC_GAN)
 
 ## Running the demo:
 
-### Download the data
+### NSCLC Radiogenomics dataset
 
 The original research uses the [NSCLC-Radiogenomics dataset](https://wiki.cancerimagingarchive.net/display/Public/NSCLC+Radiogenomics), which contains PET/CT scans, semantic tumor annotations, RNA sequences from surgically excised tissue, and survival outcomes from 211 patients with Non-Small Cell Lung Cancer. From the dataset authors: 
 
 >  This dataset was created to facilitate the discovery of the underlying relationship between genomic and medical image features, as well as the development and evaluation of prognostic medical image biomarkers.
-
-To train RGGAN, visit the dataset link above and download these files:
-
-- Images and Segmentations (DICOM, 97.6 GB)
-- RNA sequence data (txt)
+from
 
 ### Preparing the data
 
-- Create an input data folder called `data` in this research directory and copy in the downloaded files. (You can specify an alternate location later.)
-- Use the [NBIA Data Retriever](https://wiki.cancerimagingarchive.net/display/NBIA/Downloading+TCIA+Images) to parse the `.tcia` file and download the images into a `NSCLC Radiogenomic` folder. This will take some time. After the download completes, place the `NSCLC Radiogenomic` folder into your input data folder.
-- TODO: Describe dicom conversion details, 3D to 2D, and bg img creation.
-- TODO: Describe RNA prep
+1. Create an input folder called `data` in this research directory. (You can use an alternate location and specify it later.)
+2. Visit the dataset link above and download these files:
+  - Images and Segmentations (DICOM, 97.6 GB)
+     - Use the [NBIA Data Retriever](https://wiki.cancerimagingarchive.net/display/NBIA/Downloading+TCIA+Images) to parse the `.tcia` file and download the patient data into a `NSCLC Radiogenomic` folder. This will take some time. After the download completes, place the `NSCLC Radiogenomic` folder into your input data folder. We will only need the `R01` patients.
+  - RNA sequence data (`GSE103584_R01_NSCLC_RNAseq.txt.gz`)
+     - Copy the gz file into the input data directory.
+
 
 ### Train the Model
 

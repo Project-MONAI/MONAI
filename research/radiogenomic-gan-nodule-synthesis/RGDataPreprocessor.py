@@ -11,59 +11,98 @@
 
 import csv
 import os
-import pickle
 
 import numpy as np
 
 
-def load_rg_data(data_dir):
-    image_keys = _load_pickle(data_dir, "filenames.pickle")
-    class_info = _load_pickle(data_dir, "class_info.pickle")
-    embeddings = np.float32(_load_pickle(data_dir, "RNA.pickle"))
-    bboxes = _load_bounding_boxes(data_dir)
-    data = _build_data_dict(data_dir, image_keys, bboxes, embeddings, class_info)
-    return data
-
-
-def _build_data_dict(data_dir, image_keys, bboxes, embeddings, class_info):
-    data_samples = []
-    for index, image_key in enumerate(image_keys):
-        img_name = os.path.join(data_dir, "images", "%s.nii.gz" % image_key)
-        seg_name = os.path.join(data_dir, "segmentations", "%s.nii.gz" % image_key)
-        base_images = _load_base_images(data_dir, image_key)
-        data_sample = {}
-        data_sample["image"] = img_name
-        data_sample["seg"] = seg_name
-        data_sample["base"] = base_images
-        data_sample["bbox"] = bboxes[index]
-        data_sample["rna_embedding"] = embeddings[index, :]
-        data_sample["patient"] = class_info[index]
-        data_samples.append(data_sample)
-    return data_samples
-
-
-def _load_base_images(data_dir, image_key):
-    patient_dir = image_key.split("/")[0]
-    base_image_dir = os.path.join(data_dir, "base_images", patient_dir)
-    base_images = os.listdir(base_image_dir)
-    base_images_full_path = [os.path.join(base_image_dir, base_filename) for base_filename in base_images]
-    return base_images_full_path
-
-
-def _load_bounding_boxes(data_dir):
-    # bbox = [x-left, y-top, width, height]
-    bbox_filename = os.path.join(data_dir, "infos", "bounding_boxes.txt")
-    bboxes = []
-    with open(bbox_filename, "r") as f:
-        reader = csv.reader(f, delimiter=" ")
+def _load_rna_text(data_dir):
+    default_rna_filename = "GSE103584_R01_NSCLC_RNAseq.txt"
+    full_path = os.path.join(data_dir, default_rna_filename)
+    assert os.path.isfile(
+        full_path
+    ), f"No RNA data {default_rna_filename} file in {data_dir}. Please see readme for data download instructions."
+    rows = []
+    with open(full_path, "r") as f:
+        reader = csv.reader(f, delimiter="\t")
         for row in reader:
-            bbox_values = np.asarray(row).astype(int)
-            bboxes.append(bbox_values[1:])  # ignore index value
-    return bboxes
+            rows.append(row)  # ignore index value
+
+    cols = rows[0]  # Patient names
+    gene_codes = np.asarray(rows[1:])
+    # Remove genes that have 'NA' value for patients.
+    gene_codes = [seq for seq in gene_codes if not np.isin("NA", seq)]
+    patient_codes = np.transpose(gene_codes)  # Move gene codes to cols.
+
+    embeddings = {}
+    for idx in range(len(cols)):
+        embeddings[cols[idx]] = patient_codes[idx]
+
+    return cols[1:], embeddings
 
 
-def _load_pickle(data_dir, pkl_name):
-    pkl_path = os.path.join(data_dir, "infos", pkl_name)
-    file = open(pkl_path, "rb")
-    data = pickle.load(file, encoding="latin1")
-    return np.array(data)
+def _load_tcia_images(data_dir, rna_patient_names):
+    """
+    Crawl the NSCLC Radiogenomics data, grab CT images and segments, return dict.
+    """
+    patients = []
+    nsclc_foldername = "NSCLC Radiogenomics"
+    nsclc_dir = os.path.join(data_dir, nsclc_foldername)
+    assert os.path.isdir(
+        nsclc_dir
+    ), f"No TCIA 'NSCLC Radiogenomics' folder in {data_dir}. Please see readme for data download instructions."
+    # Select patients with rna data.
+    patients_with_rna_data = [patient for patient in os.listdir(nsclc_dir) if np.isin(patient, rna_patient_names)]
+    # Build patient datapoint.
+    for patient in patients_with_rna_data:
+        datapoint = {}
+        datapoint["patient"] = patient
+        patient_folder = os.path.join(nsclc_dir, patient)  # Patient data.
+        patient_scans = os.listdir(patient_folder)  # Each patient has CT and PET scans.
+        for scan_dirname in patient_scans:
+            # CT scans variate in name, but all PET scans have PET in name.
+            if scan_dirname.find("PET") == -1:
+                ct_scan = os.path.join(patient_folder, scan_dirname)  # Contains CT image and segment.
+                for folder in os.listdir(ct_scan):
+                    names = sorted(os.listdir(os.path.join(ct_scan, folder)))
+                    names = [fname for fname in names if fname.startswith("1-")]  # Keep 1st image.
+                    names = [os.path.join(ct_scan, folder, name) for name in names]
+                    if len(names) > 1:
+                        datapoint["image"] = names
+                    else:
+                        datapoint["seg"] = names[0]
+                if len(datapoint.keys()) == 3:
+                    # ensure name, image, and segmentation
+                    patients.append(datapoint)
+    return patients
+
+
+def load_rg_data(data_dir):
+    """
+    Load CT images, segmentations, and rna embeddings for patients from the NSCLC Radiogenomics dataset.
+
+    Args:
+        data_dir: Patch to input data directory with rna sequences text and downloaded patient images/segments.
+
+    Returns:
+        List[Dict] of patient datasamples. Example item
+        [{
+            "patient": "R01-041",
+            "image": ["inputdir/NSCLC Radiogenomics/R01-041/ct_scan/image/1-001.dcm", "inputdir/.../1-002.dcm", ...],
+            "seg": "inputdir/NSCLC Radiogenomics/R01-041/ct_scan/segmentation/1-1.dcm",
+            "rna_embedding": [12.814, 12.231, ...]
+        }]
+    """
+    rna_patient_names, embeddings = _load_rna_text(data_dir)
+    patient_data = _load_tcia_images(data_dir, rna_patient_names)
+    for datapoint in patient_data:
+        patient = datapoint["patient"]
+        datapoint["rna_embedding"] = embeddings[patient]
+    return patient_data
+
+
+if __name__ == "__main__":
+    data_dir = "/nvdata/NSCLC-Radiogenomics-Fresh"
+    print("Data dir: ", data_dir)
+    data = load_rg_data(data_dir)
+    # Note: We select patient R01-023 where Ziyue did not.
+    print("done")
