@@ -299,7 +299,11 @@ def _load_state_dict(model, model_url, progress):
 
 
 def senet154(
-    spatial_dims: int, in_channels: int, num_classes: int, pretrained: bool = False, progress: bool = True
+    spatial_dims: int,
+    in_channels: int,
+    num_classes: int,
+    pretrained: bool = False,
+    progress: bool = True,
 ) -> SENet:
     """
     when `spatial_dims = 2`, specify `pretrained = True` can load Imagenet pretrained weights achieved

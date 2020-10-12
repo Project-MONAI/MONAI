@@ -58,24 +58,6 @@ class TestPretrainedDENSENET(unittest.TestCase):
             result = net.forward(input_data)
             self.assertEqual(result.shape, expected_shape)
 
-    @parameterized.expand([TEST_PRETRAINED_2D_CASE_1, TEST_PRETRAINED_2D_CASE_2])
-    @skip_if_quick
-    def test_169_3d_shape_pretrain(self, input_param, input_data, expected_shape):
-        net = densenet169(**input_param)
-        net.eval()
-        with torch.no_grad():
-            result = net.forward(input_data)
-            self.assertEqual(result.shape, expected_shape)
-
-    @parameterized.expand([TEST_PRETRAINED_2D_CASE_1, TEST_PRETRAINED_2D_CASE_2])
-    @skip_if_quick
-    def test_201_3d_shape_pretrain(self, input_param, input_data, expected_shape):
-        net = densenet201(**input_param)
-        net.eval()
-        with torch.no_grad():
-            result = net.forward(input_data)
-            self.assertEqual(result.shape, expected_shape)
-
 
 class TestDENSENET(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1])
