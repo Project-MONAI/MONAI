@@ -28,3 +28,7 @@ Metrics
 `Average Surface Distance`
 --------------------------
 .. autofunction:: compute_average_surface_distance
+
+`Occlusion sensitivity`
+--------------------------
+.. autofunction:: compute_occlusion_sensitivity
