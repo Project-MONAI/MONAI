@@ -38,9 +38,20 @@ TEST_CASE_2 = [
     ),
 ]
 
+TEST_CASE_3 = [
+    {"sigma_x": (0.5, 1.5), "sigma_y": (0.5, 1.0), "approx": "refined", "prob": 1.0},
+    np.array([[[1, 1, 1], [2, 2, 2], [3, 3, 3]], [[4, 4, 4], [5, 5, 5], [6, 6, 6]]]),
+    np.array(
+        [
+            [[0.78244364, 0.9444885, 0.78244364], [1.2840661, 1.5499973, 1.2840661], [1.319851, 1.5931935, 1.319851]],
+            [[2.3591647, 2.84775, 2.3591647], [3.210165, 3.8749936, 3.2101653], [2.8965719, 3.496455, 2.896572]],
+        ]
+    ),
+]
+
 
 class TestRandGaussianSmooth(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_value(self, argments, image, expected_data):
         converter = RandGaussianSmooth(**argments)
         converter.set_random_state(seed=0)

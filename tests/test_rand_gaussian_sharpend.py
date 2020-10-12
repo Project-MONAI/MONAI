@@ -67,14 +67,34 @@ TEST_CASE_3 = [
     ),
 ]
 
+TEST_CASE_4 = [
+    {
+        "keys": "img",
+        "sigma1_x": (0.5, 0.75),
+        "sigma1_y": (0.5, 0.75),
+        "sigma1_z": (0.5, 0.75),
+        "sigma2_x": (0.5, 0.75),
+        "sigma2_y": (0.5, 0.75),
+        "sigma2_z": (0.5, 0.75),
+        "approx": "refined",
+        "prob": 1.0,
+    },
+    {"img": np.array([[[1, 1, 1], [2, 2, 2], [3, 3, 3]], [[4, 4, 4], [5, 5, 5], [6, 6, 6]]])},
+    np.array(
+        [
+            [[5.415007, 4.9318314, 5.415007], [12.503677, 12.35288, 12.5036745], [18.72623, 19.844906, 18.72623]],
+            [[23.520931, 23.51439, 23.520939], [31.259188, 30.882202, 31.25918], [36.83216, 38.427456, 36.83216]],
+        ]
+    ),
+]
+
 
 class TestRandGaussianSharpend(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_value(self, argments, image, expected_data):
         converter = RandGaussianSharpend(**argments)
         converter.set_random_state(seed=0)
         result = converter(image)
-
         np.testing.assert_allclose(result["img"], expected_data, rtol=1e-4)
 
 

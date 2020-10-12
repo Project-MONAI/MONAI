@@ -71,19 +71,23 @@ class Reshape(nn.Module):
 
 
 class GaussianFilter(nn.Module):
-    def __init__(self, spatial_dims: int, sigma: Union[Sequence[float], float], truncated: float = 4.0) -> None:
+    def __init__(
+        self, spatial_dims: int, sigma: Union[Sequence[float], float], truncated: float = 4.0, approx: str = "simple"
+    ) -> None:
         """
         Args:
             spatial_dims: number of spatial dimensions of the input image.
                 must have shape (Batch, channels, H[, W, ...]).
             sigma: std.
             truncated: spreads how many stds.
+            approx: Discrete Gaussian kernel type, available options are "simple" and "refined".
         """
         super().__init__()
         self.spatial_dims = int(spatial_dims)
         _sigma = ensure_tuple_rep(sigma, self.spatial_dims)
         self.kernel = [
-            torch.nn.Parameter(torch.as_tensor(gaussian_1d(s, truncated), dtype=torch.float), False) for s in _sigma
+            torch.nn.Parameter(torch.as_tensor(gaussian_1d(s, truncated, approx=approx), dtype=torch.float), False)
+            for s in _sigma
         ]
         self.padding = [cast(int, (same_padding(k.size()[0]))) for k in self.kernel]
         self.conv_n = [F.conv1d, F.conv2d, F.conv3d][spatial_dims - 1]
