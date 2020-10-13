@@ -255,6 +255,11 @@ Nets
 .. autoclass:: VNet
   :members:
 
+`AutoEncoder`
+~~~~~~
+.. autoclass:: AutoEncoder
+  :members:
+
 `Generator`
 ~~~~~~~~~~~
 .. autoclass:: Generator
