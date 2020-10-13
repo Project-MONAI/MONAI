@@ -9,6 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional, Sequence, Tuple, Union
+
+import torch
 import torch.nn as nn
 
 from monai.networks.blocks import Convolution, ResidualUnit
@@ -18,21 +21,21 @@ from monai.networks.layers.factories import Act, Norm
 class AutoEncoder(nn.Module):
     def __init__(
         self,
-        dimensions,
-        in_channels,
-        out_channels,
-        channels,
-        strides,
-        kernel_size=3,
-        up_kernel_size=3,
-        num_res_units=0,
-        inter_channels=[],
-        inter_dilations=[],
-        num_inter_units=2,
-        act=Act.PRELU,
-        norm=Norm.INSTANCE,
-        dropout=None,
-    ):
+        dimensions: int,
+        in_channels: int,
+        out_channels: int,
+        channels: Sequence[int],
+        strides: Sequence[int],
+        kernel_size: Union[Sequence[int], int] = 3,
+        up_kernel_size: Union[Sequence[int], int] = 3,
+        num_res_units: int = 0,
+        inter_channels: list = list(),
+        inter_dilations: list = list(),
+        num_inter_units: int = 2,
+        act: Optional[Union[Tuple, str]] = Act.PRELU,
+        norm: Union[Tuple, str] = Norm.INSTANCE,
+        dropout: Optional[Union[Tuple, str, float]] = None,
+    ) -> None:
 
         super().__init__()
         self.dimensions = dimensions
@@ -57,7 +60,9 @@ class AutoEncoder(nn.Module):
         self.intermediate, self.encoded_channels = self._get_intermediate_module(self.encoded_channels, num_inter_units)
         self.decode, _ = self._get_decode_module(self.encoded_channels, decode_channel_list, strides[::-1] or [1])
 
-    def _get_encode_module(self, in_channels, channels, strides):
+    def _get_encode_module(
+        self, in_channels: int, channels: Sequence[int], strides: Sequence[int]
+    ) -> (nn.Sequential, int):
         encode = nn.Sequential()
         layer_channels = in_channels
 
@@ -68,7 +73,7 @@ class AutoEncoder(nn.Module):
 
         return encode, layer_channels
 
-    def _get_intermediate_module(self, in_channels, num_inter_units):
+    def _get_intermediate_module(self, in_channels: int, num_inter_units: int) -> (nn.Module, int):
         intermediate = nn.Identity()
         layer_channels = in_channels
 
@@ -99,7 +104,7 @@ class AutoEncoder(nn.Module):
 
         return intermediate, layer_channels
 
-    def _get_decode_module(self, in_channels, channels, strides):
+    def _get_decode_module(self, in_channels: int, channels: int, strides: Sequence[int]) -> (nn.Sequential, int):
         decode = nn.Sequential()
         layer_channels = in_channels
 
@@ -110,7 +115,10 @@ class AutoEncoder(nn.Module):
 
         return decode, layer_channels
 
-    def _get_encode_layer(self, in_channels, out_channels, strides, is_last):
+    def _get_encode_layer(
+        self, in_channels: int, out_channels: int, strides: Sequence[int], is_last: bool
+    ) -> nn.Module:
+
         if self.num_res_units > 0:
             return ResidualUnit(
                 self.dimensions,
@@ -137,16 +145,9 @@ class AutoEncoder(nn.Module):
                 conv_only=is_last,
             )
 
-    def _get_decode_layer(self, in_channels, out_channels, strides, is_last):
-        #         conv = Convolution(self.dimensions, in_channels, out_channels, strides, self.up_kernel_size,
-        #                            self.act, self.norm, self.dropout, conv_only=is_last and self.num_res_units == 0, is_transposed=True)
-
-        #         if self.num_res_units > 0:
-        #             ru = ResidualUnit(self.dimensions, out_channels, out_channels, 1, self.kernel_size, 1,
-        #                               self.act, self.norm, self.dropout, last_conv_only=is_last)
-        #             return nn.Sequential(conv, ru)
-        #         else:
-        #             return conv
+    def _get_decode_layer(
+        self, in_channels: int, out_channels: int, strides: Sequence[int], is_last: bool
+    ) -> nn.Sequential:
 
         decode = nn.Sequential()
 
@@ -183,8 +184,8 @@ class AutoEncoder(nn.Module):
 
         return decode
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.encode(x)
         x = self.intermediate(x)
         x = self.decode(x)
-        return (x,)
+        return x
