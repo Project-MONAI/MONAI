@@ -11,9 +11,7 @@
 
 import unittest
 
-import numpy as np
 import torch
-import torch.nn as nn
 from parameterized import parameterized
 
 from monai.metrics import compute_occlusion_sensitivity

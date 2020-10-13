@@ -68,8 +68,8 @@ def compute_occlusion_sensitivity(
     baseline = model(image).detach()[0, label].item()
 
     # Create some lists
-    batch_images = []
-    batch_ids = []
+    batch_images_lst = []
+    batch_ids_lst = []
 
     heatmap = torch.empty(0, dtype=torch.float32, device=image.device)
     # Loop 1D over image
@@ -85,20 +85,20 @@ def compute_occlusion_sensitivity(
         occlu_im[..., min_idx[0] : max_idx[0], min_idx[1] : max_idx[1], min_idx[2] : max_idx[2]] = pad_val
 
         # Add to list
-        batch_images.append(occlu_im)
-        batch_ids.append(label)
+        batch_images_lst.append(occlu_im)
+        batch_ids_lst.append(label)
 
         # Once the batch is complete (or on last iteration)
-        if len(batch_images) == n_batch or i == image.numel() - 1:
+        if len(batch_images_lst) == n_batch or i == image.numel() - 1:
             # Get the predictions and append to tensor
-            batch_images = torch.cat(batch_images, dim=0)
-            batch_ids = torch.cat(batch_ids, dim=0)
+            batch_images = torch.cat(batch_images_lst, dim=0)
+            batch_ids = torch.cat(batch_ids_lst, dim=0)
             scores = model(batch_images).detach().gather(1, batch_ids)
             heatmap = torch.cat((heatmap, scores))
 
             # Clear lists
-            batch_images = []
-            batch_ids = []
+            batch_images_lst = []
+            batch_ids_lst = []
 
     # Convert tensor to numpy and reshape
     diffmaps = np.squeeze(heatmap.cpu().numpy().reshape(im_shape))
