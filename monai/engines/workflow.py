@@ -44,6 +44,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         device: an object representing the device on which to run.
         max_epochs: the total epoch number for engine to run, validator and evaluator have only 1 epoch.
         data_loader: Ignite engine use data_loader to run, must be torch.DataLoader.
+        epoch_length: number of iterations for one epoch, default to `len(data_loader)`.
         prepare_batch: function to parse image and label for every iteration.
         iteration_update: the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
@@ -70,6 +71,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         device: torch.device,
         max_epochs: int,
         data_loader: DataLoader,
+        epoch_length: Optional[int] = None,
         prepare_batch: Callable = default_prepare_batch,
         iteration_update: Optional[Callable] = None,
         post_transform: Optional[Callable] = None,
@@ -99,7 +101,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             iteration=0,
             epoch=0,
             max_epochs=max_epochs,
-            epoch_length=len(data_loader),
+            epoch_length=len(data_loader) if epoch_length is None else epoch_length,
             output=None,
             batch=None,
             metrics={},
