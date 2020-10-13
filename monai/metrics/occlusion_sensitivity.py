@@ -65,7 +65,7 @@ def compute_occlusion_sensitivity(
         raise RuntimeError("Expected 1 label.")
 
     # Make sure the image is 4D tensor with 1 channel
-    while image.ndim < 4:
+    while len(image.shape) < 4:
         image = image.unsqueeze(0)
     if image.shape[0] > 1:
         raise RuntimeError("Expected 1 channel.")
