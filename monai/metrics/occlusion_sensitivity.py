@@ -22,15 +22,6 @@ except (ImportError, AttributeError):
     trange = range
 
 
-def get_probability_corr_label(
-    model: nn.Module,
-    im: Union[np.ndarray, torch.Tensor],
-    label: torch.Tensor,
-) -> float:
-    with torch.no_grad():
-        return model(im).detach()[0, label].item()
-
-
 def compute_occlusion_sensitivity(
     model: nn.Module,
     image: Union[np.ndarray, torch.Tensor],
