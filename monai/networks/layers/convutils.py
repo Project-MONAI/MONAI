@@ -78,14 +78,17 @@ def calculate_out_shape(
     return out_shape if len(out_shape) > 1 else out_shape[0]
 
 
-def gaussian_1d(sigma: Union[float, torch.Tensor], truncated: float = 4.0, approx: str = "simple") -> np.ndarray:
+def gaussian_1d(sigma: Union[float, torch.Tensor], truncated: float = 4.0, approx: str = "simple"):
     """
-    one dimensional gaussian kernel.
+    one dimensional Gaussian kernel.
 
     Args:
         sigma: std of the kernel
         truncated: tail length
         approx: Discrete Gaussian kernel type, available options are "simple" and "refined".
+            The "refined" approximation corresponds to
+            https://en.wikipedia.org/wiki/Scale_space_implementation#The_discrete_Gaussian_kernel
+            based on the modified Bessel functions.
 
     Raises:
         ValueError: When ``sigma`` is non-positive.
@@ -94,67 +97,67 @@ def gaussian_1d(sigma: Union[float, torch.Tensor], truncated: float = 4.0, appro
         1D torch tensor
 
     """
-    sigma = torch.as_tensor(sigma).float()
-    if sigma <= 0 or truncated <= 0:
+    sigma = torch.as_tensor(sigma, dtype=torch.float)
+    if sigma <= 0.0 or truncated <= 0.0:
         raise ValueError(f"sigma and truncated must be positive, got {sigma} and {truncated}.")
     tail = int(sigma * truncated + 0.5)
     if approx.lower() == "simple":
-        x = torch.arange(-tail, tail + 1).float()
-        t = 1 / (torch.tensor(2.0).sqrt() * sigma)
+        x = torch.arange(-tail, tail + 1, dtype=torch.float)
+        t = 1.0 / (torch.tensor(2.0).sqrt() * sigma)
         out = 0.5 * ((t * (x + 0.5)).erf() - (t * (x - 0.5)).erf())
         return out.clamp(min=0)
     if approx.lower() == "refined":
-        with torch.no_grad():
-            out = [_modified_bessel_0(sigma), _modified_bessel_1(sigma)]
-            idx = 2
-            while len(out) <= tail:
-                out.append(_modified_bessel_i(idx, sigma))
-                idx += 1
-            ans = out[:0:-1]
-            ans.extend(out)
-            ans = torch.stack(ans) * torch.exp(-sigma)
-            ans /= ans.sum()
+        out = [_modified_bessel_0(sigma), _modified_bessel_1(sigma)]
+        while len(out) <= tail:
+            out.append(_modified_bessel_i(len(out), sigma))
+        ans = out[:0:-1]
+        ans.extend(out)
+        ans = torch.stack(ans) * torch.exp(-sigma)
+        ans /= ans.sum()
         return ans
     raise NotImplementedError(f"Unsupported option: approx='{approx}'.")
 
 
-def _modified_bessel_0(x: float) -> float:
-    if abs(x) < 3.75:
+def _modified_bessel_0(x: Union[float, torch.Tensor]) -> torch.Tensor:
+    x = torch.as_tensor(x, dtype=torch.float)
+    if torch.abs(x) < 3.75:
         y = (x / 3.75) * (x / 3.75)
         return 1.0 + y * (
             3.5156229 + y * (3.0899424 + y * (1.2067492 + y * (0.2659732 + y * (0.360768e-1 + y * 0.45813e-2))))
         )
-    ax = abs(x)
+    ax = torch.abs(x)
     y = 3.75 / ax
     ans = 0.916281e-2 + y * (-0.2057706e-1 + y * (0.2635537e-1 + y * (-0.1647633e-1 + y * 0.392377e-2)))
-    return (np.exp(ax) / np.sqrt(ax)) * (
+    return (torch.exp(ax) / torch.sqrt(ax)) * (
         0.39894228 + y * (0.1328592e-1 + y * (0.225319e-2 + y * (-0.157565e-2 + y * ans)))
     )
 
 
-def _modified_bessel_1(x: float) -> float:
-    if abs(x) < 3.75:
+def _modified_bessel_1(x: Union[float, torch.Tensor]) -> torch.Tensor:
+    x = torch.as_tensor(x, dtype=torch.float)
+    if torch.abs(x) < 3.75:
         y = (x / 3.75) * (x / 3.75)
         ans = 0.51498869 + y * (0.15084934 + y * (0.2658733e-1 + y * (0.301532e-2 + y * 0.32411e-3)))
-        return abs(x) * (0.5 + y * (0.87890594 + y * ans))
-    ax = abs(x)
+        return torch.abs(x) * (0.5 + y * (0.87890594 + y * ans))
+    ax = torch.abs(x)
     y = 3.75 / ax
     ans = 0.2282967e-1 + y * (-0.2895312e-1 + y * (0.1787654e-1 - y * 0.420059e-2))
     ans = 0.39894228 + y * (-0.3988024e-1 + y * (-0.362018e-2 + y * (0.163801e-2 + y * (-0.1031555e-1 + y * ans))))
-    ans *= np.exp(ax) / np.sqrt(ax)
-    return -ans if x < 0.0 else ans
+    ans = ans * torch.exp(ax) / torch.sqrt(ax)
+    return -ans if x < torch.tensor(0.0) else ans
 
 
-def _modified_bessel_i(n: int, x: float) -> float:
+def _modified_bessel_i(n: int, x: Union[float, torch.Tensor]) -> torch.Tensor:
     if n < 2:
         raise ValueError(f"n must be greater than 1, got n={n}.")
-    if x == 0.0:
-        return 0.0
-    tox = 2.0 / abs(x)
-    ans, bip, bi = 0.0, 0.0, 1.0
+    x = torch.as_tensor(x, dtype=torch.float)
+    if x == torch.tensor(0.0):
+        return x
+    tox = 2.0 / torch.abs(x)
+    ans, bip, bi = torch.tensor(0.0), torch.tensor(0.0), torch.tensor(1.0)
     m = int(2 * (n + np.floor(np.sqrt(40.0 * n))))
     for j in range(m, 0, -1):
-        bim = bip + j * tox * bi
+        bim = bip + float(j) * tox * bi
         bip = bi
         bi = bim
         if abs(bi) > 1.0e10:
@@ -163,5 +166,5 @@ def _modified_bessel_i(n: int, x: float) -> float:
             bip *= 1.0e-10
         if j == n:
             ans = bip
-    ans *= _modified_bessel_0(x) / float(bi)
-    return -ans if x < 0.0 and (n % 2) == 1 else ans
+    ans *= _modified_bessel_0(x) / bi
+    return -ans if x < torch.tensor(0.0) and (n % 2) == 1 else ans
