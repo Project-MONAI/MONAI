@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence, Tuple, Union
+from typing import List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -78,17 +78,24 @@ def calculate_out_shape(
     return out_shape if len(out_shape) > 1 else out_shape[0]
 
 
-def gaussian_1d(sigma: Union[float, torch.Tensor], truncated: float = 4.0, approx: str = "simple"):
+def gaussian_1d(
+    sigma: Union[float, torch.Tensor], truncated: float = 4.0, approx: str = "erf", normalize: bool = False
+):
     """
     one dimensional Gaussian kernel.
 
     Args:
         sigma: std of the kernel
         truncated: tail length
-        approx: Discrete Gaussian kernel type, available options are "simple" and "refined".
-            The "refined" approximation corresponds to
-            https://en.wikipedia.org/wiki/Scale_space_implementation#The_discrete_Gaussian_kernel
-            based on the modified Bessel functions.
+        approx: discrete Gaussian kernel type, available options are "erf", "sampled", and "scalespace".
+
+            - ``erf`` approximation interpolates the error function;
+            - ``sampled`` uses a sampled Gaussian kernel;
+            - ``scalespace`` corresponds to
+              https://en.wikipedia.org/wiki/Scale_space_implementation#The_discrete_Gaussian_kernel
+              based on the modified Bessel functions.
+
+        normalize: whether to normalize the kernel with `kernel.sum()`.
 
     Raises:
         ValueError: When ``sigma`` is non-positive.
@@ -101,21 +108,30 @@ def gaussian_1d(sigma: Union[float, torch.Tensor], truncated: float = 4.0, appro
     if sigma <= 0.0 or truncated <= 0.0:
         raise ValueError(f"sigma and truncated must be positive, got {sigma} and {truncated}.")
     tail = int(sigma * truncated + 0.5)
-    if approx.lower() == "simple":
+    if approx.lower() == "erf":
         x = torch.arange(-tail, tail + 1, dtype=torch.float)
         t = 1.0 / (torch.tensor(2.0).sqrt() * sigma)
         out = 0.5 * ((t * (x + 0.5)).erf() - (t * (x - 0.5)).erf())
-        return out.clamp(min=0)
-    if approx.lower() == "refined":
-        out = [_modified_bessel_0(sigma), _modified_bessel_1(sigma)]
-        while len(out) <= tail:
-            out.append(_modified_bessel_i(len(out), sigma))
-        ans = out[:0:-1]
-        ans.extend(out)
-        ans = torch.stack(ans) * torch.exp(-sigma)
-        ans /= ans.sum()
-        return ans
-    raise NotImplementedError(f"Unsupported option: approx='{approx}'.")
+        out = out.clamp(min=0)
+    elif approx.lower() == "sampled":
+        x = torch.arange(-tail, tail + 1, dtype=torch.float)
+        sigma2 = sigma * sigma
+        t = 1.0 / (torch.tensor(2.0 * np.pi).sqrt() * sigma)
+        out = t * torch.exp(-0.5 / sigma2 * x ** 2)
+    elif approx.lower() == "scalespace":
+        sigma2 = sigma * sigma
+        out_pos: List[Optional[torch.Tensor]] = [None] * (tail + 1)
+        out_pos[0] = _modified_bessel_0(sigma2)
+        if len(out_pos) > 1:
+            out_pos[1] = _modified_bessel_1(sigma2)
+        for k in range(2, len(out_pos)):
+            out_pos[k] = _modified_bessel_i(k, sigma2)
+        out = out_pos[:0:-1]
+        out.extend(out_pos)
+        out = torch.stack(out) * torch.exp(-sigma2)
+    else:
+        raise NotImplementedError(f"Unsupported option: approx='{approx}'.")
+    return out / out.sum() if normalize else out
 
 
 def _modified_bessel_0(x: Union[float, torch.Tensor]) -> torch.Tensor:

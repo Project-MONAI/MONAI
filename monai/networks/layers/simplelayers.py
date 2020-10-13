@@ -111,7 +111,7 @@ class GaussianFilter(nn.Module):
         spatial_dims: int,
         sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor],
         truncated: float = 4.0,
-        approx: str = "simple",
+        approx: str = "erf",
         requires_grad: bool = False,
     ) -> None:
         """
@@ -120,7 +120,14 @@ class GaussianFilter(nn.Module):
                 must have shape (Batch, channels, H[, W, ...]).
             sigma: std. could be a single value, or `spatial_dims` number of values.
             truncated: spreads how many stds.
-            approx: discrete Gaussian kernel type, available options are "simple" and "refined".
+            approx: discrete Gaussian kernel type, available options are "erf", "sampled", and "scalespace".
+
+                - ``erf`` approximation interpolates the error function;
+                - ``sampled`` uses a sampled Gaussian kernel;
+                - ``scalespace`` corresponds to
+                  https://en.wikipedia.org/wiki/Scale_space_implementation#The_discrete_Gaussian_kernel
+                  based on the modified Bessel functions.
+
             requires_grad: whether to store the gradients for sigma.
                 if True, `sigma` will be the initial value of the parameters of this module
                 (for example using `parameters()` iterator);

@@ -436,11 +436,12 @@ class GaussianSmoothd(MapTransform):
         sigma: if a list of values, must match the count of spatial dimensions of input data,
             and apply every value in the list to 1 spatial dimension. if only 1 value provided,
             use it for all spatial dimensions.
-        approx: Discrete Gaussian kernel type, available options are "simple" and "refined".
+        approx: discrete Gaussian kernel type, available options are "erf", "sampled", and "scalespace".
+            see also :py:meth:`monai.networks.layers.GaussianFilter`.
 
     """
 
-    def __init__(self, keys: KeysCollection, sigma: Union[Sequence[float], float], approx: str = "simple") -> None:
+    def __init__(self, keys: KeysCollection, sigma: Union[Sequence[float], float], approx: str = "erf") -> None:
         super().__init__(keys)
         self.converter = GaussianSmooth(sigma, approx=approx)
 
@@ -461,7 +462,8 @@ class RandGaussianSmoothd(Randomizable, MapTransform):
         sigma_x: randomly select sigma value for the first spatial dimension.
         sigma_y: randomly select sigma value for the second spatial dimension if have.
         sigma_z: randomly select sigma value for the third spatial dimension if have.
-        approx: Discrete Gaussian kernel type, available options are "simple" and "refined".
+        approx: discrete Gaussian kernel type, available options are "erf", "sampled", and "scalespace".
+            see also :py:meth:`monai.networks.layers.GaussianFilter`.
         prob: probability of Gaussian smooth.
 
     """
@@ -472,7 +474,7 @@ class RandGaussianSmoothd(Randomizable, MapTransform):
         sigma_x: Tuple[float, float] = (0.25, 1.5),
         sigma_y: Tuple[float, float] = (0.25, 1.5),
         sigma_z: Tuple[float, float] = (0.25, 1.5),
-        approx: str = "simple",
+        approx: str = "erf",
         prob: float = 0.1,
     ) -> None:
         super().__init__(keys)
@@ -514,7 +516,8 @@ class GaussianSharpend(MapTransform):
             of spatial dimensions of input data, and apply every value in the list to 1 spatial dimension.
             if only 1 value provided, use it for all spatial dimensions.
         alpha: weight parameter to compute the final result.
-        approx: Discrete Gaussian kernel type, available options are "simple" and "refined".
+        approx: discrete Gaussian kernel type, available options are "erf", "sampled", and "scalespace".
+            see also :py:meth:`monai.networks.layers.GaussianFilter`.
 
     """
 
@@ -524,7 +527,7 @@ class GaussianSharpend(MapTransform):
         sigma1: Union[Sequence[float], float] = 3.0,
         sigma2: Union[Sequence[float], float] = 1.0,
         alpha: float = 30.0,
-        approx: str = "simple",
+        approx: str = "erf",
     ) -> None:
         super().__init__(keys)
         self.converter = GaussianSharpen(sigma1, sigma2, alpha, approx=approx)
@@ -553,7 +556,8 @@ class RandGaussianSharpend(Randomizable, MapTransform):
         sigma2_z: randomly select sigma value for the third spatial dimension(if have) of second gaussian kernel.
             if only 1 value `Z` provided, it must be smaller than `sigma1_z` and randomly select from [Z, sigma1_z].
         alpha: randomly select weight parameter to compute the final result.
-        approx: Discrete Gaussian kernel type, available options are "simple" and "refined".
+        approx: discrete Gaussian kernel type, available options are "erf", "sampled", and "scalespace".
+            see also :py:meth:`monai.networks.layers.GaussianFilter`.
         prob: probability of Gaussian sharpen.
 
     """
@@ -568,7 +572,7 @@ class RandGaussianSharpend(Randomizable, MapTransform):
         sigma2_y: Union[Tuple[float, float], float] = 0.5,
         sigma2_z: Union[Tuple[float, float], float] = 0.5,
         alpha: Tuple[float, float] = (10.0, 30.0),
-        approx: str = "simple",
+        approx: str = "erf",
         prob: float = 0.1,
     ):
         super().__init__(keys)
