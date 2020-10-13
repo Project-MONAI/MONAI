@@ -306,14 +306,14 @@ class TestGaussian1d(unittest.TestCase):
     @parameterized.expand(TEST_CASES_NORM_F)
     def test_norm_false(self, variance, expected):
         extent = 6
-        rtol = 1e-4
+        atol = 1e-4
         sigma = np.sqrt(variance)
         k_erf = gaussian_1d(sigma, truncated=extent / sigma, approx="erf", normalize=False).numpy()
         k_sampled = gaussian_1d(sigma, truncated=extent / sigma, approx="sampled").numpy()
         k_scalespace = gaussian_1d(sigma, truncated=extent / sigma, approx="scalespace").numpy()
-        np.testing.assert_allclose(k_erf, expected[0], rtol=rtol)
-        np.testing.assert_allclose(k_sampled, expected[1], rtol=rtol)
-        np.testing.assert_allclose(k_scalespace, expected[2], rtol=rtol)
+        np.testing.assert_allclose(k_erf, expected[0], atol=atol)
+        np.testing.assert_allclose(k_sampled, expected[1], atol=atol)
+        np.testing.assert_allclose(k_scalespace, expected[2], atol=atol)
 
     def test_wrong_sigma(self):
         with self.assertRaises(ValueError):
