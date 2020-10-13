@@ -19,29 +19,26 @@ from parameterized import parameterized
 from monai.metrics import compute_occlusion_sensitivity
 from monai.networks.nets import densenet121
 
-# # keep background
-# TEST_CASE_1 = [  # y (1, 1, 2, 2), y_pred (1, 1, 2, 2), expected out (1, 1)
-#     {
-#         "model": UNet(dimensions=2, in_channels=1, out_channels=1,
-#                       channels=[8, 16, 32], strides=[2, 2]),
-#         "image": torch.rand(1, 1, 64, 64),
-#         "label": 0,
-#     },
-# ]
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+# 2D
+TEST_CASE_1 = [
+    {
+        "model": densenet121(
+            spatial_dims=2, in_channels=1, out_channels=3).to(device),
+        "image": torch.rand(1, 1, 64, 64).to(device),
+        "label": 0,
+    },
+    (64, 64),
+]
 
 
-# class TestComputeOcclusionSensitivity(unittest.TestCase):
-#     @parameterized.expand([TEST_CASE_1])
-#     def test_shape(self, input_data):
-#         result = compute_occlusion_sensitivity(**input_data)
-#         print(result.shape)
-#         self.assertTupleEqual(result.shape, (64, 64))
+class TestComputeOcclusionSensitivity(unittest.TestCase):
+    @parameterized.expand([TEST_CASE_1])
+    def test_shape(self, input_data, expected_shape):
+        result = compute_occlusion_sensitivity(**input_data)
+        self.assertTupleEqual(result.shape, expected_shape)
 
 
 if __name__ == "__main__":
-
-    model = densenet121(spatial_dims=2, in_channels=1, out_channels=3)
-    image = torch.rand(1, 1, 64, 64)
-    label = 0
-    compute_occlusion_sensitivity(model, image, label)
-    # unittest.main()
+    unittest.main()

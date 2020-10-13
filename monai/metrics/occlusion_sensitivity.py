@@ -34,7 +34,7 @@ def get_probability_corr_label(
 def compute_occlusion_sensitivity(
     model: nn.Module,
     image: Union[np.ndarray, torch.Tensor],
-    label: torch.Tensor,
+    label: Union[int, torch.Tensor],
     pad_val: float = 0.0,
     margin: Union[int, Sequence] = 2,
     n_batch: int = 128,
@@ -65,17 +65,18 @@ def compute_occlusion_sensitivity(
             a cuboid).
         n_batch: number of images in a batch before inference.
     """
+
+    # If necessary turn the label into a 1-element tensor
+    if isinstance(label, int):
+        label = torch.tensor([[label]], dtype=torch.int64).to(image.device)
+
+    # Get image shape
     im_shape = image.shape[1:]
 
     # Get baseline probability
-    a = model(image)
-    b = a.detach()
-    c = b[0, label]
-    d = c.item()
-    baseline = model(image).detach()[0,label].item()
+    baseline = model(image).detach()[0, label].item()
 
-    # Create some counters
-    batch_count = 0
+    # Create some lists
     batch_images = []
     batch_ids = []
 
@@ -98,17 +99,15 @@ def compute_occlusion_sensitivity(
         batch_images.append(occlu_im)
         batch_ids.append(label)
 
-        batch_count += 1
         # Once the batch is complete (or on last iteration)
-        if batch_count == n_batch or i == image.numel()-1:
+        if len(batch_images) == n_batch or i == image.numel()-1:
             # Get the predictions and append to tensor
             batch_images = torch.cat(batch_images, dim=0)
             batch_ids = torch.cat(batch_ids, dim=0)
             scores = model(batch_images).detach().gather(1, batch_ids)
             heatmap = torch.cat((heatmap, scores))
 
-            # Clear count, and lists
-            batch_count = 0
+            # Clear lists
             batch_images = []
             batch_ids = []
 
