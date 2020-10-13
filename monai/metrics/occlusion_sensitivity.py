@@ -9,8 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Union
 from collections import Sequence
+from typing import Union
 
 import numpy as np
 import torch
@@ -87,20 +87,18 @@ def compute_occlusion_sensitivity(
         idx = np.unravel_index(i, im_shape)
         # Get min and max index of bounding box.
         min_idx = [max(0, i - margin) for i in idx]
-        max_idx = [min(j, i + margin) for
-                   i, j in zip(idx, im_shape)]
+        max_idx = [min(j, i + margin) for i, j in zip(idx, im_shape)]
 
         # Clone and replace target area with `pad_val`
         occlu_im = image.clone()
-        occlu_im[..., min_idx[0]:max_idx[0],
-                 min_idx[1]:max_idx[1], min_idx[2]:max_idx[2]] = pad_val
+        occlu_im[..., min_idx[0] : max_idx[0], min_idx[1] : max_idx[1], min_idx[2] : max_idx[2]] = pad_val
 
         # Add to list
         batch_images.append(occlu_im)
         batch_ids.append(label)
 
         # Once the batch is complete (or on last iteration)
-        if len(batch_images) == n_batch or i == image.numel()-1:
+        if len(batch_images) == n_batch or i == image.numel() - 1:
             # Get the predictions and append to tensor
             batch_images = torch.cat(batch_images, dim=0)
             batch_ids = torch.cat(batch_ids, dim=0)

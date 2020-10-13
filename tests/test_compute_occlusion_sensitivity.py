@@ -24,8 +24,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # 2D
 TEST_CASE_1 = [
     {
-        "model": densenet121(
-            spatial_dims=2, in_channels=1, out_channels=3).to(device),
+        "model": densenet121(spatial_dims=2, in_channels=1, out_channels=3).to(device),
         "image": torch.rand(1, 1, 64, 64).to(device),
         "label": 0,
     },
