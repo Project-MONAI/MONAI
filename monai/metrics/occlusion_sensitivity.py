@@ -24,7 +24,7 @@ except (ImportError, AttributeError):
 
 def compute_occlusion_sensitivity(
     model: nn.Module,
-    image: Union[np.ndarray, torch.Tensor],
+    image: torch.Tensor,
     label: Union[int, torch.Tensor],
     pad_val: float = 0.0,
     margin: Union[int, Sequence] = 2,
@@ -60,6 +60,15 @@ def compute_occlusion_sensitivity(
     # If necessary turn the label into a 1-element tensor
     if isinstance(label, int):
         label = torch.tensor([[label]], dtype=torch.int64).to(image.device)
+    # If the label is a tensor, make sure  there's only 1 element
+    elif label.numel() > 1:
+        raise RuntimeError("Expected 1 label.")
+
+    # Make sure the image is 4D tensor with 1 channel
+    while image.ndim < 4:
+        image = image.unsqueeze(0)
+    if image.shape[0] > 1:
+        raise RuntimeError("Expected 1 channel.")
 
     # Get image shape
     im_shape = image.shape[1:]
