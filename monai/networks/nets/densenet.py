@@ -9,11 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import re
 from collections import OrderedDict
 from typing import Callable, Sequence, Type, Union
 
 import torch
 import torch.nn as nn
+from torch.hub import load_state_dict_from_url
 
 from monai.networks.layers.factories import Conv, Dropout, Norm, Pool
 
@@ -192,21 +194,80 @@ class DenseNet(nn.Module):
         return x
 
 
-def densenet121(**kwargs) -> DenseNet:
+model_urls = {
+    "densenet121": "https://download.pytorch.org/models/densenet121-a639ec97.pth",
+    "densenet169": "https://download.pytorch.org/models/densenet169-b2777c0a.pth",
+    "densenet201": "https://download.pytorch.org/models/densenet201-c1103571.pth",
+}
+
+
+def _load_state_dict(model, model_url, progress):
+    """
+    This function is used to load pretrained models.
+    Adapted from `PyTorch Hub 2D version
+    <https://github.com/pytorch/vision/blob/master/torchvision/models/densenet.py>`_
+    """
+    pattern = re.compile(
+        r"^(.*denselayer\d+\.(?:norm|relu|conv))\.((?:[12])\.(?:weight|bias|running_mean|running_var))$"
+    )
+
+    state_dict = load_state_dict_from_url(model_url, progress=progress)
+    for key in list(state_dict.keys()):
+        res = pattern.match(key)
+        if res:
+            new_key = res.group(1) + res.group(2)
+            state_dict[new_key] = state_dict[key]
+            del state_dict[key]
+
+    model_dict = model.state_dict()
+    state_dict = {
+        k: v for k, v in state_dict.items() if (k in model_dict) and (model_dict[k].shape == state_dict[k].shape)
+    }
+    model_dict.update(state_dict)
+    model.load_state_dict(model_dict)
+
+
+def densenet121(pretrained: bool = False, progress: bool = True, **kwargs) -> DenseNet:
+    """
+    when `spatial_dims = 2`, specify `pretrained = True` can load Imagenet pretrained weights achieved
+    from `PyTorch Hub 2D version
+    <https://github.com/pytorch/vision/blob/master/torchvision/models/densenet.py>`_
+    """
     model = DenseNet(init_features=64, growth_rate=32, block_config=(6, 12, 24, 16), **kwargs)
+    if pretrained:
+        arch = "densenet121"
+        _load_state_dict(model, model_urls[arch], progress)
     return model
 
 
-def densenet169(**kwargs) -> DenseNet:
+def densenet169(pretrained: bool = False, progress: bool = True, **kwargs) -> DenseNet:
+    """
+    when `spatial_dims = 2`, specify `pretrained = True` can load Imagenet pretrained weights achieved
+    from `PyTorch Hub 2D version
+    <https://github.com/pytorch/vision/blob/master/torchvision/models/densenet.py>`_
+    """
     model = DenseNet(init_features=64, growth_rate=32, block_config=(6, 12, 32, 32), **kwargs)
+    if pretrained:
+        arch = "densenet169"
+        _load_state_dict(model, model_urls[arch], progress)
     return model
 
 
-def densenet201(**kwargs) -> DenseNet:
+def densenet201(pretrained: bool = False, progress: bool = True, **kwargs) -> DenseNet:
+    """
+    when `spatial_dims = 2`, specify `pretrained = True` can load Imagenet pretrained weights achieved
+    from `PyTorch Hub 2D version
+    <https://github.com/pytorch/vision/blob/master/torchvision/models/densenet.py>`_
+    """
     model = DenseNet(init_features=64, growth_rate=32, block_config=(6, 12, 48, 32), **kwargs)
+    if pretrained:
+        arch = "densenet201"
+        _load_state_dict(model, model_urls[arch], progress)
     return model
 
 
-def densenet264(**kwargs) -> DenseNet:
+def densenet264(pretrained: bool = False, progress: bool = True, **kwargs) -> DenseNet:
     model = DenseNet(init_features=64, growth_rate=32, block_config=(6, 12, 64, 48), **kwargs)
+    if pretrained:
+        print("Currently PyTorch Hub does not provide densenet264 pretrained models.")
     return model
