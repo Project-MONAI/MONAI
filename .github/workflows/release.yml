@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - 'releases/*'
+      - 1104-fixes-ci-errors
     tags:
       - '*'
 
