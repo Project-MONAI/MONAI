@@ -17,6 +17,10 @@ import torch
 from monai.networks.layers import GaussianFilter
 
 
+class GaussianFilterBackprop(unittest.TestCase):
+    pass
+
+
 class GaussianFilterTestCase(unittest.TestCase):
     def test_1d(self):
         a = torch.ones(1, 8, 10)
