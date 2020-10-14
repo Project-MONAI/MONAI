@@ -78,9 +78,7 @@ def calculate_out_shape(
     return out_shape if len(out_shape) > 1 else out_shape[0]
 
 
-def gaussian_1d(
-    sigma: Union[float, torch.Tensor], truncated: float = 4.0, approx: str = "erf", normalize: bool = False
-):
+def gaussian_1d(sigma: torch.Tensor, truncated: float = 4.0, approx: str = "erf", normalize: bool = False):
     """
     one dimensional Gaussian kernel.
 
@@ -104,20 +102,22 @@ def gaussian_1d(
         1D torch tensor
 
     """
-    sigma = torch.as_tensor(sigma, dtype=torch.float)
+    sigma = torch.as_tensor(sigma, dtype=torch.float, device=sigma.device if torch.is_tensor(sigma) else None)
+    device = sigma.device
     if sigma <= 0.0 or truncated <= 0.0:
         raise ValueError(f"sigma and truncated must be positive, got {sigma} and {truncated}.")
     tail = int(sigma * truncated + 0.5)
     if approx.lower() == "erf":
-        x = torch.arange(-tail, tail + 1, dtype=torch.float)
-        t = 1.0 / (torch.tensor(2.0).sqrt() * sigma)
+        x = torch.arange(-tail, tail + 1, dtype=torch.float, device=device)
+        t = 1.0 / (torch.tensor(2.0, device=device).sqrt() * sigma)
         out = 0.5 * ((t * (x + 0.5)).erf() - (t * (x - 0.5)).erf())
         out = out.clamp(min=0)
     elif approx.lower() == "sampled":
-        x = torch.arange(-tail, tail + 1, dtype=torch.float)
+        x = torch.arange(-tail, tail + 1, dtype=torch.float, device=sigma.device)
         sigma2 = sigma * sigma
-        t = 1.0 / (torch.tensor(2.0 * np.pi).sqrt() * sigma)
-        out = t * torch.exp(-0.5 / sigma2 * x ** 2)
+        out = torch.exp(-0.5 / sigma2 * x ** 2)
+        if not normalize:  # compute the normalizer
+            out = out / (torch.tensor(2.0 * np.pi, device=device).sqrt() * sigma)
     elif approx.lower() == "scalespace":
         sigma2 = sigma * sigma
         out_pos: List[Optional[torch.Tensor]] = [None] * (tail + 1)
@@ -134,8 +134,8 @@ def gaussian_1d(
     return out / out.sum() if normalize else out
 
 
-def _modified_bessel_0(x: Union[float, torch.Tensor]) -> torch.Tensor:
-    x = torch.as_tensor(x, dtype=torch.float)
+def _modified_bessel_0(x: torch.Tensor) -> torch.Tensor:
+    x = torch.as_tensor(x, dtype=torch.float, device=x.device if torch.is_tensor(x) else None)
     if torch.abs(x) < 3.75:
         y = (x / 3.75) * (x / 3.75)
         return 1.0 + y * (
@@ -149,8 +149,8 @@ def _modified_bessel_0(x: Union[float, torch.Tensor]) -> torch.Tensor:
     )
 
 
-def _modified_bessel_1(x: Union[float, torch.Tensor]) -> torch.Tensor:
-    x = torch.as_tensor(x, dtype=torch.float)
+def _modified_bessel_1(x: torch.Tensor) -> torch.Tensor:
+    x = torch.as_tensor(x, dtype=torch.float, device=x.device if torch.is_tensor(x) else None)
     if torch.abs(x) < 3.75:
         y = (x / 3.75) * (x / 3.75)
         ans = 0.51498869 + y * (0.15084934 + y * (0.2658733e-1 + y * (0.301532e-2 + y * 0.32411e-3)))
@@ -160,27 +160,28 @@ def _modified_bessel_1(x: Union[float, torch.Tensor]) -> torch.Tensor:
     ans = 0.2282967e-1 + y * (-0.2895312e-1 + y * (0.1787654e-1 - y * 0.420059e-2))
     ans = 0.39894228 + y * (-0.3988024e-1 + y * (-0.362018e-2 + y * (0.163801e-2 + y * (-0.1031555e-1 + y * ans))))
     ans = ans * torch.exp(ax) / torch.sqrt(ax)
-    return -ans if x < torch.tensor(0.0) else ans
+    return -ans if x < 0.0 else ans
 
 
-def _modified_bessel_i(n: int, x: Union[float, torch.Tensor]) -> torch.Tensor:
+def _modified_bessel_i(n: int, x: torch.Tensor) -> torch.Tensor:
     if n < 2:
         raise ValueError(f"n must be greater than 1, got n={n}.")
-    x = torch.as_tensor(x, dtype=torch.float)
-    if x == torch.tensor(0.0):
+    x = torch.as_tensor(x, dtype=torch.float, device=x.device if torch.is_tensor(x) else None)
+    device = x.device
+    if x == 0.0:
         return x
     tox = 2.0 / torch.abs(x)
-    ans, bip, bi = torch.tensor(0.0), torch.tensor(0.0), torch.tensor(1.0)
+    ans, bip, bi = torch.tensor(0.0, device=device), torch.tensor(0.0, device=device), torch.tensor(1.0, device=device)
     m = int(2 * (n + np.floor(np.sqrt(40.0 * n))))
     for j in range(m, 0, -1):
         bim = bip + float(j) * tox * bi
         bip = bi
         bi = bim
         if abs(bi) > 1.0e10:
-            ans *= 1.0e-10
-            bi *= 1.0e-10
-            bip *= 1.0e-10
+            ans = ans * 1.0e-10
+            bi = bi * 1.0e-10
+            bip = bip * 1.0e-10
         if j == n:
             ans = bip
-    ans *= _modified_bessel_0(x) / bi
-    return -ans if x < torch.tensor(0.0) and (n % 2) == 1 else ans
+    ans = ans * _modified_bessel_0(x) / bi
+    return -ans if x < 0.0 and (n % 2) == 1 else ans

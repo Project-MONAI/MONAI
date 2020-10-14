@@ -86,7 +86,10 @@ def separable_filtering(x: torch.Tensor, kernels: Union[Sequence[torch.Tensor], 
         raise TypeError(f"x must be a torch.Tensor but is {type(x).__name__}.")
 
     spatial_dims = len(x.shape) - 2
-    _kernels = [torch.as_tensor(s, dtype=torch.float) for s in ensure_tuple_rep(kernels, spatial_dims)]
+    _kernels = [
+        torch.as_tensor(s, dtype=torch.float, device=s.device if torch.is_tensor(s) else None)
+        for s in ensure_tuple_rep(kernels, spatial_dims)
+    ]
     _paddings = [cast(int, (same_padding(k.shape[0]))) for k in _kernels]
     n_chns = x.shape[1]
 
@@ -130,26 +133,29 @@ class GaussianFilter(nn.Module):
 
             requires_grad: whether to store the gradients for sigma.
                 if True, `sigma` will be the initial value of the parameters of this module
-                (for example using `parameters()` iterator);
+                (for example `parameters()` iterator could be used to get the parameters);
                 otherwise this module will fix the kernels using `sigma` as the std.
         """
         super().__init__()
-        self.kernel = [
+        self.sigma = [
             torch.nn.Parameter(
-                torch.as_tensor(gaussian_1d(s, truncated=truncated, approx=approx), dtype=torch.float),
+                torch.as_tensor(s, dtype=torch.float, device=s.device if torch.is_tensor(s) else None),
                 requires_grad=requires_grad,
             )
             for s in ensure_tuple_rep(sigma, int(spatial_dims))
         ]
-        for idx, param in enumerate(self.kernel):
-            self.register_parameter(f"kernel_{idx}", param)
+        self.truncated = truncated
+        self.approx = approx
+        for idx, param in enumerate(self.sigma):
+            self.register_parameter(f"kernel_sigma_{idx}", param)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Args:
             x: in shape [Batch, chns, H, W, D].
         """
-        return separable_filtering(x=x, kernels=self.kernel)
+        _kernel = [gaussian_1d(s, truncated=self.truncated, approx=self.approx) for s in self.sigma]
+        return separable_filtering(x=x, kernels=_kernel)
 
 
 class LLTMFunction(Function):
