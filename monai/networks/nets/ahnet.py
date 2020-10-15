@@ -529,9 +529,7 @@ class AHNet(nn.Module):
 
         # From 64x3x7x7 -> 64x3x7x7x1 -> 64x1x7x7x3
         weights = p2d.data.unsqueeze(dim=4).permute(0, 4, 2, 3, 1).clone()
-        for _ in range(p3d.shape[1] - 1):
-            weights = torch.cat((weights, weights), 1)
-        p3d.data = weights
+        p3d.data = weights.repeat([1, p3d.shape[1], 1, 1, 1])
 
         # Copy the initial module BN0
         copy_bn_param(net.bn0, self.bn0)
