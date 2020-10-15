@@ -317,8 +317,6 @@ class TestGaussian1d(unittest.TestCase):
 
     def test_wrong_sigma(self):
         with self.assertRaises(ValueError):
-            gaussian_1d(-1, 10)
-        with self.assertRaises(ValueError):
             gaussian_1d(1, -10)
         with self.assertRaises(NotImplementedError):
             gaussian_1d(1, 10, "wrong_arg")
