@@ -424,19 +424,16 @@ class LabelToMask(Transform):
 
     """
 
-    def __init__(
+    def __init__(  # pytype: disable=annotation-type-mismatch
         self,
         select_labels: Union[Sequence[int], int],
         merge_channels: bool = False,
-    ) -> None:  # pytype: disable=annotation-type-mismatch # pytype bug with bool
+    ) -> None:
         self.select_labels = ensure_tuple(select_labels)
         self.merge_channels = merge_channels
 
     def __call__(
-        self,
-        img: np.ndarray,
-        select_labels: Optional[Union[Sequence[int], int]] = None,
-        merge_channels: Optional[bool] = None,
+        self, img: np.ndarray, select_labels: Optional[Union[Sequence[int], int]] = None, merge_channels: bool = False
     ) -> np.ndarray:
         """
         Args:
@@ -450,15 +447,13 @@ class LabelToMask(Transform):
             select_labels = self.select_labels
         else:
             select_labels = ensure_tuple(select_labels)
-        if merge_channels is None:
-            merge_channels = self.merge_channels
 
         if img.shape[0] > 1:
             data = img[[*select_labels]]
         else:
             data = np.where(np.in1d(img, select_labels), True, False).reshape(img.shape)
 
-        return np.any(data, axis=0, keepdims=True) if merge_channels else data
+        return np.any(data, axis=0, keepdims=True) if (merge_channels or self.merge_channels) else data
 
 
 class FgBgToIndices(Transform):

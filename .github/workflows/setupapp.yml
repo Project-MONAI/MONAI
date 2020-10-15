@@ -61,7 +61,7 @@ jobs:
       with:
         fetch-depth: 0
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
     - name: cache weekly timestamp
@@ -94,10 +94,10 @@ jobs:
   install:  # pip install from github url
     runs-on: ubuntu-latest
     steps:
-    - name: Set up Python 3.7
-      uses: actions/setup-python@v1
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
       with:
-        python-version: 3.7
+        python-version: 3.8
     - name: cache weekly timestamp
       id: pip-cache
       run: |
