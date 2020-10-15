@@ -15,24 +15,48 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.nets import densenet121, densenet169, densenet201, densenet264
+from tests.utils import skip_if_quick
 
 TEST_CASE_1 = [  # 4-channel 3D, batch 16
-    {"spatial_dims": 3, "in_channels": 2, "out_channels": 3},
+    {"pretrained": False, "spatial_dims": 3, "in_channels": 2, "out_channels": 3},
     torch.randn(16, 2, 32, 64, 48),
     (16, 3),
 ]
 
 TEST_CASE_2 = [  # 4-channel 2D, batch 16
-    {"spatial_dims": 2, "in_channels": 2, "out_channels": 3},
+    {"pretrained": False, "spatial_dims": 2, "in_channels": 2, "out_channels": 3},
     torch.randn(16, 2, 32, 64),
     (16, 3),
 ]
 
 TEST_CASE_3 = [  # 4-channel 1D, batch 16
-    {"spatial_dims": 1, "in_channels": 2, "out_channels": 3},
+    {"pretrained": False, "spatial_dims": 1, "in_channels": 2, "out_channels": 3},
     torch.randn(16, 2, 32),
     (16, 3),
 ]
+
+TEST_PRETRAINED_2D_CASE_1 = [  # 4-channel 2D, batch 16
+    {"pretrained": True, "progress": True, "spatial_dims": 2, "in_channels": 2, "out_channels": 3},
+    torch.randn(16, 2, 32, 64),
+    (16, 3),
+]
+
+TEST_PRETRAINED_2D_CASE_2 = [  # 4-channel 2D, batch 16
+    {"pretrained": True, "progress": False, "spatial_dims": 2, "in_channels": 2, "out_channels": 3},
+    torch.randn(16, 2, 32, 64),
+    (16, 3),
+]
+
+
+class TestPretrainedDENSENET(unittest.TestCase):
+    @parameterized.expand([TEST_PRETRAINED_2D_CASE_1, TEST_PRETRAINED_2D_CASE_2])
+    @skip_if_quick
+    def test_121_3d_shape_pretrain(self, input_param, input_data, expected_shape):
+        net = densenet121(**input_param)
+        net.eval()
+        with torch.no_grad():
+            result = net.forward(input_data)
+            self.assertEqual(result.shape, expected_shape)
 
 
 class TestDENSENET(unittest.TestCase):
@@ -131,3 +155,7 @@ class TestDENSENET(unittest.TestCase):
         with torch.no_grad():
             result = net.forward(input_data)
             self.assertEqual(result.shape, expected_shape)
+
+
+if __name__ == "__main__":
+    unittest.main()
