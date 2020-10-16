@@ -436,12 +436,14 @@ class GaussianSmoothd(MapTransform):
         sigma: if a list of values, must match the count of spatial dimensions of input data,
             and apply every value in the list to 1 spatial dimension. if only 1 value provided,
             use it for all spatial dimensions.
+        approx: discrete Gaussian kernel type, available options are "erf", "sampled", and "scalespace".
+            see also :py:meth:`monai.networks.layers.GaussianFilter`.
 
     """
 
-    def __init__(self, keys: KeysCollection, sigma: Union[Sequence[float], float]) -> None:
+    def __init__(self, keys: KeysCollection, sigma: Union[Sequence[float], float], approx: str = "erf") -> None:
         super().__init__(keys)
-        self.converter = GaussianSmooth(sigma)
+        self.converter = GaussianSmooth(sigma, approx=approx)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
@@ -460,6 +462,8 @@ class RandGaussianSmoothd(Randomizable, MapTransform):
         sigma_x: randomly select sigma value for the first spatial dimension.
         sigma_y: randomly select sigma value for the second spatial dimension if have.
         sigma_z: randomly select sigma value for the third spatial dimension if have.
+        approx: discrete Gaussian kernel type, available options are "erf", "sampled", and "scalespace".
+            see also :py:meth:`monai.networks.layers.GaussianFilter`.
         prob: probability of Gaussian smooth.
 
     """
@@ -470,12 +474,14 @@ class RandGaussianSmoothd(Randomizable, MapTransform):
         sigma_x: Tuple[float, float] = (0.25, 1.5),
         sigma_y: Tuple[float, float] = (0.25, 1.5),
         sigma_z: Tuple[float, float] = (0.25, 1.5),
+        approx: str = "erf",
         prob: float = 0.1,
     ) -> None:
         super().__init__(keys)
         self.sigma_x = sigma_x
         self.sigma_y = sigma_y
         self.sigma_z = sigma_z
+        self.approx = approx
         self.prob = prob
         self._do_transform = False
 
@@ -492,7 +498,7 @@ class RandGaussianSmoothd(Randomizable, MapTransform):
             return d
         for key in self.keys:
             sigma = ensure_tuple_size(tup=(self.x, self.y, self.z), dim=d[key].ndim - 1)
-            d[key] = GaussianSmooth(sigma=sigma)(d[key])
+            d[key] = GaussianSmooth(sigma=sigma, approx=self.approx)(d[key])
         return d
 
 
@@ -510,6 +516,8 @@ class GaussianSharpend(MapTransform):
             of spatial dimensions of input data, and apply every value in the list to 1 spatial dimension.
             if only 1 value provided, use it for all spatial dimensions.
         alpha: weight parameter to compute the final result.
+        approx: discrete Gaussian kernel type, available options are "erf", "sampled", and "scalespace".
+            see also :py:meth:`monai.networks.layers.GaussianFilter`.
 
     """
 
@@ -519,9 +527,10 @@ class GaussianSharpend(MapTransform):
         sigma1: Union[Sequence[float], float] = 3.0,
         sigma2: Union[Sequence[float], float] = 1.0,
         alpha: float = 30.0,
+        approx: str = "erf",
     ) -> None:
         super().__init__(keys)
-        self.converter = GaussianSharpen(sigma1, sigma2, alpha)
+        self.converter = GaussianSharpen(sigma1, sigma2, alpha, approx=approx)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
@@ -547,6 +556,8 @@ class RandGaussianSharpend(Randomizable, MapTransform):
         sigma2_z: randomly select sigma value for the third spatial dimension(if have) of second gaussian kernel.
             if only 1 value `Z` provided, it must be smaller than `sigma1_z` and randomly select from [Z, sigma1_z].
         alpha: randomly select weight parameter to compute the final result.
+        approx: discrete Gaussian kernel type, available options are "erf", "sampled", and "scalespace".
+            see also :py:meth:`monai.networks.layers.GaussianFilter`.
         prob: probability of Gaussian sharpen.
 
     """
@@ -561,6 +572,7 @@ class RandGaussianSharpend(Randomizable, MapTransform):
         sigma2_y: Union[Tuple[float, float], float] = 0.5,
         sigma2_z: Union[Tuple[float, float], float] = 0.5,
         alpha: Tuple[float, float] = (10.0, 30.0),
+        approx: str = "erf",
         prob: float = 0.1,
     ):
         super().__init__(keys)
@@ -571,6 +583,7 @@ class RandGaussianSharpend(Randomizable, MapTransform):
         self.sigma2_y = sigma2_y
         self.sigma2_z = sigma2_z
         self.alpha = alpha
+        self.approx = approx
         self.prob = prob
         self._do_transform = False
 
@@ -595,7 +608,7 @@ class RandGaussianSharpend(Randomizable, MapTransform):
         for key in self.keys:
             sigma1 = ensure_tuple_size(tup=(self.x1, self.y1, self.z1), dim=d[key].ndim - 1)
             sigma2 = ensure_tuple_size(tup=(self.x2, self.y2, self.z2), dim=d[key].ndim - 1)
-            d[key] = GaussianSharpen(sigma1=sigma1, sigma2=sigma2, alpha=self.a)(d[key])
+            d[key] = GaussianSharpen(sigma1=sigma1, sigma2=sigma2, alpha=self.a, approx=self.approx)(d[key])
         return d
 
 

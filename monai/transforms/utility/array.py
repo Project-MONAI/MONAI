@@ -428,7 +428,7 @@ class LabelToMask(Transform):
         self,
         select_labels: Union[Sequence[int], int],
         merge_channels: bool = False,
-    ) -> None:
+    ) -> None:  # pytype: disable=annotation-type-mismatch
         self.select_labels = ensure_tuple(select_labels)
         self.merge_channels = merge_channels
 
