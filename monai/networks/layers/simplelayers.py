@@ -22,7 +22,7 @@ from monai.utils import ensure_tuple_rep, optional_import
 
 _C, _ = optional_import("monai._C")
 
-__all__ = ["SkipConnection", "Flatten", "GaussianFilter", "LLTM", "Reshape"]
+__all__ = ["SkipConnection", "Flatten", "GaussianFilter", "LLTM", "Reshape", "separable_filtering"]
 
 
 class SkipConnection(nn.Module):
@@ -70,53 +70,92 @@ class Reshape(nn.Module):
         return x.reshape(shape)
 
 
+def separable_filtering(x: torch.Tensor, kernels: Union[Sequence[torch.Tensor], torch.Tensor]) -> torch.Tensor:
+    """
+    Apply 1-D convolutions along each spatial dimension of `x`.
+
+    Args:
+        x: the input image. must have shape (batch, channels, H[, W, ...]).
+        kernels: kernel along each spatial dimension.
+            could be a single kernel (duplicated for all dimension), or `spatial_dims` number of kernels.
+
+    Raises:
+        TypeError: When ``x`` is not a ``torch.Tensor``.
+    """
+    if not torch.is_tensor(x):
+        raise TypeError(f"x must be a torch.Tensor but is {type(x).__name__}.")
+
+    spatial_dims = len(x.shape) - 2
+    _kernels = [
+        torch.as_tensor(s, dtype=torch.float, device=s.device if torch.is_tensor(s) else None)
+        for s in ensure_tuple_rep(kernels, spatial_dims)
+    ]
+    _paddings = [cast(int, (same_padding(k.shape[0]))) for k in _kernels]
+    n_chns = x.shape[1]
+
+    def _conv(input_: torch.Tensor, d: int) -> torch.Tensor:
+        if d < 0:
+            return input_
+        s = [1] * len(input_.shape)
+        s[d + 2] = -1
+        _kernel = kernels[d].reshape(s)
+        _kernel = _kernel.repeat([n_chns, 1] + [1] * spatial_dims)
+        _padding = [0] * spatial_dims
+        _padding[d] = _paddings[d]
+        conv_type = [F.conv1d, F.conv2d, F.conv3d][spatial_dims - 1]
+        return conv_type(input=_conv(input_, d - 1), weight=_kernel, padding=_padding, groups=n_chns)
+
+    return _conv(x, spatial_dims - 1)
+
+
 class GaussianFilter(nn.Module):
-    def __init__(self, spatial_dims: int, sigma: Union[Sequence[float], float], truncated: float = 4.0) -> None:
+    def __init__(
+        self,
+        spatial_dims: int,
+        sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor],
+        truncated: float = 4.0,
+        approx: str = "erf",
+        requires_grad: bool = False,
+    ) -> None:
         """
         Args:
             spatial_dims: number of spatial dimensions of the input image.
                 must have shape (Batch, channels, H[, W, ...]).
-            sigma: std.
+            sigma: std. could be a single value, or `spatial_dims` number of values.
             truncated: spreads how many stds.
+            approx: discrete Gaussian kernel type, available options are "erf", "sampled", and "scalespace".
+
+                - ``erf`` approximation interpolates the error function;
+                - ``sampled`` uses a sampled Gaussian kernel;
+                - ``scalespace`` corresponds to
+                  https://en.wikipedia.org/wiki/Scale_space_implementation#The_discrete_Gaussian_kernel
+                  based on the modified Bessel functions.
+
+            requires_grad: whether to store the gradients for sigma.
+                if True, `sigma` will be the initial value of the parameters of this module
+                (for example `parameters()` iterator could be used to get the parameters);
+                otherwise this module will fix the kernels using `sigma` as the std.
         """
         super().__init__()
-        self.spatial_dims = int(spatial_dims)
-        _sigma = ensure_tuple_rep(sigma, self.spatial_dims)
-        self.kernel = [
-            torch.nn.Parameter(torch.as_tensor(gaussian_1d(s, truncated), dtype=torch.float), False) for s in _sigma
+        self.sigma = [
+            torch.nn.Parameter(
+                torch.as_tensor(s, dtype=torch.float, device=s.device if torch.is_tensor(s) else None),
+                requires_grad=requires_grad,
+            )
+            for s in ensure_tuple_rep(sigma, int(spatial_dims))
         ]
-        self.padding = [cast(int, (same_padding(k.size()[0]))) for k in self.kernel]
-        self.conv_n = [F.conv1d, F.conv2d, F.conv3d][spatial_dims - 1]
-        for idx, param in enumerate(self.kernel):
-            self.register_parameter(f"kernel_{idx}", param)
+        self.truncated = truncated
+        self.approx = approx
+        for idx, param in enumerate(self.sigma):
+            self.register_parameter(f"kernel_sigma_{idx}", param)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Args:
             x: in shape [Batch, chns, H, W, D].
-
-        Raises:
-            TypeError: When ``x`` is not a ``torch.Tensor``.
-
         """
-        if not torch.is_tensor(x):
-            raise TypeError(f"x must be a torch.Tensor but is {type(x).__name__}.")
-        chns = x.shape[1]
-        sp_dim = self.spatial_dims
-        x = x.clone()  # no inplace change of x
-
-        def _conv(input_: torch.Tensor, d: int) -> torch.Tensor:
-            if d < 0:
-                return input_
-            s = [1] * (sp_dim + 2)
-            s[d + 2] = -1
-            kernel = self.kernel[d].reshape(s)
-            kernel = kernel.repeat([chns, 1] + [1] * sp_dim)
-            padding = [0] * sp_dim
-            padding[d] = self.padding[d]
-            return self.conv_n(input=_conv(input_, d - 1), weight=kernel, padding=padding, groups=chns)
-
-        return _conv(x, sp_dim - 1)
+        _kernel = [gaussian_1d(s, truncated=self.truncated, approx=self.approx) for s in self.sigma]
+        return separable_filtering(x=x, kernels=_kernel)
 
 
 class LLTMFunction(Function):

@@ -52,6 +52,8 @@ def issequenceiterable(obj: Any) -> bool:
     """
     Determine if the object is an iterable sequence and is not a string.
     """
+    if torch.is_tensor(obj):
+        return int(obj.dim()) > 0  # a 0-d tensor is not iterable
     return isinstance(obj, collections.abc.Iterable) and not isinstance(obj, str)
 
 
