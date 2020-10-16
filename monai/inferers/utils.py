@@ -105,8 +105,14 @@ def sliding_window_inference(
     # Store all slices in list
     slices = dense_patch_slices(image_size, roi_size, scan_interval)
 
-    slice_batches = []
-    for slice_index in range(0, len(slices), sw_batch_size):
+    # Create window-level importance map
+    importance_map = compute_importance_map(
+        get_valid_patch_size(image_size, roi_size), mode=mode, sigma_scale=sigma_scale, device=device
+    )
+
+    # Perform predictions
+    output_image, count_map = torch.tensor(0.0, device=device), torch.tensor(0.0, device=device)
+    for window_id, slice_index in enumerate(range(0, len(slices), sw_batch_size)):
         slice_index_range = range(slice_index, min(slice_index + sw_batch_size, len(slices)))
         input_slices = []
         for curr_index in slice_index_range:
@@ -115,41 +121,30 @@ def sliding_window_inference(
                 input_slices.append(inputs[0, :, curr_slice[0], curr_slice[1], curr_slice[2]])
             else:
                 input_slices.append(inputs[0, :, curr_slice[0], curr_slice[1]])
-        slice_batches.append(torch.stack(input_slices))
 
-    # Perform predictions
-    output_rois = list()
-    for data in slice_batches:
-        seg_prob = predictor(data)  # batched patch segmentation
-        output_rois.append(seg_prob.to(device))
+        window_data = torch.stack(input_slices)
+        seg_prob = predictor(window_data).to(device)  # batched patch segmentation
 
-    # stitching output image
-    output_classes = output_rois[0].shape[1]
-    output_shape = [batch_size, output_classes] + list(image_size)
+        if window_id == 0:  # init. buffer at the first iteration
+            # stitching output image
+            output_classes = seg_prob.shape[1]
+            output_shape = [batch_size, output_classes] + list(image_size)
 
-    # Create importance map
-    importance_map = compute_importance_map(
-        get_valid_patch_size(image_size, roi_size), mode=mode, sigma_scale=sigma_scale, device=device
-    )
-
-    # allocate memory to store the full output and the count for overlapping parts
-    output_image = torch.zeros(output_shape, dtype=torch.float32, device=device)
-    count_map = torch.zeros(output_shape, dtype=torch.float32, device=device)
-
-    for window_id, slice_index in enumerate(range(0, len(slices), sw_batch_size)):
-        slice_index_range = range(slice_index, min(slice_index + sw_batch_size, len(slices)))
+            # allocate memory to store the full output and the count for overlapping parts
+            output_image = torch.zeros(output_shape, dtype=torch.float32, device=device)
+            count_map = torch.zeros(output_shape, dtype=torch.float32, device=device)
 
         # store the result in the proper location of the full output. Apply weights from importance map.
         for curr_index in slice_index_range:
             curr_slice = slices[curr_index]
             if len(curr_slice) == 3:
                 output_image[0, :, curr_slice[0], curr_slice[1], curr_slice[2]] += (
-                    importance_map * output_rois[window_id][curr_index - slice_index, :]
+                    importance_map * seg_prob[curr_index - slice_index, :]
                 )
                 count_map[0, :, curr_slice[0], curr_slice[1], curr_slice[2]] += importance_map
             else:
                 output_image[0, :, curr_slice[0], curr_slice[1]] += (
-                    importance_map * output_rois[window_id][curr_index - slice_index, :]
+                    importance_map * seg_prob[curr_index - slice_index, :]
                 )
                 count_map[0, :, curr_slice[0], curr_slice[1]] += importance_map
 
