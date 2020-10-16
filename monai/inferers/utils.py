@@ -67,12 +67,8 @@ def sliding_window_inference(
             set to device=torch.device('cpu') the gpu memory consumption is less and independent of the
             input and roi_size parameter. Output is on the device set or if not set the inputs device.
 
-    Raises:
-        NotImplementedError: When ``inputs`` does not have batch size = 1.
-
     Note:
-        - input must be channel-first and have a batch dim, support both spatial 2D and 3D.
-        - currently only supports `inputs` with batch_size=1.
+        - input must be channel-first and have a batch dim, supports N-D sliding window.
 
     """
     num_spatial_dims = len(inputs.shape) - 2
@@ -82,10 +78,6 @@ def sliding_window_inference(
     # Note: all input images must have the same image size and batch size
     image_size_ = list(inputs.shape[2:])
     batch_size = inputs.shape[0]
-
-    # TODO: Enable batch sizes > 1 in future
-    if batch_size > 1:
-        raise NotImplementedError("Currently only inputs with batch size = 1 are supported.")
 
     if device is None:
         device = inputs.device
@@ -104,6 +96,8 @@ def sliding_window_inference(
 
     # Store all slices in list
     slices = dense_patch_slices(image_size, roi_size, scan_interval)
+    num_win = len(slices)  # number of windows per image
+    total_slices = num_win * batch_size  # total number of windows
 
     # Create window-level importance map
     importance_map = compute_importance_map(
@@ -112,28 +106,28 @@ def sliding_window_inference(
 
     # Perform predictions
     output_image, count_map = torch.tensor(0.0, device=device), torch.tensor(0.0, device=device)
-    for window_id, slice_index in enumerate(range(0, len(slices), sw_batch_size)):
-        slice_index_range = range(slice_index, min(slice_index + sw_batch_size, len(slices)))
-        window_data = torch.cat(
-            [inputs[[slice(0, 1), slice(None, None)] + list(slices[curr_index])] for curr_index in slice_index_range],
-            dim=0,
-        )
+    _initialized = False
+    for slice_g in range(0, total_slices, sw_batch_size):
+        slice_range = range(slice_g, min(slice_g + sw_batch_size, total_slices))
+        unravel_slice = [
+            [slice(int(idx / num_win), int(idx / num_win) + 1), slice(None)] + list(slices[idx % num_win])
+            for idx in slice_range
+        ]
+        window_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice])
         seg_prob = predictor(window_data).to(device)  # batched patch segmentation
 
-        if window_id == 0:  # init. buffer at the first iteration
-            # stitching output image
+        if not _initialized:  # init. buffer at the first iteration
             output_classes = seg_prob.shape[1]
             output_shape = [batch_size, output_classes] + list(image_size)
-
             # allocate memory to store the full output and the count for overlapping parts
             output_image = torch.zeros(output_shape, dtype=torch.float32, device=device)
             count_map = torch.zeros(output_shape, dtype=torch.float32, device=device)
+            _initialized = True
 
         # store the result in the proper location of the full output. Apply weights from importance map.
-        for curr_index in slice_index_range:
-            indexing = [slice(0, 1), slice(None, None)] + list(slices[curr_index])
-            output_image[indexing] += importance_map * seg_prob[curr_index - slice_index]
-            count_map[indexing] += importance_map
+        for idx, original_idx in zip(slice_range, unravel_slice):
+            output_image[original_idx] += importance_map * seg_prob[idx - slice_g]
+            count_map[original_idx] += importance_map
 
     # account for any overlapping sections
     output_image = output_image / count_map
@@ -143,7 +137,7 @@ def sliding_window_inference(
         slice_dim = slice(pad_size[sp * 2], image_size_[num_spatial_dims - sp - 1] + pad_size[sp * 2])
         final_slicing.insert(0, slice_dim)
     while len(final_slicing) < len(output_image.shape):
-        final_slicing.insert(0, slice(None, None))
+        final_slicing.insert(0, slice(None))
     return output_image[final_slicing]
 
 
