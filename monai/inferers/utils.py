@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Sequence, Tuple, Union
+from typing import Callable, List, Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn.functional as F
@@ -114,15 +114,10 @@ def sliding_window_inference(
     output_image, count_map = torch.tensor(0.0, device=device), torch.tensor(0.0, device=device)
     for window_id, slice_index in enumerate(range(0, len(slices), sw_batch_size)):
         slice_index_range = range(slice_index, min(slice_index + sw_batch_size, len(slices)))
-        input_slices = []
-        for curr_index in slice_index_range:
-            curr_slice = slices[curr_index]
-            if len(curr_slice) == 3:
-                input_slices.append(inputs[0, :, curr_slice[0], curr_slice[1], curr_slice[2]])
-            else:
-                input_slices.append(inputs[0, :, curr_slice[0], curr_slice[1]])
-
-        window_data = torch.stack(input_slices)
+        window_data = torch.cat(
+            [inputs[[slice(0, 1), slice(None, None)] + list(slices[curr_index])] for curr_index in slice_index_range],
+            dim=0,
+        )
         seg_prob = predictor(window_data).to(device)  # batched patch segmentation
 
         if window_id == 0:  # init. buffer at the first iteration
@@ -136,31 +131,20 @@ def sliding_window_inference(
 
         # store the result in the proper location of the full output. Apply weights from importance map.
         for curr_index in slice_index_range:
-            curr_slice = slices[curr_index]
-            if len(curr_slice) == 3:
-                output_image[0, :, curr_slice[0], curr_slice[1], curr_slice[2]] += (
-                    importance_map * seg_prob[curr_index - slice_index, :]
-                )
-                count_map[0, :, curr_slice[0], curr_slice[1], curr_slice[2]] += importance_map
-            else:
-                output_image[0, :, curr_slice[0], curr_slice[1]] += (
-                    importance_map * seg_prob[curr_index - slice_index, :]
-                )
-                count_map[0, :, curr_slice[0], curr_slice[1]] += importance_map
+            indexing = [slice(0, 1), slice(None, None)] + list(slices[curr_index])
+            output_image[indexing] += importance_map * seg_prob[curr_index - slice_index]
+            count_map[indexing] += importance_map
 
     # account for any overlapping sections
     output_image = output_image / count_map
 
-    if num_spatial_dims == 3:
-        return output_image[
-            ...,
-            pad_size[4] : image_size_[0] + pad_size[4],
-            pad_size[2] : image_size_[1] + pad_size[2],
-            pad_size[0] : image_size_[2] + pad_size[0],
-        ]
-    return output_image[
-        ..., pad_size[2] : image_size_[0] + pad_size[2], pad_size[0] : image_size_[1] + pad_size[0]
-    ]  # 2D
+    final_slicing: List[slice] = []
+    for sp in range(num_spatial_dims):
+        slice_dim = slice(pad_size[sp * 2], image_size_[num_spatial_dims - sp - 1] + pad_size[sp * 2])
+        final_slicing.insert(0, slice_dim)
+    while len(final_slicing) < len(output_image.shape):
+        final_slicing.insert(0, slice(None, None))
+    return output_image[final_slicing]
 
 
 def _get_scan_interval(
