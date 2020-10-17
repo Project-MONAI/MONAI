@@ -16,8 +16,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from monai.networks.layers.factories import Act, Conv, Norm, Pool
 from monai.networks.blocks import FCN
+from monai.networks.layers.factories import Act, Conv, Norm, Pool
 
 
 class Bottleneck3x3x1(nn.Module):
