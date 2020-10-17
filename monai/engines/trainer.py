@@ -60,6 +60,7 @@ class SupervisedTrainer(Trainer):
         network: to train with this network.
         optimizer: the optimizer associated to the network.
         loss_function: the loss function associated to the optimizer.
+        epoch_length: number of iterations for one epoch, default to `len(train_data_loader)`.
         prepare_batch: function to parse image and label for current iteration.
         iteration_update: the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
@@ -84,6 +85,7 @@ class SupervisedTrainer(Trainer):
         network: torch.nn.Module,
         optimizer: Optimizer,
         loss_function: Callable,
+        epoch_length: Optional[int] = None,
         prepare_batch: Callable = default_prepare_batch,
         iteration_update: Optional[Callable] = None,
         inferer: Inferer = SimpleInferer(),
@@ -98,6 +100,7 @@ class SupervisedTrainer(Trainer):
             device=device,
             max_epochs=max_epochs,
             data_loader=train_data_loader,
+            epoch_length=epoch_length,
             prepare_batch=prepare_batch,
             iteration_update=iteration_update,
             post_transform=post_transform,
@@ -173,6 +176,7 @@ class GanTrainer(Trainer):
         d_network: discriminator (D) network architecture.
         d_optimizer: D optimizer function.
         d_loss_function: D loss function for optimizer.
+        epoch_length: number of iterations for one epoch, default to `len(train_data_loader)`.
         g_inferer: inference method to execute G model forward. Defaults to ``SimpleInferer()``.
         d_inferer: inference method to execute D model forward. Defaults to ``SimpleInferer()``.
         d_train_steps: number of times to update D with real data minibatch. Defaults to ``1``.
@@ -206,6 +210,7 @@ class GanTrainer(Trainer):
         d_network: torch.nn.Module,
         d_optimizer: Optimizer,
         d_loss_function: Callable,
+        epoch_length: Optional[int] = None,
         g_inferer: Inferer = SimpleInferer(),
         d_inferer: Inferer = SimpleInferer(),
         d_train_steps: int = 1,
@@ -224,6 +229,7 @@ class GanTrainer(Trainer):
             device=device,
             max_epochs=max_epochs,
             data_loader=train_data_loader,
+            epoch_length=epoch_length,
             prepare_batch=d_prepare_batch,
             iteration_update=iteration_update,
             key_metric=key_train_metric,
