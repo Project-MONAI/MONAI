@@ -18,6 +18,8 @@ from parameterized import parameterized
 from monai.inferers import SlidingWindowInferer, sliding_window_inference
 
 TEST_CASES = [
+    [(2, 3, 16), (4,), 3, 0.25, "constant", torch.device("cpu:0")],  # 1D small roi
+    [(2, 3, 16, 15, 7, 9), 4, 3, 0.25, "constant", torch.device("cpu:0")],  # 4D small roi
     [(1, 3, 16, 15, 7), (4, -1, 7), 3, 0.25, "constant", torch.device("cpu:0")],  # 3D small roi
     [(2, 3, 16, 15, 7), (4, -1, 7), 3, 0.25, "constant", torch.device("cpu:0")],  # 3D small roi
     [(3, 3, 16, 15, 7), (4, -1, 7), 3, 0.25, "constant", torch.device("cpu:0")],  # 3D small roi
