@@ -93,7 +93,7 @@ TEST_CASE_AHNET_3D_WITH_PRETRAIN_2 = [
     {"out_channels": 1, "upsample_mode": "bilinear"},
 ]
 TEST_CASE_AHNET_3D_WITH_PRETRAIN_3 = [
-    {"spatial_dims": 3, "upsample_mode": "transpose", "in_channels": 2, "out_channels": 3, "progress": True},
+    {"spatial_dims": 3, "upsample_mode": "transpose", "in_channels": 2, "out_channels": 3},
     torch.randn(2, 2, 128, 128, 64),
     (2, 3, 128, 128, 64),
     {"out_channels": 1, "upsample_mode": "bilinear"},
@@ -159,7 +159,14 @@ class TestAHNETWithPretrain(unittest.TestCase):
             self.assertEqual(result.shape, expected_shape)
 
     def test_initialize_pretrained(self):
-        net = AHNet(spatial_dims=3, upsample_mode="transpose", in_channels=2, out_channels=3, pretrained=True)
+        net = AHNet(
+            spatial_dims=3,
+            upsample_mode="transpose",
+            in_channels=2,
+            out_channels=3,
+            pretrained=True,
+            progress=True,
+        )
         input_data = torch.randn(2, 2, 128, 128, 64)
         with torch.no_grad():
             result = net.forward(input_data)
