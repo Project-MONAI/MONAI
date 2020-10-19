@@ -93,7 +93,7 @@ TEST_CASE_AHNET_3D_WITH_PRETRAIN_2 = [
     {"out_channels": 1, "upsample_mode": "bilinear"},
 ]
 TEST_CASE_AHNET_3D_WITH_PRETRAIN_3 = [
-    {"spatial_dims": 3, "upsample_mode": "transpose", "in_channels": 2, "out_channels": 3},
+    {"spatial_dims": 3, "upsample_mode": "transpose", "in_channels": 2, "out_channels": 3, "progress": True},
     torch.randn(2, 2, 128, 128, 64),
     (2, 3, 128, 128, 64),
     {"out_channels": 1, "upsample_mode": "bilinear"},
