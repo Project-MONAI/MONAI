@@ -299,28 +299,27 @@ class PSP(nn.Module):
             x16 = self.up16(self.proj16(self.pool16(x)))
             x8 = self.up8(self.proj8(self.pool8(x)))
         else:
-            interpolate_size = tuple(x.size()[2:])
             x64 = F.interpolate(
                 self.proj64(self.pool64(x)),
-                size=interpolate_size,
+                scale_factor=(64, 64, 1)[-self.spatial_dims:],
                 mode=self.upsample_mode,
                 align_corners=True,
             )
             x32 = F.interpolate(
                 self.proj32(self.pool32(x)),
-                size=interpolate_size,
+                scale_factor=(32, 32, 1)[-self.spatial_dims:],
                 mode=self.upsample_mode,
                 align_corners=True,
             )
             x16 = F.interpolate(
                 self.proj16(self.pool16(x)),
-                size=interpolate_size,
+                scale_factor=(16, 16, 1)[-self.spatial_dims:],
                 mode=self.upsample_mode,
                 align_corners=True,
             )
             x8 = F.interpolate(
                 self.proj8(self.pool8(x)),
-                size=interpolate_size,
+                scale_factor=(8, 8, 1)[-self.spatial_dims:],
                 mode=self.upsample_mode,
                 align_corners=True,
             )
