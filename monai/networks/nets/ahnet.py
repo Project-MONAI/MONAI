@@ -227,9 +227,9 @@ class Pseudo3DLayer(nn.Module):
         x = self.relu4(x)
         new_features = self.conv4(x)
 
-        self.dropout_prob = 0  # Dropout will make trouble!
+        self.dropout_prob = 0.0  # Dropout will make trouble!
         # since we use the train mode for inference
-        if self.dropout_prob > 0:
+        if self.dropout_prob > 0.0:
             new_features = F.dropout(new_features, p=self.dropout_prob, training=self.training)
         return torch.cat([inx, new_features], 1)
 

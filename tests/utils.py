@@ -13,7 +13,7 @@ import os
 import tempfile
 import unittest
 from subprocess import PIPE, Popen
-
+from io import BytesIO
 import numpy as np
 import torch
 
@@ -95,6 +95,13 @@ def expect_failure_if_no_gpu(test):
         return unittest.expectedFailure(test)
     else:
         return test
+
+def test_script_save(net, *inputs):
+    scripted = torch.jit.script(net)
+    buffer = scripted.save_to_buffer()
+    reloaded_net = torch.jit.load(BytesIO(buffer))
+
+    return net(*inputs), reloaded_net(*inputs)
 
 
 def query_memory(n=2):
