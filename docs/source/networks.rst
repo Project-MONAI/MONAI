@@ -10,6 +10,11 @@ Blocks
 .. automodule:: monai.networks.blocks
 .. currentmodule:: monai.networks.blocks
 
+`ADN`
+~~~~~
+.. autoclass:: ADN
+    :members:
+
 `Convolution`
 ~~~~~~~~~~~~~
 .. autoclass:: Convolution
