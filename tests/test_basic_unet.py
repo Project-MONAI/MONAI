@@ -27,9 +27,10 @@ for mode in ["pixelshuffle", "nontrainable", "deconv"]:
                         "dimensions": 2,
                         "in_channels": in_channels,
                         "out_channels": out_channels,
+                        "features": (12, 12, 13, 14, 15, 16),
                         "upsample": mode,
                     },
-                    torch.randn(2, in_channels, d1, d2),
+                    (2, in_channels, d1, d2),
                     (2, out_channels, d1, d2),
                 ]
             )
@@ -42,7 +43,7 @@ CASES_3D = [
             "features": (16, 20, 21, 22, 23, 11),
             "upsample": "pixelshuffle",
         },
-        torch.randn(2, 1, 16, 17, 18),
+        (2, 1, 16, 17, 18),
         (2, 2, 16, 17, 18),
     ],
     [  # 2-channel 3D, batch 3
@@ -53,7 +54,7 @@ CASES_3D = [
             "features": (14, 15, 16, 17, 18, 11),
             "upsample": "deconv",
         },
-        torch.randn(3, 2, 16, 17, 18),
+        (3, 2, 16, 17, 18),
         (3, 7, 16, 17, 18),
     ],
     [  # 4-channel 3D, batch 5
@@ -64,20 +65,21 @@ CASES_3D = [
             "features": (14, 15, 16, 17, 18, 10),
             "upsample": "nontrainable",
         },
-        torch.randn(5, 4, 128, 128, 16),
-        (5, 2, 128, 128, 16),
+        (5, 4, 19, 84, 16),
+        (5, 2, 19, 84, 16),
     ],
 ]
 
 
 class TestBaseUNET(unittest.TestCase):
     @parameterized.expand(CASES_2D + CASES_3D)
-    def test_shape(self, input_param, input_data, expected_shape):
-        net = BasicUNet(**input_param)
+    def test_shape(self, input_param, input_shape, expected_shape):
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        net = BasicUNet(**input_param).to(device)
         net.eval()
         with torch.no_grad():
-            result = net.forward(input_data)
-            self.assertEqual(result.shape, expected_shape)
+            result = net(torch.randn(input_shape).to(device))
+        self.assertEqual(result.shape, expected_shape)
 
 
 if __name__ == "__main__":

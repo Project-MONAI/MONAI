@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Sequence, Union
+
 import torch
 import torch.nn as nn
 
@@ -22,7 +24,24 @@ __all__ = ["BasicUNet", "BasicUnet", "Basicunet"]
 class TwoConv(nn.Sequential):
     """two convolutions."""
 
-    def __init__(self, dim, in_chns, out_chns, act, norm, dropout):
+    def __init__(
+        self,
+        dim: int,
+        in_chns: int,
+        out_chns: int,
+        act: Union[str, tuple],
+        norm: Union[str, tuple],
+        dropout: Union[float, tuple] = 0.0,
+    ):
+        """
+        Args:
+            dim: number of spatial dimensions.
+            in_chns: number of input channels.
+            out_chns: number of output channels.
+            act: activation type and arguments.
+            norm: feature normalization type and arguments.
+            dropout: dropout ratio. Defaults to no dropout.
+        """
         super().__init__()
 
         conv_0 = Convolution(dim, in_chns, out_chns, act=act, norm=norm, dropout=dropout, padding=1)
@@ -34,7 +53,24 @@ class TwoConv(nn.Sequential):
 class Down(nn.Sequential):
     """maxpooling downsampling and two convolutions."""
 
-    def __init__(self, dim, in_chns, out_chns, act, norm, dropout):
+    def __init__(
+        self,
+        dim: int,
+        in_chns: int,
+        out_chns: int,
+        act: Union[str, tuple],
+        norm: Union[str, tuple],
+        dropout: Union[float, tuple] = 0.0,
+    ):
+        """
+        Args:
+            dim: number of spatial dimensions.
+            in_chns: number of input channels.
+            out_chns: number of output channels.
+            act: activation type and arguments.
+            norm: feature normalization type and arguments.
+            dropout: dropout ratio. Defaults to no dropout.
+        """
         super().__init__()
 
         max_pooling = Pool["MAX", dim](kernel_size=2)
@@ -46,19 +82,48 @@ class Down(nn.Sequential):
 class UpCat(nn.Module):
     """upsampling, concatenation with the encoder feature map, two convolutions"""
 
-    def __init__(self, dim, in_chns, cat_chns, out_chns, act, norm, dropout, upsample="deconv", halves=True):
+    def __init__(
+        self,
+        dim: int,
+        in_chns: int,
+        cat_chns: int,
+        out_chns: int,
+        act: Union[str, tuple],
+        norm: Union[str, tuple],
+        dropout: Union[float, tuple] = 0.0,
+        upsample: str = "deconv",
+        halves: bool = True,
+    ):
+        """
+        Args:
+            dim: number of spatial dimensions.
+            in_chns: number of input channels to be upsampled.
+            cat_chns: number of channels from the decoder.
+            out_chns: number of output channels.
+            act: activation type and arguments.
+            norm: feature normalization type and arguments.
+            dropout: dropout ratio. Defaults to no dropout.
+            upsample: upsampling mode, available options are
+                ``"deconv"``, ``"pixelshuffle"``, ``"nontrainable"``.
+            halves: whether to halve the number of channels during upsampling.
+        """
         super().__init__()
 
         up_chns = in_chns // 2 if halves else in_chns
         self.upsample = UpSample(dim, in_chns, up_chns, 2, mode=upsample)
         self.convs = TwoConv(dim, cat_chns + up_chns, out_chns, act, norm, dropout)
 
-    def forward(self, x, x_e):
-        """x: features to be upsampled; x_e: features from the encoder"""
+    def forward(self, x: torch.Tensor, x_e: torch.Tensor):
+        """
+
+        Args:
+            x: features to be upsampled.
+            x_e: features from the encoder.
+        """
         x_0 = self.upsample(x)
 
         # handling spatial shapes due to the 2x maxpooling with odd edge lengths.
-        dimensions = x.ndim - 2
+        dimensions = x.ndim - 2  # type: ignore
         sp = [0] * (dimensions * 2)
         for i in range(dimensions):
             if x_e.shape[-i - 1] != x_0.shape[-i - 1]:
@@ -73,14 +138,14 @@ class UpCat(nn.Module):
 class BasicUNet(nn.Module):
     def __init__(
         self,
-        dimensions=3,
-        in_channels=1,
-        out_channels=2,
-        features=(32, 32, 64, 128, 256, 32),
-        act=("LeakyReLU", {"negative_slope": 0.1, "inplace": True}),
-        norm=("INSTANCE", {"affine": True}),
-        dropout=0.0,
-        upsample="deconv",
+        dimensions: int = 3,
+        in_channels: int = 1,
+        out_channels: int = 2,
+        features: Sequence[int] = (32, 32, 64, 128, 256, 32),
+        act: Union[str, tuple] = ("LeakyReLU", {"negative_slope": 0.1, "inplace": True}),
+        norm: Union[str, tuple] = ("instance", {"affine": True}),
+        dropout: Union[float, tuple] = 0.0,
+        upsample: str = "deconv",
     ):
         """
         A UNet implementation with 1D/2D/3D supports.
@@ -92,19 +157,19 @@ class BasicUNet(nn.Module):
             http://dx.doi.org/10.1038/s41592-018-0261-2
 
         Args:
-            dimensions (int): number of spatial dimensions. Defaults to 3 for spatial 3D inputs.
-            in_channels (int): number of input channels. Defaults to 1.
-            out_channels (int): number of output channels. Defaults to 2.
-            features (Sequence of int): six integers as numbers of features.
+            dimensions: number of spatial dimensions. Defaults to 3 for spatial 3D inputs.
+            in_channels: number of input channels. Defaults to 1.
+            out_channels: number of output channels. Defaults to 2.
+            features: six integers as numbers of features.
                 Defaults to ``(32, 32, 64, 128, 256, 32)``,
 
                 - the first five values correspond to the five-level encoder feature sizes.
                 - the last value corresponds to the feature size after the last upsampling.
 
-            act (str|tuple): activation type and arguments. Defaults to LeakyReLU.
-            norm (str|tuple): feature normalization type and arguments. Defaults to instance norm.
-            dropout (float|tuple): dropout ratio. Defaults to no dropout.
-            upsample (str): upsampling mode, available options are
+            act: activation type and arguments. Defaults to LeakyReLU.
+            norm: feature normalization type and arguments. Defaults to instance norm.
+            dropout: dropout ratio. Defaults to no dropout.
+            upsample: upsampling mode, available options are
                 ``"deconv"``, ``"pixelshuffle"``, ``"nontrainable"``.
 
         Examples::
@@ -134,19 +199,20 @@ class BasicUNet(nn.Module):
 
         self.final_conv = Conv["conv", dimensions](fea[5], out_channels, kernel_size=1)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         """
         Args:
-            x: input torch Tensor should have spatially N dimensions
+            x: input should have spatially N dimensions
                 ``(Batch, in_channels, dim_0[, dim_1, ..., dim_N])``, N is defined by `dimensions`.
                 It is recommended to have ``dim_n % 16 == 0`` to ensure all maxpooling inputs have
                 even edge lengths.
 
         Returns:
-            a torch Tensor of "raw" predictions in shape
+            A torch Tensor of "raw" predictions in shape
             ``(Batch, out_channels, dim_0[, dim_1, ..., dim_N])``.
         """
         x0 = self.conv_0(x)
+
         x1 = self.down_1(x0)
         x2 = self.down_2(x1)
         x3 = self.down_3(x2)

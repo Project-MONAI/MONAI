@@ -31,7 +31,7 @@ def run_test(net_name="basicunet", batch_size=64, train_steps=100, device=torch.
             return train_steps
 
     if net_name == "basicunet":
-        net = BasicUNet(dimensions=2, in_channels=1, out_channels=1, features=(32, 32, 64, 64, 128, 32))
+        net = BasicUNet(dimensions=2, in_channels=1, out_channels=1, features=(4, 8, 8, 16, 16, 32))
     elif net_name == "unet":
         net = UNet(
             dimensions=2, in_channels=1, out_channels=1, channels=(4, 8, 16, 32), strides=(2, 2, 2), num_res_units=2
