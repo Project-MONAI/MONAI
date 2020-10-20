@@ -65,9 +65,29 @@ TEST_CASE_3 = [
     ),
 ]
 
+TEST_CASE_4 = [
+    {
+        "sigma1_x": (0.5, 0.75),
+        "sigma1_y": (0.5, 0.75),
+        "sigma1_z": (0.5, 0.75),
+        "sigma2_x": (0.5, 0.75),
+        "sigma2_y": (0.5, 0.75),
+        "sigma2_z": (0.5, 0.75),
+        "approx": "scalespace",
+        "prob": 1.0,
+    },
+    np.array([[[1, 1, 1], [2, 2, 2], [3, 3, 3]], [[4, 4, 4], [5, 5, 5], [6, 6, 6]]]),
+    np.array(
+        [
+            [[4.430213, 3.2278745, 4.4302144], [10.325399, 8.507457, 10.325399], [17.494898, 16.5609, 17.494894]],
+            [[20.87405, 18.06946, 20.87405], [25.813503, 21.268656, 25.8135], [33.93874, 31.402481, 33.938725]],
+        ]
+    ),
+]
+
 
 class TestRandGaussianSharpen(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_value(self, argments, image, expected_data):
         converter = RandGaussianSharpen(**argments)
         converter.set_random_state(seed=0)
