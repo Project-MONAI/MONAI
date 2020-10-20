@@ -97,9 +97,7 @@ def compute_occlusion_sensitivity(
     greater the drop in certainty, indicating the occluded region was more
     important in the decision process.
 
-    See:
-        R. R. Selvaraju et al. Grad-CAM: Visual Explanations from Deep Networks via Gradient-based Localization.
-    https://doi.org/10.1109/ICCV.2017.74
+    See: R. R. Selvaraju et al. Grad-CAM: Visual Explanations from Deep Networks via Gradient-based Localization. https://doi.org/10.1109/ICCV.2017.74
 
     Args:
         model: model to use for inference
