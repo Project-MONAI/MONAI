@@ -96,12 +96,17 @@ def expect_failure_if_no_gpu(test):
     else:
         return test
 
-def test_script_save(net, *inputs):
+def test_script_save(net, inputs):
     scripted = torch.jit.script(net)
     buffer = scripted.save_to_buffer()
     reloaded_net = torch.jit.load(BytesIO(buffer))
+    net.eval()
+    reloaded_net.eval()
+    with torch.no_grad():
+        result1 = net.forward(inputs)
+        result2 = reloaded_net.forward(inputs)
 
-    return net(*inputs), reloaded_net(*inputs)
+    return result1, result2
 
 
 def query_memory(n=2):

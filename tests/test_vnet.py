@@ -13,7 +13,7 @@ import unittest
 
 import torch
 from parameterized import parameterized
-
+from tests.utils import test_script_save
 from monai.networks.nets import VNet
 
 TEST_CASE_VNET_2D_1 = [
@@ -65,3 +65,9 @@ class TestVNet(unittest.TestCase):
         with torch.no_grad():
             result = net.forward(input_data)
             self.assertEqual(result.shape, expected_shape)
+
+    def test_script(self):
+        net = VNet(spatial_dims=3, in_channels=1, out_channels=3, dropout_dim=3)
+        test_data = torch.randn(1, 1, 32, 32, 32)
+        out_orig, out_reloaded = test_script_save(net, test_data)
+        assert torch.allclose(out_orig, out_reloaded)

@@ -13,7 +13,7 @@ import unittest
 
 import torch
 from parameterized import parameterized
-
+from tests.utils import test_script_save
 from monai.networks.nets import Generator
 
 TEST_CASE_0 = [
@@ -45,6 +45,12 @@ class TestGenerator(unittest.TestCase):
         with torch.no_grad():
             result = net.forward(input_data)
             self.assertEqual(result.shape, expected_shape)
+
+    def test_script(self):
+        net = Generator(latent_shape=(64,), start_shape=(8, 8, 8), channels=(8, 1), strides=(2, 2), num_res_units=2)
+        test_data = torch.rand(16, 64)
+        out_orig, out_reloaded = test_script_save(net, test_data)
+        assert torch.allclose(out_orig, out_reloaded)
 
 
 if __name__ == "__main__":

@@ -16,7 +16,7 @@ from parameterized import parameterized
 
 from monai.networks.blocks import FCN, MCFCN
 from monai.networks.nets import AHNet
-from tests.utils import skip_if_quick, test_script_save
+from tests.utils import skip_if_quick
 
 TEST_CASE_FCN_1 = [
     {"out_channels": 3, "upsample_mode": "transpose"},
@@ -138,12 +138,6 @@ class TestAHNET(unittest.TestCase):
         with torch.no_grad():
             result = net.forward(input_data)
             self.assertEqual(result.shape, expected_shape)
-
-    def test_ahnet_script(self):
-        net = AHNet(in_channels=2)
-        test_data = torch.randn(2, 2, 128, 128, 64)
-        out_orig, out_reloaded = test_script_save(net, test_data)
-        assert torch.allclose(out_orig, out_reloaded)
 
 
 class TestAHNETWithPretrain(unittest.TestCase):
