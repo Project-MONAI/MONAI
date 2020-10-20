@@ -29,7 +29,7 @@ TEST_CASE_0 = [
         "label": torch.tensor([[0]], dtype=torch.int64).to(device),
         "b_box": [-1, -1, 2, 40, 1, 62],
     },
-    (38, 62),
+    (39, 62),
 ]
 # 3D w/ bounding box
 TEST_CASE_1 = [

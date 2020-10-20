@@ -23,6 +23,7 @@ except (ImportError, AttributeError):
 
 
 def _check_input_image(image):
+    """Check that the input image is as expected."""
     # Only accept batch size of 1
     if image.shape[0] > 1:
         raise RuntimeError("Expected batch size of 1.")
@@ -30,6 +31,7 @@ def _check_input_image(image):
 
 
 def _check_input_label(label, image):
+    """Check that the input label is as expected."""
     # If necessary turn the label into a 1-element tensor
     if isinstance(label, int):
         label = torch.tensor([[label]], dtype=torch.int64).to(image.device)
@@ -40,7 +42,7 @@ def _check_input_label(label, image):
 
 
 def _check_input_bounding_box(b_box, im_shape):
-
+    """Check that the bounding box (if supplied) is as expected."""
     # If no bounding box has been supplied, set min and max to None
     if b_box is None:
         b_box_min = b_box_max = None
@@ -56,6 +58,9 @@ def _check_input_bounding_box(b_box, im_shape):
         b_box_max = np.array(b_box[1::2])
         b_box_min[b_box_min < 0] = 0
         b_box_max[b_box_max < 0] = np.array(im_shape)[b_box_max < 0] - 1
+        # Check all max's are < im_shape
+        if np.any(b_box_max >= im_shape):
+            raise ValueError("Max bounding box should be < image size for all values")
         # Check all min's are <= max's
         if np.any(b_box_min > b_box_max):
             raise ValueError("Min bounding box should be <= max for all values")
@@ -72,6 +77,15 @@ def _is_in_bound(idx, b_box_min, b_box_max):
         if not i_min <= i <= i_max:
             return False
     return True
+
+
+def _append_to_sensitivity_im(model, batch_images, batch_ids, sensitivity_im):
+    """For given number of images, get probability of predicting
+    a given label. Append to previous evaluations."""
+    batch_images = torch.cat(batch_images, dim=0)
+    batch_ids = torch.LongTensor(batch_ids).unsqueeze(1).to(sensitivity_im.device)
+    scores = model(batch_images).detach().gather(1, batch_ids)
+    return torch.cat((sensitivity_im, scores))
 
 
 def compute_occlusion_sensitivity(
@@ -97,7 +111,8 @@ def compute_occlusion_sensitivity(
     greater the drop in certainty, indicating the occluded region was more
     important in the decision process.
 
-    See: R. R. Selvaraju et al. Grad-CAM: Visual Explanations from Deep Networks via Gradient-based Localization. https://doi.org/10.1109/ICCV.2017.74
+    See: R. R. Selvaraju et al. Grad-CAM: Visual Explanations from Deep Networks via
+    Gradient-based Localization. https://doi.org/10.1109/ICCV.2017.74
 
     Args:
         model: model to use for inference
@@ -135,10 +150,10 @@ def compute_occlusion_sensitivity(
     baseline = model(image).detach()[0, label].item()
 
     # Create some lists
-    batch_images_lst = []
-    batch_ids_lst = []
+    batch_images = []
+    batch_ids = []
 
-    heatmap = torch.empty(0, dtype=torch.float32, device=image.device)
+    sensitivity_im = torch.empty(0, dtype=torch.float32, device=image.device)
 
     # Loop 1D over image
     for i in trange(image.numel()):
@@ -158,39 +173,31 @@ def compute_occlusion_sensitivity(
         occlu_im[(...,) + tuple(slice(i, j) for i, j in zip(min_idx, max_idx))] = pad_val
 
         # Add to list
-        batch_images_lst.append(occlu_im)
-        batch_ids_lst.append(label)
+        batch_images.append(occlu_im)
+        batch_ids.append(label)
 
         # Once the batch is complete (or on last iteration)
-        if len(batch_images_lst) == n_batch:
-            # Get the predictions and append to tensor
-            batch_images = torch.cat(batch_images_lst, dim=0)
-            batch_ids = torch.cat(batch_ids_lst, dim=0)
-            scores = model(batch_images).detach().gather(1, batch_ids)
-            heatmap = torch.cat((heatmap, scores))
-
+        if len(batch_images) == n_batch:
+            # Do the predictions and append to sensitivity map
+            sensitivity_im = _append_to_sensitivity_im(model, batch_images, batch_ids, sensitivity_im)
             # Clear lists
-            batch_images_lst = []
-            batch_ids_lst = []
+            batch_images = []
+            batch_ids = []
 
     # If there are any predictions remaining to be done (because required
     # number of predictions isn't a multiple of the batch size), then do them.
-    if len(batch_images_lst) > 0:
-        # Get the predictions and append to tensor
-        batch_images = torch.cat(batch_images_lst, dim=0)
-        batch_ids = torch.cat(batch_ids_lst, dim=0)
-        scores = model(batch_images).detach().gather(1, batch_ids)
-        heatmap = torch.cat((heatmap, scores))
+    if len(batch_images) > 0:
+        sensitivity_im = _append_to_sensitivity_im(model, batch_images, batch_ids, sensitivity_im)
 
     # Convert tensor to numpy
-    diffmaps = heatmap.cpu().numpy()
+    sensitivity_im = sensitivity_im.cpu().numpy()
 
     # If no bounding box supplied, output shape is same as input shape.
     # If bounding box is present, shape is max - min + 1
     output_im_shape = im_shape if b_box is None else tuple(x - y + 1 for x, y in zip(b_box_max, b_box_min))
 
     # Reshape to size of output image
-    diffmaps = diffmaps.reshape(output_im_shape)
+    sensitivity_im = sensitivity_im.reshape(output_im_shape)
 
     # Squeeze, subtract from baseline and return
-    return baseline - np.squeeze(diffmaps)
+    return baseline - np.squeeze(sensitivity_im)
