@@ -16,6 +16,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from monai.networks.blocks import FCN
 from monai.networks.layers.factories import Act, Conv, Norm, Pool
 
 
@@ -354,6 +355,7 @@ class AHNet(nn.Module):
     Args:
         layers: number of residual blocks for 4 layers of the network (layer1...layer4). Defaults to ``(3, 4, 6, 3)``.
         spatial_dims: spatial dimension of the input data. Defaults to 3.
+        in_channels: number of input channels for the network. Default to 1.
         out_channels: number of output channels for the network. Defaults to 1.
         upsample_mode: [``"transpose"``, ``"bilinear"``, ``"trilinear"``]
             The mode of upsampling manipulations.
@@ -362,14 +364,19 @@ class AHNet(nn.Module):
             - ``"transpose"``, uses transposed convolution layers.
             - ``"bilinear"``, uses bilinear interpolate.
             - ``"trilinear"``, uses trilinear interpolate.
+        pretrained: whether to load pretrained weights from ResNet50 to initialize convolution layers, default to False.
+        progress: If True, displays a progress bar of the download of pretrained weights to stderr.
     """
 
     def __init__(
         self,
         layers: tuple = (3, 4, 6, 3),
         spatial_dims: int = 3,
+        in_channels: int = 1,
         out_channels: int = 1,
         upsample_mode: str = "transpose",
+        pretrained: bool = False,
+        progress: bool = True,
     ):
         self.inplanes = 64
         super(AHNet, self).__init__()
@@ -393,7 +400,7 @@ class AHNet(nn.Module):
         assert spatial_dims == 2 or spatial_dims == 3, "spatial_dims can only be 2 or 3."
 
         self.conv1 = conv_type(
-            1,
+            in_channels,
             64,
             kernel_size=(7, 7, 3)[-spatial_dims:],
             stride=(2, 2, 1)[-spatial_dims:],
@@ -455,6 +462,10 @@ class AHNet(nn.Module):
             elif isinstance(m, norm_type):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
+
+        if pretrained:
+            net2d = FCN(pretrained=True, progress=progress)
+            self.copy_from(net2d)
 
     def _make_layer(
         self,
@@ -526,7 +537,8 @@ class AHNet(nn.Module):
         p2d, p3d = next(net.conv1.parameters()), next(self.conv1.parameters())
 
         # From 64x3x7x7 -> 64x3x7x7x1 -> 64x1x7x7x3
-        p3d.data = p2d.data.unsqueeze(dim=4).permute(0, 4, 2, 3, 1).clone()
+        weights = p2d.data.unsqueeze(dim=4).permute(0, 4, 2, 3, 1).clone()
+        p3d.data = weights.repeat([1, p3d.shape[1], 1, 1, 1])
 
         # Copy the initial module BN0
         copy_bn_param(net.bn0, self.bn0)

@@ -40,8 +40,8 @@ Blocks
 .. autoclass:: MCFCN
     :members:
 
-`No New Unet Block`
-~~~~~~~~~~~~~~~~~~~
+`Dynamic-Unet Block`
+~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: UnetResBlock
     :members:
 .. autoclass:: UnetBasicBlock

@@ -15,13 +15,14 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.nets import SegResNet, SegResNetVAE
+from monai.utils import UpsampleMode
 
 TEST_CASE_SEGRESNET = []
 for spatial_dims in range(2, 4):
     for init_filters in [8, 16]:
         for dropout_prob in [None, 0.2]:
             for norm_name in ["group", "batch", "instance"]:
-                for upsample_mode in ["trilinear", "transpose"]:
+                for upsample_mode in UpsampleMode:
                     test_case = [
                         {
                             "spatial_dims": spatial_dims,
@@ -40,7 +41,7 @@ TEST_CASE_SEGRESNET_2 = []
 for spatial_dims in range(2, 4):
     for init_filters in [8, 16]:
         for out_channels in range(1, 3):
-            for upsample_mode in ["bilinear", "transpose"]:
+            for upsample_mode in UpsampleMode:
                 test_case = [
                     {
                         "spatial_dims": spatial_dims,
@@ -57,7 +58,7 @@ TEST_CASE_SEGRESNET_VAE = []
 for spatial_dims in range(2, 4):
     for init_filters in [8, 16]:
         for out_channels in range(1, 3):
-            for upsample_mode in ["bilinear", "transpose"]:
+            for upsample_mode in UpsampleMode:
                 for vae_estimate_std in [True, False]:
                     test_case = [
                         {
