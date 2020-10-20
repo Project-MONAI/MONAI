@@ -38,7 +38,7 @@ TEST_CASE_1 = [
         "image": torch.rand(1, 1, 32, 48, 64).to(device),
         "label": 0,
         "b_box": [-1, -1, 10, 11, -1, -1, -1, -1],
-        "n_batch": 10
+        "n_batch": 10,
     },
     (2, 48, 64),
 ]
