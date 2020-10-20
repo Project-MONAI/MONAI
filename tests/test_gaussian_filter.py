@@ -66,7 +66,7 @@ class GaussianFilterBackprop(unittest.TestCase):
         for s in range(1000):
             optimizer.zero_grad()
             pred = trainable(base)
-            loss = torch.square(pred - target).mean()
+            loss = torch.pow(pred - target, 2).mean()
             loss.backward()
             if (s + 1) % 50 == 0:
                 var = list(trainable.parameters())[0]
