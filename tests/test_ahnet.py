@@ -158,6 +158,20 @@ class TestAHNETWithPretrain(unittest.TestCase):
             result = net.forward(input_data)
             self.assertEqual(result.shape, expected_shape)
 
+    def test_initialize_pretrained(self):
+        net = AHNet(
+            spatial_dims=3,
+            upsample_mode="transpose",
+            in_channels=2,
+            out_channels=3,
+            pretrained=True,
+            progress=True,
+        )
+        input_data = torch.randn(2, 2, 128, 128, 64)
+        with torch.no_grad():
+            result = net.forward(input_data)
+            self.assertEqual(result.shape, (2, 3, 128, 128, 64))
+
 
 if __name__ == "__main__":
     unittest.main()
