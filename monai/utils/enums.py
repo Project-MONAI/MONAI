@@ -57,14 +57,12 @@ class InterpolateMode(Enum):
 
 class UpsampleMode(Enum):
     """
-    See also: https://pytorch.org/docs/stable/nn.html#upsample
+    See also: :py:class:`monai.networks.blocks.UpSample`
     """
 
-    NEAREST = "nearest"
-    LINEAR = "linear"
-    BILINEAR = "bilinear"
-    BICUBIC = "bicubic"
-    TRILINEAR = "trilinear"
+    DECONV = "deconv"
+    NONTRAINABLE = "nontrainable"  # e.g. using torch.nn.Upsample
+    PIXELSHUFFLE = "pixelshuffle"
 
 
 class BlendMode(Enum):

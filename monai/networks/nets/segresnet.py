@@ -9,15 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Union
 
 import numpy as np
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 
 from monai.networks.blocks.segresnet_block import *
 from monai.networks.layers.factories import Act, Dropout
+from monai.utils import UpsampleMode
 
 
 class SegResNet(nn.Module):
@@ -39,13 +39,14 @@ class SegResNet(nn.Module):
         use_conv_final: if add a final convolution block to output. Defaults to ``True``.
         blocks_down: number of down sample blocks in each layer. Defaults to ``[1,2,2,4]``.
         blocks_up: number of up sample blocks in each layer. Defaults to ``[1,1,1]``.
-        upsample_mode: [``"transpose"``, ``"bilinear"``, ``"trilinear"``]
+        upsample_mode: [``"transpose"``, ``"nontrainable"``, ``"pixelshuffle"``]
             The mode of upsampling manipulations.
-            Using the last two modes cannot guarantee the model's reproducibility. Defaults to``trilinear``.
+            Using the ``nontrainable`` modes cannot guarantee the model's reproducibility. Defaults to``nontrainable``.
 
             - ``transpose``, uses transposed convolution layers.
-            - ``bilinear``, uses bilinear interpolate.
-            - ``trilinear``, uses trilinear interpolate.
+            - ``nontrainable``, uses non-trainable `linear` interpolation.
+            - ``pixelshuffle``, uses :py:class:`monai.networks.blocks.SubpixelUpsample`.
+
     """
 
     def __init__(
@@ -60,7 +61,7 @@ class SegResNet(nn.Module):
         use_conv_final: bool = True,
         blocks_down: tuple = (1, 2, 2, 4),
         blocks_up: tuple = (1, 1, 1),
-        upsample_mode: str = "trilinear",
+        upsample_mode: Union[UpsampleMode, str] = UpsampleMode.NONTRAINABLE,
     ):
         super().__init__()
 
@@ -73,7 +74,7 @@ class SegResNet(nn.Module):
         self.dropout_prob = dropout_prob
         self.norm_name = norm_name
         self.num_groups = num_groups
-        self.upsample_mode = upsample_mode
+        self.upsample_mode = UpsampleMode(upsample_mode)
         self.use_conv_final = use_conv_final
         self.convInit = get_conv_layer(spatial_dims, in_channels, init_filters)
         self.down_layers = self._make_down_layers()
@@ -187,13 +188,14 @@ class SegResNetVAE(SegResNet):
         use_conv_final: if add a final convolution block to output. Defaults to ``True``.
         blocks_down: number of down sample blocks in each layer. Defaults to ``[1,2,2,4]``.
         blocks_up: number of up sample blocks in each layer. Defaults to ``[1,1,1]``.
-        upsample_mode: [``"transpose"``, ``"bilinear"``, ``"trilinear"``]
+        upsample_mode: [``"transpose"``, ``"nontrainable"``, ``"pixelshuffle"``]
             The mode of upsampling manipulations.
-            Using the last two modes cannot guarantee the model's reproducibility. Defaults to``trilinear``.
+            Using the ``nontrainable`` modes cannot guarantee the model's reproducibility. Defaults to `nontrainable`.
 
             - ``transpose``, uses transposed convolution layers.
-            - ``bilinear``, uses bilinear interpolate.
-            - ``trilinear``, uses trilinear interpolate.
+            - ``nontrainable``, uses non-trainable `linear` interpolation.
+            - ``pixelshuffle``, uses :py:class:`monai.networks.blocks.SubpixelUpsample`.
+
         use_vae: if use the variational autoencoder (VAE) during training. Defaults to ``False``.
         input_image_size: the size of images to input into the network. It is used to
             determine the in_features of the fc layer in VAE. When ``use_vae == True``, please
@@ -220,7 +222,7 @@ class SegResNetVAE(SegResNet):
         use_conv_final: bool = True,
         blocks_down: tuple = (1, 2, 2, 4),
         blocks_up: tuple = (1, 1, 1),
-        upsample_mode: str = "trilinear",
+        upsample_mode: Union[UpsampleMode, str] = "nontrainable",
     ):
         super(SegResNetVAE, self).__init__(
             spatial_dims=spatial_dims,
