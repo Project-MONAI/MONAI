@@ -104,8 +104,8 @@ def compute_occlusion_sensitivity(
     Gradient-based Localization. https://doi.org/10.1109/ICCV.2017.74
 
     Args:
-        model: model to use for inference
-        image: image to test
+        model: classification model to use for inference
+        image: image to test. Should be tensor consisting of 1 batch, can be 2- or 3D.
         label: classification label to check for changes (normally the true
             label, but doesn't have to be)
         pad_val: when occluding part of the image, which values should we put
