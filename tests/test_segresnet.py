@@ -32,7 +32,7 @@ for spatial_dims in range(2, 4):
                             "upsample_mode": upsample_mode,
                             "use_conv_final": False,
                         },
-                        torch.randn(2, 1, *([16] * spatial_dims)),
+                        (2, 1, *([16] * spatial_dims)),
                         (2, init_filters, *([16] * spatial_dims)),
                     ]
                     TEST_CASE_SEGRESNET.append(test_case)
@@ -49,7 +49,7 @@ for spatial_dims in range(2, 4):
                         "out_channels": out_channels,
                         "upsample_mode": upsample_mode,
                     },
-                    torch.randn(2, 1, *([16] * spatial_dims)),
+                    (2, 1, *([16] * spatial_dims)),
                     (2, out_channels, *([16] * spatial_dims)),
                 ]
                 TEST_CASE_SEGRESNET_2.append(test_case)
@@ -69,7 +69,7 @@ for spatial_dims in range(2, 4):
                             "input_image_size": ([16] * spatial_dims),
                             "vae_estimate_std": vae_estimate_std,
                         },
-                        torch.randn(2, 1, *([16] * spatial_dims)),
+                        (2, 1, *([16] * spatial_dims)),
                         (2, out_channels, *([16] * spatial_dims)),
                     ]
                 TEST_CASE_SEGRESNET_VAE.append(test_case)
@@ -77,11 +77,11 @@ for spatial_dims in range(2, 4):
 
 class TestResBlock(unittest.TestCase):
     @parameterized.expand(TEST_CASE_SEGRESNET + TEST_CASE_SEGRESNET_2)
-    def test_shape(self, input_param, input_data, expected_shape):
+    def test_shape(self, input_param, input_shape, expected_shape):
         net = SegResNet(**input_param)
         net.eval()
         with torch.no_grad():
-            result = net(input_data)
+            result = net(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
 
     def test_ill_arg(self):
@@ -91,10 +91,10 @@ class TestResBlock(unittest.TestCase):
 
 class TestResBlockVAE(unittest.TestCase):
     @parameterized.expand(TEST_CASE_SEGRESNET_VAE)
-    def test_vae_shape(self, input_param, input_data, expected_shape):
+    def test_vae_shape(self, input_param, input_shape, expected_shape):
         net = SegResNetVAE(**input_param)
         with torch.no_grad():
-            result, _ = net(input_data)
+            result, _ = net(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
 
 
