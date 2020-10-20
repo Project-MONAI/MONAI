@@ -51,13 +51,13 @@ def _check_input_bounding_box(b_box, im_shape):
     else:
         # Should be twice as many elements in `b_box` as `im_shape`
         if len(b_box) != 2 * len(im_shape):
-            raise ValueError("Bounding box should contain upper and lower for all dimensions except batch number")
+            raise ValueError("Bounding box should contain upper and lower for all dimensions (except batch number)")
 
         # If any min's or max's are -ve, set them to 0 and im_shape-1, respectively.
         b_box_min = np.array(b_box[::2])
         b_box_max = np.array(b_box[1::2])
         b_box_min[b_box_min < 0] = 0
-        b_box_max[b_box_max < 0] = np.array(im_shape)[b_box_max < 0] - 1
+        b_box_max[b_box_max < 0] = im_shape[b_box_max < 0] - 1
         # Check all max's are < im_shape
         if np.any(b_box_max >= im_shape):
             raise ValueError("Max bounding box should be < image size for all values")
@@ -66,17 +66,6 @@ def _check_input_bounding_box(b_box, im_shape):
             raise ValueError("Min bounding box should be <= max for all values")
 
     return b_box_min, b_box_max
-
-
-def _is_in_bound(idx, b_box_min, b_box_max):
-    """Check index is in bounds.
-    If the bounding box is ``None``, return ``True``."""
-    if b_box_min is None:
-        return True
-    for i, i_min, i_max in zip(idx, b_box_min, b_box_max):
-        if not i_min <= i <= i_max:
-            return False
-    return True
 
 
 def _append_to_sensitivity_im(model, batch_images, batch_ids, sensitivity_im):
@@ -143,7 +132,7 @@ def compute_occlusion_sensitivity(
     # Check input arguments
     image = _check_input_image(image)
     label = _check_input_label(label, image)
-    im_shape = image.shape[1:]
+    im_shape = np.array(image.shape[1:])
     b_box_min, b_box_max = _check_input_bounding_box(b_box, im_shape)
 
     # Get baseline probability
@@ -155,14 +144,19 @@ def compute_occlusion_sensitivity(
 
     sensitivity_im = torch.empty(0, dtype=torch.float32, device=image.device)
 
-    # Loop 1D over image
-    for i in trange(image.numel()):
-        # Get corresponding ND index
-        idx = np.unravel_index(i, im_shape)
+    # If no bounding box supplied, output shape is same as input shape.
+    # If bounding box is present, shape is max - min + 1
+    output_im_shape = im_shape if b_box is None else b_box_max - b_box_min + 1
+    num_required_predictions = np.prod(output_im_shape)
 
-        # Skip if out of bounds
-        if not _is_in_bound(idx, b_box_min, b_box_max):
-            continue
+    # Loop 1D over image
+    for i in trange(num_required_predictions):
+        # Get corresponding ND index
+        idx = np.unravel_index(i, output_im_shape)
+        # If a bounding box is being used, we need to add on
+        # the min to shift to start of region of interest
+        if b_box_min is not None:
+            idx += b_box_min
 
         # Get min and max index of box to occlude
         min_idx = [max(0, i - margin) for i in idx]
@@ -177,24 +171,15 @@ def compute_occlusion_sensitivity(
         batch_ids.append(label)
 
         # Once the batch is complete (or on last iteration)
-        if len(batch_images) == n_batch:
+        if len(batch_images) == n_batch or i == num_required_predictions - 1:
             # Do the predictions and append to sensitivity map
             sensitivity_im = _append_to_sensitivity_im(model, batch_images, batch_ids, sensitivity_im)
             # Clear lists
             batch_images = []
             batch_ids = []
 
-    # If there are any predictions remaining to be done (because required
-    # number of predictions isn't a multiple of the batch size), then do them.
-    if len(batch_images) > 0:
-        sensitivity_im = _append_to_sensitivity_im(model, batch_images, batch_ids, sensitivity_im)
-
     # Convert tensor to numpy
     sensitivity_im = sensitivity_im.cpu().numpy()
-
-    # If no bounding box supplied, output shape is same as input shape.
-    # If bounding box is present, shape is max - min + 1
-    output_im_shape = im_shape if b_box is None else tuple(x - y + 1 for x, y in zip(b_box_max, b_box_min))
 
     # Reshape to size of output image
     sensitivity_im = sensitivity_im.reshape(output_im_shape)
