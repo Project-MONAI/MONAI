@@ -98,8 +98,12 @@ Blocks
 ~~~~~~~~~~~~
 .. autoclass:: UpSample
     :members:
+.. autoclass:: Upsample
 .. autoclass:: SubpixelUpsample
     :members:
+.. autoclass:: Subpixelupsample
+.. autoclass:: SubpixelUpSample
+
 
 
 Layers
@@ -242,13 +246,22 @@ Nets
 ~~~~~~~~~
 .. autoclass:: DynUNet
   :members:
+.. autoclass:: DynUnet
+.. autoclass:: Dynunet
 
-`Unet`
+`UNet`
 ~~~~~~
 .. autoclass:: UNet
   :members:
 .. autoclass:: Unet
 .. autoclass:: unet
+
+`BasicUNet`
+~~~~~~~~~~~
+.. autoclass:: BasicUNet
+  :members:
+.. autoclass:: BasicUnet
+.. autoclass:: Basicunet
 
 `Vnet`
 ~~~~~~
