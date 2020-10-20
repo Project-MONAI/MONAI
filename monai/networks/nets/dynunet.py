@@ -37,8 +37,6 @@ class DynUNet(nn.Module):
     Therefore, pleasure ensure that the length of input sequences (``kernel_size`` and ``strides``)
     is no less than 3 in order to have at least one downsample upsample blocks.
 
-    Note that as this network contains dynamic parameters, it can't support ``torch.jit.script`` export.
-
     Args:
         spatial_dims: number of spatial dimensions.
         in_channels: number of input channels.

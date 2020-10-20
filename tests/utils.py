@@ -12,8 +12,9 @@
 import os
 import tempfile
 import unittest
-from subprocess import PIPE, Popen
 from io import BytesIO
+from subprocess import PIPE, Popen
+
 import numpy as np
 import torch
 
@@ -96,6 +97,7 @@ def expect_failure_if_no_gpu(test):
     else:
         return test
 
+
 def test_script_save(net, inputs):
     scripted = torch.jit.script(net)
     buffer = scripted.save_to_buffer()
@@ -103,8 +105,8 @@ def test_script_save(net, inputs):
     net.eval()
     reloaded_net.eval()
     with torch.no_grad():
-        result1 = net.forward(inputs)
-        result2 = reloaded_net.forward(inputs)
+        result1 = net(inputs)
+        result2 = reloaded_net(inputs)
 
     return result1, result2
 

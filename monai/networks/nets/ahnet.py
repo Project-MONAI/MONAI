@@ -299,7 +299,7 @@ class PSP(nn.Module):
             x16 = self.up16(self.proj16(self.pool16(x)))
             x8 = self.up8(self.proj8(self.pool8(x)))
         else:
-            interpolate_size = tuple(x.size()[2:])
+            interpolate_size = x.shape[2:]
             x64 = F.interpolate(
                 self.proj64(self.pool64(x)),
                 size=interpolate_size,
@@ -350,8 +350,6 @@ class AHNet(nn.Module):
         model = monai.networks.nets.AHNet(out_channels=2, upsample_mode='transpose')
         model2d = monai.networks.blocks.FCN()
         model.copy_from(model2d)
-
-    Note that as this network contains dynamic parameters, it can't support ``torch.jit.script`` export.
 
     Args:
         layers: number of residual blocks for 4 layers of the network (layer1...layer4). Defaults to ``(3, 4, 6, 3)``.

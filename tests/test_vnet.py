@@ -13,8 +13,9 @@ import unittest
 
 import torch
 from parameterized import parameterized
-from tests.utils import test_script_save
+
 from monai.networks.nets import VNet
+from tests.utils import test_script_save
 
 TEST_CASE_VNET_2D_1 = [
     {"spatial_dims": 2, "in_channels": 4, "out_channels": 1, "act": "elu", "dropout_dim": 1},

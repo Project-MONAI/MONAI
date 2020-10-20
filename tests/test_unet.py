@@ -13,9 +13,10 @@ import unittest
 
 import torch
 from parameterized import parameterized
-from tests.utils import test_script_save
+
 from monai.networks.layers import Act, Norm
 from monai.networks.nets import UNet
+from tests.utils import test_script_save
 
 TEST_CASE_0 = [  # single channel 2D, batch 16, no residual
     {

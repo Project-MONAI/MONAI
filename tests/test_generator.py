@@ -13,8 +13,9 @@ import unittest
 
 import torch
 from parameterized import parameterized
-from tests.utils import test_script_save
+
 from monai.networks.nets import Generator
+from tests.utils import test_script_save
 
 TEST_CASE_0 = [
     {"latent_shape": (64,), "start_shape": (8, 8, 8), "channels": (8, 4, 1), "strides": (2, 2, 2), "num_res_units": 0},
