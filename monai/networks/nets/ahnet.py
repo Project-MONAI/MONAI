@@ -16,6 +16,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from monai.networks.blocks import FCN
 from monai.networks.layers.factories import Act, Conv, Norm, Pool
 
 
@@ -363,6 +364,8 @@ class AHNet(nn.Module):
             - ``"transpose"``, uses transposed convolution layers.
             - ``"bilinear"``, uses bilinear interpolate.
             - ``"trilinear"``, uses trilinear interpolate.
+        pretrained: whether to load pretrained weights from ResNet50 to initialize convolution layers, default to False.
+        progress: If True, displays a progress bar of the download of pretrained weights to stderr.
     """
 
     def __init__(
@@ -372,6 +375,8 @@ class AHNet(nn.Module):
         in_channels: int = 1,
         out_channels: int = 1,
         upsample_mode: str = "transpose",
+        pretrained: bool = False,
+        progress: bool = True,
     ):
         self.inplanes = 64
         super(AHNet, self).__init__()
@@ -457,6 +462,10 @@ class AHNet(nn.Module):
             elif isinstance(m, norm_type):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
+
+        if pretrained:
+            net2d = FCN(pretrained=True, progress=progress)
+            self.copy_from(net2d)
 
     def _make_layer(
         self,

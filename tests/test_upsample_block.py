@@ -15,6 +15,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.blocks import UpSample
+from monai.utils import UpsampleMode
 
 TEST_CASES = [
     [{"dimensions": 2, "in_channels": 4}, torch.randn(7, 4, 32, 48), (7, 4, 64, 96)],  # 4-channel 2D, batch 7
@@ -24,32 +25,53 @@ TEST_CASES = [
         (16, 3, 126),
     ],  # 4-channel 1D, batch 16
     [
-        {"dimensions": 1, "in_channels": 4, "out_channels": 8, "with_conv": True, "align_corners": False},
+        {"dimensions": 1, "in_channels": 4, "out_channels": 8, "mode": "deconv", "align_corners": False},
         torch.randn(16, 4, 20),
         (16, 8, 40),
     ],  # 4-channel 1D, batch 16
     [
-        {"dimensions": 3, "in_channels": 4, "mode": "bilinear"},
+        {"dimensions": 3, "in_channels": 4, "mode": "nontrainable"},
         torch.randn(16, 4, 32, 24, 48),
         (16, 4, 64, 48, 96),
     ],  # 4-channel 3D, batch 16
     [
-        {"dimensions": 3, "in_channels": 1, "with_conv": False, "scale_factor": 3, "align_corners": False},
+        {"dimensions": 3, "in_channels": 1, "mode": "deconv", "scale_factor": 3, "align_corners": False},
         torch.randn(16, 1, 10, 15, 20),
         (16, 1, 30, 45, 60),
     ],  # 1-channel 3D, batch 16
+    [
+        {"dimensions": 3, "in_channels": 1, "mode": "pixelshuffle", "scale_factor": 2, "align_corners": False},
+        torch.randn(16, 1, 10, 15, 20),
+        (16, 1, 20, 30, 40),
+    ],  # 1-channel 3D, batch 16
+    [
+        {"dimensions": 2, "in_channels": 4, "mode": "pixelshuffle", "scale_factor": 2},
+        torch.randn(16, 4, 10, 15),
+        (16, 4, 20, 30),
+    ],  # 4-channel 2D, batch 16
+    [
+        {
+            "dimensions": 3,
+            "mode": "pixelshuffle",
+            "scale_factor": 2,
+            "align_corners": False,
+            "pre_conv": torch.nn.Conv3d(in_channels=1, out_channels=24, kernel_size=3, stride=1, padding=1),
+        },
+        torch.randn(16, 1, 10, 15, 20),
+        (16, 3, 20, 30, 40),
+    ],  # 1-channel 3D, batch 16, pre_conv
 ]
 
 TEST_CASES_EQ = []
 for s in range(1, 5):
     expected_shape = (16, 5, 4 * s, 5 * s, 6 * s)
-    for t in (False, True):
+    for t in UpsampleMode:
         test_case = [
             {
                 "dimensions": 3,
                 "in_channels": 3,
                 "out_channels": 5,
-                "with_conv": t,
+                "mode": t,
                 "scale_factor": s,
                 "align_corners": True,
             },
