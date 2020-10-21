@@ -123,13 +123,12 @@ class UpCat(nn.Module):
         x_0 = self.upsample(x)
 
         # handling spatial shapes due to the 2x maxpooling with odd edge lengths.
-        dimensions = x.ndim - 2  # type: ignore
+        dimensions = len(x.shape) - 2
         sp = [0] * (dimensions * 2)
         for i in range(dimensions):
             if x_e.shape[-i - 1] != x_0.shape[-i - 1]:
                 sp[i * 2 + 1] = 1
-        if sum(sp) != 0:
-            x_0 = torch.nn.functional.pad(x_0, sp, "replicate")
+        x_0 = torch.nn.functional.pad(x_0, sp, "replicate")
 
         x = self.convs(torch.cat([x_e, x_0], dim=1))  # input channels: (cat_chns + up_chns)
         return x
@@ -177,8 +176,16 @@ class BasicUNet(nn.Module):
             # for spatial 2D
             >>> net = BasicUNet(dimensions=2, features=(64, 128, 256, 512, 1024, 128))
 
+            # for spatial 2D, with group norm
+            >>> net = BasicUNet(dimensions=2, features=(64, 128, 256, 512, 1024, 128), norm=("group", {"num_groups": 4}))
+
             # for spatial 3D
             >>> net = BasicUNet(dimensions=3, features=(32, 32, 64, 128, 256, 32))
+
+        See Also
+
+            - :py:class:`monai.networks.nets.DynUNet`
+            - :py:class:`monai.networks.nets.UNet`
 
         """
         super().__init__()
