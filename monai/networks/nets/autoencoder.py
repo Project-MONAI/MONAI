@@ -51,7 +51,7 @@ class AutoEncoder(nn.Module):
         self.dropout = dropout
         self.num_inter_units = num_inter_units
         self.inter_channels = inter_channels if inter_channels is not None else list()
-        self.inter_dilations = list(inter_dilations or [1] * len(inter_channels))
+        self.inter_dilations = list(inter_dilations or [1] * len(self.inter_channels))
 
         self.encoded_channels = in_channels
         decode_channel_list = list(channels[-2::-1]) + [out_channels]
@@ -62,7 +62,7 @@ class AutoEncoder(nn.Module):
 
     def _get_encode_module(
         self, in_channels: int, channels: Sequence[int], strides: Sequence[int]
-    ) -> (nn.Sequential, int):
+    ) -> Tuple[nn.Sequential, int]:
         encode = nn.Sequential()
         layer_channels = in_channels
 
@@ -73,7 +73,7 @@ class AutoEncoder(nn.Module):
 
         return encode, layer_channels
 
-    def _get_intermediate_module(self, in_channels: int, num_inter_units: int) -> (nn.Module, int):
+    def _get_intermediate_module(self, in_channels: int, num_inter_units: int) -> Tuple[nn.Module, int]:
         intermediate = nn.Identity()
         layer_channels = in_channels
 
@@ -104,7 +104,7 @@ class AutoEncoder(nn.Module):
 
         return intermediate, layer_channels
 
-    def _get_decode_module(self, in_channels: int, channels: int, strides: Sequence[int]) -> (nn.Sequential, int):
+    def _get_decode_module(self, in_channels: int, channels: Sequence[int], strides: Sequence[int]) -> Tuple[nn.Sequential, int]:
         decode = nn.Sequential()
         layer_channels = in_channels
 
@@ -116,7 +116,7 @@ class AutoEncoder(nn.Module):
         return decode, layer_channels
 
     def _get_encode_layer(
-        self, in_channels: int, out_channels: int, strides: Sequence[int], is_last: bool
+        self, in_channels: int, out_channels: int, strides: int, is_last: bool
     ) -> nn.Module:
 
         if self.num_res_units > 0:
@@ -146,7 +146,7 @@ class AutoEncoder(nn.Module):
             )
 
     def _get_decode_layer(
-        self, in_channels: int, out_channels: int, strides: Sequence[int], is_last: bool
+        self, in_channels: int, out_channels: int, strides: int, is_last: bool
     ) -> nn.Sequential:
 
         decode = nn.Sequential()
