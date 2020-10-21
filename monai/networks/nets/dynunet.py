@@ -16,6 +16,8 @@ import torch.nn as nn
 
 from monai.networks.blocks.dynunet_block import *
 
+__all__ = ["DynUNet", "DynUnet", "Dynunet"]
+
 
 class DynUNet(nn.Module):
     """
@@ -219,3 +221,6 @@ class DynUNet(nn.Module):
         elif "norm" in name:
             nn.init.normal_(module.weight, 1.0, 0.02)
             nn.init.zeros_(module.bias)
+
+
+DynUnet = Dynunet = DynUNet

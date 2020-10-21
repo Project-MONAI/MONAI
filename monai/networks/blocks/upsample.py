@@ -18,6 +18,8 @@ from monai.networks.layers.factories import Conv, Pad, Pool
 from monai.networks.utils import icnr_init, pixelshuffle
 from monai.utils import InterpolateMode, UpsampleMode, ensure_tuple_rep
 
+__all__ = ["Upsample", "UpSample", "SubpixelUpsample", "Subpixelupsample", "SubpixelUpSample"]
+
 
 class UpSample(nn.Sequential):
     """
@@ -223,3 +225,7 @@ class SubpixelUpsample(nn.Module):
         x = pixelshuffle(x, self.dimensions, self.scale_factor)
         x = self.pad_pool(x)
         return x
+
+
+Upsample = UpSample
+Subpixelupsample = SubpixelUpSample = SubpixelUpsample

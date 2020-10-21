@@ -18,10 +18,10 @@ from torch.utils.data import DataLoader, Dataset
 
 from monai.data import create_test_image_2d
 from monai.losses import DiceLoss
-from monai.networks.nets import UNet
+from monai.networks.nets import BasicUNet, UNet
 
 
-def run_test(batch_size=64, train_steps=100, device=torch.device("cuda:0")):
+def run_test(net_name="basicunet", batch_size=64, train_steps=100, device=torch.device("cuda:0")):
     class _TestBatch(Dataset):
         def __getitem__(self, _unused_id):
             im, seg = create_test_image_2d(128, 128, noise_max=1, num_objs=4, num_seg_classes=1)
@@ -30,9 +30,13 @@ def run_test(batch_size=64, train_steps=100, device=torch.device("cuda:0")):
         def __len__(self):
             return train_steps
 
-    net = UNet(
-        dimensions=2, in_channels=1, out_channels=1, channels=(4, 8, 16, 32), strides=(2, 2, 2), num_res_units=2
-    ).to(device)
+    if net_name == "basicunet":
+        net = BasicUNet(dimensions=2, in_channels=1, out_channels=1, features=(4, 8, 8, 16, 16, 32))
+    elif net_name == "unet":
+        net = UNet(
+            dimensions=2, in_channels=1, out_channels=1, channels=(4, 8, 16, 32), strides=(2, 2, 2), num_res_units=2
+        )
+    net.to(device)
 
     loss = DiceLoss(sigmoid=True)
     opt = torch.optim.Adam(net.parameters(), 1e-4)
@@ -47,9 +51,10 @@ def run_test(batch_size=64, train_steps=100, device=torch.device("cuda:0")):
 
 class TestIntegrationUnet2D(unittest.TestCase):
     def test_unet_training(self):
-        loss = run_test(device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0"))
-        print(loss)
-        self.assertGreaterEqual(0.85, loss)
+        for n in ["basicunet", "unet"]:
+            loss = run_test(net_name=n, device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0"))
+            print(loss)
+            self.assertGreaterEqual(0.85, loss)
 
 
 if __name__ == "__main__":
