@@ -103,7 +103,7 @@ class ADN(nn.Sequential):
             # if dropout was specified simply as a p value, use default name and make a keyword map with the value
             if isinstance(dropout, (int, float)):
                 drop_name = Dropout.DROPOUT
-                drop_args = {"p": dropout}
+                drop_args = {"p": float(dropout)}
             else:
                 drop_name, drop_args = split_args(dropout)
 
