@@ -4,7 +4,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.layers import Act
-from monai.networks.nets.autoencoder import AutoEncoder
+from monai.networks.nets import AutoEncoder
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
