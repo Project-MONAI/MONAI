@@ -269,7 +269,7 @@ Nets
   :members:
 
 `AutoEncoder`
-~~~~~~
+~~~~~~~~~~~~~
 .. autoclass:: AutoEncoder
   :members:
 
