@@ -10,7 +10,8 @@
 # limitations under the License.
 
 from typing import TYPE_CHECKING, Any, Callable
-
+import torch
+import torch.distributed as dist
 from monai.utils import exact_version, optional_import
 
 if TYPE_CHECKING:
@@ -39,3 +40,12 @@ def stopping_fn_from_loss() -> Callable[[Engine], Any]:
         return -engine.state.output
 
     return stopping_fn
+
+def all_gather(tensor):
+    """
+    All gather the data of tensor value in distributed data parallel.
+    """
+    # create placeholder to collect the data from all processes
+    output = [torch.zeros_like(tensor) for _ in range(dist.get_world_size())]
+    dist.all_gather(output, tensor)
+    return torch.cat(output, dim=0)

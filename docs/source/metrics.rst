@@ -19,7 +19,7 @@ Metrics
 
 `Confusion Matrix`
 ------------------
-.. autofunction:: compute_confusion_metric
+.. autofunction:: compute_confusion_matrix
 
 `Hausdorff Distance`
 --------------------
