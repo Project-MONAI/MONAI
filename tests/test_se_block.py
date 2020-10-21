@@ -20,12 +20,12 @@ from monai.networks.layers.factories import Act, Norm
 TEST_CASES = [
     [
         {"spatial_dims": 2, "in_channels": 4, "n_chns_1": 20, "n_chns_2": 30, "n_chns_3": 4, "r": 2},
-        torch.randn(7, 4, 64, 48),  # 4-channel 2D, batch 7
+        (7, 4, 64, 48),  # 4-channel 2D, batch 7
         (7, 4, 64, 48),
     ],
     [
         {"spatial_dims": 1, "in_channels": 3, "n_chns_1": 20, "n_chns_2": 30, "n_chns_3": 40, "r": 5},
-        torch.randn(16, 3, 63),  # 3-channel 1D, batch 16
+        (16, 3, 63),  # 3-channel 1D, batch 16
         (16, 40, 63),
     ],
 ]
@@ -50,7 +50,7 @@ for type_1 in (
                 "conv_param_1": type_1,
                 "conv_param_3": type_2,
             },
-            torch.randn(16, 10, 32, 24, 48),  # 10-channel 3D, batch 16
+            (16, 10, 32, 24, 48),  # 10-channel 3D, batch 16
             (16, 11, 32, 24, 48),
         ]
         TEST_CASES_3D.append(test_case)
@@ -58,11 +58,11 @@ for type_1 in (
 
 class TestSEBlockLayer(unittest.TestCase):
     @parameterized.expand(TEST_CASES + TEST_CASES_3D)
-    def test_shape(self, input_param, input_data, expected_shape):
+    def test_shape(self, input_param, input_shape, expected_shape):
         net = SEBlock(**input_param)
         net.eval()
         with torch.no_grad():
-            result = net(input_data)
+            result = net(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
 
     def test_ill_arg(self):
