@@ -74,6 +74,10 @@ class AutoEncoder(nn.Module):
         return encode, layer_channels
 
     def _get_intermediate_module(self, in_channels: int, num_inter_units: int) -> Tuple[nn.Module, int]:
+        # Define some types
+        intermediate: nn.Module
+        unit: nn.Module
+
         intermediate = nn.Identity()
         layer_channels = in_channels
 
@@ -104,7 +108,9 @@ class AutoEncoder(nn.Module):
 
         return intermediate, layer_channels
 
-    def _get_decode_module(self, in_channels: int, channels: Sequence[int], strides: Sequence[int]) -> Tuple[nn.Sequential, int]:
+    def _get_decode_module(
+        self, in_channels: int, channels: Sequence[int], strides: Sequence[int]
+    ) -> Tuple[nn.Sequential, int]:
         decode = nn.Sequential()
         layer_channels = in_channels
 
@@ -115,9 +121,7 @@ class AutoEncoder(nn.Module):
 
         return decode, layer_channels
 
-    def _get_encode_layer(
-        self, in_channels: int, out_channels: int, strides: int, is_last: bool
-    ) -> nn.Module:
+    def _get_encode_layer(self, in_channels: int, out_channels: int, strides: int, is_last: bool) -> nn.Module:
 
         if self.num_res_units > 0:
             return ResidualUnit(
@@ -145,9 +149,7 @@ class AutoEncoder(nn.Module):
                 conv_only=is_last,
             )
 
-    def _get_decode_layer(
-        self, in_channels: int, out_channels: int, strides: int, is_last: bool
-    ) -> nn.Sequential:
+    def _get_decode_layer(self, in_channels: int, out_channels: int, strides: int, is_last: bool) -> nn.Sequential:
 
         decode = nn.Sequential()
 
