@@ -37,12 +37,12 @@ for kernel_size in [(3, 3, 3, 1), ((3, 1), 1, (3, 3), (1, 1))]:
                         "out_channels": out_channels,
                         "kernel_size": kernel_size,
                         "strides": strides,
-                        "upsamle_kernel_size": strides[1:],
+                        "upsample_kernel_size": strides[1:],
                         "norm_name": "batch",
                         "deep_supervision": False,
                         "res_block": res_block,
                     },
-                    torch.randn(1, in_channels, in_size, in_size),
+                    (1, in_channels, in_size, in_size),
                     expected_shape,
                 ]
                 TEST_CASE_DYNUNET_2D.append(test_case)
@@ -60,12 +60,12 @@ for out_channels in [2, 3]:
                 "out_channels": out_channels,
                 "kernel_size": (3, (1, 1, 3), 3, 3),
                 "strides": ((1, 2, 1), 2, 2, 1),
-                "upsamle_kernel_size": (2, 2, 1),
+                "upsample_kernel_size": (2, 2, 1),
                 "norm_name": "instance",
                 "deep_supervision": False,
                 "res_block": res_block,
             },
-            torch.randn(1, in_channels, in_size, in_size, in_size),
+            (1, in_channels, in_size, in_size, in_size),
             expected_shape,
         ]
         TEST_CASE_DYNUNET_3D.append(test_case)
@@ -82,13 +82,13 @@ for spatial_dims in [2, 3]:
                         "out_channels": 2,
                         "kernel_size": [3] * len(strides),
                         "strides": strides,
-                        "upsamle_kernel_size": strides[1:],
+                        "upsample_kernel_size": strides[1:],
                         "norm_name": "group",
                         "deep_supervision": True,
                         "deep_supr_num": deep_supr_num,
                         "res_block": res_block,
                     },
-                    torch.randn(1, 1, *[in_size] * spatial_dims),
+                    (1, 1, *[in_size] * spatial_dims),
                 ]
                 scale = 1
                 all_expected_shapes = []
@@ -102,20 +102,20 @@ for spatial_dims in [2, 3]:
 
 class TestDynUNet(unittest.TestCase):
     @parameterized.expand(TEST_CASE_DYNUNET_2D + TEST_CASE_DYNUNET_3D)
-    def test_shape(self, input_param, input_data, expected_shape):
+    def test_shape(self, input_param, input_shape, expected_shape):
         net = DynUNet(**input_param)
         net.eval()
         with torch.no_grad():
-            result = net(input_data)
+            result = net(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
 
 
 class TestDynUNetDeepSupervision(unittest.TestCase):
     @parameterized.expand(TEST_CASE_DEEP_SUPERVISION)
-    def test_shape(self, input_param, input_data, expected_shape):
+    def test_shape(self, input_param, input_shape, expected_shape):
         net = DynUNet(**input_param)
         with torch.no_grad():
-            results = net(input_data)
+            results = net(torch.randn(input_shape))
             self.assertEqual(len(results), len(expected_shape))
             for idx in range(len(results)):
                 result, sub_expected_shape = results[idx], expected_shape[idx]

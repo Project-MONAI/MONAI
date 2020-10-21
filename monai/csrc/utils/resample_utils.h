@@ -80,7 +80,7 @@ enum class BoundType : int64_t {
   DCT2, // Symmetric w.r.t. edge of the last inbound voxel (=Neuman)
   DST1, // Asymmetric w.r.t. center of the last inbound voxel
   DST2, // Asymmetric w.r.t. edge of the last inbound voxel (=Dirichlet)
-  DFT, // Circular / Wrap arounf the FOV
+  DFT, // Circular / Wrap around the FOV
   Sliding, // For deformation-fields only: mixture of DCT2 and DST2
   Zero, // Zero outside of the FOV
   NoCheck // /!\ Checks disabled: assume coordinates are inbound

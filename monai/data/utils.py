@@ -22,6 +22,7 @@ from torch.utils.data._utils.collate import default_collate
 
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.utils import (
+    MAX_SEED,
     BlendMode,
     NumpyPadMode,
     ensure_tuple,
@@ -95,63 +96,40 @@ def dense_patch_slices(
     scan_interval: Sequence[int],
 ) -> List[Tuple[slice, ...]]:
     """
-    Enumerate all slices defining 2D/3D patches of size `patch_size` from an `image_size` input image.
+    Enumerate all slices defining ND patches of size `patch_size` from an `image_size` input image.
 
     Args:
         image_size: dimensions of image to iterate over
         patch_size: size of patches to generate slices
         scan_interval: dense patch sampling interval
 
-    Raises:
-        ValueError: When ``image_size`` length is not one of [2, 3].
-
     Returns:
         a list of slice objects defining each patch
 
     """
     num_spatial_dims = len(image_size)
-    if num_spatial_dims not in (2, 3):
-        raise ValueError(f"Unsupported image_size length: {len(image_size)}, available options are [2, 3]")
     patch_size = get_valid_patch_size(image_size, patch_size)
     scan_interval = ensure_tuple_size(scan_interval, num_spatial_dims)
 
-    scan_num = list()
+    scan_num = []
     for i in range(num_spatial_dims):
         if scan_interval[i] == 0:
             scan_num.append(1)
         else:
             num = int(math.ceil(float(image_size[i]) / scan_interval[i]))
             scan_dim = first(d for d in range(num) if d * scan_interval[i] + patch_size[i] >= image_size[i])
-            scan_num.append(scan_dim + 1)
+            scan_num.append(scan_dim + 1 if scan_dim is not None else 1)
 
-    slices: List[Tuple[slice, ...]] = []
-    if num_spatial_dims == 3:
-        for i in range(scan_num[0]):
-            start_i = i * scan_interval[0]
-            start_i -= max(start_i + patch_size[0] - image_size[0], 0)
-            slice_i = slice(start_i, start_i + patch_size[0])
-
-            for j in range(scan_num[1]):
-                start_j = j * scan_interval[1]
-                start_j -= max(start_j + patch_size[1] - image_size[1], 0)
-                slice_j = slice(start_j, start_j + patch_size[1])
-
-                for k in range(0, scan_num[2]):
-                    start_k = k * scan_interval[2]
-                    start_k -= max(start_k + patch_size[2] - image_size[2], 0)
-                    slice_k = slice(start_k, start_k + patch_size[2])
-                    slices.append((slice_i, slice_j, slice_k))
-    else:
-        for i in range(scan_num[0]):
-            start_i = i * scan_interval[0]
-            start_i -= max(start_i + patch_size[0] - image_size[0], 0)
-            slice_i = slice(start_i, start_i + patch_size[0])
-
-            for j in range(scan_num[1]):
-                start_j = j * scan_interval[1]
-                start_j -= max(start_j + patch_size[1] - image_size[1], 0)
-                slice_j = slice(start_j, start_j + patch_size[1])
-                slices.append((slice_i, slice_j))
+    starts = []
+    for dim in range(num_spatial_dims):
+        dim_starts = []
+        for idx in range(scan_num[dim]):
+            start_idx = idx * scan_interval[dim]
+            start_idx -= max(start_idx + patch_size[dim] - image_size[dim], 0)
+            dim_starts.append(start_idx)
+        starts.append(dim_starts)
+    out = np.asarray([x.flatten() for x in np.meshgrid(*starts, indexing="ij")]).T
+    slices = [tuple(slice(s, s + patch_size[d]) for d, s in enumerate(x)) for x in out]
     return slices
 
 
@@ -242,8 +220,24 @@ def worker_init_fn(worker_id: int) -> None:
 
     """
     worker_info = torch.utils.data.get_worker_info()
-    if hasattr(worker_info.dataset, "transform") and hasattr(worker_info.dataset.transform, "set_random_state"):
-        worker_info.dataset.transform.set_random_state(worker_info.seed % (2 ** 32))
+    set_rnd(worker_info.dataset, seed=worker_info.seed)
+
+
+def set_rnd(obj, seed: int) -> int:
+    """
+    Set seed or random state for all randomisable properties of obj.
+
+    Args:
+        seed: set the random state with an integer seed.
+    """
+    if not hasattr(obj, "__dict__"):
+        return seed  # no attribute
+    if hasattr(obj, "set_random_state"):
+        obj.set_random_state(seed=seed % MAX_SEED)
+        return seed + 1  # a different seed for the next component
+    for key in obj.__dict__:
+        seed = set_rnd(obj.__dict__[key], seed=seed)
+    return seed
 
 
 def correct_nifti_header_if_necessary(img_nii):
@@ -455,7 +449,7 @@ def create_file_basename(
 
     # get the filename and directory
     filedir, filename = os.path.split(input_file_name)
-    # remove exntension
+    # remove extension
     filename, ext = os.path.splitext(filename)
     if ext == ".gz":
         filename, ext = os.path.splitext(filename)

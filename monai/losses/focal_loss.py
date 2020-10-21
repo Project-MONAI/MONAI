@@ -61,36 +61,40 @@ class FocalLoss(_WeightedLoss):
         self.gamma = gamma
         self.weight: Optional[torch.Tensor] = None
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    def forward(self, logits: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            input: the shape should be BCH[WD].
-                where C is the number of classes.
+            logits: the shape should be BCH[WD].
+                where C (greater than 1) is the number of classes.
+                Softmax over the logits is integrated in this module for improved numerical stability.
             target: the shape should be B1H[WD] or BCH[WD].
                 If the target's shape is B1H[WD], the target that this loss expects should be a class index
                 in the range [0, C-1] where C is the number of classes.
 
         Raises:
-            ValueError: When ``target`` ndim differs from ``input``.
-            ValueError: When ``target`` channel is not 1 and ``target`` shape differs from ``input``.
+            ValueError: When ``target`` ndim differs from ``logits``.
+            ValueError: When ``target`` channel is not 1 and ``target`` shape differs from ``logits``.
             ValueError: When ``self.reduction`` is not one of ["mean", "sum", "none"].
 
         """
-        i = input
+        i = logits
         t = target
 
         if i.ndimension() != t.ndimension():
-            raise ValueError(f"input and target ndim must match, got input={i.ndimension()} target={t.ndimension()}.")
+            raise ValueError(f"logits and target ndim must match, got logits={i.ndimension()} target={t.ndimension()}.")
 
-        if target.shape[1] != 1 and target.shape[1] != i.shape[1]:
+        if t.shape[1] != 1 and t.shape[1] != i.shape[1]:
             raise ValueError(
-                "target must have one channel or have the same shape as the input. "
+                "target must have one channel or have the same shape as the logits. "
                 "If it has one channel, it should be a class index in the range [0, C-1] "
-                f"where C is the number of classes inferred from 'input': C={i.shape[1]}. "
+                f"where C is the number of classes inferred from 'logits': C={i.shape[1]}. "
             )
-        # Change the shape of input and target to
+        if i.shape[1] == 1:
+            raise NotImplementedError("Single-channel predictions not supported.")
+
+        # Change the shape of logits and target to
         # num_batch x num_class x num_voxels.
-        if input.dim() > 2:
+        if i.dim() > 2:
             i = i.view(i.size(0), i.size(1), -1)  # N,C,H,W => N,C,H*W
             t = t.view(t.size(0), t.size(1), -1)  # N,1,H,W => N,1,H*W or N,C,H*W
         else:  # Compatibility with classification.

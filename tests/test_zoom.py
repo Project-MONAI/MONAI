@@ -52,6 +52,13 @@ class TestZoom(NumpyImageTestCase2D):
             zoom_fn = Zoom(zoom=zoom, mode=mode)
             zoom_fn(self.imt[0])
 
+    def test_padding_mode(self):
+        zoom_fn = Zoom(zoom=0.5, mode="nearest", padding_mode="constant", keep_size=True)
+        test_data = np.array([[[1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0]]])
+        zoomed = zoom_fn(test_data)
+        expected = np.array([[[0.0, 0.0, 0.0, 0.0], [0.0, 1.0, 1.0, 0.0], [0.0, 1.0, 1.0, 0.0], [0.0, 0.0, 0.0, 0.0]]])
+        np.testing.assert_allclose(zoomed, expected)
+
 
 if __name__ == "__main__":
     unittest.main()

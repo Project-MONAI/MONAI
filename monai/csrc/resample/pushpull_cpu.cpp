@@ -29,9 +29,9 @@ limitations under the License.
 // . sliding nearest 2d
 // . sliding linear 3d
 // . sliding linear 2d
-// . slinding generic 3d
+// . sliding generic 3d
 // . sliding generic 2d
-// . [DONE] spatial gradient mode (without mutliplication with output gradient)
+// . [DONE] spatial gradient mode (without multiplication with output gradient)
 // . [DONE] second order gradients (backward pass for spatial gradients)
 // . performance tests
 // . input bound/inter are always vectors -> clean unused constructors
@@ -561,7 +561,7 @@ MONAI_NAMESPACE_DEVICE { // cpu
   // This bit loops over all target voxels. We therefore need to
   // convert linear indices to multivariate indices. The way I do it
   // might not be optimal.
-  // Note that I parallelize across all voxels (wheareas ATen's grid
+  // Note that I parallelize across all voxels (whereas ATen's grid
   // sampler is only parallelized across batches).
   //
   // TODO: check that the default grain size is optimal. We do quite a lot

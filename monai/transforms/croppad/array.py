@@ -347,6 +347,13 @@ class RandSpatialCropSamples(Randomizable, Transform):
         self.num_samples = num_samples
         self.cropper = RandSpatialCrop(roi_size, random_center, random_size)
 
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "Randomizable":
+        super().set_random_state(seed=seed, state=state)
+        self.cropper.set_random_state(state=self.R)
+        return self
+
     def randomize(self, data: Optional[Any] = None) -> None:
         pass
 

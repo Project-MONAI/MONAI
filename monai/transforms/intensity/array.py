@@ -185,11 +185,11 @@ class RandScaleIntensity(Randomizable, Transform):
 
 class NormalizeIntensity(Transform):
     """
-    Normalize input based on provided args, using calculated mean and std if not provided
-    (shape of subtrahend and divisor must match. if 0, entire volume uses same subtrahend and
-    divisor, otherwise the shape can have dimension 1 for channels).
+    Normalize input based on provided args, using calculated mean and std if not provided.
     This transform can normalize only non-zero values or entire image, and can also calculate
     mean and std on each channel separately.
+    When `channel_wise` is True, the first dimension of `subtrahend` and `divisor` should
+    be the number of image channels if they are not None.
 
     Args:
         subtrahend: the amount to subtract by (usually the mean).
@@ -201,27 +201,33 @@ class NormalizeIntensity(Transform):
 
     def __init__(
         self,
-        subtrahend: Optional[np.ndarray] = None,
-        divisor: Optional[np.ndarray] = None,
+        subtrahend: Optional[Sequence] = None,
+        divisor: Optional[Sequence] = None,
         nonzero: bool = False,
         channel_wise: bool = False,
     ) -> None:
-        if subtrahend is not None or divisor is not None:
-            assert isinstance(subtrahend, np.ndarray) and isinstance(
-                divisor, np.ndarray
-            ), "subtrahend and divisor must be set in pair and in numpy array."
         self.subtrahend = subtrahend
         self.divisor = divisor
         self.nonzero = nonzero
         self.channel_wise = channel_wise
 
-    def _normalize(self, img: np.ndarray) -> np.ndarray:
+    def _normalize(self, img: np.ndarray, sub=None, div=None) -> np.ndarray:
         slices = (img != 0) if self.nonzero else np.ones(img.shape, dtype=np.bool_)
-        if np.any(slices):
-            if self.subtrahend is not None and self.divisor is not None:
-                img[slices] = (img[slices] - self.subtrahend[slices]) / self.divisor[slices]
-            else:
-                img[slices] = (img[slices] - np.mean(img[slices])) / np.std(img[slices])
+        if not np.any(slices):
+            return img
+
+        _sub = sub if sub is not None else np.mean(img[slices])
+        if isinstance(_sub, np.ndarray):
+            _sub = _sub[slices]
+
+        _div = div if div is not None else np.std(img[slices])
+        if np.isscalar(_div):
+            if _div == 0.0:
+                _div = 1.0
+        elif isinstance(_div, np.ndarray):
+            _div = _div[slices]
+            _div[_div == 0.0] = 1.0
+        img[slices] = (img[slices] - _sub) / _div
         return img
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
@@ -229,10 +235,19 @@ class NormalizeIntensity(Transform):
         Apply the transform to `img`, assuming `img` is a channel-first array if `self.channel_wise` is True,
         """
         if self.channel_wise:
+            if self.subtrahend is not None and len(self.subtrahend) != len(img):
+                raise ValueError(f"img has {len(img)} channels, but subtrahend has {len(self.subtrahend)} components.")
+            if self.divisor is not None and len(self.divisor) != len(img):
+                raise ValueError(f"img has {len(img)} channels, but divisor has {len(self.divisor)} components.")
+
             for i, d in enumerate(img):
-                img[i] = self._normalize(d)
+                img[i] = self._normalize(
+                    d,
+                    sub=self.subtrahend[i] if self.subtrahend is not None else None,
+                    div=self.divisor[i] if self.divisor is not None else None,
+                )
         else:
-            img = self._normalize(img)
+            img = self._normalize(img, self.subtrahend, self.divisor)
 
         return img
 
@@ -500,14 +515,17 @@ class GaussianSmooth(Transform):
         sigma: if a list of values, must match the count of spatial dimensions of input data,
             and apply every value in the list to 1 spatial dimension. if only 1 value provided,
             use it for all spatial dimensions.
+        approx: discrete Gaussian kernel type, available options are "erf", "sampled", and "scalespace".
+            see also :py:meth:`monai.networks.layers.GaussianFilter`.
 
     """
 
-    def __init__(self, sigma: Union[Sequence[float], float] = 1.0) -> None:
+    def __init__(self, sigma: Union[Sequence[float], float] = 1.0, approx: str = "erf") -> None:
         self.sigma = sigma
+        self.approx = approx
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
-        gaussian_filter = GaussianFilter(img.ndim - 1, self.sigma)
+        gaussian_filter = GaussianFilter(img.ndim - 1, self.sigma, approx=self.approx)
         input_data = torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0)
         return gaussian_filter(input_data).squeeze(0).detach().numpy()
 
@@ -521,6 +539,8 @@ class RandGaussianSmooth(Randomizable, Transform):
         sigma_y: randomly select sigma value for the second spatial dimension if have.
         sigma_z: randomly select sigma value for the third spatial dimension if have.
         prob: probability of Gaussian smooth.
+        approx: discrete Gaussian kernel type, available options are "erf", "sampled", and "scalespace".
+            see also :py:meth:`monai.networks.layers.GaussianFilter`.
 
     """
 
@@ -530,11 +550,13 @@ class RandGaussianSmooth(Randomizable, Transform):
         sigma_y: Tuple[float, float] = (0.25, 1.5),
         sigma_z: Tuple[float, float] = (0.25, 1.5),
         prob: float = 0.1,
+        approx: str = "erf",
     ) -> None:
         self.sigma_x = sigma_x
         self.sigma_y = sigma_y
         self.sigma_z = sigma_z
         self.prob = prob
+        self.approx = approx
         self._do_transform = False
 
     def randomize(self, data: Optional[Any] = None) -> None:
@@ -548,7 +570,7 @@ class RandGaussianSmooth(Randomizable, Transform):
         if not self._do_transform:
             return img
         sigma = ensure_tuple_size(tup=(self.x, self.y, self.z), dim=img.ndim - 1)
-        return GaussianSmooth(sigma=sigma)(img)
+        return GaussianSmooth(sigma=sigma, approx=self.approx)(img)
 
 
 class GaussianSharpen(Transform):
@@ -573,6 +595,8 @@ class GaussianSharpen(Transform):
             of spatial dimensions of input data, and apply every value in the list to 1 spatial dimension.
             if only 1 value provided, use it for all spatial dimensions.
         alpha: weight parameter to compute the final result.
+        approx: discrete Gaussian kernel type, available options are "erf", "sampled", and "scalespace".
+            see also :py:meth:`monai.networks.layers.GaussianFilter`.
 
     """
 
@@ -581,14 +605,16 @@ class GaussianSharpen(Transform):
         sigma1: Union[Sequence[float], float] = 3.0,
         sigma2: Union[Sequence[float], float] = 1.0,
         alpha: float = 30.0,
+        approx: str = "erf",
     ) -> None:
         self.sigma1 = sigma1
         self.sigma2 = sigma2
         self.alpha = alpha
+        self.approx = approx
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
-        gaussian_filter1 = GaussianFilter(img.ndim - 1, self.sigma1)
-        gaussian_filter2 = GaussianFilter(img.ndim - 1, self.sigma2)
+        gaussian_filter1 = GaussianFilter(img.ndim - 1, self.sigma1, approx=self.approx)
+        gaussian_filter2 = GaussianFilter(img.ndim - 1, self.sigma2, approx=self.approx)
         input_data = torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0)
         blurred_f = gaussian_filter1(input_data)
         filter_blurred_f = gaussian_filter2(blurred_f)
@@ -611,6 +637,8 @@ class RandGaussianSharpen(Randomizable, Transform):
         sigma2_z: randomly select sigma value for the third spatial dimension(if have) of second gaussian kernel.
             if only 1 value `Z` provided, it must be smaller than `sigma1_z` and randomly select from [Z, sigma1_z].
         alpha: randomly select weight parameter to compute the final result.
+        approx: discrete Gaussian kernel type, available options are "erf", "sampled", and "scalespace".
+            see also :py:meth:`monai.networks.layers.GaussianFilter`.
         prob: probability of Gaussian sharpen.
 
     """
@@ -624,6 +652,7 @@ class RandGaussianSharpen(Randomizable, Transform):
         sigma2_y: Union[Tuple[float, float], float] = 0.5,
         sigma2_z: Union[Tuple[float, float], float] = 0.5,
         alpha: Tuple[float, float] = (10.0, 30.0),
+        approx: str = "erf",
         prob: float = 0.1,
     ) -> None:
         self.sigma1_x = sigma1_x
@@ -633,6 +662,7 @@ class RandGaussianSharpen(Randomizable, Transform):
         self.sigma2_y = sigma2_y
         self.sigma2_z = sigma2_z
         self.alpha = alpha
+        self.approx = approx
         self.prob = prob
         self._do_transform = False
 
@@ -655,7 +685,7 @@ class RandGaussianSharpen(Randomizable, Transform):
             return img
         sigma1 = ensure_tuple_size(tup=(self.x1, self.y1, self.z1), dim=img.ndim - 1)
         sigma2 = ensure_tuple_size(tup=(self.x2, self.y2, self.z2), dim=img.ndim - 1)
-        return GaussianSharpen(sigma1=sigma1, sigma2=sigma2, alpha=self.a)(img)
+        return GaussianSharpen(sigma1=sigma1, sigma2=sigma2, alpha=self.a, approx=self.approx)(img)
 
 
 class RandHistogramShift(Randomizable, Transform):

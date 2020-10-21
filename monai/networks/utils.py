@@ -33,7 +33,7 @@ def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.f
     """
     assert labels.dim() > 0, "labels should have dim of 1 or more."
 
-    # if `dim` is bigger, add singelton dim at the end
+    # if `dim` is bigger, add singleton dim at the end
     if labels.ndimension() < dim + 1:
         shape = ensure_tuple_size(labels.shape, dim + 1, 1)
         labels = labels.reshape(*shape)
@@ -218,8 +218,8 @@ def pixelshuffle(x: torch.Tensor, dimensions: int, scale_factor: int) -> torch.T
 
     if channels % scale_divisor != 0:
         raise ValueError(
-            f"Number of input channels ({channels}) must be evenly \
-                        divisible by scale_factor ** dimensions ({scale_divisor})."
+            f"Number of input channels ({channels}) must be evenly "
+            f"divisible by scale_factor ** dimensions ({factor}**{dim}={scale_divisor})."
         )
 
     org_channels = channels // scale_divisor

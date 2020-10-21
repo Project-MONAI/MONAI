@@ -9,11 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import inspect
 import sys
 from importlib import import_module
 from pkgutil import walk_packages
 from re import match
-from typing import Any, Callable, List, Tuple
+from typing import Any, Callable, List, Sequence, Tuple, Union
+
+from .misc import ensure_tuple
 
 OPTIONAL_IMPORT_MSG_FMT = "{}"
 
@@ -25,6 +28,7 @@ __all__ = [
     "optional_import",
     "load_submodules",
     "get_full_type_name",
+    "has_option",
 ]
 
 
@@ -214,3 +218,16 @@ def optional_import(
             raise self._exception
 
     return _LazyRaise(), False
+
+
+def has_option(obj, keywords: Union[str, Sequence[str]]) -> bool:
+    """
+    Return a boolean indicating whether the given callable `obj` has the `keywords` in its signature.
+    """
+    if not callable(obj):
+        return False
+    sig = inspect.signature(obj)
+    for key in ensure_tuple(keywords):
+        if key not in sig.parameters:
+            return False
+    return True

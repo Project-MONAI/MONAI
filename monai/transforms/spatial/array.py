@@ -481,6 +481,10 @@ class Zoom(Transform):
         mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+        padding_mode: {``"constant"``, ``"edge``", ``"linear_ramp``", ``"maximum``", ``"mean``", `"median``",
+            ``"minimum``", `"reflect``", ``"symmetric``", ``"wrap``", ``"empty``", ``"<function>``"}
+            The mode to pad data after zooming.
+            See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
         align_corners: This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
@@ -491,11 +495,13 @@ class Zoom(Transform):
         self,
         zoom: Union[Sequence[float], float],
         mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
+        padding_mode: Union[NumpyPadMode, str] = NumpyPadMode.EDGE,
         align_corners: Optional[bool] = None,
         keep_size: bool = True,
     ) -> None:
         self.zoom = zoom
         self.mode: InterpolateMode = InterpolateMode(mode)
+        self.padding_mode: NumpyPadMode = NumpyPadMode(padding_mode)
         self.align_corners = align_corners
         self.keep_size = keep_size
 
@@ -503,6 +509,7 @@ class Zoom(Transform):
         self,
         img: np.ndarray,
         mode: Optional[Union[InterpolateMode, str]] = None,
+        padding_mode: Optional[Union[NumpyPadMode, str]] = None,
         align_corners: Optional[bool] = None,
     ) -> np.ndarray:
         """
@@ -511,6 +518,10 @@ class Zoom(Transform):
             mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
                 The interpolation mode. Defaults to ``self.mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+            padding_mode: {``"constant"``, ``"edge``", ``"linear_ramp``", ``"maximum``", ``"mean``", `"median``",
+                ``"minimum``", `"reflect``", ``"symmetric``", ``"wrap``", ``"empty``", ``"<function>``"}
+                The mode to pad data after zooming, default to ``self.padding_mode``.
+                See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
             align_corners: This only has an effect when mode is
                 'linear', 'bilinear', 'bicubic' or 'trilinear'. Defaults to ``self.align_corners``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
@@ -536,7 +547,9 @@ class Zoom(Transform):
                 pad_vec[idx] = [half, diff - half]
             elif diff < 0:  # need slicing
                 slice_vec[idx] = slice(half, half + od)
-        zoomed = np.pad(zoomed, pad_vec, mode=NumpyPadMode.EDGE.value)
+
+        padding_mode = self.padding_mode if padding_mode is None else NumpyPadMode(padding_mode)
+        zoomed = np.pad(zoomed, pad_vec, mode=padding_mode.value)
         return zoomed[tuple(slice_vec)]
 
 
@@ -756,6 +769,10 @@ class RandZoom(Randomizable, Transform):
         mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+        padding_mode: {``"constant"``, ``"edge``", ``"linear_ramp``", ``"maximum``", ``"mean``", `"median``",
+            ``"minimum``", `"reflect``", ``"symmetric``", ``"wrap``", ``"empty``", ``"<function>``"}
+            The mode to pad data after zooming.
+            See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
         align_corners: This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
@@ -768,6 +785,7 @@ class RandZoom(Randomizable, Transform):
         min_zoom: Union[Sequence[float], float] = 0.9,
         max_zoom: Union[Sequence[float], float] = 1.1,
         mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
+        padding_mode: Union[NumpyPadMode, str] = NumpyPadMode.EDGE,
         align_corners: Optional[bool] = None,
         keep_size: bool = True,
     ) -> None:
@@ -776,6 +794,7 @@ class RandZoom(Randomizable, Transform):
         assert len(self.min_zoom) == len(self.max_zoom), "min_zoom and max_zoom must have same length."
         self.prob = prob
         self.mode: InterpolateMode = InterpolateMode(mode)
+        self.padding_mode: NumpyPadMode = NumpyPadMode(padding_mode)
         self.align_corners = align_corners
         self.keep_size = keep_size
 
@@ -793,6 +812,7 @@ class RandZoom(Randomizable, Transform):
         self,
         img: np.ndarray,
         mode: Optional[Union[InterpolateMode, str]] = None,
+        padding_mode: Optional[Union[NumpyPadMode, str]] = None,
         align_corners: Optional[bool] = None,
     ) -> np.ndarray:
         """
@@ -801,6 +821,10 @@ class RandZoom(Randomizable, Transform):
             mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
                 The interpolation mode. Defaults to ``self.mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+            padding_mode: {``"constant"``, ``"edge``", ``"linear_ramp``", ``"maximum``", ``"mean``", `"median``",
+                ``"minimum``", `"reflect``", ``"symmetric``", ``"wrap``", ``"empty``", ``"<function>``"}
+                The mode to pad data after zooming, default to ``self.padding_mode``.
+                See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
             align_corners: This only has an effect when mode is
                 'linear', 'bilinear', 'bicubic' or 'trilinear'. Defaults to ``self.align_corners``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
@@ -814,6 +838,7 @@ class RandZoom(Randomizable, Transform):
         return zoomer(
             img,
             mode=mode or self.mode,
+            padding_mode=padding_mode or self.padding_mode,
             align_corners=self.align_corners if align_corners is None else align_corners,
         ).astype(_dtype)
 

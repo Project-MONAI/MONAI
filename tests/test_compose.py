@@ -119,47 +119,42 @@ class TestCompose(unittest.TestCase):
         out_1 = train_ds[0]
         self.assertAlmostEqual(out_1, 0.2045649)
 
-        xform_1.set_random_state(123)
+        set_determinism(seed=123)
         train_loader = DataLoader(train_ds, num_workers=0)
         out_1 = next(iter(train_loader))
-        self.assertAlmostEqual(out_1.cpu().item(), 0.2045649)
+        self.assertAlmostEqual(out_1.cpu().item(), 0.84291356)
 
         if sys.platform != "win32":  # skip multi-worker tests on win32
-            set_determinism(seed=123)
             train_loader = DataLoader(train_ds, num_workers=1)
             out_1 = next(iter(train_loader))
-            self.assertAlmostEqual(out_1.cpu().item(), 0.0409280)
+            self.assertAlmostEqual(out_1.cpu().item(), 0.180814653)
 
-            set_determinism(seed=123)
             train_loader = DataLoader(train_ds, num_workers=2)
             out_1 = next(iter(train_loader))
-            self.assertAlmostEqual(out_1.cpu().item(), 0.0409280)
-            set_determinism(None)
+            self.assertAlmostEqual(out_1.cpu().item(), 0.04293707)
+        set_determinism(None)
 
     def test_data_loader_2(self):
+        set_determinism(seed=123)
         xform_2 = Compose([_RandXform(), _RandXform()])
         train_ds = Dataset([1], transform=xform_2)
 
-        xform_2.set_random_state(123)
         out_2 = train_ds[0]
         self.assertAlmostEqual(out_2, 0.4092510)
 
-        xform_2.set_random_state(123)
         train_loader = DataLoader(train_ds, num_workers=0)
         out_2 = next(iter(train_loader))
-        self.assertAlmostEqual(out_2.cpu().item(), 0.4092510)
+        self.assertAlmostEqual(out_2.cpu().item(), 0.7858843729)
 
         if sys.platform != "win32":  # skip multi-worker tests on win32
-            set_determinism(seed=123)
             train_loader = DataLoader(train_ds, num_workers=1)
             out_2 = next(iter(train_loader))
-            self.assertAlmostEqual(out_2.cpu().item(), 0.9892192)
+            self.assertAlmostEqual(out_2.cpu().item(), 0.305763411)
 
-            set_determinism(seed=123)
             train_loader = DataLoader(train_ds, num_workers=2)
             out_1 = next(iter(train_loader))
-            self.assertAlmostEqual(out_1.cpu().item(), 0.9892192)
-            set_determinism(None)
+            self.assertAlmostEqual(out_1.cpu().item(), 0.131966779)
+        set_determinism(None)
 
 
 if __name__ == "__main__":
