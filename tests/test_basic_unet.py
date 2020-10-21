@@ -17,6 +17,23 @@ from parameterized import parameterized
 from monai.networks.nets import BasicUNet
 from tests.utils import test_script_save
 
+CASES_1D = []
+for mode in ["pixelshuffle", "nontrainable", "deconv", None]:
+    kwargs = {
+        "dimensions": 1,
+        "in_channels": 5,
+        "out_channels": 8,
+    }
+    if mode is not None:
+        kwargs["upsample"] = mode  # type: ignore
+    CASES_1D.append(
+        [
+            kwargs,
+            (10, 5, 17),
+            (10, 8, 17),
+        ]
+    )
+
 CASES_2D = []
 for mode in ["pixelshuffle", "nontrainable", "deconv"]:
     for d1 in range(17, 64, 14):
@@ -73,9 +90,10 @@ CASES_3D = [
 
 
 class TestBasicUNET(unittest.TestCase):
-    @parameterized.expand(CASES_2D + CASES_3D)
+    @parameterized.expand(CASES_1D + CASES_2D + CASES_3D)
     def test_shape(self, input_param, input_shape, expected_shape):
         device = "cuda" if torch.cuda.is_available() else "cpu"
+        print(input_param)
         net = BasicUNet(**input_param).to(device)
         net.eval()
         with torch.no_grad():
