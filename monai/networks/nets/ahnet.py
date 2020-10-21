@@ -16,7 +16,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from monai.networks.blocks import FCN
+from monai.networks.blocks.fcn import FCN
 from monai.networks.layers.factories import Act, Conv, Norm, Pool
 
 
