@@ -40,6 +40,7 @@ class ADN(nn.Sequential):
             - When dropout_dim = 3, Randomly zeroes out entire channels (a channel is a 3D feature map).
 
     Examples::
+
         # activation, group norm, dropout
         >>> norm_params = ("GROUP", {"num_groups": 1, "affine": False})
         >>> ADN(norm=norm_params, in_channels=1, dropout_dim=1, dropout=0.8, ordering="AND")
@@ -56,7 +57,6 @@ class ADN(nn.Sequential):
             (A): LeakyReLU(negative_slope=0.1, inplace=True)
             (D): Dropout(p=0.8, inplace=False)
         )
-
 
     See also:
 

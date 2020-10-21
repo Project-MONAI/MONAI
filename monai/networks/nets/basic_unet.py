@@ -176,8 +176,16 @@ class BasicUNet(nn.Module):
             # for spatial 2D
             >>> net = BasicUNet(dimensions=2, features=(64, 128, 256, 512, 1024, 128))
 
+            # for spatial 2D, with group norm
+            >>> net = BasicUNet(dimensions=2, features=(64, 128, 256, 512, 1024, 128), norm=("group", {"num_groups": 4}))
+
             # for spatial 3D
             >>> net = BasicUNet(dimensions=3, features=(32, 32, 64, 128, 256, 32))
+
+        See Also
+
+            - :py:class:`monai.networks.nets.DynUNet`
+            - :py:class:`monai.networks.nets.UNet`
 
         """
         super().__init__()
