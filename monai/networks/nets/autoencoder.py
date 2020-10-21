@@ -29,8 +29,8 @@ class AutoEncoder(nn.Module):
         kernel_size: Union[Sequence[int], int] = 3,
         up_kernel_size: Union[Sequence[int], int] = 3,
         num_res_units: int = 0,
-        inter_channels: list = list(),
-        inter_dilations: list = list(),
+        inter_channels: Union[list, None] = None,
+        inter_dilations: Union[list, None] = None,
         num_inter_units: int = 2,
         act: Optional[Union[Tuple, str]] = Act.PRELU,
         norm: Union[Tuple, str] = Norm.INSTANCE,
@@ -50,7 +50,7 @@ class AutoEncoder(nn.Module):
         self.norm = norm
         self.dropout = dropout
         self.num_inter_units = num_inter_units
-        self.inter_channels = list(inter_channels)
+        self.inter_channels = inter_channels if inter_channels is not None else list()
         self.inter_dilations = list(inter_dilations or [1] * len(inter_channels))
 
         self.encoded_channels = in_channels

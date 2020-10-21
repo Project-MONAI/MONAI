@@ -14,11 +14,11 @@ class TestAutoEncoder(unittest.TestCase):
         output_channels = 4
         num_classes = 3
         im, _ = create_test_image_2d(im_shape[0], im_shape[1], 4, 20, 0, num_classes)
-        imT = torch.tensor(im[None, None])
+        im_t = torch.tensor(im[None, None])
 
         net = AutoEncoder(2, 1, 1, [4, 8, 16], [2, 2, 2])
-        out = net(imT)
-        self.assertEqual(out.shape, imT.shape)
+        out = net(im_t)
+        self.assertEqual(out.shape, im_t.shape)
 
 
 if __name__ == "__main__":
