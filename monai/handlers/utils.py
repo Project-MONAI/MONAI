@@ -10,8 +10,10 @@
 # limitations under the License.
 
 from typing import TYPE_CHECKING, Any, Callable
+
 import torch
 import torch.distributed as dist
+
 from monai.utils import exact_version, optional_import
 
 if TYPE_CHECKING:
@@ -40,6 +42,7 @@ def stopping_fn_from_loss() -> Callable[[Engine], Any]:
         return -engine.state.output
 
     return stopping_fn
+
 
 def all_gather(tensor):
     """

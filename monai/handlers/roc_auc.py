@@ -16,6 +16,7 @@ import torch.distributed as dist
 
 from monai.metrics import compute_roc_auc
 from monai.utils import Average, exact_version, optional_import
+
 from .utils import all_gather
 
 Metric, _ = optional_import("ignite.metrics", "0.4.2", exact_version, "Metric")

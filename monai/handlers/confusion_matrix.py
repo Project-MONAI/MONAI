@@ -16,6 +16,7 @@ import torch.distributed as dist
 
 from monai.metrics import compute_confusion_matrix
 from monai.utils import Average, exact_version, optional_import
+
 from .utils import all_gather
 
 Metric, _ = optional_import("ignite.metrics", "0.4.2", exact_version, "Metric")
@@ -70,6 +71,7 @@ class ConfusionMatrix(Metric):  # type: ignore[valid-type, misc]  # due to optio
         device: device specification in case of distributed computation usage.
 
     """
+
     def __init__(
         self,
         to_onehot_y: bool = False,
