@@ -60,7 +60,7 @@ can be parameterized with the factory name and the arguments to pass to the crea
     layer = use_factory( (fact.TEST, kwargs) )
 """
 
-from typing import Any, Callable, Dict, Tuple, Type, Union
+from typing import Any, Callable, Dict, Optional, Tuple, Type, Union
 
 import torch.nn as nn
 
@@ -216,7 +216,26 @@ def batch_factory(dim: int) -> Type[Union[nn.BatchNorm1d, nn.BatchNorm2d, nn.Bat
     return types[dim - 1]
 
 
-Norm.add_factory_callable("group", lambda: nn.modules.GroupNorm)
+@Norm.factory_function("group")
+def group_factory(_dim: Optional[int] = None) -> Type[nn.GroupNorm]:
+    return nn.GroupNorm
+
+
+@Norm.factory_function("layer")
+def layer_factory(_dim: Optional[int] = None) -> Type[nn.LayerNorm]:
+    return nn.LayerNorm
+
+
+@Norm.factory_function("localresponse")
+def local_response_factory(_dim: Optional[int] = None) -> Type[nn.LocalResponseNorm]:
+    return nn.LocalResponseNorm
+
+
+@Norm.factory_function("syncbatch")
+def sync_batch_factory(_dim: Optional[int] = None) -> Type[nn.SyncBatchNorm]:
+    return nn.SyncBatchNorm
+
+
 Act.add_factory_callable("elu", lambda: nn.modules.ELU)
 Act.add_factory_callable("relu", lambda: nn.modules.ReLU)
 Act.add_factory_callable("leakyrelu", lambda: nn.modules.LeakyReLU)

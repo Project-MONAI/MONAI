@@ -15,15 +15,16 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+from monai.networks.blocks import ADN
 from monai.networks.layers.convutils import same_padding, stride_minus_kernel_padding
-from monai.networks.layers.factories import Act, Conv, Dropout, Norm, split_args
+from monai.networks.layers.factories import Conv
 
 
 class Convolution(nn.Sequential):
     """
     Constructs a convolution with normalization, optional dropout, and optional activation layers::
 
-        -- (Conv|ConvTrans) -- Norm -- (Dropout) -- (Acti) --
+        -- (Conv|ConvTrans) -- (Norm -- Dropout -- Acti) --
 
     if ``conv_only`` set to ``True``::
 
@@ -35,14 +36,18 @@ class Convolution(nn.Sequential):
         out_channels: number of output channels.
         strides: convolution stride. Defaults to 1.
         kernel_size: convolution kernel size. Defaults to 3.
+        adn_ordering: a string representing the ordering of activation, normalization, and dropout.
+            Defaults to "NDA".
         act: activation type and arguments. Defaults to PReLU.
         norm: feature normalization type and arguments. Defaults to instance norm.
         dropout: dropout ratio. Defaults to no dropout.
         dropout_dim: determine the dimensions of dropout. Defaults to 1.
-            When dropout_dim = 1, randomly zeroes some of the elements for each channel.
-            When dropout_dim = 2, Randomly zeroes out entire channels (a channel is a 2D feature map).
-            When dropout_dim = 3, Randomly zeroes out entire channels (a channel is a 3D feature map).
-            The value of dropout_dim should be no no larger than the value of dimensions.
+
+            - When dropout_dim = 1, randomly zeroes some of the elements for each channel.
+            - When dropout_dim = 2, Randomly zeroes out entire channels (a channel is a 2D feature map).
+            - When dropout_dim = 3, Randomly zeroes out entire channels (a channel is a 3D feature map).
+
+            The value of dropout_dim should be no no larger than the value of `dimensions`.
         dilation: dilation rate. Defaults to 1.
         groups: controls the connections between inputs and outputs. Defaults to 1.
         bias: whether to have a bias term. Defaults to True.
@@ -56,10 +61,7 @@ class Convolution(nn.Sequential):
     See also:
 
         :py:class:`monai.networks.layers.Conv`
-        :py:class:`monai.networks.layers.Dropout`
-        :py:class:`monai.networks.layers.Act`
-        :py:class:`monai.networks.layers.Norm`
-        :py:class:`monai.networks.layers.split_args`
+        :py:class:`monai.networks.blocks.ADN`
 
     """
 
@@ -70,10 +72,11 @@ class Convolution(nn.Sequential):
         out_channels: int,
         strides: Union[Sequence[int], int] = 1,
         kernel_size: Union[Sequence[int], int] = 3,
-        act: Optional[Union[Tuple, str]] = Act.PRELU,
-        norm: Union[Tuple, str] = Norm.INSTANCE,
+        adn_ordering: str = "NDA",
+        act: Optional[Union[Tuple, str]] = "PRELU",
+        norm: Optional[Union[Tuple, str]] = "INSTANCE",
         dropout: Optional[Union[Tuple, str, float]] = None,
-        dropout_dim: int = 1,
+        dropout_dim: Optional[int] = 1,
         dilation: Union[Sequence[int], int] = 1,
         groups: int = 1,
         bias: bool = True,
@@ -90,33 +93,6 @@ class Convolution(nn.Sequential):
         if padding is None:
             padding = same_padding(kernel_size, dilation)
         conv_type = Conv[Conv.CONVTRANS if is_transposed else Conv.CONV, dimensions]
-        # define the normalisation type and the arguments to the constructor
-        if norm is not None:
-            norm_name, norm_args = split_args(norm)
-            norm_type = Norm[norm_name, dimensions]
-        else:
-            norm_type = norm_args = None
-
-        # define the activation type and the arguments to the constructor
-        if act is not None:
-            act_name, act_args = split_args(act)
-            act_type = Act[act_name]
-        else:
-            act_type = act_args = None
-
-        if dropout:
-            # if dropout was specified simply as a p value, use default name and make a keyword map with the value
-            if isinstance(dropout, (int, float)):
-                drop_name = Dropout.DROPOUT
-                drop_args = {"p": dropout}
-            else:
-                drop_name, drop_args = split_args(dropout)
-
-            if dropout_dim > dimensions:
-                raise ValueError(
-                    f"dropout_dim should be no larger than dimensions, got dropout_dim={dropout_dim} and dimensions={dimensions}."
-                )
-            drop_type = Dropout[drop_name, dropout_dim]
 
         if is_transposed:
             if output_padding is None:
@@ -147,14 +123,18 @@ class Convolution(nn.Sequential):
         self.add_module("conv", conv)
 
         if not conv_only:
-            if norm is not None:
-                self.add_module("norm", norm_type(out_channels, **norm_args))
-
-            if dropout:
-                self.add_module("dropout", drop_type(**drop_args))
-
-            if act is not None:
-                self.add_module("act", act_type(**act_args))
+            self.add_module(
+                "adn",
+                ADN(
+                    ordering=adn_ordering,
+                    in_channels=out_channels,
+                    act=act,
+                    norm=norm,
+                    norm_dim=dimensions,
+                    dropout=dropout,
+                    dropout_dim=dropout_dim,
+                ),
+            )
 
 
 class ResidualUnit(nn.Module):
@@ -168,14 +148,18 @@ class ResidualUnit(nn.Module):
         strides: convolution stride. Defaults to 1.
         kernel_size: convolution kernel size. Defaults to 3.
         subunits: number of convolutions. Defaults to 2.
+        adn_ordering: a string representing the ordering of activation, normalization, and dropout.
+            Defaults to "NDA".
         act: activation type and arguments. Defaults to PReLU.
         norm: feature normalization type and arguments. Defaults to instance norm.
         dropout: dropout ratio. Defaults to no dropout.
         dropout_dim: determine the dimensions of dropout. Defaults to 1.
-            When dropout_dim = 1, randomly zeroes some of the elements for each channel.
-            When dropout_dim = 2, Randomly zero out entire channels (a channel is a 2D feature map).
-            When dropout_dim = 3, Randomly zero out entire channels (a channel is a 3D feature map).
-            The value of dropout_dim should be no no larger than the value of dimensions.
+
+            - When dropout_dim = 1, randomly zeroes some of the elements for each channel.
+            - When dropout_dim = 2, Randomly zero out entire channels (a channel is a 2D feature map).
+            - When dropout_dim = 3, Randomly zero out entire channels (a channel is a 3D feature map).
+
+            The value of dropout_dim should be no no larger than the value of `dimensions`.
         dilation: dilation rate. Defaults to 1.
         bias: whether to have a bias term. Defaults to True.
         last_conv_only: for the last subunit, whether to use the convolutional layer only.
@@ -197,10 +181,11 @@ class ResidualUnit(nn.Module):
         strides: Union[Sequence[int], int] = 1,
         kernel_size: Union[Sequence[int], int] = 3,
         subunits: int = 2,
-        act: Optional[Union[Tuple, str]] = Act.PRELU,
-        norm: Union[Tuple, str] = Norm.INSTANCE,
+        adn_ordering: str = "NDA",
+        act: Optional[Union[Tuple, str]] = "PRELU",
+        norm: Optional[Union[Tuple, str]] = "INSTANCE",
         dropout: Optional[Union[Tuple, str, float]] = None,
-        dropout_dim: int = 1,
+        dropout_dim: Optional[int] = 1,
         dilation: Union[Sequence[int], int] = 1,
         bias: bool = True,
         last_conv_only: bool = False,
@@ -226,6 +211,7 @@ class ResidualUnit(nn.Module):
                 out_channels,
                 strides=sstrides,
                 kernel_size=kernel_size,
+                adn_ordering=adn_ordering,
                 act=act,
                 norm=norm,
                 dropout=dropout,
