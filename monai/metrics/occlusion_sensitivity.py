@@ -73,7 +73,9 @@ def _append_to_sensitivity_im(model, batch_images, batch_ids, sensitivity_im):
     a given label. Append to previous evaluations."""
     batch_images = torch.cat(batch_images, dim=0)
     batch_ids = torch.LongTensor(batch_ids).unsqueeze(1).to(sensitivity_im.device)
-    scores = model(batch_images).detach().gather(1, batch_ids)
+    model.eval()
+    with torch.no_grad():
+        scores = model(batch_images).detach().gather(1, batch_ids)
     return torch.cat((sensitivity_im, scores))
 
 
@@ -136,7 +138,9 @@ def compute_occlusion_sensitivity(
     b_box_min, b_box_max = _check_input_bounding_box(b_box, im_shape)
 
     # Get baseline probability
-    baseline = model(image).detach()[0, label].item()
+    model.eval()
+    with torch.no_grad():
+        baseline = model(image).detach()[0, label].item()
 
     # Create some lists
     batch_images = []
