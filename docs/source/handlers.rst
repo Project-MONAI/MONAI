@@ -34,6 +34,12 @@ ROC AUC metrics handler
     :members:
 
 
+Confusion Matrix metrics handler
+--------------------------------
+.. autoclass:: ConfusionMatrix
+    :members:
+
+
 Metric logger
 -------------
 .. autoclass:: MetricLogger

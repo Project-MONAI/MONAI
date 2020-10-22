@@ -14,7 +14,7 @@ from typing import Callable, List, Optional, Sequence, Union
 import torch
 import torch.distributed as dist
 
-from monai.metrics import compute_roc_auc
+from monai.metrics import compute_confusion_matrix
 from monai.utils import Average, exact_version, optional_import
 
 from .utils import all_gather
@@ -23,18 +23,37 @@ Metric, _ = optional_import("ignite.metrics", "0.4.2", exact_version, "Metric")
 reinit__is_reduced, _ = optional_import("ignite.metrics.metric", "0.4.2", exact_version, "reinit__is_reduced")
 
 
-class ROCAUC(Metric):  # type: ignore[valid-type, misc]  # due to optional_import
+class ConfusionMatrix(Metric):  # type: ignore[valid-type, misc]  # due to optional_import
     """
-    Computes Area Under the Receiver Operating Characteristic Curve (ROC AUC).
-    accumulating predictions and the ground-truth during an epoch and applying `compute_roc_auc`.
+    Compute confusion matrix related metrics. This function supports to calculate all metrics
+    mentioned in: `Confusion matrix <https://en.wikipedia.org/wiki/Confusion_matrix>`_.
+    accumulating predictions and the ground-truth during an epoch and applying `compute_confusion_matrix`.
 
     Args:
         to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
-        softmax: whether to add softmax function to `y_pred` before computation. Defaults to False.
-        other_act: callable function to replace `softmax` as activation layer if needed, Defaults to ``None``.
-            for example: `other_act = lambda x: torch.log_softmax(x)`.
-        average: {``"macro"``, ``"weighted"``, ``"micro"``, ``"none"``}
-            Type of averaging performed if not binary classification. Defaults to ``"macro"``.
+        activation: [``"sigmoid"``, ``"softmax"``]
+            Activation method, if specified, an activation function will be employed for `y_pred`.
+            Defaults to None.
+            The parameter can also be a callable function, for example:
+            ``activation = lambda x: torch.log_softmax(x)``.
+        bin_mode: [``"threshold"``, ``"mutually_exclusive"``]
+            Binarization method, if specified, a binarization manipulation will be employed
+            for `y_pred`.
+
+            - ``"threshold"``, a single threshold or a sequence of thresholds should be set.
+            - ``"mutually_exclusive"``, `y_pred` will be converted by a combination of `argmax` and `to_onehot`.
+        bin_threshold: the threshold for binarization, can be a single value or a sequence of
+            values that each one of the value represents a threshold for a class.
+        metric_name: [``"sensitivity"``, ``"specificity"``, ``"precision"``, ``"negative predictive value"``,
+            ``"miss rate"``, ``"fall out"``, ``"false discovery rate"``, ``"false omission rate"``,
+            ``"prevalence threshold"``, ``"threat score"``, ``"accuracy"``, ``"balanced accuracy"``,
+            ``"f1 score"``, ``"matthews correlation coefficient"``, ``"fowlkes mallows index"``,
+            ``"informedness"``, ``"markedness"``]
+            Some of the metrics have multiple aliases (as shown in the wikipedia page aforementioned),
+            and you can also input those names instead.
+        average: [``"macro"``, ``"weighted"``, ``"micro"``, ``"none"``]
+            Type of averaging performed if not binary classification.
+            Defaults to ``"macro"``.
 
             - ``"macro"``: calculate metrics for each label, and find their unweighted mean.
                 This does not take label imbalance into account.
@@ -43,33 +62,36 @@ class ROCAUC(Metric):  # type: ignore[valid-type, misc]  # due to optional_impor
             - ``"micro"``: calculate metrics globally by considering each element of the label
                 indicator matrix as a label.
             - ``"none"``: the scores for each class are returned.
-
+        zero_division: the value to return when there is a zero division, for example, when all
+            predictions and labels are negative. Defaults to 0.
         output_transform: a callable that is used to transform the
             :class:`~ignite.engine.Engine` `process_function` output into the
             form expected by the metric. This can be useful if, for example, you have a multi-output model and
             you want to compute the metric with respect to one of the outputs.
         device: device specification in case of distributed computation usage.
 
-    Note:
-        ROCAUC expects y to be comprised of 0's and 1's.
-        y_pred must either be probability estimates or confidence values.
-
     """
 
     def __init__(
         self,
         to_onehot_y: bool = False,
-        softmax: bool = False,
-        other_act: Optional[Callable] = None,
+        activation: Optional[Union[str, Callable]] = None,
+        bin_mode: Optional[str] = "threshold",
+        bin_threshold: Union[float, Sequence[float]] = 0.5,
+        metric_name: str = "hit_rate",
         average: Union[Average, str] = Average.MACRO,
+        zero_division: int = 0,
         output_transform: Callable = lambda x: x,
         device: Optional[torch.device] = None,
     ) -> None:
         super().__init__(output_transform, device=device)
         self.to_onehot_y = to_onehot_y
-        self.softmax = softmax
-        self.other_act = other_act
+        self.activation = activation
+        self.bin_mode = bin_mode
+        self.bin_threshold = bin_threshold
+        self.metric_name = metric_name
         self.average: Average = Average(average)
+        self.zero_division = zero_division
 
     @reinit__is_reduced
     def reset(self) -> None:
@@ -83,7 +105,7 @@ class ROCAUC(Metric):  # type: ignore[valid-type, misc]  # due to optional_impor
             output: sequence with contents [y_pred, y].
 
         Raises:
-            ValueError: When ``output`` length is not 2. ROCAUC metric can only support y_pred and y.
+            ValueError: When ``output`` length is not 2.
             ValueError: When ``y_pred`` dimension is not one of [1, 2].
             ValueError: When ``y`` dimension is not one of [1, 2].
 
@@ -108,11 +130,14 @@ class ROCAUC(Metric):  # type: ignore[valid-type, misc]  # due to optional_impor
             _target_tensor = all_gather(_target_tensor)
             self._is_reduced = True
 
-        return compute_roc_auc(
+        return compute_confusion_matrix(
             y_pred=_prediction_tensor,
             y=_target_tensor,
             to_onehot_y=self.to_onehot_y,
-            softmax=self.softmax,
-            other_act=self.other_act,
+            activation=self.activation,
+            bin_mode=self.bin_mode,
+            bin_threshold=self.bin_threshold,
+            metric_name=self.metric_name,
             average=self.average,
+            zero_division=self.zero_division,
         )
