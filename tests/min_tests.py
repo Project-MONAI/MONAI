@@ -93,6 +93,7 @@ def run_testsuit():
         "test_zoom_affine",
         "test_zoomd",
         "test_compute_occlusion_sensitivity",
+        "test_handler_confusion_matrix",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 

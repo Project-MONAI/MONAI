@@ -48,6 +48,8 @@ def all_gather(tensor):
     """
     All gather the data of tensor value in distributed data parallel.
     """
+    if not dist.is_available() or not dist.is_initialized():
+        raise RuntimeError("should not execute all_gather operation before torch.distributed is ready.")
     # create placeholder to collect the data from all processes
     output = [torch.zeros_like(tensor) for _ in range(dist.get_world_size())]
     dist.all_gather(output, tensor)
