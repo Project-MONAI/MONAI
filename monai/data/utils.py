@@ -539,3 +539,56 @@ def is_supported_format(filename: Union[Sequence[str], str], suffixes: Sequence[
             return False
 
     return True
+
+
+def partition_dataset(data, num_replicas=None, rank=None, shuffle=False, seed=0, drop_last=False):
+    """
+    Partition the dataset for distributed training, every rank process only train with its own data partition.
+    It can be useful for `CacheDataset` or `SmartCacheDataset`, because every rank process can only compute and
+    cache its own data.
+    Note that every rank process will shuffle data only in its own partition if set `shuffle=True` to DataLoader.
+    The alternative solution is to use `DistributedSampler`, which supports global shuffle before every epoch.
+    But if using `CacheDataset` or `SmartCacheDataset`, every rank process will cache duplicated data content and
+    raise system memory usage.
+    Args:
+        data: data list to partition, assumed to be of constant size.
+        num_replicas: number of processes participating in the distributed training.
+            if None, retrieve the `world_size` from current distributed group.
+        rank: rank of the current process within `num_replicas`.
+            if None, retrieve the rank index from current distributed group.
+        shuffle: if true, will shuffle the indices of data list before partition.
+        seed: random seed to shuffle the indices if `shuffle=True`, default is `0`.
+            this number should be identical across all processes in the distributed group.
+        drop_last: if `True`, will drop the tail of the data to make it evenly divisible across the number of replicas.
+            if `False`, add extra indices to make the data evenly divisible across the replicas. default is `False`.
+    """
+    if num_replicas is None or rank is None:
+        if not dist.is_available():
+            raise RuntimeError("require distributed package to be available.")
+        if num_replicas is None:
+            num_replicas = dist.get_world_size()
+        if rank is None:
+            rank = dist.get_rank()
+
+    if drop_last and len(data) % num_replicas != 0:
+        # split to nearest available length that is evenly divisible
+        num_samples = math.ceil((len(data) - num_replicas) / num_replicas)
+    else:
+        num_samples = math.ceil(len(data) / num_replicas)
+    total_size = num_samples * num_replicas
+
+    indices = np.array(list(range(len(data))))
+    if shuffle:
+        # deterministically shuffle based on fixed seed for every process
+        np.random.seed(seed)
+        np.random.shuffle(indices)
+
+    if not drop_last and total_size - len(indices) > 0:
+        # add extra samples to make it evenly divisible
+        indices += indices[: (total_size - len(indices))]
+    else:
+        # remove tail of data to make it evenly divisible
+        indices = indices[:total_size]
+
+    indices = indices[rank:total_size:num_replicas]
+    return [data[i] for i in indices]
