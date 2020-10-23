@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - 1123-drop-pt-14
   pull_request:
 
 jobs:

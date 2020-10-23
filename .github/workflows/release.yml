@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - 'releases/*'
+      - 1123-drop-pt-14
     tags:
       - '*'
 
