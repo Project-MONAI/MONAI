@@ -218,8 +218,8 @@ def pixelshuffle(x: torch.Tensor, dimensions: int, scale_factor: int) -> torch.T
 
     if channels % scale_divisor != 0:
         raise ValueError(
-            f"Number of input channels ({channels}) must be evenly \
-                        divisible by scale_factor ** dimensions ({scale_divisor})."
+            f"Number of input channels ({channels}) must be evenly "
+            f"divisible by scale_factor ** dimensions ({factor}**{dim}={scale_divisor})."
         )
 
     org_channels = channels // scale_divisor
