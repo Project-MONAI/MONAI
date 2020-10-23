@@ -9,13 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
 from typing import Callable, Optional, Union
 
 import torch
 
-from monai.networks import one_hot
-from monai.utils import MetricReduction
+from monai.metrics.seg_metric_utils import *
 
 
 class DiceMetric:
@@ -68,20 +66,16 @@ class DiceMetric:
         self.sigmoid = sigmoid
         self.other_act = other_act
         self.logit_thresh = logit_thresh
-        self.reduction: MetricReduction = MetricReduction(reduction)
+        self.reduction = reduction
 
         self.not_nans: Optional[torch.Tensor] = None  # keep track for valid elements in the batch
 
-    def __call__(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    def __call__(self, y_pred: torch.Tensor, y: torch.Tensor):
         """
         Args:
             y_pred: input data to compute, typical segmentation model output.
                 it must be one-hot format and first dim is batch.
             y: ground truth to compute mean dice metric, the first dim is batch.
-
-        Raises:
-            ValueError: When ``self.reduction`` is not one of
-                ["mean", "sum", "mean_batch", "sum_batch", "mean_channel", "sum_channel" "none"].
 
         """
 
@@ -99,48 +93,14 @@ class DiceMetric:
 
         # some dice elements might be Nan (if ground truth y was missing (zeros))
         # we need to account for it
-
         nans = torch.isnan(f)
         not_nans = (~nans).float()
-        f[nans] = 0
-
-        t_zero = torch.zeros(1, device=f.device, dtype=torch.float)
-
-        if self.reduction == MetricReduction.MEAN:
-            # 2 steps, first, mean by channel (accounting for nans), then by batch
-
-            not_nans = not_nans.sum(dim=1)
-            f = torch.where(not_nans > 0, f.sum(dim=1) / not_nans, t_zero)  # channel average
-
-            not_nans = (not_nans > 0).float().sum()
-            f = torch.where(not_nans > 0, f.sum() / not_nans, t_zero)  # batch average
-
-        elif self.reduction == MetricReduction.SUM:
-            not_nans = not_nans.sum()
-            f = torch.sum(f)  # sum over the batch and channel dims
-        elif self.reduction == MetricReduction.MEAN_BATCH:
-            not_nans = not_nans.sum(dim=0)
-            f = torch.where(not_nans > 0, f.sum(dim=0) / not_nans, t_zero)  # batch average
-        elif self.reduction == MetricReduction.SUM_BATCH:
-            not_nans = not_nans.sum(dim=0)
-            f = f.sum(dim=0)  # the batch sum
-        elif self.reduction == MetricReduction.MEAN_CHANNEL:
-            not_nans = not_nans.sum(dim=1)
-            f = torch.where(not_nans > 0, f.sum(dim=1) / not_nans, t_zero)  # channel average
-        elif self.reduction == MetricReduction.SUM_CHANNEL:
-            not_nans = not_nans.sum(dim=1)
-            f = f.sum(dim=1)  # the channel sum
-        elif self.reduction == MetricReduction.NONE:
-            pass
-        else:
-            raise ValueError(
-                f"Unsupported reduction: {self.reduction}, available options are "
-                '["mean", "sum", "mean_batch", "sum_batch", "mean_channel", "sum_channel" "none"].'
-            )
 
         # save not_nans since we may need it later to know how many elements were valid
         self.not_nans = not_nans
 
+        # do metric reduction
+        f = do_metric_reduction(f, self.reduction)
         return f
 
 
@@ -173,11 +133,6 @@ def compute_meandice(
         logit_thresh: the threshold value used to convert (for example, after sigmoid if `sigmoid=True`)
             `y_pred` into a binary matrix. Defaults to 0.5.
 
-    Raises:
-        ValueError: When ``sigmoid=True`` and ``other_act is not None``. Incompatible values.
-        TypeError: When ``other_act`` is not an ``Optional[Callable]``.
-        ValueError: When ``sigmoid=True`` and ``mutually_exclusive=True``. Incompatible values.
-
     Returns:
         Dice scores per batch and per class, (shape [batch_size, n_classes]).
 
@@ -188,52 +143,24 @@ def compute_meandice(
                 (optionally with a ``sigmoid`` function before thresholding).
 
     """
-    n_classes = y_pred.shape[1]
-    n_len = len(y_pred.shape)
+
+    bin_mode = "mutually_exclusive" if mutually_exclusive else "threshold"
     if sigmoid and other_act is not None:
         raise ValueError("Incompatible values: sigmoid=True and other_act is not None.")
-    if sigmoid:
-        y_pred = y_pred.float().sigmoid()
+    activation = "sigmoid" if sigmoid else other_act
 
-    if other_act is not None:
-        if not callable(other_act):
-            raise TypeError(f"other_act must be None or callable but is {type(other_act).__name__}.")
-        y_pred = other_act(y_pred)
-
-    if n_classes == 1:
-        if mutually_exclusive:
-            warnings.warn("y_pred has only one class, mutually_exclusive=True ignored.")
-        if to_onehot_y:
-            warnings.warn("y_pred has only one channel, to_onehot_y=True ignored.")
-        if not include_background:
-            warnings.warn("y_pred has only one channel, include_background=False ignored.")
-        # make both y and y_pred binary
-        y_pred = (y_pred >= logit_thresh).float()
-        y = (y > 0).float()
-    else:  # multi-channel y_pred
-        # make both y and y_pred binary
-        if mutually_exclusive:
-            if sigmoid:
-                raise ValueError("Incompatible values: sigmoid=True and mutually_exclusive=True.")
-            y_pred = torch.argmax(y_pred, dim=1, keepdim=True)
-            y_pred = one_hot(y_pred, num_classes=n_classes)
-        else:
-            y_pred = (y_pred >= logit_thresh).float()
-        if to_onehot_y:
-            y = one_hot(y, num_classes=n_classes)
-
-    if not include_background:
-        y = y[:, 1:] if y.shape[1] > 1 else y
-        y_pred = y_pred[:, 1:] if y_pred.shape[1] > 1 else y_pred
-
-    assert y.shape == y_pred.shape, "Ground truth one-hot has differing shape (%r) from source (%r)" % (
-        y.shape,
-        y_pred.shape,
+    y_pred, y = preprocess_input(
+        y_pred=y_pred,
+        y=y,
+        to_onehot_y=to_onehot_y,
+        activation=activation,
+        bin_mode=bin_mode,
+        bin_threshold=logit_thresh,
+        include_background=include_background,
     )
-    y = y.float()
-    y_pred = y_pred.float()
 
     # reducing only spatial dimensions (not batch nor channels)
+    n_len = len(y_pred.shape)
     reduce_axis = list(range(2, n_len))
     intersection = torch.sum(y * y_pred, dim=reduce_axis)
 
@@ -242,4 +169,4 @@ def compute_meandice(
     denominator = y_o + y_pred_o
 
     f = torch.where(y_o > 0, (2.0 * intersection) / denominator, torch.tensor(float("nan"), device=y_o.device))
-    return f  # returns array of Dice shape: [batch, n_classes]
+    return f  # returns array of Dice with shape: [batch, n_classes]
