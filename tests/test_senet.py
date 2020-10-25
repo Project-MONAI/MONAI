@@ -47,9 +47,7 @@ class TestSENET(unittest.TestCase):
 
 class TestPretrainedSENET(unittest.TestCase):
     @parameterized.expand(
-        [
-            TEST_CASE_PRETRAINED,
-        ]
+        [TEST_CASE_PRETRAINED,]
     )
     @skip_if_quick
     def test_senet_shape(self, net):

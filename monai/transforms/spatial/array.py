@@ -323,10 +323,7 @@ class Resize(Transform):
         self.align_corners = align_corners
 
     def __call__(
-        self,
-        img: np.ndarray,
-        mode: Optional[Union[InterpolateMode, str]] = None,
-        align_corners: Optional[bool] = None,
+        self, img: np.ndarray, mode: Optional[Union[InterpolateMode, str]] = None, align_corners: Optional[bool] = None,
     ) -> np.ndarray:
         """
         Args:

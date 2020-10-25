@@ -302,28 +302,16 @@ class PSP(nn.Module):
         else:
             interpolate_size = x.shape[2:]
             x64 = F.interpolate(
-                self.proj64(self.pool64(x)),
-                size=interpolate_size,
-                mode=self.upsample_mode,
-                align_corners=True,
+                self.proj64(self.pool64(x)), size=interpolate_size, mode=self.upsample_mode, align_corners=True,
             )
             x32 = F.interpolate(
-                self.proj32(self.pool32(x)),
-                size=interpolate_size,
-                mode=self.upsample_mode,
-                align_corners=True,
+                self.proj32(self.pool32(x)), size=interpolate_size, mode=self.upsample_mode, align_corners=True,
             )
             x16 = F.interpolate(
-                self.proj16(self.pool16(x)),
-                size=interpolate_size,
-                mode=self.upsample_mode,
-                align_corners=True,
+                self.proj16(self.pool16(x)), size=interpolate_size, mode=self.upsample_mode, align_corners=True,
             )
             x8 = F.interpolate(
-                self.proj8(self.pool8(x)),
-                size=interpolate_size,
-                mode=self.upsample_mode,
-                align_corners=True,
+                self.proj8(self.pool8(x)), size=interpolate_size, mode=self.upsample_mode, align_corners=True,
             )
         x = torch.cat((x64, x32, x16, x8), dim=1)
         return x
@@ -467,13 +455,7 @@ class AHNet(nn.Module):
             net2d = FCN(pretrained=True, progress=progress)
             self.copy_from(net2d)
 
-    def _make_layer(
-        self,
-        block: Type[Bottleneck3x3x1],
-        planes: int,
-        blocks: int,
-        stride: int = 1,
-    ) -> nn.Sequential:
+    def _make_layer(self, block: Type[Bottleneck3x3x1], planes: int, blocks: int, stride: int = 1,) -> nn.Sequential:
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(

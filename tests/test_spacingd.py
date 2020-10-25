@@ -40,14 +40,7 @@ class TestSpacingDCase(unittest.TestCase):
             "image_meta_dict": {"affine": np.eye(4)},
             "seg_meta_dict": {"affine": np.eye(4)},
         }
-        spacing = Spacingd(
-            keys=("image", "seg"),
-            mode="nearest",
-            pixdim=(
-                1,
-                0.2,
-            ),
-        )
+        spacing = Spacingd(keys=("image", "seg"), mode="nearest", pixdim=(1, 0.2,),)
         res = spacing(data)
         self.assertEqual(("image", "image_meta_dict", "seg", "seg_meta_dict"), tuple(sorted(res)))
         np.testing.assert_allclose(res["image"].shape, (2, 1, 46))
@@ -60,14 +53,7 @@ class TestSpacingDCase(unittest.TestCase):
             "image_meta_dict": {"affine": np.eye(4)},
             "seg_meta_dict": {"affine": np.eye(4)},
         }
-        spacing = Spacingd(
-            keys=("image", "seg"),
-            mode=("bilinear", "nearest"),
-            pixdim=(
-                1,
-                0.2,
-            ),
-        )
+        spacing = Spacingd(keys=("image", "seg"), mode=("bilinear", "nearest"), pixdim=(1, 0.2,),)
         res = spacing(data)
         self.assertEqual(("image", "image_meta_dict", "seg", "seg_meta_dict"), tuple(sorted(res)))
         np.testing.assert_allclose(res["image"].shape, (2, 1, 46))

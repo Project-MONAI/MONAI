@@ -173,11 +173,7 @@ def download_url(url: str, filepath: str, hash_val: Optional[str] = None, hash_t
                         self.update(b * bsize - self.n)  # will also set self.n = b * bsize
 
                 with TqdmUpTo(
-                    unit="B",
-                    unit_scale=True,
-                    unit_divisor=1024,
-                    miniters=1,
-                    desc=filepath.split(os.sep)[-1],
+                    unit="B", unit_scale=True, unit_divisor=1024, miniters=1, desc=filepath.split(os.sep)[-1],
                 ) as t:
                     urlretrieve(url, filepath, reporthook=t.update_to)
             else:

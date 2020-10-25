@@ -91,9 +91,7 @@ def iter_patch_slices(
 
 
 def dense_patch_slices(
-    image_size: Sequence[int],
-    patch_size: Sequence[int],
-    scan_interval: Sequence[int],
+    image_size: Sequence[int], patch_size: Sequence[int], scan_interval: Sequence[int],
 ) -> List[Tuple[slice, ...]]:
     """
     Enumerate all slices defining ND patches of size `patch_size` from an `image_size` input image.
@@ -427,12 +425,7 @@ def to_affine_nd(r: Union[np.ndarray, int], affine: np.ndarray) -> np.ndarray:
     return new_affine
 
 
-def create_file_basename(
-    postfix: str,
-    input_file_name: str,
-    folder_path: str,
-    data_root_dir: str = "",
-) -> str:
+def create_file_basename(postfix: str, input_file_name: str, folder_path: str, data_root_dir: str = "",) -> str:
     """
     Utility function to create the path to the output file based on the input
     filename (extension is added by lib level writer before writing the file)

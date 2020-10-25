@@ -48,11 +48,7 @@ class CheckpointLoader:
     """
 
     def __init__(
-        self,
-        load_path: str,
-        load_dict: Dict,
-        name: Optional[str] = None,
-        map_location: Optional[Dict] = None,
+        self, load_path: str, load_dict: Dict, name: Optional[str] = None, map_location: Optional[Dict] = None,
     ) -> None:
         assert load_path is not None, "must provide clear path to load checkpoint."
         self.load_path = load_path

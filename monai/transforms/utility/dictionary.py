@@ -507,10 +507,7 @@ class LabelToMaskd(MapTransform):
     """
 
     def __init__(  # pytype: disable=annotation-type-mismatch
-        self,
-        keys: KeysCollection,
-        select_labels: Union[Sequence[int], int],
-        merge_channels: bool = False,
+        self, keys: KeysCollection, select_labels: Union[Sequence[int], int], merge_channels: bool = False,
     ) -> None:  # pytype: disable=annotation-type-mismatch
         super().__init__(keys)
         self.converter = LabelToMask(select_labels=select_labels, merge_channels=merge_channels)

@@ -90,11 +90,7 @@ def get_mask_edges(
 
 
 def get_surface_distance(
-    edges_pred: np.ndarray,
-    edges_gt: np.ndarray,
-    label_idx: int,
-    crop: bool = True,
-    distance_metric: str = "euclidean",
+    edges_pred: np.ndarray, edges_gt: np.ndarray, label_idx: int, crop: bool = True, distance_metric: str = "euclidean",
 ) -> np.ndarray:
     """
     This function is used to compute the surface distances from `seg_pred` to `seg_gt`.

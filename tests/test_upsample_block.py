@@ -19,11 +19,7 @@ from monai.utils import UpsampleMode
 
 TEST_CASES = [
     [{"dimensions": 2, "in_channels": 4}, (7, 4, 32, 48), (7, 4, 64, 96)],  # 4-channel 2D, batch 7
-    [
-        {"dimensions": 1, "in_channels": 4, "out_channels": 3},
-        (16, 4, 63),
-        (16, 3, 126),
-    ],  # 4-channel 1D, batch 16
+    [{"dimensions": 1, "in_channels": 4, "out_channels": 3}, (16, 4, 63), (16, 3, 126),],  # 4-channel 1D, batch 16
     [
         {"dimensions": 1, "in_channels": 4, "out_channels": 8, "mode": "deconv", "align_corners": False},
         (16, 4, 20),

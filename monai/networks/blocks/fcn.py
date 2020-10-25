@@ -155,12 +155,7 @@ class FCN(nn.Module):
         self.transformer = self.conv2d_type(in_channels=256, out_channels=64, kernel_size=1)
 
         if self.upsample_mode == "transpose":
-            self.up_conv = UpSample(
-                dimensions=2,
-                in_channels=self.out_channels,
-                scale_factor=2,
-                mode="deconv",
-            )
+            self.up_conv = UpSample(dimensions=2, in_channels=self.out_channels, scale_factor=2, mode="deconv",)
 
     def forward(self, x: torch.Tensor):
         """

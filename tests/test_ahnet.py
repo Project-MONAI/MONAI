@@ -148,11 +148,7 @@ class TestAHNET(unittest.TestCase):
 
 class TestAHNETWithPretrain(unittest.TestCase):
     @parameterized.expand(
-        [
-            TEST_CASE_AHNET_3D_WITH_PRETRAIN_1,
-            TEST_CASE_AHNET_3D_WITH_PRETRAIN_2,
-            TEST_CASE_AHNET_3D_WITH_PRETRAIN_3,
-        ]
+        [TEST_CASE_AHNET_3D_WITH_PRETRAIN_1, TEST_CASE_AHNET_3D_WITH_PRETRAIN_2, TEST_CASE_AHNET_3D_WITH_PRETRAIN_3,]
     )
     @skip_if_quick
     def test_ahnet_shape(self, input_param, input_shape, expected_shape, fcn_input_param):
@@ -166,12 +162,7 @@ class TestAHNETWithPretrain(unittest.TestCase):
 
     def test_initialize_pretrained(self):
         net = AHNet(
-            spatial_dims=3,
-            upsample_mode="transpose",
-            in_channels=2,
-            out_channels=3,
-            pretrained=True,
-            progress=True,
+            spatial_dims=3, upsample_mode="transpose", in_channels=2, out_channels=3, pretrained=True, progress=True,
         )
         input_data = torch.randn(2, 2, 128, 128, 64)
         with torch.no_grad():

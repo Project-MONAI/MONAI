@@ -563,9 +563,7 @@ class ResizeWithPadOrCrop(Transform):
     """
 
     def __init__(
-        self,
-        spatial_size: Union[Sequence[int], int],
-        mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+        self, spatial_size: Union[Sequence[int], int], mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
     ):
         self.padder = SpatialPad(spatial_size=spatial_size, mode=mode)
         self.cropper = CenterSpatialCrop(roi_size=spatial_size)
