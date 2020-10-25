@@ -27,7 +27,11 @@ for mode in ["pixelshuffle", "nontrainable", "deconv", None]:
     if mode is not None:
         kwargs["upsample"] = mode  # type: ignore
     CASES_1D.append(
-        [kwargs, (10, 5, 17), (10, 8, 17),]
+        [
+            kwargs,
+            (10, 5, 17),
+            (10, 8, 17),
+        ]
     )
 
 CASES_2D = []

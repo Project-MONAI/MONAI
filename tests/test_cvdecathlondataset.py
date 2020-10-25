@@ -39,7 +39,12 @@ class TestCVDecathlonDataset(unittest.TestCase):
             self.assertTupleEqual(dataset[0]["image"].shape, (1, 34, 49, 41))
 
         cvdataset = CVDecathlonDataset(
-            root_dir=testing_dir, task="Task04_Hippocampus", transform=transform, download=True, seed=12345, nsplits=5,
+            root_dir=testing_dir,
+            task="Task04_Hippocampus",
+            transform=transform,
+            download=True,
+            seed=12345,
+            nsplits=5,
         )
 
         try:  # will start downloading if testing_dir doesn't have the Decathlon files

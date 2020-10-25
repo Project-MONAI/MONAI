@@ -47,13 +47,28 @@ class UnetResBlock(nn.Module):
     ):
         super(UnetResBlock, self).__init__()
         self.conv1 = get_conv_layer(
-            spatial_dims, in_channels, out_channels, kernel_size=kernel_size, stride=stride, conv_only=True,
+            spatial_dims,
+            in_channels,
+            out_channels,
+            kernel_size=kernel_size,
+            stride=stride,
+            conv_only=True,
         )
         self.conv2 = get_conv_layer(
-            spatial_dims, out_channels, out_channels, kernel_size=kernel_size, stride=1, conv_only=True,
+            spatial_dims,
+            out_channels,
+            out_channels,
+            kernel_size=kernel_size,
+            stride=1,
+            conv_only=True,
         )
         self.conv3 = get_conv_layer(
-            spatial_dims, in_channels, out_channels, kernel_size=1, stride=stride, conv_only=True,
+            spatial_dims,
+            in_channels,
+            out_channels,
+            kernel_size=1,
+            stride=stride,
+            conv_only=True,
         )
         self.lrelu = get_acti_layer(("leakyrelu", {"inplace": True, "negative_slope": 0.01}))
         self.norm1 = get_norm_layer(spatial_dims, out_channels, norm_name)
@@ -107,10 +122,20 @@ class UnetBasicBlock(nn.Module):
     ):
         super(UnetBasicBlock, self).__init__()
         self.conv1 = get_conv_layer(
-            spatial_dims, in_channels, out_channels, kernel_size=kernel_size, stride=stride, conv_only=True,
+            spatial_dims,
+            in_channels,
+            out_channels,
+            kernel_size=kernel_size,
+            stride=stride,
+            conv_only=True,
         )
         self.conv2 = get_conv_layer(
-            spatial_dims, out_channels, out_channels, kernel_size=kernel_size, stride=1, conv_only=True,
+            spatial_dims,
+            out_channels,
+            out_channels,
+            kernel_size=kernel_size,
+            stride=1,
+            conv_only=True,
         )
         self.lrelu = get_acti_layer(("leakyrelu", {"inplace": True, "negative_slope": 0.01}))
         self.norm1 = get_norm_layer(spatial_dims, out_channels, norm_name)
@@ -245,7 +270,8 @@ def get_conv_layer(
 
 
 def get_padding(
-    kernel_size: Union[Sequence[int], int], stride: Union[Sequence[int], int],
+    kernel_size: Union[Sequence[int], int],
+    stride: Union[Sequence[int], int],
 ) -> Union[Tuple[int, ...], int]:
 
     kernel_size_np = np.atleast_1d(kernel_size)
@@ -259,7 +285,9 @@ def get_padding(
 
 
 def get_output_padding(
-    kernel_size: Union[Sequence[int], int], stride: Union[Sequence[int], int], padding: Union[Sequence[int], int],
+    kernel_size: Union[Sequence[int], int],
+    stride: Union[Sequence[int], int],
+    padding: Union[Sequence[int], int],
 ) -> Union[Tuple[int, ...], int]:
     kernel_size_np = np.atleast_1d(kernel_size)
     stride_np = np.atleast_1d(stride)

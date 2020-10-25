@@ -52,7 +52,10 @@ def create_spherical_seg_3d(
 
 
 TEST_CASES = [
-    [[create_spherical_seg_3d(), create_spherical_seg_3d(), 1], [0, 0],],
+    [
+        [create_spherical_seg_3d(), create_spherical_seg_3d(), 1],
+        [0, 0],
+    ],
     [
         [
             create_spherical_seg_3d(radius=20, centre=(20, 20, 20)),
@@ -96,9 +99,31 @@ TEST_CASES = [
         ],
         [17.32691760951026, 12.432687531048186],
     ],
-    [[np.zeros([99, 99, 99]), create_spherical_seg_3d(radius=40, centre=(20, 33, 22)), 1,], [np.inf, np.inf],],
-    [[np.zeros([99, 99, 99]), np.zeros([99, 99, 99]), 1,], [np.inf, np.inf],],
-    [[create_spherical_seg_3d(), np.zeros([99, 99, 99]), 1, "taxicab",], [np.inf, np.inf],],
+    [
+        [
+            np.zeros([99, 99, 99]),
+            create_spherical_seg_3d(radius=40, centre=(20, 33, 22)),
+            1,
+        ],
+        [np.inf, np.inf],
+    ],
+    [
+        [
+            np.zeros([99, 99, 99]),
+            np.zeros([99, 99, 99]),
+            1,
+        ],
+        [np.inf, np.inf],
+    ],
+    [
+        [
+            create_spherical_seg_3d(),
+            np.zeros([99, 99, 99]),
+            1,
+            "taxicab",
+        ],
+        [np.inf, np.inf],
+    ],
 ]
 
 

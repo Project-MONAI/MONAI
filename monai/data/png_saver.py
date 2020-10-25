@@ -100,7 +100,11 @@ class PNGSaver:
             raise ValueError(f"Unsupported number of channels: {data.shape[0]}, available options are [1, 3, 4]")
 
         write_png(
-            data, file_name=filename, output_spatial_shape=spatial_shape, mode=self.mode, scale=self.scale,
+            data,
+            file_name=filename,
+            output_spatial_shape=spatial_shape,
+            mode=self.mode,
+            scale=self.scale,
         )
 
     def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:

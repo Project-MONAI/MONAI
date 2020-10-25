@@ -39,7 +39,13 @@ def get_conv_layer(
 ):
 
     return Convolution(
-        spatial_dims, in_channels, out_channels, strides=stride, kernel_size=kernel_size, bias=bias, conv_only=True,
+        spatial_dims,
+        in_channels,
+        out_channels,
+        strides=stride,
+        kernel_size=kernel_size,
+        bias=bias,
+        conv_only=True,
     )
 
 
@@ -65,7 +71,12 @@ class ResBlock(nn.Module):
     """
 
     def __init__(
-        self, spatial_dims: int, in_channels: int, kernel_size: int = 3, norm_name: str = "group", num_groups: int = 8,
+        self,
+        spatial_dims: int,
+        in_channels: int,
+        kernel_size: int = 3,
+        norm_name: str = "group",
+        num_groups: int = 8,
     ) -> None:
         """
         Args:

@@ -238,7 +238,11 @@ class RandRotate90d(Randomizable, MapTransform):
     """
 
     def __init__(
-        self, keys: KeysCollection, prob: float = 0.1, max_k: int = 3, spatial_axes: Tuple[int, int] = (0, 1),
+        self,
+        keys: KeysCollection,
+        prob: float = 0.1,
+        max_k: int = 3,
+        spatial_axes: Tuple[int, int] = (0, 1),
     ) -> None:
         """
         Args:
@@ -687,7 +691,10 @@ class RandFlipd(Randomizable, MapTransform):
     """
 
     def __init__(
-        self, keys: KeysCollection, prob: float = 0.1, spatial_axis: Optional[Union[Sequence[int], int]] = None,
+        self,
+        keys: KeysCollection,
+        prob: float = 0.1,
+        spatial_axis: Optional[Union[Sequence[int], int]] = None,
     ) -> None:
         super().__init__(keys)
         self.spatial_axis = spatial_axis
@@ -849,7 +856,8 @@ class RandRotated(Randomizable, MapTransform):
         if not self._do_transform:
             return d
         rotator = Rotate(
-            angle=self.x if d[self.keys[0]].ndim == 3 else (self.x, self.y, self.z), keep_size=self.keep_size,
+            angle=self.x if d[self.keys[0]].ndim == 3 else (self.x, self.y, self.z),
+            keep_size=self.keep_size,
         )
         for idx, key in enumerate(self.keys):
             d[key] = rotator(
@@ -905,7 +913,10 @@ class Zoomd(MapTransform):
         d = dict(data)
         for idx, key in enumerate(self.keys):
             d[key] = self.zoomer(
-                d[key], mode=self.mode[idx], padding_mode=self.padding_mode[idx], align_corners=self.align_corners[idx],
+                d[key],
+                mode=self.mode[idx],
+                padding_mode=self.padding_mode[idx],
+                align_corners=self.align_corners[idx],
             )
         return d
 
@@ -981,7 +992,10 @@ class RandZoomd(Randomizable, MapTransform):
         zoomer = Zoom(self._zoom, keep_size=self.keep_size)
         for idx, key in enumerate(self.keys):
             d[key] = zoomer(
-                d[key], mode=self.mode[idx], padding_mode=self.padding_mode[idx], align_corners=self.align_corners[idx],
+                d[key],
+                mode=self.mode[idx],
+                padding_mode=self.padding_mode[idx],
+                align_corners=self.align_corners[idx],
             )
         return d
 

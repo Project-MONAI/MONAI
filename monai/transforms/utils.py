@@ -180,7 +180,9 @@ def resize_center(img: np.ndarray, *resize_dims: Optional[int], fill_value: floa
 
 
 def map_binary_to_indices(
-    label: np.ndarray, image: Optional[np.ndarray] = None, image_threshold: float = 0.0,
+    label: np.ndarray,
+    image: Optional[np.ndarray] = None,
+    image_threshold: float = 0.0,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Compute the foreground and background of input label data, return the indices after fattening.

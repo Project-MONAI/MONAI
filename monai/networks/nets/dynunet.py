@@ -133,7 +133,12 @@ class DynUNet(nn.Module):
 
     def get_input_block(self):
         return self.conv_block(
-            self.spatial_dims, self.in_channels, self.filters[0], self.kernel_size[0], self.strides[0], self.norm_name,
+            self.spatial_dims,
+            self.in_channels,
+            self.filters[0],
+            self.kernel_size[0],
+            self.strides[0],
+            self.norm_name,
         )
 
     def get_bottleneck(self):
@@ -147,7 +152,11 @@ class DynUNet(nn.Module):
         )
 
     def get_output_block(self, idx: int):
-        return UnetOutBlock(self.spatial_dims, self.filters[idx], self.out_channels,)
+        return UnetOutBlock(
+            self.spatial_dims,
+            self.filters[idx],
+            self.out_channels,
+        )
 
     def get_downsamples(self):
         inp, out = self.filters[:-2], self.filters[1:-1]
