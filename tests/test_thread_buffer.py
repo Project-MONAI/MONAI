@@ -15,11 +15,7 @@ class TestDataLoader(unittest.TestCase):
             {"image": "spleen_31.nii.gz", "label": "spleen_label_31.nii.gz"},
         ]
         
-        self.transform = Compose(
-            [
-                SimulateDelayd(keys=["image", "label"], delay_time=0.1),
-            ]
-        )
+        self.transform = Compose([SimulateDelayd(keys=["image", "label"], delay_time=0.1)])
         
     def test_values(self):
         dataset = Dataset(data=self.datalist, transform=self.transform)

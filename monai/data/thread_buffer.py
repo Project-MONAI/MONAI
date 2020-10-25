@@ -10,7 +10,7 @@
 # limitations under the License.
 
 
-from queue import Queue, Full, Empty
+from queue import Empty, Full, Queue
 from threading import Thread
 
 
@@ -19,12 +19,12 @@ class ThreadBuffer:
     Iterates over values from self.src in a separate thread but yielding them in the current thread. This allows values
     to be queued up asynchronously. The internal thread will continue running so long as the source has values or until
     the stop() method is called.
-    
+
     One issue raised by using a thread in this way is that during the lifetime of the thread the source object is being 
     iterated over, so if the thread hasn't finished another attempt to iterate over it will raise an exception or yield
     inexpected results. To ensure the thread releases the iteration and proper cleanup is done the stop() method must 
     be called which will join with the thread. 
-    
+
     Args:
         src: Source data iterable
         buffer_size: Number of items to buffer from the source
@@ -53,14 +53,14 @@ class ThreadBuffer:
 
     def stop(self):
         self.is_running = False  # signal the thread to exit
-        
+
         if self.gen_thread is not None:
             self.gen_thread.join()
-            
+
         self.gen_thread = None
-            
+
     def __iter__(self):
-        
+
         self.is_running = True
         self.gen_thread = Thread(target=self.enqueue_values, daemon=True)
         self.gen_thread.start()
