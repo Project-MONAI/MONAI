@@ -1,7 +1,7 @@
 import time
 import unittest
 
-from monai.data import ThreadBuffer, Dataset, DataLoader
+from monai.data import DataLoader, Dataset, ThreadBuffer
 from monai.transforms import Compose, SimulateDelayd
 from monai.utils import PerfContext
 
