@@ -1,8 +1,8 @@
 import time
 import unittest
 
-from monai.data import DataLoader, Dataset, ThreadBuffer
-from monai.transforms import Compose, DataStatsd, SimulateDelayd
+from monai.data import ThreadBuffer, Dataset, DataLoader
+from monai.transforms import Compose, SimulateDelayd
 from monai.utils import PerfContext
 
 
@@ -36,13 +36,13 @@ class TestDataLoader(unittest.TestCase):
         tbuffer = ThreadBuffer(dataloader)
 
         with PerfContext() as pc:
-            for d in dataloader:
+            for _ in dataloader:
                 time.sleep(0.5)  # each batch takes 0.8 s to generate on top of this time
 
         unbuffered_time = pc.total_time
 
         with PerfContext() as pc:
-            for d in tbuffer:
+            for _ in tbuffer:
                 time.sleep(0.5)  # while "computation" is happening the next batch is being generated, saving 0.4 s
 
         buffered_time = pc.total_time
