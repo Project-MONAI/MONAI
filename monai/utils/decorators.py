@@ -22,14 +22,14 @@ def timing(func):
     @wraps(func)
     def timingwrap(*args, **kwargs):
         print(func.__name__, flush=True)
-        start = time.time()
+        start = time.perf_counter()
         res = func(*args, **kwargs)
-        end = time.time()
+        end = time.perf_counter()
         print(func.__name__, "dT (s) =", (end - start), flush=True)
         return res
 
     return timingwrap
-
+        
 
 class RestartGenerator:
     """
