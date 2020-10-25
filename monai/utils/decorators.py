@@ -29,7 +29,7 @@ def timing(func):
         return res
 
     return timingwrap
-        
+
 
 class RestartGenerator:
     """
