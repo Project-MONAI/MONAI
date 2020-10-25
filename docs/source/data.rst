@@ -133,5 +133,5 @@ DataLoader
 
 
 ThreadBuffer
-~~~~~~~~~~
+~~~~~~~~~~~~
 .. autofunction:: monai.data.ThreadBuffer
