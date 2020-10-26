@@ -12,6 +12,7 @@
 import collections.abc
 import itertools
 import random
+import time
 from ast import literal_eval
 from distutils.util import strtobool
 from typing import Any, Callable, Optional, Sequence, Tuple, Union
@@ -260,3 +261,23 @@ def list_to_dict(items):
                 except ValueError:
                     d[key] = value
     return d
+
+
+class PerfContext:
+    """
+    Context manager for tracking how much time is spent within context blocks. This uses `time.perf_counter` to
+    accumulate the total amount of time in seconds in the attribute `total_time` over however many context blocks
+    the object is used in.
+    """
+
+    def __init__(self):
+        self.total_time = 0
+        self.start_time = None
+
+    def __enter__(self):
+        self.start_time = time.perf_counter()
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        self.total_time += time.perf_counter() - self.start_time
+        self.start_time = None
