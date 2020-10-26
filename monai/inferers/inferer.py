@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from abc import ABC, abstractmethod
-from typing import Sequence, Union
+from typing import Callable, Sequence, Union
 
 import torch
 
@@ -25,7 +25,7 @@ class Inferer(ABC):
     """
 
     @abstractmethod
-    def __call__(self, inputs: torch.Tensor, network: torch.nn.Module):
+    def __call__(self, inputs: torch.Tensor, network: Callable[[torch.Tensor], torch.Tensor]):
         """
         Run inference on `inputs` with the `network` model.
 
@@ -49,13 +49,13 @@ class SimpleInferer(Inferer):
     def __init__(self) -> None:
         Inferer.__init__(self)
 
-    def __call__(self, inputs: torch.Tensor, network: torch.nn.Module):
+    def __call__(self, inputs: torch.Tensor, network: Callable[[torch.Tensor], torch.Tensor]):
         """Unified callable function API of Inferers.
 
         Args:
             inputs: model input data for inference.
             network: target model to execute inference.
-
+                supports callables such as ``lambda x: my_torch_model(x, additional_config)``
         """
         return network(inputs)
 
@@ -114,13 +114,13 @@ class SlidingWindowInferer(Inferer):
         self.padding_mode = padding_mode
         self.cval = cval
 
-    def __call__(self, inputs: torch.Tensor, network: torch.nn.Module) -> torch.Tensor:
+    def __call__(self, inputs: torch.Tensor, network: Callable[[torch.Tensor], torch.Tensor]) -> torch.Tensor:
         """
-        Unified callable function API of Inferers.
 
         Args:
             inputs: model input data for inference.
             network: target model to execute inference.
+                supports callables such as ``lambda x: my_torch_model(x, additional_config)``
 
         """
         return sliding_window_inference(

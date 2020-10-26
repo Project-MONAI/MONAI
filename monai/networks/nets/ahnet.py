@@ -16,6 +16,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from monai.networks.blocks.fcn import FCN
 from monai.networks.layers.factories import Act, Conv, Norm, Pool
 
 
@@ -227,9 +228,9 @@ class Pseudo3DLayer(nn.Module):
         x = self.relu4(x)
         new_features = self.conv4(x)
 
-        self.dropout_prob = 0  # Dropout will make trouble!
+        self.dropout_prob = 0.0  # Dropout will make trouble!
         # since we use the train mode for inference
-        if self.dropout_prob > 0:
+        if self.dropout_prob > 0.0:
             new_features = F.dropout(new_features, p=self.dropout_prob, training=self.training)
         return torch.cat([inx, new_features], 1)
 
@@ -299,7 +300,7 @@ class PSP(nn.Module):
             x16 = self.up16(self.proj16(self.pool16(x)))
             x8 = self.up8(self.proj8(self.pool8(x)))
         else:
-            interpolate_size = tuple(x.size()[2:])
+            interpolate_size = x.shape[2:]
             x64 = F.interpolate(
                 self.proj64(self.pool64(x)),
                 size=interpolate_size,
@@ -363,6 +364,8 @@ class AHNet(nn.Module):
             - ``"transpose"``, uses transposed convolution layers.
             - ``"bilinear"``, uses bilinear interpolate.
             - ``"trilinear"``, uses trilinear interpolate.
+        pretrained: whether to load pretrained weights from ResNet50 to initialize convolution layers, default to False.
+        progress: If True, displays a progress bar of the download of pretrained weights to stderr.
     """
 
     def __init__(
@@ -372,6 +375,8 @@ class AHNet(nn.Module):
         in_channels: int = 1,
         out_channels: int = 1,
         upsample_mode: str = "transpose",
+        pretrained: bool = False,
+        progress: bool = True,
     ):
         self.inplanes = 64
         super(AHNet, self).__init__()
@@ -457,6 +462,10 @@ class AHNet(nn.Module):
             elif isinstance(m, norm_type):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
+
+        if pretrained:
+            net2d = FCN(pretrained=True, progress=progress)
+            self.copy_from(net2d)
 
     def _make_layer(
         self,
