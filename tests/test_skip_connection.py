@@ -41,7 +41,7 @@ class TestSkipConnection(unittest.TestCase):
             self.assertEqual(result.shape, expected_shape)
 
     def test_wrong_mode(self):
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises(ValueError):
             SkipConnection(torch.nn.Softmax(dim=1), mode="test")(torch.randn(10, 10))
 
 

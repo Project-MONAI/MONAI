@@ -18,7 +18,7 @@ from torch import nn
 from torch.autograd import Function
 
 from monai.networks.layers.convutils import gaussian_1d, same_padding
-from monai.utils import ensure_tuple_rep, optional_import
+from monai.utils import SkipMode, ensure_tuple_rep, optional_import
 
 _C, _ = optional_import("monai._C")
 
@@ -35,7 +35,7 @@ class SkipConnection(nn.Module):
     The available modes are ``"cat"``, ``"add"``, ``"mul"``.
     """
 
-    def __init__(self, submodule, dim: int = 1, mode: str = "cat") -> None:
+    def __init__(self, submodule, dim: int = 1, mode: Union[str, SkipMode] = "cat") -> None:
         """
 
         Args:
@@ -47,7 +47,7 @@ class SkipConnection(nn.Module):
         super().__init__()
         self.submodule = submodule
         self.dim = dim
-        self.mode = mode
+        self.mode = SkipMode(mode).value
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         y = self.submodule(x)
