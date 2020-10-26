@@ -42,9 +42,6 @@ class DiceMetric:
             ``"mean_channel"``, ``"sum_channel"``}
             Define the mode to reduce computation result of 1 batch data. Defaults to ``"mean"``.
 
-    Raises:
-        ValueError: When ``sigmoid=True`` and ``other_act is not None``. Incompatible values.
-
     """
 
     def __init__(
@@ -58,8 +55,6 @@ class DiceMetric:
         reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
     ) -> None:
         super().__init__()
-        if sigmoid and other_act is not None:
-            raise ValueError("Incompatible values: ``sigmoid=True`` and ``other_act is not None``.")
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         self.mutually_exclusive = mutually_exclusive
@@ -91,16 +86,11 @@ class DiceMetric:
             logit_thresh=self.logit_thresh,
         )
 
-        # some dice elements might be Nan (if ground truth y was missing (zeros))
-        # we need to account for it
-        nans = torch.isnan(f)
-        not_nans = (~nans).float()
+        # do metric reduction
+        f, not_nans = do_metric_reduction(f, self.reduction)
 
         # save not_nans since we may need it later to know how many elements were valid
         self.not_nans = not_nans
-
-        # do metric reduction
-        f = do_metric_reduction(f, self.reduction)
         return f
 
 
@@ -133,6 +123,11 @@ def compute_meandice(
         logit_thresh: the threshold value used to convert (for example, after sigmoid if `sigmoid=True`)
             `y_pred` into a binary matrix. Defaults to 0.5.
 
+    Raises:
+        ValueError: When ``sigmoid=True`` and ``other_act is not None``. Incompatible values.
+        TypeError: When ``other_act`` is not an ``Optional[Callable]``.
+        ValueError: When ``sigmoid=True`` and ``mutually_exclusive=True``. Incompatible values.
+
     Returns:
         Dice scores per batch and per class, (shape [batch_size, n_classes]).
 
@@ -147,6 +142,12 @@ def compute_meandice(
     bin_mode = "mutually_exclusive" if mutually_exclusive else "threshold"
     if sigmoid and other_act is not None:
         raise ValueError("Incompatible values: sigmoid=True and other_act is not None.")
+    if other_act is not None:
+        if not callable(other_act):
+            raise TypeError(f"other_act must be None or callable but is {type(other_act).__name__}.")
+    if sigmoid and mutually_exclusive:
+        raise ValueError("Incompatible values: sigmoid=True and mutually_exclusive=True.")
+
     activation = "sigmoid" if sigmoid else other_act
 
     y_pred, y = preprocess_input(

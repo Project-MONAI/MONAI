@@ -178,6 +178,8 @@ def do_metric_reduction(
             ["mean", "sum", "mean_batch", "sum_batch", "mean_channel", "sum_channel" "none"].
     """
 
+    # some elements might be Nan (if ground truth y was missing (zeros))
+    # we need to account for it
     nans = torch.isnan(f)
     not_nans = (~nans).float()
     f[nans] = 0
@@ -215,4 +217,4 @@ def do_metric_reduction(
             f"Unsupported reduction: {reduction}, available options are "
             '["mean", "sum", "mean_batch", "sum_batch", "mean_channel", "sum_channel" "none"].'
         )
-    return f
+    return f, not_nans

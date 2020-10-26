@@ -93,15 +93,11 @@ class ConfusionMatrixMetric:
             metric_name=self.metric_name,
         )
 
-        # some elements might be Nan, we need to account for it.
-        nans = torch.isnan(f)
-        not_nans = (~nans).float()
+        # do metric reduction
+        f, not_nans = do_metric_reduction(f, self.reduction)
 
         # save not_nans since we may need it later to know how many elements were valid
         self.not_nans = not_nans
-
-        # do metric reduction
-        f = do_metric_reduction(f, self.reduction)
         return f
 
 

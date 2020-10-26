@@ -11,26 +11,46 @@
 
 import unittest
 
-import numpy as np
 import torch
+from parameterized import parameterized
 
 from monai.handlers import ConfusionMatrix
 
+TEST_CASE_1 = [{"to_onehot_y": True, "bin_mode": "threshold"}, 0.75]
+TEST_CASE_2 = [{"include_background": False, "to_onehot_y": True, "bin_mode": False}, 0.66666]
+TEST_CASE_3 = [{"bin_mode": "mutually_exclusive", "activation": "sigmoid"}]
 
-class TestHandlerConfusionMatrix(unittest.TestCase):
-    def test_compute(self):
-        matrix_metric = ConfusionMatrix(to_onehot_y=True, activation="softmax")
 
-        y_pred = torch.Tensor([[0.1, 0.9], [0.3, 1.4]])
-        y = torch.Tensor([[0], [1]])
-        matrix_metric.update([y_pred, y])
+class TestHandlerMeanDice(unittest.TestCase):
+    # TODO test multi node averaged confusion matrix
 
-        y_pred = torch.Tensor([[0.2, 0.1], [0.1, 0.5]])
-        y = torch.Tensor([[0], [1]])
-        matrix_metric.update([y_pred, y])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    def test_compute(self, input_params, expected_avg):
+        dice_metric = ConfusionMatrix(**input_params)
 
-        value = matrix_metric.compute()
-        np.testing.assert_allclose(0.75, value)
+        y_pred = torch.Tensor([[[0], [1]], [[1], [0]]])
+        y = torch.ones((2, 1, 1))
+        dice_metric.update([y_pred, y])
+
+        y_pred = torch.Tensor([[[0], [1]], [[1], [0]]])
+        y = torch.Tensor([[[1]], [[0]]])
+        dice_metric.update([y_pred, y])
+
+        avg_dice = dice_metric.compute()
+        self.assertAlmostEqual(avg_dice, expected_avg, places=4)
+
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
+    def test_shape_mismatch(self, input_params, _expected):
+        dice_metric = ConfusionMatrix(**input_params)
+        with self.assertRaises((AssertionError, ValueError)):
+            y_pred = torch.Tensor([[0, 1], [1, 0]])
+            y = torch.ones((2, 3))
+            dice_metric.update([y_pred, y])
+
+        with self.assertRaises((AssertionError, ValueError)):
+            y_pred = torch.Tensor([[0, 1], [1, 0]])
+            y = torch.ones((3, 2))
+            dice_metric.update([y_pred, y])
 
 
 if __name__ == "__main__":
