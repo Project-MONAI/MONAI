@@ -18,10 +18,9 @@ from monai.handlers import ConfusionMatrix
 
 TEST_CASE_1 = [{"to_onehot_y": True, "bin_mode": "threshold"}, 0.75]
 TEST_CASE_2 = [{"include_background": False, "to_onehot_y": True, "bin_mode": False}, 0.66666]
-TEST_CASE_3 = [{"bin_mode": "mutually_exclusive", "activation": "sigmoid"}]
 
 
-class TestHandlerMeanDice(unittest.TestCase):
+class TestHandlerConfusionMatrix(unittest.TestCase):
     # TODO test multi node averaged confusion matrix
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
@@ -39,7 +38,7 @@ class TestHandlerMeanDice(unittest.TestCase):
         avg_dice = dice_metric.compute()
         self.assertAlmostEqual(avg_dice, expected_avg, places=4)
 
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_shape_mismatch(self, input_params, _expected):
         dice_metric = ConfusionMatrix(**input_params)
         with self.assertRaises((AssertionError, ValueError)):
