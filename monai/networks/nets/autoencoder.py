@@ -87,20 +87,28 @@ class AutoEncoder(nn.Module):
             for i, (dc, di) in enumerate(zip(self.inter_channels, self.inter_dilations)):
                 if self.num_inter_units > 0:
                     unit = ResidualUnit(
-                        self.dimensions,
-                        layer_channels,
-                        dc,
-                        1,
-                        self.kernel_size,
-                        self.num_inter_units,
-                        self.act,
-                        self.norm,
-                        self.dropout,
-                        di,
+                        dimensions=self.dimensions,
+                        in_channels=layer_channels,
+                        out_channels=dc,
+                        strides=1,
+                        kernel_size=self.kernel_size,
+                        subunits=self.num_inter_units,
+                        act=self.act,
+                        norm=self.norm,
+                        dropout=self.dropout,
+                        dilation=di,
                     )
                 else:
                     unit = Convolution(
-                        self.dimensions, layer_channels, dc, 1, self.kernel_size, self.act, self.norm, self.dropout, di
+                        dimensions=self.dimensions,
+                        in_channels=layer_channels,
+                        out_channels=dc,
+                        strides=1,
+                        kernel_size=self.kernel_size,
+                        act=self.act,
+                        norm=self.norm,
+                        dropout=self.dropout,
+                        dilation=di,
                     )
 
                 intermediate.add_module("inter_%i" % i, unit)
@@ -125,27 +133,27 @@ class AutoEncoder(nn.Module):
 
         if self.num_res_units > 0:
             return ResidualUnit(
-                self.dimensions,
-                in_channels,
-                out_channels,
-                strides,
-                self.kernel_size,
-                self.num_res_units,
-                self.act,
-                self.norm,
-                self.dropout,
+                dimensions=self.dimensions,
+                in_channels=in_channels,
+                out_channels=out_channels,
+                strides=strides,
+                kernel_size=self.kernel_size,
+                subunits=self.num_res_units,
+                act=self.act,
+                norm=self.norm,
+                dropout=self.dropout,
                 last_conv_only=is_last,
             )
         else:
             return Convolution(
-                self.dimensions,
-                in_channels,
-                out_channels,
-                strides,
-                self.kernel_size,
-                self.act,
-                self.norm,
-                self.dropout,
+                dimensions=self.dimensions,
+                in_channels=in_channels,
+                out_channels=out_channels,
+                strides=strides,
+                kernel_size=self.kernel_size,
+                act=self.act,
+                norm=self.norm,
+                dropout=self.dropout,
                 conv_only=is_last,
             )
 
@@ -154,14 +162,14 @@ class AutoEncoder(nn.Module):
         decode = nn.Sequential()
 
         conv = Convolution(
-            self.dimensions,
-            in_channels,
-            out_channels,
-            strides,
-            self.up_kernel_size,
-            self.act,
-            self.norm,
-            self.dropout,
+            dimensions=self.dimensions,
+            in_channels=in_channels,
+            out_channels=out_channels,
+            strides=strides,
+            kernel_size=self.up_kernel_size,
+            act=self.act,
+            norm=self.norm,
+            dropout=self.dropout,
             conv_only=is_last and self.num_res_units == 0,
             is_transposed=True,
         )
@@ -170,15 +178,15 @@ class AutoEncoder(nn.Module):
 
         if self.num_res_units > 0:
             ru = ResidualUnit(
-                self.dimensions,
-                out_channels,
-                out_channels,
-                1,
-                self.kernel_size,
-                1,
-                self.act,
-                self.norm,
-                self.dropout,
+                dimensions=self.dimensions,
+                in_channels=out_channels,
+                out_channels=out_channels,
+                strides=1,
+                kernel_size=self.kernel_size,
+                subunits=1,
+                act=self.act,
+                norm=self.norm,
+                dropout=self.dropout,
                 last_conv_only=is_last,
             )
 
