@@ -20,7 +20,7 @@ from monai.networks.blocks.upsample import UpSample
 from monai.networks.layers.factories import Act, Conv, Norm
 from monai.utils import optional_import
 
-models, _ = optional_import("torchvision", "0.5.0", name="models")
+models, _ = optional_import("torchvision", name="models")
 
 
 class GCN(nn.Module):
