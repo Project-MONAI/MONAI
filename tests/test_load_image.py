@@ -130,6 +130,19 @@ class TestLoadImage(unittest.TestCase):
         self.assertTupleEqual(result.shape, expected_shape)
         self.assertTupleEqual(tuple(header["spatial_shape"]), expected_shape)
 
+    def test_itk_reader_multichannel(self):
+        test_image = np.random.randint(0, 256, size=(256, 256, 3)).astype("uint8")
+        with tempfile.TemporaryDirectory() as tempdir:
+            filename = os.path.join(tempdir, "test_image.png")
+            itk_np_view = itk.image_view_from_array(test_image, is_vector=True)
+            itk.imwrite(itk_np_view, filename)
+            result, header = LoadImage()(filename)
+
+            self.assertTupleEqual(tuple(header["spatial_shape"]), (256, 256))
+            np.testing.assert_allclose(result[0, :, :], test_image[:, :, 0])
+            np.testing.assert_allclose(result[1, :, :], test_image[:, :, 1])
+            np.testing.assert_allclose(result[2, :, :], test_image[:, :, 2])
+
     def test_load_png(self):
         spatial_size = (256, 256)
         test_image = np.random.randint(0, 256, size=spatial_size)

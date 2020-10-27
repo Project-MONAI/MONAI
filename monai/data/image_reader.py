@@ -85,7 +85,8 @@ class ITKReader(ImageReader):
     Load medical images based on ITK library.
     All the supported image formats can be found:
     https://github.com/InsightSoftwareConsortium/ITK/tree/master/Modules/IO
-    The loaded data array will be in C order, for example, a 3D image will be `CDWH`.
+    The loaded data array will be in C order, for example, a 3D image NumPy
+    array index order will be `CDWH`.
 
     Args:
         kwargs: additional args for `itk.imread` API. more details about available args:
@@ -235,11 +236,28 @@ class ITKReader(ImageReader):
         """
         Get the raw array data of the image, converted to Numpy array.
 
+        Following PyTorch conventions, the returned array data has contiguous channels,
+        e.g. for an RGB image, all red channel image pixels are contiguous in memory.
+        The first axis of the returned array is the channel axis.
+
         Args:
             img: a ITK image object loaded from a image file.
 
         """
-        return itk.array_view_from_image(img, keep_axes=False)
+        channels = img.GetNumberOfComponentsPerPixel()
+        if channels == 1:
+            return itk.array_view_from_image(img, keep_axes=False)
+        else:
+            # The memory layout of itk.Image has all pixel's channels adjacent
+            # in memory, i.e. R1G1B1R2G2B2R3G3B3. For PyTorch/MONAI, we need
+            # channels to be contiguous, i.e. R1R2R3G1G2G3B1B2B3.
+            arr = itk.array_view_from_image(img, keep_axes=False)
+            dest = list(range(img.ndim))
+            source = dest.copy()
+            end = source.pop()
+            source.insert(0, end)
+            arr_contiguous_channels = np.moveaxis(arr, source, dest)
+            return arr_contiguous_channels
 
 
 class NibabelReader(ImageReader):
