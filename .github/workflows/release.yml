@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - 'releases/*'
+      - 1149-torch-1-7
     tags:
       - '*'
 

@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - 1149-torch-1-7
 
 jobs:
   # caching of these jobs:

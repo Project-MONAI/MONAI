@@ -3,6 +3,9 @@ name: crons
 on:
   schedule:
     - cron: "0 2 * * *"  # at 02:00 UTC
+  push:
+    branches:
+      - 1149-torch-1-7
 
 jobs:
   cron-gpu:
