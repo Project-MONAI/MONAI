@@ -586,7 +586,7 @@ MONAI_NAMESPACE_DEVICE { // cpu
           }
         }
       });
-      return
+      return;
     }
 #endif
 
