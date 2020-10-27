@@ -10,6 +10,7 @@
 # limitations under the License.
 
 from .ahnet import AHNet
+from .autoencoder import AutoEncoder
 from .basic_unet import *
 from .classifier import *
 from .densenet import DenseNet, densenet121, densenet169, densenet201, densenet264
