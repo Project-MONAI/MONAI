@@ -162,7 +162,7 @@ jobs:
             pytorch: "torch==1.5.0 torchvision==0.6.0"
             base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
           - environment: PT16+CUDA102
-            pytorch: "torch torchvision"
+            pytorch: "torch==1.6.0 torchvision==0.7.0"
             base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
           - environment: PT16+CUDA110
             # we explicitly set pytorch to -h to avoid pip install error
