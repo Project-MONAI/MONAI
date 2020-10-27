@@ -10,8 +10,8 @@
 # limitations under the License.
 
 import os
-import unittest
 import tempfile
+import unittest
 
 from monai.data.utils import create_file_basename
 
