@@ -23,7 +23,7 @@ import torch
 from monai.networks.layers import GaussianFilter
 from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.utils import rescale_array
-from monai.utils import ensure_tuple_size
+from monai.utils import dtype_torch_to_numpy, ensure_tuple_size
 
 
 class RandGaussianNoise(Randomizable, Transform):
@@ -47,13 +47,16 @@ class RandGaussianNoise(Randomizable, Transform):
         self._do_transform = self.R.random() < self.prob
         self._noise = self.R.normal(self.mean, self.R.uniform(0, self.std), size=im_shape)
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: Union[torch.Tensor, np.ndarray]) -> Union[torch.Tensor, np.ndarray]:
         """
         Apply the transform to `img`.
         """
         self.randomize(img.shape)
         assert self._noise is not None
-        return img + self._noise.astype(img.dtype) if self._do_transform else img
+        if not self._do_transform:
+            return img
+        dtype = dtype_torch_to_numpy(img.dtype) if isinstance(img, torch.Tensor) else img.dtype
+        return img + self._noise.astype(dtype)
 
 
 class ShiftIntensity(Transform):
