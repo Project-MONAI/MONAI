@@ -435,7 +435,12 @@ def create_file_basename(
 ) -> str:
     """
     Utility function to create the path to the output file based on the input
-    filename (extension is added by lib level writer before writing the file)
+    filename (file name extension is not added by this function).
+    When `data_root_dir` is not specified, the output file name is:
+
+        `folder_path/input_file_name (no ext.) /input_file_name (no ext.)[_postfix]`
+
+    otherwise the relative path with respect to `data_root_dir` will be inserted.
 
     Args:
         postfix: output name's postfix
@@ -455,7 +460,7 @@ def create_file_basename(
         filename, ext = os.path.splitext(filename)
     # use data_root_dir to find relative path to file
     filedir_rel_path = ""
-    if data_root_dir:
+    if data_root_dir and filedir:
         filedir_rel_path = os.path.relpath(filedir, data_root_dir)
 
     # sub-folder path will be original name without the extension
@@ -463,8 +468,12 @@ def create_file_basename(
     if not os.path.exists(subfolder_path):
         os.makedirs(subfolder_path)
 
-    # add the sub-folder plus the postfix name to become the file basename in the output path
-    return os.path.join(subfolder_path, filename + "_" + postfix)
+    if postfix:
+        # add the sub-folder plus the postfix name to become the file basename in the output path
+        output = os.path.join(subfolder_path, filename + "_" + postfix)
+    else:
+        output = os.path.join(subfolder_path, filename)
+    return os.path.abspath(output)
 
 
 def compute_importance_map(

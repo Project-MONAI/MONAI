@@ -627,8 +627,8 @@ MONAI_NAMESPACE_DEVICE { // cpu
     scalar_t y = grid_ptr_NXY[grid_sC];
 
     // Check if out-of-bound
-    if (!(extrapolate || (inbounds(x, src_X, static_cast<scalar_t>(TINY)) &&
-          inbounds(y, src_Y, static_cast<scalar_t>(TINY))))) {
+    if (!(extrapolate ||
+          (inbounds(x, src_X, static_cast<scalar_t>(TINY)) && inbounds(y, src_Y, static_cast<scalar_t>(TINY))))) {
       if (do_pull || do_sgrad) {
         scalar_t* out_ptr_NCXY = out_ptr + n * out_sN + w * out_sZ + h * out_sY;
         for (offset_t c = 0; c < C; ++c, out_ptr_NCXY += out_sC) {
@@ -676,8 +676,9 @@ MONAI_NAMESPACE_DEVICE { // cpu
     scalar_t z = grid_ptr_NXYZ[grid_sC * 2];
 
     // Check if out-of-bound
-    if (!(extrapolate || (inbounds(x, src_X, static_cast<scalar_t>(TINY)) &&
-          inbounds(y, src_Y, static_cast<scalar_t>(TINY)) && inbounds(z, src_Z, static_cast<scalar_t>(TINY))))) {
+    if (!(extrapolate ||
+          (inbounds(x, src_X, static_cast<scalar_t>(TINY)) && inbounds(y, src_Y, static_cast<scalar_t>(TINY)) &&
+           inbounds(z, src_Z, static_cast<scalar_t>(TINY))))) {
       if (do_pull || do_sgrad) {
         scalar_t* out_ptr_NCXYZ = out_ptr + n * out_sN + w * out_sX + h * out_sY + d * out_sZ;
         for (offset_t c = 0; c < C; ++c, out_ptr_NCXYZ += out_sC) {
