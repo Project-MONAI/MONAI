@@ -278,6 +278,11 @@ Nets
 .. autoclass:: AutoEncoder
   :members:
 
+`VarAutoEncoder`
+~~~~~~~~~~~~~~~~
+.. autoclass:: VarAutoEncoder
+  :members:
+
 `Generator`
 ~~~~~~~~~~~
 .. autoclass:: Generator

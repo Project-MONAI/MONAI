@@ -194,7 +194,11 @@ class AutoEncoder(nn.Module):
 
         return decode
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self, x: torch.Tensor
+    ) -> Union[
+        torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
+    ]:  # big tuple return necessary for VAE, which inherits
         x = self.encode(x)
         x = self.intermediate(x)
         x = self.decode(x)
