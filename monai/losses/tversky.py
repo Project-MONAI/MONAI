@@ -42,6 +42,8 @@ class TverskyLoss(_Loss):
         alpha: float = 0.5,
         beta: float = 0.5,
         reduction: Union[LossReduction, str] = LossReduction.MEAN,
+        smooth_nr: float = 1e-5,
+        smooth_dr: float = 1e-5,
     ) -> None:
         """
         Args:
@@ -60,6 +62,8 @@ class TverskyLoss(_Loss):
                 - ``"none"``: no reduction will be applied.
                 - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
                 - ``"sum"``: the output will be summed.
+            smooth_nr: a small constant added to the numerator to avoid zero.
+            smooth_dr: a small constant added to the denominator to avoid nan.
 
         Raises:
             TypeError: When ``other_act`` is not an ``Optional[Callable]``.
@@ -80,13 +84,14 @@ class TverskyLoss(_Loss):
         self.other_act = other_act
         self.alpha = alpha
         self.beta = beta
+        self.smooth_nr = float(smooth_nr)
+        self.smooth_dr = float(smooth_dr)
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5) -> torch.Tensor:
+    def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
         Args:
             input: the shape should be BNH[WD].
             target: the shape should be BNH[WD].
-            smooth: a small constant to avoid nan.
 
         Raises:
             ValueError: When ``self.reduction`` is not one of ["mean", "sum", "none"].
@@ -135,8 +140,8 @@ class TverskyLoss(_Loss):
         fp = self.alpha * torch.sum(p0 * g1, reduce_axis)
         fn = self.beta * torch.sum(p1 * g0, reduce_axis)
 
-        numerator = tp + smooth
-        denominator = tp + fp + fn + smooth
+        numerator = tp + self.smooth_nr
+        denominator = tp + fp + fn + self.smooth_dr
 
         score: torch.Tensor = 1.0 - numerator / denominator
 
