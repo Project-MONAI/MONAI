@@ -65,7 +65,7 @@ TEST_CASE_3 = [  # 4-channel 3D, batch 4
 CASES = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3]
 
 
-class TestAutoEncoder(unittest.TestCase):
+class TestVarAutoEncoder(unittest.TestCase):
     @parameterized.expand(CASES)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = VarAutoEncoder(**input_param).to(device)
