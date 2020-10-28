@@ -178,6 +178,16 @@ class ChannelMatching(Enum):
     PROJECT = "project"
 
 
+class SkipMode(Enum):
+    """
+    See also: :py:class:`monai.networks.layers.SkipConnection`
+    """
+
+    CAT = "cat"
+    ADD = "add"
+    MUL = "mul"
+
+
 class Method(Enum):
     """
     See also: :py:class:`monai.transforms.croppad.array.SpatialPad`
