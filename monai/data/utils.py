@@ -604,11 +604,11 @@ def partition_dataset(
         indices += indices[: (total_size - data_len)]
     else:
         # remove tail of data to make it evenly divisible
-        indices = indices[: total_size]
+        indices = indices[:total_size]
 
     datasets = list()
     for i in range(num_partitions):
-        _indices = indices[i: total_size: num_partitions]
+        _indices = indices[i:total_size:num_partitions]
         datasets.append([data[j] for j in _indices])
 
     return datasets
@@ -626,6 +626,7 @@ class DistributedSampler(_TorchDistributedSampler):
     https://github.com/pytorch/pytorch/blob/master/torch/utils/data/distributed.py
 
     """
+
     def __init__(self, even_divisible: bool = True, **kwargs):
         super().__init__(**kwargs)
 
