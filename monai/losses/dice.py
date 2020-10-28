@@ -26,12 +26,12 @@ class DiceLoss(_Loss):
     Compute average Dice loss between two tensors. It can support both multi-classes and multi-labels tasks.
     Input logits `input` (BNHW[D] where N is number of classes) is compared with ground truth `target` (BNHW[D]).
     Axis N of `input` is expected to have logit predictions for each class rather than being image channels,
-    while the same axis of `target` can be 1 or N (one-hot format). The `smooth` parameter is a value added to the
-    intersection and union components of the inter-over-union calculation to smooth results and prevent divide by 0,
-    this value should be small. The `include_background` class attribute can be set to False for an instance of
-    DiceLoss to exclude the first category (channel index 0) which is by convention assumed to be background.
-    If the non-background segmentations are small compared to the total image size they can get overwhelmed by
-    the signal from the background so excluding it in such cases helps convergence.
+    while the same axis of `target` can be 1 or N (one-hot format). The `smooth_nr` and `smooth_dr` parameters are
+    values added to the intersection and union components of the inter-over-union calculation to smooth results
+    respectively, these values should be small. The `include_background` class attribute can be set to False for
+    an instance of DiceLoss to exclude the first category (channel index 0) which is by convention assumed to be
+    background. If the non-background segmentations are small compared to the total image size they can get
+    overwhelmed by the signal from the background so excluding it in such cases helps convergence.
 
     Milletari, F. et. al. (2016) V-Net: Fully Convolutional Neural Networks forVolumetric Medical Image Segmentation, 3DV, 2016.
 
@@ -47,6 +47,9 @@ class DiceLoss(_Loss):
         squared_pred: bool = False,
         jaccard: bool = False,
         reduction: Union[LossReduction, str] = LossReduction.MEAN,
+        smooth_nr: float = 1e-5,
+        smooth_dr: float = 1e-5,
+        batch: bool = False,
     ) -> None:
         """
         Args:
@@ -66,6 +69,12 @@ class DiceLoss(_Loss):
                 - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
                 - ``"sum"``: the output will be summed.
 
+            smooth_nr: a small constant added to the numerator to avoid zero.
+            smooth_dr: a small constant added to the denominator to avoid nan.
+            batch: whether to sum the intersection and union areas over the batch dimension before the dividing.
+                Defaults to False, a Dice loss value is computed independently from each item in the batch
+                before any `reduction`.
+
         Raises:
             TypeError: When ``other_act`` is not an ``Optional[Callable]``.
             ValueError: When more than 1 of [``sigmoid=True``, ``softmax=True``, ``other_act is not None``].
@@ -84,13 +93,15 @@ class DiceLoss(_Loss):
         self.other_act = other_act
         self.squared_pred = squared_pred
         self.jaccard = jaccard
+        self.smooth_nr = float(smooth_nr)
+        self.smooth_dr = float(smooth_dr)
+        self.batch = batch
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5) -> torch.Tensor:
+    def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
         Args:
             input: the shape should be BNH[WD].
             target: the shape should be BNH[WD].
-            smooth: a small constant to avoid nan.
 
         Raises:
             ValueError: When ``self.reduction`` is not one of ["mean", "sum", "none"].
@@ -129,6 +140,10 @@ class DiceLoss(_Loss):
 
         # reducing only spatial dimensions (not batch nor channels)
         reduce_axis = list(range(2, len(input.shape)))
+        if self.batch:
+            # reducing spatial dimensions and batch
+            reduce_axis = [0] + reduce_axis
+
         intersection = torch.sum(target * input, dim=reduce_axis)
 
         if self.squared_pred:
@@ -143,7 +158,7 @@ class DiceLoss(_Loss):
         if self.jaccard:
             denominator = 2.0 * (denominator - intersection)
 
-        f: torch.Tensor = 1.0 - (2.0 * intersection + smooth) / (denominator + smooth)
+        f: torch.Tensor = 1.0 - (2.0 * intersection + self.smooth_nr) / (denominator + self.smooth_dr)
 
         if self.reduction == LossReduction.MEAN.value:
             f = torch.mean(f)  # the batch and channel average
@@ -167,14 +182,11 @@ class MaskedDiceLoss(DiceLoss):
 
     """
 
-    def forward(
-        self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5, mask: Optional[torch.Tensor] = None
-    ) -> torch.Tensor:
+    def forward(self, input: torch.Tensor, target: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         """
         Args:
             input: the shape should be BNH[WD].
             target: the shape should be BNH[WD].
-            smooth: a small constant to avoid nan.
             mask: the shape should B1H[WD] or 11H[WD].
         """
         if mask is not None:
@@ -195,7 +207,7 @@ class MaskedDiceLoss(DiceLoss):
         else:
             warnings.warn("no mask value specified for the MaskedDiceLoss.")
 
-        return super().forward(input=input, target=target, smooth=smooth)
+        return super().forward(input=input, target=target)
 
 
 class GeneralizedDiceLoss(_Loss):
@@ -218,6 +230,9 @@ class GeneralizedDiceLoss(_Loss):
         other_act: Optional[Callable] = None,
         w_type: Union[Weight, str] = Weight.SQUARE,
         reduction: Union[LossReduction, str] = LossReduction.MEAN,
+        smooth_nr: float = 1e-5,
+        smooth_dr: float = 1e-5,
+        batch: bool = False,
     ) -> None:
         """
         Args:
@@ -237,6 +252,10 @@ class GeneralizedDiceLoss(_Loss):
                 - ``"none"``: no reduction will be applied.
                 - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
                 - ``"sum"``: the output will be summed.
+            smooth_nr: a small constant added to the numerator to avoid zero.
+            smooth_dr: a small constant added to the denominator to avoid nan.
+            batch: whether to sum the intersection and union areas over the batch dimension before the dividing.
+                Defaults to False, intersection over union is computed from each item in the batch.
 
         Raises:
             TypeError: When ``other_act`` is not an ``Optional[Callable]``.
@@ -262,12 +281,15 @@ class GeneralizedDiceLoss(_Loss):
         elif w_type == Weight.SQUARE:
             self.w_func = lambda x: torch.reciprocal(x * x)
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5) -> torch.Tensor:
+        self.smooth_nr = float(smooth_nr)
+        self.smooth_dr = float(smooth_dr)
+        self.batch = batch
+
+    def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
         Args:
             input: the shape should be BNH[WD].
             target: the shape should be BNH[WD].
-            smooth: a small constant to avoid nan.
 
         Raises:
             ValueError: When ``self.reduction`` is not one of ["mean", "sum", "none"].
@@ -305,6 +327,8 @@ class GeneralizedDiceLoss(_Loss):
 
         # reducing only spatial dimensions (not batch nor channels)
         reduce_axis = list(range(2, len(input.shape)))
+        if self.batch:
+            reduce_axis = [0] + reduce_axis
         intersection = torch.sum(target * input, reduce_axis)
 
         ground_o = torch.sum(target, reduce_axis)
@@ -318,7 +342,9 @@ class GeneralizedDiceLoss(_Loss):
             b[infs] = 0.0
             b[infs] = torch.max(b)
 
-        f: torch.Tensor = 1.0 - (2.0 * (intersection * w).sum(1) + smooth) / ((denominator * w).sum(1) + smooth)
+        f: torch.Tensor = 1.0 - (2.0 * (intersection * w).sum(1) + self.smooth_nr) / (
+            (denominator * w).sum(1) + self.smooth_dr
+        )
 
         if self.reduction == LossReduction.MEAN.value:
             f = torch.mean(f)  # the batch and channel average
@@ -369,7 +395,11 @@ class GeneralizedWassersteinDiceLoss(_Loss):
     """
 
     def __init__(
-        self, dist_matrix: Union[np.ndarray, torch.Tensor], reduction: Union[LossReduction, str] = LossReduction.MEAN
+        self,
+        dist_matrix: Union[np.ndarray, torch.Tensor],
+        reduction: Union[LossReduction, str] = LossReduction.MEAN,
+        smooth_nr: float = 1e-5,
+        smooth_dr: float = 1e-5,
     ) -> None:
         """
         Args:
@@ -377,6 +407,8 @@ class GeneralizedWassersteinDiceLoss(_Loss):
                 between the classes. It must have dimension C x C where C is the
                 number of classes.
             reduction: str; reduction mode.
+            smooth_nr: a small constant added to the numerator to avoid zero.
+            smooth_dr: a small constant added to the denominator to avoid nan.
 
         Raises:
             ValueError: When ``dist_matrix`` is not a square matrix.
@@ -393,13 +425,14 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         if torch.max(self.m) != 1:
             self.m = self.m / torch.max(self.m)
         self.num_classes = self.m.size(0)
+        self.smooth_nr = float(smooth_nr)
+        self.smooth_dr = float(smooth_dr)
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5) -> torch.Tensor:
+    def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
         Args:
             input: the shape should be BNH[WD].
             target: the shape should be BNH[WD].
-            smooth: a small constant to avoid nan.
 
         """
         # Aggregate spatial dimensions
@@ -418,7 +451,7 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         denom = self.compute_denominator(alpha, flat_target, wass_dist_map)
 
         # Compute and return the final loss
-        wass_dice: torch.Tensor = (2.0 * true_pos + smooth) / (denom + smooth)
+        wass_dice: torch.Tensor = (2.0 * true_pos + self.smooth_nr) / (denom + self.smooth_dr)
         wass_dice_loss: torch.Tensor = 1.0 - wass_dice
         return wass_dice_loss.mean()
 
