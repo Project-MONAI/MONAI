@@ -44,6 +44,7 @@ class TverskyLoss(_Loss):
         reduction: Union[LossReduction, str] = LossReduction.MEAN,
         smooth_nr: float = 1e-5,
         smooth_dr: float = 1e-5,
+        batch: bool = False,
     ) -> None:
         """
         Args:
@@ -62,8 +63,12 @@ class TverskyLoss(_Loss):
                 - ``"none"``: no reduction will be applied.
                 - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
                 - ``"sum"``: the output will be summed.
+
             smooth_nr: a small constant added to the numerator to avoid zero.
             smooth_dr: a small constant added to the denominator to avoid nan.
+            batch: whether to sum the intersection and union areas over the batch dimension before the dividing.
+                Defaults to False, a Dice loss value is computed independently from each item in the batch
+                before any `reduction`.
 
         Raises:
             TypeError: When ``other_act`` is not an ``Optional[Callable]``.
@@ -86,6 +91,7 @@ class TverskyLoss(_Loss):
         self.beta = beta
         self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)
+        self.batch = batch
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
@@ -135,11 +141,13 @@ class TverskyLoss(_Loss):
 
         # reducing only spatial dimensions (not batch nor channels)
         reduce_axis = list(range(2, len(input.shape)))
+        if self.batch:
+            # reducing spatial dimensions and batch
+            reduce_axis = [0] + reduce_axis
 
         tp = torch.sum(p0 * g0, reduce_axis)
         fp = self.alpha * torch.sum(p0 * g1, reduce_axis)
         fn = self.beta * torch.sum(p1 * g0, reduce_axis)
-
         numerator = tp + self.smooth_nr
         denominator = tp + fp + fn + self.smooth_dr
 
