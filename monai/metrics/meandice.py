@@ -9,35 +9,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Union
+from typing import Optional, Union
 
 import torch
 
-from monai.metrics.seg_metric_utils import *
+from monai.metrics.utils import *
 
 
 class DiceMetric:
     """
     Compute average Dice loss between two tensors. It can support both multi-classes and multi-labels tasks.
-    Input logits `y_pred` (BNHW[D] where N is number of classes) is compared with ground truth `y` (BNHW[D]).
-    Axis N of `y_preds` is expected to have logit predictions for each class rather than being image channels,
-    while the same axis of `y` can be 1 or N (one-hot format). The `include_background` class attribute can be
-    set to False for an instance of DiceLoss to exclude the first category (channel index 0) which is by
-    convention assumed to be background. If the non-background segmentations are small compared to the total
-    image size they can get overwhelmed by the signal from the background so excluding it in such cases helps
-    convergence.
+    Input `y_pred` (BNHW[D] where N is number of classes) is compared with ground truth `y` (BNHW[D]).
+    `y_preds` is expected to have binarized predictions and `y` should be in one-hot format. You can use suitable transforms
+    in ``monai.transforms.post`` first to achieve binarized values.
+    The `include_background` parameter can be set to ``False`` for an instance of DiceLoss to exclude
+    the first category (channel index 0) which is by convention assumed to be background. If the non-background
+    segmentations are small compared to the total image size they can get overwhelmed by the signal from the
+    background so excluding it in such cases helps convergence.
 
     Args:
         include_background: whether to skip Dice computation on the first channel of
             the predicted output. Defaults to True.
-        to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
-        mutually_exclusive: if True, `y_pred` will be converted into a binary matrix using
-            a combination of argmax and to_onehot.  Defaults to False.
-        sigmoid: whether to add sigmoid function to y_pred before computation. Defaults to False.
-        other_act: callable function to replace `sigmoid` as activation layer if needed, Defaults to ``None``.
-            for example: `other_act = torch.tanh`.
-        logit_thresh: the threshold value used to convert (for example, after sigmoid if `sigmoid=True`)
-            `y_pred` into a binary matrix. Defaults to 0.5.
         reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}
             Define the mode to reduce computation result of 1 batch data. Defaults to ``"mean"``.
@@ -47,20 +39,10 @@ class DiceMetric:
     def __init__(
         self,
         include_background: bool = True,
-        to_onehot_y: bool = False,
-        mutually_exclusive: bool = False,
-        sigmoid: bool = False,
-        other_act: Optional[Callable] = None,
-        logit_thresh: float = 0.5,
         reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
     ) -> None:
         super().__init__()
         self.include_background = include_background
-        self.to_onehot_y = to_onehot_y
-        self.mutually_exclusive = mutually_exclusive
-        self.sigmoid = sigmoid
-        self.other_act = other_act
-        self.logit_thresh = logit_thresh
         self.reduction = reduction
 
         self.not_nans: Optional[torch.Tensor] = None  # keep track for valid elements in the batch
@@ -69,7 +51,8 @@ class DiceMetric:
         """
         Args:
             y_pred: input data to compute, typical segmentation model output.
-                it must be one-hot format and first dim is batch.
+                it must be one-hot format and first dim is batch. The values
+                should be binarized.
             y: ground truth to compute mean dice metric, the first dim is batch.
 
         """
@@ -79,11 +62,6 @@ class DiceMetric:
             y_pred=y_pred,
             y=y,
             include_background=self.include_background,
-            to_onehot_y=self.to_onehot_y,
-            mutually_exclusive=self.mutually_exclusive,
-            sigmoid=self.sigmoid,
-            other_act=self.other_act,
-            logit_thresh=self.logit_thresh,
         )
 
         # do metric reduction
@@ -98,67 +76,33 @@ def compute_meandice(
     y_pred: torch.Tensor,
     y: torch.Tensor,
     include_background: bool = True,
-    to_onehot_y: bool = False,
-    mutually_exclusive: bool = False,
-    sigmoid: bool = False,
-    other_act: Optional[Callable] = None,
-    logit_thresh: float = 0.5,
 ) -> torch.Tensor:
     """Computes Dice score metric from full size Tensor and collects average.
 
     Args:
         y_pred: input data to compute, typical segmentation model output.
-            it must be one-hot format and first dim is batch, example shape: [16, 3, 32, 32].
+            it must be one-hot format and first dim is batch, example shape: [16, 3, 32, 32]. The values
+            should be binarized.
         y: ground truth to compute mean dice metric, the first dim is batch.
-            example shape: [16, 1, 32, 32] will be converted into [16, 3, 32, 32].
-            alternative shape: [16, 3, 32, 32] and set `to_onehot_y=False` to use 3-class labels directly.
         include_background: whether to skip Dice computation on the first channel of
             the predicted output. Defaults to True.
-        to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
-        mutually_exclusive: if True, `y_pred` will be converted into a binary matrix using
-            a combination of argmax and to_onehot.  Defaults to False.
-        sigmoid: whether to add sigmoid function to y_pred before computation. Defaults to False.
-        other_act: callable function to replace `sigmoid` as activation layer if needed, Defaults to ``None``.
-            for example: `other_act = torch.tanh`.
-        logit_thresh: the threshold value used to convert (for example, after sigmoid if `sigmoid=True`)
-            `y_pred` into a binary matrix. Defaults to 0.5.
-
-    Raises:
-        ValueError: When ``sigmoid=True`` and ``other_act is not None``. Incompatible values.
-        TypeError: When ``other_act`` is not an ``Optional[Callable]``.
-        ValueError: When ``sigmoid=True`` and ``mutually_exclusive=True``. Incompatible values.
 
     Returns:
         Dice scores per batch and per class, (shape [batch_size, n_classes]).
 
-    Note:
-        This method provides two options to convert `y_pred` into a binary matrix
-            (1) when `mutually_exclusive` is True, it uses a combination of ``argmax`` and ``to_onehot``,
-            (2) when `mutually_exclusive` is False, it uses a threshold ``logit_thresh``
-                (optionally with a ``sigmoid`` function before thresholding).
+    Raises:
+        ValueError: when `y_pred` and `y` have different shapes.
 
     """
 
-    bin_mode = "mutually_exclusive" if mutually_exclusive else "threshold"
-    if sigmoid and other_act is not None:
-        raise ValueError("Incompatible values: sigmoid=True and other_act is not None.")
-    if other_act is not None:
-        if not callable(other_act):
-            raise TypeError(f"other_act must be None or callable but is {type(other_act).__name__}.")
-    if sigmoid and mutually_exclusive:
-        raise ValueError("Incompatible values: sigmoid=True and mutually_exclusive=True.")
+    if not include_background:
+        y_pred, y = ignore_background(
+            y_pred=y_pred,
+            y=y,
+        )
 
-    activation = "sigmoid" if sigmoid else other_act
-
-    y_pred, y = preprocess_input(
-        y_pred=y_pred,
-        y=y,
-        to_onehot_y=to_onehot_y,
-        activation=activation,
-        bin_mode=bin_mode,
-        bin_threshold=logit_thresh,
-        include_background=include_background,
-    )
+    if y.shape != y_pred.shape:
+        raise ValueError("y_pred and y should have same shapes.")
 
     # reducing only spatial dimensions (not batch nor channels)
     n_len = len(y_pred.shape)

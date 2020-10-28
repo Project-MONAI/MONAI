@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Sequence, Union
+from typing import Callable, Optional, Sequence
 
 import torch
 
@@ -30,10 +30,6 @@ class ConfusionMatrix(Metric):  # type: ignore[valid-type, misc] # due to option
     def __init__(
         self,
         include_background: bool = True,
-        to_onehot_y: bool = False,
-        activation: Optional[Union[str, Callable]] = None,
-        bin_mode: Optional[str] = "threshold",
-        bin_threshold: Union[float, Sequence[float]] = 0.5,
         metric_name: str = "hit_rate",
         output_transform: Callable = lambda x: x,
         device: Optional[torch.device] = None,
@@ -43,20 +39,6 @@ class ConfusionMatrix(Metric):  # type: ignore[valid-type, misc] # due to option
         Args:
             include_background: whether to skip metric computation on the first channel of
                 the predicted output. Defaults to True.
-            to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
-            activation: [``"sigmoid"``, ``"softmax"``]
-                Activation method, if specified, an activation function will be employed for `y_pred`.
-                Defaults to None.
-                The parameter can also be a callable function, for example:
-                ``activation = lambda x: torch.log_softmax(x)``.
-            bin_mode: [``"threshold"``, ``"mutually_exclusive"``]
-                Binarization method, if specified, a binarization manipulation will be employed
-                for `y_pred`.
-
-                - ``"threshold"``, a single threshold or a sequence of thresholds should be set.
-                - ``"mutually_exclusive"``, `y_pred` will be converted by a combination of `argmax` and `to_onehot`.
-            bin_threshold: the threshold for binarization, can be a single value or a sequence of
-                values that each one of the value represents a threshold for a class.
             metric_name: [``"sensitivity"``, ``"specificity"``, ``"precision"``, ``"negative predictive value"``,
                 ``"miss rate"``, ``"fall out"``, ``"false discovery rate"``, ``"false omission rate"``,
                 ``"prevalence threshold"``, ``"threat score"``, ``"accuracy"``, ``"balanced accuracy"``,
@@ -73,10 +55,6 @@ class ConfusionMatrix(Metric):  # type: ignore[valid-type, misc] # due to option
         super().__init__(output_transform, device=device)
         self.confusion_matrix = ConfusionMatrixMetric(
             include_background=include_background,
-            to_onehot_y=to_onehot_y,
-            activation=activation,
-            bin_mode=bin_mode,
-            bin_threshold=bin_threshold,
             metric_name=metric_name,
             reduction=MetricReduction.MEAN,
         )
@@ -95,7 +73,7 @@ class ConfusionMatrix(Metric):  # type: ignore[valid-type, misc] # due to option
             output: sequence with contents [y_pred, y].
 
         Raises:
-            ValueError: When ``output`` length is not 2. MeanDice metric can only support y_pred and y.
+            ValueError: When ``output`` length is not 2. This metric can only support y_pred and y.
 
         """
         if len(output) != 2:
@@ -117,5 +95,5 @@ class ConfusionMatrix(Metric):  # type: ignore[valid-type, misc] # due to option
 
         """
         if self._num_examples == 0:
-            raise NotComputableError("MeanDice must have at least one example before it can be computed.")
+            raise NotComputableError("ConfusionMatrix metric must have at least one example before it can be computed.")
         return self._sum / self._num_examples

@@ -9,11 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Sequence, Union
+from typing import Optional, Union
 
 import torch
 
-from monai.metrics.seg_metric_utils import *
+from monai.metrics.utils import *
 
 
 class ConfusionMatrixMetric:
@@ -21,24 +21,16 @@ class ConfusionMatrixMetric:
     Compute confusion matrix related metrics. This function supports to calculate all metrics mentioned in:
     `Confusion matrix <https://en.wikipedia.org/wiki/Confusion_matrix>`_.
     It can support both multi-classes and multi-labels segmentation tasks.
+    `y_preds` is expected to have binarized predictions and `y` should be in one-hot format. You can use suitable transforms
+    in ``monai.transforms.post`` first to achieve binarized values.
+    The `include_background` parameter can be set to ``False`` for an instance to exclude
+    the first category (channel index 0) which is by convention assumed to be background. If the non-background
+    segmentations are small compared to the total image size they can get overwhelmed by the signal from the
+    background so excluding it in such cases helps convergence.
 
     Args:
         include_background: whether to skip metric computation on the first channel of
             the predicted output. Defaults to True.
-        to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
-        activation: [``"sigmoid"``, ``"softmax"``]
-            Activation method, if specified, an activation function will be employed for `y_pred`.
-            Defaults to None.
-            The parameter can also be a callable function, for example:
-            ``activation = lambda x: torch.log_softmax(x)``.
-        bin_mode: [``"threshold"``, ``"mutually_exclusive"``]
-            Binarization method, if specified, a binarization manipulation will be employed
-            for `y_pred`.
-
-            - ``"threshold"``, a single threshold or a sequence of thresholds should be set.
-            - ``"mutually_exclusive"``, `y_pred` will be converted by a combination of `argmax` and `to_onehot`.
-        bin_threshold: the threshold for binarization, can be a single value or a sequence of
-            values that each one of the value represents a threshold for a class.
         metric_name: [``"sensitivity"``, ``"specificity"``, ``"precision"``, ``"negative predictive value"``,
             ``"miss rate"``, ``"fall out"``, ``"false discovery rate"``, ``"false omission rate"``,
             ``"prevalence threshold"``, ``"threat score"``, ``"accuracy"``, ``"balanced accuracy"``,
@@ -55,19 +47,11 @@ class ConfusionMatrixMetric:
     def __init__(
         self,
         include_background: bool = True,
-        to_onehot_y: bool = False,
-        activation: Optional[Union[str, Callable]] = None,
-        bin_mode: Optional[str] = "threshold",
-        bin_threshold: Union[float, Sequence[float]] = 0.5,
         metric_name: str = "hit_rate",
         reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
     ) -> None:
         super().__init__()
         self.include_background = include_background
-        self.to_onehot_y = to_onehot_y
-        self.activation = activation
-        self.bin_mode = bin_mode
-        self.bin_threshold = bin_threshold
         self.metric_name = metric_name
         self.reduction = reduction
 
@@ -76,8 +60,10 @@ class ConfusionMatrixMetric:
     def __call__(self, y_pred: torch.Tensor, y: torch.Tensor):
         """
         Args:
-            y_pred: input data to compute. It must be one-hot format and first dim is batch.
-            y: ground truth, the first dim is batch.
+            y_pred: input data to compute, typical segmentation model output.
+                it must be one-hot format and first dim is batch. The values
+                should be binarized.
+            y: ground truth to compute the metric, the first dim is batch.
 
         """
 
@@ -86,10 +72,6 @@ class ConfusionMatrixMetric:
             y_pred=y_pred,
             y=y,
             include_background=self.include_background,
-            to_onehot_y=self.to_onehot_y,
-            activation=self.activation,
-            bin_mode=self.bin_mode,
-            bin_threshold=self.bin_threshold,
             metric_name=self.metric_name,
         )
 
@@ -105,10 +87,6 @@ def compute_confusion_matrix_metric(
     y_pred: torch.Tensor,
     y: torch.Tensor,
     include_background: bool = True,
-    to_onehot_y: bool = False,
-    activation: Optional[Union[str, Callable]] = None,
-    bin_mode: Optional[str] = "threshold",
-    bin_threshold: Union[float, Sequence[float]] = 0.5,
     metric_name: str = "hit_rate",
 ):
     """
@@ -117,26 +95,11 @@ def compute_confusion_matrix_metric(
 
     Args:
         y_pred: input data to compute, typical segmentation model output.
-            it must be one-hot format and first dim is batch, example shape: [16, 3, 32, 32].
-        y: ground truth, the first dim is batch.
-            example shape: [16, 1, 32, 32] will be converted into [16, 3, 32, 32].
-            alternative shape: [16, 3, 32, 32] and set `to_onehot_y=False` to use 3-class labels directly.
+            it must be one-hot format and first dim is batch, example shape: [16, 3, 32, 32]. The values
+            should be binarized.
+        y: ground truth to compute mean the metric, the first dim is batch.
         include_background: whether to skip metric computation on the first channel of
             the predicted output. Defaults to True.
-        to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
-        activation: [``"sigmoid"``, ``"softmax"``]
-            Activation method, if specified, an activation function will be employed for `y_pred`.
-            Defaults to None.
-            The parameter can also be a callable function, for example:
-            ``activation = lambda x: torch.log_softmax(x)``.
-        bin_mode: [``"threshold"``, ``"mutually_exclusive"``]
-            Binarization method, if specified, a binarization manipulation will be employed
-            for `y_pred`.
-
-            - ``"threshold"``, a single threshold or a sequence of thresholds should be set.
-            - ``"mutually_exclusive"``, `y_pred` will be converted by a combination of `argmax` and `to_onehot`.
-        bin_threshold: the threshold for binarization, can be a single value or a sequence of
-            values that each one of the value represents a threshold for a class.
         metric_name: [``"sensitivity"``, ``"specificity"``, ``"precision"``, ``"negative predictive value"``,
             ``"miss rate"``, ``"fall out"``, ``"false discovery rate"``, ``"false omission rate"``,
             ``"prevalence threshold"``, ``"threat score"``, ``"accuracy"``, ``"balanced accuracy"``,
@@ -146,25 +109,26 @@ def compute_confusion_matrix_metric(
             and you can also input those names instead.
 
     Raises:
-        AssertionError: when `y_pred` and `y` have different shapes.
-        AssertionError: when `y_pred` has less than three dimensions.
+        ValueError: when `y_pred` and `y` have different shapes.
+        ValueError: when `y_pred` has less than three dimensions.
         NotImplementedError: when the metric is not implemented.
     """
 
-    y_pred, y = preprocess_input(
-        y_pred=y_pred,
-        y=y,
-        to_onehot_y=to_onehot_y,
-        activation=activation,
-        bin_mode=bin_mode,
-        bin_threshold=bin_threshold,
-        include_background=include_background,
-    )
+    if not include_background:
+        y_pred, y = ignore_background(
+            y_pred=y_pred,
+            y=y,
+        )
+
+    if y.shape != y_pred.shape:
+        raise ValueError("y_pred and y should have same shapes.")
 
     # get confusion matrix related metric
     with torch.no_grad():
         dims = y_pred.ndimension()
-        assert dims > 2, "for segmentation task, y_pred should have at least three dimensions."
+        if dims < 3:
+            raise ValueError("for segmentation task, y_pred should have at least three dimensions.")
+
         batch_size, n_class = y_pred.shape[:2]
         # convert to [BNS], where S is the number of pixels for one sample.
         y_pred = y_pred.view(batch_size, n_class, -1)
