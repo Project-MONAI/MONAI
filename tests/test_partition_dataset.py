@@ -75,9 +75,59 @@ TEST_CASE_5 = [
     [[1, 3], [2, 4]],
 ]
 
+TEST_CASE_6 = [
+    {
+        "data": [1, 2, 3, 4, 5],
+        "ratios": [3, 2],
+        "num_partitions": None,
+        "shuffle": False,
+        "seed": 0,
+        "drop_last": True,
+        "even_divisible": True,
+    },
+    [[1, 2, 3], [4, 5]],
+]
+
+TEST_CASE_7 = [
+    {
+        "data": [1, 2, 3, 4, 5],
+        "ratios": [2, 1],
+        "num_partitions": None,
+        "shuffle": False,
+        "seed": 0,
+        "drop_last": True,
+        "even_divisible": True,
+    },
+    [[1, 2, 3], [4, 5]],
+]
+
+TEST_CASE_8 = [
+    {
+        "data": [1, 2, 3, 4, 5],
+        "ratios": [2, 1],
+        "num_partitions": None,
+        "shuffle": True,
+        "seed": 123,
+        "drop_last": True,
+        "even_divisible": True,
+    },
+    [[2, 4, 5], [1, 3]],
+]
+
 
 class TestPartitionDataset(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
+    @parameterized.expand(
+        [
+            TEST_CASE_1,
+            TEST_CASE_2,
+            TEST_CASE_3,
+            TEST_CASE_4,
+            TEST_CASE_5,
+            TEST_CASE_6,
+            TEST_CASE_7,
+            TEST_CASE_8,
+        ]
+    )
     def test_value(self, input_param, result):
         self.assertListEqual(partition_dataset(**input_param), result)
 
