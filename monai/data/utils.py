@@ -604,6 +604,8 @@ def partition_dataset(
             next_idx = min(start_idx + int(r / rsum * data_len + 0.5), data_len)
             datasets.append([data[i] for i in indices[start_idx:next_idx]])
     else:
+        if num_partitions is None:
+            raise ValueError("must specify number of partitions.")
         # evenly split the data without ratios
         if not even_divisible and drop_last:
             raise RuntimeError("drop_last only works when even_divisible is True.")
@@ -623,7 +625,7 @@ def partition_dataset(
             indices += indices[: (total_size - data_len)]
         else:
             # remove tail of data to make it evenly divisible
-            indices = indices[:total_size]
+            indices = indices[: total_size]
 
         for i in range(num_partitions):
             _indices = indices[i:total_size:num_partitions]
@@ -676,7 +678,7 @@ def partition_dataset_classes(
         for i, c in enumerate(classes):
             class_indices[c].append(i)
 
-        class_partition_indices = None
+        class_partition_indices: List[Sequence] = list()
         for _, per_class_indices in sorted(class_indices.items()):
             per_class_partition_indices = partition_dataset(
                 data=per_class_indices,
@@ -687,7 +689,7 @@ def partition_dataset_classes(
                 drop_last=drop_last,
                 even_divisible=even_divisible,
             )
-            if class_partition_indices is None:
+            if len(class_partition_indices) == 0:
                 class_partition_indices = per_class_partition_indices
             else:
                 for part, data_indices in zip(class_partition_indices, per_class_partition_indices):
@@ -716,6 +718,10 @@ class DistributedSampler(_TorchDistributedSampler):
     """
 
     def __init__(self, even_divisible: bool = True, **kwargs):
+        self.total_size: int = 0
+        self.rank: int = 0
+        self.num_samples: int = 0
+        self.num_replicas: int = 0
         super().__init__(**kwargs)
 
         if not even_divisible:
