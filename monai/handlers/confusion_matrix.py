@@ -14,7 +14,7 @@ from typing import Callable, Optional, Sequence
 import torch
 
 from monai.metrics import ConfusionMatrixMetric
-from monai.utils import MetricReduction, exact_version, optional_import
+from monai.utils import exact_version, optional_import
 
 NotComputableError, _ = optional_import("ignite.exceptions", "0.4.2", exact_version, "NotComputableError")
 Metric, _ = optional_import("ignite.metrics", "0.4.2", exact_version, "Metric")
@@ -31,6 +31,8 @@ class ConfusionMatrix(Metric):  # type: ignore[valid-type, misc] # due to option
         self,
         include_background: bool = True,
         metric_name: str = "hit_rate",
+        compute_sample: bool = True,
+        output_class: bool = False,
         output_transform: Callable = lambda x: x,
         device: Optional[torch.device] = None,
     ) -> None:
@@ -46,17 +48,22 @@ class ConfusionMatrix(Metric):  # type: ignore[valid-type, misc] # due to option
                 ``"informedness"``, ``"markedness"``]
                 Some of the metrics have multiple aliases (as shown in the wikipedia page aforementioned),
                 and you can also input those names instead.
+            compute_sample: if ``True``, each sample's metric will be computed first. Defaults to ``True``.
+            output_class: if ``True``, scores for each class will be returned. The final result is each class's score.
+                If average these scores, you will get the macro average of each class. Otherwise, the micro average score
+                of each class will be returned. Defaults to ``False``.
             output_transform: transform the ignite.engine.state.output into [y_pred, y] pair.
             device: device specification in case of distributed computation usage.
 
         See also:
-            :py:meth:`monai.metrics.confusion_matrix.compute_confusion_matrix_metric`
+            :py:meth:`monai.metrics.confusion_matrix`
         """
         super().__init__(output_transform, device=device)
         self.confusion_matrix = ConfusionMatrixMetric(
             include_background=include_background,
             metric_name=metric_name,
-            reduction=MetricReduction.MEAN,
+            compute_sample=compute_sample,
+            output_class=output_class,
         )
         self._sum = 0.0
         self._num_examples = 0

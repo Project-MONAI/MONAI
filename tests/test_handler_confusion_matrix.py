@@ -16,8 +16,8 @@ from parameterized import parameterized
 
 from monai.handlers import ConfusionMatrix
 
-TEST_CASE_1 = [{"include_background": True, "metric_name": "f1"}, 0.75]
-TEST_CASE_2 = [{"include_background": False, "metric_name": "ppv"}, 1.0]
+TEST_CASE_1 = [{"include_background": True, "metric_name": "f1", "compute_sample": True, "output_class": False}, 0.75]
+TEST_CASE_2 = [{"include_background": False, "metric_name": "ppv", "compute_sample": True, "output_class": False}, 1.0]
 
 
 class TestHandlerConfusionMatrix(unittest.TestCase):

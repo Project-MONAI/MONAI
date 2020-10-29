@@ -51,12 +51,23 @@ class DiceMetric:
         """
         Args:
             y_pred: input data to compute, typical segmentation model output.
-                it must be one-hot format and first dim is batch. The values
+                It must be one-hot format and first dim is batch, example shape: [16, 3, 32, 32]. The values
                 should be binarized.
-            y: ground truth to compute mean dice metric, the first dim is batch.
+            y: ground truth to compute mean dice metric. It must be one-hot format and first dim is batch.
+                The values should be binarized.
 
+        Raises:
+            ValueError: when `y_pred` is not a binarized tensor.
+            ValueError: when `y` is not a binarized tensor.
+            ValueError: when `y_pred` has less than three dimensions.
         """
-
+        if not torch.all(y_pred.byte() == y_pred):
+            raise ValueError("y_pred should be a binarized tensor.")
+        if not torch.all(y.byte() == y):
+            raise ValueError("y should be a binarized tensor.")
+        dims = y_pred.ndimension()
+        if dims < 3:
+            raise ValueError("y_pred should have at least three dimensions.")
         # compute dice (BxC) for each channel for each batch
         f = compute_meandice(
             y_pred=y_pred,
@@ -81,9 +92,10 @@ def compute_meandice(
 
     Args:
         y_pred: input data to compute, typical segmentation model output.
-            it must be one-hot format and first dim is batch, example shape: [16, 3, 32, 32]. The values
+            It must be one-hot format and first dim is batch, example shape: [16, 3, 32, 32]. The values
             should be binarized.
-        y: ground truth to compute mean dice metric, the first dim is batch.
+        y: ground truth to compute mean dice metric. It must be one-hot format and first dim is batch.
+            The values should be binarized.
         include_background: whether to skip Dice computation on the first channel of
             the predicted output. Defaults to True.
 

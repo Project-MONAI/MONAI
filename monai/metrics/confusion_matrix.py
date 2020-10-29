@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from typing import Optional, Union
 
 import torch
@@ -20,7 +21,7 @@ class ConfusionMatrixMetric:
     """
     Compute confusion matrix related metrics. This function supports to calculate all metrics mentioned in:
     `Confusion matrix <https://en.wikipedia.org/wiki/Confusion_matrix>`_.
-    It can support both multi-classes and multi-labels segmentation tasks.
+    It can support both multi-classes and multi-labels classification and segmentation tasks.
     `y_preds` is expected to have binarized predictions and `y` should be in one-hot format. You can use suitable transforms
     in ``monai.transforms.post`` first to achieve binarized values.
     The `include_background` parameter can be set to ``False`` for an instance to exclude
@@ -38,9 +39,10 @@ class ConfusionMatrixMetric:
             ``"informedness"``, ``"markedness"``]
             Some of the metrics have multiple aliases (as shown in the wikipedia page aforementioned),
             and you can also input those names instead.
-        reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
-            ``"mean_channel"``, ``"sum_channel"``}
-            Define the mode to reduce computation result of 1 batch data. Defaults to ``"mean"``.
+        compute_sample: if ``True``, each sample's metric will be computed first. Defaults to ``False``.
+        output_class: if ``True``, scores for each class will be returned. The final result is each class's score.
+            If average these scores, you will get the macro average of each class. Otherwise, the micro average score
+            of each class will be returned. Defaults to ``False``.
 
     """
 
@@ -48,70 +50,90 @@ class ConfusionMatrixMetric:
         self,
         include_background: bool = True,
         metric_name: str = "hit_rate",
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        compute_sample: bool = False,
+        output_class: bool = False,
     ) -> None:
         super().__init__()
         self.include_background = include_background
         self.metric_name = metric_name
-        self.reduction = reduction
+        self.compute_sample = compute_sample
+        self.output_class = output_class
 
         self.not_nans: Optional[torch.Tensor] = None  # keep track for valid elements in the batch
 
     def __call__(self, y_pred: torch.Tensor, y: torch.Tensor):
         """
         Args:
-            y_pred: input data to compute, typical segmentation model output.
-                it must be one-hot format and first dim is batch. The values
-                should be binarized.
-            y: ground truth to compute the metric, the first dim is batch.
-
+            y_pred: input data to compute. It must be one-hot format and first dim is batch.
+                The values should be binarized.
+            y: ground truth to compute the metric. It must be one-hot format and first dim is batch.
+                The values should be binarized.
+        Raises:
+            ValueError: when `y_pred` is not a binarized tensor.
+            ValueError: when `y` is not a binarized tensor.
+            ValueError: when `y_pred` has less than two dimensions.
         """
+        # check binarized input
+        if not torch.all(y_pred.byte() == y_pred):
+            raise ValueError("y_pred should be a binarized tensor.")
+        if not torch.all(y.byte() == y):
+            raise ValueError("y should be a binarized tensor.")
+        # check dimension
+        dims = y_pred.ndimension()
+        if dims < 2:
+            raise ValueError("y_pred should have at least two dimensions.")
+        elif dims == 2 or (dims == 3 and y_pred.shape[-1] == 1):
+            if self.compute_sample:
+                warnings.warn("As for classification task, compute_sample should be False.")
+                self.compute_sample = False
 
-        # compute metric (BxC) for each channel for each batch.
-        f = compute_confusion_matrix_metric(
+        confusion_matrix = get_confusion_matrix(
             y_pred=y_pred,
             y=y,
             include_background=self.include_background,
-            metric_name=self.metric_name,
         )
 
-        # do metric reduction
-        f, not_nans = do_metric_reduction(f, self.reduction)
-
-        # save not_nans since we may need it later to know how many elements were valid
+        if self.compute_sample:
+            confusion_matrix = compute_confusion_matrix_metric(self.metric_name, confusion_matrix)
+            if self.output_class:
+                f, not_nans = do_metric_reduction(confusion_matrix, MetricReduction.MEAN_BATCH)
+            else:
+                f, not_nans = do_metric_reduction(confusion_matrix, MetricReduction.MEAN)
+        else:
+            if self.output_class:
+                f, _ = do_metric_reduction(confusion_matrix, MetricReduction.SUM_BATCH)
+            else:
+                f, _ = do_metric_reduction(confusion_matrix, MetricReduction.SUM)
+            f = compute_confusion_matrix_metric(self.metric_name, f)
+            nans = torch.isnan(f)
+            not_nans = (~nans).float()
+            f[nans] = 0
+            not_nans = not_nans.sum(dim=0)
         self.not_nans = not_nans
         return f
 
 
-def compute_confusion_matrix_metric(
+def get_confusion_matrix(
     y_pred: torch.Tensor,
     y: torch.Tensor,
     include_background: bool = True,
-    metric_name: str = "hit_rate",
 ):
     """
-    Compute confusion matrix related metrics. This function supports to calculate all metrics
-    mentioned in: `Confusion matrix <https://en.wikipedia.org/wiki/Confusion_matrix>`_.
+    Compute confusion matrix. A tensor with the shape [BC4] will be returned. Where, the third dimension
+    represents the number of true positive, false positive, true negative and false negative values for
+    each channel of each sample within the input batch. Where, B equals to the batch size and C equals to
+    the number of classes that need to be computed.
 
     Args:
-        y_pred: input data to compute, typical segmentation model output.
-            it must be one-hot format and first dim is batch, example shape: [16, 3, 32, 32]. The values
-            should be binarized.
-        y: ground truth to compute mean the metric, the first dim is batch.
+        y_pred: input data to compute. It must be one-hot format and first dim is batch.
+            The values should be binarized.
+        y: ground truth to compute the metric. It must be one-hot format and first dim is batch.
+            The values should be binarized.
         include_background: whether to skip metric computation on the first channel of
             the predicted output. Defaults to True.
-        metric_name: [``"sensitivity"``, ``"specificity"``, ``"precision"``, ``"negative predictive value"``,
-            ``"miss rate"``, ``"fall out"``, ``"false discovery rate"``, ``"false omission rate"``,
-            ``"prevalence threshold"``, ``"threat score"``, ``"accuracy"``, ``"balanced accuracy"``,
-            ``"f1 score"``, ``"matthews correlation coefficient"``, ``"fowlkes mallows index"``,
-            ``"informedness"``, ``"markedness"``]
-            Some of the metrics have multiple aliases (as shown in the wikipedia page aforementioned),
-            and you can also input those names instead.
 
     Raises:
         ValueError: when `y_pred` and `y` have different shapes.
-        ValueError: when `y_pred` has less than three dimensions.
-        NotImplementedError: when the metric is not implemented.
     """
 
     if not include_background:
@@ -125,12 +147,9 @@ def compute_confusion_matrix_metric(
 
     # get confusion matrix related metric
     with torch.no_grad():
-        dims = y_pred.ndimension()
-        if dims < 3:
-            raise ValueError("for segmentation task, y_pred should have at least three dimensions.")
-
         batch_size, n_class = y_pred.shape[:2]
         # convert to [BNS], where S is the number of pixels for one sample.
+        # As for classification tasks, S equals to 1.
         y_pred = y_pred.view(batch_size, n_class, -1)
         y = y.view(batch_size, n_class, -1)
         tp = ((y_pred + y) == 2).float()
@@ -144,8 +163,43 @@ def compute_confusion_matrix_metric(
         fn = p - tp
         fp = n - tn
 
+    return torch.stack([tp, fp, tn, fn], dim=-1)
+
+
+def compute_confusion_matrix_metric(metric_name: str, confusion_matrix: torch.Tensor):
+    """
+    This function is used to compute confusion matrix related metric.
+
+    Args:
+        metric_name: [``"sensitivity"``, ``"specificity"``, ``"precision"``, ``"negative predictive value"``,
+            ``"miss rate"``, ``"fall out"``, ``"false discovery rate"``, ``"false omission rate"``,
+            ``"prevalence threshold"``, ``"threat score"``, ``"accuracy"``, ``"balanced accuracy"``,
+            ``"f1 score"``, ``"matthews correlation coefficient"``, ``"fowlkes mallows index"``,
+            ``"informedness"``, ``"markedness"``]
+            Some of the metrics have multiple aliases (as shown in the wikipedia page aforementioned),
+            and you can also input those names instead.
+        confusion_matrix: Please see the doc string of the function ``get_confusion_matrix`` for more details.
+
+    Raises:
+        ValueError: when the size of the last dimension of confusion_matrix is not 4.
+        NotImplementedError: when specify a not implemented metric_name.
+
+    """
+
     metric = check_confusion_matrix_metric_name(metric_name)
 
+    input_dim = confusion_matrix.ndimension()
+    if input_dim == 1:
+        confusion_matrix = confusion_matrix.unsqueeze(dim=0)
+    if confusion_matrix.shape[-1] != 4:
+        raise ValueError("the size of the last dimension of confusion_matrix should be 4.")
+
+    tp = confusion_matrix[..., 0]
+    fp = confusion_matrix[..., 1]
+    tn = confusion_matrix[..., 2]
+    fn = confusion_matrix[..., 3]
+    p = tp + fn
+    n = fp + tn
     # calculate metric
     numerator: torch.Tensor
     denominator: Union[torch.Tensor, float]
@@ -203,11 +257,10 @@ def compute_confusion_matrix_metric(
         raise NotImplementedError("the metric is not implemented.")
 
     if isinstance(denominator, torch.Tensor):
-        result = torch.where(denominator > 0, numerator / denominator, torch.tensor(float("nan")))
+        result = torch.where(denominator != 0, numerator / denominator, torch.tensor(float("nan")))
     else:
         result = numerator / denominator
-
-    return result  # returns array of metric with shape: [batch, n_classes]
+    return result
 
 
 def check_confusion_matrix_metric_name(metric_name: str):
