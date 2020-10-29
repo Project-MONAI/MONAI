@@ -13,6 +13,7 @@ from .acti_norm import ADN
 from .activation import Mish, Swish
 from .aspp import SimpleASPP
 from .convolutions import Convolution, ResidualUnit
+from .crf import CRF
 from .downsample import MaxAvgPool
 from .dynunet_block import UnetBasicBlock, UnetOutBlock, UnetResBlock, UnetUpBlock, get_output_padding, get_padding
 from .fcn import FCN, GCN, MCFCN, Refine
