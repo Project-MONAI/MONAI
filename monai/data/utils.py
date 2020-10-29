@@ -12,10 +12,11 @@
 import math
 import os
 import warnings
+from collections import defaultdict
 from itertools import product, starmap
 from pathlib import PurePath
 from typing import Dict, Generator, List, Optional, Sequence, Tuple, Union
-from collections import defaultdict
+
 import numpy as np
 import torch
 from torch.utils.data import DistributedSampler as _TorchDistributedSampler
@@ -601,7 +602,7 @@ def partition_dataset(
         for r in ratios:
             start_idx = next_idx
             next_idx = min(start_idx + int(r / rsum * data_len + 0.5), data_len)
-            datasets.append([data[i] for i in indices[start_idx: next_idx]])
+            datasets.append([data[i] for i in indices[start_idx:next_idx]])
     else:
         # evenly split the data without ratios
         if not even_divisible and drop_last:
