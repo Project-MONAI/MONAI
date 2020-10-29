@@ -35,7 +35,7 @@ class UNet(nn.Module):
         num_res_units: int = 0,
         act=Act.PRELU,
         norm=Norm.INSTANCE,
-        dropout=0,
+        dropout=0.0,
     ) -> None:
         """
         Enhanced version of UNet which has residual units implemented with the ResidualUnit class.

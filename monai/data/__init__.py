@@ -21,4 +21,5 @@ from .nifti_writer import write_nifti
 from .png_saver import PNGSaver
 from .png_writer import write_png
 from .synthetic import *
+from .thread_buffer import ThreadBuffer
 from .utils import *

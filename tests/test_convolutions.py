@@ -68,13 +68,13 @@ class TestConvolution2D(TorchImageTestCase2D):
 
 class TestConvolution3D(TorchImageTestCase3D):
     def test_conv1(self):
-        conv = Convolution(3, self.input_channels, self.output_channels)
+        conv = Convolution(3, self.input_channels, self.output_channels, dropout=0.1, adn_ordering="DAN")
         out = conv(self.imt)
         expected_shape = (1, self.output_channels, self.im_shape[1], self.im_shape[0], self.im_shape[2])
         self.assertEqual(out.shape, expected_shape)
 
     def test_conv1_no_acti(self):
-        conv = Convolution(3, self.input_channels, self.output_channels, act=None)
+        conv = Convolution(3, self.input_channels, self.output_channels, act=None, adn_ordering="AND")
         out = conv(self.imt)
         expected_shape = (1, self.output_channels, self.im_shape[1], self.im_shape[0], self.im_shape[2])
         self.assertEqual(out.shape, expected_shape)
