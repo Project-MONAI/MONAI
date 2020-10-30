@@ -102,6 +102,7 @@ TEST_CASE_AHNET_3D_WITH_PRETRAIN_3 = [
 
 class TestFCN(unittest.TestCase):
     @parameterized.expand([TEST_CASE_FCN_1, TEST_CASE_FCN_2, TEST_CASE_FCN_3])
+    @skip_if_quick
     def test_fcn_shape(self, input_param, input_shape, expected_shape):
         net = FCN(**input_param)
         net.eval()

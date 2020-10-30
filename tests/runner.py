@@ -13,6 +13,8 @@ import sys
 import time
 import unittest
 
+from monai.utils import PerfContext
+
 results: dict = dict()
 
 
@@ -41,37 +43,36 @@ class TimeLoggingTestResult(unittest.TextTestResult):
         super().stopTest(test)
 
 
-def print_results(results):
+def print_results(results, discovery_time):
     timings = dict(sorted(results.items(), key=lambda item: item[1]))
     for r in timings:
         print(f"{r} ({timings[r]:.03}s)")
-    print(f'total testing time: {sum(results.values())}s')
-
-
-def discover_tests(loader, path):
-    start_time = time.time()
-    tests = loader.discover(path)
-    print(f'time to discover tests: {time.time() - start_time}s')
-    return tests
+    print(f"test discovery time: {discovery_time}s")
+    print(f"total testing time: {sum(results.values())}s")
 
 
 if __name__ == "__main__":
-    path = sys.argv[1] if len(sys.argv) > 1 else "."
+    path = sys.argv[1] if len(sys.argv) > 1 else "tests"
     print(f"Running tests in folder: '{path}'")
 
     loader = unittest.TestLoader()
-    tests = discover_tests(loader, path)
+
+    with PerfContext() as pc:
+        tests = loader.discover(path)
+    discovery_time = pc.total_time
+    print(f"time to discover tests: {discovery_time}s")
+
     test_runner = unittest.runner.TextTestRunner(resultclass=TimeLoggingTestResult)
 
     try:
         test_result = test_runner.run(tests)
         print("\n\ntests finished, printing times in ascending order...\n")
-        print_results(results)
+        print_results(results, discovery_time)
     except KeyboardInterrupt:
         print("\n\ntests cancelled, printing completed times in ascending order...\n")
-        print_results(results)
+        print_results(results, discovery_time)
         exit(1)
     except Exception:
         print("\n\nexception reached, printing completed times in ascending order...\n")
-        print_results(results)
+        print_results(results, discovery_time)
         raise
