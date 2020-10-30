@@ -15,6 +15,7 @@ import unittest
 
 results: dict = dict()
 
+
 class TimeLoggingTestResult(unittest.TextTestResult):
     """Overload the default results so that we can store the results."""
 
@@ -40,6 +41,12 @@ class TimeLoggingTestResult(unittest.TextTestResult):
         super().stopTest(test)
 
 
+def print_results(results):
+    timings = dict(sorted(results.items(), key=lambda item: item[1]))
+    for r in timings:
+        print(f"{r} ({timings[r]:.03}s)")
+
+
 if __name__ == "__main__":
     path = sys.argv[1] if len(sys.argv) > 1 else "."
     print(f"Running tests in folder: '{path}'")
@@ -51,9 +58,8 @@ if __name__ == "__main__":
     try:
         test_result = test_runner.run(tests)
         print("\n\ntests finished, printing times in ascending order...\n")
-    except KeyboardInterrupt:
+        print_results(results)
+    except Exception:
         print("\n\ntests cancelled, printing completed times in ascending order...\n")
-    finally:
-        timings = dict(sorted(results.items(), key=lambda item: item[1]))
-        for r in timings:
-            print(f"{r} ({timings[r]:.03}s)")
+        print_results(results)
+        raise
