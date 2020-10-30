@@ -17,6 +17,8 @@ import torch.distributed as dist
 from monai.metrics import compute_roc_auc
 from monai.utils import Average, exact_version, optional_import
 
+from .utils import all_gather
+
 Metric, _ = optional_import("ignite.metrics", "0.4.2", exact_version, "Metric")
 reinit__is_reduced, _ = optional_import("ignite.metrics.metric", "0.4.2", exact_version, "reinit__is_reduced")
 
@@ -102,13 +104,8 @@ class ROCAUC(Metric):  # type: ignore[valid-type, misc]  # due to optional_impor
         _target_tensor = torch.cat(self._targets, dim=0)
 
         if dist.is_available() and dist.is_initialized() and not self._is_reduced:
-            # create placeholder to collect the data from all processes:
-            output = [torch.zeros_like(_prediction_tensor) for _ in range(dist.get_world_size())]
-            dist.all_gather(output, _prediction_tensor)
-            _prediction_tensor = torch.cat(output, dim=0)
-            output = [torch.zeros_like(_target_tensor) for _ in range(dist.get_world_size())]
-            dist.all_gather(output, _target_tensor)
-            _target_tensor = torch.cat(output, dim=0)
+            _prediction_tensor = all_gather(_prediction_tensor)
+            _target_tensor = all_gather(_target_tensor)
             self._is_reduced = True
 
         return compute_roc_auc(

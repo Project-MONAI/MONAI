@@ -130,3 +130,8 @@ Decathlon Datalist
 DataLoader
 ~~~~~~~~~~
 .. autofunction:: monai.data.DataLoader
+
+
+ThreadBuffer
+~~~~~~~~~~~~
+.. autofunction:: monai.data.ThreadBuffer

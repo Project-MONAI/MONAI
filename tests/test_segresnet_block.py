@@ -29,7 +29,7 @@ for spatial_dims in range(2, 4):
                         "norm_name": norm_name,
                         "num_groups": in_channels,
                     },
-                    torch.randn(2, in_channels, *([16] * spatial_dims)),
+                    (2, in_channels, *([16] * spatial_dims)),
                     (2, in_channels, *([16] * spatial_dims)),
                 ]
             TEST_CASE_RESBLOCK.append(test_case)
@@ -37,11 +37,11 @@ for spatial_dims in range(2, 4):
 
 class TestResBlock(unittest.TestCase):
     @parameterized.expand(TEST_CASE_RESBLOCK)
-    def test_shape(self, input_param, input_data, expected_shape):
+    def test_shape(self, input_param, input_shape, expected_shape):
         net = ResBlock(**input_param)
         net.eval()
         with torch.no_grad():
-            result = net(input_data)
+            result = net(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
 
     def test_ill_arg(self):
