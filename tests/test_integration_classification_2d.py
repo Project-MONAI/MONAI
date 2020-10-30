@@ -226,7 +226,7 @@ class IntegrationClassification2D(unittest.TestCase):
             )
             repeated[i].extend(losses)
             print("best metric", best_metric)
-            np.testing.assert_allclose(best_metric, 0.8174756192687448, rtol=1e-4)
+            np.testing.assert_allclose(best_metric, 0.8174756192687448, rtol=1e-3)
             repeated[i].append(best_metric)
             np.testing.assert_allclose(best_metric_epoch, 4)
             model_file = os.path.join(self.data_dir, "best_metric_model.pth")
