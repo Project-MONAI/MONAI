@@ -9,24 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
 import time
 import unittest
 
-
-class TimeLoggingTestRunner(unittest.runner.TextTestRunner):
-    """Overload the default runner so that we can get and print the results."""
-
-    def __init__(self, *args, **kwargs):
-        return super().__init__(resultclass=TimeLoggingTestResult, *args, **kwargs)
-
-    def run(self, test):
-        result = super().run(test)
-        print("\n\ntests finished, printing times in descending order...\n")
-        timings = dict(sorted(result.getTestTimings().items(), key=lambda kv: kv[1], reverse=True))
-        for r in timings:
-            print(f"{r} ({timings[r]:.03}s)")
-        return result
-
+results: dict = dict()
 
 class TimeLoggingTestResult(unittest.TextTestResult):
     """Overload the default results so that we can store the results."""
@@ -39,26 +26,34 @@ class TimeLoggingTestResult(unittest.TextTestResult):
         """Start timer, print test name, do normal test."""
         self._started_at = time.time()
         name = self.getDescription(test)
-        self.stream.write(f"{name}...")
+        self.stream.write(f"Starting test: {name}...\n")
         super().startTest(test)
 
     def stopTest(self, test):  # noqa: N802
         """On test end, get time, print, store and do normal behaviour."""
         elapsed = time.time() - self._started_at
-        self.stream.write(f"({elapsed:.03}s)\n")
         name = self.getDescription(test)
-        if name in self.timed_tests:
+        self.stream.write(f"Finished test: {name} ({elapsed:.03}s)\n")
+        if name in results:
             raise AssertionError("expected all keys to be unique")
-        self.timed_tests[name] = elapsed
+        results[name] = elapsed
         super().stopTest(test)
-
-    def getTestTimings(self):  # noqa: N802
-        """Get all times so they can be sorted and printed."""
-        return self.timed_tests
 
 
 if __name__ == "__main__":
+    path = sys.argv[1] if len(sys.argv) > 1 else "."
+    print(f"Running tests in folder: '{path}'")
+
     loader = unittest.TestLoader()
-    tests = loader.discover(".")
-    test_runner = TimeLoggingTestRunner()
-    test_result = test_runner.run(tests)
+    tests = loader.discover(path)
+    test_runner = unittest.runner.TextTestRunner(resultclass=TimeLoggingTestResult)
+
+    try:
+        test_result = test_runner.run(tests)
+        print("\n\ntests finished, printing times in ascending order...\n")
+    except KeyboardInterrupt:
+        print("\n\ntests cancelled, printing completed times in ascending order...\n")
+    finally:
+        timings = dict(sorted(results.items(), key=lambda item: item[1]))
+        for r in timings:
+            print(f"{r} ({timings[r]:.03}s)")
