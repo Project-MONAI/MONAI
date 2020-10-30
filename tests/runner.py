@@ -47,8 +47,8 @@ def print_results(results, discovery_time):
     timings = dict(sorted(results.items(), key=lambda item: item[1]))
     for r in timings:
         print(f"{r} ({timings[r]:.03}s)")
-    print(f"test discovery time: {discovery_time}s")
-    print(f"total testing time: {sum(results.values())}s")
+    print(f"test discovery time: {discovery_time:.03}s")
+    print(f"total testing time: {sum(results.values()):.03}s")
 
 
 if __name__ == "__main__":
