@@ -99,45 +99,61 @@ class CheckpointSaver:
         self._final_checkpoint = self._key_metric_checkpoint = self._interval_checkpoint = None
         self._name = name
 
+        class _DiskSaver(DiskSaver):
+            """
+            Enhance the DiskSaver to support fixed filename.
+
+            """
+            def __init__(self, dirname: str, filename: Optional[str] = None):
+                super().__init__(dirname=dirname, require_empty=False)
+                self.filename = filename
+
+            def __call__(self, checkpoint: Dict, filename: str, metadata: Optional[Dict] = None) -> None:
+                if self.filename is not None:
+                    filename = self.filename
+                super().__call__(checkpoint=checkpoint, filename=filename, metadata=metadata)
+
+            def remove(self, filename: str) -> None:
+                if self.filename is not None:
+                    filename = self.filename
+                super().remove(filename=filename)
+
         if save_final:
 
             def _final_func(engine: Engine):
                 return engine.state.iteration
 
-            self.final_filename = final_filename
             self._final_checkpoint = Checkpoint(
                 to_save=self.save_dict,
-                save_handler=DiskSaver(dirname=self.save_dir, require_empty=False),
+                save_handler=_DiskSaver(dirname=self.save_dir, filename=final_filename),
                 filename_prefix=file_prefix,
                 score_function=_final_func,
                 score_name="final_iteration",
-                filename_pattern=final_filename,
             )
 
         if save_key_metric:
 
             def _score_func(engine: Engine):
                 if isinstance(key_metric_name, str):
-                    self.metric_name = key_metric_name
+                    metric_name = key_metric_name
                 elif hasattr(engine.state, "key_metric_name") and isinstance(engine.state.key_metric_name, str):
-                    self.metric_name = engine.state.key_metric_name
+                    metric_name = engine.state.key_metric_name
                 else:
                     raise ValueError(
                         f"Incompatible values: save_key_metric=True and key_metric_name={key_metric_name}."
                     )
-                return round(engine.state.metrics[self.metric_name], 4)
+                return round(engine.state.metrics[metric_name], 4)
 
             if key_metric_filename is not None and key_metric_n_saved > 1:
                 raise ValueError("if using fixed filename to save the best metric model, we should only save 1 model.")
-            self.key_metric_filename = key_metric_filename
+
             self._key_metric_checkpoint = Checkpoint(
                 to_save=self.save_dict,
-                save_handler=DiskSaver(dirname=self.save_dir, require_empty=False),
+                save_handler=_DiskSaver(dirname=self.save_dir, filename=key_metric_filename),
                 filename_prefix=file_prefix,
                 score_function=_score_func,
                 score_name="key_metric",
                 n_saved=key_metric_n_saved,
-                filename_pattern=key_metric_filename,
             )
 
         if save_interval > 0:
@@ -147,7 +163,7 @@ class CheckpointSaver:
 
             self._interval_checkpoint = Checkpoint(
                 to_save=self.save_dict,
-                save_handler=DiskSaver(dirname=self.save_dir, require_empty=False),
+                save_handler=_DiskSaver(dirname=self.save_dir),
                 filename_prefix=file_prefix,
                 score_function=_interval_func,
                 score_name="epoch" if self.epoch_level else "iteration",
@@ -180,9 +196,6 @@ class CheckpointSaver:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
         assert callable(self._final_checkpoint), "Error: _final_checkpoint function not specified."
-        if self.final_filename is not None and not self._final_checkpoint._check_lt_n_saved():
-            # if using fixed model filename, remove from saved model list and delete the existing file
-            self._remove_oldest_file(self._final_checkpoint)
         self._final_checkpoint(engine)
         assert self.logger is not None
         assert hasattr(self.logger, "info"), "Error, provided logger has not info attribute."
@@ -198,9 +211,6 @@ class CheckpointSaver:
             e: the exception caught in Ignite during engine.run().
         """
         assert callable(self._final_checkpoint), "Error: _final_checkpoint function not specified."
-        if self.final_filename is not None and not self._final_checkpoint._check_lt_n_saved():
-            # if using fixed model filename, remove from saved model list and delete the existing file
-            self._remove_oldest_file(self._final_checkpoint)
         self._final_checkpoint(engine)
         assert self.logger is not None
         assert hasattr(self.logger, "info"), "Error, provided logger has not info attribute."
@@ -214,10 +224,6 @@ class CheckpointSaver:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
         assert callable(self._key_metric_checkpoint), "Error: _key_metric_checkpoint function not specified."
-        if self.key_metric_filename is not None and not self._key_metric_checkpoint._check_lt_n_saved():
-            if engine.state.metrics[self.metric_name] > self._key_metric_checkpoint._saved[0].priority:
-                # if using fixed model filename, remove from saved model list and delete the existing file
-                self._remove_oldest_file(self._key_metric_checkpoint)
         self._key_metric_checkpoint(engine)
 
     def interval_completed(self, engine: Engine) -> None:
@@ -235,12 +241,3 @@ class CheckpointSaver:
             self.logger.info(f"Saved checkpoint at epoch: {engine.state.epoch}")
         else:
             self.logger.info(f"Saved checkpoint at iteration: {engine.state.iteration}")
-
-    def _remove_oldest_file(self, ckpt_handler: Checkpoint):
-        """Remove the oldest saved file from Checkpoint list and disk.
-
-        """
-        item = ckpt_handler._saved.pop(0)
-        if isinstance(ckpt_handler.save_handler, BaseSaveHandler):
-            ckpt_handler.save_handler.remove(item.filename)
-
