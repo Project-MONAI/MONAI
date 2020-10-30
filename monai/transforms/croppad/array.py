@@ -395,6 +395,7 @@ class CropForeground(Transform):
         select_fn: Callable = lambda x: x > 0,
         channel_indices: Optional[IndexSelection] = None,
         margin: Union[Sequence[int], int] = 0,
+        return_coords: bool = False,
     ) -> None:
         """
         Args:
@@ -402,10 +403,12 @@ class CropForeground(Transform):
             channel_indices: if defined, select foreground only on the specified channels
                 of image. if None, select foreground on the whole image.
             margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
+            return_coords: whether return the coordinates of spatial bounding box for foreground.
         """
         self.select_fn = select_fn
         self.channel_indices = ensure_tuple(channel_indices) if channel_indices is not None else None
         self.margin = margin
+        self.return_coords = return_coords
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
         """
@@ -413,8 +416,11 @@ class CropForeground(Transform):
         slicing doesn't change the channel dim.
         """
         box_start, box_end = generate_spatial_bounding_box(img, self.select_fn, self.channel_indices, self.margin)
-        cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
-        return cropper(img)
+        cropped = SpatialCrop(roi_start=box_start, roi_end=box_end)(img)
+
+        if self.return_coords:
+            return cropped, box_start, box_end
+        return cropped
 
 
 class RandCropByPosNegLabel(Randomizable, Transform):
