@@ -104,6 +104,7 @@ class CheckpointSaver:
             Enhance the DiskSaver to support fixed filename.
 
             """
+
             def __init__(self, dirname: str, filename: Optional[str] = None):
                 super().__init__(dirname=dirname, require_empty=False)
                 self.filename = filename
