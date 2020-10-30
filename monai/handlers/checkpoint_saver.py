@@ -15,7 +15,9 @@ from typing import TYPE_CHECKING, Dict, Optional
 from monai.utils import exact_version, optional_import
 
 Events, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Events")
-ModelCheckpoint, _ = optional_import("ignite.handlers", "0.4.2", exact_version, "ModelCheckpoint")
+Checkpoint, _ = optional_import("ignite.handlers", "0.4.2", exact_version, "Checkpoint")
+BaseSaveHandler, _ = optional_import("ignite.handlers.checkpoint", "0.4.2", exact_version, "BaseSaveHandler")
+DiskSaver, _ = optional_import("ignite.handlers", "0.4.2", exact_version, "DiskSaver")
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
@@ -40,6 +42,8 @@ class CheckpointSaver:
             If checkpoints are to be saved when an exception is raised, put this handler before
             `StatsHandler` in the handler list, because the logic with Ignite can only trigger
             the first attached handler for `EXCEPTION_RAISED` event.
+        final_filename: set a fixed filename to save the final model if `save_final=True`.
+            If None, default to `checkpoint_final_iteration=N.pt`.
         save_key_metric: whether to save checkpoint or session when the value of key_metric is
             higher than all the previous values during training.keep 4 decimal places of metric,
             checkpoint name is: {file_prefix}_key_metric=0.XXXX.pth.
@@ -47,6 +51,8 @@ class CheckpointSaver:
             If None, use `engine.state.key_metric` instead.
         key_metric_n_saved: save top N checkpoints or sessions, sorted by the value of key
             metric in descending order.
+        key_metric_filename: set a fixed filename to set the best metric model, if not None,
+            `key_metric_n_saved` should be 1 and only keep the best metric model.
         epoch_level: save checkpoint during training for every N epochs or every N iterations.
             `True` is epoch level, `False` is iteration level.
         save_interval: save checkpoint every N epochs, default is 0 to save no checkpoint.
@@ -56,11 +62,11 @@ class CheckpointSaver:
         CheckpointHandler can be used during training, validation or evaluation.
         example of saved files:
 
-            - checkpoint_iteration=400.pth
-            - checkpoint_iteration=800.pth
-            - checkpoint_epoch=1.pth
-            - checkpoint_final_iteration=1000.pth
-            - checkpoint_key_metric=0.9387.pth
+            - checkpoint_iteration=400.pt
+            - checkpoint_iteration=800.pt
+            - checkpoint_epoch=1.pt
+            - checkpoint_final_iteration=1000.pt
+            - checkpoint_key_metric=0.9387.pt
 
     """
 
@@ -71,9 +77,11 @@ class CheckpointSaver:
         name: Optional[str] = None,
         file_prefix: str = "",
         save_final: bool = False,
+        final_filename: Optional[str] = None,
         save_key_metric: bool = False,
         key_metric_name: Optional[str] = None,
         key_metric_n_saved: int = 1,
+        key_metric_filename: Optional[str] = None,
         epoch_level: bool = True,
         save_interval: int = 0,
         n_saved: Optional[int] = None,
@@ -96,46 +104,54 @@ class CheckpointSaver:
             def _final_func(engine: Engine):
                 return engine.state.iteration
 
-            self._final_checkpoint = ModelCheckpoint(
-                self.save_dir,
-                file_prefix,
+            self.final_filename = final_filename
+            self._final_checkpoint = Checkpoint(
+                to_save=self.save_dict,
+                save_handler=DiskSaver(dirname=self.save_dir, require_empty=False),
+                filename_prefix=file_prefix,
                 score_function=_final_func,
                 score_name="final_iteration",
-                require_empty=False,
+                filename_pattern=final_filename,
             )
+
         if save_key_metric:
 
             def _score_func(engine: Engine):
                 if isinstance(key_metric_name, str):
-                    metric_name = key_metric_name
+                    self.metric_name = key_metric_name
                 elif hasattr(engine.state, "key_metric_name") and isinstance(engine.state.key_metric_name, str):
-                    metric_name = engine.state.key_metric_name
+                    self.metric_name = engine.state.key_metric_name
                 else:
                     raise ValueError(
                         f"Incompatible values: save_key_metric=True and key_metric_name={key_metric_name}."
                     )
-                return round(engine.state.metrics[metric_name], 4)
+                return round(engine.state.metrics[self.metric_name], 4)
 
-            self._key_metric_checkpoint = ModelCheckpoint(
-                self.save_dir,
-                file_prefix,
+            if key_metric_filename is not None and key_metric_n_saved > 1:
+                raise ValueError("if using fixed filename to save the best metric model, we should only save 1 model.")
+            self.key_metric_filename = key_metric_filename
+            self._key_metric_checkpoint = Checkpoint(
+                to_save=self.save_dict,
+                save_handler=DiskSaver(dirname=self.save_dir, require_empty=False),
+                filename_prefix=file_prefix,
                 score_function=_score_func,
                 score_name="key_metric",
                 n_saved=key_metric_n_saved,
-                require_empty=False,
+                filename_pattern=key_metric_filename,
             )
+
         if save_interval > 0:
 
             def _interval_func(engine: Engine):
                 return engine.state.epoch if self.epoch_level else engine.state.iteration
 
-            self._interval_checkpoint = ModelCheckpoint(
-                self.save_dir,
-                file_prefix,
+            self._interval_checkpoint = Checkpoint(
+                to_save=self.save_dict,
+                save_handler=DiskSaver(dirname=self.save_dir, require_empty=False),
+                filename_prefix=file_prefix,
                 score_function=_interval_func,
                 score_name="epoch" if self.epoch_level else "iteration",
                 n_saved=n_saved,
-                require_empty=False,
             )
 
     def attach(self, engine: Engine) -> None:
@@ -164,7 +180,10 @@ class CheckpointSaver:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
         assert callable(self._final_checkpoint), "Error: _final_checkpoint function not specified."
-        self._final_checkpoint(engine, self.save_dict)
+        if self.final_filename is not None and not self._final_checkpoint._check_lt_n_saved():
+            # if using fixed model filename, remove from saved model list and delete the existing file
+            self._remove_oldest_file(self._final_checkpoint)
+        self._final_checkpoint(engine)
         assert self.logger is not None
         assert hasattr(self.logger, "info"), "Error, provided logger has not info attribute."
         self.logger.info(f"Train completed, saved final checkpoint: {self._final_checkpoint.last_checkpoint}")
@@ -179,7 +198,10 @@ class CheckpointSaver:
             e: the exception caught in Ignite during engine.run().
         """
         assert callable(self._final_checkpoint), "Error: _final_checkpoint function not specified."
-        self._final_checkpoint(engine, self.save_dict)
+        if self.final_filename is not None and not self._final_checkpoint._check_lt_n_saved():
+            # if using fixed model filename, remove from saved model list and delete the existing file
+            self._remove_oldest_file(self._final_checkpoint)
+        self._final_checkpoint(engine)
         assert self.logger is not None
         assert hasattr(self.logger, "info"), "Error, provided logger has not info attribute."
         self.logger.info(f"Exception_raised, saved exception checkpoint: {self._final_checkpoint.last_checkpoint}")
@@ -192,7 +214,11 @@ class CheckpointSaver:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
         assert callable(self._key_metric_checkpoint), "Error: _key_metric_checkpoint function not specified."
-        self._key_metric_checkpoint(engine, self.save_dict)
+        if self.key_metric_filename is not None and not self._key_metric_checkpoint._check_lt_n_saved():
+            if engine.state.metrics[self.metric_name] > self._key_metric_checkpoint._saved[0].priority:
+                # if using fixed model filename, remove from saved model list and delete the existing file
+                self._remove_oldest_file(self._key_metric_checkpoint)
+        self._key_metric_checkpoint(engine)
 
     def interval_completed(self, engine: Engine) -> None:
         """Callback for train epoch/iteration completed Event.
@@ -202,10 +228,19 @@ class CheckpointSaver:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
         assert callable(self._interval_checkpoint), "Error: _interval_checkpoint function not specified."
-        self._interval_checkpoint(engine, self.save_dict)
+        self._interval_checkpoint(engine)
         assert self.logger is not None
         assert hasattr(self.logger, "info"), "Error, provided logger has not info attribute."
         if self.epoch_level:
             self.logger.info(f"Saved checkpoint at epoch: {engine.state.epoch}")
         else:
             self.logger.info(f"Saved checkpoint at iteration: {engine.state.iteration}")
+
+    def _remove_oldest_file(self, ckpt_handler: Checkpoint):
+        """Remove the oldest saved file from Checkpoint list and disk.
+
+        """
+        item = ckpt_handler._saved.pop(0)
+        if isinstance(ckpt_handler.save_handler, BaseSaveHandler):
+            ckpt_handler.save_handler.remove(item.filename)
+
