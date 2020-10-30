@@ -704,6 +704,26 @@ def partition_dataset_classes(
     return datasets
 
 
+def generate_cross_validation_fold(partitions: Sequence[List], fold_idx: int):
+    """
+    Generate cross validation fold based on data partitions and specified fold index.
+    Will select the partition with fold index as validaiton dataset and concat others as train dataset.
+    For example, `partitions`: [[1, 2], [3, 4], [5, 6], [7, 8], [9, 10]] and `fold_idx`: 2
+    The the output will be [1, 2, 3, 4, 7, 8, 9, 10], [5, 6]
+
+    """
+    if fold_idx >= len(partitions):
+        raise ValueError(f"fold_idx: {fold_idx} is bigger than number of partitions.")
+
+    val_list = partitions[fold_idx]
+    train_list = list()
+    for i, data in enumerate(partitions):
+        if i != fold_idx:
+            train_list += data
+
+    return train_list, val_list
+
+
 class DistributedSampler(_TorchDistributedSampler):
     """
     Enhance PyTorch DistributedSampler to support non-evenly divisible sampling.
