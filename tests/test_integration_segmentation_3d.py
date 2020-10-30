@@ -82,7 +82,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=False):
     else:
         train_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
     # use batch_size=2 to load images and use RandCropByPosNegLabeld to generate 2 x 4 images for network training
-    train_loader = monai.data.DataLoader(train_ds, batch_size=2, shuffle=True, num_workers=4)
+    train_loader = monai.data.DataLoader(train_ds, batch_size=2, shuffle=False, num_workers=4)
     # create a validation data loader
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
     val_loader = monai.data.DataLoader(val_ds, batch_size=1, num_workers=4)
@@ -251,21 +251,22 @@ class IntegrationSegmentation3D(unittest.TestCase):
             )
 
             # check training properties
+            print("losses", losses)
             np.testing.assert_allclose(
                 losses,
                 [
-                    0.5367561787366867,
-                    0.4780906319618225,
-                    0.45814884305000303,
-                    0.4462165802717209,
-                    0.42342003881931306,
-                    0.42573192417621614,
+                    0.5414924412965775,
+                    0.47209871411323545,
+                    0.45485632717609403,
+                    0.4387387275695801,
+                    0.4184675753116608,
+                    0.4126484006643295,
                 ],
                 rtol=1e-3,
             )
             repeated[i].extend(losses)
             print("best metric", best_metric)
-            np.testing.assert_allclose(best_metric, 0.9284994244575501, rtol=1e-2)
+            np.testing.assert_allclose(best_metric, 0.9282028198242187, rtol=1e-2)
             repeated[i].append(best_metric)
             self.assertTrue(len(glob(os.path.join(self.data_dir, "runs"))) > 0)
             model_file = os.path.join(self.data_dir, "best_metric_model.pth")
@@ -275,50 +276,50 @@ class IntegrationSegmentation3D(unittest.TestCase):
 
             # check inference properties
             print("infer metric", infer_metric)
-            np.testing.assert_allclose(infer_metric, 0.9297081649303436, rtol=1e-2)
+            np.testing.assert_allclose(infer_metric, 0.9290058210492134, rtol=1e-2)
             repeated[i].append(infer_metric)
             output_files = sorted(glob(os.path.join(self.data_dir, "output", "img*", "*.nii.gz")))
             sums = [
-                0.14236407539774545,
-                0.15230706175082387,
-                0.15166480364209348,
-                0.14007500611778745,
-                0.1884924621086837,
-                0.1695513862739126,
-                0.14712184860663788,
-                0.1681115604336759,
-                0.1572906638415615,
-                0.17937440398539023,
-                0.16272332511753773,
-                0.16802574064747222,
-                0.14526150586106137,
-                0.1159984862360706,
-                0.16195498979241085,
-                0.20102274293763406,
-                0.17589239729105313,
-                0.10252633855115888,
-                0.193636370778981,
-                0.20292485235029903,
-                0.19634198039845435,
-                0.20824971460474945,
-                0.1622303133196011,
-                0.13221847658694733,
-                0.14885074606109583,
-                0.14270806519560253,
-                0.2314349441350736,
-                0.1611329079999522,
-                0.1484014668347457,
-                0.10382948525640207,
-                0.11913278973359338,
-                0.13073357801141586,
-                0.11465035056069182,
-                0.15304480634774378,
-                0.16318785095442723,
-                0.19371516498982155,
-                0.22269088446692173,
-                0.18099178390758894,
-                0.19004000086784215,
-                0.0855747283711328,
+                0.1428929332821861,
+                0.15306498013054057,
+                0.1524727249757458,
+                0.14063418539221723,
+                0.1889959935015477,
+                0.17016133741917833,
+                0.1476895659168039,
+                0.1689427243341692,
+                0.15787647802569932,
+                0.1799242564554684,
+                0.16334547561127719,
+                0.1685469235807613,
+                0.14546128970445826,
+                0.11555349029952224,
+                0.16260882143335478,
+                0.20165253423128482,
+                0.1765720800837111,
+                0.10068010729005879,
+                0.194165013105216,
+                0.2035116772153127,
+                0.1968748742059473,
+                0.2090013692657499,
+                0.16298707054087283,
+                0.1328429800157177,
+                0.14950045056652064,
+                0.1433893520304681,
+                0.2319377236935164,
+                0.16167700437221735,
+                0.14900457182245586,
+                0.10403354097106,
+                0.11967680693699004,
+                0.13104646944218393,
+                0.11523281882529086,
+                0.1538211792905935,
+                0.16386875436749787,
+                0.19433110776847495,
+                0.22304474300646793,
+                0.1814646444954335,
+                0.19064204748686892,
+                0.08087420506186134,
             ]
             print([np.mean(nib.load(output).get_fdata()) for output in output_files])
             for (output, s) in zip(output_files, sums):
