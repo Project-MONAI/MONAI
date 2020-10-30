@@ -25,14 +25,14 @@ class TimeLoggingTestResult(unittest.TextTestResult):
 
     def startTest(self, test):  # noqa: N802
         """Start timer, print test name, do normal test."""
-        self._started_at = time.time()
+        self.start_time = time.time()
         name = self.getDescription(test)
         self.stream.write(f"Starting test: {name}...\n")
         super().startTest(test)
 
     def stopTest(self, test):  # noqa: N802
         """On test end, get time, print, store and do normal behaviour."""
-        elapsed = time.time() - self._started_at
+        elapsed = time.time() - self.start_time
         name = self.getDescription(test)
         self.stream.write(f"Finished test: {name} ({elapsed:.03}s)\n")
         if name in results:
@@ -45,6 +45,14 @@ def print_results(results):
     timings = dict(sorted(results.items(), key=lambda item: item[1]))
     for r in timings:
         print(f"{r} ({timings[r]:.03}s)")
+    print(f'total testing time: {sum(results.values())}s')
+
+
+def discover_tests(loader, path):
+    start_time = time.time()
+    tests = loader.discover(path)
+    print(f'time to discover tests: {time.time() - start_time}s')
+    return tests
 
 
 if __name__ == "__main__":
@@ -52,14 +60,18 @@ if __name__ == "__main__":
     print(f"Running tests in folder: '{path}'")
 
     loader = unittest.TestLoader()
-    tests = loader.discover(path)
+    tests = discover_tests(loader, path)
     test_runner = unittest.runner.TextTestRunner(resultclass=TimeLoggingTestResult)
 
     try:
         test_result = test_runner.run(tests)
         print("\n\ntests finished, printing times in ascending order...\n")
         print_results(results)
-    except Exception:
+    except KeyboardInterrupt:
         print("\n\ntests cancelled, printing completed times in ascending order...\n")
+        print_results(results)
+        exit(1)
+    except Exception:
+        print("\n\nexception reached, printing completed times in ascending order...\n")
         print_results(results)
         raise
