@@ -91,6 +91,11 @@ should pass, by running the following command locally:
 ```bash
 ./runtests.sh --codeformat --coverage
 ```
+or (for new features that would not break existing functionality):
+
+```bash
+./runtests.sh --quick
+```
 
 It is recommended that the new test `test_[module_name].py` is constructed by using only
 python 3.6+ build-in functions, `torch`, `numpy`, and `parameterized` packages.

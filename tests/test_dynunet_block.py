@@ -35,7 +35,7 @@ for spatial_dims in range(2, 4):
                             "norm_name": norm_name,
                             "stride": stride,
                         },
-                        torch.randn(1, 16, *([in_size] * spatial_dims)),
+                        (1, 16, *([in_size] * spatial_dims)),
                         (1, 16, *([out_size] * spatial_dims)),
                     ]
                     TEST_CASE_RES_BASIC_BLOCK.append(test_case)
@@ -58,20 +58,20 @@ for spatial_dims in range(2, 4):
                             "stride": stride,
                             "upsample_kernel_size": stride,
                         },
-                        torch.randn(1, in_channels, *([in_size] * spatial_dims)),
+                        (1, in_channels, *([in_size] * spatial_dims)),
                         (1, out_channels, *([out_size] * spatial_dims)),
-                        torch.randn(1, out_channels, *([in_size * stride] * spatial_dims)),
+                        (1, out_channels, *([in_size * stride] * spatial_dims)),
                     ]
                     TEST_UP_BLOCK.append(test_case)
 
 
 class TestResBasicBlock(unittest.TestCase):
     @parameterized.expand(TEST_CASE_RES_BASIC_BLOCK)
-    def test_shape(self, input_param, input_data, expected_shape):
+    def test_shape(self, input_param, input_shape, expected_shape):
         for net in [UnetResBlock(**input_param), UnetBasicBlock(**input_param)]:
             net.eval()
             with torch.no_grad():
-                result = net(input_data)
+                result = net(torch.randn(input_shape))
                 self.assertEqual(result.shape, expected_shape)
 
     def test_ill_arg(self):
@@ -83,11 +83,11 @@ class TestResBasicBlock(unittest.TestCase):
 
 class TestUpBlock(unittest.TestCase):
     @parameterized.expand(TEST_UP_BLOCK)
-    def test_shape(self, input_param, input_data, expected_shape, skip_data):
+    def test_shape(self, input_param, input_shape, expected_shape, skip_shape):
         net = UnetUpBlock(**input_param)
         net.eval()
         with torch.no_grad():
-            result = net(input_data, skip_data)
+            result = net(torch.randn(input_shape), torch.randn(skip_shape))
             self.assertEqual(result.shape, expected_shape)
 
 

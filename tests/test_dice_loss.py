@@ -19,74 +19,80 @@ from monai.losses import DiceLoss
 
 TEST_CASES = [
     [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
-        {"include_background": True, "sigmoid": True},
+        {"include_background": True, "sigmoid": True, "smooth_nr": 1e-6, "smooth_dr": 1e-6},
         {
             "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
             "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
-            "smooth": 1e-6,
         },
         0.307576,
     ],
     [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
-        {"include_background": True, "sigmoid": True},
+        {"include_background": True, "sigmoid": True, "smooth_nr": 1e-4, "smooth_dr": 1e-4},
         {
             "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]], [[[1.0, -1.0], [-1.0, 1.0]]]]),
             "target": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]]], [[[1.0, 0.0], [1.0, 0.0]]]]),
-            "smooth": 1e-4,
         },
         0.416657,
     ],
     [  # shape: (2, 2, 3), (2, 1, 3)
-        {"include_background": False, "to_onehot_y": True},
+        {"include_background": False, "to_onehot_y": True, "smooth_nr": 0, "smooth_dr": 0},
         {
             "input": torch.tensor([[[1.0, 1.0, 0.0], [0.0, 0.0, 1.0]], [[1.0, 0.0, 1.0], [0.0, 1.0, 0.0]]]),
             "target": torch.tensor([[[0.0, 0.0, 1.0]], [[0.0, 1.0, 0.0]]]),
-            "smooth": 0.0,
         },
         0.0,
     ],
     [  # shape: (2, 2, 3), (2, 1, 3)
-        {"include_background": True, "to_onehot_y": True, "sigmoid": True},
+        {"include_background": True, "to_onehot_y": True, "sigmoid": True, "smooth_nr": 1e-4, "smooth_dr": 1e-4},
         {
             "input": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
             "target": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
-            "smooth": 1e-4,
         },
         0.435050,
     ],
     [  # shape: (2, 2, 3), (2, 1, 3)
-        {"include_background": True, "to_onehot_y": True, "sigmoid": True, "reduction": "none"},
+        {
+            "include_background": True,
+            "to_onehot_y": True,
+            "sigmoid": True,
+            "reduction": "none",
+            "smooth_nr": 1e-4,
+            "smooth_dr": 1e-4,
+        },
         {
             "input": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
             "target": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
-            "smooth": 1e-4,
         },
         [[0.296529, 0.415136], [0.599976, 0.428559]],
     ],
     [  # shape: (2, 2, 3), (2, 1, 3)
-        {"include_background": True, "to_onehot_y": True, "softmax": True},
+        {"include_background": True, "to_onehot_y": True, "softmax": True, "smooth_nr": 1e-4, "smooth_dr": 1e-4},
         {
             "input": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
             "target": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
-            "smooth": 1e-4,
         },
         0.383713,
     ],
     [  # shape: (2, 2, 3), (2, 1, 3)
-        {"include_background": True, "to_onehot_y": True, "softmax": True, "reduction": "sum"},
+        {
+            "include_background": True,
+            "to_onehot_y": True,
+            "softmax": True,
+            "reduction": "sum",
+            "smooth_nr": 1e-4,
+            "smooth_dr": 1e-4,
+        },
         {
             "input": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
             "target": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
-            "smooth": 1e-4,
         },
         1.534853,
     ],
     [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
-        {"include_background": True, "sigmoid": True},
+        {"include_background": True, "sigmoid": True, "smooth_nr": 1e-6, "smooth_dr": 1e-6},
         {
             "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
             "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
-            "smooth": 1e-6,
         },
         0.307576,
     ],
@@ -95,7 +101,6 @@ TEST_CASES = [
         {
             "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
             "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
-            "smooth": 1e-5,
         },
         0.178337,
     ],
@@ -104,27 +109,54 @@ TEST_CASES = [
         {
             "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
             "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
-            "smooth": 1e-5,
         },
         0.470451,
     ],
     [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
-        {"include_background": True, "other_act": torch.tanh},
+        {"include_background": True, "other_act": torch.tanh, "smooth_nr": 1e-4, "smooth_dr": 1e-4},
         {
             "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]], [[[1.0, -1.0], [-1.0, 1.0]]]]),
             "target": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]]], [[[1.0, 0.0], [1.0, 0.0]]]]),
-            "smooth": 1e-4,
         },
         0.999963,
     ],
     [  # shape: (2, 2, 3), (2, 1, 3)
-        {"include_background": True, "to_onehot_y": True, "other_act": lambda x: torch.log_softmax(x, dim=1)},
+        {
+            "include_background": True,
+            "to_onehot_y": True,
+            "other_act": lambda x: torch.log_softmax(x, dim=1),
+            "smooth_nr": 1e-4,
+            "smooth_dr": 1e-4,
+        },
         {
             "input": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
             "target": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
-            "smooth": 1e-4,
         },
         -8.522593,
+    ],
+    [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
+        {"include_background": True, "other_act": torch.tanh, "smooth_nr": 1e-4, "smooth_dr": 1e-4, "batch": True},
+        {
+            "input": torch.tensor([[[[1.0, -0.0], [-1.0, 1.0]]], [[[1.0, -1.0], [-1.0, 1.0]]]]),
+            "target": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]]], [[[1.0, 0.0], [1.0, 0.0]]]]),
+        },
+        0.774718,
+    ],
+    [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
+        {"include_background": True, "other_act": torch.tanh, "smooth_nr": 0, "smooth_dr": 1e-4, "batch": True},
+        {
+            "input": torch.tensor([[[[1.0, -0.0], [-1.0, 1.0]]], [[[1.0, -1.0], [-1.0, 1.0]]]]),
+            "target": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]]], [[[1.0, 0.0], [1.0, 0.0]]]]),
+        },
+        0.774733,
+    ],
+    [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
+        {"include_background": True, "other_act": torch.tanh, "smooth_nr": 0, "smooth_dr": 1e-4, "batch": False},
+        {
+            "input": torch.tensor([[[[1.0, -0.0], [-1.0, 1.0]]], [[[1.0, -1.0], [-1.0, 1.0]]]]),
+            "target": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]]], [[[1.0, 0.0], [1.0, 0.0]]]]),
+        },
+        0.840058,
     ],
 ]
 
