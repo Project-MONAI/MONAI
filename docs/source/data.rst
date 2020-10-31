@@ -121,6 +121,18 @@ Utilities
 .. automodule:: monai.data.utils
   :members:
 
+Partition Dataset
+~~~~~~~~~~~~~~~~~
+.. autofunction:: monai.data.partition_dataset
+
+Partition Dataset based on classes
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autofunction:: monai.data.partition_dataset_classes
+
+DistributedSampler
+~~~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.DistributedSampler
+
 
 Decathlon Datalist
 ~~~~~~~~~~~~~~~~~~
@@ -129,9 +141,9 @@ Decathlon Datalist
 
 DataLoader
 ~~~~~~~~~~
-.. autofunction:: monai.data.DataLoader
+.. autoclass:: monai.data.DataLoader
 
 
 ThreadBuffer
 ~~~~~~~~~~~~
-.. autofunction:: monai.data.ThreadBuffer
+.. autoclass:: monai.data.ThreadBuffer
