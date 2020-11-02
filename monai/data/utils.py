@@ -704,7 +704,7 @@ def partition_dataset_classes(
     return datasets
 
 
-def generate_cross_validation_fold(partitions: Sequence[List], fold_idx: int):
+def generate_cross_validation_fold(partitions: Sequence[List], fold_idx: int) -> Tuple[List, List]:
     """
     Generate cross validation fold based on data partitions and specified fold index.
     Will select the partition with fold index as validaiton dataset and concat others as train dataset.
