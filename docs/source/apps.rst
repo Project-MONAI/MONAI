@@ -28,5 +28,3 @@ Applications
 .. autofunction:: extractall
 
 .. autofunction:: download_and_extract
-
-.. autofunction:: split_dataset
