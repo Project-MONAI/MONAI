@@ -15,6 +15,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.layers import LLTM
+from tests.utils import SkipIfNoModule
 
 TEST_CASE_1 = [
     {"input_features": 32, "state_size": 2},
@@ -25,6 +26,7 @@ TEST_CASE_1 = [
 
 class TestLLTM(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1])
+    @SkipIfNoModule("monai._C")
     def test_value(self, input_param, expected_h, expected_c):
         torch.manual_seed(0)
         x = torch.randn(4, 32)
@@ -37,6 +39,7 @@ class TestLLTM(unittest.TestCase):
         torch.testing.assert_allclose(new_c, expected_c, rtol=0.0001, atol=1e-04)
 
     @parameterized.expand([TEST_CASE_1])
+    @SkipIfNoModule("monai._C")
     def test_value_cuda(self, input_param, expected_h, expected_c):
         device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu:0")
         torch.manual_seed(0)
