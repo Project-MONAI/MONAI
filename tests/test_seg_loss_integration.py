@@ -20,7 +20,9 @@ from parameterized import parameterized
 from monai.losses import DiceLoss, FocalLoss, GeneralizedDiceLoss, TverskyLoss
 
 TEST_CASES = [
-    [DiceLoss, {"to_onehot_y": True, "squared_pred": True}, {"smooth": 1e-4}],
+    [DiceLoss, {"to_onehot_y": True, "squared_pred": True, "smooth_nr": 1e-4, "smooth_dr": 1e-4}, {}],
+    [DiceLoss, {"to_onehot_y": True, "squared_pred": True, "smooth_nr": 0, "smooth_dr": 1e-3}, {}],
+    [DiceLoss, {"to_onehot_y": True, "squared_pred": True, "batch": True}, {}],
     [DiceLoss, {"to_onehot_y": True, "sigmoid": True}, {}],
     [DiceLoss, {"to_onehot_y": True, "softmax": True}, {}],
     [FocalLoss, {"gamma": 1.5, "weight": torch.tensor([1, 2])}, {}],
@@ -30,6 +32,7 @@ TEST_CASES = [
     [GeneralizedDiceLoss, {"to_onehot_y": True, "sigmoid": True, "w_type": "simple"}, {}],
     [GeneralizedDiceLoss, {"to_onehot_y": True, "sigmoid": True, "w_type": "uniform"}, {}],
     [TverskyLoss, {"to_onehot_y": True, "softmax": True, "alpha": 0.8, "beta": 0.2}, {}],
+    [TverskyLoss, {"to_onehot_y": True, "softmax": True, "alpha": 0.8, "beta": 0.2, "batch": True}, {}],
     [TverskyLoss, {"to_onehot_y": True, "softmax": True, "alpha": 1.0, "beta": 0.0}, {}],
 ]
 
