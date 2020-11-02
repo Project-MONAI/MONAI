@@ -16,7 +16,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.metrics import compute_confusion_metric
+from monai.metrics import compute_confusion_matrix
 
 metric_name = "true negative rate"
 # test the metric under 2 class classification task
@@ -135,14 +135,14 @@ for y_pred in [y_org, -y_org]:
 class TestComputeTnrClf(unittest.TestCase):
     @parameterized.expand(TEST_CASES_2_CLS_CLF + TEST_CASES_M_CLS_CLF + TEST_CASES_M_LABEL_CLF)
     def test_value(self, input_data, expected_value):
-        result = compute_confusion_metric(**input_data)
+        result = compute_confusion_matrix(**input_data)
         np.testing.assert_allclose(expected_value, result, rtol=1e-7)
 
 
 class TestComputeTnrSeg(unittest.TestCase):
     @parameterized.expand(TEST_CASES_2D_SEG + TEST_CASES_3D_SEG)
     def test_value(self, input_data, expected_value):
-        result = compute_confusion_metric(**input_data)
+        result = compute_confusion_matrix(**input_data)
         self.assertEqual(expected_value, result)
 
 
