@@ -18,10 +18,10 @@ import numpy as np
 from monai.apps.utils import download_and_extract
 from monai.data import (
     CacheDataset,
+    generate_cross_validation_fold,
     load_decathlon_datalist,
     load_decathlon_properties,
     partition_dataset,
-    generate_cross_validation_fold
 )
 from monai.transforms import LoadNiftid, LoadPNGd, Randomizable
 from monai.utils import ensure_tuple
