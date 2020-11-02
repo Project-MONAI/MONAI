@@ -83,6 +83,7 @@ function print_usage {
     echo "    --coverage        : peforms coverage analysis of code for tests run"
     echo "    -q, --quick       : disable long running tests"
     echo "    --net             : perform training/inference/eval integration testing"
+    echo "    --list_tests      : list tests and exit"
     echo ""
     echo "Misc. options:"
     echo "    --dryrun          : display the commands to the screen without running"
@@ -178,6 +179,20 @@ function is_pip_installed() {
 	return $(${PY_EXE} -c "import sys, pkgutil; sys.exit(0 if pkgutil.find_loader(sys.argv[1]) else 1)" $1)
 }
 
+function list_unittests() {
+    ${PY_EXE} - << END
+import unittest
+def print_suite(suite):
+    if hasattr(suite, "__iter__"):
+        for x in suite:
+            print_suite(x)
+    else:
+        print(suite)
+print_suite(unittest.defaultTestLoader.discover('./tests'))
+END
+    exit 0
+}
+
 if [ -z "$1" ]
 then
     print_error_msg "Too few arguments to $0"
@@ -197,6 +212,9 @@ do
         ;;
         --net)
             doNetTests=true
+        ;;
+        --list_tests)
+            list_unittests
         ;;
         --dryrun)
             doDryRun=true
