@@ -2,4 +2,5 @@
 -r requirements.txt
 setuptools==50.3.0
 coverage
+packaging
 parameterized

@@ -13,6 +13,7 @@ import unittest
 
 import numpy as np
 import torch
+from packaging.version import Version, parse
 from parameterized import parameterized
 
 from monai.metrics import DiceMetric, compute_meandice
@@ -32,6 +33,10 @@ TEST_CASE_1 = [  # y (1, 1, 2, 2), y_pred (1, 1, 2, 2), expected out (1, 1)
 ]
 
 # remove background and not One-Hot target
+if parse(torch.__version__) < Version("1.7.0"):
+    EXPECTED = [[0.5000, 0.0000], [0.6666, 0.6666]]
+else:
+    EXPECTED = [[0.8000, 0.0000], [1.0000, 1.0000]]
 TEST_CASE_2 = [  # y (2, 1, 2, 2), y_pred (2, 3, 2, 2), expected out (2, 2) (no background)
     {
         "y_pred": torch.tensor(
@@ -45,7 +50,7 @@ TEST_CASE_2 = [  # y (2, 1, 2, 2), y_pred (2, 3, 2, 2), expected out (2, 2) (no 
         "to_onehot_y": True,
         "mutually_exclusive": True,
     },
-    [[0.5000, 0.0000], [0.6666, 0.6666]],
+    EXPECTED,
 ]
 
 # should return Nan for all labels=0 case and skip for MeanDice
