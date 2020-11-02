@@ -15,8 +15,14 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
 import numpy as np
 
-from monai.apps.utils import download_and_extract, split_dataset
-from monai.data import CacheDataset, load_decathlon_datalist, load_decathlon_properties
+from monai.apps.utils import download_and_extract
+from monai.data import (
+    CacheDataset,
+    load_decathlon_datalist,
+    load_decathlon_properties,
+    partition_dataset,
+    generate_cross_validation_fold
+)
 from monai.transforms import LoadNiftid, LoadPNGd, Randomizable
 from monai.utils import ensure_tuple
 
@@ -386,20 +392,18 @@ class CVDecathlonDataset:
         if fold > self.nsplits - 1:
             raise ValueError("fold index should be in [0, nsplit - 1].")
         nsplits = self.nsplits
+        seed = self.seed
 
         class _NsplitsDataset(DecathlonDataset):
             def _split_datalist(self, datalist: List[Dict]) -> List[Dict]:
                 if section not in ["training", "validation"]:
                     raise ValueError("section must be training or validation.")
-                length = len(datalist)
-                indices = np.arange(length)
-                self.randomize(indices)
-                fold_indices = split_dataset(nsplits, length)
+                data = partition_dataset(data=datalist, num_partitions=nsplits, shuffle=True, seed=seed)
+                train, val = generate_cross_validation_fold(partitions=data, fold_idx=fold)
                 if section == "training":
-                    self.indices = np.delete(indices, np.s_[fold_indices[fold][0] : fold_indices[fold][1]], axis=None)
+                    return train
                 else:
-                    self.indices = indices[fold_indices[fold][0] : fold_indices[fold][1]]
-                return [datalist[i] for i in self.indices]
+                    return val
 
         return _NsplitsDataset(
             root_dir=self.root_dir,

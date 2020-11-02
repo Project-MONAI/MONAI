@@ -60,11 +60,11 @@ class TestCVDecathlonDataset(unittest.TestCase):
 
         # test training data for fold 0 of 5 splits
         data = cvdataset.get_dataset(fold=0, section="training")
-        self.assertTupleEqual(data[0]["image"].shape, (1, 34, 48, 40))
+        self.assertTupleEqual(data[0]["image"].shape, (1, 35, 52, 33))
         self.assertEqual(len(data), 208)
         # test train / validation for fold 4 of 5 splits
         data = cvdataset.get_dataset(fold=4, section="validation")
-        self.assertTupleEqual(data[0]["image"].shape, (1, 33, 55, 29))
+        self.assertTupleEqual(data[0]["image"].shape, (1, 38, 53, 30))
         self.assertEqual(len(data), 52)
         data = cvdataset.get_dataset(fold=4, section="training")
         self.assertTupleEqual(data[0]["image"].shape, (1, 34, 49, 41))
