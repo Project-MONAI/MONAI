@@ -13,7 +13,7 @@ import os
 import unittest
 from urllib.error import ContentTooShortError, HTTPError
 
-from monai.apps import DecathlonDataset, CrossValidation
+from monai.apps import CrossValidation, DecathlonDataset
 from monai.transforms import AddChanneld, Compose, LoadNiftid, ScaleIntensityd, ToTensord
 from tests.utils import skip_if_quick
 

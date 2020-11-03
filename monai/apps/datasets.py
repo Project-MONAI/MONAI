@@ -347,6 +347,7 @@ class CrossValidation:
         # execute training for fold 4 ...
 
     """
+
     def __init__(
         self,
         dataset_cls,
