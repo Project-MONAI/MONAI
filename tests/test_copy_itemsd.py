@@ -63,13 +63,13 @@ class TestCopyItemsd(unittest.TestCase):
         net = torch.nn.PReLU().to(device)
         net.eval()
         with torch.no_grad():
-            pred = net(torch.tensor([[0., 1.], [1., 2.]], device=device))
-        input_data = {"pred": pred, "seg": torch.tensor([[0., 1.], [1., 2.]], device=device)}
+            pred = net(torch.tensor([[0.0, 1.0], [1.0, 2.0]], device=device))
+        input_data = {"pred": pred, "seg": torch.tensor([[0.0, 1.0], [1.0, 2.0]], device=device)}
         result = CopyItemsd(keys="pred", times=1, names="pred_1")(input_data)
         self.assertTrue("pred_1" in result)
         result["pred_1"] += 1.0
-        torch.testing.assert_allclose(result["pred"], torch.tensor([[0., 1.], [1., 2.]], device=device))
-        torch.testing.assert_allclose(result["pred_1"], torch.tensor([[1., 2.], [2., 3.]], device=device))
+        torch.testing.assert_allclose(result["pred"], torch.tensor([[0.0, 1.0], [1.0, 2.0]], device=device))
+        torch.testing.assert_allclose(result["pred_1"], torch.tensor([[1.0, 2.0], [2.0, 3.0]], device=device))
 
 
 if __name__ == "__main__":
