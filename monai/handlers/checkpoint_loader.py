@@ -12,6 +12,7 @@
 import logging
 from typing import TYPE_CHECKING, Dict, Optional
 
+import os
 import torch
 
 from monai.utils import exact_version, optional_import
@@ -53,9 +54,12 @@ class CheckpointLoader:
         load_dict: Dict,
         name: Optional[str] = None,
         map_location: Optional[Dict] = None,
+        find_latest: bool = False,
     ) -> None:
         assert load_path is not None, "must provide clear path to load checkpoint."
         self.load_path = load_path
+        assert (find_latest and self.load_path[-3:] != '.pt') or \
+               self.load_path[-3:] == '.pt' and not find_latest, "either provide an exact path, or set find latest to true"
         assert load_dict is not None and len(load_dict) > 0, "must provide target objects to load."
         self.logger = logging.getLogger(name)
         for k, v in load_dict.items():
@@ -64,6 +68,7 @@ class CheckpointLoader:
         self.load_dict = load_dict
         self._name = name
         self.map_location = map_location
+        self.find_latest = find_latest
 
     def attach(self, engine: Engine) -> None:
         """
@@ -79,11 +84,36 @@ class CheckpointLoader:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        checkpoint = torch.load(self.load_path, map_location=self.map_location)
-        if len(self.load_dict) == 1:
-            key = list(self.load_dict.keys())[0]
-            if not (key in checkpoint):
-                checkpoint = {key: checkpoint}
+        if self.find_latest:
+            models = sorted(os.listdir(self.load_path))
+            self.logger.info(
+                "This directory already exisits, looking for previous models.")
+            if len(models) > 1:
+                list_model_time = []
+                times = []
+                for model_ in models:
+                    loc = os.path.join(self.load_path, model_)
+                    edit_time = os.path.getmtime(loc)
+                    times.append(edit_time)
+                    list_model_time.append([edit_time, loc])
+                list_model_time.sort(key=lambda x: x[0])
+                checkpoint = torch.load(list_model_time[-1][1], map_location=self.map_location)
+                if len(self.load_dict) == 1:
+                    key = list(self.load_dict.keys())[0]
+                    if not (key in checkpoint):
+                        checkpoint = {key: checkpoint}
+                Checkpoint.load_objects(to_load=self.load_dict,
+                                        checkpoint=checkpoint)
+                self.logger.info(
+                    f"Restored all variables from {list_model_time[-1][1]}")
+            else:
+                self.logger.info("No models found, resuming normally.")
+        else:
+            checkpoint = torch.load(self.load_path, map_location=self.map_location)
+            if len(self.load_dict) == 1:
+                key = list(self.load_dict.keys())[0]
+                if not (key in checkpoint):
+                    checkpoint = {key: checkpoint}
 
-        Checkpoint.load_objects(to_load=self.load_dict, checkpoint=checkpoint)
-        self.logger.info(f"Restored all variables from {self.load_path}")
+            Checkpoint.load_objects(to_load=self.load_dict, checkpoint=checkpoint)
+            self.logger.info(f"Restored all variables from {self.load_path}")
