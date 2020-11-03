@@ -15,7 +15,7 @@ Applications
 .. autoclass:: DecathlonDataset
     :members:
 
-.. autoclass:: CVDecathlonDataset
+.. autoclass:: CrossValidation
     :members:
 
 `Utilities`
