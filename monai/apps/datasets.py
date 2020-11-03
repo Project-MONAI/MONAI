@@ -376,7 +376,7 @@ class CrossValidation:
         nfolds = self.nfolds
         seed = self.seed
 
-        class _NsplitsDataset(self.dataset_cls):
+        class _NsplitsDataset(self.dataset_cls):  # type: ignore
             def _split_datalist(self, datalist: List[Dict]) -> List[Dict]:
                 if section not in ["training", "validation"]:
                     raise ValueError("section must be training or validation.")
