@@ -314,7 +314,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
 
 class CrossValidation:
     """
-    Cross vaidation dataset based on the general dataset which must have `_split_datalist` API.
+    Cross validation dataset based on the general dataset which must have `_split_datalist` API.
 
     Args:
         dataset_cls: dataset class to be used to create the cross validation partitions.
