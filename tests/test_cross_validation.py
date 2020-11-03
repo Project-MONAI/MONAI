@@ -13,12 +13,12 @@ import os
 import unittest
 from urllib.error import ContentTooShortError, HTTPError
 
-from monai.apps import CVDecathlonDataset
+from monai.apps import DecathlonDataset, CrossValidation
 from monai.transforms import AddChanneld, Compose, LoadNiftid, ScaleIntensityd, ToTensord
 from tests.utils import skip_if_quick
 
 
-class TestCVDecathlonDataset(unittest.TestCase):
+class TestCrossValidation(unittest.TestCase):
     @skip_if_quick
     def test_values(self):
         testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
@@ -38,17 +38,18 @@ class TestCVDecathlonDataset(unittest.TestCase):
             self.assertTrue("image_meta_dict" in dataset[0])
             self.assertTupleEqual(dataset[0]["image"].shape, (1, 34, 49, 41))
 
-        cvdataset = CVDecathlonDataset(
+        cvdataset = CrossValidation(
+            dataset_cls=DecathlonDataset,
+            nfolds=5,
+            seed=12345,
             root_dir=testing_dir,
             task="Task04_Hippocampus",
             transform=transform,
             download=True,
-            seed=12345,
-            nsplits=5,
         )
 
         try:  # will start downloading if testing_dir doesn't have the Decathlon files
-            data = cvdataset.get_dataset(fold=0, section="validation")
+            data = cvdataset.get_partition(fold=0, section="validation")
         except (ContentTooShortError, HTTPError, RuntimeError) as e:
             print(str(e))
             if isinstance(e, RuntimeError):
@@ -59,14 +60,14 @@ class TestCVDecathlonDataset(unittest.TestCase):
         _test_dataset(data)
 
         # test training data for fold 0 of 5 splits
-        data = cvdataset.get_dataset(fold=0, section="training")
+        data = cvdataset.get_partition(fold=0, section="training")
         self.assertTupleEqual(data[0]["image"].shape, (1, 35, 52, 33))
         self.assertEqual(len(data), 208)
         # test train / validation for fold 4 of 5 splits
-        data = cvdataset.get_dataset(fold=4, section="validation")
+        data = cvdataset.get_partition(fold=4, section="validation")
         self.assertTupleEqual(data[0]["image"].shape, (1, 38, 53, 30))
         self.assertEqual(len(data), 52)
-        data = cvdataset.get_dataset(fold=4, section="training")
+        data = cvdataset.get_partition(fold=4, section="training")
         self.assertTupleEqual(data[0]["image"].shape, (1, 34, 49, 41))
         self.assertEqual(len(data), 208)
 
