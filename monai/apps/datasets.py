@@ -66,7 +66,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
         self,
         root_dir: str,
         section: str,
-        transform: Union[Sequence[Callable], Callable] = LoadPNGd("image"),
+        transform: Union[Sequence[Callable], Callable] = (),
         download: bool = False,
         seed: int = 0,
         val_frac: float = 0.1,
@@ -91,6 +91,8 @@ class MedNISTDataset(Randomizable, CacheDataset):
                 f"Cannot find dataset directory: {dataset_dir}, please use download=True to download it."
             )
         data = self._generate_data_list(dataset_dir)
+        if transform == ():
+            transform = LoadPNGd("image")
         super().__init__(data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers)
 
     def randomize(self, data: Optional[Any] = None) -> None:
@@ -226,7 +228,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         root_dir: str,
         task: str,
         section: str,
-        transform: Union[Sequence[Callable], Callable] = LoadNiftid(["image", "label"]),
+        transform: Union[Sequence[Callable], Callable] = (),
         download: bool = False,
         seed: int = 0,
         val_frac: float = 0.2,
@@ -265,6 +267,8 @@ class DecathlonDataset(Randomizable, CacheDataset):
             "numTest",
         ]
         self._properties = load_decathlon_properties(os.path.join(dataset_dir, "dataset.json"), property_keys)
+        if transform == ():
+            transform = LoadNiftid(["image", "label"])
         super().__init__(data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers)
 
     def get_indices(self) -> np.ndarray:
