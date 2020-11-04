@@ -22,6 +22,7 @@ jobs:
         python -m pip uninstall -y torch torchvision
         # Although the below matrix says 'latest', we currently want to refrain from using
         # torch==1.7.0, as parts of MONAI are incompatible. Thus the '==1.6.0'.
+        # TODO: make the latest runs on the latest version of torch/torchvision
         if [ ${{ matrix.pytorch-version }} == "latest" ]; then
           python -m pip install torch==1.6.0
           python -m pip install torchvision==0.7.0
