@@ -704,24 +704,25 @@ def partition_dataset_classes(
     return datasets
 
 
-def generate_cross_validation_fold(partitions: Sequence[List], fold_idx: int):
+def select_cross_validation_folds(partitions: Sequence[List], folds: Union[Sequence[int], int]) -> List:
     """
-    Generate cross validation fold based on data partitions and specified fold index.
-    Will select the partition with fold index as validaiton dataset and concat others as train dataset.
-    For example, `partitions`: [[1, 2], [3, 4], [5, 6], [7, 8], [9, 10]] and `fold_idx`: 2
-    The the output will be [1, 2, 3, 4, 7, 8, 9, 10], [5, 6]
+    Select cross validation data based on data partitions and specified fold indice.
+    if a list of folds provided, concatenate the partitions of these folds.
+    For example, `partitions`: [[1, 2], [3, 4], [5, 6], [7, 8], [9, 10]] and `folds`: 2
+    The the output will be [5, 6], if `folds`: [1, 2], output will be [3, 4, 5, 6].
 
     """
-    if fold_idx >= len(partitions):
-        raise ValueError(f"fold_idx: {fold_idx} is bigger than number of partitions.")
+    folds = ensure_tuple(folds)
+    for fold in folds:
+        if fold >= len(partitions):
+            raise ValueError(f"fold index: {fold} is bigger than number of partitions.")
 
-    val_list = partitions[fold_idx]
-    train_list = list()
+    data_list = list()
     for i, data in enumerate(partitions):
-        if i != fold_idx:
-            train_list += data
+        if i in folds:
+            data_list += data
 
-    return train_list, val_list
+    return data_list
 
 
 class DistributedSampler(_TorchDistributedSampler):
