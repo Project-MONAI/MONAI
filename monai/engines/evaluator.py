@@ -130,7 +130,7 @@ class SupervisedEvaluator(Evaluator):
         epoch_length: Optional[int] = None,
         prepare_batch: Callable = default_prepare_batch,
         iteration_update: Optional[Callable] = None,
-        inferer: Inferer = SimpleInferer(),
+        inferer: Optional[Inferer] = None,
         post_transform: Optional[Transform] = None,
         key_val_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
@@ -151,7 +151,7 @@ class SupervisedEvaluator(Evaluator):
         )
 
         self.network = network
-        self.inferer = inferer
+        self.inferer = SimpleInferer() if inferer is None else inferer
 
     def _iteration(self, engine: Engine, batchdata: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """
@@ -225,7 +225,7 @@ class EnsembleEvaluator(Evaluator):
         epoch_length: Optional[int] = None,
         prepare_batch: Callable = default_prepare_batch,
         iteration_update: Optional[Callable] = None,
-        inferer: Inferer = SimpleInferer(),
+        inferer: Optional[Inferer] = None,
         post_transform: Optional[Transform] = None,
         key_val_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
@@ -247,7 +247,7 @@ class EnsembleEvaluator(Evaluator):
 
         self.networks = ensure_tuple(networks)
         self.pred_keys = ensure_tuple(pred_keys)
-        self.inferer = inferer
+        self.inferer = SimpleInferer() if inferer is None else inferer
 
     def _iteration(self, engine: Engine, batchdata: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """
