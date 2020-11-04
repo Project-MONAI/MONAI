@@ -19,8 +19,13 @@ COPY . .
 ENV PYTHONPATH=$PYTHONPATH:/opt/monai
 ENV PATH=/opt/tools:$PATH
 
-RUN python -m pip install --no-cache-dir -U pip wheel \
-  && python -m pip install --no-cache-dir -r requirements-dev.txt
+# ignore "torch" in requirements.txt, as we prefer PYTORCH_IMAGE
+RUN cp requirements.txt req.bak \
+  && awk '!/torch/' requirements.txt > tmp && mv tmp requirements.txt \
+  && python -m pip install --no-cache-dir -U pip wheel \
+  && python -m pip install --no-cache-dir -r requirements-dev.txt \
+  && mv req.bak requirements.txt
+# restored the original requirements.txt so that the version string is clean
 
 # NGC Client
 WORKDIR /opt/tools
