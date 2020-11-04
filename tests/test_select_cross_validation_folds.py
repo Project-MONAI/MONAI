@@ -13,7 +13,7 @@ import unittest
 
 from parameterized import parameterized
 
-from monai.data import generate_cross_validation_fold, partition_dataset
+from monai.data import partition_dataset, select_cross_validation_folds
 
 TEST_CASE_1 = [
     {
@@ -40,12 +40,13 @@ TEST_CASE_2 = [
 ]
 
 
-class TestGenerateCrossValidationFold(unittest.TestCase):
+class TestSelectCrossValidationFolds(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_value(self, input_param, result):
         partitions = partition_dataset(**input_param)
-        train, val = generate_cross_validation_fold(partitions, fold_idx=1)
+        train = select_cross_validation_folds(partitions=partitions, folds=[0] + list(range(2, len(partitions))))
         self.assertListEqual(train, result[0])
+        val = select_cross_validation_folds(partitions=partitions, folds=1)
         self.assertListEqual(val, result[1])
 
 

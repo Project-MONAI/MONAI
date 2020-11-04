@@ -15,8 +15,14 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
 import numpy as np
 
-from monai.apps.utils import download_and_extract, split_dataset
-from monai.data import CacheDataset, load_decathlon_datalist, load_decathlon_properties
+from monai.apps.utils import download_and_extract
+from monai.data import (
+    CacheDataset,
+    load_decathlon_datalist,
+    load_decathlon_properties,
+    partition_dataset,
+    select_cross_validation_folds,
+)
 from monai.transforms import LoadNiftid, LoadPNGd, Randomizable
 from monai.utils import ensure_tuple
 
@@ -306,41 +312,34 @@ class DecathlonDataset(Randomizable, CacheDataset):
             return [datalist[i] for i in self.indices]
 
 
-class CVDecathlonDataset:
+class CrossValidation:
     """
-    Cross vaidation dataset based on the general `DecathlonDataset`.
+    Cross validation dataset based on the general dataset which must have `_split_datalist` API.
 
     Args:
-        root_dir: user's local directory for caching and loading the MSD datasets.
-        task: which task to download and execute: one of list ("Task01_BrainTumour", "Task02_Heart",
-            "Task03_Liver", "Task04_Hippocampus", "Task05_Prostate", "Task06_Lung", "Task07_Pancreas",
-            "Task08_HepaticVessel", "Task09_Spleen", "Task10_Colon").
-        transform: transforms to execute operations on input data. the default transform is `LoadNiftid`,
-            which can load Nifti format data into numpy array with [H, W, D] or [H, W, D, C] shape.
-            for further usage, use `AddChanneld` or `AsChannelFirstd` to convert the shape to [C, H, W, D].
-        download: whether to download and extract the Decathlon from resource link, default is False.
-            if expected file already exists, skip downloading even set it to True.
+        dataset_cls: dataset class to be used to create the cross validation partitions.
+            It must have `_split_datalist` API.
+        nfolds: number of folds to split the data for cross validation.
         seed: random seed to randomly shuffle the datalist before splitting into N folds, default is 0.
-            note to set same seed for all the related datasets(`training` and `validation` sections in all N folds).
-        nsplits: number of folds, split the training data into N folds. each fold is then used once as a
-            validation while the N - 1 remaining folds form the training set.
-        cache_num: number of items to be cached. Default is `sys.maxsize`.
-            will take the minimum of (cache_num, data_length x cache_rate, data_length).
-        cache_rate: percentage of cached data in total, default is 1.0 (cache all).
-            will take the minimum of (cache_num, data_length x cache_rate, data_length).
-        num_workers: the number of worker threads to use.
-            if 0 a single thread will be used. Default is 0.
+        dataset_params: other additional parameters for the dataset_cls base class.
 
     Example of 5 folds cross validation training::
 
-        # use same random seed for all the datasets
-        cvdataset = CVDecathlonDataset(root_dir="./", task="Task09_Spleen", seed=12345, nsplts=5, download=True)
-        dataset_fold0_train = cvdataset.get_dataset(fold=0, section="training")
-        dataset_fold0_val = cvdataset.get_dataset(fold=0, section="validation")
+        cvdataset = CrossValidation(
+            dataset_cls=DecathlonDataset,
+            nfolds=5,
+            seed=12345,
+            root_dir="./",
+            task="Task09_Spleen",
+            section="training",
+            download=True,
+        )
+        dataset_fold0_train = cvdataset.get_dataset(folds=[1, 2, 3, 4])
+        dataset_fold0_val = cvdataset.get_dataset(folds=0)
         # execute training for fold 0 ...
 
-        dataset_fold1_train = cvdataset.get_dataset(fold=1, section="training")
-        dataset_fold1_val = cvdataset.get_dataset(fold=1, section="validation")
+        dataset_fold1_train = cvdataset.get_dataset(folds=[1])
+        dataset_fold1_val = cvdataset.get_dataset(folds=[0, 2, 3, 4])
         # execute training for fold 1 ...
 
         ...
@@ -352,63 +351,32 @@ class CVDecathlonDataset:
 
     def __init__(
         self,
-        root_dir: str,
-        task: str,
-        transform: Union[Sequence[Callable], Callable] = LoadNiftid(["image", "label"]),
-        download: bool = False,
+        dataset_cls,
+        nfolds: int = 5,
         seed: int = 0,
-        nsplits: int = 5,
-        cache_num: int = sys.maxsize,
-        cache_rate: float = 1.0,
-        num_workers: int = 0,
+        **dataset_params,
     ) -> None:
-        self.root_dir = root_dir
-        self.task = task
-        self.transform = transform
-        self.download = download
+        if not hasattr(dataset_cls, "_split_datalist"):
+            raise ValueError("dataset class must have _split_datalist API.")
+        self.dataset_cls = dataset_cls
+        self.nfolds = nfolds
         self.seed = seed
-        if nsplits < 2:
-            raise ValueError("nplits must be greater than 1 for cross validation.")
-        self.nsplits = nsplits
-        self.cache_num = cache_num
-        self.cache_rate = cache_rate
-        self.num_workers = num_workers
+        self.dataset_params = dataset_params
 
-    def get_dataset(self, fold: int, section: str):
+    def get_dataset(self, folds: Union[Sequence[int], int]):
         """
-        Generate dataset for specified fold index and section in the cross validation group.
+        Generate dataset based on the specified fold indice in the cross validation group.
 
         Args:
-            fold: index of fold for training and validation.
-            section: expected data section, can be: `training` or `validation`.
+            folds: index of folds for training or validation, if a list of values, concatenate the data.
 
         """
-        if fold > self.nsplits - 1:
-            raise ValueError("fold index should be in [0, nsplit - 1].")
-        nsplits = self.nsplits
+        nfolds = self.nfolds
+        seed = self.seed
 
-        class _NsplitsDataset(DecathlonDataset):
+        class _NsplitsDataset(self.dataset_cls):  # type: ignore
             def _split_datalist(self, datalist: List[Dict]) -> List[Dict]:
-                if section not in ["training", "validation"]:
-                    raise ValueError("section must be training or validation.")
-                length = len(datalist)
-                indices = np.arange(length)
-                self.randomize(indices)
-                fold_indices = split_dataset(nsplits, length)
-                if section == "training":
-                    self.indices = np.delete(indices, np.s_[fold_indices[fold][0] : fold_indices[fold][1]], axis=None)
-                else:
-                    self.indices = indices[fold_indices[fold][0] : fold_indices[fold][1]]
-                return [datalist[i] for i in self.indices]
+                data = partition_dataset(data=datalist, num_partitions=nfolds, shuffle=True, seed=seed)
+                return select_cross_validation_folds(partitions=data, folds=folds)
 
-        return _NsplitsDataset(
-            root_dir=self.root_dir,
-            task=self.task,
-            section=section,
-            transform=self.transform,
-            download=self.download,
-            seed=self.seed,
-            cache_num=self.cache_num,
-            cache_rate=self.cache_rate,
-            num_workers=self.num_workers,
-        )
+        return _NsplitsDataset(**self.dataset_params)
