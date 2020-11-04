@@ -13,7 +13,7 @@ import unittest
 
 from parameterized import parameterized
 
-from monai.data import select_cross_validation_folds, partition_dataset
+from monai.data import partition_dataset, select_cross_validation_folds
 
 TEST_CASE_1 = [
     {
