@@ -18,10 +18,10 @@ import numpy as np
 from monai.apps.utils import download_and_extract
 from monai.data import (
     CacheDataset,
-    generate_cross_validation_fold,
     load_decathlon_datalist,
     load_decathlon_properties,
     partition_dataset,
+    select_cross_validation_folds,
 )
 from monai.transforms import LoadNiftid, LoadPNGd, Randomizable
 from monai.utils import ensure_tuple
@@ -331,14 +331,15 @@ class CrossValidation:
             seed=12345,
             root_dir="./",
             task="Task09_Spleen",
+            section="training",
             download=True,
         )
-        dataset_fold0_train = cvdataset.get_partition(fold=0, section="training")
-        dataset_fold0_val = cvdataset.get_partition(fold=0, section="validation")
+        dataset_fold0_train = cvdataset.get_dataset(folds=[1, 2, 3, 4])
+        dataset_fold0_val = cvdataset.get_dataset(folds=0)
         # execute training for fold 0 ...
 
-        dataset_fold1_train = cvdataset.get_partition(fold=1, section="training")
-        dataset_fold1_val = cvdataset.get_partition(fold=1, section="validation")
+        dataset_fold1_train = cvdataset.get_dataset(folds=[1])
+        dataset_fold1_val = cvdataset.get_dataset(folds=[0, 2, 3, 4])
         # execute training for fold 1 ...
 
         ...
@@ -362,29 +363,20 @@ class CrossValidation:
         self.seed = seed
         self.dataset_params = dataset_params
 
-    def get_partition(self, fold: int, section: str):
+    def get_dataset(self, folds: Union[Sequence[int], int]):
         """
-        Generate partition for specified fold index and section in the cross validation group.
+        Generate dataset based on the specified fold indice in the cross validation group.
 
         Args:
-            fold: index of fold for training and validation.
-            section: expected data section, can be: `training` or `validation`.
+            folds: index of folds for training or validation, if a list of values, concatenate the data.
 
         """
-        if fold > self.nfolds - 1:
-            raise ValueError("fold index should be in [0, nfold - 1].")
         nfolds = self.nfolds
         seed = self.seed
 
         class _NsplitsDataset(self.dataset_cls):  # type: ignore
             def _split_datalist(self, datalist: List[Dict]) -> List[Dict]:
-                if section not in ["training", "validation"]:
-                    raise ValueError("section must be training or validation.")
                 data = partition_dataset(data=datalist, num_partitions=nfolds, shuffle=True, seed=seed)
-                train, val = generate_cross_validation_fold(partitions=data, fold_idx=fold)
-                if section == "training":
-                    return train
-                else:
-                    return val
+                return select_cross_validation_folds(partitions=data, folds=folds)
 
-        return _NsplitsDataset(section=section, **self.dataset_params)
+        return _NsplitsDataset(**self.dataset_params)
