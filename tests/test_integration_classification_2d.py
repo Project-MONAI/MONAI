@@ -52,7 +52,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0")
             LoadPNG(image_only=True),
             AddChannel(),
             ScaleIntensity(),
-            RandRotate(range_x=15, prob=0.5, keep_size=True),
+            RandRotate(range_x=np.pi / 12, prob=0.5, keep_size=True),
             RandFlip(spatial_axis=0, prob=0.5),
             RandZoom(min_zoom=0.9, max_zoom=1.1, prob=0.5),
             ToTensor(),
