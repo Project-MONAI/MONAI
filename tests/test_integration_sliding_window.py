@@ -29,7 +29,7 @@ from monai.utils import set_determinism
 from tests.utils import make_nifti_image
 
 
-def run_test(batch_size, img_name, seg_name, output_dir, device=torch.device("cuda:0")):
+def run_test(batch_size, img_name, seg_name, output_dir, device="cuda:0"):
     ds = NiftiDataset([img_name], [seg_name], transform=AddChannel(), seg_transform=AddChannel(), image_only=False)
     loader = DataLoader(ds, batch_size=1, pin_memory=torch.cuda.is_available())
 

@@ -58,9 +58,12 @@ Training stats handler
     :members:
 
 
-Tensorboard handler
--------------------
+Tensorboard handlers
+--------------------
 .. autoclass:: TensorBoardStatsHandler
+    :members:
+
+.. autoclass:: TensorBoardImageHandler
     :members:
 
 

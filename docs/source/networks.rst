@@ -205,13 +205,13 @@ Nets
 ----
 .. currentmodule:: monai.networks.nets
 
-`Ahnet`
+`AHNet`
 ~~~~~~~
 .. autoclass:: AHNet
   :members:
 
-`Densenet3D`
-~~~~~~~~~~~~
+`DenseNet`
+~~~~~~~~~~
 .. autoclass:: DenseNet
   :members:
 .. autofunction:: densenet121
@@ -219,17 +219,17 @@ Nets
 .. autofunction:: densenet201
 .. autofunction:: densenet264
 
-`SegResnet`
+`SegResNet`
 ~~~~~~~~~~~
 .. autoclass:: SegResNet
   :members:
 
-`SegResnetVAE`
+`SegResNetVAE`
 ~~~~~~~~~~~~~~
 .. autoclass:: SegResNetVAE
   :members:
 
-`Senet`
+`SENet`
 ~~~~~~~
 .. autoclass:: SENet
   :members:
@@ -240,7 +240,7 @@ Nets
 .. autofunction:: se_resnext50_32x4d
 .. autofunction:: se_resnext101_32x4d
 
-`Highresnet`
+`HighResNet`
 ~~~~~~~~~~~~
 .. autoclass:: HighResNet
   :members:
@@ -268,7 +268,7 @@ Nets
 .. autoclass:: BasicUnet
 .. autoclass:: Basicunet
 
-`Vnet`
+`VNet`
 ~~~~~~
 .. autoclass:: VNet
   :members:
