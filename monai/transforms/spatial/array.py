@@ -14,12 +14,12 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 import warnings
-from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
+from typing import Any, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 
-from monai.config import USE_COMPILED, get_torch_version_tuple
+from monai.config import USE_COMPILED
 from monai.data.utils import compute_shape_offset, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.transforms.compose import Randomizable, Transform
@@ -45,17 +45,6 @@ from monai.utils import (
 )
 
 nib, _ = optional_import("nibabel")
-
-_torch_interp: Callable[..., torch.Tensor]
-
-if get_torch_version_tuple() >= (1, 5):
-    # additional argument since torch 1.5 (to avoid warnings)
-    def _torch_interp(**kwargs):
-        return torch.nn.functional.interpolate(recompute_scale_factor=True, **kwargs)
-
-
-else:
-    _torch_interp = torch.nn.functional.interpolate
 
 
 class Spacing(Transform):
@@ -353,7 +342,8 @@ class Resize(Transform):
                 f"got spatial_size={output_ndim} img={input_ndim}."
             )
         spatial_size = fall_back_tuple(self.spatial_size, img.shape[1:])
-        resized = _torch_interp(
+        resized = torch.nn.functional.interpolate(  # type: ignore
+            recompute_scale_factor=True,
             input=torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0),
             size=spatial_size,
             mode=self.mode.value if mode is None else InterpolateMode(mode).value,
@@ -528,7 +518,8 @@ class Zoom(Transform):
 
         """
         _zoom = ensure_tuple_rep(self.zoom, img.ndim - 1)  # match the spatial image dim
-        zoomed = _torch_interp(
+        zoomed = torch.nn.functional.interpolate(  # type: ignore
+            recompute_scale_factor=True,
             input=torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0),
             scale_factor=list(_zoom),
             mode=self.mode.value if mode is None else InterpolateMode(mode).value,
@@ -1475,7 +1466,8 @@ class Rand2DElastic(Randomizable, Transform):
         if self.do_transform:
             grid = self.deform_grid(spatial_size=sp_size)
             grid = self.rand_affine_grid(grid=grid)
-            grid = _torch_interp(
+            grid = torch.nn.functional.interpolate(  # type: ignore
+                recompute_scale_factor=True,
                 input=grid.unsqueeze(0),
                 scale_factor=list(ensure_tuple(self.deform_grid.spacing)),
                 mode=InterpolateMode.BICUBIC.value,

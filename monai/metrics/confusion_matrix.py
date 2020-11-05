@@ -19,7 +19,7 @@ from monai.networks import one_hot
 from monai.utils import Average
 
 
-def compute_confusion_metric(
+def compute_confusion_matrix(
     y_pred: torch.Tensor,
     y: torch.Tensor,
     to_onehot_y: bool = False,
