@@ -277,7 +277,7 @@ class TestConfusionMatrix(unittest.TestCase):
         vals["y_pred"] = params.pop("y_pred")
         vals["y"] = params.pop("y")
         metric = ConfusionMatrixMetric(**params)
-        result = metric(**vals)
+        result, _ = metric(**vals)
         np.testing.assert_allclose(result, expected_value, atol=1e-4)
 
     @parameterized.expand(TEST_CASES_NO_COMPUTE_SAMPLE)
@@ -287,7 +287,7 @@ class TestConfusionMatrix(unittest.TestCase):
         vals["y_pred"] = params.pop("y_pred")
         vals["y"] = params.pop("y")
         metric = ConfusionMatrixMetric(**params)
-        result = metric(**vals)
+        result, _ = metric(**vals)
         np.testing.assert_allclose(result, expected_value, atol=1e-4)
 
     @parameterized.expand(TEST_CASES_COMPUTE_SAMPLE_NAN)
@@ -297,8 +297,7 @@ class TestConfusionMatrix(unittest.TestCase):
         vals["y_pred"] = params.pop("y_pred")
         vals["y"] = params.pop("y")
         metric = ConfusionMatrixMetric(**params)
-        result = metric(**vals)
-        not_nans = metric.not_nans
+        result, not_nans = metric(**vals)
         np.testing.assert_allclose(result, expected_value, atol=1e-4)
         np.testing.assert_allclose(not_nans, expected_not_nans, atol=1e-4)
 
@@ -309,8 +308,7 @@ class TestConfusionMatrix(unittest.TestCase):
         vals["y_pred"] = params.pop("y_pred")
         vals["y"] = params.pop("y")
         metric = ConfusionMatrixMetric(**params)
-        result = metric(**vals)
-        not_nans = metric.not_nans
+        result, not_nans = metric(**vals)
         np.testing.assert_allclose(result, expected_value, atol=1e-4)
         np.testing.assert_allclose(not_nans, expected_not_nans, atol=1e-4)
 

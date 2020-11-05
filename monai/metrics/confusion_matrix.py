@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import Optional, Union
+from typing import Union
 
 import torch
 
@@ -59,8 +59,6 @@ class ConfusionMatrixMetric:
         self.compute_sample = compute_sample
         self.output_class = output_class
 
-        self.not_nans: Optional[torch.Tensor] = None  # keep track for valid elements in the batch
-
     def __call__(self, y_pred: torch.Tensor, y: torch.Tensor):
         """
         Args:
@@ -108,8 +106,7 @@ class ConfusionMatrixMetric:
             not_nans = (~nans).float()
             f[nans] = 0
             not_nans = not_nans.sum(dim=0)
-        self.not_nans = not_nans
-        return f
+        return f, not_nans
 
 
 def get_confusion_matrix(

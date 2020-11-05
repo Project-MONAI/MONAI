@@ -9,7 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Union
+import warnings
+from typing import Union
 
 import torch
 
@@ -45,8 +46,6 @@ class DiceMetric:
         self.include_background = include_background
         self.reduction = reduction
 
-        self.not_nans: Optional[torch.Tensor] = None  # keep track for valid elements in the batch
-
     def __call__(self, y_pred: torch.Tensor, y: torch.Tensor):
         """
         Args:
@@ -57,12 +56,11 @@ class DiceMetric:
                 The values should be binarized.
 
         Raises:
-            ValueError: when `y_pred` is not a binarized tensor.
             ValueError: when `y` is not a binarized tensor.
             ValueError: when `y_pred` has less than three dimensions.
         """
         if not torch.all(y_pred.byte() == y_pred):
-            raise ValueError("y_pred should be a binarized tensor.")
+            warnings.warn("y_pred is not a binarized tensor here!")
         if not torch.all(y.byte() == y):
             raise ValueError("y should be a binarized tensor.")
         dims = y_pred.ndimension()
@@ -77,10 +75,7 @@ class DiceMetric:
 
         # do metric reduction
         f, not_nans = do_metric_reduction(f, self.reduction)
-
-        # save not_nans since we may need it later to know how many elements were valid
-        self.not_nans = not_nans
-        return f
+        return f, not_nans
 
 
 def compute_meandice(

@@ -70,9 +70,8 @@ class MeanDice(Metric):  # type: ignore[valid-type, misc] # due to optional_impo
         if len(output) != 2:
             raise ValueError(f"output must have length 2, got {len(output)}.")
         y_pred, y = output
-        score = self.dice(y_pred, y)
-        assert self.dice.not_nans is not None
-        not_nans = int(self.dice.not_nans.item())
+        score, not_nans = self.dice(y_pred, y)
+        not_nans = int(not_nans.item())
 
         # add all items in current batch
         self._sum += score.item() * not_nans
