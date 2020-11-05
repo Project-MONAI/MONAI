@@ -16,6 +16,8 @@ from parameterized import parameterized
 
 from monai.networks.nets import HighResNet
 
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
 TEST_CASE_1 = [  # single channel 3D, batch 16
     {"spatial_dims": 3, "in_channels": 1, "out_channels": 3, "norm_type": "instance"},
     (16, 1, 32, 24, 48),
@@ -44,10 +46,10 @@ TEST_CASE_4 = [  # 4-channel 1D, batch 16
 class TestHighResNet(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_shape(self, input_param, input_shape, expected_shape):
-        net = HighResNet(**input_param)
+        net = HighResNet(**input_param).to(device)
         net.eval()
         with torch.no_grad():
-            result = net.forward(torch.randn(input_shape))
+            result = net.forward(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
 
 

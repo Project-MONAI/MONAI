@@ -17,6 +17,8 @@ from parameterized import parameterized
 from monai.networks.nets import VNet
 from tests.utils import test_script_save
 
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
 TEST_CASE_VNET_2D_1 = [
     {"spatial_dims": 2, "in_channels": 4, "out_channels": 1, "act": "elu", "dropout_dim": 1},
     (1, 4, 32, 32),
@@ -61,10 +63,10 @@ class TestVNet(unittest.TestCase):
         ]
     )
     def test_vnet_shape(self, input_param, input_shape, expected_shape):
-        net = VNet(**input_param)
+        net = VNet(**input_param).to(device)
         net.eval()
         with torch.no_grad():
-            result = net.forward(torch.randn(input_shape))
+            result = net.forward(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
 
     def test_script(self):
