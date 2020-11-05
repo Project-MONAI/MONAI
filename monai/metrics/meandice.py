@@ -113,6 +113,9 @@ def compute_meandice(
             y=y,
         )
 
+    y = y.float()
+    y_pred = y_pred.float()
+
     if y.shape != y_pred.shape:
         raise ValueError("y_pred and y should have same shapes.")
 

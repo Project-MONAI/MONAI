@@ -38,8 +38,6 @@ def ignore_background(
     """
     y = y[:, 1:] if y.shape[1] > 1 else y
     y_pred = y_pred[:, 1:] if y_pred.shape[1] > 1 else y_pred
-    y = y.float()
-    y_pred = y_pred.float()
     return y_pred, y
 
 
@@ -79,7 +77,7 @@ def do_metric_reduction(
         f = torch.where(not_nans > 0, f.sum(dim=0) / not_nans, t_zero)  # batch average
 
     elif reduction == MetricReduction.SUM:
-        not_nans = not_nans.sum(dim=0)
+        not_nans = not_nans.sum(dim=[0, 1])
         f = torch.sum(f, dim=[0, 1])  # sum over the batch and channel dims
     elif reduction == MetricReduction.MEAN_BATCH:
         not_nans = not_nans.sum(dim=0)

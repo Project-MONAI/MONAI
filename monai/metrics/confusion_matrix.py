@@ -69,13 +69,12 @@ class ConfusionMatrixMetric:
             y: ground truth to compute the metric. It must be one-hot format and first dim is batch.
                 The values should be binarized.
         Raises:
-            ValueError: when `y_pred` is not a binarized tensor.
             ValueError: when `y` is not a binarized tensor.
             ValueError: when `y_pred` has less than two dimensions.
         """
         # check binarized input
         if not torch.all(y_pred.byte() == y_pred):
-            raise ValueError("y_pred should be a binarized tensor.")
+            warnings.warn("y_pred is not a binarized tensor here!")
         if not torch.all(y.byte() == y):
             raise ValueError("y should be a binarized tensor.")
         # check dimension
@@ -141,6 +140,9 @@ def get_confusion_matrix(
             y_pred=y_pred,
             y=y,
         )
+
+    y = y.float()
+    y_pred = y_pred.float()
 
     if y.shape != y_pred.shape:
         raise ValueError("y_pred and y should have same shapes.")
