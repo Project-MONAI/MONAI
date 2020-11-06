@@ -9,10 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .confusion_matrix import compute_confusion_matrix
-from .confusion_matrix_utils import *
+from .confusion_matrix import ConfusionMatrixMetric, get_confusion_matrix
 from .hausdorff_distance import compute_hausdorff_distance
 from .meandice import DiceMetric, compute_meandice
 from .occlusion_sensitivity import compute_occlusion_sensitivity
 from .rocauc import compute_roc_auc
 from .surface_distance import compute_average_surface_distance
+from .utils import *
