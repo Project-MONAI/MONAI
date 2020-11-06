@@ -390,16 +390,25 @@ class RandWeightedCropd(Randomizable, MapTransform):
         spatial_size: the spatial size of the image patch e.g. [224, 224, 128].
             If its components have non-positive values, the corresponding size of `img` will be used.
         num_samples: number of samples (image patches) to take in the returned list.
+        center_coord_key: if specified, the actual sampling location will be stored with the corresponding key.
 
     See Also:
         :py:class:`monai.transforms.RandWeightedCrop`
     """
 
-    def __init__(self, keys: KeysCollection, w_key: str, spatial_size: Union[Sequence[int], int], num_samples: int = 1):
+    def __init__(
+        self,
+        keys: KeysCollection,
+        w_key: str,
+        spatial_size: Union[Sequence[int], int],
+        num_samples: int = 1,
+        center_coord_key: Optional[str] = None,
+    ):
         super().__init__(keys)
         self.spatial_size = ensure_tuple(spatial_size)
         self.w_key = w_key
         self.num_samples = int(num_samples)
+        self.center_coord_key = center_coord_key
         self.centers: List[np.ndarray] = []
 
     def randomize(self, weight_map: np.ndarray) -> None:
@@ -424,6 +433,8 @@ class RandWeightedCropd(Randomizable, MapTransform):
                 for i, center in enumerate(self.centers):
                     cropper = SpatialCrop(roi_center=center, roi_size=_spatial_size)
                     results[i][key] = cropper(img)
+                    if self.center_coord_key:
+                        results[i][self.center_coord_key] = center
             else:
                 for i in range(self.num_samples):
                     results[i][key] = data[key]

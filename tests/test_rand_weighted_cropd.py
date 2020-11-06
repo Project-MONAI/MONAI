@@ -36,7 +36,7 @@ class TestRandWeightedCrop(NumpyImageTestCase2D):
     def test_rand_weighted_crop_default_roi(self):
         img = self.imt[0]
         n_samples = 3
-        crop = RandWeightedCropd("im", "weight", (10, -1), n_samples)
+        crop = RandWeightedCropd("im", "weight", (10, -1), n_samples, "coords")
         weight = np.zeros_like(img)
         weight[0, 30, 17] = 1.1
         weight[0, 40, 31] = 1
@@ -47,11 +47,12 @@ class TestRandWeightedCrop(NumpyImageTestCase2D):
         self.assertTrue(len(result) == n_samples)
         np.testing.assert_allclose(result[0]["im"].shape, (1, 10, 64))
         np.testing.assert_allclose(np.asarray(crop.centers), [[14, 32], [105, 32], [20, 32]])
+        np.testing.assert_allclose(result[1]["coords"], [105, 32])
 
     def test_rand_weighted_crop_large_roi(self):
         img = self.segn[0]
         n_samples = 3
-        crop = RandWeightedCropd(("img", "seg"), "weight", (10000, 400), n_samples)
+        crop = RandWeightedCropd(("img", "seg"), "weight", (10000, 400), n_samples, "location")
         weight = np.zeros_like(img)
         weight[0, 30, 17] = 1.1
         weight[0, 10, 1] = 1
@@ -62,6 +63,7 @@ class TestRandWeightedCrop(NumpyImageTestCase2D):
         np.testing.assert_allclose(result[0]["img"].shape, (1, 128, 64))
         np.testing.assert_allclose(result[0]["seg"].shape, (1, 128, 64))
         np.testing.assert_allclose(np.asarray(crop.centers), [[64, 32], [64, 32], [64, 32]])
+        np.testing.assert_allclose(result[1]["location"], [64, 32])
 
     def test_rand_weighted_crop_bad_w(self):
         img = self.imt[0]

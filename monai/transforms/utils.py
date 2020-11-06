@@ -106,16 +106,18 @@ def rescale_array_int_max(arr: np.ndarray, dtype: np.dtype = np.uint16) -> np.nd
 
 
 def copypaste_arrays(
-    src: np.ndarray,
-    dest: np.ndarray,
+    src_shape,
+    dest_shape,
     srccenter: Sequence[int],
     destcenter: Sequence[int],
     dims: Sequence[Optional[int]],
 ) -> Tuple[Tuple[slice, ...], Tuple[slice, ...]]:
     """
-    Calculate the slices to copy a sliced area of array `src` into array `dest`. The area has dimensions `dims` (use 0
-    or None to copy everything in that dimension), the source area is centered at `srccenter` index in `src` and copied
-    into area centered at `destcenter` in `dest`. The dimensions of the copied area will be clipped to fit within the
+    Calculate the slices to copy a sliced area of array in `src_shape` into array in `dest_shape`.
+
+    The area has dimensions `dims` (use 0 or None to copy everything in that dimension),
+    the source area is centered at `srccenter` index in `src` and copied into area centered at `destcenter` in `dest`.
+    The dimensions of the copied area will be clipped to fit within the
     source and destination arrays so a smaller area may be copied than expected. Return value is the tuples of slice
     objects indexing the copied area in `src`, and those indexing the copy area in `dest`.
 
@@ -123,9 +125,10 @@ def copypaste_arrays(
 
     .. code-block:: python
 
-        src = np.random.randint(0,10,(6,6))
+        src_shape = (6,6)
+        src = np.random.randint(0,10,src_shape)
         dest = np.zeros_like(src)
-        srcslices, destslices = copypaste_arrays(src, dest, (3, 2),(2, 1),(3, 4))
+        srcslices, destslices = copypaste_arrays(src_shape, dest.shape, (3, 2),(2, 1),(3, 4))
         dest[destslices] = src[srcslices]
         print(src)
         print(dest)
@@ -144,10 +147,12 @@ def copypaste_arrays(
              [0 0 0 0 0 0]]
 
     """
-    srcslices = [slice(None)] * src.ndim
-    destslices = [slice(None)] * dest.ndim
+    s_ndim = len(src_shape)
+    d_ndim = len(dest_shape)
+    srcslices = [slice(None)] * s_ndim
+    destslices = [slice(None)] * d_ndim
 
-    for i, ss, ds, sc, dc, dim in zip(range(src.ndim), src.shape, dest.shape, srccenter, destcenter, dims):
+    for i, ss, ds, sc, dc, dim in zip(range(s_ndim), src_shape, dest_shape, srccenter, destcenter, dims):
         if dim:
             # dimension before midpoint, clip to size fitting in both arrays
             d1 = np.clip(dim // 2, 0, min(sc, dc))
@@ -160,23 +165,27 @@ def copypaste_arrays(
     return tuple(srcslices), tuple(destslices)
 
 
-def resize_center(img: np.ndarray, *resize_dims: Optional[int], fill_value: float = 0.0) -> np.ndarray:
+def resize_center(
+    img: np.ndarray, *resize_dims: Optional[int], fill_value: float = 0.0, inplace: bool = True
+) -> np.ndarray:
     """
     Resize `img` by cropping or expanding the image from the center. The `resize_dims` values are the output dimensions
     (or None to use original dimension of `img`). If a dimension is smaller than that of `img` then the result will be
     cropped and if larger padded with zeros, in both cases this is done relative to the center of `img`. The result is
     a new image with the specified dimensions and values from `img` copied into its center.
     """
-    resize_dims = tuple(resize_dims[i] or img.shape[i] for i in range(len(resize_dims)))
 
-    dest = np.full(resize_dims, fill_value, img.dtype)
+    resize_dims = fall_back_tuple(resize_dims, img.shape)
+
     half_img_shape = np.asarray(img.shape) // 2
-    half_dest_shape = np.asarray(dest.shape) // 2
+    half_dest_shape = np.asarray(resize_dims) // 2
+    srcslices, destslices = copypaste_arrays(img.shape, resize_dims, half_img_shape, half_dest_shape, resize_dims)
 
-    srcslices, destslices = copypaste_arrays(img, dest, half_img_shape, half_dest_shape, resize_dims)
-    dest[destslices] = img[srcslices]
-
-    return dest
+    if not inplace:
+        dest = np.full(resize_dims, fill_value, img.dtype)
+        dest[destslices] = img[srcslices]
+        return dest
+    return img[srcslices]
 
 
 def map_binary_to_indices(
