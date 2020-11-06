@@ -838,20 +838,20 @@ class AffineGrid(Transform):
     Affine transforms on the coordinates.
 
     Args:
-        rotate_range: angle range in radians. rotate_range[0] with be used to generate the 1st rotation
-            parameter from `uniform[-rotate_range[0], rotate_range[0])`. Similarly, `rotate_range[1]` and
-            `rotate_range[2]` are used in 3D affine for the range of 2nd and 3rd axes.
-        shear_range: shear_range[0] with be used to generate the 1st shearing parameter from
-            `uniform[-shear_range[0], shear_range[0])`. Similarly, `shear_range[1]` to
-            `shear_range[N]` controls the range of the uniform distribution used to generate the 2nd to
+        rotate_params: angle range in radians. rotate_params[0] with be used to generate the 1st rotation
+            parameter from `uniform[-rotate_params[0], rotate_params[0])`. Similarly, `rotate_params[1]` and
+            `rotate_params[2]` are used in 3D affine for the range of 2nd and 3rd axes.
+        shear_params: shear_params[0] with be used to generate the 1st shearing parameter from
+            `uniform[-shear_params[0], shear_params[0])`. Similarly, `shear_params[1]` to
+            `shear_params[N]` controls the range of the uniform distribution used to generate the 2nd to
             N-th parameter.
-        translate_range : translate_range[0] with be used to generate the 1st shift parameter from
-            `uniform[-translate_range[0], translate_range[0])`. Similarly, `translate_range[1]`
-            to `translate_range[N]` controls the range of the uniform distribution used to generate
+        translate_params : translate_params[0] with be used to generate the 1st shift parameter from
+            `uniform[-translate_params[0], translate_params[0])`. Similarly, `translate_params[1]`
+            to `translate_params[N]` controls the range of the uniform distribution used to generate
             the 2nd to N-th parameter.
-        scale_range: scaling_range[0] with be used to generate the 1st scaling factor from
-            `uniform[-scale_range[0], scale_range[0]) + 1.0`. Similarly, `scale_range[1]` to
-            `scale_range[N]` controls the range of the uniform distribution used to generate the 2nd to
+        scale_params: scale_params[0] with be used to generate the 1st scaling factor from
+            `uniform[-scale_params[0], scale_params[0]) + 1.0`. Similarly, `scale_params[1]` to
+            `scale_params[N]` controls the range of the uniform distribution used to generate the 2nd to
             N-th parameter.
         as_tensor_output: whether to output tensor instead of numpy array.
             defaults to True.
