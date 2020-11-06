@@ -218,7 +218,7 @@ def do_calculate_metric(
     elif metric == "ts":
         numerator, denominator = tp, (tp + fn + fp)
     elif metric == "acc":
-        numerator, denominator = (tp + tp), (p + n)
+        numerator, denominator = (tp + tn), (p + n)
     elif metric == "ba":
         tpr = handle_zero_divide(tp, p, div_0)
         tnr = handle_zero_divide(tn, n, div_0)
