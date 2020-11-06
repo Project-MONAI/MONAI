@@ -51,49 +51,49 @@ TEST_CASE_MCFCN_3 = [
 ]
 
 TEST_CASE_AHNET_2D_1 = [
-    {"spatial_dims": 2, "upsample_mode": "bilinear"},
-    (3, 1, 128, 128),
-    (3, 1, 128, 128),
+    {"spatial_dims": 2, "psp_block_num": 0, "upsample_mode": "bilinear"},
+    (3, 1, 32, 32),
+    (3, 1, 32, 32),
 ]
 TEST_CASE_AHNET_2D_2 = [
-    {"spatial_dims": 2, "upsample_mode": "transpose", "out_channels": 2},
-    (2, 1, 128, 128),
-    (2, 2, 128, 128),
+    {"spatial_dims": 2, "psp_block_num": 1, "upsample_mode": "transpose", "out_channels": 2},
+    (2, 1, 32, 64),
+    (2, 2, 32, 64),
 ]
 TEST_CASE_AHNET_2D_3 = [
-    {"spatial_dims": 2, "upsample_mode": "bilinear", "out_channels": 2},
-    (2, 1, 160, 128),
-    (2, 2, 160, 128),
+    {"spatial_dims": 2, "psp_block_num": 2, "upsample_mode": "bilinear", "out_channels": 2},
+    (2, 1, 64, 32),
+    (2, 2, 64, 32),
 ]
 TEST_CASE_AHNET_3D_1 = [
-    {"spatial_dims": 3, "upsample_mode": "trilinear"},
-    (3, 1, 128, 128, 64),
-    (3, 1, 128, 128, 64),
+    {"spatial_dims": 3, "psp_block_num": 1, "upsample_mode": "trilinear"},
+    (3, 1, 32, 32, 64),
+    (3, 1, 32, 32, 64),
 ]
 TEST_CASE_AHNET_3D_2 = [
-    {"spatial_dims": 3, "upsample_mode": "transpose", "out_channels": 2},
-    (2, 1, 128, 128, 64),
-    (2, 2, 128, 128, 64),
+    {"spatial_dims": 3, "psp_block_num": 0, "upsample_mode": "transpose", "out_channels": 2},
+    (2, 1, 32, 32, 64),
+    (2, 2, 32, 32, 64),
 ]
 TEST_CASE_AHNET_3D_3 = [
-    {"spatial_dims": 3, "upsample_mode": "trilinear", "out_channels": 2},
-    (2, 1, 160, 128, 64),
-    (2, 2, 160, 128, 64),
+    {"spatial_dims": 3, "psp_block_num": 1, "upsample_mode": "trilinear", "out_channels": 2},
+    (2, 1, 32, 32, 64),
+    (2, 2, 32, 32, 64),
 ]
 TEST_CASE_AHNET_3D_WITH_PRETRAIN_1 = [
-    {"spatial_dims": 3, "upsample_mode": "trilinear"},
-    (3, 1, 128, 128, 64),
-    (3, 1, 128, 128, 64),
+    {"spatial_dims": 3, "psp_block_num": 0, "upsample_mode": "trilinear"},
+    (3, 1, 32, 32, 64),
+    (3, 1, 32, 32, 64),
     {"out_channels": 1, "upsample_mode": "transpose"},
 ]
 TEST_CASE_AHNET_3D_WITH_PRETRAIN_2 = [
-    {"spatial_dims": 3, "upsample_mode": "transpose", "out_channels": 2},
-    (2, 1, 128, 128, 64),
-    (2, 2, 128, 128, 64),
+    {"spatial_dims": 3, "psp_block_num": 3, "upsample_mode": "trilinear", "out_channels": 2},
+    (2, 1, 96, 96, 64),
+    (2, 2, 96, 96, 64),
     {"out_channels": 1, "upsample_mode": "bilinear"},
 ]
 TEST_CASE_AHNET_3D_WITH_PRETRAIN_3 = [
-    {"spatial_dims": 3, "upsample_mode": "transpose", "in_channels": 2, "out_channels": 3},
+    {"spatial_dims": 3, "psp_block_num": 4, "upsample_mode": "transpose", "in_channels": 2, "out_channels": 3},
     (2, 2, 128, 128, 64),
     (2, 3, 128, 128, 64),
     {"out_channels": 1, "upsample_mode": "bilinear"},
@@ -141,7 +141,7 @@ class TestAHNET(unittest.TestCase):
             self.assertEqual(result.shape, expected_shape)
 
     def test_script(self):
-        net = AHNet(spatial_dims=3, out_channels=2)
+        net = AHNet(spatial_dims=3, out_channels=2, psp_block_num=4)
         test_data = torch.randn(1, 1, 128, 128, 64)
         out_orig, out_reloaded = test_script_save(net, test_data)
         assert torch.allclose(out_orig, out_reloaded)
@@ -171,13 +171,14 @@ class TestAHNETWithPretrain(unittest.TestCase):
             upsample_mode="transpose",
             in_channels=2,
             out_channels=3,
+            psp_block_num=2,
             pretrained=True,
             progress=True,
         )
-        input_data = torch.randn(2, 2, 128, 128, 64)
+        input_data = torch.randn(2, 2, 32, 32, 64)
         with torch.no_grad():
             result = net.forward(input_data)
-            self.assertEqual(result.shape, (2, 3, 128, 128, 64))
+            self.assertEqual(result.shape, (2, 3, 32, 32, 64))
 
 
 if __name__ == "__main__":
