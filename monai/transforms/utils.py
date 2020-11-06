@@ -211,6 +211,51 @@ def map_binary_to_indices(
     return fg_indices, bg_indices
 
 
+def weighted_patch_samples(
+    spatial_size: Union[int, Sequence[int]],
+    w: np.ndarray,
+    n_samples: int = 1,
+    r_state: Optional[np.random.RandomState] = None,
+) -> List:
+    """
+    Computes `n_samples` of random patch sampling locations, given the sampling weight map `w` and patch `spatial_size`.
+
+    Args:
+        spatial_size: length of each spatial dimension of the patch.
+        w: weight map, the weights must be non-negative. each element denotes a sampling weight of the spatial location.
+            0 indicates no sampling.
+            The weight map shape is assumed ``(spatial_dim_0, spatial_dim_1, ..., spatial_dim_n)``.
+        n_samples: number of patch samples
+        r_state: a random state container
+
+    Returns:
+        a list of `n_samples` N-D integers representing the spatial sampling location of patches.
+
+    """
+    if w is None:
+        raise ValueError("w must be an ND array.")
+    if r_state is None:
+        r_state = np.random.RandomState()
+    img_size = np.asarray(w.shape, dtype=np.int)
+    win_size = np.asarray(fall_back_tuple(spatial_size, img_size), dtype=np.int)
+
+    s = tuple(slice(w // 2, m - w + w // 2) if m > w else slice(m // 2, m // 2 + 1) for w, m in zip(win_size, img_size))
+    v = w[s]  # weight map in the 'valid' mode
+    v_size = v.shape
+    v = v.ravel()
+    if np.any(v < 0):
+        v -= np.min(v)  # shifting to non-negative
+    v = v.cumsum()
+    if not v[-1] or not np.isfinite(v[-1]) or v[-1] < 0:  # uniform sampling
+        idx = r_state.randint(0, len(v), size=n_samples)
+    else:
+        idx = v.searchsorted(r_state.random(n_samples) * v[-1], side="right")
+    # compensate 'valid' mode
+    diff = np.minimum(win_size, img_size) // 2
+    centers = [np.unravel_index(i, v_size) + diff for i in np.asarray(idx, dtype=np.int)]
+    return centers
+
+
 def generate_pos_neg_label_crop_centers(
     spatial_size: Union[Sequence[int], int],
     num_samples: int,
