@@ -226,7 +226,7 @@ def compute_confusion_matrix_metric(metric_name: str, confusion_matrix: torch.Te
     elif metric == "ts":
         numerator, denominator = tp, (tp + fn + fp)
     elif metric == "acc":
-        numerator, denominator = (tp + tp), (p + n)
+        numerator, denominator = (tp + tn), (p + n)
     elif metric == "ba":
         tpr = torch.where(p > 0, tp / p, torch.tensor(float("nan")))
         tnr = torch.where(n > 0, tn / n, torch.tensor(float("nan")))
