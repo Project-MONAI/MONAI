@@ -18,6 +18,8 @@ from monai.networks.layers import Act, Norm
 from monai.networks.nets import UNet
 from tests.utils import test_script_save
 
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
 TEST_CASE_0 = [  # single channel 2D, batch 16, no residual
     {
         "dimensions": 2,
@@ -118,10 +120,10 @@ CASES = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_C
 class TestUNET(unittest.TestCase):
     @parameterized.expand(CASES)
     def test_shape(self, input_param, input_shape, expected_shape):
-        net = UNet(**input_param)
+        net = UNet(**input_param).to(device)
         net.eval()
         with torch.no_grad():
-            result = net.forward(torch.randn(input_shape))
+            result = net.forward(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
 
     def test_script(self):

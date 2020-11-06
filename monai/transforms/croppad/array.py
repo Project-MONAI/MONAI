@@ -224,7 +224,7 @@ class SpatialCrop(Transform):
             self.roi_end = np.maximum(self.roi_start + roi_size, self.roi_start)
         else:
             if roi_start is None or roi_end is None:
-                raise ValueError("Please specify either roi_center, ori_size or roi_start, roi_end.")
+                raise ValueError("Please specify either roi_center, roi_size or roi_start, roi_end.")
             self.roi_start = np.maximum(np.asarray(roi_start, dtype=np.int16), 0)
             self.roi_end = np.maximum(np.asarray(roi_end, dtype=np.int16), self.roi_start)
 
@@ -546,8 +546,8 @@ class ResizeWithPadOrCrop(Transform):
     """
     Resize an image to a target spatial size by either centrally cropping the image or
     padding it evenly with a user-specified mode.
-    when the dimension is smaller than the target size, do central cropping along that dim.
-    when the dimension is larger than the target size, do symmetric padding along that dim.
+    When the dimension is smaller than the target size, do symmetric padding along that dim.
+    When the dimension is larger than the target size, do central cropping along that dim.
 
     Args:
         spatial_size: the spatial size of output data after padding or crop.

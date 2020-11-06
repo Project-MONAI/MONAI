@@ -17,6 +17,8 @@ from parameterized import parameterized
 from monai.networks.blocks import SEBlock
 from monai.networks.layers.factories import Act, Norm
 
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
 TEST_CASES = [
     [
         {"spatial_dims": 2, "in_channels": 4, "n_chns_1": 20, "n_chns_2": 30, "n_chns_3": 4, "r": 2},
@@ -59,10 +61,10 @@ for type_1 in (
 class TestSEBlockLayer(unittest.TestCase):
     @parameterized.expand(TEST_CASES + TEST_CASES_3D)
     def test_shape(self, input_param, input_shape, expected_shape):
-        net = SEBlock(**input_param)
+        net = SEBlock(**input_param).to(device)
         net.eval()
         with torch.no_grad():
-            result = net(torch.randn(input_shape))
+            result = net(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
 
     def test_ill_arg(self):

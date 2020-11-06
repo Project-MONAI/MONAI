@@ -16,25 +16,27 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.layers import GaussianFilter
+from tests.utils import skip_if_quick
 
 TEST_CASES = [[{"type": "erf", "gt": 2.0}], [{"type": "scalespace", "gt": 3.0}], [{"type": "sampled", "gt": 5.0}]]
 TEST_CASES_GPU = [
     [{"type": "erf", "gt": 0.8, "device": "cuda"}],
-    [{"type": "scalespace", "gt": 3.0, "device": "cuda"}],
     [{"type": "sampled", "gt": 5.0, "device": "cuda"}],
 ]
 TEST_CASES_3d = [
-    [{"type": "erf", "gt": 2.0, "dims": (2, 3, 8, 9, 10)}],
-    [{"type": "scalespace", "gt": 3.0, "dims": (2, 3, 8, 9, 10), "device": "cuda"}],
-    [{"type": "sampled", "gt": (0.5, 0.8, 3.0), "dims": (2, 3, 8, 9, 10), "lr": 0.1}],
     [{"type": "scalespace", "gt": 0.5, "dims": (2, 3, 8, 9, 10), "lr": 0.01, "device": "cuda"}],
     [{"type": "erf", "gt": 3.8, "dims": (2, 3, 8, 9, 10), "lr": 0.1, "device": "cuda"}],
 ]
+TEST_CASES_SLOW = [
+    [{"type": "erf", "gt": 2.0, "dims": (2, 3, 8, 9, 10)}],
+    [{"type": "scalespace", "gt": 3.0, "dims": (2, 3, 8, 9, 10), "device": "cuda"}],
+    [{"type": "sampled", "gt": (0.5, 0.8, 3.0), "dims": (2, 3, 8, 9, 10), "lr": 0.1}],
+    [{"type": "scalespace", "gt": 3.0, "device": "cuda"}],
+]
 
 
-class GaussianFilterBackprop(unittest.TestCase):
-    @parameterized.expand(TEST_CASES + TEST_CASES_GPU + TEST_CASES_3d)
-    def test_train(self, input_args):
+class TestGaussianFilterBackprop(unittest.TestCase):
+    def code_to_run(self, input_args):
         input_dims = input_args.get("dims", (2, 3, 8))
         device = (
             torch.device("cuda")
@@ -82,6 +84,15 @@ class GaussianFilterBackprop(unittest.TestCase):
                 s.cpu().item(), gt.cpu() if len(gt.shape) == 0 else gt[idx].cpu().item(), rtol=1e-2
             )
 
+    @parameterized.expand(TEST_CASES + TEST_CASES_GPU + TEST_CASES_3d)
+    def test_train_quick(self, input_args):
+        self.code_to_run(input_args)
+
+    @parameterized.expand(TEST_CASES_SLOW)
+    @skip_if_quick
+    def test_train_slow(self, input_args):
+        self.code_to_run(input_args)
+
 
 class GaussianFilterTestCase(unittest.TestCase):
     def test_1d(self):
@@ -108,6 +119,7 @@ class GaussianFilterTestCase(unittest.TestCase):
         expected = np.tile(expected, (1, 8, 1))
         np.testing.assert_allclose(g(a).cpu().numpy(), expected, rtol=1e-5)
 
+    @skip_if_quick
     def test_2d(self):
         a = torch.ones(1, 1, 3, 3)
         g = GaussianFilter(2, 3, 3).to(torch.device("cpu:0"))

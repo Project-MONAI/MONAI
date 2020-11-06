@@ -40,7 +40,7 @@ from monai.visualize import plot_2d_or_3d_image
 from tests.utils import skip_if_quick
 
 
-def run_training_test(root_dir, device=torch.device("cuda:0"), cachedataset=False):
+def run_training_test(root_dir, device="cuda:0", cachedataset=False):
     monai.config.print_config()
     images = sorted(glob(os.path.join(root_dir, "img*.nii.gz")))
     segs = sorted(glob(os.path.join(root_dir, "seg*.nii.gz")))
@@ -166,7 +166,7 @@ def run_training_test(root_dir, device=torch.device("cuda:0"), cachedataset=Fals
     return epoch_loss_values, best_metric, best_metric_epoch
 
 
-def run_inference_test(root_dir, device=torch.device("cuda:0")):
+def run_inference_test(root_dir, device="cuda:0"):
     images = sorted(glob(os.path.join(root_dir, "im*.nii.gz")))
     segs = sorted(glob(os.path.join(root_dir, "seg*.nii.gz")))
     val_files = [{"img": img, "seg": seg} for img, seg in zip(images, segs)]
