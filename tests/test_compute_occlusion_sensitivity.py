@@ -15,11 +15,15 @@ import torch
 from parameterized import parameterized
 
 from monai.metrics import compute_occlusion_sensitivity
-from monai.networks.nets import densenet121
+from monai.networks.nets import DenseNet, densenet121
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 model_2d = densenet121(spatial_dims=2, in_channels=1, out_channels=3).to(device)
-model_3d = densenet121(spatial_dims=3, in_channels=1, out_channels=2).to(device)
+model_3d = DenseNet(
+    spatial_dims=3, in_channels=1, out_channels=3, init_features=2, growth_rate=2, block_config=(6,)
+).to(device)
+model_2d.eval()
+model_3d.eval()
 
 # 2D w/ bounding box
 TEST_CASE_0 = [
@@ -35,12 +39,12 @@ TEST_CASE_0 = [
 TEST_CASE_1 = [
     {
         "model": model_3d,
-        "image": torch.rand(1, 1, 32, 48, 64).to(device),
+        "image": torch.rand(1, 1, 6, 6, 6).to(device),
         "label": 0,
-        "b_box": [-1, -1, 10, 11, -1, -1, -1, -1],
+        "b_box": [-1, -1, 2, 3, -1, -1, -1, -1],
         "n_batch": 10,
     },
-    (2, 48, 64),
+    (2, 6, 6),
 ]
 
 

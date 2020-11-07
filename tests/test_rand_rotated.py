@@ -23,10 +23,10 @@ from tests.utils import NumpyImageTestCase2D, NumpyImageTestCase3D
 class TestRandRotated2D(NumpyImageTestCase2D):
     @parameterized.expand(
         [
-            (90, True, "bilinear", "border", False),
-            (45, True, "nearest", "border", False),
-            (180, False, "nearest", "zeros", True),
-            ((-45, 0), False, "nearest", "zeros", True),
+            (np.pi / 2, True, "bilinear", "border", False),
+            (np.pi / 4, True, "nearest", "border", False),
+            (np.pi, False, "nearest", "zeros", True),
+            ((-np.pi / 4, 0), False, "nearest", "zeros", True),
         ]
     )
     def test_correct_results(self, degrees, keep_size, mode, padding_mode, align_corners):
@@ -51,7 +51,7 @@ class TestRandRotated2D(NumpyImageTestCase2D):
             _mode = "constant"
         angle = rotate_fn.x
         expected = scipy.ndimage.rotate(
-            self.imt[0, 0], -angle, (0, 1), not keep_size, order=_order, mode=_mode, prefilter=False
+            self.imt[0, 0], -np.rad2deg(angle), (0, 1), not keep_size, order=_order, mode=_mode, prefilter=False
         )
         expected = np.stack(expected).astype(np.float32)
         self.assertTrue(np.allclose(expected, rotated["img"][0]))
@@ -60,14 +60,59 @@ class TestRandRotated2D(NumpyImageTestCase2D):
 class TestRandRotated3D(NumpyImageTestCase3D):
     @parameterized.expand(
         [
-            (90, -30, (0.0, 180), False, "bilinear", "border", False, (1, 87, 104, 109)),
-            (90, -30, (0.0, 180), False, GridSampleMode.NEAREST, GridSamplePadMode.BORDER, False, (1, 87, 104, 109)),
-            (45, (-20, 40), (20, 30), False, "nearest", "border", True, (1, 89, 105, 104)),
-            (45, (-20, 40), (20, 30), False, GridSampleMode.NEAREST, GridSamplePadMode.BORDER, True, (1, 89, 105, 104)),
-            (0.0, (360, 370), (-1, 1), True, "nearest", "zeros", True, (1, 48, 64, 80)),
-            (0.0, (360, 370), (-1, 1), True, GridSampleMode.NEAREST, GridSamplePadMode.ZEROS, True, (1, 48, 64, 80)),
-            ((-45, 0), 0, 0, False, "nearest", "zeros", False, (1, 48, 77, 90)),
-            ((-45, 0), 0, 0, False, GridSampleMode.NEAREST, GridSamplePadMode.ZEROS, False, (1, 48, 77, 90)),
+            (np.pi / 2, -np.pi / 6, (0.0, np.pi), False, "bilinear", "border", False, (1, 87, 104, 109)),
+            (
+                np.pi / 2,
+                -np.pi / 6,
+                (0.0, np.pi),
+                False,
+                GridSampleMode.NEAREST,
+                GridSamplePadMode.BORDER,
+                False,
+                (1, 87, 104, 109),
+            ),
+            (
+                np.pi / 4,
+                (-np.pi / 9, np.pi / 4.5),
+                (np.pi / 9, np.pi / 6),
+                False,
+                "nearest",
+                "border",
+                True,
+                (1, 89, 105, 104),
+            ),
+            (
+                np.pi / 4,
+                (-np.pi / 9, np.pi / 4.5),
+                (np.pi / 9, np.pi / 6),
+                False,
+                GridSampleMode.NEAREST,
+                GridSamplePadMode.BORDER,
+                True,
+                (1, 89, 105, 104),
+            ),
+            (
+                0.0,
+                (2 * np.pi, 2.06 * np.pi),
+                (-np.pi / 180, np.pi / 180),
+                True,
+                "nearest",
+                "zeros",
+                True,
+                (1, 48, 64, 80),
+            ),
+            (
+                0.0,
+                (2 * np.pi, 2.06 * np.pi),
+                (-np.pi / 180, np.pi / 180),
+                True,
+                GridSampleMode.NEAREST,
+                GridSamplePadMode.ZEROS,
+                True,
+                (1, 48, 64, 80),
+            ),
+            ((-np.pi / 4, 0), 0, 0, False, "nearest", "zeros", False, (1, 48, 77, 90)),
+            ((-np.pi / 4, 0), 0, 0, False, GridSampleMode.NEAREST, GridSamplePadMode.ZEROS, False, (1, 48, 77, 90)),
         ]
     )
     def test_correct_shapes(self, x, y, z, keep_size, mode, padding_mode, align_corners, expected):

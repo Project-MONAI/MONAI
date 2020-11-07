@@ -43,7 +43,7 @@ class MedNISTDataset(torch.utils.data.Dataset):
         return self.transforms(self.image_files[index]), self.labels[index]
 
 
-def run_training_test(root_dir, train_x, train_y, val_x, val_y, device=torch.device("cuda:0")):
+def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0"):
 
     monai.config.print_config()
     # define transforms for image and classification
@@ -52,7 +52,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device=torch.dev
             LoadPNG(image_only=True),
             AddChannel(),
             ScaleIntensity(),
-            RandRotate(range_x=15, prob=0.5, keep_size=True),
+            RandRotate(range_x=np.pi / 12, prob=0.5, keep_size=True),
             RandFlip(spatial_axis=0, prob=0.5),
             RandZoom(min_zoom=0.9, max_zoom=1.1, prob=0.5),
             ToTensor(),
@@ -125,7 +125,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device=torch.dev
     return epoch_loss_values, best_metric, best_metric_epoch
 
 
-def run_inference_test(root_dir, test_x, test_y, device=torch.device("cuda:0")):
+def run_inference_test(root_dir, test_x, test_y, device="cuda:0"):
     # define transforms for image and classification
     val_transforms = Compose([LoadPNG(image_only=True), AddChannel(), ScaleIntensity(), ToTensor()])
     val_ds = MedNISTDataset(test_x, test_y, val_transforms)

@@ -32,6 +32,18 @@ def skip_if_quick(obj):
     return unittest.skipIf(is_quick, "Skipping slow tests")(obj)
 
 
+class SkipIfNoModule(object):
+    """Decorator to be used if test should be skipped
+    when optional module is not present."""
+
+    def __init__(self, module_name):
+        self.module_name = module_name
+        self.module_missing = not optional_import(self.module_name)[1]
+
+    def __call__(self, obj):
+        return unittest.skipIf(self.module_missing, f"optional module not present: {self.module_name}")(obj)
+
+
 def make_nifti_image(array, affine=None):
     """
     Create a temporary nifti image on the disk and return the image name.

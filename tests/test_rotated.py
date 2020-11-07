@@ -19,19 +19,19 @@ from monai.transforms import Rotated
 from tests.utils import NumpyImageTestCase2D, NumpyImageTestCase3D
 
 TEST_CASES_2D = [
-    (-30, False, "bilinear", "border", False),
-    (-45, True, "bilinear", "border", False),
-    (40, True, "nearest", "reflection", False),
-    (-180, False, "nearest", "zeros", False),
-    (90, False, "bilinear", "zeros", True),
+    (-np.pi / 6, False, "bilinear", "border", False),
+    (-np.pi / 4, True, "bilinear", "border", False),
+    (np.pi / 4.5, True, "nearest", "reflection", False),
+    (-np.pi, False, "nearest", "zeros", False),
+    (np.pi / 2, False, "bilinear", "zeros", True),
 ]
 
 TEST_CASES_3D = [
-    (-30, False, "bilinear", "border", False),
-    (-45, True, "bilinear", "border", False),
-    (40, True, "nearest", "reflection", False),
-    (-180, False, "nearest", "zeros", False),
-    (90, False, "bilinear", "zeros", True),
+    (-np.pi / 6, False, "bilinear", "border", False),
+    (-np.pi / 4, True, "bilinear", "border", False),
+    (np.pi / 4.5, True, "nearest", "reflection", False),
+    (-np.pi, False, "nearest", "zeros", False),
+    (np.pi / 2, False, "bilinear", "zeros", True),
 ]
 
 
@@ -50,12 +50,12 @@ class TestRotated2D(NumpyImageTestCase2D):
         else:
             _mode = "constant"
         expected = scipy.ndimage.rotate(
-            self.imt[0, 0], -angle, (0, 1), not keep_size, order=_order, mode=_mode, prefilter=False
+            self.imt[0, 0], -np.rad2deg(angle), (0, 1), not keep_size, order=_order, mode=_mode, prefilter=False
         )
         np.testing.assert_allclose(expected, rotated["img"][0], atol=1e-3)
 
         expected = scipy.ndimage.rotate(
-            self.segn[0, 0], -angle, (0, 1), not keep_size, order=0, mode=_mode, prefilter=False
+            self.segn[0, 0], -np.rad2deg(angle), (0, 1), not keep_size, order=0, mode=_mode, prefilter=False
         )
         expected = np.stack(expected).astype(int)
         self.assertLessEqual(np.count_nonzero(expected != rotated["seg"][0]), 20)
@@ -76,12 +76,12 @@ class TestRotated3D(NumpyImageTestCase3D):
         else:
             _mode = "constant"
         expected = scipy.ndimage.rotate(
-            self.imt[0, 0], angle, (0, 2), not keep_size, order=_order, mode=_mode, prefilter=False
+            self.imt[0, 0], np.rad2deg(angle), (0, 2), not keep_size, order=_order, mode=_mode, prefilter=False
         )
         np.testing.assert_allclose(expected.astype(np.float32), rotated["img"][0], atol=1e-3)
 
         expected = scipy.ndimage.rotate(
-            self.segn[0, 0], angle, (0, 2), not keep_size, order=0, mode=_mode, prefilter=False
+            self.segn[0, 0], np.rad2deg(angle), (0, 2), not keep_size, order=0, mode=_mode, prefilter=False
         )
         expected = np.stack(expected).astype(int)
         self.assertLessEqual(np.count_nonzero(expected != rotated["seg"][0]), 100)
@@ -102,12 +102,12 @@ class TestRotated3DXY(NumpyImageTestCase3D):
         else:
             _mode = "constant"
         expected = scipy.ndimage.rotate(
-            self.imt[0, 0], -angle, (0, 1), not keep_size, order=_order, mode=_mode, prefilter=False
+            self.imt[0, 0], -np.rad2deg(angle), (0, 1), not keep_size, order=_order, mode=_mode, prefilter=False
         )
         np.testing.assert_allclose(expected, rotated["img"][0], atol=1e-3)
 
         expected = scipy.ndimage.rotate(
-            self.segn[0, 0], -angle, (0, 1), not keep_size, order=0, mode=_mode, prefilter=False
+            self.segn[0, 0], -np.rad2deg(angle), (0, 1), not keep_size, order=0, mode=_mode, prefilter=False
         )
         expected = np.stack(expected).astype(int)
         self.assertLessEqual(np.count_nonzero(expected != rotated["seg"][0]), 100)

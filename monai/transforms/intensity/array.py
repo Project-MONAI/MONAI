@@ -151,7 +151,7 @@ class ScaleIntensity(Transform):
 class RandScaleIntensity(Randomizable, Transform):
     """
     Randomly scale the intensity of input image by ``v = v * (1 + factor)`` where the `factor`
-    is randomly picked from (factors[0], factors[0]).
+    is randomly picked from (-factors[0], factors[0]).
     """
 
     def __init__(self, factors: Union[Tuple[float, float], float], prob: float = 0.1) -> None:
