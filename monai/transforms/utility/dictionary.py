@@ -247,6 +247,25 @@ class DeleteItemsd(MapTransform):
         return {key: val for key, val in data.items() if key not in self.keys}
 
 
+class SelectItemsd(MapTransform):
+    """
+    Select only specified items from data dictionary to release memory.
+    It will copy the selected key-values and construct and new dictionary.
+    """
+
+    def __init__(self, keys):
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+        """
+        super().__init__(keys)
+
+    def __call__(self, data):
+        result = {key: val for key, val in data.items() if key in self.keys}
+        return result
+
+
 class SqueezeDimd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.SqueezeDim`.
