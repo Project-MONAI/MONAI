@@ -885,6 +885,12 @@ Utility (Dict)
     :members:
     :special-members: __call__
 
+`SelectItemsd`
+""""""""""""""
+.. autoclass:: SelectItemsd
+    :members:
+    :special-members: __call__
+
 `SqueezeDimd`
 """""""""""""
 .. autoclass:: SqueezeDimd
