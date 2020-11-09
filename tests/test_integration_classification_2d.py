@@ -151,6 +151,7 @@ def run_inference_test(root_dir, test_x, test_y, device="cuda:0"):
     return tps
 
 
+@skip_if_quick
 class IntegrationClassification2D(unittest.TestCase):
     def setUp(self):
         set_determinism(seed=0)
@@ -207,7 +208,6 @@ class IntegrationClassification2D(unittest.TestCase):
             warnings.warn("not found best_metric_model.pth, training skipped?")
             pass
 
-    @skip_if_quick
     def test_training(self):
         if not os.path.exists(os.path.join(self.data_dir, "MedNIST")):
             # skip test if no MedNIST dataset

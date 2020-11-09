@@ -225,6 +225,7 @@ def run_inference_test(root_dir, device="cuda:0"):
     return metric
 
 
+@skip_if_quick
 class IntegrationSegmentation3D(unittest.TestCase):
     def setUp(self):
         set_determinism(seed=0)
@@ -243,7 +244,6 @@ class IntegrationSegmentation3D(unittest.TestCase):
         set_determinism(seed=None)
         shutil.rmtree(self.data_dir)
 
-    @skip_if_quick
     def test_training(self):
         repeated = []
         for i in range(3):

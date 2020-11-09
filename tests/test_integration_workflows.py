@@ -232,6 +232,7 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False):
     return evaluator.state.best_metric
 
 
+@skip_if_quick
 class IntegrationWorkflows(unittest.TestCase):
     def setUp(self):
         set_determinism(seed=0)
@@ -252,7 +253,6 @@ class IntegrationWorkflows(unittest.TestCase):
         set_determinism(seed=None)
         shutil.rmtree(self.data_dir)
 
-    @skip_if_quick
     def test_training(self):
         repeated = []
         test_rounds = 3 if monai.config.get_torch_version_tuple() >= (1, 6) else 2
