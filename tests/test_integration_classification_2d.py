@@ -24,7 +24,7 @@ from monai.metrics import compute_roc_auc
 from monai.networks.nets import densenet121
 from monai.transforms import AddChannel, Compose, LoadPNG, RandFlip, RandRotate, RandZoom, ScaleIntensity, ToTensor
 from monai.utils import set_determinism
-from tests.utils import skip_if_quick, get_expected
+from tests.utils import get_expected, skip_if_quick
 
 TEST_DATA_URL = "https://www.dropbox.com/s/5wwskxctvcxiuea/MedNIST.tar.gz?dl=1"
 MD5_VALUE = "0bc7306e7427e00ad1c5526a6677552d"
@@ -233,9 +233,7 @@ class IntegrationClassification2D(unittest.TestCase):
 
             # check training properties
             print(f"integration_classification_2d {losses}")
-            np.testing.assert_allclose(
-                losses, get_expected(EXPECTED, key="losses"), rtol=1e-2
-            )
+            np.testing.assert_allclose(losses, get_expected(EXPECTED, key="losses"), rtol=1e-2)
             repeated[i].extend(losses)
             print("best metric", best_metric)
             np.testing.assert_allclose(best_metric, get_expected(EXPECTED, key="best_metric"), rtol=1e-4)

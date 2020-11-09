@@ -50,7 +50,7 @@ from monai.transforms import (
     ToTensord,
 )
 from monai.utils import set_determinism
-from tests.utils import skip_if_quick, get_expected
+from tests.utils import get_expected, skip_if_quick
 
 EXPECTED = {
     "1.6.0": {

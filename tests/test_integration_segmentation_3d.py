@@ -26,7 +26,9 @@ from monai.inferers import sliding_window_inference
 from monai.metrics import DiceMetric
 from monai.networks.nets import UNet
 from monai.transforms import (
+    Activations,
     AsChannelFirstd,
+    AsDiscrete,
     Compose,
     LoadNiftid,
     RandCropByPosNegLabeld,
@@ -34,12 +36,10 @@ from monai.transforms import (
     ScaleIntensityd,
     Spacingd,
     ToTensord,
-    Activations,
-    AsDiscrete,
 )
 from monai.utils import set_determinism
 from monai.visualize import plot_2d_or_3d_image
-from tests.utils import skip_if_quick, get_expected
+from tests.utils import get_expected, skip_if_quick
 
 EXPECTED = {
     "1.6.0": {
