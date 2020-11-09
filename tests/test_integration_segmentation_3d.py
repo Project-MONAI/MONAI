@@ -39,118 +39,10 @@ from monai.transforms import (
 )
 from monai.utils import set_determinism
 from monai.visualize import plot_2d_or_3d_image
-from tests.utils import get_expected, skip_if_quick
+from tests.utils import skip_if_quick
+from tests.testing_data.integration_answers import test_integration_value
 
-EXPECTED = {
-    "1.6.0": {
-        "losses": [
-            0.5367561340332031,
-            0.478084459900856,
-            0.4581540793180466,
-            0.44623913466930387,
-            0.42341493666172025,
-            0.42569945752620697,
-        ],
-        "best_metric": 0.9295084029436111,
-        "infer_metric": 0.9296411260962486,
-        "output_sums": [
-            0.14302121377204619,
-            0.15321686701244813,
-            0.15267064069005093,
-            0.1408481434833016,
-            0.18862719991649474,
-            0.16992848513054068,
-            0.1479306037291329,
-            0.1691071594535633,
-            0.15804366588267224,
-            0.18019304183940157,
-            0.1635089455927468,
-            0.16851606024285842,
-            0.1454348651039073,
-            0.11584957890961554,
-            0.16255468027312903,
-            0.20118089432240313,
-            0.176187783307603,
-            0.1004243279488101,
-            0.19385348502657657,
-            0.2030768555124136,
-            0.196251372926592,
-            0.20823046240222043,
-            0.1631389353339986,
-            0.13299661219478043,
-            0.14917081129077908,
-            0.14383374638201593,
-            0.23050183928776746,
-            0.1614747942341212,
-            0.14913436515470202,
-            0.10443081170610946,
-            0.11978674347415241,
-            0.13126176432899028,
-            0.11570832453348577,
-            0.15306806147195887,
-            0.163673089782912,
-            0.19394971756732426,
-            0.22197501007172804,
-            0.1812147930033603,
-            0.19051659118682873,
-            0.0774867922747158,
-        ],
-    },
-    "1.7.0": {
-        "losses": [
-            0.5427072256803512,
-            0.46434969305992124,
-            0.45358552038669586,
-            0.4363856494426727,
-            0.42080804109573366,
-            0.42058534920215607,
-        ],
-        "best_metric": 0.9292903542518616,
-        "infer_metric": 0.9306288316845894,
-        "output_sums": [
-            0.14192493409895743,
-            0.15182314591386872,
-            0.15143080738742032,
-            0.13972497034181824,
-            0.18790884439406313,
-            0.16933812661492562,
-            0.14664343345928132,
-            0.1678599094806423,
-            0.1568852615222309,
-            0.17882538307200632,
-            0.16226220644853354,
-            0.16756325103417588,
-            0.1449974856885373,
-            0.1160602083671129,
-            0.1614830941632057,
-            0.20060717335382267,
-            0.17543495742507476,
-            0.10308107883493946,
-            0.19289222718691168,
-            0.20225689438356148,
-            0.19587806881756237,
-            0.20773073456322155,
-            0.16193015294299506,
-            0.13181961683097554,
-            0.14850995284454005,
-            0.14238637655756,
-            0.2307113922277095,
-            0.1608335768948913,
-            0.1480752874532259,
-            0.1038477413165911,
-            0.11880665574424197,
-            0.13084873656303445,
-            0.1141965805147642,
-            0.1531586543003841,
-            0.16275008603701097,
-            0.19320476187766733,
-            0.2217811250932611,
-            0.18027048819200148,
-            0.18958803602663193,
-            0.08653716931250294,
-        ],
-    },
-}
+TASK = "integration_segmentation_3d"
 
 
 def run_training_test(root_dir, device="cuda:0", cachedataset=False):
@@ -364,10 +256,10 @@ class IntegrationSegmentation3D(unittest.TestCase):
 
             # check training properties
             print("losses", losses)
-            np.testing.assert_allclose(losses, get_expected(EXPECTED, key="losses"), rtol=1e-3)
+            self.assertTrue(test_integration_value(TASK, key="losses", data=losses, rtol=1e-3))
             repeated[i].extend(losses)
             print("best metric", best_metric)
-            np.testing.assert_allclose(best_metric, get_expected(EXPECTED, key="best_metric"), rtol=1e-2)
+            self.assertTrue(test_integration_value(TASK, key="best_metric", data=best_metric, rtol=1e-2))
             repeated[i].append(best_metric)
             self.assertTrue(len(glob(os.path.join(self.data_dir, "runs"))) > 0)
             model_file = os.path.join(self.data_dir, "best_metric_model.pth")
@@ -377,15 +269,14 @@ class IntegrationSegmentation3D(unittest.TestCase):
 
             # check inference properties
             print("infer metric", infer_metric)
-            np.testing.assert_allclose(infer_metric, get_expected(EXPECTED, key="infer_metric"), rtol=1e-2)
+            self.assertTrue(test_integration_value(TASK, key="infer_metric", data=infer_metric, rtol=1e-2))
             repeated[i].append(infer_metric)
             output_files = sorted(glob(os.path.join(self.data_dir, "output", "img*", "*.nii.gz")))
-            sums = get_expected(EXPECTED, key="output_sums")
             print([np.mean(nib.load(output).get_fdata()) for output in output_files])
-            for (output, s) in zip(output_files, sums):
+            for output in output_files:
                 ave = np.mean(nib.load(output).get_fdata())
-                np.testing.assert_allclose(ave, s, atol=1e-2)
                 repeated[i].append(ave)
+            self.assertTrue(test_integration_value(TASK, key="output_sums", data=repeated[i][8:], rtol=1e-2))
         np.testing.assert_allclose(repeated[0], repeated[1])
         np.testing.assert_allclose(repeated[0], repeated[2])
 

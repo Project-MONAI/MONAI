@@ -24,22 +24,12 @@ from monai.metrics import compute_roc_auc
 from monai.networks.nets import densenet121
 from monai.transforms import AddChannel, Compose, LoadPNG, RandFlip, RandRotate, RandZoom, ScaleIntensity, ToTensor
 from monai.utils import set_determinism
-from tests.utils import get_expected, skip_if_quick
+from tests.utils import skip_if_quick
+from tests.testing_data.integration_answers import test_integration_value
 
 TEST_DATA_URL = "https://www.dropbox.com/s/5wwskxctvcxiuea/MedNIST.tar.gz?dl=1"
 MD5_VALUE = "0bc7306e7427e00ad1c5526a6677552d"
-EXPECTED = {
-    "1.6.0": {
-        "losses": [0.776835828070428, 0.1615355300011149, 0.07492854832938523, 0.04591309238865877],
-        "best_metric": 0.9999184380485994,
-        "infer_prop": [1029, 896, 980, 1033, 961, 1046],
-    },
-    "1.7.0": {
-        "losses": [0.777176220515731, 0.16019743723664315, 0.07480076164197011, 0.045643698364780966],
-        "best_metric": 0.9999418774120775,
-        "infer_prop": [1030, 897, 980, 1033, 960, 1048],
-    },
-}
+TASK = "integration_classification_2d"
 
 
 class MedNISTDataset(torch.utils.data.Dataset):
@@ -233,10 +223,10 @@ class IntegrationClassification2D(unittest.TestCase):
 
             # check training properties
             print(f"integration_classification_2d {losses}")
-            np.testing.assert_allclose(losses, get_expected(EXPECTED, key="losses"), rtol=1e-2)
+            self.assertTrue(test_integration_value(TASK, key="losses", data=losses, rtol=1e-2))
             repeated[i].extend(losses)
             print("best metric", best_metric)
-            np.testing.assert_allclose(best_metric, get_expected(EXPECTED, key="best_metric"), rtol=1e-4)
+            self.assertTrue(test_integration_value(TASK, key="best_metric", data=best_metric, rtol=1e-4))
             repeated[i].append(best_metric)
             np.testing.assert_allclose(best_metric_epoch, 4)
             model_file = os.path.join(self.data_dir, "best_metric_model.pth")
@@ -245,7 +235,7 @@ class IntegrationClassification2D(unittest.TestCase):
             infer_metric = run_inference_test(self.data_dir, self.test_x, self.test_y, device=self.device)
             print("infer metric", infer_metric)
             # check inference properties
-            np.testing.assert_allclose(np.asarray(infer_metric), get_expected(EXPECTED, key="infer_prop"), atol=1)
+            self.assertTrue(test_integration_value(TASK, key="infer_prop", data=np.asarray(infer_metric), rtol=1))
             repeated[i].extend(infer_metric)
 
         np.testing.assert_allclose(repeated[0], repeated[1])
