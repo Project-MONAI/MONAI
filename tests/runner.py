@@ -68,7 +68,11 @@ def parse_args(default_pattern):
         "-s", action="store", dest="path", default=".", help="Directory to start discovery (default: '%(default)s')"
     )
     parser.add_argument(
-        "-p", action="store", dest="pattern", default=default_pattern, help="Pattern to match tests (default: '%(default)s')"
+        "-p",
+        action="store",
+        dest="pattern",
+        default=default_pattern,
+        help="Pattern to match tests (default: '%(default)s')",
     )
     parser.add_argument(
         "-t",
@@ -101,12 +105,8 @@ def parse_args(default_pattern):
 
 def get_default_pattern(loader):
     signature = inspect.signature(loader.discover)
-    params = {
-        k: v.default
-        for k, v in signature.parameters.items()
-        if v.default is not inspect.Parameter.empty
-    }
-    return params['pattern']
+    params = {k: v.default for k, v in signature.parameters.items() if v.default is not inspect.Parameter.empty}
+    return params["pattern"]
 
 
 if __name__ == "__main__":
