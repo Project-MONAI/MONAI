@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import argparse
+import inspect
 import os
 import sys
 import time
@@ -61,13 +62,17 @@ def print_results(results, discovery_time, thresh, status):
     print("Remember to check above times for any errors!")
 
 
-def parse_args():
+def parse_args(default_pattern):
     parser = argparse.ArgumentParser(description="Runner for MONAI unittests with timing.")
     parser.add_argument(
-        "-s", action="store", dest="path", default=".", help="Directory to start discovery ('.' default)"
+        "-s", action="store", dest="path", default=".", help="Directory to start discovery (default: '%(default)s')"
     )
     parser.add_argument(
-        "-p", action="store", dest="pattern", default=None, help="Pattern to match tests (default is unittest default)"
+        "-p",
+        action="store",
+        dest="pattern",
+        default=default_pattern,
+        help="Pattern to match tests (default: '%(default)s')",
     )
     parser.add_argument(
         "-t",
@@ -75,43 +80,65 @@ def parse_args():
         dest="thresh",
         default=10.0,
         type=float,
-        help="Display tests longer than given threshold default: 10)",
+        help="Display tests longer than given threshold (default: %(default)d)",
+    )
+    parser.add_argument(
+        "-v",
+        "--verbosity",
+        action="store",
+        dest="verbosity",
+        type=int,
+        default=1,
+        help="Verbosity level (default: %(default)d)",
     )
     parser.add_argument("-q", "--quick", action="store_true", dest="quick", default=False, help="Only do quick tests")
+    parser.add_argument(
+        "-f", "--failfast", action="store_true", dest="failfast", default=False, help="Stop testing on first failure"
+    )
     args = parser.parse_args()
     print(f"Running tests in folder: '{args.path}'")
     if args.pattern:
         print(f"With file pattern: '{args.pattern}'")
 
-    return args.path, args.pattern, args.thresh, args.quick
+    return args
+
+
+def get_default_pattern(loader):
+    signature = inspect.signature(loader.discover)
+    params = {k: v.default for k, v in signature.parameters.items() if v.default is not inspect.Parameter.empty}
+    return params["pattern"]
 
 
 if __name__ == "__main__":
+
+    loader = unittest.TestLoader()
+    default_pattern = get_default_pattern(loader)
+
     # Parse input arguments
-    path, pattern, thresh, quick = parse_args()
+    args = parse_args(default_pattern)
 
     # If quick is desired, set environment variable
-    if any(q in sys.argv for q in ["-q", "--quick"]):
+    if args.quick:
         os.environ["QUICKTEST"] = "True"
 
     # Get all test names (optionally from some path with some pattern)
-    loader_args = [path, pattern] if pattern else [path]
-    loader = unittest.TestLoader()
     with PerfContext() as pc:
-        tests = loader.discover(*loader_args)
+        tests = loader.discover(args.path, args.pattern)
     discovery_time = pc.total_time
     print(f"time to discover tests: {discovery_time}s")
 
-    test_runner = unittest.runner.TextTestRunner(resultclass=TimeLoggingTestResult)
+    test_runner = unittest.runner.TextTestRunner(
+        resultclass=TimeLoggingTestResult, verbosity=args.verbosity, failfast=args.failfast
+    )
 
     # Use try catches to print the current results if encountering exception or keyboard interruption
     try:
         test_result = test_runner.run(tests)
-        print_results(results, discovery_time, thresh, "tests finished")
+        print_results(results, discovery_time, args.thresh, "tests finished")
         sys.exit(not test_result.wasSuccessful())
     except KeyboardInterrupt:
-        print_results(results, discovery_time, thresh, "tests cancelled")
+        print_results(results, discovery_time, args.thresh, "tests cancelled")
         sys.exit(1)
     except Exception:
-        print_results(results, discovery_time, thresh, "exception reached")
+        print_results(results, discovery_time, args.thresh, "exception reached")
         raise
