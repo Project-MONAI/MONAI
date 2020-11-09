@@ -50,7 +50,10 @@ from monai.transforms import (
     ToTensord,
 )
 from monai.utils import set_determinism
+from tests.testing_data.integration_answers import test_integration_value
 from tests.utils import skip_if_quick
+
+TASK = "integration_workflows"
 
 
 def run_training_test(root_dir, device="cuda:0", amp=False):
@@ -229,6 +232,7 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False):
     return evaluator.state.best_metric
 
 
+@skip_if_quick
 class IntegrationWorkflows(unittest.TestCase):
     def setUp(self):
         set_determinism(seed=0)
@@ -249,7 +253,6 @@ class IntegrationWorkflows(unittest.TestCase):
         set_determinism(seed=None)
         shutil.rmtree(self.data_dir)
 
-    @skip_if_quick
     def test_training(self):
         repeated = []
         test_rounds = 3 if monai.config.get_torch_version_tuple() >= (1, 6) else 2
@@ -260,9 +263,9 @@ class IntegrationWorkflows(unittest.TestCase):
             best_metric = run_training_test(self.data_dir, device=self.device, amp=(i == 2))
             print("best metric", best_metric)
             if i == 2:
-                np.testing.assert_allclose(best_metric, 0.9219996750354766, rtol=1e-2)
+                self.assertTrue(test_integration_value(TASK, key="best_metric_2", data=best_metric, rtol=1e-2))
             else:
-                np.testing.assert_allclose(best_metric, 0.921965891122818, rtol=1e-2)
+                self.assertTrue(test_integration_value(TASK, key="best_metric", data=best_metric, rtol=1e-2))
             repeated[i].append(best_metric)
 
             model_file = sorted(glob(os.path.join(self.data_dir, "net_key_metric*.pt")))[-1]
@@ -270,102 +273,19 @@ class IntegrationWorkflows(unittest.TestCase):
             print("infer metric", infer_metric)
             # check inference properties
             if i == 2:
-                np.testing.assert_allclose(infer_metric, 0.9217855930328369, rtol=1e-2)
+                self.assertTrue(test_integration_value(TASK, key="infer_metric_2", data=infer_metric, rtol=1e-2))
             else:
-                np.testing.assert_allclose(infer_metric, 0.9217526227235794, rtol=1e-2)
+                self.assertTrue(test_integration_value(TASK, key="infer_metric", data=infer_metric, rtol=1e-2))
             repeated[i].append(infer_metric)
 
             output_files = sorted(glob(os.path.join(self.data_dir, "img*", "*.nii.gz")))
-            if i == 2:
-                sums = [
-                    0.14183807373046875,
-                    0.15151405334472656,
-                    0.13811445236206055,
-                    0.1336650848388672,
-                    0.1842341423034668,
-                    0.16353750228881836,
-                    0.14104795455932617,
-                    0.16643333435058594,
-                    0.15668964385986328,
-                    0.1764383316040039,
-                    0.16112232208251953,
-                    0.1641840934753418,
-                    0.14401578903198242,
-                    0.11075973510742188,
-                    0.16075706481933594,
-                    0.19603967666625977,
-                    0.1743607521057129,
-                    0.05361223220825195,
-                    0.19009971618652344,
-                    0.19875097274780273,
-                    0.19498729705810547,
-                    0.2027440071105957,
-                    0.16035127639770508,
-                    0.13188838958740234,
-                    0.15143728256225586,
-                    0.1370086669921875,
-                    0.22630071640014648,
-                    0.16111421585083008,
-                    0.14713764190673828,
-                    0.10443782806396484,
-                    0.11977195739746094,
-                    0.13068008422851562,
-                    0.11225223541259766,
-                    0.15175437927246094,
-                    0.1594991683959961,
-                    0.1894702911376953,
-                    0.21605825424194336,
-                    0.17748403549194336,
-                    0.18474626541137695,
-                    0.03627157211303711,
-                ]
-            else:
-                sums = [
-                    0.14183568954467773,
-                    0.15139484405517578,
-                    0.13803958892822266,
-                    0.13356733322143555,
-                    0.18455982208251953,
-                    0.16363763809204102,
-                    0.14090299606323242,
-                    0.16649341583251953,
-                    0.15651702880859375,
-                    0.17655181884765625,
-                    0.1611647605895996,
-                    0.1644759178161621,
-                    0.14383649826049805,
-                    0.11055231094360352,
-                    0.16080236434936523,
-                    0.19629907608032227,
-                    0.17441368103027344,
-                    0.053577423095703125,
-                    0.19043731689453125,
-                    0.19904851913452148,
-                    0.19525957107543945,
-                    0.20304203033447266,
-                    0.16030073165893555,
-                    0.13170528411865234,
-                    0.15118885040283203,
-                    0.13686418533325195,
-                    0.22668886184692383,
-                    0.1611466407775879,
-                    0.1472468376159668,
-                    0.10427331924438477,
-                    0.11962461471557617,
-                    0.1305699348449707,
-                    0.11204767227172852,
-                    0.15171241760253906,
-                    0.1596231460571289,
-                    0.18976259231567383,
-                    0.21649408340454102,
-                    0.17761707305908203,
-                    0.1851673126220703,
-                    0.036365509033203125,
-                ]
-            for (output, s) in zip(output_files, sums):
+            for output in output_files:
                 ave = np.mean(nib.load(output).get_fdata())
-                np.testing.assert_allclose(ave, s, rtol=1e-2)
                 repeated[i].append(ave)
+            if i == 2:
+                self.assertTrue(test_integration_value(TASK, key="output_sums_2", data=repeated[i][2:], rtol=1e-2))
+            else:
+                self.assertTrue(test_integration_value(TASK, key="output_sums", data=repeated[i][2:], rtol=1e-2))
         np.testing.assert_allclose(repeated[0], repeated[1])
 
 

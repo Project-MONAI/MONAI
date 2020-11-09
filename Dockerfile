@@ -9,14 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG PYTORCH_IMAGE=nvcr.io/nvidia/pytorch:20.08-py3
+ARG PYTORCH_IMAGE=nvcr.io/nvidia/pytorch:20.10-py3
 
 FROM ${PYTORCH_IMAGE} as base
 
 WORKDIR /opt/monai
 COPY . .
 
-ENV PYTHONPATH=$PYTHONPATH:/opt/monai
 ENV PATH=/opt/tools:$PATH
 
 # ignore "torch" in requirements.txt, as we prefer PYTORCH_IMAGE
@@ -24,7 +23,8 @@ RUN cp requirements.txt req.bak \
   && awk '!/torch/' requirements.txt > tmp && mv tmp requirements.txt \
   && python -m pip install --no-cache-dir -U pip wheel \
   && python -m pip install --no-cache-dir -r requirements-dev.txt \
-  && mv req.bak requirements.txt
+  && mv req.bak requirements.txt \
+  && BUILD_MONAI=1 FORCE_CUDA=1 python setup.py develop
 # restored the original requirements.txt so that the version string is clean
 
 # NGC Client

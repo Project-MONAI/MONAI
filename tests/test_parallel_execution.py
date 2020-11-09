@@ -15,7 +15,7 @@ import warnings
 import torch
 
 from monai.engines import create_multigpu_supervised_trainer
-from tests.utils import expect_failure_if_no_gpu
+from tests.utils import skip_if_no_cuda
 
 
 def fake_loss(y_pred, y):
@@ -32,7 +32,7 @@ class TestParallelExecution(unittest.TestCase):
     Tests single GPU, multi GPU, and CPU execution with the Ignite supervised trainer.
     """
 
-    @expect_failure_if_no_gpu
+    @skip_if_no_cuda
     def test_single_gpu(self):
         device = torch.device("cuda:0")
         net = torch.nn.Conv2d(1, 1, 3, padding=1).to(device)
@@ -40,7 +40,7 @@ class TestParallelExecution(unittest.TestCase):
         trainer = create_multigpu_supervised_trainer(net, opt, fake_loss, [device])
         trainer.run(fake_data_stream(), 2, 2)
 
-    @expect_failure_if_no_gpu
+    @skip_if_no_cuda
     def test_multi_gpu(self):
         device = torch.device("cuda")
         net = torch.nn.Conv2d(1, 1, 3, padding=1).to(device)
@@ -58,3 +58,7 @@ class TestParallelExecution(unittest.TestCase):
         opt = torch.optim.Adam(net.parameters(), 1e-3)
         trainer = create_multigpu_supervised_trainer(net, opt, fake_loss, [])
         trainer.run(fake_data_stream(), 2, 2)
+
+
+if __name__ == "__main__":
+    unittest.main()
