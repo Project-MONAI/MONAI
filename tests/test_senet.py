@@ -22,22 +22,23 @@ from monai.networks.nets import (
     se_resnext101_32x4d,
     senet154,
 )
-from tests.utils import skip_if_quick
 
-TEST_CASE_1 = [senet154(3, 2, 2)]
-TEST_CASE_2 = [se_resnet50(3, 2, 2)]
-TEST_CASE_3 = [se_resnet101(3, 2, 2)]
-TEST_CASE_4 = [se_resnet152(3, 2, 2)]
-TEST_CASE_5 = [se_resnext50_32x4d(3, 2, 2)]
-TEST_CASE_6 = [se_resnext101_32x4d(3, 2, 2)]
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
-TEST_CASE_PRETRAINED = [se_resnet50(2, 3, 2, pretrained=True)]
+TEST_CASE_1 = [senet154(3, 2, 2).to(device)]
+TEST_CASE_2 = [se_resnet50(3, 2, 2).to(device)]
+TEST_CASE_3 = [se_resnet101(3, 2, 2).to(device)]
+TEST_CASE_4 = [se_resnet152(3, 2, 2).to(device)]
+TEST_CASE_5 = [se_resnext50_32x4d(3, 2, 2).to(device)]
+TEST_CASE_6 = [se_resnext101_32x4d(3, 2, 2).to(device)]
+
+TEST_CASE_PRETRAINED = [se_resnet50(2, 3, 2, pretrained=True).to(device)]
 
 
 class TestSENET(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
     def test_senet_shape(self, net):
-        input_data = torch.randn(2, 2, 64, 64, 64)
+        input_data = torch.randn(2, 2, 64, 64, 64).to(device)
         expected_shape = (2, 2)
         net.eval()
         with torch.no_grad():
@@ -51,9 +52,8 @@ class TestPretrainedSENET(unittest.TestCase):
             TEST_CASE_PRETRAINED,
         ]
     )
-    @skip_if_quick
     def test_senet_shape(self, net):
-        input_data = torch.randn(3, 3, 64, 64)
+        input_data = torch.randn(3, 3, 64, 64).to(device)
         expected_shape = (3, 2)
         net.eval()
         with torch.no_grad():

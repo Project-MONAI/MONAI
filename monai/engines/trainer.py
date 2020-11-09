@@ -88,7 +88,7 @@ class SupervisedTrainer(Trainer):
         epoch_length: Optional[int] = None,
         prepare_batch: Callable = default_prepare_batch,
         iteration_update: Optional[Callable] = None,
-        inferer: Inferer = SimpleInferer(),
+        inferer: Optional[Inferer] = None,
         post_transform: Optional[Transform] = None,
         key_train_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
@@ -113,7 +113,7 @@ class SupervisedTrainer(Trainer):
         self.network = network
         self.optimizer = optimizer
         self.loss_function = loss_function
-        self.inferer = inferer
+        self.inferer = SimpleInferer() if inferer is None else inferer
 
     def _iteration(self, engine: Engine, batchdata: Dict[str, torch.Tensor]):
         """
@@ -211,8 +211,8 @@ class GanTrainer(Trainer):
         d_optimizer: Optimizer,
         d_loss_function: Callable,
         epoch_length: Optional[int] = None,
-        g_inferer: Inferer = SimpleInferer(),
-        d_inferer: Inferer = SimpleInferer(),
+        g_inferer: Optional[Inferer] = None,
+        d_inferer: Optional[Inferer] = None,
         d_train_steps: int = 1,
         latent_shape: int = 64,
         d_prepare_batch: Callable = default_prepare_batch,
@@ -240,11 +240,11 @@ class GanTrainer(Trainer):
         self.g_network = g_network
         self.g_optimizer = g_optimizer
         self.g_loss_function = g_loss_function
-        self.g_inferer = g_inferer
+        self.g_inferer = SimpleInferer() if g_inferer is None else g_inferer
         self.d_network = d_network
         self.d_optimizer = d_optimizer
         self.d_loss_function = d_loss_function
-        self.d_inferer = d_inferer
+        self.d_inferer = SimpleInferer() if d_inferer is None else d_inferer
         self.d_train_steps = d_train_steps
         self.latent_shape = latent_shape
         self.g_prepare_batch = g_prepare_batch
