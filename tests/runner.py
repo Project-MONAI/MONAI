@@ -95,19 +95,19 @@ def parse_args():
     if args.pattern:
         print(f"With file pattern: '{args.pattern}'")
 
-    return args.path, args.pattern, args.thresh, args.verbosity, args.quick, args.failfast
+    return args
 
 
 if __name__ == "__main__":
     # Parse input arguments
-    path, pattern, thresh, verbosity, quick, failfast = parse_args()
+    args = parse_args()
 
     # If quick is desired, set environment variable
-    if quick:
+    if args.quick:
         os.environ["QUICKTEST"] = "True"
 
     # Get all test names (optionally from some path with some pattern)
-    loader_args = [path, pattern] if pattern else [path]
+    loader_args = [args.path, args.pattern] if args.pattern else [args.path]
     loader = unittest.TestLoader()
     with PerfContext() as pc:
         tests = loader.discover(*loader_args)
@@ -115,17 +115,17 @@ if __name__ == "__main__":
     print(f"time to discover tests: {discovery_time}s")
 
     test_runner = unittest.runner.TextTestRunner(
-        resultclass=TimeLoggingTestResult, verbosity=verbosity, failfast=failfast
+        resultclass=TimeLoggingTestResult, verbosity=args.verbosity, failfast=args.failfast
     )
 
     # Use try catches to print the current results if encountering exception or keyboard interruption
     try:
         test_result = test_runner.run(tests)
-        print_results(results, discovery_time, thresh, "tests finished")
+        print_results(results, discovery_time, args.thresh, "tests finished")
         sys.exit(not test_result.wasSuccessful())
     except KeyboardInterrupt:
-        print_results(results, discovery_time, thresh, "tests cancelled")
+        print_results(results, discovery_time, args.thresh, "tests cancelled")
         sys.exit(1)
     except Exception:
-        print_results(results, discovery_time, thresh, "exception reached")
+        print_results(results, discovery_time, args.thresh, "exception reached")
         raise
