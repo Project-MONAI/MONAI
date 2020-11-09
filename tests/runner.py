@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
+import os
 import sys
 import time
 import unittest
@@ -43,36 +45,72 @@ class TimeLoggingTestResult(unittest.TextTestResult):
         super().stopTest(test)
 
 
-def print_results(results, discovery_time):
+def print_results(results, discovery_time, thresh, status):
+    # only keep results >= threshold
+    results = dict(filter(lambda x: x[1] > thresh, results.items()))
+    if len(results) == 0:
+        return
+    print(f"\n\n{status}, printing completed times >{thresh}s in ascending order...\n")
     timings = dict(sorted(results.items(), key=lambda item: item[1]))
+
     for r in timings:
-        print(f"{r} ({timings[r]:.03}s)")
+        if timings[r] >= thresh:
+            print(f"{r} ({timings[r]:.03}s)")
     print(f"test discovery time: {discovery_time:.03}s")
     print(f"total testing time: {sum(results.values()):.03}s")
+    print("Remember to check above times for any errors!")
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Runner for MONAI unittests with timing.")
+    parser.add_argument(
+        "-s", action="store", dest="path", default=".", help="Directory to start discovery ('.' default)"
+    )
+    parser.add_argument(
+        "-p", action="store", dest="pattern", default=None, help="Pattern to match tests (default is unittest default)"
+    )
+    parser.add_argument(
+        "-t",
+        "--thresh",
+        dest="thresh",
+        default=10.0,
+        type=float,
+        help="Display tests longer than given threshold default: 10)",
+    )
+    parser.add_argument("-q", "--quick", action="store_true", dest="quick", default=False, help="Only do quick tests")
+    args = parser.parse_args()
+    print(f"Running tests in folder: '{args.path}'")
+    if args.pattern:
+        print(f"With file pattern: '{args.pattern}'")
+
+    return args.path, args.pattern, args.thresh, args.quick
 
 
 if __name__ == "__main__":
-    path = sys.argv[1] if len(sys.argv) > 1 else "tests"
-    print(f"Running tests in folder: '{path}'")
+    # Parse input arguments
+    path, pattern, thresh, quick = parse_args()
 
+    # If quick is desired, set environment variable
+    if any(q in sys.argv for q in ["-q", "--quick"]):
+        os.environ["QUICKTEST"] = "True"
+
+    # Get all test names (optionally from some path with some pattern)
+    loader_args = [path, pattern] if pattern else [path]
     loader = unittest.TestLoader()
-
     with PerfContext() as pc:
-        tests = loader.discover(path)
+        tests = loader.discover(*loader_args)
     discovery_time = pc.total_time
     print(f"time to discover tests: {discovery_time}s")
 
     test_runner = unittest.runner.TextTestRunner(resultclass=TimeLoggingTestResult)
 
+    # Use try catches to print the current results if encountering exception or keyboard interruption
     try:
         test_result = test_runner.run(tests)
-        print("\n\ntests finished, printing times in ascending order...\n")
-        print_results(results, discovery_time)
+        print_results(results, discovery_time, thresh, "tests finished")
     except KeyboardInterrupt:
-        print("\n\ntests cancelled, printing completed times in ascending order...\n")
-        print_results(results, discovery_time)
+        print_results(results, discovery_time, thresh, "tests cancelled")
         exit(1)
     except Exception:
-        print("\n\nexception reached, printing completed times in ascending order...\n")
-        print_results(results, discovery_time)
+        print_results(results, discovery_time, thresh, "exception reached")
         raise

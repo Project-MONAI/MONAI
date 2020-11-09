@@ -16,11 +16,89 @@ import torch
 
 from monai.transforms.croppad.array import SpatialCrop
 from monai.transforms.utils import generate_spatial_bounding_box
-from monai.utils import optional_import
+from monai.utils import MetricReduction, optional_import
 
 binary_erosion, _ = optional_import("scipy.ndimage.morphology", name="binary_erosion")
 distance_transform_edt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_edt")
 distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_cdt")
+
+
+def ignore_background(
+    y_pred: torch.Tensor,
+    y: torch.Tensor,
+):
+    """
+    This function is used to remove background (the first channel) for `y_pred` and `y`.
+    Args:
+        y_pred: predictions. As for classification tasks,
+            `y_pred` should has the shape [BN] where N is larger than 1. As for segmentation tasks,
+            the shape should be [BNHW] or [BNHWD].
+        y: ground truth, the first dim is batch.
+
+    """
+    y = y[:, 1:] if y.shape[1] > 1 else y
+    y_pred = y_pred[:, 1:] if y_pred.shape[1] > 1 else y_pred
+    return y_pred, y
+
+
+def do_metric_reduction(
+    f: torch.Tensor,
+    reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+):
+    """
+    This function is to do the metric reduction for calculated metrics of each example's each class.
+    Args:
+        f: a tensor that contains the calculated metric scores per batch and
+            per class. The first two dims should be batch and class.
+        reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+        ``"mean_channel"``, ``"sum_channel"``}
+        Define the mode to reduce computation result of 1 batch data. Defaults to ``"mean"``.
+
+    Raises:
+        ValueError: When ``reduction`` is not one of
+            ["mean", "sum", "mean_batch", "sum_batch", "mean_channel", "sum_channel" "none"].
+    """
+
+    # some elements might be Nan (if ground truth y was missing (zeros))
+    # we need to account for it
+    nans = torch.isnan(f)
+    not_nans = (~nans).float()
+    f[nans] = 0
+
+    t_zero = torch.zeros(1, device=f.device, dtype=torch.float)
+    reduction = MetricReduction(reduction)
+
+    if reduction == MetricReduction.MEAN:
+        # 2 steps, first, mean by channel (accounting for nans), then by batch
+        not_nans = not_nans.sum(dim=1)
+        f = torch.where(not_nans > 0, f.sum(dim=1) / not_nans, t_zero)  # channel average
+
+        not_nans = (not_nans > 0).float().sum(dim=0)
+        f = torch.where(not_nans > 0, f.sum(dim=0) / not_nans, t_zero)  # batch average
+
+    elif reduction == MetricReduction.SUM:
+        not_nans = not_nans.sum(dim=[0, 1])
+        f = torch.sum(f, dim=[0, 1])  # sum over the batch and channel dims
+    elif reduction == MetricReduction.MEAN_BATCH:
+        not_nans = not_nans.sum(dim=0)
+        f = torch.where(not_nans > 0, f.sum(dim=0) / not_nans, t_zero)  # batch average
+    elif reduction == MetricReduction.SUM_BATCH:
+        not_nans = not_nans.sum(dim=0)
+        f = f.sum(dim=0)  # the batch sum
+    elif reduction == MetricReduction.MEAN_CHANNEL:
+        not_nans = not_nans.sum(dim=1)
+        f = torch.where(not_nans > 0, f.sum(dim=1) / not_nans, t_zero)  # channel average
+    elif reduction == MetricReduction.SUM_CHANNEL:
+        not_nans = not_nans.sum(dim=1)
+        f = f.sum(dim=1)  # the channel sum
+    elif reduction == MetricReduction.NONE:
+        pass
+    else:
+        raise ValueError(
+            f"Unsupported reduction: {reduction}, available options are "
+            '["mean", "sum", "mean_batch", "sum_batch", "mean_channel", "sum_channel" "none"].'
+        )
+    return f, not_nans
 
 
 def get_mask_edges(
