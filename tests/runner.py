@@ -108,9 +108,10 @@ if __name__ == "__main__":
     try:
         test_result = test_runner.run(tests)
         print_results(results, discovery_time, thresh, "tests finished")
+        sys.exit(not test_result.wasSuccessful())
     except KeyboardInterrupt:
         print_results(results, discovery_time, thresh, "tests cancelled")
-        exit(1)
+        sys.exit(1)
     except Exception:
         print_results(results, discovery_time, thresh, "exception reached")
         raise
