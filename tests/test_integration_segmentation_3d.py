@@ -34,10 +34,123 @@ from monai.transforms import (
     ScaleIntensityd,
     Spacingd,
     ToTensord,
+    Activations,
+    AsDiscrete,
 )
 from monai.utils import set_determinism
 from monai.visualize import plot_2d_or_3d_image
-from tests.utils import skip_if_quick
+from tests.utils import skip_if_quick, get_expected
+
+EXPECTED = {
+    "1.6.0": {
+        "losses": [
+            0.5367561340332031,
+            0.478084459900856,
+            0.4581540793180466,
+            0.44623913466930387,
+            0.42341493666172025,
+            0.42569945752620697,
+        ],
+        "best_metric": 0.9295084029436111,
+        "infer_metric": 0.9296411260962486,
+        "output_sums": [
+            0.14302121377204619,
+            0.15321686701244813,
+            0.15267064069005093,
+            0.1408481434833016,
+            0.18862719991649474,
+            0.16992848513054068,
+            0.1479306037291329,
+            0.1691071594535633,
+            0.15804366588267224,
+            0.18019304183940157,
+            0.1635089455927468,
+            0.16851606024285842,
+            0.1454348651039073,
+            0.11584957890961554,
+            0.16255468027312903,
+            0.20118089432240313,
+            0.176187783307603,
+            0.1004243279488101,
+            0.19385348502657657,
+            0.2030768555124136,
+            0.196251372926592,
+            0.20823046240222043,
+            0.1631389353339986,
+            0.13299661219478043,
+            0.14917081129077908,
+            0.14383374638201593,
+            0.23050183928776746,
+            0.1614747942341212,
+            0.14913436515470202,
+            0.10443081170610946,
+            0.11978674347415241,
+            0.13126176432899028,
+            0.11570832453348577,
+            0.15306806147195887,
+            0.163673089782912,
+            0.19394971756732426,
+            0.22197501007172804,
+            0.1812147930033603,
+            0.19051659118682873,
+            0.0774867922747158,
+        ],
+    },
+    "1.7.0": {
+        "losses": [
+            0.5427072256803512,
+            0.46434969305992124,
+            0.45358552038669586,
+            0.4363856494426727,
+            0.42080804109573366,
+            0.42058534920215607,
+        ],
+        "best_metric": 0.9292903542518616,
+        "infer_metric": 0.9306288316845894,
+        "output_sums": [
+            0.14192493409895743,
+            0.15182314591386872,
+            0.15143080738742032,
+            0.13972497034181824,
+            0.18790884439406313,
+            0.16933812661492562,
+            0.14664343345928132,
+            0.1678599094806423,
+            0.1568852615222309,
+            0.17882538307200632,
+            0.16226220644853354,
+            0.16756325103417588,
+            0.1449974856885373,
+            0.1160602083671129,
+            0.1614830941632057,
+            0.20060717335382267,
+            0.17543495742507476,
+            0.10308107883493946,
+            0.19289222718691168,
+            0.20225689438356148,
+            0.19587806881756237,
+            0.20773073456322155,
+            0.16193015294299506,
+            0.13181961683097554,
+            0.14850995284454005,
+            0.14238637655756,
+            0.2307113922277095,
+            0.1608335768948913,
+            0.1480752874532259,
+            0.1038477413165911,
+            0.11880665574424197,
+            0.13084873656303445,
+            0.1141965805147642,
+            0.1531586543003841,
+            0.16275008603701097,
+            0.19320476187766733,
+            0.2217811250932611,
+            0.18027048819200148,
+            0.18958803602663193,
+            0.08653716931250294,
+        ],
+    },
+}
 
 
 def run_training_test(root_dir, device="cuda:0", cachedataset=False):
@@ -82,11 +195,12 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=False):
     else:
         train_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
     # use batch_size=2 to load images and use RandCropByPosNegLabeld to generate 2 x 4 images for network training
-    train_loader = monai.data.DataLoader(train_ds, batch_size=2, shuffle=False, num_workers=4)
+    train_loader = monai.data.DataLoader(train_ds, batch_size=2, shuffle=True, num_workers=4)
     # create a validation data loader
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
     val_loader = monai.data.DataLoader(val_ds, batch_size=1, num_workers=4)
-    dice_metric = DiceMetric(include_background=True, to_onehot_y=False, sigmoid=True, reduction="mean")
+    val_post_tran = Compose([Activations(sigmoid=True), AsDiscrete(threshold_values=True)])
+    dice_metric = DiceMetric(include_background=True, reduction="mean")
 
     # create UNet, DiceLoss and Adam optimizer
     model = monai.networks.nets.UNet(
@@ -140,11 +254,10 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=False):
                 for val_data in val_loader:
                     val_images, val_labels = val_data["img"].to(device), val_data["seg"].to(device)
                     sw_batch_size, roi_size = 4, (96, 96, 96)
-                    val_outputs = sliding_window_inference(val_images, roi_size, sw_batch_size, model)
-                    value = dice_metric(y_pred=val_outputs, y=val_labels)
-                    not_nans = dice_metric.not_nans.item()
-                    metric_count += not_nans
-                    metric_sum += value.item() * not_nans
+                    val_outputs = val_post_tran(sliding_window_inference(val_images, roi_size, sw_batch_size, model))
+                    value, not_nans = dice_metric(y_pred=val_outputs, y=val_labels)
+                    metric_count += not_nans.item()
+                    metric_sum += value.item() * not_nans.item()
                 metric = metric_sum / metric_count
                 metric_values.append(metric)
                 if metric > best_metric:
@@ -186,7 +299,8 @@ def run_inference_test(root_dir, device="cuda:0"):
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
     # sliding window inferene need to input 1 image in every iteration
     val_loader = monai.data.DataLoader(val_ds, batch_size=1, num_workers=4)
-    dice_metric = DiceMetric(include_background=True, to_onehot_y=False, sigmoid=True, reduction="mean")
+    val_post_tran = Compose([Activations(sigmoid=True), AsDiscrete(threshold_values=True)])
+    dice_metric = DiceMetric(include_background=True, reduction="mean")
 
     model = UNet(
         dimensions=3,
@@ -210,12 +324,10 @@ def run_inference_test(root_dir, device="cuda:0"):
             val_images, val_labels = val_data["img"].to(device), val_data["seg"].to(device)
             # define sliding window size and batch size for windows inference
             sw_batch_size, roi_size = 4, (96, 96, 96)
-            val_outputs = sliding_window_inference(val_images, roi_size, sw_batch_size, model)
-            value = dice_metric(y_pred=val_outputs, y=val_labels)
-            not_nans = dice_metric.not_nans.item()
-            metric_count += not_nans
-            metric_sum += value.item() * not_nans
-            val_outputs = (val_outputs.sigmoid() >= 0.5).float()
+            val_outputs = val_post_tran(sliding_window_inference(val_images, roi_size, sw_batch_size, model))
+            value, not_nans = dice_metric(y_pred=val_outputs, y=val_labels)
+            metric_count += not_nans.item()
+            metric_sum += value.item() * not_nans.item()
             saver.save_batch(val_outputs, val_data["img_meta_dict"])
         metric = metric_sum / metric_count
     return metric
@@ -252,21 +364,10 @@ class IntegrationSegmentation3D(unittest.TestCase):
 
             # check training properties
             print("losses", losses)
-            np.testing.assert_allclose(
-                losses,
-                [
-                    0.5414924412965775,
-                    0.47209871411323545,
-                    0.45485632717609403,
-                    0.4387387275695801,
-                    0.4184675753116608,
-                    0.4126484006643295,
-                ],
-                rtol=1e-3,
-            )
+            np.testing.assert_allclose(losses, get_expected(EXPECTED, key="losses"), rtol=1e-3)
             repeated[i].extend(losses)
             print("best metric", best_metric)
-            np.testing.assert_allclose(best_metric, 0.9282028198242187, rtol=1e-2)
+            np.testing.assert_allclose(best_metric, get_expected(EXPECTED, key="best_metric"), rtol=1e-2)
             repeated[i].append(best_metric)
             self.assertTrue(len(glob(os.path.join(self.data_dir, "runs"))) > 0)
             model_file = os.path.join(self.data_dir, "best_metric_model.pth")
@@ -276,51 +377,10 @@ class IntegrationSegmentation3D(unittest.TestCase):
 
             # check inference properties
             print("infer metric", infer_metric)
-            np.testing.assert_allclose(infer_metric, 0.9290058210492134, rtol=1e-2)
+            np.testing.assert_allclose(infer_metric, get_expected(EXPECTED, key="infer_metric"), rtol=1e-2)
             repeated[i].append(infer_metric)
             output_files = sorted(glob(os.path.join(self.data_dir, "output", "img*", "*.nii.gz")))
-            sums = [
-                0.1428929332821861,
-                0.15306498013054057,
-                0.1524727249757458,
-                0.14063418539221723,
-                0.1889959935015477,
-                0.17016133741917833,
-                0.1476895659168039,
-                0.1689427243341692,
-                0.15787647802569932,
-                0.1799242564554684,
-                0.16334547561127719,
-                0.1685469235807613,
-                0.14546128970445826,
-                0.11555349029952224,
-                0.16260882143335478,
-                0.20165253423128482,
-                0.1765720800837111,
-                0.10068010729005879,
-                0.194165013105216,
-                0.2035116772153127,
-                0.1968748742059473,
-                0.2090013692657499,
-                0.16298707054087283,
-                0.1328429800157177,
-                0.14950045056652064,
-                0.1433893520304681,
-                0.2319377236935164,
-                0.16167700437221735,
-                0.14900457182245586,
-                0.10403354097106,
-                0.11967680693699004,
-                0.13104646944218393,
-                0.11523281882529086,
-                0.1538211792905935,
-                0.16386875436749787,
-                0.19433110776847495,
-                0.22304474300646793,
-                0.1814646444954335,
-                0.19064204748686892,
-                0.08087420506186134,
-            ]
+            sums = get_expected(EXPECTED, key="output_sums")
             print([np.mean(nib.load(output).get_fdata()) for output in output_files])
             for (output, s) in zip(output_files, sums):
                 ave = np.mean(nib.load(output).get_fdata())

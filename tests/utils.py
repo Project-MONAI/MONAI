@@ -20,6 +20,7 @@ import torch
 
 from monai.data import create_test_image_2d, create_test_image_3d
 from monai.utils import optional_import
+from monai.config import get_torch_version_tuple
 
 nib, _ = optional_import("nibabel")
 
@@ -138,6 +139,13 @@ def query_memory(n=2):
     except (FileNotFoundError, TypeError, IndexError):
         ids = range(n) if isinstance(n, int) else []
     return ",".join([f"{int(x)}" for x in ids])
+
+
+def get_expected(expected, key):
+    if get_torch_version_tuple() >= (1, 7):
+        return expected["1.7.0"][key]
+    else:
+        return expected["1.6.0"][key]
 
 
 if __name__ == "__main__":
