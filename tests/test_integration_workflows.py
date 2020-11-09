@@ -50,8 +50,8 @@ from monai.transforms import (
     ToTensord,
 )
 from monai.utils import set_determinism
-from tests.utils import skip_if_quick
 from tests.testing_data.integration_answers import test_integration_value
+from tests.utils import skip_if_quick
 
 TASK = "integration_workflows"
 
