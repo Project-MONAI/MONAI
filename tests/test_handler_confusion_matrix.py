@@ -11,26 +11,45 @@
 
 import unittest
 
-import numpy as np
 import torch
+from parameterized import parameterized
 
 from monai.handlers import ConfusionMatrix
 
+TEST_CASE_1 = [{"include_background": True, "metric_name": "f1", "compute_sample": True, "output_class": False}, 0.75]
+TEST_CASE_2 = [{"include_background": False, "metric_name": "ppv", "compute_sample": True, "output_class": False}, 1.0]
+
 
 class TestHandlerConfusionMatrix(unittest.TestCase):
-    def test_compute(self):
-        matrix_metric = ConfusionMatrix(to_onehot_y=True, activation="softmax")
+    # TODO test multi node averaged confusion matrix
 
-        y_pred = torch.Tensor([[0.1, 0.9], [0.3, 1.4]])
-        y = torch.Tensor([[0], [1]])
-        matrix_metric.update([y_pred, y])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    def test_compute(self, input_params, expected_avg):
+        metric = ConfusionMatrix(**input_params)
 
-        y_pred = torch.Tensor([[0.2, 0.1], [0.1, 0.5]])
-        y = torch.Tensor([[0], [1]])
-        matrix_metric.update([y_pred, y])
+        y_pred = torch.Tensor([[[0], [1]], [[1], [0]]])
+        y = torch.Tensor([[[0], [1]], [[0], [1]]])
+        metric.update([y_pred, y])
 
-        value = matrix_metric.compute()
-        np.testing.assert_allclose(0.75, value)
+        y_pred = torch.Tensor([[[0], [1]], [[1], [0]]])
+        y = torch.Tensor([[[0], [1]], [[1], [0]]])
+        metric.update([y_pred, y])
+
+        avg_metric = metric.compute()
+        self.assertAlmostEqual(avg_metric, expected_avg, places=4)
+
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    def test_shape_mismatch(self, input_params, _expected):
+        metric = ConfusionMatrix(**input_params)
+        with self.assertRaises((AssertionError, ValueError)):
+            y_pred = torch.Tensor([[0, 1], [1, 0]])
+            y = torch.ones((2, 3))
+            metric.update([y_pred, y])
+
+        with self.assertRaises((AssertionError, ValueError)):
+            y_pred = torch.Tensor([[0, 1], [1, 0]])
+            y = torch.ones((3, 2))
+            metric.update([y_pred, y])
 
 
 if __name__ == "__main__":

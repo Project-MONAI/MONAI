@@ -9,94 +9,69 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, List, Optional, Sequence, Union
+from typing import Callable, Optional, Sequence
 
 import torch
-import torch.distributed as dist
 
-from monai.metrics import compute_confusion_matrix
-from monai.utils import Average, exact_version, optional_import
+from monai.metrics import ConfusionMatrixMetric
+from monai.utils import exact_version, optional_import
 
-from .utils import all_gather
-
+NotComputableError, _ = optional_import("ignite.exceptions", "0.4.2", exact_version, "NotComputableError")
 Metric, _ = optional_import("ignite.metrics", "0.4.2", exact_version, "Metric")
 reinit__is_reduced, _ = optional_import("ignite.metrics.metric", "0.4.2", exact_version, "reinit__is_reduced")
+sync_all_reduce, _ = optional_import("ignite.metrics.metric", "0.4.2", exact_version, "sync_all_reduce")
 
 
-class ConfusionMatrix(Metric):  # type: ignore[valid-type, misc]  # due to optional_import
+class ConfusionMatrix(Metric):  # type: ignore[valid-type, misc] # due to optional_import
     """
-    Compute confusion matrix related metrics. This function supports to calculate all metrics
-    mentioned in: `Confusion matrix <https://en.wikipedia.org/wiki/Confusion_matrix>`_.
-    accumulating predictions and the ground-truth during an epoch and applying `compute_confusion_matrix`.
-
-    Args:
-        to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
-        activation: [``"sigmoid"``, ``"softmax"``]
-            Activation method, if specified, an activation function will be employed for `y_pred`.
-            Defaults to None.
-            The parameter can also be a callable function, for example:
-            ``activation = lambda x: torch.log_softmax(x)``.
-        bin_mode: [``"threshold"``, ``"mutually_exclusive"``]
-            Binarization method, if specified, a binarization manipulation will be employed
-            for `y_pred`.
-
-            - ``"threshold"``, a single threshold or a sequence of thresholds should be set.
-            - ``"mutually_exclusive"``, `y_pred` will be converted by a combination of `argmax` and `to_onehot`.
-        bin_threshold: the threshold for binarization, can be a single value or a sequence of
-            values that each one of the value represents a threshold for a class.
-        metric_name: [``"sensitivity"``, ``"specificity"``, ``"precision"``, ``"negative predictive value"``,
-            ``"miss rate"``, ``"fall out"``, ``"false discovery rate"``, ``"false omission rate"``,
-            ``"prevalence threshold"``, ``"threat score"``, ``"accuracy"``, ``"balanced accuracy"``,
-            ``"f1 score"``, ``"matthews correlation coefficient"``, ``"fowlkes mallows index"``,
-            ``"informedness"``, ``"markedness"``]
-            Some of the metrics have multiple aliases (as shown in the wikipedia page aforementioned),
-            and you can also input those names instead.
-        average: [``"macro"``, ``"weighted"``, ``"micro"``, ``"none"``]
-            Type of averaging performed if not binary classification.
-            Defaults to ``"macro"``.
-
-            - ``"macro"``: calculate metrics for each label, and find their unweighted mean.
-                This does not take label imbalance into account.
-            - ``"weighted"``: calculate metrics for each label, and find their average,
-                weighted by support (the number of true instances for each label).
-            - ``"micro"``: calculate metrics globally by considering each element of the label
-                indicator matrix as a label.
-            - ``"none"``: the scores for each class are returned.
-        zero_division: the value to return when there is a zero division, for example, when all
-            predictions and labels are negative. Defaults to 0.
-        output_transform: a callable that is used to transform the
-            :class:`~ignite.engine.Engine` `process_function` output into the
-            form expected by the metric. This can be useful if, for example, you have a multi-output model and
-            you want to compute the metric with respect to one of the outputs.
-        device: device specification in case of distributed computation usage.
-
+    Compute confusion matrix related metrics from full size Tensor and collects average over batch, class-channels, iterations.
     """
 
     def __init__(
         self,
-        to_onehot_y: bool = False,
-        activation: Optional[Union[str, Callable]] = None,
-        bin_mode: Optional[str] = "threshold",
-        bin_threshold: Union[float, Sequence[float]] = 0.5,
+        include_background: bool = True,
         metric_name: str = "hit_rate",
-        average: Union[Average, str] = Average.MACRO,
-        zero_division: int = 0,
+        compute_sample: bool = True,
+        output_class: bool = False,
         output_transform: Callable = lambda x: x,
         device: Optional[torch.device] = None,
     ) -> None:
+        """
+
+        Args:
+            include_background: whether to skip metric computation on the first channel of
+                the predicted output. Defaults to True.
+            metric_name: [``"sensitivity"``, ``"specificity"``, ``"precision"``, ``"negative predictive value"``,
+                ``"miss rate"``, ``"fall out"``, ``"false discovery rate"``, ``"false omission rate"``,
+                ``"prevalence threshold"``, ``"threat score"``, ``"accuracy"``, ``"balanced accuracy"``,
+                ``"f1 score"``, ``"matthews correlation coefficient"``, ``"fowlkes mallows index"``,
+                ``"informedness"``, ``"markedness"``]
+                Some of the metrics have multiple aliases (as shown in the wikipedia page aforementioned),
+                and you can also input those names instead.
+            compute_sample: if ``True``, each sample's metric will be computed first. Defaults to ``True``.
+            output_class: if ``True``, scores for each class will be returned. The final result is each class's score.
+                If average these scores, you will get the macro average of each class. Otherwise, the micro average score
+                of each class will be returned. Defaults to ``False``.
+            output_transform: transform the ignite.engine.state.output into [y_pred, y] pair.
+            device: device specification in case of distributed computation usage.
+
+        See also:
+            :py:meth:`monai.metrics.confusion_matrix`
+        """
         super().__init__(output_transform, device=device)
-        self.to_onehot_y = to_onehot_y
-        self.activation = activation
-        self.bin_mode = bin_mode
-        self.bin_threshold = bin_threshold
-        self.metric_name = metric_name
-        self.average: Average = Average(average)
-        self.zero_division = zero_division
+        self.confusion_matrix = ConfusionMatrixMetric(
+            include_background=include_background,
+            metric_name=metric_name,
+            compute_sample=compute_sample,
+            output_class=output_class,
+        )
+        self._sum = 0.0
+        self._num_examples = 0
 
     @reinit__is_reduced
     def reset(self) -> None:
-        self._predictions: List[torch.Tensor] = []
-        self._targets: List[torch.Tensor] = []
+        self._sum = 0.0
+        self._num_examples = 0
 
     @reinit__is_reduced
     def update(self, output: Sequence[torch.Tensor]) -> None:
@@ -105,39 +80,26 @@ class ConfusionMatrix(Metric):  # type: ignore[valid-type, misc]  # due to optio
             output: sequence with contents [y_pred, y].
 
         Raises:
-            ValueError: When ``output`` length is not 2.
-            ValueError: When ``y_pred`` dimension is not one of [1, 2].
-            ValueError: When ``y`` dimension is not one of [1, 2].
+            ValueError: When ``output`` length is not 2. This metric can only support y_pred and y.
 
         """
         if len(output) != 2:
             raise ValueError(f"output must have length 2, got {len(output)}.")
         y_pred, y = output
-        if y_pred.ndimension() not in (1, 2):
-            raise ValueError("Predictions should be of shape (batch_size, n_classes) or (batch_size, ).")
-        if y.ndimension() not in (1, 2):
-            raise ValueError("Targets should be of shape (batch_size, n_classes) or (batch_size, ).")
+        score, not_nans = self.confusion_matrix(y_pred, y)
+        not_nans = int(not_nans.item())
 
-        self._predictions.append(y_pred.clone())
-        self._targets.append(y.clone())
+        # add all items in current batch
+        self._sum += score.item() * not_nans
+        self._num_examples += not_nans
 
-    def compute(self):
-        _prediction_tensor = torch.cat(self._predictions, dim=0)
-        _target_tensor = torch.cat(self._targets, dim=0)
+    @sync_all_reduce("_sum", "_num_examples")
+    def compute(self) -> float:
+        """
+        Raises:
+            NotComputableError: When ``compute`` is called before an ``update`` occurs.
 
-        if dist.is_available() and dist.is_initialized() and not self._is_reduced:
-            _prediction_tensor = all_gather(_prediction_tensor)
-            _target_tensor = all_gather(_target_tensor)
-            self._is_reduced = True
-
-        return compute_confusion_matrix(
-            y_pred=_prediction_tensor,
-            y=_target_tensor,
-            to_onehot_y=self.to_onehot_y,
-            activation=self.activation,
-            bin_mode=self.bin_mode,
-            bin_threshold=self.bin_threshold,
-            metric_name=self.metric_name,
-            average=self.average,
-            zero_division=self.zero_division,
-        )
+        """
+        if self._num_examples == 0:
+            raise NotComputableError("ConfusionMatrix metric must have at least one example before it can be computed.")
+        return self._sum / self._num_examples

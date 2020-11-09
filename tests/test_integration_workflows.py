@@ -53,7 +53,7 @@ from monai.utils import set_determinism
 from tests.utils import skip_if_quick
 
 
-def run_training_test(root_dir, device=torch.device("cuda:0"), amp=False):
+def run_training_test(root_dir, device="cuda:0", amp=False):
     images = sorted(glob(os.path.join(root_dir, "img*.nii.gz")))
     segs = sorted(glob(os.path.join(root_dir, "seg*.nii.gz")))
     train_files = [{"image": img, "label": seg} for img, seg in zip(images[:20], segs[:20])]
@@ -165,7 +165,7 @@ def run_training_test(root_dir, device=torch.device("cuda:0"), amp=False):
     return evaluator.state.best_metric
 
 
-def run_inference_test(root_dir, model_file, device=torch.device("cuda:0"), amp=False):
+def run_inference_test(root_dir, model_file, device="cuda:0", amp=False):
     images = sorted(glob(os.path.join(root_dir, "im*.nii.gz")))
     segs = sorted(glob(os.path.join(root_dir, "seg*.nii.gz")))
     val_files = [{"image": img, "label": seg} for img, seg in zip(images, segs)]
