@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import argparse
+import inspect
 import os
 import sys
 import time
@@ -61,13 +62,13 @@ def print_results(results, discovery_time, thresh, status):
     print("Remember to check above times for any errors!")
 
 
-def parse_args():
+def parse_args(default_pattern):
     parser = argparse.ArgumentParser(description="Runner for MONAI unittests with timing.")
     parser.add_argument(
         "-s", action="store", dest="path", default=".", help="Directory to start discovery (default: '%(default)s')"
     )
     parser.add_argument(
-        "-p", action="store", dest="pattern", default=None, help="Pattern to match tests (default: unittest's default)"
+        "-p", action="store", dest="pattern", default=default_pattern, help="Pattern to match tests (default: '%(default)s')"
     )
     parser.add_argument(
         "-t",
@@ -98,19 +99,31 @@ def parse_args():
     return args
 
 
+def get_default_pattern(loader):
+    signature = inspect.signature(loader.discover)
+    params = {
+        k: v.default
+        for k, v in signature.parameters.items()
+        if v.default is not inspect.Parameter.empty
+    }
+    return params['pattern']
+
+
 if __name__ == "__main__":
+
+    loader = unittest.TestLoader()
+    default_pattern = get_default_pattern(loader)
+
     # Parse input arguments
-    args = parse_args()
+    args = parse_args(default_pattern)
 
     # If quick is desired, set environment variable
     if args.quick:
         os.environ["QUICKTEST"] = "True"
 
     # Get all test names (optionally from some path with some pattern)
-    loader_args = [args.path, args.pattern] if args.pattern else [args.path]
-    loader = unittest.TestLoader()
     with PerfContext() as pc:
-        tests = loader.discover(*loader_args)
+        tests = loader.discover(args.path, args.pattern)
     discovery_time = pc.total_time
     print(f"time to discover tests: {discovery_time}s")
 
