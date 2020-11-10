@@ -20,7 +20,8 @@ __all__ = ["DataLoader"]
 
 class DataLoader(_TorchDataLoader):
     """Generates images/labels for train/validation/testing from dataset.
-    It inherits from PyTorch DataLoader and adds callbacks for `collate` and `worker_fn`.
+    It inherits from PyTorch DataLoader and adds default callbacks for `collate`
+    and `worker_fn` if user doesn't set them.
 
     More information about PyTorch DataLoader, please check:
     https://github.com/pytorch/pytorch/blob/master/torch/utils/data/dataloader.py
@@ -41,10 +42,13 @@ class DataLoader(_TorchDataLoader):
             # torch.int64 doesn't work well on some versions of windows
             _seed = torch.empty((), dtype=torch.int32).random_(generator=None).item()
             set_rnd(dataset, int(_seed))
+        if "collate_fn" not in kwargs:
+            kwargs.update({"collate_fn": list_data_collate})
+        if "worker_init_fn" not in kwargs:
+            kwargs.update({"worker_init_fn": worker_init_fn})
+
         super().__init__(  # type: ignore[call-overload]
             dataset=dataset,
             num_workers=num_workers,
-            collate_fn=list_data_collate,
-            worker_init_fn=worker_init_fn,
             **kwargs,
         )
