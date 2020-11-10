@@ -343,7 +343,6 @@ class Resize(Transform):
             )
         spatial_size = fall_back_tuple(self.spatial_size, img.shape[1:])
         resized = torch.nn.functional.interpolate(  # type: ignore
-            recompute_scale_factor=True,
             input=torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0),
             size=spatial_size,
             mode=self.mode.value if mode is None else InterpolateMode(mode).value,
