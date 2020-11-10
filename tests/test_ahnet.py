@@ -78,9 +78,9 @@ TEST_CASE_AHNET_3D_2 = [
     (1, 2, 32, 32, 64),
 ]
 TEST_CASE_AHNET_3D_3 = [
-    {"spatial_dims": 3, "upsample_mode": "trilinear", "out_channels": 2, "psp_block_num": 3},
-    (1, 1, 160, 128, 32),
-    (1, 2, 160, 128, 32),
+    {"spatial_dims": 3, "upsample_mode": "nearest", "out_channels": 2, "psp_block_num": 3},
+    (1, 1, 96, 128, 32),
+    (1, 2, 96, 128, 32),
 ]
 TEST_CASE_AHNET_3D_WITH_PRETRAIN_1 = [
     {"spatial_dims": 3, "upsample_mode": "trilinear", "psp_block_num": 0},

@@ -116,7 +116,7 @@ class DenseBlock(nn.Sequential):
 
 class UpTransition(nn.Sequential):
     def __init__(
-        self, spatial_dims: int, num_input_features: int, num_output_features: int, upsample_mode: str = "trilinear"
+        self, spatial_dims: int, num_input_features: int, num_output_features: int, upsample_mode: str = "transpose"
     ):
         super(UpTransition, self).__init__()
 
@@ -133,12 +133,15 @@ class UpTransition(nn.Sequential):
                 "up", conv_trans_type(num_output_features, num_output_features, kernel_size=2, stride=2, bias=False)
             )
         else:
-            self.add_module("up", nn.Upsample(scale_factor=2, mode=upsample_mode, align_corners=True))
+            align_corners: Optional[bool] = None
+            if upsample_mode in ["trilinear", "bilinear"]:
+                align_corners = True
+            self.add_module("up", nn.Upsample(scale_factor=2, mode=upsample_mode, align_corners=align_corners))
 
 
 class Final(nn.Sequential):
     def __init__(
-        self, spatial_dims: int, num_input_features: int, num_output_features: int, upsample_mode: str = "trilinear"
+        self, spatial_dims: int, num_input_features: int, num_output_features: int, upsample_mode: str = "transpose"
     ):
         super(Final, self).__init__()
 
@@ -165,8 +168,10 @@ class Final(nn.Sequential):
                 "up", conv_trans_type(num_output_features, num_output_features, kernel_size=2, stride=2, bias=False)
             )
         else:
-            upsample_mode = "bilinear" if spatial_dims == 2 else "trilinear"
-            self.add_module("up", nn.Upsample(scale_factor=2, mode=upsample_mode, align_corners=True))
+            align_corners: Optional[bool] = None
+            if upsample_mode in ["trilinear", "bilinear"]:
+                align_corners = True
+            self.add_module("up", nn.Upsample(scale_factor=2, mode=upsample_mode, align_corners=align_corners))
 
 
 class Pseudo3DLayer(nn.Module):
@@ -236,7 +241,7 @@ class Pseudo3DLayer(nn.Module):
 
 
 class PSP(nn.Module):
-    def __init__(self, spatial_dims: int, psp_block_num: int, in_ch: int, upsample_mode: str = "trilinear"):
+    def __init__(self, spatial_dims: int, psp_block_num: int, in_ch: int, upsample_mode: str = "transpose"):
         super(PSP, self).__init__()
 
         conv_type = Conv[Conv.CONV, spatial_dims]
@@ -289,11 +294,14 @@ class PSP(nn.Module):
         else:
             for (project_module, pool_module) in zip(self.project_modules, self.pool_modules):
                 interpolate_size = x.shape[2:]
+                align_corners: Optional[bool] = None
+                if self.upsample_mode in ["trilinear", "bilinear"]:
+                    align_corners = True
                 output = F.interpolate(
                     project_module(pool_module(x)),
                     size=interpolate_size,
                     mode=self.upsample_mode,
-                    align_corners=True,
+                    align_corners=align_corners,
                 )
                 outputs.append(output)
         x = torch.cat(outputs, dim=1)
@@ -310,7 +318,7 @@ class AHNet(nn.Module):
     as the default upsampling method.
 
     To meet to requirements of the structure, for ``transpose`` mode, the input size of the first ``dim-1`` dimensions  should
-    be divisible by 2 ** (psp_block_num + 3) and no less than 32. For interpolate based mode, the input size of the first
+    be divisible by 2 ** (psp_block_num + 3) and no less than 32. For other modes, the input size of the first
     ``dim-1`` dimensions should be divisible by 32 and no less than 2 ** (psp_block_num + 3). In addition, at least one
     dimension should have a no less than 64 size.
 
@@ -322,13 +330,14 @@ class AHNet(nn.Module):
         psp_block_num: the number of pyramid volumetric pooling modules used at the end of the network before the final
             output layer for extracting multiscale features. The number should be an integer that belongs to [0,4]. Defaults
             to 4.
-        upsample_mode: [``"transpose"``, ``"bilinear"``, ``"trilinear"``]
+        upsample_mode: [``"transpose"``, ``"bilinear"``, ``"trilinear"``, ``nearest``]
             The mode of upsampling manipulations.
             Using the last two modes cannot guarantee the model's reproducibility. Defaults to ``transpose``.
 
             - ``"transpose"``, uses transposed convolution layers.
             - ``"bilinear"``, uses bilinear interpolate.
             - ``"trilinear"``, uses trilinear interpolate.
+            - ``"nearest"``, uses nearest interpolate.
         pretrained: whether to load pretrained weights from ResNet50 to initialize convolution layers, default to False.
         progress: If True, displays a progress bar of the download of pretrained weights to stderr.
     """
@@ -378,7 +387,11 @@ class AHNet(nn.Module):
         self.pool1 = pool_type(kernel_size=(1, 1, 2)[-spatial_dims:], stride=(1, 1, 2)[-spatial_dims:])
         self.bn0 = norm_type(64)
         self.relu = relu_type(inplace=True)
-        if upsample_mode == "transpose":
+        if upsample_mode in ["transpose", "nearest"]:
+            """
+            To maintain the determinism, the value of kernel_size and stride should be the same.
+            (you can check this link for reference: https://github.com/Project-MONAI/MONAI/pull/815 )
+            """
             self.maxpool = pool_type(kernel_size=(2, 2, 2)[-spatial_dims:], stride=2)
         else:
             self.maxpool = pool_type(kernel_size=(3, 3, 3)[-spatial_dims:], stride=2, padding=1)
