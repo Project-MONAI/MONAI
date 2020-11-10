@@ -172,7 +172,7 @@ jobs:
     container:
       image: ${{ matrix.base }}
       options: --gpus all
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux, x64, common]
     steps:
     - uses: actions/checkout@v2
     - name: apt install
