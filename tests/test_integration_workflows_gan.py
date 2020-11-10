@@ -126,6 +126,7 @@ def run_training_test(root_dir, device="cuda:0"):
     return trainer.state
 
 
+@skip_if_quick
 class IntegrationWorkflowsGAN(unittest.TestCase):
     def setUp(self):
         set_determinism(seed=0)
@@ -144,7 +145,6 @@ class IntegrationWorkflowsGAN(unittest.TestCase):
         set_determinism(seed=None)
         shutil.rmtree(self.data_dir)
 
-    @skip_if_quick
     def test_training(self):
         torch.manual_seed(0)
 

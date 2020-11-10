@@ -26,7 +26,9 @@ from monai.inferers import sliding_window_inference
 from monai.metrics import DiceMetric
 from monai.networks.nets import UNet
 from monai.transforms import (
+    Activations,
     AsChannelFirstd,
+    AsDiscrete,
     Compose,
     LoadNiftid,
     RandCropByPosNegLabeld,
@@ -37,7 +39,10 @@ from monai.transforms import (
 )
 from monai.utils import set_determinism
 from monai.visualize import plot_2d_or_3d_image
+from tests.testing_data.integration_answers import test_integration_value
 from tests.utils import skip_if_quick
+
+TASK = "integration_segmentation_3d"
 
 
 def run_training_test(root_dir, device="cuda:0", cachedataset=False):
@@ -86,7 +91,8 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=False):
     # create a validation data loader
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
     val_loader = monai.data.DataLoader(val_ds, batch_size=1, num_workers=4)
-    dice_metric = DiceMetric(include_background=True, to_onehot_y=False, sigmoid=True, reduction="mean")
+    val_post_tran = Compose([Activations(sigmoid=True), AsDiscrete(threshold_values=True)])
+    dice_metric = DiceMetric(include_background=True, reduction="mean")
 
     # create UNet, DiceLoss and Adam optimizer
     model = monai.networks.nets.UNet(
@@ -140,11 +146,10 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=False):
                 for val_data in val_loader:
                     val_images, val_labels = val_data["img"].to(device), val_data["seg"].to(device)
                     sw_batch_size, roi_size = 4, (96, 96, 96)
-                    val_outputs = sliding_window_inference(val_images, roi_size, sw_batch_size, model)
-                    value = dice_metric(y_pred=val_outputs, y=val_labels)
-                    not_nans = dice_metric.not_nans.item()
-                    metric_count += not_nans
-                    metric_sum += value.item() * not_nans
+                    val_outputs = val_post_tran(sliding_window_inference(val_images, roi_size, sw_batch_size, model))
+                    value, not_nans = dice_metric(y_pred=val_outputs, y=val_labels)
+                    metric_count += not_nans.item()
+                    metric_sum += value.item() * not_nans.item()
                 metric = metric_sum / metric_count
                 metric_values.append(metric)
                 if metric > best_metric:
@@ -186,7 +191,8 @@ def run_inference_test(root_dir, device="cuda:0"):
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
     # sliding window inferene need to input 1 image in every iteration
     val_loader = monai.data.DataLoader(val_ds, batch_size=1, num_workers=4)
-    dice_metric = DiceMetric(include_background=True, to_onehot_y=False, sigmoid=True, reduction="mean")
+    val_post_tran = Compose([Activations(sigmoid=True), AsDiscrete(threshold_values=True)])
+    dice_metric = DiceMetric(include_background=True, reduction="mean")
 
     model = UNet(
         dimensions=3,
@@ -210,17 +216,16 @@ def run_inference_test(root_dir, device="cuda:0"):
             val_images, val_labels = val_data["img"].to(device), val_data["seg"].to(device)
             # define sliding window size and batch size for windows inference
             sw_batch_size, roi_size = 4, (96, 96, 96)
-            val_outputs = sliding_window_inference(val_images, roi_size, sw_batch_size, model)
-            value = dice_metric(y_pred=val_outputs, y=val_labels)
-            not_nans = dice_metric.not_nans.item()
-            metric_count += not_nans
-            metric_sum += value.item() * not_nans
-            val_outputs = (val_outputs.sigmoid() >= 0.5).float()
+            val_outputs = val_post_tran(sliding_window_inference(val_images, roi_size, sw_batch_size, model))
+            value, not_nans = dice_metric(y_pred=val_outputs, y=val_labels)
+            metric_count += not_nans.item()
+            metric_sum += value.item() * not_nans.item()
             saver.save_batch(val_outputs, val_data["img_meta_dict"])
         metric = metric_sum / metric_count
     return metric
 
 
+@skip_if_quick
 class IntegrationSegmentation3D(unittest.TestCase):
     def setUp(self):
         set_determinism(seed=0)
@@ -239,7 +244,6 @@ class IntegrationSegmentation3D(unittest.TestCase):
         set_determinism(seed=None)
         shutil.rmtree(self.data_dir)
 
-    @skip_if_quick
     def test_training(self):
         repeated = []
         for i in range(3):
@@ -251,21 +255,11 @@ class IntegrationSegmentation3D(unittest.TestCase):
             )
 
             # check training properties
-            np.testing.assert_allclose(
-                losses,
-                [
-                    0.5367561787366867,
-                    0.4780906319618225,
-                    0.45814884305000303,
-                    0.4462165802717209,
-                    0.42342003881931306,
-                    0.42573192417621614,
-                ],
-                rtol=1e-3,
-            )
+            print("losses", losses)
+            self.assertTrue(test_integration_value(TASK, key="losses", data=losses, rtol=1e-3))
             repeated[i].extend(losses)
             print("best metric", best_metric)
-            np.testing.assert_allclose(best_metric, 0.9284994244575501, rtol=1e-2)
+            self.assertTrue(test_integration_value(TASK, key="best_metric", data=best_metric, rtol=1e-2))
             repeated[i].append(best_metric)
             self.assertTrue(len(glob(os.path.join(self.data_dir, "runs"))) > 0)
             model_file = os.path.join(self.data_dir, "best_metric_model.pth")
@@ -275,56 +269,14 @@ class IntegrationSegmentation3D(unittest.TestCase):
 
             # check inference properties
             print("infer metric", infer_metric)
-            np.testing.assert_allclose(infer_metric, 0.9297081649303436, rtol=1e-2)
+            self.assertTrue(test_integration_value(TASK, key="infer_metric", data=infer_metric, rtol=1e-2))
             repeated[i].append(infer_metric)
             output_files = sorted(glob(os.path.join(self.data_dir, "output", "img*", "*.nii.gz")))
-            sums = [
-                0.14236407539774545,
-                0.15230706175082387,
-                0.15166480364209348,
-                0.14007500611778745,
-                0.1884924621086837,
-                0.1695513862739126,
-                0.14712184860663788,
-                0.1681115604336759,
-                0.1572906638415615,
-                0.17937440398539023,
-                0.16272332511753773,
-                0.16802574064747222,
-                0.14526150586106137,
-                0.1159984862360706,
-                0.16195498979241085,
-                0.20102274293763406,
-                0.17589239729105313,
-                0.10252633855115888,
-                0.193636370778981,
-                0.20292485235029903,
-                0.19634198039845435,
-                0.20824971460474945,
-                0.1622303133196011,
-                0.13221847658694733,
-                0.14885074606109583,
-                0.14270806519560253,
-                0.2314349441350736,
-                0.1611329079999522,
-                0.1484014668347457,
-                0.10382948525640207,
-                0.11913278973359338,
-                0.13073357801141586,
-                0.11465035056069182,
-                0.15304480634774378,
-                0.16318785095442723,
-                0.19371516498982155,
-                0.22269088446692173,
-                0.18099178390758894,
-                0.19004000086784215,
-                0.0855747283711328,
-            ]
             print([np.mean(nib.load(output).get_fdata()) for output in output_files])
-            for (output, s) in zip(output_files, sums):
+            for output in output_files:
                 ave = np.mean(nib.load(output).get_fdata())
-                np.testing.assert_allclose(ave, s, atol=1e-2)
                 repeated[i].append(ave)
+            self.assertTrue(test_integration_value(TASK, key="output_sums", data=repeated[i][8:], rtol=1e-2))
         np.testing.assert_allclose(repeated[0], repeated[1])
         np.testing.assert_allclose(repeated[0], repeated[2])
 
