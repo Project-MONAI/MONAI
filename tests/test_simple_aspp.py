@@ -19,17 +19,17 @@ from monai.networks.blocks import SimpleASPP
 TEST_CASES = [
     [  # 32-channel 2D, batch 7
         {"spatial_dims": 2, "in_channels": 32, "conv_out_channels": 3},
-        torch.randn(7, 32, 18, 20),
+        (7, 32, 18, 20),
         (7, 12, 18, 20),
     ],
     [  # 4-channel 1D, batch 16
         {"spatial_dims": 1, "in_channels": 4, "conv_out_channels": 8},
-        torch.randn(16, 4, 17),
+        (16, 4, 17),
         (16, 32, 17),
     ],
     [  # 3-channel 3D, batch 16
         {"spatial_dims": 3, "in_channels": 3, "conv_out_channels": 2},
-        torch.randn(16, 3, 17, 18, 19),
+        (16, 3, 17, 18, 19),
         (16, 8, 17, 18, 19),
     ],
     [  # 3-channel 3D, batch 16
@@ -40,7 +40,7 @@ TEST_CASES = [
             "kernel_sizes": (1, 3, 3),
             "dilations": (1, 2, 4),
         },
-        torch.randn(16, 3, 17, 18, 19),
+        (16, 3, 17, 18, 19),
         (16, 6, 17, 18, 19),
     ],
 ]
@@ -48,7 +48,7 @@ TEST_CASES = [
 TEST_ILL_CASES = [
     [  # 3-channel 3D, batch 16, wrong k and d sizes.
         {"spatial_dims": 3, "in_channels": 3, "conv_out_channels": 2, "kernel_sizes": (1, 3, 3), "dilations": (1, 2)},
-        torch.randn(16, 3, 17, 18, 19),
+        (16, 3, 17, 18, 19),
         ValueError,
     ],
     [  # 3-channel 3D, batch 16, wrong k and d sizes.
@@ -59,7 +59,7 @@ TEST_ILL_CASES = [
             "kernel_sizes": (1, 3, 4),
             "dilations": (1, 2, 3),
         },
-        torch.randn(16, 3, 17, 18, 19),
+        (16, 3, 17, 18, 19),
         NotImplementedError,  # unknown padding k=4, d=3
     ],
 ]
@@ -67,15 +67,15 @@ TEST_ILL_CASES = [
 
 class TestChannelSELayer(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
-    def test_shape(self, input_param, input_data, expected_shape):
+    def test_shape(self, input_param, input_shape, expected_shape):
         net = SimpleASPP(**input_param)
         net.eval()
         with torch.no_grad():
-            result = net(input_data)
+            result = net(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
 
     @parameterized.expand(TEST_ILL_CASES)
-    def test_ill_args(self, input_param, input_data, error_type):
+    def test_ill_args(self, input_param, input_shape, error_type):
         with self.assertRaises(error_type):
             SimpleASPP(**input_param)
 

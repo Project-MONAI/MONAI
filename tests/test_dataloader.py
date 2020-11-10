@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
 import unittest
 
 from monai.data import CacheDataset, DataLoader
@@ -28,7 +29,8 @@ class TestDataLoader(unittest.TestCase):
             ]
         )
         dataset = CacheDataset(data=datalist, transform=transform, cache_rate=0.5, cache_num=1)
-        dataloader = DataLoader(dataset=dataset, batch_size=2, num_workers=2)
+        n_workers = 0 if sys.platform == "win32" else 2
+        dataloader = DataLoader(dataset=dataset, batch_size=2, num_workers=n_workers)
         for d in dataloader:
             self.assertEqual(d["image"][0], "spleen_19.nii.gz")
             self.assertEqual(d["image"][1], "spleen_31.nii.gz")

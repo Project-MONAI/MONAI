@@ -17,13 +17,16 @@ Inferers
 .. currentmodule:: monai.inferers
 .. autoclass:: Inferer
     :members:
+    :special-members: __call__
 
 `SimpleInferer`
 ~~~~~~~~~~~~~~~
 .. autoclass:: SimpleInferer
     :members:
+    :special-members: __call__
 
 `SlidingWindowInferer`
 ~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: SlidingWindowInferer
     :members:
+    :special-members: __call__
