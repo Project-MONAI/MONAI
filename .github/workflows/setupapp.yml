@@ -138,10 +138,19 @@ jobs:
       env:
         QUICKTEST: True
 
+  local_docker:
+    runs-on: [self-hosted, linux, x64]
+    steps:
+    - uses: actions/checkout@v2
+    - name: docker_build
+      run: |
+        docker build -t localhost:5000/local_monai:latest -f Dockerfile .
+        docker push localhost:5000/local_monai:latest
 
   docker:
+    needs: local_docker
     container:
-      image: docker://projectmonai/monai:latest
+      image: localhost:5000/local_monai:latest
     runs-on: [self-hosted, linux, x64]
     steps:
     - name: Import
