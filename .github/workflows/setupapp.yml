@@ -139,7 +139,7 @@ jobs:
         QUICKTEST: True
 
   local_docker:
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux, x64, build_only]
     steps:
     - uses: actions/checkout@v2
     - name: docker_build
