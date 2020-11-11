@@ -22,6 +22,7 @@ from monai.networks.nets import AutoEncoder
 
 
 class VarAutoEncoder(AutoEncoder):
+    """Variational Autoencoder based on the paper - https://arxiv.org/abs/1312.6114"""
     def __init__(
         self,
         dimensions: int,
@@ -81,11 +82,12 @@ class VarAutoEncoder(AutoEncoder):
         logvar = self.logvar(x)
         return mu, logvar
 
-    def decode_forward(self, z: torch.Tensor) -> torch.Tensor:
+    def decode_forward(self, z: torch.Tensor, use_sigmoid: bool = True) -> torch.Tensor:
         x = F.relu(self.decodeL(z))
         x = x.view(x.shape[0], self.channels[-1], *self.final_size)
         x = self.decode(x)
-        x = torch.sigmoid(x)
+        if use_sigmoid:
+            x = torch.sigmoid(x)
         return x
 
     def reparameterize(self, mu: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
