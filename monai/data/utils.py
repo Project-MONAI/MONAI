@@ -482,7 +482,7 @@ def compute_importance_map(
     patch_size: Tuple[int, ...],
     mode: Union[BlendMode, str] = BlendMode.CONSTANT,
     sigma_scale: Union[Sequence[float], float] = 0.125,
-    device: Optional[torch.device] = None,
+    device: Union[torch.device, int, str] = "cpu",
 ) -> torch.Tensor:
     """Get importance map for different weight modes.
 
@@ -506,6 +506,7 @@ def compute_importance_map(
 
     """
     mode = BlendMode(mode)
+    device = torch.device(device)  # type: ignore[arg-type]
     if mode == BlendMode.CONSTANT:
         importance_map = torch.ones(patch_size, device=device).float()
     elif mode == BlendMode.GAUSSIAN:
