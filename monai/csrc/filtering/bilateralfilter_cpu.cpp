@@ -12,84 +12,122 @@ limitations under the License.
 */
 
 #include <torch/extension.h>
-
 #include <math.h>
-
-torch::Tensor CalculateGaussianKernel(int windowSize, float sigma)
-{
-    torch::Tensor gaussianKernel = torch::zeros(windowSize);
-
-    float halfWindowSize = 0.5f * windowSize;
-    float expConstant = -1.0f / (2 * sigma * sigma);
-
-    for (int i = 0; i < windowSize; i++)
-    {
-        int distance = i - halfWindowSize;
-        gaussianKernel[i] = exp(distance * expConstant);
-    }
-
-    return gaussianKernel;
-}
 
 torch::Tensor BilateralFilterCpu(torch::Tensor input, float spatialSigma, float colorSigma)
 {
+    // Prepare output tensor
+    torch::Tensor output = torch::zeros_like(input);
+
+    // Tensor descriptors.
     int batchCount = input.size(0);
     int channelCount = input.size(1);
     int width = input.size(2);
     int height = input.size(3);
 
+    int batchStride = input.stride(0);
+    int channelStride = input.stride(1);
+    int widthStride = input.stride(2);
+    int heightStride = input.stride(3);
+
+    // Raw tensor data pointers. 
+    float* inputData = input.data_ptr<float>();
+    float* outputData = output.data_ptr<float>();
+
+    // Pre-calculate common values
     int windowSize = ceil(3 * spatialSigma);
     int halfWindowSize = 0.5f * windowSize;
+    float spatialExpConstant = -1.0f / (2 * spatialSigma * spatialSigma);
     float colorExpConstant = -1.0f / (2 * colorSigma * colorSigma);
 
-    torch::Tensor gaussianKernel = CalculateGaussianKernel(windowSize, spatialSigma);
+    // Pre-calculate gaussian kernel in 1D.
+    float* gaussianKernel = new float[windowSize];
 
-    torch::Tensor output = torch::zeros_like(input);
-
-    // Looping over the input data 
-    for (int x = 0; x < width; x++)
+    for (int i = 0; i < windowSize; i++)
     {
-        for (int y = 0; y < height; y++)
+        int distance = i - halfWindowSize;
+        gaussianKernel[i] = exp(distance * spatialExpConstant);
+    }
+
+    // Allocating arrays for color reads.
+    float* homeColor = new float[channelCount];
+    float* neighbourColor = new float[channelCount];
+
+    // Kernel aggregates used to calculate
+    // the output value.
+    float* valueSum = new float[channelCount];
+    float weightSum = 0;
+
+    // Looping over the input data, calculating 
+    // offsets into our tensor data.
+    for (int b = 0; b < batchCount; b++)
+    {
+        int batchOffset = b * batchStride;
+
+        for (int x = 0; x < width; x++)
         {
-            // Reading the current pixel data. Slice
-            // is equivlent to a : in python
-            torch::Tensor currentPixel = input.index({0, torch::indexing::Slice(), x, y});
+            int xOffset = x * widthStride;
 
-            // Aggregates for this kernel used to 
-            // calculate the output value at x, y
-            torch::Tensor valueSum = torch::zeros({channelCount});
-            torch::Tensor weightSum = torch::zeros({1});
-
-            // Looping over the kernel clamping pixel 
-            // reads to the edge of the input
-            for (int i = 0; i < windowSize; i++)
+            for (int y = 0; y < height; y++)
             {
-                int xOffset = i - halfWindowSize;
-                int neighbourX = std::min(width - 1, std::max(0, x + xOffset));
+                int yOffset = y * heightStride;
 
-                for (int j = 0; j < windowSize; j++)
+                // Reading the home "color" value.
+                homeColor[0] = inputData[batchOffset + 0 * channelStride + xOffset + yOffset]; 
+                homeColor[1] = inputData[batchOffset + 1 * channelStride + xOffset + yOffset]; 
+                homeColor[2] = inputData[batchOffset + 2 * channelStride + xOffset + yOffset];
+
+                // Zero kernel aggregates.
+                valueSum[0] = 0;
+                valueSum[1] = 0; 
+                valueSum[2] = 0;
+
+                weightSum = 0;
+
+                // Looping over the kernel clamping pixel 
+                // reads to the edge of the input.
+                for (int i = 0; i < windowSize; i++)
                 {
-                    int yOffset = j - halfWindowSize;
-                    int neighbourY = std::min(height - 1, std::max(0, y + yOffset));
+                    int xKernelOffset = i - halfWindowSize;
+                    int neighbourX = std::min(width - 1, std::max(0, x + xKernelOffset));
+                    int neighbourXStride = neighbourX * widthStride;
 
-                    // Read the neighbour value and calculating 
-                    // the squared euclidian "color" distance
-                    torch::Tensor neighbourPixel = input.index({0, torch::indexing::Slice(), neighbourX, neighbourY});
-                    torch::Tensor colorDistanceSquared = (currentPixel - neighbourPixel).square().sum();
+                    for (int j = 0; j < windowSize; j++)
+                    {
+                        int yKernelOffset = j - halfWindowSize;
+                        int neighbourY = std::min(height - 1, std::max(0, y + yKernelOffset));
+                        int neighbourYStride = neighbourY * heightStride;
 
-                    // Calculating and combining the spatial and color weights
-                    torch::Tensor spatialWeight = gaussianKernel[i] * gaussianKernel[j];
-                    torch::Tensor colorWeight = (colorDistanceSquared * colorExpConstant).exp();
-                    torch::Tensor totalWeight = spatialWeight * colorWeight;
+                        // Read the neighbour "color" value.
+                        neighbourColor[0] = inputData[batchStride + 0 * channelStride + neighbourXStride + neighbourYStride]; 
+                        neighbourColor[1] = inputData[batchStride + 1 * channelStride + neighbourXStride + neighbourYStride]; 
+                        neighbourColor[2] = inputData[batchStride + 2 * channelStride + neighbourXStride + neighbourYStride];
 
-                    // Aggregating values
-                    weightSum += totalWeight;
-                    valueSum += neighbourPixel * totalWeight;
+                        // Euclidean color distance.
+                        float colorDistanceSquared = 0;
+                        colorDistanceSquared += (homeColor[0] - neighbourColor[0]) * (homeColor[0] - neighbourColor[0]);
+                        colorDistanceSquared += (homeColor[1] - neighbourColor[1]) * (homeColor[1] - neighbourColor[1]);
+                        colorDistanceSquared += (homeColor[2] - neighbourColor[2]) * (homeColor[2] - neighbourColor[2]);
+
+                        // Calculating and combining the spatial 
+                        // and color weights.
+                        float spatialWeight = gaussianKernel[i] * gaussianKernel[j];
+                        float colorWeight = exp(colorDistanceSquared * colorExpConstant);
+                        float totalWeight = spatialWeight * colorWeight;
+
+                        // Aggregating values.
+                        valueSum[0] += neighbourColor[0] * totalWeight;
+                        valueSum[1] += neighbourColor[1] * totalWeight;
+                        valueSum[2] += neighbourColor[2] * totalWeight;
+
+                        weightSum += totalWeight;
+                    }
                 }
+                
+                outputData[batchOffset + 0 * channelStride + xOffset + yOffset] = valueSum[0] / weightSum; 
+                outputData[batchOffset + 1 * channelStride + xOffset + yOffset] = valueSum[1] / weightSum; 
+                outputData[batchOffset + 2 * channelStride + xOffset + yOffset] = valueSum[2] / weightSum;
             }
-
-            // Writing output
-            output.index_put_({0, torch::indexing::Slice(), x, y}, valueSum / weightSum);
         }
     }
 
