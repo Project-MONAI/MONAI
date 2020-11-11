@@ -14,6 +14,59 @@ limitations under the License.
 #include <torch/extension.h>
 #include <math.h>
 
+inline void ReadValue(float* dst, float* src, int offset, int stride, int count)
+{
+    for(int i = 0; i < count; i++)
+    {
+        dst[i] = src[offset + i * stride];
+    }
+}
+
+inline void WriteValue(float* dst, float* src, int offset, int stride, int count)
+{
+    for(int i = 0; i < count; i++)
+    {
+        dst[offset + i * stride] = src[i];
+    }
+}
+
+inline float DistanceSquared(float* a, float* b, int count)
+{
+    float result = 0;
+
+    for(int i = 0; i < count; i++)
+    {
+        float diff = a[i] - b[i];
+        result += diff * diff;
+    }
+
+    return result;
+}
+
+inline void SetValue(float* a, float scalar, int count)
+{
+    for(int i = 0; i < count; i++)
+    {
+        a[i] = scalar;
+    }
+}
+
+inline void MulValue(float* a, float scalar, int count)
+{
+    for(int i = 0; i < count; i++)
+    {
+        a[i] *= scalar;
+    }
+}
+
+inline void AddValue(float* a, float* b, int count)
+{
+    for(int i = 0; i < count; i++)
+    {
+        a[i] += b[i];
+    }
+}
+
 torch::Tensor BilateralFilterCpu(torch::Tensor input, float spatialSigma, float colorSigma)
 {
     // Prepare output tensor
@@ -73,14 +126,10 @@ torch::Tensor BilateralFilterCpu(torch::Tensor input, float spatialSigma, float 
                 int yOffset = y * heightStride;
 
                 // Reading the home "color" value.
-                homeColor[0] = inputData[batchOffset + 0 * channelStride + xOffset + yOffset]; 
-                homeColor[1] = inputData[batchOffset + 1 * channelStride + xOffset + yOffset]; 
-                homeColor[2] = inputData[batchOffset + 2 * channelStride + xOffset + yOffset];
+                ReadValue(homeColor, inputData, batchOffset + xOffset + yOffset, channelStride, channelCount);
 
                 // Zero kernel aggregates.
-                valueSum[0] = 0;
-                valueSum[1] = 0; 
-                valueSum[2] = 0;
+                SetValue(valueSum, 0, channelCount);
 
                 weightSum = 0;
 
@@ -99,15 +148,10 @@ torch::Tensor BilateralFilterCpu(torch::Tensor input, float spatialSigma, float 
                         int neighbourYStride = neighbourY * heightStride;
 
                         // Read the neighbour "color" value.
-                        neighbourColor[0] = inputData[batchStride + 0 * channelStride + neighbourXStride + neighbourYStride]; 
-                        neighbourColor[1] = inputData[batchStride + 1 * channelStride + neighbourXStride + neighbourYStride]; 
-                        neighbourColor[2] = inputData[batchStride + 2 * channelStride + neighbourXStride + neighbourYStride];
+                        ReadValue(neighbourColor, inputData, batchOffset + neighbourXStride + neighbourYStride, channelStride, channelCount);
 
                         // Euclidean color distance.
-                        float colorDistanceSquared = 0;
-                        colorDistanceSquared += (homeColor[0] - neighbourColor[0]) * (homeColor[0] - neighbourColor[0]);
-                        colorDistanceSquared += (homeColor[1] - neighbourColor[1]) * (homeColor[1] - neighbourColor[1]);
-                        colorDistanceSquared += (homeColor[2] - neighbourColor[2]) * (homeColor[2] - neighbourColor[2]);
+                        float colorDistanceSquared = DistanceSquared(homeColor, neighbourColor, channelCount);
 
                         // Calculating and combining the spatial 
                         // and color weights.
@@ -116,17 +160,15 @@ torch::Tensor BilateralFilterCpu(torch::Tensor input, float spatialSigma, float 
                         float totalWeight = spatialWeight * colorWeight;
 
                         // Aggregating values.
-                        valueSum[0] += neighbourColor[0] * totalWeight;
-                        valueSum[1] += neighbourColor[1] * totalWeight;
-                        valueSum[2] += neighbourColor[2] * totalWeight;
+                        MulValue(neighbourColor, totalWeight, channelCount);
+                        AddValue(valueSum, neighbourColor, channelCount);
 
                         weightSum += totalWeight;
                     }
                 }
                 
-                outputData[batchOffset + 0 * channelStride + xOffset + yOffset] = valueSum[0] / weightSum; 
-                outputData[batchOffset + 1 * channelStride + xOffset + yOffset] = valueSum[1] / weightSum; 
-                outputData[batchOffset + 2 * channelStride + xOffset + yOffset] = valueSum[2] / weightSum;
+                MulValue(valueSum, 1.0f/weightSum, channelCount);
+                WriteValue(outputData, valueSum, batchOffset + xOffset + yOffset, channelStride, channelCount);
             }
         }
     }
