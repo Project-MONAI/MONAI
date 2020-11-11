@@ -24,10 +24,12 @@ from monai.metrics import compute_roc_auc
 from monai.networks.nets import densenet121
 from monai.transforms import AddChannel, Compose, LoadPNG, RandFlip, RandRotate, RandZoom, ScaleIntensity, ToTensor
 from monai.utils import set_determinism
+from tests.testing_data.integration_answers import test_integration_value
 from tests.utils import skip_if_quick
 
 TEST_DATA_URL = "https://www.dropbox.com/s/5wwskxctvcxiuea/MedNIST.tar.gz?dl=1"
 MD5_VALUE = "0bc7306e7427e00ad1c5526a6677552d"
+TASK = "integration_classification_2d"
 
 
 class MedNISTDataset(torch.utils.data.Dataset):
@@ -149,6 +151,7 @@ def run_inference_test(root_dir, test_x, test_y, device="cuda:0"):
     return tps
 
 
+@skip_if_quick
 class IntegrationClassification2D(unittest.TestCase):
     def setUp(self):
         set_determinism(seed=0)
@@ -205,7 +208,6 @@ class IntegrationClassification2D(unittest.TestCase):
             warnings.warn("not found best_metric_model.pth, training skipped?")
             pass
 
-    @skip_if_quick
     def test_training(self):
         if not os.path.exists(os.path.join(self.data_dir, "MedNIST")):
             # skip test if no MedNIST dataset
@@ -221,21 +223,19 @@ class IntegrationClassification2D(unittest.TestCase):
 
             # check training properties
             print(f"integration_classification_2d {losses}")
-            np.testing.assert_allclose(
-                losses, [0.776872731128316, 0.16163671757005582, 0.07500977408449361, 0.04593902905797882], rtol=1e-2
-            )
+            self.assertTrue(test_integration_value(TASK, key="losses", data=losses, rtol=1e-2))
             repeated[i].extend(losses)
             print("best metric", best_metric)
-            np.testing.assert_allclose(best_metric, 0.9999186110333108, rtol=1e-4)
+            self.assertTrue(test_integration_value(TASK, key="best_metric", data=best_metric, rtol=1e-4))
             repeated[i].append(best_metric)
             np.testing.assert_allclose(best_metric_epoch, 4)
             model_file = os.path.join(self.data_dir, "best_metric_model.pth")
             self.assertTrue(os.path.exists(model_file))
 
             infer_metric = run_inference_test(self.data_dir, self.test_x, self.test_y, device=self.device)
-
+            print("infer metric", infer_metric)
             # check inference properties
-            np.testing.assert_allclose(np.asarray(infer_metric), [1029, 896, 980, 1033, 961, 1046], atol=1)
+            self.assertTrue(test_integration_value(TASK, key="infer_prop", data=np.asarray(infer_metric), rtol=1))
             repeated[i].extend(infer_metric)
 
         np.testing.assert_allclose(repeated[0], repeated[1])

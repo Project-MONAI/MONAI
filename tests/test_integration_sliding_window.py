@@ -26,7 +26,7 @@ from monai.networks import predict_segmentation
 from monai.networks.nets import UNet
 from monai.transforms import AddChannel
 from monai.utils import set_determinism
-from tests.utils import make_nifti_image
+from tests.utils import make_nifti_image, skip_if_quick
 
 
 def run_test(batch_size, img_name, seg_name, output_dir, device="cuda:0"):
@@ -59,6 +59,7 @@ def run_test(batch_size, img_name, seg_name, output_dir, device="cuda:0"):
     return saved_name
 
 
+@skip_if_quick
 class TestIntegrationSlidingWindow(unittest.TestCase):
     def setUp(self):
         set_determinism(seed=0)
