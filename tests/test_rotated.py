@@ -84,7 +84,6 @@ class TestRotated3D(NumpyImageTestCase3D):
             self.segn[0, 0], np.rad2deg(angle), (0, 2), not keep_size, order=0, mode=_mode, prefilter=False
         )
         expected = np.stack(expected).astype(int)
-        print(np.count_nonzero(expected != rotated["seg"][0]))
         self.assertLessEqual(np.count_nonzero(expected != rotated["seg"][0]), 105)
 
 
