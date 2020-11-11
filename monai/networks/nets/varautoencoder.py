@@ -23,6 +23,7 @@ from monai.networks.nets import AutoEncoder
 
 class VarAutoEncoder(AutoEncoder):
     """Variational Autoencoder based on the paper - https://arxiv.org/abs/1312.6114"""
+
     def __init__(
         self,
         dimensions: int,
