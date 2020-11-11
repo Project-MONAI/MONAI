@@ -1,0 +1,155 @@
+# Copyright 2020 MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from typing import Optional, Sequence, Tuple, Union
+
+import torch
+import torch.nn as nn
+
+from monai.networks.layers.factories import Act, split_args
+
+
+class FCNet(nn.Module):
+    """Plain full-connected layer neural network using dropout and PReLU activation."""
+
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        hidden_channels: Sequence[int],
+        dropout: float = 0,
+        act: Optional[Union[Tuple, str]] = Act.PRELU,
+        bias: bool = True,
+    ) -> None:
+        """
+        Defines a network accept input with `in_channels' channels, output of `out_channels' channels, and hidden layers
+        with channels given in `hidden_channels'. If `bias' is True then linear units have a bias term.
+        """
+        super().__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.hidden_channels = list(hidden_channels)
+        self.dropout = dropout
+        self.flatten = nn.Flatten()
+        self.hiddens = nn.Sequential()
+
+        act_name, act_args = split_args(act)
+        act_type = Act[act_name]
+        self.act = act_type(**act_args)
+
+        prev_channels = self.in_channels
+        for i, c in enumerate(hidden_channels):
+            self.hiddens.add_module("hidden_%i" % i, self._get_layer(prev_channels, c, bias))
+            prev_channels = c
+
+        self.output = nn.Linear(prev_channels, out_channels, bias)
+
+    def _get_layer(self, in_channels: int, out_channels: int, bias: bool) -> nn.Sequential:
+        seq = nn.Sequential(nn.Linear(in_channels, out_channels, bias))
+
+        if self.dropout:
+            seq.add_module("dropout", nn.Dropout(self.dropout))
+
+        seq.add_module("act", self.act)
+
+        return seq
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.flatten(x)
+        x = self.hiddens(x)
+        x = self.output(x)
+        return x
+
+
+class VarFCNet(nn.Module):
+    """Variational fully-connected network."""
+
+    # like https://github.com/pytorch/examples/blob/master/vae/main.py but configurable through the constructor
+
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        latent_size: int,
+        encode_channels,
+        decode_channels,
+        dropout: float = 0,
+        act: Optional[Union[Tuple, str]] = Act.PRELU,
+        bias: bool = True,
+    ) -> None:
+        super().__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.latent_size = latent_size
+        self.dropout = dropout
+
+        self.encode = nn.Sequential()
+        self.decode = nn.Sequential()
+        self.flatten = nn.Flatten()
+
+        act_name, act_args = split_args(act)
+        act_type = Act[act_name]
+        self.act = act_type(**act_args)
+
+        prev_channels = self.in_channels
+        for i, c in enumerate(encode_channels):
+            self.encode.add_module("encode_%i" % i, self._get_layer(prev_channels, c, bias))
+            prev_channels = c
+
+        self.mu = nn.Linear(prev_channels, self.latent_size)
+        self.logvar = nn.Linear(prev_channels, self.latent_size)
+        self.decodeL = nn.Linear(self.latent_size, prev_channels)
+
+        for i, c in enumerate(decode_channels):
+            self.decode.add_module("decode%i" % i, self._get_layer(prev_channels, c, bias))
+            prev_channels = c
+
+        self.decode.add_module("final", nn.Linear(prev_channels, out_channels, bias))
+
+    def _get_layer(self, in_channels: int, out_channels: int, bias: bool) -> nn.Sequential:
+        seq = nn.Sequential(nn.Linear(in_channels, out_channels, bias))
+
+        if self.dropout:
+            seq.add_module("dropout", nn.Dropout(self.dropout))
+
+        seq.add_module("act", self.act)
+
+        return seq
+
+    def encode_forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        x = self.encode(x)
+        x = self.flatten(x)
+        mu = self.mu(x)
+        logvar = self.logvar(x)
+        return mu, logvar
+
+    def decode_forward(self, z: torch.Tensor, use_sigmoid: bool = True) -> torch.Tensor:
+        x: torch.Tensor
+        x = self.decodeL(z)
+        x = torch.relu(x)
+        x = self.flatten(x)
+        x = self.decode(x)
+        if use_sigmoid:
+            x = torch.sigmoid(x)
+        return x
+
+    def reparameterize(self, mu: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
+        std = torch.exp(0.5 * logvar)
+
+        if self.training:  # multiply random noise with std only during training
+            std = torch.randn_like(std).mul(std)
+
+        return std.add_(mu)
+
+    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        mu, logvar = self.encode_forward(x)
+        z = self.reparameterize(mu, logvar)
+        return self.decode_forward(z), mu, logvar, z

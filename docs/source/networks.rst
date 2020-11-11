@@ -283,6 +283,11 @@ Nets
 .. autoclass:: VarAutoEncoder
   :members:
 
+`FCNet`
+~~~~~~~
+.. autoclass:: FCNet
+  :members:
+
 `Generator`
 ~~~~~~~~~~~
 .. autoclass:: Generator
