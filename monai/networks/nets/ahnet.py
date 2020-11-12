@@ -116,7 +116,7 @@ class DenseBlock(nn.Sequential):
 
 class UpTransition(nn.Sequential):
     def __init__(
-        self, spatial_dims: int, num_input_features: int, num_output_features: int, upsample_mode: str = "trilinear"
+        self, spatial_dims: int, num_input_features: int, num_output_features: int, upsample_mode: str = "transpose"
     ):
         super(UpTransition, self).__init__()
 
@@ -133,12 +133,15 @@ class UpTransition(nn.Sequential):
                 "up", conv_trans_type(num_output_features, num_output_features, kernel_size=2, stride=2, bias=False)
             )
         else:
-            self.add_module("up", nn.Upsample(scale_factor=2, mode=upsample_mode, align_corners=True))
+            align_corners: Optional[bool] = None
+            if upsample_mode in ["trilinear", "bilinear"]:
+                align_corners = True
+            self.add_module("up", nn.Upsample(scale_factor=2, mode=upsample_mode, align_corners=align_corners))
 
 
 class Final(nn.Sequential):
     def __init__(
-        self, spatial_dims: int, num_input_features: int, num_output_features: int, upsample_mode: str = "trilinear"
+        self, spatial_dims: int, num_input_features: int, num_output_features: int, upsample_mode: str = "transpose"
     ):
         super(Final, self).__init__()
 
@@ -165,8 +168,10 @@ class Final(nn.Sequential):
                 "up", conv_trans_type(num_output_features, num_output_features, kernel_size=2, stride=2, bias=False)
             )
         else:
-            upsample_mode = "bilinear" if spatial_dims == 2 else "trilinear"
-            self.add_module("up", nn.Upsample(scale_factor=2, mode=upsample_mode, align_corners=True))
+            align_corners: Optional[bool] = None
+            if upsample_mode in ["trilinear", "bilinear"]:
+                align_corners = True
+            self.add_module("up", nn.Upsample(scale_factor=2, mode=upsample_mode, align_corners=align_corners))
 
 
 class Pseudo3DLayer(nn.Module):
@@ -236,96 +241,70 @@ class Pseudo3DLayer(nn.Module):
 
 
 class PSP(nn.Module):
-    def __init__(self, spatial_dims: int, in_ch: int, upsample_mode: str = "trilinear"):
+    def __init__(self, spatial_dims: int, psp_block_num: int, in_ch: int, upsample_mode: str = "transpose"):
         super(PSP, self).__init__()
 
         conv_type = Conv[Conv.CONV, spatial_dims]
         pool_type: Type[Union[nn.MaxPool2d, nn.MaxPool3d]] = Pool[Pool.MAX, spatial_dims]
 
-        self.pool64 = pool_type(kernel_size=(64, 64, 1)[-spatial_dims:], stride=(64, 64, 1)[-spatial_dims:])
-        self.pool32 = pool_type(kernel_size=(32, 32, 1)[-spatial_dims:], stride=(32, 32, 1)[-spatial_dims:])
-        self.pool16 = pool_type(kernel_size=(16, 16, 1)[-spatial_dims:], stride=(16, 16, 1)[-spatial_dims:])
-        self.pool8 = pool_type(kernel_size=(8, 8, 1)[-spatial_dims:], stride=(8, 8, 1)[-spatial_dims:])
+        self.pool_modules = nn.ModuleList()
+        self.project_modules = nn.ModuleList()
 
-        self.proj64 = conv_type(
-            in_ch, 1, kernel_size=(1, 1, 1)[-spatial_dims:], stride=1, padding=(1, 1, 0)[-spatial_dims:]
-        )
-        self.proj32 = conv_type(
-            in_ch, 1, kernel_size=(1, 1, 1)[-spatial_dims:], stride=1, padding=(1, 1, 0)[-spatial_dims:]
-        )
-        self.proj16 = conv_type(
-            in_ch, 1, kernel_size=(1, 1, 1)[-spatial_dims:], stride=1, padding=(1, 1, 0)[-spatial_dims:]
-        )
-        self.proj8 = conv_type(
-            in_ch, 1, kernel_size=(1, 1, 1)[-spatial_dims:], stride=1, padding=(1, 1, 0)[-spatial_dims:]
-        )
+        for i in range(psp_block_num):
+            size = (2 ** (i + 3), 2 ** (i + 3), 1)[-spatial_dims:]
+            self.pool_modules.append(pool_type(kernel_size=size, stride=size))
+            self.project_modules.append(
+                conv_type(
+                    in_ch,
+                    1,
+                    kernel_size=(1, 1, 1)[-spatial_dims:],
+                    stride=1,
+                    padding=(1, 1, 0)[-spatial_dims:],
+                )
+            )
 
-        self.upsample_mode = upsample_mode
         self.spatial_dims = spatial_dims
+        self.psp_block_num = psp_block_num
+        self.upsample_mode = upsample_mode
+
         if self.upsample_mode == "transpose":
             conv_trans_type = Conv[Conv.CONVTRANS, spatial_dims]
-            self.up64 = conv_trans_type(
-                1,
-                1,
-                kernel_size=(64, 64, 1)[-spatial_dims:],
-                stride=(64, 64, 1)[-spatial_dims:],
-                padding=(64, 64, 0)[-spatial_dims:],
-            )
-            self.up32 = conv_trans_type(
-                1,
-                1,
-                kernel_size=(32, 32, 1)[-spatial_dims:],
-                stride=(32, 32, 1)[-spatial_dims:],
-                padding=(32, 32, 0)[-spatial_dims:],
-            )
-            self.up16 = conv_trans_type(
-                1,
-                1,
-                kernel_size=(16, 16, 1)[-spatial_dims:],
-                stride=(16, 16, 1)[-spatial_dims:],
-                padding=(16, 16, 0)[-spatial_dims:],
-            )
-            self.up8 = conv_trans_type(
-                1,
-                1,
-                kernel_size=(8, 8, 1)[-spatial_dims:],
-                stride=(8, 8, 1)[-spatial_dims:],
-                padding=(8, 8, 0)[-spatial_dims:],
-            )
+            self.up_modules = nn.ModuleList()
+            for i in range(psp_block_num):
+                size = (2 ** (i + 3), 2 ** (i + 3), 1)[-spatial_dims:]
+                pad_size = (2 ** (i + 3), 2 ** (i + 3), 0)[-spatial_dims:]
+                self.up_modules.append(
+                    conv_trans_type(
+                        1,
+                        1,
+                        kernel_size=size,
+                        stride=size,
+                        padding=pad_size,
+                    )
+                )
 
     def forward(self, x):
+        outputs = []
         if self.upsample_mode == "transpose":
-            x64 = self.up64(self.proj64(self.pool64(x)))
-            x32 = self.up32(self.proj32(self.pool32(x)))
-            x16 = self.up16(self.proj16(self.pool16(x)))
-            x8 = self.up8(self.proj8(self.pool8(x)))
+            for (project_module, pool_module, up_module) in zip(
+                self.project_modules, self.pool_modules, self.up_modules
+            ):
+                output = up_module(project_module(pool_module(x)))
+                outputs.append(output)
         else:
-            interpolate_size = x.shape[2:]
-            x64 = F.interpolate(
-                self.proj64(self.pool64(x)),
-                size=interpolate_size,
-                mode=self.upsample_mode,
-                align_corners=True,
-            )
-            x32 = F.interpolate(
-                self.proj32(self.pool32(x)),
-                size=interpolate_size,
-                mode=self.upsample_mode,
-                align_corners=True,
-            )
-            x16 = F.interpolate(
-                self.proj16(self.pool16(x)),
-                size=interpolate_size,
-                mode=self.upsample_mode,
-                align_corners=True,
-            )
-            x8 = F.interpolate(
-                self.proj8(self.pool8(x)),
-                size=interpolate_size,
-                mode=self.upsample_mode,
-                align_corners=True,
-            )
-        x = torch.cat((x64, x32, x16, x8), dim=1)
+            for (project_module, pool_module) in zip(self.project_modules, self.pool_modules):
+                interpolate_size = x.shape[2:]
+                align_corners: Optional[bool] = None
+                if self.upsample_mode in ["trilinear", "bilinear"]:
+                    align_corners = True
+                output = F.interpolate(
+                    project_module(pool_module(x)),
+                    size=interpolate_size,
+                    mode=self.upsample_mode,
+                    align_corners=align_corners,
+                )
+                outputs.append(output)
+        x = torch.cat(outputs, dim=1)
         return x
 
 
@@ -338,32 +317,27 @@ class AHNet(nn.Module):
     ``"transpose"`` rather than linear interpolations is faster. Therefore, this implementation sets ``"transpose"``
     as the default upsampling method.
 
-    To meet to requirements of the structure, the input size of the first ``dim-1`` dimensions should be divisible
-    by 128. In addition, for linear interpolation based upsampling modes, the input size of the first ``dim-1``
-    dimensions should be divisible by 32 and no less than 128. If you need to use lower sizes, please reduce the
-    largest blocks in PSP module and change the ``num_input_features`` in Final module.
-
-    In order to use pretrained weights from 2D FCN/MCFCN, please call the `copy_from` function,
-    for example:
-
-    .. code-block:: python
-
-        model = monai.networks.nets.AHNet(out_channels=2, upsample_mode='transpose')
-        model2d = monai.networks.blocks.FCN()
-        model.copy_from(model2d)
+    To meet to requirements of the structure, for ``transpose`` mode, the input size of the first ``dim-1`` dimensions  should
+    be divisible by 2 ** (psp_block_num + 3) and no less than 32. For other modes, the input size of the first
+    ``dim-1`` dimensions should be divisible by 32 and no less than 2 ** (psp_block_num + 3). In addition, at least one
+    dimension should have a no less than 64 size.
 
     Args:
         layers: number of residual blocks for 4 layers of the network (layer1...layer4). Defaults to ``(3, 4, 6, 3)``.
         spatial_dims: spatial dimension of the input data. Defaults to 3.
         in_channels: number of input channels for the network. Default to 1.
         out_channels: number of output channels for the network. Defaults to 1.
-        upsample_mode: [``"transpose"``, ``"bilinear"``, ``"trilinear"``]
+        psp_block_num: the number of pyramid volumetric pooling modules used at the end of the network before the final
+            output layer for extracting multiscale features. The number should be an integer that belongs to [0,4]. Defaults
+            to 4.
+        upsample_mode: [``"transpose"``, ``"bilinear"``, ``"trilinear"``, ``nearest``]
             The mode of upsampling manipulations.
             Using the last two modes cannot guarantee the model's reproducibility. Defaults to ``transpose``.
 
             - ``"transpose"``, uses transposed convolution layers.
             - ``"bilinear"``, uses bilinear interpolate.
             - ``"trilinear"``, uses trilinear interpolate.
+            - ``"nearest"``, uses nearest interpolate.
         pretrained: whether to load pretrained weights from ResNet50 to initialize convolution layers, default to False.
         progress: If True, displays a progress bar of the download of pretrained weights to stderr.
     """
@@ -374,6 +348,7 @@ class AHNet(nn.Module):
         spatial_dims: int = 3,
         in_channels: int = 1,
         out_channels: int = 1,
+        psp_block_num: int = 4,
         upsample_mode: str = "transpose",
         pretrained: bool = False,
         progress: bool = True,
@@ -396,8 +371,10 @@ class AHNet(nn.Module):
         self.relu_type = relu_type
         self.pool_type = pool_type
         self.spatial_dims = spatial_dims
+        self.psp_block_num = psp_block_num
 
-        assert spatial_dims == 2 or spatial_dims == 3, "spatial_dims can only be 2 or 3."
+        assert spatial_dims in [2, 3], "spatial_dims can only be 2 or 3."
+        assert psp_block_num in [0, 1, 2, 3, 4], "psp_block_num should be an integer that belongs to [0, 4]."
 
         self.conv1 = conv_type(
             in_channels,
@@ -410,7 +387,11 @@ class AHNet(nn.Module):
         self.pool1 = pool_type(kernel_size=(1, 1, 2)[-spatial_dims:], stride=(1, 1, 2)[-spatial_dims:])
         self.bn0 = norm_type(64)
         self.relu = relu_type(inplace=True)
-        if upsample_mode == "transpose":
+        if upsample_mode in ["transpose", "nearest"]:
+            """
+            To maintain the determinism, the value of kernel_size and stride should be the same.
+            (you can check this link for reference: https://github.com/Project-MONAI/MONAI/pull/815 )
+            """
             self.maxpool = pool_type(kernel_size=(2, 2, 2)[-spatial_dims:], stride=2)
         else:
             self.maxpool = pool_type(kernel_size=(3, 3, 3)[-spatial_dims:], stride=2, padding=1)
@@ -451,8 +432,9 @@ class AHNet(nn.Module):
         self.dense4 = DenseBlock(spatial_dims, ndenselayer, num_init_features, densebn, densegrowth, 0.0)
         noutdense4 = num_init_features + densegrowth * ndenselayer
 
-        self.psp = PSP(spatial_dims, noutdense4, upsample_mode)
-        self.final = Final(spatial_dims, 4 + noutdense4, out_channels, upsample_mode)
+        if psp_block_num > 0:
+            self.psp = PSP(spatial_dims, psp_block_num, noutdense4, upsample_mode)
+        self.final = Final(spatial_dims, psp_block_num + noutdense4, out_channels, upsample_mode)
 
         # Initialise parameters
         for m in self.modules():
@@ -527,9 +509,11 @@ class AHNet(nn.Module):
 
         sum4 = self.up3(d3) + conv_x
         d4 = self.dense4(sum4)
-
-        psp = self.psp(d4)
-        x = torch.cat((psp, d4), dim=1)
+        if self.psp_block_num > 0:
+            psp = self.psp(d4)
+            x = torch.cat((psp, d4), dim=1)
+        else:
+            x = d4
         return self.final(x)
 
     def copy_from(self, net):
