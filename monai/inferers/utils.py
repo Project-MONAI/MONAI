@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, List, Optional, Sequence, Tuple, Union
+from typing import Callable, List, Sequence, Tuple, Union
 
 import torch
 import torch.nn.functional as F
@@ -28,7 +28,8 @@ def sliding_window_inference(
     sigma_scale: Union[Sequence[float], float] = 0.125,
     padding_mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
     cval: float = 0.0,
-    device: Optional[torch.device] = None,
+    sw_device: Union[torch.device, str, None] = None,
+    device: Union[torch.device, str, None] = None,
 ) -> torch.Tensor:
     """
     Sliding window inference on `inputs` with `predictor`.
@@ -62,10 +63,13 @@ def sliding_window_inference(
             Padding mode for ``inputs``, when ``roi_size`` is larger than inputs. Defaults to ``"constant"``
             See also: https://pytorch.org/docs/stable/nn.functional.html#pad
         cval: fill value for 'constant' padding mode. Default: 0
-        device: device running the concatenation of the windows.
-            By default the device and accordingly the memory of the input device is used. If for example
+        sw_device: device for the window data.
+            By default the device (and accordingly the memory) of the `inputs` is used.
+            Normally `sw_device` should be consistent with the device where `predictor` is defined.
+        device: device for the stitched output prediction.
+            By default the device (and accordingly the memory) of the `inputs` is used. If for example
             set to device=torch.device('cpu') the gpu memory consumption is less and independent of the
-            input and roi_size parameter. Output is on the device set or if not set the inputs device.
+            `inputs` and `roi_size`. Output is on the `device`.
 
     Note:
         - input must be channel-first and have a batch dim, supports N-D sliding window.
@@ -81,6 +85,8 @@ def sliding_window_inference(
 
     if device is None:
         device = inputs.device
+    if sw_device is None:
+        sw_device = inputs.device
 
     roi_size = fall_back_tuple(roi_size, image_size_)
     # in case that image size is smaller than roi size
@@ -113,7 +119,7 @@ def sliding_window_inference(
             [slice(int(idx / num_win), int(idx / num_win) + 1), slice(None)] + list(slices[idx % num_win])
             for idx in slice_range
         ]
-        window_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice])
+        window_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
         seg_prob = predictor(window_data).to(device)  # batched patch segmentation
 
         if not _initialized:  # init. buffer at the first iteration
