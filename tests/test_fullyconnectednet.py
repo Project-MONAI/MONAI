@@ -14,14 +14,14 @@ FC_CASES = [FC_TEST_CASE_0, FC_TEST_CASE_1]
 
 VFC_TEST_CASE_0 = [
     {
-        "in_channels": 2,
-        "out_channels": 2,
-        "latent_size": 64,
-        "encode_channels": (16, 32, 64),
-        "decode_channels": (16, 32, 64),
+        "in_channels": 10,
+        "out_channels": 10,
+        "latent_size": 30,
+        "encode_channels": (15, 20, 25),
+        "decode_channels": (15, 20, 25),
     },
-    (3, 2, 64, 64),
-    (3, 2, 64, 64),
+    (3, 10),
+    (3, 10),
 ]
 
 VFC_CASES = [VFC_TEST_CASE_0]
@@ -47,7 +47,7 @@ class TestFullyConnectedNet(unittest.TestCase):
         net = VarFullyConnectedNet(**input_param).to(device)
         net.eval()
         with torch.no_grad():
-            result = net.forward(torch.randn(input_shape).to(device))
+            result = net.forward(torch.randn(input_shape).to(device))[0]
             self.assertEqual(result.shape, expected_shape)
 
 
