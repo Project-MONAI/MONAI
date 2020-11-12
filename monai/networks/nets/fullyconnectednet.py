@@ -14,6 +14,7 @@ from typing import Optional, Sequence, Tuple, Union
 import torch
 import torch.nn as nn
 
+from monai.networks.blocks import ADN
 from monai.networks.layers.factories import Act, split_args
 
 
@@ -28,6 +29,7 @@ class FullyConnectedNet(nn.Module):
         dropout: float = 0,
         act: Optional[Union[Tuple, str]] = Act.PRELU,
         bias: bool = True,
+        adn_ordering: Optional[str] = None,
     ) -> None:
         """
         Defines a network accept input with `in_channels' channels, output of `out_channels' channels, and hidden layers
@@ -43,7 +45,11 @@ class FullyConnectedNet(nn.Module):
 
         act_name, act_args = split_args(act)
         act_type = Act[act_name]
-        self.act = act_type(**act_args)
+
+        adn_args = {"dropout": self.dropout, "act": act_type(**act_args), "norm": None}
+        if adn_ordering:
+            adn_args["ordering"] = adn_ordering
+        self.adn_layer = ADN(**adn_args)
 
         prev_channels = self.in_channels
         for i, c in enumerate(hidden_channels):
@@ -54,12 +60,7 @@ class FullyConnectedNet(nn.Module):
 
     def _get_layer(self, in_channels: int, out_channels: int, bias: bool) -> nn.Sequential:
         seq = nn.Sequential(nn.Linear(in_channels, out_channels, bias))
-
-        if self.dropout:
-            seq.add_module("dropout", nn.Dropout(self.dropout))
-
-        seq.add_module("act", self.act)
-
+        seq.add_module("ADN", self.adn_layer)
         return seq
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -82,6 +83,7 @@ class VarFullyConnectedNet(nn.Module):
         dropout: float = 0,
         act: Optional[Union[Tuple, str]] = Act.PRELU,
         bias: bool = True,
+        adn_ordering: Optional[str] = None,
     ) -> None:
         super().__init__()
         self.in_channels = in_channels
@@ -95,7 +97,11 @@ class VarFullyConnectedNet(nn.Module):
 
         act_name, act_args = split_args(act)
         act_type = Act[act_name]
-        self.act = act_type(**act_args)
+
+        adn_args = {"dropout": self.dropout, "act": act_type(**act_args), "norm": None}
+        if adn_ordering:
+            adn_args["ordering"] = adn_ordering
+        self.adn_layer = ADN(**adn_args)
 
         prev_channels = self.in_channels
         for i, c in enumerate(encode_channels):
@@ -114,12 +120,7 @@ class VarFullyConnectedNet(nn.Module):
 
     def _get_layer(self, in_channels: int, out_channels: int, bias: bool) -> nn.Sequential:
         seq = nn.Sequential(nn.Linear(in_channels, out_channels, bias))
-
-        if self.dropout:
-            seq.add_module("dropout", nn.Dropout(self.dropout))
-
-        seq.add_module("act", self.act)
-
+        seq.add_module("ADN", self.adn_layer)
         return seq
 
     def encode_forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
