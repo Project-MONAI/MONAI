@@ -15,10 +15,17 @@ import torch
 import torch.nn as nn
 
 from monai.networks.blocks import ADN
-from monai.networks.layers.factories import Act, split_args
+from monai.networks.layers.factories import Act
 
 
-class FullyConnectedNet(nn.Module):
+def _get_adn_layer(act: Optional[Union[Tuple, str]], dropout: Optional[Union[Tuple, str, float]], ordering: Optional[str]) -> ADN:
+    if ordering:
+        return ADN(act=act, dropout=dropout, dropout_dim=1, ordering=ordering)
+    else:
+        return ADN(act=act, dropout=dropout, dropout_dim=1)
+
+
+class FullyConnectedNet(nn.Sequential):
     """Plain full-connected layer neural network using dropout and PReLU activation."""
 
     def __init__(
@@ -26,7 +33,7 @@ class FullyConnectedNet(nn.Module):
         in_channels: int,
         out_channels: int,
         hidden_channels: Sequence[int],
-        dropout: float = 0,
+        dropout: Optional[Union[Tuple, str, float]] = None,
         act: Optional[Union[Tuple, str]] = Act.PRELU,
         bias: bool = True,
         adn_ordering: Optional[str] = None,
@@ -39,17 +46,10 @@ class FullyConnectedNet(nn.Module):
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.hidden_channels = list(hidden_channels)
-        self.dropout = dropout
         self.flatten = nn.Flatten()
         self.hiddens = nn.Sequential()
 
-        act_name, act_args = split_args(act)
-        act_type = Act[act_name]
-
-        adn_args = {"dropout": self.dropout, "act": act_type(**act_args), "norm": None}
-        if adn_ordering:
-            adn_args["ordering"] = adn_ordering
-        self.adn_layer = ADN(**adn_args)
+        self.adn_layer = _get_adn_layer(act, dropout, adn_ordering)
 
         prev_channels = self.in_channels
         for i, c in enumerate(hidden_channels):
@@ -80,7 +80,7 @@ class VarFullyConnectedNet(nn.Module):
         latent_size: int,
         encode_channels: Sequence[int],
         decode_channels: Sequence[int],
-        dropout: float = 0,
+        dropout: Optional[Union[Tuple, str, float]] = None,
         act: Optional[Union[Tuple, str]] = Act.PRELU,
         bias: bool = True,
         adn_ordering: Optional[str] = None,
@@ -89,19 +89,12 @@ class VarFullyConnectedNet(nn.Module):
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.latent_size = latent_size
-        self.dropout = dropout
 
         self.encode = nn.Sequential()
         self.decode = nn.Sequential()
         self.flatten = nn.Flatten()
 
-        act_name, act_args = split_args(act)
-        act_type = Act[act_name]
-
-        adn_args = {"dropout": self.dropout, "act": act_type(**act_args), "norm": None}
-        if adn_ordering:
-            adn_args["ordering"] = adn_ordering
-        self.adn_layer = ADN(**adn_args)
+        self.adn_layer = _get_adn_layer(act, dropout, adn_ordering)
 
         prev_channels = self.in_channels
         for i, c in enumerate(encode_channels):
