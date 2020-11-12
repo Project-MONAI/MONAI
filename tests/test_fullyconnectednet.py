@@ -17,8 +17,8 @@ VFC_TEST_CASE_0 = [
         "in_channels": 2,
         "out_channels": 2,
         "latent_size": 64,
-        "encode_channels": (16,32,64),
-        "decode_channels": (16,32,64),
+        "encode_channels": (16, 32, 64),
+        "decode_channels": (16, 32, 64),
     },
     (3, 2, 64, 64),
     (3, 2, 64, 64),
@@ -41,7 +41,6 @@ class TestFullyConnectedNet(unittest.TestCase):
         net = FullyConnectedNet(self.inSize, self.outSize, self.channels, dropout).to(device)
         out = net(self.arr)
         self.assertEqual(out.shape, (self.batch_size, self.outSize))
-
 
     @parameterized.expand(VFC_CASES)
     def test_vfc_shape(self, input_param, input_shape, expected_shape):
