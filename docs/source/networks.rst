@@ -10,6 +10,11 @@ Blocks
 .. automodule:: monai.networks.blocks
 .. currentmodule:: monai.networks.blocks
 
+`ADN`
+~~~~~
+.. autoclass:: ADN
+    :members:
+
 `Convolution`
 ~~~~~~~~~~~~~
 .. autoclass:: Convolution
@@ -40,8 +45,8 @@ Blocks
 .. autoclass:: MCFCN
     :members:
 
-`No New Unet Block`
-~~~~~~~~~~~~~~~~~~~
+`Dynamic-Unet Block`
+~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: UnetResBlock
     :members:
 .. autoclass:: UnetBasicBlock
@@ -98,8 +103,12 @@ Blocks
 ~~~~~~~~~~~~
 .. autoclass:: UpSample
     :members:
+.. autoclass:: Upsample
 .. autoclass:: SubpixelUpsample
     :members:
+.. autoclass:: Subpixelupsample
+.. autoclass:: SubpixelUpSample
+
 
 
 Layers
@@ -196,13 +205,13 @@ Nets
 ----
 .. currentmodule:: monai.networks.nets
 
-`Ahnet`
+`AHNet`
 ~~~~~~~
 .. autoclass:: AHNet
   :members:
 
-`Densenet3D`
-~~~~~~~~~~~~
+`DenseNet`
+~~~~~~~~~~
 .. autoclass:: DenseNet
   :members:
 .. autofunction:: densenet121
@@ -210,17 +219,17 @@ Nets
 .. autofunction:: densenet201
 .. autofunction:: densenet264
 
-`SegResnet`
+`SegResNet`
 ~~~~~~~~~~~
 .. autoclass:: SegResNet
   :members:
 
-`SegResnetVAE`
+`SegResNetVAE`
 ~~~~~~~~~~~~~~
 .. autoclass:: SegResNetVAE
   :members:
 
-`Senet`
+`SENet`
 ~~~~~~~
 .. autoclass:: SENet
   :members:
@@ -231,7 +240,7 @@ Nets
 .. autofunction:: se_resnext50_32x4d
 .. autofunction:: se_resnext101_32x4d
 
-`Highresnet`
+`HighResNet`
 ~~~~~~~~~~~~
 .. autoclass:: HighResNet
   :members:
@@ -242,17 +251,36 @@ Nets
 ~~~~~~~~~
 .. autoclass:: DynUNet
   :members:
+.. autoclass:: DynUnet
+.. autoclass:: Dynunet
 
-`Unet`
+`UNet`
 ~~~~~~
 .. autoclass:: UNet
   :members:
 .. autoclass:: Unet
 .. autoclass:: unet
 
-`Vnet`
+`BasicUNet`
+~~~~~~~~~~~
+.. autoclass:: BasicUNet
+  :members:
+.. autoclass:: BasicUnet
+.. autoclass:: Basicunet
+
+`VNet`
 ~~~~~~
 .. autoclass:: VNet
+  :members:
+
+`AutoEncoder`
+~~~~~~~~~~~~~
+.. autoclass:: AutoEncoder
+  :members:
+
+`VarAutoEncoder`
+~~~~~~~~~~~~~~~~
+.. autoclass:: VarAutoEncoder
   :members:
 
 `Generator`

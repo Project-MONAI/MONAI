@@ -341,6 +341,8 @@ class CropForegroundd(MapTransform):
         select_fn: Callable = lambda x: x > 0,
         channel_indices: Optional[IndexSelection] = None,
         margin: int = 0,
+        start_coord_key: str = "foreground_start_coord",
+        end_coord_key: str = "foreground_end_coord",
     ) -> None:
         """
         Args:
@@ -351,18 +353,24 @@ class CropForegroundd(MapTransform):
             channel_indices: if defined, select foreground only on the specified channels
                 of image. if None, select foreground on the whole image.
             margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
+            start_coord_key: key to record the start coordinate of spatial bounding box for foreground.
+            end_coord_key: key to record the end coordinate of spatial bounding box for foreground.
         """
         super().__init__(keys)
         self.source_key = source_key
         self.select_fn = select_fn
         self.channel_indices = ensure_tuple(channel_indices) if channel_indices is not None else None
         self.margin = margin
+        self.start_coord_key = start_coord_key
+        self.end_coord_key = end_coord_key
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         box_start, box_end = generate_spatial_bounding_box(
             d[self.source_key], self.select_fn, self.channel_indices, self.margin
         )
+        d[self.start_coord_key] = box_start
+        d[self.end_coord_key] = box_end
         cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
         for key in self.keys:
             d[key] = cropper(d[key])
