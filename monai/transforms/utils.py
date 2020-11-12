@@ -106,16 +106,18 @@ def rescale_array_int_max(arr: np.ndarray, dtype: np.dtype = np.uint16) -> np.nd
 
 
 def copypaste_arrays(
-    src: np.ndarray,
-    dest: np.ndarray,
+    src_shape,
+    dest_shape,
     srccenter: Sequence[int],
     destcenter: Sequence[int],
     dims: Sequence[Optional[int]],
 ) -> Tuple[Tuple[slice, ...], Tuple[slice, ...]]:
     """
-    Calculate the slices to copy a sliced area of array `src` into array `dest`. The area has dimensions `dims` (use 0
-    or None to copy everything in that dimension), the source area is centered at `srccenter` index in `src` and copied
-    into area centered at `destcenter` in `dest`. The dimensions of the copied area will be clipped to fit within the
+    Calculate the slices to copy a sliced area of array in `src_shape` into array in `dest_shape`.
+
+    The area has dimensions `dims` (use 0 or None to copy everything in that dimension),
+    the source area is centered at `srccenter` index in `src` and copied into area centered at `destcenter` in `dest`.
+    The dimensions of the copied area will be clipped to fit within the
     source and destination arrays so a smaller area may be copied than expected. Return value is the tuples of slice
     objects indexing the copied area in `src`, and those indexing the copy area in `dest`.
 
@@ -123,9 +125,10 @@ def copypaste_arrays(
 
     .. code-block:: python
 
-        src = np.random.randint(0,10,(6,6))
+        src_shape = (6,6)
+        src = np.random.randint(0,10,src_shape)
         dest = np.zeros_like(src)
-        srcslices, destslices = copypaste_arrays(src, dest, (3, 2),(2, 1),(3, 4))
+        srcslices, destslices = copypaste_arrays(src_shape, dest.shape, (3, 2),(2, 1),(3, 4))
         dest[destslices] = src[srcslices]
         print(src)
         print(dest)
@@ -144,10 +147,12 @@ def copypaste_arrays(
              [0 0 0 0 0 0]]
 
     """
-    srcslices = [slice(None)] * src.ndim
-    destslices = [slice(None)] * dest.ndim
+    s_ndim = len(src_shape)
+    d_ndim = len(dest_shape)
+    srcslices = [slice(None)] * s_ndim
+    destslices = [slice(None)] * d_ndim
 
-    for i, ss, ds, sc, dc, dim in zip(range(src.ndim), src.shape, dest.shape, srccenter, destcenter, dims):
+    for i, ss, ds, sc, dc, dim in zip(range(s_ndim), src_shape, dest_shape, srccenter, destcenter, dims):
         if dim:
             # dimension before midpoint, clip to size fitting in both arrays
             d1 = np.clip(dim // 2, 0, min(sc, dc))
@@ -160,23 +165,27 @@ def copypaste_arrays(
     return tuple(srcslices), tuple(destslices)
 
 
-def resize_center(img: np.ndarray, *resize_dims: Optional[int], fill_value: float = 0.0) -> np.ndarray:
+def resize_center(
+    img: np.ndarray, *resize_dims: Optional[int], fill_value: float = 0.0, inplace: bool = True
+) -> np.ndarray:
     """
     Resize `img` by cropping or expanding the image from the center. The `resize_dims` values are the output dimensions
     (or None to use original dimension of `img`). If a dimension is smaller than that of `img` then the result will be
     cropped and if larger padded with zeros, in both cases this is done relative to the center of `img`. The result is
     a new image with the specified dimensions and values from `img` copied into its center.
     """
-    resize_dims = tuple(resize_dims[i] or img.shape[i] for i in range(len(resize_dims)))
 
-    dest = np.full(resize_dims, fill_value, img.dtype)
+    resize_dims = fall_back_tuple(resize_dims, img.shape)
+
     half_img_shape = np.asarray(img.shape) // 2
-    half_dest_shape = np.asarray(dest.shape) // 2
+    half_dest_shape = np.asarray(resize_dims) // 2
+    srcslices, destslices = copypaste_arrays(img.shape, resize_dims, half_img_shape, half_dest_shape, resize_dims)
 
-    srcslices, destslices = copypaste_arrays(img, dest, half_img_shape, half_dest_shape, resize_dims)
-    dest[destslices] = img[srcslices]
-
-    return dest
+    if not inplace:
+        dest = np.full(resize_dims, fill_value, img.dtype)
+        dest[destslices] = img[srcslices]
+        return dest
+    return img[srcslices]
 
 
 def map_binary_to_indices(
@@ -209,6 +218,51 @@ def map_binary_to_indices(
     else:
         bg_indices = np.nonzero(~label_flat)[0]
     return fg_indices, bg_indices
+
+
+def weighted_patch_samples(
+    spatial_size: Union[int, Sequence[int]],
+    w: np.ndarray,
+    n_samples: int = 1,
+    r_state: Optional[np.random.RandomState] = None,
+) -> List:
+    """
+    Computes `n_samples` of random patch sampling locations, given the sampling weight map `w` and patch `spatial_size`.
+
+    Args:
+        spatial_size: length of each spatial dimension of the patch.
+        w: weight map, the weights must be non-negative. each element denotes a sampling weight of the spatial location.
+            0 indicates no sampling.
+            The weight map shape is assumed ``(spatial_dim_0, spatial_dim_1, ..., spatial_dim_n)``.
+        n_samples: number of patch samples
+        r_state: a random state container
+
+    Returns:
+        a list of `n_samples` N-D integers representing the spatial sampling location of patches.
+
+    """
+    if w is None:
+        raise ValueError("w must be an ND array.")
+    if r_state is None:
+        r_state = np.random.RandomState()
+    img_size = np.asarray(w.shape, dtype=np.int)
+    win_size = np.asarray(fall_back_tuple(spatial_size, img_size), dtype=np.int)
+
+    s = tuple(slice(w // 2, m - w + w // 2) if m > w else slice(m // 2, m // 2 + 1) for w, m in zip(win_size, img_size))
+    v = w[s]  # weight map in the 'valid' mode
+    v_size = v.shape
+    v = v.ravel()
+    if np.any(v < 0):
+        v -= np.min(v)  # shifting to non-negative
+    v = v.cumsum()
+    if not v[-1] or not np.isfinite(v[-1]) or v[-1] < 0:  # uniform sampling
+        idx = r_state.randint(0, len(v), size=n_samples)
+    else:
+        idx = v.searchsorted(r_state.random(n_samples) * v[-1], side="right")
+    # compensate 'valid' mode
+    diff = np.minimum(win_size, img_size) // 2
+    centers = [np.unravel_index(i, v_size) + diff for i in np.asarray(idx, dtype=np.int)]
+    return centers
 
 
 def generate_pos_neg_label_crop_centers(

@@ -87,6 +87,12 @@ Crop and Pad
     :members:
     :special-members: __call__
 
+`RandWeightedCrop`
+""""""""""""""""""
+.. autoclass:: RandWeightedCrop
+    :members:
+    :special-members: __call__
+
 `RandCropByPosNegLabel`
 """""""""""""""""""""""
 .. autoclass:: RandCropByPosNegLabel
@@ -537,6 +543,12 @@ Crop and Pad (Dict)
 `CropForegroundd`
 """""""""""""""""
 .. autoclass:: CropForegroundd
+    :members:
+    :special-members: __call__
+
+`RandWeightedCropd`
+"""""""""""""""""""
+.. autoclass:: RandWeightedCropd
     :members:
     :special-members: __call__
 
