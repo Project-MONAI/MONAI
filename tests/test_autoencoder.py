@@ -1,10 +1,13 @@
 import unittest
+from typing import Optional, Sequence, Tuple, Union
 
 import torch
 from parameterized import parameterized
 
 from monai.networks.layers import Act
 from monai.networks.nets import AutoEncoder
+from tests.utils import test_script_save
+
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -70,6 +73,11 @@ class TestAutoEncoder(unittest.TestCase):
             result = net.forward(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
 
+    def test_script(self):
+        net = AutoEncoder(dimensions=2, in_channels=1, out_channels=1, channels=(4, 8), strides=(2, 2))
+        test_data = torch.randn(2, 1, 32, 32)
+        out_orig, out_reloaded = test_script_save(net, test_data)
+        assert torch.allclose(out_orig, out_reloaded)
 
 if __name__ == "__main__":
     unittest.main()
