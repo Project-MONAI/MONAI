@@ -18,7 +18,9 @@ from monai.networks.blocks import ADN
 from monai.networks.layers.factories import Act
 
 
-def _get_adn_layer(act: Optional[Union[Tuple, str]], dropout: Optional[Union[Tuple, str, float]], ordering: Optional[str]) -> ADN:
+def _get_adn_layer(
+    act: Optional[Union[Tuple, str]], dropout: Optional[Union[Tuple, str, float]], ordering: Optional[str]
+) -> ADN:
     if ordering:
         return ADN(act=act, dropout=dropout, dropout_dim=1, ordering=ordering)
     else:
