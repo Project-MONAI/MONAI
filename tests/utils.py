@@ -27,6 +27,10 @@ quick_test_var = "QUICKTEST"
 
 
 def skip_if_quick(obj):
+    """
+    Skip the unit tests if environment variable `quick_test_var=true`.
+    For example, the user can skip the relevant tests by setting ``export QUICKTEST=true``.
+    """
     is_quick = os.environ.get(quick_test_var, "").lower() == "true"
 
     return unittest.skipIf(is_quick, "Skipping slow tests")(obj)
@@ -42,6 +46,13 @@ class SkipIfNoModule(object):
 
     def __call__(self, obj):
         return unittest.skipIf(self.module_missing, f"optional module not present: {self.module_name}")(obj)
+
+
+def skip_if_no_cuda(obj):
+    """
+    Skip the unit tests if torch.cuda.is_available is False
+    """
+    return unittest.skipIf(not torch.cuda.is_available(), "Skipping CUDA-based tests")(obj)
 
 
 def make_nifti_image(array, affine=None):
@@ -101,13 +112,6 @@ class TorchImageTestCase3D(NumpyImageTestCase3D):
         self.imt = torch.tensor(self.imt)
         self.seg1 = torch.tensor(self.seg1)
         self.segn = torch.tensor(self.segn)
-
-
-def expect_failure_if_no_gpu(test):
-    if not torch.cuda.is_available():
-        return unittest.expectedFailure(test)
-    else:
-        return test
 
 
 def test_script_save(net, inputs):

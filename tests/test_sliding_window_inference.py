@@ -16,6 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.inferers import SlidingWindowInferer, sliding_window_inference
+from tests.utils import skip_if_no_cuda
 
 TEST_CASES = [
     [(2, 3, 16), (4,), 3, 0.25, "constant", torch.device("cpu:0")],  # 1D small roi
@@ -81,6 +82,21 @@ class TestSlidingWindowInference(unittest.TestCase):
             return data + 1
 
         result = sliding_window_inference(inputs, roi_shape, sw_batch_size, compute)
+        np.testing.assert_string_equal(inputs.device.type, result.device.type)
+        expected_val = np.ones((1, 3, 16, 15, 7), dtype=np.float32) + 1
+        np.testing.assert_allclose(result.cpu().numpy(), expected_val)
+
+    @skip_if_no_cuda
+    def test_sw_device(self):
+        inputs = torch.ones((1, 3, 16, 15, 7)).to(device="cpu")
+        roi_shape = (4, 10, 7)
+        sw_batch_size = 10
+
+        def compute(data):
+            self.assertEqual(data.device.type, "cuda")
+            return data + torch.tensor(1, device="cuda")
+
+        result = sliding_window_inference(inputs, roi_shape, sw_batch_size, compute, sw_device="cuda")
         np.testing.assert_string_equal(inputs.device.type, result.device.type)
         expected_val = np.ones((1, 3, 16, 15, 7), dtype=np.float32) + 1
         np.testing.assert_allclose(result.cpu().numpy(), expected_val)

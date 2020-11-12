@@ -579,7 +579,6 @@ class PILReader(ImageReader):
         meta["mode"] = img.mode
         meta["width"] = img.width
         meta["height"] = img.height
-        meta["info"] = img.info
         return meta
 
     def _get_spatial_shape(self, img) -> Sequence:
