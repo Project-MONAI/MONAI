@@ -283,9 +283,9 @@ Nets
 .. autoclass:: VarAutoEncoder
   :members:
 
-`FCNet`
-~~~~~~~
-.. autoclass:: FCNet
+`FullyConnectedNet`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: FullyConnectedNet
   :members:
 
 `Generator`

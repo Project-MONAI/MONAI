@@ -17,7 +17,7 @@ import torch.nn as nn
 from monai.networks.layers.factories import Act, split_args
 
 
-class FCNet(nn.Module):
+class FullyConnectedNet(nn.Module):
     """Plain full-connected layer neural network using dropout and PReLU activation."""
 
     def __init__(
@@ -69,10 +69,8 @@ class FCNet(nn.Module):
         return x
 
 
-class VarFCNet(nn.Module):
+class VarFullyConnectedNet(nn.Module):
     """Variational fully-connected network."""
-
-    # like https://github.com/pytorch/examples/blob/master/vae/main.py but configurable through the constructor
 
     def __init__(
         self,
