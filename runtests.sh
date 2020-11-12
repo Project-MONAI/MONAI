@@ -517,7 +517,7 @@ fi
 if [ $doNetTests = true ]
 then
     echo "${separator}${blue}coverage${noColor}"
-    for i in tests/integration_*.py
+    for i in tests/*integration_*.py
     do
         echo "$i"
         ${cmdPrefix}${cmd} "$i"
