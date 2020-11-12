@@ -18,12 +18,21 @@ limitations under the License.
 torch::Tensor BilateralFilterCuda(torch::Tensor input, float spatial_sigma, float color_sigma);
 torch::Tensor BilateralFilterCpu(torch::Tensor input, float spatial_sigma, float color_sigma);
 
-torch::Tensor BilateralFilter(torch::Tensor input, float spatial_sigma, float color_sigma)
+torch::Tensor BilateralFilterCpuPHL(torch::Tensor input, float spatial_sigma, float color_sigma);
+
+torch::Tensor BilateralFilter(torch::Tensor input, float spatial_sigma, float color_sigma, bool usePHL)
 {
 #ifdef WITH_CUDA
     CHECK_CONTIGUOUS_CUDA(input);
     return BilateralFilterCuda(input, spatial_sigma, color_sigma);
 #else
-    return BilateralFilterCpu(input, spatial_sigma, color_sigma);
+    if (usePHL)
+    {
+        return BilateralFilterCpuPHL(input, spatial_sigma, color_sigma);
+    }
+    else
+    {
+        return BilateralFilterCpu(input, spatial_sigma, color_sigma);
+    }
 #endif
 }
