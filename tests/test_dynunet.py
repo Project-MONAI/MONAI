@@ -17,6 +17,8 @@ from parameterized import parameterized
 
 from monai.networks.nets import DynUNet
 
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
 strides: Sequence[Union[Sequence[int], int]]
 kernel_size: Sequence[Any]
 expected_shape: Sequence[Any]
@@ -103,19 +105,19 @@ for spatial_dims in [2, 3]:
 class TestDynUNet(unittest.TestCase):
     @parameterized.expand(TEST_CASE_DYNUNET_2D + TEST_CASE_DYNUNET_3D)
     def test_shape(self, input_param, input_shape, expected_shape):
-        net = DynUNet(**input_param)
+        net = DynUNet(**input_param).to(device)
         net.eval()
         with torch.no_grad():
-            result = net(torch.randn(input_shape))
+            result = net(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
 
 
 class TestDynUNetDeepSupervision(unittest.TestCase):
     @parameterized.expand(TEST_CASE_DEEP_SUPERVISION)
     def test_shape(self, input_param, input_shape, expected_shape):
-        net = DynUNet(**input_param)
+        net = DynUNet(**input_param).to(device)
         with torch.no_grad():
-            results = net(torch.randn(input_shape))
+            results = net(torch.randn(input_shape).to(device))
             self.assertEqual(len(results), len(expected_shape))
             for idx in range(len(results)):
                 result, sub_expected_shape = results[idx], expected_shape[idx]

@@ -19,9 +19,10 @@ from torch.utils.data import DataLoader, Dataset
 from monai.data import create_test_image_2d
 from monai.losses import DiceLoss
 from monai.networks.nets import BasicUNet, UNet
+from tests.utils import skip_if_quick
 
 
-def run_test(net_name="basicunet", batch_size=64, train_steps=100, device=torch.device("cuda:0")):
+def run_test(net_name="basicunet", batch_size=64, train_steps=100, device="cuda:0"):
     class _TestBatch(Dataset):
         def __getitem__(self, _unused_id):
             im, seg = create_test_image_2d(128, 128, noise_max=1, num_objs=4, num_seg_classes=1)
@@ -49,6 +50,7 @@ def run_test(net_name="basicunet", batch_size=64, train_steps=100, device=torch.
     return loss
 
 
+@skip_if_quick
 class TestIntegrationUnet2D(unittest.TestCase):
     def test_unet_training(self):
         for n in ["basicunet", "unet"]:
