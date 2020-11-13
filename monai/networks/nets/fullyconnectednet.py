@@ -52,7 +52,7 @@ class FullyConnectedNet(nn.Sequential):
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.hidden_channels = list(hidden_channels)
-        self.add_module('flatten', nn.Flatten())
+        self.add_module("flatten", nn.Flatten())
         self.adn_layer = _get_adn_layer(act, dropout, adn_ordering)
 
         prev_channels = self.in_channels
@@ -60,7 +60,7 @@ class FullyConnectedNet(nn.Sequential):
             self.add_module("hidden_%i" % i, self._get_layer(prev_channels, c, bias))
             prev_channels = c
 
-        self.add_module('output', nn.Linear(prev_channels, out_channels, bias))
+        self.add_module("output", nn.Linear(prev_channels, out_channels, bias))
 
     def _get_layer(self, in_channels: int, out_channels: int, bias: bool) -> nn.Sequential:
         seq = nn.Sequential(nn.Linear(in_channels, out_channels, bias))
