@@ -28,7 +28,11 @@ def _get_adn_layer(
 
 
 class FullyConnectedNet(nn.Sequential):
-    """Plain full-connected layer neural network using dropout and PReLU activation."""
+    """
+    Plain full-connected layer neural network
+
+    The network uses dropout and, by default, PReLU activation.
+    """
 
     def __init__(
         self,
