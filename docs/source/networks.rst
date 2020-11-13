@@ -283,6 +283,11 @@ Nets
 .. autoclass:: VarAutoEncoder
   :members:
 
+`FullyConnectedNet`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: FullyConnectedNet
+  :members:
+
 `Generator`
 ~~~~~~~~~~~
 .. autoclass:: Generator
