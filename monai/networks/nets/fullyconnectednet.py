@@ -45,35 +45,27 @@ class FullyConnectedNet(nn.Sequential):
         adn_ordering: Optional[str] = None,
     ) -> None:
         """
-        Defines a network accept input with `in_channels' channels, output of `out_channels' channels, and hidden layers
-        with channels given in `hidden_channels'. If `bias' is True then linear units have a bias term.
+        Defines a network accept input with `in_channels` channels, output of `out_channels` channels, and hidden layers
+        with channels given in `hidden_channels`. If `bias` is True then linear units have a bias term.
         """
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.hidden_channels = list(hidden_channels)
-        self.flatten = nn.Flatten()
-        self.hiddens = nn.Sequential()
-
+        self.add_module('flatten', nn.Flatten())
         self.adn_layer = _get_adn_layer(act, dropout, adn_ordering)
 
         prev_channels = self.in_channels
         for i, c in enumerate(hidden_channels):
-            self.hiddens.add_module("hidden_%i" % i, self._get_layer(prev_channels, c, bias))
+            self.add_module("hidden_%i" % i, self._get_layer(prev_channels, c, bias))
             prev_channels = c
 
-        self.output = nn.Linear(prev_channels, out_channels, bias)
+        self.add_module('output', nn.Linear(prev_channels, out_channels, bias))
 
     def _get_layer(self, in_channels: int, out_channels: int, bias: bool) -> nn.Sequential:
         seq = nn.Sequential(nn.Linear(in_channels, out_channels, bias))
         seq.add_module("ADN", self.adn_layer)
         return seq
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.flatten(x)
-        x = self.hiddens(x)
-        x = self.output(x)
-        return x
 
 
 class VarFullyConnectedNet(nn.Module):
