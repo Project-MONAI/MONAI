@@ -31,7 +31,7 @@ class FullyConnectedNet(nn.Sequential):
     """
     Plain full-connected layer neural network
 
-    The network uses dropout and, by default, PReLU activation.
+    The network uses dropout and, by default, PReLU activation
     """
 
     def __init__(
