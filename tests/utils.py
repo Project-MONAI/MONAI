@@ -12,6 +12,7 @@
 import os
 import tempfile
 import unittest
+import urllib
 from io import BytesIO
 from subprocess import PIPE, Popen
 
@@ -24,6 +25,14 @@ from monai.utils import optional_import
 nib, _ = optional_import("nibabel")
 
 quick_test_var = "QUICKTEST"
+
+
+def test_pretrained_networks(network, input_param, device):
+    try:
+        net = network(**input_param).to(device)
+    except urllib.URLError as e:
+        raise unittest.SkipTest(e)
+    return net
 
 
 def skip_if_quick(obj):

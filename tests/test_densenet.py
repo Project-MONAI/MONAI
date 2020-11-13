@@ -15,7 +15,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.nets import densenet121, densenet169, densenet201, densenet264
-from tests.utils import skip_if_quick
+from tests.utils import skip_if_quick, test_pretrained_networks
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -44,12 +44,14 @@ for case in [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3]:
 
 
 TEST_PRETRAINED_2D_CASE_1 = [  # 4-channel 2D, batch 2
+    densenet121,
     {"pretrained": True, "progress": True, "spatial_dims": 2, "in_channels": 2, "out_channels": 3},
     (2, 2, 32, 64),
     (2, 3),
 ]
 
 TEST_PRETRAINED_2D_CASE_2 = [  # 4-channel 2D, batch 2
+    densenet121,
     {"pretrained": True, "progress": False, "spatial_dims": 2, "in_channels": 2, "out_channels": 3},
     (2, 2, 32, 64),
     (2, 3),
@@ -59,11 +61,11 @@ TEST_PRETRAINED_2D_CASE_2 = [  # 4-channel 2D, batch 2
 class TestPretrainedDENSENET(unittest.TestCase):
     @parameterized.expand([TEST_PRETRAINED_2D_CASE_1, TEST_PRETRAINED_2D_CASE_2])
     @skip_if_quick
-    def test_121_3d_shape_pretrain(self, input_param, input_shape, expected_shape):
-        net = densenet121(**input_param)
+    def test_121_3d_shape_pretrain(self, model, input_param, input_shape, expected_shape):
+        net = test_pretrained_networks(model, input_param, device)
         net.eval()
         with torch.no_grad():
-            result = net.forward(torch.randn(input_shape))
+            result = net.forward(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
 
 
