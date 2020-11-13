@@ -12,9 +12,9 @@
 import os
 import tempfile
 import unittest
-import urllib
 from io import BytesIO
 from subprocess import PIPE, Popen
+from urllib.error import ContentTooShortError, HTTPError, URLError
 
 import numpy as np
 import torch
@@ -30,7 +30,7 @@ quick_test_var = "QUICKTEST"
 def test_pretrained_networks(network, input_param, device):
     try:
         net = network(**input_param).to(device)
-    except urllib.URLError as e:
+    except (URLError, HTTPError, ContentTooShortError) as e:
         raise unittest.SkipTest(e)
     return net
 
