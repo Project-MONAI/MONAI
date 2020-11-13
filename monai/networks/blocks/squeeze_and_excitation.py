@@ -74,7 +74,7 @@ class ChannelSELayer(nn.Module):
         """
         b, c = x.shape[:2]
         y: torch.Tensor = self.avg_pool(x).view(b, c)
-        y = self.fc(y).view([b, c] + [1] * (x.ndimension() - 2))
+        y = self.fc(y).view([b, c] + [1] * (x.ndim - 2))
         return x * y
 
 
@@ -358,7 +358,7 @@ class SEResNeXtBottleneck(SEBlock):
         conv_param_3 = {"strides": 1, "kernel_size": 1, "act": None, "norm": Norm.BATCH, "bias": False}
         width = math.floor(planes * (base_width / 64)) * groups
 
-        super(SEResNeXtBottleneck, self).__init__(
+        super().__init__(
             spatial_dims=spatial_dims,
             in_channels=inplanes,
             n_chns_1=width,
@@ -370,3 +370,6 @@ class SEResNeXtBottleneck(SEBlock):
             project=downsample,
             r=reduction,
         )
+        
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return super().forward(x)

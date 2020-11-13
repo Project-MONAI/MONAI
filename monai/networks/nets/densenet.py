@@ -20,7 +20,7 @@ from torch.hub import load_state_dict_from_url
 from monai.networks.layers.factories import Conv, Dropout, Norm, Pool
 
 
-class _DenseLayer(nn.Sequential):
+class _DenseLayer(nn.Module):
     def __init__(
         self, spatial_dims: int, in_channels: int, growth_rate: int, bn_size: int, dropout_prob: float
     ) -> None:
@@ -40,19 +40,21 @@ class _DenseLayer(nn.Sequential):
         norm_type: Callable = Norm[Norm.BATCH, spatial_dims]
         dropout_type: Callable = Dropout[Dropout.DROPOUT, spatial_dims]
 
-        self.add_module("norm1", norm_type(in_channels))
-        self.add_module("relu1", nn.ReLU(inplace=True))
-        self.add_module("conv1", conv_type(in_channels, out_channels, kernel_size=1, bias=False))
+        self.layers = nn.Sequential()
 
-        self.add_module("norm2", norm_type(out_channels))
-        self.add_module("relu2", nn.ReLU(inplace=True))
-        self.add_module("conv2", conv_type(out_channels, growth_rate, kernel_size=3, padding=1, bias=False))
+        self.layers.add_module("norm1", norm_type(in_channels))
+        self.layers.add_module("relu1", nn.ReLU(inplace=True))
+        self.layers.add_module("conv1", conv_type(in_channels, out_channels, kernel_size=1, bias=False))
+
+        self.layers.add_module("norm2", norm_type(out_channels))
+        self.layers.add_module("relu2", nn.ReLU(inplace=True))
+        self.layers.add_module("conv2", conv_type(out_channels, growth_rate, kernel_size=3, padding=1, bias=False))
 
         if dropout_prob > 0:
-            self.add_module("dropout", dropout_type(dropout_prob))
+            self.layers.add_module("dropout", dropout_type(dropout_prob))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        new_features = super(_DenseLayer, self).forward(x)
+        new_features = self.layers(x)
         return torch.cat([x, new_features], 1)
 
 
