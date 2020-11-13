@@ -16,17 +16,17 @@ from parameterized import parameterized
 
 from monai.networks.blocks import FCN, MCFCN
 from monai.networks.nets import AHNet
-from tests.utils import skip_if_quick, test_script_save
+from tests.utils import skip_if_quick, test_pretrained_networks, test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 TEST_CASE_FCN_1 = [  # batch 2
-    {"out_channels": 3, "upsample_mode": "transpose"},
+    {"out_channels": 3, "upsample_mode": "transpose", "pretrained": False},
     (2, 3, 32, 32),
     (2, 3, 32, 32),
 ]
 TEST_CASE_FCN_2 = [
-    {"out_channels": 2, "upsample_mode": "transpose", "pretrained": True, "progress": False},
+    {"out_channels": 2, "upsample_mode": "transpose", "pretrained": False, "progress": False},
     (1, 3, 32, 32),
     (1, 2, 32, 32),
 ]
@@ -35,14 +35,24 @@ TEST_CASE_FCN_3 = [
     (1, 3, 32, 32),
     (1, 1, 32, 32),
 ]
+TEST_CASE_FCN_WITH_PRETRAIN_1 = [  # batch 2
+    {"out_channels": 3, "upsample_mode": "transpose", "pretrained": True},
+    (2, 3, 32, 32),
+    (2, 3, 32, 32),
+]
+TEST_CASE_FCN_WITH_PRETRAIN_2 = [
+    {"out_channels": 2, "upsample_mode": "transpose", "pretrained": True, "progress": False},
+    (1, 3, 32, 32),
+    (1, 2, 32, 32),
+]
 
 TEST_CASE_MCFCN_1 = [  # batch 5
-    {"out_channels": 3, "in_channels": 8, "upsample_mode": "transpose", "progress": False},
+    {"out_channels": 3, "in_channels": 8, "upsample_mode": "transpose", "pretrained": False, "progress": False},
     (5, 8, 32, 32),
     (5, 3, 32, 32),
 ]
 TEST_CASE_MCFCN_2 = [
-    {"out_channels": 2, "in_channels": 1, "upsample_mode": "transpose", "progress": True},
+    {"out_channels": 2, "in_channels": 1, "upsample_mode": "transpose", "pretrained": False, "progress": True},
     (1, 1, 32, 32),
     (1, 2, 32, 32),
 ]
@@ -50,6 +60,16 @@ TEST_CASE_MCFCN_3 = [
     {"out_channels": 1, "in_channels": 2, "upsample_mode": "bilinear", "pretrained": False},
     (1, 2, 32, 32),
     (1, 1, 32, 32),
+]
+TEST_CASE_MCFCN_WITH_PRETRAIN_1 = [  # batch 5
+    {"out_channels": 3, "in_channels": 8, "upsample_mode": "transpose", "pretrained": True, "progress": False},
+    (5, 8, 32, 32),
+    (5, 3, 32, 32),
+]
+TEST_CASE_MCFCN_WITH_PRETRAIN_2 = [
+    {"out_channels": 2, "in_channels": 1, "upsample_mode": "transpose", "pretrained": True, "progress": True},
+    (1, 1, 32, 32),
+    (1, 2, 32, 32),
 ]
 
 TEST_CASE_AHNET_2D_1 = [
@@ -113,10 +133,31 @@ class TestFCN(unittest.TestCase):
             self.assertEqual(result.shape, expected_shape)
 
 
+class TestFCNWithPretrain(unittest.TestCase):
+    @parameterized.expand([TEST_CASE_FCN_WITH_PRETRAIN_1, TEST_CASE_FCN_WITH_PRETRAIN_2])
+    @skip_if_quick
+    def test_fcn_shape(self, input_param, input_shape, expected_shape):
+        net = test_pretrained_networks(FCN, input_param, device)
+        net.eval()
+        with torch.no_grad():
+            result = net.forward(torch.randn(input_shape).to(device))
+            self.assertEqual(result.shape, expected_shape)
+
+
 class TestMCFCN(unittest.TestCase):
     @parameterized.expand([TEST_CASE_MCFCN_1, TEST_CASE_MCFCN_2, TEST_CASE_MCFCN_3])
     def test_mcfcn_shape(self, input_param, input_shape, expected_shape):
         net = MCFCN(**input_param).to(device)
+        net.eval()
+        with torch.no_grad():
+            result = net.forward(torch.randn(input_shape).to(device))
+            self.assertEqual(result.shape, expected_shape)
+
+
+class TestMCFCNWithPretrain(unittest.TestCase):
+    @parameterized.expand([TEST_CASE_MCFCN_WITH_PRETRAIN_1, TEST_CASE_MCFCN_WITH_PRETRAIN_2])
+    def test_mcfcn_shape(self, input_param, input_shape, expected_shape):
+        net = test_pretrained_networks(MCFCN, input_param, device)
         net.eval()
         with torch.no_grad():
             result = net.forward(torch.randn(input_shape).to(device))
