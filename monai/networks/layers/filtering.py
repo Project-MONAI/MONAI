@@ -18,5 +18,13 @@ _C, _ = optional_import("monai._C")
 class BilateralFilter(torch.autograd.Function):
 
     @staticmethod
-    def forward(ctx, data, spatial_sigma=5, color_sigma=0.5, fast_approx=False):
-        return _C.bilateral_filter(data, spatial_sigma, color_sigma, fast_approx)
+    def forward(ctx, input_data, spatial_sigma=5, color_sigma=0.5, fast_approx=False):
+        ctx.save_for_backward(spatial_sigma, color_sigma, fast_approx)
+        output_data = _C.bilateral_filter(input_data, spatial_sigma, color_sigma, fast_approx)
+        return output_data
+
+    @staticmethod
+    def backward(ctx, grad_output_data):
+        spatial_sigma, color_sigma, fast_approx = ctx.saved_variables
+        grad_input_data = _C.bilateral_filter(grad_output_data, spatial_sigma, color_sigma, fast_approx)
+        return grad_input_data
