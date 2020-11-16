@@ -8,7 +8,6 @@ from monai.networks.layers import Act
 from monai.networks.nets import AutoEncoder
 from tests.utils import test_script_save
 
-
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 TEST_CASE_0 = [  # single channel 2D, batch 4, no residual

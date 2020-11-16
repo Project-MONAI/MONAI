@@ -17,7 +17,6 @@ from parameterized import parameterized
 from monai.networks.nets import densenet121, densenet169, densenet201, densenet264
 from tests.utils import skip_if_quick, test_script_save
 
-
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 TEST_CASE_1 = [  # 4-channel 3D, batch 2

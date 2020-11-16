@@ -13,7 +13,6 @@ import unittest
 
 import torch
 from parameterized import parameterized
-from tests.utils import test_script_save
 
 from monai.networks.nets import (
     se_resnet50,
@@ -23,6 +22,7 @@ from monai.networks.nets import (
     se_resnext101_32x4d,
     senet154,
 )
+from tests.utils import test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
