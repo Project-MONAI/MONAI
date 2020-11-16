@@ -30,7 +30,7 @@ class Swish(nn.Module):
 
     Examples::
 
-        >>> m = Swish()
+        >>> m = Act['swish']()
         >>> input = torch.randn(2)
         >>> output = m(input)
     """
@@ -60,7 +60,7 @@ class Mish(nn.Module):
 
     Examples::
 
-        >>> m = Mish()
+        >>> m = Act['mish']()
         >>> input = torch.randn(2)
         >>> output = m(input)
     """
