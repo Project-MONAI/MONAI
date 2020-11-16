@@ -90,7 +90,7 @@ class ChannelSELayer(nn.Module):
 
 class ResidualSELayer(ChannelSELayer):
     """
-    A "squeeze-and-excitation"-like layer with a residual connection.
+    A "squeeze-and-excitation"-like layer with a residual connection::
 
         --+-- SE --o--
           |        |
