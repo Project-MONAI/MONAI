@@ -15,7 +15,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.nets import densenet121, densenet169, densenet201, densenet264
-from tests.utils import skip_if_quick, test_script_save,test_pretrained_networks
+from tests.utils import skip_if_quick, test_pretrained_networks, test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
