@@ -513,10 +513,10 @@ then
     ${cmdPrefix}${cmd} ./tests/runner.py
 fi
 
-# network training/inference/eval tests
+# network training/inference/eval integration tests
 if [ $doNetTests = true ]
 then
-    echo "${separator}${blue}coverage${noColor}"
+    echo "${separator}${blue}integration${noColor}"
     for i in tests/*integration_*.py
     do
         echo "$i"
