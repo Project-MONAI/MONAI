@@ -10,6 +10,7 @@
 # limitations under the License.
 
 from .acti_norm import ADN
+from .activation import Mish, Swish
 from .aspp import SimpleASPP
 from .convolutions import Convolution, ResidualUnit
 from .downsample import MaxAvgPool

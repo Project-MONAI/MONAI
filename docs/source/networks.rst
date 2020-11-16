@@ -25,6 +25,16 @@ Blocks
 .. autoclass:: ResidualUnit
     :members:
 
+`Swish`
+~~~~~~~
+.. autoclass:: Swish
+    :members:
+
+`Mish`
+~~~~~~
+.. autoclass:: Mish
+    :members:
+
 `GCN Module`
 ~~~~~~~~~~~~
 .. autoclass:: GCN
