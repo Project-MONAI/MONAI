@@ -169,10 +169,10 @@ class HighResBlock(nn.Module):
         x_conv: torch.Tensor = self.layers(x)
 
         if self.project is not None:
-            return x_conv + self.project(x)
+            return x_conv + torch.as_tensor(self.project(x))  # as_tensor used to get around mypy typing bug
 
         if self.pad is not None:
-            return x_conv + self.pad(x)
+            return x_conv + torch.as_tensor(self.pad(x))
 
         return x_conv + x
 
