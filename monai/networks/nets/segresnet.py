@@ -156,7 +156,7 @@ class SegResNet(nn.Module):
 
         down_x = []
 
-        for i, down in enumerate(self.down_layers):
+        for down in self.down_layers:
             x = down(x)
             down_x.append(x)
 
@@ -323,7 +323,7 @@ class SegResNetVAE(SegResNet):
             x = self.dropout(x)
 
         down_x = []
-        for i, down in enumerate(self.down_layers):
+        for down in self.down_layers:
             x = down(x)
             down_x.append(x)
 
