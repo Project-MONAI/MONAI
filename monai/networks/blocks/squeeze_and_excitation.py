@@ -95,7 +95,6 @@ class ResidualSELayer(ChannelSELayer):
         --+-- SE --o--
           |        |
           +--------+
-
     """
 
     def __init__(
@@ -115,9 +114,7 @@ class ResidualSELayer(ChannelSELayer):
             acti_type_2: defaults to "relu".
 
         See also:
-
             :py:class:`monai.networks.blocks.ChannelSELayer`
-
         """
         super().__init__(
             spatial_dims=spatial_dims,
