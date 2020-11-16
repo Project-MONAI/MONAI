@@ -112,6 +112,7 @@ class TestDynUNet(unittest.TestCase):
             result = net(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
 
+
 #     def test_script(self):
 #         input_param, input_shape, _ = TEST_CASE_DYNUNET_2D[0]
 #         net = DynUNet(**input_param)

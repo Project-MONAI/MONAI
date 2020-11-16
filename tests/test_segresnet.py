@@ -90,7 +90,7 @@ class TestResNet(unittest.TestCase):
     def test_ill_arg(self):
         with self.assertRaises(AssertionError):
             SegResNet(spatial_dims=4)
-            
+
     def test_script(self):
         input_param, input_shape, expected_shape = TEST_CASE_SEGRESNET[0]
         net = SegResNet(**input_param)
@@ -106,7 +106,7 @@ class TestResNetVAE(unittest.TestCase):
         with torch.no_grad():
             result, _ = net(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
-            
+
     def test_script(self):
         input_param, input_shape, expected_shape = TEST_CASE_SEGRESNET_VAE[0]
         net = SegResNetVAE(**input_param)

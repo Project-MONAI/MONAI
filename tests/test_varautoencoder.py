@@ -77,12 +77,7 @@ class TestVarAutoEncoder(unittest.TestCase):
 
     def test_script(self):
         net = VarAutoEncoder(
-            dimensions=2,
-            in_shape=(1, 32, 32),
-            out_channels=1,
-            latent_size=2,
-            channels=(4, 8),
-            strides=(2, 2)
+            dimensions=2, in_shape=(1, 32, 32), out_channels=1, latent_size=2, channels=(4, 8), strides=(2, 2)
         )
         test_data = torch.randn(2, 1, 32, 32)
         out_orig, out_reloaded = test_script_save(net, test_data)

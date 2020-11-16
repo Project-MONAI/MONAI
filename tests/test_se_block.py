@@ -67,7 +67,7 @@ class TestSEBlockLayer(unittest.TestCase):
         with torch.no_grad():
             result = net(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
-            
+
     def test_script(self):
         input_param, input_shape, _ = TEST_CASES[0]
         net = SEBlock(**input_param)

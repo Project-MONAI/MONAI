@@ -155,11 +155,11 @@ class SegResNet(nn.Module):
             x = self.dropout(x)
 
         down_x = []
-        
+
         for i, down in enumerate(self.down_layers):
             x = down(x)
             down_x.append(x)
-            
+
         down_x.reverse()
 
         for i, (up, upl) in enumerate(zip(self.up_samples, self.up_layers)):
@@ -242,10 +242,10 @@ class SegResNetVAE(SegResNet):
 
         self.input_image_size = input_image_size
         self.smallest_filters = 16
-        
+
         zoom = 2 ** (len(self.blocks_down) - 1)
         self.fc_insize = [s // (2 * zoom) for s in self.input_image_size]
-        
+
         self.vae_estimate_std = vae_estimate_std
         self.vae_default_std = vae_default_std
         self.vae_nz = vae_nz
@@ -286,31 +286,31 @@ class SegResNetVAE(SegResNet):
         x_vae = self.vae_down(vae_input)
         x_vae = x_vae.view(-1, self.vae_fc1.in_features)
         z_mean = self.vae_fc1(x_vae)
-        
+
         z_mean_rand = torch.randn_like(z_mean)
         z_mean_rand.requires_grad_(False)
-        
+
         if self.vae_estimate_std:
             z_sigma = self.vae_fc2(x_vae)
             z_sigma = F.softplus(z_sigma)
             vae_reg_loss = 0.5 * torch.mean(z_mean ** 2 + z_sigma ** 2 - torch.log(1e-8 + z_sigma ** 2) - 1)
-            
+
             x_vae = z_mean + z_sigma * z_mean_rand
         else:
             z_sigma = self.vae_default_std
             vae_reg_loss = torch.mean(z_mean ** 2)
-        
+
             x_vae = z_mean + z_sigma * z_mean_rand
-        
+
         x_vae = self.vae_fc3(x_vae)
         x_vae = self.relu(x_vae)
         x_vae = x_vae.view([-1, self.smallest_filters] + self.fc_insize)
         x_vae = self.vae_fc_up_sample(x_vae)
-        
+
         for up, upl in zip(self.up_samples, self.up_layers):
             x_vae = up(x_vae)
             x_vae = upl(x_vae)
-            
+
         x_vae = self.vae_conv_final(x_vae)
         vae_mse_loss = F.mse_loss(net_input, x_vae)
         vae_loss = vae_reg_loss + vae_mse_loss
@@ -326,7 +326,7 @@ class SegResNetVAE(SegResNet):
         for i, down in enumerate(self.down_layers):
             x = down(x)
             down_x.append(x)
-            
+
         down_x.reverse()
 
         vae_input = x
@@ -341,5 +341,5 @@ class SegResNetVAE(SegResNet):
         if self.training:
             vae_loss = self._get_vae_loss(net_input, vae_input)
             return x, vae_loss
-        
+
         return x, None

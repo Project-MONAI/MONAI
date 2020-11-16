@@ -85,15 +85,15 @@ class ConvNormActi(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return torch.as_tensor(self.layers(x))
 
-    
+
 class ChannelPad(nn.Module):
     def __init__(self, pad):
         super().__init__()
         self.pad = tuple(pad)
-    
+
     def forward(self, x):
         return F.pad(x, self.pad)
-        
+
 
 class HighResBlock(nn.Module):
     def __init__(
@@ -133,7 +133,7 @@ class HighResBlock(nn.Module):
         norm_type = Normalisation(norm_type)
         acti_type = Activation(acti_type)
 
-        self.project = None 
+        self.project = None
         self.pad = None
 
         if in_channels != out_channels:
@@ -141,7 +141,7 @@ class HighResBlock(nn.Module):
 
             if channel_matching == ChannelMatching.PROJECT:
                 self.project = conv_type(in_channels, out_channels, kernel_size=1)
-    
+
             if channel_matching == ChannelMatching.PAD:
                 if in_channels > out_channels:
                     raise ValueError('Incompatible values: channel_matching="pad" and in_channels > out_channels.')
@@ -162,7 +162,7 @@ class HighResBlock(nn.Module):
                 )
             )
             _in_chns = _out_chns
-            
+
         self.layers = nn.Sequential(*layers)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

@@ -45,7 +45,7 @@ class TestChannelSELayer(unittest.TestCase):
         with torch.no_grad():
             result = net(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
-            
+
     def test_script(self):
         input_param, input_shape, _ = TEST_CASES[0]
         net = ChannelSELayer(**input_param)
@@ -66,7 +66,7 @@ class TestResidualSELayer(unittest.TestCase):
         with torch.no_grad():
             result = net(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
-            
+
     def test_script(self):
         input_param, input_shape, _ = TEST_CASES[0]
         net = ResidualSELayer(**input_param)

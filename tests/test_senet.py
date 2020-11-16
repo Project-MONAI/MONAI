@@ -41,13 +41,13 @@ class TestSENET(unittest.TestCase):
     def test_senet_shape(self, net):
         input_data = torch.randn(2, 2, 64, 64, 64).to(device)
         expected_shape = (2, 2)
-        net=net.to(device).eval()
+        net = net.to(device).eval()
         with torch.no_grad():
             result = net(input_data)
             self.assertEqual(result.shape, expected_shape)
-            
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
-    def test_script(self,net):
+    def test_script(self, net):
         input_data = torch.randn(2, 2, 64, 64, 64)
         out_orig, out_reloaded = test_script_save(net.cpu(), input_data)
         assert torch.allclose(out_orig, out_reloaded)
@@ -63,7 +63,7 @@ class TestPretrainedSENET(unittest.TestCase):
         net = test_pretrained_networks(model, input_param, device)
         input_data = torch.randn(3, 3, 64, 64).to(device)
         expected_shape = (3, 2)
-        net=net.to(device).eval()
+        net = net.to(device).eval()
         with torch.no_grad():
             result = net(input_data)
             self.assertEqual(result.shape, expected_shape)

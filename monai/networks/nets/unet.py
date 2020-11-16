@@ -104,9 +104,7 @@ class UNet(nn.Module):
 
         self.model = _create_block(in_channels, out_channels, self.channels, self.strides, True)
 
-    def _get_down_layer(
-        self, in_channels: int, out_channels: int, strides: int, is_top: bool
-    ) -> nn.Module:
+    def _get_down_layer(self, in_channels: int, out_channels: int, strides: int, is_top: bool) -> nn.Module:
         """
         Args:
             in_channels: number of input channels.
@@ -146,9 +144,7 @@ class UNet(nn.Module):
         """
         return self._get_down_layer(in_channels, out_channels, 1, False)
 
-    def _get_up_layer(
-        self, in_channels: int, out_channels: int, strides: int, is_top: bool
-    ) -> nn.Module:
+    def _get_up_layer(self, in_channels: int, out_channels: int, strides: int, is_top: bool) -> nn.Module:
         """
         Args:
             in_channels: number of input channels.

@@ -51,7 +51,7 @@ class ChannelSELayer(nn.Module):
 
         """
         super(ChannelSELayer, self).__init__()
-        
+
         self.add_residual = add_residual
 
         pool_type = Pool[Pool.ADAPTIVEAVG, spatial_dims]
@@ -79,12 +79,12 @@ class ChannelSELayer(nn.Module):
         y: torch.Tensor = self.avg_pool(x).view(b, c)
         y = self.fc(y).view([b, c] + [1] * (x.ndim - 2))
         result = x * y
-        
+
         # Residual connection is moved here instead of providing an override of forward in ResidualSELayer since
         # Torchscript has an issue with using super().
         if self.add_residual:
             result += x
-            
+
         return result
 
 
@@ -120,7 +120,12 @@ class ResidualSELayer(ChannelSELayer):
 
         """
         super().__init__(
-            spatial_dims=spatial_dims, in_channels=in_channels, r=r, acti_type_1=acti_type_1, acti_type_2=acti_type_2, add_residual=True
+            spatial_dims=spatial_dims,
+            in_channels=in_channels,
+            r=r,
+            acti_type_1=acti_type_1,
+            acti_type_2=acti_type_2,
+            add_residual=True,
         )
 
 
