@@ -4,7 +4,7 @@
 #include "Image.h"
 #include "permutohedral.h"
 
-torch::Tensor BilateralFilterCpuPHL(torch::Tensor input_tensor, float spatial_sigma, float color_sigma)
+torch::Tensor BilateralFilterPHLCpu(torch::Tensor input_tensor, float spatial_sigma, float color_sigma)
 {
     torch::Tensor temp_tensor = input_tensor.permute(c10::IntArrayRef(new int64_t[4]{0, 2, 3, 1}, 4));
     Image input = Image(1, temp_tensor.size(1), temp_tensor.size(2), 3, (const float*)temp_tensor.data_ptr());
@@ -28,7 +28,8 @@ torch::Tensor BilateralFilterCpuPHL(torch::Tensor input_tensor, float spatial_si
     // Filter the input with respect to the position vectors. (see permutohedral.h)
     Image output = PermutohedralLattice::filter(input, positions);
 
-    memcpy(temp_tensor.data_ptr(), output.data, temp_tensor.size(1) * temp_tensor.size(2) * 3 * sizeof(float));
+    torch::Tensor output_tensor = torch::zeros_like(temp_tensor);
+    memcpy(output_tensor.data_ptr(), output.data, output_tensor.size(1) * output_tensor.size(2) * 3 * sizeof(float));
     
-    return temp_tensor.permute(c10::IntArrayRef(new int64_t[4]{0, 3, 1, 2}, 4));
+    return output_tensor.permute(c10::IntArrayRef(new int64_t[4]{0, 3, 1, 2}, 4));
 }

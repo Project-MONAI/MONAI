@@ -126,17 +126,13 @@ torch::Tensor BilateralFilterCpu(torch::Tensor input, float spatialSigma, float 
     // Tensor descriptors.
     int batchCount = input.size(0);
     int channelCount = input.size(1);
-    int width = input.size(2);
-    int height = input.size(3);
+
+    int batchStride = input.stride(0);
+    int channelStride = input.stride(1);
 
     int spatialDimensionCount = input.dim() - 2;
     int64_t* spatialDimensionSizes = (int64_t*)input.sizes().data() + 2;
     int64_t* spatialDimensionStrides = (int64_t*)input.strides().data() + 2;
-
-    int batchStride = input.stride(0);
-    int channelStride = input.stride(1);
-    int widthStride = input.stride(2);
-    int heightStride = input.stride(3);
 
     // Raw tensor data pointers. 
     float* inputData = input.data_ptr<float>();

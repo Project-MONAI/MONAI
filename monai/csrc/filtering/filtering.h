@@ -15,24 +15,21 @@ limitations under the License.
 
 #include <torch/extension.h>
 
-torch::Tensor BilateralFilterCuda(torch::Tensor input, float spatial_sigma, float color_sigma);
 torch::Tensor BilateralFilterCpu(torch::Tensor input, float spatial_sigma, float color_sigma);
-
-torch::Tensor BilateralFilterCpuPHL(torch::Tensor input, float spatial_sigma, float color_sigma);
+torch::Tensor BilateralFilterCuda(torch::Tensor input, float spatial_sigma, float color_sigma);
+torch::Tensor BilateralFilterPHLCpu(torch::Tensor input, float spatial_sigma, float color_sigma);
+torch::Tensor BilateralFilterPHLCuda(torch::Tensor input, float spatial_sigma, float color_sigma);
 
 torch::Tensor BilateralFilter(torch::Tensor input, float spatial_sigma, float color_sigma, bool usePHL)
 {
-#ifdef WITH_CUDA
-    CHECK_CONTIGUOUS_CUDA(input);
-    return BilateralFilterCuda(input, spatial_sigma, color_sigma);
-#else
-    if (usePHL)
-    {
-        return BilateralFilterCpuPHL(input, spatial_sigma, color_sigma);
-    }
-    else
-    {
-        return BilateralFilterCpu(input, spatial_sigma, color_sigma);
-    }
-#endif
+    torch::Tensor (*filterFunction)(torch::Tensor, float, float);
+
+    #ifdef WITH_CUDA
+        CHECK_CONTIGUOUS_CUDA(input);
+        filterFunction = usePHL ? &BilateralFilterPHLCuda : &BilateralFilterCuda;
+    #else
+        filterFunction = usePHL ? &BilateralFilterPHLCpu : &BilateralFilterCpu;
+    #endif
+
+    return filterFunction(input, spatial_sigma, color_sigma);
 }
