@@ -53,6 +53,14 @@ class TestCropForeground(unittest.TestCase):
         result = CropForeground(**argments)(image)
         np.testing.assert_allclose(result, expected_data)
 
+    @parameterized.expand([TEST_CASE_1])
+    def test_return_coords(self, argments, image, _):
+        argments["return_coords"] = True
+        _, start_coord, end_coord = CropForeground(**argments)(image)
+        argments["return_coords"] = False
+        self.assertListEqual(start_coord, [1, 1])
+        self.assertListEqual(end_coord, [4, 4])
+
 
 if __name__ == "__main__":
     unittest.main()

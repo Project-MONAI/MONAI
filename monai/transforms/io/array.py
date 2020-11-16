@@ -233,7 +233,6 @@ class LoadPNG(Transform):
             meta["mode"] = img.mode
             meta["width"] = img.width
             meta["height"] = img.height
-            meta["info"] = img.info
             if not compatible_meta:
                 compatible_meta = meta
             else:

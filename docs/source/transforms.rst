@@ -87,6 +87,12 @@ Crop and Pad
     :members:
     :special-members: __call__
 
+`RandWeightedCrop`
+""""""""""""""""""
+.. autoclass:: RandWeightedCrop
+    :members:
+    :special-members: __call__
+
 `RandCropByPosNegLabel`
 """""""""""""""""""""""
 .. autoclass:: RandCropByPosNegLabel
@@ -540,6 +546,12 @@ Crop and Pad (Dict)
     :members:
     :special-members: __call__
 
+`RandWeightedCropd`
+"""""""""""""""""""
+.. autoclass:: RandWeightedCropd
+    :members:
+    :special-members: __call__
+
 `RandCropByPosNegLabeld`
 """"""""""""""""""""""""
 .. autoclass:: RandCropByPosNegLabeld
@@ -882,6 +894,12 @@ Utility (Dict)
 `DeleteItemsd`
 """"""""""""""
 .. autoclass:: DeleteItemsd
+    :members:
+    :special-members: __call__
+
+`SelectItemsd`
+""""""""""""""
+.. autoclass:: SelectItemsd
     :members:
     :special-members: __call__
 

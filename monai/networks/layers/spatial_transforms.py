@@ -41,8 +41,10 @@ class _GridPull(torch.autograd.Function):
         grads = _C.grid_pull_backward(grad, *var, *opt)
         if ctx.needs_input_grad[0]:
             grad_input = grads[0]
-        if ctx.needs_input_grad[1]:
-            grad_grid = grads[1]
+            if ctx.needs_input_grad[1]:
+                grad_grid = grads[1]
+        elif ctx.needs_input_grad[1]:
+            grad_grid = grads[0]
         return grad_input, grad_grid, None, None, None
 
 
@@ -133,8 +135,10 @@ class _GridPush(torch.autograd.Function):
         grads = _C.grid_push_backward(grad, *var, *opt)
         if ctx.needs_input_grad[0]:
             grad_input = grads[0]
-        if ctx.needs_input_grad[1]:
-            grad_grid = grads[1]
+            if ctx.needs_input_grad[1]:
+                grad_grid = grads[1]
+        elif ctx.needs_input_grad[1]:
+            grad_grid = grads[0]
         return grad_input, grad_grid, None, None, None, None
 
 
@@ -328,8 +332,10 @@ class _GridGrad(torch.autograd.Function):
             grads = _C.grid_grad_backward(grad, *var, *opt)
             if ctx.needs_input_grad[0]:
                 grad_input = grads[0]
-            if ctx.needs_input_grad[1]:
-                grad_grid = grads[1]
+                if ctx.needs_input_grad[1]:
+                    grad_grid = grads[1]
+            elif ctx.needs_input_grad[1]:
+                grad_grid = grads[0]
         return grad_input, grad_grid, None, None, None
 
 

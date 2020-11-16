@@ -19,7 +19,10 @@ Metrics
 
 `Confusion Matrix`
 ------------------
-.. autofunction:: compute_confusion_metric
+.. autofunction:: get_confusion_matrix
+
+.. autoclass:: ConfusionMatrixMetric
+    :members:
 
 `Hausdorff Distance`
 --------------------
@@ -28,3 +31,7 @@ Metrics
 `Average Surface Distance`
 --------------------------
 .. autofunction:: compute_average_surface_distance
+
+`Occlusion sensitivity`
+-----------------------
+.. autofunction:: compute_occlusion_sensitivity
