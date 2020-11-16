@@ -91,9 +91,6 @@ class CheckpointSaver:
         assert save_dir is not None, "must provide directory to save the checkpoints."
         self.save_dir = save_dir
         assert save_dict is not None and len(save_dict) > 0, "must provide source objects to save."
-        for k, v in save_dict.items():
-            if hasattr(v, "module"):
-                save_dict[k] = v.module
         self.save_dict = save_dict
         self.logger = logging.getLogger(name)
         self.epoch_level = epoch_level
