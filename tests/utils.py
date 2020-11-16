@@ -14,6 +14,7 @@ import tempfile
 import unittest
 from io import BytesIO
 from subprocess import PIPE, Popen
+from urllib.error import ContentTooShortError, HTTPError, URLError
 
 import numpy as np
 import torch
@@ -24,6 +25,14 @@ from monai.utils import optional_import
 nib, _ = optional_import("nibabel")
 
 quick_test_var = "QUICKTEST"
+
+
+def test_pretrained_networks(network, input_param, device):
+    try:
+        net = network(**input_param).to(device)
+    except (URLError, HTTPError, ContentTooShortError) as e:
+        raise unittest.SkipTest(e)
+    return net
 
 
 def skip_if_quick(obj):

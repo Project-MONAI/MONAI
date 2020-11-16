@@ -250,6 +250,20 @@ Act.add_factory_callable("softmax", lambda: nn.modules.Softmax)
 Act.add_factory_callable("logsoftmax", lambda: nn.modules.LogSoftmax)
 
 
+@Act.factory_function("swish")
+def swish_factory():
+    from monai.networks.blocks.activation import Swish
+
+    return Swish
+
+
+@Act.factory_function("mish")
+def mish_factory():
+    from monai.networks.blocks.activation import Mish
+
+    return Mish
+
+
 @Conv.factory_function("conv")
 def conv_factory(dim: int) -> Type[Union[nn.Conv1d, nn.Conv2d, nn.Conv3d]]:
     types = (nn.Conv1d, nn.Conv2d, nn.Conv3d)

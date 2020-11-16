@@ -25,6 +25,16 @@ Blocks
 .. autoclass:: ResidualUnit
     :members:
 
+`Swish`
+~~~~~~~
+.. autoclass:: Swish
+    :members:
+
+`Mish`
+~~~~~~
+.. autoclass:: Mish
+    :members:
+
 `GCN Module`
 ~~~~~~~~~~~~
 .. autoclass:: GCN
@@ -281,6 +291,11 @@ Nets
 `VarAutoEncoder`
 ~~~~~~~~~~~~~~~~
 .. autoclass:: VarAutoEncoder
+  :members:
+
+`FullyConnectedNet`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: FullyConnectedNet
   :members:
 
 `Generator`

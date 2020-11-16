@@ -22,7 +22,7 @@ from monai.networks.nets import (
     se_resnext101_32x4d,
     senet154,
 )
-from tests.utils import test_script_save
+from tests.utils import test_pretrained_networks, test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -33,7 +33,7 @@ TEST_CASE_4 = [se_resnet152(3, 2, 2)]
 TEST_CASE_5 = [se_resnext50_32x4d(3, 2, 2)]
 TEST_CASE_6 = [se_resnext101_32x4d(3, 2, 2)]
 
-TEST_CASE_PRETRAINED = [se_resnet50(2, 3, 2, pretrained=True).to(device)]
+TEST_CASE_PRETRAINED = [se_resnet50, {"spatial_dims": 2, "in_channels": 3, "num_classes": 2, "pretrained": True}]
 
 
 class TestSENET(unittest.TestCase):
@@ -59,7 +59,8 @@ class TestPretrainedSENET(unittest.TestCase):
             TEST_CASE_PRETRAINED,
         ]
     )
-    def test_senet_shape(self, net):
+    def test_senet_shape(self, model, input_param):
+        net = test_pretrained_networks(model, input_param, device)
         input_data = torch.randn(3, 3, 64, 64).to(device)
         expected_shape = (3, 2)
         net=net.to(device).eval()
