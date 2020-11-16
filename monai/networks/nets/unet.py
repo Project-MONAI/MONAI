@@ -87,7 +87,7 @@ class UNet(nn.Module):
             c = channels[0]
             s = strides[0]
 
-            subblock: Union[nn.Sequential, ResidualUnit, Convolution]
+            subblock: nn.Module
 
             if len(channels) > 2:
                 subblock = _create_block(c, c, channels[1:], strides[1:], False)  # continue recursion down
@@ -106,7 +106,7 @@ class UNet(nn.Module):
 
     def _get_down_layer(
         self, in_channels: int, out_channels: int, strides: int, is_top: bool
-    ) -> Union[ResidualUnit, Convolution]:
+    ) -> nn.Module:
         """
         Args:
             in_channels: number of input channels.
@@ -138,7 +138,7 @@ class UNet(nn.Module):
                 dropout=self.dropout,
             )
 
-    def _get_bottom_layer(self, in_channels: int, out_channels: int) -> Union[ResidualUnit, Convolution]:
+    def _get_bottom_layer(self, in_channels: int, out_channels: int) -> nn.Module:
         """
         Args:
             in_channels: number of input channels.
@@ -148,7 +148,7 @@ class UNet(nn.Module):
 
     def _get_up_layer(
         self, in_channels: int, out_channels: int, strides: int, is_top: bool
-    ) -> Union[Convolution, nn.Sequential]:
+    ) -> nn.Module:
         """
         Args:
             in_channels: number of input channels.

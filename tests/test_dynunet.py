@@ -113,7 +113,7 @@ class TestDynUNet(unittest.TestCase):
             self.assertEqual(result.shape, expected_shape)
 
 #     def test_script(self):
-#         input_param, input_shape, expected_shape = TEST_CASE_DYNUNET_2D[0]
+#         input_param, input_shape, _ = TEST_CASE_DYNUNET_2D[0]
 #         net = DynUNet(**input_param)
 #         test_data = torch.randn(input_shape)
 #         out_orig, out_reloaded = test_script_save(net, test_data)

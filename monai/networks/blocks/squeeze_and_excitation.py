@@ -32,6 +32,7 @@ class ChannelSELayer(nn.Module):
         r: int = 2,
         acti_type_1: Union[Tuple[str, Dict], str] = ("relu", {"inplace": True}),
         acti_type_2: Union[Tuple[str, Dict], str] = "sigmoid",
+        add_residual: bool = False,
     ) -> None:
         """
         Args:
@@ -50,6 +51,8 @@ class ChannelSELayer(nn.Module):
 
         """
         super(ChannelSELayer, self).__init__()
+        
+        self.add_residual = add_residual
 
         pool_type = Pool[Pool.ADAPTIVEAVG, spatial_dims]
         self.avg_pool = pool_type(1)  # spatial size (1, 1, ...)
@@ -75,12 +78,19 @@ class ChannelSELayer(nn.Module):
         b, c = x.shape[:2]
         y: torch.Tensor = self.avg_pool(x).view(b, c)
         y = self.fc(y).view([b, c] + [1] * (x.ndim - 2))
-        return x * y
+        result = x * y
+        
+        # Residual connection is moved here instead of providing an override of forward in ResidualSELayer since
+        # Torchscript has an issue with using super().
+        if self.add_residual:
+            result += x
+            
+        return result
 
 
 class ResidualSELayer(ChannelSELayer):
     """
-    A "squeeze-and-excitation"-like layer with a residual connection::
+    A "squeeze-and-excitation"-like layer with a residual connection.
 
         --+-- SE --o--
           |        |
@@ -110,15 +120,8 @@ class ResidualSELayer(ChannelSELayer):
 
         """
         super().__init__(
-            spatial_dims=spatial_dims, in_channels=in_channels, r=r, acti_type_1=acti_type_1, acti_type_2=acti_type_2
+            spatial_dims=spatial_dims, in_channels=in_channels, r=r, acti_type_1=acti_type_1, acti_type_2=acti_type_2, add_residual=True
         )
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Args:
-            x: in shape (batch, in_channels, spatial_1[, spatial_2, ...]).
-        """
-        return x + super().forward(x)
 
 
 class SEBlock(nn.Module):
@@ -196,28 +199,31 @@ class SEBlock(nn.Module):
             spatial_dims=spatial_dims, in_channels=n_chns_3, r=r, acti_type_1=acti_type_1, acti_type_2=acti_type_2
         )
 
-        self.project = project
-        if self.project is None and in_channels != n_chns_3:
+        if project is None and in_channels != n_chns_3:
             self.project = Conv[Conv.CONV, spatial_dims](in_channels, n_chns_3, kernel_size=1)
+        elif project is None:
+            self.project = nn.Identity()
+        else:
+            self.project = project
 
-        self.act = None
         if acti_type_final is not None:
             act_final, act_final_args = split_args(acti_type_final)
             self.act = Act[act_final](**act_final_args)
+        else:
+            self.act = nn.Identity()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Args:
             x: in shape (batch, in_channels, spatial_1[, spatial_2, ...]).
         """
-        residual = x if self.project is None else self.project(x)
+        residual = self.project(x)
         x = self.conv1(x)
         x = self.conv2(x)
         x = self.conv3(x)
         x = self.se_layer(x)
         x += residual
-        if self.act is not None:
-            x = self.act(x)
+        x = self.act(x)
         return x
 
 
@@ -370,6 +376,3 @@ class SEResNeXtBottleneck(SEBlock):
             project=downsample,
             r=reduction,
         )
-        
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return super().forward(x)
