@@ -47,7 +47,7 @@ class Mish(nn.Module):
     r"""Applies the element-wise function:
 
     .. math::
-        \text{Mwish}(x) = x * tanh(\text{softplus}(x)).
+        \text{Mish}(x) = x * tanh(\text{softplus}(x)).
 
     Citation: Mish: A Self Regularized Non-Monotonic Activation Function, Diganta Misra, 2019, https://arxiv.org/abs/1908.08681.
 
