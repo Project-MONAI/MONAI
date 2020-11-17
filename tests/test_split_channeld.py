@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import unittest
+
 import numpy as np
 import torch
 from parameterized import parameterized
@@ -19,13 +20,13 @@ from monai.transforms import SplitChanneld
 TEST_CASE_1 = [
     {"keys": "pred", "output_postfixes": ["cls1", "cls2", "cls3"], "channel_dim": None},
     {"pred": torch.randint(0, 2, size=(4, 3, 3, 4))},
-    (4, 1, 3, 4)
+    (4, 1, 3, 4),
 ]
 
 TEST_CASE_2 = [
     {"keys": "pred", "output_postfixes": ["cls1", "cls2", "cls3"], "channel_dim": 1},
     {"pred": torch.randint(0, 2, size=(4, 3, 3, 4))},
-    (4, 1, 3, 4)
+    (4, 1, 3, 4),
 ]
 
 TEST_CASE_3 = [

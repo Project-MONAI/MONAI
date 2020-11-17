@@ -15,7 +15,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 import logging
 import time
-from typing import Callable, Optional, Sequence, Tuple, TypeVar, Union, List
+from typing import Callable, List, Optional, Sequence, Tuple, TypeVar, Union
 
 import numpy as np
 import torch
