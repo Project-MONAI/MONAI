@@ -16,37 +16,41 @@ from parameterized import parameterized
 
 from monai.transforms import ResizeWithPadOrCropd
 
-TEST_CASE_1 = [
-    {"keys": "img", "spatial_size": [15, 8, 8], "mode": "constant"},
-    {"img": np.zeros((3, 8, 8, 4))},
-    np.zeros((3, 15, 8, 8)),
-]
-
-TEST_CASE_2 = [
-    {"keys": "img", "spatial_size": [15, 4, 8], "mode": "constant"},
-    {"img": np.zeros((3, 8, 8, 4))},
-    np.zeros((3, 15, 4, 8)),
-]
-
-TEST_CASE_3 = [
-    {"keys": "img", "spatial_size": [15, 4, -1], "mode": "constant"},
-    {"img": np.zeros((3, 8, 8, 4))},
-    np.zeros((3, 15, 4, 4)),
-]
-
-TEST_CASE_4 = [
-    {"keys": "img", "spatial_size": [15, 4, -1], "mode": "reflect"},
-    {"img": np.zeros((3, 8, 8, 4))},
-    np.zeros((3, 15, 4, 4)),
+TEST_CASES = [
+    [
+        {"keys": "img", "spatial_size": [15, 8, 8], "mode": "constant"},
+        {"img": np.zeros((3, 8, 8, 4))},
+        (3, 15, 8, 8),
+    ],
+    [
+        {"keys": "img", "spatial_size": [15, 4, 8], "mode": "constant"},
+        {"img": np.zeros((3, 8, 8, 4))},
+        (3, 15, 4, 8),
+    ],
+    [
+        {"keys": "img", "spatial_size": [15, 4, -1], "mode": "constant"},
+        {"img": np.zeros((3, 8, 8, 4))},
+        (3, 15, 4, 4),
+    ],
+    [
+        {"keys": "img", "spatial_size": [15, 4, -1], "mode": "reflect"},
+        {"img": np.zeros((3, 8, 8, 4))},
+        (3, 15, 4, 4),
+    ],
+    [
+        {"keys": "img", "spatial_size": [-1, -1, -1], "mode": "reflect"},
+        {"img": np.zeros((3, 8, 8, 4))},
+        (3, 8, 8, 4),
+    ],
 ]
 
 
 class TestResizeWithPadOrCropd(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
+    @parameterized.expand(TEST_CASES)
     def test_pad_shape(self, input_param, input_data, expected_val):
         paddcroper = ResizeWithPadOrCropd(**input_param)
         result = paddcroper(input_data)
-        np.testing.assert_allclose(result["img"].shape, expected_val.shape)
+        np.testing.assert_allclose(result["img"].shape, expected_val)
 
 
 if __name__ == "__main__":

@@ -22,5 +22,11 @@ jobs:
                 "issue_type": "pull-request",
                 "allow_edits": true,
                 "repository": "project-monai/monai-code-formatter"
+              },
+              {
+                "command": "integration-test",
+                "permission": "none",
+                "issue_type": "pull-request",
+                "allow_edits": true
               }
             ]

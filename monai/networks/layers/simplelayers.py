@@ -18,7 +18,7 @@ from torch import nn
 from torch.autograd import Function
 
 from monai.networks.layers.convutils import gaussian_1d, same_padding
-from monai.utils import ensure_tuple_rep, optional_import
+from monai.utils import SkipMode, ensure_tuple_rep, optional_import
 
 _C, _ = optional_import("monai._C")
 
@@ -27,16 +27,38 @@ __all__ = ["SkipConnection", "Flatten", "GaussianFilter", "LLTM", "Reshape", "se
 
 class SkipConnection(nn.Module):
     """
-    Concats the forward pass input with the result from the given submodule.
+    Combine the forward pass input with the result from the given submodule::
+
+        --+--submodule--o--
+          |_____________|
+
+    The available modes are ``"cat"``, ``"add"``, ``"mul"``.
     """
 
-    def __init__(self, submodule, cat_dim: int = 1) -> None:
+    def __init__(self, submodule, dim: int = 1, mode: Union[str, SkipMode] = "cat") -> None:
+        """
+
+        Args:
+            submodule: the module defines the trainable branch.
+            dim: the dimension over which the tensors are concatenated.
+                Used when mode is ``"cat"``.
+            mode: ``"cat"``, ``"add"``, ``"mul"``. defaults to ``"cat"``.
+        """
         super().__init__()
         self.submodule = submodule
-        self.cat_dim = cat_dim
+        self.dim = dim
+        self.mode = SkipMode(mode).value
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return torch.cat([x, self.submodule(x)], self.cat_dim)
+        y = self.submodule(x)
+
+        if self.mode == "cat":
+            return torch.cat([x, y], dim=self.dim)
+        if self.mode == "add":
+            return torch.add(x, y)
+        if self.mode == "mul":
+            return torch.mul(x, y)
+        raise NotImplementedError(f"Unsupported mode {self.mode}.")
 
 
 class Flatten(nn.Module):
