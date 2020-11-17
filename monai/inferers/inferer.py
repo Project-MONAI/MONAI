@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from abc import ABC, abstractmethod
-from typing import Sequence, Union
+from typing import Callable, Sequence, Union
 
 import torch
 
@@ -25,7 +25,7 @@ class Inferer(ABC):
     """
 
     @abstractmethod
-    def __call__(self, inputs: torch.Tensor, network: torch.nn.Module):
+    def __call__(self, inputs: torch.Tensor, network: Callable[[torch.Tensor], torch.Tensor]):
         """
         Run inference on `inputs` with the `network` model.
 
@@ -49,13 +49,13 @@ class SimpleInferer(Inferer):
     def __init__(self) -> None:
         Inferer.__init__(self)
 
-    def __call__(self, inputs: torch.Tensor, network: torch.nn.Module):
+    def __call__(self, inputs: torch.Tensor, network: Callable[[torch.Tensor], torch.Tensor]):
         """Unified callable function API of Inferers.
 
         Args:
             inputs: model input data for inference.
             network: target model to execute inference.
-
+                supports callables such as ``lambda x: my_torch_model(x, additional_config)``
         """
         return network(inputs)
 
@@ -87,7 +87,13 @@ class SlidingWindowInferer(Inferer):
             Padding mode when ``roi_size`` is larger than inputs. Defaults to ``"constant"``
             See also: https://pytorch.org/docs/stable/nn.functional.html#pad
         cval: fill value for 'constant' padding mode. Default: 0
-
+        sw_device: device for the window data.
+            By default the device (and accordingly the memory) of the `inputs` is used.
+            Normally `sw_device` should be consistent with the device where `predictor` is defined.
+        device: device for the stitched output prediction.
+            By default the device (and accordingly the memory) of the `inputs` is used. If for example
+            set to device=torch.device('cpu') the gpu memory consumption is less and independent of the
+            `inputs` and `roi_size`. Output is on the `device`.
 
     Note:
         ``sw_batch_size`` denotes the max number of windows per network inference iteration,
@@ -104,6 +110,8 @@ class SlidingWindowInferer(Inferer):
         sigma_scale: Union[Sequence[float], float] = 0.125,
         padding_mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
         cval: float = 0.0,
+        sw_device: Union[torch.device, str, None] = None,
+        device: Union[torch.device, str, None] = None,
     ) -> None:
         Inferer.__init__(self)
         self.roi_size = roi_size
@@ -113,14 +121,16 @@ class SlidingWindowInferer(Inferer):
         self.sigma_scale = sigma_scale
         self.padding_mode = padding_mode
         self.cval = cval
+        self.sw_device = sw_device
+        self.device = device
 
-    def __call__(self, inputs: torch.Tensor, network: torch.nn.Module) -> torch.Tensor:
+    def __call__(self, inputs: torch.Tensor, network: Callable[[torch.Tensor], torch.Tensor]) -> torch.Tensor:
         """
-        Unified callable function API of Inferers.
 
         Args:
             inputs: model input data for inference.
             network: target model to execute inference.
+                supports callables such as ``lambda x: my_torch_model(x, additional_config)``
 
         """
         return sliding_window_inference(
@@ -133,4 +143,6 @@ class SlidingWindowInferer(Inferer):
             sigma_scale=self.sigma_scale,
             padding_mode=self.padding_mode,
             cval=self.cval,
+            sw_device=self.sw_device,
+            device=self.device,
         )

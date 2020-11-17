@@ -1,0 +1,40 @@
+name: weekly-preview
+
+on:
+  schedule:
+  - cron: "0 2 * * 6"  # 02:00 of every Saturday
+
+jobs:
+  packaging:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version:  3.8
+    - name: Install setuptools
+      run: |
+        python -m pip install --user --upgrade setuptools wheel
+    - name: Build distribution
+      run: |
+        export HEAD_COMMIT_ID=$(git rev-parse HEAD)
+        sed -i 's/name\ =\ monai$/name\ =\ monai-weekly/g' setup.cfg
+        echo "__commit_id__ = \"$HEAD_COMMIT_ID\"" >> monai/__init__.py
+        git diff setup.cfg monai/__init__.py
+        # build tar.gz and wheel
+        git config user.name "CI Builder"
+        git config user.email "monai.miccai2019@gmail.com"
+        git add setup.cfg setup.py
+        git commit -m "Weekly build at $HEAD_COMMIT_ID"
+        git tag 0.4.dev$(date +'%y%U')
+        python setup.py sdist bdist_wheel
+
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        user: __token__
+        password: ${{ secrets.PYPI_TOKEN }}
+

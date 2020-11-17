@@ -12,6 +12,7 @@
 import collections.abc
 import itertools
 import random
+import time
 from ast import literal_eval
 from distutils.util import strtobool
 from typing import Any, Callable, Optional, Sequence, Tuple, Union
@@ -260,3 +261,49 @@ def list_to_dict(items):
                 except ValueError:
                     d[key] = value
     return d
+
+
+_torch_to_np_dtype = {
+    torch.bool: np.bool,
+    torch.uint8: np.uint8,
+    torch.int8: np.int8,
+    torch.int16: np.int16,
+    torch.int32: np.int32,
+    torch.int64: np.int64,
+    torch.float16: np.float16,
+    torch.float32: np.float32,
+    torch.float64: np.float64,
+    torch.complex64: np.complex64,
+    torch.complex128: np.complex128,
+}
+_np_to_torch_dtype = {value: key for key, value in _torch_to_np_dtype.items()}
+
+
+def dtype_torch_to_numpy(dtype):
+    """Convert a torch dtype to its numpy equivalent."""
+    return _torch_to_np_dtype[dtype]
+
+
+def dtype_numpy_to_torch(dtype):
+    """Convert a numpy dtype to its torch equivalent."""
+    return _np_to_torch_dtype[dtype]
+
+
+class PerfContext:
+    """
+    Context manager for tracking how much time is spent within context blocks. This uses `time.perf_counter` to
+    accumulate the total amount of time in seconds in the attribute `total_time` over however many context blocks
+    the object is used in.
+    """
+
+    def __init__(self):
+        self.total_time = 0
+        self.start_time = None
+
+    def __enter__(self):
+        self.start_time = time.perf_counter()
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        self.total_time += time.perf_counter() - self.start_time
+        self.start_time = None

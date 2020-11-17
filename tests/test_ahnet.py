@@ -16,107 +16,151 @@ from parameterized import parameterized
 
 from monai.networks.blocks import FCN, MCFCN
 from monai.networks.nets import AHNet
-from tests.utils import skip_if_quick
+from tests.utils import skip_if_quick, test_pretrained_networks, test_script_save
 
-TEST_CASE_FCN_1 = [
-    {"out_channels": 3, "upsample_mode": "transpose"},
-    torch.randn(5, 3, 64, 64),
-    (5, 3, 64, 64),
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
+TEST_CASE_FCN_1 = [  # batch 2
+    {"out_channels": 3, "upsample_mode": "transpose", "pretrained": False},
+    (2, 3, 32, 32),
+    (2, 3, 32, 32),
 ]
 TEST_CASE_FCN_2 = [
-    {"out_channels": 2, "upsample_mode": "transpose", "pretrained": True, "progress": False},
-    torch.randn(5, 3, 64, 64),
-    (5, 2, 64, 64),
+    {"out_channels": 2, "upsample_mode": "transpose", "pretrained": False, "progress": False},
+    (1, 3, 32, 32),
+    (1, 2, 32, 32),
 ]
 TEST_CASE_FCN_3 = [
     {"out_channels": 1, "upsample_mode": "bilinear", "pretrained": False},
-    torch.randn(5, 3, 64, 64),
-    (5, 1, 64, 64),
+    (1, 3, 32, 32),
+    (1, 1, 32, 32),
+]
+TEST_CASE_FCN_WITH_PRETRAIN_1 = [  # batch 2
+    {"out_channels": 3, "upsample_mode": "transpose", "pretrained": True},
+    (2, 3, 32, 32),
+    (2, 3, 32, 32),
+]
+TEST_CASE_FCN_WITH_PRETRAIN_2 = [
+    {"out_channels": 2, "upsample_mode": "transpose", "pretrained": True, "progress": False},
+    (1, 3, 32, 32),
+    (1, 2, 32, 32),
 ]
 
-TEST_CASE_MCFCN_1 = [
-    {"out_channels": 3, "in_channels": 8, "upsample_mode": "transpose", "progress": False},
-    torch.randn(5, 8, 64, 64),
-    (5, 3, 64, 64),
+TEST_CASE_MCFCN_1 = [  # batch 5
+    {"out_channels": 3, "in_channels": 8, "upsample_mode": "transpose", "pretrained": False, "progress": False},
+    (5, 8, 32, 32),
+    (5, 3, 32, 32),
 ]
 TEST_CASE_MCFCN_2 = [
-    {"out_channels": 2, "in_channels": 1, "upsample_mode": "transpose", "progress": True},
-    torch.randn(5, 1, 64, 64),
-    (5, 2, 64, 64),
+    {"out_channels": 2, "in_channels": 1, "upsample_mode": "transpose", "pretrained": False, "progress": True},
+    (1, 1, 32, 32),
+    (1, 2, 32, 32),
 ]
 TEST_CASE_MCFCN_3 = [
     {"out_channels": 1, "in_channels": 2, "upsample_mode": "bilinear", "pretrained": False},
-    torch.randn(5, 2, 64, 64),
-    (5, 1, 64, 64),
+    (1, 2, 32, 32),
+    (1, 1, 32, 32),
+]
+TEST_CASE_MCFCN_WITH_PRETRAIN_1 = [  # batch 5
+    {"out_channels": 3, "in_channels": 8, "upsample_mode": "transpose", "pretrained": True, "progress": False},
+    (5, 8, 32, 32),
+    (5, 3, 32, 32),
+]
+TEST_CASE_MCFCN_WITH_PRETRAIN_2 = [
+    {"out_channels": 2, "in_channels": 1, "upsample_mode": "transpose", "pretrained": True, "progress": True},
+    (1, 1, 32, 32),
+    (1, 2, 32, 32),
 ]
 
 TEST_CASE_AHNET_2D_1 = [
-    {"spatial_dims": 2, "upsample_mode": "bilinear"},
-    torch.randn(3, 1, 128, 128),
-    (3, 1, 128, 128),
+    {"spatial_dims": 2, "upsample_mode": "bilinear", "psp_block_num": 0},
+    (1, 1, 32, 64),
+    (1, 1, 32, 64),
 ]
 TEST_CASE_AHNET_2D_2 = [
-    {"spatial_dims": 2, "upsample_mode": "transpose", "out_channels": 2},
-    torch.randn(2, 1, 128, 128),
-    (2, 2, 128, 128),
+    {"spatial_dims": 2, "upsample_mode": "transpose", "out_channels": 2, "psp_block_num": 1},
+    (1, 1, 64, 32),
+    (1, 2, 64, 32),
 ]
 TEST_CASE_AHNET_2D_3 = [
-    {"spatial_dims": 2, "upsample_mode": "bilinear", "out_channels": 2},
-    torch.randn(2, 1, 160, 128),
-    (2, 2, 160, 128),
+    {"spatial_dims": 2, "upsample_mode": "bilinear", "out_channels": 2, "psp_block_num": 2},
+    (1, 1, 64, 32),
+    (1, 2, 64, 32),
 ]
 TEST_CASE_AHNET_3D_1 = [
-    {"spatial_dims": 3, "upsample_mode": "trilinear"},
-    torch.randn(3, 1, 128, 128, 64),
-    (3, 1, 128, 128, 64),
+    {"spatial_dims": 3, "upsample_mode": "trilinear", "psp_block_num": 0},
+    (2, 1, 32, 32, 64),
+    (2, 1, 32, 32, 64),
 ]
 TEST_CASE_AHNET_3D_2 = [
-    {"spatial_dims": 3, "upsample_mode": "transpose", "out_channels": 2},
-    torch.randn(2, 1, 128, 128, 64),
-    (2, 2, 128, 128, 64),
+    {"spatial_dims": 3, "upsample_mode": "transpose", "out_channels": 2, "psp_block_num": 1},
+    (1, 1, 32, 32, 64),
+    (1, 2, 32, 32, 64),
 ]
 TEST_CASE_AHNET_3D_3 = [
-    {"spatial_dims": 3, "upsample_mode": "trilinear", "out_channels": 2},
-    torch.randn(2, 1, 160, 128, 64),
-    (2, 2, 160, 128, 64),
+    {"spatial_dims": 3, "upsample_mode": "nearest", "out_channels": 2, "psp_block_num": 3},
+    (1, 1, 96, 128, 32),
+    (1, 2, 96, 128, 32),
 ]
 TEST_CASE_AHNET_3D_WITH_PRETRAIN_1 = [
-    {"spatial_dims": 3, "upsample_mode": "trilinear"},
-    torch.randn(3, 1, 128, 128, 64),
-    (3, 1, 128, 128, 64),
+    {"spatial_dims": 3, "upsample_mode": "trilinear", "psp_block_num": 0},
+    (2, 1, 32, 32, 64),
+    (2, 1, 32, 32, 64),
     {"out_channels": 1, "upsample_mode": "transpose"},
 ]
 TEST_CASE_AHNET_3D_WITH_PRETRAIN_2 = [
-    {"spatial_dims": 3, "upsample_mode": "transpose", "out_channels": 2},
-    torch.randn(2, 1, 128, 128, 64),
-    (2, 2, 128, 128, 64),
+    {"spatial_dims": 3, "upsample_mode": "transpose", "out_channels": 2, "psp_block_num": 3},
+    (1, 1, 64, 64, 64),
+    (1, 2, 64, 64, 64),
     {"out_channels": 1, "upsample_mode": "bilinear"},
 ]
 TEST_CASE_AHNET_3D_WITH_PRETRAIN_3 = [
     {"spatial_dims": 3, "upsample_mode": "transpose", "in_channels": 2, "out_channels": 3},
-    torch.randn(2, 2, 128, 128, 64),
-    (2, 3, 128, 128, 64),
+    (1, 2, 128, 128, 32),
+    (1, 3, 128, 128, 32),
     {"out_channels": 1, "upsample_mode": "bilinear"},
 ]
 
 
 class TestFCN(unittest.TestCase):
     @parameterized.expand([TEST_CASE_FCN_1, TEST_CASE_FCN_2, TEST_CASE_FCN_3])
-    def test_fcn_shape(self, input_param, input_data, expected_shape):
-        net = FCN(**input_param)
+    @skip_if_quick
+    def test_fcn_shape(self, input_param, input_shape, expected_shape):
+        net = FCN(**input_param).to(device)
         net.eval()
         with torch.no_grad():
-            result = net.forward(input_data)
+            result = net.forward(torch.randn(input_shape).to(device))
+            self.assertEqual(result.shape, expected_shape)
+
+
+class TestFCNWithPretrain(unittest.TestCase):
+    @parameterized.expand([TEST_CASE_FCN_WITH_PRETRAIN_1, TEST_CASE_FCN_WITH_PRETRAIN_2])
+    @skip_if_quick
+    def test_fcn_shape(self, input_param, input_shape, expected_shape):
+        net = test_pretrained_networks(FCN, input_param, device)
+        net.eval()
+        with torch.no_grad():
+            result = net.forward(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
 
 
 class TestMCFCN(unittest.TestCase):
     @parameterized.expand([TEST_CASE_MCFCN_1, TEST_CASE_MCFCN_2, TEST_CASE_MCFCN_3])
-    def test_mcfcn_shape(self, input_param, input_data, expected_shape):
-        net = MCFCN(**input_param)
+    def test_mcfcn_shape(self, input_param, input_shape, expected_shape):
+        net = MCFCN(**input_param).to(device)
         net.eval()
         with torch.no_grad():
-            result = net.forward(input_data)
+            result = net.forward(torch.randn(input_shape).to(device))
+            self.assertEqual(result.shape, expected_shape)
+
+
+class TestMCFCNWithPretrain(unittest.TestCase):
+    @parameterized.expand([TEST_CASE_MCFCN_WITH_PRETRAIN_1, TEST_CASE_MCFCN_WITH_PRETRAIN_2])
+    def test_mcfcn_shape(self, input_param, input_shape, expected_shape):
+        net = test_pretrained_networks(MCFCN, input_param, device)
+        net.eval()
+        with torch.no_grad():
+            result = net.forward(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
 
 
@@ -126,18 +170,36 @@ class TestAHNET(unittest.TestCase):
             TEST_CASE_AHNET_2D_1,
             TEST_CASE_AHNET_2D_2,
             TEST_CASE_AHNET_2D_3,
+        ]
+    )
+    def test_ahnet_shape_2d(self, input_param, input_shape, expected_shape):
+        net = AHNet(**input_param).to(device)
+        net.eval()
+        with torch.no_grad():
+            result = net.forward(torch.randn(input_shape).to(device))
+            self.assertEqual(result.shape, expected_shape)
+
+    @parameterized.expand(
+        [
             TEST_CASE_AHNET_3D_1,
             TEST_CASE_AHNET_3D_2,
             TEST_CASE_AHNET_3D_3,
         ]
     )
     @skip_if_quick
-    def test_ahnet_shape(self, input_param, input_data, expected_shape):
-        net = AHNet(**input_param)
+    def test_ahnet_shape_3d(self, input_param, input_shape, expected_shape):
+        net = AHNet(**input_param).to(device)
         net.eval()
         with torch.no_grad():
-            result = net.forward(input_data)
+            result = net.forward(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
+
+    @skip_if_quick
+    def test_script(self):
+        net = AHNet(spatial_dims=2, out_channels=2)
+        test_data = torch.randn(1, 1, 128, 64)
+        out_orig, out_reloaded = test_script_save(net, test_data)
+        assert torch.allclose(out_orig, out_reloaded)
 
 
 class TestAHNETWithPretrain(unittest.TestCase):
@@ -148,15 +210,30 @@ class TestAHNETWithPretrain(unittest.TestCase):
             TEST_CASE_AHNET_3D_WITH_PRETRAIN_3,
         ]
     )
-    @skip_if_quick
-    def test_ahnet_shape(self, input_param, input_data, expected_shape, fcn_input_param):
-        net = AHNet(**input_param)
-        net2d = FCN(**fcn_input_param)
+    def test_ahnet_shape(self, input_param, input_shape, expected_shape, fcn_input_param):
+        net = AHNet(**input_param).to(device)
+        net2d = FCN(**fcn_input_param).to(device)
         net.copy_from(net2d)
         net.eval()
         with torch.no_grad():
-            result = net.forward(input_data)
+            result = net.forward(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
+
+    @skip_if_quick
+    def test_initialize_pretrained(self):
+        net = AHNet(
+            spatial_dims=3,
+            upsample_mode="transpose",
+            in_channels=2,
+            out_channels=3,
+            psp_block_num=2,
+            pretrained=True,
+            progress=True,
+        ).to(device)
+        input_data = torch.randn(2, 2, 32, 32, 64).to(device)
+        with torch.no_grad():
+            result = net.forward(input_data)
+            self.assertEqual(result.shape, (2, 3, 32, 32, 64))
 
 
 if __name__ == "__main__":
