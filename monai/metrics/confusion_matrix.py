@@ -39,10 +39,14 @@ class ConfusionMatrixMetric:
             ``"informedness"``, ``"markedness"``]
             Some of the metrics have multiple aliases (as shown in the wikipedia page aforementioned),
             and you can also input those names instead.
-        compute_sample: if ``True``, each sample's metric will be computed first. Defaults to ``False``.
-        output_class: if ``True``, scores for each class will be returned. The final result is each class's score.
-            If average these scores, you will get the macro average of each class. Otherwise, the micro average score
-            of each class will be returned. Defaults to ``False``.
+        compute_sample: if ``True``, each sample's metric will be computed first. If ``False``, the confusion matrix for each image
+            (the output of function ``get_confusion_matrix``) will be returned. In this way, users should achieve the confusion
+            matrixes for all images during an epoch and then use ``compute_confusion_matrix_metric`` to calculate the metric.
+            Defaults to ``False``.
+        reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+            ``"mean_channel"``, ``"sum_channel"``}
+            Define the mode to reduce computation result of 1 batch data. Reduction will only be employed when
+            ``compute_sample`` is ``True``. Defaults to ``"mean"``.
 
     """
 
@@ -51,13 +55,13 @@ class ConfusionMatrixMetric:
         include_background: bool = True,
         metric_name: str = "hit_rate",
         compute_sample: bool = False,
-        output_class: bool = False,
+        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
     ) -> None:
         super().__init__()
         self.include_background = include_background
         self.metric_name = metric_name
         self.compute_sample = compute_sample
-        self.output_class = output_class
+        self.reduction = reduction
 
     def __call__(self, y_pred: torch.Tensor, y: torch.Tensor):
         """
@@ -92,21 +96,10 @@ class ConfusionMatrixMetric:
 
         if self.compute_sample:
             confusion_matrix = compute_confusion_matrix_metric(self.metric_name, confusion_matrix)
-            if self.output_class:
-                f, not_nans = do_metric_reduction(confusion_matrix, MetricReduction.MEAN_BATCH)
-            else:
-                f, not_nans = do_metric_reduction(confusion_matrix, MetricReduction.MEAN)
+            f, not_nans = do_metric_reduction(confusion_matrix, self.reduction)
+            return f, not_nans
         else:
-            if self.output_class:
-                f, _ = do_metric_reduction(confusion_matrix, MetricReduction.SUM_BATCH)
-            else:
-                f, _ = do_metric_reduction(confusion_matrix, MetricReduction.SUM)
-            f = compute_confusion_matrix_metric(self.metric_name, f)
-            nans = torch.isnan(f)
-            not_nans = (~nans).float()
-            f[nans] = 0
-            not_nans = not_nans.sum(dim=0)
-        return f, not_nans
+            return confusion_matrix
 
 
 def get_confusion_matrix(
