@@ -165,7 +165,7 @@ class SplitChanneld(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        output_postfixes: Sequence[str],
+        output_postfixes: Optional[Sequence[str]] = None,
         channel_dim: Optional[int] = None,
     ) -> None:
         """
@@ -175,6 +175,7 @@ class SplitChanneld(MapTransform):
             output_postfixes: the postfixes to construct keys to store split data.
                 for example: if the key of input data is `pred` and split 2 classes, the output
                 data keys will be: pred_(output_postfixes[0]), pred_(output_postfixes[1])
+                if None, using the index number: `pred_0`, `pred_1`, ... `pred_N`.
             channel_dim: which dimension of input image is the channel, default to None
                 to automatically select: if data is numpy array, channel_dim is 0 as
                 `numpy array` is used in the pre transforms, if PyTorch Tensor, channel_dim
@@ -191,9 +192,13 @@ class SplitChanneld(MapTransform):
         d = dict(data)
         for key in self.keys:
             rets = self.splitter(d[key])
-            assert len(self.output_postfixes) == len(rets), "count of split results must match output_postfixes."
+            output_postfixes = list(range(len(rets))) if self.output_postfixes is None else self.output_postfixes
+            assert len(output_postfixes) == len(rets), "count of split results must match output_postfixes."
             for i, r in enumerate(rets):
-                d[f"{key}_{self.output_postfixes[i]}"] = r
+                split_key = f"{key}_{output_postfixes[i]}"
+                if split_key in d:
+                    raise RuntimeError(f"input data already contains key {split_key}.")
+                d[split_key] = r
         return d
 
 

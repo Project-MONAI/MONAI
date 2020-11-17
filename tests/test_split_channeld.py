@@ -53,13 +53,19 @@ TEST_CASE_6 = [
     (3, 2, 1),
 ]
 
+TEST_CASE_7 = [
+    {"keys": "pred", "channel_dim": 1},
+    {"pred": np.random.randint(2, size=(3, 2, 4))},
+    (3, 1, 4),
+]
+
 
 class TestSplitChanneld(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7])
     def test_shape(self, input_param, test_data, expected_shape):
         result = SplitChanneld(**input_param)(test_data)
         for k, v in result.items():
-            if "cls" in k:
+            if "_" in k:
                 self.assertTupleEqual(v.shape, expected_shape)
 
 
