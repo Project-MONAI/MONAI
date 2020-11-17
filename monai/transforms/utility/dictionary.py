@@ -192,10 +192,10 @@ class SplitChanneld(MapTransform):
         d = dict(data)
         for key in self.keys:
             rets = self.splitter(d[key])
-            output_postfixes = list(range(len(rets))) if self.output_postfixes is None else self.output_postfixes
-            assert len(output_postfixes) == len(rets), "count of split results must match output_postfixes."
+            postfixes: Sequence = list(range(len(rets))) if self.output_postfixes is None else self.output_postfixes
+            assert len(postfixes) == len(rets), "count of split results must match output_postfixes."
             for i, r in enumerate(rets):
-                split_key = f"{key}_{output_postfixes[i]}"
+                split_key = f"{key}_{postfixes[i]}"
                 if split_key in d:
                     raise RuntimeError(f"input data already contains key {split_key}.")
                 d[split_key] = r
