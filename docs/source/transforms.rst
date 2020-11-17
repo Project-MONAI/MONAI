@@ -240,12 +240,6 @@ IO
 Post-processing
 ^^^^^^^^^^^^^^^
 
-`SplitChannel`
-""""""""""""""
-.. autoclass:: SplitChannel
-    :members:
-    :special-members: __call__
-
 `Activations`
 """""""""""""
 .. autoclass:: Activations
@@ -429,6 +423,12 @@ Utility
 `RepeatChannel`
 """""""""""""""
 .. autoclass:: RepeatChannel
+    :members:
+    :special-members: __call__
+
+`SplitChannel`
+""""""""""""""
+.. autoclass:: SplitChannel
     :members:
     :special-members: __call__
 
@@ -705,12 +705,6 @@ IO (Dict)
 Post-processing (Dict)
 ^^^^^^^^^^^^^^^^^^^^^^
 
-`SplitChanneld`
-"""""""""""""""
-.. autoclass:: SplitChanneld
-    :members:
-    :special-members: __call__
-
 `Activationsd`
 """"""""""""""
 .. autoclass:: Activationsd
@@ -870,6 +864,12 @@ Utility (Dict)
 `RepeatChanneld`
 """"""""""""""""
 .. autoclass:: RepeatChanneld
+    :members:
+    :special-members: __call__
+
+`SplitChanneld`
+"""""""""""""""
+.. autoclass:: SplitChanneld
     :members:
     :special-members: __call__
 
