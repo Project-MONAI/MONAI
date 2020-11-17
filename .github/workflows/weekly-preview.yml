@@ -20,13 +20,15 @@ jobs:
         python -m pip install --user --upgrade setuptools wheel
     - name: Build distribution
       run: |
+        export HEAD_COMMIT_ID=$(git rev-parse HEAD)
         sed -i 's/name\ =\ monai$/name\ =\ monai-weekly/g' setup.cfg
-        git diff setup.cfg
+        echo "__commit_id__ = '$HEAD_COMMIT_ID'" >> monai/__init__.py
+        git diff setup.cfg monai/__init__.py
         # build tar.gz and wheel
         git config user.name "CI Builder"
-        git config user.name "monai.miccai2019@gmail.com"
+        git config user.email "monai.miccai2019@gmail.com"
         git add setup.cfg setup.py
-        git commit -m "Weekly build"
+        git commit -m "Weekly build at $HEAD_COMMIT_ID"
         git tag 0.4.dev$(date +'%y%U')
         python setup.py sdist bdist_wheel
 
