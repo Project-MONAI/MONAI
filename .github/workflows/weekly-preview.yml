@@ -22,7 +22,7 @@ jobs:
       run: |
         export HEAD_COMMIT_ID=$(git rev-parse HEAD)
         sed -i 's/name\ =\ monai$/name\ =\ monai-weekly/g' setup.cfg
-        echo "__commit_id__ = '$HEAD_COMMIT_ID'" >> monai/__init__.py
+        echo "__commit_id__ = \"$HEAD_COMMIT_ID\"" >> monai/__init__.py
         git diff setup.cfg monai/__init__.py
         # build tar.gz and wheel
         git config user.name "CI Builder"
