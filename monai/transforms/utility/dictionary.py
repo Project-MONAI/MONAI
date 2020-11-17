@@ -36,6 +36,7 @@ from monai.transforms.utility.array import (
     Lambda,
     RepeatChannel,
     SimulateDelay,
+    SplitChannel,
     SqueezeDim,
     ToNumpy,
     ToTensor,
@@ -151,6 +152,53 @@ class RepeatChanneld(MapTransform):
         d = dict(data)
         for key in self.keys:
             d[key] = self.repeater(d[key])
+        return d
+
+
+class SplitChanneld(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.SplitChannel`.
+    All the input specified by `keys` should be splitted into same count of data.
+
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        output_postfixes: Optional[Sequence[str]] = None,
+        channel_dim: Optional[int] = None,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            output_postfixes: the postfixes to construct keys to store split data.
+                for example: if the key of input data is `pred` and split 2 classes, the output
+                data keys will be: pred_(output_postfixes[0]), pred_(output_postfixes[1])
+                if None, using the index number: `pred_0`, `pred_1`, ... `pred_N`.
+            channel_dim: which dimension of input image is the channel, default to None
+                to automatically select: if data is numpy array, channel_dim is 0 as
+                `numpy array` is used in the pre transforms, if PyTorch Tensor, channel_dim
+                is 1 as in most of the cases `Tensor` is uses in the post transforms.
+
+        """
+        super().__init__(keys)
+        self.output_postfixes = output_postfixes
+        self.splitter = SplitChannel(channel_dim=channel_dim)
+
+    def __call__(
+        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
+    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+        d = dict(data)
+        for key in self.keys:
+            rets = self.splitter(d[key])
+            postfixes: Sequence = list(range(len(rets))) if self.output_postfixes is None else self.output_postfixes
+            assert len(postfixes) == len(rets), "count of split results must match output_postfixes."
+            for i, r in enumerate(rets):
+                split_key = f"{key}_{postfixes[i]}"
+                if split_key in d:
+                    raise RuntimeError(f"input data already contains key {split_key}.")
+                d[split_key] = r
         return d
 
 
@@ -593,6 +641,7 @@ AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
 AddChannelD = AddChannelDict = AddChanneld
 RepeatChannelD = RepeatChannelDict = RepeatChanneld
+SplitChannelD = SplitChannelDict = SplitChanneld
 CastToTypeD = CastToTypeDict = CastToTyped
 ToTensorD = ToTensorDict = ToTensord
 DeleteItemsD = DeleteItemsDict = DeleteItemsd
