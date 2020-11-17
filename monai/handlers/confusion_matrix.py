@@ -49,9 +49,7 @@ class ConfusionMatrix(Metric):  # type: ignore[valid-type, misc] # due to option
                 Some of the metrics have multiple aliases (as shown in the wikipedia page aforementioned),
                 and you can also input those names instead.
             compute_sample: if ``True``, each sample's metric will be computed first.
-                If ``False``, the confusion matrix for each image (the output of function ``get_confusion_matrix``)
-                will be returned. In this way, users should achieve the confusion matrixes for all images during
-                an epoch and then use ``compute_confusion_matrix_metric`` to calculate the metric. Defaults to ``False``.
+                If ``False``, the confusion matrix for all samples will be accumulated first. Defaults to ``False``.
             output_transform: transform the ignite.engine.state.output into [y_pred, y] pair.
             device: device specification in case of distributed computation usage.
 
