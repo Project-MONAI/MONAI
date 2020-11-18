@@ -749,12 +749,12 @@ class DistributedSampler(_TorchDistributedSampler):
 
     """
 
-    def __init__(self, even_divisible: bool = True, **kwargs):
+    def __init__(self, even_divisible: bool = True, *args, **kwargs):
         self.total_size: int = 0
         self.rank: int = 0
         self.num_samples: int = 0
         self.num_replicas: int = 0
-        super().__init__(**kwargs)
+        super().__init__(*args, **kwargs)
 
         if not even_divisible:
             data_len = len(kwargs["dataset"])

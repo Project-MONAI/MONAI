@@ -171,19 +171,16 @@ class SupervisedEvaluator(Evaluator):
         """
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
-        inputs, targets = self.prepare_batch(batchdata)
-        inputs = inputs.to(engine.state.device)
-        if targets is not None:
-            targets = targets.to(engine.state.device)
+        inputs, targets, args, kwargs = self.prepare_batch(batchdata, engine.state.device)
 
         # execute forward computation
         self.network.eval()
         with torch.no_grad():
             if self.amp:
                 with torch.cuda.amp.autocast():
-                    predictions = self.inferer(inputs, self.network)
+                    predictions = self.inferer(inputs, self.network, *args, **kwargs)
             else:
-                predictions = self.inferer(inputs, self.network)
+                predictions = self.inferer(inputs, self.network, *args, **kwargs)
 
         return {Keys.IMAGE: inputs, Keys.LABEL: targets, Keys.PRED: predictions}
 
@@ -270,10 +267,7 @@ class EnsembleEvaluator(Evaluator):
         """
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
-        inputs, targets = self.prepare_batch(batchdata)
-        inputs = inputs.to(engine.state.device)
-        if targets is not None:
-            targets = targets.to(engine.state.device)
+        inputs, targets, args, kwargs = self.prepare_batch(batchdata, engine.state.device)
 
         # execute forward computation
         predictions = {Keys.IMAGE: inputs, Keys.LABEL: targets}
@@ -282,8 +276,8 @@ class EnsembleEvaluator(Evaluator):
             with torch.no_grad():
                 if self.amp:
                     with torch.cuda.amp.autocast():
-                        predictions.update({self.pred_keys[idx]: self.inferer(inputs, network)})
+                        predictions.update({self.pred_keys[idx]: self.inferer(inputs, network, *args, **kwargs)})
                 else:
-                    predictions.update({self.pred_keys[idx]: self.inferer(inputs, network)})
+                    predictions.update({self.pred_keys[idx]: self.inferer(inputs, network, *args, **kwargs)})
 
         return predictions

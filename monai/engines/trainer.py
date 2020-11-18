@@ -134,20 +134,19 @@ class SupervisedTrainer(Trainer):
         """
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
-        inputs, targets = self.prepare_batch(batchdata)
-        inputs, targets = inputs.to(engine.state.device), targets.to(engine.state.device)
+        inputs, targets, args, kwargs = self.prepare_batch(batchdata, engine.state.device)
 
         self.network.train()
         self.optimizer.zero_grad()
         if self.amp and self.scaler is not None:
             with torch.cuda.amp.autocast():
-                predictions = self.inferer(inputs, self.network)
+                predictions = self.inferer(inputs, self.network, *args, **kwargs)
                 loss = self.loss_function(predictions, targets).mean()
             self.scaler.scale(loss).backward()
             self.scaler.step(self.optimizer)
             self.scaler.update()
         else:
-            predictions = self.inferer(inputs, self.network)
+            predictions = self.inferer(inputs, self.network, *args, **kwargs)
             loss = self.loss_function(predictions, targets).mean()
             loss.backward()
             self.optimizer.step()
@@ -267,9 +266,9 @@ class GanTrainer(Trainer):
         if batchdata is None:
             raise ValueError("must provide batch data for current iteration.")
 
-        d_input = self.prepare_batch(batchdata).to(engine.state.device)
+        d_input = self.prepare_batch(batchdata, engine.state.device)
         batch_size = self.data_loader.batch_size
-        g_input = self.g_prepare_batch(batch_size, self.latent_shape, batchdata).to(engine.state.device)
+        g_input = self.g_prepare_batch(batch_size, self.latent_shape, engine.state.device)
         g_output = self.g_inferer(g_input, self.g_network)
 
         # Train Discriminator
@@ -285,7 +284,7 @@ class GanTrainer(Trainer):
 
         # Train Generator
         if self.g_update_latents:
-            g_input = self.g_prepare_batch(batch_size, self.latent_shape, batchdata).to(engine.state.device)
+            g_input = self.g_prepare_batch(batch_size, self.latent_shape, engine.state.device)
         g_output = self.g_inferer(g_input, self.g_network)
         self.g_optimizer.zero_grad()
         g_loss = self.g_loss_function(g_output)

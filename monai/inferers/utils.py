@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, List, Sequence, Tuple, Union
+from typing import Callable, List, Sequence, Tuple, Union, Any
 
 import torch
 import torch.nn.functional as F
@@ -30,6 +30,8 @@ def sliding_window_inference(
     cval: float = 0.0,
     sw_device: Union[torch.device, str, None] = None,
     device: Union[torch.device, str, None] = None,
+    *args: Any,
+    **kwargs: Any,
 ) -> torch.Tensor:
     """
     Sliding window inference on `inputs` with `predictor`.
@@ -70,6 +72,8 @@ def sliding_window_inference(
             By default the device (and accordingly the memory) of the `inputs` is used. If for example
             set to device=torch.device('cpu') the gpu memory consumption is less and independent of the
             `inputs` and `roi_size`. Output is on the `device`.
+        args: optional args to be passed to ``network``.
+        kwargs: optional keyword args to be passed to ``network``.
 
     Note:
         - input must be channel-first and have a batch dim, supports N-D sliding window.
@@ -120,7 +124,7 @@ def sliding_window_inference(
             for idx in slice_range
         ]
         window_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
-        seg_prob = predictor(window_data).to(device)  # batched patch segmentation
+        seg_prob = predictor(window_data, *args, **kwargs).to(device)  # batched patch segmentation
 
         if not _initialized:  # init. buffer at the first iteration
             output_classes = seg_prob.shape[1]
