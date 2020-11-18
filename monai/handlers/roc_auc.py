@@ -61,15 +61,17 @@ class ROCAUC(EpochMetric):  # type: ignore[valid-type, misc]  # due to optional_
         output_transform: Callable = lambda x: x,
         device: Optional[torch.device] = None,
     ) -> None:
-        super().__init__(
-            compute_fn=lambda pred, label: compute_roc_auc(
+        def _compute_fn(pred, label):
+            return compute_roc_auc(
                 y_pred=pred,
                 y=label,
                 to_onehot_y=to_onehot_y,
                 softmax=softmax,
                 other_act=other_act,
                 average=Average(average),
-            ),
+            )
+        super().__init__(
+            compute_fn=_compute_fn,
             output_transform=output_transform,
             check_compute_fn=False,
             device=device,
