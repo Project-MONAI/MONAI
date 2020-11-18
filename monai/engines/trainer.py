@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence, Tuple, Union
 
 import torch
 from torch.optim.optimizer import Optimizer
@@ -141,8 +141,8 @@ class SupervisedTrainer(Trainer):
         batch = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)
         if len(batch) == 2:
             inputs, targets = batch
-            args = tuple()
-            kwargs = dict()
+            args: Tuple = tuple()
+            kwargs: Dict = dict()
         else:
             inputs, targets, args, kwargs = batch
 

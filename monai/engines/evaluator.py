@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence
+from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence, Tuple
 
 import torch
 from torch.utils.data import DataLoader
@@ -182,8 +182,8 @@ class SupervisedEvaluator(Evaluator):
         batch = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)
         if len(batch) == 2:
             inputs, targets = batch
-            args = tuple()
-            kwargs = dict()
+            args: Tuple = tuple()
+            kwargs: Dict = dict()
         else:
             inputs, targets, args, kwargs = batch
 
@@ -288,8 +288,8 @@ class EnsembleEvaluator(Evaluator):
         batch = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)
         if len(batch) == 2:
             inputs, targets = batch
-            args = tuple()
-            kwargs = dict()
+            args: Tuple = tuple()
+            kwargs: Dict = dict()
         else:
             inputs, targets, args, kwargs = batch
 

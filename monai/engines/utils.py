@@ -78,7 +78,7 @@ def default_prepare_batch(
     batchdata: Dict[str, torch.Tensor],
     device: Optional[Union[str, torch.device]] = None,
     non_blocking: bool = False,
-) -> Union[Tuple[torch.Tensor, Optional[torch.Tensor], Tuple, Dict], torch.Tensor]:
+) -> Union[Tuple[torch.Tensor, Optional[torch.Tensor]], torch.Tensor]:
     """
     Default function to prepare the data for current iteration.
     Refer to ignite: https://github.com/pytorch/ignite/blob/v0.4.2/ignite/engine/__init__.py#L28.
