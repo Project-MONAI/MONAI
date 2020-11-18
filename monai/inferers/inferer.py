@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from abc import ABC, abstractmethod
-from typing import Callable, Sequence, Union
+from typing import Any, Callable, Sequence, Union
 
 import torch
 
@@ -25,13 +25,21 @@ class Inferer(ABC):
     """
 
     @abstractmethod
-    def __call__(self, inputs: torch.Tensor, network: Callable[[torch.Tensor], torch.Tensor]):
+    def __call__(
+        self,
+        inputs: torch.Tensor,
+        network: Callable[..., torch.Tensor],
+        *args: Any,
+        **kwargs: Any,
+    ):
         """
         Run inference on `inputs` with the `network` model.
 
         Args:
             inputs: input of the model inference.
             network: model for inference.
+            args: optional args to be passed to ``network``.
+            kwargs: optional keyword args to be passed to ``network``.
 
         Raises:
             NotImplementedError: When the subclass does not override this method.
@@ -49,15 +57,24 @@ class SimpleInferer(Inferer):
     def __init__(self) -> None:
         Inferer.__init__(self)
 
-    def __call__(self, inputs: torch.Tensor, network: Callable[[torch.Tensor], torch.Tensor]):
+    def __call__(
+        self,
+        inputs: torch.Tensor,
+        network: Callable[..., torch.Tensor],
+        *args: Any,
+        **kwargs: Any,
+    ):
         """Unified callable function API of Inferers.
 
         Args:
             inputs: model input data for inference.
             network: target model to execute inference.
                 supports callables such as ``lambda x: my_torch_model(x, additional_config)``
+            args: optional args to be passed to ``network``.
+            kwargs: optional keyword args to be passed to ``network``.
+
         """
-        return network(inputs)
+        return network(inputs, *args, **kwargs)
 
 
 class SlidingWindowInferer(Inferer):
@@ -124,25 +141,35 @@ class SlidingWindowInferer(Inferer):
         self.sw_device = sw_device
         self.device = device
 
-    def __call__(self, inputs: torch.Tensor, network: Callable[[torch.Tensor], torch.Tensor]) -> torch.Tensor:
+    def __call__(
+        self,
+        inputs: torch.Tensor,
+        network: Callable[..., torch.Tensor],
+        *args: Any,
+        **kwargs: Any,
+    ) -> torch.Tensor:
         """
 
         Args:
             inputs: model input data for inference.
             network: target model to execute inference.
                 supports callables such as ``lambda x: my_torch_model(x, additional_config)``
+            args: optional args to be passed to ``network``.
+            kwargs: optional keyword args to be passed to ``network``.
 
         """
         return sliding_window_inference(
-            inputs=inputs,
-            roi_size=self.roi_size,
-            sw_batch_size=self.sw_batch_size,
-            predictor=network,
-            overlap=self.overlap,
-            mode=self.mode,
-            sigma_scale=self.sigma_scale,
-            padding_mode=self.padding_mode,
-            cval=self.cval,
-            sw_device=self.sw_device,
-            device=self.device,
+            inputs,
+            self.roi_size,
+            self.sw_batch_size,
+            network,
+            self.overlap,
+            self.mode,
+            self.sigma_scale,
+            self.padding_mode,
+            self.cval,
+            self.sw_device,
+            self.device,
+            *args,
+            **kwargs,
         )
