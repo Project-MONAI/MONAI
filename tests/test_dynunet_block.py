@@ -15,6 +15,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.blocks.dynunet_block import UnetBasicBlock, UnetResBlock, UnetUpBlock, get_padding
+from tests.utils import test_script_save
 
 TEST_CASE_RES_BASIC_BLOCK = []
 for spatial_dims in range(2, 4):
@@ -80,6 +81,15 @@ class TestResBasicBlock(unittest.TestCase):
         with self.assertRaises(AssertionError):
             UnetResBlock(3, 4, 2, kernel_size=1, stride=4, norm_name="batch")
 
+    def test_script(self):
+        input_param, input_shape, _ = TEST_CASE_RES_BASIC_BLOCK[0]
+
+        for net_type in (UnetResBlock, UnetBasicBlock):
+            net = net_type(**input_param)
+            test_data = torch.randn(input_shape)
+            out_orig, out_reloaded = test_script_save(net, test_data)
+            assert torch.allclose(out_orig, out_reloaded)
+
 
 class TestUpBlock(unittest.TestCase):
     @parameterized.expand(TEST_UP_BLOCK)
@@ -89,6 +99,15 @@ class TestUpBlock(unittest.TestCase):
         with torch.no_grad():
             result = net(torch.randn(input_shape), torch.randn(skip_shape))
             self.assertEqual(result.shape, expected_shape)
+
+    def test_script(self):
+        input_param, input_shape, _, skip_shape = TEST_UP_BLOCK[0]
+
+        net = UnetUpBlock(**input_param)
+        test_data = torch.randn(input_shape)
+        skip_data = torch.randn(skip_shape)
+        out_orig, out_reloaded = test_script_save(net, test_data, skip_data)
+        assert torch.allclose(out_orig, out_reloaded)
 
 
 if __name__ == "__main__":
