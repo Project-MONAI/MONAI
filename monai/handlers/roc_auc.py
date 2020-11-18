@@ -70,6 +70,7 @@ class ROCAUC(EpochMetric):  # type: ignore[valid-type, misc]  # due to optional_
                 other_act=other_act,
                 average=Average(average),
             )
+
         super().__init__(
             compute_fn=_compute_fn,
             output_transform=output_transform,
