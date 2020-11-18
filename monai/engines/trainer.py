@@ -61,6 +61,8 @@ class SupervisedTrainer(Trainer):
         optimizer: the optimizer associated to the network.
         loss_function: the loss function associated to the optimizer.
         epoch_length: number of iterations for one epoch, default to `len(train_data_loader)`.
+        non_blocking: if True and this copy is between CPU and GPU, the copy may occur asynchronously
+            with respect to the host. For other cases, this argument has no effect.
         prepare_batch: function to parse image and label for current iteration.
         iteration_update: the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
@@ -86,6 +88,7 @@ class SupervisedTrainer(Trainer):
         optimizer: Optimizer,
         loss_function: Callable,
         epoch_length: Optional[int] = None,
+        non_blocking: bool = False,
         prepare_batch: Callable = default_prepare_batch,
         iteration_update: Optional[Callable] = None,
         inferer: Optional[Inferer] = None,
@@ -101,6 +104,7 @@ class SupervisedTrainer(Trainer):
             max_epochs=max_epochs,
             data_loader=train_data_loader,
             epoch_length=epoch_length,
+            non_blocking=non_blocking,
             prepare_batch=prepare_batch,
             iteration_update=iteration_update,
             post_transform=post_transform,
@@ -134,7 +138,13 @@ class SupervisedTrainer(Trainer):
         """
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
-        inputs, targets, args, kwargs = self.prepare_batch(batchdata, engine.state.device)
+        batch = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)
+        if len(batch) == 2:
+            inputs, targets = batch
+            args = tuple()
+            kwargs = dict()
+        else:
+            inputs, targets, args, kwargs = batch
 
         self.network.train()
         self.optimizer.zero_grad()
@@ -180,6 +190,8 @@ class GanTrainer(Trainer):
         d_inferer: inference method to execute D model forward. Defaults to ``SimpleInferer()``.
         d_train_steps: number of times to update D with real data minibatch. Defaults to ``1``.
         latent_shape: size of G input latent code. Defaults to ``64``.
+        non_blocking: if True and this copy is between CPU and GPU, the copy may occur asynchronously
+            with respect to the host. For other cases, this argument has no effect.
         d_prepare_batch: callback function to prepare batchdata for D inferer.
             Defaults to return ``GanKeys.REALS`` in batchdata dict.
         g_prepare_batch: callback function to create batch of latent input for G inferer.
@@ -214,6 +226,7 @@ class GanTrainer(Trainer):
         d_inferer: Optional[Inferer] = None,
         d_train_steps: int = 1,
         latent_shape: int = 64,
+        non_blocking: bool = False,
         d_prepare_batch: Callable = default_prepare_batch,
         g_prepare_batch: Callable = default_make_latent,
         g_update_latents: bool = True,
@@ -229,6 +242,7 @@ class GanTrainer(Trainer):
             max_epochs=max_epochs,
             data_loader=train_data_loader,
             epoch_length=epoch_length,
+            non_blocking=non_blocking,
             prepare_batch=d_prepare_batch,
             iteration_update=iteration_update,
             key_metric=key_train_metric,
@@ -268,7 +282,7 @@ class GanTrainer(Trainer):
 
         d_input = self.prepare_batch(batchdata, engine.state.device)
         batch_size = self.data_loader.batch_size
-        g_input = self.g_prepare_batch(batch_size, self.latent_shape, engine.state.device)
+        g_input = self.g_prepare_batch(batch_size, self.latent_shape, engine.state.device, engine.non_blocking)
         g_output = self.g_inferer(g_input, self.g_network)
 
         # Train Discriminator
@@ -284,7 +298,7 @@ class GanTrainer(Trainer):
 
         # Train Generator
         if self.g_update_latents:
-            g_input = self.g_prepare_batch(batch_size, self.latent_shape, engine.state.device)
+            g_input = self.g_prepare_batch(batch_size, self.latent_shape, engine.state.device, engine.non_blocking)
         g_output = self.g_inferer(g_input, self.g_network)
         self.g_optimizer.zero_grad()
         g_loss = self.g_loss_function(g_output)

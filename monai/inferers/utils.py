@@ -72,8 +72,8 @@ def sliding_window_inference(
             By default the device (and accordingly the memory) of the `inputs` is used. If for example
             set to device=torch.device('cpu') the gpu memory consumption is less and independent of the
             `inputs` and `roi_size`. Output is on the `device`.
-        args: optional args to be passed to ``network``.
-        kwargs: optional keyword args to be passed to ``network``.
+        args: optional args to be passed to ``predictor``.
+        kwargs: optional keyword args to be passed to ``predictor``.
 
     Note:
         - input must be channel-first and have a batch dim, supports N-D sliding window.
