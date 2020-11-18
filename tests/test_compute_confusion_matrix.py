@@ -57,6 +57,8 @@ data_nan: Dict[Any, Any] = {
 data_clf: Dict[Any, Any] = {
     "y_pred": torch.tensor([[1, 0, 0], [0, 0, 1]]),
     "y": torch.tensor([[1, 0, 0], [0, 1, 0]]),
+    "compute_sample": False,
+    "include_background": True,
 }
 
 # 1. test confusion matrix
@@ -72,7 +74,8 @@ TEST_CASE_CONFUSION_MATRIX = [
 
 # 2. test metric with compute_sample
 TEST_CASES_COMPUTE_SAMPLE = []
-result_with_class = [
+TEST_CASES_COMPUTE_SAMPLE_MULTI_METRICS = []
+result_mean_batch = [
     torch.tensor([0.5000, 0.5000, 0.5000]),
     torch.tensor([0.1667, 0.2500, 0.3333]),
     torch.tensor([0.8333, 0.7500, 0.6667]),
@@ -91,7 +94,7 @@ result_with_class = [
     torch.tensor([0.3333, 0.2500, 0.1667]),
     torch.tensor([0.3333, 0.3333, 0.0833]),
 ]
-result_without_class = [
+result_mean = [
     torch.tensor([0.5000]),
     torch.tensor([0.2500]),
     torch.tensor([0.7500]),
@@ -129,134 +132,78 @@ metric_names = [
     "bm",
     "mk",
 ]
+result: Any = None
 for idx in range(len(metric_names)):
-    for output_class in [True, False]:
+    for reduction in ["mean", "mean_batch"]:
         TEST_CASE: List[Any] = [data.copy()]
         TEST_CASE[0]["compute_sample"] = True
         TEST_CASE[0]["include_background"] = True
         TEST_CASE[0]["metric_name"] = metric_names[idx]
-        TEST_CASE[0]["output_class"] = output_class
-        if not output_class:
-            result = result_without_class[idx]
-        else:
-            result = result_with_class[idx]
+        TEST_CASE[0]["reduction"] = reduction
+        if reduction == "mean_batch":
+            result = result_mean_batch[idx]
+        elif reduction == "mean":
+            result = result_mean[idx]
         TEST_CASE.append(result)
         TEST_CASES_COMPUTE_SAMPLE.append(TEST_CASE)
+
+# one input to compute multiple metrics
+for reduction in ["mean", "mean_batch"]:
+    TEST_CASE_MULTIPLE: List[Any] = [data.copy()]
+    TEST_CASE_MULTIPLE[0]["compute_sample"] = True
+    TEST_CASE_MULTIPLE[0]["include_background"] = True
+    TEST_CASE_MULTIPLE[0]["metric_name"] = metric_names
+    TEST_CASE_MULTIPLE[0]["reduction"] = reduction
+    if reduction == "mean_batch":
+        result = result_mean_batch
+    elif reduction == "mean":
+        result = result_mean
+    TEST_CASE_MULTIPLE.append(result)
+    TEST_CASES_COMPUTE_SAMPLE_MULTI_METRICS.append(TEST_CASE_MULTIPLE)
 
 # 3. test metric with compute_sample, denominator may have zeros
 TEST_CASES_COMPUTE_SAMPLE_NAN = []
 metric_names = ["tpr", "tnr"]
-result_with_class = [
-    torch.tensor([0.0000, 0.2500, 0.0000]),
-    torch.tensor([0.8333, 0.8333, 0.2222]),
+result_sum = [
+    torch.tensor([0.5000]),
+    torch.tensor([4.8333]),
 ]
-not_nans_class = [
+not_nans_sum = [
+    torch.tensor([6]),
+    torch.tensor([8]),
+]
+result_sum_batch = [
+    torch.tensor([0.0000, 0.5000, 0.0000]),
+    torch.tensor([1.6667, 2.5000, 0.6667]),
+]
+not_nans_sum_batch = [
     torch.tensor([3.0, 2.0, 1.0]),
     torch.tensor([2.0, 3.0, 3.0]),
 ]
 for idx in range(2):
-    TEST_CASE = [data_nan.copy()]
-    TEST_CASE[0]["compute_sample"] = True
-    TEST_CASE[0]["include_background"] = True
-    TEST_CASE[0]["output_class"] = True
-    TEST_CASE[0]["metric_name"] = metric_names[idx]
-    TEST_CASE.append(result_with_class[idx])
-    TEST_CASE.append(not_nans_class[idx])
-    TEST_CASES_COMPUTE_SAMPLE_NAN.append(TEST_CASE)
-
-# 4. test metric without compute_sample
-TEST_CASES_NO_COMPUTE_SAMPLE = []
-result_with_class = [
-    torch.tensor([0.5000, 0.5000, 0.5000]),
-    torch.tensor([0.1667, 0.2500, 0.3333]),
-    torch.tensor([0.8333, 0.7500, 0.6667]),
-    torch.tensor([0.5000, 0.6667, 0.3333]),
-    torch.tensor([0.8333, 0.6000, 0.8000]),
-    torch.tensor([0.5000, 0.5000, 0.5000]),
-    torch.tensor([0.5000, 0.3333, 0.6667]),
-    torch.tensor([0.1667, 0.4000, 0.2000]),
-    torch.tensor([0.3660, 0.4142, 0.4495]),
-    torch.tensor([0.3333, 0.4000, 0.2500]),
-    torch.tensor([0.7500, 0.6250, 0.6250]),
-    torch.tensor([0.6667, 0.6250, 0.5833]),
-    torch.tensor([0.5000, 0.5714, 0.4000]),
-    torch.tensor([0.3333, 0.2582, 0.1491]),
-    torch.tensor([0.5000, 0.5774, 0.4082]),
-    torch.tensor([0.3333, 0.2500, 0.1667]),
-    torch.tensor([0.3333, 0.2667, 0.1333]),
-]
-result_without_class = [
-    torch.tensor([0.5000]),
-    torch.tensor([0.2500]),
-    torch.tensor([0.7500]),
-    torch.tensor([0.5000]),
-    torch.tensor([0.7500]),
-    torch.tensor([0.5000]),
-    torch.tensor([0.5000]),
-    torch.tensor([0.2500]),
-    torch.tensor([0.4142]),
-    torch.tensor([0.3333]),
-    torch.tensor([0.6667]),
-    torch.tensor([0.6250]),
-    torch.tensor([0.5000]),
-    torch.tensor([0.2500]),
-    torch.tensor([0.5000]),
-    torch.tensor([0.2500]),
-    torch.tensor([0.2500]),
-]
-metric_names = [
-    "tpr",
-    "fpr",
-    "tnr",
-    "ppv",
-    "npv",
-    "fnr",
-    "fdr",
-    "for",
-    "pt",
-    "ts",
-    "acc",
-    "ba",
-    "f1",
-    "mcc",
-    "fm",
-    "bm",
-    "mk",
-]
-for idx in range(len(metric_names)):
-    for output_class in [True, False]:
-        TEST_CASE = [data.copy()]
-        TEST_CASE[0]["compute_sample"] = False
+    for reduction in ["sum", "sum_batch"]:
+        TEST_CASE = [data_nan.copy()]
+        TEST_CASE[0]["compute_sample"] = True
         TEST_CASE[0]["include_background"] = True
+        TEST_CASE[0]["reduction"] = reduction
         TEST_CASE[0]["metric_name"] = metric_names[idx]
-        TEST_CASE[0]["output_class"] = output_class
-        if not output_class:
-            result = result_without_class[idx]
-        else:
-            result = result_with_class[idx]
-        TEST_CASE.append(result)
-        TEST_CASES_NO_COMPUTE_SAMPLE.append(TEST_CASE)
+        if reduction == "sum":
+            TEST_CASE.append(result_sum[idx])
+            TEST_CASE.append(not_nans_sum[idx])
+        elif reduction == "sum_batch":
+            TEST_CASE.append(result_sum_batch[idx])
+            TEST_CASE.append(not_nans_sum_batch[idx])
+        TEST_CASES_COMPUTE_SAMPLE_NAN.append(TEST_CASE)
 
-# 5. test classification task, denominator may have zeros
-TEST_CASES_CLF_NAN = []
-metric_names = ["tpr", "tnr"]
-result_with_class = [
-    torch.tensor([1.0000, 0.0000, 0.0000]),
-    torch.tensor([1.0000, 1.0000, 0.5000]),
-]
-not_nans_class = [
-    torch.tensor(2),
-    torch.tensor(3),
-]
-for idx in range(2):
-    TEST_CASE = [data_clf.copy()]
-    TEST_CASE[0]["compute_sample"] = False
-    TEST_CASE[0]["include_background"] = True
-    TEST_CASE[0]["output_class"] = True
-    TEST_CASE[0]["metric_name"] = metric_names[idx]
-    TEST_CASE.append(result_with_class[idx])
-    TEST_CASE.append(not_nans_class[idx])
-    TEST_CASES_CLF_NAN.append(TEST_CASE)
+# 4. test classification task
+result_clf = torch.tensor(
+    [
+        [[1.0, 0.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 1.0, 0.0]],
+        [[0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0], [0.0, 1.0, 0.0, 0.0]],
+    ]
+)
+
+TEST_CASES_CLF = [data_clf.copy(), result_clf]
 
 
 class TestConfusionMatrix(unittest.TestCase):
@@ -265,10 +212,10 @@ class TestConfusionMatrix(unittest.TestCase):
         # include or ignore background
         input_data["include_background"] = True
         result = get_confusion_matrix(**input_data)
-        np.testing.assert_allclose(result, expected_value, atol=1e-4)
+        np.testing.assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
         input_data["include_background"] = False
         result = get_confusion_matrix(**input_data)
-        np.testing.assert_allclose(result, expected_value[:, 1:, :], atol=1e-4)
+        np.testing.assert_allclose(result, expected_value[:, 1:, :], atol=1e-4, rtol=1e-4)
 
     @parameterized.expand(TEST_CASES_COMPUTE_SAMPLE)
     def test_compute_sample(self, input_data, expected_value):
@@ -278,17 +225,20 @@ class TestConfusionMatrix(unittest.TestCase):
         vals["y"] = params.pop("y")
         metric = ConfusionMatrixMetric(**params)
         result, _ = metric(**vals)
-        np.testing.assert_allclose(result, expected_value, atol=1e-4)
+        np.testing.assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
 
-    @parameterized.expand(TEST_CASES_NO_COMPUTE_SAMPLE)
-    def test_no_compute_sample(self, input_data, expected_value):
+    @parameterized.expand(TEST_CASES_COMPUTE_SAMPLE_MULTI_METRICS)
+    def test_compute_sample_multiple_metrics(self, input_data, expected_values):
         params = input_data.copy()
         vals = dict()
         vals["y_pred"] = params.pop("y_pred")
         vals["y"] = params.pop("y")
         metric = ConfusionMatrixMetric(**params)
-        result, _ = metric(**vals)
-        np.testing.assert_allclose(result, expected_value, atol=1e-4)
+        results = metric(**vals)
+        for idx in range(0, len(results), 2):
+            result = results[idx]
+            expected_value = expected_values[int(idx / 2)]
+            np.testing.assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
 
     @parameterized.expand(TEST_CASES_COMPUTE_SAMPLE_NAN)
     def test_compute_sample_with_nan(self, input_data, expected_value, expected_not_nans):
@@ -298,19 +248,18 @@ class TestConfusionMatrix(unittest.TestCase):
         vals["y"] = params.pop("y")
         metric = ConfusionMatrixMetric(**params)
         result, not_nans = metric(**vals)
-        np.testing.assert_allclose(result, expected_value, atol=1e-4)
-        np.testing.assert_allclose(not_nans, expected_not_nans, atol=1e-4)
+        np.testing.assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
+        np.testing.assert_allclose(not_nans, expected_not_nans, atol=1e-4, rtol=1e-4)
 
-    @parameterized.expand(TEST_CASES_CLF_NAN)
-    def test_clf_with_nan(self, input_data, expected_value, expected_not_nans):
+    @parameterized.expand([TEST_CASES_CLF])
+    def test_clf_with_nan(self, input_data, expected_value):
         params = input_data.copy()
         vals = dict()
         vals["y_pred"] = params.pop("y_pred")
         vals["y"] = params.pop("y")
         metric = ConfusionMatrixMetric(**params)
-        result, not_nans = metric(**vals)
-        np.testing.assert_allclose(result, expected_value, atol=1e-4)
-        np.testing.assert_allclose(not_nans, expected_not_nans, atol=1e-4)
+        result = metric(**vals)
+        np.testing.assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
 
 
 if __name__ == "__main__":
