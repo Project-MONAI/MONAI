@@ -75,7 +75,8 @@ def get_devices_spec(devices: Optional[Sequence[torch.device]] = None) -> List[t
 
 
 def default_prepare_batch(
-    batchdata: Dict[str, torch.Tensor], device: Optional[Union[str, torch.device]] = None,
+    batchdata: Dict[str, torch.Tensor],
+    device: Optional[Union[str, torch.device]] = None,
 ) -> Union[Tuple[torch.Tensor, Optional[torch.Tensor]], torch.Tensor]:
     """
     Default function to prepare the data for current iteration.

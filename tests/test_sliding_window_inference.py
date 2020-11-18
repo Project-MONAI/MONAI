@@ -236,7 +236,8 @@ class TestSlidingWindowInference(unittest.TestCase):
         np.testing.assert_allclose(result.cpu().numpy(), expected, rtol=1e-4)
 
         result = SlidingWindowInferer(roi_shape, sw_batch_size, overlap=0.5, mode="constant", cval=-1)(
-            inputs, compute, t1, test2=t2)
+            inputs, compute, t1, test2=t2
+        )
         np.testing.assert_allclose(result.cpu().numpy(), expected, rtol=1e-4)
 
 
