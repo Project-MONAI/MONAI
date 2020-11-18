@@ -74,6 +74,7 @@ TEST_CASE_CONFUSION_MATRIX = [
 
 # 2. test metric with compute_sample
 TEST_CASES_COMPUTE_SAMPLE = []
+TEST_CASES_COMPUTE_SAMPLE_MULTI_METRICS = []
 result_mean_batch = [
     torch.tensor([0.5000, 0.5000, 0.5000]),
     torch.tensor([0.1667, 0.2500, 0.3333]),
@@ -131,6 +132,7 @@ metric_names = [
     "bm",
     "mk",
 ]
+result: Any = None
 for idx in range(len(metric_names)):
     for reduction in ["mean", "mean_batch"]:
         TEST_CASE: List[Any] = [data.copy()]
@@ -144,6 +146,20 @@ for idx in range(len(metric_names)):
             result = result_mean[idx]
         TEST_CASE.append(result)
         TEST_CASES_COMPUTE_SAMPLE.append(TEST_CASE)
+
+# one input to compute multiple metrics
+for reduction in ["mean", "mean_batch"]:
+    TEST_CASE_MULTIPLE: List[Any] = [data.copy()]
+    TEST_CASE_MULTIPLE[0]["compute_sample"] = True
+    TEST_CASE_MULTIPLE[0]["include_background"] = True
+    TEST_CASE_MULTIPLE[0]["metric_name"] = metric_names
+    TEST_CASE_MULTIPLE[0]["reduction"] = reduction
+    if reduction == "mean_batch":
+        result = result_mean_batch
+    elif reduction == "mean":
+        result = result_mean
+    TEST_CASE_MULTIPLE.append(result)
+    TEST_CASES_COMPUTE_SAMPLE_MULTI_METRICS.append(TEST_CASE_MULTIPLE)
 
 # 3. test metric with compute_sample, denominator may have zeros
 TEST_CASES_COMPUTE_SAMPLE_NAN = []
@@ -210,6 +226,19 @@ class TestConfusionMatrix(unittest.TestCase):
         metric = ConfusionMatrixMetric(**params)
         result, _ = metric(**vals)
         np.testing.assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
+
+    @parameterized.expand(TEST_CASES_COMPUTE_SAMPLE_MULTI_METRICS)
+    def test_compute_sample_multiple_metrics(self, input_data, expected_values):
+        params = input_data.copy()
+        vals = dict()
+        vals["y_pred"] = params.pop("y_pred")
+        vals["y"] = params.pop("y")
+        metric = ConfusionMatrixMetric(**params)
+        results = metric(**vals)
+        for idx in range(0, len(results), 2):
+            result = results[idx]
+            expected_value = expected_values[int(idx / 2)]
+            np.testing.assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
 
     @parameterized.expand(TEST_CASES_COMPUTE_SAMPLE_NAN)
     def test_compute_sample_with_nan(self, input_data, expected_value, expected_not_nans):

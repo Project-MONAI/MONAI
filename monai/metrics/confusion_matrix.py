@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import Union
+from typing import Sequence, Union
 
 import torch
 
@@ -39,6 +39,9 @@ class ConfusionMatrixMetric:
             ``"informedness"``, ``"markedness"``]
             Some of the metrics have multiple aliases (as shown in the wikipedia page aforementioned),
             and you can also input those names instead.
+            Except for input only one metric, multiple metrics are also supported via input a sequence of metric names, such as
+            ("sensitivity", "precision", "recall"), if ``compute_sample`` is ``True``, multiple ``f`` and ``not_nans`` will be
+            returned with the same order as input names when calling the class.
         compute_sample: if ``True``, each sample's metric will be computed first. If ``False``, the confusion matrix for each image
             (the output of function ``get_confusion_matrix``) will be returned. In this way, users should achieve the confusion
             matrixes for all images during an epoch and then use ``compute_confusion_matrix_metric`` to calculate the metric.
@@ -53,7 +56,7 @@ class ConfusionMatrixMetric:
     def __init__(
         self,
         include_background: bool = True,
-        metric_name: str = "hit_rate",
+        metric_name: Union[Sequence[str], str] = "hit_rate",
         compute_sample: bool = False,
         reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
     ) -> None:
@@ -95,9 +98,20 @@ class ConfusionMatrixMetric:
         )
 
         if self.compute_sample:
-            confusion_matrix = compute_confusion_matrix_metric(self.metric_name, confusion_matrix)
-            f, not_nans = do_metric_reduction(confusion_matrix, self.reduction)
-            return f, not_nans
+            if isinstance(self.metric_name, str):
+                confusion_matrix = compute_confusion_matrix_metric(self.metric_name, confusion_matrix)
+                f, not_nans = do_metric_reduction(confusion_matrix, self.reduction)
+                return f, not_nans
+            else:
+                if len(self.metric_name) < 1:
+                    raise ValueError("the sequence should at least has on metric name.")
+                results = []
+                for metric_name in self.metric_name:
+                    sub_confusion_matrix = compute_confusion_matrix_metric(metric_name, confusion_matrix)
+                    f, not_nans = do_metric_reduction(sub_confusion_matrix, self.reduction)
+                    results.append(f)
+                    results.append(not_nans)
+                return results
         else:
             return confusion_matrix
 
@@ -138,22 +152,21 @@ def get_confusion_matrix(
         raise ValueError("y_pred and y should have same shapes.")
 
     # get confusion matrix related metric
-    with torch.no_grad():
-        batch_size, n_class = y_pred.shape[:2]
-        # convert to [BNS], where S is the number of pixels for one sample.
-        # As for classification tasks, S equals to 1.
-        y_pred = y_pred.view(batch_size, n_class, -1)
-        y = y.view(batch_size, n_class, -1)
-        tp = ((y_pred + y) == 2).float()
-        tn = ((y_pred + y) == 0).float()
+    batch_size, n_class = y_pred.shape[:2]
+    # convert to [BNS], where S is the number of pixels for one sample.
+    # As for classification tasks, S equals to 1.
+    y_pred = y_pred.view(batch_size, n_class, -1)
+    y = y.view(batch_size, n_class, -1)
+    tp = ((y_pred + y) == 2).float()
+    tn = ((y_pred + y) == 0).float()
 
-        tp = tp.sum(dim=[2])
-        tn = tn.sum(dim=[2])
-        p = y.sum(dim=[2])
-        n = y.shape[-1] - p
+    tp = tp.sum(dim=[2])
+    tn = tn.sum(dim=[2])
+    p = y.sum(dim=[2])
+    n = y.shape[-1] - p
 
-        fn = p - tp
-        fp = n - tn
+    fn = p - tp
+    fp = n - tn
 
     return torch.stack([tp, fp, tn, fn], dim=-1)
 
@@ -212,8 +225,8 @@ def compute_confusion_matrix_metric(metric_name: str, confusion_matrix: torch.Te
     elif metric == "for":
         numerator, denominator = fn, (fn + tn)
     elif metric == "pt":
-        tpr = torch.where(p > 0, tp / p, torch.tensor(float("nan")))
-        tnr = torch.where(n > 0, tn / n, torch.tensor(float("nan")))
+        tpr = torch.where(p > 0, tp / p, torch.tensor(float("nan"), device=confusion_matrix.device))
+        tnr = torch.where(n > 0, tn / n, torch.tensor(float("nan"), device=confusion_matrix.device))
         numerator = torch.sqrt(tpr * (1.0 - tnr)) + tnr - 1.0
         denominator = tpr + tnr - 1.0
     elif metric == "ts":
@@ -221,8 +234,8 @@ def compute_confusion_matrix_metric(metric_name: str, confusion_matrix: torch.Te
     elif metric == "acc":
         numerator, denominator = (tp + tn), (p + n)
     elif metric == "ba":
-        tpr = torch.where(p > 0, tp / p, torch.tensor(float("nan")))
-        tnr = torch.where(n > 0, tn / n, torch.tensor(float("nan")))
+        tpr = torch.where(p > 0, tp / p, torch.tensor(float("nan"), device=confusion_matrix.device))
+        tnr = torch.where(n > 0, tn / n, torch.tensor(float("nan"), device=confusion_matrix.device))
         numerator, denominator = (tpr + tnr), 2.0
     elif metric == "f1":
         numerator, denominator = tp * 2.0, (tp * 2.0 + fn + fp)
@@ -230,18 +243,18 @@ def compute_confusion_matrix_metric(metric_name: str, confusion_matrix: torch.Te
         numerator = tp * tn - fp * fn
         denominator = torch.sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
     elif metric == "fm":
-        tpr = torch.where(p > 0, tp / p, torch.tensor(float("nan")))
-        ppv = torch.where((tp + fp) > 0, tp / (tp + fp), torch.tensor(float("nan")))
+        tpr = torch.where(p > 0, tp / p, torch.tensor(float("nan"), device=confusion_matrix.device))
+        ppv = torch.where((tp + fp) > 0, tp / (tp + fp), torch.tensor(float("nan"), device=confusion_matrix.device))
         numerator = torch.sqrt(ppv * tpr)
         denominator = 1.0
     elif metric == "bm":
-        tpr = torch.where(p > 0, tp / p, torch.tensor(float("nan")))
-        tnr = torch.where(n > 0, tn / n, torch.tensor(float("nan")))
+        tpr = torch.where(p > 0, tp / p, torch.tensor(float("nan"), device=confusion_matrix.device))
+        tnr = torch.where(n > 0, tn / n, torch.tensor(float("nan"), device=confusion_matrix.device))
         numerator = tpr + tnr - 1.0
         denominator = 1.0
     elif metric == "mk":
-        ppv = torch.where((tp + fp) > 0, tp / (tp + fp), torch.tensor(float("nan")))
-        npv = torch.where((tn + fn) > 0, tn / (tn + fn), torch.tensor(float("nan")))
+        ppv = torch.where((tp + fp) > 0, tp / (tp + fp), torch.tensor(float("nan"), device=confusion_matrix.device))
+        npv = torch.where((tn + fn) > 0, tn / (tn + fn), torch.tensor(float("nan"), device=confusion_matrix.device))
         npv = tn / (tn + fn)
         numerator = ppv + npv - 1.0
         denominator = 1.0
@@ -249,7 +262,9 @@ def compute_confusion_matrix_metric(metric_name: str, confusion_matrix: torch.Te
         raise NotImplementedError("the metric is not implemented.")
 
     if isinstance(denominator, torch.Tensor):
-        result = torch.where(denominator != 0, numerator / denominator, torch.tensor(float("nan")))
+        result = torch.where(
+            denominator != 0, numerator / denominator, torch.tensor(float("nan"), device=confusion_matrix.device)
+        )
     else:
         result = numerator / denominator
     return result
