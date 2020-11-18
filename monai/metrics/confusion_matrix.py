@@ -208,6 +208,7 @@ def compute_confusion_matrix_metric(metric_name: str, confusion_matrix: torch.Te
     # calculate metric
     numerator: torch.Tensor
     denominator: Union[torch.Tensor, float]
+    nan_tensor = torch.tensor(float("nan"), device=confusion_matrix.device)
     if metric == "tpr":
         numerator, denominator = tp, p
     elif metric == "tnr":
@@ -225,8 +226,8 @@ def compute_confusion_matrix_metric(metric_name: str, confusion_matrix: torch.Te
     elif metric == "for":
         numerator, denominator = fn, (fn + tn)
     elif metric == "pt":
-        tpr = torch.where(p > 0, tp / p, torch.tensor(float("nan"), device=confusion_matrix.device))
-        tnr = torch.where(n > 0, tn / n, torch.tensor(float("nan"), device=confusion_matrix.device))
+        tpr = torch.where(p > 0, tp / p, nan_tensor)
+        tnr = torch.where(n > 0, tn / n, nan_tensor)
         numerator = torch.sqrt(tpr * (1.0 - tnr)) + tnr - 1.0
         denominator = tpr + tnr - 1.0
     elif metric == "ts":
@@ -234,8 +235,8 @@ def compute_confusion_matrix_metric(metric_name: str, confusion_matrix: torch.Te
     elif metric == "acc":
         numerator, denominator = (tp + tn), (p + n)
     elif metric == "ba":
-        tpr = torch.where(p > 0, tp / p, torch.tensor(float("nan"), device=confusion_matrix.device))
-        tnr = torch.where(n > 0, tn / n, torch.tensor(float("nan"), device=confusion_matrix.device))
+        tpr = torch.where(p > 0, tp / p, nan_tensor)
+        tnr = torch.where(n > 0, tn / n, nan_tensor)
         numerator, denominator = (tpr + tnr), 2.0
     elif metric == "f1":
         numerator, denominator = tp * 2.0, (tp * 2.0 + fn + fp)
@@ -243,18 +244,18 @@ def compute_confusion_matrix_metric(metric_name: str, confusion_matrix: torch.Te
         numerator = tp * tn - fp * fn
         denominator = torch.sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
     elif metric == "fm":
-        tpr = torch.where(p > 0, tp / p, torch.tensor(float("nan"), device=confusion_matrix.device))
-        ppv = torch.where((tp + fp) > 0, tp / (tp + fp), torch.tensor(float("nan"), device=confusion_matrix.device))
+        tpr = torch.where(p > 0, tp / p, nan_tensor)
+        ppv = torch.where((tp + fp) > 0, tp / (tp + fp), nan_tensor)
         numerator = torch.sqrt(ppv * tpr)
         denominator = 1.0
     elif metric == "bm":
-        tpr = torch.where(p > 0, tp / p, torch.tensor(float("nan"), device=confusion_matrix.device))
-        tnr = torch.where(n > 0, tn / n, torch.tensor(float("nan"), device=confusion_matrix.device))
+        tpr = torch.where(p > 0, tp / p, nan_tensor)
+        tnr = torch.where(n > 0, tn / n, nan_tensor)
         numerator = tpr + tnr - 1.0
         denominator = 1.0
     elif metric == "mk":
-        ppv = torch.where((tp + fp) > 0, tp / (tp + fp), torch.tensor(float("nan"), device=confusion_matrix.device))
-        npv = torch.where((tn + fn) > 0, tn / (tn + fn), torch.tensor(float("nan"), device=confusion_matrix.device))
+        ppv = torch.where((tp + fp) > 0, tp / (tp + fp), nan_tensor)
+        npv = torch.where((tn + fn) > 0, tn / (tn + fn), nan_tensor)
         npv = tn / (tn + fn)
         numerator = ppv + npv - 1.0
         denominator = 1.0
@@ -262,9 +263,7 @@ def compute_confusion_matrix_metric(metric_name: str, confusion_matrix: torch.Te
         raise NotImplementedError("the metric is not implemented.")
 
     if isinstance(denominator, torch.Tensor):
-        result = torch.where(
-            denominator != 0, numerator / denominator, torch.tensor(float("nan"), device=confusion_matrix.device)
-        )
+        result = torch.where(denominator != 0, numerator / denominator, nan_tensor)
     else:
         result = numerator / denominator
     return result
