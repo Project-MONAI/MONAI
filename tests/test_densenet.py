@@ -15,7 +15,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.nets import densenet121, densenet169, densenet201, densenet264
-from tests.utils import skip_if_quick, test_pretrained_networks
+from tests.utils import skip_if_quick, test_pretrained_networks, test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -41,6 +41,9 @@ TEST_CASES = []
 for case in [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3]:
     for model in [densenet121, densenet169, densenet201, densenet264]:
         TEST_CASES.append([model, *case])
+
+
+TEST_SCRIPT_CASES = [[model, *TEST_CASE_1] for model in [densenet121, densenet169, densenet201, densenet264]]
 
 
 TEST_PRETRAINED_2D_CASE_1 = [  # 4-channel 2D, batch 2
@@ -77,6 +80,13 @@ class TestDENSENET(unittest.TestCase):
         with torch.no_grad():
             result = net.forward(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
+
+    @parameterized.expand(TEST_SCRIPT_CASES)
+    def test_script(self, model, input_param, input_shape, expected_shape):
+        net = model(**input_param)
+        test_data = torch.randn(input_shape)
+        out_orig, out_reloaded = test_script_save(net, test_data)
+        assert torch.allclose(out_orig, out_reloaded)
 
 
 if __name__ == "__main__":
