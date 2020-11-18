@@ -22,7 +22,7 @@ def sliding_window_inference(
     inputs: torch.Tensor,
     roi_size: Union[Sequence[int], int],
     sw_batch_size: int,
-    predictor: Callable[[torch.Tensor], torch.Tensor],
+    predictor: Callable[..., torch.Tensor],
     overlap: float = 0.25,
     mode: Union[BlendMode, str] = BlendMode.CONSTANT,
     sigma_scale: Union[Sequence[float], float] = 0.125,

@@ -28,7 +28,7 @@ class Inferer(ABC):
     def __call__(
         self,
         inputs: torch.Tensor,
-        network: Callable[[torch.Tensor], torch.Tensor],
+        network: Callable[..., torch.Tensor],
         *args: Any,
         **kwargs: Any,
     ):
@@ -60,7 +60,7 @@ class SimpleInferer(Inferer):
     def __call__(
         self,
         inputs: torch.Tensor,
-        network: Callable[[torch.Tensor], torch.Tensor],
+        network: Callable[..., torch.Tensor],
         *args: Any,
         **kwargs: Any,
     ):
@@ -144,7 +144,7 @@ class SlidingWindowInferer(Inferer):
     def __call__(
         self,
         inputs: torch.Tensor,
-        network: Callable[[torch.Tensor], torch.Tensor],
+        network: Callable[..., torch.Tensor],
         *args: Any,
         **kwargs: Any,
     ) -> torch.Tensor:
