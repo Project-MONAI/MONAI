@@ -34,7 +34,7 @@ def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.f
     assert labels.dim() > 0, "labels should have dim of 1 or more."
 
     # if `dim` is bigger, add singleton dim at the end
-    if labels.ndimension() < dim + 1:
+    if labels.ndim < dim + 1:
         shape = ensure_tuple_size(labels.shape, dim + 1, 1)
         labels = labels.reshape(*shape)
 

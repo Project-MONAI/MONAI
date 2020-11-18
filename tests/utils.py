@@ -123,15 +123,25 @@ class TorchImageTestCase3D(NumpyImageTestCase3D):
         self.segn = torch.tensor(self.segn)
 
 
-def test_script_save(net, inputs):
+def test_script_save(net, *inputs, eval_nets=True):
+    """
+    Test the ability to save `net` as a Torchscript object, reload it, and apply inference. The value `inputs` is
+    forward-passed through the original and loaded copy of the network and their results returned. Both `net` and its
+    reloaded copy are set to evaluation mode if `eval_nets` is True. The forward pass for both is done without
+    gradient accumulation.
+    """
+
     scripted = torch.jit.script(net)
     buffer = scripted.save_to_buffer()
     reloaded_net = torch.jit.load(BytesIO(buffer))
-    net.eval()
-    reloaded_net.eval()
+
+    if eval_nets:
+        net.eval()
+        reloaded_net.eval()
+
     with torch.no_grad():
-        result1 = net(inputs)
-        result2 = reloaded_net(inputs)
+        result1 = net(*inputs)
+        result2 = reloaded_net(*inputs)
 
     return result1, result2
 

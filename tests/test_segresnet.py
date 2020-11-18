@@ -16,6 +16,7 @@ from parameterized import parameterized
 
 from monai.networks.nets import SegResNet, SegResNetVAE
 from monai.utils import UpsampleMode
+from tests.utils import test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -77,7 +78,7 @@ for spatial_dims in range(2, 4):
                 TEST_CASE_SEGRESNET_VAE.append(test_case)
 
 
-class TestResBlock(unittest.TestCase):
+class TestResNet(unittest.TestCase):
     @parameterized.expand(TEST_CASE_SEGRESNET + TEST_CASE_SEGRESNET_2)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = SegResNet(**input_param).to(device)
@@ -90,14 +91,28 @@ class TestResBlock(unittest.TestCase):
         with self.assertRaises(AssertionError):
             SegResNet(spatial_dims=4)
 
+    def test_script(self):
+        input_param, input_shape, expected_shape = TEST_CASE_SEGRESNET[0]
+        net = SegResNet(**input_param)
+        test_data = torch.randn(input_shape)
+        out_orig, out_reloaded = test_script_save(net, test_data)
+        assert torch.allclose(out_orig, out_reloaded)
 
-class TestResBlockVAE(unittest.TestCase):
+
+class TestResNetVAE(unittest.TestCase):
     @parameterized.expand(TEST_CASE_SEGRESNET_VAE)
     def test_vae_shape(self, input_param, input_shape, expected_shape):
         net = SegResNetVAE(**input_param).to(device)
         with torch.no_grad():
             result, _ = net(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
+
+    def test_script(self):
+        input_param, input_shape, expected_shape = TEST_CASE_SEGRESNET_VAE[0]
+        net = SegResNetVAE(**input_param)
+        test_data = torch.randn(input_shape)
+        out_orig, out_reloaded = test_script_save(net, test_data)
+        assert torch.allclose(out_orig[0], out_reloaded[0])
 
 
 if __name__ == "__main__":

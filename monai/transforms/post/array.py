@@ -14,7 +14,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 import warnings
-from typing import Callable, List, Optional, Sequence, Union
+from typing import Callable, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -24,47 +24,6 @@ from monai.networks import one_hot
 from monai.transforms.compose import Transform
 from monai.transforms.utils import get_largest_connected_component_mask
 from monai.utils import ensure_tuple
-
-
-class SplitChannel(Transform):
-    """
-    Split PyTorch Tensor data according to the channel dim, if only 1 channel, convert to One-Hot
-    format first based on the class number. Users can use this transform to compute metrics on every
-    single class to get more details of validation/evaluation. Expected input shape:
-    ``(batch_size, num_channels, [spatial_dim_1, spatial_dim_2, ...])``
-
-    Args:
-        to_onehot: whether to convert the data to One-Hot format first.
-            Defaults to ``False``.
-        num_classes: the class number used to convert to One-Hot format if `to_onehot` is True.
-            Defaults to ``None``.
-    """
-
-    def __init__(self, to_onehot: bool = False, num_classes: Optional[int] = None) -> None:
-        self.to_onehot = to_onehot
-        self.num_classes = num_classes
-
-    def __call__(
-        self, img: torch.Tensor, to_onehot: Optional[bool] = None, num_classes: Optional[int] = None
-    ) -> List[torch.Tensor]:
-        """
-        Args:
-            to_onehot: whether to convert the data to One-Hot format first.
-                Defaults to ``self.to_onehot``.
-            num_classes: the class number used to convert to One-Hot format if `to_onehot` is True.
-                Defaults to ``self.num_classes``.
-        """
-        if to_onehot or self.to_onehot:
-            if num_classes is None:
-                num_classes = self.num_classes
-            assert isinstance(num_classes, int), "must specify class number for One-Hot."
-            img = one_hot(img, num_classes)
-        n_classes = img.shape[1]
-        outputs = list()
-        for i in range(n_classes):
-            outputs.append(img[:, i : i + 1])
-
-        return outputs
 
 
 class Activations(Transform):
