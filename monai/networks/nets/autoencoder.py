@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Tuple, Union
+from typing import Any, Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -194,11 +194,7 @@ class AutoEncoder(nn.Module):
 
         return decode
 
-    def forward(
-        self, x: torch.Tensor
-    ) -> Union[
-        torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
-    ]:  # big tuple return necessary for VAE, which inherits
+    def forward(self, x: torch.Tensor) -> Any:
         x = self.encode(x)
         x = self.intermediate(x)
         x = self.decode(x)

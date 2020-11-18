@@ -86,6 +86,15 @@ class ConvNormActi(nn.Module):
         return torch.as_tensor(self.layers(x))
 
 
+class ChannelPad(nn.Module):
+    def __init__(self, pad):
+        super().__init__()
+        self.pad = tuple(pad)
+
+    def forward(self, x):
+        return F.pad(x, self.pad)
+
+
 class HighResBlock(nn.Module):
     def __init__(
         self,
@@ -124,21 +133,26 @@ class HighResBlock(nn.Module):
         norm_type = Normalisation(norm_type)
         acti_type = Activation(acti_type)
 
-        self.project, self.pad = None, None
+        self.project = None
+        self.pad = None
+
         if in_channels != out_channels:
             channel_matching = ChannelMatching(channel_matching)
+
             if channel_matching == ChannelMatching.PROJECT:
                 self.project = conv_type(in_channels, out_channels, kernel_size=1)
+
             if channel_matching == ChannelMatching.PAD:
                 if in_channels > out_channels:
                     raise ValueError('Incompatible values: channel_matching="pad" and in_channels > out_channels.')
                 pad_1 = (out_channels - in_channels) // 2
                 pad_2 = out_channels - in_channels - pad_1
                 pad = [0, 0] * spatial_dims + [pad_1, pad_2] + [0, 0]
-                self.pad = lambda input: F.pad(input, pad)
+                self.pad = ChannelPad(pad)
 
         layers = nn.ModuleList()
         _in_chns, _out_chns = in_channels, out_channels
+
         for kernel_size in kernels:
             layers.append(SUPPORTED_NORM[norm_type](spatial_dims)(_in_chns))
             layers.append(SUPPORTED_ACTI[acti_type](inplace=True))
@@ -148,14 +162,18 @@ class HighResBlock(nn.Module):
                 )
             )
             _in_chns = _out_chns
+
         self.layers = nn.Sequential(*layers)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x_conv: torch.Tensor = self.layers(x)
+
         if self.project is not None:
-            return x_conv + torch.as_tensor(self.project(x))
+            return x_conv + torch.as_tensor(self.project(x))  # as_tensor used to get around mypy typing bug
+
         if self.pad is not None:
             return x_conv + torch.as_tensor(self.pad(x))
+
         return x_conv + x
 
 
