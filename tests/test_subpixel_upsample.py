@@ -24,20 +24,20 @@ for inch in range(1, 5):
         for factor in range(1, 3):
             test_case = [
                 {"dimensions": dim, "in_channels": inch, "scale_factor": factor},
-                torch.randn(2, inch, *([8] * dim)),
+                (2, inch, *([8] * dim)),
                 (2, inch, *([8 * factor] * dim)),
             ]
             TEST_CASE_SUBPIXEL.append(test_case)
 
 TEST_CASE_SUBPIXEL_2D_EXTRA = [
     {"dimensions": 2, "in_channels": 2, "scale_factor": 3},
-    torch.randn(2, 2, 8, 4),  # different size for H and W
+    (2, 2, 8, 4),  # different size for H and W
     (2, 2, 24, 12),
 ]
 
 TEST_CASE_SUBPIXEL_3D_EXTRA = [
     {"dimensions": 3, "in_channels": 1, "scale_factor": 2},
-    torch.randn(2, 1, 16, 8, 4),  # different size for H, W and D
+    (2, 1, 16, 8, 4),  # different size for H, W and D
     (2, 1, 32, 16, 8),
 ]
 
@@ -54,7 +54,7 @@ conv_block = nn.Sequential(
 
 TEST_CASE_SUBPIXEL_CONV_BLOCK_EXTRA = [
     {"dimensions": 3, "in_channels": 1, "scale_factor": 2, "conv_block": conv_block},
-    torch.randn(2, 1, 16, 8, 4),  # different size for H, W and D
+    (2, 1, 16, 8, 4),  # different size for H, W and D
     (2, 1, 32, 16, 8),
 ]
 
@@ -73,11 +73,11 @@ for tests in list(TEST_CASE_SUBPIXEL):
 
 class TestSUBPIXEL(unittest.TestCase):
     @parameterized.expand(TEST_CASE_SUBPIXEL)
-    def test_subpixel_shape(self, input_param, input_data, expected_shape):
+    def test_subpixel_shape(self, input_param, input_shape, expected_shape):
         net = SubpixelUpsample(**input_param)
         net.eval()
         with torch.no_grad():
-            result = net.forward(input_data)
+            result = net.forward(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
 
 
