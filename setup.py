@@ -23,7 +23,7 @@ import versioneer
 # TODO: debug mode -g -O0, compile test cases
 
 RUN_BUILD = os.getenv("BUILD_MONAI", "0") == "1"
-FORCE_CUDA = False #os.getenv("FORCE_CUDA", "0") == "1"  # flag ignored if BUILD_MONAI is False
+FORCE_CUDA = os.getenv("FORCE_CUDA", "0") == "1"  # flag ignored if BUILD_MONAI is False
 
 BUILD_CPP = BUILD_CUDA = False
 try:
@@ -35,7 +35,7 @@ try:
     BUILD_CPP = True
     from torch.utils.cpp_extension import CUDA_HOME, CUDAExtension
 
-    BUILD_CUDA = False #(torch.cuda.is_available() and (CUDA_HOME is not None)) or FORCE_CUDA
+    BUILD_CUDA = (torch.cuda.is_available() and (CUDA_HOME is not None)) or FORCE_CUDA
 
     _pt_version = pkg_resources.parse_version(torch.__version__).release  # type: ignore[attr-defined]
     assert _pt_version is not None and len(_pt_version) >= 3, "unknown torch version"
