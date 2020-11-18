@@ -14,6 +14,7 @@ limitations under the License.
 #pragma once
 
 #include <torch/extension.h>
+#include "utils/common_utils.h"
 
 torch::Tensor BilateralFilterCpu(torch::Tensor input, float spatial_sigma, float color_sigma);
 torch::Tensor BilateralFilterCuda(torch::Tensor input, float spatial_sigma, float color_sigma);

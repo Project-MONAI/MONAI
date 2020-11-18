@@ -205,7 +205,7 @@ torch::Tensor BilateralFilterCpu(torch::Tensor input, float spatialSigma, float 
                 for(int i = 0; i < spatialDimensionCount; i++)
                 {
                     int neighbourIndex = homeIndex[i] + kernelIndex[i] - halfWindowSize;
-                    int neighbourIndexClamped = std::min(width - 1, std::max(0, neighbourIndex));
+                    int neighbourIndexClamped = std::min((int)spatialDimensionSizes[i] - 1, std::max(0, neighbourIndex));
                     neighbourOffset += neighbourIndexClamped * spatialDimensionStrides[i];
                 }
 
