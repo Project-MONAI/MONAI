@@ -771,12 +771,8 @@ def scale_dataset(data: Sequence, factor: float, random_pick: bool = False, seed
 
     for i in repeats:
         data_.extend(list(copy.deepcopy(data)))
+
     if scale > 1e-6:
-        data_len = len(data)
-        indices = list(range(data_len))
-        if random_pick:
-            rs = np.random.RandomState(seed)
-            rs.shuffle(indices)
-        data_.extend([copy.deepcopy(data[i]) for i in indices[: math.ceil(data_len * scale)]])
+        data_.extend(partition_dataset(data=data, ratios=[scale, 1 - scale], shuffle=random_pick, seed=seed)[0])
 
     return data_
