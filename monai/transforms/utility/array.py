@@ -228,10 +228,10 @@ class ToTensor(Transform):
 
 class ToNumpy(Transform):
     """
-    Converts the input Tensor data to numpy array.
+    Converts the input data to numpy array, can support list or tuple of numbers and PyTorch Tensor.
     """
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> np.ndarray:
+    def __call__(self, img: Union[List, Tuple, np.ndarray, torch.Tensor]) -> np.ndarray:
         """
         Apply the transform to `img` and make it contiguous.
         """
