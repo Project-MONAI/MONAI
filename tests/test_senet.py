@@ -49,7 +49,7 @@ class TestSENET(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
     def test_script(self, net):
         input_data = torch.randn(2, 2, 64, 64, 64)
-        out_orig, out_reloaded = test_script_save(net.cpu(), input_data)
+        out_orig, out_reloaded = test_script_save(net, input_data)
         assert torch.allclose(out_orig, out_reloaded)
 
 

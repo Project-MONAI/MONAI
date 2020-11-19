@@ -123,17 +123,25 @@ class TorchImageTestCase3D(NumpyImageTestCase3D):
         self.segn = torch.tensor(self.segn)
 
 
-def test_script_save(net, *inputs, eval_nets=True):
+def test_script_save(net, *inputs, eval_nets=True, device=None):
     """
     Test the ability to save `net` as a Torchscript object, reload it, and apply inference. The value `inputs` is
     forward-passed through the original and loaded copy of the network and their results returned. Both `net` and its
     reloaded copy are set to evaluation mode if `eval_nets` is True. The forward pass for both is done without
     gradient accumulation.
+
+    The test will be performed with CUDA if available, else CPU.
     """
+    if not device:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    # Convert to device
+    inputs = [i.to(device) for i in inputs]
+    net.to(device)
 
     scripted = torch.jit.script(net)
     buffer = scripted.save_to_buffer()
-    reloaded_net = torch.jit.load(BytesIO(buffer))
+    reloaded_net = torch.jit.load(BytesIO(buffer)).to(device)
 
     if eval_nets:
         net.eval()
