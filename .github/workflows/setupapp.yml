@@ -148,6 +148,10 @@ jobs:
       run: |
         docker build -t localhost:5000/local_monai:latest -f Dockerfile .
         docker push localhost:5000/local_monai:latest
+        docker tag localhost:5000/local_monai:latest projectmonai/monai:latest
+        docker login -u projectmonai -p ${{ secrets.DOCKER_PW }}
+        docker push projectmonai/monai:latest
+        docker logout
 
   docker:
     if: github.repository == 'Project-MONAI/MONAI'
