@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import hashlib
+import json
 import math
 import os
 import warnings
@@ -762,3 +764,17 @@ class DistributedSampler(_TorchDistributedSampler):
             if self.rank + extra_size >= self.num_replicas:
                 self.num_samples -= 1
             self.total_size = data_len
+
+
+def default_hashing(item) -> bytes:
+    """
+
+    Args:
+        item: data item to be hashed
+
+    Returns: the corresponding hash key
+
+    """
+    # TODO: Find way to hash transforms content as part of the cache
+    cache_key = hashlib.md5(json.dumps(item, sort_keys=True).encode("utf-8")).hexdigest()
+    return f"{cache_key}".encode("utf-8")

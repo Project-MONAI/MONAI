@@ -59,6 +59,7 @@ def run_testsuit():
         "test_keep_largest_connected_component",
         "test_keep_largest_connected_componentd",
         "test_lltm",
+        "test_lmdbdataset",
         "test_load_image",
         "test_load_imaged",
         "test_load_nifti",
@@ -104,9 +105,11 @@ def run_testsuit():
     for case in files:
         test_module = os.path.basename(case)[:-3]
         if test_module in exclude_cases:
+            exclude_cases.remove(test_module)
             print(f"skipping tests.{test_module}.")
         else:
             cases.append(f"tests.{test_module}")
+    assert not exclude_cases, f"items in exclude_cases not used: {exclude_cases}."
     test_suite = unittest.TestLoader().loadTestsFromNames(cases)
     return test_suite
 
