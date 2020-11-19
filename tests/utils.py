@@ -151,7 +151,15 @@ def test_script_save(net, *inputs, eval_nets=True, device=None):
         result1 = net(*inputs)
         result2 = reloaded_net(*inputs)
 
-    return result1, result2
+    # When using e.g., VAR, we will produce a tuple of outputs.
+    # Hence, convert all to tuples and then compare all elements.
+    if not isinstance(result1, tuple):
+        retult1 = (result1,)
+        retult2 = (result2,)
+
+    for i, j in zip(result1, result2):
+        if None not in (i, j):  # might be None
+            assert torch.allclose(i, j, atol=1e-7)
 
 
 def query_memory(n=2):

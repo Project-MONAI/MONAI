@@ -52,8 +52,7 @@ class TestSENET(unittest.TestCase):
     def test_script(self, net, net_args):
         net = net(**net_args)
         input_data = torch.randn(2, 2, 64, 64, 64)
-        out_orig, out_reloaded = test_script_save(net, input_data)
-        assert torch.allclose(out_orig, out_reloaded)
+        test_script_save(net, input_data)
 
 
 class TestPretrainedSENET(unittest.TestCase):

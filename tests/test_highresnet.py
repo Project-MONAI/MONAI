@@ -57,8 +57,7 @@ class TestHighResNet(unittest.TestCase):
         input_param, input_shape, expected_shape = TEST_CASE_1
         net = HighResNet(**input_param)
         test_data = torch.randn(input_shape)
-        out_orig, out_reloaded = test_script_save(net, test_data)
-        assert torch.allclose(out_orig, out_reloaded)
+        test_script_save(net, test_data)
 
 
 if __name__ == "__main__":

@@ -85,8 +85,7 @@ class TestDENSENET(unittest.TestCase):
     def test_script(self, model, input_param, input_shape, expected_shape):
         net = model(**input_param)
         test_data = torch.randn(input_shape)
-        out_orig, out_reloaded = test_script_save(net, test_data)
-        assert torch.allclose(out_orig, out_reloaded)
+        test_script_save(net, test_data)
 
 
 if __name__ == "__main__":
