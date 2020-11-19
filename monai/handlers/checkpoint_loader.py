@@ -58,9 +58,6 @@ class CheckpointLoader:
         self.load_path = load_path
         assert load_dict is not None and len(load_dict) > 0, "must provide target objects to load."
         self.logger = logging.getLogger(name)
-        for k, v in load_dict.items():
-            if hasattr(v, "module"):
-                load_dict[k] = v.module
         self.load_dict = load_dict
         self._name = name
         self.map_location = map_location
@@ -80,10 +77,6 @@ class CheckpointLoader:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
         checkpoint = torch.load(self.load_path, map_location=self.map_location)
-        if len(self.load_dict) == 1:
-            key = list(self.load_dict.keys())[0]
-            if not (key in checkpoint):
-                checkpoint = {key: checkpoint}
 
         Checkpoint.load_objects(to_load=self.load_dict, checkpoint=checkpoint)
         self.logger.info(f"Restored all variables from {self.load_path}")

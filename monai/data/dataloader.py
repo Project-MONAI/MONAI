@@ -9,11 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional
-
 import torch
 from torch.utils.data import DataLoader as _TorchDataLoader
-from torch.utils.data import Dataset, Sampler
+from torch.utils.data import Dataset
 
 from monai.data.utils import list_data_collate, set_rnd, worker_init_fn
 
@@ -22,66 +20,35 @@ __all__ = ["DataLoader"]
 
 class DataLoader(_TorchDataLoader):
     """Generates images/labels for train/validation/testing from dataset.
-    It inherits from PyTorch DataLoader and adds callbacks for `collate` and `worker_fn`.
+    It inherits from PyTorch DataLoader and adds default callbacks for `collate`
+    and `worker_fn` if user doesn't set them.
+
+    More information about PyTorch DataLoader, please check:
+    https://github.com/pytorch/pytorch/blob/master/torch/utils/data/dataloader.py
 
     Args:
         dataset: dataset from which to load the data.
-        batch_size: how many samples per batch to load
-            (default: ``1``).
-        shuffle: set to ``True`` to have the data reshuffled
-            at every epoch (default: ``False``).
-        sampler: defines the strategy to draw samples from
-            the dataset. If specified, :attr:`shuffle` must be ``False``.
-        batch_sampler: like :attr:`sampler`, but returns a batch of
-            indices at a time. Mutually exclusive with :attr:`batch_size`,
-            :attr:`shuffle`, :attr:`sampler`, and :attr:`drop_last`.
         num_workers: how many subprocesses to use for data
             loading. ``0`` means that the data will be loaded in the main process.
             (default: ``0``)
-        pin_memory: If ``True``, the data loader will copy Tensors
-            into CUDA pinned memory before returning them.  If your data elements
-            are a custom type, or your :attr:`collate_fn` returns a batch that is a custom type,
-            see the example below.
-        drop_last: set to ``True`` to drop the last incomplete batch,
-            if the dataset size is not divisible by the batch size. If ``False`` and
-            the size of dataset is not divisible by the batch size, then the last batch
-            will be smaller. (default: ``False``)
-        timeout: if positive, the timeout value for collecting a batch
-            from workers. Should always be non-negative. (default: ``0``)
-        multiprocessing_context: specify a valid start method for multi-processing.
+        kwargs: other parameters for PyTorch DataLoader.
 
     """
 
-    def __init__(
-        self,
-        dataset: Dataset,
-        batch_size: int = 1,
-        shuffle: bool = False,
-        sampler: Optional[Sampler] = None,
-        batch_sampler: Optional[Sampler] = None,
-        num_workers: int = 0,
-        pin_memory: bool = False,
-        drop_last: bool = False,
-        timeout: float = 0.0,
-        multiprocessing_context: Optional[Callable] = None,
-    ) -> None:
+    def __init__(self, dataset: Dataset, num_workers: int = 0, **kwargs) -> None:
         if num_workers == 0:
             # when num_workers > 0, random states are determined by worker_init_fn
             # this is to make the behavior consistent when num_workers == 0
             # torch.int64 doesn't work well on some versions of windows
             _seed = torch.empty((), dtype=torch.int32).random_(generator=None).item()
             set_rnd(dataset, int(_seed))
+        if "collate_fn" not in kwargs:
+            kwargs.update({"collate_fn": list_data_collate})
+        if "worker_init_fn" not in kwargs:
+            kwargs.update({"worker_init_fn": worker_init_fn})
+
         super().__init__(  # type: ignore[call-overload]
             dataset=dataset,
-            batch_size=batch_size,
-            shuffle=shuffle,
-            sampler=sampler,
-            batch_sampler=batch_sampler,
             num_workers=num_workers,
-            collate_fn=list_data_collate,
-            pin_memory=pin_memory,
-            drop_last=drop_last,
-            timeout=timeout,
-            worker_init_fn=worker_init_fn,
-            multiprocessing_context=multiprocessing_context,
+            **kwargs,
         )

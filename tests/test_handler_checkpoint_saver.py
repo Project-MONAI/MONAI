@@ -22,43 +22,64 @@ from parameterized import parameterized
 
 from monai.handlers import CheckpointSaver
 
-TEST_CASE_1 = [True, False, None, 1, True, 0, None, ["test_checkpoint_final_iteration=40.pt"]]
+TEST_CASE_1 = [True, None, False, None, 1, None, True, 0, None, ["test_checkpoint_final_iteration=40.pt"]]
 
 TEST_CASE_2 = [
     False,
+    None,
     True,
     "val_loss",
     2,
+    None,
     True,
     0,
     None,
     ["test_checkpoint_key_metric=32.pt", "test_checkpoint_key_metric=40.pt"],
 ]
 
-TEST_CASE_3 = [False, False, None, 1, True, 2, 2, ["test_checkpoint_epoch=2.pt", "test_checkpoint_epoch=4.pt"]]
-
-TEST_CASE_4 = [
+TEST_CASE_3 = [
     False,
+    None,
     False,
     None,
     1,
+    None,
+    True,
+    2,
+    2,
+    ["test_checkpoint_epoch=2.pt", "test_checkpoint_epoch=4.pt"],
+]
+
+TEST_CASE_4 = [
+    False,
+    None,
+    False,
+    None,
+    1,
+    None,
     False,
     10,
     2,
     ["test_checkpoint_iteration=30.pt", "test_checkpoint_iteration=40.pt"],
 ]
 
-TEST_CASE_5 = [True, False, None, 1, True, 0, None, ["test_checkpoint_final_iteration=40.pt"], True]
+TEST_CASE_5 = [True, None, False, None, 1, None, True, 0, None, ["test_checkpoint_final_iteration=40.pt"], True]
+
+TEST_CASE_6 = [True, "final_model.pt", False, None, 1, None, True, 0, None, ["final_model.pt"]]
+
+TEST_CASE_7 = [False, None, True, "val_loss", 1, "model.pt", True, 0, None, ["model.pt"]]
 
 
 class TestHandlerCheckpointSaver(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7])
     def test_file(
         self,
         save_final,
+        final_filename,
         save_key_metric,
         key_metric_name,
         key_metric_n_saved,
+        key_metric_filename,
         epoch_level,
         save_interval,
         n_saved,
@@ -86,9 +107,11 @@ class TestHandlerCheckpointSaver(unittest.TestCase):
                 "CheckpointSaver",
                 "test",
                 save_final,
+                final_filename,
                 save_key_metric,
                 key_metric_name,
                 key_metric_n_saved,
+                key_metric_filename,
                 epoch_level,
                 save_interval,
                 n_saved,
