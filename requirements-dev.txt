@@ -21,6 +21,6 @@ pyflakes
 black
 isort
 pytype>=2020.6.1
-mypy
+mypy>=0.790
 ninja
 torchvision

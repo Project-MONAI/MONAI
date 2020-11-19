@@ -15,13 +15,17 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.nets import SegResNet, SegResNetVAE
+from monai.utils import UpsampleMode
+from tests.utils import test_script_save
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
 TEST_CASE_SEGRESNET = []
 for spatial_dims in range(2, 4):
     for init_filters in [8, 16]:
         for dropout_prob in [None, 0.2]:
             for norm_name in ["group", "batch", "instance"]:
-                for upsample_mode in ["trilinear", "transpose"]:
+                for upsample_mode in UpsampleMode:
                     test_case = [
                         {
                             "spatial_dims": spatial_dims,
@@ -31,7 +35,7 @@ for spatial_dims in range(2, 4):
                             "upsample_mode": upsample_mode,
                             "use_conv_final": False,
                         },
-                        torch.randn(2, 1, *([16] * spatial_dims)),
+                        (2, 1, *([16] * spatial_dims)),
                         (2, init_filters, *([16] * spatial_dims)),
                     ]
                     TEST_CASE_SEGRESNET.append(test_case)
@@ -40,7 +44,7 @@ TEST_CASE_SEGRESNET_2 = []
 for spatial_dims in range(2, 4):
     for init_filters in [8, 16]:
         for out_channels in range(1, 3):
-            for upsample_mode in ["bilinear", "transpose"]:
+            for upsample_mode in UpsampleMode:
                 test_case = [
                     {
                         "spatial_dims": spatial_dims,
@@ -48,7 +52,7 @@ for spatial_dims in range(2, 4):
                         "out_channels": out_channels,
                         "upsample_mode": upsample_mode,
                     },
-                    torch.randn(2, 1, *([16] * spatial_dims)),
+                    (2, 1, *([16] * spatial_dims)),
                     (2, out_channels, *([16] * spatial_dims)),
                 ]
                 TEST_CASE_SEGRESNET_2.append(test_case)
@@ -57,7 +61,7 @@ TEST_CASE_SEGRESNET_VAE = []
 for spatial_dims in range(2, 4):
     for init_filters in [8, 16]:
         for out_channels in range(1, 3):
-            for upsample_mode in ["bilinear", "transpose"]:
+            for upsample_mode in UpsampleMode:
                 for vae_estimate_std in [True, False]:
                     test_case = [
                         {
@@ -68,33 +72,47 @@ for spatial_dims in range(2, 4):
                             "input_image_size": ([16] * spatial_dims),
                             "vae_estimate_std": vae_estimate_std,
                         },
-                        torch.randn(2, 1, *([16] * spatial_dims)),
+                        (2, 1, *([16] * spatial_dims)),
                         (2, out_channels, *([16] * spatial_dims)),
                     ]
                 TEST_CASE_SEGRESNET_VAE.append(test_case)
 
 
-class TestResBlock(unittest.TestCase):
+class TestResNet(unittest.TestCase):
     @parameterized.expand(TEST_CASE_SEGRESNET + TEST_CASE_SEGRESNET_2)
-    def test_shape(self, input_param, input_data, expected_shape):
-        net = SegResNet(**input_param)
+    def test_shape(self, input_param, input_shape, expected_shape):
+        net = SegResNet(**input_param).to(device)
         net.eval()
         with torch.no_grad():
-            result = net(input_data)
+            result = net(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
 
     def test_ill_arg(self):
         with self.assertRaises(AssertionError):
             SegResNet(spatial_dims=4)
 
+    def test_script(self):
+        input_param, input_shape, expected_shape = TEST_CASE_SEGRESNET[0]
+        net = SegResNet(**input_param)
+        test_data = torch.randn(input_shape)
+        out_orig, out_reloaded = test_script_save(net, test_data)
+        assert torch.allclose(out_orig, out_reloaded)
 
-class TestResBlockVAE(unittest.TestCase):
+
+class TestResNetVAE(unittest.TestCase):
     @parameterized.expand(TEST_CASE_SEGRESNET_VAE)
-    def test_vae_shape(self, input_param, input_data, expected_shape):
-        net = SegResNetVAE(**input_param)
+    def test_vae_shape(self, input_param, input_shape, expected_shape):
+        net = SegResNetVAE(**input_param).to(device)
         with torch.no_grad():
-            result, _ = net(input_data)
+            result, _ = net(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
+
+    def test_script(self):
+        input_param, input_shape, expected_shape = TEST_CASE_SEGRESNET_VAE[0]
+        net = SegResNetVAE(**input_param)
+        test_data = torch.randn(input_shape)
+        out_orig, out_reloaded = test_script_save(net, test_data)
+        assert torch.allclose(out_orig[0], out_reloaded[0])
 
 
 if __name__ == "__main__":
