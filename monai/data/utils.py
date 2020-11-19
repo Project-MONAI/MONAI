@@ -775,6 +775,6 @@ def default_hashing(item) -> bytes:
     Returns: the corresponding hash key
 
     """
-    # TODO: Find way to hash transforms content as part of the cache
+    # TODO: Find way to hash transforms content as part of the cache, pickle.dumps?
     cache_key = hashlib.md5(json.dumps(item, sort_keys=True).encode("utf-8")).hexdigest()
     return f"{cache_key}".encode("utf-8")

@@ -266,6 +266,7 @@ class LMDBDataset(PersistentDataset):
             pickle_protocol: pickle protocol version. Defaults to pickle.HIGHEST_PROTOCOL.
                 https://docs.python.org/3/library/pickle.html#pickle-protocols
             lmdb_kwargs: additional keyword arguments to the lmdb environment.
+                for more details please visit: https://lmdb.readthedocs.io/en/release/#environment-class
         """
         super().__init__(data=data, transform=transform, cache_dir=cache_dir, hash_func=hash_func)
         if not self.cache_dir:
@@ -280,10 +281,12 @@ class LMDBDataset(PersistentDataset):
         self._fill_cache()
         # read-only database env
         self.lmdb_kwargs["readonly"] = True
+        if self.lmdb_kwargs.get("lock", None) is None:
+            self.lmdb_kwargs["lock"] = False
         self._read_env = lmdb.open(path=f"{self.db_file}", subdir=False, **self.lmdb_kwargs)
 
     def _fill_cache(self):
-        print(f"Accessing lmdb file: {self.db_file}.")
+        print(f"Accessing lmdb file: {self.db_file.absolute()}.")
         self.lmdb_kwargs["readonly"] = False
         env = lmdb.open(path=f"{self.db_file}", subdir=False, **self.lmdb_kwargs)
         if not has_tqdm:
@@ -307,12 +310,12 @@ class LMDBDataset(PersistentDataset):
                     done, retry = False, retry - 1
                     size = env.info()["map_size"]
                     new_size = size * 2
-                    print(f"Resizing the cache database from {int(size) >> 20}MB to {int(new_size) >> 20}MB.")
+                    warnings.warn(f"Resizing the cache database from {int(size) >> 20}MB to {int(new_size) >> 20}MB.")
                     env.set_mapsize(new_size)
             if not done:  # still has the map full error
                 size = env.info()["map_size"]
                 env.close()
-                raise ValueError(f"Please increase the map size of lmdb (current size={size}).")
+                raise ValueError(f"LMDB map size reached, increase size above current size of {size}.")
         env.close()
 
     def _pre_first_random_cachecheck(self, item_transformed):
