@@ -11,6 +11,7 @@
 
 import math
 import os
+import copy
 import warnings
 from collections import defaultdict
 from itertools import product, starmap
@@ -762,3 +763,20 @@ class DistributedSampler(_TorchDistributedSampler):
             if self.rank + extra_size >= self.num_replicas:
                 self.num_samples -= 1
             self.total_size = data_len
+
+
+def scale_dataset(data: Sequence, factor: float, random_pick: bool = False, seed: int = 0):
+    scale, repeats = math.modf(factor)
+    data_: List = list()
+
+    for i in repeats:
+        data_.extend(list(copy.deepcopy(data)))
+    if scale > 1e-6:
+        data_len = len(data)
+        indices = list(range(data_len))
+        if random_pick:
+            rs = np.random.RandomState(seed)
+            rs.shuffle(indices)
+        data_.extend([copy.deepcopy(data[i]) for i in indices[: math.ceil(data_len * scale)]])
+
+    return data_
