@@ -20,8 +20,6 @@ from typing import TYPE_CHECKING, Optional
 from urllib.error import ContentTooShortError, HTTPError, URLError
 from urllib.request import Request, urlopen, urlretrieve
 
-import numpy as np
-
 from monai.utils import min_version, optional_import
 
 gdown, has_gdown = optional_import("gdown", "3.6")
@@ -251,22 +249,3 @@ def download_and_extract(
     """
     download_url(url=url, filepath=filepath, hash_val=hash_val, hash_type=hash_type)
     extractall(filepath=filepath, output_dir=output_dir, hash_val=hash_val, hash_type=hash_type)
-
-
-def split_dataset(nsplits: int, length: int):
-    """
-    Split dataset into N folds, return a list of indices for every fold.
-
-    Args:
-        nsplits: expected fold number.
-        length: dataset size in total.
-
-    """
-    sizes = np.full(nsplits, length // nsplits, dtype=np.int)
-    sizes[: length % nsplits] += 1
-    indices = list()
-    pos = 0
-    for size in sizes:
-        indices.append([pos, pos + size])
-        pos += size
-    return indices

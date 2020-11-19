@@ -75,16 +75,34 @@ def get_devices_spec(devices: Optional[Sequence[torch.device]] = None) -> List[t
 
 
 def default_prepare_batch(
-    batchdata: Dict[str, torch.Tensor]
+    batchdata: Dict[str, torch.Tensor],
+    device: Optional[Union[str, torch.device]] = None,
+    non_blocking: bool = False,
 ) -> Union[Tuple[torch.Tensor, Optional[torch.Tensor]], torch.Tensor]:
+    """
+    Default function to prepare the data for current iteration.
+    Refer to ignite: https://github.com/pytorch/ignite/blob/v0.4.2/ignite/engine/__init__.py#L28.
+
+    Returns:
+        image, label(optional).
+
+    """
     assert isinstance(batchdata, dict), "default prepare_batch expects dictionary input data."
     if CommonKeys.LABEL in batchdata:
-        return batchdata[CommonKeys.IMAGE], batchdata[CommonKeys.LABEL]
+        return (
+            batchdata[CommonKeys.IMAGE].to(device=device, non_blocking=non_blocking),
+            batchdata[CommonKeys.LABEL].to(device=device, non_blocking=non_blocking),
+        )
     elif GanKeys.REALS in batchdata:
-        return batchdata[GanKeys.REALS]
+        return batchdata[GanKeys.REALS].to(device=device, non_blocking=non_blocking)
     else:
-        return batchdata[CommonKeys.IMAGE], None
+        return batchdata[CommonKeys.IMAGE].to(device=device, non_blocking=non_blocking), None
 
 
-def default_make_latent(num_latents: int, latent_size: int, real_data: Optional[torch.Tensor] = None) -> torch.Tensor:
-    return torch.randn(num_latents, latent_size)
+def default_make_latent(
+    num_latents: int,
+    latent_size: int,
+    device: Optional[Union[str, torch.device]] = None,
+    non_blocking: bool = False,
+) -> torch.Tensor:
+    return torch.randn(num_latents, latent_size).to(device=device, non_blocking=non_blocking)

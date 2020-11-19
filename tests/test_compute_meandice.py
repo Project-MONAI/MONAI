@@ -20,13 +20,9 @@ from monai.metrics import DiceMetric, compute_meandice
 # keep background
 TEST_CASE_1 = [  # y (1, 1, 2, 2), y_pred (1, 1, 2, 2), expected out (1, 1)
     {
-        "y_pred": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
+        "y_pred": torch.tensor([[[[1.0, 0.0], [0.0, 1.0]]]]),
         "y": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
         "include_background": True,
-        "to_onehot_y": False,
-        "mutually_exclusive": False,
-        "logit_thresh": 0.5,
-        "sigmoid": True,
     },
     [[0.8]],
 ]
@@ -36,32 +32,43 @@ TEST_CASE_2 = [  # y (2, 1, 2, 2), y_pred (2, 3, 2, 2), expected out (2, 2) (no 
     {
         "y_pred": torch.tensor(
             [
-                [[[-1.0, 3.0], [2.0, -4.0]], [[0.0, -1.0], [3.0, 2.0]], [[0.0, 1.0], [2.0, -1.0]]],
-                [[[-2.0, 0.0], [3.0, 1.0]], [[0.0, 2.0], [1.0, -2.0]], [[-1.0, 2.0], [4.0, 0.0]]],
+                [[[0.0, 1.0], [0.0, 0.0]], [[0.0, 0.0], [1.0, 1.0]], [[1.0, 0.0], [0.0, 0.0]]],
+                [[[0.0, 0.0], [0.0, 1.0]], [[1.0, 0.0], [0.0, 0.0]], [[0.0, 1.0], [1.0, 0.0]]],
             ]
         ),
-        "y": torch.tensor([[[[1.0, 2.0], [1.0, 0.0]]], [[[1.0, 1.0], [2.0, 0.0]]]]),
+        "y": torch.tensor(
+            [
+                [[[0.0, 0.0], [0.0, 1.0]], [[1.0, 0.0], [1.0, 0.0]], [[0.0, 1.0], [0.0, 0.0]]],
+                [[[0.0, 0.0], [0.0, 1.0]], [[1.0, 1.0], [0.0, 0.0]], [[0.0, 0.0], [1.0, 0.0]]],
+            ]
+        ),
         "include_background": False,
-        "to_onehot_y": True,
-        "mutually_exclusive": True,
     },
-    [[0.5000, 0.0000], [0.6666, 0.6666]],
+    [[0.5000, 0.0000], [0.6667, 0.6667]],
 ]
 
 # should return Nan for all labels=0 case and skip for MeanDice
 TEST_CASE_3 = [
     {
-        "y_pred": torch.zeros(2, 3, 2, 2),
-        "y": torch.tensor([[[[0.0, 0.0], [0.0, 0.0]]], [[[1.0, 0.0], [0.0, 1.0]]]]),
+        "y_pred": torch.tensor(
+            [
+                [[[0.0, 0.0], [0.0, 0.0]], [[0.0, 0.0], [0.0, 0.0]], [[1.0, 1.0], [1.0, 1.0]]],
+                [[[0.0, 0.0], [0.0, 0.0]], [[0.0, 0.0], [0.0, 0.0]], [[1.0, 1.0], [1.0, 1.0]]],
+            ]
+        ),
+        "y": torch.tensor(
+            [
+                [[[1.0, 1.0], [1.0, 1.0]], [[0.0, 0.0], [0.0, 0.0]], [[0.0, 0.0], [0.0, 0.0]]],
+                [[[0.0, 1.0], [1.0, 0.0]], [[1.0, 0.0], [0.0, 1.0]], [[0.0, 0.0], [0.0, 0.0]]],
+            ]
+        ),
         "include_background": True,
-        "to_onehot_y": True,
-        "mutually_exclusive": True,
     },
     [[False, True, True], [False, False, True]],
 ]
 
 TEST_CASE_4 = [
-    {"include_background": True, "to_onehot_y": True, "reduction": "mean_batch"},
+    {"include_background": True, "reduction": "mean_batch"},
     {
         "y_pred": torch.tensor(
             [
@@ -69,13 +76,18 @@ TEST_CASE_4 = [
                 [[[1.0, 0.0], [1.0, 1.0]], [[0.0, 1.0], [1.0, 1.0]], [[0.0, 1.0], [1.0, 0.0]]],
             ]
         ),
-        "y": torch.tensor([[[[0.0, 0.0], [0.0, 0.0]]], [[[1.0, 1.0], [2.0, 0.0]]]]),
+        "y": torch.tensor(
+            [
+                [[[1.0, 1.0], [1.0, 1.0]], [[0.0, 0.0], [0.0, 0.0]], [[0.0, 0.0], [0.0, 0.0]]],
+                [[[0.0, 0.0], [0.0, 1.0]], [[1.0, 1.0], [0.0, 0.0]], [[0.0, 0.0], [1.0, 0.0]]],
+            ]
+        ),
     },
     [0.6786, 0.4000, 0.6667],
 ]
 
 TEST_CASE_5 = [
-    {"include_background": True, "to_onehot_y": True, "reduction": "mean"},
+    {"include_background": True, "reduction": "mean"},
     {
         "y_pred": torch.tensor(
             [
@@ -83,13 +95,18 @@ TEST_CASE_5 = [
                 [[[1.0, 0.0], [1.0, 1.0]], [[0.0, 1.0], [1.0, 1.0]], [[0.0, 1.0], [1.0, 0.0]]],
             ]
         ),
-        "y": torch.tensor([[[[0.0, 0.0], [0.0, 0.0]]], [[[1.0, 1.0], [2.0, 0.0]]]]),
+        "y": torch.tensor(
+            [
+                [[[1.0, 1.0], [1.0, 1.0]], [[0.0, 0.0], [0.0, 0.0]], [[0.0, 0.0], [0.0, 0.0]]],
+                [[[0.0, 0.0], [0.0, 1.0]], [[1.0, 1.0], [0.0, 0.0]], [[0.0, 0.0], [1.0, 0.0]]],
+            ]
+        ),
     },
     0.689683,
 ]
 
 TEST_CASE_6 = [
-    {"include_background": True, "to_onehot_y": True, "reduction": "sum_batch"},
+    {"include_background": True, "reduction": "sum_batch"},
     {
         "y_pred": torch.tensor(
             [
@@ -97,13 +114,18 @@ TEST_CASE_6 = [
                 [[[1.0, 0.0], [1.0, 1.0]], [[0.0, 1.0], [1.0, 1.0]], [[0.0, 1.0], [1.0, 0.0]]],
             ]
         ),
-        "y": torch.tensor([[[[0.0, 0.0], [0.0, 0.0]]], [[[0.0, 0.0], [0.0, 0.0]]]]),
+        "y": torch.tensor(
+            [
+                [[[1.0, 1.0], [1.0, 1.0]], [[0.0, 0.0], [0.0, 0.0]], [[0.0, 0.0], [0.0, 0.0]]],
+                [[[1.0, 1.0], [1.0, 1.0]], [[0.0, 0.0], [0.0, 0.0]], [[0.0, 0.0], [0.0, 0.0]]],
+            ]
+        ),
     },
     [1.7143, 0.0000, 0.0000],
 ]
 
 TEST_CASE_7 = [
-    {"include_background": True, "to_onehot_y": True, "reduction": "mean"},
+    {"include_background": True, "reduction": "mean"},
     {
         "y_pred": torch.tensor(
             [
@@ -111,13 +133,18 @@ TEST_CASE_7 = [
                 [[[1.0, 0.0], [1.0, 1.0]], [[0.0, 1.0], [1.0, 1.0]], [[0.0, 1.0], [1.0, 0.0]]],
             ]
         ),
-        "y": torch.tensor([[[[0.0, 0.0], [0.0, 0.0]]], [[[0.0, 0.0], [0.0, 0.0]]]]),
+        "y": torch.tensor(
+            [
+                [[[1.0, 1.0], [1.0, 1.0]], [[0.0, 0.0], [0.0, 0.0]], [[0.0, 0.0], [0.0, 0.0]]],
+                [[[1.0, 1.0], [1.0, 1.0]], [[0.0, 0.0], [0.0, 0.0]], [[0.0, 0.0], [0.0, 0.0]]],
+            ]
+        ),
     },
     0.857143,
 ]
 
 TEST_CASE_8 = [
-    {"to_onehot_y": True, "include_background": False, "reduction": "sum_batch"},
+    {"include_background": False, "reduction": "sum_batch"},
     {
         "y_pred": torch.tensor(
             [
@@ -125,32 +152,24 @@ TEST_CASE_8 = [
                 [[[1.0, 0.0], [1.0, 1.0]], [[0.0, 1.0], [1.0, 1.0]], [[0.0, 1.0], [1.0, 0.0]]],
             ]
         ),
-        "y": torch.tensor([[[[0.0, 0.0], [0.0, 0.0]]], [[[0.0, 0.0], [0.0, 0.0]]]]),
+        "y": torch.tensor(
+            [
+                [[[1.0, 1.0], [1.0, 1.0]], [[0.0, 0.0], [0.0, 0.0]], [[0.0, 0.0], [0.0, 0.0]]],
+                [[[1.0, 1.0], [1.0, 1.0]], [[0.0, 0.0], [0.0, 0.0]], [[0.0, 0.0], [0.0, 0.0]]],
+            ]
+        ),
     },
     [0.0000, 0.0000],
 ]
 
 TEST_CASE_9 = [
-    {"y": torch.from_numpy(np.ones((2, 2, 3, 3))), "y_pred": torch.from_numpy(np.ones((2, 2, 3, 3)))},
+    {"y": torch.ones((2, 2, 3, 3)), "y_pred": torch.ones((2, 2, 3, 3))},
     [[1.0000, 1.0000], [1.0000, 1.0000]],
-]
-
-TEST_CASE_10 = [  # y (1, 1, 2, 2), y_pred (1, 1, 2, 2), expected out (1, 1)
-    {
-        "y_pred": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
-        "y": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
-        "include_background": True,
-        "to_onehot_y": False,
-        "mutually_exclusive": False,
-        "logit_thresh": 0.0,
-        "other_act": torch.tanh,
-    },
-    [[0.8]],
 ]
 
 
 class TestComputeMeanDice(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_9, TEST_CASE_10])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_9])
     def test_value(self, input_data, expected_value):
         result = compute_meandice(**input_data)
         np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
@@ -169,14 +188,14 @@ class TestComputeMeanDice(unittest.TestCase):
         vals["y_pred"] = input_data.pop("y_pred")
         vals["y"] = input_data.pop("y")
         dice_metric = DiceMetric(**input_data, reduction="none")
-        result = dice_metric(**vals)
+        result, _ = dice_metric(**vals)
         np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
 
     @parameterized.expand([TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7, TEST_CASE_8])
     def test_nans_class(self, params, input_data, expected_value):
 
         dice_metric = DiceMetric(**params)
-        result = dice_metric(**input_data)
+        result, _ = dice_metric(**input_data)
         np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
 
 
