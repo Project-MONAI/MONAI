@@ -13,7 +13,8 @@ from typing import Callable, Optional, Sequence
 
 import torch
 
-from monai.metrics import ConfusionMatrixMetric
+from monai.metrics import ConfusionMatrixMetric, compute_confusion_matrix_metric
+from monai.metrics.utils import MetricReduction, do_metric_reduction
 from monai.utils import exact_version, optional_import
 
 NotComputableError, _ = optional_import("ignite.exceptions", "0.4.2", exact_version, "NotComputableError")
@@ -31,8 +32,7 @@ class ConfusionMatrix(Metric):  # type: ignore[valid-type, misc] # due to option
         self,
         include_background: bool = True,
         metric_name: str = "hit_rate",
-        compute_sample: bool = True,
-        output_class: bool = False,
+        compute_sample: bool = False,
         output_transform: Callable = lambda x: x,
         device: Optional[torch.device] = None,
     ) -> None:
@@ -48,10 +48,8 @@ class ConfusionMatrix(Metric):  # type: ignore[valid-type, misc] # due to option
                 ``"informedness"``, ``"markedness"``]
                 Some of the metrics have multiple aliases (as shown in the wikipedia page aforementioned),
                 and you can also input those names instead.
-            compute_sample: if ``True``, each sample's metric will be computed first. Defaults to ``True``.
-            output_class: if ``True``, scores for each class will be returned. The final result is each class's score.
-                If average these scores, you will get the macro average of each class. Otherwise, the micro average score
-                of each class will be returned. Defaults to ``False``.
+            compute_sample: if ``True``, each sample's metric will be computed first.
+                If ``False``, the confusion matrix for all samples will be accumulated first. Defaults to ``False``.
             output_transform: transform the ignite.engine.state.output into [y_pred, y] pair.
             device: device specification in case of distributed computation usage.
 
@@ -63,15 +61,25 @@ class ConfusionMatrix(Metric):  # type: ignore[valid-type, misc] # due to option
             include_background=include_background,
             metric_name=metric_name,
             compute_sample=compute_sample,
-            output_class=output_class,
+            reduction=MetricReduction.MEAN,
         )
         self._sum = 0.0
         self._num_examples = 0
+        self.compute_sample = compute_sample
+        self.metric_name = metric_name
+        self._total_tp = 0
+        self._total_fp = 0
+        self._total_tn = 0
+        self._total_fn = 0
 
     @reinit__is_reduced
     def reset(self) -> None:
         self._sum = 0.0
         self._num_examples = 0
+        self._total_tp = 0
+        self._total_fp = 0
+        self._total_tn = 0
+        self._total_fn = 0
 
     @reinit__is_reduced
     def update(self, output: Sequence[torch.Tensor]) -> None:
@@ -86,20 +94,34 @@ class ConfusionMatrix(Metric):  # type: ignore[valid-type, misc] # due to option
         if len(output) != 2:
             raise ValueError(f"output must have length 2, got {len(output)}.")
         y_pred, y = output
-        score, not_nans = self.confusion_matrix(y_pred, y)
-        not_nans = int(not_nans.item())
+        if self.compute_sample is True:
+            score, not_nans = self.confusion_matrix(y_pred, y)
+            not_nans = int(not_nans.item())
 
-        # add all items in current batch
-        self._sum += score.item() * not_nans
-        self._num_examples += not_nans
+            # add all items in current batch
+            self._sum += score.item() * not_nans
+            self._num_examples += not_nans
+        else:
+            confusion_matrix = self.confusion_matrix(y_pred, y)
+            confusion_matrix, _ = do_metric_reduction(confusion_matrix, MetricReduction.SUM)
+            self._total_tp += confusion_matrix[0].item()
+            self._total_fp += confusion_matrix[1].item()
+            self._total_tn += confusion_matrix[2].item()
+            self._total_fn += confusion_matrix[3].item()
 
-    @sync_all_reduce("_sum", "_num_examples")
-    def compute(self) -> float:
+    @sync_all_reduce("_sum", "_num_examples", "_total_tp", "_total_fp", "_total_tn", "_total_fn")
+    def compute(self):
         """
         Raises:
             NotComputableError: When ``compute`` is called before an ``update`` occurs.
 
         """
-        if self._num_examples == 0:
-            raise NotComputableError("ConfusionMatrix metric must have at least one example before it can be computed.")
-        return self._sum / self._num_examples
+        if self.compute_sample is True:
+            if self._num_examples == 0:
+                raise NotComputableError(
+                    "ConfusionMatrix metric must have at least one example before it can be computed."
+                )
+            return self._sum / self._num_examples
+        else:
+            confusion_matrix = torch.tensor([self._total_tp, self._total_fp, self._total_tn, self._total_fn])
+            return compute_confusion_matrix_metric(self.metric_name, confusion_matrix)

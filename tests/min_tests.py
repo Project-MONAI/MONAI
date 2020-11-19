@@ -37,6 +37,8 @@ def run_testsuit():
         "test_handler_checkpoint_saver",
         "test_handler_classification_saver",
         "test_handler_lr_scheduler",
+        "test_handler_confusion_matrix",
+        "test_handler_confusion_matrix_dist",
         "test_handler_mean_dice",
         "test_handler_rocauc",
         "test_handler_rocauc_dist",
@@ -93,7 +95,6 @@ def run_testsuit():
         "test_zoom_affine",
         "test_zoomd",
         "test_compute_occlusion_sensitivity",
-        "test_handler_confusion_matrix",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 
