@@ -236,7 +236,7 @@ class ToNumpy(Transform):
         Apply the transform to `img` and make it contiguous.
         """
         if torch.is_tensor(img):
-            img = img.detach().cpu().numpy()
+            img = img.detach().cpu().numpy()  # type: ignore
         return np.ascontiguousarray(img)
 
 
