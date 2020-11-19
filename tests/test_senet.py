@@ -53,20 +53,20 @@ class TestSENET(unittest.TestCase):
         assert torch.allclose(out_orig, out_reloaded)
 
 
-class TestPretrainedSENET(unittest.TestCase):
-    @parameterized.expand(
-        [
-            TEST_CASE_PRETRAINED,
-        ]
-    )
-    def test_senet_shape(self, model, input_param):
-        net = test_pretrained_networks(model, input_param, device)
-        input_data = torch.randn(3, 3, 64, 64).to(device)
-        expected_shape = (3, 2)
-        net = net.to(device).eval()
-        with torch.no_grad():
-            result = net(input_data)
-            self.assertEqual(result.shape, expected_shape)
+# class TestPretrainedSENET(unittest.TestCase):
+#     @parameterized.expand(
+#         [
+#             TEST_CASE_PRETRAINED,
+#         ]
+#     )
+#     def test_senet_shape(self, model, input_param):
+#         net = test_pretrained_networks(model, input_param, device)
+#         input_data = torch.randn(3, 3, 64, 64).to(device)
+#         expected_shape = (3, 2)
+#         net = net.to(device).eval()
+#         with torch.no_grad():
+#             result = net(input_data)
+#             self.assertEqual(result.shape, expected_shape)
 
 
 if __name__ == "__main__":
