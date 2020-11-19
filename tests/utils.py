@@ -20,7 +20,7 @@ import numpy as np
 import torch
 
 from monai.data import create_test_image_2d, create_test_image_3d
-from monai.utils import optional_import
+from monai.utils import optional_import, set_determinism
 
 nib, _ = optional_import("nibabel")
 
@@ -148,9 +148,10 @@ def test_script_save(net, *inputs, eval_nets=True, device=None):
         reloaded_net.eval()
 
     with torch.no_grad():
+        set_determinism(seed=0)
         result1 = net(*inputs)
         result2 = reloaded_net(*inputs)
-
+        set_determinism(seed=None)
     # When using e.g., VAR, we will produce a tuple of outputs.
     # Hence, convert all to tuples and then compare all elements.
     if not isinstance(result1, tuple):
