@@ -179,7 +179,7 @@ class SupervisedEvaluator(Evaluator):
         """
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
-        batch = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)
+        batch = self.prepare_batch(batchdata, engine)
         if len(batch) == 2:
             inputs, targets = batch
             args: Tuple = tuple()
@@ -285,7 +285,7 @@ class EnsembleEvaluator(Evaluator):
         """
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
-        batch = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)
+        batch = self.prepare_batch(batchdata, engine)
         if len(batch) == 2:
             inputs, targets = batch
             args: Tuple = tuple()

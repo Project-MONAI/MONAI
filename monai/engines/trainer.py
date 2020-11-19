@@ -138,7 +138,7 @@ class SupervisedTrainer(Trainer):
         """
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
-        batch = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)
+        batch = self.prepare_batch(batchdata, engine)
         if len(batch) == 2:
             inputs, targets = batch
             args: Tuple = tuple()
@@ -280,9 +280,9 @@ class GanTrainer(Trainer):
         if batchdata is None:
             raise ValueError("must provide batch data for current iteration.")
 
-        d_input = self.prepare_batch(batchdata, engine.state.device)
+        d_input = self.prepare_batch(batchdata, engine)
         batch_size = self.data_loader.batch_size
-        g_input = self.g_prepare_batch(batch_size, self.latent_shape, engine.state.device, engine.non_blocking)
+        g_input = self.g_prepare_batch(batch_size, self.latent_shape, engine)
         g_output = self.g_inferer(g_input, self.g_network)
 
         # Train Discriminator
@@ -298,7 +298,7 @@ class GanTrainer(Trainer):
 
         # Train Generator
         if self.g_update_latents:
-            g_input = self.g_prepare_batch(batch_size, self.latent_shape, engine.state.device, engine.non_blocking)
+            g_input = self.g_prepare_batch(batch_size, self.latent_shape, engine)
         g_output = self.g_inferer(g_input, self.g_network)
         self.g_optimizer.zero_grad()
         g_loss = self.g_loss_function(g_output)

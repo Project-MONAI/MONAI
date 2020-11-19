@@ -9,10 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, List, Optional, Sequence, Tuple, Union
-
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple, Union
 import torch
+from monai.utils import exact_version, optional_import
 
+if TYPE_CHECKING:
+    from ignite.engine import Engine
+else:
+    Engine, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Engine")
 
 class CommonKeys:
     """
@@ -75,19 +79,23 @@ def get_devices_spec(devices: Optional[Sequence[torch.device]] = None) -> List[t
 
 
 def default_prepare_batch(
-    batchdata: Dict[str, torch.Tensor],
-    device: Optional[Union[str, torch.device]] = None,
-    non_blocking: bool = False,
+    batchdata: Dict[str, torch.Tensor], engine: Engine
 ) -> Union[Tuple[torch.Tensor, Optional[torch.Tensor]], torch.Tensor]:
     """
     Default function to prepare the data for current iteration.
     Refer to ignite: https://github.com/pytorch/ignite/blob/v0.4.2/ignite/engine/__init__.py#L28.
+
+    Args:
+        batchdata: input data for this iteration, must be dictionary of Tensor data.
+        engine: Ignite Engine, it can be a trainer, validator or evaluator.
 
     Returns:
         image, label(optional).
 
     """
     assert isinstance(batchdata, dict), "default prepare_batch expects dictionary input data."
+    device = engine.state.device
+    non_blocking = engine.non_blocking
     if CommonKeys.LABEL in batchdata:
         return (
             batchdata[CommonKeys.IMAGE].to(device=device, non_blocking=non_blocking),
@@ -99,10 +107,5 @@ def default_prepare_batch(
         return batchdata[CommonKeys.IMAGE].to(device=device, non_blocking=non_blocking), None
 
 
-def default_make_latent(
-    num_latents: int,
-    latent_size: int,
-    device: Optional[Union[str, torch.device]] = None,
-    non_blocking: bool = False,
-) -> torch.Tensor:
-    return torch.randn(num_latents, latent_size).to(device=device, non_blocking=non_blocking)
+def default_make_latent(num_latents: int, latent_size: int, engine: Engine) -> torch.Tensor:
+    return torch.randn(num_latents, latent_size).to(device=engine.state.device, non_blocking=engine.non_blocking)
