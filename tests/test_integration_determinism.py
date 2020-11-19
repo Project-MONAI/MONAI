@@ -22,7 +22,7 @@ from monai.transforms import AddChannel, Compose, RandRotate90, RandSpatialCrop,
 from monai.utils import set_determinism
 
 
-def run_test(batch_size=64, train_steps=200, device=torch.device("cuda:0")):
+def run_test(batch_size=64, train_steps=200, device="cuda:0"):
     class _TestBatch(Dataset):
         def __init__(self, transforms):
             self.transforms = transforms

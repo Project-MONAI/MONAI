@@ -9,15 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Union
 
 import numpy as np
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 
 from monai.networks.blocks.segresnet_block import *
 from monai.networks.layers.factories import Act, Dropout
+from monai.utils import UpsampleMode
 
 
 class SegResNet(nn.Module):
@@ -39,13 +39,14 @@ class SegResNet(nn.Module):
         use_conv_final: if add a final convolution block to output. Defaults to ``True``.
         blocks_down: number of down sample blocks in each layer. Defaults to ``[1,2,2,4]``.
         blocks_up: number of up sample blocks in each layer. Defaults to ``[1,1,1]``.
-        upsample_mode: [``"transpose"``, ``"bilinear"``, ``"trilinear"``]
+        upsample_mode: [``"transpose"``, ``"nontrainable"``, ``"pixelshuffle"``]
             The mode of upsampling manipulations.
-            Using the last two modes cannot guarantee the model's reproducibility. Defaults to``trilinear``.
+            Using the ``nontrainable`` modes cannot guarantee the model's reproducibility. Defaults to``nontrainable``.
 
             - ``transpose``, uses transposed convolution layers.
-            - ``bilinear``, uses bilinear interpolate.
-            - ``trilinear``, uses trilinear interpolate.
+            - ``nontrainable``, uses non-trainable `linear` interpolation.
+            - ``pixelshuffle``, uses :py:class:`monai.networks.blocks.SubpixelUpsample`.
+
     """
 
     def __init__(
@@ -60,7 +61,7 @@ class SegResNet(nn.Module):
         use_conv_final: bool = True,
         blocks_down: tuple = (1, 2, 2, 4),
         blocks_up: tuple = (1, 1, 1),
-        upsample_mode: str = "trilinear",
+        upsample_mode: Union[UpsampleMode, str] = UpsampleMode.NONTRAINABLE,
     ):
         super().__init__()
 
@@ -73,7 +74,7 @@ class SegResNet(nn.Module):
         self.dropout_prob = dropout_prob
         self.norm_name = norm_name
         self.num_groups = num_groups
-        self.upsample_mode = upsample_mode
+        self.upsample_mode = UpsampleMode(upsample_mode)
         self.use_conv_final = use_conv_final
         self.convInit = get_conv_layer(spatial_dims, in_channels, init_filters)
         self.down_layers = self._make_down_layers()
@@ -81,7 +82,7 @@ class SegResNet(nn.Module):
         self.relu = Act[Act.RELU](inplace=True)
         self.conv_final = self._make_final_conv(out_channels)
 
-        if dropout_prob:
+        if dropout_prob is not None:
             self.dropout = Dropout[Dropout.DROPOUT, spatial_dims](dropout_prob)
 
     def _make_down_layers(self):
@@ -150,18 +151,20 @@ class SegResNet(nn.Module):
 
     def forward(self, x):
         x = self.convInit(x)
-        if self.dropout_prob:
+        if self.dropout_prob is not None:
             x = self.dropout(x)
 
         down_x = []
-        for i in range(len(self.blocks_down)):
-            x = self.down_layers[i](x)
+
+        for down in self.down_layers:
+            x = down(x)
             down_x.append(x)
+
         down_x.reverse()
 
-        for i in range(len(self.blocks_up)):
-            x = self.up_samples[i](x) + down_x[i + 1]
-            x = self.up_layers[i](x)
+        for i, (up, upl) in enumerate(zip(self.up_samples, self.up_layers)):
+            x = up(x) + down_x[i + 1]
+            x = upl(x)
 
         if self.use_conv_final:
             x = self.conv_final(x)
@@ -187,13 +190,14 @@ class SegResNetVAE(SegResNet):
         use_conv_final: if add a final convolution block to output. Defaults to ``True``.
         blocks_down: number of down sample blocks in each layer. Defaults to ``[1,2,2,4]``.
         blocks_up: number of up sample blocks in each layer. Defaults to ``[1,1,1]``.
-        upsample_mode: [``"transpose"``, ``"bilinear"``, ``"trilinear"``]
+        upsample_mode: [``"transpose"``, ``"nontrainable"``, ``"pixelshuffle"``]
             The mode of upsampling manipulations.
-            Using the last two modes cannot guarantee the model's reproducibility. Defaults to``trilinear``.
+            Using the ``nontrainable`` modes cannot guarantee the model's reproducibility. Defaults to `nontrainable`.
 
             - ``transpose``, uses transposed convolution layers.
-            - ``bilinear``, uses bilinear interpolate.
-            - ``trilinear``, uses trilinear interpolate.
+            - ``nontrainable``, uses non-trainable `linear` interpolation.
+            - ``pixelshuffle``, uses :py:class:`monai.networks.blocks.SubpixelUpsample`.
+
         use_vae: if use the variational autoencoder (VAE) during training. Defaults to ``False``.
         input_image_size: the size of images to input into the network. It is used to
             determine the in_features of the fc layer in VAE. When ``use_vae == True``, please
@@ -220,7 +224,7 @@ class SegResNetVAE(SegResNet):
         use_conv_final: bool = True,
         blocks_down: tuple = (1, 2, 2, 4),
         blocks_up: tuple = (1, 1, 1),
-        upsample_mode: str = "trilinear",
+        upsample_mode: Union[UpsampleMode, str] = "nontrainable",
     ):
         super(SegResNetVAE, self).__init__(
             spatial_dims=spatial_dims,
@@ -237,6 +241,11 @@ class SegResNetVAE(SegResNet):
         )
 
         self.input_image_size = input_image_size
+        self.smallest_filters = 16
+
+        zoom = 2 ** (len(self.blocks_down) - 1)
+        self.fc_insize = [s // (2 * zoom) for s in self.input_image_size]
+
         self.vae_estimate_std = vae_estimate_std
         self.vae_default_std = vae_default_std
         self.vae_nz = vae_nz
@@ -244,10 +253,8 @@ class SegResNetVAE(SegResNet):
         self.vae_conv_final = self._make_final_conv(in_channels)
 
     def _prepare_vae_modules(self):
-        self.smallest_filters = 16
         zoom = 2 ** (len(self.blocks_down) - 1)
         v_filters = self.init_filters * zoom
-        self.fc_insize = list(np.array(self.input_image_size) // (2 * zoom))
         total_elements = int(self.smallest_filters * np.prod(self.fc_insize))
 
         self.vae_down = nn.Sequential(
@@ -279,23 +286,31 @@ class SegResNetVAE(SegResNet):
         x_vae = self.vae_down(vae_input)
         x_vae = x_vae.view(-1, self.vae_fc1.in_features)
         z_mean = self.vae_fc1(x_vae)
+
+        z_mean_rand = torch.randn_like(z_mean)
+        z_mean_rand.requires_grad_(False)
+
         if self.vae_estimate_std:
             z_sigma = self.vae_fc2(x_vae)
             z_sigma = F.softplus(z_sigma)
             vae_reg_loss = 0.5 * torch.mean(z_mean ** 2 + z_sigma ** 2 - torch.log(1e-8 + z_sigma ** 2) - 1)
+
+            x_vae = z_mean + z_sigma * z_mean_rand
         else:
             z_sigma = self.vae_default_std
             vae_reg_loss = torch.mean(z_mean ** 2)
-        x_vae = z_mean + z_sigma * torch.randn(
-            z_mean.shape, dtype=z_mean.dtype, device=z_mean.device, requires_grad=False
-        )
+
+            x_vae = z_mean + z_sigma * z_mean_rand
+
         x_vae = self.vae_fc3(x_vae)
         x_vae = self.relu(x_vae)
         x_vae = x_vae.view([-1, self.smallest_filters] + self.fc_insize)
         x_vae = self.vae_fc_up_sample(x_vae)
-        for i in range(len(self.blocks_up)):
-            x_vae = self.up_samples[i](x_vae)
-            x_vae = self.up_layers[i](x_vae)
+
+        for up, upl in zip(self.up_samples, self.up_layers):
+            x_vae = up(x_vae)
+            x_vae = upl(x_vae)
+
         x_vae = self.vae_conv_final(x_vae)
         vae_mse_loss = F.mse_loss(net_input, x_vae)
         vae_loss = vae_reg_loss + vae_mse_loss
@@ -304,20 +319,21 @@ class SegResNetVAE(SegResNet):
     def forward(self, x):
         net_input = x
         x = self.convInit(x)
-        if self.dropout_prob:
+        if self.dropout_prob is not None:
             x = self.dropout(x)
 
         down_x = []
-        for i in range(len(self.blocks_down)):
-            x = self.down_layers[i](x)
+        for down in self.down_layers:
+            x = down(x)
             down_x.append(x)
+
         down_x.reverse()
 
         vae_input = x
 
-        for i in range(len(self.blocks_up)):
-            x = self.up_samples[i](x) + down_x[i + 1]
-            x = self.up_layers[i](x)
+        for i, (up, upl) in enumerate(zip(self.up_samples, self.up_layers)):
+            x = up(x) + down_x[i + 1]
+            x = upl(x)
 
         if self.use_conv_final:
             x = self.conv_final(x)
@@ -325,4 +341,5 @@ class SegResNetVAE(SegResNet):
         if self.training:
             vae_loss = self._get_vae_loss(net_input, vae_input)
             return x, vae_loss
-        return x
+
+        return x, None

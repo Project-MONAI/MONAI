@@ -10,13 +10,17 @@
 # limitations under the License.
 
 from .ahnet import AHNet
+from .autoencoder import AutoEncoder
+from .basic_unet import *
 from .classifier import *
 from .densenet import DenseNet, densenet121, densenet169, densenet201, densenet264
-from .dynunet import DynUNet
+from .dynunet import *
+from .fullyconnectednet import *
 from .generator import Generator
 from .highresnet import HighResBlock, HighResNet
 from .regressor import Regressor
 from .segresnet import SegResNet, SegResNetVAE
 from .senet import SENet, se_resnet50, se_resnet101, se_resnet152, se_resnext50_32x4d, se_resnext101_32x4d, senet154
 from .unet import *
+from .varautoencoder import VarAutoEncoder
 from .vnet import VNet
