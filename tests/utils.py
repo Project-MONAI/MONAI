@@ -159,7 +159,7 @@ def test_script_save(net, *inputs, eval_nets=True, device=None):
 
     for i, j in zip(result1, result2):
         if None not in (i, j):  # might be None
-            assert torch.allclose(i, j, atol=1e-7)
+            assert torch.allclose(i, j, atol=1e-6)
 
 
 def query_memory(n=2):
