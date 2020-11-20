@@ -145,13 +145,15 @@ jobs:
     # we only push built container if it is built from master branch
     steps:
     - uses: actions/checkout@v2
+      with:
+        ref: master
     - name: docker_build
       run: |
         docker build -t localhost:5000/local_monai:latest -f Dockerfile .
         docker push localhost:5000/local_monai:latest
         docker tag localhost:5000/local_monai:latest projectmonai/monai:latest
         docker login -u projectmonai -p ${{ secrets.DOCKER_PW }}
-        if [ $(git branch --show-current) == 'master' ]; then docker push projectmonai/monai:latest; fi
+        docker push projectmonai/monai:latest
         docker logout
 
   docker:
