@@ -25,7 +25,7 @@ RUN cp /tmp/requirements.txt /tmp/req.bak \
 # compile ext and remove temp files
 COPY . .
 RUN BUILD_MONAI=1 FORCE_CUDA=1 python setup.py develop \
-  && rm -rf builds __pycache__
+  && rm -rf build __pycache__
 
 # NGC Client
 WORKDIR /opt/tools
