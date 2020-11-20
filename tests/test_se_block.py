@@ -72,8 +72,7 @@ class TestSEBlockLayer(unittest.TestCase):
         input_param, input_shape, _ = TEST_CASES[0]
         net = SEBlock(**input_param)
         test_data = torch.randn(input_shape)
-        out_orig, out_reloaded = test_script_save(net, test_data)
-        assert torch.allclose(out_orig, out_reloaded)
+        test_script_save(net, test_data)
 
     def test_ill_arg(self):
         with self.assertRaises(ValueError):

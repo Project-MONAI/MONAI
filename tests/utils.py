@@ -20,7 +20,7 @@ import numpy as np
 import torch
 
 from monai.data import create_test_image_2d, create_test_image_3d
-from monai.utils import optional_import
+from monai.utils import optional_import, set_determinism
 
 nib, _ = optional_import("nibabel")
 
@@ -123,27 +123,55 @@ class TorchImageTestCase3D(NumpyImageTestCase3D):
         self.segn = torch.tensor(self.segn)
 
 
-def test_script_save(net, *inputs, eval_nets=True):
+def test_script_save(net, *inputs, eval_nets=True, device=None):
     """
     Test the ability to save `net` as a Torchscript object, reload it, and apply inference. The value `inputs` is
     forward-passed through the original and loaded copy of the network and their results returned. Both `net` and its
     reloaded copy are set to evaluation mode if `eval_nets` is True. The forward pass for both is done without
     gradient accumulation.
-    """
 
-    scripted = torch.jit.script(net)
+    The test will be performed with CUDA if available, else CPU.
+    """
+    if True:
+        device = "cpu"
+    else:
+        # TODO: It would be nice to be able to use GPU if
+        # available, but this currently causes CI failures.
+        if not device:
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    # Convert to device
+    inputs = [i.to(device) for i in inputs]
+
+    scripted = torch.jit.script(net.cpu())
     buffer = scripted.save_to_buffer()
-    reloaded_net = torch.jit.load(BytesIO(buffer))
+    reloaded_net = torch.jit.load(BytesIO(buffer)).to(device)
+    net.to(device)
 
     if eval_nets:
         net.eval()
         reloaded_net.eval()
 
     with torch.no_grad():
+        set_determinism(seed=0)
         result1 = net(*inputs)
         result2 = reloaded_net(*inputs)
+        set_determinism(seed=None)
+    # When using e.g., VAR, we will produce a tuple of outputs.
+    # Hence, convert all to tuples and then compare all elements.
+    if not isinstance(result1, tuple):
+        result1 = (result1,)
+        result2 = (result2,)
 
-    return result1, result2
+    for i, (r1, r2) in enumerate(zip(result1, result2)):
+        if None not in (r1, r2):  # might be None
+            np.testing.assert_allclose(
+                r1.detach().cpu().numpy(),
+                r2.detach().cpu().numpy(),
+                rtol=1e-5,
+                atol=0,
+                err_msg=f"failed on comparison number: {i}",
+            )
 
 
 def query_memory(n=2):
