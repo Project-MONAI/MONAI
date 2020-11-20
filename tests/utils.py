@@ -161,7 +161,11 @@ def test_script_save(net, *inputs, eval_nets=True, device=None):
     for i, (r1, r2) in enumerate(zip(result1, result2)):
         if None not in (r1, r2):  # might be None
             np.testing.assert_allclose(
-                r1.detach().cpu().numpy(), r2.detach().cpu().numpy(), rtol=1e-6, atol=1e-6, err_msg=f"failed on {i}"
+                r1.detach().cpu().numpy(),
+                r2.detach().cpu().numpy(),
+                rtol=1e-5,
+                atol=1e-8,
+                err_msg=f"failed on comparison number: {i}",
             )
 
 
