@@ -24,13 +24,21 @@ torch::Tensor BilateralFilterPHLCuda(torch::Tensor input, float spatial_sigma, f
 torch::Tensor BilateralFilter(torch::Tensor input, float spatial_sigma, float color_sigma, bool usePHL)
 {
     torch::Tensor (*filterFunction)(torch::Tensor, float, float);
-
+    
+    bool checkCuda = false;
     #ifdef WITH_CUDA
-        CHECK_CONTIGUOUS_CUDA(input);
-        filterFunction = usePHL ? &BilateralFilterPHLCuda : &BilateralFilterCuda;
-    #else
-        filterFunction = usePHL ? &BilateralFilterPHLCpu : &BilateralFilterCpu;
+    checkCuda = true;
     #endif
+
+    if(checkCuda && torch::cuda::is_available() && input.is_cuda())
+    {
+        CHECK_CONTIGUOUS_CUDA(input);
+        filterFunction = usePHL ? &BilateralFilterCuda : &BilateralFilterCuda;
+    }
+    else
+    {
+        filterFunction = usePHL ? &BilateralFilterPHLCpu : &BilateralFilterCpu;
+    }
 
     return filterFunction(input, spatial_sigma, color_sigma);
 }
