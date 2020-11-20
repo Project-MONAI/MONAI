@@ -26,13 +26,13 @@ from tests.utils import test_pretrained_networks, test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-net_args = {"spatial_dims": 3, "in_channels": 2, "num_classes": 2}
-TEST_CASE_1 = [senet154, net_args]
-TEST_CASE_2 = [se_resnet50, net_args]
-TEST_CASE_3 = [se_resnet101, net_args]
-TEST_CASE_4 = [se_resnet152, net_args]
-TEST_CASE_5 = [se_resnext50_32x4d, net_args]
-TEST_CASE_6 = [se_resnext101_32x4d, net_args]
+NET_ARGS = {"spatial_dims": 3, "in_channels": 2, "num_classes": 2}
+TEST_CASE_1 = [senet154, NET_ARGS]
+TEST_CASE_2 = [se_resnet50, NET_ARGS]
+TEST_CASE_3 = [se_resnet101, NET_ARGS]
+TEST_CASE_4 = [se_resnet152, NET_ARGS]
+TEST_CASE_5 = [se_resnext50_32x4d, NET_ARGS]
+TEST_CASE_6 = [se_resnext101_32x4d, NET_ARGS]
 
 TEST_CASE_PRETRAINED = [se_resnet50, {"spatial_dims": 2, "in_channels": 3, "num_classes": 2, "pretrained": True}]
 

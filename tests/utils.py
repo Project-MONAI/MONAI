@@ -154,12 +154,12 @@ def test_script_save(net, *inputs, eval_nets=True, device=None):
     # When using e.g., VAR, we will produce a tuple of outputs.
     # Hence, convert all to tuples and then compare all elements.
     if not isinstance(result1, tuple):
-        retult1 = (result1,)
-        retult2 = (result2,)
+        result1 = (result1,)
+        result2 = (result2,)
 
     for i, j in zip(result1, result2):
         if None not in (i, j):  # might be None
-            np.testing.assert_allclose(i.cpu(), j.cpu())
+            np.testing.assert_allclose(i.detach().cpu().numpy(), j.detach().cpu().numpy())
 
 
 def query_memory(n=2):
