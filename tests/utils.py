@@ -134,6 +134,7 @@ def test_script_save(net, *inputs, eval_nets=True, device=None):
     """
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = "cpu"
 
     # Convert to device
     inputs = [i.to(device) for i in inputs]
