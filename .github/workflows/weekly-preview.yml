@@ -2,7 +2,7 @@ name: weekly-preview
 
 on:
   schedule:
-  - cron: "0 2 * * 6"  # 02:00 of every Saturday
+  - cron: "0 2 * * 0"  # 02:00 of every Sunday
 
 jobs:
   packaging:
@@ -27,7 +27,7 @@ jobs:
         # build tar.gz and wheel
         git config user.name "CI Builder"
         git config user.email "monai.miccai2019@gmail.com"
-        git add setup.cfg setup.py
+        git add setup.cfg monai/__init__.py
         git commit -m "Weekly build at $HEAD_COMMIT_ID"
         git tag 0.4.dev$(date +'%y%U')
         python setup.py sdist bdist_wheel
