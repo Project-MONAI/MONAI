@@ -65,8 +65,8 @@ __global__ void BilateralFilterCudaKernel(float* input, float* output)
             {
                 float a = input[batchOffset + homeOffset + i * channelStride];
                 float b = input[batchOffset + neighbourOffset + i * channelStride];
-
-                distanceSquared += a*a + b*b;
+                float diff = a - b;
+                distanceSquared += diff * diff;
             }
 
             float spatialWeight = gaussianX * gaussianY;
