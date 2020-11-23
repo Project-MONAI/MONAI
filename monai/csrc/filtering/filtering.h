@@ -32,7 +32,7 @@ torch::Tensor BilateralFilter(torch::Tensor input, float spatial_sigma, float co
     if(torch::cuda::is_available() && input.is_cuda())
     {
         CHECK_CONTIGUOUS_CUDA(input);
-        filterFunction = usePHL ? &BilateralFilterCuda : &BilateralFilterCuda;
+        filterFunction = usePHL ? &BilateralFilterPHLCuda : &BilateralFilterCuda;
     }
     else
     {
