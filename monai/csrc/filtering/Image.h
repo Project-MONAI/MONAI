@@ -1,7 +1,6 @@
-#ifndef IMAGE_H
-#define IMAGE_H
+#pragma once 
 
-#include <string.h>
+#include <algorithm>
 
 // Some basic Image classes.
 // Image is a reference counting pointer class that refers to an array of floats
@@ -15,12 +14,12 @@ class Window {
     }
     
     Window(Window im, int mint_, int minx_, int miny_, int frames_, int width_, int height_) {
-	int mint = MAX(0, mint_);
-	int maxt = MIN(im.frames, mint_ + frames_);
-	int minx = MAX(0, minx_);
-	int maxx = MIN(im.width, minx_ + width_);
-	int miny = MAX(0, miny_);
-	int maxy = MIN(im.height, miny_ + height_);
+	int mint = std::max(0, mint_);
+	int maxt = std::min(im.frames, mint_ + frames_);
+	int minx = std::max(0, minx_);
+	int maxx = std::min(im.width, minx_ + width_);
+	int miny = std::max(0, miny_);
+	int maxy = std::min(im.height, miny_ + height_);
 
 	xstride = im.xstride;
 	ystride = im.ystride;
@@ -81,9 +80,6 @@ class Image : public Window {
         tstride = ystride * height;
         refCount = new int;
         *refCount = 1;
-        
-        //printf("Making new image "); 
-        //debug();
     }
     
     // does not copy data
@@ -174,5 +170,3 @@ class Image : public Window {
         return *this;
     }
 };
-
-#endif
