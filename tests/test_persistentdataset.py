@@ -17,7 +17,7 @@ import nibabel as nib
 import numpy as np
 from parameterized import parameterized
 
-from monai.data import PersistentDataset
+from monai.data import PersistentDataset, pickle_hashing
 from monai.transforms import Compose, LoadNiftid, SimulateDelayd, Transform
 
 TEST_CASE_1 = [
@@ -49,7 +49,7 @@ class TestDataset(unittest.TestCase):
         class _InplaceXform(Transform):
             def __call__(self, data):
                 if data:
-                    data[0] = data[0] + 1
+                    data[0] = data[0] + np.pi
                 else:
                     data.append(1)
                 return data
@@ -58,6 +58,12 @@ class TestDataset(unittest.TestCase):
             ds = PersistentDataset(items, transform=_InplaceXform(), cache_dir=tempdir)
             self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
             ds1 = PersistentDataset(items, transform=_InplaceXform(), cache_dir=tempdir)
+            self.assertEqual(list(ds1), list(ds))
+            self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
+
+            ds = PersistentDataset(items, transform=_InplaceXform(), cache_dir=tempdir, hash_func=pickle_hashing)
+            self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
+            ds1 = PersistentDataset(items, transform=_InplaceXform(), cache_dir=tempdir, hash_func=pickle_hashing)
             self.assertEqual(list(ds1), list(ds))
             self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
 

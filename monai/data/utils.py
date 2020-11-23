@@ -13,6 +13,7 @@ import hashlib
 import json
 import math
 import os
+import pickle
 import warnings
 from collections import defaultdict
 from itertools import product, starmap
@@ -766,7 +767,7 @@ class DistributedSampler(_TorchDistributedSampler):
             self.total_size = data_len
 
 
-def default_hashing(item) -> bytes:
+def json_hashing(item) -> bytes:
     """
 
     Args:
@@ -775,6 +776,28 @@ def default_hashing(item) -> bytes:
     Returns: the corresponding hash key
 
     """
-    # TODO: Find way to hash transforms content as part of the cache, pickle.dumps?
+    # TODO: Find way to hash transforms content as part of the cache
     cache_key = hashlib.md5(json.dumps(item, sort_keys=True).encode("utf-8")).hexdigest()
     return f"{cache_key}".encode("utf-8")
+
+
+def pickle_hashing(item, protocol=pickle.DEFAULT_PROTOCOL) -> bytes:
+    """
+
+    Args:
+        item: data item to be hashed
+        protocol: protocol version used for pickling,
+            defaults to `pickle.DEFAULT_PROTOCOL`.
+
+    Returns: the corresponding hash key
+
+    """
+    cache_key = hashlib.md5(pickle.dumps(sorted_dict(item), protocol=protocol)).hexdigest()
+    return f"{cache_key}".encode("utf-8")
+
+
+def sorted_dict(item, key=None, reverse=False):
+    """Return a new sorted dictionary from the `item`."""
+    if not isinstance(item, dict):
+        return item
+    return {k: sorted_dict(v) if isinstance(v, dict) else v for k, v in sorted(item.items(), key=key, reverse=reverse)}

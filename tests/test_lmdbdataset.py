@@ -17,7 +17,7 @@ import nibabel as nib
 import numpy as np
 from parameterized import parameterized
 
-from monai.data import LMDBDataset
+from monai.data import LMDBDataset, pickle_hashing
 from monai.transforms import Compose, LoadNiftid, SimulateDelayd, Transform
 from tests.utils import skip_if_windows
 
@@ -87,7 +87,7 @@ class TestLMDBDataset(unittest.TestCase):
         class _InplaceXform(Transform):
             def __call__(self, data):
                 if data:
-                    data[0] = data[0] + 1
+                    data[0] = data[0] + np.pi
                 else:
                     data.append(1)
                 return data
@@ -96,6 +96,24 @@ class TestLMDBDataset(unittest.TestCase):
             ds = LMDBDataset(items, transform=_InplaceXform(), cache_dir=tempdir, lmdb_kwargs={"map_size": 10 * 1024})
             self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
             ds1 = LMDBDataset(items, transform=_InplaceXform(), cache_dir=tempdir, lmdb_kwargs={"map_size": 10 * 1024})
+            self.assertEqual(list(ds1), list(ds))
+            self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
+
+            ds = LMDBDataset(
+                items,
+                transform=_InplaceXform(),
+                cache_dir=tempdir,
+                lmdb_kwargs={"map_size": 10 * 1024},
+                hash_func=pickle_hashing,
+            )
+            self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
+            ds1 = LMDBDataset(
+                items,
+                transform=_InplaceXform(),
+                cache_dir=tempdir,
+                lmdb_kwargs={"map_size": 10 * 1024},
+                hash_func=pickle_hashing,
+            )
             self.assertEqual(list(ds1), list(ds))
             self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
 

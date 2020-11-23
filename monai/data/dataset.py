@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence, Union
 import torch
 from torch.utils.data import Dataset as _TorchDataset
 
-from monai.data.utils import default_hashing
+from monai.data.utils import json_hashing
 from monai.transforms import Compose, Randomizable, Transform, apply_transform
 from monai.utils import MAX_SEED, get_seed, min_version, optional_import
 
@@ -114,7 +114,7 @@ class PersistentDataset(Dataset):
         data: Sequence,
         transform: Union[Sequence[Callable], Callable],
         cache_dir: Optional[Union[Path, str]] = None,
-        hash_func: Callable[..., bytes] = default_hashing,
+        hash_func: Callable[..., bytes] = json_hashing,
     ) -> None:
         """
         Args:
@@ -128,7 +128,7 @@ class PersistentDataset(Dataset):
                 may share a common cache dir provided that the transforms pre-processing is consistent.
                 If the cache_dir doesn't exist, will automatically create it.
             hash_func: a callable to compute hash from data items to be cached.
-                defaults to `monai.data.utils.default_hashing`.
+                defaults to `monai.data.utils.json_hashing`.
         """
         if not isinstance(transform, Compose):
             transform = Compose(transform)
@@ -244,7 +244,7 @@ class LMDBDataset(PersistentDataset):
         data: Sequence,
         transform: Union[Sequence[Callable], Callable],
         cache_dir: Union[Path, str] = "cache",
-        hash_func: Callable[..., bytes] = default_hashing,
+        hash_func: Callable[..., bytes] = json_hashing,
         db_name: str = "monai_cache",
         pickle_protocol=pickle.HIGHEST_PROTOCOL,
         lmdb_kwargs: Optional[dict] = None,
@@ -261,7 +261,7 @@ class LMDBDataset(PersistentDataset):
                 may share a common cache dir provided that the transforms pre-processing is consistent.
                 If the cache_dir doesn't exist, will automatically create it. Defaults to "./cache".
             hash_func: a callable to compute hash from data items to be cached.
-                defaults to `monai.data.utils.default_hashing`.
+                defaults to `monai.data.utils.json_hashing`.
             db_name: lmdb database file name. Defaults to "monai_cache".
             pickle_protocol: pickle protocol version. Defaults to pickle.HIGHEST_PROTOCOL.
                 https://docs.python.org/3/library/pickle.html#pickle-protocols
