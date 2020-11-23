@@ -25,7 +25,7 @@ def run_testcase(test_name, plot_position, function, args):
 
 # filter parameters
 spatial_sigma = 4.0
-color_sigma = 10.0
+color_sigma = 0.2
 
 # input data
 data = np.array(skimage.data.astronaut()) / 255.0
