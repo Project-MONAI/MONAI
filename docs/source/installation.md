@@ -21,9 +21,23 @@ Ignite](https://pytorch.org/ignite/), please follow the instructions:
 
 
 ## From PyPI
+
+### Milestone release
 To install the [current milestone release](https://pypi.org/project/monai/):
 ```bash
 pip install monai
+```
+
+### Weekly preview release
+To install the [weekly preview release](https://pypi.org/project/monai-weekly/):
+```bash
+pip install monai-weekly
+```
+
+The weekly build is released to PyPI every Sunday with a pre-release build number `dev[%y%U]`.
+To report any issues on the weekly preview, please include the version and commit information:
+```bash
+python -c "import monai; print(monai.__version__); print(monai.__commit_id__)"
 ```
 
 ## From GitHub
