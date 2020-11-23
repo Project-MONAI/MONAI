@@ -17,7 +17,7 @@ import nibabel as nib
 import numpy as np
 from parameterized import parameterized
 
-from monai.data import PersistentDataset, pickle_hashing
+from monai.data import PersistentDataset, json_hashing
 from monai.transforms import Compose, LoadNiftid, SimulateDelayd, Transform
 
 TEST_CASE_1 = [
@@ -61,9 +61,9 @@ class TestDataset(unittest.TestCase):
             self.assertEqual(list(ds1), list(ds))
             self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
 
-            ds = PersistentDataset(items, transform=_InplaceXform(), cache_dir=tempdir, hash_func=pickle_hashing)
+            ds = PersistentDataset(items, transform=_InplaceXform(), cache_dir=tempdir, hash_func=json_hashing)
             self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
-            ds1 = PersistentDataset(items, transform=_InplaceXform(), cache_dir=tempdir, hash_func=pickle_hashing)
+            ds1 = PersistentDataset(items, transform=_InplaceXform(), cache_dir=tempdir, hash_func=json_hashing)
             self.assertEqual(list(ds1), list(ds))
             self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
 

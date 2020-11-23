@@ -781,13 +781,13 @@ def json_hashing(item) -> bytes:
     return f"{cache_key}".encode("utf-8")
 
 
-def pickle_hashing(item, protocol=pickle.DEFAULT_PROTOCOL) -> bytes:
+def pickle_hashing(item, protocol=pickle.HIGHEST_PROTOCOL) -> bytes:
     """
 
     Args:
         item: data item to be hashed
         protocol: protocol version used for pickling,
-            defaults to `pickle.DEFAULT_PROTOCOL`.
+            defaults to `pickle.HIGHEST_PROTOCOL`.
 
     Returns: the corresponding hash key
 

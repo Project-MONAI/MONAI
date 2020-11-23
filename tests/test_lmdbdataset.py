@@ -17,7 +17,7 @@ import nibabel as nib
 import numpy as np
 from parameterized import parameterized
 
-from monai.data import LMDBDataset, pickle_hashing
+from monai.data import LMDBDataset, json_hashing
 from monai.transforms import Compose, LoadNiftid, SimulateDelayd, Transform
 from tests.utils import skip_if_windows
 
@@ -104,7 +104,7 @@ class TestLMDBDataset(unittest.TestCase):
                 transform=_InplaceXform(),
                 cache_dir=tempdir,
                 lmdb_kwargs={"map_size": 10 * 1024},
-                hash_func=pickle_hashing,
+                hash_func=json_hashing,
             )
             self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
             ds1 = LMDBDataset(
@@ -112,7 +112,7 @@ class TestLMDBDataset(unittest.TestCase):
                 transform=_InplaceXform(),
                 cache_dir=tempdir,
                 lmdb_kwargs={"map_size": 10 * 1024},
-                hash_func=pickle_hashing,
+                hash_func=json_hashing,
             )
             self.assertEqual(list(ds1), list(ds))
             self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
