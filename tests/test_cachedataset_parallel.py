@@ -20,7 +20,7 @@ from parameterized import parameterized
 from monai.data import CacheDataset
 from monai.transforms import Compose, LoadNiftid
 
-TEST_CASE_1 = [0, 5, Compose([LoadNiftid(keys=["image", "label", "extra"])])]
+TEST_CASE_1 = [None, 5, Compose([LoadNiftid(keys=["image", "label", "extra"])])]
 
 TEST_CASE_2 = [4, 5, Compose([LoadNiftid(keys=["image", "label", "extra"])])]
 
@@ -48,6 +48,7 @@ class TestCacheDatasetParallel(unittest.TestCase):
                 cache_rate=1,
                 num_workers=num_workers,
             )
+            _unused = dataset[0]
 
         self.assertEqual(len(dataset._cache), dataset.cache_num)
         for i in range(dataset.cache_num):
