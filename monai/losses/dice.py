@@ -360,12 +360,12 @@ class GeneralizedDiceLoss(_Loss):
 
 class GeneralizedWassersteinDiceLoss(_Loss):
     """
-    Compute the generalized Wasserstein Dice Loss defined in (default):
+    Compute the generalized Wasserstein Dice Loss defined in:
 
         Fidon L. et al. (2017) Generalised Wasserstein Dice Score for Imbalanced Multi-class
         Segmentation using Holistic Convolutional Networks. BrainLes 2017.
 
-    Or its variation defined in the Appendix of (with the option weighting_mode="GDL"):
+    Or its variant (use the option weighting_mode="GDL") defined in the Appendix of:
 
         Tilborghs, S. et al. (2020) Comparative study of deep learning methods for the automatic
         segmentation of lung, lesion and lesion type in CT scans of COVID-19 patients.
@@ -373,22 +373,6 @@ class GeneralizedWassersteinDiceLoss(_Loss):
 
     Adapted from:
         https://github.com/LucasFidon/GeneralizedWassersteinDiceLoss
-
-    wasserstein_distance_map:
-    Compute the voxel-wise Wasserstein distance between the
-    flattened prediction and the flattened labels (ground_truth) with respect
-    to the distance matrix on the label space M. This corresponds to eq. 6 in:
-
-        Fidon L. et al. (2017) Generalised Wasserstein Dice Score for Imbalanced Multi-class
-        Segmentation using Holistic Convolutional Networks. BrainLes 2017.
-
-
-    compute_weights_generalized_true_positives:
-    Compute the weights alpha_l of eq. 9 in:
-
-        Fidon L. et al. (2017) Generalised Wasserstein Dice Score for Imbalanced Multi-class
-        Segmentation using Holistic Convolutional Networks. BrainLes 2017.
-
     """
 
     def __init__(
@@ -407,7 +391,7 @@ class GeneralizedWassersteinDiceLoss(_Loss):
                 Specifies how to weight the class-specific sum of errors.
                 Default to ``"default"``.
 
-                - ``"default"``: (recommanded) use the original weighting method as in:
+                - ``"default"``: (recommended) use the original weighting method as in:
                     Fidon L. et al. (2017) Generalised Wasserstein Dice Score for Imbalanced Multi-class
                     Segmentation using Holistic Convolutional Networks. BrainLes 2017.
                 - ``"GDL"``: use a GDL-like weighting method as in the Appendix of:
@@ -425,6 +409,23 @@ class GeneralizedWassersteinDiceLoss(_Loss):
 
         Raises:
             ValueError: When ``dist_matrix`` is not a square matrix.
+
+        Example:
+            .. code-block:: python
+
+                import torch
+                import numpy as np
+                from monai.losses import GeneralizedWassersteinDiceLoss
+
+                # Example with 3 classes (including the background: label 0).
+                # The distance between the background class (label 0) and the other classes is the maximum, equal to 1.
+                # The distance between class 1 and class 2 is 0.5.
+                dist_mat = np.array([[0.0, 1.0, 1.0], [1.0, 0.0, 0.5], [1.0, 0.5, 0.0]], dtype=np.float32)
+                wass_loss = GeneralizedWassersteinDiceLoss(dist_matrix=dist_mat)
+
+                pred_score = torch.tensor([[1000, 0, 0], [0, 1000, 0], [0, 0, 1000]], dtype=torch.float32)
+                grnd = torch.tensor([0, 1, 2], dtype=torch.int64)
+                wass_loss(pred_score, grnd)  # 0
 
         """
         super(GeneralizedWassersteinDiceLoss, self).__init__(reduction=LossReduction(reduction).value)
@@ -463,18 +464,18 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         wass_dist_map = self.wasserstein_distance_map(probs, flat_target)
 
         # Compute the values of alpha to use
-        alpha = self.compute_alpha_generalized_true_positives(flat_target)
+        alpha = self._compute_alpha_generalized_true_positives(flat_target)
 
         # Compute the nemerator and denominator of the generalized Wasserstein Dice loss
         if self.alpha_mode == "GDL":
             # use GDL-style alpha weights (i.e. normalize by the volume of each class)
             # contrary to the original definition we also use alpha in the "generalized all error".
-            true_pos = self.compute_generalized_true_positive(alpha, flat_target, wass_dist_map)
-            denom = self.compute_denominator(alpha, flat_target, wass_dist_map)
+            true_pos = self._compute_generalized_true_positive(alpha, flat_target, wass_dist_map)
+            denom = self._compute_denominator(alpha, flat_target, wass_dist_map)
         else:  # default: as in the original paper
             # (i.e. alpha=1 for all foreground classes and 0 for the background).
             # Compute the generalised number of true positives
-            true_pos = self.compute_generalized_true_positive(alpha, flat_target, wass_dist_map)
+            true_pos = self._compute_generalized_true_positive(alpha, flat_target, wass_dist_map)
             all_error = torch.sum(wass_dist_map, dim=1)
             denom = 2 * true_pos + all_error
 
@@ -495,6 +496,14 @@ class GeneralizedWassersteinDiceLoss(_Loss):
 
     def wasserstein_distance_map(self, flat_proba: torch.Tensor, flat_target: torch.Tensor) -> torch.Tensor:
         """
+        Compute the voxel-wise Wasserstein distance between the
+        flattened prediction and the flattened labels (ground_truth) with respect
+        to the distance matrix on the label space M.
+        This corresponds to eq. 6 in:
+
+            Fidon L. et al. (2017) Generalised Wasserstein Dice Score for Imbalanced Multi-class
+            Segmentation using Holistic Convolutional Networks. BrainLes 2017.
+
         Args:
             flat_proba: the probabilities of input(predicted) tensor.
             flat_target: the target tensor.
@@ -523,7 +532,7 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         wasserstein_map = torch.sum(wasserstein_map, dim=1)
         return wasserstein_map
 
-    def compute_generalized_true_positive(
+    def _compute_generalized_true_positive(
         self, alpha: torch.Tensor, flat_target: torch.Tensor, wasserstein_distance_map: torch.Tensor
     ) -> torch.Tensor:
         """
@@ -545,7 +554,7 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         )
         return generalized_true_pos
 
-    def compute_denominator(
+    def _compute_denominator(
         self, alpha: torch.Tensor, flat_target: torch.Tensor, wasserstein_distance_map: torch.Tensor
     ) -> torch.Tensor:
         """
@@ -567,7 +576,7 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         )
         return generalized_true_pos
 
-    def compute_alpha_generalized_true_positives(self, flat_target: torch.Tensor) -> torch.Tensor:
+    def _compute_alpha_generalized_true_positives(self, flat_target: torch.Tensor) -> torch.Tensor:
         """
         Args:
             flat_target: the target tensor.
