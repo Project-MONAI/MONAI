@@ -404,6 +404,8 @@ class CacheDataset(Dataset):
         super().__init__(data=data, transform=transform if isinstance(transform, Compose) else Compose(transform))
         self.cache_num = min(int(cache_num), int(len(data) * cache_rate), len(data))
         self.num_workers = num_workers
+        if self.num_workers is not None:
+            self.num_workers = max(int(self.num_workers), 1)
         self._cache: List = self._fill_cache()
 
     def _fill_cache(self) -> List:
