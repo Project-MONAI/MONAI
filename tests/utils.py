@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import os
+import sys
 import tempfile
 import unittest
 from io import BytesIO
@@ -62,6 +63,13 @@ def skip_if_no_cuda(obj):
     Skip the unit tests if torch.cuda.is_available is False
     """
     return unittest.skipIf(not torch.cuda.is_available(), "Skipping CUDA-based tests")(obj)
+
+
+def skip_if_windows(obj):
+    """
+    Skip the unit tests if platform is win32
+    """
+    return unittest.skipIf(sys.platform == "win32", "Skipping tests on Windows")(obj)
 
 
 def make_nifti_image(array, affine=None):

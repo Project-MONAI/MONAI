@@ -9,13 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import hashlib
-import json
+
 import math
+import pickle
 import sys
 import threading
 import time
 import warnings
+from copy import deepcopy
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence, Union
@@ -23,6 +24,7 @@ from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence, Union
 import torch
 from torch.utils.data import Dataset as _TorchDataset
 
+from monai.data.utils import pickle_hashing
 from monai.transforms import Compose, Randomizable, Transform, apply_transform
 from monai.utils import MAX_SEED, get_seed, min_version, optional_import
 
@@ -32,6 +34,8 @@ if TYPE_CHECKING:
     has_tqdm = True
 else:
     tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
+
+lmdb, _ = optional_import("lmdb")
 
 
 class Dataset(_TorchDataset):
@@ -107,25 +111,30 @@ class PersistentDataset(Dataset):
 
     def __init__(
         self,
-        data: Sequence[str],
+        data: Sequence,
         transform: Union[Sequence[Callable], Callable],
         cache_dir: Optional[Union[Path, str]] = None,
+        hash_func: Callable[..., bytes] = pickle_hashing,
     ) -> None:
         """
         Args:
             data: input data file paths to load and transform to generate dataset for model.
-                `PersistentDataset` expects input data to be a list of file paths and hashes them as cache keys.
+                `PersistentDataset` expects input data to be a list of serializable
+                and hashes them as cache keys using `hash_func`.
             transform: transforms to execute operations on input data.
             cache_dir: If specified, this is the location for persistent storage
                 of pre-computed transformed data tensors. The cache_dir is computed once, and
                 persists on disk until explicitly removed.  Different runs, programs, experiments
                 may share a common cache dir provided that the transforms pre-processing is consistent.
                 If the cache_dir doesn't exist, will automatically create it.
+            hash_func: a callable to compute hash from data items to be cached.
+                defaults to `monai.data.utils.pickle_hashing`.
         """
         if not isinstance(transform, Compose):
             transform = Compose(transform)
         super().__init__(data=data, transform=transform)
         self.cache_dir = Path(cache_dir) if cache_dir is not None else None
+        self.hash_func = hash_func
         if self.cache_dir is not None:
             if not self.cache_dir.exists():
                 self.cache_dir.mkdir(parents=True)
@@ -190,33 +199,147 @@ class PersistentDataset(Dataset):
             changed in any way, the objects in the cache dir will be invalid.  The hash for the
             cache is ONLY dependant on the input filename paths.
         """
-        if item_transformed.get("cached", False) is False:
-            hashfile = None
-            if self.cache_dir is not None:
-                # TODO: Find way to hash transforms content as part of the cache
-                data_item_md5 = hashlib.md5(json.dumps(item_transformed, sort_keys=True).encode("utf-8")).hexdigest()
-                hashfile = self.cache_dir / f"{data_item_md5}.pt"
+        hashfile = None
+        if self.cache_dir is not None:
+            data_item_md5 = self.hash_func(item_transformed).decode("utf-8")
+            hashfile = self.cache_dir / f"{data_item_md5}.pt"
 
-            if hashfile is not None and hashfile.is_file():
-                item_transformed = torch.load(hashfile)
-            else:
-                item_transformed = self._pre_first_random_transform(item_transformed)
-                if hashfile is not None:
-                    # add sentinel flag to indicate that the transforms have already been computed.
-                    item_transformed["cached"] = True
-                    # NOTE: Writing to ".temp_write_cache" and then using a nearly atomic rename operation
-                    #       to make the cache more robust to manual killing of parent process
-                    #       which may leave partially written cache files in an incomplete state
-                    temp_hash_file = hashfile.with_suffix(".temp_write_cache")
-                    torch.save(item_transformed, temp_hash_file)
-                    temp_hash_file.rename(hashfile)
+        if hashfile is not None and hashfile.is_file():  # cache hit
+            return torch.load(hashfile)
 
-        return item_transformed
+        _item_transformed = self._pre_first_random_transform(deepcopy(item_transformed))  # keep the original hashed
+        if hashfile is not None:
+            # NOTE: Writing to ".temp_write_cache" and then using a nearly atomic rename operation
+            #       to make the cache more robust to manual killing of parent process
+            #       which may leave partially written cache files in an incomplete state
+            temp_hash_file = hashfile.with_suffix(".temp_write_cache")
+            torch.save(_item_transformed, temp_hash_file)
+            temp_hash_file.rename(hashfile)
+        return _item_transformed
 
     def __getitem__(self, index: int):
         pre_random_item = self._pre_first_random_cachecheck(self.data[index])
         post_random_item = self._first_random_and_beyond_transform(pre_random_item)
         return post_random_item
+
+
+class LMDBDataset(PersistentDataset):
+    """
+    Extension of `PersistentDataset` using LMDB as the backend.
+
+    See Also:
+        :py:class:`monai.data.PersistentDataset`
+
+    Examples:
+
+        >>> items = [{"data": i} for i in range(5)]
+        # [{'data': 0}, {'data': 1}, {'data': 2}, {'data': 3}, {'data': 4}]
+        >>> lmdb_ds = monai.data.LMDBDataset(items, transform=monai.transforms.SimulateDelayd("data", delay_time=1))
+        >>> print(list(lmdb_ds))  # using the cached results
+
+    """
+
+    def __init__(
+        self,
+        data: Sequence,
+        transform: Union[Sequence[Callable], Callable],
+        cache_dir: Union[Path, str] = "cache",
+        hash_func: Callable[..., bytes] = pickle_hashing,
+        db_name: str = "monai_cache",
+        pickle_protocol=pickle.HIGHEST_PROTOCOL,
+        lmdb_kwargs: Optional[dict] = None,
+    ) -> None:
+        """
+        Args:
+            data: input data file paths to load and transform to generate dataset for model.
+                `LMDBDataset` expects input data to be a list of serializable
+                and hashes them as cache keys using `hash_func`.
+            transform: transforms to execute operations on input data.
+            cache_dir: if specified, this is the location for persistent storage
+                of pre-computed transformed data tensors. The cache_dir is computed once, and
+                persists on disk until explicitly removed.  Different runs, programs, experiments
+                may share a common cache dir provided that the transforms pre-processing is consistent.
+                If the cache_dir doesn't exist, will automatically create it. Defaults to "./cache".
+            hash_func: a callable to compute hash from data items to be cached.
+                defaults to `monai.data.utils.pickle_hashing`.
+            db_name: lmdb database file name. Defaults to "monai_cache".
+            pickle_protocol: pickle protocol version. Defaults to pickle.HIGHEST_PROTOCOL.
+                https://docs.python.org/3/library/pickle.html#pickle-protocols
+            lmdb_kwargs: additional keyword arguments to the lmdb environment.
+                for more details please visit: https://lmdb.readthedocs.io/en/release/#environment-class
+        """
+        super().__init__(data=data, transform=transform, cache_dir=cache_dir, hash_func=hash_func)
+        if not self.cache_dir:
+            raise ValueError("cache_dir must be specified.")
+        self.db_file = self.cache_dir / f"{db_name}.lmdb"
+        self.pickle_protocol = pickle_protocol
+        self.lmdb_kwargs = lmdb_kwargs or {}
+        if not self.lmdb_kwargs.get("map_size", 0):
+            self.lmdb_kwargs["map_size"] = 1024 ** 4  # default map_size
+
+        # create cache
+        self._fill_cache()
+        # read-only database env
+        self.lmdb_kwargs["readonly"] = True
+        if self.lmdb_kwargs.get("lock", None) is None:
+            self.lmdb_kwargs["lock"] = False
+        self._read_env = lmdb.open(path=f"{self.db_file}", subdir=False, **self.lmdb_kwargs)
+
+    def _fill_cache(self):
+        print(f"Accessing lmdb file: {self.db_file.absolute()}.")
+        self.lmdb_kwargs["readonly"] = False
+        env = lmdb.open(path=f"{self.db_file}", subdir=False, **self.lmdb_kwargs)
+        if not has_tqdm:
+            warnings.warn("LMDBDataset: tqdm is not installed. not displaying the caching progress.")
+        for item in tqdm(self.data) if has_tqdm else self.data:
+            key = self.hash_func(item)
+            done, retry, val = False, 5, None
+            while not done and retry > 0:
+                try:
+                    with env.begin(write=True) as txn:
+                        with txn.cursor() as cursor:
+                            done = cursor.set_key(key)
+                            if done:
+                                continue
+                        if val is None:
+                            val = self._pre_first_random_transform(deepcopy(item))  # keep the original hashed
+                            val = pickle.dumps(val, protocol=self.pickle_protocol)
+                        txn.put(key, val)
+                    done = True
+                except lmdb.MapFullError:
+                    done, retry = False, retry - 1
+                    size = env.info()["map_size"]
+                    new_size = size * 2
+                    warnings.warn(f"Resizing the cache database from {int(size) >> 20}MB to {int(new_size) >> 20}MB.")
+                    env.set_mapsize(new_size)
+            if not done:  # still has the map full error
+                size = env.info()["map_size"]
+                env.close()
+                raise ValueError(f"LMDB map size reached, increase size above current size of {size}.")
+        env.close()
+
+    def _pre_first_random_cachecheck(self, item_transformed):
+        """
+        if the item is not found in the lmdb file, resolves to the persistent cache default behaviour.
+        """
+        with self._read_env.begin(write=False) as txn:
+            data = txn.get(self.hash_func(item_transformed))
+        if data is None:
+            warnings.warn("LMDBDataset: cache key not found, running fallback caching.")
+            return super()._pre_first_random_cachecheck(item_transformed)
+        try:
+            return pickle.loads(data)
+        except Exception as err:
+            raise RuntimeError("Invalid cache value, corrupted lmdb file?") from err
+
+    def info(self):
+        """
+        Returns: dataset info dictionary.
+        """
+        out = dict(self._read_env.info())
+        out["size"] = len(self.data)
+        out["filename"] = f"{self.db_file.absolute()}"
+        return out
 
 
 class CacheDataset(Dataset):

@@ -94,6 +94,15 @@ except (ImportError, AttributeError):
 
 
 try:
+    import lmdb
+
+    lmdb_version = lmdb.__version__
+    del lmdb
+except (ImportError, AttributeError):
+    lmdb_version = "NOT INSTALLED or UNKNOWN VERSION."
+
+
+try:
     _, HAS_EXT = optional_import("monai._C")
     USE_COMPILED = HAS_EXT and os.getenv("BUILD_MONAI", "0") == "1"
 except (OptionalImportError, ImportError, AttributeError):
@@ -130,6 +139,7 @@ def get_optional_config_values():
     output["TorchVision"] = torchvision_version
     output["ITK"] = itk_version
     output["tqdm"] = tqdm_version
+    output["lmdb"] = lmdb_version
 
     return output
 
