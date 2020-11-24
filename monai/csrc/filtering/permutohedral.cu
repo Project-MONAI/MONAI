@@ -1,45 +1,11 @@
 
 #define BLOCK_SIZE 64
 
-#define _DEBUG
-#include "cutil.h"
+#include <cuda.h>
 #include <cuda_runtime.h>
 #include <stdio.h>
 
-#include "cuda_memory.h"
-#ifdef WIN32
-#include "win32time.h"
-#else
-#include <sys/time.h>
-#endif
-
-#include "MirroredArray.h"
 #include "hash_table.cu"
-  
-#ifdef LIBRARY
-extern "C"
-#ifdef WIN32
-__declspec(dllexport)
-#endif
-#endif
-void initCuda(int argc, char **argv) {
-    CUT_DEVICE_INIT(argc, argv);    
-
-    cudaDeviceProp prop;
-    CUDA_SAFE_CALL_NO_SYNC(cudaGetDeviceProperties(&prop, 0));
-    printf("Device name: %s\n", prop.name);
-    printf("Max threads per block: %d\n", prop.maxThreadsPerBlock);
-    printf("Max threads dim: %d %d %d\n", prop.maxThreadsDim[0], prop.maxThreadsDim[1], prop.maxThreadsDim[2]);
-    printf("Max grid size: %d %d %d \n", prop.maxGridSize[0], prop.maxGridSize[1], prop.maxGridSize[2]);
-    printf("Shared memory per block: %d Kb\n", (int)(prop.sharedMemPerBlock/1024));
-    printf("Total global memory: %d Kb\n", (int)(prop.totalGlobalMem/1024));
-    printf("Warp size: %d\n", prop.warpSize);
-    printf("Memory pitch: %d\n", (int)prop.memPitch);
-    printf("Registers per block: %d\n", prop.regsPerBlock);
-    printf("Clock rate: %d\n", prop.clockRate);
-    printf("Texture alignment: %d\n", (int)prop.textureAlignment);
-    fflush(stdout);
-}
 
 struct MatrixEntry {
     int index;
@@ -407,32 +373,33 @@ __global__ static void slice(const int w, const int h, float *values, MatrixEntr
 }
  
 template<int vd, int pd>
-void filter_(float *im, float *ref, int w, int h, bool accurate) {    
+void filter_(float* values, float* positions, int w, int h, bool accurate) {    
     int n = w*h;
     float blurVariance = accurate ? 0.5 : 0;
 
-    MirroredArray<float> scaleFactor(pd);
-    //MirroredArray<float> offset(pd);
-    for (int i = 0; i < pd; i++) {
-	scaleFactor.host[i] = (pd+1)*sqrtf((1.0/6 + blurVariance)/((i+1)*(i+2)));
-	//offset.host[i] = ((double)rand()/RAND_MAX)*(pd+1)*2;
-    }
-    scaleFactor.hostToDevice();
-    //offset.hostToDevice();
+    float* scaleFactor;
+    cudaMalloc(&scaleFactor, pd * sizeof(float));
 
-    MirroredArray<float> values(im, n*vd);
-    MirroredArray<float> positions(ref, n*pd);
-    MirroredArray<MatrixEntry> matrix(n*(pd+1));
-    createHashTable<pd, vd+1>(n*(pd+1));
+    float scaleFactorHost[pd];
+    for (int i = 0; i < pd; i++){
+        scaleFactorHost[i] = (pd+1)*sqrtf((1.0/6 + blurVariance)/((i+1)*(i+2)));
+    }
+
+    cudaMemcpy(scaleFactor, scaleFactorHost, pd * sizeof(float), cudaMemcpyHostToDevice);
+
+    MatrixEntry* matrix;
+    cudaMalloc(&matrix, n * (pd + 1) * sizeof(MatrixEntry));
+    
+    createHashTable<pd, vd + 1>(n * (pd + 1));
 
     // Populate constant memory for hash helpers
     unsigned long long int __host_two32 = ((unsigned long long int)1)<<32;
     unsigned int __host_div_c = 2*(n*(pd+1));
     unsigned int __host_div_l = ceilf(logf((float)__host_div_c) / logf(2.0f));
     unsigned int __host_div_m = (__host_two32<<__host_div_l)/__host_div_c - __host_two32 + 1;
-    CUDA_SAFE_CALL(cudaMemcpyToSymbol((char*)&__div_c, &__host_div_c, sizeof(unsigned int)));
-    CUDA_SAFE_CALL(cudaMemcpyToSymbol((char*)&__div_l, &__host_div_l, sizeof(unsigned int)));
-    CUDA_SAFE_CALL(cudaMemcpyToSymbol((char*)&__div_m, &__host_div_m, sizeof(unsigned int)));
+    cudaMemcpyToSymbol((char*)&__div_c, &__host_div_c, sizeof(unsigned int));
+    cudaMemcpyToSymbol((char*)&__div_l, &__host_div_l, sizeof(unsigned int));
+    cudaMemcpyToSymbol((char*)&__div_m, &__host_div_m, sizeof(unsigned int));
 
     // Populate constant memory with hash of offset vectors
     unsigned int hOffset_host[pd+1];
@@ -441,91 +408,43 @@ void filter_(float *im, float *ref, int w, int h, bool accurate) {
     for (int i = 0; i <= pd; i++) {
       offset[i] -= pd+1; hOffset_host[i] = hash<pd>(offset); offset[i] += pd+1;
     }
-    CUDA_SAFE_CALL(cudaMemcpyToSymbol((char*)&hOffset, &hOffset_host, sizeof(unsigned int)*(pd+1)));
+    cudaMemcpyToSymbol((char*)&hOffset, &hOffset_host, sizeof(unsigned int)*(pd+1));
 
     dim3 blocks((w-1)/8+1, (h-1)/8+1, 1);
-    dim3 blockSize(8, 8, 1);
+    dim3 blockSize(8, 8, 1); 
 
-    timeval t[7];
-
-    gettimeofday(t+0, NULL);    
-
-    createMatrix<pd><<<blocks, blockSize>>>(w, h, positions.device, 
-					    values.device, 
-					    scaleFactor.device,
-					    matrix.device);
-
-    CUT_CHECK_ERROR("Matrix creation failed\n");
-
-    gettimeofday(t+1, NULL);    
-
-    //HashTable hostTable;
-    //int hashTableEntries;
-    //CUDA_SAFE_CALL(cudaMemcpy(&hostTable, table, sizeof(HashTable), cudaMemcpyDeviceToHost));
-    //CUDA_SAFE_CALL(cudaMemcpy(&hashTableEntries, hostTable_filled, sizeof(int), cudaMemcpyDeviceToHost));
-    //printf("Hash table has %d entries\n", hashTableEntries);   
+    printf(cudaGetErrorString(cudaDeviceSynchronize()));
+    createMatrix<pd><<<blocks, blockSize>>>(w, h, positions, values, scaleFactor, matrix);
+    printf(cudaGetErrorString(cudaDeviceSynchronize()));
 
     // fix duplicate hash table entries
     int cleanBlockSize = 32;
     dim3 cleanBlocks((n-1)/cleanBlockSize+1, 2*(pd+1), 1);
-    cleanHashTable<pd><<<cleanBlocks, cleanBlockSize>>>(2*n*(pd+1), matrix.device);
-    CUT_CHECK_ERROR("clean failed\n");
-
-    gettimeofday(t+2, NULL);    
+    cleanHashTable<pd><<<cleanBlocks, cleanBlockSize>>>(2*n*(pd+1), matrix);
+    printf(cudaGetErrorString(cudaDeviceSynchronize()));
 
     // splat splits by color, so extend the y coordinate to our blocks to represent that
     blocks.y *= pd+1;
-    splatCache<pd, vd><<<blocks, blockSize>>>(w, h, values.device, matrix.device);
-    //splat<pd, vd><<<blocks, blockSize>>>(w, h, values.device, matrix.device);
-    CUT_CHECK_ERROR("splat failed\n");
-
-    gettimeofday(t+3, NULL);    
-
+    splatCache<pd, vd><<<blocks, blockSize>>>(w, h, values, matrix);
+    printf(cudaGetErrorString(cudaDeviceSynchronize()));
     
     if (accurate) {
 	float *newValues;
-	allocateCudaMemory((void**)&(newValues), n*(pd+1)*(vd+1)*sizeof(float));
-	CUDA_SAFE_CALL(cudaMemset((void *)newValues, 0, n*(pd+1)*(vd+1)*sizeof(float)));
+	cudaMalloc(&newValues, n * (pd+1) * (vd+1) * sizeof(float));
+	cudaMemset(newValues, 0, n * (pd+1) * (vd+1) * sizeof(float));
 	
 	for (int color = 0; color <= pd; color++) {	
-	    blur<pd, vd><<<cleanBlocks, cleanBlockSize>>>(n*(pd+1), newValues, matrix.device, color);
-	    CUT_CHECK_ERROR("blur failed\n");
+        blur<pd, vd><<<cleanBlocks, cleanBlockSize>>>(n*(pd+1), newValues, matrix, color);
+        printf(cudaGetErrorString(cudaDeviceSynchronize()));
 	    newValues = swapHashTableValues(newValues);
 	}
     }
-    
-
-    gettimeofday(t+4, NULL);    
-    
     blocks.y /= (pd+1);
-    slice<pd, vd><<<blocks, blockSize>>>(w, h, values.device, matrix.device);
-    CUT_CHECK_ERROR("slice failed\n");	
-
-    gettimeofday(t+5, NULL);    
-
-    double total = (t[5].tv_sec - t[0].tv_sec)*1000.0 + (t[5].tv_usec - t[0].tv_usec)/1000.0;
-    printf("Total time: %3.3f ms\n", total);
-
-    char *names[5] = {"Create",
-		      "Clean ",
-		      "Splat ",
-		      "Blur  ",
-		      "Slice "};
-
-    for (int i = 1; i < 6; i++) {
-	printf("%s: %3.3f ms\n", names[i-1], (t[i].tv_sec - t[i-1].tv_sec)*1000.0 + (t[i].tv_usec - t[i-1].tv_usec)/1000.0);
-    }
-    printf("Total GPU memory usage: %u bytes\n", (unsigned int)GPU_MEMORY_ALLOCATION);
-    values.deviceToHost();
+    slice<pd, vd><<<blocks, blockSize>>>(w, h, values, matrix);
+    printf(cudaGetErrorString(cudaDeviceSynchronize()));
     destroyHashTable();
 }
 
-#ifdef LIBRARY
-extern "C"
-#ifdef WIN32
-__declspec(dllexport)
-#endif
-#endif
 void filter(float *im, float *ref, int pd, int vd, int w, int h, bool accurate) {
     switch (vd*1000 + pd) {
     case 1001: filter_<1, 1>(im, ref, w, h, accurate); break;
@@ -580,56 +499,3 @@ void filter(float *im, float *ref, int pd, int vd, int w, int h, bool accurate) 
 	printf("Unsupported channel counts. Reference image must have 1 to 16 channels, input image must have 1 to 3 channels\n");	    
     }    
 }
-
-
-
-
-// Below here is a program for testing it on the command line
-#ifndef LIBRARY
-
-struct header {
-    int frames, width, height, channels, type;
-};
-
-void loadTMP(const char *filename, float **data, header *h) {
-    FILE *f = fopen(filename, "rb");
-    fread(h, sizeof(header), 1, f);
-    size_t size = h->frames*h->width*h->channels*h->height;
-    *data = new float[size];
-    fread(*data, sizeof(float), size, f);
-    fclose(f);
-}
-
-void saveTMP(const char *filename, float *data, header h) {
-    FILE *f = fopen(filename, "wb");
-    fwrite(&h, sizeof(header), 1, f);
-    size_t size = h.frames*h.width*h.channels*h.height;
-    fwrite(data, sizeof(float), size, f);
-    fclose(f);
-}
-
-int main(int argc, char **argv) {
-    initCuda(1, argv);
-
-    if (argc < 4) {
-	printf("Usage: permutohedral input.tmp ref.tmp output.tmp {accurate}\n");
-	return 1;
-    }
-
-    bool accurate = argc == 5;
-
-    srand(time(NULL));
-
-    float *im, *ref;
-    header imHeader, refHeader;
-    loadTMP(argv[1], &im, &imHeader);
-    loadTMP(argv[2], &ref, &refHeader);
-
-    filter(im, ref, refHeader.channels, imHeader.channels, imHeader.width, imHeader.height, accurate);
-
-    saveTMP(argv[3], im, imHeader);
-    
-    return 0;    
-}
-
-#endif

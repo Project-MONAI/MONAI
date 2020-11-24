@@ -1,4 +1,3 @@
-#include "cuda_memory.h"
 
 //#define USE_ADDITIVE_HASH
 
@@ -13,10 +12,6 @@ __device__ __constant__ int *table_entries;
 __device__ __constant__ unsigned int table_capacity;
 __device__ __constant__ signed short *table_zeros;
 __device__ __constant__ char *table_rank;
-
-
-
-
 
 /*************************************************************/
 /* Fast computation of modulo operator with constant divisor */
@@ -42,62 +37,53 @@ __device__ inline unsigned int modHash(unsigned int n) {
 __device__ __constant__ unsigned int hOffset[64];
 
 template<int kd, int vd>
-void createHashTable(int capacity) {
+void createHashTable(int capacity) 
+{
+    float* values;
+    cudaMalloc(&values, capacity * vd * sizeof(float));
+    cudaMemset(values, 0, capacity * vd * sizeof(float));
 
-    CUDA_SAFE_CALL(cudaMemcpyToSymbol(table_capacity,
-				      &capacity,
-				      sizeof(unsigned int)));
-        
-    float *values;
-    allocateCudaMemory((void**)&values, capacity*vd*sizeof(float));
-    CUDA_SAFE_CALL(cudaMemset((void *)values, 0, capacity*vd*sizeof(float)));
-    CUDA_SAFE_CALL(cudaMemcpyToSymbol(table_values,
-				      &values,
-				      sizeof(float *)));       
-    
+    int* entries;
+    cudaMalloc(&entries, capacity * 2 * sizeof(int));
+    cudaMemset(entries, -1, capacity * 2 * sizeof(int));
 
-    int *entries;
-    allocateCudaMemory((void **)&entries, capacity*2*sizeof(int));
-    CUDA_SAFE_CALL(cudaMemset((void *)entries, -1, capacity*2*sizeof(int)));
-    CUDA_SAFE_CALL(cudaMemcpyToSymbol(table_entries, 
-				      &entries,
-				      sizeof(unsigned int *)));
+    cudaMemcpyToSymbol(table_capacity, &capacity, sizeof(int));
+    cudaMemcpyToSymbol(table_values, &values, sizeof(float*));    
+    cudaMemcpyToSymbol(table_entries, &entries, sizeof(int*));
 
     #ifdef LINEAR_D_MEMORY
-    char *ranks;
-    allocateCudaMemory((void**)&ranks, capacity*sizeof(char));
-    CUDA_SAFE_CALL(cudaMemcpyToSymbol(table_rank,
-				      &ranks,
-				      sizeof(char *)));
 
-    signed short *zeros;
-    allocateCudaMemory((void**)&zeros, capacity*sizeof(signed short));
-    CUDA_SAFE_CALL(cudaMemcpyToSymbol(table_zeros,
-				      &zeros,
-				      sizeof(char *)));
+    char* ranks;
+    cudaMalloc(&ranks, capacity * sizeof(char));
+
+    signed short* zeros;
+    cudaMalloc(&zeros, capacity * sizeof(signed short));
+
+    cudaMemcpyToSymbol(table_rank, &ranks, sizeof(char*));
+    cudaMemcpyToSymbol(table_zeros, &zeros, sizeof(char*));
 
     #else
 
     signed short *keys;
-    allocateCudaMemory((void **)&keys, capacity*kd*sizeof(signed short));
-    CUDA_SAFE_CALL(cudaMemset((void *)keys, 0, capacity*kd*sizeof(signed short)));
-    CUDA_SAFE_CALL(cudaMemcpyToSymbol(table_keys,
-				      &keys,
-				      sizeof(unsigned int *)));
+    cudaMalloc(&keys, capacity * kd * sizeof(signed short));
+    cudaMemset(keys, 0, capacity * kd * sizeof(signed short));
+
+    cudaMemcpyToSymbol(table_keys, &keys, sizeof(unsigned int*));
+
     #endif
 
 }
 
 template <int vd> static void resetHashTable() {
-  CUDA_SAFE_CALL(cudaMemset((void*)table_values, 0, table_capacity*vd*sizeof(float)));
+  cudaMemset(table_values, 0, table_capacity * vd * sizeof(float));
 }
 
 static void destroyHashTable() {
 #ifndef LINEAR_D_MEMORY
-    CUDA_SAFE_CALL(cudaFree(table_keys));
+    cudaFree(table_keys);
 #endif
-    CUDA_SAFE_CALL(cudaFree(table_values));
-    CUDA_SAFE_CALL(cudaFree(table_entries));
+    cudaFree(table_values);
+    cudaFree(table_entries);
 }
 
 template<int kd> __device__ __host__ static unsigned int hash(signed short *key) {
@@ -140,13 +126,9 @@ template<int d> __device__ static void generateKey(int idx, signed short * key) 
 }
 
 static float* swapHashTableValues(float *newValues) {
-    float * oldValues;
-    CUDA_SAFE_CALL(cudaMemcpyFromSymbol(&oldValues,
-					table_values,
-					sizeof(float *)));
-    CUDA_SAFE_CALL(cudaMemcpyToSymbol(table_values,
-				      &newValues,
-				      sizeof(float *)));
+    float* oldValues;
+    cudaMemcpyFromSymbol(&oldValues, table_values, sizeof(float*));
+    cudaMemcpyToSymbol(table_values, &newValues, sizeof(float*));
     return oldValues;
 }
 
