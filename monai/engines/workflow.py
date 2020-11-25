@@ -12,9 +12,9 @@
 from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence
 
 import torch
+import torch.distributed as dist
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
-import torch.distributed as dist
 
 from monai.engines.utils import default_prepare_batch
 from monai.transforms import apply_transform
