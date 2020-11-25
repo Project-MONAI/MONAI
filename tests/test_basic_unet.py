@@ -103,8 +103,7 @@ class TestBasicUNET(unittest.TestCase):
     def test_script(self):
         net = BasicUNet(dimensions=2, in_channels=1, out_channels=3)
         test_data = torch.randn(16, 1, 32, 32)
-        out_orig, out_reloaded = test_script_save(net, test_data)
-        assert torch.allclose(out_orig, out_reloaded)
+        test_script_save(net, test_data)
 
 
 if __name__ == "__main__":

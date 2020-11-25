@@ -9,6 +9,7 @@ pillow
 tensorboard
 scikit-image>=0.14.2
 tqdm>=4.47.0
+lmdb
 flake8>=3.8.1
 flake8-bugbear
 flake8-comprehensions

@@ -80,8 +80,7 @@ class TestVarAutoEncoder(unittest.TestCase):
             dimensions=2, in_shape=(1, 32, 32), out_channels=1, latent_size=2, channels=(4, 8), strides=(2, 2)
         )
         test_data = torch.randn(2, 1, 32, 32)
-        out_orig, out_reloaded = test_script_save(net, test_data)
-        assert torch.allclose(out_orig[0], out_reloaded[0])
+        test_script_save(net, test_data)
 
 
 if __name__ == "__main__":

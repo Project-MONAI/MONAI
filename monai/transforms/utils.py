@@ -362,7 +362,7 @@ def apply_transform(transform: Callable, data, map_items: bool = True):
             return [transform(item) for item in data]
         return transform(data)
     except Exception as e:
-        raise type(e)(f"Applying transform {transform}.").with_traceback(e.__traceback__)
+        raise RuntimeError(f"applying transform {transform}") from e
 
 
 def create_grid(

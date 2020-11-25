@@ -118,8 +118,7 @@ class TestDynUNet(unittest.TestCase):
 #         input_param, input_shape, _ = TEST_CASE_DYNUNET_2D[0]
 #         net = DynUNet(**input_param)
 #         test_data = torch.randn(input_shape)
-#         out_orig, out_reloaded = test_script_save(net, test_data)
-#         assert torch.allclose(out_orig, out_reloaded)
+#         test_script_save(net, test_data)
 
 
 class TestDynUNetDeepSupervision(unittest.TestCase):

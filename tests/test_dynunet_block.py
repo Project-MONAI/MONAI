@@ -87,8 +87,7 @@ class TestResBasicBlock(unittest.TestCase):
         for net_type in (UnetResBlock, UnetBasicBlock):
             net = net_type(**input_param)
             test_data = torch.randn(input_shape)
-            out_orig, out_reloaded = test_script_save(net, test_data)
-            assert torch.allclose(out_orig, out_reloaded)
+            test_script_save(net, test_data)
 
 
 class TestUpBlock(unittest.TestCase):
@@ -106,8 +105,7 @@ class TestUpBlock(unittest.TestCase):
         net = UnetUpBlock(**input_param)
         test_data = torch.randn(input_shape)
         skip_data = torch.randn(skip_shape)
-        out_orig, out_reloaded = test_script_save(net, test_data, skip_data)
-        assert torch.allclose(out_orig, out_reloaded)
+        test_script_save(net, test_data, skip_data)
 
 
 if __name__ == "__main__":
