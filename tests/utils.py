@@ -10,25 +10,66 @@
 # limitations under the License.
 
 import os
+import sys
 import tempfile
 import unittest
+from io import BytesIO
 from subprocess import PIPE, Popen
+from urllib.error import ContentTooShortError, HTTPError, URLError
 
 import numpy as np
 import torch
 
 from monai.data import create_test_image_2d, create_test_image_3d
-from monai.utils import optional_import
+from monai.utils import optional_import, set_determinism
 
 nib, _ = optional_import("nibabel")
 
 quick_test_var = "QUICKTEST"
 
 
+def test_pretrained_networks(network, input_param, device):
+    try:
+        net = network(**input_param).to(device)
+    except (URLError, HTTPError, ContentTooShortError) as e:
+        raise unittest.SkipTest(e)
+    return net
+
+
 def skip_if_quick(obj):
+    """
+    Skip the unit tests if environment variable `quick_test_var=true`.
+    For example, the user can skip the relevant tests by setting ``export QUICKTEST=true``.
+    """
     is_quick = os.environ.get(quick_test_var, "").lower() == "true"
 
     return unittest.skipIf(is_quick, "Skipping slow tests")(obj)
+
+
+class SkipIfNoModule(object):
+    """Decorator to be used if test should be skipped
+    when optional module is not present."""
+
+    def __init__(self, module_name):
+        self.module_name = module_name
+        self.module_missing = not optional_import(self.module_name)[1]
+
+    def __call__(self, obj):
+        return unittest.skipIf(self.module_missing, f"optional module not present: {self.module_name}")(obj)
+
+
+def skip_if_no_cuda(obj):
+    """
+    Skip the unit tests if torch.cuda.is_available is False
+    """
+    return unittest.skipIf(not torch.cuda.is_available(), "Skipping CUDA-based tests")(obj)
+
+
+def skip_if_windows(obj):
+    """
+    Skip the unit tests if platform is win32
+    """
+    return unittest.skipIf(sys.platform == "win32", "Skipping tests on Windows")(obj)
 
 
 def make_nifti_image(array, affine=None):
@@ -90,11 +131,55 @@ class TorchImageTestCase3D(NumpyImageTestCase3D):
         self.segn = torch.tensor(self.segn)
 
 
-def expect_failure_if_no_gpu(test):
-    if not torch.cuda.is_available():
-        return unittest.expectedFailure(test)
+def test_script_save(net, *inputs, eval_nets=True, device=None):
+    """
+    Test the ability to save `net` as a Torchscript object, reload it, and apply inference. The value `inputs` is
+    forward-passed through the original and loaded copy of the network and their results returned. Both `net` and its
+    reloaded copy are set to evaluation mode if `eval_nets` is True. The forward pass for both is done without
+    gradient accumulation.
+
+    The test will be performed with CUDA if available, else CPU.
+    """
+    if True:
+        device = "cpu"
     else:
-        return test
+        # TODO: It would be nice to be able to use GPU if
+        # available, but this currently causes CI failures.
+        if not device:
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    # Convert to device
+    inputs = [i.to(device) for i in inputs]
+
+    scripted = torch.jit.script(net.cpu())
+    buffer = scripted.save_to_buffer()
+    reloaded_net = torch.jit.load(BytesIO(buffer)).to(device)
+    net.to(device)
+
+    if eval_nets:
+        net.eval()
+        reloaded_net.eval()
+
+    with torch.no_grad():
+        set_determinism(seed=0)
+        result1 = net(*inputs)
+        result2 = reloaded_net(*inputs)
+        set_determinism(seed=None)
+    # When using e.g., VAR, we will produce a tuple of outputs.
+    # Hence, convert all to tuples and then compare all elements.
+    if not isinstance(result1, tuple):
+        result1 = (result1,)
+        result2 = (result2,)
+
+    for i, (r1, r2) in enumerate(zip(result1, result2)):
+        if None not in (r1, r2):  # might be None
+            np.testing.assert_allclose(
+                r1.detach().cpu().numpy(),
+                r2.detach().cpu().numpy(),
+                rtol=1e-5,
+                atol=0,
+                err_msg=f"failed on comparison number: {i}",
+            )
 
 
 def query_memory(n=2):

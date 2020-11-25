@@ -17,8 +17,8 @@ import nibabel as nib
 import numpy as np
 from parameterized import parameterized
 
-from monai.data import PersistentDataset
-from monai.transforms import Compose, LoadNiftid, SimulateDelayd
+from monai.data import PersistentDataset, json_hashing
+from monai.transforms import Compose, LoadNiftid, SimulateDelayd, Transform
 
 TEST_CASE_1 = [
     Compose(
@@ -42,6 +42,31 @@ TEST_CASE_3 = [None, (128, 128, 128)]
 
 
 class TestDataset(unittest.TestCase):
+    def test_cache(self):
+        """testing no inplace change to the hashed item"""
+        items = [[list(range(i))] for i in range(5)]
+
+        class _InplaceXform(Transform):
+            def __call__(self, data):
+                if data:
+                    data[0] = data[0] + np.pi
+                else:
+                    data.append(1)
+                return data
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            ds = PersistentDataset(items, transform=_InplaceXform(), cache_dir=tempdir)
+            self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
+            ds1 = PersistentDataset(items, transform=_InplaceXform(), cache_dir=tempdir)
+            self.assertEqual(list(ds1), list(ds))
+            self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
+
+            ds = PersistentDataset(items, transform=_InplaceXform(), cache_dir=tempdir, hash_func=json_hashing)
+            self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
+            ds1 = PersistentDataset(items, transform=_InplaceXform(), cache_dir=tempdir, hash_func=json_hashing)
+            self.assertEqual(list(ds1), list(ds))
+            self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_shape(self, transform, expected_shape):
         test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]), np.eye(4))
