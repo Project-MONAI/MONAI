@@ -25,3 +25,4 @@ pytype>=2020.6.1
 mypy>=0.790
 ninja
 torchvision
+psutil
