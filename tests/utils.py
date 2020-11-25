@@ -143,9 +143,13 @@ def test_script_save(net, *inputs, eval_nets=True, device=None):
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
+    # TODO: support non-eval mode for CUDA devices
+    if device == "cuda":
+        net.eval()
+        eval_nets = True
+
     # Convert to device
     inputs = [i.to(device) for i in inputs]
-    net.to(device)
 
     scripted = torch.jit.script(net)
     buffer = scripted.save_to_buffer()
