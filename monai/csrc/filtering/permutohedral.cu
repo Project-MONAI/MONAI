@@ -409,20 +409,16 @@ void filter_(float* values, float* positions, int w, int h, bool accurate) {
     dim3 blocks((w-1)/8+1, (h-1)/8+1, 1);
     dim3 blockSize(8, 8, 1); 
 
-    printf(cudaGetErrorString(cudaDeviceSynchronize()));
     createMatrix<pd><<<blocks, blockSize>>>(w, h, positions, values, scaleFactor, matrix);
-    printf(cudaGetErrorString(cudaDeviceSynchronize()));
 
     // fix duplicate hash table entries
     int cleanBlockSize = 32;
     dim3 cleanBlocks((n-1)/cleanBlockSize+1, 2*(pd+1), 1);
     cleanHashTable<pd><<<cleanBlocks, cleanBlockSize>>>(2*n*(pd+1), matrix);
-    printf(cudaGetErrorString(cudaDeviceSynchronize()));
 
     // splat splits by color, so extend the y coordinate to our blocks to represent that
     blocks.y *= pd+1;
     splatCache<pd, vd><<<blocks, blockSize>>>(w, h, values, matrix);
-    printf(cudaGetErrorString(cudaDeviceSynchronize()));
     
     if (accurate) {
 	float *newValues;
@@ -431,13 +427,12 @@ void filter_(float* values, float* positions, int w, int h, bool accurate) {
 	
 	for (int color = 0; color <= pd; color++) {	
         blur<pd, vd><<<cleanBlocks, cleanBlockSize>>>(n*(pd+1), newValues, matrix, color);
-        printf(cudaGetErrorString(cudaDeviceSynchronize()));
 	    newValues = swapHashTableValues(newValues);
 	}
     }
     blocks.y /= (pd+1);
     slice<pd, vd><<<blocks, blockSize>>>(w, h, values, matrix);
-    printf(cudaGetErrorString(cudaDeviceSynchronize()));
+    
     destroyHashTable();
 }
 
