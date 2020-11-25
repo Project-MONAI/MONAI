@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence
 import torch
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
+import torch.distributed as dist
 
 from monai.engines.utils import default_prepare_batch
 from monai.transforms import apply_transform
@@ -100,6 +101,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
 
         # set all sharable data for the workflow based on Ignite engine.state
         self.state = State(
+            rank=dist.get_rank() if dist.is_available() and dist.is_initialized() else 0,
             seed=0,
             iteration=0,
             epoch=0,
