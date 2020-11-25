@@ -140,18 +140,13 @@ def test_script_save(net, *inputs, eval_nets=True, device=None):
 
     The test will be performed with CUDA if available, else CPU.
     """
-    if True:
-        device = "cpu"
-    else:
-        # TODO: It would be nice to be able to use GPU if
-        # available, but this currently causes CI failures.
-        if not device:
-            device = "cuda" if torch.cuda.is_available() else "cpu"
+    if not device:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # Convert to device
     inputs = [i.to(device) for i in inputs]
 
-    scripted = torch.jit.script(net.cpu())
+    scripted = torch.jit.script(net)
     buffer = scripted.save_to_buffer()
     reloaded_net = torch.jit.load(BytesIO(buffer)).to(device)
     net.to(device)
