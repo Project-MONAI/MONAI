@@ -18,7 +18,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.data import PersistentDataset, json_hashing
-from monai.transforms import Compose, LoadNiftid, SimulateDelayd, ShiftIntensityd, Transform
+from monai.transforms import Compose, LoadNiftid, ShiftIntensityd, SimulateDelayd, Transform
 
 TEST_CASE_1 = [
     Compose(

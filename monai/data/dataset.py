@@ -116,7 +116,7 @@ class PersistentDataset(Dataset):
         transform: Union[Sequence[Callable], Callable],
         cache_dir: Optional[Union[Path, str]] = None,
         hash_func: Callable[..., bytes] = pickle_hashing,
-        cache_n_trans: Optional[int] = None
+        cache_n_trans: Optional[int] = None,
     ) -> None:
         """
         Args:
