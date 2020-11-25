@@ -36,6 +36,14 @@ class TestToNumpy(unittest.TestCase):
         self.assertTrue(result.flags["C_CONTIGUOUS"])
         np.testing.assert_allclose(result, test_data.numpy())
 
+    def test_list_tuple(self):
+        test_data = [[1, 2], [3, 4]]
+        result = ToNumpy()(test_data)
+        np.testing.assert_allclose(result, np.asarray(test_data))
+        test_data = ((1, 2), (3, 4))
+        result = ToNumpy()(test_data)
+        np.testing.assert_allclose(result, np.asarray(test_data))
+
 
 if __name__ == "__main__":
     unittest.main()

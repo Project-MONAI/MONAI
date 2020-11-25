@@ -76,12 +76,12 @@ class TestNiftiDataset(unittest.TestCase):
                 np.testing.assert_allclose(d, ref + 1, atol=1e-3)
 
             # set seg transform, but no seg_files
-            with self.assertRaises(TypeError):
+            with self.assertRaises(RuntimeError):
                 dataset = NiftiDataset(full_names, seg_transform=lambda x: x + 1, image_only=True)
                 _ = dataset[0]
 
             # set seg transform, but no seg_files
-            with self.assertRaises(TypeError):
+            with self.assertRaises(RuntimeError):
                 dataset = NiftiDataset(full_names, seg_transform=lambda x: x + 1, image_only=True)
                 _ = dataset[0]
 

@@ -37,6 +37,8 @@ def run_testsuit():
         "test_handler_checkpoint_saver",
         "test_handler_classification_saver",
         "test_handler_lr_scheduler",
+        "test_handler_confusion_matrix",
+        "test_handler_confusion_matrix_dist",
         "test_handler_mean_dice",
         "test_handler_rocauc",
         "test_handler_rocauc_dist",
@@ -57,6 +59,7 @@ def run_testsuit():
         "test_keep_largest_connected_component",
         "test_keep_largest_connected_componentd",
         "test_lltm",
+        "test_lmdbdataset",
         "test_load_image",
         "test_load_imaged",
         "test_load_nifti",
@@ -92,6 +95,7 @@ def run_testsuit():
         "test_zoom",
         "test_zoom_affine",
         "test_zoomd",
+        "test_compute_occlusion_sensitivity",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 
@@ -101,9 +105,11 @@ def run_testsuit():
     for case in files:
         test_module = os.path.basename(case)[:-3]
         if test_module in exclude_cases:
+            exclude_cases.remove(test_module)
             print(f"skipping tests.{test_module}.")
         else:
             cases.append(f"tests.{test_module}")
+    assert not exclude_cases, f"items in exclude_cases not used: {exclude_cases}."
     test_suite = unittest.TestLoader().loadTestsFromNames(cases)
     return test_suite
 

@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import os
+import sys
 import tempfile
 import unittest
 
@@ -124,7 +125,8 @@ class TestArrayDataset(unittest.TestCase):
             dataset = ArrayDataset(test_images, img_transform)
             self.assertEqual(len(dataset), 2)
             dataset.set_random_state(1234)
-            loader = DataLoader(dataset, batch_size=10, num_workers=1)
+            n_workers = 0 if sys.platform == "win32" else 2
+            loader = DataLoader(dataset, batch_size=10, num_workers=n_workers)
             imgs = next(iter(loader))  # test batching
             np.testing.assert_allclose(imgs.shape, [2] + list(expected_shape))
 
@@ -149,7 +151,8 @@ class TestArrayDataset(unittest.TestCase):
             dataset = ArrayDataset(test_images, img_transform, test_labels, img_transform)
             self.assertEqual(len(dataset), 2)
             dataset.set_random_state(1234)
-            loader = DataLoader(dataset, batch_size=10, num_workers=1)
+            n_workers = 0 if sys.platform == "win32" else 2
+            loader = DataLoader(dataset, batch_size=10, num_workers=n_workers)
             data = next(iter(loader))  # test batching
             np.testing.assert_allclose(data[0].shape, [2] + list(expected_shape))
 

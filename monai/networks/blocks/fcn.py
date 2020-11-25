@@ -20,7 +20,7 @@ from monai.networks.blocks.upsample import UpSample
 from monai.networks.layers.factories import Act, Conv, Norm
 from monai.utils import optional_import
 
-models, _ = optional_import("torchvision", "0.5.0", name="models")
+models, _ = optional_import("torchvision", name="models")
 
 
 class GCN(nn.Module):
@@ -108,7 +108,8 @@ class FCN(nn.Module):
             Using the second mode cannot guarantee the model's reproducibility. Defaults to ``bilinear``.
 
             - ``transpose``, uses transposed convolution layers.
-            - ``bilinear``, uses bilinear interpolate.
+            - ``bilinear``, uses bilinear interpolation.
+
         pretrained: If True, returns a model pre-trained on ImageNet
         progress: If True, displays a progress bar of the download to stderr.
     """
@@ -157,9 +158,8 @@ class FCN(nn.Module):
             self.up_conv = UpSample(
                 dimensions=2,
                 in_channels=self.out_channels,
-                out_channels=self.out_channels,
                 scale_factor=2,
-                with_conv=True,
+                mode="deconv",
             )
 
     def forward(self, x: torch.Tensor):
