@@ -12,6 +12,5 @@ Optimizers
     :members:
 
 `Generate parameter groups`
-----------
+---------------------------
 .. autofunction:: generate_params
-    :members:
