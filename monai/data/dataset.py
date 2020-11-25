@@ -287,6 +287,7 @@ class LMDBDataset(PersistentDataset):
         transform: Union[Sequence[Callable], Callable],
         cache_dir: Union[Path, str] = "cache",
         hash_func: Callable[..., bytes] = pickle_hashing,
+        cache_n_trans: Optional[int] = None,
         db_name: str = "monai_cache",
         pickle_protocol=pickle.HIGHEST_PROTOCOL,
         lmdb_kwargs: Optional[dict] = None,
@@ -304,13 +305,20 @@ class LMDBDataset(PersistentDataset):
                 If the cache_dir doesn't exist, will automatically create it. Defaults to "./cache".
             hash_func: a callable to compute hash from data items to be cached.
                 defaults to `monai.data.utils.pickle_hashing`.
+            cache_n_trans: cache the result of first N transforms, if None, cache until the first random transform.
             db_name: lmdb database file name. Defaults to "monai_cache".
             pickle_protocol: pickle protocol version. Defaults to pickle.HIGHEST_PROTOCOL.
                 https://docs.python.org/3/library/pickle.html#pickle-protocols
             lmdb_kwargs: additional keyword arguments to the lmdb environment.
                 for more details please visit: https://lmdb.readthedocs.io/en/release/#environment-class
         """
-        super().__init__(data=data, transform=transform, cache_dir=cache_dir, hash_func=hash_func)
+        super().__init__(
+            data=data,
+            transform=transform,
+            cache_dir=cache_dir,
+            hash_func=hash_func,
+            cache_n_trans=cache_n_trans,
+        )
         if not self.cache_dir:
             raise ValueError("cache_dir must be specified.")
         self.db_file = self.cache_dir / f"{db_name}.lmdb"
@@ -338,7 +346,10 @@ class LMDBDataset(PersistentDataset):
                             if done:
                                 continue
                         if val is None:
-                            val = self._pre_first_random_transform(deepcopy(item))  # keep the original hashed
+                            if self.cache_n_trans is not None:
+                                val = self._pre_first_n_transform(deepcopy(item), self.cache_n_trans)
+                            else:
+                                val = self._pre_first_random_transform(deepcopy(item))  # keep the original hashed
                             val = pickle.dumps(val, protocol=self.pickle_protocol)
                         txn.put(key, val)
                     done = True
@@ -363,7 +374,7 @@ class LMDBDataset(PersistentDataset):
             self.lmdb_kwargs["readahead"] = False
         return lmdb.open(path=f"{self.db_file}", subdir=False, **self.lmdb_kwargs)
 
-    def _pre_first_random_cachecheck(self, item_transformed):
+    def _cachecheck(self, item_transformed):
         """
         if the item is not found in the lmdb file, resolves to the persistent cache default behaviour.
         """
@@ -373,7 +384,7 @@ class LMDBDataset(PersistentDataset):
             data = txn.get(self.hash_func(item_transformed))
         if data is None:
             warnings.warn("LMDBDataset: cache key not found, running fallback caching.")
-            return super()._pre_first_random_cachecheck(item_transformed)
+            return super()._cachecheck(item_transformed)
         try:
             return pickle.loads(data)
         except Exception as err:
