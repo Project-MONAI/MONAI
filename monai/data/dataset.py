@@ -75,7 +75,8 @@ class PersistentDataset(Dataset):
     """
     Persistent storage of pre-computed values to efficiently manage larger than memory dictionary format data,
     it can operate transforms for specific fields.  Results from the non-random transform components are computed
-    when first used, and stored in the `cache_dir` for rapid retrieval on subsequent uses.
+    when first used, and stored in the `cache_dir` for rapid retrieval on subsequent uses. If `cache_n_trans` specified,
+    It can also cache the result of first N transforms.
 
     For example, typical input data can be a list of dictionaries::
 
@@ -115,6 +116,7 @@ class PersistentDataset(Dataset):
         transform: Union[Sequence[Callable], Callable],
         cache_dir: Optional[Union[Path, str]] = None,
         hash_func: Callable[..., bytes] = pickle_hashing,
+        cache_n_trans: Optional[int] = None
     ) -> None:
         """
         Args:
@@ -129,12 +131,14 @@ class PersistentDataset(Dataset):
                 If the cache_dir doesn't exist, will automatically create it.
             hash_func: a callable to compute hash from data items to be cached.
                 defaults to `monai.data.utils.pickle_hashing`.
+            cache_n_trans: cache the result of first N transforms, if None, cache until the first random transform.
         """
         if not isinstance(transform, Compose):
             transform = Compose(transform)
         super().__init__(data=data, transform=transform)
         self.cache_dir = Path(cache_dir) if cache_dir is not None else None
         self.hash_func = hash_func
+        self.cache_n_trans = cache_n_trans
         if self.cache_dir is not None:
             if not self.cache_dir.exists():
                 self.cache_dir.mkdir(parents=True)
@@ -180,7 +184,40 @@ class PersistentDataset(Dataset):
                 item_transformed = apply_transform(_transform, item_transformed)
         return item_transformed
 
-    def _pre_first_random_cachecheck(self, item_transformed):
+    def _pre_first_n_transform(self, item_transformed, n_trans: int):
+        """
+        Process the data from original state up to the N element.
+
+        Args:
+            item_transformed: The data to be transformed
+            n_trans: how many transforms to execute and cahce
+
+        Returns:
+            the transformed element up to the N transform object
+        """
+        for i, _transform in enumerate(self.transform.transforms):  # type: ignore
+            if i == n_trans:
+                break
+            item_transformed = apply_transform(_transform, item_transformed)
+        return item_transformed
+
+    def _beyond_n_transform(self, item_transformed, n_trans: int):
+        """
+        Process the data from before the N + 1 transform to the final state ready for evaluation.
+
+        Args:
+            item_transformed: The data to be transformed (already processed up to the first N transform)
+            n_trans: how many transforms have been executed and cached
+
+        Returns:
+            the final transformed result
+        """
+        for i, _transform in enumerate(self.transform.transforms):  # type: ignore
+            if i >= n_trans:
+                item_transformed = apply_transform(_transform, item_transformed)
+        return item_transformed
+
+    def _cachecheck(self, item_transformed):
         """
         A function to cache the expensive input data transform operations
         so that huge data sets (larger than computer memory) can be processed
@@ -207,7 +244,10 @@ class PersistentDataset(Dataset):
         if hashfile is not None and hashfile.is_file():  # cache hit
             return torch.load(hashfile)
 
-        _item_transformed = self._pre_first_random_transform(deepcopy(item_transformed))  # keep the original hashed
+        if self.cache_n_trans is not None:
+            _item_transformed = self._pre_first_n_transform(deepcopy(item_transformed), self.cache_n_trans)
+        else:
+            _item_transformed = self._pre_first_random_transform(deepcopy(item_transformed))  # keep original hashed
         if hashfile is not None:
             # NOTE: Writing to ".temp_write_cache" and then using a nearly atomic rename operation
             #       to make the cache more robust to manual killing of parent process
@@ -218,7 +258,10 @@ class PersistentDataset(Dataset):
         return _item_transformed
 
     def __getitem__(self, index: int):
-        pre_random_item = self._pre_first_random_cachecheck(self.data[index])
+        pre_random_item = self._cachecheck(self.data[index])
+        if self.cache_n_trans:
+            return self._beyond_n_transform(pre_random_item, self.cache_n_trans)
+
         return self._first_random_and_beyond_transform(pre_random_item)
 
 
