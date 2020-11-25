@@ -28,6 +28,7 @@ import numpy as np
 import torch
 import torch.distributed as dist
 
+from monai.config import get_torch_version_tuple
 from monai.data import create_test_image_2d, create_test_image_3d
 from monai.utils import ensure_tuple, optional_import, set_determinism
 
@@ -66,6 +67,18 @@ class SkipIfNoModule(object):
         return unittest.skipIf(self.module_missing, f"optional module not present: {self.module_name}")(obj)
 
 
+class SkipIfModule(object):
+    """Decorator to be used if test should be skipped
+    when optional module is present."""
+
+    def __init__(self, module_name):
+        self.module_name = module_name
+        self.module_avail = optional_import(self.module_name)[1]
+
+    def __call__(self, obj):
+        return unittest.skipIf(self.module_avail, f"Skipping because optional module present: {self.module_name}")(obj)
+
+
 def skip_if_no_cuda(obj):
     """
     Skip the unit tests if torch.cuda.is_available is False
@@ -78,6 +91,34 @@ def skip_if_windows(obj):
     Skip the unit tests if platform is win32
     """
     return unittest.skipIf(sys.platform == "win32", "Skipping tests on Windows")(obj)
+
+
+class SkipIfBeforePyTorchVersion(object):
+    """Decorator to be used if test should be skipped
+    with PyTorch versions older than that given."""
+
+    def __init__(self, pytorch_version_tuple):
+        self.min_version = pytorch_version_tuple
+        self.version_too_old = get_torch_version_tuple() < self.min_version
+
+    def __call__(self, obj):
+        return unittest.skipIf(
+            self.version_too_old, f"Skipping tests that fail on PyTorch versions before: {self.min_version}"
+        )(obj)
+
+
+class SkipIfAtLeastPyTorchVersion(object):
+    """Decorator to be used if test should be skipped
+    with PyTorch versions older than that given."""
+
+    def __init__(self, pytorch_version_tuple):
+        self.max_version = pytorch_version_tuple
+        self.version_too_new = get_torch_version_tuple() >= self.max_version
+
+    def __call__(self, obj):
+        return unittest.skipIf(
+            self.version_too_new, f"Skipping tests that fail on PyTorch versions at least: {self.max_version}"
+        )(obj)
 
 
 def make_nifti_image(array, affine=None):
