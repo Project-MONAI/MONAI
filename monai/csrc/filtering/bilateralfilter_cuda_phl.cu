@@ -21,6 +21,8 @@ void filter(float *im, float *ref, int pd, int vd, int w, int h, bool accurate);
 __constant__ int cChannelCount;
 __constant__ int cWidthStride;
 __constant__ int cChannelStride;
+__constant__ float cInvSpatialSigma;
+__constant__ float cInvColorSigma;
 
 __global__ void FeatureCreation(const float* inputTensor, float* outputData, float* outputFeatures)
 {
@@ -32,11 +34,11 @@ __global__ void FeatureCreation(const float* inputTensor, float* outputData, flo
     for (int i = 0; i < cChannelCount; i++)
     {
         outputData[dispatchIndex * cChannelCount + i] = inputTensor[dispatchIndex + i * cChannelStride];
-        outputFeatures[dispatchIndex * (cChannelCount + 2) + i] = inputTensor[dispatchIndex + i * cChannelStride];
+        outputFeatures[dispatchIndex * (cChannelCount + 2) + i] = inputTensor[dispatchIndex + i * cChannelStride] * cInvColorSigma;
     }
 
-    outputFeatures[dispatchIndex * (cChannelCount + 2) + cChannelCount + 0] = x;
-    outputFeatures[dispatchIndex * (cChannelCount + 2) + cChannelCount + 1] = y;
+    outputFeatures[dispatchIndex * (cChannelCount + 2) + cChannelCount + 0] = x * cInvSpatialSigma;
+    outputFeatures[dispatchIndex * (cChannelCount + 2) + cChannelCount + 1] = y * cInvSpatialSigma;
 }
 
 __global__ void WriteOutput(const float* data, float* outputTensor)
@@ -70,9 +72,14 @@ torch::Tensor BilateralFilterPHLCuda(torch::Tensor inputTensor, float spatialSig
     cudaMalloc(&data, elementCount * channelCount * sizeof(float));
     cudaMalloc(&features, elementCount * featureCount * sizeof(float));
 
+    float invSpatialSigma = 1.0f/spatialSigma;
+    float invColorSigma = 1.0f/colorSigma;
+
     cudaMemcpyToSymbol(cChannelCount, &channelCount, sizeof(int));
     cudaMemcpyToSymbol(cChannelStride, &channelStride, sizeof(int));
     cudaMemcpyToSymbol(cWidthStride, &widthStride, sizeof(int));
+    cudaMemcpyToSymbol(cInvSpatialSigma, &invSpatialSigma, sizeof(float));
+    cudaMemcpyToSymbol(cInvColorSigma, &invColorSigma, sizeof(float));
 
     //No batch handling at present. Need to either loop through or make changes to filter()
 
