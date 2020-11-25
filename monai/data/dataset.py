@@ -219,8 +219,7 @@ class PersistentDataset(Dataset):
 
     def __getitem__(self, index: int):
         pre_random_item = self._pre_first_random_cachecheck(self.data[index])
-        post_random_item = self._first_random_and_beyond_transform(pre_random_item)
-        return post_random_item
+        return self._first_random_and_beyond_transform(pre_random_item)
 
 
 class LMDBDataset(PersistentDataset):
@@ -276,16 +275,10 @@ class LMDBDataset(PersistentDataset):
         self.lmdb_kwargs = lmdb_kwargs or {}
         if not self.lmdb_kwargs.get("map_size", 0):
             self.lmdb_kwargs["map_size"] = 1024 ** 4  # default map_size
+        self._read_env = None
 
+    def _fill_cache_start_reader(self):
         # create cache
-        self._fill_cache()
-        # read-only database env
-        self.lmdb_kwargs["readonly"] = True
-        if self.lmdb_kwargs.get("lock", None) is None:
-            self.lmdb_kwargs["lock"] = False
-        self._read_env = lmdb.open(path=f"{self.db_file}", subdir=False, **self.lmdb_kwargs)
-
-    def _fill_cache(self):
         print(f"Accessing lmdb file: {self.db_file.absolute()}.")
         self.lmdb_kwargs["readonly"] = False
         env = lmdb.open(path=f"{self.db_file}", subdir=False, **self.lmdb_kwargs)
@@ -316,12 +309,23 @@ class LMDBDataset(PersistentDataset):
                 size = env.info()["map_size"]
                 env.close()
                 raise ValueError(f"LMDB map size reached, increase size above current size of {size}.")
+        size = env.info()["map_size"]
         env.close()
+        # read-only database env
+        self.lmdb_kwargs["readonly"] = True
+        self.lmdb_kwargs["map_size"] = size
+        if self.lmdb_kwargs.get("lock", None) is None:
+            self.lmdb_kwargs["lock"] = False
+        if self.lmdb_kwargs.get("readahead", None) is None:
+            self.lmdb_kwargs["readahead"] = False
+        return lmdb.open(path=f"{self.db_file}", subdir=False, **self.lmdb_kwargs)
 
     def _pre_first_random_cachecheck(self, item_transformed):
         """
         if the item is not found in the lmdb file, resolves to the persistent cache default behaviour.
         """
+        if self._read_env is None:
+            self._read_env = self._fill_cache_start_reader()
         with self._read_env.begin(write=False) as txn:
             data = txn.get(self.hash_func(item_transformed))
         if data is None:
@@ -336,6 +340,8 @@ class LMDBDataset(PersistentDataset):
         """
         Returns: dataset info dictionary.
         """
+        if self._read_env is None:
+            self._read_env = self._fill_cache_start_reader()
         out = dict(self._read_env.info())
         out["size"] = len(self.data)
         out["filename"] = f"{self.db_file.absolute()}"
@@ -382,7 +388,7 @@ class CacheDataset(Dataset):
         transform: Union[Sequence[Callable], Callable],
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
-        num_workers: int = 0,
+        num_workers: Optional[int] = None,
     ) -> None:
         """
         Args:
@@ -392,79 +398,52 @@ class CacheDataset(Dataset):
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
             cache_rate: percentage of cached data in total, default is 1.0 (cache all).
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
-            num_workers: the number of worker threads to use.
-                If 0 a single thread will be used. Default is 0.
+            num_workers: the number of worker processes to use.
+                If num_workers is None then the number returned by os.cpu_count() is used.
         """
-        if not isinstance(transform, Compose):
-            transform = Compose(transform)
-        super().__init__(data, transform)
-        self.cache_num = min(cache_num, int(len(data) * cache_rate), len(data))
-        if self.cache_num > 0:
-            self._cache = [None] * self.cache_num
+        super().__init__(data=data, transform=transform if isinstance(transform, Compose) else Compose(transform))
+        self.cache_num = min(int(cache_num), int(len(data) * cache_rate), len(data))
+        self.num_workers = num_workers
+        if self.num_workers is not None:
+            self.num_workers = max(int(self.num_workers), 1)
+        self._cache: List = self._fill_cache()
+
+    def _fill_cache(self) -> List:
+        if self.cache_num <= 0:
+            return []
+        if not has_tqdm:
+            warnings.warn("tqdm is not installed, will not show the caching progress bar.")
+        with ThreadPool(self.num_workers) as p:
             if has_tqdm:
-                pbar = tqdm(total=self.cache_num, desc="Load and cache transformed data")
-            else:
-                warnings.warn("tqdm is not installed, will not show the caching progress bar.")
-                pbar = None
+                return list(tqdm(p.imap(self._load_cache_item, range(self.cache_num)), total=self.cache_num))
+            return list(p.imap(self._load_cache_item, range(self.cache_num)))
 
-            if num_workers > 0:
-                self._item_processed = 0
-                self._thread_lock = threading.Lock()
-                with ThreadPool(num_workers) as p:
-                    p.map(
-                        self._load_cache_item_thread,
-                        [(i, data[i], transform.transforms, pbar) for i in range(self.cache_num)],
-                    )
-            else:
-                for i in range(self.cache_num):
-                    self._cache[i] = self._load_cache_item(data[i], transform.transforms)
-                    if pbar is not None:
-                        pbar.update(1)
-            if pbar is not None:
-                pbar.close()
-
-    def _load_cache_item(self, item: Any, transforms: Sequence[Callable]):
+    def _load_cache_item(self, idx: int):
         """
         Args:
-            item: input item to load and transform to generate dataset for model.
-            transforms: transforms to execute operations on input item.
+            idx: the index of the input data sequence.
         """
-        for _transform in transforms:
+        item = self.data[idx]
+        for _transform in self.transform.transforms:  # type: ignore
             # execute all the deterministic transforms
             if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
                 break
             item = apply_transform(_transform, item)
         return item
 
-    def _load_cache_item_thread(self, args: Any) -> None:
-        """
-        Args:
-            args: tuple with contents (i, item, transforms, pbar).
-                i: the index to load the cached item to.
-                item: input item to load and transform to generate dataset for model.
-                transforms: transforms to execute operations on input item.
-                pbar: tqdm progress bar
-        """
-        i, item, transforms, pbar = args
-        self._cache[i] = self._load_cache_item(item, transforms)
-        if pbar is not None:
-            with self._thread_lock:
-                pbar.update(1)
-
     def __getitem__(self, index):
-        if index < self.cache_num:
-            # load data from cache and execute from the first random transform
-            start_run = False
-            data = self._cache[index]
-            for _transform in self.transform.transforms:  # pytype: disable=attribute-error
-                if not start_run and not isinstance(_transform, Randomizable) and isinstance(_transform, Transform):
-                    continue
-                else:
-                    start_run = True
+        if index >= self.cache_num:
+            # no cache for this index, execute all the transforms directly
+            return super(CacheDataset, self).__getitem__(index)
+        # load data from cache and execute from the first random transform
+        start_run = False
+        if self._cache is None:
+            self._cache = self._fill_cache()
+        data = self._cache[index]
+        for _transform in self.transform.transforms:  # pytype: disable=attribute-error
+            if start_run or isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
+                start_run = True
                 data = apply_transform(_transform, data)
-        else:
-            # no cache for this data, execute all the transforms directly
-            data = super(CacheDataset, self).__getitem__(index)
         return data
 
 
@@ -508,7 +487,7 @@ class SmartCacheDataset(CacheDataset):
         replace_rate: float,
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
-        num_init_workers: int = 0,
+        num_init_workers: Optional[int] = None,
         num_replace_workers: int = 0,
     ) -> None:
         """
@@ -521,11 +500,13 @@ class SmartCacheDataset(CacheDataset):
             cache_rate: percentage of cached data in total, default is 1.0 (cache all).
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
             num_init_workers: the number of worker threads to initialize the cache for first epoch.
-                if 0, run in main thread, no separate thread will open.
+                If num_init_workers is None then the number returned by os.cpu_count() is used.
             num_replace_workers: the number of worker threads to prepare the replacement cache for every epoch.
                 if 0, run in main thread, no separate thread will open.
         """
         super().__init__(data, transform, cache_num, cache_rate, num_init_workers)
+        if self._cache is None:
+            self._cache = self._fill_cache()
         if self.cache_num >= len(data):
             raise ValueError("cache_num must be smaller than dataset length to support replacement.")
         if replace_rate <= 0:
@@ -588,25 +569,25 @@ class SmartCacheDataset(CacheDataset):
 
         """
         with self._update_lock:
-            if self._replace_done:
-                remain_num: int = self.cache_num - self._replace_num
-                for i in range(remain_num):
-                    self._cache[i] = self._cache[i + self._replace_num]
-                for i in range(self._replace_num):
-                    self._cache[remain_num + i] = self._replacements[i]
-
-                self._start_pos += self._replace_num
-                if self._start_pos >= self._total_num:
-                    self._start_pos -= self._total_num
-
-                self._compute_data_idx()
-
-                # ready for next round
-                self._round += 1
-                self._replace_done = False
-                return True
-            else:
+            if not self._replace_done:
                 return False
+
+            remain_num: int = self.cache_num - self._replace_num
+            for i in range(remain_num):
+                self._cache[i] = self._cache[i + self._replace_num]
+            for i in range(self._replace_num):
+                self._cache[remain_num + i] = self._replacements[i]
+
+            self._start_pos += self._replace_num
+            if self._start_pos >= self._total_num:
+                self._start_pos -= self._total_num
+
+            self._compute_data_idx()
+
+            # ready for next round
+            self._round += 1
+            self._replace_done = False
+            return True
 
     def update_cache(self):
         """
@@ -653,7 +634,7 @@ class SmartCacheDataset(CacheDataset):
 
         """
         pos: int = self._replace_data_idx[index]
-        self._replacements[index] = self._load_cache_item(self.data[pos], self.transform.transforms)  # type: ignore
+        self._replacements[index] = self._load_cache_item(pos)
 
     def _compute_replacements(self):
         """
