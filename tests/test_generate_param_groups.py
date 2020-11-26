@@ -85,6 +85,5 @@ class TestGenerateParamGroups(unittest.TestCase):
             torch.testing.assert_allclose(param_group["lr"], value)
 
 
-
 if __name__ == "__main__":
     unittest.main()
