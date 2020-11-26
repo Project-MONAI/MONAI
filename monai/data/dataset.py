@@ -141,7 +141,7 @@ class PersistentDataset(Dataset):
             if not self.cache_dir.is_dir():
                 raise ValueError("cache_dir must be a directory.")
 
-    def _pre_first_random_transform(self, item_transformed):
+    def _pre_transform(self, item_transformed):
         """
         Process the data from original state up to the first random element.
 
@@ -151,6 +151,7 @@ class PersistentDataset(Dataset):
         Returns:
             the transformed element up to the first identified
             random transform object
+
         """
         for _transform in self.transform.transforms:  # pytype: disable=attribute-error
             # execute all the deterministic transforms
@@ -159,7 +160,7 @@ class PersistentDataset(Dataset):
             item_transformed = apply_transform(_transform, item_transformed)
         return item_transformed
 
-    def _first_random_and_beyond_transform(self, item_transformed):
+    def _post_transform(self, item_transformed):
         """
         Process the data from before the first random transform to the final state ready for evaluation.
 
@@ -168,6 +169,7 @@ class PersistentDataset(Dataset):
 
         Returns:
             the transformed element through the random transforms
+
         """
         start_post_randomize_run = False
         for _transform in self.transform.transforms:  # pytype: disable=attribute-error
@@ -180,7 +182,7 @@ class PersistentDataset(Dataset):
                 item_transformed = apply_transform(_transform, item_transformed)
         return item_transformed
 
-    def _pre_first_random_cachecheck(self, item_transformed):
+    def _cachecheck(self, item_transformed):
         """
         A function to cache the expensive input data transform operations
         so that huge data sets (larger than computer memory) can be processed
@@ -198,6 +200,7 @@ class PersistentDataset(Dataset):
             hashing mechanism used for generating cache names.  If the transforms applied are
             changed in any way, the objects in the cache dir will be invalid.  The hash for the
             cache is ONLY dependant on the input filename paths.
+
         """
         hashfile = None
         if self.cache_dir is not None:
@@ -207,7 +210,7 @@ class PersistentDataset(Dataset):
         if hashfile is not None and hashfile.is_file():  # cache hit
             return torch.load(hashfile)
 
-        _item_transformed = self._pre_first_random_transform(deepcopy(item_transformed))  # keep the original hashed
+        _item_transformed = self._pre_transform(deepcopy(item_transformed))  # keep the original hashed
         if hashfile is not None:
             # NOTE: Writing to ".temp_write_cache" and then using a nearly atomic rename operation
             #       to make the cache more robust to manual killing of parent process
@@ -218,8 +221,73 @@ class PersistentDataset(Dataset):
         return _item_transformed
 
     def __getitem__(self, index: int):
-        pre_random_item = self._pre_first_random_cachecheck(self.data[index])
-        return self._first_random_and_beyond_transform(pre_random_item)
+        pre_random_item = self._cachecheck(self.data[index])
+        return self._post_transform(pre_random_item)
+
+
+class CacheNTransDataset(PersistentDataset):
+    """
+    Extension of `PersistentDataset`, tt can also cache the result of first N transforms, no matter it's random or not.
+
+    """
+
+    def __init__(
+        self,
+        data: Sequence,
+        transform: Union[Sequence[Callable], Callable],
+        cache_n_trans: int,
+        cache_dir: Optional[Union[Path, str]] = None,
+        hash_func: Callable[..., bytes] = pickle_hashing,
+    ) -> None:
+        """
+        Args:
+            data: input data file paths to load and transform to generate dataset for model.
+                `PersistentDataset` expects input data to be a list of serializable
+                and hashes them as cache keys using `hash_func`.
+            transform: transforms to execute operations on input data.
+            cache_n_trans: cache the result of first N transforms.
+            cache_dir: If specified, this is the location for persistent storage
+                of pre-computed transformed data tensors. The cache_dir is computed once, and
+                persists on disk until explicitly removed.  Different runs, programs, experiments
+                may share a common cache dir provided that the transforms pre-processing is consistent.
+                If the cache_dir doesn't exist, will automatically create it.
+            hash_func: a callable to compute hash from data items to be cached.
+                defaults to `monai.data.utils.pickle_hashing`.
+
+        """
+        super().__init__(data=data, transform=transform, cache_dir=cache_dir, hash_func=hash_func)
+        self.cache_n_trans = cache_n_trans
+
+    def _pre_transform(self, item_transformed):
+        """
+        Process the data from original state up to the N element.
+
+        Args:
+            item_transformed: The data to be transformed
+
+        Returns:
+            the transformed element up to the N transform object
+        """
+        for i, _transform in enumerate(self.transform.transforms):  # type: ignore
+            if i == self.cache_n_trans:
+                break
+            item_transformed = apply_transform(_transform, item_transformed)
+        return item_transformed
+
+    def _post_transform(self, item_transformed):
+        """
+        Process the data from before the N + 1 transform to the final state ready for evaluation.
+
+        Args:
+            item_transformed: The data to be transformed (already processed up to the first N transform)
+
+        Returns:
+            the final transformed result
+        """
+        for i, _transform in enumerate(self.transform.transforms):  # type: ignore
+            if i >= self.cache_n_trans:
+                item_transformed = apply_transform(_transform, item_transformed)
+        return item_transformed
 
 
 class LMDBDataset(PersistentDataset):
@@ -295,7 +363,7 @@ class LMDBDataset(PersistentDataset):
                             if done:
                                 continue
                         if val is None:
-                            val = self._pre_first_random_transform(deepcopy(item))  # keep the original hashed
+                            val = self._pre_transform(deepcopy(item))  # keep the original hashed
                             val = pickle.dumps(val, protocol=self.pickle_protocol)
                         txn.put(key, val)
                     done = True
@@ -320,9 +388,10 @@ class LMDBDataset(PersistentDataset):
             self.lmdb_kwargs["readahead"] = False
         return lmdb.open(path=f"{self.db_file}", subdir=False, **self.lmdb_kwargs)
 
-    def _pre_first_random_cachecheck(self, item_transformed):
+    def _cachecheck(self, item_transformed):
         """
         if the item is not found in the lmdb file, resolves to the persistent cache default behaviour.
+
         """
         if self._read_env is None:
             self._read_env = self._fill_cache_start_reader()
@@ -330,7 +399,7 @@ class LMDBDataset(PersistentDataset):
             data = txn.get(self.hash_func(item_transformed))
         if data is None:
             warnings.warn("LMDBDataset: cache key not found, running fallback caching.")
-            return super()._pre_first_random_cachecheck(item_transformed)
+            return super()._cachecheck(item_transformed)
         try:
             return pickle.loads(data)
         except Exception as err:
@@ -339,6 +408,7 @@ class LMDBDataset(PersistentDataset):
     def info(self):
         """
         Returns: dataset info dictionary.
+
         """
         if self._read_env is None:
             self._read_env = self._fill_cache_start_reader()
