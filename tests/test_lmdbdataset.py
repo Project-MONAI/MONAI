@@ -18,7 +18,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.data import LMDBDataset, json_hashing
-from monai.transforms import Compose, LoadNiftid, ShiftIntensityd, SimulateDelayd, Transform
+from monai.transforms import Compose, LoadNiftid, SimulateDelayd, Transform
 from tests.utils import skip_if_windows
 
 TEST_CASE_1 = [
@@ -72,17 +72,6 @@ TEST_CASE_7 = [
     [
         LoadNiftid(keys=["image", "label", "extra"]),
         SimulateDelayd(keys=["image", "label", "extra"], delay_time=[1e-7, 1e-6, 1e-5]),
-    ],
-    (128, 128, 128),
-    {"db_name": "testdb", "lmdb_kwargs": {"map_size": 2 * 1024 ** 2}},
-]
-
-TEST_CASE_8 = [
-    [
-        LoadNiftid(keys="image"),
-        ShiftIntensityd(keys="image", offset=1.0),
-        ShiftIntensityd(keys="image", offset=2.0),
-        ShiftIntensityd(keys="image", offset=3.0),
     ],
     (128, 128, 128),
     {"db_name": "testdb", "lmdb_kwargs": {"map_size": 2 * 1024 ** 2}},
@@ -182,37 +171,6 @@ class TestLMDBDataset(unittest.TestCase):
             self.assertTupleEqual(data2_postcached["image"].shape, expected_shape)
             self.assertTupleEqual(data2_postcached["label"].shape, expected_shape)
             self.assertTupleEqual(data2_postcached["extra"].shape, expected_shape)
-
-    @parameterized.expand([TEST_CASE_8])
-    def test_n_trans(self, transform, expected_shape, kwargs):
-        data_array = np.random.randint(0, 2, size=[128, 128, 128])
-        test_image = nib.Nifti1Image(data_array, np.eye(4))
-        with tempfile.TemporaryDirectory() as tempdir:
-            nib.save(test_image, os.path.join(tempdir, "test_image.nii.gz"))
-            test_data = [{"image": os.path.join(tempdir, "test_image.nii.gz")}]
-
-            cache_dir = os.path.join(os.path.join(tempdir, "cache"), "data")
-            dataset_precached = LMDBDataset(
-                data=test_data,
-                transform=transform,
-                cache_dir=cache_dir,
-                cache_n_trans=2,
-                **kwargs,
-            )
-            data_precached = dataset_precached[0]
-            self.assertTupleEqual(data_precached["image"].shape, expected_shape)
-
-            dataset_postcached = LMDBDataset(
-                data=test_data,
-                transform=transform,
-                cache_dir=cache_dir,
-                cache_n_trans=2,
-                **kwargs,
-            )
-            data_postcached = dataset_postcached[0]
-            self.assertTupleEqual(data_postcached["image"].shape, expected_shape)
-            np.testing.assert_allclose(data_array + 6.0, data_postcached["image"])
-            np.testing.assert_allclose(data_precached["image"], data_postcached["image"])
 
 
 if __name__ == "__main__":
