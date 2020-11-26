@@ -94,7 +94,7 @@ except (ImportError, AttributeError):
 
 
 try:
-    import lmdb
+    import lmdb  # type: ignore
 
     lmdb_version = lmdb.__version__
     del lmdb
@@ -107,6 +107,8 @@ try:
     USE_COMPILED = HAS_EXT and os.getenv("BUILD_MONAI", "0") == "1"
 except (OptionalImportError, ImportError, AttributeError):
     HAS_EXT = USE_COMPILED = False
+
+psutil, has_psutil = optional_import("psutil")
 
 
 def get_config_values():
@@ -176,3 +178,119 @@ def get_torch_version_tuple():
         tuple of ints represents the pytorch major/minor version.
     """
     return tuple((int(x) for x in torch.__version__.split(".")[:2]))
+
+
+def _dict_append(in_dict, key, fn):
+    try:
+        in_dict[key] = fn()
+    except BaseException:
+        in_dict[key] = "UNKNOWN for given OS"
+
+
+def get_system_info(file=sys.stdout) -> OrderedDict:
+    """
+    Get system info as an ordered dictionary.
+    """
+    output: OrderedDict = OrderedDict()
+
+    if not has_psutil:
+        print("`psutil` required for `get_system_info", file=file, flush=True)
+        return output
+
+    p = psutil.Process()
+    with p.oneshot():
+        _dict_append(output, "Process name", lambda: p.name())
+        _dict_append(output, "Command", lambda: p.cmdline())
+        _dict_append(output, "Open files", lambda: p.open_files())
+        _dict_append(output, "Num physical CPUs", lambda: psutil.cpu_count(logical=False))
+        _dict_append(output, "Num logical CPUs", lambda: psutil.cpu_count(logical=True))
+        _dict_append(output, "Num usable CPUs", lambda: len(psutil.Process().cpu_affinity()))
+        _dict_append(output, "CPU usage (%)", lambda: psutil.cpu_percent(percpu=True))
+        _dict_append(output, "CPU freq. (MHz)", lambda: round(psutil.cpu_freq(percpu=False)[0]))
+        _dict_append(
+            output,
+            "Load avg. in last 1, 5, 15 mins (%)",
+            lambda: [round(x / psutil.cpu_count() * 100, 1) for x in psutil.getloadavg()],
+        )
+        _dict_append(output, "Disk usage (%)", lambda: psutil.disk_usage(os.getcwd()).percent)
+        _dict_append(
+            output,
+            "Avg. sensor temp. (°C)",
+            lambda: np.mean([item.current for sublist in psutil.sensors_temperatures().values() for item in sublist]),
+        )
+
+    return output
+
+
+def print_system_info(file=sys.stdout) -> None:
+    """
+    Print system info to `file`. Requires the optional library, `psutil`.
+
+    Args:
+        file: `print()` text stream file. Defaults to `sys.stdout`.
+    """
+    if not has_psutil:
+        print("`psutil` required for `print_system_info`", file=file, flush=True)
+    else:
+        for k, v in get_system_info(file).items():
+            print(f"{k}: {v}", file=file, flush=True)
+
+
+def get_gpu_info() -> OrderedDict:
+
+    output: OrderedDict = OrderedDict()
+
+    num_gpus = torch.cuda.device_count()
+    _dict_append(output, "Num GPUs", lambda: num_gpus)
+    if num_gpus > 0:
+        _dict_append(output, "Current device", lambda: torch.cuda.current_device())
+        _dict_append(output, "Library compiled for CUDA architectures", lambda: torch.cuda.get_arch_list())
+    for gpu in range(num_gpus):
+        _dict_append(output, "Info for GPU", lambda: gpu)
+        gpu_info = torch.cuda.get_device_properties(gpu)
+        _dict_append(output, "\tName", lambda: gpu_info.name)
+        _dict_append(output, "\tIs integrated", lambda: bool(gpu_info.is_integrated))
+        _dict_append(output, "\tIs multi GPU board", lambda: bool(gpu_info.is_multi_gpu_board))
+        _dict_append(output, "\tMulti processor count", lambda: gpu_info.multi_processor_count)
+        _dict_append(output, "\tTotal memory (GB)", lambda: round(gpu_info.total_memory / 1024 ** 3, 1))
+        _dict_append(output, "\tCached memory (GB)", lambda: round(torch.cuda.memory_reserved(gpu) / 1024 ** 3, 1))
+        _dict_append(output, "\tAllocated memory (GB)", lambda: round(torch.cuda.memory_allocated(gpu) / 1024 ** 3, 1))
+        _dict_append(output, "\tCUDA capability (maj.min)", lambda: f"{gpu_info.major}.{gpu_info.minor}")
+
+    return output
+
+
+def print_gpu_info(file=sys.stdout) -> None:
+    """
+    Print GPU info to `file`.
+
+    Args:
+        file: `print()` text stream file. Defaults to `sys.stdout`.
+    """
+    for k, v in get_gpu_info().items():
+        print(f"{k}: {v}", file=file, flush=True)
+
+
+def print_debug_info(file=sys.stdout) -> None:
+    """
+    Print config (installed dependencies, etc.) and system info for debugging.
+
+    Args:
+        file: `print()` text stream file. Defaults to `sys.stdout`.
+    """
+    print("================================", file=file, flush=True)
+    print("Printing MONAI config...", file=file, flush=True)
+    print("================================", file=file, flush=True)
+    print_config(file)
+    print("\n================================", file=file, flush=True)
+    print("Printing system config...")
+    print("================================", file=file, flush=True)
+    print_system_info(file)
+    print("\n================================", file=file, flush=True)
+    print("Printing GPU config...")
+    print("================================", file=file, flush=True)
+    print_gpu_info(file)
+
+
+if __name__ == "__main__":
+    print_debug_info()
