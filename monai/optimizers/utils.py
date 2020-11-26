@@ -19,14 +19,21 @@ from monai.utils import ensure_tuple
 def generate_param_groups(
     network: torch.nn.Module,
     layer_matches: Sequence[Callable],
+    match_types: Sequence[str],
     lr_values: Sequence[float],
     include_others: bool = True,
 ):
     """
     Utility function to generate parameter groups with different LR values for optimizer.
+    The output parameter groups have the same order as `layer_match` functions.
 
     Args:
-        layer_matches: a list of callable functions to select network layer groups, input will be the network.
+        network: source network to generate parameter groups from.
+        layer_matches: a list of callable functions to select or filter out network layer groups,
+            for "select" type, the input will be the `network`, for "filter" type,
+            the input will be every item of `network.named_parameters()`.
+        match_types: a list of tags to identify the matching type corresponding to the `layer_matches` functions,
+            can be "select" or "filter".
         lr_values: a list of LR values corresponding to the `layer_matches` functions.
         include_others: whether to incude the rest layers as the last group, default to True.
 
@@ -34,19 +41,32 @@ def generate_param_groups(
 
         net = Unet(dimensions=3, in_channels=1, out_channels=3, channels=[2, 2, 2], strides=[1, 1, 1])
         print(net)  # print out network components to select expected items
-        params = generate_params(net, [lambda x: x.model[-1], lambda x: x.model[-2]], [1e-2, 1e-3])
+        print(net.named_parameters())  # print out all the named parameters to filter out expected items
+        params = generate_param_groups(
+            network=net,
+            layer_matches=[lambda x: x.model[-1], lambda x: "conv.weight" in x],
+            match_types=["select", "filter"],
+            lr_values=[1e-2, 1e-3],
+        )
         optimizer = torch.optim.Adam(params, 1e-4)
 
     """
     layer_matches = ensure_tuple(layer_matches)
+    match_types = ensure_tuple(match_types)
     lr_values = ensure_tuple(lr_values)
-    if len(layer_matches) != len(lr_values):
-        raise ValueError("length of layer_match callable functions and LR values should be the same.")
+    if len(layer_matches) != len(lr_values) or len(layer_matches) != len(match_types):
+        raise ValueError("length of layer_match callable functions, match types and LR values should be the same.")
 
     params = list()
     _layers = list()
-    for func, lr in zip(layer_matches, lr_values):
-        layer_params = func(network).parameters()
+    for func, ty, lr in zip(layer_matches, match_types, lr_values):
+        if ty == "select":
+            layer_params = func(network).parameters()
+        elif ty == "filter":
+            layer_params = filter(func, network.named_parameters())
+        else:
+            raise ValueError(f"unsuppoted layer match type: {ty}.")
+
         params.append({"params": layer_params, "lr": lr})
         _layers.extend(list(map(id, layer_params)))
 
