@@ -29,6 +29,7 @@ __all__ = [
     "load_submodules",
     "get_full_type_name",
     "has_option",
+    "get_package_version",
 ]
 
 
@@ -231,3 +232,17 @@ def has_option(obj, keywords: Union[str, Sequence[str]]) -> bool:
         if key not in sig.parameters:
             return False
     return True
+
+
+def get_package_version(dep_name, default="NOT INSTALLED or UNKNOWN VERSION."):
+    """
+    Try to load package and get version. Unload once finished. If not found, return `default`.
+    """
+    dep_ver = default
+    dep, has_dep = optional_import(dep_name)
+    if has_dep:
+        if hasattr(dep, "__version__"):
+            dep_ver = dep.__version__
+        del dep
+        del sys.modules[dep_name]
+    return dep_ver

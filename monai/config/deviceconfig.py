@@ -19,63 +19,7 @@ import numpy as np
 import torch
 
 import monai
-from monai.utils import OptionalImportError, optional_import
-
-try:
-    import ignite
-
-    ignite_version = ignite.__version__
-    del ignite
-except (ImportError, AttributeError):
-    ignite_version = "NOT INSTALLED or UNKNOWN VERSION."
-
-try:
-    import nibabel
-
-    nibabel_version = nibabel.__version__
-    del nibabel
-except (ImportError, AttributeError):
-    nibabel_version = "NOT INSTALLED or UNKNOWN VERSION."
-
-try:
-    import skimage
-
-    skimage_version = skimage.__version__
-    del skimage
-except (ImportError, AttributeError):
-    skimage_version = "NOT INSTALLED or UNKNOWN VERSION."
-
-try:
-    import PIL
-
-    PIL_version = PIL.__version__
-    del PIL
-except (ImportError, AttributeError):
-    PIL_version = "NOT INSTALLED or UNKNOWN VERSION."
-
-try:
-    import tensorboard
-
-    tensorboard_version = tensorboard.__version__
-    del tensorboard
-except (ImportError, AttributeError):
-    tensorboard_version = "NOT INSTALLED or UNKNOWN VERSION."
-
-try:
-    import gdown
-
-    gdown_version = gdown.__version__
-    del gdown
-except (ImportError, AttributeError):
-    gdown_version = "NOT INSTALLED or UNKNOWN VERSION."
-
-try:
-    import torchvision
-
-    torchvision_version = torchvision.__version__
-    del torchvision
-except (ImportError, AttributeError):
-    torchvision_version = "NOT INSTALLED or UNKNOWN VERSION."
+from monai.utils import OptionalImportError, get_package_version, optional_import
 
 try:
     import itk  # type: ignore
@@ -84,24 +28,6 @@ try:
     del itk
 except (ImportError, AttributeError):
     itk_version = "NOT INSTALLED or UNKNOWN VERSION."
-
-try:
-    import tqdm
-
-    tqdm_version = tqdm.__version__
-    del tqdm
-except (ImportError, AttributeError):
-    tqdm_version = "NOT INSTALLED or UNKNOWN VERSION."
-
-
-try:
-    import lmdb  # type: ignore
-
-    lmdb_version = lmdb.__version__
-    del lmdb
-except (ImportError, AttributeError):
-    lmdb_version = "NOT INSTALLED or UNKNOWN VERSION."
-
 
 try:
     _, HAS_EXT = optional_import("monai._C")
@@ -132,16 +58,16 @@ def get_optional_config_values():
     """
     output = OrderedDict()
 
-    output["Pytorch Ignite"] = ignite_version
-    output["Nibabel"] = nibabel_version
-    output["scikit-image"] = skimage_version
-    output["Pillow"] = PIL_version
-    output["Tensorboard"] = tensorboard_version
-    output["gdown"] = gdown_version
-    output["TorchVision"] = torchvision_version
+    output["Pytorch Ignite"] = get_package_version("ignite")
+    output["Nibabel"] = get_package_version("nibabel")
+    output["scikit-image"] = get_package_version("skimage")
+    output["Pillow"] = get_package_version("PIL")
+    output["Tensorboard"] = get_package_version("tensorboard")
+    output["gdown"] = get_package_version("gdown")
+    output["TorchVision"] = get_package_version("torchvision")
     output["ITK"] = itk_version
-    output["tqdm"] = tqdm_version
-    output["lmdb"] = lmdb_version
+    output["tqdm"] = get_package_version("tqdm")
+    output["lmdb"] = get_package_version("lmdb")
     output["psutil"] = psutil_version
 
     return output
