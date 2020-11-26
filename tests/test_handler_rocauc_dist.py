@@ -17,12 +17,11 @@ import torch
 import torch.distributed as dist
 
 from monai.handlers import ROCAUC
-from tests.utils import DistCall, DistTestCase, skip_if_windows
+from tests.utils import DistCall, DistTestCase
 
 
 class DistributedROCAUC(DistTestCase):
     @DistCall(nnodes=1, nproc_per_node=2, node_rank=0)
-    @skip_if_windows
     def test_compute(self):
         auc_metric = ROCAUC(to_onehot_y=True, softmax=True)
         device = f"cuda:{dist.get_rank()}" if torch.cuda.is_available() else "cpu"

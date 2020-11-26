@@ -17,17 +17,15 @@ import torch
 import torch.distributed as dist
 
 from monai.handlers import ConfusionMatrix
-from tests.utils import DistCall, DistTestCase, skip_if_windows
+from tests.utils import DistCall, DistTestCase
 
 
 class DistributedConfusionMatrix(DistTestCase):
     @DistCall(nnodes=1, nproc_per_node=2)
-    @skip_if_windows
     def test_compute_sample(self):
         self._compute(True)
 
     @DistCall(nnodes=1, nproc_per_node=2)
-    @skip_if_windows
     def test_compute(self):
         self._compute(False)
 
