@@ -5,17 +5,18 @@ from monai.networks.layers.filtering import BilateralFilter
 from monai.networks.layers.permutohedrallattice import PermutohedralLattice as phl
 
 import skimage
+import skimage.io
 from skimage.restoration import denoise_bilateral as skimage_bilateral
 import matplotlib.pyplot as plt
 import time
 
 def run_testcase(test_name, plot_position, function, args):
-    print("running test case: {}".format(test_name))
+    print("test case: {}".format(test_name))
     start = time.time()
     result = function(*args)
-    time_elapsed = time.time() - start
     torch.cuda.synchronize()
-    print("Completed in: {}".format(time_elapsed))
+    time_elapsed = time.time() - start
+    print("completed in: {}".format(time_elapsed))
     
     result = result.squeeze(0).permute(1, 2, 0).cpu().numpy()
     
@@ -24,7 +25,7 @@ def run_testcase(test_name, plot_position, function, args):
     plt.imshow(result)
 
 # filter parameters
-spatial_sigma = 4.0
+spatial_sigma = 4
 color_sigma = 0.2
 
 # input data
@@ -33,10 +34,10 @@ data_tensor = torch.from_numpy(data).type(torch.FloatTensor).permute(2, 0, 1).un
 data_tensor_cuda = data_tensor.cuda()
 
 # test cases
+print("running tests...")
 run_testcase('cpu bruteforce', 221, BilateralFilter.apply, (data_tensor, spatial_sigma, color_sigma, False))
 run_testcase('cuda bruteforce', 222, BilateralFilter.apply, (data_tensor_cuda, spatial_sigma, color_sigma, False))
 run_testcase('cpu phl', 223, BilateralFilter.apply, (data_tensor, spatial_sigma, color_sigma, True))
 run_testcase('cuda phl', 224, BilateralFilter.apply, (data_tensor_cuda, spatial_sigma, color_sigma, True))
 
 plt.show()
-
