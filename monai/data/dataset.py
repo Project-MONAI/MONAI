@@ -230,6 +230,7 @@ class CacheNTransDataset(PersistentDataset):
     Extension of `PersistentDataset`, tt can also cache the result of first N transforms, no matter it's random or not.
 
     """
+
     def __init__(
         self,
         data: Sequence,
@@ -304,6 +305,7 @@ class LMDBDataset(PersistentDataset):
         >>> print(list(lmdb_ds))  # using the cached results
 
     """
+
     def __init__(
         self,
         data: Sequence,
