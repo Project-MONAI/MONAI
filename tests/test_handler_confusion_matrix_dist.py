@@ -27,6 +27,7 @@ class DistributedConfusionMatrix(DistTestCase):
         self._compute(True)
 
     @DistCall(nnodes=1, nproc_per_node=2)
+    @skip_if_windows
     def test_compute(self):
         self._compute(False)
 
