@@ -15,7 +15,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.nets import Unet
-from monai.optimizers import generate_params
+from monai.optimizers import generate_param_groups
 
 TEST_CASE_1 = [
     {
@@ -42,7 +42,7 @@ TEST_CASE_3 = [
 ]
 
 
-class TestGenerateParams(unittest.TestCase):
+class TestGenerateParamGroups(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_lr_values(self, input_param, expected_values):
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -55,7 +55,7 @@ class TestGenerateParams(unittest.TestCase):
             num_res_units=1,
         ).to(device)
 
-        params = generate_params(network=net, **input_param)
+        params = generate_param_groups(network=net, **input_param)
         optimizer = torch.optim.Adam(params, 100)
 
         for param_group, value in zip(optimizer.param_groups, expected_values):

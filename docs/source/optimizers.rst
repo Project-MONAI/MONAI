@@ -13,4 +13,4 @@ Optimizers
 
 `Generate parameter groups`
 ---------------------------
-.. autofunction:: generate_params
+.. autofunction:: generate_param_groups

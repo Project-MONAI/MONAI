@@ -12,24 +12,33 @@
 from typing import Callable, Sequence
 
 import torch
+from monai.utils import ensure_tuple
 
 
-def generate_params(network: torch.nn.Module, layer_matches: Sequence[Callable], lr_values: Sequence[float]):
+def generate_param_groups(
+    network: torch.nn.Module,
+    layer_matches: Sequence[Callable],
+    lr_values: Sequence[float],
+    include_others: bool = True,
+):
     """
     Utility function to generate parameter groups with different LR values for optimizer.
 
     Args:
         layer_matches: a list of callable functions to select network layer groups, input will be the network.
         lr_values: a list of LR values corresponding to the `layer_matches` functions.
+        include_others: whether to incude the rest layers as the last group, default to True.
 
     It's mainly used to set different init LR values for different network elements, for example::
 
-        net = Unet(dimensions=3, in_channels=1, out_channels=3).to(device)
+        net = Unet(dimensions=3, in_channels=1, out_channels=3, channels=[2, 2, 2], strides=[1, 1, 1])
         print(net)  # print out network components to select expected items
         params = generate_params(net, [lambda x: x.model[-1], lambda x: x.model[-2]], [1e-2, 1e-3])
         optimizer = torch.optim.Adam(params, 1e-4)
 
     """
+    layer_matches = ensure_tuple(layer_matches)
+    lr_values = ensure_tuple(lr_values)
     if len(layer_matches) != len(lr_values):
         raise ValueError("length of layer_match callable functions and LR values should be the same.")
 
@@ -39,6 +48,8 @@ def generate_params(network: torch.nn.Module, layer_matches: Sequence[Callable],
         layer_params = func(network).parameters()
         params.append({"params": layer_params, "lr": lr})
         _layers.extend(list(map(id, layer_params)))
-    params.append({"params": filter(lambda p: id(p) not in _layers, network.parameters())})
+
+    if include_others:
+        params.append({"params": filter(lambda p: id(p) not in _layers, network.parameters())})
 
     return params
