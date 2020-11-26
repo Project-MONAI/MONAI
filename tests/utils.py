@@ -10,6 +10,8 @@
 # limitations under the License.
 
 import datetime
+import functools
+import importlib
 import os
 import sys
 import tempfile
@@ -90,6 +92,30 @@ def make_nifti_image(array, affine=None):
     return image_name
 
 
+class DistTestCase(unittest.TestCase):
+    """testcase without _outcome, so that it's picklable."""
+
+    original_mp = None
+
+    def setUp(self) -> None:
+        self.original_mp = torch.multiprocessing.get_start_method(allow_none=True)
+        try:
+            torch.multiprocessing.set_start_method("spawn", force=True)
+        except RuntimeError:
+            pass
+
+    def tearDown(self) -> None:
+        try:
+            torch.multiprocessing.set_start_method(str(self.original_mp), force=True)
+        except RuntimeError:
+            pass
+
+    def __getstate__(self):
+        self_dict = self.__dict__.copy()
+        del self_dict["_outcome"]
+        return self_dict
+
+
 class DistCall:
     """
     Wrap a test case so that it will run in multiple processes on a single machine using `torch.distributed`.
@@ -116,7 +142,7 @@ class DistCall:
         master_addr: str = "localhost",
         master_port: Optional[int] = None,
         node_rank: Optional[int] = None,
-        timeout=1000,
+        timeout=60,
         init_method=None,
         backend: Optional[str] = None,
         verbose: bool = False,
@@ -142,14 +168,16 @@ class DistCall:
         self.master_port = np.random.randint(10000, 20000) if master_port is None else master_port
 
         if backend is None:
-            self.backend = "nccl" if torch.distributed.is_nccl_available() else "gloo"
+            self.backend = "nccl" if torch.distributed.is_nccl_available() and torch.cuda.is_available() else "gloo"
         else:
             self.backend = backend
         self.init_method = init_method
+        if self.init_method is None and sys.platform == "win32":
+            self.init_method = "file:///d:/a_temp"
         self.timeout = datetime.timedelta(0, timeout)
         self.verbose = verbose
 
-    def run_process(self, fn, local_rank, instance, args, kwargs, results):
+    def run_process(self, func, local_rank, args, kwargs, results):
         _env = os.environ.copy()  # keep the original system env
         try:
             os.environ["MASTER_ADDR"] = self.master_addr
@@ -170,8 +198,10 @@ class DistCall:
                 backend=self.backend,
                 init_method=self.init_method,
                 timeout=self.timeout,
+                world_size=int(os.environ["WORLD_SIZE"]),
+                rank=int(os.environ["RANK"]),
             )
-            fn(instance, *args, **kwargs)
+            func(*args, **kwargs)
             results.put(True)
         except Exception as e:
             results.put(False)
@@ -185,12 +215,17 @@ class DistCall:
         if not torch.distributed.is_available():
             return unittest.skipIf(True, "Skipping distributed tests because not torch.distributed.is_available()")(obj)
 
-        def _wrapper(cls_inst, *args, **kwargs):
+        _cache_original_func(obj)
+
+        @functools.wraps(obj)
+        def _wrapper(*args, **kwargs):
             processes = []
             results = torch.multiprocessing.Queue()
+            func = _call_original_func
+            args = [obj.__name__, obj.__module__] + list(args)
             for proc_rank in range(self.nproc_per_node):
                 p = torch.multiprocessing.Process(
-                    target=self.run_process, args=(obj, proc_rank, cls_inst, args, kwargs, results)
+                    target=self.run_process, args=(func, proc_rank, args, kwargs, results)
                 )
                 p.start()
                 processes.append(p)
@@ -199,6 +234,25 @@ class DistCall:
                 assert results.get(), "Distributed call failed."
 
         return _wrapper
+
+
+_original_funcs = {}
+
+
+def _cache_original_func(obj) -> None:
+    """cache the original function by name, so that the decorator doesn't shadow it."""
+    global _original_funcs
+    _original_funcs[obj.__name__] = obj
+
+
+def _call_original_func(name, module, *args, **kwargs):
+    if name not in _original_funcs:
+        _original_module = importlib.import_module(module)  # reimport, refresh _original_funcs
+        if not hasattr(_original_module, name):
+            # refresh module doesn't work
+            raise RuntimeError(f"Could not recover the original {name} from {module}: {_original_funcs}.")
+    f = _original_funcs[name]
+    return f(*args, **kwargs)
 
 
 class NumpyImageTestCase2D(unittest.TestCase):
