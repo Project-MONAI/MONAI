@@ -10,18 +10,27 @@
 # limitations under the License.
 
 
+import unittest
+
 import numpy as np
 import torch
 import torch.distributed as dist
 
 from monai.handlers import ConfusionMatrix
+from tests.utils import DistCall, DistTestCase
 
 
-def main():
-    for compute_sample in [True, False]:
-        dist.init_process_group(backend="nccl", init_method="env://")
+class DistributedConfusionMatrix(DistTestCase):
+    @DistCall(nnodes=1, nproc_per_node=2)
+    def test_compute_sample(self):
+        self._compute(True)
 
-        torch.cuda.set_device(dist.get_rank())
+    @DistCall(nnodes=1, nproc_per_node=2)
+    def test_compute(self):
+        self._compute(False)
+
+    def _compute(self, compute_sample=True):
+        device = f"cuda:{dist.get_rank()}" if torch.cuda.is_available() else "cpu"
         metric = ConfusionMatrix(include_background=True, metric_name="tpr", compute_sample=compute_sample)
 
         if dist.get_rank() == 0:
@@ -30,25 +39,25 @@ def main():
                     [[[0.0, 1.0], [0.0, 0.0]], [[0.0, 0.0], [1.0, 1.0]], [[1.0, 0.0], [0.0, 0.0]]],
                     [[[0.0, 0.0], [0.0, 1.0]], [[1.0, 0.0], [0.0, 0.0]], [[0.0, 1.0], [1.0, 0.0]]],
                 ],
-                device=torch.device("cuda:0"),
+                device=device,
             )
             y = torch.tensor(
                 [
                     [[[0.0, 1.0], [0.0, 0.0]], [[0.0, 0.0], [1.0, 1.0]], [[1.0, 0.0], [0.0, 0.0]]],
                     [[[0.0, 0.0], [0.0, 1.0]], [[1.0, 0.0], [0.0, 0.0]], [[0.0, 1.0], [1.0, 0.0]]],
                 ],
-                device=torch.device("cuda:0"),
+                device=device,
             )
             metric.update([y_pred, y])
 
         if dist.get_rank() == 1:
             y_pred = torch.tensor(
                 [[[[0.0, 1.0], [1.0, 0.0]], [[1.0, 0.0], [1.0, 1.0]], [[0.0, 1.0], [0.0, 0.0]]]],
-                device=torch.device("cuda:1"),
+                device=device,
             )
             y = torch.tensor(
                 [[[[1.0, 1.0], [1.0, 1.0]], [[1.0, 1.0], [1.0, 1.0]], [[1.0, 1.0], [1.0, 1.0]]]],
-                device=torch.device("cuda:1"),
+                device=device,
             )
             metric.update([y_pred, y])
 
@@ -59,14 +68,6 @@ def main():
         else:
             np.testing.assert_allclose(avg_metric, 0.8333, rtol=1e-04, atol=1e-04)
 
-        dist.destroy_process_group()
-
-
-# suppose to execute on 2 rank processes
-# python -m torch.distributed.launch --nproc_per_node=NUM_GPUS_PER_NODE
-#        --nnodes=NUM_NODES --node_rank=INDEX_CURRENT_NODE
-#        --master_addr="192.168.1.1" --master_port=1234
-#        test_handler_confusion_matrix_dist.py
 
 if __name__ == "__main__":
-    main()
+    unittest.main()

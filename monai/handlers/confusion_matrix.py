@@ -67,19 +67,19 @@ class ConfusionMatrix(Metric):  # type: ignore[valid-type, misc] # due to option
         self._num_examples = 0
         self.compute_sample = compute_sample
         self.metric_name = metric_name
-        self._total_tp = 0
-        self._total_fp = 0
-        self._total_tn = 0
-        self._total_fn = 0
+        self._total_tp = 0.0
+        self._total_fp = 0.0
+        self._total_tn = 0.0
+        self._total_fn = 0.0
 
     @reinit__is_reduced
     def reset(self) -> None:
         self._sum = 0.0
         self._num_examples = 0
-        self._total_tp = 0
-        self._total_fp = 0
-        self._total_tn = 0
-        self._total_fn = 0
+        self._total_tp = 0.0
+        self._total_fp = 0.0
+        self._total_tn = 0.0
+        self._total_fn = 0.0
 
     @reinit__is_reduced
     def update(self, output: Sequence[torch.Tensor]) -> None:
