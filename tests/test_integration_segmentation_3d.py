@@ -45,7 +45,7 @@ from tests.utils import skip_if_quick
 TASK = "integration_segmentation_3d"
 
 
-def run_training_test(root_dir, device="cuda:0", cachedataset=False):
+def run_training_test(root_dir, device="cuda:0", cachedataset=0):
     monai.config.print_config()
     images = sorted(glob(os.path.join(root_dir, "img*.nii.gz")))
     segs = sorted(glob(os.path.join(root_dir, "seg*.nii.gz")))
@@ -82,8 +82,10 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=False):
     )
 
     # create a training data loader
-    if cachedataset:
+    if cachedataset == 2:
         train_ds = monai.data.CacheDataset(data=train_files, transform=train_transforms, cache_rate=0.8)
+    elif cachedataset == 3:
+        train_ds = monai.data.LMDBDataset(data=train_files, transform=train_transforms)
     else:
         train_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
     # use batch_size=2 to load images and use RandCropByPosNegLabeld to generate 2 x 4 images for network training
@@ -246,12 +248,12 @@ class IntegrationSegmentation3D(unittest.TestCase):
 
     def test_training(self):
         repeated = []
-        for i in range(3):
+        for i in range(4):
             set_determinism(0)
 
             repeated.append([])
             losses, best_metric, best_metric_epoch = run_training_test(
-                self.data_dir, device=self.device, cachedataset=(i == 2)
+                self.data_dir, device=self.device, cachedataset=i
             )
 
             # check training properties

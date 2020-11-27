@@ -21,6 +21,18 @@ Generic Interfaces
   :members:
   :special-members: __getitem__
 
+`CacheNTransDataset`
+~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: CacheNTransDataset
+  :members:
+  :special-members: __getitem__
+
+`LMDBDataset`
+~~~~~~~~~~~~~
+.. autoclass:: LMDBDataset
+  :members:
+  :special-members: __getitem__
+
 `CacheDataset`
 ~~~~~~~~~~~~~~
 .. autoclass:: CacheDataset
