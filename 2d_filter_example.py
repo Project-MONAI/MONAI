@@ -2,11 +2,8 @@ import numpy as np
 import torch
 
 from monai.networks.layers.filtering import BilateralFilter
-from monai.networks.layers.permutohedrallattice import PermutohedralLattice as phl
 
-import skimage
-import skimage.io
-from skimage.restoration import denoise_bilateral as skimage_bilateral
+import skimage.data
 import matplotlib.pyplot as plt
 import time
 
@@ -25,7 +22,7 @@ def run_testcase(test_name, plot_position, function, args):
     plt.imshow(result)
 
 # filter parameters
-spatial_sigma = 4
+spatial_sigma = 10
 color_sigma = 0.2
 
 # input data
