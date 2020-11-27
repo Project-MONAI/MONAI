@@ -14,14 +14,24 @@ limitations under the License.
 #include <torch/extension.h>
 #include "permutohedral.h"
 
+
 torch::Tensor BilateralFilterPHLCpu(torch::Tensor input_tensor, float spatial_sigma, float color_sigma)
 {
     // Getting tensor descriptors
-    int width = input_tensor.size(2);
-    int height = input_tensor.size(3);
-    int elementCount = width * height;
+    int dimensions = input_tensor.dim() - 2;
+    int* sizes = new int[dimensions];
+    int* strides = new int[dimensions];
+    int elementCount = 1;
+
+    for (int i = 0; i < dimensions; i++)
+    {
+        sizes[i] = input_tensor.size(i+2);
+        strides[i] = input_tensor.stride(i+2);
+        elementCount *= sizes[i];
+    }
+
     int dataChannels = input_tensor.size(1);
-    int featureChannels = dataChannels + 2;
+    int featureChannels = dataChannels + dimensions;
     int channelStride = input_tensor.stride(1);
 
     // Preparing memory
@@ -33,19 +43,22 @@ torch::Tensor BilateralFilterPHLCpu(torch::Tensor input_tensor, float spatial_si
     float invSpatialStdev = 1.0f/spatial_sigma;
     float invColorStdev = 1.0f/color_sigma;
 
-    for (int i = 0, x = 0; x < width; x++) 
+    for (int i = 0; i < elementCount; i++) 
     {
-        for (int y = 0; y < height; y++, i++)
+        for (int c = 0; c < dataChannels; c++)
         {
-            features[i*featureChannels + 0] = invSpatialStdev * x;
-            features[i*featureChannels + 1] = invSpatialStdev * y;
-            features[i*featureChannels + 2] = invColorStdev * input_tensor_ptr[i + 0 * channelStride];
-            features[i*featureChannels + 3] = invColorStdev * input_tensor_ptr[i + 1 * channelStride];
-            features[i*featureChannels + 4] = invColorStdev * input_tensor_ptr[i + 2 * channelStride];
+            features[i*featureChannels + c] = invColorStdev * input_tensor_ptr[i + c * channelStride];
+            data[i*dataChannels + c] = input_tensor_ptr[i + c * channelStride];
+        }
 
-            data[i*dataChannels + 0] = input_tensor_ptr[i + 0 * channelStride];
-            data[i*dataChannels + 1] = input_tensor_ptr[i + 1 * channelStride];
-            data[i*dataChannels + 2] = input_tensor_ptr[i + 2 * channelStride];
+        int remainder = i;
+
+        for (int d = 0; d < dimensions; d++)
+        {
+            int coord = remainder / strides[d];
+            remainder -= coord * strides[d];
+
+            features[i*featureChannels + dataChannels + d] = invSpatialStdev * coord;
         }
     }
 
@@ -58,9 +71,10 @@ torch::Tensor BilateralFilterPHLCpu(torch::Tensor input_tensor, float spatial_si
 
     for (int i = 0; i < elementCount; i++)
     {
-        output_tensor_ptr[i + 0 * channelStride] = output[i * dataChannels + 0];
-        output_tensor_ptr[i + 1 * channelStride] = output[i * dataChannels + 1];
-        output_tensor_ptr[i + 2 * channelStride] = output[i * dataChannels + 2];
+        for (int c = 0; c < dataChannels; c++)
+        {
+            output_tensor_ptr[i + c * channelStride] = output[i * dataChannels + c];
+        }
     }
 
     return output_tensor;
