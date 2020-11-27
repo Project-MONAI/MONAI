@@ -32,6 +32,7 @@ def write_nifti(
     padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
     align_corners: bool = False,
     dtype: Optional[np.dtype] = np.float64,
+    output_dtype: Optional[np.dtype] = np.float32,
 ) -> None:
     """
     Write numpy data into NIfTI files to disk.  This function converts data
@@ -86,6 +87,7 @@ def write_nifti(
         dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
             If None, use the data type of input data. To be compatible with other modules,
             the output data type is always ``np.float32``.
+        output_dtype: data type for saving data. Defaults to ``np.float32``.
     """
     assert isinstance(data, np.ndarray), "input data must be numpy array."
     dtype = dtype or data.dtype
@@ -100,7 +102,7 @@ def write_nifti(
 
     if np.allclose(affine, target_affine, atol=1e-3):
         # no affine changes, save (data, affine)
-        results_img = nib.Nifti1Image(data.astype(np.float32), to_affine_nd(3, target_affine))
+        results_img = nib.Nifti1Image(data.astype(output_dtype), to_affine_nd(3, target_affine))
         nib.save(results_img, file_name)
         return
 
@@ -112,7 +114,7 @@ def write_nifti(
     data = nib.orientations.apply_orientation(data, ornt_transform)
     _affine = affine @ nib.orientations.inv_ornt_aff(ornt_transform, data_shape)
     if np.allclose(_affine, target_affine, atol=1e-3) or not resample:
-        results_img = nib.Nifti1Image(data.astype(np.float32), to_affine_nd(3, target_affine))
+        results_img = nib.Nifti1Image(data.astype(output_dtype), to_affine_nd(3, target_affine))
         nib.save(results_img, file_name)
         return
 
@@ -148,6 +150,6 @@ def write_nifti(
         )
         data_np = data_torch.squeeze(0).squeeze(0).detach().cpu().numpy()
 
-    results_img = nib.Nifti1Image(data_np.astype(np.float32), to_affine_nd(3, target_affine))
+    results_img = nib.Nifti1Image(data_np.astype(output_dtype), to_affine_nd(3, target_affine))
     nib.save(results_img, file_name)
     return
