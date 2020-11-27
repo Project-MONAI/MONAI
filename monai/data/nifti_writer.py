@@ -87,6 +87,7 @@ def write_nifti(
         dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
             If None, use the data type of input data. To be compatible with other modules,
             the output data type is always ``np.float32``.
+        output_dtype: data type for saving data. Defaults to ``np.float32``.
     """
     assert isinstance(data, np.ndarray), "input data must be numpy array."
     dtype = dtype or data.dtype
