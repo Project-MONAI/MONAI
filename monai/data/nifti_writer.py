@@ -32,6 +32,7 @@ def write_nifti(
     padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
     align_corners: bool = False,
     dtype: Optional[np.dtype] = np.float64,
+    output_dtype: Optional[np.dtype] = np.float32,
 ) -> None:
     """
     Write numpy data into NIfTI files to disk.  This function converts data
@@ -148,6 +149,6 @@ def write_nifti(
         )
         data_np = data_torch.squeeze(0).squeeze(0).detach().cpu().numpy()
 
-    results_img = nib.Nifti1Image(data_np.astype(np.float32), to_affine_nd(3, target_affine))
+    results_img = nib.Nifti1Image(data_np.astype(output_dtype), to_affine_nd(3, target_affine))
     nib.save(results_img, file_name)
     return
