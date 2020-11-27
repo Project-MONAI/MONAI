@@ -15,7 +15,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.nets import HighResNet
-from tests.utils import test_script_save
+from tests.utils import DistTestCase, TimedCall, test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -44,7 +44,7 @@ TEST_CASE_4 = [  # 4-channel 1D, batch 16
 ]
 
 
-class TestHighResNet(unittest.TestCase):
+class TestHighResNet(DistTestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_shape(self, input_param, input_shape, expected_shape):
         net = HighResNet(**input_param).to(device)
@@ -53,6 +53,7 @@ class TestHighResNet(unittest.TestCase):
             result = net.forward(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
 
+    @TimedCall(seconds=100, force_quit=True)
     def test_script(self):
         input_param, input_shape, expected_shape = TEST_CASE_1
         net = HighResNet(**input_param)

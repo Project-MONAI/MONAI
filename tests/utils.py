@@ -13,9 +13,12 @@ import datetime
 import functools
 import importlib
 import os
+import queue
 import sys
 import tempfile
+import traceback
 import unittest
+import warnings
 from io import BytesIO
 from subprocess import PIPE, Popen
 from typing import Optional
@@ -93,12 +96,15 @@ def make_nifti_image(array, affine=None):
 
 
 class DistTestCase(unittest.TestCase):
-    """testcase without _outcome, so that it's picklable."""
+    """
+    testcase without _outcome, so that it's picklable.
+    set the multiprocessing method to spawn, so that it works across the platforms.
+    """
 
     original_mp = None
 
     def setUp(self) -> None:
-        self.original_mp = torch.multiprocessing.get_start_method(allow_none=True)
+        self.original_mp = torch.multiprocessing.get_start_method(allow_none=False)
         try:
             torch.multiprocessing.set_start_method("spawn", force=True)
         except RuntimeError:
@@ -106,8 +112,8 @@ class DistTestCase(unittest.TestCase):
 
     def tearDown(self) -> None:
         try:
-            torch.multiprocessing.set_start_method(str(self.original_mp), force=True)
-        except RuntimeError:
+            torch.multiprocessing.set_start_method(self.original_mp, force=True)  # type: ignore  [arg-type]
+        except (RuntimeError, ValueError):
             pass
 
     def __getstate__(self):
@@ -119,6 +125,7 @@ class DistTestCase(unittest.TestCase):
 class DistCall:
     """
     Wrap a test case so that it will run in multiple processes on a single machine using `torch.distributed`.
+    It is designed to be used with `tests.utils.DistTestCase`.
 
     Usage:
 
@@ -156,7 +163,8 @@ class DistCall:
             master_port: Master node (rank 0)'s free port.
             node_rank: The rank of the node, this could be set via environment variable "NODE_RANK".
             timeout: Timeout for operations executed against the process group.
-            init_method: URL specifying how to initialize the process group. Default is "env://" if unspecified.
+            init_method: URL specifying how to initialize the process group.
+                Default is "env://" or "file:///d:/a_temp" (windows) if unspecified.
             backend: The backend to use. Depending on build-time configurations,
                 valid values include ``mpi``, ``gloo``, and ``nccl``.
             verbose: whether to print NCCL debug info.
@@ -232,6 +240,99 @@ class DistCall:
             for p in processes:
                 p.join()
                 assert results.get(), "Distributed call failed."
+
+        return _wrapper
+
+
+class TimedCall:
+    """
+    Wrap a test case so that it will run in a new process, raises a TimeoutError if the decorated method takes
+    more than `seconds` to finish. It is designed to be used with `tests.utils.DistTestCase`.
+    """
+
+    def __init__(
+        self,
+        seconds: float = 60.0,
+        daemon: bool = True,
+        method: Optional[str] = None,
+        force_quit: bool = True,
+        skip_timing=False,
+    ):
+        """
+
+        Args:
+            seconds: timeout seconds.
+            daemon: the process’s daemon lag.
+            method: set the method which should be used to start a child process.
+                method can be 'fork', 'spawn' or 'forkserver'.
+            force_quit: whether to terminate the child process when `seconds` elapsed.
+            skip_timing: whether to skip the timing constraint.
+                this is useful to include some system conditions such as
+                `torch.cuda.is_available()`.
+        """
+        self.timeout_seconds = seconds
+        self.daemon = bool(daemon)
+        self.force_quit = force_quit
+        self.skip_timing = skip_timing
+        self.method = method
+        self._original_method = torch.multiprocessing.get_start_method(allow_none=False)  # remember the original method
+
+    @staticmethod
+    def run_process(func, args, kwargs, results):
+        try:
+            output = func(*args, **kwargs)
+            results.put(output)
+        except Exception as e:
+            e.traceback = traceback.format_exc()
+            results.put(e)
+
+    def __call__(self, obj):
+
+        if self.skip_timing:
+            return obj
+
+        _cache_original_func(obj)
+
+        @functools.wraps(obj)
+        def _wrapper(*args, **kwargs):
+            func = _call_original_func
+            args = [obj.__name__, obj.__module__] + list(args)
+            results = torch.multiprocessing.Queue()
+            p = torch.multiprocessing.Process(target=TimedCall.run_process, args=(func, args, kwargs, results))
+            p.daemon = self.daemon
+            p.start()
+
+            p.join(timeout=self.timeout_seconds)
+
+            timeout_error = None
+            try:
+                if p.is_alive():
+                    # create an Exception
+                    timeout_error = torch.multiprocessing.TimeoutError(
+                        f"'{obj.__name__}' in '{obj.__module__}' did not finish in {self.timeout_seconds}s."
+                    )
+                    if self.force_quit:
+                        p.terminate()
+                    else:
+                        warnings.warn(
+                            f"TimedCall: deadline ({self.timeout_seconds}s) "
+                            f"reached but waiting for {obj.__name__} to finish."
+                        )
+            finally:
+                p.join()
+
+            try:
+                res = results.get(block=False)
+            except queue.Empty:  # no result returned, took too long
+                res = None
+            if isinstance(res, Exception):  # other errors from obj
+                if hasattr(res, "traceback"):
+                    raise RuntimeError(res.traceback) from res
+                else:
+                    raise res
+            if timeout_error:  # no force_quit finished
+                raise timeout_error
+            return res
 
         return _wrapper
 
