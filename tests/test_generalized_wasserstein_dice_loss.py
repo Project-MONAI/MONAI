@@ -135,7 +135,7 @@ class TestGeneralizedWassersteinDiceLoss(unittest.TestCase):
         to segment one image.
         We verify that the loss is decreasing in almost all SGD steps.
         """
-        learning_rate = 0.01
+        learning_rate = 0.001
         max_iter = 50
 
         # define a simple 3d example
@@ -174,8 +174,8 @@ class TestGeneralizedWassersteinDiceLoss(unittest.TestCase):
             # initialize the loss
             loss = GeneralizedWassersteinDiceLoss(dist_matrix=np.array([[0.0, 1.0], [1.0, 0.0]]), weighting_mode=w_mode)
 
-            # initialize an SGD
-            optimizer = optim.SGD(net.parameters(), lr=learning_rate, momentum=0.9)
+            # initialize an optimizer
+            optimizer = optim.Adam(net.parameters(), lr=learning_rate)
 
             # initial difference between pred and target
             pred_start = torch.argmax(net(image), dim=1)
