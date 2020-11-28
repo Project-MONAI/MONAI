@@ -31,6 +31,7 @@ TEST_CASES = [
     [GeneralizedDiceLoss, {"to_onehot_y": True, "sigmoid": True}, {}],
     [GeneralizedDiceLoss, {"to_onehot_y": True, "sigmoid": True, "w_type": "simple"}, {}],
     [GeneralizedDiceLoss, {"to_onehot_y": True, "sigmoid": True, "w_type": "uniform"}, {}],
+    [GeneralizedDiceLoss, {"to_onehot_y": True, "sigmoid": True, "w_type": "uniform", "batch": True}, {}],
     [TverskyLoss, {"to_onehot_y": True, "softmax": True, "alpha": 0.8, "beta": 0.2}, {}],
     [TverskyLoss, {"to_onehot_y": True, "softmax": True, "alpha": 0.8, "beta": 0.2, "batch": True}, {}],
     [TverskyLoss, {"to_onehot_y": True, "softmax": True, "alpha": 1.0, "beta": 0.0}, {}],
