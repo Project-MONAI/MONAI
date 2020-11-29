@@ -288,7 +288,7 @@ class IntegrationWorkflows(DistTestCase):
                 self.assertTrue(test_integration_value(TASK, key="output_sums", data=repeated[i][2:], rtol=1e-2))
         np.testing.assert_allclose(repeated[0], repeated[1])
 
-    @TimedCall(seconds=100, skip_timing=not torch.cuda.is_available())
+    @TimedCall(seconds=200, skip_timing=not torch.cuda.is_available())
     def test_timing(self):
         set_determinism(seed=0)
 
@@ -297,7 +297,7 @@ class IntegrationWorkflows(DistTestCase):
         self.assertTrue(test_integration_value(TASK, key="best_metric_2", data=best_metric, rtol=1e-2))
 
         model_file = sorted(glob(os.path.join(self.data_dir, "net_key_metric*.pt")))[-1]
-        infer_metric = run_inference_test(self.data_dir, model_file, device=self.device, amp=(i == 2), , num_workers=0)
+        infer_metric = run_inference_test(self.data_dir, model_file, device=self.device, amp=(i == 2), num_workers=0)
         print("infer metric", infer_metric)
         # check inference properties
         self.assertTrue(test_integration_value(TASK, key="infer_metric_2", data=infer_metric, rtol=1e-2))

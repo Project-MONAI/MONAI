@@ -240,7 +240,7 @@ class IntegrationClassification2D(DistTestCase):
 
         np.testing.assert_allclose(repeated[0], repeated[1])
 
-    @TimedCall(seconds=200, skip_timing=not torch.cuda.is_available())
+    @TimedCall(seconds=300, skip_timing=not torch.cuda.is_available())
     def test_timing(self):
         if not os.path.exists(os.path.join(self.data_dir, "MedNIST")):
             # skip test if no MedNIST dataset
