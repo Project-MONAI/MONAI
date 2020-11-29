@@ -245,7 +245,7 @@ class IntegrationWorkflows(DistTestCase):
             n = nib.Nifti1Image(seg, np.eye(4))
             nib.save(n, os.path.join(self.data_dir, f"seg{i:d}.nii.gz"))
 
-        self.device = "cuda:0" if torch.cuda.is_available() else "cpu:0"
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")
         monai.config.print_config()
         logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
@@ -288,16 +288,16 @@ class IntegrationWorkflows(DistTestCase):
                 self.assertTrue(test_integration_value(TASK, key="output_sums", data=repeated[i][2:], rtol=1e-2))
         np.testing.assert_allclose(repeated[0], repeated[1])
 
-    @TimedCall(seconds=200, skip_timing=not torch.cuda.is_available())
+    @TimedCall(seconds=200, skip_timing=not torch.cuda.is_available(), daemon=False)
     def test_timing(self):
         set_determinism(seed=0)
 
-        best_metric = run_training_test(self.data_dir, device=self.device, amp=True, num_workers=0)
+        best_metric = run_training_test(self.data_dir, device=self.device, amp=True, num_workers=4)
         print("best metric", best_metric)
         self.assertTrue(test_integration_value(TASK, key="best_metric_2", data=best_metric, rtol=1e-2))
 
         model_file = sorted(glob(os.path.join(self.data_dir, "net_key_metric*.pt")))[-1]
-        infer_metric = run_inference_test(self.data_dir, model_file, device=self.device, amp=(i == 2), num_workers=0)
+        infer_metric = run_inference_test(self.data_dir, model_file, device=self.device, amp=True, num_workers=4)
         print("infer metric", infer_metric)
         # check inference properties
         self.assertTrue(test_integration_value(TASK, key="infer_metric_2", data=infer_metric, rtol=1e-2))

@@ -240,7 +240,7 @@ class IntegrationClassification2D(DistTestCase):
 
         np.testing.assert_allclose(repeated[0], repeated[1])
 
-    @TimedCall(seconds=300, skip_timing=not torch.cuda.is_available())
+    @TimedCall(seconds=400, skip_timing=not torch.cuda.is_available(), daemon=False)
     def test_timing(self):
         if not os.path.exists(os.path.join(self.data_dir, "MedNIST")):
             # skip test if no MedNIST dataset
@@ -254,7 +254,6 @@ class IntegrationClassification2D(DistTestCase):
             self.val_x,
             self.val_y,
             device=self.device,
-            num_workers=0,
         )
         # check training properties
         print(f"integration_classification_2d {losses}")
@@ -263,7 +262,7 @@ class IntegrationClassification2D(DistTestCase):
         self.assertTrue(test_integration_value(TASK, key="best_metric", data=best_metric, rtol=1e-4))
         np.testing.assert_allclose(best_metric_epoch, 4)
 
-        infer_metric = run_inference_test(self.data_dir, self.test_x, self.test_y, device=self.device, num_workers=0)
+        infer_metric = run_inference_test(self.data_dir, self.test_x, self.test_y, device=self.device)
         print("infer metric", infer_metric)
         # check inference properties
         self.assertTrue(test_integration_value(TASK, key="infer_prop", data=np.asarray(infer_metric), rtol=1))

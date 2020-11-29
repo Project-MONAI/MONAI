@@ -105,6 +105,9 @@ class DistTestCase(unittest.TestCase):
         del self_dict["_outcome"]
         return self_dict
 
+    def __setstate__(self, data_dict):
+        self.__dict__.update(data_dict)
+
 
 class DistCall:
     """
