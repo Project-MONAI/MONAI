@@ -40,7 +40,7 @@ from monai.transforms import (
 from monai.utils import set_determinism
 from monai.visualize import plot_2d_or_3d_image
 from tests.testing_data.integration_answers import test_integration_value
-from tests.utils import skip_if_quick
+from tests.utils import DistTestCase, TimedCall, skip_if_quick
 
 TASK = "integration_segmentation_3d"
 
@@ -228,7 +228,7 @@ def run_inference_test(root_dir, device="cuda:0"):
 
 
 @skip_if_quick
-class IntegrationSegmentation3D(unittest.TestCase):
+class IntegrationSegmentation3D(DistTestCase):
     def setUp(self):
         set_determinism(seed=0)
 
@@ -240,7 +240,7 @@ class IntegrationSegmentation3D(unittest.TestCase):
             n = nib.Nifti1Image(seg, np.eye(4))
             nib.save(n, os.path.join(self.data_dir, f"seg{i:d}.nii.gz"))
 
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")
+        self.device = "cuda:0" if torch.cuda.is_available() else "cpu:0"
 
     def tearDown(self):
         set_determinism(seed=None)
@@ -281,6 +281,28 @@ class IntegrationSegmentation3D(unittest.TestCase):
             self.assertTrue(test_integration_value(TASK, key="output_sums", data=repeated[i][8:], rtol=1e-2))
         np.testing.assert_allclose(repeated[0], repeated[1])
         np.testing.assert_allclose(repeated[0], repeated[2])
+
+    @TimedCall(seconds=180, daemon=False)
+    def test_timing(self):
+        set_determinism(0)
+
+        # run training
+        losses, best_metric, best_metric_epoch = run_training_test(
+            self.data_dir,
+            device=self.device,
+            cachedataset=3,
+        )
+        # check training properties
+        print("losses", losses)
+        self.assertTrue(test_integration_value(TASK, key="losses", data=losses, rtol=1e-3))
+        print("best metric", best_metric)
+        self.assertTrue(test_integration_value(TASK, key="best_metric", data=best_metric, rtol=1e-2))
+
+        # run inference
+        infer_metric = run_inference_test(self.data_dir, device=self.device)
+        # check inference properties
+        print("infer metric", infer_metric)
+        self.assertTrue(test_integration_value(TASK, key="infer_metric", data=infer_metric, rtol=1e-2))
 
 
 if __name__ == "__main__":

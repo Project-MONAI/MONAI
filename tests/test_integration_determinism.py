@@ -70,11 +70,9 @@ def run_test(batch_size=64, train_steps=200, device="cuda:0"):
 
 class TestDeterminism(DistTestCase):
     def setUp(self):
-        super().setUp()
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")
 
     def tearDown(self):
-        super().tearDown()
         set_determinism(seed=None)
 
     @TimedCall(seconds=30)

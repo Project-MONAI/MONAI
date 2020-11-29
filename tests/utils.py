@@ -98,23 +98,7 @@ def make_nifti_image(array, affine=None):
 class DistTestCase(unittest.TestCase):
     """
     testcase without _outcome, so that it's picklable.
-    set the multiprocessing method to spawn, so that it works across the platforms.
     """
-
-    original_mp = None
-
-    def setUp(self) -> None:
-        self.original_mp = torch.multiprocessing.get_start_method(allow_none=False)
-        try:
-            torch.multiprocessing.set_start_method("spawn", force=True)
-        except RuntimeError:
-            pass
-
-    def tearDown(self) -> None:
-        try:
-            torch.multiprocessing.set_start_method(self.original_mp, force=True)  # type: ignore  [arg-type]
-        except (RuntimeError, ValueError):
-            pass
 
     def __getstate__(self):
         self_dict = self.__dict__.copy()
@@ -152,6 +136,8 @@ class DistCall:
         timeout=60,
         init_method=None,
         backend: Optional[str] = None,
+        daemon: Optional[bool] = None,
+        method: Optional[str] = "spawn",
         verbose: bool = False,
     ):
         """
@@ -167,6 +153,10 @@ class DistCall:
                 Default is "env://" or "file:///d:/a_temp" (windows) if unspecified.
             backend: The backend to use. Depending on build-time configurations,
                 valid values include ``mpi``, ``gloo``, and ``nccl``.
+            daemon: the process’s daemon flag.
+                When daemon=None, the initial value is inherited from the creating process.
+            method: set the method which should be used to start a child process.
+                method can be 'fork', 'spawn' or 'forkserver'.
             verbose: whether to print NCCL debug info.
         """
         self.nnodes = int(nnodes)
@@ -183,6 +173,9 @@ class DistCall:
         if self.init_method is None and sys.platform == "win32":
             self.init_method = "file:///d:/a_temp"
         self.timeout = datetime.timedelta(0, timeout)
+        self.daemon = daemon
+        self.method = method
+        self._original_method = torch.multiprocessing.get_start_method(allow_none=False)
         self.verbose = verbose
 
     def run_process(self, func, local_rank, args, kwargs, results):
@@ -227,6 +220,11 @@ class DistCall:
 
         @functools.wraps(obj)
         def _wrapper(*args, **kwargs):
+            if self.method:
+                try:
+                    torch.multiprocessing.set_start_method(self.method, force=True)
+                except (RuntimeError, ValueError):
+                    pass
             processes = []
             results = torch.multiprocessing.Queue()
             func = _call_original_func
@@ -235,10 +233,17 @@ class DistCall:
                 p = torch.multiprocessing.Process(
                     target=self.run_process, args=(func, proc_rank, args, kwargs, results)
                 )
+                if self.daemon is not None:
+                    p.daemon = self.daemon
                 p.start()
                 processes.append(p)
             for p in processes:
                 p.join()
+                if self.method:
+                    try:
+                        torch.multiprocessing.set_start_method(self._original_method, force=True)
+                    except (RuntimeError, ValueError):
+                        pass
                 assert results.get(), "Distributed call failed."
 
         return _wrapper
@@ -253,8 +258,8 @@ class TimedCall:
     def __init__(
         self,
         seconds: float = 60.0,
-        daemon: bool = True,
-        method: Optional[str] = None,
+        daemon: Optional[bool] = None,
+        method: Optional[str] = "spawn",
         force_quit: bool = True,
         skip_timing=False,
     ):
@@ -262,7 +267,8 @@ class TimedCall:
 
         Args:
             seconds: timeout seconds.
-            daemon: the process’s daemon lag.
+            daemon: the process’s daemon flag.
+                When daemon=None, the initial value is inherited from the creating process.
             method: set the method which should be used to start a child process.
                 method can be 'fork', 'spawn' or 'forkserver'.
             force_quit: whether to terminate the child process when `seconds` elapsed.
@@ -271,11 +277,11 @@ class TimedCall:
                 `torch.cuda.is_available()`.
         """
         self.timeout_seconds = seconds
-        self.daemon = bool(daemon)
+        self.daemon = daemon
         self.force_quit = force_quit
         self.skip_timing = skip_timing
         self.method = method
-        self._original_method = torch.multiprocessing.get_start_method(allow_none=False)  # remember the original method
+        self._original_method = torch.multiprocessing.get_start_method(allow_none=False)  # remember the default method
 
     @staticmethod
     def run_process(func, args, kwargs, results):
@@ -295,11 +301,18 @@ class TimedCall:
 
         @functools.wraps(obj)
         def _wrapper(*args, **kwargs):
+
+            if self.method:
+                try:
+                    torch.multiprocessing.set_start_method(self.method, force=True)
+                except (RuntimeError, ValueError):
+                    pass
             func = _call_original_func
             args = [obj.__name__, obj.__module__] + list(args)
             results = torch.multiprocessing.Queue()
             p = torch.multiprocessing.Process(target=TimedCall.run_process, args=(func, args, kwargs, results))
-            p.daemon = self.daemon
+            if self.daemon is not None:
+                p.daemon = self.daemon
             p.start()
 
             p.join(timeout=self.timeout_seconds)
@@ -321,10 +334,17 @@ class TimedCall:
             finally:
                 p.join()
 
+            res = None
             try:
                 res = results.get(block=False)
             except queue.Empty:  # no result returned, took too long
-                res = None
+                pass
+            finally:
+                if self.method:
+                    try:
+                        torch.multiprocessing.set_start_method(self._original_method, force=True)
+                    except (RuntimeError, ValueError):
+                        pass
             if isinstance(res, Exception):  # other errors from obj
                 if hasattr(res, "traceback"):
                     raise RuntimeError(res.traceback) from res

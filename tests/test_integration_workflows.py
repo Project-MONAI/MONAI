@@ -51,12 +51,12 @@ from monai.transforms import (
 )
 from monai.utils import set_determinism
 from tests.testing_data.integration_answers import test_integration_value
-from tests.utils import skip_if_quick
+from tests.utils import DistTestCase, TimedCall, skip_if_quick
 
 TASK = "integration_workflows"
 
 
-def run_training_test(root_dir, device="cuda:0", amp=False):
+def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
     images = sorted(glob(os.path.join(root_dir, "img*.nii.gz")))
     segs = sorted(glob(os.path.join(root_dir, "seg*.nii.gz")))
     train_files = [{"image": img, "label": seg} for img, seg in zip(images[:20], segs[:20])]
@@ -87,10 +87,10 @@ def run_training_test(root_dir, device="cuda:0", amp=False):
     # create a training data loader
     train_ds = monai.data.CacheDataset(data=train_files, transform=train_transforms, cache_rate=0.5)
     # use batch_size=2 to load images and use RandCropByPosNegLabeld to generate 2 x 4 images for network training
-    train_loader = monai.data.DataLoader(train_ds, batch_size=2, shuffle=True, num_workers=4)
+    train_loader = monai.data.DataLoader(train_ds, batch_size=2, shuffle=True, num_workers=num_workers)
     # create a validation data loader
     val_ds = monai.data.CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0)
-    val_loader = monai.data.DataLoader(val_ds, batch_size=1, num_workers=4)
+    val_loader = monai.data.DataLoader(val_ds, batch_size=1, num_workers=num_workers)
 
     # create UNet, DiceLoss and Adam optimizer
     net = monai.networks.nets.UNet(
@@ -168,7 +168,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False):
     return evaluator.state.best_metric
 
 
-def run_inference_test(root_dir, model_file, device="cuda:0", amp=False):
+def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_workers=4):
     images = sorted(glob(os.path.join(root_dir, "im*.nii.gz")))
     segs = sorted(glob(os.path.join(root_dir, "seg*.nii.gz")))
     val_files = [{"image": img, "label": seg} for img, seg in zip(images, segs)]
@@ -185,7 +185,7 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False):
 
     # create a validation data loader
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
-    val_loader = monai.data.DataLoader(val_ds, batch_size=1, num_workers=4)
+    val_loader = monai.data.DataLoader(val_ds, batch_size=1, num_workers=num_workers)
 
     # create UNet, DiceLoss and Adam optimizer
     net = monai.networks.nets.UNet(
@@ -233,7 +233,7 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False):
 
 
 @skip_if_quick
-class IntegrationWorkflows(unittest.TestCase):
+class IntegrationWorkflows(DistTestCase):
     def setUp(self):
         set_determinism(seed=0)
 
@@ -245,7 +245,7 @@ class IntegrationWorkflows(unittest.TestCase):
             n = nib.Nifti1Image(seg, np.eye(4))
             nib.save(n, os.path.join(self.data_dir, f"seg{i:d}.nii.gz"))
 
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")
+        self.device = "cuda:0" if torch.cuda.is_available() else "cpu:0"
         monai.config.print_config()
         logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
@@ -287,6 +287,20 @@ class IntegrationWorkflows(unittest.TestCase):
             else:
                 self.assertTrue(test_integration_value(TASK, key="output_sums", data=repeated[i][2:], rtol=1e-2))
         np.testing.assert_allclose(repeated[0], repeated[1])
+
+    @TimedCall(seconds=100, skip_timing=not torch.cuda.is_available())
+    def test_timing(self):
+        set_determinism(seed=0)
+
+        best_metric = run_training_test(self.data_dir, device=self.device, amp=True, num_workers=0)
+        print("best metric", best_metric)
+        self.assertTrue(test_integration_value(TASK, key="best_metric_2", data=best_metric, rtol=1e-2))
+
+        model_file = sorted(glob(os.path.join(self.data_dir, "net_key_metric*.pt")))[-1]
+        infer_metric = run_inference_test(self.data_dir, model_file, device=self.device, amp=(i == 2), , num_workers=0)
+        print("infer metric", infer_metric)
+        # check inference properties
+        self.assertTrue(test_integration_value(TASK, key="infer_metric_2", data=infer_metric, rtol=1e-2))
 
 
 if __name__ == "__main__":
