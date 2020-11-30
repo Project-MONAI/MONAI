@@ -29,7 +29,7 @@ class ModelWithHooks:
 
         Args:
             model: the model to be wrapped.
-            target_layer_names: the names of the layer to
+            target_layer_names: the names of the layer to cache.
             register_forward: whether to cache the forward pass output corresponding to `target_layer_names`.
             register_backward: whether to cache the backward pass output corresponding to `target_layer_names`.
         """
@@ -106,11 +106,15 @@ def default_normalizer(acti_map) -> np.ndarray:
 
 
 class CAM:
+    """
+    Compute class activation map from the last fully-connected layers before the spatial pooling.
+    """
+
     def __init__(
         self,
         model,
         target_layers,
-        fc_weights=lambda m: m.fc.weight,
+        fc_layers=lambda m: m.fc,
         upsampler=default_upsampler,
         postprocessing: Callable = default_normalizer,
     ):
@@ -119,32 +123,36 @@ class CAM:
         Args:
             model: the model to be visualised
             target_layers: name of the model layer to generate the feature map.
-            fc_weights: a callable used to get fully-connected weights to compute activation map
-                from the target_layers (without pooling). The default is `lambda m: m.fc.weight`, that is
-                getting the fully-connected layer by `model.fc.weight`.
+            fc_layers: a callable used to get fully-connected weights to compute activation map
+                from the target_layers (without pooling). The default is `lambda m: m.fc`, that is
+                to get the fully-connected layer by `model.fc` and evaluate it at every spatial location.
             upsampler: an upsampling method to upsample the feature map.
             postprocessing: a callable that applies on the upsampled feature map.
         """
         self.net = ModelWithHooks(model, target_layers, register_forward=True)
         self.upsampler = upsampler
         self.postprocessing = postprocessing
-        self.fc_weights = fc_weights
+        self.fc_layers = fc_layers
 
-    def compute_map(self, x, class_idx=None):
+    def compute_map(self, x, class_idx=None, layer_idx=-1):
         logits, acti, _ = self.net(x)
-        acti = acti[0]
+        acti = acti[layer_idx]
         if class_idx is None:
             class_idx = torch.argmax(logits, dim=1)
         b, c, *spatial = acti.shape
-        weights = self.fc_weights(self.net.model)
-        weights = weights[class_idx].view(c, *[1 for _ in spatial])
-        return (weights * acti).sum(1, keepdim=True)
+        acti = torch.split(acti.reshape(b, c, -1), 1, dim=2)  # make the spatial dims 1D
+        fc_layers = self.fc_layers(self.net.model)
+        output = torch.stack([fc_layers(a[..., 0]) for a in acti], dim=2)
+        output = output[:, class_idx : class_idx + 1]  # only retain the spatial map of the selected class
+        return output.reshape(b, -1, *spatial)  # resume the spatial dims on the selected class
 
-    def feature_map_size(self, input_size, device="cpu"):
-        return self.compute_map(torch.zeros(*input_size, device=device)).shape
+    def feature_map_size(self, input_size, device="cpu", layer_idx=-1):
+        return self.compute_map(torch.zeros(*input_size, device=device), layer_idx=layer_idx).shape
 
-    def __call__(self, x, class_idx=None):
-        acti_map = self.compute_map(x, class_idx)
+    def __call__(self, x, class_idx=None, layer_idx=-1):
+        acti_map = self.compute_map(x, class_idx, layer_idx)
+
+        # upsampling and postprocessing
         if self.upsampler:
             img_spatial = x.shape[2:]
             acti_map = self.upsampler(img_spatial)(acti_map)
@@ -154,11 +162,20 @@ class CAM:
 
 
 class GradCAM:
+    """
+    Computes Gradient-weighted Class Activation Mapping (Grad-CAM).
+    This implementation is based on:
+
+        Selvaraju et al., Grad-CAM: Visual Explanations from Deep Networks via Gradient-based Localization,
+        https://arxiv.org/abs/1610.02391
+
+    """
+
     def __init__(self, model, target_layers, upsampler=default_upsampler, postprocessing=default_normalizer):
         """
 
         Args:
-            model: the model to be visualised
+            model: the model to be used to generate the visualisations.
             target_layers: name of the model layer to generate the feature map.
             upsampler: an upsampling method to upsample the feature map.
             postprocessing: a callable that applies on the upsampled feature map.
@@ -167,20 +184,22 @@ class GradCAM:
         self.upsampler = upsampler
         self.postprocessing = postprocessing
 
-    def compute_map(self, x, class_idx=None, retain_graph=False):
+    def compute_map(self, x, class_idx=None, retain_graph=False, layer_idx=-1):
         logits, acti, grad = self.net(x, class_idx=class_idx, retain_graph=retain_graph)
-        acti, grad = acti[0], grad[0]
+        acti, grad = acti[layer_idx], grad[layer_idx]
         b, c, *spatial = grad.shape
         grad_ave = grad.view(b, c, -1).mean(2)
-        weights = grad_ave.view(b, c, *[1 for _ in spatial])
+        weights = grad_ave.view(b, c, [1] * len(spatial))
         acti_map = (weights * acti).sum(1, keepdim=True)
         return F.relu(acti_map)
 
-    def feature_map_size(self, input_size, device="cpu"):
-        return self.compute_map(torch.zeros(*input_size, device=device)).shape
+    def feature_map_size(self, input_size, device="cpu", layer_idx=-1):
+        return self.compute_map(torch.zeros(*input_size, device=device), layer_idx=layer_idx).shape
 
-    def __call__(self, x, class_idx=None, retain_graph=False):
-        acti_map = self.compute_map(x, class_idx=class_idx, retain_graph=retain_graph)
+    def __call__(self, x, class_idx=None, layer_idx=-1, retain_graph=False):
+        acti_map = self.compute_map(x, class_idx=class_idx, retain_graph=retain_graph, layer_idx=layer_idx)
+
+        # upsampling and postprocessing
         if self.upsampler:
             img_spatial = x.shape[2:]
             acti_map = self.upsampler(img_spatial)(acti_map)
@@ -217,8 +236,8 @@ class GradCAM:
 #     if torch.cuda.is_available():
 #         model.cuda()
 #     model.eval()
-#     # cam_computer = CAM(model, target_layers=[args.target_layer, args.final_layer])
-#     cam_computer = GradCAM(model, target_layers=args.target_layer)
+#     cam_computer = CAM(model, target_layers=args.target_layer)
+#     # cam_computer = GradCAM(model, target_layers=args.target_layer)
 #     resize_param = (224, 224)
 #     norm_mean = [0.5528, 0.5528, 0.5528]
 #     norm_std = [0.1583, 0.1583, 0.1583]
