@@ -22,27 +22,37 @@ from monai.networks.nets import (
     se_resnext101_32x4d,
     senet154,
 )
-from tests.utils import skip_if_quick
+from tests.utils import test_pretrained_networks, test_script_save
 
-TEST_CASE_1 = [senet154(3, 2, 2)]
-TEST_CASE_2 = [se_resnet50(3, 2, 2)]
-TEST_CASE_3 = [se_resnet101(3, 2, 2)]
-TEST_CASE_4 = [se_resnet152(3, 2, 2)]
-TEST_CASE_5 = [se_resnext50_32x4d(3, 2, 2)]
-TEST_CASE_6 = [se_resnext101_32x4d(3, 2, 2)]
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
-TEST_CASE_PRETRAINED = [se_resnet50(2, 3, 2, pretrained=True)]
+NET_ARGS = {"spatial_dims": 3, "in_channels": 2, "num_classes": 2}
+TEST_CASE_1 = [senet154, NET_ARGS]
+TEST_CASE_2 = [se_resnet50, NET_ARGS]
+TEST_CASE_3 = [se_resnet101, NET_ARGS]
+TEST_CASE_4 = [se_resnet152, NET_ARGS]
+TEST_CASE_5 = [se_resnext50_32x4d, NET_ARGS]
+TEST_CASE_6 = [se_resnext101_32x4d, NET_ARGS]
+
+TEST_CASE_PRETRAINED = [se_resnet50, {"spatial_dims": 2, "in_channels": 3, "num_classes": 2, "pretrained": True}]
 
 
 class TestSENET(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
-    def test_senet_shape(self, net):
-        input_data = torch.randn(2, 2, 64, 64, 64)
+    def test_senet_shape(self, net, net_args):
+        input_data = torch.randn(2, 2, 64, 64, 64).to(device)
         expected_shape = (2, 2)
-        net.eval()
+        net = net(**net_args)
+        net = net.to(device).eval()
         with torch.no_grad():
-            result = net.forward(input_data)
+            result = net(input_data)
             self.assertEqual(result.shape, expected_shape)
+
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
+    def test_script(self, net, net_args):
+        net = net(**net_args)
+        input_data = torch.randn(2, 2, 64, 64, 64)
+        test_script_save(net, input_data)
 
 
 class TestPretrainedSENET(unittest.TestCase):
@@ -51,13 +61,13 @@ class TestPretrainedSENET(unittest.TestCase):
             TEST_CASE_PRETRAINED,
         ]
     )
-    @skip_if_quick
-    def test_senet_shape(self, net):
-        input_data = torch.randn(3, 3, 64, 64)
+    def test_senet_shape(self, model, input_param):
+        net = test_pretrained_networks(model, input_param, device)
+        input_data = torch.randn(3, 3, 64, 64).to(device)
         expected_shape = (3, 2)
-        net.eval()
+        net = net.to(device).eval()
         with torch.no_grad():
-            result = net.forward(input_data)
+            result = net(input_data)
             self.assertEqual(result.shape, expected_shape)
 
 

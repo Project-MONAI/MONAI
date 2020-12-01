@@ -9,13 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import hashlib
-import json
+
 import math
+import pickle
 import sys
 import threading
 import time
 import warnings
+from copy import deepcopy
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence, Union
@@ -23,6 +24,7 @@ from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence, Union
 import torch
 from torch.utils.data import Dataset as _TorchDataset
 
+from monai.data.utils import pickle_hashing
 from monai.transforms import Compose, Randomizable, Transform, apply_transform
 from monai.utils import MAX_SEED, get_seed, min_version, optional_import
 
@@ -32,6 +34,8 @@ if TYPE_CHECKING:
     has_tqdm = True
 else:
     tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
+
+lmdb, _ = optional_import("lmdb")
 
 
 class Dataset(_TorchDataset):
@@ -107,32 +111,37 @@ class PersistentDataset(Dataset):
 
     def __init__(
         self,
-        data: Sequence[str],
+        data: Sequence,
         transform: Union[Sequence[Callable], Callable],
         cache_dir: Optional[Union[Path, str]] = None,
+        hash_func: Callable[..., bytes] = pickle_hashing,
     ) -> None:
         """
         Args:
             data: input data file paths to load and transform to generate dataset for model.
-                `PersistentDataset` expects input data to be a list of file paths and hashes them as cache keys.
+                `PersistentDataset` expects input data to be a list of serializable
+                and hashes them as cache keys using `hash_func`.
             transform: transforms to execute operations on input data.
             cache_dir: If specified, this is the location for persistent storage
                 of pre-computed transformed data tensors. The cache_dir is computed once, and
                 persists on disk until explicitly removed.  Different runs, programs, experiments
                 may share a common cache dir provided that the transforms pre-processing is consistent.
                 If the cache_dir doesn't exist, will automatically create it.
+            hash_func: a callable to compute hash from data items to be cached.
+                defaults to `monai.data.utils.pickle_hashing`.
         """
         if not isinstance(transform, Compose):
             transform = Compose(transform)
         super().__init__(data=data, transform=transform)
         self.cache_dir = Path(cache_dir) if cache_dir is not None else None
+        self.hash_func = hash_func
         if self.cache_dir is not None:
             if not self.cache_dir.exists():
                 self.cache_dir.mkdir(parents=True)
             if not self.cache_dir.is_dir():
                 raise ValueError("cache_dir must be a directory.")
 
-    def _pre_first_random_transform(self, item_transformed):
+    def _pre_transform(self, item_transformed):
         """
         Process the data from original state up to the first random element.
 
@@ -142,6 +151,7 @@ class PersistentDataset(Dataset):
         Returns:
             the transformed element up to the first identified
             random transform object
+
         """
         for _transform in self.transform.transforms:  # pytype: disable=attribute-error
             # execute all the deterministic transforms
@@ -150,7 +160,7 @@ class PersistentDataset(Dataset):
             item_transformed = apply_transform(_transform, item_transformed)
         return item_transformed
 
-    def _first_random_and_beyond_transform(self, item_transformed):
+    def _post_transform(self, item_transformed):
         """
         Process the data from before the first random transform to the final state ready for evaluation.
 
@@ -159,6 +169,7 @@ class PersistentDataset(Dataset):
 
         Returns:
             the transformed element through the random transforms
+
         """
         start_post_randomize_run = False
         for _transform in self.transform.transforms:  # pytype: disable=attribute-error
@@ -171,7 +182,7 @@ class PersistentDataset(Dataset):
                 item_transformed = apply_transform(_transform, item_transformed)
         return item_transformed
 
-    def _pre_first_random_cachecheck(self, item_transformed):
+    def _cachecheck(self, item_transformed):
         """
         A function to cache the expensive input data transform operations
         so that huge data sets (larger than computer memory) can be processed
@@ -189,34 +200,222 @@ class PersistentDataset(Dataset):
             hashing mechanism used for generating cache names.  If the transforms applied are
             changed in any way, the objects in the cache dir will be invalid.  The hash for the
             cache is ONLY dependant on the input filename paths.
+
         """
-        if item_transformed.get("cached", False) is False:
-            hashfile = None
-            if self.cache_dir is not None:
-                # TODO: Find way to hash transforms content as part of the cache
-                data_item_md5 = hashlib.md5(json.dumps(item_transformed, sort_keys=True).encode("utf-8")).hexdigest()
-                hashfile = self.cache_dir / f"{data_item_md5}.pt"
+        hashfile = None
+        if self.cache_dir is not None:
+            data_item_md5 = self.hash_func(item_transformed).decode("utf-8")
+            hashfile = self.cache_dir / f"{data_item_md5}.pt"
 
-            if hashfile is not None and hashfile.is_file():
-                item_transformed = torch.load(hashfile)
-            else:
-                item_transformed = self._pre_first_random_transform(item_transformed)
-                if hashfile is not None:
-                    # add sentinel flag to indicate that the transforms have already been computed.
-                    item_transformed["cached"] = True
-                    # NOTE: Writing to ".temp_write_cache" and then using a nearly atomic rename operation
-                    #       to make the cache more robust to manual killing of parent process
-                    #       which may leave partially written cache files in an incomplete state
-                    temp_hash_file = hashfile.with_suffix(".temp_write_cache")
-                    torch.save(item_transformed, temp_hash_file)
-                    temp_hash_file.rename(hashfile)
+        if hashfile is not None and hashfile.is_file():  # cache hit
+            return torch.load(hashfile)
 
-        return item_transformed
+        _item_transformed = self._pre_transform(deepcopy(item_transformed))  # keep the original hashed
+        if hashfile is not None:
+            # NOTE: Writing to ".temp_write_cache" and then using a nearly atomic rename operation
+            #       to make the cache more robust to manual killing of parent process
+            #       which may leave partially written cache files in an incomplete state
+            temp_hash_file = hashfile.with_suffix(".temp_write_cache")
+            torch.save(_item_transformed, temp_hash_file)
+            temp_hash_file.rename(hashfile)
+        return _item_transformed
 
     def __getitem__(self, index: int):
-        pre_random_item = self._pre_first_random_cachecheck(self.data[index])
-        post_random_item = self._first_random_and_beyond_transform(pre_random_item)
-        return post_random_item
+        pre_random_item = self._cachecheck(self.data[index])
+        return self._post_transform(pre_random_item)
+
+
+class CacheNTransDataset(PersistentDataset):
+    """
+    Extension of `PersistentDataset`, tt can also cache the result of first N transforms, no matter it's random or not.
+
+    """
+
+    def __init__(
+        self,
+        data: Sequence,
+        transform: Union[Sequence[Callable], Callable],
+        cache_n_trans: int,
+        cache_dir: Optional[Union[Path, str]] = None,
+        hash_func: Callable[..., bytes] = pickle_hashing,
+    ) -> None:
+        """
+        Args:
+            data: input data file paths to load and transform to generate dataset for model.
+                `PersistentDataset` expects input data to be a list of serializable
+                and hashes them as cache keys using `hash_func`.
+            transform: transforms to execute operations on input data.
+            cache_n_trans: cache the result of first N transforms.
+            cache_dir: If specified, this is the location for persistent storage
+                of pre-computed transformed data tensors. The cache_dir is computed once, and
+                persists on disk until explicitly removed.  Different runs, programs, experiments
+                may share a common cache dir provided that the transforms pre-processing is consistent.
+                If the cache_dir doesn't exist, will automatically create it.
+            hash_func: a callable to compute hash from data items to be cached.
+                defaults to `monai.data.utils.pickle_hashing`.
+
+        """
+        super().__init__(data=data, transform=transform, cache_dir=cache_dir, hash_func=hash_func)
+        self.cache_n_trans = cache_n_trans
+
+    def _pre_transform(self, item_transformed):
+        """
+        Process the data from original state up to the N element.
+
+        Args:
+            item_transformed: The data to be transformed
+
+        Returns:
+            the transformed element up to the N transform object
+        """
+        for i, _transform in enumerate(self.transform.transforms):  # type: ignore
+            if i == self.cache_n_trans:
+                break
+            item_transformed = apply_transform(_transform, item_transformed)
+        return item_transformed
+
+    def _post_transform(self, item_transformed):
+        """
+        Process the data from before the N + 1 transform to the final state ready for evaluation.
+
+        Args:
+            item_transformed: The data to be transformed (already processed up to the first N transform)
+
+        Returns:
+            the final transformed result
+        """
+        for i, _transform in enumerate(self.transform.transforms):  # type: ignore
+            if i >= self.cache_n_trans:
+                item_transformed = apply_transform(_transform, item_transformed)
+        return item_transformed
+
+
+class LMDBDataset(PersistentDataset):
+    """
+    Extension of `PersistentDataset` using LMDB as the backend.
+
+    See Also:
+        :py:class:`monai.data.PersistentDataset`
+
+    Examples:
+
+        >>> items = [{"data": i} for i in range(5)]
+        # [{'data': 0}, {'data': 1}, {'data': 2}, {'data': 3}, {'data': 4}]
+        >>> lmdb_ds = monai.data.LMDBDataset(items, transform=monai.transforms.SimulateDelayd("data", delay_time=1))
+        >>> print(list(lmdb_ds))  # using the cached results
+
+    """
+
+    def __init__(
+        self,
+        data: Sequence,
+        transform: Union[Sequence[Callable], Callable],
+        cache_dir: Union[Path, str] = "cache",
+        hash_func: Callable[..., bytes] = pickle_hashing,
+        db_name: str = "monai_cache",
+        pickle_protocol=pickle.HIGHEST_PROTOCOL,
+        lmdb_kwargs: Optional[dict] = None,
+    ) -> None:
+        """
+        Args:
+            data: input data file paths to load and transform to generate dataset for model.
+                `LMDBDataset` expects input data to be a list of serializable
+                and hashes them as cache keys using `hash_func`.
+            transform: transforms to execute operations on input data.
+            cache_dir: if specified, this is the location for persistent storage
+                of pre-computed transformed data tensors. The cache_dir is computed once, and
+                persists on disk until explicitly removed.  Different runs, programs, experiments
+                may share a common cache dir provided that the transforms pre-processing is consistent.
+                If the cache_dir doesn't exist, will automatically create it. Defaults to "./cache".
+            hash_func: a callable to compute hash from data items to be cached.
+                defaults to `monai.data.utils.pickle_hashing`.
+            db_name: lmdb database file name. Defaults to "monai_cache".
+            pickle_protocol: pickle protocol version. Defaults to pickle.HIGHEST_PROTOCOL.
+                https://docs.python.org/3/library/pickle.html#pickle-protocols
+            lmdb_kwargs: additional keyword arguments to the lmdb environment.
+                for more details please visit: https://lmdb.readthedocs.io/en/release/#environment-class
+        """
+        super().__init__(data=data, transform=transform, cache_dir=cache_dir, hash_func=hash_func)
+        if not self.cache_dir:
+            raise ValueError("cache_dir must be specified.")
+        self.db_file = self.cache_dir / f"{db_name}.lmdb"
+        self.pickle_protocol = pickle_protocol
+        self.lmdb_kwargs = lmdb_kwargs or {}
+        if not self.lmdb_kwargs.get("map_size", 0):
+            self.lmdb_kwargs["map_size"] = 1024 ** 4  # default map_size
+        self._read_env = None
+
+    def _fill_cache_start_reader(self):
+        # create cache
+        print(f"Accessing lmdb file: {self.db_file.absolute()}.")
+        self.lmdb_kwargs["readonly"] = False
+        env = lmdb.open(path=f"{self.db_file}", subdir=False, **self.lmdb_kwargs)
+        if not has_tqdm:
+            warnings.warn("LMDBDataset: tqdm is not installed. not displaying the caching progress.")
+        for item in tqdm(self.data) if has_tqdm else self.data:
+            key = self.hash_func(item)
+            done, retry, val = False, 5, None
+            while not done and retry > 0:
+                try:
+                    with env.begin(write=True) as txn:
+                        with txn.cursor() as cursor:
+                            done = cursor.set_key(key)
+                            if done:
+                                continue
+                        if val is None:
+                            val = self._pre_transform(deepcopy(item))  # keep the original hashed
+                            val = pickle.dumps(val, protocol=self.pickle_protocol)
+                        txn.put(key, val)
+                    done = True
+                except lmdb.MapFullError:
+                    done, retry = False, retry - 1
+                    size = env.info()["map_size"]
+                    new_size = size * 2
+                    warnings.warn(f"Resizing the cache database from {int(size) >> 20}MB to {int(new_size) >> 20}MB.")
+                    env.set_mapsize(new_size)
+            if not done:  # still has the map full error
+                size = env.info()["map_size"]
+                env.close()
+                raise ValueError(f"LMDB map size reached, increase size above current size of {size}.")
+        size = env.info()["map_size"]
+        env.close()
+        # read-only database env
+        self.lmdb_kwargs["readonly"] = True
+        self.lmdb_kwargs["map_size"] = size
+        if self.lmdb_kwargs.get("lock", None) is None:
+            self.lmdb_kwargs["lock"] = False
+        if self.lmdb_kwargs.get("readahead", None) is None:
+            self.lmdb_kwargs["readahead"] = False
+        return lmdb.open(path=f"{self.db_file}", subdir=False, **self.lmdb_kwargs)
+
+    def _cachecheck(self, item_transformed):
+        """
+        if the item is not found in the lmdb file, resolves to the persistent cache default behaviour.
+
+        """
+        if self._read_env is None:
+            self._read_env = self._fill_cache_start_reader()
+        with self._read_env.begin(write=False) as txn:
+            data = txn.get(self.hash_func(item_transformed))
+        if data is None:
+            warnings.warn("LMDBDataset: cache key not found, running fallback caching.")
+            return super()._cachecheck(item_transformed)
+        try:
+            return pickle.loads(data)
+        except Exception as err:
+            raise RuntimeError("Invalid cache value, corrupted lmdb file?") from err
+
+    def info(self):
+        """
+        Returns: dataset info dictionary.
+
+        """
+        if self._read_env is None:
+            self._read_env = self._fill_cache_start_reader()
+        out = dict(self._read_env.info())
+        out["size"] = len(self.data)
+        out["filename"] = f"{self.db_file.absolute()}"
+        return out
 
 
 class CacheDataset(Dataset):
@@ -259,7 +458,7 @@ class CacheDataset(Dataset):
         transform: Union[Sequence[Callable], Callable],
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
-        num_workers: int = 0,
+        num_workers: Optional[int] = None,
     ) -> None:
         """
         Args:
@@ -269,79 +468,52 @@ class CacheDataset(Dataset):
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
             cache_rate: percentage of cached data in total, default is 1.0 (cache all).
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
-            num_workers: the number of worker threads to use.
-                If 0 a single thread will be used. Default is 0.
+            num_workers: the number of worker processes to use.
+                If num_workers is None then the number returned by os.cpu_count() is used.
         """
-        if not isinstance(transform, Compose):
-            transform = Compose(transform)
-        super().__init__(data, transform)
-        self.cache_num = min(cache_num, int(len(data) * cache_rate), len(data))
-        if self.cache_num > 0:
-            self._cache = [None] * self.cache_num
+        super().__init__(data=data, transform=transform if isinstance(transform, Compose) else Compose(transform))
+        self.cache_num = min(int(cache_num), int(len(data) * cache_rate), len(data))
+        self.num_workers = num_workers
+        if self.num_workers is not None:
+            self.num_workers = max(int(self.num_workers), 1)
+        self._cache: List = self._fill_cache()
+
+    def _fill_cache(self) -> List:
+        if self.cache_num <= 0:
+            return []
+        if not has_tqdm:
+            warnings.warn("tqdm is not installed, will not show the caching progress bar.")
+        with ThreadPool(self.num_workers) as p:
             if has_tqdm:
-                pbar = tqdm(total=self.cache_num, desc="Load and cache transformed data")
-            else:
-                warnings.warn("tqdm is not installed, will not show the caching progress bar.")
-                pbar = None
+                return list(tqdm(p.imap(self._load_cache_item, range(self.cache_num)), total=self.cache_num))
+            return list(p.imap(self._load_cache_item, range(self.cache_num)))
 
-            if num_workers > 0:
-                self._item_processed = 0
-                self._thread_lock = threading.Lock()
-                with ThreadPool(num_workers) as p:
-                    p.map(
-                        self._load_cache_item_thread,
-                        [(i, data[i], transform.transforms, pbar) for i in range(self.cache_num)],
-                    )
-            else:
-                for i in range(self.cache_num):
-                    self._cache[i] = self._load_cache_item(data[i], transform.transforms)
-                    if pbar is not None:
-                        pbar.update(1)
-            if pbar is not None:
-                pbar.close()
-
-    def _load_cache_item(self, item: Any, transforms: Sequence[Callable]):
+    def _load_cache_item(self, idx: int):
         """
         Args:
-            item: input item to load and transform to generate dataset for model.
-            transforms: transforms to execute operations on input item.
+            idx: the index of the input data sequence.
         """
-        for _transform in transforms:
+        item = self.data[idx]
+        for _transform in self.transform.transforms:  # type: ignore
             # execute all the deterministic transforms
             if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
                 break
             item = apply_transform(_transform, item)
         return item
 
-    def _load_cache_item_thread(self, args: Any) -> None:
-        """
-        Args:
-            args: tuple with contents (i, item, transforms, pbar).
-                i: the index to load the cached item to.
-                item: input item to load and transform to generate dataset for model.
-                transforms: transforms to execute operations on input item.
-                pbar: tqdm progress bar
-        """
-        i, item, transforms, pbar = args
-        self._cache[i] = self._load_cache_item(item, transforms)
-        if pbar is not None:
-            with self._thread_lock:
-                pbar.update(1)
-
     def __getitem__(self, index):
-        if index < self.cache_num:
-            # load data from cache and execute from the first random transform
-            start_run = False
-            data = self._cache[index]
-            for _transform in self.transform.transforms:  # pytype: disable=attribute-error
-                if not start_run and not isinstance(_transform, Randomizable) and isinstance(_transform, Transform):
-                    continue
-                else:
-                    start_run = True
+        if index >= self.cache_num:
+            # no cache for this index, execute all the transforms directly
+            return super(CacheDataset, self).__getitem__(index)
+        # load data from cache and execute from the first random transform
+        start_run = False
+        if self._cache is None:
+            self._cache = self._fill_cache()
+        data = self._cache[index]
+        for _transform in self.transform.transforms:  # pytype: disable=attribute-error
+            if start_run or isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
+                start_run = True
                 data = apply_transform(_transform, data)
-        else:
-            # no cache for this data, execute all the transforms directly
-            data = super(CacheDataset, self).__getitem__(index)
         return data
 
 
@@ -385,7 +557,7 @@ class SmartCacheDataset(CacheDataset):
         replace_rate: float,
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
-        num_init_workers: int = 0,
+        num_init_workers: Optional[int] = None,
         num_replace_workers: int = 0,
     ) -> None:
         """
@@ -398,11 +570,13 @@ class SmartCacheDataset(CacheDataset):
             cache_rate: percentage of cached data in total, default is 1.0 (cache all).
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
             num_init_workers: the number of worker threads to initialize the cache for first epoch.
-                if 0, run in main thread, no separate thread will open.
+                If num_init_workers is None then the number returned by os.cpu_count() is used.
             num_replace_workers: the number of worker threads to prepare the replacement cache for every epoch.
                 if 0, run in main thread, no separate thread will open.
         """
         super().__init__(data, transform, cache_num, cache_rate, num_init_workers)
+        if self._cache is None:
+            self._cache = self._fill_cache()
         if self.cache_num >= len(data):
             raise ValueError("cache_num must be smaller than dataset length to support replacement.")
         if replace_rate <= 0:
@@ -465,25 +639,25 @@ class SmartCacheDataset(CacheDataset):
 
         """
         with self._update_lock:
-            if self._replace_done:
-                remain_num: int = self.cache_num - self._replace_num
-                for i in range(remain_num):
-                    self._cache[i] = self._cache[i + self._replace_num]
-                for i in range(self._replace_num):
-                    self._cache[remain_num + i] = self._replacements[i]
-
-                self._start_pos += self._replace_num
-                if self._start_pos >= self._total_num:
-                    self._start_pos -= self._total_num
-
-                self._compute_data_idx()
-
-                # ready for next round
-                self._round += 1
-                self._replace_done = False
-                return True
-            else:
+            if not self._replace_done:
                 return False
+
+            remain_num: int = self.cache_num - self._replace_num
+            for i in range(remain_num):
+                self._cache[i] = self._cache[i + self._replace_num]
+            for i in range(self._replace_num):
+                self._cache[remain_num + i] = self._replacements[i]
+
+            self._start_pos += self._replace_num
+            if self._start_pos >= self._total_num:
+                self._start_pos -= self._total_num
+
+            self._compute_data_idx()
+
+            # ready for next round
+            self._round += 1
+            self._replace_done = False
+            return True
 
     def update_cache(self):
         """
@@ -530,7 +704,7 @@ class SmartCacheDataset(CacheDataset):
 
         """
         pos: int = self._replace_data_idx[index]
-        self._replacements[index] = self._load_cache_item(self.data[pos], self.transform.transforms)  # type: ignore
+        self._replacements[index] = self._load_cache_item(pos)
 
     def _compute_replacements(self):
         """
