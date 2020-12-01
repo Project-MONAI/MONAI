@@ -790,7 +790,7 @@ class RandZoom(Randomizable, Transform):
         self.keep_size = keep_size
 
         self._do_transform = False
-        self._zoom: Union[List[float], float] = 1.0
+        self._zoom: Sequence[float] = [1.0]
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self._do_transform = self.R.random_sample() < self.prob
@@ -824,7 +824,7 @@ class RandZoom(Randomizable, Transform):
             return img.astype(_dtype)
         if len(self._zoom) == 1:
             # to keep the spatial shape ratio, use same random zoom factor for all dims
-            self._zoom = self._zoom[0]
+            self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 1)
         elif len(self._zoom) == 2 and img.ndim > 3:
             # if 2 zoom factors provided for 3D data, use the first factor for H and W dims, second factor for D dim
             self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 2) + ensure_tuple(self._zoom[-1])
