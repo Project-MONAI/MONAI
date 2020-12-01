@@ -16,6 +16,7 @@ from .dataset import (
     CacheDataset,
     CacheNTransDataset,
     Dataset,
+    IterableDataset,
     LMDBDataset,
     PersistentDataset,
     SmartCacheDataset,

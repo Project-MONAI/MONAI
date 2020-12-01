@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence, Union
 
 import torch
 from torch.utils.data import Dataset as _TorchDataset
+from torch.utils.data import IterableDataset as _TorchIterableDataset
 
 from monai.data.utils import pickle_hashing
 from monai.transforms import Compose, Randomizable, Transform, apply_transform
@@ -65,6 +66,36 @@ class Dataset(_TorchDataset):
 
     def __getitem__(self, index: int):
         data = self.data[index]
+        if self.transform is not None:
+            data = apply_transform(self.transform, data)
+
+        return data
+
+
+class IterableDataset(_TorchIterableDataset):
+    """
+    A generic dataset for iterable data source and an optional callable data transform
+    when fetching a data sample.
+    For example, typical input data can be web data stream which can support multi-process access.
+
+    Note that when used with `DataLoader` and `num_workers > 0`, each worker process will have a
+    different copy of the dataset object, need to guarantee process-safe from data source or DataLoader.
+
+    """
+    def __init__(self, data: Sequence, transform: Optional[Callable] = None) -> None:
+        """
+        Args:
+            data: input data source to load and transform to generate dataset for model.
+            transform: a callable data transform on input data.
+        """
+        self.data = iter(data)
+        self.transform = transform
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        data = next(self.data)
         if self.transform is not None:
             data = apply_transform(self.transform, data)
 
