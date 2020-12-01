@@ -40,9 +40,9 @@ class TestIterableDataset(unittest.TestCase):
             )
 
             class _Stream:
-                def __init__(self, data):
+                def __init__(self, data, dbpath):
                     # simulate a database at the website
-                    self.dbpath = os.path.join(tempdir, "countDB")
+                    self.dbpath = dbpath
                     self.reset()
                     self.data = data
 
@@ -69,7 +69,7 @@ class TestIterableDataset(unittest.TestCase):
                     with open(self.dbpath, "w") as f:
                         json.dump({"count": 6}, f)
 
-            test_stream = _Stream(data=test_data)
+            test_stream = _Stream(data=test_data, dbpath=os.path.join(tempdir, "countDB"))
 
             dataset = IterableDataset(data=test_stream, transform=test_transform)
             for d in dataset:
