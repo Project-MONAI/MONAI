@@ -97,7 +97,7 @@ class ModelWithHooks:
     def class_score(self, logits, class_idx=None):
         if class_idx is not None:
             return logits[:, class_idx].squeeze(), class_idx
-        class_idx = logits.argmax(1)
+        class_idx = logits.max(1)[-1]
         return logits[:, class_idx].squeeze(), class_idx
 
     def __call__(self, x, class_idx=None, retain_graph=False):
@@ -203,7 +203,7 @@ class CAM:
         logits, acti, _ = self.net(x)
         acti = acti[layer_idx]
         if class_idx is None:
-            class_idx = torch.argmax(logits, dim=1)
+            class_idx = logits.max(1)[-1]
         b, c, *spatial = acti.shape
         acti = torch.split(acti.reshape(b, c, -1), 1, dim=2)  # make the spatial dims 1D
         fc_layers = self.net.get_layer(self.fc_layers)
