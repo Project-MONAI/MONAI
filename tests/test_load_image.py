@@ -136,7 +136,7 @@ class TestLoadImage(unittest.TestCase):
             filename = os.path.join(tempdir, "test_image.png")
             itk_np_view = itk.image_view_from_array(test_image, is_vector=True)
             itk.imwrite(itk_np_view, filename)
-            result, header = LoadImage()(filename)
+            result, header = LoadImage(reader=ITKReader())(filename)
 
             self.assertTupleEqual(tuple(header["spatial_shape"]), (256, 256))
             np.testing.assert_allclose(result[0, :, :], test_image[:, :, 0])

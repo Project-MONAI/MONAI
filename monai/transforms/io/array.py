@@ -146,7 +146,7 @@ class LoadNifti(Transform):
             - header['affine'] stores the affine of the image.
             - header['original_affine'] will be additionally created to store the original affine.
         """
-        warnings.warn(f"LoadNifti will be deprecated in v0.5, please use LoadImage instead.", DeprecationWarning)
+        warnings.warn("LoadNifti will be deprecated in v0.5, please use LoadImage instead.", DeprecationWarning)
         self.as_closest_canonical = as_closest_canonical
         self.image_only = image_only
         self.dtype = dtype
@@ -216,7 +216,7 @@ class LoadPNG(Transform):
             image_only: if True return only the image volume, otherwise return image data array and metadata.
             dtype: if not None convert the loaded image to this data type.
         """
-        warnings.warn(f"LoadPNG will be deprecated in v0.5, please use LoadImage instead.", DeprecationWarning)
+        warnings.warn("LoadPNG will be deprecated in v0.5, please use LoadImage instead.", DeprecationWarning)
         self.image_only = image_only
         self.dtype = dtype
 
@@ -279,7 +279,7 @@ class LoadNumpy(Transform):
                 stack the loaded items together to construct a new first dimension.
 
         """
-        warnings.warn(f"LoadNumpy will be deprecated in v0.5, please use LoadImage instead.", DeprecationWarning)
+        warnings.warn("LoadNumpy will be deprecated in v0.5, please use LoadImage instead.", DeprecationWarning)
         self.data_only = data_only
         self.dtype = dtype
         if npz_keys is not None:
