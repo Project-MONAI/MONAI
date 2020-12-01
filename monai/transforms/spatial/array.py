@@ -751,10 +751,12 @@ class RandZoom(Randomizable, Transform):
             If a float, select a random factor from `[min_zoom, max_zoom]` then apply to all spatial dims
             to keep the original spatial shape ratio.
             If a sequence, min_zoom should contain one value for each spatial axis.
+            If 2 values provided for 3D data, use the first value for both H & W dims to keep the same zoom ratio.
         max_zoom: Max zoom factor. Can be float or sequence same size as image.
             If a float, select a random factor from `[min_zoom, max_zoom]` then apply to all spatial dims
             to keep the original spatial shape ratio.
             If a sequence, max_zoom should contain one value for each spatial axis.
+            If 2 values provided for 3D data, use the first value for both H & W dims to keep the same zoom ratio.
         mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
@@ -788,14 +790,11 @@ class RandZoom(Randomizable, Transform):
         self.keep_size = keep_size
 
         self._do_transform = False
-        self._zoom: Union[List[float], float] = 1.0
+        self._zoom: Sequence[float] = [1.0]
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self._do_transform = self.R.random_sample() < self.prob
         self._zoom = [self.R.uniform(l, h) for l, h in zip(self.min_zoom, self.max_zoom)]
-        if len(self._zoom) == 1:
-            # to keep the spatial shape ratio, use same random zoom factor for all dims
-            self._zoom = self._zoom[0]
 
     def __call__(
         self,
@@ -823,6 +822,12 @@ class RandZoom(Randomizable, Transform):
         _dtype = np.float32
         if not self._do_transform:
             return img.astype(_dtype)
+        if len(self._zoom) == 1:
+            # to keep the spatial shape ratio, use same random zoom factor for all dims
+            self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 1)
+        elif len(self._zoom) == 2 and img.ndim > 3:
+            # if 2 zoom factors provided for 3D data, use the first factor for H and W dims, second factor for D dim
+            self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 2) + ensure_tuple(self._zoom[-1])
         zoomer = Zoom(self._zoom, keep_size=self.keep_size)
         return zoomer(
             img,
