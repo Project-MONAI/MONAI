@@ -77,6 +77,9 @@ class LoadImage(Transform):
                 if reader not in supported_readers:
                     raise ValueError(f"unsupported reader type: {reader}.")
                 reader = supported_readers[reader](*args, **kwargs)
+
+            if not isinstance(reader, ImageReader):
+                raise ValueError(f"reader must be ImageReader object, but got {type(reader)}.")
             self.readers.append(reader)
 
         self.image_only = image_only
