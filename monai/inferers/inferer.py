@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from abc import ABC, abstractmethod
-from typing import Sequence, Union
+from typing import Any, Callable, Sequence, Union
 
 import torch
 
@@ -25,13 +25,21 @@ class Inferer(ABC):
     """
 
     @abstractmethod
-    def __call__(self, inputs: torch.Tensor, network: torch.nn.Module):
+    def __call__(
+        self,
+        inputs: torch.Tensor,
+        network: Callable[..., torch.Tensor],
+        *args: Any,
+        **kwargs: Any,
+    ):
         """
         Run inference on `inputs` with the `network` model.
 
         Args:
             inputs: input of the model inference.
             network: model for inference.
+            args: optional args to be passed to ``network``.
+            kwargs: optional keyword args to be passed to ``network``.
 
         Raises:
             NotImplementedError: When the subclass does not override this method.
@@ -49,15 +57,24 @@ class SimpleInferer(Inferer):
     def __init__(self) -> None:
         Inferer.__init__(self)
 
-    def __call__(self, inputs: torch.Tensor, network: torch.nn.Module):
+    def __call__(
+        self,
+        inputs: torch.Tensor,
+        network: Callable[..., torch.Tensor],
+        *args: Any,
+        **kwargs: Any,
+    ):
         """Unified callable function API of Inferers.
 
         Args:
             inputs: model input data for inference.
             network: target model to execute inference.
+                supports callables such as ``lambda x: my_torch_model(x, additional_config)``
+            args: optional args to be passed to ``network``.
+            kwargs: optional keyword args to be passed to ``network``.
 
         """
-        return network(inputs)
+        return network(inputs, *args, **kwargs)
 
 
 class SlidingWindowInferer(Inferer):
@@ -87,7 +104,13 @@ class SlidingWindowInferer(Inferer):
             Padding mode when ``roi_size`` is larger than inputs. Defaults to ``"constant"``
             See also: https://pytorch.org/docs/stable/nn.functional.html#pad
         cval: fill value for 'constant' padding mode. Default: 0
-
+        sw_device: device for the window data.
+            By default the device (and accordingly the memory) of the `inputs` is used.
+            Normally `sw_device` should be consistent with the device where `predictor` is defined.
+        device: device for the stitched output prediction.
+            By default the device (and accordingly the memory) of the `inputs` is used. If for example
+            set to device=torch.device('cpu') the gpu memory consumption is less and independent of the
+            `inputs` and `roi_size`. Output is on the `device`.
 
     Note:
         ``sw_batch_size`` denotes the max number of windows per network inference iteration,
@@ -104,6 +127,8 @@ class SlidingWindowInferer(Inferer):
         sigma_scale: Union[Sequence[float], float] = 0.125,
         padding_mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
         cval: float = 0.0,
+        sw_device: Union[torch.device, str, None] = None,
+        device: Union[torch.device, str, None] = None,
     ) -> None:
         Inferer.__init__(self)
         self.roi_size = roi_size
@@ -113,24 +138,38 @@ class SlidingWindowInferer(Inferer):
         self.sigma_scale = sigma_scale
         self.padding_mode = padding_mode
         self.cval = cval
+        self.sw_device = sw_device
+        self.device = device
 
-    def __call__(self, inputs: torch.Tensor, network: torch.nn.Module) -> torch.Tensor:
+    def __call__(
+        self,
+        inputs: torch.Tensor,
+        network: Callable[..., torch.Tensor],
+        *args: Any,
+        **kwargs: Any,
+    ) -> torch.Tensor:
         """
-        Unified callable function API of Inferers.
 
         Args:
             inputs: model input data for inference.
             network: target model to execute inference.
+                supports callables such as ``lambda x: my_torch_model(x, additional_config)``
+            args: optional args to be passed to ``network``.
+            kwargs: optional keyword args to be passed to ``network``.
 
         """
         return sliding_window_inference(
-            inputs=inputs,
-            roi_size=self.roi_size,
-            sw_batch_size=self.sw_batch_size,
-            predictor=network,
-            overlap=self.overlap,
-            mode=self.mode,
-            sigma_scale=self.sigma_scale,
-            padding_mode=self.padding_mode,
-            cval=self.cval,
+            inputs,
+            self.roi_size,
+            self.sw_batch_size,
+            network,
+            self.overlap,
+            self.mode,
+            self.sigma_scale,
+            self.padding_mode,
+            self.cval,
+            self.sw_device,
+            self.device,
+            *args,
+            **kwargs,
         )
