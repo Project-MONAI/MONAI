@@ -82,6 +82,7 @@ class IterableDataset(_TorchIterableDataset):
     different copy of the dataset object, need to guarantee process-safe from data source or DataLoader.
 
     """
+
     def __init__(self, data: Sequence, transform: Optional[Callable] = None) -> None:
         """
         Args:

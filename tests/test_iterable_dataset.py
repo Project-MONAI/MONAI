@@ -9,15 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import json
+import os
 import tempfile
 import unittest
 from multiprocessing import Lock
+
 import nibabel as nib
 import numpy as np
 
-from monai.data import IterableDataset, DataLoader
+from monai.data import DataLoader, IterableDataset
 from monai.transforms import Compose, LoadNiftid, SimulateDelayd
 
 
@@ -61,7 +62,7 @@ class TestIterableDataset(unittest.TestCase):
                     lock.release()
 
                     if count == 0:
-                        raise StopIteration 
+                        raise StopIteration
                     return data
 
                 def reset(self):
