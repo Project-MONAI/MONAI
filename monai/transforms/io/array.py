@@ -68,9 +68,15 @@ class LoadImage(Transform):
         self.readers: List[ImageReader] = list()
         if reader is not None:
             if isinstance(reader, str):
-                reader = eval(reader + "(*args, **kwargs)")
-            if not isinstance(reader, (NibabelReader, PILReader, ITKReader, NumpyReader)):
-                raise ValueError(f"unsupported reader type: {type(reader)}.")
+                supported_readers = {
+                    "NibabelReader": NibabelReader,
+                    "PILReader": PILReader,
+                    "ITKReader": ITKReader,
+                    "NumpyReader": NumpyReader,
+                }
+                if reader not in supported_readers:
+                    raise ValueError(f"unsupported reader type: {reader}.")
+                reader = supported_readers[reader](*args, **kwargs)
             self.readers.append(reader)
 
         self.image_only = image_only
