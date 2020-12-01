@@ -16,39 +16,43 @@ from parameterized import parameterized
 
 from monai.transforms import ResizeWithPadOrCrop
 
-TEST_CASE_1 = [
-    {"spatial_size": [15, 8, 8], "mode": "constant"},
-    np.zeros((3, 8, 8, 4)),
-    np.zeros((3, 15, 8, 8)),
-]
-
-TEST_CASE_2 = [
-    {"spatial_size": [15, 4, 8], "mode": "constant"},
-    np.zeros((3, 8, 8, 4)),
-    np.zeros((3, 15, 4, 8)),
-]
-
-TEST_CASE_3 = [
-    {"spatial_size": [15, 4, -1], "mode": "constant"},
-    np.zeros((3, 8, 8, 4)),
-    np.zeros((3, 15, 4, 4)),
-]
-
-TEST_CASE_4 = [
-    {"spatial_size": [15, 4, -1], "mode": "reflect"},
-    np.zeros((3, 8, 8, 4)),
-    np.zeros((3, 15, 4, 4)),
+TEST_CASES = [
+    [
+        {"spatial_size": [15, 8, 8], "mode": "constant"},
+        (3, 8, 8, 4),
+        (3, 15, 8, 8),
+    ],
+    [
+        {"spatial_size": [15, 4, 8], "mode": "constant"},
+        (3, 8, 8, 4),
+        (3, 15, 4, 8),
+    ],
+    [
+        {"spatial_size": [15, 4, -1], "mode": "constant"},
+        (3, 8, 8, 4),
+        (3, 15, 4, 4),
+    ],
+    [
+        {"spatial_size": [15, 4, -1], "mode": "reflect"},
+        (3, 8, 8, 4),
+        (3, 15, 4, 4),
+    ],
+    [
+        {"spatial_size": [-1, -1, -1], "mode": "reflect"},
+        (3, 8, 8, 4),
+        (3, 8, 8, 4),
+    ],
 ]
 
 
 class TestResizeWithPadOrCrop(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
-    def test_pad_shape(self, input_param, input_data, expected_val):
+    @parameterized.expand(TEST_CASES)
+    def test_pad_shape(self, input_param, input_shape, expected_shape):
         paddcroper = ResizeWithPadOrCrop(**input_param)
-        result = paddcroper(input_data)
-        np.testing.assert_allclose(result.shape, expected_val.shape)
-        result = paddcroper(input_data, mode="constant")
-        np.testing.assert_allclose(result.shape, expected_val.shape)
+        result = paddcroper(np.zeros(input_shape))
+        np.testing.assert_allclose(result.shape, expected_shape)
+        result = paddcroper(np.zeros(input_shape), mode="constant")
+        np.testing.assert_allclose(result.shape, expected_shape)
 
 
 if __name__ == "__main__":

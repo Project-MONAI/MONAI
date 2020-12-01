@@ -9,11 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Union
+
 import torch.nn as nn
 
 from monai.networks.blocks.convolutions import Convolution
 from monai.networks.blocks.upsample import UpSample
 from monai.networks.layers.factories import Act, Norm
+from monai.utils import InterpolateMode, UpsampleMode
 
 
 def get_norm_layer(spatial_dims: int, in_channels: int, norm_name: str, num_groups: int = 8):
@@ -46,19 +49,18 @@ def get_conv_layer(
     )
 
 
-def get_upsample_layer(spatial_dims: int, in_channels: int, upsample_mode: str = "trilinear", scale_factor: int = 2):
-    up_module: nn.Module
-    if upsample_mode == "transpose":
-        up_module = UpSample(
-            spatial_dims,
-            in_channels,
-            scale_factor=scale_factor,
-            with_conv=True,
-        )
-    else:
-        upsample_mode = "bilinear" if spatial_dims == 2 else "trilinear"
-        up_module = nn.Upsample(scale_factor=scale_factor, mode=upsample_mode, align_corners=False)
-    return up_module
+def get_upsample_layer(
+    spatial_dims: int, in_channels: int, upsample_mode: Union[UpsampleMode, str] = "nontrainable", scale_factor: int = 2
+):
+    return UpSample(
+        dimensions=spatial_dims,
+        in_channels=in_channels,
+        out_channels=in_channels,
+        scale_factor=scale_factor,
+        mode=upsample_mode,
+        interp_mode=InterpolateMode.LINEAR,
+        align_corners=False,
+    )
 
 
 class ResBlock(nn.Module):

@@ -87,6 +87,12 @@ Crop and Pad
     :members:
     :special-members: __call__
 
+`RandWeightedCrop`
+""""""""""""""""""
+.. autoclass:: RandWeightedCrop
+    :members:
+    :special-members: __call__
+
 `RandCropByPosNegLabel`
 """""""""""""""""""""""
 .. autoclass:: RandCropByPosNegLabel
@@ -233,12 +239,6 @@ IO
 
 Post-processing
 ^^^^^^^^^^^^^^^
-
-`SplitChannel`
-""""""""""""""
-.. autoclass:: SplitChannel
-    :members:
-    :special-members: __call__
 
 `Activations`
 """""""""""""
@@ -426,6 +426,12 @@ Utility
     :members:
     :special-members: __call__
 
+`SplitChannel`
+""""""""""""""
+.. autoclass:: SplitChannel
+    :members:
+    :special-members: __call__
+
 `CastToType`
 """"""""""""
 .. autoclass:: CastToType
@@ -537,6 +543,12 @@ Crop and Pad (Dict)
 `CropForegroundd`
 """""""""""""""""
 .. autoclass:: CropForegroundd
+    :members:
+    :special-members: __call__
+
+`RandWeightedCropd`
+"""""""""""""""""""
+.. autoclass:: RandWeightedCropd
     :members:
     :special-members: __call__
 
@@ -692,12 +704,6 @@ IO (Dict)
 
 Post-processing (Dict)
 ^^^^^^^^^^^^^^^^^^^^^^
-
-`SplitChanneld`
-"""""""""""""""
-.. autoclass:: SplitChanneld
-    :members:
-    :special-members: __call__
 
 `Activationsd`
 """"""""""""""
@@ -861,6 +867,12 @@ Utility (Dict)
     :members:
     :special-members: __call__
 
+`SplitChanneld`
+"""""""""""""""
+.. autoclass:: SplitChanneld
+    :members:
+    :special-members: __call__
+
 `CastToTyped`
 """""""""""""
 .. autoclass:: CastToTyped
@@ -882,6 +894,12 @@ Utility (Dict)
 `DeleteItemsd`
 """"""""""""""
 .. autoclass:: DeleteItemsd
+    :members:
+    :special-members: __call__
+
+`SelectItemsd`
+""""""""""""""
+.. autoclass:: SelectItemsd
     :members:
     :special-members: __call__
 
