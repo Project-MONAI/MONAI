@@ -83,7 +83,7 @@ class TestClassActivationMap(unittest.TestCase):
         cam = CAM(nn_module=model, target_layers=input_data["target_layers"], fc_layers=input_data["fc_layers"])
         image = torch.rand(input_data["shape"], device=device)
         result = cam(x=image, layer_idx=-1)
-        fea_shape = cam.feature_map_size(input_data["shape"])
+        fea_shape = cam.feature_map_size(input_data["shape"], device=device)
         self.assertTupleEqual(fea_shape, input_data["feature_shape"])
         self.assertTupleEqual(result.shape, expected_shape)
 

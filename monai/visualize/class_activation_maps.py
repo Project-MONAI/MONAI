@@ -19,7 +19,7 @@ import torch.nn.functional as F
 from monai.transforms import ScaleIntensity
 from monai.utils import InterpolateMode, ensure_tuple
 
-__all__ = ["ModelWithHooks", "default_upsampler", "default_normalizer", "CAM", "GradCAM"]
+__all__ = ["ModelWithHooks", "default_upsampler", "default_normalizer", "CAM", "GradCAM", "GradCAMpp"]
 
 
 class ModelWithHooks:
@@ -345,3 +345,34 @@ class GradCAM:
         if self.postprocessing:
             acti_map = self.postprocessing(acti_map)
         return acti_map
+
+
+class GradCAMpp(GradCAM):
+    """
+    Computes Gradient-weighted Class Activation Mapping (Grad-CAM++).
+    This implementation is based on:
+
+        Chattopadhyay et al., Grad-CAM++: Improved Visual Explanations for Deep Convolutional Networks,
+        https://arxiv.org/abs/1710.11063
+
+    See Also:
+
+        - :py:class:`monai.visualize.class_activation_maps.GradCAM`
+
+    """
+
+    def compute_map(self, x, class_idx=None, retain_graph=False, layer_idx=-1):
+        """
+        Compute the actual feature map with input tensor `x`.
+        """
+        logits, acti, grad = self.net(x, class_idx=class_idx, retain_graph=retain_graph)
+        acti, grad = acti[layer_idx], grad[layer_idx]
+        b, c, *spatial = grad.shape
+        alpha_nr = grad.pow(2)
+        alpha_dr = alpha_nr.mul(2) + acti.mul(grad.pow(3)).view(b, c, -1).sum(-1).view(b, c, *[1] * len(spatial))
+        alpha_dr = torch.where(alpha_dr != 0.0, alpha_dr, torch.ones_like(alpha_dr))
+        alpha = alpha_nr.div(alpha_dr + 1e-7)
+        relu_grad = F.relu(self.net.score.exp() * grad)
+        weights = (alpha * relu_grad).view(b, c, -1).sum(-1).view(b, c, *[1] * len(spatial))
+        acti_map = (weights * acti).sum(1, keepdim=True)
+        return F.relu(acti_map)

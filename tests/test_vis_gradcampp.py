@@ -15,7 +15,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.nets import DenseNet, densenet121, se_resnet50
-from monai.visualize import GradCAM
+from monai.visualize import GradCAMpp
 
 # 2D
 TEST_CASE_0 = [
@@ -60,7 +60,7 @@ TEST_CASE_3 = [
 ]
 
 
-class TestGradientClassActivationMap(unittest.TestCase):
+class TestGradientClassActivationMapPP(unittest.TestCase):
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_shape(self, input_data, expected_shape):
         if input_data["model"] == "densenet2d":
@@ -76,7 +76,7 @@ class TestGradientClassActivationMap(unittest.TestCase):
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
         model.to(device)
         model.eval()
-        cam = GradCAM(nn_module=model, target_layers=input_data["target_layers"])
+        cam = GradCAMpp(nn_module=model, target_layers=input_data["target_layers"])
         image = torch.rand(input_data["shape"], device=device)
         result = cam(x=image, layer_idx=-1)
         fea_shape = cam.feature_map_size(input_data["shape"], device=device)
