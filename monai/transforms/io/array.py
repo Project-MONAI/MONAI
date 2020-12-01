@@ -15,12 +15,12 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Union
-
+import warnings
 import numpy as np
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
 
 from monai.config import KeysCollection
-from monai.data.image_reader import ImageReader, ITKReader
+from monai.data.image_reader import ImageReader, NibabelReader, PILReader, ITKReader, NumpyReader
 from monai.data.utils import correct_nifti_header_if_necessary
 from monai.transforms.compose import Transform
 from monai.utils import ensure_tuple, optional_import
@@ -31,38 +31,47 @@ Image, _ = optional_import("PIL.Image")
 
 class LoadImage(Transform):
     """
-    Load image file or files from provided path based on reader, default reader is ITK.
-    All the supported image formats of ITK:
-    https://github.com/InsightSoftwareConsortium/ITK/tree/master/Modules/IO
+    Load image file or files from provided path based on reader, default reader is Nibabel.
     Automatically choose readers based on the supported suffixes and in below order:
     - User specified reader at runtime when call this loader.
     - Registered readers from the first to the last in list.
-    - Default ITK reader.
+    - Default Nibabel reader.
 
     """
 
     def __init__(
         self,
-        reader: Optional[ImageReader] = None,
+        reader: Optional[Union[ImageReader, str]] = None,
         image_only: bool = False,
         dtype: np.dtype = np.float32,
+        *args,
+        **kwargs,
     ) -> None:
         """
         Args:
             reader: register reader to load image file and meta data, if None, still can register readers
-                at runtime or use the default ITK reader.
+                at runtime or use the default NIbabel reader. If a string of reader name provided, will construct
+                a reader object with the `*args` and `**kwargs` parameters, supported reader name: "NibabelReader",
+                "PILReader", "ITKReader", "NumpyReader"
             image_only: if True return only the image volume, otherwise return image data array and header dict.
             dtype: if not None convert the loaded image to this data type.
+            args: additional parameters for reader if providing a reader name.
+            kwargs: additional parameters for reader if providing a reader name.
 
         Note:
             The transform returns image data array if `image_only` is True,
             or a tuple of two elements containing the data array, and the meta data in a dict format otherwise.
 
         """
-        self.default_reader: ITKReader = ITKReader()
+        self.default_reader: NibabelReader = NibabelReader()
         self.readers: List[ImageReader] = list()
         if reader is not None:
+            if isinstance(reader, str):
+                reader = eval(reader + "(*args, **kwargs)")
+            if not isinstance(reader, (NibabelReader, PILReader, ITKReader, NumpyReader)):
+                raise ValueError(f"unsupported reader type: {type(reader)}.")
             self.readers.append(reader)
+
         self.image_only = image_only
         self.dtype = dtype
 
@@ -73,7 +82,7 @@ class LoadImage(Transform):
 
         Args:
             reader: registered reader to load image file and meta data based on suffix,
-                if all registered readers can't match suffix at runtime, use the default ITK reader.
+                if all registered readers can't match suffix at runtime, use the default Nibabel reader.
 
         """
         self.readers.append(reader)
@@ -136,6 +145,7 @@ class LoadNifti(Transform):
             - header['affine'] stores the affine of the image.
             - header['original_affine'] will be additionally created to store the original affine.
         """
+        warnings.warn(f"LoadNifti will be deprecated in v0.5, please use LoadImage instead.", DeprecationWarning)
         self.as_closest_canonical = as_closest_canonical
         self.image_only = image_only
         self.dtype = dtype
@@ -205,6 +215,7 @@ class LoadPNG(Transform):
             image_only: if True return only the image volume, otherwise return image data array and metadata.
             dtype: if not None convert the loaded image to this data type.
         """
+        warnings.warn(f"LoadPNG will be deprecated in v0.5, please use LoadImage instead.", DeprecationWarning)
         self.image_only = image_only
         self.dtype = dtype
 
@@ -268,6 +279,7 @@ class LoadNumpy(Transform):
                 stack the loaded items together to construct a new first dimension.
 
         """
+        warnings.warn(f"LoadNumpy will be deprecated in v0.5, please use LoadImage instead.", DeprecationWarning)
         self.data_only = data_only
         self.dtype = dtype
         if npz_keys is not None:
