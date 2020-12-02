@@ -77,9 +77,9 @@ class LoadImage(Transform):
                 }
                 if reader not in supported_readers:
                     raise ValueError(f"unsupported reader type: {reader}.")
-                reader = supported_readers[reader](*args, **kwargs)
-
-            self.register(reader)
+                self.register(supported_readers[reader](*args, **kwargs))
+            else:
+                self.register(reader)
 
         self.image_only = image_only
         self.dtype = dtype
