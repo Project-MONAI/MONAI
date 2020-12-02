@@ -183,7 +183,7 @@ class TestLoadImage(unittest.TestCase):
             reader = ITKReader()
             img = reader.read(filename, fallback_only=False)
             result_raw, header_raw = reader.get_data(img)
-            self.assertListEqual(header["spatial_shape"], header_raw["spatial_shape"])
+            np.testing.assert_allclose(header["spatial_shape"], header_raw["spatial_shape"])
             self.assertTupleEqual(result.shape, result_raw.shape)
 
 

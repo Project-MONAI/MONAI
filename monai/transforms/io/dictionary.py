@@ -88,9 +88,11 @@ class LoadImaged(MapTransform):
         d = dict(data)
         for key in self.keys:
             data = self._loader(d[key], reader)
-            assert isinstance(data, (tuple, list)), "loader must return a tuple or list."
+            if not isinstance(data, (tuple, list)):
+                raise ValueError("loader must return a tuple or list.")
             d[key] = data[0]
-            assert isinstance(data[1], dict), "metadata must be a dict."
+            if not isinstance(data[1], dict):
+                raise ValueError("metadata must be a dict.")
             key_to_add = f"{key}_{self.meta_key_postfix}"
             if key_to_add in d and not self.overwriting:
                 raise KeyError(f"Meta data with key {key_to_add} already exists and overwriting=False.")

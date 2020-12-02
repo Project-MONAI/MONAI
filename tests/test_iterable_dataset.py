@@ -38,12 +38,10 @@ class _Stream:
         data = None
         # support multi-process access to the database
         lock.acquire()
-        count = 0
         with open(self.dbpath) as f:
             count = json.load(f)["count"]
-            if count > 0:
-                data = self.data[count - 1]
         if count > 0:
+            data = self.data[count - 1]
             with open(self.dbpath, "w") as f:
                 json.dump({"count": count - 1}, f)
         lock.release()

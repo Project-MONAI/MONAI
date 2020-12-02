@@ -42,5 +42,4 @@ class IterableDataset(_TorchIterableDataset):
         for data in self.source:
             if self.transform is not None:
                 data = apply_transform(self.transform, data)
-
             yield data
