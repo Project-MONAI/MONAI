@@ -79,9 +79,7 @@ class LoadImage(Transform):
                     raise ValueError(f"unsupported reader type: {reader}.")
                 reader = supported_readers[reader](*args, **kwargs)
 
-            if not isinstance(reader, ImageReader):
-                raise ValueError(f"reader must be ImageReader object, but got {type(reader)}.")
-            self.readers.append(reader)
+            self.register(reader)
 
         self.image_only = image_only
         self.dtype = dtype
@@ -96,6 +94,8 @@ class LoadImage(Transform):
                 if all registered readers can't match suffix at runtime, use the default readers.
 
         """
+        if not isinstance(reader, ImageReader):
+            raise ValueError(f"reader must be ImageReader object, but got {type(reader)}.")
         self.readers.append(reader)
         return self.readers
 
@@ -113,11 +113,10 @@ class LoadImage(Transform):
 
         """
         if reader is None or not reader.verify_suffix(filename):
-            if len(self.readers) > 0:
-                for r in reversed(self.readers):
-                    if r.verify_suffix(filename):
-                        reader = r
-                        break
+            for r in reversed(self.readers):
+                if r.verify_suffix(filename):
+                    reader = r
+                    break
 
         if reader is None:
             raise RuntimeError(f"can not find suitable reader for this file: {filename}.")
