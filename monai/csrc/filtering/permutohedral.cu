@@ -453,7 +453,7 @@ void filter_(float* values, float* positions, int elementCount, bool accurate) {
     cleanHashTable<pd><<<cleanBlocks, cleanBlockSize>>>(tableSize, matrix);
 
     // splat splits by color, so extend the y coordinate to our blocks to represent that
-    splatCache<pd, vd><<<dim3(blockCount, 1), dim3(newBblockSizelockSize, pd+1)>>>(elementCount, values, matrix);
+    splatCache<pd, vd><<<dim3(blockCount, 1), dim3(blockSize, pd+1)>>>(elementCount, values, matrix);
     
     if (accurate) 
     {
