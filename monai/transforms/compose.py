@@ -142,7 +142,7 @@ class Randomizable(ABC):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
-class Compose(Randomizable):
+class Compose(Randomizable, Transform):
     """
     ``Compose`` provides the ability to chain a series of calls together in a
     sequence. Each transform in the sequence must take a single argument and
