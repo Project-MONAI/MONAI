@@ -20,18 +20,18 @@ from parameterized import parameterized
 from torch.utils.data import DataLoader
 
 from monai.data import ArrayDataset
-from monai.transforms import AddChannel, Compose, LoadNifti, RandAdjustContrast, RandGaussianNoise, Spacing
+from monai.transforms import AddChannel, Compose, LoadImage, RandAdjustContrast, RandGaussianNoise, Spacing
 
 TEST_CASE_1 = [
-    Compose([LoadNifti(image_only=True), AddChannel(), RandGaussianNoise(prob=1.0)]),
-    Compose([LoadNifti(image_only=True), AddChannel(), RandGaussianNoise(prob=1.0)]),
+    Compose([LoadImage(image_only=True), AddChannel(), RandGaussianNoise(prob=1.0)]),
+    Compose([LoadImage(image_only=True), AddChannel(), RandGaussianNoise(prob=1.0)]),
     (0, 1),
     (1, 128, 128, 128),
 ]
 
 TEST_CASE_2 = [
-    Compose([LoadNifti(image_only=True), AddChannel(), RandAdjustContrast(prob=1.0)]),
-    Compose([LoadNifti(image_only=True), AddChannel(), RandAdjustContrast(prob=1.0)]),
+    Compose([LoadImage(image_only=True), AddChannel(), RandAdjustContrast(prob=1.0)]),
+    Compose([LoadImage(image_only=True), AddChannel(), RandAdjustContrast(prob=1.0)]),
     (0, 1),
     (1, 128, 128, 128),
 ]
@@ -46,13 +46,13 @@ class TestCompose(Compose):
 
 
 TEST_CASE_3 = [
-    TestCompose([LoadNifti(image_only=False), AddChannel(), Spacing(pixdim=(2, 2, 4)), RandAdjustContrast(prob=1.0)]),
-    TestCompose([LoadNifti(image_only=False), AddChannel(), Spacing(pixdim=(2, 2, 4)), RandAdjustContrast(prob=1.0)]),
+    TestCompose([LoadImage(image_only=False), AddChannel(), Spacing(pixdim=(2, 2, 4)), RandAdjustContrast(prob=1.0)]),
+    TestCompose([LoadImage(image_only=False), AddChannel(), Spacing(pixdim=(2, 2, 4)), RandAdjustContrast(prob=1.0)]),
     (0, 2),
     (1, 64, 64, 33),
 ]
 
-TEST_CASE_4 = [Compose([LoadNifti(image_only=True), AddChannel(), RandGaussianNoise(prob=1.0)]), (1, 128, 128, 128)]
+TEST_CASE_4 = [Compose([LoadImage(image_only=True), AddChannel(), RandGaussianNoise(prob=1.0)]), (1, 128, 128, 128)]
 
 
 class TestArrayDataset(unittest.TestCase):

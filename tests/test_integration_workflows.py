@@ -44,7 +44,7 @@ from monai.transforms import (
     AsDiscreted,
     Compose,
     KeepLargestConnectedComponentd,
-    LoadNiftid,
+    LoadImaged,
     RandCropByPosNegLabeld,
     RandRotate90d,
     ScaleIntensityd,
@@ -66,7 +66,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
     # define transforms for image and segmentation
     train_transforms = Compose(
         [
-            LoadNiftid(keys=["image", "label"]),
+            LoadImaged(keys=["image", "label"]),
             AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
             ScaleIntensityd(keys=["image", "label"]),
             RandCropByPosNegLabeld(
@@ -78,7 +78,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
     )
     val_transforms = Compose(
         [
-            LoadNiftid(keys=["image", "label"]),
+            LoadImaged(keys=["image", "label"]),
             AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
             ScaleIntensityd(keys=["image", "label"]),
             ToTensord(keys=["image", "label"]),
@@ -177,7 +177,7 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
     # define transforms for image and segmentation
     val_transforms = Compose(
         [
-            LoadNiftid(keys=["image", "label"]),
+            LoadImaged(keys=["image", "label"]),
             AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
             ScaleIntensityd(keys=["image", "label"]),
             ToTensord(keys=["image", "label"]),

@@ -18,7 +18,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.data import Dataset
-from monai.transforms import Compose, LoadNiftid, SimulateDelayd
+from monai.transforms import Compose, LoadImaged, SimulateDelayd
 
 TEST_CASE_1 = [(128, 128, 128)]
 
@@ -48,7 +48,7 @@ class TestDataset(unittest.TestCase):
             ]
             test_transform = Compose(
                 [
-                    LoadNiftid(keys=["image", "label", "extra"]),
+                    LoadImaged(keys=["image", "label", "extra"]),
                     SimulateDelayd(keys=["image", "label", "extra"], delay_time=[1e-7, 1e-6, 1e-5]),
                 ]
             )
@@ -63,7 +63,7 @@ class TestDataset(unittest.TestCase):
             self.assertTupleEqual(data2["label"].shape, expected_shape)
             self.assertTupleEqual(data2["extra"].shape, expected_shape)
 
-            dataset = Dataset(data=test_data, transform=LoadNiftid(keys=["image", "label", "extra"]))
+            dataset = Dataset(data=test_data, transform=LoadImaged(keys=["image", "label", "extra"]))
             data1_simple = dataset[0]
             data2_simple = dataset[1]
 

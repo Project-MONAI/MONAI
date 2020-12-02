@@ -22,7 +22,7 @@ import monai
 from monai.apps import download_and_extract
 from monai.metrics import compute_roc_auc
 from monai.networks.nets import densenet121
-from monai.transforms import AddChannel, Compose, LoadPNG, RandFlip, RandRotate, RandZoom, ScaleIntensity, ToTensor
+from monai.transforms import AddChannel, Compose, LoadImage, RandFlip, RandRotate, RandZoom, ScaleIntensity, ToTensor
 from monai.utils import set_determinism
 from tests.testing_data.integration_answers import test_integration_value
 from tests.utils import DistTestCase, TimedCall, skip_if_quick
@@ -51,7 +51,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
     # define transforms for image and classification
     train_transforms = Compose(
         [
-            LoadPNG(image_only=True),
+            LoadImage(image_only=True),
             AddChannel(),
             ScaleIntensity(),
             RandRotate(range_x=np.pi / 12, prob=0.5, keep_size=True),
@@ -61,7 +61,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
         ]
     )
     train_transforms.set_random_state(1234)
-    val_transforms = Compose([LoadPNG(image_only=True), AddChannel(), ScaleIntensity(), ToTensor()])
+    val_transforms = Compose([LoadImage(image_only=True), AddChannel(), ScaleIntensity(), ToTensor()])
 
     # create train, val data loaders
     train_ds = MedNISTDataset(train_x, train_y, train_transforms)
@@ -129,7 +129,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
 
 def run_inference_test(root_dir, test_x, test_y, device="cuda:0", num_workers=10):
     # define transforms for image and classification
-    val_transforms = Compose([LoadPNG(image_only=True), AddChannel(), ScaleIntensity(), ToTensor()])
+    val_transforms = Compose([LoadImage(image_only=True), AddChannel(), ScaleIntensity(), ToTensor()])
     val_ds = MedNISTDataset(test_x, test_y, val_transforms)
     val_loader = DataLoader(val_ds, batch_size=300, num_workers=num_workers)
 
