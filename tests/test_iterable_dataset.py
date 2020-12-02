@@ -19,7 +19,7 @@ import nibabel as nib
 import numpy as np
 
 from monai.data import DataLoader, IterableDataset
-from monai.transforms import Compose, LoadNiftid, SimulateDelayd
+from monai.transforms import Compose, LoadImaged, SimulateDelayd
 
 lock = Lock()
 
@@ -69,7 +69,7 @@ class TestIterableDataset(unittest.TestCase):
 
             test_transform = Compose(
                 [
-                    LoadNiftid(keys="image"),
+                    LoadImaged(keys="image"),
                     SimulateDelayd(keys="image", delay_time=1e-7),
                 ]
             )

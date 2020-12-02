@@ -18,9 +18,9 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.data import CacheDataset
-from monai.transforms import Compose, LoadNiftid
+from monai.transforms import Compose, LoadImaged
 
-TEST_CASE_1 = [Compose([LoadNiftid(keys=["image", "label", "extra"])]), (128, 128, 128)]
+TEST_CASE_1 = [Compose([LoadImaged(keys=["image", "label", "extra"])]), (128, 128, 128)]
 
 TEST_CASE_2 = [None, (128, 128, 128)]
 
